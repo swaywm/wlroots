@@ -21,7 +21,9 @@ static void registry_wl_seat(struct wlr_wl_backend *backend,
 		goto error;
 	}
 	seat->wl_seat = wl_seat;
+	wl_seat_set_user_data(wl_seat, backend);
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
+	return;
 error:
 	//wlr_wl_seat_free(seat); TODO
 	return;
@@ -32,13 +34,21 @@ static void registry_wl_output(struct wlr_wl_backend *backend,
 	struct wlr_wl_output *output;
 	if (!(output = calloc(sizeof(struct wlr_wl_output), 1))) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_wl_output");
-		return;
+		goto error;
+	}
+	if (!(output->modes = list_create())) {
+		wlr_log(L_ERROR, "Failed to allocate wlr_wl_output");
+		goto error;
 	}
 	output->wl_output = wl_output;
 	output->scale = 1;
 	list_add(backend->outputs, output);
 	wl_output_set_user_data(wl_output, backend);
 	wl_output_add_listener(wl_output, &output_listener, output);
+	return;
+error:
+	//wlr_wl_output_free(output); TODO
+	return;
 }
 
 static void registry_global(void *data, struct wl_registry *registry,
@@ -77,8 +87,7 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 void wlr_wlb_registry_poll(struct wlr_wl_backend *backend) {
-	wl_registry_add_listener(backend->registry,
-			&registry_listener, backend->registry);
+	wl_registry_add_listener(backend->registry, &registry_listener, backend);
 	wl_display_dispatch(backend->remote_display);
 	wl_display_roundtrip(backend->remote_display);
 }
