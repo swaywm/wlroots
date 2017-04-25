@@ -11,8 +11,8 @@ struct wlr_wl_backend {
 	struct wl_display *local_display;
 	/* remote state */
 	struct wl_display *remote_display;
-	struct wl_registry *remote_registry;
-	struct wl_compositor *remote_compositor;
+	struct wl_registry *registry;
+	struct wl_compositor *compositor;
 	struct wl_shell *shell;
 	struct wl_shm *shm;
 	struct wlr_wl_seat *seat;
@@ -20,5 +20,8 @@ struct wlr_wl_backend {
 };
 
 void wlr_wlb_registry_poll(struct wlr_wl_backend *backend);
+
+extern const struct wl_seat_listener seat_listener;
+extern const struct wl_output_listener output_listener;
 
 #endif

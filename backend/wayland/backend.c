@@ -36,8 +36,7 @@ struct wlr_wl_backend *wlr_wl_backend_init(
 		wlr_log(L_ERROR, "Could not connect to remote display");
 		goto error;
 	}
-	if (!(backend->remote_registry = wl_display_get_registry(
-			backend->remote_display))) {
+	if (!(backend->registry = wl_display_get_registry(backend->remote_display))) {
 		wlr_log(L_ERROR, "Could not obtain reference to remote registry");
 		goto error;
 	}
