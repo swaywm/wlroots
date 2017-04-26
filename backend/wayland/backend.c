@@ -9,7 +9,18 @@ void wlr_wl_backend_free(struct wlr_wl_backend *backend) {
 	if (!backend) {
 		return;
 	}
-	// TODO: free more shit
+	// TODO: Free surfaces
+	for (size_t i = 0; backend->outputs && i < backend->outputs->length; ++i) {
+		struct wlr_wl_output *output = backend->outputs->items[i];
+		wlr_wl_output_free(output);
+	}
+	list_free(backend->outputs);
+	if (backend->seat) wlr_wl_seat_free(backend->seat);
+	if (backend->shm) wl_shm_destroy(backend->shm);
+	if (backend->shell) wl_shell_destroy(backend->shell);
+	if (backend->compositor) wl_compositor_destroy(backend->compositor);
+	if (backend->registry) wl_registry_destroy(backend->registry);
+	if (backend->remote_display) wl_display_disconnect(backend->remote_display);
 	free(backend);
 }
 

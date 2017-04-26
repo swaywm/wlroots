@@ -7,10 +7,12 @@
 struct wlr_wl_seat {
 	struct wl_seat *wl_seat;
 	uint32_t capabilities;
-	const char *name;
+	char *name;
 	list_t *keyboards;
 	list_t *pointers;
 };
+
+void wlr_wl_seat_free(struct wlr_wl_seat *seat);
 
 struct wlr_wl_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -21,8 +23,8 @@ struct wlr_wl_output_mode {
 struct wlr_wl_output {
 	struct wl_output *wl_output;
 	uint32_t flags;
-	const char *make;
-	const char *model;
+	char *make;
+	char *model;
 	uint32_t scale;
 	int32_t x, y;
 	int32_t phys_width, phys_height; // mm
@@ -31,6 +33,8 @@ struct wlr_wl_output {
 	list_t *modes;
 	struct wlr_wl_output_mode *current_mode;
 };
+
+void wlr_wl_output_free(struct wlr_wl_output *output);
 
 struct wlr_wl_keyboard {
 	struct wl_keyboard *wl_keyboard;

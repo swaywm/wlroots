@@ -12,5 +12,6 @@ add_library(wlr-backend
 
 target_link_libraries(wlr-backend
     wlr-common
+    wlr-wayland
     ${WAYLAND_LIBRARIES}
 )

@@ -59,4 +59,6 @@ include_directories(include)
 
 add_subdirectory(backend)
 add_subdirectory(common)
+add_subdirectory(wayland)
+
 add_subdirectory(example)

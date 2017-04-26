@@ -25,7 +25,7 @@ static void registry_wl_seat(struct wlr_wl_backend *backend,
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
 	return;
 error:
-	//wlr_wl_seat_free(seat); TODO
+	wlr_wl_seat_free(seat);
 	return;
 }
 
@@ -47,7 +47,7 @@ static void registry_wl_output(struct wlr_wl_backend *backend,
 	wl_output_add_listener(wl_output, &output_listener, output);
 	return;
 error:
-	//wlr_wl_output_free(output); TODO
+	wlr_wl_output_free(output);
 	return;
 }
 
