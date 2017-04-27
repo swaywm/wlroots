@@ -8,6 +8,7 @@ add_library(wlr-backend
     wayland/registry.c
     wayland/wl_seat.c
     wayland/wl_output.c
+    wayland/wl_pointer.c
 )
 
 target_link_libraries(wlr-backend
