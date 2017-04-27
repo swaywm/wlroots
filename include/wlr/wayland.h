@@ -42,7 +42,8 @@ struct wlr_wl_keyboard {
 
 struct wlr_wl_pointer {
 	struct wl_pointer *wl_pointer;
-	struct wl_surface *current_surface;
+	//struct wl_surface *current_surface;
+	struct wl_client *current_client;
 	wl_fixed_t x, y;
 };
 
