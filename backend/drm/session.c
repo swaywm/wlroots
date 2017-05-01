@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -9,8 +11,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "session.h"
-#include "otd.h"
+#include "backend/drm/session.h"
+#include "backend/drm/otd.h"
 
 int take_device(struct otd *restrict otd,
 		       const char *restrict path,

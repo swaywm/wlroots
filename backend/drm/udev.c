@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <libudev.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -6,10 +8,10 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include "otd.h"
-#include "udev.h"
-#include "session.h"
-#include "drm.h"
+#include "backend/drm/otd.h"
+#include "backend/drm/udev.h"
+#include "backend/drm/session.h"
+#include "backend/drm/drm.h"
 
 static bool device_is_kms(struct otd *otd, struct udev_device *dev)
 {

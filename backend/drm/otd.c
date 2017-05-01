@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "otd.h"
-#include "drm.h"
-#include "event.h"
-#include "session.h"
-#include "udev.h"
+#include "backend/drm/otd.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/event.h"
+#include "backend/drm/session.h"
+#include "backend/drm/udev.h"
 
 struct otd *otd_start(void)
 {

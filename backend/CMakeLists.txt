@@ -1,6 +1,7 @@
 include_directories(
 	${PROTOCOLS_INCLUDE_DIRS}
 	${WAYLAND_INCLUDE_DIR}
+	${DRM_INCLUDE_DIRS}
 )
 
 add_library(wlr-backend
@@ -8,6 +9,11 @@ add_library(wlr-backend
     wayland/registry.c
     wayland/wl_seat.c
     wayland/wl_output.c
+    drm/drm.c
+    drm/event.c
+    drm/otd.c
+    drm/session.c
+    drm/udev.c
 )
 
 target_link_libraries(wlr-backend

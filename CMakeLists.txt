@@ -51,6 +51,7 @@ find_package(DRM REQUIRED)
 find_package(LibInput REQUIRED)
 find_package(Udev)
 find_package(Dbus)
+find_package(Systemd)
 
 include(Wayland)
 include(Manpage)

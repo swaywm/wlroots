@@ -1,6 +1,6 @@
-#include "otd.h"
-#include "drm.h"
-#include "event.h"
+#include "backend/drm/otd.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/event.h"
 
 #include <assert.h>
 #include <stdio.h>

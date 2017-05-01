@@ -1,7 +1,7 @@
-#include "otd.h"
-#include "event.h"
-#include "drm.h"
-#include "udev.h"
+#include "backend/drm/otd.h"
+#include "backend/drm/event.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/udev.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
