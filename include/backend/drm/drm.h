@@ -7,17 +7,35 @@
 #include <EGL/egl.h>
 #include <gbm.h>
 
-enum otd_display_state {
-	OTD_DISP_INVALID,
-	OTD_DISP_DISCONNECTED,
-	OTD_DISP_NEEDS_MODESET,
-	OTD_DISP_CONNECTED,
+struct wlr_drm_renderer {
+	int fd;
+
+	// Currently here so that rendering has access to the event queue.
+	// Ideally this is will be removed later once the way events are
+	// handled is changed.
+	struct wlr_drm_backend *backend;
+
+	struct gbm_device *gbm;
+	struct {
+		EGLDisplay disp;
+		EGLConfig conf;
+		EGLContext context;
+	} egl;
 };
 
-struct otd_display {
-	struct otd *otd;
+bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_backend *backend, int fd);
+void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
-	enum otd_display_state state;
+enum wlr_drm_display_state {
+	DRM_DISP_INVALID,
+	DRM_DISP_DISCONNECTED,
+	DRM_DISP_NEEDS_MODESET,
+	DRM_DISP_CONNECTED,
+};
+
+struct wlr_drm_display {
+	enum wlr_drm_display_state state;
 	uint32_t connector;
 	char name[16];
 
@@ -31,24 +49,22 @@ struct otd_display {
 	uint32_t crtc;
 	drmModeCrtc *old_crtc;
 
+	struct wlr_drm_renderer *renderer;
 	struct gbm_surface *gbm;
 	EGLSurface *egl;
-	uint32_t fb_id;
 
 	bool pageflip_pending;
 	bool cleanup;
 };
 
-bool init_renderer(struct otd *otd);
-void destroy_renderer(struct otd *otd);
+bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
+		struct wlr_drm_display *disp, const char *str);
+void wlr_drm_display_free(struct wlr_drm_display *disp);
 
-void scan_connectors(struct otd *otd);
-bool modeset_str(struct otd *otd, struct otd_display *disp, const char *str);
-void destroy_display_renderer(struct otd *otd, struct otd_display *disp);
+void wlr_drm_display_begin(struct wlr_drm_display *disp);
+void wlr_drm_display_end(struct wlr_drm_display *disp);
 
-void get_drm_event(struct otd *otd);
-
-void rendering_begin(struct otd_display *disp);
-void rendering_end(struct otd_display *disp);
+void wlr_drm_scan_connectors(struct wlr_drm_backend *backend);
+void wlr_drm_event(int fd);
 
 #endif

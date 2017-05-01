@@ -2,20 +2,24 @@
 #define EVENT_H
 
 #include <stdbool.h>
+#include "drm.h"
 
-enum otd_event_type {
-	OTD_EV_NONE,
-	OTD_EV_RENDER,
-	OTD_EV_DISPLAY_REM,
-	OTD_EV_DISPLAY_ADD,
+enum wlr_drm_event_type {
+	DRM_EV_NONE,
+	DRM_EV_RENDER,
+	DRM_EV_DISPLAY_REM,
+	DRM_EV_DISPLAY_ADD,
 };
 
-struct otd_event {
-	enum otd_event_type type;
-	struct otd_display *display;
+struct wlr_drm_event {
+	enum wlr_drm_event_type type;
+	struct wlr_drm_display *display;
 };
 
-bool otd_get_event(struct otd *otd, struct otd_event *restrict ret);
-bool event_add(struct otd *otd, struct otd_display *disp, enum otd_event_type type);
+struct wlr_drm_backend;
+bool wlr_drm_get_event(struct wlr_drm_backend *backend,
+		struct wlr_drm_event *restrict ret);
+bool wlr_drm_add_event(struct wlr_drm_backend *backend,
+		struct wlr_drm_display *disp, enum wlr_drm_event_type type);
 
 #endif

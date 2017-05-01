@@ -4,22 +4,21 @@
 #include <systemd/sd-bus.h>
 #include <stdbool.h>
 
-struct otd_session {
+struct wlr_session {
+	sd_bus *bus;
+
 	char *id;
 	char *path;
 	char *seat;
-
-	sd_bus *bus;
 };
 
-struct otd;
-bool otd_new_session(struct otd *otd);
-void otd_close_session(struct otd *otd);
+bool wlr_session_start(struct wlr_session *session);
+void wlr_session_end(struct wlr_session *session);
 
-int take_device(struct otd *restrict otd,
-		       const char *restrict path,
-		       bool *restrict paused_out);
+int wlr_session_take_device(struct wlr_session *restrict session,
+		const char *restrict path,
+		bool *restrict paused_out);
 
-void release_device(struct otd *otd, int fd);
+void wlr_session_release_device(struct wlr_session *session, int fd);
 
 #endif

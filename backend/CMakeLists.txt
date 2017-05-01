@@ -9,9 +9,9 @@ add_library(wlr-backend
     wayland/registry.c
     wayland/wl_seat.c
     wayland/wl_output.c
+    drm/backend.c
     drm/drm.c
     drm/event.c
-    drm/otd.c
     drm/session.c
     drm/udev.c
 )

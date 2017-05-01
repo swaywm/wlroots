@@ -8,12 +8,15 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include "backend/drm/otd.h"
+#include "backend/drm/backend.h"
 #include "backend/drm/udev.h"
 #include "backend/drm/session.h"
 #include "backend/drm/drm.h"
 
-static bool device_is_kms(struct otd *otd, struct udev_device *dev)
+static bool device_is_kms(struct wlr_udev *udev,
+		struct wlr_session *session,
+		struct udev_device *dev,
+		int *fd_out)
 {
 	const char *path = udev_device_get_devnode(dev);
 	int fd;
@@ -21,7 +24,7 @@ static bool device_is_kms(struct otd *otd, struct udev_device *dev)
 	if (!path)
 		return false;
 
-	fd = take_device(otd, path, &otd->paused);
+	fd = wlr_session_take_device(session, path, NULL);
 	if (fd < 0)
 		return false;
 
@@ -33,13 +36,13 @@ static bool device_is_kms(struct otd *otd, struct udev_device *dev)
 	    res->count_encoders <= 0)
 		goto out_res;
 
-	if (otd->fd >= 0) {
-		release_device(otd, otd->fd);
-		free(otd->drm_path);
+	if (*fd_out >= 0) {
+		wlr_session_release_device(session, *fd_out);
+		free(udev->drm_path);
 	}
 
-	otd->fd = fd;
-	otd->drm_path = strdup(path);
+	*fd_out = fd;
+	udev->drm_path = strdup(path);
 
 	drmModeFreeResources(res);
 	return true;
@@ -47,18 +50,17 @@ static bool device_is_kms(struct otd *otd, struct udev_device *dev)
 out_res:
 	drmModeFreeResources(res);
 out_fd:
-	release_device(otd, fd);
+	wlr_session_release_device(session, fd);
 	return false;
 }
 
-void otd_udev_find_gpu(struct otd *otd)
+int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 {
-	struct udev *udev = otd->udev;
-	otd->fd = -1;
+	int fd = -1;
 
-	struct udev_enumerate *en = udev_enumerate_new(udev);
+	struct udev_enumerate *en = udev_enumerate_new(udev->udev);
 	if (!en)
-		return;
+		return -1;
 
 	udev_enumerate_add_match_subsystem(en, "drm");
 	udev_enumerate_add_match_sysname(en, "card[0-9]*");
@@ -69,14 +71,14 @@ void otd_udev_find_gpu(struct otd *otd)
 		bool is_boot_vga = false;
 
 		const char *path = udev_list_entry_get_name(entry);
-		struct udev_device *dev = udev_device_new_from_syspath(udev, path);
+		struct udev_device *dev = udev_device_new_from_syspath(udev->udev, path);
 		if (!dev)
 			continue;
 
 		const char *seat = udev_device_get_property_value(dev, "ID_SEAT");
 		if (!seat)
 			seat = "seat0";
-		if (strcmp(otd->session.seat, seat) != 0) {
+		if (strcmp(session->seat, seat) != 0) {
 			udev_device_unref(dev);
 			continue;
 		}
@@ -92,12 +94,12 @@ void otd_udev_find_gpu(struct otd *otd)
 			udev_device_unref(pci);
 		}
 
-		if (!is_boot_vga && otd->fd >= 0) {
+		if (!is_boot_vga && fd >= 0) {
 			udev_device_unref(dev);
 			continue;
 		}
 
-		if (!device_is_kms(otd, dev)) {
+		if (!device_is_kms(udev, session, dev, &fd)) {
 			udev_device_unref(dev);
 			continue;
 		}
@@ -108,52 +110,59 @@ void otd_udev_find_gpu(struct otd *otd)
 	}
 
 	udev_enumerate_unref(en);
+
+	return fd;
 }
 
-bool otd_udev_start(struct otd *otd)
+bool wlr_udev_init(struct wlr_udev *udev)
 {
-	otd->udev = udev_new();
-	if (!otd->udev)
+	udev->udev = udev_new();
+	if (!udev->udev)
 		return false;
 
-	otd->mon = udev_monitor_new_from_netlink(otd->udev, "udev");
-	if (!otd->mon) {
-		udev_unref(otd->udev);
+	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
+	if (!udev->mon) {
+		udev_unref(udev->udev);
 		return false;
 	}
 
-	udev_monitor_filter_add_match_subsystem_devtype(otd->mon, "drm", NULL);
-	udev_monitor_enable_receiving(otd->mon);
+	udev_monitor_filter_add_match_subsystem_devtype(udev->mon, "drm", NULL);
+	udev_monitor_enable_receiving(udev->mon);
 
-	otd->udev_fd = udev_monitor_get_fd(otd->mon);
+	udev->mon_fd = udev_monitor_get_fd(udev->mon);
+	udev->drm_path = NULL;
 
 	return true;
 }
 
-void otd_udev_finish(struct otd *otd)
+void wlr_udev_free(struct wlr_udev *udev)
+
 {
-	if (!otd)
+	if (!udev)
 		return;
 
-	udev_monitor_unref(otd->mon);
-	udev_unref(otd->udev);
+	udev_monitor_unref(udev->mon);
+	udev_unref(udev->udev);
+	free(udev->drm_path);
 }
 
-void otd_udev_event(struct otd *otd)
+void wlr_udev_event(struct wlr_drm_backend *backend)
 {
-	struct udev_device *dev = udev_monitor_receive_device(otd->mon);
+	struct wlr_udev *udev = &backend->udev;
+
+	struct udev_device *dev = udev_monitor_receive_device(udev->mon);
 	if (!dev)
 		return;
 
 	const char *path = udev_device_get_devnode(dev);
-	if (!path || strcmp(path, otd->drm_path) != 0)
+	if (!path || strcmp(path, udev->drm_path) != 0)
 		goto out;
 
 	const char *action = udev_device_get_action(dev);
 	if (!action || strcmp(action, "change") != 0)
 		goto out;
 
-	scan_connectors(otd);
+	wlr_drm_scan_connectors(backend);
 
 out:
 	udev_device_unref(dev);
