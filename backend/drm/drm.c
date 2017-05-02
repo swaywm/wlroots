@@ -11,10 +11,10 @@
 #include <EGL/eglext.h>
 #include <gbm.h>
 #include <GLES3/gl3.h>
+#include <wayland-server.h>
 
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
-#include "backend/drm/event.h"
 #include "common/log.h"
 
 static const char *conn_name[] = {
@@ -134,6 +134,33 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out)
 	return false;
 }
 
+static void page_flip_handler(int fd,
+		unsigned seq,
+		unsigned tv_sec,
+		unsigned tv_usec,
+		void *user)
+{
+	struct wlr_drm_display *disp = user;
+	struct wlr_drm_backend *backend = disp->renderer->backend;
+
+	disp->pageflip_pending = true;
+	if (!disp->cleanup)
+		wl_signal_emit(&backend->signals.display_render, disp);
+}
+
+
+static int drm_event(int fd, uint32_t mask, void *data)
+{
+	drmEventContext event = {
+		.version = DRM_EVENT_CONTEXT_VERSION,
+		.page_flip_handler = page_flip_handler,
+	};
+
+	drmHandleEvent(fd, &event);
+
+	return 1;
+}
+
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_backend *backend, int fd)
 {
@@ -174,6 +201,13 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 
 	if (renderer->egl.context == EGL_NO_CONTEXT) {
 		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
+		goto error_egl;
+	}
+
+	backend->event_src.drm = wl_event_loop_add_fd(backend->event_loop,
+			backend->fd, WL_EVENT_READABLE, drm_event, NULL);
+	if (!backend->event_src.drm) {
+		wlr_log(L_ERROR, "Failed to create DRM event source");
 		goto error_egl;
 	}
 
@@ -252,13 +286,13 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 		if (disp->state == DRM_DISP_DISCONNECTED &&
 		    conn->connection == DRM_MODE_CONNECTED) {
 			disp->state = DRM_DISP_NEEDS_MODESET;
-			wlr_drm_add_event(backend, disp, DRM_EV_DISPLAY_ADD);
+			wl_signal_emit(&backend->signals.display_add, disp);
 
 		} else if (disp->state == DRM_DISP_CONNECTED &&
 		    conn->connection != DRM_MODE_CONNECTED) {
 			disp->state = DRM_DISP_DISCONNECTED;
 			wlr_drm_display_free(disp, false);
-			wlr_drm_add_event(backend, disp, DRM_EV_DISPLAY_REM);
+			wl_signal_emit(&backend->signals.display_rem, disp);
 		}
 
 		drmModeFreeConnector(conn);
@@ -488,22 +522,9 @@ error:
 	drmModeFreeConnector(conn);
 	free(disp->modes);
 
-	wlr_drm_add_event(backend, disp, DRM_EV_DISPLAY_REM);
+	wl_signal_emit(&backend->signals.display_rem, disp);
 
 	return false;
-}
-
-static void page_flip_handler(int fd,
-		unsigned seq,
-		unsigned tv_sec,
-		unsigned tv_usec,
-		void *user)
-{
-	struct wlr_drm_display *disp = user;
-
-	disp->pageflip_pending = true;
-	if (!disp->cleanup)
-		wlr_drm_add_event(disp->renderer->backend, disp, DRM_EV_RENDER);
 }
 
 void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore)
@@ -540,16 +561,6 @@ void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore)
 			       1, &crtc->mode);
 		drmModeFreeCrtc(crtc);
 	}
-}
-
-void wlr_drm_event(int fd)
-{
-	drmEventContext event = {
-		.version = DRM_EVENT_CONTEXT_VERSION,
-		.page_flip_handler = page_flip_handler,
-	};
-
-	drmHandleEvent(fd, &event);
 }
 
 void wlr_drm_display_begin(struct wlr_drm_display *disp)

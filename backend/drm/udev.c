@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <wayland-server.h>
 
 #include "backend/drm/backend.h"
 #include "backend/drm/udev.h"
@@ -116,48 +117,14 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 	return fd;
 }
 
-bool wlr_udev_init(struct wlr_udev *udev)
+static int udev_event(int fd, uint32_t mask, void *data)
 {
-	udev->udev = udev_new();
-	if (!udev->udev) {
-		wlr_log(L_ERROR, "Failed to create udev context");
-		return false;
-	}
-
-	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
-	if (!udev->mon) {
-		wlr_log(L_ERROR, "Failed to create udev monitor");
-		udev_unref(udev->udev);
-		return false;
-	}
-
-	udev_monitor_filter_add_match_subsystem_devtype(udev->mon, "drm", NULL);
-	udev_monitor_enable_receiving(udev->mon);
-
-	udev->mon_fd = udev_monitor_get_fd(udev->mon);
-	udev->drm_path = NULL;
-
-	return true;
-}
-
-void wlr_udev_free(struct wlr_udev *udev)
-
-{
-	if (!udev)
-		return;
-
-	udev_monitor_unref(udev->mon);
-	udev_unref(udev->udev);
-	free(udev->drm_path);
-}
-
-void wlr_udev_event(struct wlr_drm_backend *backend)
-{
+	struct wlr_drm_backend *backend = data;
 	struct wlr_udev *udev = &backend->udev;
 
 	struct udev_device *dev = udev_monitor_receive_device(udev->mon);
 	if (!dev)
-		return;
+		return 1;
 
 	const char *path = udev_device_get_devnode(dev);
 	if (!path || strcmp(path, udev->drm_path) != 0)
@@ -171,4 +138,54 @@ void wlr_udev_event(struct wlr_drm_backend *backend)
 
 out:
 	udev_device_unref(dev);
+	return 1;
+}
+
+bool wlr_udev_init(struct wlr_drm_backend *backend)
+{
+	struct wlr_udev *udev = &backend->udev;
+
+	udev->udev = udev_new();
+	if (!udev->udev) {
+		wlr_log(L_ERROR, "Failed to create udev context");
+		return false;
+	}
+
+	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
+	if (!udev->mon) {
+		wlr_log(L_ERROR, "Failed to create udev monitor");
+		goto error_udev;
+	}
+
+	udev_monitor_filter_add_match_subsystem_devtype(udev->mon, "drm", NULL);
+	udev_monitor_enable_receiving(udev->mon);
+
+	backend->event_src.udev = wl_event_loop_add_fd(backend->event_loop,
+			udev_monitor_get_fd(udev->mon), WL_EVENT_READABLE,
+			udev_event, backend);
+	if (!backend->event_src.udev) {
+		wlr_log(L_ERROR, "Failed to create udev event source");
+		goto error_mon;
+	}
+
+	udev->drm_path = NULL;
+
+	return true;
+
+error_mon:
+	udev_monitor_unref(udev->mon);
+error_udev:
+	udev_unref(udev->udev);
+	return false;
+}
+
+void wlr_udev_free(struct wlr_udev *udev)
+
+{
+	if (!udev)
+		return;
+
+	udev_monitor_unref(udev->mon);
+	udev_unref(udev->udev);
+	free(udev->drm_path);
 }

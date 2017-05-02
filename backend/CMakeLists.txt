@@ -11,7 +11,6 @@ add_library(wlr-backend
     wayland/wl_output.c
     drm/backend.c
     drm/drm.c
-    drm/event.c
     drm/session.c
     drm/udev.c
 )

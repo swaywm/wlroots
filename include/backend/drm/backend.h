@@ -6,6 +6,7 @@
 #include <EGL/egl.h>
 #include <gbm.h>
 #include <libudev.h>
+#include <wayland-server.h>
 
 #include "session.h"
 #include "udev.h"
@@ -16,10 +17,18 @@ struct wlr_drm_backend {
 	int fd;
 	bool paused;
 
-	// Priority Queue (Max-heap)
-	size_t event_cap;
-	size_t event_len;
-	struct wlr_drm_event *events;
+	struct wl_event_loop *event_loop;
+
+	struct {
+		struct wl_event_source *drm;
+		struct wl_event_source *udev;
+	} event_src;
+
+	struct {
+		struct wl_signal display_add;
+		struct wl_signal display_rem;
+		struct wl_signal display_render;
+	} signals;
 
 	size_t display_len;
 	struct wlr_drm_display *displays;
