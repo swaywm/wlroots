@@ -4,6 +4,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include <wlr/common/list.h>
+
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
 #include "backend/drm/session.h"
@@ -18,10 +20,16 @@ struct wlr_drm_backend *wlr_drm_backend_init(void)
 		return NULL;
 	}
 
+	backend->displays = list_create();
+	if (!backend->displays) {
+		wlr_log(L_ERROR, "Failed to allocate list");
+		goto error_backend;
+	}
+
 	backend->event_loop = wl_event_loop_create();
 	if (!backend->event_loop) {
 		wlr_log(L_ERROR, "Failed to create event loop");
-		goto error_backend;
+		goto error_list;
 	}
 
 	if (!wlr_session_start(&backend->session)) {
@@ -61,9 +69,17 @@ error_session:
 	wlr_session_end(&backend->session);
 error_loop:
 	wl_event_loop_destroy(backend->event_loop);
+error_list:
+	list_free(backend->displays);
 error_backend:
 	free(backend);
 	return NULL;
+}
+
+static void free_display(void *item)
+{
+	struct wlr_drm_display *disp = item;
+	wlr_drm_display_free(disp, true);
 }
 
 void wlr_drm_backend_free(struct wlr_drm_backend *backend)
@@ -71,9 +87,7 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 	if (!backend)
 		return;
 
-	for (size_t i = 0; i < backend->display_len; ++i) {
-		wlr_drm_display_free(&backend->displays[i], true);
-	}
+	list_foreach(backend->displays, free_display);
 
 	wlr_drm_renderer_free(&backend->renderer);
 	wlr_udev_free(&backend->udev);
@@ -83,7 +97,7 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 	wl_event_source_remove(backend->event_src.drm);
 	wl_event_loop_destroy(backend->event_loop);
 
-	free(backend->displays);
+	list_free(backend->displays);
 	free(backend);
 }
 

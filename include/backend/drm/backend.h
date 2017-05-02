@@ -8,6 +8,8 @@
 #include <libudev.h>
 #include <wayland-server.h>
 
+#include <wlr/common/list.h>
+
 #include "session.h"
 #include "udev.h"
 #include "event.h"
@@ -30,8 +32,7 @@ struct wlr_drm_backend {
 		struct wl_signal display_render;
 	} signals;
 
-	size_t display_len;
-	struct wlr_drm_display *displays;
+	list_t *displays;
 
 	uint32_t taken_crtcs;
 

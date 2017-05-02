@@ -240,6 +240,19 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer)
 	gbm_device_destroy(renderer->gbm);
 }
 
+static int find_id(const void *item, const void *cmp_to)
+{
+	const struct wlr_drm_display *disp = item;
+	const uint32_t *id = cmp_to;
+
+	if (disp->connector < *id)
+		return -1;
+	else if (disp->connector > *id)
+		return 1;
+	else
+		return 0;
+}
+
 void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 {
 	drmModeRes *res = drmModeGetResources(backend->fd);
@@ -248,39 +261,35 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 		return;
 	}
 
-	// I don't know if this needs to be allocated with realloc like this,
-	// as it may not even be possible for the number of connectors to change.
-	// I'll just have to see how DisplayPort MST works with DRM.
-	if ((size_t)res->count_connectors > backend->display_len) {
-		struct wlr_drm_display *new = realloc(backend->displays, sizeof *new * res->count_connectors);
-		if (!new) {
-			wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-			goto error;
-		}
-
-		for (int i = backend->display_len; i < res->count_connectors; ++i) {
-			new[i] = (struct wlr_drm_display) {
-				.state = DRM_DISP_INVALID,
-				.renderer = &backend->renderer,
-			};
-		}
-
-		backend->display_len = res->count_connectors;
-		backend->displays = new;
-	}
-
 	for (int i = 0; i < res->count_connectors; ++i) {
-		struct wlr_drm_display *disp = &backend->displays[i];
-		drmModeConnector *conn = drmModeGetConnector(backend->fd, res->connectors[i]);
-		if (!conn)
-			continue;
+		uint32_t id = res->connectors[i];
 
-		if (backend->displays[i].state == DRM_DISP_INVALID) {
+		drmModeConnector *conn = drmModeGetConnector(backend->fd, id);
+		if (!conn) {
+			wlr_log(L_ERROR, "Failed to get DRM connector");
+			continue;
+		}
+
+		struct wlr_drm_display *disp;
+		int index = list_seq_find(backend->displays, find_id, &id);
+
+		if (index == -1) {
+			disp = calloc(1, sizeof *disp);
+			if (!disp) {
+				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+				drmModeFreeConnector(conn);
+				continue;
+			}
+
 			disp->state = DRM_DISP_DISCONNECTED;
 			disp->connector = res->connectors[i];
 			snprintf(disp->name, sizeof disp->name, "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
+
+			list_add(backend->displays, disp);
+		} else {
+			disp = backend->displays->items[index];
 		}
 
 		if (disp->state == DRM_DISP_DISCONNECTED &&
@@ -298,7 +307,6 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 		drmModeFreeConnector(conn);
 	}
 
-error:
 	drmModeFreeResources(res);
 }
 
