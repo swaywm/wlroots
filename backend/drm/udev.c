@@ -12,6 +12,7 @@
 #include "backend/drm/udev.h"
 #include "backend/drm/session.h"
 #include "backend/drm/drm.h"
+#include "common/log.h"
 
 static bool device_is_kms(struct wlr_udev *udev,
 		struct wlr_session *session,
@@ -59,8 +60,10 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 	int fd = -1;
 
 	struct udev_enumerate *en = udev_enumerate_new(udev->udev);
-	if (!en)
+	if (!en) {
+		wlr_log(L_ERROR, "Failed to create udev enumeration");
 		return -1;
+	}
 
 	udev_enumerate_add_match_subsystem(en, "drm");
 	udev_enumerate_add_match_sysname(en, "card[0-9]*");
@@ -84,8 +87,7 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 		}
 
 		struct udev_device *pci =
-			udev_device_get_parent_with_subsystem_devtype(dev,
-								      "pci", NULL);
+			udev_device_get_parent_with_subsystem_devtype(dev, "pci", NULL);
 
 		if (pci) {
 			const char *id = udev_device_get_sysattr_value(pci, "boot_vga");
@@ -117,11 +119,14 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 bool wlr_udev_init(struct wlr_udev *udev)
 {
 	udev->udev = udev_new();
-	if (!udev->udev)
+	if (!udev->udev) {
+		wlr_log(L_ERROR, "Failed to create udev context");
 		return false;
+	}
 
 	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
 	if (!udev->mon) {
+		wlr_log(L_ERROR, "Failed to create udev monitor");
 		udev_unref(udev->udev);
 		return false;
 	}

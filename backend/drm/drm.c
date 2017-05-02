@@ -1,7 +1,3 @@
-#include "backend/drm/backend.h"
-#include "backend/drm/drm.h"
-#include "backend/drm/event.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +11,11 @@
 #include <EGL/eglext.h>
 #include <gbm.h>
 #include <GLES3/gl3.h>
+
+#include "backend/drm/backend.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/event.h"
+#include "common/log.h"
 
 static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_Unknown]     = "Unknown",
@@ -36,6 +37,44 @@ static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_DSI]         = "DSI",
 };
 
+static const char *egl_error(void)
+{
+	switch (eglGetError()) {
+	case EGL_SUCCESS:
+		return "Success";
+	case EGL_NOT_INITIALIZED:
+		return "Not initialized";
+	case EGL_BAD_ACCESS:
+		return "Bad access";
+	case EGL_BAD_ALLOC:
+		return "Bad alloc";
+	case EGL_BAD_ATTRIBUTE:
+		return "Bad attribute";
+	case EGL_BAD_CONTEXT:
+		return "Bad Context";
+	case EGL_BAD_CONFIG:
+		return "Bad Config";
+	case EGL_BAD_CURRENT_SURFACE:
+		return "Bad current surface";
+	case EGL_BAD_DISPLAY:
+		return "Bad display";
+	case EGL_BAD_SURFACE:
+		return "Bad surface";
+	case EGL_BAD_MATCH:
+		return "Bad match";
+	case EGL_BAD_PARAMETER:
+		return "Bad parameter";
+	case EGL_BAD_NATIVE_PIXMAP:
+		return "Bad native pixmap";
+	case EGL_BAD_NATIVE_WINDOW:
+		return "Bad native window";
+	case EGL_CONTEXT_LOST:
+		return "Context lost";
+	default:
+		return "Unknown";
+	}
+}
+
 // EGL extensions
 PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
 PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
@@ -45,10 +84,20 @@ static bool egl_exts()
 	get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)
 		eglGetProcAddress("eglGetPlatformDisplayEXT");
 
+	if (!get_platform_display) {
+		wlr_log(L_ERROR, "Failed to load EGL extension 'eglGetPlatformDisplayEXT'");
+		return false;
+	}
+
 	create_platform_window_surface = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)
 		eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 
-	return get_platform_display && create_platform_window_surface;
+	if (!get_platform_display) {
+		wlr_log(L_ERROR, "Failed to load EGL extension 'eglCreatePlatformWindowSurfaceEXT'");
+		return false;
+	}
+
+	return true;
 }
 
 static bool egl_get_config(EGLDisplay disp, EGLConfig *out)
@@ -88,35 +137,33 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out)
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_backend *backend, int fd)
 {
-	if (!egl_exts()) {
-		fprintf(stderr, "Could not get EGL extensions\n");
+	if (!egl_exts())
 		return false;
-	}
 
 	renderer->gbm = gbm_create_device(fd);
 	if (!renderer->gbm) {
-		fprintf(stderr, "Could not create gbm device: %s\n", strerror(errno));
+		wlr_log(L_ERROR, "Failed to create GBM device: %s", strerror(errno));
 		return false;
 	}
 
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
-		fprintf(stderr, "Could not bind GLES3 API\n");
+		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API: %s", egl_error());
 		goto error_gbm;
 	}
 
 	renderer->egl.disp = get_platform_display(EGL_PLATFORM_GBM_MESA, renderer->gbm, NULL);
 	if (renderer->egl.disp == EGL_NO_DISPLAY) {
-		fprintf(stderr, "Could not create EGL display\n");
+		wlr_log(L_ERROR, "Failed to create EGL display: %s", egl_error());
 		goto error_gbm;
 	}
 
 	if (eglInitialize(renderer->egl.disp, NULL, NULL) == EGL_FALSE) {
-		fprintf(stderr, "Could not initalise EGL\n");
+		wlr_log(L_ERROR, "Failed to initialize EGL: %s", egl_error());
 		goto error_egl;
 	}
 
 	if (!egl_get_config(renderer->egl.disp, &renderer->egl.conf)) {
-		fprintf(stderr, "Could not get EGL config\n");
+		wlr_log(L_ERROR, "Failed to get EGL config");
 		goto error_egl;
 	}
 
@@ -126,7 +173,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 			renderer->egl.conf, EGL_NO_CONTEXT, attribs);
 
 	if (renderer->egl.context == EGL_NO_CONTEXT) {
-		fprintf(stderr, "Could not create EGL context\n");
+		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
 		goto error_egl;
 	}
 
@@ -162,16 +209,20 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer)
 void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 {
 	drmModeRes *res = drmModeGetResources(backend->fd);
-	if (!res)
+	if (!res) {
+		wlr_log(L_ERROR, "Failed to get DRM resources");
 		return;
+	}
 
 	// I don't know if this needs to be allocated with realloc like this,
 	// as it may not even be possible for the number of connectors to change.
 	// I'll just have to see how DisplayPort MST works with DRM.
 	if ((size_t)res->count_connectors > backend->display_len) {
 		struct wlr_drm_display *new = realloc(backend->displays, sizeof *new * res->count_connectors);
-		if (!new)
+		if (!new) {
+			wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 			goto error;
+		}
 
 		for (int i = backend->display_len; i < res->count_connectors; ++i) {
 			new[i] = (struct wlr_drm_display) {
@@ -206,6 +257,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 		} else if (disp->state == DRM_DISP_CONNECTED &&
 		    conn->connection != DRM_MODE_CONNECTED) {
 			disp->state = DRM_DISP_DISCONNECTED;
+			wlr_drm_display_free(disp, false);
 			wlr_drm_add_event(backend, disp, DRM_EV_DISPLAY_REM);
 		}
 
@@ -234,8 +286,10 @@ static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo)
 		return *id;
 
 	id = calloc(1, sizeof *id);
-	if (!id)
+	if (!id) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return 0;
+	}
 
 	drmModeAddFB(fd, gbm_bo_get_width(bo), gbm_bo_get_height(bo), 24, 32,
 		     gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, id);
@@ -254,13 +308,19 @@ static bool display_init_renderer(struct wlr_drm_renderer *renderer,
 				       disp->width, disp->height,
 				       GBM_FORMAT_XRGB8888,
 				       GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!disp->gbm)
+	if (!disp->gbm) {
+		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", disp->name,
+			strerror(errno));
 		return false;
+	}
 
 	disp->egl = create_platform_window_surface(renderer->egl.disp, renderer->egl.conf,
 						   disp->gbm, NULL);
-	if (disp->egl == EGL_NO_SURFACE)
+	if (disp->egl == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s: %s", disp->name,
+			egl_error());
 		return false;
+	}
 
 	// Render black frame
 
@@ -294,7 +354,7 @@ static drmModeModeInfo *select_mode(size_t num_modes,
 
 	if (strcmp(str, "current") == 0) {
 		if (!old_crtc) {
-			fprintf(stderr, "Display does not have currently configured mode\n");
+			wlr_log(L_ERROR, "Display does not have currently configured mode");
 			return NULL;
 		}
 
@@ -313,7 +373,7 @@ static drmModeModeInfo *select_mode(size_t num_modes,
 	int ret;
 
 	if ((ret = sscanf(str, "%ux%u@%u", &width, &height, &rate)) != 2 && ret != 3) {
-		fprintf(stderr, "Invalid modesetting string\n");
+		wlr_log(L_ERROR, "Invalid modesetting string '%s'", str);
 		return NULL;
 	}
 
@@ -324,21 +384,39 @@ static drmModeModeInfo *select_mode(size_t num_modes,
 			return &modes[i];
 	}
 
+	wlr_log(L_ERROR, "Unable to find mode %ux%u@%u", width, height, rate);
 	return NULL;
 }
 
 bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
 		struct wlr_drm_display *disp, const char *str)
 {
+	wlr_log(L_INFO, "Modesetting %s with '%s'", disp->name, str);
+
 	drmModeConnector *conn = drmModeGetConnector(backend->fd, disp->connector);
-	if (!conn || conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0)
+	if (!conn) {
+		wlr_log(L_ERROR, "Failed to get DRM connector");
 		goto error;
+	}
+
+	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
+		wlr_log(L_ERROR, "%s is not connected", disp->name);
+		goto error;
+	}
 
 	disp->num_modes = conn->count_modes;
 	disp->modes = malloc(sizeof *disp->modes * disp->num_modes);
-	if (!disp->modes)
+	if (!disp->modes) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		goto error;
+	}
 	memcpy(disp->modes, conn->modes, sizeof *disp->modes * disp->num_modes);
+
+	wlr_log(L_INFO, "Detected modes:");
+	for (size_t i = 0; i < disp->num_modes; ++i)
+		wlr_log(L_INFO, "  %"PRIu16"@%"PRIu16"@%"PRIu32,
+			disp->modes[i].hdisplay, disp->modes[i].vdisplay,
+			disp->modes[i].vrefresh);
 
 	drmModeEncoder *curr_enc = drmModeGetEncoder(backend->fd, conn->encoder_id);
 	if (curr_enc) {
@@ -348,17 +426,15 @@ bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
 
 	disp->active_mode = select_mode(disp->num_modes, disp->modes, disp->old_crtc, str);
 	if (!disp->active_mode) {
-		fprintf(stderr, "Could not find mode '%s' for %s\n", str, disp->name);
+		wlr_log(L_ERROR, "Failed to configure %s", disp->name);
 		goto error;
 	}
 
-	fprintf(stderr, "Configuring %s with mode %ux%u@%u\n",
-		disp->name, disp->active_mode->hdisplay, disp->active_mode->vdisplay,
-		disp->active_mode->vrefresh);
-
 	drmModeRes *res = drmModeGetResources(backend->fd);
-	if (!res)
+	if (!res) {
+		wlr_log(L_ERROR, "Failed to get DRM resources");
 		goto error;
+	}
 
 	bool success = false;
 	for (int i = 0; !success && i < conn->count_encoders; ++i) {
@@ -384,21 +460,33 @@ bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
 
 	drmModeFreeResources(res);
 
-	if (!success)
+	if (!success) {
+		wlr_log(L_ERROR, "Failed to find CRTC for %s", disp->name);
 		goto error;
+	}
 
 	disp->state = DRM_DISP_CONNECTED;
-	drmModeFreeConnector(conn);
 
 	disp->width = disp->active_mode->hdisplay;
 	disp->height = disp->active_mode->vdisplay;
 
-	display_init_renderer(&backend->renderer, disp);
+	if (!display_init_renderer(&backend->renderer, disp)) {
+		wlr_log(L_ERROR, "Failed to initalise renderer for %s", disp->name);
+		goto error;
+	}
+
+	drmModeFreeConnector(conn);
+
+	wlr_log(L_INFO, "Configuring %s with mode %"PRIu16"x%"PRIu16"@%"PRIu32"\n",
+		disp->name, disp->active_mode->hdisplay, disp->active_mode->vdisplay,
+		disp->active_mode->vrefresh);
 
 	return true;
+
 error:
 	disp->state = DRM_DISP_DISCONNECTED;
 	drmModeFreeConnector(conn);
+	free(disp->modes);
 
 	wlr_drm_add_event(backend, disp, DRM_EV_DISPLAY_REM);
 
@@ -418,12 +506,21 @@ static void page_flip_handler(int fd,
 		wlr_drm_add_event(disp->renderer->backend, disp, DRM_EV_RENDER);
 }
 
-void wlr_drm_display_free(struct wlr_drm_display *disp)
+void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore)
 {
 	if (!disp || disp->state != DRM_DISP_CONNECTED)
 		return;
 
 	struct wlr_drm_renderer *renderer = disp->renderer;
+
+	eglDestroySurface(renderer->egl.disp, disp->egl);
+	gbm_surface_destroy(disp->gbm);
+
+	free(disp->modes);
+	disp->state = DRM_DISP_DISCONNECTED;
+
+	if (!restore)
+		return;
 
 	drmModeCrtc *crtc = disp->old_crtc;
 	if (crtc) {
@@ -443,11 +540,6 @@ void wlr_drm_display_free(struct wlr_drm_display *disp)
 			       1, &crtc->mode);
 		drmModeFreeCrtc(crtc);
 	}
-
-	eglDestroySurface(renderer->egl.disp, disp->egl);
-	gbm_surface_destroy(disp->gbm);
-
-	free(disp->modes);
 }
 
 void wlr_drm_event(int fd)
