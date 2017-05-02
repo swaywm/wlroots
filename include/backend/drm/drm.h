@@ -57,8 +57,7 @@ struct wlr_drm_display {
 	bool cleanup;
 };
 
-bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
-		struct wlr_drm_display *disp, const char *str);
+bool wlr_drm_display_modeset(struct wlr_drm_display *disp, const char *str);
 void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore);
 
 void wlr_drm_display_begin(struct wlr_drm_display *disp);

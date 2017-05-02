@@ -194,7 +194,7 @@ bool wlr_session_start(struct wlr_session *session)
 
 	sprintf(session->path, fmt, session->id);
 
-	ret = sd_bus_open_system(&session->bus);
+	ret = sd_bus_default_system(&session->bus);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to open DBus connection: %s", strerror(-ret));
 		goto error;

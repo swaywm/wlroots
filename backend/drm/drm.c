@@ -281,6 +281,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 				continue;
 			}
 
+			disp->renderer = &backend->renderer;
 			disp->state = DRM_DISP_DISCONNECTED;
 			disp->connector = res->connectors[i];
 			snprintf(disp->name, sizeof disp->name, "%s-%"PRIu32,
@@ -288,6 +289,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 				 conn->connector_type_id);
 
 			list_add(backend->displays, disp);
+			wlr_log(L_INFO, "Found display '%s'", disp->name);
 		} else {
 			disp = backend->displays->items[index];
 		}
@@ -295,12 +297,14 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend)
 		if (disp->state == DRM_DISP_DISCONNECTED &&
 		    conn->connection == DRM_MODE_CONNECTED) {
 			disp->state = DRM_DISP_NEEDS_MODESET;
+			wlr_log(L_INFO, "Sending modesetting signal for '%s'", disp->name);
 			wl_signal_emit(&backend->signals.display_add, disp);
 
 		} else if (disp->state == DRM_DISP_CONNECTED &&
 		    conn->connection != DRM_MODE_CONNECTED) {
 			disp->state = DRM_DISP_DISCONNECTED;
 			wlr_drm_display_free(disp, false);
+			wlr_log(L_INFO, "Sending destruction signal for '%s'", disp->name);
 			wl_signal_emit(&backend->signals.display_rem, disp);
 		}
 
@@ -430,9 +434,9 @@ static drmModeModeInfo *select_mode(size_t num_modes,
 	return NULL;
 }
 
-bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
-		struct wlr_drm_display *disp, const char *str)
+bool wlr_drm_display_modeset(struct wlr_drm_display *disp, const char *str)
 {
+	struct wlr_drm_backend *backend = disp->renderer->backend;
 	wlr_log(L_INFO, "Modesetting %s with '%s'", disp->name, str);
 
 	drmModeConnector *conn = drmModeGetConnector(backend->fd, disp->connector);
@@ -519,7 +523,7 @@ bool wlr_drm_display_modeset(struct wlr_drm_backend *backend,
 
 	drmModeFreeConnector(conn);
 
-	wlr_log(L_INFO, "Configuring %s with mode %"PRIu16"x%"PRIu16"@%"PRIu32"\n",
+	wlr_log(L_INFO, "Configuring %s with mode %"PRIu16"x%"PRIu16"@%"PRIu32"",
 		disp->name, disp->active_mode->hdisplay, disp->active_mode->vdisplay,
 		disp->active_mode->vrefresh);
 

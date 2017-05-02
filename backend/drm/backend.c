@@ -12,7 +12,9 @@
 #include "backend/drm/udev.h"
 #include "common/log.h"
 
-struct wlr_drm_backend *wlr_drm_backend_init(void)
+struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
+		struct wl_listener *rem,
+		struct wl_listener *render)
 {
 	struct wlr_drm_backend *backend = calloc(1, sizeof *backend);
 	if (!backend) {
@@ -57,6 +59,13 @@ struct wlr_drm_backend *wlr_drm_backend_init(void)
 	wl_signal_init(&backend->signals.display_rem);
 	wl_signal_init(&backend->signals.display_render);
 
+	if (add)
+		wl_signal_add(&backend->signals.display_add, add);
+	if (rem)
+		wl_signal_add(&backend->signals.display_rem, rem);
+	if (render)
+		wl_signal_add(&backend->signals.display_render, render);
+
 	wlr_drm_scan_connectors(backend);
 
 	return backend;
@@ -80,6 +89,7 @@ static void free_display(void *item)
 {
 	struct wlr_drm_display *disp = item;
 	wlr_drm_display_free(disp, true);
+	free(disp);
 }
 
 void wlr_drm_backend_free(struct wlr_drm_backend *backend)
@@ -95,9 +105,14 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 	wlr_session_end(&backend->session);
 
 	wl_event_source_remove(backend->event_src.drm);
+	wl_event_source_remove(backend->event_src.udev);
 	wl_event_loop_destroy(backend->event_loop);
 
 	list_free(backend->displays);
 	free(backend);
 }
 
+struct wl_event_loop *wlr_drm_backend_get_event_loop(struct wlr_drm_backend *backend)
+{
+	return backend->event_loop;
+}

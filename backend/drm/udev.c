@@ -94,9 +94,10 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 			const char *id = udev_device_get_sysattr_value(pci, "boot_vga");
 			if (id && strcmp(id, "1") == 0)
 				is_boot_vga = true;
-			udev_device_unref(pci);
+			//udev_device_unref(pci);
 		}
 
+		// We already have a valid GPU
 		if (!is_boot_vga && fd >= 0) {
 			udev_device_unref(dev);
 			continue;
@@ -107,9 +108,10 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 			continue;
 		}
 
-		if (is_boot_vga) {
+		udev_device_unref(dev);
+
+		if (is_boot_vga)
 			break;
-		}
 	}
 
 	udev_enumerate_unref(en);

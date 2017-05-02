@@ -19,4 +19,11 @@ target_link_libraries(wlr-backend
     wlr-common
     wlr-wayland
     ${WAYLAND_LIBRARIES}
+    ${DRM_LIBRARIES}
+    ${GBM_LIBRARIES}
+    ${GLESv2_LIBRARIES}
+    ${EGL_LIBRARIES}
+    ${SYSTEMD_LIBRARIES}
+    ${UDEV_LIBRARIES}
+    ${GBM_LIBRARIES}
 )

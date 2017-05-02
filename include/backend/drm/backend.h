@@ -9,6 +9,7 @@
 #include <wayland-server.h>
 
 #include <wlr/common/list.h>
+#include <wlr/backend/drm.h>
 
 #include "session.h"
 #include "udev.h"
@@ -41,7 +42,9 @@ struct wlr_drm_backend {
 	struct wlr_udev udev;
 };
 
-struct wlr_drm_backend *wlr_drm_backend_init(void);
+struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
+		struct wl_listener *rem,
+		struct wl_listener *render);
 void wlr_drm_backend_free(struct wlr_drm_backend *backend);
 
 #endif
