@@ -16,5 +16,6 @@ struct wlr_session {
 };
 
 extern const struct session_interface session_logind_iface;
+extern const struct session_interface session_direct_iface;
 
 #endif

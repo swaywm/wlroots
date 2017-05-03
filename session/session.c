@@ -9,6 +9,7 @@ static const struct session_interface *ifaces[] = {
 #ifdef HAS_SYSTEMD
 	&session_logind_iface,
 #endif
+	&session_direct_iface,
 	NULL,
 };
 

@@ -4,6 +4,7 @@ include_directories(
 
 set(sources
     session.c
+    direct.c
 )
 
 set(libs
