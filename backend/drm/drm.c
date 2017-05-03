@@ -37,103 +37,6 @@ static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_DSI]         = "DSI",
 };
 
-static const char *egl_error(void)
-{
-	switch (eglGetError()) {
-	case EGL_SUCCESS:
-		return "Success";
-	case EGL_NOT_INITIALIZED:
-		return "Not initialized";
-	case EGL_BAD_ACCESS:
-		return "Bad access";
-	case EGL_BAD_ALLOC:
-		return "Bad alloc";
-	case EGL_BAD_ATTRIBUTE:
-		return "Bad attribute";
-	case EGL_BAD_CONTEXT:
-		return "Bad Context";
-	case EGL_BAD_CONFIG:
-		return "Bad Config";
-	case EGL_BAD_CURRENT_SURFACE:
-		return "Bad current surface";
-	case EGL_BAD_DISPLAY:
-		return "Bad display";
-	case EGL_BAD_SURFACE:
-		return "Bad surface";
-	case EGL_BAD_MATCH:
-		return "Bad match";
-	case EGL_BAD_PARAMETER:
-		return "Bad parameter";
-	case EGL_BAD_NATIVE_PIXMAP:
-		return "Bad native pixmap";
-	case EGL_BAD_NATIVE_WINDOW:
-		return "Bad native window";
-	case EGL_CONTEXT_LOST:
-		return "Context lost";
-	default:
-		return "Unknown";
-	}
-}
-
-// EGL extensions
-PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
-PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
-
-static bool egl_exts()
-{
-	get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)
-		eglGetProcAddress("eglGetPlatformDisplayEXT");
-
-	if (!get_platform_display) {
-		wlr_log(L_ERROR, "Failed to load EGL extension 'eglGetPlatformDisplayEXT'");
-		return false;
-	}
-
-	create_platform_window_surface = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)
-		eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
-
-	if (!get_platform_display) {
-		wlr_log(L_ERROR, "Failed to load EGL extension 'eglCreatePlatformWindowSurfaceEXT'");
-		return false;
-	}
-
-	return true;
-}
-
-static bool egl_get_config(EGLDisplay disp, EGLConfig *out)
-{
-	EGLint count = 0, matched = 0, ret;
-
-	ret = eglGetConfigs(disp, NULL, 0, &count);
-	if (ret == EGL_FALSE || count == 0) {
-		return false;
-	}
-
-	EGLConfig configs[count];
-
-	ret = eglChooseConfig(disp, NULL, configs, count, &matched);
-	if (ret == EGL_FALSE) {
-		return false;
-	}
-
-	for (int i = 0; i < matched; ++i) {
-		EGLint gbm_format;
-
-		if (!eglGetConfigAttrib(disp,
-					configs[i],
-					EGL_NATIVE_VISUAL_ID,
-					&gbm_format))
-			continue;
-
-		if (gbm_format == GBM_FORMAT_XRGB8888) {
-			*out = configs[i];
-			return true;
-		}
-	}
-
-	return false;
-}
-
 static void page_flip_handler(int fd,
 		unsigned seq,
 		unsigned tv_sec,
@@ -164,44 +67,14 @@ static int drm_event(int fd, uint32_t mask, void *data)
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_backend *backend, int fd)
 {
-	if (!egl_exts())
-		return false;
-
 	renderer->gbm = gbm_create_device(fd);
 	if (!renderer->gbm) {
 		wlr_log(L_ERROR, "Failed to create GBM device: %s", strerror(errno));
 		return false;
 	}
 
-	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API: %s", egl_error());
+	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA, renderer->gbm)) {
 		goto error_gbm;
-	}
-
-	renderer->egl.disp = get_platform_display(EGL_PLATFORM_GBM_MESA, renderer->gbm, NULL);
-	if (renderer->egl.disp == EGL_NO_DISPLAY) {
-		wlr_log(L_ERROR, "Failed to create EGL display: %s", egl_error());
-		goto error_gbm;
-	}
-
-	if (eglInitialize(renderer->egl.disp, NULL, NULL) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to initialize EGL: %s", egl_error());
-		goto error_egl;
-	}
-
-	if (!egl_get_config(renderer->egl.disp, &renderer->egl.conf)) {
-		wlr_log(L_ERROR, "Failed to get EGL config");
-		goto error_egl;
-	}
-
-	static const EGLint attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
-
-	renderer->egl.context = eglCreateContext(renderer->egl.disp,
-			renderer->egl.conf, EGL_NO_CONTEXT, attribs);
-
-	if (renderer->egl.context == EGL_NO_CONTEXT) {
-		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
-		goto error_egl;
 	}
 
 	backend->event_src.drm = wl_event_loop_add_fd(backend->event_loop,
@@ -217,9 +90,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 	return true;
 
 error_egl:
-	eglTerminate(renderer->egl.disp);
-	eglReleaseThread();
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	wlr_egl_free(&renderer->egl);
 
 error_gbm:
 	gbm_device_destroy(renderer->gbm);
@@ -232,11 +103,7 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer)
 	if (!renderer)
 		return;
 
-	eglDestroyContext(renderer->egl.disp, renderer->egl.context);
-	eglTerminate(renderer->egl.disp);
-	eglReleaseThread();
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
+	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 
@@ -360,23 +227,21 @@ static bool display_init_renderer(struct wlr_drm_renderer *renderer,
 		return false;
 	}
 
-	disp->egl = create_platform_window_surface(renderer->egl.disp, renderer->egl.conf,
-						   disp->gbm, NULL);
+	disp->egl = wlr_egl_create_surface(&renderer->egl, disp->gbm);
 	if (disp->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s: %s", disp->name,
-			egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s", disp->name);
 		return false;
 	}
 
 	// Render black frame
 
-	eglMakeCurrent(renderer->egl.disp, disp->egl, disp->egl, renderer->egl.context);
+	eglMakeCurrent(renderer->egl.display, disp->egl, disp->egl, renderer->egl.context);
 
 	glViewport(0, 0, disp->width, disp->height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	eglSwapBuffers(renderer->egl.disp, disp->egl);
+	eglSwapBuffers(renderer->egl.display, disp->egl);
 
 	struct gbm_bo *bo = gbm_surface_lock_front_buffer(disp->gbm);
 	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
@@ -546,7 +411,7 @@ void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore)
 
 	struct wlr_drm_renderer *renderer = disp->renderer;
 
-	eglDestroySurface(renderer->egl.disp, disp->egl);
+	eglDestroySurface(renderer->egl.display, disp->egl);
 	gbm_surface_destroy(disp->gbm);
 
 	free(disp->modes);
@@ -578,13 +443,13 @@ void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore)
 void wlr_drm_display_begin(struct wlr_drm_display *disp)
 {
 	struct wlr_drm_renderer *renderer = disp->renderer;
-	eglMakeCurrent(renderer->egl.disp, disp->egl, disp->egl, renderer->egl.context);
+	eglMakeCurrent(renderer->egl.display, disp->egl, disp->egl, renderer->egl.context);
 }
 
 void wlr_drm_display_end(struct wlr_drm_display *disp)
 {
 	struct wlr_drm_renderer *renderer = disp->renderer;
-	eglSwapBuffers(renderer->egl.disp, disp->egl);
+	eglSwapBuffers(renderer->egl.display, disp->egl);
 
 	struct gbm_bo *bo = gbm_surface_lock_front_buffer(disp->gbm);
 	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);

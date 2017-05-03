@@ -7,6 +7,8 @@
 #include <EGL/egl.h>
 #include <gbm.h>
 
+#include "backend/egl.h"
+
 struct wlr_drm_renderer {
 	int fd;
 
@@ -16,11 +18,7 @@ struct wlr_drm_renderer {
 	struct wlr_drm_backend *backend;
 
 	struct gbm_device *gbm;
-	struct {
-		EGLDisplay disp;
-		EGLConfig conf;
-		EGLContext context;
-	} egl;
+	struct wlr_egl egl;
 };
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
