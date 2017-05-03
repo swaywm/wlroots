@@ -3,7 +3,7 @@
 
 #include <libudev.h>
 
-#include "backend/drm/session.h"
+#include <wlr/session.h>
 
 struct wlr_udev {
 	struct udev *udev;

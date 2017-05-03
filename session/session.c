@@ -1,6 +1,8 @@
 #include <stddef.h>
 
 #include <wlr/session.h>
+#include <stdarg.h>
+#include "common/log.h"
 #include "session/interface.h"
 
 static const struct session_interface *ifaces[] = {
@@ -20,6 +22,7 @@ struct wlr_session *wlr_session_start(void) {
 		}
 	}
 
+	wlr_log(L_ERROR, "Failed to load session backend");
 	return NULL;
 }
 

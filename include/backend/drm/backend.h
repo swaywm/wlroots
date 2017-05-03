@@ -8,10 +8,10 @@
 #include <libudev.h>
 #include <wayland-server.h>
 
+#include <wlr/session.h>
 #include <wlr/common/list.h>
 #include <wlr/backend/drm.h>
 
-#include "session.h"
 #include "udev.h"
 #include "event.h"
 #include "drm.h"
@@ -38,13 +38,12 @@ struct wlr_drm_backend {
 	uint32_t taken_crtcs;
 
 	struct wlr_drm_renderer renderer;
-	struct wlr_session session;
+	struct wlr_session *session;
 	struct wlr_udev udev;
 };
 
-struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
-		struct wl_listener *rem,
-		struct wl_listener *render);
+struct wlr_drm_backend *wlr_drm_backend_init(struct wlr_session *session,
+	struct wl_listener *add, struct wl_listener *rem, struct wl_listener *render);
 void wlr_drm_backend_free(struct wlr_drm_backend *backend);
 
 #endif

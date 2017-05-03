@@ -12,4 +12,5 @@ add_executable(example-drm
 
 target_link_libraries(example-drm
     wlr-backend
+    wlr-session
 )

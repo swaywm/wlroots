@@ -6,6 +6,7 @@
 #include <GLES3/gl3.h>
 
 #include <wlr/backend/drm.h>
+#include <wlr/session.h>
 
 struct state {
 	float color[3];
@@ -92,7 +93,13 @@ int main()
 	wl_list_init(&state.render.link);
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
-	struct wlr_drm_backend *wlr = wlr_drm_backend_init(&state.add, &state.rem, &state.render);
+	struct wlr_session *session = wlr_session_start();
+	if (!session) {
+		return 1;
+	}
+
+	struct wlr_drm_backend *wlr = wlr_drm_backend_init(session,
+		&state.add, &state.rem, &state.render);
 
 	bool done = false;
 	struct wl_event_loop *event_loop = wlr_drm_backend_get_event_loop(wlr);

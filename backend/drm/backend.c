@@ -4,23 +4,24 @@
 #include <string.h>
 #include <errno.h>
 
+#include <wlr/session.h>
 #include <wlr/common/list.h>
 
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
-#include "backend/drm/session.h"
 #include "backend/drm/udev.h"
 #include "common/log.h"
 
-struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
-		struct wl_listener *rem,
-		struct wl_listener *render)
+struct wlr_drm_backend *wlr_drm_backend_init(struct wlr_session *session,
+	struct wl_listener *add, struct wl_listener *rem, struct wl_listener *render)
 {
 	struct wlr_drm_backend *backend = calloc(1, sizeof *backend);
 	if (!backend) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
+
+	backend->session = session;
 
 	backend->displays = list_create();
 	if (!backend->displays) {
@@ -34,17 +35,12 @@ struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
 		goto error_list;
 	}
 
-	if (!wlr_session_start(&backend->session)) {
-		wlr_log(L_ERROR, "Failed to start session");
+	if (!wlr_udev_init(backend)) {
+		wlr_log(L_ERROR, "Failed to start udev");
 		goto error_loop;
 	}
 
-	if (!wlr_udev_init(backend)) {
-		wlr_log(L_ERROR, "Failed to start udev");
-		goto error_session;
-	}
-
-	backend->fd = wlr_udev_find_gpu(&backend->udev, &backend->session);
+	backend->fd = wlr_udev_find_gpu(&backend->udev, backend->session);
 	if (backend->fd == -1) {
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
@@ -71,11 +67,9 @@ struct wlr_drm_backend *wlr_drm_backend_init(struct wl_listener *add,
 	return backend;
 
 error_fd:
-	wlr_session_release_device(&backend->session, backend->fd);
+	wlr_session_close_file(backend->session, backend->fd);
 error_udev:
 	wlr_udev_free(&backend->udev);
-error_session:
-	wlr_session_end(&backend->session);
 error_loop:
 	wl_event_loop_destroy(backend->event_loop);
 error_list:
@@ -101,8 +95,8 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 
 	wlr_drm_renderer_free(&backend->renderer);
 	wlr_udev_free(&backend->udev);
-	wlr_session_release_device(&backend->session, backend->fd);
-	wlr_session_end(&backend->session);
+	wlr_session_close_file(backend->session, backend->fd);
+	wlr_session_finish(backend->session);
 
 	wl_event_source_remove(backend->event_src.drm);
 	wl_event_source_remove(backend->event_src.udev);

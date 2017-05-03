@@ -9,9 +9,10 @@
 #include <xf86drmMode.h>
 #include <wayland-server.h>
 
+#include <wlr/session.h>
+
 #include "backend/drm/backend.h"
 #include "backend/drm/udev.h"
-#include "backend/drm/session.h"
 #include "backend/drm/drm.h"
 #include "common/log.h"
 
@@ -26,7 +27,7 @@ static bool device_is_kms(struct wlr_udev *udev,
 	if (!path)
 		return false;
 
-	fd = wlr_session_take_device(session, path, NULL);
+	fd = wlr_session_open_file(session, path);
 	if (fd < 0)
 		return false;
 
@@ -39,7 +40,7 @@ static bool device_is_kms(struct wlr_udev *udev,
 		goto out_res;
 
 	if (*fd_out >= 0) {
-		wlr_session_release_device(session, *fd_out);
+		wlr_session_close_file(session, *fd_out);
 		free(udev->drm_path);
 	}
 
@@ -52,7 +53,7 @@ static bool device_is_kms(struct wlr_udev *udev,
 out_res:
 	drmModeFreeResources(res);
 out_fd:
-	wlr_session_release_device(session, fd);
+	wlr_session_close_file(session, fd);
 	return false;
 }
 
@@ -79,6 +80,7 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 		if (!dev)
 			continue;
 
+		/*
 		const char *seat = udev_device_get_property_value(dev, "ID_SEAT");
 		if (!seat)
 			seat = "seat0";
@@ -86,6 +88,7 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session)
 			udev_device_unref(dev);
 			continue;
 		}
+		*/
 
 		struct udev_device *pci =
 			udev_device_get_parent_with_subsystem_devtype(dev, "pci", NULL);
