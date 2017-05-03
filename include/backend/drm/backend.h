@@ -20,12 +20,7 @@ struct wlr_drm_backend {
 	int fd;
 	bool paused;
 
-	struct wl_event_loop *event_loop;
-
-	struct {
-		struct wl_event_source *drm;
-		struct wl_event_source *udev;
-	} event_src;
+	struct wl_event_source *drm_event;
 
 	struct {
 		struct wl_signal output_add;
@@ -33,17 +28,12 @@ struct wlr_drm_backend {
 		struct wl_signal output_render;
 	} signals;
 
-	list_t *outputs;
-
 	uint32_t taken_crtcs;
+	list_t *outputs;
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
 	struct wlr_udev udev;
 };
-
-struct wlr_drm_backend *wlr_drm_backend_init(struct wlr_session *session,
-	struct wl_listener *add, struct wl_listener *rem, struct wl_listener *render);
-void wlr_drm_backend_free(struct wlr_drm_backend *backend);
 
 #endif

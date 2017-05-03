@@ -41,7 +41,7 @@ static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv
 	void *user) {
 
 	struct wlr_drm_output *out = user;
-	struct wlr_drm_backend *backend = out->renderer->backend;
+	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
 
 	out->pageflip_pending = true;
 	if (!out->cleanup) {
@@ -49,7 +49,7 @@ static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv
 	}
 }
 
-static int drm_event(int fd, uint32_t mask, void *data) {
+int wlr_drm_event(int fd, uint32_t mask, void *data) {
 	drmEventContext event = {
 		.version = DRM_EVENT_CONTEXT_VERSION,
 		.page_flip_handler = page_flip_handler,
@@ -60,8 +60,7 @@ static int drm_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_backend *backend, int fd) {
+bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 
 	renderer->gbm = gbm_create_device(fd);
 	if (!renderer->gbm) {
@@ -70,28 +69,12 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 	}
 
 	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA, renderer->gbm)) {
-		goto error_gbm;
-	}
-
-	backend->event_src.drm = wl_event_loop_add_fd(backend->event_loop,
-			backend->fd, WL_EVENT_READABLE, drm_event, NULL);
-	if (!backend->event_src.drm) {
-		wlr_log(L_ERROR, "Failed to create DRM event source");
-		goto error_egl;
+		gbm_device_destroy(renderer->gbm);
+		return false;
 	}
 
 	renderer->fd = fd;
-	renderer->backend = backend;
-
 	return true;
-
-error_egl:
-	wlr_egl_free(&renderer->egl);
-
-error_gbm:
-	gbm_device_destroy(renderer->gbm);
-
-	return false;
 }
 
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
@@ -296,7 +279,7 @@ static drmModeModeInfo *select_mode(size_t num_modes, drmModeModeInfo modes[stat
 }
 
 bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str) {
-	struct wlr_drm_backend *backend = out->renderer->backend;
+	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
 	wlr_log(L_INFO, "Modesetting %s with '%s'", out->name, str);
 
 	drmModeConnector *conn = drmModeGetConnector(backend->fd, out->connector);

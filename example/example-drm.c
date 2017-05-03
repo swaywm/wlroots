@@ -93,16 +93,18 @@ int main()
 	wl_list_init(&state.render.link);
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
+	struct wl_display *display = wl_display_create();
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
+
 	struct wlr_session *session = wlr_session_start();
 	if (!session) {
 		return 1;
 	}
 
-	struct wlr_drm_backend *wlr = wlr_drm_backend_init(session,
+	struct wlr_drm_backend *wlr = wlr_drm_backend_init(display, session,
 		&state.add, &state.rem, &state.render);
 
 	bool done = false;
-	struct wl_event_loop *event_loop = wlr_drm_backend_get_event_loop(wlr);
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
 

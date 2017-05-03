@@ -21,8 +21,7 @@ struct wlr_drm_renderer {
 	struct wlr_egl egl;
 };
 
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_backend *backend, int fd);
+bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
 enum wlr_drm_output_state {
@@ -62,6 +61,6 @@ void wlr_drm_output_begin(struct wlr_drm_output *out);
 void wlr_drm_output_end(struct wlr_drm_output *out);
 
 void wlr_drm_scan_connectors(struct wlr_drm_backend *backend);
-void wlr_drm_event(int fd);
+int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 #endif
