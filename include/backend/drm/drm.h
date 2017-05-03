@@ -12,11 +12,6 @@
 struct wlr_drm_renderer {
 	int fd;
 
-	// Currently here so that rendering has access to the event queue.
-	// Ideally this is will be removed later once the way events are
-	// handled is changed.
-	struct wlr_drm_backend *backend;
-
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 };

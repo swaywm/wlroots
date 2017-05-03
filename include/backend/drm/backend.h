@@ -18,7 +18,6 @@
 
 struct wlr_drm_backend {
 	int fd;
-	bool paused;
 
 	struct wl_event_source *drm_event;
 
