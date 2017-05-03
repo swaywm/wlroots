@@ -1,6 +1,7 @@
 #ifndef _WLR_COMMON_LOG_H
 #define _WLR_COMMON_LOG_H
 #include <stdbool.h>
+#include <stdarg.h>
 
 typedef enum {
 	L_SILENT = 0,

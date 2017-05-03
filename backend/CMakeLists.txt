@@ -12,6 +12,7 @@ add_library(wlr-backend
     drm/backend.c
     drm/drm.c
     drm/udev.c
+    egl.c
 )
 
 target_link_libraries(wlr-backend

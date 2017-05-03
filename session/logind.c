@@ -200,7 +200,7 @@ static struct wlr_session *logind_session_start(void) {
 	if (!take_control(session))
 		goto error_bus;
 
-	wl_log(L_INFO, "Successfully loaded logind session");
+	wlr_log(L_INFO, "Successfully loaded logind session");
 
 	session->base.iface = session_logind_iface;
 	return &session->base;
