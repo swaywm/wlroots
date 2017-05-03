@@ -23,8 +23,10 @@ void output_add(struct wl_listener *listener, void *data)
 {
 	struct wlr_drm_output *out = data;
 
-	fprintf(stderr, "Output added\n");
-	wlr_drm_output_modeset(out, "preferred");
+	size_t num_modes;
+	struct wlr_drm_mode *modes = wlr_drm_output_get_modes(out, &num_modes);
+
+	wlr_drm_output_modeset(out, &modes[0]);
 }
 
 void output_rem(struct wl_listener *listener, void *data)
@@ -115,4 +117,5 @@ int main()
 
 	wl_event_source_remove(timer);
 	wlr_drm_backend_free(wlr);
+	wl_display_destroy(display);
 }

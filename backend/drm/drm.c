@@ -37,29 +37,6 @@ static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_DSI]         = "DSI",
 };
 
-static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv_usec,
-	void *user) {
-
-	struct wlr_drm_output *out = user;
-	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
-
-	out->pageflip_pending = true;
-	if (!out->cleanup) {
-		wl_signal_emit(&backend->signals.output_render, out);
-	}
-}
-
-int wlr_drm_event(int fd, uint32_t mask, void *data) {
-	drmEventContext event = {
-		.version = DRM_EVENT_CONTEXT_VERSION,
-		.page_flip_handler = page_flip_handler,
-	};
-
-	drmHandleEvent(fd, &event);
-
-	return 1;
-}
-
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 
 	renderer->gbm = gbm_create_device(fd);
@@ -84,6 +61,97 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
 
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
+}
+
+static void free_fb(struct gbm_bo *bo, void *data) {
+	uint32_t *id = data;
+
+	if (id && *id) {
+		drmModeRmFB(gbm_bo_get_fd(bo), *id);
+	}
+
+	free(id);
+}
+
+static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo) {
+	uint32_t *id = gbm_bo_get_user_data(bo);
+
+	if (id) {
+		return *id;
+	}
+
+	id = calloc(1, sizeof *id);
+	if (!id) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		return 0;
+	}
+
+	drmModeAddFB(fd, gbm_bo_get_width(bo), gbm_bo_get_height(bo), 24, 32,
+		     gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, id);
+
+	gbm_bo_set_user_data(bo, id, free_fb);
+
+	return *id;
+}
+
+void wlr_drm_output_begin(struct wlr_drm_output *out) {
+	struct wlr_drm_renderer *renderer = out->renderer;
+	eglMakeCurrent(renderer->egl.display, out->egl, out->egl, renderer->egl.context);
+}
+
+void wlr_drm_output_end(struct wlr_drm_output *out) {
+	struct wlr_drm_renderer *renderer = out->renderer;
+	eglSwapBuffers(renderer->egl.display, out->egl);
+
+	struct gbm_bo *bo = gbm_surface_lock_front_buffer(out->gbm);
+	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
+
+	drmModePageFlip(renderer->fd, out->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, out);
+
+	gbm_surface_release_buffer(out->gbm, bo);
+
+	out->pageflip_pending = false;
+}
+
+static bool display_init_renderer(struct wlr_drm_renderer *renderer,
+	struct wlr_drm_output *out) {
+
+	out->renderer = renderer;
+
+	out->gbm = gbm_surface_create(renderer->gbm, out->width, out->height,
+		GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+	if (!out->gbm) {
+		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", out->name,
+			strerror(errno));
+		return false;
+	}
+
+	out->egl = wlr_egl_create_surface(&renderer->egl, out->gbm);
+	if (out->egl == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s", out->name);
+		return false;
+	}
+
+	// Render black frame
+
+	eglMakeCurrent(renderer->egl.display, out->egl, out->egl, renderer->egl.context);
+
+	glViewport(0, 0, out->width, out->height);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	eglSwapBuffers(renderer->egl.display, out->egl);
+
+	struct gbm_bo *bo = gbm_surface_lock_front_buffer(out->gbm);
+	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
+
+	drmModeSetCrtc(renderer->fd, out->crtc, fb_id, 0, 0,
+		       &out->connector, 1, &out->active_mode->mode);
+	drmModePageFlip(renderer->fd, out->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, out);
+
+	gbm_surface_release_buffer(out->gbm, bo);
+
+	return true;
 }
 
 static int find_id(const void *item, const void *cmp_to) {
@@ -142,6 +210,30 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		if (out->state == DRM_OUTPUT_DISCONNECTED &&
 			conn->connection == DRM_MODE_CONNECTED) {
 
+			wlr_log(L_INFO, "'%s' connected", out->name);
+
+			out->modes = malloc(sizeof(*out->modes) * conn->count_modes);
+			if (!out->modes) {
+				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+				goto error;
+			}
+
+			wlr_log(L_INFO, "Detected modes:");
+
+			out->num_modes = conn->count_modes;
+			for (int i = 0; i < conn->count_modes; ++i) {
+				drmModeModeInfo *mode = &conn->modes[i];
+				out->modes[i].width = mode->hdisplay;
+				out->modes[i].height = mode->vdisplay;
+				// TODO: Calculate more accurate refresh rate
+				out->modes[i].rate = mode->vrefresh;
+				out->modes[i].mode = *mode;
+
+				wlr_log(L_INFO, "  %"PRIu16"@%"PRIu16"@%"PRIu32,
+					mode->hdisplay, mode->vdisplay,
+					mode->vrefresh);
+			}
+
 			out->state = DRM_OUTPUT_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'", out->name);
 			wl_signal_emit(&backend->signals.output_add, out);
@@ -149,138 +241,32 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		} else if (out->state == DRM_OUTPUT_CONNECTED &&
 			conn->connection != DRM_MODE_CONNECTED) {
 
-			out->state = DRM_OUTPUT_DISCONNECTED;
-			wlr_drm_output_free(out, false);
+			wlr_drm_output_cleanup(out, false);
 			wlr_log(L_INFO, "Sending destruction signal for '%s'", out->name);
 			wl_signal_emit(&backend->signals.output_rem, out);
 		}
-
+error:
 		drmModeFreeConnector(conn);
 	}
 
 	drmModeFreeResources(res);
 }
 
-static void free_fb(struct gbm_bo *bo, void *data) {
-	uint32_t *id = data;
-
-	if (id && *id) {
-		drmModeRmFB(gbm_bo_get_fd(bo), *id);
-	}
-
-	free(id);
-}
-
-static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo) {
-	uint32_t *id = gbm_bo_get_user_data(bo);
-
-	if (id) {
-		return *id;
-	}
-
-	id = calloc(1, sizeof *id);
-	if (!id) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return 0;
-	}
-
-	drmModeAddFB(fd, gbm_bo_get_width(bo), gbm_bo_get_height(bo), 24, 32,
-		     gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, id);
-
-	gbm_bo_set_user_data(bo, id, free_fb);
-
-	return *id;
-}
-
-static bool display_init_renderer(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_output *out) {
-
-	out->renderer = renderer;
-
-	out->gbm = gbm_surface_create(renderer->gbm, out->width, out->height,
-		GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!out->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", out->name,
-			strerror(errno));
-		return false;
-	}
-
-	out->egl = wlr_egl_create_surface(&renderer->egl, out->gbm);
-	if (out->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s", out->name);
-		return false;
-	}
-
-	// Render black frame
-
-	eglMakeCurrent(renderer->egl.display, out->egl, out->egl, renderer->egl.context);
-
-	glViewport(0, 0, out->width, out->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	eglSwapBuffers(renderer->egl.display, out->egl);
-
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(out->gbm);
-	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
-
-	drmModeSetCrtc(renderer->fd, out->crtc, fb_id, 0, 0,
-		       &out->connector, 1, out->active_mode);
-	drmModePageFlip(renderer->fd, out->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, out);
-
-	gbm_surface_release_buffer(out->gbm, bo);
-
-	return true;
-}
-
-static drmModeModeInfo *select_mode(size_t num_modes, drmModeModeInfo modes[static num_modes],
-	drmModeCrtc *old_crtc, const char *str) {
-
-	if (strcmp(str, "preferred") == 0) {
-		return &modes[0];
-	}
-
-	if (strcmp(str, "current") == 0) {
-		if (!old_crtc) {
-			wlr_log(L_ERROR, "Display does not have currently configured mode");
-			return NULL;
-		}
-
-		for (size_t i = 0; i < num_modes; ++i) {
-			if (memcmp(&modes[i], &old_crtc->mode, sizeof modes[0]) == 0) {
-				return &modes[i];
-			}
-		}
-
-		// We should never get here
-		assert(0);
-	}
-
-	unsigned width = 0;
-	unsigned height = 0;
-	unsigned rate = 0;
-	int ret;
-
-	if ((ret = sscanf(str, "%ux%u@%u", &width, &height, &rate)) != 2 && ret != 3) {
-		wlr_log(L_ERROR, "Invalid modesetting string '%s'", str);
+struct wlr_drm_mode *wlr_drm_output_get_modes(struct wlr_drm_output *out, size_t *count) {
+	if (out->state == DRM_OUTPUT_DISCONNECTED) {
+		*count = 0;
 		return NULL;
 	}
 
-	for (size_t i = 0; i < num_modes; ++i) {
-		if (modes[i].hdisplay == width && modes[i].vdisplay == height && 
-			(!rate || modes[i].vrefresh == rate)) {
-
-			return &modes[i];
-		}
-	}
-
-	wlr_log(L_ERROR, "Unable to find mode %ux%u@%u", width, height, rate);
-	return NULL;
+	*count = out->num_modes;
+	return out->modes;
 }
 
-bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str) {
+bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mode) {
 	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
-	wlr_log(L_INFO, "Modesetting %s with '%s'", out->name, str);
+
+	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u'", out->name, mode->width,
+		mode->height, mode->rate);
 
 	drmModeConnector *conn = drmModeGetConnector(backend->fd, out->connector);
 	if (!conn) {
@@ -293,32 +279,10 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str) {
 		goto error;
 	}
 
-	out->num_modes = conn->count_modes;
-	out->modes = malloc(sizeof *out->modes * out->num_modes);
-	if (!out->modes) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		goto error;
-	}
-	memcpy(out->modes, conn->modes, sizeof *out->modes * out->num_modes);
-
-	wlr_log(L_INFO, "Detected modes:");
-	for (size_t i = 0; i < out->num_modes; ++i) {
-		wlr_log(L_INFO, "  %"PRIu16"@%"PRIu16"@%"PRIu32,
-			out->modes[i].hdisplay, out->modes[i].vdisplay,
-			out->modes[i].vrefresh);
-	}
-
 	drmModeEncoder *curr_enc = drmModeGetEncoder(backend->fd, conn->encoder_id);
 	if (curr_enc) {
 		out->old_crtc = drmModeGetCrtc(backend->fd, curr_enc->crtc_id);
 		free(curr_enc);
-	}
-
-	out->active_mode = select_mode(out->num_modes, out->modes,
-		out->old_crtc, str);
-	if (!out->active_mode) {
-		wlr_log(L_ERROR, "Failed to configure %s", out->name);
-		goto error;
 	}
 
 	drmModeRes *res = drmModeGetResources(backend->fd);
@@ -358,9 +322,9 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str) {
 	}
 
 	out->state = DRM_OUTPUT_CONNECTED;
-
-	out->width = out->active_mode->hdisplay;
-	out->height = out->active_mode->vdisplay;
+	out->active_mode = mode;
+	out->width = mode->width;
+	out->height = mode->height;
 
 	if (!display_init_renderer(&backend->renderer, out)) {
 		wlr_log(L_ERROR, "Failed to initalise renderer for %s", out->name);
@@ -368,10 +332,6 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str) {
 	}
 
 	drmModeFreeConnector(conn);
-
-	wlr_log(L_INFO, "Configuring %s with mode %"PRIu16"x%"PRIu16"@%"PRIu32"",
-		out->name, out->active_mode->hdisplay, out->active_mode->vdisplay,
-		out->active_mode->vrefresh);
 
 	return true;
 
@@ -385,58 +345,79 @@ error:
 	return false;
 }
 
-void wlr_drm_output_free(struct wlr_drm_output *out, bool restore) {
-	if (!out || out->state != DRM_OUTPUT_CONNECTED) {
-		return;
+static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv_usec,
+	void *user) {
+
+	struct wlr_drm_output *out = user;
+	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
+
+	out->pageflip_pending = true;
+	if (!out->cleanup) {
+		wl_signal_emit(&backend->signals.output_render, out);
 	}
+}
 
-	struct wlr_drm_renderer *renderer = out->renderer;
+int wlr_drm_event(int fd, uint32_t mask, void *data) {
+	drmEventContext event = {
+		.version = DRM_EVENT_CONTEXT_VERSION,
+		.page_flip_handler = page_flip_handler,
+	};
 
-	eglDestroySurface(renderer->egl.display, out->egl);
-	gbm_surface_destroy(out->gbm);
+	drmHandleEvent(fd, &event);
 
-	free(out->modes);
-	out->state = DRM_OUTPUT_DISCONNECTED;
+	return 1;
+}
 
-	if (!restore) {
-		return;
-	}
-
+static void restore_output(struct wlr_drm_output *out, int fd) {
 	drmModeCrtc *crtc = out->old_crtc;
-	if (crtc) {
-		// Wait for exising page flips to finish
-
-		drmEventContext event = {
-			.version = DRM_EVENT_CONTEXT_VERSION,
-			.page_flip_handler = page_flip_handler,
-		};
-
-		out->cleanup = true;
-		while (out->pageflip_pending)
-			drmHandleEvent(renderer->fd, &event);
-
-		drmModeSetCrtc(renderer->fd, crtc->crtc_id, crtc->buffer_id,
-			       crtc->x, crtc->y, &out->connector,
-			       1, &crtc->mode);
-		drmModeFreeCrtc(crtc);
+	if (!crtc) {
+		return;
 	}
+
+	// Wait for exising page flips to finish
+
+	out->cleanup = true;
+	while (out->pageflip_pending) {
+		wlr_drm_event(fd, 0, NULL);
+	}
+
+	drmModeSetCrtc(fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
+		&out->connector, 1, &crtc->mode);
+	drmModeFreeCrtc(crtc);
 }
 
-void wlr_drm_output_begin(struct wlr_drm_output *out) {
+void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore) {
+	if (!out) {
+		return;
+	}
+
 	struct wlr_drm_renderer *renderer = out->renderer;
-	eglMakeCurrent(renderer->egl.display, out->egl, out->egl, renderer->egl.context);
-}
 
-void wlr_drm_output_end(struct wlr_drm_output *out) {
-	struct wlr_drm_renderer *renderer = out->renderer;
-	eglSwapBuffers(renderer->egl.display, out->egl);
+	switch (out->state) {
+	case DRM_OUTPUT_CONNECTED:
+		eglDestroySurface(renderer->egl.display, out->egl);
+		gbm_surface_destroy(out->gbm);
 
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(out->gbm);
-	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
+		out->egl = EGL_NO_SURFACE;
+		out->gbm = NULL;
+		/* Fallthrough */
 
-	drmModePageFlip(renderer->fd, out->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, out);
+	case DRM_OUTPUT_NEEDS_MODESET:
+		free(out->modes);
+		out->num_modes = 0;
+		out->modes = NULL;
+		out->active_mode = NULL;
+		out->width = 0;
+		out->height = 0;
 
-	gbm_surface_release_buffer(out->gbm, bo);
+		if (restore) {
+			restore_output(out, renderer->fd);
+		}
 
-	out->pageflip_pending = false;
+		out->state = DRM_MODE_DISCONNECTED;
+		break;
+
+	case DRM_OUTPUT_DISCONNECTED:
+		break;
+	}
 }

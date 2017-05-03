@@ -90,7 +90,7 @@ error_backend:
 static void free_output(void *item)
 {
 	struct wlr_drm_output *out = item;
-	wlr_drm_output_free(out, true);
+	wlr_drm_output_cleanup(out, true);
 	free(out);
 }
 

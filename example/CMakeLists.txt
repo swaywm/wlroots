@@ -1,3 +1,7 @@
+include_directories(
+	${DRM_INCLUDE_DIRS}
+)
+
 add_executable(example
     main.c
 )
