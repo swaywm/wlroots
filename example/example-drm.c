@@ -19,22 +19,22 @@ struct state {
 	struct wl_listener render;
 };
 
-void display_add(struct wl_listener *listener, void *data)
+void output_add(struct wl_listener *listener, void *data)
 {
-	struct wlr_drm_display *disp = data;
+	struct wlr_drm_output *out = data;
 
-	fprintf(stderr, "Display added\n");
-	wlr_drm_display_modeset(disp, "preferred");
+	fprintf(stderr, "Output added\n");
+	wlr_drm_output_modeset(out, "preferred");
 }
 
-void display_rem(struct wl_listener *listener, void *data)
+void output_rem(struct wl_listener *listener, void *data)
 {
-	fprintf(stderr, "Display removed\n");
+	fprintf(stderr, "Output removed\n");
 }
 
-void display_render(struct wl_listener *listener, void *data)
+void output_render(struct wl_listener *listener, void *data)
 {
-	struct wlr_drm_display *disp = data;
+	struct wlr_drm_output *out = data;
 	struct state *s = wl_container_of(listener, s, render);
 
 	struct timespec now;
@@ -56,12 +56,12 @@ void display_render(struct wl_listener *listener, void *data)
 
 	s->last_frame = now;
 
-	wlr_drm_display_begin(disp);
+	wlr_drm_output_begin(out);
 
 	glClearColor(s->color[0], s->color[1], s->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	wlr_drm_display_end(disp);
+	wlr_drm_output_end(out);
 }
 
 int timer_done(void *data)
@@ -83,9 +83,9 @@ int main()
 	struct state state = {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,
-		.add = { .notify = display_add },
-		.rem = { .notify = display_rem },
-		.render = { .notify = display_render },
+		.add = { .notify = output_add },
+		.rem = { .notify = output_rem },
+		.render = { .notify = output_render },
 	};
 
 	wl_list_init(&state.add.link);

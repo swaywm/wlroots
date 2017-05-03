@@ -28,12 +28,12 @@ struct wlr_drm_backend {
 	} event_src;
 
 	struct {
-		struct wl_signal display_add;
-		struct wl_signal display_rem;
-		struct wl_signal display_render;
+		struct wl_signal output_add;
+		struct wl_signal output_rem;
+		struct wl_signal output_render;
 	} signals;
 
-	list_t *displays;
+	list_t *outputs;
 
 	uint32_t taken_crtcs;
 

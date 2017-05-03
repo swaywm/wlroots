@@ -25,15 +25,15 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_backend *backend, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
-enum wlr_drm_display_state {
-	DRM_DISP_INVALID,
-	DRM_DISP_DISCONNECTED,
-	DRM_DISP_NEEDS_MODESET,
-	DRM_DISP_CONNECTED,
+enum wlr_drm_output_state {
+	DRM_OUTPUT_INVALID,
+	DRM_OUTPUT_DISCONNECTED,
+	DRM_OUTPUT_NEEDS_MODESET,
+	DRM_OUTPUT_CONNECTED,
 };
 
-struct wlr_drm_display {
-	enum wlr_drm_display_state state;
+struct wlr_drm_output {
+	enum wlr_drm_output_state state;
 	uint32_t connector;
 	char name[16];
 
@@ -55,11 +55,11 @@ struct wlr_drm_display {
 	bool cleanup;
 };
 
-bool wlr_drm_display_modeset(struct wlr_drm_display *disp, const char *str);
-void wlr_drm_display_free(struct wlr_drm_display *disp, bool restore);
+bool wlr_drm_output_modeset(struct wlr_drm_output *out, const char *str);
+void wlr_drm_output_free(struct wlr_drm_output *out, bool restore);
 
-void wlr_drm_display_begin(struct wlr_drm_display *disp);
-void wlr_drm_display_end(struct wlr_drm_display *disp);
+void wlr_drm_output_begin(struct wlr_drm_output *out);
+void wlr_drm_output_end(struct wlr_drm_output *out);
 
 void wlr_drm_scan_connectors(struct wlr_drm_backend *backend);
 void wlr_drm_event(int fd);

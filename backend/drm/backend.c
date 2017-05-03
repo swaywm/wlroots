@@ -23,8 +23,8 @@ struct wlr_drm_backend *wlr_drm_backend_init(struct wlr_session *session,
 
 	backend->session = session;
 
-	backend->displays = list_create();
-	if (!backend->displays) {
+	backend->outputs = list_create();
+	if (!backend->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
 		goto error_backend;
 	}
@@ -51,16 +51,16 @@ struct wlr_drm_backend *wlr_drm_backend_init(struct wlr_session *session,
 		goto error_fd;
 	}
 
-	wl_signal_init(&backend->signals.display_add);
-	wl_signal_init(&backend->signals.display_rem);
-	wl_signal_init(&backend->signals.display_render);
+	wl_signal_init(&backend->signals.output_add);
+	wl_signal_init(&backend->signals.output_rem);
+	wl_signal_init(&backend->signals.output_render);
 
 	if (add)
-		wl_signal_add(&backend->signals.display_add, add);
+		wl_signal_add(&backend->signals.output_add, add);
 	if (rem)
-		wl_signal_add(&backend->signals.display_rem, rem);
+		wl_signal_add(&backend->signals.output_rem, rem);
 	if (render)
-		wl_signal_add(&backend->signals.display_render, render);
+		wl_signal_add(&backend->signals.output_render, render);
 
 	wlr_drm_scan_connectors(backend);
 
@@ -73,17 +73,17 @@ error_udev:
 error_loop:
 	wl_event_loop_destroy(backend->event_loop);
 error_list:
-	list_free(backend->displays);
+	list_free(backend->outputs);
 error_backend:
 	free(backend);
 	return NULL;
 }
 
-static void free_display(void *item)
+static void free_output(void *item)
 {
-	struct wlr_drm_display *disp = item;
-	wlr_drm_display_free(disp, true);
-	free(disp);
+	struct wlr_drm_output *out = item;
+	wlr_drm_output_free(out, true);
+	free(out);
 }
 
 void wlr_drm_backend_free(struct wlr_drm_backend *backend)
@@ -91,7 +91,7 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 	if (!backend)
 		return;
 
-	list_foreach(backend->displays, free_display);
+	list_foreach(backend->outputs, free_output);
 
 	wlr_drm_renderer_free(&backend->renderer);
 	wlr_udev_free(&backend->udev);
@@ -102,7 +102,7 @@ void wlr_drm_backend_free(struct wlr_drm_backend *backend)
 	wl_event_source_remove(backend->event_src.udev);
 	wl_event_loop_destroy(backend->event_loop);
 
-	list_free(backend->displays);
+	list_free(backend->outputs);
 	free(backend);
 }
 
