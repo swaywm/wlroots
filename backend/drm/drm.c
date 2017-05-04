@@ -110,7 +110,7 @@ void wlr_drm_output_end(struct wlr_drm_output *out) {
 
 	gbm_surface_release_buffer(out->gbm, bo);
 
-	out->pageflip_pending = false;
+	out->pageflip_pending = true;
 }
 
 static bool display_init_renderer(struct wlr_drm_renderer *renderer,
@@ -168,6 +168,8 @@ static int find_id(const void *item, const void *cmp_to) {
 }
 
 void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
+	wlr_log(L_INFO, "Scanning DRM connectors");
+
 	drmModeRes *res = drmModeGetResources(backend->fd);
 	if (!res) {
 		wlr_log(L_ERROR, "Failed to get DRM resources");
@@ -196,10 +198,16 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 
 			out->renderer = &backend->renderer;
 			out->state = DRM_OUTPUT_DISCONNECTED;
-			out->connector = res->connectors[i];
+			out->connector = id;
 			snprintf(out->name, sizeof out->name, "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
+
+			drmModeEncoder *curr_enc = drmModeGetEncoder(backend->fd, conn->encoder_id);
+			if (curr_enc) {
+				out->old_crtc = drmModeGetCrtc(backend->fd, curr_enc->crtc_id);
+				free(curr_enc);
+			}
 
 			list_add(backend->outputs, out);
 			wlr_log(L_INFO, "Found display '%s'", out->name);
@@ -241,9 +249,8 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		} else if (out->state == DRM_OUTPUT_CONNECTED &&
 			conn->connection != DRM_MODE_CONNECTED) {
 
+			wlr_log(L_INFO, "'%s' disconnected", out->name);
 			wlr_drm_output_cleanup(out, false);
-			wlr_log(L_INFO, "Sending destruction signal for '%s'", out->name);
-			wl_signal_emit(&backend->signals.output_rem, out);
 		}
 error:
 		drmModeFreeConnector(conn);
@@ -277,12 +284,6 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
 		wlr_log(L_ERROR, "%s is not connected", out->name);
 		goto error;
-	}
-
-	drmModeEncoder *curr_enc = drmModeGetEncoder(backend->fd, conn->encoder_id);
-	if (curr_enc) {
-		out->old_crtc = drmModeGetCrtc(backend->fd, curr_enc->crtc_id);
-		free(curr_enc);
 	}
 
 	drmModeRes *res = drmModeGetResources(backend->fd);
@@ -336,11 +337,8 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 	return true;
 
 error:
-	out->state = DRM_OUTPUT_DISCONNECTED;
+	wlr_drm_output_cleanup(out, false);
 	drmModeFreeConnector(conn);
-	free(out->modes);
-
-	wl_signal_emit(&backend->signals.output_rem, out);
 
 	return false;
 }
@@ -351,8 +349,8 @@ static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv
 	struct wlr_drm_output *out = user;
 	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
 
-	out->pageflip_pending = true;
-	if (!out->cleanup) {
+	out->pageflip_pending = false;
+	if (out->state == DRM_OUTPUT_CONNECTED) {
 		wl_signal_emit(&backend->signals.output_render, out);
 	}
 }
@@ -369,16 +367,14 @@ int wlr_drm_event(int fd, uint32_t mask, void *data) {
 }
 
 static void restore_output(struct wlr_drm_output *out, int fd) {
+	// Wait for any pending pageflips to finish
+	while (out->pageflip_pending) {
+		wlr_drm_event(fd, 0, NULL);
+	}
+
 	drmModeCrtc *crtc = out->old_crtc;
 	if (!crtc) {
 		return;
-	}
-
-	// Wait for exising page flips to finish
-
-	out->cleanup = true;
-	while (out->pageflip_pending) {
-		wlr_drm_event(fd, 0, NULL);
 	}
 
 	drmModeSetCrtc(fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
@@ -392,6 +388,7 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore) {
 	}
 
 	struct wlr_drm_renderer *renderer = out->renderer;
+	struct wlr_drm_backend *backend = wl_container_of(renderer, backend, renderer);
 
 	switch (out->state) {
 	case DRM_OUTPUT_CONNECTED:
@@ -410,14 +407,21 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore) {
 		out->width = 0;
 		out->height = 0;
 
+		out->state = DRM_OUTPUT_DISCONNECTED;
+
 		if (restore) {
 			restore_output(out, renderer->fd);
 		}
 
-		out->state = DRM_MODE_DISCONNECTED;
+		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", out->name);
+		wl_signal_emit(&backend->signals.output_rem, out);
 		break;
 
 	case DRM_OUTPUT_DISCONNECTED:
 		break;
 	}
+}
+
+const char *wlr_drm_output_get_name(struct wlr_drm_output *out) {
+	return out->name;
 }

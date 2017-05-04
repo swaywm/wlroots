@@ -1,5 +1,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES3/gl3.h>
 #include <gbm.h> // GBM_FORMAT_XRGB8888
 
 #include "backend/egl.h"
@@ -120,7 +121,8 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		goto error;
 	}
 
-	if (eglInitialize(egl->display, NULL, NULL) == EGL_FALSE) {
+	EGLint major, minor;
+	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
 		wlr_log(L_ERROR, "Failed to initialize EGL: %s", egl_error());
 		goto error;
 	}
@@ -139,6 +141,13 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
 		goto error;
 	}
+
+	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl->context);
+	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
+	wlr_log(L_INFO, "Supported EGL extensions: %s", eglQueryString(egl->display,
+		EGL_EXTENSIONS));
+	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
+	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", glGetString(GL_EXTENSIONS));
 
 	return true;
 

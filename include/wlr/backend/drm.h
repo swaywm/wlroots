@@ -20,6 +20,8 @@ struct wlr_drm_backend *wlr_drm_backend_init(struct wl_display *display,
 	struct wl_listener *render);
 void wlr_drm_backend_free(struct wlr_drm_backend *backend);
 
+const char *wlr_drm_output_get_name(struct wlr_drm_output *out);
+
 struct wlr_drm_mode *wlr_drm_output_get_modes(struct wlr_drm_output *out, size_t *count);
 bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mode);
 

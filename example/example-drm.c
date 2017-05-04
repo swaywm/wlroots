@@ -22,6 +22,7 @@ struct state {
 void output_add(struct wl_listener *listener, void *data)
 {
 	struct wlr_drm_output *out = data;
+	fprintf(stderr, "Output '%s' added\n", wlr_drm_output_get_name(out));
 
 	size_t num_modes;
 	struct wlr_drm_mode *modes = wlr_drm_output_get_modes(out, &num_modes);
@@ -31,7 +32,8 @@ void output_add(struct wl_listener *listener, void *data)
 
 void output_rem(struct wl_listener *listener, void *data)
 {
-	fprintf(stderr, "Output removed\n");
+	struct wlr_drm_output *out = data;
+	fprintf(stderr, "Output '%s' removed\n", wlr_drm_output_get_name(out));
 }
 
 void output_render(struct wl_listener *listener, void *data)
