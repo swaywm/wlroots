@@ -3,26 +3,26 @@
 
 #include <wayland-server.h>
 #include <wlr/common/list.h>
+#include <stdbool.h>
 
-struct wlr_wl_seat {
-	struct wl_seat *wl_seat;
-	uint32_t capabilities;
-	char *name;
-	list_t *keyboards;
-	list_t *pointers;
-};
+struct wlr_output_mode_state;
 
-void wlr_wl_seat_free(struct wlr_wl_seat *seat);
-
-struct wlr_wl_output_mode {
+struct wlr_output_mode {
+	struct wlr_output_mode_state *state;
 	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz
 };
 
-struct wlr_wl_output {
-	struct wl_output *wl_output;
+struct wlr_output_impl;
+struct wlr_output_state;
+
+struct wlr_output {
+	const struct wlr_output_impl *impl;
+	struct wlr_output_state *state;
+
 	uint32_t flags;
+	char *name;
 	char *make;
 	char *model;
 	uint32_t scale;
@@ -30,20 +30,15 @@ struct wlr_wl_output {
 	int32_t phys_width, phys_height; // mm
 	int32_t subpixel; // enum wl_output_subpixel
 	int32_t transform; // enum wl_output_transform
+
 	list_t *modes;
-	struct wlr_wl_output_mode *current_mode;
+	struct wlr_output_mode *current_mode;
+
+	struct {
+		struct wl_signal frame;
+	} events;
 };
 
-void wlr_wl_output_free(struct wlr_wl_output *output);
-
-struct wlr_wl_keyboard {
-	struct wl_keyboard *wl_keyboard;
-};
-
-struct wlr_wl_pointer {
-	struct wl_pointer *wl_pointer;
-	struct wl_surface *current_surface;
-	wl_fixed_t x, y;
-};
+bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode);
 
 #endif

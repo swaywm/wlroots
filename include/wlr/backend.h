@@ -13,7 +13,6 @@ struct wlr_backend {
 	struct {
 		struct wl_signal output_add;
 		struct wl_signal output_remove;
-		struct wl_signal output_frame;
 		struct wl_signal keyboard_add;
 		struct wl_signal keyboard_remove;
 		struct wl_signal pointer_add;

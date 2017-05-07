@@ -16,7 +16,6 @@ struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
 	backend->impl = impl;
 	wl_signal_init(&backend->events.output_add);
 	wl_signal_init(&backend->events.output_remove);
-	wl_signal_init(&backend->events.output_frame);
 	wl_signal_init(&backend->events.keyboard_add);
 	wl_signal_init(&backend->events.keyboard_remove);
 	wl_signal_init(&backend->events.pointer_add);
@@ -32,6 +31,6 @@ bool wlr_backend_init(struct wlr_backend *backend) {
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
 	backend->impl->destroy(backend->state);
-	// TODO: Free anything else?
+	// TODO: free outputs
 	free(backend);
 }

@@ -12,7 +12,6 @@
 
 struct wlr_drm_renderer {
 	int fd;
-
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 };
@@ -26,14 +25,16 @@ enum wlr_drm_output_state {
 	DRM_OUTPUT_CONNECTED,
 };
 
-struct wlr_drm_output {
+struct wlr_output_mode_state {
+	struct wlr_wl_output_mode *wlr_mode;
+	drmModeModeInfo mode;
+};
+
+struct wlr_output_state {
+	struct wlr_output *wlr_output;
 	enum wlr_drm_output_state state;
 	uint32_t connector;
 	char name[16];
-
-	size_t num_modes;
-	struct wlr_drm_mode *modes;
-	struct wlr_drm_mode *active_mode;
 
 	uint32_t width;
 	uint32_t height;
@@ -49,7 +50,7 @@ struct wlr_drm_output {
 	bool cleanup;
 };
 
-void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore);
+void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);

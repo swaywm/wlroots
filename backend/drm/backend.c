@@ -19,18 +19,11 @@ static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
 	return true;
 }
 
-static void free_output(void *item) {
-	struct wlr_drm_output *out = item;
-	wlr_drm_output_cleanup(out, true);
-	free(out);
-}
-
 static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 	if (!state) {
 		return;
 	}
-	list_foreach(state->outputs, free_output);
-	list_free(state->outputs);
+	// TODO: free outputs in shared backend code
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_udev_free(&state->udev);
 	wlr_session_close_file(state->session, state->fd);
@@ -86,6 +79,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_fd;
 	}
 
+	// TODO: what is the difference between the per-output renderer and this
+	// one?
 	if (!wlr_drm_renderer_init(&state->renderer, state->fd)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
