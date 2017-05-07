@@ -12,20 +12,16 @@
 #include <wlr/common/list.h>
 #include <wlr/backend/drm.h>
 
+#include "backend.h"
 #include "udev.h"
 #include "event.h"
 #include "drm.h"
 
-struct wlr_drm_backend {
+struct wlr_backend_state {
 	int fd;
 
+	struct wlr_backend *backend;
 	struct wl_event_source *drm_event;
-
-	struct {
-		struct wl_signal output_add;
-		struct wl_signal output_rem;
-		struct wl_signal output_render;
-	} signals;
 
 	uint32_t taken_crtcs;
 	list_t *outputs;

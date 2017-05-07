@@ -8,6 +8,7 @@
 #include <gbm.h>
 
 #include "backend/egl.h"
+#include "backend.h"
 
 struct wlr_drm_renderer {
 	int fd;
@@ -50,7 +51,7 @@ struct wlr_drm_output {
 
 void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore);
 
-void wlr_drm_scan_connectors(struct wlr_drm_backend *backend);
+void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 #endif

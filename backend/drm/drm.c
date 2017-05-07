@@ -13,6 +13,7 @@
 #include <GLES3/gl3.h>
 #include <wayland-server.h>
 
+#include "backend.h"
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
 #include "common/log.h"
@@ -167,10 +168,10 @@ static int find_id(const void *item, const void *cmp_to) {
 	}
 }
 
-void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
+void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
-	drmModeRes *res = drmModeGetResources(backend->fd);
+	drmModeRes *res = drmModeGetResources(state->fd);
 	if (!res) {
 		wlr_log(L_ERROR, "Failed to get DRM resources");
 		return;
@@ -179,40 +180,40 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 	for (int i = 0; i < res->count_connectors; ++i) {
 		uint32_t id = res->connectors[i];
 
-		drmModeConnector *conn = drmModeGetConnector(backend->fd, id);
+		drmModeConnector *conn = drmModeGetConnector(state->fd, id);
 		if (!conn) {
 			wlr_log(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
 
 		struct wlr_drm_output *out;
-		int index = list_seq_find(backend->outputs, find_id, &id);
+		int index = list_seq_find(state->outputs, find_id, &id);
 
 		if (index == -1) {
-			out = calloc(1, sizeof *out);
+			out = calloc(1, sizeof(struct wlr_drm_output));
 			if (!out) {
 				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 				drmModeFreeConnector(conn);
 				continue;
 			}
 
-			out->renderer = &backend->renderer;
+			out->renderer = &state->renderer;
 			out->state = DRM_OUTPUT_DISCONNECTED;
 			out->connector = id;
 			snprintf(out->name, sizeof out->name, "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
 
-			drmModeEncoder *curr_enc = drmModeGetEncoder(backend->fd, conn->encoder_id);
+			drmModeEncoder *curr_enc = drmModeGetEncoder(state->fd, conn->encoder_id);
 			if (curr_enc) {
-				out->old_crtc = drmModeGetCrtc(backend->fd, curr_enc->crtc_id);
+				out->old_crtc = drmModeGetCrtc(state->fd, curr_enc->crtc_id);
 				free(curr_enc);
 			}
 
-			list_add(backend->outputs, out);
+			list_add(state->outputs, out);
 			wlr_log(L_INFO, "Found display '%s'", out->name);
 		} else {
-			out = backend->outputs->items[index];
+			out = state->outputs->items[index];
 		}
 
 		if (out->state == DRM_OUTPUT_DISCONNECTED &&
@@ -244,8 +245,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 
 			out->state = DRM_OUTPUT_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'", out->name);
-			wl_signal_emit(&backend->signals.output_add, out);
-
+			wl_signal_emit(&state->backend->events.output_add, out);
 		} else if (out->state == DRM_OUTPUT_CONNECTED &&
 			conn->connection != DRM_MODE_CONNECTED) {
 
@@ -270,12 +270,12 @@ struct wlr_drm_mode *wlr_drm_output_get_modes(struct wlr_drm_output *out, size_t
 }
 
 bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mode) {
-	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
+	struct wlr_backend_state *state = wl_container_of(out->renderer, state, renderer);
 
 	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u'", out->name, mode->width,
 		mode->height, mode->rate);
 
-	drmModeConnector *conn = drmModeGetConnector(backend->fd, out->connector);
+	drmModeConnector *conn = drmModeGetConnector(state->fd, out->connector);
 	if (!conn) {
 		wlr_log(L_ERROR, "Failed to get DRM connector");
 		goto error;
@@ -286,7 +286,7 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 		goto error;
 	}
 
-	drmModeRes *res = drmModeGetResources(backend->fd);
+	drmModeRes *res = drmModeGetResources(state->fd);
 	if (!res) {
 		wlr_log(L_ERROR, "Failed to get DRM resources");
 		goto error;
@@ -294,7 +294,7 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 
 	bool success = false;
 	for (int i = 0; !success && i < conn->count_encoders; ++i) {
-		drmModeEncoder *enc = drmModeGetEncoder(backend->fd, conn->encoders[i]);
+		drmModeEncoder *enc = drmModeGetEncoder(state->fd, conn->encoders[i]);
 		if (!enc)
 			continue;
 
@@ -303,8 +303,8 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 				continue;
 			}
 
-			if ((backend->taken_crtcs & (1 << j)) == 0) {
-				backend->taken_crtcs |= 1 << j;
+			if ((state->taken_crtcs & (1 << j)) == 0) {
+				state->taken_crtcs |= 1 << j;
 				out->crtc = res->crtcs[j];
 
 				success = true;
@@ -327,7 +327,7 @@ bool wlr_drm_output_modeset(struct wlr_drm_output *out, struct wlr_drm_mode *mod
 	out->width = mode->width;
 	out->height = mode->height;
 
-	if (!display_init_renderer(&backend->renderer, out)) {
+	if (!display_init_renderer(&state->renderer, out)) {
 		wlr_log(L_ERROR, "Failed to initalise renderer for %s", out->name);
 		goto error;
 	}
@@ -343,15 +343,14 @@ error:
 	return false;
 }
 
-static void page_flip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv_usec,
-	void *user) {
-
+static void page_flip_handler(int fd, unsigned seq,
+		unsigned tv_sec, unsigned tv_usec, void *user) {
 	struct wlr_drm_output *out = user;
-	struct wlr_drm_backend *backend = wl_container_of(out->renderer, backend, renderer);
+	struct wlr_backend_state *state = wl_container_of(out->renderer, state, renderer);
 
 	out->pageflip_pending = false;
 	if (out->state == DRM_OUTPUT_CONNECTED) {
-		wl_signal_emit(&backend->signals.output_render, out);
+		wl_signal_emit(&state->backend->events.output_frame, out);
 	}
 }
 
@@ -388,7 +387,7 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore) {
 	}
 
 	struct wlr_drm_renderer *renderer = out->renderer;
-	struct wlr_drm_backend *backend = wl_container_of(renderer, backend, renderer);
+	struct wlr_backend_state *state = wl_container_of(renderer, state, renderer);
 
 	switch (out->state) {
 	case DRM_OUTPUT_CONNECTED:
@@ -414,7 +413,7 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *out, bool restore) {
 		}
 
 		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", out->name);
-		wl_signal_emit(&backend->signals.output_rem, out);
+		wl_signal_emit(&state->backend->events.output_remove, out);
 		break;
 
 	case DRM_OUTPUT_DISCONNECTED:

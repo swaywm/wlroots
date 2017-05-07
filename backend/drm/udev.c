@@ -11,6 +11,7 @@
 
 #include <wlr/session.h>
 
+#include "backend.h"
 #include "backend/drm/backend.h"
 #include "backend/drm/udev.h"
 #include "backend/drm/drm.h"
@@ -139,7 +140,7 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session) {
 
 static int udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_udev *udev = data;
-	struct wlr_drm_backend *backend = wl_container_of(udev, backend, udev);
+	struct wlr_backend_state *state = wl_container_of(udev, state, udev);
 
 	struct udev_device *dev = udev_monitor_receive_device(udev->mon);
 	if (!dev) {
@@ -156,7 +157,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 		goto out;
 	}
 
-	wlr_drm_scan_connectors(backend);
+	wlr_drm_scan_connectors(state);
 
 out:
 	udev_device_unref(dev);

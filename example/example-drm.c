@@ -14,13 +14,12 @@ struct state {
 
 	struct timespec last_frame;
 
-	struct wl_listener add;
-	struct wl_listener rem;
-	struct wl_listener render;
+	struct wl_listener output_add;
+	struct wl_listener output_remove;
+	struct wl_listener output_frame;
 };
 
-void output_add(struct wl_listener *listener, void *data)
-{
+void output_add(struct wl_listener *listener, void *data) {
 	struct wlr_drm_output *out = data;
 	fprintf(stderr, "Output '%s' added\n", wlr_drm_output_get_name(out));
 
@@ -30,16 +29,14 @@ void output_add(struct wl_listener *listener, void *data)
 	wlr_drm_output_modeset(out, &modes[0]);
 }
 
-void output_rem(struct wl_listener *listener, void *data)
-{
+void output_remove(struct wl_listener *listener, void *data) {
 	struct wlr_drm_output *out = data;
 	fprintf(stderr, "Output '%s' removed\n", wlr_drm_output_get_name(out));
 }
 
-void output_render(struct wl_listener *listener, void *data)
-{
+void output_frame(struct wl_listener *listener, void *data) {
 	struct wlr_drm_output *out = data;
-	struct state *s = wl_container_of(listener, s, render);
+	struct state *s = wl_container_of(listener, s, output_frame);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
@@ -68,14 +65,12 @@ void output_render(struct wl_listener *listener, void *data)
 	wlr_drm_output_end(out);
 }
 
-int timer_done(void *data)
-{
+int timer_done(void *data) {
 	*(bool *)data = true;
 	return 1;
 }
 
-int main()
-{
+int main() {
 	if (getenv("DISPLAY")) {
 		fprintf(stderr, "Detected that X is running. Run this in its own virtual terminal.\n");
 		return 1;
@@ -87,14 +82,14 @@ int main()
 	struct state state = {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,
-		.add = { .notify = output_add },
-		.rem = { .notify = output_rem },
-		.render = { .notify = output_render },
+		.output_add = { .notify = output_add },
+		.output_remove = { .notify = output_remove },
+		.output_frame = { .notify = output_frame },
 	};
 
-	wl_list_init(&state.add.link);
-	wl_list_init(&state.rem.link);
-	wl_list_init(&state.render.link);
+	wl_list_init(&state.output_add.link);
+	wl_list_init(&state.output_remove.link);
+	wl_list_init(&state.output_frame.link);
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
 	struct wl_display *display = wl_display_create();
@@ -105,19 +100,25 @@ int main()
 		return 1;
 	}
 
-	struct wlr_drm_backend *wlr = wlr_drm_backend_init(display, session,
-		&state.add, &state.rem, &state.render);
+	struct wlr_backend *wlr = wlr_drm_backend_create(display, session);
+	wl_signal_add(&wlr->events.output_add, &state.output_add);
+	wl_signal_add(&wlr->events.output_remove, &state.output_remove);
+	wl_signal_add(&wlr->events.output_frame, &state.output_frame);
+	if (!wlr || !wlr_backend_init(wlr)) {
+		return 1;
+	}
 
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
 
-	wl_event_source_timer_update(timer, 10000);
+	wl_event_source_timer_update(timer, 5000);
 
-	while (!done)
+	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);
+	}
 
 	wl_event_source_remove(timer);
-	wlr_drm_backend_free(wlr);
+	wlr_backend_destroy(wlr);
 	wl_display_destroy(display);
 }
