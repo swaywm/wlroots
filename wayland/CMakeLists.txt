@@ -4,8 +4,7 @@ include_directories(
 )
 
 add_library(wlr-wayland
-    types/wlr_wl_seat.c
-    types/wlr_wl_output.c
+    types/wlr_output.c
 )
 
 target_link_libraries(wlr-wayland

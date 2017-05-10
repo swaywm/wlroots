@@ -1,7 +1,29 @@
 #ifndef _WLR_BACKEND_H
 #define _WLR_BACKEND_H
 
-struct wlr_backend *wlr_backend_init();
-void wlr_backend_free(struct wlr_backend *backend);
+#include <wayland-server.h>
+
+struct wlr_backend_impl;
+struct wlr_backend_state;
+
+struct wlr_backend {
+	const struct wlr_backend_impl *impl;
+	struct wlr_backend_state *state;
+
+	struct {
+		struct wl_signal output_add;
+		struct wl_signal output_remove;
+		struct wl_signal keyboard_add;
+		struct wl_signal keyboard_remove;
+		struct wl_signal pointer_add;
+		struct wl_signal pointer_remove;
+		struct wl_signal touch_add;
+		struct wl_signal touch_remove;
+	} events;
+};
+
+struct wlr_backend *wlr_backend_autocreate();
+bool wlr_backend_init(struct wlr_backend *backend);
+void wlr_backend_destroy(struct wlr_backend *backend);
 
 #endif
