@@ -233,7 +233,6 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	return true;
 
 error:
-	// TODO: destroy
 	wlr_drm_output_cleanup(output, false);
 	drmModeFreeConnector(conn);
 	return false;
