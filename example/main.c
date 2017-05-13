@@ -129,7 +129,7 @@ int main() {
 	struct wl_event_source *timer_vt = wl_event_loop_add_timer(event_loop,
 		timer_change_vt, session);
 
-	wl_event_source_timer_update(timer, 30000);
+	wl_event_source_timer_update(timer, 15000);
 	wl_event_source_timer_update(timer_vt, 5000);
 
 	while (!done) {

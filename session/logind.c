@@ -187,11 +187,59 @@ static int session_removed(sd_bus_message *msg, void *userdata, sd_bus_error *re
 
 static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
 	wlr_log(L_INFO, "PauseDevice signal received");
+	struct logind_session *session = userdata;
+	int ret;
+
+	uint32_t major, minor;
+	ret = sd_bus_message_read(msg, "uu", &major, &minor);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to parse D-Bus response for PauseDevice: %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	dev_t dev = makedev(major, minor);
+	wl_signal_emit(&session->base.device_paused, &dev);
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+		session->path, "org.freedesktop.login1.Session", "PauseDeviceComplete",
+		ret_error, &msg, "uu", major, minor);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to send PauseDeviceComplete signal");
+	}
+
+error:
 	return 0;
 }
 
 static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
 	wlr_log(L_INFO, "ResumeDevice signal received");
+	struct logind_session *session = userdata;
+	int ret;
+
+	int fd;
+	uint32_t major, minor;
+	ret = sd_bus_message_read(msg, "uuh", &major, &minor, &fd);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to parse D-Bus response for ResumeDevice: %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	// The original fd seem to be closed when the message is freed
+	// so we just clone it.
+	fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+	if (fd == -1) {
+		wlr_log(L_ERROR, "Failed to clone file descriptor for ResumeDevice: %s",
+			strerror(errno));
+		goto error;
+	}
+
+	// TODO: Use major/minor to make sure the right devices are getting signals
+
+	wl_signal_emit(&session->base.device_resumed, &fd);
+
+error:
 	return 0;
 }
 
@@ -289,7 +337,9 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 
 	wlr_log(L_INFO, "Successfully loaded logind session");
 
-	session->base.iface = session_logind_iface;
+	session->base.iface = &session_logind_iface;
+	wl_signal_init(&session->base.device_paused);
+	wl_signal_init(&session->base.device_resumed);
 	return &session->base;
 
 error_bus:

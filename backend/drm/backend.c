@@ -37,6 +37,29 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_drm_backend_destroy
 };
 
+static void device_paused(struct wl_listener *listener, void *data) {
+	struct wlr_backend_state *backend = wl_container_of(listener, backend, device_paused);
+
+	// TODO: Actually pause the renderer or something.
+	// We currently just expect it to fail its next pageflip.
+
+	(void)backend;
+}
+
+static void device_resumed(struct wl_listener *listener, void *data) {
+	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_paused);
+	int *new_fd = data;
+
+	close(drm->fd);
+	drm->fd = *new_fd;
+	drm->renderer.fd = *new_fd;
+
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_output_state *output = drm->outputs->items[i];
+		wlr_drm_output_draw_blank(output);
+	}
+}
+
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session) {
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
@@ -78,6 +101,15 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to create DRM event source");
 		goto error_fd;
 	}
+
+	wl_list_init(&state->device_paused.link);
+	wl_list_init(&state->device_paused.link);
+
+	state->device_paused.notify = device_paused;
+	state->device_resumed.notify = device_resumed;
+
+	wl_signal_add(&session->device_paused, &state->device_paused);
+	wl_signal_add(&session->device_resumed, &state->device_resumed);
 
 	// TODO: what is the difference between the per-output renderer and this
 	// one?

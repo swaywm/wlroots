@@ -1,7 +1,7 @@
 #ifndef WLR_SESSION_INTERFACE_H
 #define WLR_SESSION_INTERFACE_H
 
-struct wlr_session;
+#include <wlr/session.h>
 
 struct session_interface {
 	struct wlr_session *(*start)(struct wl_display *disp);
@@ -10,10 +10,6 @@ struct session_interface {
 		const char *restrict path);
 	void (*close)(struct wlr_session *session, int fd);
 	bool (*change_vt)(struct wlr_session *session, int vt);
-};
-
-struct wlr_session {
-	struct session_interface iface;
 };
 
 extern const struct session_interface session_logind_iface;

@@ -23,6 +23,9 @@ struct wlr_backend_state {
 	struct wlr_backend *backend;
 	struct wl_event_source *drm_event;
 
+	struct wl_listener device_paused;
+	struct wl_listener device_resumed;
+
 	uint32_t taken_crtcs;
 	list_t *outputs;
 

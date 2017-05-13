@@ -474,3 +474,31 @@ void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on
 			DRM_MODE_DPMS_STANDBY);
 	}
 }
+
+void wlr_drm_output_draw_blank(struct wlr_output_state *output) {
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
+	struct wlr_drm_renderer *renderer = output->renderer;
+
+	eglMakeCurrent(renderer->egl.display, output->egl, output->egl, renderer->egl.context);
+
+	glViewport(0, 0, output->width, output->height);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	eglSwapBuffers(renderer->egl.display, output->egl);
+
+	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
+	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
+
+	drmModeSetCrtc(renderer->fd, output->crtc, fb_id, 0, 0,
+			&output->connector, 1, &output->wlr_output->current_mode->state->mode);
+	drmModePageFlip(renderer->fd, output->crtc, fb_id,
+			DRM_MODE_PAGE_FLIP_EVENT, output);
+
+	gbm_surface_release_buffer(output->gbm, bo);
+
+	wlr_log(L_INFO, "Drew blank frame");
+}

@@ -28,19 +28,19 @@ struct wlr_session *wlr_session_start(struct wl_display *disp) {
 }
 
 void wlr_session_finish(struct wlr_session *session) {
-	session->iface.finish(session);
+	session->iface->finish(session);
 };
 
 int wlr_session_open_file(struct wlr_session *restrict session,
 	const char *restrict path) {
 
-	return session->iface.open(session, path);
+	return session->iface->open(session, path);
 }
 
 void wlr_session_close_file(struct wlr_session *session, int fd) {
-	session->iface.close(session, fd);
+	session->iface->close(session, fd);
 }
 
 bool wlr_session_change_vt(struct wlr_session *session, int vt) {
-	return session->iface.change_vt(session, vt);
+	return session->iface->change_vt(session, vt);
 }

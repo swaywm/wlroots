@@ -3,7 +3,14 @@
 
 #include <wayland-server.h>
 
-struct wlr_session;
+struct session_interface;
+
+struct wlr_session {
+	const struct session_interface *iface;
+
+	struct wl_signal device_paused;
+	struct wl_signal device_resumed;
+};
 
 struct wlr_session *wlr_session_start(struct wl_display *disp);
 void wlr_session_finish(struct wlr_session *session);
