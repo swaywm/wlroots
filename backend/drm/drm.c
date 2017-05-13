@@ -249,8 +249,8 @@ static struct wlr_output_impl output_impl = {
 	.destroy = wlr_drm_output_destroy,
 };
 
-static uint32_t calculate_refresh_rate(drmModeModeInfo *mode) {
-	uint32_t refresh = (mode->clock * 1000000LL / mode->htotal +
+static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
+	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +
 		mode->vtotal / 2) / mode->vtotal;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -365,7 +365,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				mode->refresh = calculate_refresh_rate(&_state->mode);
 				mode->state = _state;
 
-				wlr_log(L_INFO, "  %"PRIu32"@%"PRIu32"@%"PRIu32,
+				wlr_log(L_INFO, "  %"PRId32"@%"PRId32"@%"PRId32,
 					mode->width, mode->height, mode->refresh);
 
 				list_add(wlr_output->modes, mode);
