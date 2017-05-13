@@ -20,6 +20,7 @@ struct logind_session {
 	struct wlr_session base;
 
 	sd_bus *bus;
+	struct wl_event_source *event;
 
 	char *id;
 	char *path;
@@ -53,7 +54,7 @@ static int logind_take_device(struct wlr_session *restrict base,
 	int paused = 0;
 	ret = sd_bus_message_read(msg, "hb", &fd, &paused);
 	if (ret < 0) {
-		wlr_log(L_ERROR, "Failed to parse DBus response for '%s': %s",
+		wlr_log(L_ERROR, "Failed to parse D-Bus response for '%s': %s",
 			path, strerror(-ret));
 		goto error;
 	}
@@ -95,6 +96,25 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
+}
+
+static bool logind_change_vt(struct wlr_session *base, int vt) {
+	struct logind_session *session = wl_container_of(base, session, base);
+
+	int ret;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+		"/org/freedesktop/login1/seat/self", "org.freedesktop.login1.Seat", "SwitchTo",
+		&error, &msg, "u", (uint32_t)vt);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to change to vt '%d'", vt);
+	}
+
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+	return ret >= 0;
 }
 
 static bool session_activate(struct logind_session *session) {
@@ -152,6 +172,7 @@ static void logind_session_finish(struct wlr_session *base) {
 
 	release_control(session);
 
+	wl_event_source_remove(session->event);
 	sd_bus_unref(session->bus);
 	free(session->id);
 	free(session->path);
@@ -159,7 +180,62 @@ static void logind_session_finish(struct wlr_session *base) {
 	free(session);
 }
 
-static struct wlr_session *logind_session_start(void) {
+static int session_removed(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+	wlr_log(L_INFO, "SessionRemoved signal received");
+	return 0;
+}
+
+static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+	wlr_log(L_INFO, "PauseDevice signal received");
+	return 0;
+}
+
+static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+	wlr_log(L_INFO, "ResumeDevice signal received");
+	return 0;
+}
+
+static bool add_signal_matches(struct logind_session *session) {
+	int ret;
+
+	char str[256];
+	const char *fmt = "type='signal',"
+		"sender='org.freedesktop.login1',"
+		"interface='org.freedesktop.login1.%s',"
+		"member='%s',"
+		"path='%s'";
+
+	snprintf(str, sizeof(str), fmt, "Manager", "SesssionRemoved", "/org/freedesktop/login1");
+	ret = sd_bus_add_match(session->bus, NULL, str, session_removed, session);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
+		return false;
+	}
+
+	snprintf(str, sizeof(str), fmt, "Session", "PauseDevice", session->path);
+	ret = sd_bus_add_match(session->bus, NULL, str, pause_device, session);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
+		return false;
+	}
+
+	snprintf(str, sizeof(str), fmt, "Session", "ResumeDevice", session->path);
+	ret = sd_bus_add_match(session->bus, NULL, str, resume_device, session);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
+		return false;
+	}
+
+	return true;
+}
+
+static int dbus_event(int fd, uint32_t mask, void *data) {
+	sd_bus *bus = data;
+	while (sd_bus_process(bus, NULL) > 0);
+	return 1;
+}
+
+static struct wlr_session *logind_session_start(struct wl_display *disp) {
 	int ret;
 	struct logind_session *session = calloc(1, sizeof(*session));
 	if (!session) {
@@ -183,22 +259,33 @@ static struct wlr_session *logind_session_start(void) {
 	int len = snprintf(NULL, 0, fmt, session->id);
 
 	session->path = malloc(len + 1);
-	if (!session->path)
+	if (!session->path) {
 		goto error;
+	}
 
 	sprintf(session->path, fmt, session->id);
 
 	ret = sd_bus_default_system(&session->bus);
 	if (ret < 0) {
-		wlr_log(L_ERROR, "Failed to open DBus connection: %s", strerror(-ret));
+		wlr_log(L_ERROR, "Failed to open D-Bus connection: %s", strerror(-ret));
 		goto error;
 	}
 
-	if (!session_activate(session))
+	if (!add_signal_matches(session)) {
 		goto error_bus;
+	}
 
-	if (!take_control(session))
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(disp);
+	session->event = wl_event_loop_add_fd(event_loop, sd_bus_get_fd(session->bus),
+		WL_EVENT_READABLE, dbus_event, session->bus);
+
+	if (!session_activate(session)) {
 		goto error_bus;
+	}
+
+	if (!take_control(session)) {
+		goto error_bus;
+	}
 
 	wlr_log(L_INFO, "Successfully loaded logind session");
 
@@ -220,4 +307,5 @@ const struct session_interface session_logind_iface = {
 	.finish = logind_session_finish,
 	.open = logind_take_device,
 	.close = logind_release_device,
+	.change_vt = logind_change_vt,
 };

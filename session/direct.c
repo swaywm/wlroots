@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -23,13 +24,18 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 	close(fd);
 }
 
+static bool direct_change_vt(struct wlr_session *base, int vt) {
+	// TODO
+	return false;
+}
+
 static void direct_session_finish(struct wlr_session *base) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
 	free(session);
 }
 
-static struct wlr_session *direct_session_start(void) {
+static struct wlr_session *direct_session_start(struct wl_display *disp) {
 	struct direct_session *session = calloc(1, sizeof(*session));
 	if (!session) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
@@ -47,4 +53,5 @@ const struct session_interface session_direct_iface = {
 	.finish = direct_session_finish,
 	.open = direct_session_open,
 	.close = direct_session_close,
+	.change_vt = direct_change_vt,
 };

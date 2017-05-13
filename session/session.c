@@ -13,11 +13,11 @@ static const struct session_interface *ifaces[] = {
 	NULL,
 };
 
-struct wlr_session *wlr_session_start(void) {
+struct wlr_session *wlr_session_start(struct wl_display *disp) {
 	const struct session_interface **iter;
 
 	for (iter = ifaces; *iter; ++iter) {
-		struct wlr_session *session = (*iter)->start();
+		struct wlr_session *session = (*iter)->start(disp);
 		if (session) {
 			return session;
 		}
@@ -39,4 +39,8 @@ int wlr_session_open_file(struct wlr_session *restrict session,
 
 void wlr_session_close_file(struct wlr_session *session, int fd) {
 	session->iface.close(session, fd);
+}
+
+bool wlr_session_change_vt(struct wlr_session *session, int vt) {
+	return session->iface.change_vt(session, vt);
 }

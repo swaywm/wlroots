@@ -81,15 +81,9 @@ int timer_done(void *data) {
 	return 1;
 }
 
-int dpms_on(void *data) {
-	struct wlr_backend *backend = data;
-	wlr_drm_backend_dpms(backend, false);
-	return 1;
-}
-
-int dpms_off(void *data) {
-	struct wlr_backend *backend = data;
-	wlr_drm_backend_dpms(backend, true);
+int timer_change_vt(void *data) {
+	struct wlr_session *session = data;
+	wlr_session_change_vt(session, 7);
 	return 1;
 }
 
@@ -117,7 +111,7 @@ int main() {
 	struct wl_display *display = wl_display_create();
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
-	struct wlr_session *session = wlr_session_start();
+	struct wlr_session *session = wlr_session_start(display);
 	if (!session) {
 		return 1;
 	}
@@ -132,14 +126,11 @@ int main() {
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
-	struct wl_event_source *timer_dpms_on = wl_event_loop_add_timer(event_loop,
-		dpms_on, wlr);
-	struct wl_event_source *timer_dpms_off = wl_event_loop_add_timer(event_loop,
-		dpms_off, wlr);
+	struct wl_event_source *timer_vt = wl_event_loop_add_timer(event_loop,
+		timer_change_vt, session);
 
-	wl_event_source_timer_update(timer, 20000);
-	wl_event_source_timer_update(timer_dpms_on, 5000);
-	wl_event_source_timer_update(timer_dpms_off, 10000);
+	wl_event_source_timer_update(timer, 30000);
+	wl_event_source_timer_update(timer_vt, 5000);
 
 	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);
