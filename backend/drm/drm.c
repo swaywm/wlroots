@@ -249,6 +249,30 @@ static struct wlr_output_impl output_impl = {
 	.destroy = wlr_drm_output_destroy,
 };
 
+static void scan_property_ids(int fd, drmModeConnector *conn,
+		struct wlr_output_state *output) {
+	for (int i = 0; i < conn->count_props; ++i) {
+		drmModePropertyRes *prop = drmModeGetProperty(fd, conn->props[i]);
+		if (!prop) {
+			continue;
+		}
+
+		// I think this is guranteed to exist
+		if (strcmp(prop->name, "DPMS") == 0) {
+			output->props.dpms = prop->prop_id;
+
+			/* There may be more properties we want to get,
+			 * but since it's currently only this, we exit early
+			 */
+
+			drmModeFreeProperty(prop);
+			break;
+		}
+
+		drmModeFreeProperty(prop);
+	}
+}
+
 void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
@@ -299,6 +323,8 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				output->old_crtc = drmModeGetCrtc(state->fd, curr_enc->crtc_id);
 				free(curr_enc);
 			}
+
+			scan_property_ids(state->fd, conn, output);
 
 			list_add(state->outputs, output);
 			wlr_log(L_INFO, "Found display '%s'", output->name);
@@ -415,4 +441,24 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 		break;
 	}
 	// TODO: free wlr_output
+}
+
+void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on) {
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
+	if (screen_on) {
+		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_ON);
+
+		// Start rendering loop again by drawing a black frame
+		wlr_drm_output_begin(output->wlr_output);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_output_end(output->wlr_output);
+	} else {
+		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_STANDBY);
+	}
 }

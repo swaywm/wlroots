@@ -101,3 +101,11 @@ error_backend:
 	free(backend);
 	return NULL;
 }
+
+void wlr_drm_backend_dpms(struct wlr_backend *backend, bool screen_on) {
+	struct wlr_backend_state *state = backend->state;
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		struct wlr_output_state *output = state->outputs->items[i];
+		wlr_drm_output_dpms(state->fd, output, screen_on);
+	}
+}

@@ -81,6 +81,18 @@ int timer_done(void *data) {
 	return 1;
 }
 
+int dpms_on(void *data) {
+	struct wlr_backend *backend = data;
+	wlr_drm_backend_dpms(backend, false);
+	return 1;
+}
+
+int dpms_off(void *data) {
+	struct wlr_backend *backend = data;
+	wlr_drm_backend_dpms(backend, true);
+	return 1;
+}
+
 int main() {
 	if (getenv("DISPLAY")) {
 		fprintf(stderr, "Detected that X is running. Run this in its own virtual terminal.\n");
@@ -120,8 +132,14 @@ int main() {
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
+	struct wl_event_source *timer_dpms_on = wl_event_loop_add_timer(event_loop,
+		dpms_on, wlr);
+	struct wl_event_source *timer_dpms_off = wl_event_loop_add_timer(event_loop,
+		dpms_off, wlr);
 
-	wl_event_source_timer_update(timer, 5000);
+	wl_event_source_timer_update(timer, 20000);
+	wl_event_source_timer_update(timer_dpms_on, 5000);
+	wl_event_source_timer_update(timer_dpms_off, 10000);
 
 	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);
