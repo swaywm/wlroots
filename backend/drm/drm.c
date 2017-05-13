@@ -249,6 +249,20 @@ static struct wlr_output_impl output_impl = {
 	.destroy = wlr_drm_output_destroy,
 };
 
+static uint32_t calculate_refresh_rate(drmModeModeInfo *mode) {
+	uint32_t refresh = (mode->clock * 1000000LL / mode->htotal +
+		mode->vtotal / 2) / mode->vtotal;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		refresh *= 2;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		refresh /= 2;
+	if (mode->vscan > 1)
+		refresh /= mode->vscan;
+
+	return refresh;
+}
+
 void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
@@ -321,14 +335,12 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				struct wlr_output_mode *mode = calloc(1,
 						sizeof(struct wlr_output_mode));
 				mode->width = _state->mode.hdisplay;
-				// TODO: Calculate more accurate refresh rate
-				// TODO: Check that this refresh rate is mHz
 				mode->height = _state->mode.vdisplay;
+				mode->refresh = calculate_refresh_rate(&_state->mode);
 				mode->state = _state;
 
-				wlr_log(L_INFO, "  %"PRIu16"@%"PRIu16"@%"PRIu32,
-					_state->mode.hdisplay, _state->mode.vdisplay,
-					_state->mode.vrefresh);
+				wlr_log(L_INFO, "  %"PRIu32"@%"PRIu32"@%"PRIu32,
+					mode->width, mode->height, mode->refresh);
 
 				list_add(wlr_output->modes, mode);
 			}
