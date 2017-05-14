@@ -60,6 +60,6 @@ void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
-void wlr_drm_output_draw_blank(struct wlr_output_state *output);
+void wlr_drm_output_start_renderer(struct wlr_output_state *output);
 
 #endif

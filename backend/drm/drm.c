@@ -113,23 +113,13 @@ void wlr_drm_output_end(struct wlr_output *output) {
 	_output->pageflip_pending = true;
 }
 
-static bool display_init_renderer(struct wlr_drm_renderer *renderer,
-	struct wlr_output_state *output) {
-	struct wlr_output_mode *mode = output->wlr_output->current_mode;
-	output->renderer = renderer;
-	output->gbm = gbm_surface_create(renderer->gbm, mode->width,
-		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!output->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->name,
-			strerror(errno));
-		return false;
+void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
 	}
 
-	output->egl = wlr_egl_create_surface(&renderer->egl, output->gbm);
-	if (output->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->name);
-		return false;
-	}
+	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_output_mode *mode = output->wlr_output->current_mode;
 
 	// Render black frame
 	eglMakeCurrent(renderer->egl.display, output->egl, output->egl, renderer->egl.context);
@@ -149,6 +139,27 @@ static bool display_init_renderer(struct wlr_drm_renderer *renderer,
 			DRM_MODE_PAGE_FLIP_EVENT, output);
 
 	gbm_surface_release_buffer(output->gbm, bo);
+}
+
+static bool display_init_renderer(struct wlr_drm_renderer *renderer,
+	struct wlr_output_state *output) {
+	struct wlr_output_mode *mode = output->wlr_output->current_mode;
+	output->renderer = renderer;
+	output->gbm = gbm_surface_create(renderer->gbm, mode->width,
+		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+	if (!output->gbm) {
+		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->name,
+			strerror(errno));
+		return false;
+	}
+
+	output->egl = wlr_egl_create_surface(&renderer->egl, output->gbm);
+	if (output->egl == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->name);
+		return false;
+	}
+
+	wlr_drm_output_start_renderer(output);
 	return true;
 }
 
@@ -473,32 +484,4 @@ void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on
 		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
 			DRM_MODE_DPMS_STANDBY);
 	}
-}
-
-void wlr_drm_output_draw_blank(struct wlr_output_state *output) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	struct wlr_drm_renderer *renderer = output->renderer;
-
-	eglMakeCurrent(renderer->egl.display, output->egl, output->egl, renderer->egl.context);
-
-	glViewport(0, 0, output->width, output->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	eglSwapBuffers(renderer->egl.display, output->egl);
-
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
-	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
-
-	drmModeSetCrtc(renderer->fd, output->crtc, fb_id, 0, 0,
-			&output->connector, 1, &output->wlr_output->current_mode->state->mode);
-	drmModePageFlip(renderer->fd, output->crtc, fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, output);
-
-	gbm_surface_release_buffer(output->gbm, bo);
-
-	wlr_log(L_INFO, "Drew blank frame");
 }

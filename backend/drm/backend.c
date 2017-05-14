@@ -57,7 +57,7 @@ static void device_resumed(struct wl_listener *listener, void *data) {
 
 	for (size_t i = 0; i < drm->outputs->length; ++i) {
 		struct wlr_output_state *output = drm->outputs->items[i];
-		wlr_drm_output_draw_blank(output);
+		wlr_drm_output_start_renderer(output);
 	}
 }
 
