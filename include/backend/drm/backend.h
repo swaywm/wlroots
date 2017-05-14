@@ -19,6 +19,7 @@
 
 struct wlr_backend_state {
 	int fd;
+	dev_t dev;
 
 	struct wlr_backend *backend;
 	struct wl_event_source *drm_event;

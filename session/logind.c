@@ -198,8 +198,12 @@ static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_e
 		goto error;
 	}
 
-	dev_t dev = makedev(major, minor);
-	wl_signal_emit(&session->base.device_paused, &dev);
+	struct device_arg arg = {
+		.dev = makedev(major, minor),
+		.fd = -1,
+	};
+
+	wl_signal_emit(&session->base.device_paused, &arg);
 
 	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
 		session->path, "org.freedesktop.login1.Session", "PauseDeviceComplete",
@@ -226,9 +230,12 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 		goto error;
 	}
 
-	// TODO: Use major/minor to make sure the right devices are getting signals
+	struct device_arg arg = {
+		.dev = makedev(major, minor),
+		.fd = fd,
+	};
 
-	wl_signal_emit(&session->base.device_resumed, &fd);
+	wl_signal_emit(&session->base.device_resumed, &arg);
 
 error:
 	return 0;

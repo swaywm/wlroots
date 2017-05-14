@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <wayland-server.h>
+#include <sys/stat.h>
 
 #include <wlr/session.h>
 #include <wlr/common/list.h>
@@ -38,22 +39,31 @@ static struct wlr_backend_impl backend_impl = {
 };
 
 static void device_paused(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *backend = wl_container_of(listener, backend, device_paused);
+	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_paused);
+	struct device_arg *arg = data;
 
 	// TODO: Actually pause the renderer or something.
 	// We currently just expect it to fail its next pageflip.
 
-	(void)backend;
+	if (arg->dev == drm->dev) {
+		wlr_log(L_INFO, "DRM fd paused");
+	}
 }
 
 static void device_resumed(struct wl_listener *listener, void *data) {
 	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_resumed);
-	int *new_fd = data;
+	struct device_arg *arg = data;
 
-	if (dup2(*new_fd, drm->fd) < 0) {
+	if (arg->dev != drm->dev) {
+		return;
+	}
+
+	if (dup2(arg->fd, drm->fd) < 0) {
 		wlr_log(L_ERROR, "dup2 failed: %s", strerror(errno));
 		return;
 	}
+
+	wlr_log(L_INFO, "DRM fd resumed");
 
 	for (size_t i = 0; i < drm->outputs->length; ++i) {
 		struct wlr_output_state *output = drm->outputs->items[i];
@@ -93,6 +103,12 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
 	}
+
+	struct stat st;
+	if (fstat(state->fd, &st) < 0) {
+		wlr_log(L_ERROR, "Stat failed: %s", strerror(errno));
+	}
+	state->dev = st.st_rdev;
 
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 

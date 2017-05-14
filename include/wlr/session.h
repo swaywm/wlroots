@@ -2,8 +2,15 @@
 #define WLR_SESSION_H
 
 #include <wayland-server.h>
+#include <sys/types.h>
 
 struct session_interface;
+
+// Passed to the listeners of device_paused/resumed
+struct device_arg {
+	dev_t dev;
+	int fd; // Only for device_resumed
+};
 
 struct wlr_session {
 	const struct session_interface *iface;
