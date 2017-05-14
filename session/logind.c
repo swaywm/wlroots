@@ -226,15 +226,6 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 		goto error;
 	}
 
-	// The original fd seem to be closed when the message is freed
-	// so we just clone it.
-	fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
-	if (fd == -1) {
-		wlr_log(L_ERROR, "Failed to clone file descriptor for ResumeDevice: %s",
-			strerror(errno));
-		goto error;
-	}
-
 	// TODO: Use major/minor to make sure the right devices are getting signals
 
 	wl_signal_emit(&session->base.device_resumed, &fd);

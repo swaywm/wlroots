@@ -47,12 +47,13 @@ static void device_paused(struct wl_listener *listener, void *data) {
 }
 
 static void device_resumed(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_paused);
+	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_resumed);
 	int *new_fd = data;
 
-	close(drm->fd);
-	drm->fd = *new_fd;
-	drm->renderer.fd = *new_fd;
+	if (dup2(*new_fd, drm->fd) < 0) {
+		wlr_log(L_ERROR, "dup2 failed: %s", strerror(errno));
+		return;
+	}
 
 	for (size_t i = 0; i < drm->outputs->length; ++i) {
 		struct wlr_output_state *output = drm->outputs->items[i];
