@@ -236,6 +236,28 @@ error:
 	return false;
 }
 
+static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
+	if (enable) {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_ON);
+
+		// Start rendering loop again by drawing a black frame
+		wlr_drm_output_begin(output);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_output_end(output);
+	} else {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_STANDBY);
+	}
+}
+
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 	wlr_drm_output_cleanup(output, true);
 	wlr_drm_renderer_free(output->renderer);
@@ -244,6 +266,7 @@ static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 
 static struct wlr_output_impl output_impl = {
 	.set_mode = wlr_drm_output_set_mode,
+	.enable = wlr_drm_output_enable,
 	.destroy = wlr_drm_output_destroy,
 };
 
@@ -453,24 +476,4 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 		break;
 	}
 	// TODO: free wlr_output
-}
-
-void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	if (screen_on) {
-		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_ON);
-
-		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_begin(output);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_end(output);
-	} else {
-		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_STANDBY);
-	}
 }

@@ -4,8 +4,9 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <GLES3/gl3.h>
-#include <wlr/backend/drm.h>
+#include <wlr/backend.h>
 #include <wlr/session.h>
+#include <wlr/wayland.h>
 #include <wlr/common/list.h>
 
 struct state {
@@ -40,7 +41,6 @@ void output_frame(struct wl_listener *listener, void *data) {
 	if (s->color[s->dec] < 0.0f) {
 		s->color[inc] = 1.0f;
 		s->color[s->dec] = 0.0f;
-
 		s->dec = inc;
 	}
 
@@ -75,15 +75,23 @@ int timer_done(void *data) {
 	return 1;
 }
 
-int dpms_on(void *data) {
-	struct wlr_backend *backend = data;
-	wlr_drm_backend_dpms(backend, false);
+int enable_outputs(void *data) {
+	struct state *state = data;
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		struct output_state *ostate = state->outputs->items[i];
+		struct wlr_output *output = ostate->output;
+		wlr_output_enable(output, true);
+	}
 	return 1;
 }
 
-int dpms_off(void *data) {
-	struct wlr_backend *backend = data;
-	wlr_drm_backend_dpms(backend, true);
+int disable_outputs(void *data) {
+	struct state *state = data;
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		struct output_state *ostate = state->outputs->items[i];
+		struct wlr_output *output = ostate->output;
+		wlr_output_enable(output, false);
+	}
 	return 1;
 }
 
@@ -116,7 +124,7 @@ int main() {
 		return 1;
 	}
 
-	struct wlr_backend *wlr = wlr_drm_backend_create(display, session);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display, session);
 	wl_signal_add(&wlr->events.output_add, &state.output_add);
 	wl_signal_add(&wlr->events.output_remove, &state.output_remove);
 	if (!wlr || !wlr_backend_init(wlr)) {
@@ -126,14 +134,14 @@ int main() {
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
-	struct wl_event_source *timer_dpms_on = wl_event_loop_add_timer(event_loop,
-		dpms_on, wlr);
-	struct wl_event_source *timer_dpms_off = wl_event_loop_add_timer(event_loop,
-		dpms_off, wlr);
+	struct wl_event_source *timer_disable_outputs =
+		wl_event_loop_add_timer(event_loop, disable_outputs, &state);
+	struct wl_event_source *timer_enable_outputs =
+		wl_event_loop_add_timer(event_loop, enable_outputs, &state);
 
 	wl_event_source_timer_update(timer, 20000);
-	wl_event_source_timer_update(timer_dpms_on, 5000);
-	wl_event_source_timer_update(timer_dpms_off, 10000);
+	wl_event_source_timer_update(timer_disable_outputs, 5000);
+	wl_event_source_timer_update(timer_enable_outputs, 10000);
 
 	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);

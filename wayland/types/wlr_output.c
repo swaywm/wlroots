@@ -29,3 +29,7 @@ void wlr_output_free(struct wlr_output *output) {
 bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
 	return output->impl->set_mode(output->state, mode);
 }
+
+void wlr_output_enable(struct wlr_output *output, bool enable) {
+	output->impl->enable(output->state, enable);
+}
