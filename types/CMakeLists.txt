@@ -3,11 +3,11 @@ include_directories(
 	${WAYLAND_INCLUDE_DIR}
 )
 
-add_library(wlr-wayland
-    types/wlr_output.c
+add_library(wlr-types
+    wlr_output.c
 )
 
-target_link_libraries(wlr-wayland
+target_link_libraries(wlr-types
     wlr-common
     ${WAYLAND_LIBRARIES}
 )
