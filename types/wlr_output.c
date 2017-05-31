@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <wayland-server.h>
-#include "wlr/wayland.h"
-#include "wlr/common/list.h"
-#include "wayland.h"
+#include <wlr/types.h>
+#include <wlr/common/list.h>
+#include "types.h"
 
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 		struct wlr_output_state *state) {

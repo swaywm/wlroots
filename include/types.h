@@ -2,7 +2,7 @@
 #define _WLR_WAYLAND_INTERNAL_H
 
 #include <wayland-server.h>
-#include <wlr/wayland.h>
+#include <wlr/types.h>
 #include <stdbool.h>
 
 struct wlr_output_impl {
