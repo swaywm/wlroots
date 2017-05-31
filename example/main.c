@@ -66,8 +66,21 @@ void output_add(struct wl_listener *listener, void *data) {
 
 void output_remove(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
-	fprintf(stderr, "Output '%s' removed\n", output->name);
-	// TODO: remove signal from state->output_frame
+	struct output_state *ostate = NULL;
+	struct state *state = wl_container_of(listener, state, output_remove);
+	size_t i;
+	for (i = 0; i < state->outputs->length; ++i) {
+		struct output_state *_ostate = state->outputs->items[i];
+		if (_ostate->output == output) {
+			ostate = _ostate;
+			break;
+		}
+	}
+	if (!ostate) {
+		return; // We are unfamiliar with this output
+	}
+	list_del(state->outputs, i);
+	wl_list_remove(&ostate->frame.link);
 }
 
 int timer_done(void *data) {

@@ -33,7 +33,6 @@ bool wlr_backend_init(struct wlr_backend *backend) {
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
 	backend->impl->destroy(backend->state);
-	// TODO: free outputs
 	free(backend);
 }
 

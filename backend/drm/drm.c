@@ -103,8 +103,13 @@ static void wlr_drm_output_begin(struct wlr_output_state *output) {
 static void wlr_drm_output_end(struct wlr_output_state *output) {
 	struct wlr_drm_renderer *renderer = output->renderer;
 
-	eglSwapBuffers(renderer->egl.display, output->egl);
+	if (!eglSwapBuffers(renderer->egl.display, output->egl)) {
+		return;
+	}
 	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
+	if (!bo) {
+		return;
+	}
 	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
 	drmModePageFlip(renderer->fd, output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
 	gbm_surface_release_buffer(output->gbm, bo);
@@ -399,7 +404,6 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			conn->connection != DRM_MODE_CONNECTED) {
 
 			wlr_log(L_INFO, "'%s' disconnected", output->name);
-			// TODO: Destroy
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -459,6 +463,11 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 
 	switch (output->state) {
 	case DRM_OUTPUT_CONNECTED:
+		output->state = DRM_OUTPUT_DISCONNECTED;
+		if (restore) {
+			restore_output(output, renderer->fd);
+			restore = false;
+		}
 		eglDestroySurface(renderer->egl.display, output->egl);
 		gbm_surface_destroy(output->gbm);
 		output->egl = EGL_NO_SURFACE;
@@ -475,5 +484,4 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 	case DRM_OUTPUT_DISCONNECTED:
 		break;
 	}
-	// TODO: free wlr_output
 }

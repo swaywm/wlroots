@@ -6,6 +6,7 @@
 #include <wayland-server.h>
 
 #include <wlr/session.h>
+#include <wlr/wayland.h>
 #include <wlr/common/list.h>
 
 #include "backend.h"
@@ -23,7 +24,10 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 	if (!state) {
 		return;
 	}
-	// TODO: free outputs in shared backend code
+	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
+		struct wlr_output_state *output = state->outputs->items[i];
+		wlr_output_destroy(output->wlr_output);
+	}
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_udev_free(&state->udev);
 	wlr_session_close_file(state->session, state->fd);
