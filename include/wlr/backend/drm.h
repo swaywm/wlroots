@@ -12,7 +12,4 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 void wlr_drm_backend_dpms(struct wlr_backend *backend, bool screen_on);
 
-void wlr_drm_output_begin(struct wlr_output *out);
-void wlr_drm_output_end(struct wlr_output *out);
-
 #endif

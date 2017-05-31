@@ -24,9 +24,7 @@ struct output_state {
 };
 
 void output_frame(struct wl_listener *listener, void *data) {
-	struct wlr_output *output = data;
-	struct output_state *ostate = wl_container_of(
-			listener, ostate, frame);
+	struct output_state *ostate = wl_container_of(listener, ostate, frame);
 	struct state *s = ostate->state;
 
 	struct timespec now;
@@ -48,12 +46,8 @@ void output_frame(struct wl_listener *listener, void *data) {
 
 	s->last_frame = now;
 
-	wlr_drm_output_begin(output);
-
 	glClearColor(s->color[0], s->color[1], s->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	wlr_drm_output_end(output);
 }
 
 void output_add(struct wl_listener *listener, void *data) {
