@@ -147,12 +147,16 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 		return 1;
 	}
 
+	const char *action = udev_device_get_action(dev);
 	const char *path = udev_device_get_devnode(dev);
+
+	wlr_log(L_DEBUG, "udev event for %s (%s)",
+			udev_device_get_sysname(dev), action);
+
 	if (!path || strcmp(path, udev->drm_path) != 0) {
 		goto out;
 	}
 
-	const char *action = udev_device_get_action(dev);
 	if (!action || strcmp(action, "change") != 0) {
 		goto out;
 	}
@@ -189,9 +193,8 @@ bool wlr_udev_init(struct wl_display *display, struct wlr_udev *udev) {
 		wlr_log(L_ERROR, "Failed to create udev event source");
 		goto error_mon;
 	}
-
-	udev->drm_path = NULL;
-
+	
+	wlr_log(L_DEBUG, "Successfully initialized udev");
 	return true;
 
 error_mon:

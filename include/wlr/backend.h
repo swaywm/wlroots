@@ -2,6 +2,7 @@
 #define _WLR_BACKEND_H
 
 #include <wayland-server.h>
+#include <wlr/session.h>
 
 struct wlr_backend_impl;
 struct wlr_backend_state;
@@ -22,7 +23,8 @@ struct wlr_backend {
 	} events;
 };
 
-struct wlr_backend *wlr_backend_autocreate();
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
+		struct wlr_session *session);
 bool wlr_backend_init(struct wlr_backend *backend);
 void wlr_backend_destroy(struct wlr_backend *backend);
 

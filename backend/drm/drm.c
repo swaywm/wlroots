@@ -13,7 +13,7 @@
 #include <GLES3/gl3.h>
 #include <wayland-server.h>
 
-#include "wayland.h"
+#include "types.h"
 #include "backend.h"
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
@@ -94,23 +94,26 @@ static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo) {
 	return *id;
 }
 
-void wlr_drm_output_begin(struct wlr_output *output) {
-	struct wlr_output_state *_output = output->state;
-	struct wlr_drm_renderer *renderer = _output->renderer;
-	eglMakeCurrent(renderer->egl.display, _output->egl,
-			_output->egl, renderer->egl.context);
+static void wlr_drm_output_begin(struct wlr_output_state *output) {
+	struct wlr_drm_renderer *renderer = output->renderer;
+	eglMakeCurrent(renderer->egl.display, output->egl,
+			output->egl, renderer->egl.context);
 }
 
-void wlr_drm_output_end(struct wlr_output *output) {
-	struct wlr_output_state *_output = output->state;
-	struct wlr_drm_renderer *renderer = _output->renderer;
+static void wlr_drm_output_end(struct wlr_output_state *output) {
+	struct wlr_drm_renderer *renderer = output->renderer;
 
-	eglSwapBuffers(renderer->egl.display, _output->egl);
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(_output->gbm);
+	if (!eglSwapBuffers(renderer->egl.display, output->egl)) {
+		return;
+	}
+	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
+	if (!bo) {
+		return;
+	}
 	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
-	drmModePageFlip(renderer->fd, _output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, _output);
-	gbm_surface_release_buffer(_output->gbm, bo);
-	_output->pageflip_pending = true;
+	drmModePageFlip(renderer->fd, output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
+	gbm_surface_release_buffer(output->gbm, bo);
+	output->pageflip_pending = true;
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
@@ -249,6 +252,28 @@ error:
 	return false;
 }
 
+static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
+	if (enable) {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_ON);
+
+		// Start rendering loop again by drawing a black frame
+		wlr_drm_output_begin(output);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_output_end(output);
+	} else {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_STANDBY);
+	}
+}
+
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 	wlr_drm_output_cleanup(output, true);
 	wlr_drm_renderer_free(output->renderer);
@@ -257,6 +282,7 @@ static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 
 static struct wlr_output_impl output_impl = {
 	.set_mode = wlr_drm_output_set_mode,
+	.enable = wlr_drm_output_enable,
 	.destroy = wlr_drm_output_destroy,
 };
 
@@ -389,7 +415,6 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			conn->connection != DRM_MODE_CONNECTED) {
 
 			wlr_log(L_INFO, "'%s' disconnected", output->name);
-			// TODO: Destroy
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -407,7 +432,9 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	output->pageflip_pending = false;
 	if (output->state == DRM_OUTPUT_CONNECTED) {
+		wlr_drm_output_begin(output);
 		wl_signal_emit(&output->wlr_output->events.frame, output->wlr_output);
+		wlr_drm_output_end(output);
 	}
 }
 
@@ -447,6 +474,11 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 
 	switch (output->state) {
 	case DRM_OUTPUT_CONNECTED:
+		output->state = DRM_OUTPUT_DISCONNECTED;
+		if (restore) {
+			restore_output(output, renderer->fd);
+			restore = false;
+		}
 		eglDestroySurface(renderer->egl.display, output->egl);
 		gbm_surface_destroy(output->gbm);
 		output->egl = EGL_NO_SURFACE;
@@ -462,26 +494,5 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 		break;
 	case DRM_OUTPUT_DISCONNECTED:
 		break;
-	}
-	// TODO: free wlr_output
-}
-
-void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	if (screen_on) {
-		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_ON);
-
-		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_begin(output->wlr_output);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_end(output->wlr_output);
-	} else {
-		drmModeConnectorSetProperty(fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_STANDBY);
 	}
 }

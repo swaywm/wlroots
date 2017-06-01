@@ -40,5 +40,7 @@ struct wlr_output {
 };
 
 bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode);
+void wlr_output_enable(struct wlr_output *output, bool enable);
+void wlr_output_destroy(struct wlr_output *output);
 
 #endif

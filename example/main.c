@@ -4,8 +4,9 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <GLES3/gl3.h>
-#include <wlr/backend/drm.h>
+#include <wlr/backend.h>
 #include <wlr/session.h>
+#include <wlr/types.h>
 #include <wlr/common/list.h>
 
 struct state {
@@ -24,9 +25,7 @@ struct output_state {
 };
 
 void output_frame(struct wl_listener *listener, void *data) {
-	struct wlr_output *output = data;
-	struct output_state *ostate = wl_container_of(
-			listener, ostate, frame);
+	struct output_state *ostate = wl_container_of(listener, ostate, frame);
 	struct state *s = ostate->state;
 
 	struct timespec now;
@@ -42,18 +41,13 @@ void output_frame(struct wl_listener *listener, void *data) {
 	if (s->color[s->dec] < 0.0f) {
 		s->color[inc] = 1.0f;
 		s->color[s->dec] = 0.0f;
-
 		s->dec = inc;
 	}
 
 	s->last_frame = now;
 
-	wlr_drm_output_begin(output);
-
 	glClearColor(s->color[0], s->color[1], s->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	wlr_drm_output_end(output);
 }
 
 void output_add(struct wl_listener *listener, void *data) {
@@ -72,8 +66,21 @@ void output_add(struct wl_listener *listener, void *data) {
 
 void output_remove(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
-	fprintf(stderr, "Output '%s' removed\n", output->name);
-	// TODO: remove signal from state->output_frame
+	struct output_state *ostate = NULL;
+	struct state *state = wl_container_of(listener, state, output_remove);
+	size_t i;
+	for (i = 0; i < state->outputs->length; ++i) {
+		struct output_state *_ostate = state->outputs->items[i];
+		if (_ostate->output == output) {
+			ostate = _ostate;
+			break;
+		}
+	}
+	if (!ostate) {
+		return; // We are unfamiliar with this output
+	}
+	list_del(state->outputs, i);
+	wl_list_remove(&ostate->frame.link);
 }
 
 int timer_done(void *data) {
@@ -81,9 +88,23 @@ int timer_done(void *data) {
 	return 1;
 }
 
-int timer_change_vt(void *data) {
-	struct wlr_session *session = data;
-	wlr_session_change_vt(session, 7);
+int enable_outputs(void *data) {
+	struct state *state = data;
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		struct output_state *ostate = state->outputs->items[i];
+		struct wlr_output *output = ostate->output;
+		wlr_output_enable(output, true);
+	}
+	return 1;
+}
+
+int disable_outputs(void *data) {
+	struct state *state = data;
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		struct output_state *ostate = state->outputs->items[i];
+		struct wlr_output *output = ostate->output;
+		wlr_output_enable(output, false);
+	}
 	return 1;
 }
 
@@ -116,7 +137,7 @@ int main() {
 		return 1;
 	}
 
-	struct wlr_backend *wlr = wlr_drm_backend_create(display, session);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display, session);
 	wl_signal_add(&wlr->events.output_add, &state.output_add);
 	wl_signal_add(&wlr->events.output_remove, &state.output_remove);
 	if (!wlr || !wlr_backend_init(wlr)) {
@@ -126,11 +147,14 @@ int main() {
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
-	struct wl_event_source *timer_vt = wl_event_loop_add_timer(event_loop,
-		timer_change_vt, session);
+	struct wl_event_source *timer_disable_outputs =
+		wl_event_loop_add_timer(event_loop, disable_outputs, &state);
+	struct wl_event_source *timer_enable_outputs =
+		wl_event_loop_add_timer(event_loop, enable_outputs, &state);
 
-	wl_event_source_timer_update(timer, 15000);
-	wl_event_source_timer_update(timer_vt, 5000);
+	wl_event_source_timer_update(timer, 20000);
+	wl_event_source_timer_update(timer_disable_outputs, 5000);
+	wl_event_source_timer_update(timer_enable_outputs, 10000);
 
 	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);

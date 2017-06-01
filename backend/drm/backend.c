@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 
 #include <wlr/session.h>
+#include <wlr/types.h>
 #include <wlr/common/list.h>
 
 #include "backend.h"
@@ -24,7 +25,10 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 	if (!state) {
 		return;
 	}
-	// TODO: free outputs in shared backend code
+	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
+		struct wlr_output_state *output = state->outputs->items[i];
+		wlr_output_destroy(output->wlr_output);
+	}
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_udev_free(&state->udev);
 	wlr_session_close_file(state->session, state->fd);
@@ -149,12 +153,4 @@ error_backend:
 	free(state);
 	free(backend);
 	return NULL;
-}
-
-void wlr_drm_backend_dpms(struct wlr_backend *backend, bool screen_on) {
-	struct wlr_backend_state *state = backend->state;
-	for (size_t i = 0; i < state->outputs->length; ++i) {
-		struct wlr_output_state *output = state->outputs->items[i];
-		wlr_drm_output_dpms(state->fd, output, screen_on);
-	}
 }

@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <wlr/session.h>
 #include "common/log.h"
+#include "backend/drm/backend.h"
 #include "backend.h"
 
 struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
@@ -31,6 +33,13 @@ bool wlr_backend_init(struct wlr_backend *backend) {
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
 	backend->impl->destroy(backend->state);
-	// TODO: free outputs
 	free(backend);
+}
+
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
+		struct wlr_session *session) {
+	// TODO: Choose the most appropriate backend for the situation
+	struct wlr_backend *wlr;
+	wlr = wlr_drm_backend_create(display, session);
+	return wlr;
 }

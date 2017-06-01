@@ -55,7 +55,6 @@ struct wlr_output_state {
 };
 
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
-void wlr_drm_output_dpms(int fd, struct wlr_output_state *output, bool screen_on);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
