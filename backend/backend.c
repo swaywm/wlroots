@@ -1,4 +1,5 @@
 #include <wayland-server.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -39,7 +40,27 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		struct wlr_session *session) {
 	// TODO: Choose the most appropriate backend for the situation
+	// Attempt DRM+libinput
+	struct wlr_udev *udev;
+	if (!(udev = wlr_udev_create(display))) {
+		wlr_log(L_ERROR, "Failed to start udev");
+		goto error;
+	}
+	int gpu = wlr_udev_find_gpu(udev, session);
+	if (gpu == -1) {
+		wlr_log(L_ERROR, "Failed to open DRM device");
+		goto error_udev;
+	}
 	struct wlr_backend *wlr;
-	wlr = wlr_drm_backend_create(display, session);
+	wlr = wlr_drm_backend_create(display, session, udev, gpu);
+	if (!wlr) {
+		goto error_gpu;
+	}
 	return wlr;
+error_gpu:
+	close(gpu);
+error_udev:
+	wlr_udev_destroy(udev);
+error:
+	return NULL;
 }

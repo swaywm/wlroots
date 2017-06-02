@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-
 #include <libudev.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -8,13 +7,10 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wayland-server.h>
-
 #include <wlr/session.h>
-
 #include "backend.h"
 #include "backend/drm/backend.h"
-#include "backend/drm/udev.h"
-#include "backend/drm/drm.h"
+#include "backend/udev.h"
 #include "common/log.h"
 
 /* Tests if 'path' is KMS compatible by trying to open it.
@@ -140,7 +136,6 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session) {
 
 static int udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_udev *udev = data;
-	struct wlr_backend_state *state = wl_container_of(udev, state, udev);
 
 	struct udev_device *dev = udev_monitor_receive_device(udev->mon);
 	if (!dev) {
@@ -161,19 +156,25 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 		goto out;
 	}
 
-	wlr_drm_scan_connectors(state);
+	// TODO: Specify the GPU that's being invalidated
+	wl_signal_emit(&udev->invalidate_drm, udev);
 
 out:
 	udev_device_unref(dev);
 	return 1;
 }
 
-bool wlr_udev_init(struct wl_display *display, struct wlr_udev *udev) {
+struct wlr_udev *wlr_udev_create(struct wl_display *display) {
+	struct wlr_udev *udev = calloc(sizeof(struct wlr_udev), 1);
+	if (!udev) {
+		return NULL;
+	}
 	udev->udev = udev_new();
 	if (!udev->udev) {
 		wlr_log(L_ERROR, "Failed to create udev context");
-		return false;
+		goto error;
 	}
+	wl_signal_init(&udev->invalidate_drm);
 
 	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
 	if (!udev->mon) {
@@ -195,16 +196,18 @@ bool wlr_udev_init(struct wl_display *display, struct wlr_udev *udev) {
 	}
 	
 	wlr_log(L_DEBUG, "Successfully initialized udev");
-	return true;
+	return udev;
 
 error_mon:
 	udev_monitor_unref(udev->mon);
 error_udev:
 	udev_unref(udev->udev);
-	return false;
+error:
+	free(udev);
+	return NULL;
 }
 
-void wlr_udev_free(struct wlr_udev *udev) {
+void wlr_udev_destroy(struct wlr_udev *udev) {
 	if (!udev) {
 		return;
 	}

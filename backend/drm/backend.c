@@ -3,17 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include <wayland-server.h>
 #include <sys/stat.h>
-
 #include <wlr/session.h>
 #include <wlr/types.h>
 #include <wlr/common/list.h>
-
 #include "backend.h"
+#include "backend/udev.h"
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
-#include "backend/drm/udev.h"
 #include "common/log.h"
 
 static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
@@ -30,7 +29,6 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 		wlr_output_destroy(output->wlr_output);
 	}
 	wlr_drm_renderer_free(&state->renderer);
-	wlr_udev_free(&state->udev);
 	wlr_session_close_file(state->session, state->fd);
 	wlr_session_finish(state->session);
 	wl_event_source_remove(state->drm_event);
@@ -75,8 +73,14 @@ static void device_resumed(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void drm_invalidated(struct wl_listener *listener, void *state) {
+	struct wlr_backend_state *drm = wl_container_of(listener, drm, drm_invalidated);
+	wlr_drm_scan_connectors(drm);
+}
+
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-		struct wlr_session *session) {
+		struct wlr_session *session, struct wlr_udev *udev, int gpu_fd) {
+	assert(display && session && gpu_fd > 0);
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
@@ -97,16 +101,10 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_backend;
 	}
 
-	if (!wlr_udev_init(display, &state->udev)) {
-		wlr_log(L_ERROR, "Failed to start udev");
-		goto error_list;
-	}
-
-	state->fd = wlr_udev_find_gpu(&state->udev, state->session);
-	if (state->fd == -1) {
-		wlr_log(L_ERROR, "Failed to open DRM device");
-		goto error_udev;
-	}
+	state->fd = gpu_fd;
+	wl_list_init(&state->drm_invalidated.link);
+	state->drm_invalidated.notify = drm_invalidated;
+	wl_signal_add(&udev->invalidate_drm, &state->drm_invalidated);
 
 	struct stat st;
 	if (fstat(state->fd, &st) < 0) {
@@ -145,9 +143,6 @@ error_event:
 	wl_event_source_remove(state->drm_event);
 error_fd:
 	wlr_session_close_file(state->session, state->fd);
-error_udev:
-	wlr_udev_free(&state->udev);
-error_list:
 	list_free(state->outputs);
 error_backend:
 	free(state);

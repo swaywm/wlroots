@@ -11,7 +11,7 @@ add_library(wlr-backend
     #wayland/wl_output.c
     drm/backend.c
     drm/drm.c
-    drm/udev.c
+    udev.c
     backend.c
     egl.c
 )

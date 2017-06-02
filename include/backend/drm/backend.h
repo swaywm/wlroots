@@ -13,7 +13,7 @@
 #include <wlr/backend/drm.h>
 
 #include "backend.h"
-#include "udev.h"
+#include "backend/udev.h"
 #include "event.h"
 #include "drm.h"
 
@@ -26,13 +26,14 @@ struct wlr_backend_state {
 
 	struct wl_listener device_paused;
 	struct wl_listener device_resumed;
+	struct wl_listener drm_invalidated;
 
 	uint32_t taken_crtcs;
 	list_t *outputs;
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
-	struct wlr_udev udev;
+	struct wlr_udev *udev;
 };
 
 #endif
