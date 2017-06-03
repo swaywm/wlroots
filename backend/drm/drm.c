@@ -276,7 +276,6 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 	wlr_drm_output_cleanup(output, true);
-	wlr_drm_renderer_free(output->renderer);
 	free(output);
 }
 

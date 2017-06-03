@@ -9,7 +9,6 @@
 struct wlr_udev {
 	struct udev *udev;
 	struct udev_monitor *mon;
-	char *drm_path;
 	struct wl_event_source *event;
 	struct wl_signal invalidate_drm;
 };

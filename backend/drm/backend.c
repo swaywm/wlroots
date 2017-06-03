@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <wayland-server.h>
+#include <xf86drm.h>
 #include <sys/stat.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
@@ -30,7 +31,6 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 	}
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_session_close_file(state->session, state->fd);
-	wlr_session_finish(state->session);
 	wl_event_source_remove(state->drm_event);
 	free(state);
 }
@@ -73,14 +73,31 @@ static void device_resumed(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void drm_invalidated(struct wl_listener *listener, void *state) {
+static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_backend_state *drm = wl_container_of(listener, drm, drm_invalidated);
-	wlr_drm_scan_connectors(drm);
+	dev_t *dev = data;
+
+	if (drm->dev == *dev) {
+		char *name = drmGetDeviceNameFromFd2(drm->fd);
+		wlr_log(L_DEBUG, "%s invalidated", name);
+		free(name);
+
+		wlr_drm_scan_connectors(drm);
+	}
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev, int gpu_fd) {
 	assert(display && session && gpu_fd > 0);
+
+	char *name = drmGetDeviceNameFromFd2(gpu_fd);
+	drmVersion *version = drmGetVersion(gpu_fd);
+
+	wlr_log(L_INFO, "Initalizing DRM backend for %s (%s)", name, version->name);
+
+	free(name);
+	drmFreeVersion(version);
+
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));

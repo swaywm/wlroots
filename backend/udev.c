@@ -73,7 +73,6 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session) {
 
 	struct udev_list_entry *entry;
 	int fd = -1;
-	char *drm_path = NULL;
 
 	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(en)) {
 		bool is_boot_vga = false;
@@ -117,9 +116,6 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session) {
 			continue;
 		}
 
-		free(drm_path);
-		drm_path = strdup(path);
-
 		udev_device_unref(dev);
 
 		// We've found the primary GPU
@@ -130,7 +126,6 @@ int wlr_udev_find_gpu(struct wlr_udev *udev, struct wlr_session *session) {
 
 	udev_enumerate_unref(en);
 
-	udev->drm_path = drm_path;
 	return fd;
 }
 
@@ -143,21 +138,16 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	const char *action = udev_device_get_action(dev);
-	const char *path = udev_device_get_devnode(dev);
 
 	wlr_log(L_DEBUG, "udev event for %s (%s)",
 			udev_device_get_sysname(dev), action);
-
-	if (!path || strcmp(path, udev->drm_path) != 0) {
-		goto out;
-	}
 
 	if (!action || strcmp(action, "change") != 0) {
 		goto out;
 	}
 
-	// TODO: Specify the GPU that's being invalidated
-	wl_signal_emit(&udev->invalidate_drm, udev);
+	dev_t devnum = udev_device_get_devnum(dev);
+	wl_signal_emit(&udev->invalidate_drm, &devnum);
 
 out:
 	udev_device_unref(dev);
@@ -216,5 +206,4 @@ void wlr_udev_destroy(struct wlr_udev *udev) {
 
 	udev_monitor_unref(udev->mon);
 	udev_unref(udev->udev);
-	free(udev->drm_path);
 }
