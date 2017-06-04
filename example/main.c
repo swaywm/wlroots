@@ -7,7 +7,6 @@
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
-#include <wlr/common/list.h>
 
 struct state {
 	float color[3];
@@ -15,10 +14,11 @@ struct state {
 	struct timespec last_frame;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
-	list_t *outputs;
+	struct wl_list outputs;
 };
 
 struct output_state {
+	struct wl_list link;
 	struct wlr_output *output;
 	struct state *state;
 	struct wl_listener frame;
@@ -61,16 +61,14 @@ void output_add(struct wl_listener *listener, void *data) {
 	ostate->frame.notify = output_frame;
 	wl_list_init(&ostate->frame.link);
 	wl_signal_add(&output->events.frame, &ostate->frame);
-	list_add(state->outputs, ostate);
+	wl_list_insert(&state->outputs, &ostate->link);
 }
 
 void output_remove(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
-	struct output_state *ostate = NULL;
 	struct state *state = wl_container_of(listener, state, output_remove);
-	size_t i;
-	for (i = 0; i < state->outputs->length; ++i) {
-		struct output_state *_ostate = state->outputs->items[i];
+	struct output_state *ostate = NULL, *_ostate;
+	wl_list_for_each(_ostate, &state->outputs, link) {
 		if (_ostate->output == output) {
 			ostate = _ostate;
 			break;
@@ -79,7 +77,7 @@ void output_remove(struct wl_listener *listener, void *data) {
 	if (!ostate) {
 		return; // We are unfamiliar with this output
 	}
-	list_del(state->outputs, i);
+	wl_list_remove(&ostate->link);
 	wl_list_remove(&ostate->frame.link);
 }
 
@@ -90,8 +88,8 @@ int timer_done(void *data) {
 
 int enable_outputs(void *data) {
 	struct state *state = data;
-	for (size_t i = 0; i < state->outputs->length; ++i) {
-		struct output_state *ostate = state->outputs->items[i];
+	struct output_state *ostate;
+	wl_list_for_each(ostate, &state->outputs, link) {
 		struct wlr_output *output = ostate->output;
 		wlr_output_enable(output, true);
 	}
@@ -100,8 +98,8 @@ int enable_outputs(void *data) {
 
 int disable_outputs(void *data) {
 	struct state *state = data;
-	for (size_t i = 0; i < state->outputs->length; ++i) {
-		struct output_state *ostate = state->outputs->items[i];
+	struct output_state *ostate;
+	wl_list_for_each(ostate, &state->outputs, link) {
 		struct wlr_output *output = ostate->output;
 		wlr_output_enable(output, false);
 	}
@@ -121,10 +119,10 @@ int main() {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,
 		.output_add = { .notify = output_add },
-		.output_remove = { .notify = output_remove },
-		.outputs = list_create(),
+		.output_remove = { .notify = output_remove }
 	};
 
+	wl_list_init(&state.outputs);
 	wl_list_init(&state.output_add.link);
 	wl_list_init(&state.output_remove.link);
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
