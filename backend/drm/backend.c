@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <wayland-server.h>
+#include <xf86drm.h>
 #include <sys/stat.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
@@ -28,9 +29,9 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 		struct wlr_output_state *output = state->outputs->items[i];
 		wlr_output_destroy(output->wlr_output);
 	}
+	wlr_udev_signal_remove(state->udev, &state->drm_invalidated);
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_session_close_file(state->session, state->fd);
-	wlr_session_finish(state->session);
 	wl_event_source_remove(state->drm_event);
 	free(state);
 }
@@ -73,14 +74,31 @@ static void device_resumed(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void drm_invalidated(struct wl_listener *listener, void *state) {
+static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_backend_state *drm = wl_container_of(listener, drm, drm_invalidated);
+	struct wlr_udev *udev = data;
+
+	(void)udev;
+
+	char *name = drmGetDeviceNameFromFd2(drm->fd);
+	wlr_log(L_DEBUG, "%s invalidated", name);
+	free(name);
+
 	wlr_drm_scan_connectors(drm);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev, int gpu_fd) {
 	assert(display && session && gpu_fd > 0);
+
+	char *name = drmGetDeviceNameFromFd2(gpu_fd);
+	drmVersion *version = drmGetVersion(gpu_fd);
+
+	wlr_log(L_INFO, "Initalizing DRM backend for %s (%s)", name, version->name);
+
+	free(name);
+	drmFreeVersion(version);
+
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
@@ -95,6 +113,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	state->backend = backend;
 	state->session = session;
+	state->udev = udev;
 	state->outputs = list_create();
 	if (!state->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
@@ -102,15 +121,15 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	state->fd = gpu_fd;
-	wl_list_init(&state->drm_invalidated.link);
-	state->drm_invalidated.notify = drm_invalidated;
-	wl_signal_add(&udev->invalidate_drm, &state->drm_invalidated);
 
 	struct stat st;
 	if (fstat(state->fd, &st) < 0) {
 		wlr_log(L_ERROR, "Stat failed: %s", strerror(errno));
 	}
 	state->dev = st.st_rdev;
+
+	state->drm_invalidated.notify = drm_invalidated;
+	wlr_udev_signal_add(udev, state->dev, &state->drm_invalidated);
 
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
