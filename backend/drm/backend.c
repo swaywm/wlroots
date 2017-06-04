@@ -29,6 +29,7 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 		struct wlr_output_state *output = state->outputs->items[i];
 		wlr_output_destroy(output->wlr_output);
 	}
+	wlr_udev_signal_remove(state->udev, &state->drm_invalidated);
 	wlr_drm_renderer_free(&state->renderer);
 	wlr_session_close_file(state->session, state->fd);
 	wl_event_source_remove(state->drm_event);
@@ -75,15 +76,15 @@ static void device_resumed(struct wl_listener *listener, void *data) {
 
 static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_backend_state *drm = wl_container_of(listener, drm, drm_invalidated);
-	dev_t *dev = data;
+	struct wlr_udev *udev = data;
 
-	if (drm->dev == *dev) {
-		char *name = drmGetDeviceNameFromFd2(drm->fd);
-		wlr_log(L_DEBUG, "%s invalidated", name);
-		free(name);
+	(void)udev;
 
-		wlr_drm_scan_connectors(drm);
-	}
+	char *name = drmGetDeviceNameFromFd2(drm->fd);
+	wlr_log(L_DEBUG, "%s invalidated", name);
+	free(name);
+
+	wlr_drm_scan_connectors(drm);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
@@ -112,6 +113,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	state->backend = backend;
 	state->session = session;
+	state->udev = udev;
 	state->outputs = list_create();
 	if (!state->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
@@ -119,15 +121,15 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	state->fd = gpu_fd;
-	wl_list_init(&state->drm_invalidated.link);
-	state->drm_invalidated.notify = drm_invalidated;
-	wl_signal_add(&udev->invalidate_drm, &state->drm_invalidated);
 
 	struct stat st;
 	if (fstat(state->fd, &st) < 0) {
 		wlr_log(L_ERROR, "Stat failed: %s", strerror(errno));
 	}
 	state->dev = st.st_rdev;
+
+	state->drm_invalidated.notify = drm_invalidated;
+	wlr_udev_signal_add(udev, state->dev, &state->drm_invalidated);
 
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 

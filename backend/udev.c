@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wayland-server.h>
@@ -147,7 +148,14 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	dev_t devnum = udev_device_get_devnum(dev);
-	wl_signal_emit(&udev->invalidate_drm, &devnum);
+	struct wlr_udev_dev *signal;
+
+	wl_list_for_each(signal, &udev->devices, link) {
+		if (signal->dev == devnum) {
+			wl_signal_emit(&signal->invalidate, udev);
+			break;
+		}
+	}
 
 out:
 	udev_device_unref(dev);
@@ -164,7 +172,6 @@ struct wlr_udev *wlr_udev_create(struct wl_display *display) {
 		wlr_log(L_ERROR, "Failed to create udev context");
 		goto error;
 	}
-	wl_signal_init(&udev->invalidate_drm);
 
 	udev->mon = udev_monitor_new_from_netlink(udev->udev, "udev");
 	if (!udev->mon) {
@@ -185,6 +192,8 @@ struct wlr_udev *wlr_udev_create(struct wl_display *display) {
 		goto error_mon;
 	}
 	
+	wl_list_init(&udev->devices);
+
 	wlr_log(L_DEBUG, "Successfully initialized udev");
 	return udev;
 
@@ -202,8 +211,43 @@ void wlr_udev_destroy(struct wlr_udev *udev) {
 		return;
 	}
 
-	wl_event_source_remove(udev->event);
+	struct wlr_udev_dev *dev, *tmp;
+	wl_list_for_each_safe(dev, tmp, &udev->devices, link) {
+		free(dev);
+	}
 
+	wl_event_source_remove(udev->event);
 	udev_monitor_unref(udev->mon);
 	udev_unref(udev->udev);
+}
+
+bool wlr_udev_signal_add(struct wlr_udev *udev, dev_t dev, struct wl_listener *listener) {
+	struct wlr_udev_dev *device = malloc(sizeof(*device));
+	if (!device) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		return false;
+	}
+
+	device->dev = dev;
+	wl_signal_init(&device->invalidate);
+	wl_signal_add(&device->invalidate, listener);
+	wl_list_insert(&udev->devices, &device->link);
+
+	return true;
+}
+
+void wlr_udev_signal_remove(struct wlr_udev *udev, struct wl_listener *listener) {
+	if (!udev || !listener) {
+		return;
+	}
+
+	struct wlr_udev_dev *dev, *tmp;
+	wl_list_for_each_safe(dev, tmp, &udev->devices, link) {
+		// The signal should only have a single listener
+		if (wl_signal_get(&dev->invalidate, listener->notify) != NULL) {
+			wl_list_remove(&dev->link);
+			free(dev);
+			return;
+		}
+	}
 }
