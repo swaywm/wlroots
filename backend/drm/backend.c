@@ -10,7 +10,7 @@
 #include <wlr/session.h>
 #include <wlr/types.h>
 #include <wlr/common/list.h>
-#include "backend.h"
+#include <wlr/backend/interface.h>
 #include "backend/udev.h"
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"

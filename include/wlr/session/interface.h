@@ -3,7 +3,7 @@
 
 #include <wlr/session.h>
 
-struct session_interface {
+struct session_impl {
 	struct wlr_session *(*start)(struct wl_display *disp);
 	void (*finish)(struct wlr_session *session);
 	int (*open)(struct wlr_session *restrict session,
@@ -11,8 +11,5 @@ struct session_interface {
 	void (*close)(struct wlr_session *session, int fd);
 	bool (*change_vt)(struct wlr_session *session, int vt);
 };
-
-extern const struct session_interface session_logind_iface;
-extern const struct session_interface session_direct_iface;
 
 #endif

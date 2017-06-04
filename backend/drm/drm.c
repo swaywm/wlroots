@@ -12,12 +12,11 @@
 #include <gbm.h>
 #include <GLES3/gl3.h>
 #include <wayland-server.h>
-
-#include "types.h"
-#include "backend.h"
+#include <wlr/backend/interface.h>
 #include "backend/drm/backend.h"
 #include "backend/drm/drm.h"
 #include "common/log.h"
+#include "types.h"
 
 static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_Unknown]     = "Unknown",

@@ -9,8 +9,6 @@
 #include <xf86drmMode.h>
 #include <wayland-server.h>
 #include <wlr/session.h>
-#include "backend.h"
-#include "backend/drm/backend.h"
 #include "backend/udev.h"
 #include "common/log.h"
 

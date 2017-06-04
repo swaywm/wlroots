@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-
 #include <errno.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -7,9 +6,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <wayland-server.h>
-
-#include "session/interface.h"
+#include <wlr/session/interface.h>
 #include "common/log.h"
+
+const struct session_impl session_direct;
 
 struct direct_session {
 	struct wlr_session base;
@@ -44,13 +44,13 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 
 	wlr_log(L_INFO, "Successfully loaded direct session");
 
-	session->base.iface = &session_direct_iface;
+	session->base.impl = &session_direct;
 	wl_signal_init(&session->base.device_paused);
 	wl_signal_init(&session->base.device_resumed);
 	return &session->base;
 }
 
-const struct session_interface session_direct_iface = {
+const struct session_impl session_direct = {
 	.start = direct_session_start,
 	.finish = direct_session_finish,
 	.open = direct_session_open,

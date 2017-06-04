@@ -4,7 +4,7 @@
 #include <wayland-server.h>
 #include <sys/types.h>
 
-struct session_interface;
+struct session_impl;
 
 // Passed to the listeners of device_paused/resumed
 struct device_arg {
@@ -13,7 +13,7 @@ struct device_arg {
 };
 
 struct wlr_session {
-	const struct session_interface *iface;
+	const struct session_impl *impl;
 
 	struct wl_signal device_paused;
 	struct wl_signal device_resumed;

@@ -4,9 +4,9 @@
 #include <string.h>
 #include <errno.h>
 #include <wlr/session.h>
+#include <wlr/backend/interface.h>
 #include "common/log.h"
 #include "backend/drm/backend.h"
-#include "backend.h"
 
 struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
 		struct wlr_backend_state *state) {

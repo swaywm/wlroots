@@ -1,5 +1,5 @@
-#ifndef _WLR_BACKEND_INTERNAL_H
-#define _WLR_BACKEND_INTERNAL_H
+#ifndef _WLR_BACKEND_INTERFACE_H
+#define _WLR_BACKEND_INTERFACE_H
 
 #include <stdbool.h>
 #include <wlr/backend.h>
