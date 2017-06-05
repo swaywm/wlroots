@@ -27,6 +27,7 @@ struct wlr_output {
 	char *model;
 	uint32_t scale;
 	int32_t x, y;
+	int32_t width, height;
 	int32_t phys_width, phys_height; // mm
 	int32_t subpixel; // enum wl_output_subpixel
 	int32_t transform; // enum wl_output_transform

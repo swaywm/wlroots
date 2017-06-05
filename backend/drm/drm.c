@@ -233,8 +233,8 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	}
 
 	output->state = DRM_OUTPUT_CONNECTED;
-	output->width = mode->width;
-	output->height = mode->height;
+	output->width = output->wlr_output->width = mode->width;
+	output->height = output->wlr_output->height = mode->height;
 	output->wlr_output->current_mode = mode;
 
 	if (!display_init_renderer(&state->renderer, output)) {
@@ -363,6 +363,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			output->connector = id;
 			// TODO: Populate more wlr_output fields
 			// TODO: Move this to wlr_output->name
+			wlr_output->name = output->name;
 			snprintf(output->name, sizeof(output->name), "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
