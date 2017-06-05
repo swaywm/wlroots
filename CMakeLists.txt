@@ -39,6 +39,7 @@ endif()
 
 add_definitions(-DWLR_GIT_VERSION=\"${GIT_COMMIT_HASH}\")
 add_definitions(-DWLR_GIT_BRANCH=\"${GIT_BRANCH}\")
+add_definitions(-DWLR_SRC_DIR=\"${CMAKE_SOURCE_DIR}\")
 
 string(TIMESTAMP CURRENT_DATE "%Y-%m-%d" UTC)
 add_definitions(-DWLR_VERSION_DATE=\"${CURRENT_DATE}\")
