@@ -107,14 +107,6 @@ int disable_outputs(void *data) {
 }
 
 int main() {
-	if (getenv("DISPLAY")) {
-		fprintf(stderr, "Detected that X is running. Run this in its own virtual terminal.\n");
-		return 1;
-	} else if (getenv("WAYLAND_DISPLAY")) {
-		fprintf(stderr, "Detected that Wayland is running. Run this in its own virtual terminal.\n");
-		return 1;
-	}
-
 	struct state state = {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,

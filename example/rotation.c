@@ -168,7 +168,7 @@ static void cleanup_gl(struct gl *gl) {
 	glDeleteBuffers(1, &gl->vbo);
 }
 
-void output_frame(struct wl_listener *listener, void *data) {
+static void output_frame(struct wl_listener *listener, void *data) {
 	struct output_state *ostate = wl_container_of(listener, ostate, frame);
 	struct state *s = ostate->state;
 
@@ -297,7 +297,6 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 
 			if (oc->transform != WL_OUTPUT_TRANSFORM_NORMAL
 					&& oc->transform != WL_OUTPUT_TRANSFORM_FLIPPED) {
-
 				fprintf(stderr, "Rotation for %s already specified\n", oc->name);
 				usage(argv[0], 1);
 			}
@@ -334,14 +333,6 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 }
 
 int main(int argc, char *argv[]) {
-	if (getenv("DISPLAY")) {
-		fprintf(stderr, "Detected that X is running. Run this in its own virtual terminal.\n");
-		return 1;
-	} else if (getenv("WAYLAND_DISPLAY")) {
-		fprintf(stderr, "Detected that Wayland is running. Run this in its own virtual terminal.\n");
-		return 1;
-	}
-
 	struct state state = {
 		.angle = 0.0,
 		.output_add = { .notify = output_add },
