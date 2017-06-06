@@ -2,11 +2,11 @@ include_directories(
 	${DRM_INCLUDE_DIRS}
 )
 
-add_executable(example
-    main.c
+add_executable(simple
+    simple.c
 )
 
-target_link_libraries(example
+target_link_libraries(simple
     wlr-backend
     wlr-session
 )
