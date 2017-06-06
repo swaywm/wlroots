@@ -6,8 +6,11 @@
 #include <stdbool.h>
 
 struct wlr_output_impl {
-	bool (*set_mode)(struct wlr_output_state *state, struct wlr_output_mode *mode);
 	void (*enable)(struct wlr_output_state *state, bool enable);
+	bool (*set_mode)(struct wlr_output_state *state,
+			struct wlr_output_mode *mode);
+	void (*transform)(struct wlr_output_state *state,
+			enum wl_output_transform transform);
 	void (*destroy)(struct wlr_output_state *state);
 };
 

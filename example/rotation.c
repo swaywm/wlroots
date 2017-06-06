@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -10,7 +11,7 @@
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
-#include <tgmath.h>
+#include <math.h>
 
 static const GLchar vert_src[] =
 "#version 310 es\n"
@@ -92,7 +93,6 @@ struct output_state {
 	struct wlr_output *output;
 	struct state *state;
 	struct wl_listener frame;
-	enum wl_output_transform transform;
 };
 
 struct output_config {
@@ -177,7 +177,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glViewport(0, 0, width, height);
 
 	// All of the odd numbered transformations involve a 90 or 270 degree rotation
-	if (ostate->transform % 2 == 1) {
+	if (ostate->output->transform % 2 == 1) {
 		float tmp = width;
 		width = height;
 		height = tmp;
@@ -199,7 +199,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glBindBuffer(GL_ARRAY_BUFFER, s->gl.vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vert_data), vert_data, GL_STATIC_DRAW);
 
-	glUniformMatrix2fv(0, 1, GL_FALSE, transforms[ostate->transform]);
+	glUniformMatrix2fv(0, 1, GL_FALSE, transforms[ostate->output->transform]);
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -214,7 +214,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 
 	s->last_frame = now;
 	s->angle += ms / 200.0f;
-	if (s->angle > 6.28318530718f) { // 2 pi
+	if (s->angle > 2 * M_PI) {
 		s->angle = 0.0f;
 	}
 }
@@ -231,12 +231,11 @@ static void output_add(struct wl_listener *listener, void *data) {
 	ostate->output = output;
 	ostate->state = state;
 	ostate->frame.notify = output_frame;
-	ostate->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 
 	struct output_config *conf;
 	wl_list_for_each(conf, &state->config, link) {
 		if (strcmp(conf->name, output->name) == 0) {
-			ostate->transform = conf->transform;
+			wlr_output_transform(ostate->output, conf->transform);
 			break;
 		}
 	}

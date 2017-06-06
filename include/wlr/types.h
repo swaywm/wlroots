@@ -40,8 +40,11 @@ struct wlr_output {
 	} events;
 };
 
-bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode);
 void wlr_output_enable(struct wlr_output *output, bool enable);
+bool wlr_output_set_mode(struct wlr_output *output,
+		struct wlr_output_mode *mode);
+void wlr_output_transform(struct wlr_output *output,
+		enum wl_output_transform transform);
 void wlr_output_destroy(struct wlr_output *output);
 
 #endif

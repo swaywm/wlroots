@@ -178,6 +178,28 @@ static int find_id(const void *item, const void *cmp_to) {
 	}
 }
 
+static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	if (output->state != DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
+	if (enable) {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_ON);
+
+		// Start rendering loop again by drawing a black frame
+		wlr_drm_output_begin(output);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_output_end(output);
+	} else {
+		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
+			DRM_MODE_DPMS_STANDBY);
+	}
+}
+
 static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		struct wlr_output_mode *mode) {
 	struct wlr_backend_state *state =
@@ -251,26 +273,9 @@ error:
 	return false;
 }
 
-static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
-	if (output->state != DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	if (enable) {
-		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_ON);
-
-		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_begin(output);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_end(output);
-	} else {
-		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_STANDBY);
-	}
+static void wlr_drm_output_transform(struct wlr_output_state *output,
+		enum wl_output_transform transform) {
+	output->wlr_output->transform = transform;
 }
 
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
@@ -279,8 +284,9 @@ static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 }
 
 static struct wlr_output_impl output_impl = {
-	.set_mode = wlr_drm_output_set_mode,
 	.enable = wlr_drm_output_enable,
+	.set_mode = wlr_drm_output_set_mode,
+	.transform = wlr_drm_output_transform,
 	.destroy = wlr_drm_output_destroy,
 };
 

@@ -10,8 +10,22 @@ struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 	output->impl = impl;
 	output->state = state;
 	output->modes = list_create();
+	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	wl_signal_init(&output->events.frame);
 	return output;
+}
+
+void wlr_output_enable(struct wlr_output *output, bool enable) {
+	output->impl->enable(output->state, enable);
+}
+
+bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
+	return output->impl->set_mode(output->state, mode);
+}
+
+void wlr_output_transform(struct wlr_output *output,
+		enum wl_output_transform transform) {
+	output->impl->transform(output->state, transform);
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -24,12 +38,4 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 	list_free(output->modes);
 	free(output);
-}
-
-bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
-	return output->impl->set_mode(output->state, mode);
-}
-
-void wlr_output_enable(struct wlr_output *output, bool enable) {
-	output->impl->enable(output->state, enable);
 }
