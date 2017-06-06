@@ -1,5 +1,29 @@
 # wlroots
 
-A set of utility libraries for Wayland compositors.
+Pluggable, composable modules for building a Wayland compositor.
 
-WIP
+WIP - [Status](https://github.com/SirCmpwn/wlroots/issues/9)
+
+## Building
+
+Install dependencies:
+
+* cmake
+* wayland
+* wayland-protocols
+* EGL
+* GLESv2
+* DRM
+* GBM
+* libinput
+* udev
+* systemd (optional, for logind support)
+* asciidoc (optional, for man pages)
+
+Run these commands:
+
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make
+    sudo make install
