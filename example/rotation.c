@@ -270,7 +270,7 @@ static void usage(const char *name, int ret) {
 	fprintf(stderr,
 		"usage: %s [-d <name> [-r <rotation> | -f]]*\n"
 		"\n"
-		" -d <display>   The name of the DRM display. e.g. DVI-I-1.\n"
+		" -o <output>    The name of the DRM display. e.g. DVI-I-1.\n"
 		" -r <rotation>  The rotation counter clockwise. Valid values are 90, 180, 270.\n"
 		" -f             Flip the output along the vertical axis.\n", name);
 
