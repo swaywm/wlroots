@@ -9,35 +9,35 @@
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
 		1.0f, 0.0f,
-		0.0f, 1.0f,
+		0.0f, -1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_90] = {
 		0.0f, -1.0f,
-		1.0f, 0.0f,
+		-1.0f, 0.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_180] = {
 		-1.0f, 0.0f,
-		0.0f, -1.0f,
+		0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_270] = {
 		0.0f, 1.0f,
-		-1.0f, 0.0f,
+		1.0f, 0.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
 		-1.0f, 0.0f,
-		0.0f, 1.0f,
+		0.0f, -1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
 		0.0f, 1.0f,
-		1.0f, 0.0f,
+		-1.0f, 0.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
 		1.0f, 0.0f,
-		0.0f, -1.0f,
+		0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
 		0.0f, -1.0f,
-		-1.0f, 0.0f,
+		1.0f, 0.0f,
 	},
 };
 

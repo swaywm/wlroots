@@ -12,34 +12,31 @@
 #include <wlr/session.h>
 #include <wlr/types.h>
 #include <math.h>
+#include "cat.h"
 
 static const GLchar vert_src[] =
 "#version 310 es\n"
 "precision mediump float;\n"
 "layout(location = 0) uniform mat4 transform;\n"
 "layout(location = 0) in vec2 pos;\n"
-"layout(location = 1) in float angle;\n"
-"out float v_angle;\n"
+"layout(location = 1) in vec2 texcoord;\n"
+"out vec2 v_texcoord;\n"
 "void main() {\n"
-"	v_angle = angle;\n"
+"	v_texcoord = texcoord;\n"
 "	gl_Position = transform * vec4(pos, 0.0, 1.0);\n"
 "}\n";
 
 static const GLchar frag_src[] =
 "#version 310 es\n"
 "precision mediump float;\n"
-"in float v_angle;\n"
-"out vec4 f_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 color;\n"
+"uniform sampler2D texture0;\n"
 "void main() {\n"
-"	f_color = vec4(\n"
-"		cos(v_angle) / 2.0 + 0.5,\n"
-"		cos(v_angle + 2.0944) / 2.0 + 0.5,\n"
-"		cos(v_angle + 4.18879) / 2.0 + 0.5,\n"
-"		1.0);\n"
+"	color = texture(texture0, v_texcoord);\n"
 "}\n";
 
 struct state {
-	float angle;
 	struct timespec last_frame;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
@@ -50,6 +47,8 @@ struct state {
 		GLuint prog;
 		GLuint vao;
 		GLuint vbo;
+		GLuint ebo;
+		GLuint tex;
 	} gl;
 };
 
@@ -115,6 +114,25 @@ static void init_gl(struct gl *gl) {
 	glDeleteProgram(vert);
 	glDeleteProgram(frag);
 
+	GLfloat verticies[] = {
+		1, 1, 1, 1, // bottom right
+		1, 0, 1, 0, // top right
+		0, 0, 0, 0, // top left
+		0, 1, 0, 1, // bottom left
+	};
+	// Temporary
+	for (size_t i = 0; i < sizeof(verticies) / sizeof(verticies[0]); i += 4) {
+		verticies[i] *= 128.0f;
+		verticies[i + 1] *= 128.0f;
+		verticies[i] += 128;
+		verticies[i + 1] += 128;
+	}
+	// End temp
+	GLuint indicies[] = {
+		0, 1, 3,
+		1, 2, 3,
+	};
+
 	glGenVertexArrays(1, &gl->vao);
 	glGenBuffers(1, &gl->vbo);
 
@@ -123,64 +141,55 @@ static void init_gl(struct gl *gl) {
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)0);
-	glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+	glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &gl->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
+
+	glGenTextures(1, &gl->tex);
+	glBindTexture(GL_TEXTURE_2D, gl->tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cat_tex.width, cat_tex.height, 
+			0, GL_RGB, GL_UNSIGNED_BYTE, cat_tex.pixel_data);
 }
 
 static void cleanup_gl(struct gl *gl) {
 	glDeleteProgram(gl->prog);
 	glDeleteVertexArrays(1, &gl->vao);
 	glDeleteBuffers(1, &gl->vbo);
+	glDeleteTextures(1, &gl->tex);
 }
 
 static void output_frame(struct wl_listener *listener, void *data) {
 	struct output_state *ostate = wl_container_of(listener, ostate, frame);
 	struct state *s = ostate->state;
 
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	int32_t width = ostate->output->width;
 	int32_t height = ostate->output->height;
 	glViewport(0, 0, width, height);
-
-	// All of the odd numbered transformations involve a 90 or 270 degree rotation
-	if (ostate->output->transform % 2 == 1) {
-		float tmp = width;
-		width = height;
-		height = tmp;
-	}
-
-	int32_t mid_w = width / 2;
-	int32_t mid_h = height / 2;
-
-	GLfloat vert_data[] = {
-		mid_w - 200, mid_h - 200, s->angle,
-		mid_w, mid_h + 200, s->angle + M_PI * 2.0f / 3.0f, // 120 deg
-		mid_w + 200, mid_h - 200, s->angle + M_PI * 4.0f / 3.0f, // 240 deg
-	};
 
 	glUseProgram(s->gl.prog);
 
 	glBindVertexArray(s->gl.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, s->gl.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vert_data), vert_data, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s->gl.ebo);
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, s->gl.tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glUniformMatrix4fv(0, 1, GL_TRUE, ostate->output->transform_matrix);
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	long ms = (now.tv_sec - s->last_frame.tv_sec) * 1000 +
-		(now.tv_nsec - s->last_frame.tv_nsec) / 1000000;
-
 	s->last_frame = now;
-	s->angle += ms / 200.0f;
-	if (s->angle > 2 * M_PI) {
-		s->angle = 0.0f;
-	}
 }
 
 static void output_add(struct wl_listener *listener, void *data) {
@@ -297,7 +306,6 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 
 int main(int argc, char *argv[]) {
 	struct state state = {
-		.angle = 0.0,
 		.output_add = { .notify = output_add },
 		.output_remove = { .notify = output_remove }
 	};
