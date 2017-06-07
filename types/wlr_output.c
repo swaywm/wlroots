@@ -1,8 +1,69 @@
 #include <stdlib.h>
+#include <string.h>
+#include <tgmath.h>
 #include <wayland-server.h>
 #include <wlr/types.h>
 #include <wlr/common/list.h>
 #include "types.h"
+
+static const float transforms[][4] = {
+	[WL_OUTPUT_TRANSFORM_NORMAL] = {
+		1.0f, 0.0f,
+		0.0f, 1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_90] = {
+		0.0f, -1.0f,
+		1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_180] = {
+		-1.0f, 0.0f,
+		0.0f, -1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_270] = {
+		0.0f, 1.0f,
+		-1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
+		-1.0f, 0.0f,
+		0.0f, 1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
+		0.0f, 1.0f,
+		1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
+		1.0f, 0.0f,
+		0.0f, -1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
+		0.0f, -1.0f,
+		-1.0f, 0.0f,
+	},
+};
+
+// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
+static void set_matrix(float mat[static 16], int32_t width, int32_t height,
+		enum wl_output_transform transform) {
+	memset(mat, 0, sizeof(*mat) * 16);
+
+	const float *t = transforms[transform];
+	float x = 2.0f / width;
+	float y = 2.0f / height;
+
+	// Rotation + relection
+	mat[0] = x * t[0];
+	mat[1] = x * t[1];
+	mat[4] = y * t[2];
+	mat[5] = y * t[3];
+
+	// Translation
+	mat[3] = -copysign(1.0f, mat[0] + mat[1]);
+	mat[7] = -copysign(1.0f, mat[4] + mat[5]);
+
+	// Identity
+	mat[10] = 1.0f;
+	mat[15] = 1.0f;
+}
 
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 		struct wlr_output_state *state) {
@@ -20,19 +81,21 @@ void wlr_output_enable(struct wlr_output *output, bool enable) {
 }
 
 bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
+	set_matrix(output->transform_matrix, mode->width, mode->height, output->transform);
 	return output->impl->set_mode(output->state, mode);
 }
 
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
+	set_matrix(output->transform_matrix, output->width, output->height, transform);
 	output->impl->transform(output->state, transform);
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) return;
 	output->impl->destroy(output->state);
-	if (output->make) free(output->make);
-	if (output->model) free(output->model);
+	free(output->make);
+	free(output->model);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
 		free(output->modes->items[i]);
 	}

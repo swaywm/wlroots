@@ -32,6 +32,8 @@ struct wlr_output {
 	int32_t subpixel; // enum wl_output_subpixel
 	int32_t transform; // enum wl_output_transform
 
+	float transform_matrix[16];
+
 	list_t *modes;
 	struct wlr_output_mode *current_mode;
 

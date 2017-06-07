@@ -16,13 +16,13 @@
 static const GLchar vert_src[] =
 "#version 310 es\n"
 "precision mediump float;\n"
-"layout(location = 0) uniform mat2 transform;\n"
+"layout(location = 0) uniform mat4 transform;\n"
 "layout(location = 0) in vec2 pos;\n"
 "layout(location = 1) in float angle;\n"
 "out float v_angle;\n"
 "void main() {\n"
 "	v_angle = angle;\n"
-"	gl_Position = vec4(transform * pos, 0.0, 1.0);\n"
+"	gl_Position = transform * vec4(pos, 0.0, 1.0);\n"
 "}\n";
 
 static const GLchar frag_src[] =
@@ -37,41 +37,6 @@ static const GLchar frag_src[] =
 "		cos(v_angle + 4.18879) / 2.0 + 0.5,\n"
 "		1.0);\n"
 "}\n";
-
-static const GLfloat transforms[][4] = {
-	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f,
-		0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f,
-		1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f,
-		0.0f, -1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f,
-		-1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f,
-		0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, 1.0f,
-		1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f,
-		0.0f, -1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, -1.0f,
-		-1.0f, 0.0f,
-	},
-};
 
 struct state {
 	float angle;
@@ -172,8 +137,8 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct output_state *ostate = wl_container_of(listener, ostate, frame);
 	struct state *s = ostate->state;
 
-	float width = ostate->output->width;
-	float height = ostate->output->height;
+	int32_t width = ostate->output->width;
+	int32_t height = ostate->output->height;
 	glViewport(0, 0, width, height);
 
 	// All of the odd numbered transformations involve a 90 or 270 degree rotation
@@ -183,14 +148,13 @@ static void output_frame(struct wl_listener *listener, void *data) {
 		height = tmp;
 	}
 
-	// Single pixel in gl coordinates
-	float px_w = 2.0f / width;
-	float px_h = 2.0f / height;
+	int32_t mid_w = width / 2;
+	int32_t mid_h = height / 2;
 
 	GLfloat vert_data[] = {
-		-250 * px_w, -250 * px_h, s->angle,
-		   0 * px_w, +250 * px_h, s->angle + 2.0944f, // 120 deg
-		+250 * px_w, -250 * px_h, s->angle + 4.18879f, // 240 deg
+		mid_w - 200, mid_h - 200, s->angle,
+		mid_w, mid_h + 200, s->angle + M_PI * 2.0f / 3.0f, // 120 deg
+		mid_w + 200, mid_h - 200, s->angle + M_PI * 4.0f / 3.0f, // 240 deg
 	};
 
 	glUseProgram(s->gl.prog);
@@ -199,7 +163,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glBindBuffer(GL_ARRAY_BUFFER, s->gl.vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vert_data), vert_data, GL_STATIC_DRAW);
 
-	glUniformMatrix2fv(0, 1, GL_FALSE, transforms[ostate->output->transform]);
+	glUniformMatrix4fv(0, 1, GL_TRUE, ostate->output->transform_matrix);
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
