@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <inttypes.h>
 #include <wayland-server.h>
 #include <GLES3/gl3.h>
 #include <wlr/backend.h>
@@ -54,6 +55,8 @@ void output_add(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct state *state = wl_container_of(listener, state, output_add);
 	fprintf(stderr, "Output '%s' added\n", output->name);
+	fprintf(stderr, "%s %s %"PRId32"mm x %"PRId32"mm\n", output->make, output->model,
+		output->phys_width, output->phys_height);
 	wlr_output_set_mode(output, output->modes->items[0]);
 	struct output_state *ostate = calloc(1, sizeof(struct output_state));
 	ostate->output = output;
