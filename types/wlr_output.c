@@ -94,8 +94,6 @@ void wlr_output_transform(struct wlr_output *output,
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) return;
 	output->impl->destroy(output->state);
-	free(output->make);
-	free(output->model);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
 		free(output->modes->items[i]);
 	}
