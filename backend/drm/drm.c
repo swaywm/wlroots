@@ -150,14 +150,14 @@ static bool display_init_renderer(struct wlr_drm_renderer *renderer,
 	output->gbm = gbm_surface_create(renderer->gbm, mode->width,
 		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
 	if (!output->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->name,
+		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->wlr_output->name,
 			strerror(errno));
 		return false;
 	}
 
 	output->egl = wlr_egl_create_surface(&renderer->egl, output->gbm);
 	if (output->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->name);
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->wlr_output->name);
 		return false;
 	}
 
@@ -183,7 +183,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
 
-	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->name,
+	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->wlr_output->name,
 			mode->width, mode->height, mode->refresh);
 
 	drmModeConnector *conn = drmModeGetConnector(state->fd, output->connector);
@@ -193,7 +193,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	}
 
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(L_ERROR, "%s is not connected", output->name);
+		wlr_log(L_ERROR, "%s is not connected", output->wlr_output->name);
 		goto error;
 	}
 
@@ -228,7 +228,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	drmModeFreeResources(res);
 
 	if (!success) {
-		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->name);
+		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->wlr_output->name);
 		goto error;
 	}
 
@@ -238,7 +238,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	output->wlr_output->current_mode = mode;
 
 	if (!display_init_renderer(&state->renderer, output)) {
-		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->name);
+		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->wlr_output->name);
 		goto error;
 	}
 
@@ -298,6 +298,87 @@ static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
 	return refresh;
 }
 
+// Constructed from http://edid.tv/manufacturer
+const char *get_manufacturer(uint16_t id) {
+#define ID(a, b, c) ((a & 0x1f) << 10) | ((b & 0x1f) << 5) | (c & 0x1f)
+	switch (id) {
+	case ID('A', 'A', 'A'): return "Avolites Ltd";
+	case ID('A', 'C', 'I'): return "Ancor Communications Inc";
+	case ID('A', 'C', 'R'): return "Acer Technologies";
+	case ID('A', 'P', 'P'): return "Apple Computer Inc";
+	case ID('B', 'N', 'O'): return "Bang & Olufsen";
+	case ID('C', 'M', 'N'): return "Chimei Innolux Corporation";
+	case ID('C', 'M', 'O'): return "Chi Mei Optoelectronics corp.";
+	case ID('C', 'R', 'O'): return "Extraordinary Technologies PTY Limited";
+	case ID('D', 'E', 'L'): return "Dell Inc.";
+	case ID('D', 'O', 'N'): return "DENON, Ltd.";
+	case ID('E', 'N', 'C'): return "Eizo Nanao Corporation";
+	case ID('E', 'P', 'H'): return "Epiphan Systems Inc.";
+	case ID('F', 'U', 'S'): return "Fujitsu Siemens Computers GmbH";
+	case ID('G', 'S', 'M'): return "Goldstar Company Ltd";
+	case ID('H', 'I', 'Q'): return "Kaohsiung Opto Electronics Americas, Inc.";
+	case ID('H', 'S', 'D'): return "HannStar Display Corp";
+	case ID('H', 'W', 'P'): return "Hewlett Packard";
+	case ID('I', 'N', 'T'): return "Interphase Corporation";
+	case ID('I', 'V', 'M'): return "Iiyama North America";
+	case ID('L', 'E', 'N'): return "Lenovo Group Limited";
+	case ID('M', 'A', 'X'): return "Rogen Tech Distribution Inc";
+	case ID('M', 'E', 'G'): return "Abeam Tech Ltd";
+	case ID('M', 'E', 'I'): return "Panasonic Industry Company";
+	case ID('M', 'T', 'C'): return "Mars-Tech Corporation";
+	case ID('M', 'T', 'X'): return "Matrox";
+	case ID('N', 'E', 'C'): return "NEC Corporation";
+	case ID('O', 'N', 'K'): return "ONKYO Corporation";
+	case ID('O', 'R', 'N'): return "ORION ELECTRIC CO., LTD.";
+	case ID('O', 'T', 'M'): return "Optoma Corporation";
+	case ID('O', 'V', 'R'): return "Oculus VR, Inc.";
+	case ID('P', 'H', 'L'): return "Philips Consumer Electronics Company";
+	case ID('P', 'I', 'O'): return "Pioneer Electronic Corporation";
+	case ID('P', 'N', 'R'): return "Planar Systems, Inc.";
+	case ID('Q', 'D', 'S'): return "Quanta Display Inc.";
+	case ID('S', 'A', 'M'): return "Samsung Electric Company";
+	case ID('S', 'E', 'C'): return "Seiko Epson Corporation";
+	case ID('S', 'H', 'P'): return "Sharp Corporation";
+	case ID('S', 'I', 'I'): return "Silicon Image, Inc.";
+	case ID('S', 'N', 'Y'): return "Sony";
+	case ID('T', 'O', 'P'): return "Orion Communications Co., Ltd.";
+	case ID('T', 'S', 'B'): return "Toshiba America Info Systems Inc";
+	case ID('T', 'S', 'T'): return "Transtream Inc";
+	case ID('U', 'N', 'K'): return "Unknown";
+	case ID('V', 'I', 'Z'): return "VIZIO, Inc";
+	case ID('V', 'S', 'C'): return "ViewSonic Corporation";
+	case ID('Y', 'M', 'H'): return "Yamaha Corporation";
+	default: return "Unknown";
+	}
+#undef ID
+}
+
+/* See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data for layout of EDID data.
+ * We don't parse the EDID properly. We just expect to receive valid data.
+ */
+static void parse_edid(struct wlr_output *restrict output, const uint8_t *restrict data) {
+	uint32_t id = (data[8] << 8) | data[9];
+	snprintf(output->make, sizeof(output->make), "%s", get_manufacturer(id));
+
+	output->phys_width = ((data[68] & 0xf0) << 4) | data[66];
+	output->phys_height = ((data[68] & 0x0f) << 8) | data[67];
+
+	for (size_t i = 72; i <= 108; i += 18) {
+		uint16_t flag = (data[i] << 8) | data[i + 1];
+		if (flag == 0 && data[i + 3] == 0xFC) {
+			sprintf(output->model, "%.13s", &data[i + 5]);
+
+			// Monitor names are terminated by newline if they're too short
+			char *nl = strchr(output->model, '\n');
+			if (nl) {
+				*nl = '\0';
+			}
+
+			break;
+		}
+	}
+}
+
 static void scan_property_ids(int fd, drmModeConnector *conn,
 		struct wlr_output_state *output) {
 	for (int i = 0; i < conn->count_props; ++i) {
@@ -306,16 +387,18 @@ static void scan_property_ids(int fd, drmModeConnector *conn,
 			continue;
 		}
 
-		// I think this is guranteed to exist
 		if (strcmp(prop->name, "DPMS") == 0) {
 			output->props.dpms = prop->prop_id;
+		} else if (strcmp(prop->name, "EDID") == 0) {
+			drmModePropertyBlobRes *edid = drmModeGetPropertyBlob(fd, conn->prop_values[i]);
+			if (!edid) {
+				drmModeFreeProperty(prop);
+				continue;
+			}
 
-			/* There may be more properties we want to get,
-			 * but since it's currently only this, we exit early
-			 */
+			parse_edid(output->wlr_output, edid->data);
 
-			drmModeFreeProperty(prop);
-			break;
+			drmModeFreePropertyBlob(edid);
 		}
 
 		drmModeFreeProperty(prop);
@@ -363,7 +446,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			output->connector = id;
 			// TODO: Populate more wlr_output fields
 			// TODO: Move this to wlr_output->name
-			snprintf(output->name, sizeof(output->name), "%s-%"PRIu32,
+			snprintf(wlr_output->name, sizeof(wlr_output->name), "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
 
@@ -376,7 +459,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			scan_property_ids(state->fd, conn, output);
 
 			list_add(state->outputs, output);
-			wlr_log(L_INFO, "Found display '%s'", output->name);
+			wlr_log(L_INFO, "Found display '%s'", wlr_output->name);
 		} else {
 			output = state->outputs->items[index];
 			wlr_output = output->wlr_output;
@@ -386,7 +469,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 		if (output->state == DRM_OUTPUT_DISCONNECTED &&
 			conn->connection == DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' connected", output->name);
+			wlr_log(L_INFO, "'%s' connected", output->wlr_output->name);
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < conn->count_modes; ++i) {
@@ -407,12 +490,12 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			}
 
 			output->state = DRM_OUTPUT_NEEDS_MODESET;
-			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->name);
+			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->wlr_output->name);
 			wl_signal_emit(&state->backend->events.output_add, wlr_output);
 		} else if (output->state == DRM_OUTPUT_CONNECTED &&
 			conn->connection != DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' disconnected", output->name);
+			wlr_log(L_INFO, "'%s' disconnected", output->wlr_output->name);
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -487,7 +570,7 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 		if (restore) {
 			restore_output(output, renderer->fd);
 		}
-		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->name);
+		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->wlr_output->name);
 		wl_signal_emit(&state->backend->events.output_remove, output->wlr_output);
 		break;
 	case DRM_OUTPUT_DISCONNECTED:

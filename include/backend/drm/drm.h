@@ -34,7 +34,6 @@ struct wlr_output_state {
 	struct wlr_output *wlr_output;
 	enum wlr_drm_output_state state;
 	uint32_t connector;
-	char name[16];
 
 	struct {
 		uint32_t dpms;

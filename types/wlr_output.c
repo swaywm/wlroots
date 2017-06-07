@@ -17,8 +17,6 @@ struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) return;
 	output->impl->destroy(output->state);
-	if (output->make) free(output->make);
-	if (output->model) free(output->model);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
 		free(output->modes->items[i]);
 	}

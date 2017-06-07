@@ -22,11 +22,10 @@ struct wlr_output {
 	struct wlr_output_state *state;
 
 	uint32_t flags;
-	char *name;
-	char *make;
-	char *model;
+	char name[16];
+	char make[48];
+	char model[16];
 	uint32_t scale;
-	int32_t x, y;
 	int32_t phys_width, phys_height; // mm
 	int32_t subpixel; // enum wl_output_subpixel
 	int32_t transform; // enum wl_output_transform
