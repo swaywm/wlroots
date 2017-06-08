@@ -9,6 +9,7 @@
 #include <wayland-server-protocol.h>
 #include <GLES3/gl3.h>
 #include <wlr/render/matrix.h>
+#include <wlr/render/gles3.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
@@ -46,22 +47,23 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = ostate->output;
 	struct state *s = ostate->state;
 
-	glClearColor(0.25f, 0.25f, 0.25f, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_renderer_begin(s->renderer, output);
 
-	int32_t width = output->width;
-	int32_t height = output->height;
-	glViewport(0, 0, width, height);
-	wlr_output_effective_resolution(output, &width, &height);
+	float matrix[16];
+	wlr_surface_get_matrix(s->cat_texture, &matrix,
+		&output->transform_matrix, ostate->x, ostate->y);
+	wlr_render_with_matrix(s->renderer, s->cat_texture, &matrix);
 
-	wlr_render_quad(s->renderer, s->cat_texture,
-			&output->transform_matrix, ostate->x, ostate->y);
+	wlr_renderer_end(s->renderer);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	long ms = (now.tv_sec - ostate->last_frame.tv_sec) * 1000 +
 		(now.tv_nsec - ostate->last_frame.tv_nsec) / 1000000;
 	float seconds = ms / 1000.0f;
+
+	int32_t width, height;
+	wlr_output_effective_resolution(output, &width, &height);
 	ostate->x += ostate->vel_x * seconds;
 	ostate->y += ostate->vel_y * seconds;
 	if (ostate->y > height - 128) {
@@ -224,8 +226,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	state.renderer = wlr_renderer_init();
-	state.cat_texture = wlr_surface_init();
+	state.renderer = wlr_gles3_renderer_init();
+	state.cat_texture = wlr_render_surface_init(state.renderer);
 	wlr_surface_attach_pixels(state.cat_texture, GL_RGB,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
@@ -239,11 +241,11 @@ int main(int argc, char *argv[]) {
 		wl_event_loop_dispatch(event_loop, 0);
 	}
 
-	wlr_renderer_destroy(state.renderer);
-	wlr_surface_destroy(state.cat_texture);
 	wl_event_source_remove(timer);
 	wlr_backend_destroy(wlr);
 	wlr_session_finish(session);
+	wlr_surface_destroy(state.cat_texture);
+	wlr_renderer_destroy(state.renderer);
 	wl_display_destroy(display);
 
 	struct output_config *ptr, *tmp;

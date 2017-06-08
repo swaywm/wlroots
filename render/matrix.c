@@ -41,7 +41,7 @@ void wlr_matrix_rotate(float (*output)[16], float radians) {
 	(*output)[mind(2, 2)] = _cos;
 }
 
-void wlr_matrix_mul(float (*x)[16], float (*y)[16], float (*product)[16]) {
+void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]) {
 	float _product[16] = {
 		(*x)[mind(1, 1)] * (*y)[mind(1, 1)] + (*x)[mind(1, 2)] * (*y)[mind(2, 1)] +
 			(*x)[mind(1, 3)] * (*y)[mind(3, 1)] + (*x)[mind(1, 4)] * (*y)[mind(4, 1)],
