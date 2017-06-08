@@ -6,7 +6,6 @@
 #include <GLES3/gl3.h>
 #include <wlr/render.h>
 #include <wlr/render/matrix.h>
-#include <wayland-util.h>
 #include "render.h"
 
 static bool create_shader(GLenum type, const GLchar *src, GLint len, GLuint *shader) {
@@ -44,6 +43,11 @@ bool wlr_shader_add_format(struct wlr_shader *shader, uint32_t format,
 	if (_shader->valid) {
 		shader = calloc(sizeof(struct wlr_shader), 1);
 		shader->vert = _shader->vert;
+	} else {
+		while (shader->next) {
+			_shader = shader;
+			shader = shader->next;
+		}
 	}
 	shader->format = format;
 	GLuint _frag;
@@ -55,11 +59,10 @@ bool wlr_shader_add_format(struct wlr_shader *shader, uint32_t format,
 	glAttachShader(shader->program, _frag);
 	glLinkProgram(shader->program);
 	glDeleteProgram(_frag);
-	if (!_shader->valid) {
-		_shader->valid = true;
-	} else {
-		wl_list_insert(&_shader->link, &shader->link);
+	if (_shader->valid) {
+		_shader->next = shader;
 	}
+	shader->valid = true;
 	return true;
 error:
 	if (_shader->valid) {
@@ -69,32 +72,26 @@ error:
 }
 
 bool wlr_shader_use(struct wlr_shader *shader, uint32_t format) {
-	struct wlr_shader *s = shader;
-	if (s->format == format) {
-		glUseProgram(s->program);
+	if (shader->format == format) {
+		glUseProgram(shader->program);
 		return true;
 	}
-	if (shader->link.next) {
-		wl_list_for_each(s, &shader->link, link) {
-			if (s->format == format) {
-				glUseProgram(s->program);
-				return true;
-			}
+	while (shader->next) {
+		shader = shader->next;
+		if (shader->format == format) {
+			glUseProgram(shader->program);
+			return true;
 		}
 	}
 	return false;
 }
 
 void wlr_shader_destroy(struct wlr_shader *shader) {
-	if (!shader) {
-		return;
+	while (shader) {
+		struct wlr_shader *_shader = shader;
+		glDeleteProgram(shader->vert);
+		glDeleteProgram(shader->program);
+		shader = shader->next;
+		free(_shader);
 	}
-	glDeleteProgram(shader->vert);
-	glDeleteProgram(shader->program);
-	if (shader->link.next) {
-		struct wlr_shader *next = wl_container_of(shader->link.next,
-				next, link);
-		wlr_shader_destroy(next);
-	}
-	free(shader);
 }

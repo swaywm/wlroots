@@ -16,37 +16,13 @@
 #include <math.h>
 #include "cat.h"
 
-static const GLchar vert_src[] =
-"uniform mat4 proj;\n"
-"attribute vec2 pos;\n"
-"attribute vec2 texcoord;\n"
-"varying vec2 v_texcoord;\n"
-"void main() {\n"
-"	gl_Position = proj * vec4(pos, 0.0, 1.0);\n"
-"	v_texcoord = texcoord;\n"
-"}\n";
-
-static const GLchar frag_src[] =
-"precision mediump float;\n"
-"varying vec2 v_texcoord;\n"
-"uniform sampler2D tex;\n"
-"void main() {\n"
-"	gl_FragColor = texture2D(tex, v_texcoord);\n"
-"}\n";
-
 struct state {
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
 	struct wl_list outputs;
 	struct wl_list config;
-
-	struct gl {
-		struct wlr_shader *shader;
-		GLuint vao;
-		GLuint vbo;
-		GLuint ebo;
-		GLuint tex;
-	} gl;
+	struct wlr_renderer *renderer;
+	struct wlr_surface *cat_texture;
 };
 
 struct output_state {
@@ -62,58 +38,8 @@ struct output_state {
 struct output_config {
 	char *name;
 	enum wl_output_transform transform;
-
 	struct wl_list link;
 };
-
-static void init_gl(struct gl *gl) {
-	gl->shader = wlr_shader_init(vert_src);
-	if (!gl->shader) {
-		exit(1);
-	}
-	if (!wlr_shader_add_format(gl->shader, WL_SHM_FORMAT_RGB332, frag_src)) {
-		exit(1);
-	}
-
-	GLfloat verticies[] = {
-		1, 1, 1, 1, // bottom right
-		1, 0, 1, 0, // top right
-		0, 0, 0, 0, // top left
-		0, 1, 0, 1, // bottom left
-	};
-	GLuint indicies[] = {
-		0, 1, 3,
-		1, 2, 3,
-	};
-
-	glGenVertexArrays(1, &gl->vao);
-	glGenBuffers(1, &gl->vbo);
-
-	glBindVertexArray(gl->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
-
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
-	glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW);
-
-	glGenBuffers(1, &gl->ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
-
-	glGenTextures(1, &gl->tex);
-	glBindTexture(GL_TEXTURE_2D, gl->tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cat_tex.width, cat_tex.height, 
-			0, GL_RGB, GL_UNSIGNED_BYTE, cat_tex.pixel_data);
-}
-
-static void cleanup_gl(struct gl *gl) {
-	wlr_shader_destroy(gl->shader);
-	glDeleteVertexArrays(1, &gl->vao);
-	glDeleteBuffers(1, &gl->vbo);
-	glDeleteTextures(1, &gl->tex);
-}
 
 static void output_frame(struct wl_listener *listener, void *data) {
 	struct output_state *ostate = wl_container_of(listener, ostate, frame);
@@ -128,26 +54,8 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glViewport(0, 0, width, height);
 	wlr_output_effective_resolution(output, &width, &height);
 
-	wlr_shader_use(s->gl.shader, WL_SHM_FORMAT_RGB332);
-
-	glBindVertexArray(s->gl.vao);
-	glBindBuffer(GL_ARRAY_BUFFER, s->gl.vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s->gl.ebo);
-	glActiveTexture(GL_TEXTURE0 + 1);
-	glBindTexture(GL_TEXTURE_2D, s->gl.tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	float world[16], final[16];
-	wlr_matrix_identity(&final);
-	wlr_matrix_translate(&world, ostate->x, ostate->y, 0);
-	wlr_matrix_mul(&final, &world, &final);
-	wlr_matrix_scale(&world, 128, 128, 1);
-	wlr_matrix_mul(&final, &world, &final);
-	wlr_matrix_mul(&output->transform_matrix, &final, &final);
-	glUniformMatrix4fv(0, 1, GL_TRUE, final);
-
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	wlr_render_quad(s->renderer, s->cat_texture,
+			&output->transform_matrix, ostate->x, ostate->y);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
@@ -316,7 +224,10 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	init_gl(&state.gl);
+	state.renderer = wlr_renderer_init();
+	state.cat_texture = wlr_surface_init();
+	wlr_surface_attach_pixels(state.cat_texture, GL_RGB,
+		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	bool done = false;
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
@@ -328,8 +239,8 @@ int main(int argc, char *argv[]) {
 		wl_event_loop_dispatch(event_loop, 0);
 	}
 
-	cleanup_gl(&state.gl);
-
+	wlr_renderer_destroy(state.renderer);
+	wlr_surface_destroy(state.cat_texture);
 	wl_event_source_remove(timer);
 	wlr_backend_destroy(wlr);
 	wlr_session_finish(session);

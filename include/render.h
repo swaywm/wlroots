@@ -6,7 +6,8 @@
 #include <GLES3/gl3.h>
 #include <stdbool.h>
 
-struct wlr_texture {
+struct wlr_surface {
+	bool valid;
 	GLuint tex_id;
 	uint32_t format;
 	int width, height;
@@ -17,7 +18,7 @@ struct wlr_shader {
 	uint32_t format;
 	GLuint vert;
 	GLuint program;
-	struct wl_list link;
+	struct wlr_shader *next;
 };
 
 struct wlr_renderer {
