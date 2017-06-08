@@ -9,6 +9,7 @@
 #include <wayland-server-protocol.h>
 #include <GLES3/gl3.h>
 #include <wlr/render/matrix.h>
+#include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
@@ -40,7 +41,7 @@ struct state {
 	struct wl_list config;
 
 	struct gl {
-		GLuint prog;
+		struct wlr_shader *shader;
 		GLuint vao;
 		GLuint vbo;
 		GLuint ebo;
@@ -65,53 +66,14 @@ struct output_config {
 	struct wl_list link;
 };
 
-static GLuint create_shader(GLenum type, const GLchar *src, GLint len) {
-	GLuint shader = glCreateShader(type);
-	glShaderSource(shader, 1, &src, &len);
-	glCompileShader(shader);
-
-	GLint success;
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-
-	if (success == GL_FALSE) {
-		GLint loglen;
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &loglen);
-
-		GLchar msg[loglen];
-		glGetShaderInfoLog(shader, loglen, &loglen, msg);
-
-		fprintf(stderr, "Failed to create shader: %s\n", msg);
-		exit(1);
-	}
-
-	return shader;
-}
-
 static void init_gl(struct gl *gl) {
-	GLuint vert = create_shader(GL_VERTEX_SHADER, vert_src, strlen(vert_src));
-	GLuint frag = create_shader(GL_FRAGMENT_SHADER, frag_src, strlen(frag_src));
-
-	gl->prog = glCreateProgram();
-	glAttachShader(gl->prog, vert);
-	glAttachShader(gl->prog, frag);
-	glLinkProgram(gl->prog);
-
-	GLint success;
-	glGetProgramiv(gl->prog, GL_LINK_STATUS, &success);
-
-	if (success == GL_FALSE) {
-		GLint len;
-		glGetProgramiv(gl->prog, GL_INFO_LOG_LENGTH, &len);
-
-		GLchar msg[len];
-		glGetProgramInfoLog(gl->prog, len, &len, msg);
-
-		fprintf(stderr, "Failed to link program: %s\n", msg);
+	gl->shader = wlr_shader_init(vert_src);
+	if (!gl->shader) {
 		exit(1);
 	}
-
-	glDeleteProgram(vert);
-	glDeleteProgram(frag);
+	if (!wlr_shader_add_format(gl->shader, WL_SHM_FORMAT_RGB332, frag_src)) {
+		exit(1);
+	}
 
 	GLfloat verticies[] = {
 		1, 1, 1, 1, // bottom right
@@ -147,7 +109,7 @@ static void init_gl(struct gl *gl) {
 }
 
 static void cleanup_gl(struct gl *gl) {
-	glDeleteProgram(gl->prog);
+	wlr_shader_destroy(gl->shader);
 	glDeleteVertexArrays(1, &gl->vao);
 	glDeleteBuffers(1, &gl->vbo);
 	glDeleteTextures(1, &gl->tex);
@@ -166,7 +128,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glViewport(0, 0, width, height);
 	wlr_output_effective_resolution(output, &width, &height);
 
-	glUseProgram(s->gl.prog);
+	wlr_shader_use(s->gl.shader, WL_SHM_FORMAT_RGB332);
 
 	glBindVertexArray(s->gl.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, s->gl.vbo);
