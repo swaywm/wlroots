@@ -20,4 +20,5 @@ add_executable(rotation
 target_link_libraries(rotation
     wlr-backend
     wlr-session
+    wlr-render
 )

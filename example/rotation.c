@@ -8,6 +8,7 @@
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <GLES3/gl3.h>
+#include <wlr/render/matrix.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
@@ -15,29 +16,24 @@
 #include "cat.h"
 
 static const GLchar vert_src[] =
-"#version 310 es\n"
-"precision mediump float;\n"
-"layout(location = 0) uniform mat4 transform;\n"
-"layout(location = 0) in vec2 pos;\n"
-"layout(location = 1) in vec2 texcoord;\n"
-"out vec2 v_texcoord;\n"
+"uniform mat4 proj;\n"
+"attribute vec2 pos;\n"
+"attribute vec2 texcoord;\n"
+"varying vec2 v_texcoord;\n"
 "void main() {\n"
+"	gl_Position = proj * vec4(pos, 0.0, 1.0);\n"
 "	v_texcoord = texcoord;\n"
-"	gl_Position = transform * vec4(pos, 0.0, 1.0);\n"
 "}\n";
 
 static const GLchar frag_src[] =
-"#version 310 es\n"
 "precision mediump float;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 color;\n"
-"uniform sampler2D texture0;\n"
+"varying vec2 v_texcoord;\n"
+"uniform sampler2D tex;\n"
 "void main() {\n"
-"	color = texture(texture0, v_texcoord);\n"
+"	gl_FragColor = texture2D(tex, v_texcoord);\n"
 "}\n";
 
 struct state {
-	struct timespec last_frame;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
 	struct wl_list outputs;
@@ -53,10 +49,13 @@ struct state {
 };
 
 struct output_state {
+	struct timespec last_frame;
 	struct wl_list link;
 	struct wlr_output *output;
 	struct state *state;
 	struct wl_listener frame;
+	float x, y;
+	float vel_x, vel_y;
 };
 
 struct output_config {
@@ -120,14 +119,6 @@ static void init_gl(struct gl *gl) {
 		0, 0, 0, 0, // top left
 		0, 1, 0, 1, // bottom left
 	};
-	// Temporary
-	for (size_t i = 0; i < sizeof(verticies) / sizeof(verticies[0]); i += 4) {
-		verticies[i] *= 128.0f;
-		verticies[i + 1] *= 128.0f;
-		verticies[i] += 128;
-		verticies[i + 1] += 128;
-	}
-	// End temp
 	GLuint indicies[] = {
 		0, 1, 3,
 		1, 2, 3,
@@ -164,14 +155,16 @@ static void cleanup_gl(struct gl *gl) {
 
 static void output_frame(struct wl_listener *listener, void *data) {
 	struct output_state *ostate = wl_container_of(listener, ostate, frame);
+	struct wlr_output *output = ostate->output;
 	struct state *s = ostate->state;
 
-	glClearColor(0, 0, 0, 1);
+	glClearColor(0.25f, 0.25f, 0.25f, 1);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	int32_t width = ostate->output->width;
-	int32_t height = ostate->output->height;
+	int32_t width = output->width;
+	int32_t height = output->height;
 	glViewport(0, 0, width, height);
+	wlr_output_effective_resolution(output, &width, &height);
 
 	glUseProgram(s->gl.prog);
 
@@ -183,13 +176,33 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glUniformMatrix4fv(0, 1, GL_TRUE, ostate->output->transform_matrix);
+	float world[16], final[16];
+	wlr_matrix_identity(&final);
+	wlr_matrix_translate(&world, ostate->x, ostate->y, 0);
+	wlr_matrix_mul(&final, &world, &final);
+	wlr_matrix_scale(&world, 128, 128, 1);
+	wlr_matrix_mul(&final, &world, &final);
+	wlr_matrix_mul(&output->transform_matrix, &final, &final);
+	glUniformMatrix4fv(0, 1, GL_TRUE, final);
 
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-	s->last_frame = now;
+	long ms = (now.tv_sec - ostate->last_frame.tv_sec) * 1000 +
+		(now.tv_nsec - ostate->last_frame.tv_nsec) / 1000000;
+	float seconds = ms / 1000.0f;
+	ostate->x += ostate->vel_x * seconds;
+	ostate->y += ostate->vel_y * seconds;
+	if (ostate->y > height - 128) {
+		ostate->vel_y = -ostate->vel_y;
+	} else {
+		ostate->vel_y += 50 * seconds;
+	}
+	if (ostate->x > width - 128 || ostate->x < 0) {
+		ostate->vel_x = -ostate->vel_x;
+	}
+	ostate->last_frame = now;
 }
 
 static void output_add(struct wl_listener *listener, void *data) {
@@ -201,9 +214,13 @@ static void output_add(struct wl_listener *listener, void *data) {
 
 	struct output_state *ostate = calloc(1, sizeof(struct output_state));
 
+	clock_gettime(CLOCK_MONOTONIC, &ostate->last_frame);
 	ostate->output = output;
 	ostate->state = state;
 	ostate->frame.notify = output_frame;
+	ostate->x = ostate->y = 0;
+	ostate->vel_x = 100;
+	ostate->vel_y = 0;
 
 	struct output_config *conf;
 	wl_list_for_each(conf, &state->config, link) {
@@ -314,7 +331,6 @@ int main(int argc, char *argv[]) {
 	wl_list_init(&state.config);
 	wl_list_init(&state.output_add.link);
 	wl_list_init(&state.output_remove.link);
-	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
 	parse_args(argc, argv, &state.config);
 
@@ -344,7 +360,7 @@ int main(int argc, char *argv[]) {
 	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
 		timer_done, &done);
 
-	wl_event_source_timer_update(timer, 10000);
+	wl_event_source_timer_update(timer, 30000);
 
 	while (!done) {
 		wl_event_loop_dispatch(event_loop, 0);

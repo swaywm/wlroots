@@ -100,3 +100,15 @@ void wlr_output_destroy(struct wlr_output *output) {
 	list_free(output->modes);
 	free(output);
 }
+
+void wlr_output_effective_resolution(struct wlr_output *output,
+		int *width, int *height) {
+	// TODO: Scale factor
+	if (output->transform % 2 == 1) {
+		*width = output->height;
+		*height = output->width;
+	} else {
+		*width = output->width;
+		*height = output->height;
+	}
+}

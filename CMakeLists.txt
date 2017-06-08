@@ -63,5 +63,6 @@ add_subdirectory(backend)
 add_subdirectory(common)
 add_subdirectory(types)
 add_subdirectory(session)
+add_subdirectory(render)
 
 add_subdirectory(example)
