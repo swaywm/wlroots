@@ -12,10 +12,13 @@ struct wlr_backend_state {
 	struct wlr_udev *udev;
 	struct wl_display *display;
 
-	struct libinput *handle;
+	struct libinput *libinput;
 	struct wl_event_source *input_event;
 
 	list_t *devices;
 };
+
+void wlr_libinput_event(struct wlr_backend_state *state,
+		struct libinput_event *event);
 
 #endif

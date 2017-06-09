@@ -24,7 +24,21 @@ static const struct libinput_interface libinput_impl = {
 };
 
 static int wlr_libinput_handle_event(int fd, uint32_t mask, void *_state) {
-	// TODO
+	struct wlr_backend_state *state = _state;
+	if (libinput_dispatch(state->libinput) != 0) {
+		wlr_log(L_ERROR, "Failed to dispatch libinput");
+		// TODO: some kind of abort?
+		return 0;
+	}
+	struct libinput_event *event;
+	while ((event = libinput_get_event(state->libinput))) {
+		struct libinput *context = libinput_event_get_context(event);
+		struct libinput_device *device = libinput_event_get_device(event);
+		enum libinput_event_type event_type = libinput_event_get_type(event);
+		wlr_log(L_DEBUG, "libinput event: %d", event_type);
+		(void)device; (void)context;
+		// TODO: dispatch event
+	}
 	return 0;
 }
 
@@ -35,22 +49,22 @@ static void wlr_libinput_log(struct libinput *libinput,
 
 static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
 	wlr_log(L_DEBUG, "Initializing libinput");
-	state->handle = libinput_udev_create_context(&libinput_impl, state,
+	state->libinput = libinput_udev_create_context(&libinput_impl, state,
 			state->udev->udev);
-	if (!state->handle) {
+	if (!state->libinput) {
 		wlr_log(L_ERROR, "Failed to create libinput context");
 		return false;
 	}
 
 	// TODO: Let user customize seat used
-	if (!libinput_udev_assign_seat(state->handle, "seat0")) {
+	if (libinput_udev_assign_seat(state->libinput, "seat0") != 0) {
 		wlr_log(L_ERROR, "Failed to assign libinput seat");
 		return false;
 	}
 
 	// TODO: More sophisticated logging
-	libinput_log_set_handler(state->handle, wlr_libinput_log);
-	libinput_log_set_priority(state->handle, LIBINPUT_LOG_PRIORITY_ERROR);
+	libinput_log_set_handler(state->libinput, wlr_libinput_log);
+	libinput_log_set_priority(state->libinput, LIBINPUT_LOG_PRIORITY_ERROR);
 
 	struct wl_event_loop *event_loop =
 		wl_display_get_event_loop(state->display);
@@ -58,7 +72,7 @@ static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
 		wl_event_source_remove(state->input_event);
 	}
 	state->input_event = wl_event_loop_add_fd(event_loop,
-			libinput_get_fd(state->handle), WL_EVENT_READABLE,
+			libinput_get_fd(state->libinput), WL_EVENT_READABLE,
 			wlr_libinput_handle_event, state);
 	if (!state->input_event) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
