@@ -32,8 +32,7 @@ struct output_state {
 	struct wlr_output *output;
 	struct state *state;
 	struct wl_listener frame;
-	float x, y;
-	float vel_x, vel_y;
+	float x_offs, y_offs;
 };
 
 struct output_config {
@@ -47,12 +46,19 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = ostate->output;
 	struct state *s = ostate->state;
 
+	int32_t width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+
 	wlr_renderer_begin(s->renderer, output);
 
 	float matrix[16];
-	wlr_surface_get_matrix(s->cat_texture, &matrix,
-		&output->transform_matrix, ostate->x, ostate->y);
-	wlr_render_with_matrix(s->renderer, s->cat_texture, &matrix);
+	for (int y = -128 + (int)ostate->y_offs; y < height; y += 128) {
+		for (int x = -128 + (int)ostate->x_offs; x < width; x += 128) {
+			wlr_surface_get_matrix(s->cat_texture, &matrix,
+				&output->transform_matrix, x, y);
+			wlr_render_with_matrix(s->renderer, s->cat_texture, &matrix);
+		}
+	}
 
 	wlr_renderer_end(s->renderer);
 
@@ -62,18 +68,10 @@ static void output_frame(struct wl_listener *listener, void *data) {
 		(now.tv_nsec - ostate->last_frame.tv_nsec) / 1000000;
 	float seconds = ms / 1000.0f;
 
-	int32_t width, height;
-	wlr_output_effective_resolution(output, &width, &height);
-	ostate->x += ostate->vel_x * seconds;
-	ostate->y += ostate->vel_y * seconds;
-	if (ostate->y > height - 128) {
-		ostate->vel_y = -ostate->vel_y;
-	} else {
-		ostate->vel_y += 50 * seconds;
-	}
-	if (ostate->x > width - 128 || ostate->x < 0) {
-		ostate->vel_x = -ostate->vel_x;
-	}
+	ostate->x_offs += 128 * seconds;
+	ostate->y_offs += 128 * seconds;
+	if (ostate->x_offs > 128) ostate->x_offs = 0;
+	if (ostate->y_offs > 128) ostate->y_offs = 0;
 	ostate->last_frame = now;
 }
 
@@ -90,9 +88,7 @@ static void output_add(struct wl_listener *listener, void *data) {
 	ostate->output = output;
 	ostate->state = state;
 	ostate->frame.notify = output_frame;
-	ostate->x = ostate->y = 0;
-	ostate->vel_x = 100;
-	ostate->vel_y = 0;
+	ostate->x_offs = ostate->y_offs = 0;
 
 	struct output_config *conf;
 	wl_list_for_each(conf, &state->config, link) {
