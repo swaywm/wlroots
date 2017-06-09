@@ -219,6 +219,7 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&wlr->events.output_remove, &state.output_remove);
 
 	if (!wlr_backend_init(wlr)) {
+		printf("Failed to initialize backend, bailing out\n");
 		return 1;
 	}
 

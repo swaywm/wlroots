@@ -5,8 +5,10 @@
 #include <errno.h>
 #include <wlr/session.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/drm.h>
+#include <wlr/backend/libinput.h>
+#include "backend/udev.h"
 #include "common/log.h"
-#include "backend/drm.h"
 
 struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
 		struct wlr_backend_state *state) {
@@ -46,12 +48,14 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to start udev");
 		goto error;
 	}
+	struct wlr_backend *wlr;
+	wlr = wlr_libinput_backend_create(display, session, udev);
+	return wlr;
 	int gpu = wlr_udev_find_gpu(udev, session);
 	if (gpu == -1) {
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
 	}
-	struct wlr_backend *wlr;
 	wlr = wlr_drm_backend_create(display, session, udev, gpu);
 	if (!wlr) {
 		goto error_gpu;

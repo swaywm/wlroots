@@ -34,14 +34,17 @@ static void wlr_libinput_log(struct libinput *libinput,
 }
 
 static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
+	wlr_log(L_DEBUG, "Initializing libinput");
 	state->handle = libinput_udev_create_context(&libinput_impl, state,
 			state->udev->udev);
 	if (!state->handle) {
+		wlr_log(L_ERROR, "Failed to create libinput context");
 		return false;
 	}
 
 	// TODO: Let user customize seat used
 	if (!libinput_udev_assign_seat(state->handle, "seat0")) {
+		wlr_log(L_ERROR, "Failed to assign libinput seat");
 		return false;
 	}
 
@@ -58,8 +61,10 @@ static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
 			libinput_get_fd(state->handle), WL_EVENT_READABLE,
 			wlr_libinput_handle_event, state);
 	if (!state->input_event) {
+		wlr_log(L_ERROR, "Failed to create input event on event loop");
 		return false;
 	}
+	wlr_log(L_DEBUG, "libinput sucessfully initialized");
 	return true;
 }
 
