@@ -12,6 +12,7 @@
 struct state {
 	float color[3];
 	int dec;
+	bool exit;
 	struct timespec last_frame;
 
 	struct wl_list keyboards;
@@ -102,6 +103,7 @@ static void keyboard_key(struct wl_listener *listener, void *data) {
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
 	fprintf(stderr, "Key event: %u %s\n", event->keycode,
 			event->state == WLR_KEY_PRESSED ? "pressed" : "released");
+	kbstate->state->exit = true;
 }
 
 void input_add(struct wl_listener *listener, void *data) {
@@ -110,10 +112,9 @@ void input_add(struct wl_listener *listener, void *data) {
 	if (device->type != WLR_INPUT_DEVICE_KEYBOARD) {
 		return;
 	}
-	fprintf(stderr, "Keyboard '%s' (%d:%d) added\n", device->name,
-			device->vendor, device->product);
 	struct keyboard_state *kbstate = calloc(sizeof(struct keyboard_state), 1);
 	kbstate->device = device;
+	kbstate->state = state;
 	wl_list_init(&kbstate->key.link);
 	wl_list_init(&kbstate->mods.link);
 	kbstate->key.notify = keyboard_key;
@@ -138,19 +139,15 @@ void input_remove(struct wl_listener *listener, void *data) {
 		return; // We are unfamiliar with this keyboard
 	}
 	wl_list_remove(&kbstate->link);
-	//wl_list_remove(&kbstate->key.link);
+	wl_list_remove(&kbstate->key.link);
 	//wl_list_remove(&kbstate->mods.link);
-}
-
-int timer_done(void *data) {
-	*(bool *)data = true;
-	return 1;
 }
 
 int main() {
 	struct state state = {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,
+		.exit = false,
 		.input_add = { .notify = input_add },
 		.input_remove = { .notify = input_remove },
 		.output_add = { .notify = output_add },
@@ -183,17 +180,10 @@ int main() {
 		return 1;
 	}
 
-	bool done = false;
-	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
-		timer_done, &done);
-
-	wl_event_source_timer_update(timer, 10000);
-
-	while (!done) {
+	while (!state.exit) {
 		wl_event_loop_dispatch(event_loop, 0);
 	}
 
-	wl_event_source_remove(timer);
 	wlr_backend_destroy(wlr);
 	wl_display_destroy(display);
 }
