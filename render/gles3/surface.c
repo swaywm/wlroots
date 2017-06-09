@@ -15,11 +15,10 @@ static bool gles3_surface_attach_pixels(struct wlr_surface_state *surface,
 	surface->wlr_surface->width = width;
 	surface->wlr_surface->height = height;
 	surface->wlr_surface->format = format;
-	// TODO: Error handling
-	glGenTextures(1, &surface->tex_id);
-	glBindTexture(GL_TEXTURE_2D, surface->tex_id);
-	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0,
-			format, GL_UNSIGNED_BYTE, pixels);
+	GL_CALL(glGenTextures(1, &surface->tex_id));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
+	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0,
+			format, GL_UNSIGNED_BYTE, pixels));
 	surface->wlr_surface->valid = true;
 	return true;
 }
@@ -37,10 +36,10 @@ static void gles3_surface_get_matrix(struct wlr_surface_state *surface,
 }
 
 static void gles3_surface_bind(struct wlr_surface_state *surface) {
-	glActiveTexture(GL_TEXTURE0 + 1);
-	glBindTexture(GL_TEXTURE_2D, surface->tex_id);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	GL_CALL(glActiveTexture(GL_TEXTURE0 + 1));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 }
 
 static void gles3_surface_destroy(struct wlr_surface_state *surface) {

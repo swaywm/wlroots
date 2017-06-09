@@ -17,17 +17,17 @@ static struct {
 static GLuint vao, vbo, ebo;
 
 static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
-	*shader = glCreateShader(type);
+	*shader = GL_CALL(glCreateShader(type));
 	int len = strlen(src);
-	glShaderSource(*shader, 1, &src, &len);
-	glCompileShader(*shader);
+	GL_CALL(glShaderSource(*shader, 1, &src, &len));
+	GL_CALL(glCompileShader(*shader));
 	GLint success;
-	glGetShaderiv(*shader, GL_COMPILE_STATUS, &success);
+	GL_CALL(glGetShaderiv(*shader, GL_COMPILE_STATUS, &success));
 	if (success == GL_FALSE) {
 		GLint loglen;
-		glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &loglen);
+		GL_CALL(glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &loglen));
 		GLchar msg[loglen];
-		glGetShaderInfoLog(*shader, loglen, &loglen, msg);
+		GL_CALL(glGetShaderInfoLog(*shader, loglen, &loglen, msg));
 		return false;
 	}
 	return true;
@@ -43,12 +43,10 @@ static bool compile_program(const GLchar *vert_src,
 		glDeleteProgram(vertex);
 		return false;
 	}
-	*program = glCreateProgram();
-	glAttachShader(*program, vertex);
-	glAttachShader(*program, fragment);
-	glLinkProgram(*program);
-	glDeleteProgram(vertex);
-	glDeleteProgram(fragment);
+	*program = GL_CALL(glCreateProgram());
+	GL_CALL(glAttachShader(*program, vertex));
+	GL_CALL(glAttachShader(*program, fragment));
+	GL_CALL(glLinkProgram(*program));
 	return true;
 }
 
@@ -79,21 +77,21 @@ static void init_default_quad() {
 		1, 2, 3,
 	};
 
-	glGenVertexArrays(1, &vao);
-	glGenBuffers(1, &vbo);
+	GL_CALL(glGenVertexArrays(1, &vao));
+	GL_CALL(glGenBuffers(1, &vbo));
 
-	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GL_CALL(glBindVertexArray(vao));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
 
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
-	glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW);
+	GL_CALL(glEnableVertexAttribArray(0));
+	GL_CALL(glEnableVertexAttribArray(1));
+	GL_CALL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0));
+	GL_CALL(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat))));
+	GL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW));
 
-	glGenBuffers(1, &ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
+	GL_CALL(glGenBuffers(1, &ebo));
+	GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo));
+	GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW));
 }
 
 static void init_globals() {
@@ -104,11 +102,11 @@ static void init_globals() {
 static void wlr_gles3_begin(struct wlr_renderer_state *state,
 		struct wlr_output *output) {
 	// TODO: let users customize the clear color?
-	glClearColor(0.25f, 0.25f, 0.25f, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
+	GL_CALL(glClearColor(0.25f, 0.25f, 0.25f, 1));
+	GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 	int32_t width = output->width;
 	int32_t height = output->height;
-	glViewport(0, 0, width, height);
+	GL_CALL(glViewport(0, 0, width, height));
 	// Note: maybe we should save output projection and remove some of the need
 	// for users to sling matricies themselves
 }
@@ -126,20 +124,20 @@ static bool wlr_gles3_render_surface(struct wlr_renderer_state *state,
 	assert(surface && surface->valid);
 	switch (surface->format) {
 	case GL_RGB:
-		glUseProgram(shaders.rgb);
+		GL_CALL(glUseProgram(shaders.rgb));
 		break;
 	case GL_RGBA:
-		glUseProgram(shaders.rgba);
+		GL_CALL(glUseProgram(shaders.rgba));
 		break;
 	default:
 		return false;
 	}
-	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	GL_CALL(glBindVertexArray(vao));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
+	GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo));
 	wlr_surface_bind(surface);
-	glUniformMatrix4fv(0, 1, GL_TRUE, *matrix);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
+	GL_CALL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
 	return true;
 }
 

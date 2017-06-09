@@ -5,4 +5,5 @@ add_library(wlr-render STATIC
     gles3/shaders.c
     gles3/renderer.c
     gles3/surface.c
+    gles3/util.c
 )
