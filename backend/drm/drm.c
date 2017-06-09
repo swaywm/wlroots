@@ -111,8 +111,10 @@ static void wlr_drm_output_end(struct wlr_output_state *output) {
 	}
 	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
 	drmModePageFlip(renderer->fd, output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
-	gbm_surface_release_buffer(output->gbm, bo);
 	output->pageflip_pending = true;
+
+	output->bo_last = output->bo_current;
+	output->bo_current = bo;
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
@@ -140,7 +142,8 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 	drmModePageFlip(renderer->fd, output->crtc, fb_id,
 			DRM_MODE_PAGE_FLIP_EVENT, output);
 
-	gbm_surface_release_buffer(output->gbm, bo);
+	output->bo_last = NULL;
+	output->bo_current = bo;
 }
 
 static bool display_init_renderer(struct wlr_drm_renderer *renderer,
@@ -516,6 +519,11 @@ static void page_flip_handler(int fd, unsigned seq,
 	struct wlr_output_state *output = user;
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
+
+	if (output->bo_last) {
+		gbm_surface_release_buffer(output->gbm, output->bo_last);
+		output->bo_last = NULL;
+	}
 
 	output->pageflip_pending = false;
 	if (output->state == DRM_OUTPUT_CONNECTED) {

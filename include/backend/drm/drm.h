@@ -47,6 +47,8 @@ struct wlr_output_state {
 
 	struct wlr_drm_renderer *renderer;
 	struct gbm_surface *gbm;
+	struct gbm_bo *bo_last;
+	struct gbm_bo *bo_current;
 	EGLSurface *egl;
 
 	bool pageflip_pending;
