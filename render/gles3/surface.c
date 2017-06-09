@@ -43,7 +43,8 @@ static void gles3_surface_bind(struct wlr_surface_state *surface) {
 }
 
 static void gles3_surface_destroy(struct wlr_surface_state *surface) {
-	// TODO
+	GL_CALL(glDeleteTextures(1, &surface->tex_id));
+	free(surface);
 }
 
 static struct wlr_surface_impl wlr_surface_impl = {
