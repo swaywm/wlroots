@@ -65,6 +65,18 @@ struct wlr_keyboard {
 	} events;
 };
 
+enum wlr_key_state {
+	WLR_KEY_RELEASED,
+	WLR_KEY_PRESSED,
+};
+
+struct wlr_keyboard_key {
+	uint32_t time_sec;
+	uint64_t time_usec;
+	uint32_t keycode;
+	enum wlr_key_state state;
+};
+
 struct wlr_pointer_state;
 struct wlr_pointer_impl;
 
@@ -81,20 +93,26 @@ struct wlr_pointer {
 };
 
 struct wlr_pointer_motion {
+	uint32_t time_sec;
+	uint64_t time_usec;
 	double delta_x, delta_y;
 };
 
 struct wlr_pointer_motion_absolute {
+	uint32_t time_sec;
+	uint64_t time_usec;
 	double x_mm, y_mm;
 	double width_mm, height_mm;
 };
 
 enum wlr_button_state {
-	WLR_BUTTON_DEPRESSED,
-	WLR_BUTTON_RELEASED
+	WLR_BUTTON_RELEASED,
+	WLR_BUTTON_PRESSED,
 };
 
 struct wlr_pointer_button {
+	uint32_t time_sec;
+	uint64_t time_usec;
 	uint32_t button;
 	enum wlr_button_state state;
 };
@@ -108,10 +126,12 @@ enum wlr_axis_source {
 
 enum wlr_axis_orientation {
 	WLR_AXIS_ORIENTATION_VERTICAL,
-	WLR_AXIS_ORIENTATION_HORIZONTAL
+	WLR_AXIS_ORIENTATION_HORIZONTAL,
 };
 
 struct wlr_pointer_axis {
+	uint32_t time_sec;
+	uint64_t time_usec;
 	enum wlr_axis_source source;
 	enum wlr_axis_orientation orientation;
 	double delta;

@@ -99,7 +99,12 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	struct wlr_backend *backend = wlr_backend_create(&backend_impl, state);
 	if (!backend) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return NULL;
+		goto error_state;
+	}
+
+	if (!(state->keyboards = list_create())) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		goto error_backend;
 	}
 
 	state->backend = backend;
@@ -107,7 +112,10 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	state->udev = udev;
 	state->display = display;
 
-	state->keyboards = list_create();
-
 	return backend;
+error_state:
+	free(state);
+error_backend:
+	wlr_backend_destroy(backend);
+	return NULL;
 }

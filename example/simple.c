@@ -97,6 +97,13 @@ void output_remove(struct wl_listener *listener, void *data) {
 	wl_list_remove(&ostate->frame.link);
 }
 
+static void keyboard_key(struct wl_listener *listener, void *data) {
+	struct wlr_keyboard_key *event = data;
+	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
+	fprintf(stderr, "Key event: %u %s\n", event->keycode,
+			event->state == WLR_KEY_PRESSED ? "pressed" : "released");
+}
+
 void input_add(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct state *state = wl_container_of(listener, state, input_add);
@@ -109,6 +116,8 @@ void input_add(struct wl_listener *listener, void *data) {
 	kbstate->device = device;
 	wl_list_init(&kbstate->key.link);
 	wl_list_init(&kbstate->mods.link);
+	kbstate->key.notify = keyboard_key;
+	wl_signal_add(&device->keyboard->events.key, &kbstate->key);
 	wl_list_insert(&state->keyboards, &kbstate->link);
 }
 
