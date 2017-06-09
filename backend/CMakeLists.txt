@@ -9,11 +9,15 @@ add_library(wlr-backend
     #wayland/registry.c
     #wayland/wl_seat.c
     #wayland/wl_output.c
+
     drm/backend.c
     drm/drm.c
-    udev.c
+
+    libinput/backend.c
+
     backend.c
     egl.c
+    udev.c
 )
 
 target_link_libraries(wlr-backend

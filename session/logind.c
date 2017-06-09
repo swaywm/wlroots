@@ -28,8 +28,7 @@ struct logind_session {
 };
 
 static int logind_take_device(struct wlr_session *restrict base,
-	const char *restrict path) {
-
+		const char *restrict path) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
 	int ret;
