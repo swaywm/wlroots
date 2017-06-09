@@ -15,10 +15,14 @@ struct wlr_backend_state {
 	struct libinput *libinput;
 	struct wl_event_source *input_event;
 
-	list_t *devices;
+	list_t *keyboards;
 };
 
 void wlr_libinput_event(struct wlr_backend_state *state,
 		struct libinput_event *event);
+
+struct wlr_keyboard_state {
+	struct libinput_device *handle;
+};
 
 #endif

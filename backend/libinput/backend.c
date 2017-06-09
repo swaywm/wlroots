@@ -23,7 +23,7 @@ static const struct libinput_interface libinput_impl = {
 	.close_restricted = wlr_libinput_close_restricted
 };
 
-static int wlr_libinput_handle_event(int fd, uint32_t mask, void *_state) {
+static int wlr_libinput_readable(int fd, uint32_t mask, void *_state) {
 	struct wlr_backend_state *state = _state;
 	if (libinput_dispatch(state->libinput) != 0) {
 		wlr_log(L_ERROR, "Failed to dispatch libinput");
@@ -32,12 +32,7 @@ static int wlr_libinput_handle_event(int fd, uint32_t mask, void *_state) {
 	}
 	struct libinput_event *event;
 	while ((event = libinput_get_event(state->libinput))) {
-		struct libinput *context = libinput_event_get_context(event);
-		struct libinput_device *device = libinput_event_get_device(event);
-		enum libinput_event_type event_type = libinput_event_get_type(event);
-		wlr_log(L_DEBUG, "libinput event: %d", event_type);
-		(void)device; (void)context;
-		// TODO: dispatch event
+		wlr_libinput_event(state, event);
 	}
 	return 0;
 }
@@ -73,7 +68,7 @@ static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
 	}
 	state->input_event = wl_event_loop_add_fd(event_loop,
 			libinput_get_fd(state->libinput), WL_EVENT_READABLE,
-			wlr_libinput_handle_event, state);
+			wlr_libinput_readable, state);
 	if (!state->input_event) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
 		return false;
@@ -111,6 +106,8 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	state->session = session;
 	state->udev = udev;
 	state->display = display;
+
+	state->keyboards = list_create();
 
 	return backend;
 }

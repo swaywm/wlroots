@@ -19,14 +19,10 @@ struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
 	}
 	backend->state = state;
 	backend->impl = impl;
+	wl_signal_init(&backend->events.input_add);
+	wl_signal_init(&backend->events.input_remove);
 	wl_signal_init(&backend->events.output_add);
 	wl_signal_init(&backend->events.output_remove);
-	wl_signal_init(&backend->events.keyboard_add);
-	wl_signal_init(&backend->events.keyboard_remove);
-	wl_signal_init(&backend->events.pointer_add);
-	wl_signal_init(&backend->events.pointer_remove);
-	wl_signal_init(&backend->events.touch_add);
-	wl_signal_init(&backend->events.touch_remove);
 	return backend;
 }
 

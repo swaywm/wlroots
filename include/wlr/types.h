@@ -50,4 +50,97 @@ void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height);
 
+// TODO: keymaps
+
+struct wlr_keyboard_state;
+struct wlr_keyboard_impl;
+
+struct wlr_keyboard {
+	struct wlr_keyboard_state *state;
+	struct wlr_keyboard_impl *impl;
+
+	struct {
+		struct wl_signal key;
+		struct wl_signal mods;
+	} events;
+};
+
+struct wlr_pointer_state;
+struct wlr_pointer_impl;
+
+struct wlr_pointer {
+	struct wlr_pointer_state *state;
+	struct wlr_pointer_impl *impl;
+
+	struct {
+		struct wl_signal motion;
+		struct wl_signal motion_absolute;
+		struct wl_signal button;
+		struct wl_signal axis;
+	} events;
+};
+
+struct wlr_pointer_motion {
+	double delta_x, delta_y;
+};
+
+struct wlr_pointer_motion_absolute {
+	double x_mm, y_mm;
+	double width_mm, height_mm;
+};
+
+enum wlr_button_state {
+	WLR_BUTTON_DEPRESSED,
+	WLR_BUTTON_RELEASED
+};
+
+struct wlr_pointer_button {
+	uint32_t button;
+	enum wlr_button_state state;
+};
+
+enum wlr_axis_source {
+	WLR_AXIS_SOURCE_WHEEL,
+	WLR_AXIS_SOURCE_FINGER,
+	WLR_AXIS_SOURCE_CONTINUOUS,
+	WLR_AXIS_SOURCE_WHEEL_TILT,
+};
+
+enum wlr_axis_orientation {
+	WLR_AXIS_ORIENTATION_VERTICAL,
+	WLR_AXIS_ORIENTATION_HORIZONTAL
+};
+
+struct wlr_pointer_axis {
+	enum wlr_axis_source source;
+	enum wlr_axis_orientation orientation;
+	double delta;
+};
+
+// TODO: touch
+// TODO: tablet & tablet tool
+// TODO: gestures
+// TODO: switch
+
+enum wlr_input_device_type {
+	WLR_INPUT_DEVICE_KEYBOARD,
+	WLR_INPUT_DEVICE_POINTER,
+	WLR_INPUT_DEVICE_TOUCH,
+	WLR_INPUT_DEVICE_TABLET_PEN,
+	WLR_INPUT_DEVICE_TABLET_PAD,
+	WLR_INPUT_DEVICE_GESTURE,
+	WLR_INPUT_DEVICE_SWITCH,
+};
+
+struct wlr_input_device {
+	enum wlr_input_device_type type;
+	int vendor, product;
+	char *name;
+	union {
+		void *_device;
+		struct wlr_keyboard *keyboard;
+		struct wlr_pointer *pointer;
+	};
+};
+
 #endif

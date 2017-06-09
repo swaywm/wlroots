@@ -15,6 +15,7 @@ add_library(wlr-backend
     drm/drm.c
 
     libinput/backend.c
+    libinput/events.c
 
     backend.c
     egl.c
