@@ -47,10 +47,12 @@ static void handle_device_added(struct wlr_backend_state *state,
 	const char *name = libinput_device_get_name(device);
 	list_t *devices = list_create();
 	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
-	struct wlr_input_device_state *devstate =
-		calloc(1, sizeof(struct wlr_input_device_state));
 
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
+		struct wlr_input_device_state *devstate =
+			calloc(1, sizeof(struct wlr_input_device_state));
+		devstate->handle = device;
+		libinput_device_ref(device);
 		struct wlr_input_device *wlr_device = wlr_input_device_create(
 			WLR_INPUT_DEVICE_KEYBOARD, &input_device_impl, devstate,
 			name, vendor, product);
@@ -80,7 +82,6 @@ static void handle_device_added(struct wlr_backend_state *state,
 	if (devices->length > 0) {
 		libinput_device_set_user_data(device, devices);
 	} else {
-		wlr_libinput_device_destroy(devstate);
 		list_free(devices);
 	}
 }
