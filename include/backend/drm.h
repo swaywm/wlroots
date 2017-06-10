@@ -1,14 +1,23 @@
-#ifndef DRM_H
-#define DRM_H
+#ifndef DRM_BACKEND_H
+#define DRM_BACKEND_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <wayland-server.h>
 #include <xf86drmMode.h>
 #include <EGL/egl.h>
+#include <libudev.h>
 #include <gbm.h>
 
+#include <wlr/session.h>
+#include <wlr/common/list.h>
+#include <wlr/backend/drm.h>
+
 #include "backend/egl.h"
-#include "backend.h"
+#include "backend/udev.h"
+#include "event.h"
+#include "drm.h"
 
 struct wlr_drm_renderer {
 	int fd;
@@ -18,6 +27,25 @@ struct wlr_drm_renderer {
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
+
+struct wlr_backend_state {
+	int fd;
+	dev_t dev;
+
+	struct wlr_backend *backend;
+	struct wl_event_source *drm_event;
+
+	struct wl_listener device_paused;
+	struct wl_listener device_resumed;
+	struct wl_listener drm_invalidated;
+
+	uint32_t taken_crtcs;
+	list_t *outputs;
+
+	struct wlr_drm_renderer renderer;
+	struct wlr_session *session;
+	struct wlr_udev *udev;
+};
 
 enum wlr_drm_output_state {
 	DRM_OUTPUT_DISCONNECTED,

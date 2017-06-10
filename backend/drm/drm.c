@@ -13,8 +13,7 @@
 #include <GLES3/gl3.h>
 #include <wayland-server.h>
 #include <wlr/backend/interface.h>
-#include "backend/drm/backend.h"
-#include "backend/drm/drm.h"
+#include "backend/drm.h"
 #include "common/log.h"
 #include "types.h"
 

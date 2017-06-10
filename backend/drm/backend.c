@@ -12,8 +12,7 @@
 #include <wlr/common/list.h>
 #include <wlr/backend/interface.h>
 #include "backend/udev.h"
-#include "backend/drm/backend.h"
-#include "backend/drm/drm.h"
+#include "backend/drm.h"
 #include "common/log.h"
 
 static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
