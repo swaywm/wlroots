@@ -16,6 +16,7 @@ add_library(wlr-backend
 
     libinput/backend.c
     libinput/events.c
+    libinput/keyboard.c
 
     backend.c
     egl.c
