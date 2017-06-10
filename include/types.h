@@ -34,9 +34,15 @@ struct wlr_pointer *wlr_pointer_create(struct wlr_pointer_impl *impl,
 		struct wlr_pointer_state *state);
 void wlr_pointer_destroy(struct wlr_pointer *pointer);
 
+struct wlr_input_device_impl {
+	void (*destroy)(struct wlr_input_device_state *state);
+};
+
 struct wlr_input_device *wlr_input_device_create(
-		enum wlr_input_device_type type, const char *name,
-		int vendor, int product);
+		enum wlr_input_device_type type,
+		struct wlr_input_device_impl *impl,
+		struct wlr_input_device_state *state,
+		const char *name, int vendor, int product);
 void wlr_input_device_destroy(struct wlr_input_device *dev);
 
 #endif

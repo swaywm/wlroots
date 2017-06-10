@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libinput.h>
 #include <wlr/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/libinput.h>
+#include "backend/libinput.h"
 #include "backend/udev.h"
 #include "common/log.h"
 
@@ -63,4 +65,8 @@ error_udev:
 	wlr_udev_destroy(udev);
 error:
 	return NULL;
+}
+
+struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
+	return dev->state->handle;
 }

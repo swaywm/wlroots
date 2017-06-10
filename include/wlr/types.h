@@ -152,10 +152,17 @@ enum wlr_input_device_type {
 	WLR_INPUT_DEVICE_SWITCH,
 };
 
+struct wlr_input_device_state;
+struct wlr_input_device_impl;
+
 struct wlr_input_device {
+	struct wlr_input_device_state *state;
+	struct wlr_input_device_impl *impl;
+
 	enum wlr_input_device_type type;
 	int vendor, product;
 	char *name;
+
 	union {
 		void *_device;
 		struct wlr_keyboard *keyboard;

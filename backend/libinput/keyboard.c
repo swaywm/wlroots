@@ -8,23 +8,10 @@
 #include "common/log.h"
 #include "types.h"
 
-static void wlr_libinput_keyboard_destroy(struct wlr_keyboard_state *state) {
-	libinput_device_unref(state->handle);
-	free(state);
-}
-
-static struct wlr_keyboard_impl keyboard_impl = {
-	.destroy = wlr_libinput_keyboard_destroy
-};
-
 struct wlr_keyboard *wlr_libinput_keyboard_create(
 		struct libinput_device *device) {
 	assert(device);
-	struct wlr_keyboard_state *kbstate =
-		calloc(1, sizeof(struct wlr_keyboard_state));
-	kbstate->handle = device;
-	libinput_device_ref(device);
-	return wlr_keyboard_create(&keyboard_impl, kbstate);
+	return wlr_keyboard_create(NULL, NULL);
 }
 
 void handle_keyboard_key(struct libinput_event *event,
