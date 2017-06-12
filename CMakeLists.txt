@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.1.0)
 
 project(wlroots C)
 
-if (CMAKE_BUILD_TYPE EQUAL "Debug")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
-endif()
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
