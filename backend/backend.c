@@ -8,6 +8,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/backend/multi.h>
 #include "backend/libinput.h"
 #include "backend/udev.h"
 #include "common/log.h"
@@ -46,19 +47,32 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to start udev");
 		goto error;
 	}
-	struct wlr_backend *wlr;
-	wlr = wlr_libinput_backend_create(display, session, udev);
-	return wlr;
 	int gpu = wlr_udev_find_gpu(udev, session);
 	if (gpu == -1) {
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
 	}
-	wlr = wlr_drm_backend_create(display, session, udev, gpu);
-	if (!wlr) {
+	struct wlr_backend *multi = wlr_multi_backend_create();
+	if (!multi) {
 		goto error_gpu;
 	}
-	return wlr;
+	struct wlr_backend *libinput =
+		wlr_libinput_backend_create(display, session, udev);
+	if (!libinput) {
+		goto error_multi;
+	}
+	struct wlr_backend *drm =
+		wlr_drm_backend_create(display, session, udev, gpu);
+	if (!drm) {
+		goto error_libinput;
+	}
+	wlr_multi_backend_add(multi, libinput);
+	wlr_multi_backend_add(multi, drm);
+	return multi;
+error_libinput:
+	wlr_backend_destroy(libinput);
+error_multi:
+	wlr_backend_destroy(multi);
 error_gpu:
 	close(gpu);
 error_udev:
