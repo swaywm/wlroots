@@ -74,7 +74,17 @@ static void pointer_motion_notify(struct wl_listener *listener, void *data) {
 	struct wlr_pointer_motion *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, motion);
 	if (pstate->compositor->pointer_motion_cb) {
-		pstate->compositor->pointer_motion_cb(pstate, event->delta_x, event->delta_y);
+		pstate->compositor->pointer_motion_cb(pstate,
+				event->delta_x, event->delta_y);
+	}
+}
+
+static void pointer_button_notify(struct wl_listener *listener, void *data) {
+	struct wlr_pointer_button *event = data;
+	struct pointer_state *pstate = wl_container_of(listener, pstate, button);
+	if (pstate->compositor->pointer_button_cb) {
+		pstate->compositor->pointer_button_cb(pstate,
+				event->button, event->state);
 	}
 }
 
@@ -87,7 +97,9 @@ static void pointer_add(struct wlr_input_device *device, struct compositor_state
 	wl_list_init(&pstate->button.link);
 	wl_list_init(&pstate->axis.link);
 	pstate->motion.notify = pointer_motion_notify;
+	pstate->button.notify = pointer_button_notify;
 	wl_signal_add(&device->pointer->events.motion, &pstate->motion);
+	wl_signal_add(&device->pointer->events.button, &pstate->button);
 	wl_list_insert(&state->pointers, &pstate->link);
 }
 

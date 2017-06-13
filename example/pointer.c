@@ -23,6 +23,7 @@ struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wlr_surface *cat_texture;
 	int cur_x, cur_y;
+	float clear_color[4];
 };
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -31,6 +32,9 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct wlr_output *wlr_output = output->output;
 
 	wlr_renderer_begin(sample->renderer, wlr_output);
+	glClearColor(sample->clear_color[0], sample->clear_color[1],
+			sample->clear_color[2], sample->clear_color[3]);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	float matrix[16];
 	wlr_surface_get_matrix(sample->cat_texture, &matrix,
@@ -55,14 +59,32 @@ static void handle_pointer_motion(struct pointer_state *pstate,
 	state->cur_y += d_y;
 }
 
+static void handle_pointer_button(struct pointer_state *pstate,
+		uint32_t button, enum wlr_button_state state) {
+	struct sample_state *sample = pstate->compositor->data;
+	float (*color)[4];
+	if (state == WLR_BUTTON_RELEASED) {
+		float _default[4] = { 0.25f, 0.25f, 0.25f, 1 };
+		color = &_default;
+	} else {
+		float red[4] = { 0.25f, 0.25f, 0.25f, 1 };
+		red[button % 3] = 1;
+		color = &red;
+	}
+	memcpy(&sample->clear_color, color, sizeof(*color));
+}
+
 int main(int argc, char *argv[]) {
-	struct sample_state state = { 0 };
+	struct sample_state state = {
+		.clear_color = { 0.25f, 0.25f, 0.25f, 1 }
+	};
 	struct compositor_state compositor;
 
 	compositor_init(&compositor);
 	compositor.output_frame_cb = handle_output_frame;
-	compositor.pointer_motion_cb = handle_pointer_motion;
 	compositor.keyboard_key_cb = handle_keyboard_key;
+	compositor.pointer_motion_cb = handle_pointer_motion;
+	compositor.pointer_button_cb = handle_pointer_button;
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
