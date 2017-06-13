@@ -51,6 +51,10 @@ struct compositor_state {
 			double d_x, double d_y);
 	void (*pointer_button_cb)(struct pointer_state *s,
 			uint32_t button, enum wlr_button_state state);
+	void (*pointer_axis_cb)(struct pointer_state *s,
+		enum wlr_axis_source source,
+		enum wlr_axis_orientation orientation,
+		double delta);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;

@@ -23,6 +23,7 @@ struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wlr_surface *cat_texture;
 	int cur_x, cur_y;
+	float default_color[4];
 	float clear_color[4];
 };
 
@@ -64,8 +65,7 @@ static void handle_pointer_button(struct pointer_state *pstate,
 	struct sample_state *sample = pstate->compositor->data;
 	float (*color)[4];
 	if (state == WLR_BUTTON_RELEASED) {
-		float _default[4] = { 0.25f, 0.25f, 0.25f, 1 };
-		color = &_default;
+		color = &sample->default_color;
 	} else {
 		float red[4] = { 0.25f, 0.25f, 0.25f, 1 };
 		red[button % 3] = 1;
@@ -74,8 +74,27 @@ static void handle_pointer_button(struct pointer_state *pstate,
 	memcpy(&sample->clear_color, color, sizeof(*color));
 }
 
+static void handle_pointer_axis(struct pointer_state *pstate,
+	enum wlr_axis_source source,
+	enum wlr_axis_orientation orientation,
+	double delta) {
+	struct sample_state *sample = pstate->compositor->data;
+	for (size_t i = 0; i < 3; ++i) {
+		sample->default_color[i] += delta > 0 ? -0.05f : 0.05f;
+		if (sample->default_color[i] > 1.0f) {
+			sample->default_color[i] = 1.0f;
+		}
+		if (sample->default_color[i] < 0.0f) {
+			sample->default_color[i] = 0.0f;
+		}
+	}
+	memcpy(&sample->clear_color, &sample->default_color,
+			sizeof(sample->clear_color));
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
+		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 }
 	};
 	struct compositor_state compositor;
@@ -85,6 +104,7 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor.pointer_motion_cb = handle_pointer_motion;
 	compositor.pointer_button_cb = handle_pointer_button;
+	compositor.pointer_axis_cb = handle_pointer_axis;
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
