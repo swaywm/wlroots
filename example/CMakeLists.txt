@@ -6,6 +6,7 @@ include_directories(
 
 add_executable(simple
     simple.c
+    shared.c
 )
 
 target_link_libraries(simple
@@ -16,6 +17,7 @@ target_link_libraries(simple
 
 add_executable(rotation
     rotation.c
+    shared.c
     cat.c
 )
 
