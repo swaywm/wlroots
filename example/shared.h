@@ -28,6 +28,17 @@ struct keyboard_state {
 	void *data;
 };
 
+struct pointer_state {
+	struct compositor_state *compositor;
+	struct wlr_input_device *device;
+	struct wl_listener motion;
+	struct wl_listener motion_absolute;
+	struct wl_listener button;
+	struct wl_listener axis;
+	struct wl_list link;
+	void *data;
+};
+
 struct compositor_state {
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
@@ -36,6 +47,7 @@ struct compositor_state {
 	void (*keyboard_remove_cb)(struct keyboard_state *s);
 	void (*keyboard_key_cb)(struct keyboard_state *s, xkb_keysym_t sym,
 			enum wlr_key_state key_state);
+	void (*pointer_motion_cb)(struct pointer_state *s, double d_x, double d_y);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;
@@ -43,6 +55,7 @@ struct compositor_state {
 	struct wlr_session *session;
 
 	struct wl_list keyboards;
+	struct wl_list pointers;
 	struct wl_listener input_add;
 	struct wl_listener input_remove;
 

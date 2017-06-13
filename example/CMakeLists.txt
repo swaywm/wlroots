@@ -27,3 +27,16 @@ target_link_libraries(rotation
     wlr-render
     ${XKBCOMMON_LIBRARIES}
 )
+
+add_executable(pointer
+    pointer.c
+    shared.c
+    cat.c
+)
+
+target_link_libraries(pointer
+    wlr-backend
+    wlr-session
+    wlr-render
+    ${XKBCOMMON_LIBRARIES}
+)

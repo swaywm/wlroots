@@ -35,12 +35,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
 }
 
-static void input_add_notify(struct wl_listener *listener, void *data) {
-	struct wlr_input_device *device = data;
-	struct compositor_state *state = wl_container_of(listener, state, input_add);
-	if (device->type != WLR_INPUT_DEVICE_KEYBOARD) {
-		return;
-	}
+static void keyboard_add(struct wlr_input_device *device, struct compositor_state *state) {
 	struct keyboard_state *kbstate = calloc(sizeof(struct keyboard_state), 1);
 	kbstate->device = device;
 	kbstate->compositor = state;
@@ -75,24 +70,88 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void input_remove_notify(struct wl_listener *listener, void *data) {
+static void pointer_motion_notify(struct wl_listener *listener, void *data) {
+	struct wlr_pointer_motion *event = data;
+	struct pointer_state *pstate = wl_container_of(listener, pstate, motion);
+	if (pstate->compositor->pointer_motion_cb) {
+		pstate->compositor->pointer_motion_cb(pstate, event->delta_x, event->delta_y);
+	}
+}
+
+static void pointer_add(struct wlr_input_device *device, struct compositor_state *state) {
+	struct pointer_state *pstate = calloc(sizeof(struct pointer_state), 1);
+	pstate->device = device;
+	pstate->compositor = state;
+	wl_list_init(&pstate->motion.link);
+	wl_list_init(&pstate->motion_absolute.link);
+	wl_list_init(&pstate->button.link);
+	wl_list_init(&pstate->axis.link);
+	pstate->motion.notify = pointer_motion_notify;
+	wl_signal_add(&device->pointer->events.motion, &pstate->motion);
+	wl_list_insert(&state->pointers, &pstate->link);
+}
+
+static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
-	if (device->type != WLR_INPUT_DEVICE_KEYBOARD) {
-		return;
+	switch (device->type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:
+		keyboard_add(device, state);
+		break;
+	case WLR_INPUT_DEVICE_POINTER:
+		pointer_add(device, state);
+		break;
+	default:
+		break;
 	}
+}
+
+static void keyboard_remove(struct wlr_input_device *device, struct compositor_state *state) {
 	struct keyboard_state *kbstate = NULL, *_kbstate;
 	wl_list_for_each(_kbstate, &state->keyboards, link) {
 		if (_kbstate->device == device) {
-			kbstate = kbstate;
+			kbstate = _kbstate;
 			break;
 		}
 	}
 	if (!kbstate) {
-		return; // We are unfamiliar with this keyboard
+		return;
 	}
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
+}
+
+static void pointer_remove(struct wlr_input_device *device, struct compositor_state *state) {
+	struct pointer_state *pstate = NULL, *_pstate;
+	wl_list_for_each(_pstate, &state->pointers, link) {
+		if (_pstate->device == device) {
+			pstate = _pstate;
+			break;
+		}
+	}
+	if (!pstate) {
+		return;
+	}
+	wl_list_remove(&pstate->link);
+	//wl_list_remove(&pstate->motion.link);
+	wl_list_remove(&pstate->motion_absolute.link);
+	//wl_list_remove(&pstate->button.link);
+	//wl_list_remove(&pstate->axis.link);
+}
+
+static void input_remove_notify(struct wl_listener *listener, void *data) {
+	struct wlr_input_device *device = data;
+	struct compositor_state *state = wl_container_of(listener, state, input_add);
+	switch (device->type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:
+		keyboard_remove(device, state);
+		break;
+	case WLR_INPUT_DEVICE_POINTER:
+		pointer_remove(device, state);
+		break;
+	default:
+		break;
+	}
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
@@ -162,6 +221,7 @@ void compositor_init(struct compositor_state *state) {
 	}
 
 	wl_list_init(&state->keyboards);
+	wl_list_init(&state->pointers);
 	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
 	wl_list_init(&state->input_remove.link);
