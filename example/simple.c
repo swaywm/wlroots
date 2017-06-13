@@ -162,12 +162,6 @@ void input_remove(struct wl_listener *listener, void *data) {
 	wl_list_remove(&kbstate->key.link);
 }
 
-static int timer_done(void *data) {
-	struct state *state = data;
-	state->exit = true;
-	return 1;
-}
-
 int main() {
 	struct state state = {
 		.color = { 1.0, 0.0, 0.0 },
@@ -225,10 +219,6 @@ int main() {
 	if (!wlr || !wlr_backend_init(wlr)) {
 		return 1;
 	}
-	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
-		timer_done, &state);
-
-	wl_event_source_timer_update(timer, 30000);
 
 	while (!state.exit) {
 		wl_event_loop_dispatch(event_loop, 0);
