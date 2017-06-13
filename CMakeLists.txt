@@ -48,6 +48,7 @@ find_package(GLESv2 REQUIRED)
 find_package(DRM REQUIRED)
 find_package(GBM REQUIRED)
 find_package(LibInput REQUIRED)
+find_package(XKBCommon REQUIRED)
 find_package(Udev REQUIRED)
 find_package(Systemd)
 

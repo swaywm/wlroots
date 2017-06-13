@@ -11,6 +11,7 @@
 struct wlr_keyboard *wlr_libinput_keyboard_create(
 		struct libinput_device *device) {
 	assert(device);
+	libinput_device_led_update(device, 0);
 	return wlr_keyboard_create(NULL, NULL);
 }
 

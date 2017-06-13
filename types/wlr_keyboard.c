@@ -11,7 +11,6 @@ struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
 	kb->impl = impl;
 	kb->state = state;
 	wl_signal_init(&kb->events.key);
-	wl_signal_init(&kb->events.mods);
 	return kb;
 }
 

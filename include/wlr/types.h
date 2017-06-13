@@ -50,8 +50,6 @@ void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height);
 
-// TODO: keymaps
-
 struct wlr_keyboard_state;
 struct wlr_keyboard_impl;
 
@@ -61,7 +59,6 @@ struct wlr_keyboard {
 
 	struct {
 		struct wl_signal key;
-		struct wl_signal mods;
 	} events;
 };
 

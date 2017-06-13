@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,12 +9,15 @@
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types.h>
+#include <xkbcommon/xkbcommon.h>
 
 struct state {
 	float color[3];
 	int dec;
 	bool exit;
 	struct timespec last_frame;
+	struct xkb_keymap *keymap;
+	struct xkb_state *xkb_state;
 
 	struct wl_list keyboards;
 	struct wl_listener input_add;
@@ -35,7 +39,6 @@ struct keyboard_state {
 	struct state *state;
 	struct wlr_input_device *device;
 	struct wl_listener key;
-	struct wl_listener mods;
 	struct wl_list link;
 };
 
@@ -98,12 +101,30 @@ void output_remove(struct wl_listener *listener, void *data) {
 	wl_list_remove(&ostate->frame.link);
 }
 
+static void handle_keysym(struct state *state, xkb_keysym_t sym,
+		enum wlr_key_state key_state) {
+	char name[64];
+	int l = xkb_keysym_get_name(sym, name, sizeof(name));
+	if (l != -1 && l != sizeof(name)) {
+		fprintf(stderr, "Key event: %s %s\n", name,
+				key_state == WLR_KEY_PRESSED ? "pressed" : "released");
+	}
+	if (sym == XKB_KEY_Escape) {
+		state->exit = true;
+	}
+}
+
 static void keyboard_key(struct wl_listener *listener, void *data) {
 	struct wlr_keyboard_key *event = data;
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
-	fprintf(stderr, "Key event: %u %s\n", event->keycode,
-			event->state == WLR_KEY_PRESSED ? "pressed" : "released");
-	kbstate->state->exit = true;
+	uint32_t keycode = event->keycode + 8;
+	const xkb_keysym_t *syms;
+	int nsyms = xkb_state_key_get_syms(kbstate->state->xkb_state, keycode, &syms);
+	for (int i = 0; i < nsyms; ++i) {
+		handle_keysym(kbstate->state, syms[i], event->state);
+	}
+	xkb_state_update_key(kbstate->state->xkb_state, keycode,
+		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
 }
 
 void input_add(struct wl_listener *listener, void *data) {
@@ -116,7 +137,6 @@ void input_add(struct wl_listener *listener, void *data) {
 	kbstate->device = device;
 	kbstate->state = state;
 	wl_list_init(&kbstate->key.link);
-	wl_list_init(&kbstate->mods.link);
 	kbstate->key.notify = keyboard_key;
 	wl_signal_add(&device->keyboard->events.key, &kbstate->key);
 	wl_list_insert(&state->keyboards, &kbstate->link);
@@ -140,7 +160,12 @@ void input_remove(struct wl_listener *listener, void *data) {
 	}
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
-	//wl_list_remove(&kbstate->mods.link);
+}
+
+static int timer_done(void *data) {
+	struct state *state = data;
+	state->exit = true;
+	return 1;
 }
 
 int main() {
@@ -151,8 +176,29 @@ int main() {
 		.input_add = { .notify = input_add },
 		.input_remove = { .notify = input_remove },
 		.output_add = { .notify = output_add },
-		.output_remove = { .notify = output_remove }
+		.output_remove = { .notify = output_remove },
 	};
+
+	struct xkb_rule_names rules;
+	memset(&rules, 0, sizeof(rules));
+	rules.rules = getenv("XKB_DEFAULT_RULES");
+	rules.model = getenv("XKB_DEFAULT_MODEL");
+	rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+	rules.variant = getenv("XKB_DEFAULT_VARIANT");
+	rules.options = getenv("XKB_DEFAULT_OPTIONS");
+	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	if (!context) {
+		fprintf(stderr, "Failed to create XKB context\n");
+		return 1;
+	}
+	state.keymap =
+		xkb_map_new_from_names(context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	if (!state.keymap) {
+		fprintf(stderr, "Failed to create XKB keymap\n");
+		return 1;
+	}
+	xkb_context_unref(context);
+	state.xkb_state = xkb_state_new(state.keymap);
 
 	wl_list_init(&state.keyboards);
 	wl_list_init(&state.input_add.link);
@@ -179,6 +225,10 @@ int main() {
 	if (!wlr || !wlr_backend_init(wlr)) {
 		return 1;
 	}
+	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
+		timer_done, &state);
+
+	wl_event_source_timer_update(timer, 30000);
 
 	while (!state.exit) {
 		wl_event_loop_dispatch(event_loop, 0);
