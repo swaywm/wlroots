@@ -6,6 +6,7 @@ include_directories(
 add_library(wlr-types
     wlr_output.c
     wlr_keyboard.c
+    wlr_pointer.c
     wlr_input_device.c
 )
 

@@ -33,6 +33,22 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = wlr_libinput_device_destroy
 };
 
+static struct wlr_input_device *allocate_device(struct libinput_device *device,
+		list_t *devices, enum wlr_input_device_type type) {
+	int vendor = libinput_device_get_id_vendor(device);
+	int product = libinput_device_get_id_product(device);
+	const char *name = libinput_device_get_name(device);
+	struct wlr_input_device_state *devstate =
+		calloc(1, sizeof(struct wlr_input_device_state));
+	devstate->handle = device;
+	libinput_device_ref(device);
+	struct wlr_input_device *wlr_device = wlr_input_device_create(
+		type, &input_device_impl, devstate,
+		name, vendor, product);
+	list_add(devices, wlr_device);
+	return wlr_device;
+}
+
 static void handle_device_added(struct wlr_backend_state *state,
 		struct libinput_device *device) {
 	assert(state && device);
@@ -49,19 +65,16 @@ static void handle_device_added(struct wlr_backend_state *state,
 	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
-		struct wlr_input_device_state *devstate =
-			calloc(1, sizeof(struct wlr_input_device_state));
-		devstate->handle = device;
-		libinput_device_ref(device);
-		struct wlr_input_device *wlr_device = wlr_input_device_create(
-			WLR_INPUT_DEVICE_KEYBOARD, &input_device_impl, devstate,
-			name, vendor, product);
+		struct wlr_input_device *wlr_device = allocate_device(device, devices,
+				WLR_INPUT_DEVICE_KEYBOARD);
 		wlr_device->keyboard = wlr_libinput_keyboard_create(device);
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
-		list_add(devices, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_POINTER)) {
-		// TODO
+		struct wlr_input_device *wlr_device = allocate_device(device, devices,
+				WLR_INPUT_DEVICE_POINTER);
+		wlr_device->pointer = wlr_libinput_pointer_create(device);
+		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_TOUCH)) {
 		// TODO
@@ -108,6 +121,18 @@ void wlr_libinput_event(struct wlr_backend_state *state,
 		break;
 	case LIBINPUT_EVENT_KEYBOARD_KEY:
 		handle_keyboard_key(event, device);
+		break;
+	case LIBINPUT_EVENT_POINTER_MOTION:
+		handle_pointer_motion(event, device);
+		break;
+	case LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE:
+		handle_pointer_motion_abs(event, device);
+		break;
+	case LIBINPUT_EVENT_POINTER_BUTTON:
+		handle_pointer_button(event, device);
+		break;
+	case LIBINPUT_EVENT_POINTER_AXIS:
+		handle_pointer_axis(event, device);
 		break;
 	default:
 		wlr_log(L_DEBUG, "Unknown libinput event %d", event_type);

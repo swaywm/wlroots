@@ -21,7 +21,6 @@
 
 struct sample_state {
 	struct wl_list config;
-	// TODO: Move renderer into shared
 	struct wlr_renderer *renderer;
 	struct wlr_surface *cat_texture;
 };

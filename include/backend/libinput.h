@@ -30,9 +30,20 @@ struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,
 		struct libinput_device *device);
 
+struct wlr_keyboard *wlr_libinput_keyboard_create(
+		struct libinput_device *device);
 void handle_keyboard_key(struct libinput_event *event,
 		struct libinput_device *device);
-struct wlr_keyboard *wlr_libinput_keyboard_create(
+
+struct wlr_pointer *wlr_libinput_pointer_create(
+		struct libinput_device *device);
+void handle_pointer_motion(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_pointer_motion_abs(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_pointer_button(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *device);
 
 #endif
