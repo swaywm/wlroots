@@ -40,3 +40,16 @@ target_link_libraries(pointer
     wlr-render
     ${XKBCOMMON_LIBRARIES}
 )
+
+add_executable(touch
+    touch.c
+    shared.c
+    cat.c
+)
+
+target_link_libraries(touch
+    wlr-backend
+    wlr-session
+    wlr-render
+    ${XKBCOMMON_LIBRARIES}
+)

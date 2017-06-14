@@ -146,8 +146,35 @@ struct wlr_touch {
 		struct wl_signal up;
 		struct wl_signal motion;
 		struct wl_signal cancel;
-		struct wl_signal frame;
 	} events;
+};
+
+struct wlr_touch_down {
+	uint32_t time_sec;
+	uint64_t time_usec;
+	int32_t slot;
+	double x_mm, y_mm;
+	double width_mm, height_mm;
+};
+
+struct wlr_touch_up {
+	uint32_t time_sec;
+	uint64_t time_usec;
+	int32_t slot;
+};
+
+struct wlr_touch_motion {
+	uint32_t time_sec;
+	uint64_t time_usec;
+	int32_t slot;
+	double x_mm, y_mm;
+	double width_mm, height_mm;
+};
+
+struct wlr_touch_cancel {
+	uint32_t time_sec;
+	uint64_t time_usec;
+	int32_t slot;
 };
 
 // TODO: tablet & tablet tool

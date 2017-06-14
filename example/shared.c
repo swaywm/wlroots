@@ -114,6 +114,59 @@ static void pointer_add(struct wlr_input_device *device, struct compositor_state
 	wl_list_insert(&state->pointers, &pstate->link);
 }
 
+static void touch_down_notify(struct wl_listener *listener, void *data) {
+	struct wlr_touch_down *event = data;
+	struct touch_state *tstate = wl_container_of(listener, tstate, down);
+	if (tstate->compositor->touch_down_cb) {
+		tstate->compositor->touch_down_cb(tstate, event->slot,
+			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
+	}
+}
+
+static void touch_motion_notify(struct wl_listener *listener, void *data) {
+	struct wlr_touch_motion *event = data;
+	struct touch_state *tstate = wl_container_of(listener, tstate, motion);
+	if (tstate->compositor->touch_motion_cb) {
+		tstate->compositor->touch_motion_cb(tstate, event->slot,
+			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
+	}
+}
+
+static void touch_up_notify(struct wl_listener *listener, void *data) {
+	struct wlr_touch_up *event = data;
+	struct touch_state *tstate = wl_container_of(listener, tstate, up);
+	if (tstate->compositor->touch_up_cb) {
+		tstate->compositor->touch_up_cb(tstate, event->slot);
+	}
+}
+
+static void touch_cancel_notify(struct wl_listener *listener, void *data) {
+	struct wlr_touch_cancel *event = data;
+	struct touch_state *tstate = wl_container_of(listener, tstate, cancel);
+	if (tstate->compositor->touch_cancel_cb) {
+		tstate->compositor->touch_cancel_cb(tstate, event->slot);
+	}
+}
+
+static void touch_add(struct wlr_input_device *device, struct compositor_state *state) {
+	struct touch_state *tstate = calloc(sizeof(struct touch_state), 1);
+	tstate->device = device;
+	tstate->compositor = state;
+	wl_list_init(&tstate->down.link);
+	wl_list_init(&tstate->motion.link);
+	wl_list_init(&tstate->up.link);
+	wl_list_init(&tstate->cancel.link);
+	tstate->down.notify = touch_down_notify;
+	tstate->motion.notify = touch_motion_notify;
+	tstate->up.notify = touch_up_notify;
+	tstate->cancel.notify = touch_cancel_notify;
+	wl_signal_add(&device->touch->events.down, &tstate->down);
+	wl_signal_add(&device->touch->events.motion, &tstate->motion);
+	wl_signal_add(&device->touch->events.up, &tstate->up);
+	wl_signal_add(&device->touch->events.cancel, &tstate->cancel);
+	wl_list_insert(&state->touch, &tstate->link);
+}
+
 static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -123,6 +176,9 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_add(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TOUCH:
+		touch_add(device, state);
 		break;
 	default:
 		break;
@@ -156,10 +212,28 @@ static void pointer_remove(struct wlr_input_device *device, struct compositor_st
 		return;
 	}
 	wl_list_remove(&pstate->link);
-	//wl_list_remove(&pstate->motion.link);
-	wl_list_remove(&pstate->motion_absolute.link);
-	//wl_list_remove(&pstate->button.link);
-	//wl_list_remove(&pstate->axis.link);
+	wl_list_remove(&pstate->motion.link);
+	//wl_list_remove(&pstate->motion_absolute.link);
+	wl_list_remove(&pstate->button.link);
+	wl_list_remove(&pstate->axis.link);
+}
+
+static void touch_remove(struct wlr_input_device *device, struct compositor_state *state) {
+	struct touch_state *tstate = NULL, *_tstate;
+	wl_list_for_each(_tstate, &state->touch, link) {
+		if (_tstate->device == device) {
+			tstate = _tstate;
+			break;
+		}
+	}
+	if (!tstate) {
+		return;
+	}
+	wl_list_remove(&tstate->link);
+	wl_list_remove(&tstate->down.link);
+	wl_list_remove(&tstate->motion.link);
+	wl_list_remove(&tstate->up.link);
+	wl_list_remove(&tstate->cancel.link);
 }
 
 static void input_remove_notify(struct wl_listener *listener, void *data) {
@@ -171,6 +245,9 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_remove(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TOUCH:
+		touch_remove(device, state);
 		break;
 	default:
 		break;
@@ -245,6 +322,7 @@ void compositor_init(struct compositor_state *state) {
 
 	wl_list_init(&state->keyboards);
 	wl_list_init(&state->pointers);
+	wl_list_init(&state->touch);
 	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
 	wl_list_init(&state->input_remove.link);

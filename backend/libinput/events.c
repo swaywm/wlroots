@@ -139,6 +139,21 @@ void wlr_libinput_event(struct wlr_backend_state *state,
 	case LIBINPUT_EVENT_POINTER_AXIS:
 		handle_pointer_axis(event, device);
 		break;
+	case LIBINPUT_EVENT_TOUCH_DOWN:
+		handle_touch_down(event, device);
+		break;
+	case LIBINPUT_EVENT_TOUCH_UP:
+		handle_touch_up(event, device);
+		break;
+	case LIBINPUT_EVENT_TOUCH_MOTION:
+		handle_touch_motion(event, device);
+		break;
+	case LIBINPUT_EVENT_TOUCH_CANCEL:
+		handle_touch_cancel(event, device);
+		break;
+	case LIBINPUT_EVENT_TOUCH_FRAME:
+		// no-op (at least for now)
+		break;
 	default:
 		wlr_log(L_DEBUG, "Unknown libinput event %d", event_type);
 		break;

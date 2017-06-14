@@ -56,7 +56,5 @@ void handle_touch_motion(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_touch_cancel(struct libinput_event *event,
 		struct libinput_device *device);
-void handle_touch_frame(struct libinput_event *event,
-		struct libinput_device *device);
 
 #endif

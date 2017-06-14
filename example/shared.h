@@ -39,6 +39,17 @@ struct pointer_state {
 	void *data;
 };
 
+struct touch_state {
+	struct compositor_state *compositor;
+	struct wlr_input_device *device;
+	struct wl_listener down;
+	struct wl_listener up;
+	struct wl_listener motion;
+	struct wl_listener cancel;
+	struct wl_list link;
+	void *data;
+};
+
 struct compositor_state {
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
@@ -55,6 +66,12 @@ struct compositor_state {
 		enum wlr_axis_source source,
 		enum wlr_axis_orientation orientation,
 		double delta);
+	void (*touch_down_cb)(struct touch_state *s, int32_t slot,
+		double x, double y, double width, double height);
+	void (*touch_motion_cb)(struct touch_state *s, int32_t slot,
+		double x, double y, double width, double height);
+	void (*touch_up_cb)(struct touch_state *s, int32_t slot);
+	void (*touch_cancel_cb)(struct touch_state *s, int32_t slot);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;
@@ -63,6 +80,7 @@ struct compositor_state {
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
+	struct wl_list touch;
 	struct wl_listener input_add;
 	struct wl_listener input_remove;
 

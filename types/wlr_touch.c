@@ -13,7 +13,6 @@ struct wlr_touch *wlr_touch_create(struct wlr_touch_impl *impl,
 	wl_signal_init(&touch->events.down);
 	wl_signal_init(&touch->events.up);
 	wl_signal_init(&touch->events.motion);
-	wl_signal_init(&touch->events.frame);
 	wl_signal_init(&touch->events.cancel);
 	return touch;
 }
