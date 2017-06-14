@@ -457,6 +457,31 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 			snprintf(wlr_output->name, sizeof(wlr_output->name), "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
+			wlr_output->phys_width = conn->mmWidth;
+			wlr_output->phys_height = conn->mmHeight;
+			switch (conn->subpixel) {
+			case DRM_MODE_SUBPIXEL_UNKNOWN:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_UNKNOWN;
+				break;
+			case DRM_MODE_SUBPIXEL_HORIZONTAL_RGB:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB;
+				break;
+			case DRM_MODE_SUBPIXEL_HORIZONTAL_BGR:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR;
+				break;
+			case DRM_MODE_SUBPIXEL_VERTICAL_RGB:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB;
+				break;
+			case DRM_MODE_SUBPIXEL_VERTICAL_BGR:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR;
+				break;
+			case DRM_MODE_SUBPIXEL_NONE:
+			default:
+				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_NONE;
+				break;
+			}
+			strcpy(wlr_output->make, "drm");
+			strcpy(wlr_output->model, "unknown");
 
 			drmModeEncoder *curr_enc = drmModeGetEncoder(state->fd, conn->encoder_id);
 			if (curr_enc) {
