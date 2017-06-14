@@ -17,8 +17,10 @@ struct wlr_pointer *wlr_pointer_create(struct wlr_pointer_impl *impl,
 	return pointer;
 }
 
-void wlr_pointer_destroy(struct wlr_pointer *kb) {
-	if (!kb) return;
-	kb->impl->destroy(kb->state);
-	free(kb);
+void wlr_pointer_destroy(struct wlr_pointer *pointer) {
+	if (!pointer) return;
+	if (pointer->impl) {
+		pointer->impl->destroy(pointer->state);
+	}
+	free(pointer);
 }

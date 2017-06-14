@@ -102,7 +102,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		goto error_state;
 	}
 
-	if (!(state->keyboards = list_create())) {
+	if (!(state->devices = list_create())) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		goto error_backend;
 	}

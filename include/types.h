@@ -34,6 +34,14 @@ struct wlr_pointer *wlr_pointer_create(struct wlr_pointer_impl *impl,
 		struct wlr_pointer_state *state);
 void wlr_pointer_destroy(struct wlr_pointer *pointer);
 
+struct wlr_touch_impl {
+	void (*destroy)(struct wlr_touch_state *state);
+};
+
+struct wlr_touch *wlr_touch_create(struct wlr_touch_impl *impl,
+		struct wlr_touch_state *state);
+void wlr_touch_destroy(struct wlr_touch *touch);
+
 struct wlr_input_device_impl {
 	void (*destroy)(struct wlr_input_device_state *state);
 };

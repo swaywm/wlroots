@@ -16,7 +16,7 @@ struct wlr_backend_state {
 	struct libinput *libinput;
 	struct wl_event_source *input_event;
 
-	list_t *keyboards;
+	list_t *devices;
 };
 
 struct wlr_input_device_state {
@@ -44,6 +44,19 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 void handle_pointer_button(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_pointer_axis(struct libinput_event *event,
+		struct libinput_device *device);
+
+struct wlr_touch *wlr_libinput_touch_create(
+		struct libinput_device *device);
+void handle_touch_down(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_touch_up(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_touch_motion(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_touch_cancel(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_touch_frame(struct libinput_event *event,
 		struct libinput_device *device);
 
 #endif

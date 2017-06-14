@@ -134,7 +134,22 @@ struct wlr_pointer_axis {
 	double delta;
 };
 
-// TODO: touch
+struct wlr_touch_state;
+struct wlr_touch_impl;
+
+struct wlr_touch {
+	struct wlr_touch_state *state;
+	struct wlr_touch_impl *impl;
+
+	struct {
+		struct wl_signal down;
+		struct wl_signal up;
+		struct wl_signal motion;
+		struct wl_signal cancel;
+		struct wl_signal frame;
+	} events;
+};
+
 // TODO: tablet & tablet tool
 // TODO: gestures
 // TODO: switch
@@ -164,6 +179,7 @@ struct wlr_input_device {
 		void *_device;
 		struct wlr_keyboard *keyboard;
 		struct wlr_pointer *pointer;
+		struct wlr_touch *touch;
 	};
 };
 

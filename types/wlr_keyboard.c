@@ -16,6 +16,8 @@ struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	if (!kb) return;
-	kb->impl->destroy(kb->state);
+	if (kb->impl) {
+		kb->impl->destroy(kb->state);
+	}
 	free(kb);
 }

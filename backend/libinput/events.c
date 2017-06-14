@@ -33,7 +33,8 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = wlr_libinput_device_destroy
 };
 
-static struct wlr_input_device *allocate_device(struct libinput_device *device,
+static struct wlr_input_device *allocate_device(
+		struct wlr_backend_state *state, struct libinput_device *device,
 		list_t *devices, enum wlr_input_device_type type) {
 	int vendor = libinput_device_get_id_vendor(device);
 	int product = libinput_device_get_id_product(device);
@@ -46,6 +47,7 @@ static struct wlr_input_device *allocate_device(struct libinput_device *device,
 		type, &input_device_impl, devstate,
 		name, vendor, product);
 	list_add(devices, wlr_device);
+	list_add(state->devices, wlr_device);
 	return wlr_device;
 }
 
@@ -65,19 +67,22 @@ static void handle_device_added(struct wlr_backend_state *state,
 	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
-		struct wlr_input_device *wlr_device = allocate_device(device, devices,
-				WLR_INPUT_DEVICE_KEYBOARD);
+		struct wlr_input_device *wlr_device = allocate_device(state,
+				device, devices, WLR_INPUT_DEVICE_KEYBOARD);
 		wlr_device->keyboard = wlr_libinput_keyboard_create(device);
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_POINTER)) {
-		struct wlr_input_device *wlr_device = allocate_device(device, devices,
-				WLR_INPUT_DEVICE_POINTER);
+		struct wlr_input_device *wlr_device = allocate_device(state,
+				device, devices, WLR_INPUT_DEVICE_POINTER);
 		wlr_device->pointer = wlr_libinput_pointer_create(device);
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_TOUCH)) {
-		// TODO
+		struct wlr_input_device *wlr_device = allocate_device(state,
+				device, devices, WLR_INPUT_DEVICE_TOUCH);
+		wlr_device->touch = wlr_libinput_touch_create(device);
+		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_TABLET_TOOL)) {
 		// TODO

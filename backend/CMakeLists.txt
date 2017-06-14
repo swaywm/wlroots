@@ -18,6 +18,7 @@ add_library(wlr-backend
     libinput/events.c
     libinput/keyboard.c
     libinput/pointer.c
+    libinput/touch.c
 
     multi/backend.c
     backend.c
