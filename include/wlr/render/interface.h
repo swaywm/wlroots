@@ -19,6 +19,10 @@ struct wlr_renderer_impl {
 	struct wlr_surface *(*surface_init)(struct wlr_renderer_state *state);
 	bool (*render_with_matrix)(struct wlr_renderer_state *state,
 		struct wlr_surface *surface, const float (*matrix)[16]);
+	void (*render_quad)(struct wlr_renderer_state *state,
+			const float (*color)[4], const float (*matrix)[16]);
+	void (*render_ellipse)(struct wlr_renderer_state *state,
+			const float (*color)[4], const float (*matrix)[16]);
 	void (*destroy)(struct wlr_renderer_state *state);
 };
 

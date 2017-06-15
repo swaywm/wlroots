@@ -53,3 +53,15 @@ target_link_libraries(touch
     wlr-render
     ${XKBCOMMON_LIBRARIES}
 )
+
+add_executable(tablet
+    tablet.c
+    shared.c
+)
+
+target_link_libraries(tablet
+    wlr-backend
+    wlr-session
+    wlr-render
+    ${XKBCOMMON_LIBRARIES}
+)
