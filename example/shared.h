@@ -50,6 +50,17 @@ struct touch_state {
 	void *data;
 };
 
+struct tablet_tool_state {
+	struct compositor_state *compositor;
+	struct wlr_input_device *device;
+	struct wl_listener axis;
+	struct wl_listener proximity;
+	struct wl_listener tip;
+	struct wl_listener button;
+	struct wl_list link;
+	void *data;
+};
+
 struct compositor_state {
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
@@ -72,6 +83,14 @@ struct compositor_state {
 		double x, double y, double width, double height);
 	void (*touch_up_cb)(struct touch_state *s, int32_t slot);
 	void (*touch_cancel_cb)(struct touch_state *s, int32_t slot);
+	void (*tool_axis_cb)(struct tablet_tool_state *s,
+			struct wlr_tablet_tool_axis *event);
+	void (*tool_proximity_cb)(struct tablet_tool_state *s,
+			enum wlr_tablet_tool_proximity_state proximity);
+	void (*tool_tip_cb)(struct tablet_tool_state *s,
+			enum wlr_tablet_tool_tip_state state);
+	void (*tool_button_cb)(struct tablet_tool_state *s,
+			uint32_t button, enum wlr_button_state state);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;
@@ -81,6 +100,7 @@ struct compositor_state {
 	struct wl_list keyboards;
 	struct wl_list pointers;
 	struct wl_list touch;
+	struct wl_list tablet_tools;
 	struct wl_listener input_add;
 	struct wl_listener input_remove;
 

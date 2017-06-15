@@ -167,6 +167,50 @@ static void touch_add(struct wlr_input_device *device, struct compositor_state *
 	wl_list_insert(&state->touch, &tstate->link);
 }
 
+static void tablet_tool_axis_notify(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_tool_axis *event = data;
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, axis);
+	if (tstate->compositor->tool_axis_cb) {
+		tstate->compositor->tool_axis_cb(tstate, event);
+	}
+}
+
+static void tablet_tool_proximity_notify(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_tool_proximity *event = data;
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, proximity);
+	if (tstate->compositor->tool_proximity_cb) {
+		tstate->compositor->tool_proximity_cb(tstate, event->state);
+	}
+}
+
+static void tablet_tool_button_notify(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_tool_button *event = data;
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, button);
+	if (tstate->compositor->tool_button_cb) {
+		tstate->compositor->tool_button_cb(tstate, event->button, event->state);
+	}
+}
+
+static void tablet_tool_add(struct wlr_input_device *device,
+		struct compositor_state *state) {
+	struct tablet_tool_state *tstate = calloc(sizeof(struct tablet_tool_state), 1);
+	tstate->device = device;
+	tstate->compositor = state;
+	wl_list_init(&tstate->axis.link);
+	wl_list_init(&tstate->proximity.link);
+	wl_list_init(&tstate->tip.link);
+	wl_list_init(&tstate->button.link);
+	tstate->axis.notify = tablet_tool_axis_notify;
+	tstate->proximity.notify = tablet_tool_proximity_notify;
+	//tstate->tip.notify = tablet_tool_tip_notify;
+	tstate->button.notify = tablet_tool_button_notify;
+	wl_signal_add(&device->tablet_tool->events.axis, &tstate->axis);
+	wl_signal_add(&device->tablet_tool->events.proximity, &tstate->proximity);
+	//wl_signal_add(&device->tablet_tool->events.tip, &tstate->tip);
+	wl_signal_add(&device->tablet_tool->events.button, &tstate->button);
+	wl_list_insert(&state->tablet_tools, &tstate->link);
+}
+
 static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -180,6 +224,8 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 	case WLR_INPUT_DEVICE_TOUCH:
 		touch_add(device, state);
 		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		tablet_tool_add(device, state);
 	default:
 		break;
 	}
@@ -236,6 +282,24 @@ static void touch_remove(struct wlr_input_device *device, struct compositor_stat
 	wl_list_remove(&tstate->cancel.link);
 }
 
+static void tablet_tool_remove(struct wlr_input_device *device, struct compositor_state *state) {
+	struct tablet_tool_state *tstate = NULL, *_tstate;
+	wl_list_for_each(_tstate, &state->tablet_tools, link) {
+		if (_tstate->device == device) {
+			tstate = _tstate;
+			break;
+		}
+	}
+	if (!tstate) {
+		return;
+	}
+	wl_list_remove(&tstate->link);
+	wl_list_remove(&tstate->axis.link);
+	wl_list_remove(&tstate->proximity.link);
+	//wl_list_remove(&tstate->tip.link);
+	wl_list_remove(&tstate->button.link);
+}
+
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -248,6 +312,9 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
 		touch_remove(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		tablet_tool_remove(device, state);
 		break;
 	default:
 		break;
@@ -323,6 +390,7 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->keyboards);
 	wl_list_init(&state->pointers);
 	wl_list_init(&state->touch);
+	wl_list_init(&state->tablet_tools);
 	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
 	wl_list_init(&state->input_remove.link);

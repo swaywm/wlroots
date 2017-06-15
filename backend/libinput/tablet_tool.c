@@ -76,9 +76,6 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
-	// Proximity events contain axis information. We update this information
-	// before we send the proximity event
-	handle_tablet_tool_axis(event, device);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_tablet_tool_proximity *wlr_event =
@@ -91,6 +88,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		break;
 	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN:
 		wlr_event->state = WLR_TABLET_TOOL_PROXIMITY_IN;
+		handle_tablet_tool_axis(event, device);
 		break;
 	}
 	wl_signal_emit(&dev->tablet_tool->events.proximity, wlr_event);
@@ -104,8 +102,6 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
-	// Tip events contain axis information. We update this information
-	// before we send the proximity event
 	handle_tablet_tool_axis(event, device);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
