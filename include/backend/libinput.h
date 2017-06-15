@@ -57,4 +57,15 @@ void handle_touch_motion(struct libinput_event *event,
 void handle_touch_cancel(struct libinput_event *event,
 		struct libinput_device *device);
 
+struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
+		struct libinput_device *device);
+void handle_tablet_tool_axis(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_tablet_tool_proximity(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_tablet_tool_tip(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_tablet_tool_button(struct libinput_event *event,
+		struct libinput_device *device);
+
 #endif

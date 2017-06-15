@@ -42,6 +42,14 @@ struct wlr_touch *wlr_touch_create(struct wlr_touch_impl *impl,
 		struct wlr_touch_state *state);
 void wlr_touch_destroy(struct wlr_touch *touch);
 
+struct wlr_tablet_tool_impl {
+	void (*destroy)(struct wlr_tablet_tool_state *tool);
+};
+
+struct wlr_tablet_tool *wlr_tablet_tool_create(struct wlr_tablet_tool_impl *impl,
+		struct wlr_tablet_tool_state *state);
+void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool);
+
 struct wlr_input_device_impl {
 	void (*destroy)(struct wlr_input_device_state *state);
 };
