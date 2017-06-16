@@ -92,6 +92,18 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 			sizeof(sample->clear_color));
 }
 
+static void handle_output_add(struct output_state *ostate) {
+	struct wlr_output *wlr_output = ostate->output;
+	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
+			cat_tex.width * 4, cat_tex.width, cat_tex.height)) {
+		fprintf(stderr, "Failed to set cursor\n");
+		return;
+	}
+	if (!wlr_output_move_cursor(wlr_output, 0, 0)) {
+		fprintf(stderr, "Failed to move cursor\n");
+	}
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
@@ -100,6 +112,7 @@ int main(int argc, char *argv[]) {
 	struct compositor_state compositor;
 
 	compositor_init(&compositor);
+	compositor.output_add_cb = handle_output_add;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor.pointer_motion_cb = handle_pointer_motion;
@@ -108,7 +121,7 @@ int main(int argc, char *argv[]) {
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, GL_RGB,
+	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	compositor.data = &state;

@@ -46,6 +46,9 @@ bool wlr_output_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode);
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform);
+bool wlr_output_set_cursor(struct wlr_output *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height);
+bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height);

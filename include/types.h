@@ -11,6 +11,9 @@ struct wlr_output_impl {
 			struct wlr_output_mode *mode);
 	void (*transform)(struct wlr_output_state *state,
 			enum wl_output_transform transform);
+	bool (*set_cursor)(struct wlr_output_state *state,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height);
+	bool (*move_cursor)(struct wlr_output_state *state, int x, int y);
 	void (*destroy)(struct wlr_output_state *state);
 };
 

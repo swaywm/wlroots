@@ -112,8 +112,8 @@ static void wlr_drm_output_end(struct wlr_output_state *output) {
 	drmModePageFlip(renderer->fd, output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
 	output->pageflip_pending = true;
 
-	output->bo_last = output->bo_current;
-	output->bo_current = bo;
+	output->bo[1] = output->bo[0];
+	output->bo[0] = bo;
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
@@ -141,8 +141,8 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 	drmModePageFlip(renderer->fd, output->crtc, fb_id,
 			DRM_MODE_PAGE_FLIP_EVENT, output);
 
-	output->bo_last = NULL;
-	output->bo_current = bo;
+	output->bo[1] = NULL;
+	output->bo[0] = bo;
 }
 
 static bool display_init_renderer(struct wlr_drm_renderer *renderer,
@@ -280,6 +280,59 @@ static void wlr_drm_output_transform(struct wlr_output_state *output,
 	output->wlr_output->transform = transform;
 }
 
+static void wlr_drm_cursor_bo_update(struct wlr_output_state *output,
+		uint32_t width, uint32_t height) {
+	if (output->cursor_width == width && output->cursor_height == height) {
+		return;
+	}
+	wlr_log(L_DEBUG, "Allocating new cursor bos");
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	for (size_t i = 0; i < 2; ++i) {
+		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm,
+				width, height, GBM_FORMAT_ARGB8888,
+				GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+		if (!output->cursor_bo[i]) {
+			wlr_log(L_ERROR, "Failed to create cursor bo");
+			return;
+		}
+	}
+}
+
+static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	if (!buf) {
+		drmModeSetCursor(state->fd, output->crtc, 0, 0, 0);
+		return true;
+	}
+	wlr_drm_cursor_bo_update(output, width, height);
+	struct gbm_bo *bo;
+	output->current_cursor ^= 1;
+	bo = output->cursor_bo[output->current_cursor];
+	uint32_t _buf[width * height];
+	memset(_buf, 0, sizeof(_buf));
+	for (size_t i = 0; i < height; ++i) {
+		memcpy(_buf + i * width,
+				buf + i * stride,
+				width * 4);
+	}
+	if (gbm_bo_write(bo, _buf, sizeof(_buf)) < 0) {
+		wlr_log(L_ERROR, "Failed to write cursor to bo");
+		return false;
+	}
+	return !drmModeSetCursor(state->fd, output->crtc,
+			gbm_bo_get_handle(bo).s32, width, height);
+}
+
+static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
+		int x, int y) {
+	struct wlr_backend_state *state =
+		wl_container_of(output->renderer, state, renderer);
+	return !drmModeMoveCursor(state->fd, output->crtc, x, y);
+}
+
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
 	wlr_drm_output_cleanup(output, true);
 	free(output);
@@ -289,6 +342,8 @@ static struct wlr_output_impl output_impl = {
 	.enable = wlr_drm_output_enable,
 	.set_mode = wlr_drm_output_set_mode,
 	.transform = wlr_drm_output_transform,
+	.set_cursor = wlr_drm_output_set_cursor,
+	.move_cursor = wlr_drm_output_move_cursor,
 	.destroy = wlr_drm_output_destroy,
 };
 
@@ -480,8 +535,6 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_NONE;
 				break;
 			}
-			strcpy(wlr_output->make, "drm");
-			strcpy(wlr_output->model, "unknown");
 
 			drmModeEncoder *curr_enc = drmModeGetEncoder(state->fd, conn->encoder_id);
 			if (curr_enc) {
@@ -544,9 +597,9 @@ static void page_flip_handler(int fd, unsigned seq,
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
 
-	if (output->bo_last) {
-		gbm_surface_release_buffer(output->gbm, output->bo_last);
-		output->bo_last = NULL;
+	if (output->bo[1]) {
+		gbm_surface_release_buffer(output->gbm, output->bo[1]);
+		output->bo[1] = NULL;
 	}
 
 	output->pageflip_pending = false;
