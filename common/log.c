@@ -65,22 +65,13 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // '../backend/wayland/backend.c' will both be stripped to
 // 'backend/wayland/backend.c'
 const char *_strip_path(const char *filepath) {
-	const char *srcit = WLR_SRC_DIR;
-	const char *fileit = filepath;
-
-	// remove WLR_SRC_DIR prefix
-	while(*fileit != '\0' && *srcit != '\0' && *fileit == *srcit) {
-		++fileit;
-		++srcit;
+	static int srclen = strlen(WLR_SRC_DIR) + 1;
+	if(*filepath == '.') {
+		while(*filepath == '.' || *filepath == '/') {
+			++filepath;
+		}
+	} else {
+		filepath += srclen;
 	}
-	if(fileit != filepath) {
-		++fileit;
-	}
-
-	// remove relative prefix
-	while(*fileit == '.' || *fileit == '/') {
-		++fileit;
-	}
-
-	return fileit;
+	return filepath;
 }
