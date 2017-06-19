@@ -13,6 +13,8 @@
 static struct {
 	bool initialized;
 	GLuint rgb, rgba;
+	GLuint quad;
+	GLuint ellipse;
 } shaders;
 static GLuint vao, vbo, ebo;
 
@@ -28,6 +30,9 @@ static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
 		GL_CALL(glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &loglen));
 		GLchar msg[loglen];
 		GL_CALL(glGetShaderInfoLog(*shader, loglen, &loglen, msg));
+		wlr_log(L_ERROR, "Shader compilation failed");
+		wlr_log(L_ERROR, "%s", msg);
+		exit(1);
 		return false;
 	}
 	return true;
@@ -58,6 +63,12 @@ static void init_default_shaders() {
 		goto error;
 	}
 	if (!compile_program(vertex_src, fragment_src_RGBA, &shaders.rgba)) {
+		goto error;
+	}
+	if (!compile_program(quad_vertex_src, quad_fragment_src, &shaders.quad)) {
+		goto error;
+	}
+	if (!compile_program(quad_vertex_src, ellipse_fragment_src, &shaders.ellipse)) {
 		goto error;
 	}
 	return;
@@ -141,6 +152,28 @@ static bool wlr_gles3_render_surface(struct wlr_renderer_state *state,
 	return true;
 }
 
+static void wlr_gles3_render_quad(struct wlr_renderer_state *state,
+		const float (*color)[4], const float (*matrix)[16]) {
+	GL_CALL(glUseProgram(shaders.quad));
+	GL_CALL(glBindVertexArray(vao));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
+	GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
+	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
+	GL_CALL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
+}
+
+static void wlr_gles3_render_ellipse(struct wlr_renderer_state *state,
+		const float (*color)[4], const float (*matrix)[16]) {
+	GL_CALL(glUseProgram(shaders.ellipse));
+	GL_CALL(glBindVertexArray(vao));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
+	GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
+	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
+	GL_CALL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
+}
+
 static void wlr_gles3_destroy(struct wlr_renderer_state *state) {
 	// no-op
 }
@@ -150,6 +183,8 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.end = wlr_gles3_end,
 	.surface_init = wlr_gles3_surface_init,
 	.render_with_matrix = wlr_gles3_render_surface,
+	.render_quad = wlr_gles3_render_quad,
+	.render_ellipse = wlr_gles3_render_ellipse,
 	.destroy = wlr_gles3_destroy
 };
 

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
+#include <xkbcommon/xkbcommon.h>
 #include <GLES3/gl3.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles3.h>
@@ -15,24 +16,18 @@
 #include <wlr/session.h>
 #include <wlr/types.h>
 #include <math.h>
+#include "shared.h"
 #include "cat.h"
 
-struct state {
-	struct wl_listener output_add;
-	struct wl_listener output_remove;
-	struct wl_list outputs;
+struct sample_state {
 	struct wl_list config;
 	struct wlr_renderer *renderer;
 	struct wlr_surface *cat_texture;
 };
 
-struct output_state {
-	struct timespec last_frame;
-	struct wl_list link;
-	struct wlr_output *output;
-	struct state *state;
-	struct wl_listener frame;
+struct output_data {
 	float x_offs, y_offs;
+	float x_vel, y_vel;
 };
 
 struct output_config {
@@ -41,86 +36,93 @@ struct output_config {
 	struct wl_list link;
 };
 
-static void output_frame(struct wl_listener *listener, void *data) {
-	struct output_state *ostate = wl_container_of(listener, ostate, frame);
-	struct wlr_output *output = ostate->output;
-	struct state *s = ostate->state;
+static void handle_output_frame(struct output_state *output, struct timespec *ts) {
+	struct compositor_state *state = output->compositor;
+	struct sample_state *sample = state->data;
+	struct output_data *odata = output->data;
+	struct wlr_output *wlr_output = output->output;
 
 	int32_t width, height;
-	wlr_output_effective_resolution(output, &width, &height);
+	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_renderer_begin(s->renderer, output);
+	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	float matrix[16];
-	for (int y = -128 + (int)ostate->y_offs; y < height; y += 128) {
-		for (int x = -128 + (int)ostate->x_offs; x < width; x += 128) {
-			wlr_surface_get_matrix(s->cat_texture, &matrix,
-				&output->transform_matrix, x, y);
-			wlr_render_with_matrix(s->renderer, s->cat_texture, &matrix);
+	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
+		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
+			wlr_surface_get_matrix(sample->cat_texture, &matrix,
+				&wlr_output->transform_matrix, x, y);
+			wlr_render_with_matrix(sample->renderer,
+					sample->cat_texture, &matrix);
 		}
 	}
 
-	wlr_renderer_end(s->renderer);
+	wlr_renderer_end(sample->renderer);
 
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	long ms = (now.tv_sec - ostate->last_frame.tv_sec) * 1000 +
-		(now.tv_nsec - ostate->last_frame.tv_nsec) / 1000000;
+	long ms = (ts->tv_sec - output->last_frame.tv_sec) * 1000 +
+		(ts->tv_nsec - output->last_frame.tv_nsec) / 1000000;
 	float seconds = ms / 1000.0f;
 
-	ostate->x_offs += 128 * seconds;
-	ostate->y_offs += 128 * seconds;
-	if (ostate->x_offs > 128) ostate->x_offs = 0;
-	if (ostate->y_offs > 128) ostate->y_offs = 0;
-	ostate->last_frame = now;
+	odata->x_offs += odata->x_vel * seconds;
+	odata->y_offs += odata->y_vel * seconds;
+	if (odata->x_offs > 128) odata->x_offs = 0;
+	if (odata->y_offs > 128) odata->y_offs = 0;
 }
 
-static void output_add(struct wl_listener *listener, void *data) {
-	struct wlr_output *output = data;
-	struct state *state = wl_container_of(listener, state, output_add);
-
-	fprintf(stderr, "Output '%s' added\n", output->name);
-	wlr_output_set_mode(output, output->modes->items[0]);
-
-	struct output_state *ostate = calloc(1, sizeof(struct output_state));
-
-	clock_gettime(CLOCK_MONOTONIC, &ostate->last_frame);
-	ostate->output = output;
-	ostate->state = state;
-	ostate->frame.notify = output_frame;
-	ostate->x_offs = ostate->y_offs = 0;
+static void handle_output_add(struct output_state *output) {
+	struct output_data *odata = calloc(1, sizeof(struct output_data));
+	odata->x_offs = odata->y_offs = 0;
+	odata->x_vel = odata->y_vel = 128;
+	output->data = odata;
+	struct sample_state *state = output->compositor->data;
 
 	struct output_config *conf;
 	wl_list_for_each(conf, &state->config, link) {
-		if (strcmp(conf->name, output->name) == 0) {
-			wlr_output_transform(ostate->output, conf->transform);
-			break;
-		}
-	}
-
-	wl_list_init(&ostate->frame.link);
-	wl_signal_add(&output->events.frame, &ostate->frame);
-	wl_list_insert(&state->outputs, &ostate->link);
-}
-
-static void output_remove(struct wl_listener *listener, void *data) {
-	struct wlr_output *output = data;
-	struct state *state = wl_container_of(listener, state, output_remove);
-	struct output_state *ostate;
-
-	wl_list_for_each(ostate, &state->outputs, link) {
-		if (ostate->output == output) {
-			wl_list_remove(&ostate->link);
-			wl_list_remove(&ostate->frame.link);
-			free(ostate);
+		if (strcmp(conf->name, output->output->name) == 0) {
+			wlr_output_transform(output->output, conf->transform);
 			break;
 		}
 	}
 }
 
-static int timer_done(void *data) {
-	*(bool *)data = true;
-	return 1;
+static void handle_output_remove(struct output_state *output) {
+	free(output->data);
+}
+
+static void update_velocities(struct compositor_state *state,
+		float x_diff, float y_diff) {
+	struct output_state *output;
+	wl_list_for_each(output, &state->outputs, link) {
+		struct output_data *odata = output->data;
+		odata->x_vel += x_diff;
+		odata->y_vel += y_diff;
+	}
+}
+
+static void handle_keyboard_key(struct keyboard_state *kbstate,
+		xkb_keysym_t sym, enum wlr_key_state key_state) {
+	// NOTE: It may be better to simply refer to our key state during each frame
+	// and make this change in pixels/sec^2
+	// Also, key repeat
+	if (key_state == WLR_KEY_PRESSED) {
+		switch (sym) {
+		case XKB_KEY_Escape:
+			kbstate->compositor->exit = true;
+			break;
+		case XKB_KEY_Left:
+			update_velocities(kbstate->compositor, -16, 0);
+			break;
+		case XKB_KEY_Right:
+			update_velocities(kbstate->compositor, 16, 0);
+			break;
+		case XKB_KEY_Up:
+			update_velocities(kbstate->compositor, 0, -16);
+			break;
+		case XKB_KEY_Down:
+			update_velocities(kbstate->compositor, 0, 16);
+			break;
+		}
+	}
 }
 
 static void usage(const char *name, int ret) {
@@ -190,59 +192,27 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 }
 
 int main(int argc, char *argv[]) {
-	struct state state = {
-		.output_add = { .notify = output_add },
-		.output_remove = { .notify = output_remove }
-	};
-
-	wl_list_init(&state.outputs);
+	struct sample_state state = { 0 };
+	struct compositor_state compositor;
 	wl_list_init(&state.config);
-	wl_list_init(&state.output_add.link);
-	wl_list_init(&state.output_remove.link);
-
 	parse_args(argc, argv, &state.config);
 
-	struct wl_display *display = wl_display_create();
-	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
-
-	struct wlr_session *session = wlr_session_start(display);
-	if (!session) {
-		return 1;
-	}
-
-	struct wlr_backend *wlr = wlr_backend_autocreate(display, session);
-	if (!wlr) {
-		return 1;
-	}
-
-	wl_signal_add(&wlr->events.output_add, &state.output_add);
-	wl_signal_add(&wlr->events.output_remove, &state.output_remove);
-
-	if (!wlr_backend_init(wlr)) {
-		return 1;
-	}
+	compositor_init(&compositor);
+	compositor.output_add_cb = handle_output_add;
+	compositor.output_remove_cb = handle_output_remove;
+	compositor.output_frame_cb = handle_output_frame;
+	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, GL_RGB,
+	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
-	bool done = false;
-	struct wl_event_source *timer = wl_event_loop_add_timer(event_loop,
-		timer_done, &done);
+	compositor.data = &state;
+	compositor_run(&compositor);
 
-	wl_event_source_timer_update(timer, 30000);
-
-	while (!done) {
-		wl_event_loop_dispatch(event_loop, 0);
-	}
-
-	wl_event_source_remove(timer);
-	wlr_backend_destroy(wlr);
-	wlr_session_finish(session);
 	wlr_surface_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
-	wl_display_destroy(display);
 
 	struct output_config *ptr, *tmp;
 	wl_list_for_each_safe(ptr, tmp, &state.config, link) {

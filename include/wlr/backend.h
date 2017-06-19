@@ -12,14 +12,10 @@ struct wlr_backend {
 	struct wlr_backend_state *state;
 
 	struct {
+		struct wl_signal input_add;
+		struct wl_signal input_remove;
 		struct wl_signal output_add;
 		struct wl_signal output_remove;
-		struct wl_signal keyboard_add;
-		struct wl_signal keyboard_remove;
-		struct wl_signal pointer_add;
-		struct wl_signal pointer_remove;
-		struct wl_signal touch_add;
-		struct wl_signal touch_remove;
 	} events;
 };
 

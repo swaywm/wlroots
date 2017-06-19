@@ -29,6 +29,16 @@ struct wlr_surface *wlr_render_surface_init(struct wlr_renderer *r);
 bool wlr_render_with_matrix(struct wlr_renderer *r,
 		struct wlr_surface *surface, const float (*matrix)[16]);
 /**
+ * Renders a solid quad in the specified color.
+ */
+void wlr_render_colored_quad(struct wlr_renderer *r,
+		const float (*color)[4], const float (*matrix)[16]);
+/**
+ * Renders a solid ellipse in the specified color.
+ */
+void wlr_render_colored_ellipse(struct wlr_renderer *r,
+		const float (*color)[4], const float (*matrix)[16]);
+/**
  * Destroys this wlr_renderer. Surfaces must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);

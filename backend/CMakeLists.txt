@@ -2,6 +2,7 @@ include_directories(
 	${PROTOCOLS_INCLUDE_DIRS}
 	${WAYLAND_INCLUDE_DIR}
 	${DRM_INCLUDE_DIRS}
+    ${LIBINPUT_INCLUDE_DIRS}
 )
 
 add_library(wlr-backend
@@ -11,9 +12,18 @@ add_library(wlr-backend
     wayland/wl_output.c
     drm/backend.c
     drm/drm.c
-    udev.c
+
+    libinput/backend.c
+    libinput/events.c
+    libinput/keyboard.c
+    libinput/pointer.c
+    libinput/touch.c
+    libinput/tablet_tool.c
+
+    multi/backend.c
     backend.c
     egl.c
+    udev.c
 )
 
 target_link_libraries(wlr-backend
@@ -26,5 +36,6 @@ target_link_libraries(wlr-backend
     ${EGL_LIBRARIES}
     ${SYSTEMD_LIBRARIES}
     ${UDEV_LIBRARIES}
+    ${LIBINPUT_LIBRARIES}
     ${GBM_LIBRARIES}
 )

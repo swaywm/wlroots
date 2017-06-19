@@ -13,6 +13,9 @@ struct wlr_surface_state {
 
 struct wlr_surface *gles3_surface_init();
 
+extern const GLchar quad_vertex_src[];
+extern const GLchar quad_fragment_src[];
+extern const GLchar ellipse_fragment_src[];
 extern const GLchar vertex_src[];
 extern const GLchar fragment_src_RGB[];
 extern const GLchar fragment_src_RGBA[];

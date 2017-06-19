@@ -73,10 +73,12 @@ struct wlr_output_state {
 	drmModeCrtc *old_crtc;
 
 	struct wlr_drm_renderer *renderer;
-	struct gbm_surface *gbm;
-	struct gbm_bo *bo_last;
-	struct gbm_bo *bo_current;
 	EGLSurface *egl;
+	struct gbm_surface *gbm;
+	struct gbm_bo *bo[2];
+	struct gbm_bo *cursor_bo[2];
+	int current_cursor;
+	uint32_t cursor_width, cursor_height;
 
 	bool pageflip_pending;
 	bool cleanup;

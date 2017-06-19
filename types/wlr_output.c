@@ -91,6 +91,15 @@ void wlr_output_transform(struct wlr_output *output,
 	output->impl->transform(output->state, transform);
 }
 
+bool wlr_output_set_cursor(struct wlr_output *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	return output->impl->set_cursor(output->state, buf, stride, width, height);
+}
+
+bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
+	return output->impl->move_cursor(output->state, x, y);
+}
+
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) return;
 	output->impl->destroy(output->state);
