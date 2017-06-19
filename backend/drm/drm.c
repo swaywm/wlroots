@@ -296,6 +296,10 @@ static void wlr_drm_cursor_bo_update(struct wlr_output_state *output,
 			wlr_log(L_ERROR, "Failed to create cursor bo");
 			return;
 		}
+		if (!get_fb_for_bo(state->fd, output->cursor_bo[i])) {
+			wlr_log(L_ERROR, "Failed to create cursor fb");
+			return;
+		}
 	}
 }
 
