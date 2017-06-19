@@ -3,6 +3,7 @@
 #include <wayland-server.h>
 #include <assert.h>
 #include <wlr/backend/interface.h>
+#include <wlr/types.h>
 #include "backend/wayland.h"
 #include "common/log.h"
 
@@ -34,12 +35,12 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 
 	// TODO: Free surfaces
 	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
-		struct wlr_wl_output *output = state->outputs->items[i];
-		wlr_wl_output_free(output);
+		struct wlr_output *output = state->outputs->items[i];
+		wlr_output_destroy(output);
 	}
 
 	list_free(state->outputs);
-	if (state->seat) wlr_wl_seat_free(state->seat);
+	if (state->seat) wl_seat_destroy(state->seat);
 	if (state->shm) wl_shm_destroy(state->shm);
 	if (state->shell) wl_shell_destroy(state->shell);
 	if (state->compositor) wl_compositor_destroy(state->compositor);
@@ -74,7 +75,9 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Could not allocate output list");
 		goto error;
 	}
+
 	state->local_display = display;
+	state->backend = backend;
 
 	return backend;
 
