@@ -25,6 +25,7 @@ struct keyboard_state {
 	struct wl_list link;
 	struct xkb_keymap *keymap;
 	struct xkb_state *xkb_state;
+	xkb_led_index_t leds[WLR_LED_LAST];
 	void *data;
 };
 
@@ -61,6 +62,14 @@ struct tablet_tool_state {
 	void *data;
 };
 
+struct tablet_pad_state {
+	struct compositor_state *compositor;
+	struct wlr_input_device *device;
+	struct wl_listener button;
+	struct wl_list link;
+	void *data;
+};
+
 struct compositor_state {
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
@@ -91,6 +100,8 @@ struct compositor_state {
 			enum wlr_tablet_tool_tip_state state);
 	void (*tool_button_cb)(struct tablet_tool_state *s,
 			uint32_t button, enum wlr_button_state state);
+	void (*pad_button_cb)(struct tablet_pad_state *s,
+			uint32_t button, enum wlr_button_state state);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;
@@ -101,6 +112,7 @@ struct compositor_state {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+	struct wl_list tablet_pads;
 	struct wl_listener input_add;
 	struct wl_listener input_remove;
 

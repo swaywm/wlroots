@@ -58,3 +58,20 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 	log_callback(verbosity, fmt, args);
 	va_end(args);
 }
+
+// strips the path prefix from filepath
+// will try to strip WLR_SRC_DIR as well as a relative src dir
+// e.g. '/src/build/wlroots/backend/wayland/backend.c' and
+// '../backend/wayland/backend.c' will both be stripped to
+// 'backend/wayland/backend.c'
+const char *_strip_path(const char *filepath) {
+	static int srclen = strlen(WLR_SRC_DIR) + 1;
+	if(*filepath == '.') {
+		while(*filepath == '.' || *filepath == '/') {
+			++filepath;
+		}
+	} else {
+		filepath += srclen;
+	}
+	return filepath;
+}

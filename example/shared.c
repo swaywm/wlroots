@@ -12,6 +12,16 @@
 #include <wlr/types.h>
 #include "shared.h"
 
+static void keyboard_led_update(struct keyboard_state *kbstate) {
+	uint32_t leds = 0;
+	for (uint32_t i = 0; i < WLR_LED_LAST; ++i) {
+		if (xkb_state_led_index_is_active(kbstate->xkb_state, kbstate->leds[i])) {
+			leds |= (1 << i);
+		}
+	}
+	wlr_keyboard_led_update(kbstate->device->keyboard, leds);
+}
+
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	struct wlr_keyboard_key *event = data;
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
@@ -33,6 +43,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	}
 	xkb_state_update_key(kbstate->xkb_state, keycode,
 		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
+	keyboard_led_update(kbstate);
 }
 
 static void keyboard_add(struct wlr_input_device *device, struct compositor_state *state) {
@@ -67,6 +78,14 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 	if (!kbstate->xkb_state) {
 		fprintf(stderr, "Failed to create XKB state\n");
 		exit(1);
+	}
+	const char *led_names[3] = {
+		XKB_LED_NAME_NUM,
+		XKB_LED_NAME_CAPS,
+		XKB_LED_NAME_SCROLL
+	};
+	for (uint32_t i = 0; i < 3; ++i) {
+		kbstate->leds[i] = xkb_map_led_get_index(kbstate->keymap, led_names[i]);
 	}
 }
 
@@ -211,6 +230,25 @@ static void tablet_tool_add(struct wlr_input_device *device,
 	wl_list_insert(&state->tablet_tools, &tstate->link);
 }
 
+static void tablet_pad_button_notify(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_pad_button *event = data;
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, button);
+	if (pstate->compositor->pad_button_cb) {
+		pstate->compositor->pad_button_cb(pstate, event->button, event->state);
+	}
+}
+
+static void tablet_pad_add(struct wlr_input_device *device,
+		struct compositor_state *state) {
+	struct tablet_pad_state *pstate = calloc(sizeof(struct tablet_pad_state), 1);
+	pstate->device = device;
+	pstate->compositor = state;
+	wl_list_init(&pstate->button.link);
+	pstate->button.notify = tablet_pad_button_notify;
+	wl_signal_add(&device->tablet_pad->events.button, &pstate->button);
+	wl_list_insert(&state->tablet_pads, &pstate->link);
+}
+
 static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -226,6 +264,10 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		tablet_tool_add(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		tablet_pad_add(device, state);
+		break;
 	default:
 		break;
 	}
@@ -391,6 +433,7 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->pointers);
 	wl_list_init(&state->touch);
 	wl_list_init(&state->tablet_tools);
+	wl_list_init(&state->tablet_pads);
 	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
 	wl_list_init(&state->input_remove.link);

@@ -91,7 +91,10 @@ static void handle_device_added(struct wlr_backend_state *state,
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_TABLET_PAD)) {
-		// TODO
+		struct wlr_input_device *wlr_device = allocate_device(state,
+				device, devices, WLR_INPUT_DEVICE_TABLET_PAD);
+		wlr_device->tablet_pad = wlr_libinput_tablet_pad_create(device);
+		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_GESTURE)) {
 		// TODO
@@ -168,6 +171,15 @@ void wlr_libinput_event(struct wlr_backend_state *state,
 		break;
 	case LIBINPUT_EVENT_TABLET_TOOL_BUTTON:
 		handle_tablet_tool_button(event, device);
+		break;
+	case LIBINPUT_EVENT_TABLET_PAD_BUTTON:
+		handle_tablet_pad_button(event, device);
+		break;
+	case LIBINPUT_EVENT_TABLET_PAD_RING:
+		handle_tablet_pad_ring(event, device);
+		break;
+	case LIBINPUT_EVENT_TABLET_PAD_STRIP:
+		handle_tablet_pad_strip(event, device);
 		break;
 	default:
 		wlr_log(L_DEBUG, "Unknown libinput event %d", event_type);

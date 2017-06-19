@@ -94,8 +94,9 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 
 static void handle_output_add(struct output_state *ostate) {
 	struct wlr_output *wlr_output = ostate->output;
+	int width = 16, height = 16;
 	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
-			cat_tex.width * 4, cat_tex.width, cat_tex.height)) {
+			width * 4, width, height)) {
 		fprintf(stderr, "Failed to set cursor\n");
 		return;
 	}

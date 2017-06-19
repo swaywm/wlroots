@@ -68,4 +68,13 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 void handle_tablet_tool_button(struct libinput_event *event,
 		struct libinput_device *device);
 
+struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
+		struct libinput_device *device);
+void handle_tablet_pad_button(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_tablet_pad_ring(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_tablet_pad_strip(struct libinput_event *event,
+		struct libinput_device *device);
+
 #endif

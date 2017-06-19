@@ -23,6 +23,7 @@ void wlr_output_free(struct wlr_output *output);
 
 struct wlr_keyboard_impl {
 	void (*destroy)(struct wlr_keyboard_state *state);
+	void (*led_update)(struct wlr_keyboard_state *state, uint32_t leds);
 };
 
 struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
@@ -52,6 +53,14 @@ struct wlr_tablet_tool_impl {
 struct wlr_tablet_tool *wlr_tablet_tool_create(struct wlr_tablet_tool_impl *impl,
 		struct wlr_tablet_tool_state *state);
 void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool);
+
+struct wlr_tablet_pad_impl {
+	void (*destroy)(struct wlr_tablet_pad_state *pad);
+};
+
+struct wlr_tablet_pad *wlr_tablet_pad_create(struct wlr_tablet_pad_impl *impl,
+		struct wlr_tablet_pad_state *state);
+void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad);
 
 struct wlr_input_device_impl {
 	void (*destroy)(struct wlr_input_device_state *state);

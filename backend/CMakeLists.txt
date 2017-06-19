@@ -19,6 +19,7 @@ add_library(wlr-backend
     libinput/pointer.c
     libinput/touch.c
     libinput/tablet_tool.c
+    libinput/tablet_pad.c
 
     multi/backend.c
     backend.c

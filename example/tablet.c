@@ -21,13 +21,14 @@
 
 struct sample_state {
 	struct wlr_renderer *renderer;
-	bool proximity, tap;
+	bool proximity, tap, button;
 	double distance;
 	double pressure;
 	double x_mm, y_mm;
 	double width_mm, height_mm;
 	struct wl_list link;
 	float tool_color[4];
+	float pad_color[4];
 };
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -41,11 +42,10 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	float matrix[16], view[16];
-	float pad_color[4] = { 0.75, 0.75, 0.75, 1.0 };
 	float distance = 0.8f * (1 - sample->distance);
 	float tool_color[4] = { distance, distance, distance, 1 };
-	for (size_t i = 0; i < 4; ++i) {
-		tool_color[i] *= sample->tool_color[i];
+	for (size_t i = 0; sample->button && i < 4; ++i) {
+		tool_color[i] = sample->tool_color[i];
 	}
 	float scale = 4;
 
@@ -57,7 +57,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_matrix_scale(&view, pad_width, pad_height, 1);
 	wlr_matrix_mul(&matrix, &view, &view);
 	wlr_matrix_mul(&wlr_output->transform_matrix, &view, &matrix);
-	wlr_render_colored_quad(sample->renderer, &pad_color, &matrix);
+	wlr_render_colored_quad(sample->renderer, &sample->pad_color, &matrix);
 
 	if (sample->proximity) {
 		wlr_matrix_translate(&matrix,
@@ -110,12 +110,31 @@ static void handle_tool_button(struct tablet_tool_state *tstate,
 		uint32_t button, enum wlr_button_state state) {
 	struct sample_state *sample = tstate->compositor->data;
 	if (state == WLR_BUTTON_RELEASED) {
-		float default_color[4] = { 1, 1, 1, 1 };
-		memcpy(sample->tool_color, default_color, 4);
+		sample->button = false;
+	} else {
+		sample->button = true;
+		for (size_t i = 0; i < 3; ++i) {
+			if (button % 3 == i) {
+				sample->tool_color[i] = 0;
+			} else {
+				sample->tool_color[i] = 1;
+			}
+		}
+	}
+}
+
+static void handle_pad_button(struct tablet_pad_state *pstate,
+		uint32_t button, enum wlr_button_state state) {
+	struct sample_state *sample = pstate->compositor->data;
+	float default_color[4] = { 0.75, 0.75, 0.75, 1.0 };
+	if (state == WLR_BUTTON_RELEASED) {
+		memcpy(sample->pad_color, default_color, sizeof(default_color));
 	} else {
 		for (size_t i = 0; i < 3; ++i) {
-			if (button % 3 != i) {
-				sample->tool_color[button % 3] = 0;
+			if (button % 3 == i) {
+				sample->pad_color[i] = 0;
+			} else {
+				sample->pad_color[i] = 1;
 			}
 		}
 	}
@@ -123,7 +142,8 @@ static void handle_tool_button(struct tablet_tool_state *tstate,
 
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
-		.tool_color = { 1, 1, 1, 1 }
+		.tool_color = { 1, 1, 1, 1 },
+		.pad_color = { 0.75, 0.75, 0.75, 1.0 }
 	};
 	struct compositor_state compositor;
 
@@ -133,6 +153,7 @@ int main(int argc, char *argv[]) {
 	compositor.tool_axis_cb = handle_tool_axis;
 	compositor.tool_proximity_cb = handle_tool_proximity;
 	compositor.tool_button_cb = handle_tool_button;
+	compositor.pad_button_cb = handle_pad_button;
 
 	state.renderer = wlr_gles3_renderer_init();
 
