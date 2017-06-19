@@ -6,6 +6,8 @@
 #include <wlr/types.h>
 #include "backend/wayland.h"
 #include "common/log.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 /*
  * Initializes the wayland backend. Opens a connection to a remote wayland
@@ -26,7 +28,20 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 		return false;
 	}
 
-	wlr_wlb_registry_poll(state);
+	wlr_wl_registry_poll(state);
+	if (!(state->compositor) || (!(state->shell))) {
+		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
+		return false;
+	}
+
+	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_KHR, state->remote_display);
+	for(size_t i = 0; i < state->num_outputs; ++i) {
+		if(!(state->outputs[i] = wlr_wl_output_create(state, i))) {
+			wlr_log_errno(L_ERROR, "Failed to create %zuth output", i);
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -35,13 +50,12 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 		return;
 	}
 
-	// TODO: Free surfaces
-	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
-		struct wlr_output *output = state->outputs->items[i];
-		wlr_output_destroy(output);
+	for (size_t i = 0; i < state->num_outputs; ++i) {
+		wlr_output_destroy(state->outputs[i]);
 	}
 
-	list_free(state->outputs);
+	wlr_egl_free(&state->egl);
+	free(state->outputs);
 	if (state->seat) wl_seat_destroy(state->seat);
 	if (state->shm) wl_shm_destroy(state->shm);
 	if (state->shell) wl_shell_destroy(state->shell);
@@ -58,7 +72,7 @@ static struct wlr_backend_impl backend_impl = {
 
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
-		size_t outputs) {
+		size_t num_outputs) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
@@ -73,22 +87,28 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	if (!(state->outputs = list_create())) {
-		wlr_log(L_ERROR, "Could not allocate output list");
-		goto error;
-	}
-
 	if (!(state->devices = list_create())) {
 		wlr_log(L_ERROR, "Could not allocate devices list");
 		goto error;
 	}
 
+	if (!(state->outputs = calloc(sizeof(void*), num_outputs))) {
+		wlr_log(L_ERROR, "Could not allocate outputs list");
+		goto error;
+	}
+
 	state->local_display = display;
 	state->backend = backend;
+	state->num_outputs = num_outputs;
 
 	return backend;
 
 error:
+	if (state) {
+		free(state->outputs);
+		free(state->devices);
+		free(state->devices);
+	}
 	free(state);
 	free(backend);
 	return NULL;
