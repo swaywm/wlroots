@@ -13,14 +13,16 @@
  * the specified display.
  */
 static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
+	wlr_log(L_INFO, "Initializating wayland backend");
+
 	state->remote_display = wl_display_connect(getenv("_WAYLAND_DISPLAY"));
 	if (!state->remote_display) {
-		wlr_log(L_ERROR, "Could not connect to remote display");
+		wlr_log_errno(L_ERROR, "Could not connect to remote display");
 		return false;
 	}
 
 	if (!(state->registry = wl_display_get_registry(state->remote_display))) {
-		wlr_log(L_ERROR, "Could not obtain reference to remote registry");
+		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
 		return false;
 	}
 
@@ -57,7 +59,7 @@ static struct wlr_backend_impl backend_impl = {
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		size_t outputs) {
-	wlr_log(L_INFO, "Initalizing wayland backend");
+	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
@@ -73,6 +75,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	if (!(state->outputs = list_create())) {
 		wlr_log(L_ERROR, "Could not allocate output list");
+		goto error;
+	}
+
+	if (!(state->devices = list_create())) {
+		wlr_log(L_ERROR, "Could not allocate devices list");
 		goto error;
 	}
 

@@ -8,6 +8,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/backend/wayland.h>
 #include <wlr/backend/multi.h>
 #include "backend/libinput.h"
 #include "backend/udev.h"
@@ -42,6 +43,9 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		struct wlr_session *session) {
 	// TODO: Choose the most appropriate backend for the situation
 	// Attempt DRM+libinput
+	if(getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
+		return wlr_wl_backend_create(display, 1);
+	}
 	struct wlr_udev *udev;
 	if (!(udev = wlr_udev_create(display))) {
 		wlr_log(L_ERROR, "Failed to start udev");

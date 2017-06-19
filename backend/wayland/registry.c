@@ -44,23 +44,24 @@ static struct wlr_output_impl output_impl = {
 };
 
 static void registry_wl_output(struct wlr_backend_state *state,
-	struct wl_output *wl_output, struct wl_registry *registry, uint32_t version) {
-	struct wlr_output_state *output;
-	if (!(output = calloc(sizeof(struct wlr_output_state), 1))) {
+		struct wl_output *wl_output, struct wl_registry *registry,
+		uint32_t version) {
+	struct wlr_output_state *ostate;
+	if (!(ostate = calloc(sizeof(struct wlr_output_state), 1))) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_wl_output");
 		return;
 	}
 
-	struct wlr_output *wlr_output = wlr_output_create(&output_impl, output);
+	struct wlr_output *wlr_output = wlr_output_create(&output_impl, ostate);
 	if (!wlr_output) {
-		free(state);
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		free(ostate);
+		wlr_log_errno(L_ERROR, "Allocation failed");
 		return;
 	}
 
-	output->output = wl_output;
-	list_add(state->outputs, output);
-	wl_output_add_listener(wl_output, &output_listener, output);
+	ostate->output = wl_output;
+	list_add(state->outputs, wlr_output);
+	wl_output_add_listener(wl_output, &output_listener, wlr_output);
 	wl_signal_emit(&state->backend->events.output_add, wlr_output);
 	return;
 }
