@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.1.0)
 
 project(wlroots C)
 
-if (CMAKE_BUILD_TYPE EQUAL "Debug")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
-endif()
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -51,6 +48,7 @@ find_package(GLESv2 REQUIRED)
 find_package(DRM REQUIRED)
 find_package(GBM REQUIRED)
 find_package(LibInput REQUIRED)
+find_package(XKBCommon REQUIRED)
 find_package(Udev REQUIRED)
 find_package(Systemd)
 

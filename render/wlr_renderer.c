@@ -31,3 +31,13 @@ bool wlr_render_with_matrix(struct wlr_renderer *r,
 		struct wlr_surface *surface, const float (*matrix)[16]) {
 	return r->impl->render_with_matrix(r->state, surface, matrix);
 }
+
+void wlr_render_colored_quad(struct wlr_renderer *r,
+		const float (*color)[4], const float (*matrix)[16]) {
+	r->impl->render_quad(r->state, color, matrix);
+}
+
+void wlr_render_colored_ellipse(struct wlr_renderer *r,
+		const float (*color)[4], const float (*matrix)[16]) {
+	r->impl->render_ellipse(r->state, color, matrix);
+}
