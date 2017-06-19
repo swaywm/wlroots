@@ -211,6 +211,25 @@ static void tablet_tool_add(struct wlr_input_device *device,
 	wl_list_insert(&state->tablet_tools, &tstate->link);
 }
 
+static void tablet_pad_button_notify(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_pad_button *event = data;
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, button);
+	if (pstate->compositor->pad_button_cb) {
+		pstate->compositor->pad_button_cb(pstate, event->button, event->state);
+	}
+}
+
+static void tablet_pad_add(struct wlr_input_device *device,
+		struct compositor_state *state) {
+	struct tablet_pad_state *pstate = calloc(sizeof(struct tablet_pad_state), 1);
+	pstate->device = device;
+	pstate->compositor = state;
+	wl_list_init(&pstate->button.link);
+	pstate->button.notify = tablet_pad_button_notify;
+	wl_signal_add(&device->tablet_pad->events.button, &pstate->button);
+	wl_list_insert(&state->tablet_pads, &pstate->link);
+}
+
 static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -226,6 +245,10 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		tablet_tool_add(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		tablet_pad_add(device, state);
+		break;
 	default:
 		break;
 	}
@@ -391,6 +414,7 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->pointers);
 	wl_list_init(&state->touch);
 	wl_list_init(&state->tablet_tools);
+	wl_list_init(&state->tablet_pads);
 	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
 	wl_list_init(&state->input_remove.link);

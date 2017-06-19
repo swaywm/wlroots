@@ -10,6 +10,7 @@ add_library(wlr-types
     wlr_pointer.c
     wlr_touch.c
     wlr_tablet_tool.c
+    wlr_tablet_pad.c
 )
 
 target_link_libraries(wlr-types
