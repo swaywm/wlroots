@@ -8,11 +8,32 @@
 #include "common/log.h"
 #include "types.h"
 
+struct wlr_keyboard_state {
+	struct libinput_device *device;
+};
+
+static void wlr_libinput_keyboard_set_leds(struct wlr_keyboard_state *kbstate, uint32_t leds) {
+	libinput_device_led_update(kbstate->device, leds);
+}
+
+static void wlr_libinput_keyboard_destroy(struct wlr_keyboard_state *kbstate) {
+	libinput_device_unref(kbstate->device);
+	free(kbstate);
+}
+
+struct wlr_keyboard_impl impl = {
+	.destroy = wlr_libinput_keyboard_destroy,
+	.led_update = wlr_libinput_keyboard_set_leds
+};
+
 struct wlr_keyboard *wlr_libinput_keyboard_create(
 		struct libinput_device *device) {
 	assert(device);
+	struct wlr_keyboard_state *kbstate = calloc(1, sizeof(struct wlr_keyboard_state));
+	kbstate->device = device;
+	libinput_device_ref(device);
 	libinput_device_led_update(device, 0);
-	return wlr_keyboard_create(NULL, NULL);
+	return wlr_keyboard_create(&impl, kbstate);
 }
 
 void handle_keyboard_key(struct libinput_event *event,

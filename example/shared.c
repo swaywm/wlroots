@@ -12,6 +12,16 @@
 #include <wlr/types.h>
 #include "shared.h"
 
+static void keyboard_led_update(struct keyboard_state *kbstate) {
+	uint32_t leds = 0;
+	for (uint32_t i = 0; i < WLR_LED_LAST; ++i) {
+		if (xkb_state_led_index_is_active(kbstate->xkb_state, kbstate->leds[i])) {
+			leds |= (1 << i);
+		}
+	}
+	wlr_keyboard_led_update(kbstate->device->keyboard, leds);
+}
+
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	struct wlr_keyboard_key *event = data;
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
@@ -33,6 +43,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	}
 	xkb_state_update_key(kbstate->xkb_state, keycode,
 		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
+	keyboard_led_update(kbstate);
 }
 
 static void keyboard_add(struct wlr_input_device *device, struct compositor_state *state) {
@@ -67,6 +78,14 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 	if (!kbstate->xkb_state) {
 		fprintf(stderr, "Failed to create XKB state\n");
 		exit(1);
+	}
+	const char *led_names[3] = {
+		XKB_LED_NAME_NUM,
+		XKB_LED_NAME_CAPS,
+		XKB_LED_NAME_SCROLL
+	};
+	for (uint32_t i = 0; i < 3; ++i) {
+		kbstate->leds[i] = xkb_map_led_get_index(kbstate->keymap, led_names[i]);
 	}
 }
 

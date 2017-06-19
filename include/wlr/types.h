@@ -53,17 +53,27 @@ void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height);
 
+enum WLR_KEYBOARD_LED {
+	WLR_LED_NUM_LOCK = 1,
+	WLR_LED_CAPS_LOCK = 2,
+	WLR_LED_SCROLL_LOCK = 4,
+	WLR_LED_LAST
+};
+
 struct wlr_keyboard_state;
 struct wlr_keyboard_impl;
 
 struct wlr_keyboard {
 	struct wlr_keyboard_state *state;
 	struct wlr_keyboard_impl *impl;
+	uint32_t leds;
 
 	struct {
 		struct wl_signal key;
 	} events;
 };
+
+void wlr_keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds);
 
 enum wlr_key_state {
 	WLR_KEY_RELEASED,

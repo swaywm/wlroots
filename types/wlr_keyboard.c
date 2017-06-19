@@ -21,3 +21,9 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	}
 	free(kb);
 }
+
+void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
+	if (kb->impl) {
+		kb->impl->led_update(kb->state, leds);
+	}
+}

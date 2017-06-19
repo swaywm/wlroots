@@ -23,6 +23,7 @@ void wlr_output_free(struct wlr_output *output);
 
 struct wlr_keyboard_impl {
 	void (*destroy)(struct wlr_keyboard_state *state);
+	void (*led_update)(struct wlr_keyboard_state *state, uint32_t leds);
 };
 
 struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
