@@ -43,7 +43,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		struct wlr_session *session) {
 	// TODO: Choose the most appropriate backend for the situation
 	// Attempt DRM+libinput
-	if(getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
+	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
 		return wlr_wl_backend_create(display, 1);
 	}
 	struct wlr_udev *udev;

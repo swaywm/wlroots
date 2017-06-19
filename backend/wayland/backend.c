@@ -35,7 +35,7 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	}
 
 	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_KHR, state->remote_display);
-	for(size_t i = 0; i < state->num_outputs; ++i) {
+	for (size_t i = 0; i < state->num_outputs; ++i) {
 		if(!(state->outputs[i] = wlr_wl_output_create(state, i))) {
 			wlr_log_errno(L_ERROR, "Failed to create %zuth output", i);
 			return false;
