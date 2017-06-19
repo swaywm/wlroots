@@ -1,14 +1,11 @@
-#ifndef _WLR_BACKEND_WAYLAND_INTERNAL_H
-#define _WLR_BACKEND_WAYLAND_INTERNAL_H
+#ifndef WLR_BACKEND_WAYLAND_H
+#define WLR_BACKEND_WAYLAND_H
 
 #include <wayland-client.h>
 #include <wayland-server.h>
-#include <wlr/wayland.h>
+#include <wlr/backend.h>
 
-struct wlr_wl_backend;
-
-void wlr_wl_backend_free(struct wlr_wl_backend *backend);
-struct wlr_wl_backend *wlr_wl_backend_init(struct wl_display *display,
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		size_t outputs);
 
 #endif

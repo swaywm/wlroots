@@ -5,10 +5,10 @@ include_directories(
 )
 
 add_library(wlr-backend
-    #wayland/backend.c
-    #wayland/registry.c
-    #wayland/wl_seat.c
-    #wayland/wl_output.c
+    wayland/backend.c
+    wayland/registry.c
+    wayland/wl_seat.c
+    wayland/wl_output.c
     drm/backend.c
     drm/drm.c
     udev.c

@@ -5,8 +5,9 @@
 #include <wayland-server.h>
 #include <wlr/common/list.h>
 #include <wlr/wayland.h>
+#include <wlr/backend/wayland.h>
 
-struct wlr_wl_backend {
+struct wlr_backend_state {
 	/* local state */
 	struct wl_display *local_display;
 	/* remote state */
@@ -19,7 +20,7 @@ struct wlr_wl_backend {
 	list_t *outputs;
 };
 
-void wlr_wlb_registry_poll(struct wlr_wl_backend *backend);
+void wlr_wlb_registry_poll(struct wlr_backend_state *backend);
 
 extern const struct wl_seat_listener seat_listener;
 extern const struct wl_output_listener output_listener;
