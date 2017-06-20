@@ -6,7 +6,7 @@
 #include "backend/egl.h"
 #include "common/log.h"
 
-static const char *egl_error(void) {
+const char *egl_error(void) {
 	switch (eglGetError()) {
 	case EGL_SUCCESS:
 		return "Success";
