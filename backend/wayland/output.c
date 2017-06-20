@@ -40,7 +40,7 @@ static struct wl_callback_listener frame_listener = {
 
 static void wlr_wl_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
-	// TODO
+	output->output->transform = transform;
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
