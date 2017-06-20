@@ -83,7 +83,9 @@ static bool wlr_wl_output_move_cursor(struct wlr_output_state *output,
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
-	// TODO: free egl surface
+	if(output->frame_callback) wl_callback_destroy(output->frame_callback);
+	eglDestroySurface(output->backend->egl.display, output->surface);
+	wl_egl_window_destroy(output->egl_window);
 	wl_shell_surface_destroy(output->shell_surface);
 	wl_surface_destroy(output->surface);
 	free(output);

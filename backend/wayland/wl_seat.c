@@ -61,6 +61,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		}
 
 		wlr_device->pointer = wlr_pointer_create(NULL, NULL);
+		list_add(state->devices, wlr_device);
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
@@ -75,6 +76,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		}
 
 		wlr_device->keyboard = wlr_keyboard_create(NULL, NULL);
+		list_add(state->devices, wlr_device);
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 

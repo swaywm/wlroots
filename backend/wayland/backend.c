@@ -6,6 +6,7 @@
 #include <wlr/types.h>
 #include "backend/wayland.h"
 #include "common/log.h"
+#include "types.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
@@ -78,6 +79,12 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 	for (size_t i = 0; i < state->num_outputs; ++i) {
 		wlr_output_destroy(state->outputs[i]);
 	}
+
+	for (size_t i = 0; state->devices && i < state->devices->length; ++i) {
+		wlr_input_device_destroy(state->devices->items[i]);
+	}
+
+	list_free(state->devices);
 
 	wlr_egl_free(&state->egl);
 	free(state->outputs);
