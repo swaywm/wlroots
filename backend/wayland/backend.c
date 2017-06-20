@@ -12,18 +12,17 @@
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_backend_state *state = data;
-
 	int count = 0;
-	if(mask & WL_EVENT_READABLE)
+	if (mask & WL_EVENT_READABLE) {
 		count = wl_display_dispatch(state->remote_display);
-	if(mask & WL_EVENT_WRITABLE)
+	}
+	if (mask & WL_EVENT_WRITABLE) {
 		count = wl_display_flush(state->remote_display);
-
+	}
 	if (mask == 0) {
 		count = wl_display_dispatch_pending(state->remote_display);
 		wl_display_flush(state->remote_display);
 	}
-
 	return count;
 }
 

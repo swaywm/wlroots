@@ -110,15 +110,14 @@ int main(int argc, char *argv[]) {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 }
 	};
-	struct compositor_state compositor = { 0,
-		.data = &state,
-		.output_add_cb = handle_output_add,
-		.output_frame_cb = handle_output_frame,
-		.keyboard_key_cb = handle_keyboard_key,
-		.pointer_motion_cb = handle_pointer_motion,
-		.pointer_button_cb = handle_pointer_button,
-		.pointer_axis_cb = handle_pointer_axis,
-	};
+	struct compositor_state compositor = { 0 };
+	compositor.data = &state;
+	compositor.output_add_cb = handle_output_add;
+	compositor.output_frame_cb = handle_output_frame;
+	compositor.keyboard_key_cb = handle_keyboard_key;
+	compositor.pointer_motion_cb = handle_pointer_motion;
+	compositor.pointer_button_cb = handle_pointer_button;
+	compositor.pointer_axis_cb = handle_pointer_axis;
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles3_renderer_init();

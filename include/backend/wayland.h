@@ -32,8 +32,6 @@ struct wlr_backend_state {
 
 struct wlr_output_state {
 	size_t id;
-	unsigned int width;
-	unsigned int height;
 	struct wlr_backend_state *backend;
 	struct wlr_output *output;
 	struct wl_surface *surface;

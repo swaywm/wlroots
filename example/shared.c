@@ -383,7 +383,9 @@ static void output_add_notify(struct wl_listener *listener, void *data) {
 	fprintf(stderr, "Output '%s' added\n", output->name);
 	fprintf(stderr, "%s %s %"PRId32"mm x %"PRId32"mm\n", output->make, output->model,
 		output->phys_width, output->phys_height);
-	wlr_output_set_mode(output, output->modes->items[0]);
+	if (output->modes->length > 0) {
+		wlr_output_set_mode(output, output->modes->items[0]);
+	}
 	struct output_state *ostate = calloc(1, sizeof(struct output_state));
 	clock_gettime(CLOCK_MONOTONIC, &ostate->last_frame);
 	ostate->output = output;

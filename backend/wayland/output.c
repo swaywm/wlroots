@@ -38,49 +38,9 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
-// TODO: enable/cursor etc
-static void wlr_wl_output_enable(struct wlr_output_state *output, bool enable) {
-}
-
-static bool wlr_wl_output_set_mode(struct wlr_output_state *output,
-		struct wlr_output_mode *mode) {
-	output->output->current_mode = mode;
-
-	// start rendering loop per callbacks by rendering first frame
-	if (!eglMakeCurrent(output->backend->egl.display,
-		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-		return false;
-	}
-
-	glViewport(0, 0, output->width, output->height);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
-
-	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		return false;
-	}
-
-	return true;
-}
-
 static void wlr_wl_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
-}
-
-static bool wlr_wl_output_set_cursor(struct wlr_output_state *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	return false;
-}
-
-static bool wlr_wl_output_move_cursor(struct wlr_output_state *output,
-		int x, int y) {
-	return false;
+	// TODO
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
@@ -93,11 +53,7 @@ static void wlr_wl_output_destroy(struct wlr_output_state *output) {
 }
 
 static struct wlr_output_impl output_impl = {
-	.enable = wlr_wl_output_enable,
-	.set_mode = wlr_wl_output_set_mode,
 	.transform = wlr_wl_output_transform,
-	.set_cursor = wlr_wl_output_set_cursor,
-	.move_cursor = wlr_wl_output_move_cursor,
 	.destroy = wlr_wl_output_destroy,
 };
 
@@ -109,11 +65,18 @@ void handle_ping(void* data, struct wl_shell_surface* ssurface, uint32_t serial)
 
 void handle_configure(void *data, struct wl_shell_surface *wl_shell_surface,
 		uint32_t edges, int32_t width, int32_t height){
-	wlr_log(L_DEBUG, "resize %d %d", width, height);
+	struct wlr_output_state *ostate = data;
+	assert(ostate && ostate->shell_surface == wl_shell_surface);
+	struct wlr_output *output = ostate->output;
+	wl_egl_window_resize(ostate->egl_window, width, height, 0, 0);
+	output->width = width;
+	output->height = height;
+	wlr_output_update_matrix(output);
+	wl_signal_emit(&output->events.resolution, output);
 }
 
 void handle_popup_done(void *data, struct wl_shell_surface *wl_shell_surface) {
-	wlr_log(L_ERROR, "Unexpected call");
+	wlr_log(L_ERROR, "Unexpected wl_shell_surface.popup_done event");
 }
 
 static struct wl_shell_surface_listener shell_surface_listener = {
@@ -124,10 +87,6 @@ static struct wl_shell_surface_listener shell_surface_listener = {
 
 struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 		size_t id) {
-	// TODO: dont hardcode stuff like size
-	static unsigned int width = 800;
-	static unsigned int height = 500;
-
 	struct wlr_output_state *ostate;
 	if (!(ostate = calloc(sizeof(struct wlr_output_state), 1))) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_output_state");
@@ -141,24 +100,14 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 		return NULL;
 	}
 
-	wlr_output->width = width;
-	wlr_output->height = height;
+	wlr_output->width = 640;
+	wlr_output->height = 480;
 	wlr_output->scale = 1;
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d", 1);
 
-	struct wlr_output_mode mode = {
-		.width = width,
-		.height = height,
-		.refresh = 60,
-		.flags = 0,
-	};
-	list_add(wlr_output->modes, &mode);
-
 	ostate->id = id;
-	ostate->width = width;
-	ostate->height = height;
 	ostate->backend = backend;
 	ostate->output = wlr_output;
 
@@ -171,8 +120,29 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 	wl_shell_surface_add_listener(ostate->shell_surface, &shell_surface_listener, ostate);
 	wl_shell_surface_set_toplevel(ostate->shell_surface);
 
-	ostate->egl_window = wl_egl_window_create(ostate->surface, width, height);
+	ostate->egl_window = wl_egl_window_create(ostate->surface,
+			wlr_output->width, wlr_output->height);
 	ostate->egl_surface = wlr_egl_create_surface(&backend->egl, ostate->egl_window);
+
+	// start rendering loop per callbacks by rendering first frame
+	if (!eglMakeCurrent(ostate->backend->egl.display,
+		ostate->egl_surface, ostate->egl_surface,
+		ostate->backend->egl.context)) {
+		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+		return false;
+	}
+
+	glViewport(0, 0, wlr_output->width, wlr_output->height);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	ostate->frame_callback = wl_surface_frame(ostate->surface);
+	wl_callback_add_listener(ostate->frame_callback, &frame_listener, ostate);
+
+	if (!eglSwapBuffers(ostate->backend->egl.display, ostate->egl_surface)) {
+		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		return false;
+	}
 
 	wl_signal_emit(&backend->backend->events.output_add, wlr_output);
 	return wlr_output;

@@ -197,13 +197,12 @@ int main(int argc, char *argv[]) {
 	wl_list_init(&state.config);
 	parse_args(argc, argv, &state.config);
 
-	struct compositor_state compositor = { 0,
-		.data = &state,
-		.output_add_cb = handle_output_add,
-		.output_remove_cb = handle_output_remove,
-		.output_frame_cb = handle_output_frame,
-		.keyboard_key_cb = handle_keyboard_key,
-	};
+	struct compositor_state compositor = { 0 };
+	compositor.data = &state;
+	compositor.output_add_cb = handle_output_add;
+	compositor.output_remove_cb = handle_output_remove;
+	compositor.output_frame_cb = handle_output_frame;
+	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles3_renderer_init();
