@@ -50,11 +50,11 @@ int main() {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,
 	};
-	struct compositor_state compositor;
-
+	struct compositor_state compositor = { 0,
+		.data = &state,
+		.output_frame_cb = handle_output_frame,
+		.keyboard_key_cb = handle_keyboard_key,
+	};
 	compositor_init(&compositor);
-	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
-	compositor.data = &state;
 	compositor_run(&compositor);
 }

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
@@ -193,22 +194,22 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 
 int main(int argc, char *argv[]) {
 	struct sample_state state = { 0 };
-	struct compositor_state compositor;
 	wl_list_init(&state.config);
 	parse_args(argc, argv, &state.config);
 
-	compositor_init(&compositor);
+	struct compositor_state compositor = { 0 };
+	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_remove_cb = handle_output_remove;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.keyboard_key_cb = handle_keyboard_key;
+	compositor_init(&compositor);
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
 	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
-	compositor.data = &state;
 	compositor_run(&compositor);
 
 	wlr_surface_destroy(state.cat_texture);

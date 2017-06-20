@@ -65,6 +65,10 @@ static void set_matrix(float mat[static 16], int32_t width, int32_t height,
 	mat[15] = 1.0f;
 }
 
+void wlr_output_update_matrix(struct wlr_output *output) {
+	set_matrix(output->transform_matrix, output->width, output->height, output->transform);
+}
+
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 		struct wlr_output_state *state) {
 	struct wlr_output *output = calloc(1, sizeof(struct wlr_output));
@@ -73,6 +77,7 @@ struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 	output->modes = list_create();
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.resolution);
 	return output;
 }
 
@@ -81,22 +86,31 @@ void wlr_output_enable(struct wlr_output *output, bool enable) {
 }
 
 bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
-	set_matrix(output->transform_matrix, mode->width, mode->height, output->transform);
+	if (!output->impl || !output->impl->set_mode) {
+		return false;
+	}
+	wlr_output_update_matrix(output);
 	return output->impl->set_mode(output->state, mode);
 }
 
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	set_matrix(output->transform_matrix, output->width, output->height, transform);
+	wlr_output_update_matrix(output);
 	output->impl->transform(output->state, transform);
 }
 
 bool wlr_output_set_cursor(struct wlr_output *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	if (!output->impl || !output->impl->set_cursor) {
+		return false;
+	}
 	return output->impl->set_cursor(output->state, buf, stride, width, height);
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
+	if (!output->impl || !output->impl->move_cursor) {
+		return false;
+	}
 	return output->impl->move_cursor(output->state, x, y);
 }
 

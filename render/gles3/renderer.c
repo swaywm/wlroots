@@ -71,6 +71,7 @@ static void init_default_shaders() {
 	if (!compile_program(quad_vertex_src, ellipse_fragment_src, &shaders.ellipse)) {
 		goto error;
 	}
+	wlr_log(L_DEBUG, "Compiled default shaders");
 	return;
 error:
 	wlr_log(L_ERROR, "Failed to set up default shaders!");
@@ -141,8 +142,10 @@ static bool wlr_gles3_render_surface(struct wlr_renderer_state *state,
 		GL_CALL(glUseProgram(shaders.rgba));
 		break;
 	default:
+		wlr_log(L_ERROR, "No shader for this surface format");
 		return false;
 	}
+	gles3_flush_errors();
 	GL_CALL(glBindVertexArray(vao));
 	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
 	GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo));

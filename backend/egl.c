@@ -6,7 +6,7 @@
 #include "backend/egl.h"
 #include "common/log.h"
 
-static const char *egl_error(void) {
+const char *egl_error(void) {
 	switch (eglGetError()) {
 	case EGL_SUCCESS:
 		return "Success";
@@ -68,11 +68,12 @@ static bool egl_exts() {
 	return true;
 }
 
-static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
+static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
 	if (ret == EGL_FALSE || count == 0) {
+		wlr_log(L_ERROR, "eglGetConfigs returned no configs");
 		return false;
 	}
 
@@ -80,11 +81,17 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
 
 	ret = eglChooseConfig(disp, NULL, configs, count, &matched);
 	if (ret == EGL_FALSE) {
+		wlr_log(L_ERROR, "eglChooseConfig failed");
 		return false;
 	}
 
 	for (int i = 0; i < matched; ++i) {
 		EGLint gbm_format;
+
+		if(platform == EGL_PLATFORM_WAYLAND_EXT) {
+			*out = configs[i];
+			return true;
+		}
 
 		if (!eglGetConfigAttrib(disp,
 					configs[i],
@@ -101,6 +108,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
 		}
 	}
 
+	wlr_log(L_ERROR, "no valid egl config found");
 	return false;
 }
 
@@ -109,7 +117,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 	if (!egl_exts()) {
 		return false;
 	}
-	
+
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
 		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API: %s", egl_error());
 		goto error;
@@ -127,7 +135,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		goto error;
 	}
 
-	if (!egl_get_config(egl->display, &egl->config)) {
+	if (!egl_get_config(egl->display, &egl->config, platform)) {
 		wlr_log(L_ERROR, "Failed to get EGL config");
 		goto error;
 	}
@@ -163,7 +171,7 @@ void wlr_egl_free(struct wlr_egl *egl) {
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);	
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {

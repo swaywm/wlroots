@@ -260,6 +260,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	output->width = output->wlr_output->width = mode->width;
 	output->height = output->wlr_output->height = mode->height;
 	output->wlr_output->current_mode = mode;
+	wl_signal_emit(&output->wlr_output->events.resolution, output->wlr_output);
 
 	if (!display_init_renderer(&state->renderer, output)) {
 		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->wlr_output->name);

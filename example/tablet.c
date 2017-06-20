@@ -145,19 +145,19 @@ int main(int argc, char *argv[]) {
 		.tool_color = { 1, 1, 1, 1 },
 		.pad_color = { 0.75, 0.75, 0.75, 1.0 }
 	};
-	struct compositor_state compositor;
-
+	struct compositor_state compositor = { 0,
+		.data = &state,
+		.output_frame_cb = handle_output_frame,
+		.keyboard_key_cb = handle_keyboard_key,
+		.tool_axis_cb = handle_tool_axis,
+		.tool_proximity_cb = handle_tool_proximity,
+		.tool_button_cb = handle_tool_button,
+		.pad_button_cb = handle_pad_button,
+	};
 	compositor_init(&compositor);
-	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
-	compositor.tool_axis_cb = handle_tool_axis;
-	compositor.tool_proximity_cb = handle_tool_proximity;
-	compositor.tool_button_cb = handle_tool_button;
-	compositor.pad_button_cb = handle_pad_button;
 
 	state.renderer = wlr_gles3_renderer_init();
 
-	compositor.data = &state;
 	compositor_run(&compositor);
 
 	wlr_renderer_destroy(state.renderer);

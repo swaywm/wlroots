@@ -33,11 +33,13 @@ struct wlr_output {
 
 	float transform_matrix[16];
 
+	/* Note: some backends may have zero modes */
 	list_t *modes;
 	struct wlr_output_mode *current_mode;
 
 	struct {
 		struct wl_signal frame;
+		struct wl_signal resolution;
 	} events;
 };
 

@@ -20,6 +20,7 @@ struct wlr_output_impl {
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 		struct wlr_output_state *state);
 void wlr_output_free(struct wlr_output *output);
+void wlr_output_update_matrix(struct wlr_output *output);
 
 struct wlr_keyboard_impl {
 	void (*destroy)(struct wlr_keyboard_state *state);
