@@ -68,7 +68,7 @@ static bool egl_exts() {
 	return true;
 }
 
-static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
+static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
@@ -88,11 +88,10 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
 	for (int i = 0; i < matched; ++i) {
 		EGLint gbm_format;
 
-		// TODO, see below
-		// best would probably be to propagate parameter or config
-		// choose callback
-		*out = configs[i];
-		return true;
+		if(platform == EGL_PLATFORM_WAYLAND_EXT) {
+			*out = configs[i];
+			return true;
+		}
 
 		if (!eglGetConfigAttrib(disp,
 					configs[i],
@@ -136,7 +135,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		goto error;
 	}
 
-	if (!egl_get_config(egl->display, &egl->config)) {
+	if (!egl_get_config(egl->display, &egl->config, platform)) {
 		wlr_log(L_ERROR, "Failed to get EGL config");
 		goto error;
 	}

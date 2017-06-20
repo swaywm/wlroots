@@ -166,6 +166,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 	wl_shell_surface_set_class(ostate->shell_surface, "sway");
 	wl_shell_surface_set_title(ostate->shell_surface, "sway-wl");
 	wl_shell_surface_add_listener(ostate->shell_surface, &shell_surface_listener, ostate);
+	wl_shell_surface_set_toplevel(ostate->shell_surface);
 
 	ostate->egl_window = wl_egl_window_create(ostate->surface, width, height);
 	ostate->egl_surface = wlr_egl_create_surface(&backend->egl, ostate->egl_window);
