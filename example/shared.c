@@ -418,8 +418,6 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 }
 
 void compositor_init(struct compositor_state *state) {
-	memset(state, 0, sizeof(struct compositor_state));
-
 	state->display = wl_display_create();
 	state->event_loop = wl_display_get_event_loop(state->display);
 	state->session = wlr_session_start(state->display);
@@ -457,14 +455,14 @@ void compositor_init(struct compositor_state *state) {
 	state->backend = wlr;
 
 	clock_gettime(CLOCK_MONOTONIC, &state->last_frame);
-}
 
-void compositor_run(struct compositor_state *state) {
 	if (!wlr_backend_init(state->backend)) {
 		fprintf(stderr, "Failed to initialize backend\n");
 		exit(1);
 	}
+}
 
+void compositor_run(struct compositor_state *state) {
 	while (!state->exit) {
 		wl_event_loop_dispatch(state->event_loop, 0);
 	}

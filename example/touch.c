@@ -100,21 +100,21 @@ int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.touch_points = list_create()
 	};
-	struct compositor_state compositor;
-
+	struct compositor_state compositor = { 0,
+		.data = &state,
+		.output_frame_cb = handle_output_frame,
+		.keyboard_key_cb = handle_keyboard_key,
+		.touch_down_cb = handle_touch_down,
+		.touch_up_cb = handle_touch_up,
+		.touch_motion_cb = handle_touch_motion,
+	};
 	compositor_init(&compositor);
-	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
-	compositor.touch_down_cb = handle_touch_down;
-	compositor.touch_up_cb = handle_touch_up;
-	compositor.touch_motion_cb = handle_touch_motion;
 
 	state.renderer = wlr_gles3_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
 	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
-	compositor.data = &state;
 	compositor_run(&compositor);
 
 	wlr_surface_destroy(state.cat_texture);

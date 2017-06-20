@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -143,9 +144,9 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 	wlr_output->width = width;
 	wlr_output->height = height;
 	wlr_output->scale = 1;
-	strncpy(wlr_output->make, "wayland-output", sizeof(wlr_output->make));
-	strncpy(wlr_output->model, "wayland-output", sizeof(wlr_output->model));
-	strncpy(wlr_output->name, "wayland-output", sizeof(wlr_output->name));
+	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
+	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d", 1);
 
 	struct wlr_output_mode mode = {
 		.width = width,
