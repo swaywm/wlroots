@@ -23,7 +23,8 @@ static void surface_frame_callback(void *data, struct wl_callback *cb, uint32_t 
 		return;
 	}
 
-	wl_signal_emit(&output->output->events.frame, output->output);
+	struct wlr_output *wlr_output = output->wlr_output;
+	wl_signal_emit(&wlr_output->events.frame, wlr_output);
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 	wl_callback_destroy(cb);
@@ -40,7 +41,7 @@ static struct wl_callback_listener frame_listener = {
 
 static void wlr_wl_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
-	output->output->transform = transform;
+	output->wlr_output->transform = transform;
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
@@ -67,7 +68,7 @@ void handle_configure(void *data, struct wl_shell_surface *wl_shell_surface,
 		uint32_t edges, int32_t width, int32_t height){
 	struct wlr_output_state *ostate = data;
 	assert(ostate && ostate->shell_surface == wl_shell_surface);
-	struct wlr_output *output = ostate->output;
+	struct wlr_output *output = ostate->wlr_output;
 	wl_egl_window_resize(ostate->egl_window, width, height, 0, 0);
 	output->width = width;
 	output->height = height;
@@ -85,8 +86,14 @@ static struct wl_shell_surface_listener shell_surface_listener = {
 	.popup_done = handle_popup_done
 };
 
-struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
-		size_t id) {
+struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
+	assert(wlr_backend_is_wl(_backend));
+	struct wlr_backend_state *backend = _backend->state;
+	if (!backend->remote_display) {
+		++backend->requested_outputs;
+		return NULL;
+	}
+
 	struct wlr_output_state *ostate;
 	if (!(ostate = calloc(sizeof(struct wlr_output_state), 1))) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_output_state");
@@ -105,11 +112,11 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 	wlr_output->scale = 1;
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d", 1);
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
+			backend->outputs->length + 1);
 
-	ostate->id = id;
 	ostate->backend = backend;
-	ostate->output = wlr_output;
+	ostate->wlr_output = wlr_output;
 
 	// TODO: error handling
 	ostate->surface = wl_compositor_create_surface(backend->compositor);
@@ -144,6 +151,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend_state* backend,
 		return false;
 	}
 
+	list_add(backend->outputs, wlr_output);
 	wl_signal_emit(&backend->backend->events.output_add, wlr_output);
 	return wlr_output;
 }

@@ -39,13 +39,39 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	free(backend);
 }
 
+static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
+	struct wlr_backend *backend = wlr_wl_backend_create(display);
+	if (backend) {
+		int outputs = 1;
+		const char *_outputs = getenv("WLR_WL_OUTPUTS");
+		if (_outputs) {
+			char *end;
+			outputs = (int)strtol(_outputs, &end, 10);
+			if (*end) {
+				wlr_log(L_ERROR, "WLR_WL_OUTPUTS specified with invalid integer, ignoring");
+				outputs = 1;
+			} else if (outputs < 0) {
+				wlr_log(L_ERROR, "WLR_WL_OUTPUTS specified with negative outputs, ignoring");
+				outputs = 1;
+			}
+		}
+		while (outputs--) {
+			wlr_wl_output_create(backend);
+		}
+	}
+	return backend;
+}
+
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		struct wlr_session *session) {
-	// TODO: Choose the most appropriate backend for the situation
-	// Attempt DRM+libinput
+	struct wlr_backend *backend;
 	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
-		return wlr_wl_backend_create(display, 1);
+		backend = attempt_wl_backend(display);
+		if (backend) {
+			return backend;
+		}
 	}
+	// Attempt DRM+libinput
 	struct wlr_udev *udev;
 	if (!(udev = wlr_udev_create(display))) {
 		wlr_log(L_ERROR, "Failed to start udev");
@@ -56,8 +82,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
 	}
-	struct wlr_backend *multi = wlr_multi_backend_create();
-	if (!multi) {
+	backend = wlr_multi_backend_create();
+	if (!backend) {
 		goto error_gpu;
 	}
 	struct wlr_backend *libinput =
@@ -70,13 +96,13 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	if (!drm) {
 		goto error_libinput;
 	}
-	wlr_multi_backend_add(multi, libinput);
-	wlr_multi_backend_add(multi, drm);
-	return multi;
+	wlr_multi_backend_add(backend, libinput);
+	wlr_multi_backend_add(backend, drm);
+	return backend;
 error_libinput:
 	wlr_backend_destroy(libinput);
 error_multi:
-	wlr_backend_destroy(multi);
+	wlr_backend_destroy(backend);
 error_gpu:
 	close(gpu);
 error_udev:

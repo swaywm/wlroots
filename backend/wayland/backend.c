@@ -34,7 +34,7 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	wlr_log(L_INFO, "Initializating wayland backend");
 
-	state->remote_display = wl_display_connect(getenv("_WAYLAND_DISPLAY"));
+	state->remote_display = wl_display_connect(NULL);
 	if (!state->remote_display) {
 		wlr_log_errno(L_ERROR, "Could not connect to remote display");
 		return false;
@@ -52,11 +52,8 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	}
 
 	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_EXT, state->remote_display);
-	for (size_t i = 0; i < state->num_outputs; ++i) {
-		if(!(state->outputs[i] = wlr_wl_output_create(state, i))) {
-			wlr_log_errno(L_ERROR, "Failed to create %zuth output", i);
-			return false;
-		}
+	for (size_t i = 0; i < state->requested_outputs; ++i) {
+		wlr_wl_output_create(state->backend);
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(state->local_display);
@@ -75,8 +72,8 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 		return;
 	}
 
-	for (size_t i = 0; i < state->num_outputs; ++i) {
-		wlr_output_destroy(state->outputs[i]);
+	for (size_t i = 0; i < state->outputs->length; ++i) {
+		wlr_output_destroy(state->outputs->items[i]);
 	}
 
 	for (size_t i = 0; state->devices && i < state->devices->length; ++i) {
@@ -101,9 +98,11 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_wl_backend_destroy
 };
 
+bool wlr_backend_is_wl(struct wlr_backend *b) {
+	return b->impl == &backend_impl;
+}
 
-struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
-		size_t num_outputs) {
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
@@ -123,15 +122,13 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error;
 	}
 
-	if (!(state->outputs = calloc(sizeof(void*), num_outputs))) {
+	if (!(state->outputs = list_create())) {
 		wlr_log(L_ERROR, "Could not allocate outputs list");
 		goto error;
 	}
 
 	state->local_display = display;
 	state->backend = backend;
-	state->num_outputs = num_outputs;
-
 	return backend;
 
 error:
