@@ -9,6 +9,23 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+static int dispatch_events(int fd, uint32_t mask, void *data) {
+	struct wlr_backend_state *state = data;
+
+	int count = 0;
+	if(mask & WL_EVENT_READABLE)
+		count = wl_display_dispatch(state->remote_display);
+	if(mask & WL_EVENT_WRITABLE)
+		count = wl_display_flush(state->remote_display);
+
+	if (mask == 0) {
+		count = wl_display_dispatch_pending(state->remote_display);
+		wl_display_flush(state->remote_display);
+	}
+
+	return count;
+}
+
 /*
  * Initializes the wayland backend. Opens a connection to a remote wayland
  * compositor and creates surfaces for each output, then registers globals on
@@ -34,13 +51,21 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 		return false;
 	}
 
-	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_KHR, state->remote_display);
+	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_EXT, state->remote_display);
 	for (size_t i = 0; i < state->num_outputs; ++i) {
 		if(!(state->outputs[i] = wlr_wl_output_create(state, i))) {
 			wlr_log_errno(L_ERROR, "Failed to create %zuth output", i);
 			return false;
 		}
 	}
+
+	struct wl_event_loop *loop = wl_display_get_event_loop(state->local_display);
+	int fd = wl_display_get_fd(state->remote_display);
+	int events = WL_EVENT_READABLE | WL_EVENT_ERROR |
+		WL_EVENT_HANGUP | WL_EVENT_WRITABLE;
+	state->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
+			dispatch_events, state);
+	wl_event_source_check(state->remote_display_src);
 
 	return true;
 }

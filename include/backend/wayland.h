@@ -23,6 +23,8 @@ struct wlr_backend_state {
 	struct wlr_backend *backend;
 	list_t *devices;
 
+	struct wl_event_source* remote_display_src;
+
 	size_t num_outputs;
 	struct wlr_output **outputs;
 	struct wlr_egl egl;
@@ -30,10 +32,14 @@ struct wlr_backend_state {
 
 struct wlr_output_state {
 	size_t id;
+	unsigned int width;
+	unsigned int height;
+	struct wlr_backend_state *backend;
 	struct wlr_output *output;
 	struct wl_surface *surface;
 	struct wl_shell_surface *shell_surface;
 	struct wl_egl_window* egl_window;
+	struct wl_callback* frame_callback;
 	void* egl_surface;
 };
 
