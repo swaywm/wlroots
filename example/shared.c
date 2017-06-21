@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
@@ -460,6 +460,9 @@ void compositor_init(struct compositor_state *state) {
 
 	clock_gettime(CLOCK_MONOTONIC, &state->last_frame);
 
+	const char *socket = wl_display_add_socket_auto(state->display);
+	wlr_log(L_INFO, "Running compositor on wayland display '%s'", socket);
+	setenv("_WAYLAND_DISPLAY", socket, true);
 	if (!wlr_backend_init(state->backend)) {
 		wlr_log(L_ERROR, "Failed to initialize backend");
 		exit(1);

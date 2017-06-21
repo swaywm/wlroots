@@ -1,6 +1,8 @@
 #ifndef _EXAMPLE_SHARED_H
 #define _EXAMPLE_SHARED_H
-#define _POSIX_C_SOURCE 199309L
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include <time.h>
 #include <stdbool.h>
 #include <xkbcommon/xkbcommon.h>
