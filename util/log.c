@@ -66,12 +66,12 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // 'backend/wayland/backend.c'
 const char *_strip_path(const char *filepath) {
 	static int srclen = strlen(WLR_SRC_DIR) + 1;
-	if(*filepath == '.') {
-		while(*filepath == '.' || *filepath == '/') {
+	if (strstr(filepath, WLR_SRC_DIR) == filepath) {
+		filepath += srclen;
+	} else if (*filepath == '.') {
+		while (*filepath == '.' || *filepath == '/') {
 			++filepath;
 		}
-	} else {
-		filepath += srclen;
 	}
 	return filepath;
 }

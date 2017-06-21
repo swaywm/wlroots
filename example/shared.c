@@ -11,6 +11,7 @@
 #include <wlr/session.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/util/log.h>
 #include "shared.h"
 
 static void keyboard_led_update(struct keyboard_state *kbstate) {
@@ -35,7 +36,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		char name[64];
 		int l = xkb_keysym_get_name(sym, name, sizeof(name));
 		if (l != -1 && l != sizeof(name)) {
-			fprintf(stderr, "Key event: %s %s\n", name,
+			wlr_log(L_DEBUG, "Key event: %s %s", name,
 					key_state == WLR_KEY_PRESSED ? "pressed" : "released");
 		}
 		if (kbstate->compositor->keyboard_key_cb) {
@@ -65,19 +66,19 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 	rules.options = getenv("XKB_DEFAULT_OPTIONS");
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (!context) {
-		fprintf(stderr, "Failed to create XKB context\n");
+		wlr_log(L_ERROR, "Failed to create XKB context");
 		exit(1);
 	}
 	kbstate->keymap = xkb_map_new_from_names(
 			context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	if (!kbstate->keymap) {
-		fprintf(stderr, "Failed to create XKB keymap\n");
+		wlr_log(L_ERROR, "Failed to create XKB keymap");
 		exit(1);
 	}
 	xkb_context_unref(context);
 	kbstate->xkb_state = xkb_state_new(kbstate->keymap);
 	if (!kbstate->xkb_state) {
-		fprintf(stderr, "Failed to create XKB state\n");
+		wlr_log(L_ERROR, "Failed to create XKB state");
 		exit(1);
 	}
 	const char *led_names[3] = {
@@ -381,8 +382,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 static void output_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct compositor_state *state = wl_container_of(listener, state, output_add);
-	fprintf(stderr, "Output '%s' added\n", output->name);
-	fprintf(stderr, "%s %s %"PRId32"mm x %"PRId32"mm\n", output->make, output->model,
+	wlr_log(L_DEBUG, "Output '%s' added", output->name);
+	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm", output->make, output->model,
 		output->phys_width, output->phys_height);
 	if (output->modes->length > 0) {
 		wlr_output_set_mode(output, output->modes->items[0]);
@@ -460,7 +461,7 @@ void compositor_init(struct compositor_state *state) {
 	clock_gettime(CLOCK_MONOTONIC, &state->last_frame);
 
 	if (!wlr_backend_init(state->backend)) {
-		fprintf(stderr, "Failed to initialize backend\n");
+		wlr_log(L_ERROR, "Failed to initialize backend");
 		exit(1);
 	}
 }

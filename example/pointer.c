@@ -5,6 +5,7 @@
 #include <time.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
@@ -15,7 +16,7 @@
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types/wlr_keyboard.h>
-#include <math.h>
+#include <wlr/util/log.h>
 #include "shared.h"
 #include "cat.h"
 
@@ -99,11 +100,11 @@ static void handle_output_add(struct output_state *ostate) {
 	int width = 16, height = 16;
 	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
 			width * 4, width, height)) {
-		fprintf(stderr, "Failed to set cursor\n");
+		wlr_log(L_DEBUG, "Failed to set hardware cursor");
 		return;
 	}
 	if (!wlr_output_move_cursor(wlr_output, 0, 0)) {
-		fprintf(stderr, "Failed to move cursor\n");
+		wlr_log(L_DEBUG, "Failed to move hardware cursor");
 	}
 }
 
