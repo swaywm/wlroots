@@ -123,6 +123,10 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 			update_velocities(kbstate->compositor, 0, 16);
 			break;
 		}
+
+		if (sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
+			wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
+		}
 	}
 }
 
