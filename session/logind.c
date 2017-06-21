@@ -35,7 +35,6 @@ static int logind_take_device(struct wlr_session *restrict base,
 		const char *restrict path) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
-	wlr_log(L_DEBUG, "Taking '%s'", path);
 	int ret;
 	int fd = -1;
 	sd_bus_message *msg = NULL;
@@ -209,7 +208,6 @@ static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_e
 			strerror(-ret));
 		goto error;
 	}
-	wlr_log(L_INFO, "PauseDevice signal received: (%lu) %s", makedev(major, minor), type);
 
 	if (major == DRM_MAJOR) {
 		session->base.active = false;
@@ -242,7 +240,6 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 			strerror(-ret));
 		goto error;
 	}
-	wlr_log(L_INFO, "ResumeDevice signal received (%lu)", makedev(major, minor));
 
 	if (major == DRM_MAJOR) {
 		dup2(fd, session->drm_fd);
