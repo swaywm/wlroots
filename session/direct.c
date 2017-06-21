@@ -45,8 +45,8 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 	wlr_log(L_INFO, "Successfully loaded direct session");
 
 	session->base.impl = &session_direct;
-	wl_signal_init(&session->base.device_paused);
-	wl_signal_init(&session->base.device_resumed);
+	session->base.active = true;
+	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 }
 

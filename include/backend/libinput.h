@@ -16,6 +16,8 @@ struct wlr_backend_state {
 	struct libinput *libinput;
 	struct wl_event_source *input_event;
 
+	struct wl_listener session_signal;
+
 	list_t *devices;
 };
 

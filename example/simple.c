@@ -42,6 +42,8 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 		xkb_keysym_t sym, enum wlr_key_state key_state) {
 	if (sym == XKB_KEY_Escape) {
 		kbstate->compositor->exit = true;
+	} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
+		wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
 	}
 }
 

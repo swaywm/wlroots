@@ -34,8 +34,7 @@ struct wlr_backend_state {
 	struct wlr_backend *backend;
 	struct wl_event_source *drm_event;
 
-	struct wl_listener device_paused;
-	struct wl_listener device_resumed;
+	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 
 	uint32_t taken_crtcs;
@@ -90,5 +89,6 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);
+void wlr_drm_output_pause_renderer(struct wlr_output_state *output);
 
 #endif
