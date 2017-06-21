@@ -45,8 +45,8 @@ void handle_keyboard_key(struct libinput_event *event,
 	}
 	struct libinput_event_keyboard *kbevent =
 		libinput_event_get_keyboard_event(event);
-	struct wlr_keyboard_key *wlr_event =
-		calloc(1, sizeof(struct wlr_keyboard_key));
+	struct wlr_event_keyboard_key *wlr_event =
+		calloc(1, sizeof(struct wlr_event_keyboard_key));
 	wlr_event->time_sec = libinput_event_keyboard_get_time(kbevent);
 	wlr_event->time_usec = libinput_event_keyboard_get_time_usec(kbevent);
 	wlr_event->keycode = libinput_event_keyboard_get_key(kbevent);

@@ -94,7 +94,7 @@ struct compositor_state {
 	void (*touch_up_cb)(struct touch_state *s, int32_t slot);
 	void (*touch_cancel_cb)(struct touch_state *s, int32_t slot);
 	void (*tool_axis_cb)(struct tablet_tool_state *s,
-			struct wlr_tablet_tool_axis *event);
+			struct wlr_event_tablet_tool_axis *event);
 	void (*tool_proximity_cb)(struct tablet_tool_state *s,
 			enum wlr_tablet_tool_proximity_state proximity);
 	void (*tool_tip_cb)(struct tablet_tool_state *s,

@@ -31,7 +31,7 @@ enum wlr_tablet_tool_axes {
 	WLR_TABLET_TOOL_AXIS_WHEEL = 256,
 };
 
-struct wlr_tablet_tool_axis {
+struct wlr_event_tablet_tool_axis {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	uint32_t updated_axes;
@@ -50,7 +50,7 @@ enum wlr_tablet_tool_proximity_state {
 	WLR_TABLET_TOOL_PROXIMITY_IN,
 };
 
-struct wlr_tablet_tool_proximity {
+struct wlr_event_tablet_tool_proximity {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	double x, y;
@@ -63,7 +63,7 @@ enum wlr_tablet_tool_tip_state {
 	WLR_TABLET_TOOL_TIP_DOWN,
 };
 
-struct wlr_tablet_tool_tip {
+struct wlr_event_tablet_tool_tip {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	double x, y;
@@ -71,7 +71,7 @@ struct wlr_tablet_tool_tip {
 	enum wlr_tablet_tool_tip_state state;
 };
 
-struct wlr_tablet_tool_button {
+struct wlr_event_tablet_tool_button {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	uint32_t button;

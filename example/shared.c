@@ -24,7 +24,7 @@ static void keyboard_led_update(struct keyboard_state *kbstate) {
 }
 
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
-	struct wlr_keyboard_key *event = data;
+	struct wlr_event_keyboard_key *event = data;
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
 	uint32_t keycode = event->keycode + 8;
 	enum wlr_key_state key_state = event->state;
@@ -91,7 +91,7 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 }
 
 static void pointer_motion_notify(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_motion *event = data;
+	struct wlr_event_pointer_motion *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, motion);
 	if (pstate->compositor->pointer_motion_cb) {
 		pstate->compositor->pointer_motion_cb(pstate,
@@ -100,7 +100,7 @@ static void pointer_motion_notify(struct wl_listener *listener, void *data) {
 }
 
 static void pointer_button_notify(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_button *event = data;
+	struct wlr_event_pointer_button *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, button);
 	if (pstate->compositor->pointer_button_cb) {
 		pstate->compositor->pointer_button_cb(pstate,
@@ -109,7 +109,7 @@ static void pointer_button_notify(struct wl_listener *listener, void *data) {
 }
 
 static void pointer_axis_notify(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_axis *event = data;
+	struct wlr_event_pointer_axis *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, axis);
 	if (pstate->compositor->pointer_axis_cb) {
 		pstate->compositor->pointer_axis_cb(pstate,
@@ -135,7 +135,7 @@ static void pointer_add(struct wlr_input_device *device, struct compositor_state
 }
 
 static void touch_down_notify(struct wl_listener *listener, void *data) {
-	struct wlr_touch_down *event = data;
+	struct wlr_event_touch_down *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, down);
 	if (tstate->compositor->touch_down_cb) {
 		tstate->compositor->touch_down_cb(tstate, event->slot,
@@ -144,7 +144,7 @@ static void touch_down_notify(struct wl_listener *listener, void *data) {
 }
 
 static void touch_motion_notify(struct wl_listener *listener, void *data) {
-	struct wlr_touch_motion *event = data;
+	struct wlr_event_touch_motion *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, motion);
 	if (tstate->compositor->touch_motion_cb) {
 		tstate->compositor->touch_motion_cb(tstate, event->slot,
@@ -153,7 +153,7 @@ static void touch_motion_notify(struct wl_listener *listener, void *data) {
 }
 
 static void touch_up_notify(struct wl_listener *listener, void *data) {
-	struct wlr_touch_up *event = data;
+	struct wlr_event_touch_up *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, up);
 	if (tstate->compositor->touch_up_cb) {
 		tstate->compositor->touch_up_cb(tstate, event->slot);
@@ -161,7 +161,7 @@ static void touch_up_notify(struct wl_listener *listener, void *data) {
 }
 
 static void touch_cancel_notify(struct wl_listener *listener, void *data) {
-	struct wlr_touch_cancel *event = data;
+	struct wlr_event_touch_cancel *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, cancel);
 	if (tstate->compositor->touch_cancel_cb) {
 		tstate->compositor->touch_cancel_cb(tstate, event->slot);
@@ -188,7 +188,7 @@ static void touch_add(struct wlr_input_device *device, struct compositor_state *
 }
 
 static void tablet_tool_axis_notify(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_tool_axis *event = data;
+	struct wlr_event_tablet_tool_axis *event = data;
 	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, axis);
 	if (tstate->compositor->tool_axis_cb) {
 		tstate->compositor->tool_axis_cb(tstate, event);
@@ -196,7 +196,7 @@ static void tablet_tool_axis_notify(struct wl_listener *listener, void *data) {
 }
 
 static void tablet_tool_proximity_notify(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_tool_proximity *event = data;
+	struct wlr_event_tablet_tool_proximity *event = data;
 	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, proximity);
 	if (tstate->compositor->tool_proximity_cb) {
 		tstate->compositor->tool_proximity_cb(tstate, event->state);
@@ -204,7 +204,7 @@ static void tablet_tool_proximity_notify(struct wl_listener *listener, void *dat
 }
 
 static void tablet_tool_button_notify(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_tool_button *event = data;
+	struct wlr_event_tablet_tool_button *event = data;
 	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, button);
 	if (tstate->compositor->tool_button_cb) {
 		tstate->compositor->tool_button_cb(tstate, event->button, event->state);
@@ -232,7 +232,7 @@ static void tablet_tool_add(struct wlr_input_device *device,
 }
 
 static void tablet_pad_button_notify(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_pad_button *event = data;
+	struct wlr_event_tablet_pad_button *event = data;
 	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, button);
 	if (pstate->compositor->pad_button_cb) {
 		pstate->compositor->pad_button_cb(pstate, event->button, event->state);

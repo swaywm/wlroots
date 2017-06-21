@@ -23,8 +23,8 @@ void handle_touch_down(struct libinput_event *event,
 	}
 	struct libinput_event_touch *tevent =
 		libinput_event_get_touch_event(event);
-	struct wlr_touch_down *wlr_event =
-		calloc(1, sizeof(struct wlr_touch_down));
+	struct wlr_event_touch_down *wlr_event =
+		calloc(1, sizeof(struct wlr_event_touch_down));
 	wlr_event->time_sec = libinput_event_touch_get_time(tevent);
 	wlr_event->time_usec = libinput_event_touch_get_time_usec(tevent);
 	wlr_event->slot = libinput_event_touch_get_slot(tevent);
@@ -44,8 +44,8 @@ void handle_touch_up(struct libinput_event *event,
 	}
 	struct libinput_event_touch *tevent =
 		libinput_event_get_touch_event(event);
-	struct wlr_touch_up *wlr_event =
-		calloc(1, sizeof(struct wlr_touch_up));
+	struct wlr_event_touch_up *wlr_event =
+		calloc(1, sizeof(struct wlr_event_touch_up));
 	wlr_event->time_sec = libinput_event_touch_get_time(tevent);
 	wlr_event->time_usec = libinput_event_touch_get_time_usec(tevent);
 	wlr_event->slot = libinput_event_touch_get_slot(tevent);
@@ -62,8 +62,8 @@ void handle_touch_motion(struct libinput_event *event,
 	}
 	struct libinput_event_touch *tevent =
 		libinput_event_get_touch_event(event);
-	struct wlr_touch_motion *wlr_event =
-		calloc(1, sizeof(struct wlr_touch_motion));
+	struct wlr_event_touch_motion *wlr_event =
+		calloc(1, sizeof(struct wlr_event_touch_motion));
 	wlr_event->time_sec = libinput_event_touch_get_time(tevent);
 	wlr_event->time_usec = libinput_event_touch_get_time_usec(tevent);
 	wlr_event->slot = libinput_event_touch_get_slot(tevent);
@@ -83,8 +83,8 @@ void handle_touch_cancel(struct libinput_event *event,
 	}
 	struct libinput_event_touch *tevent =
 		libinput_event_get_touch_event(event);
-	struct wlr_touch_cancel *wlr_event =
-		calloc(1, sizeof(struct wlr_touch_cancel));
+	struct wlr_event_touch_cancel *wlr_event =
+		calloc(1, sizeof(struct wlr_event_touch_cancel));
 	wlr_event->time_sec = libinput_event_touch_get_time(tevent);
 	wlr_event->time_usec = libinput_event_touch_get_time_usec(tevent);
 	wlr_event->slot = libinput_event_touch_get_slot(tevent);

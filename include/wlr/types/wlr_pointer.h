@@ -19,20 +19,20 @@ struct wlr_pointer {
 	} events;
 };
 
-struct wlr_pointer_motion {
+struct wlr_event_pointer_motion {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	double delta_x, delta_y;
 };
 
-struct wlr_pointer_motion_absolute {
+struct wlr_event_pointer_motion_absolute {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	double x_mm, y_mm;
 	double width_mm, height_mm;
 };
 
-struct wlr_pointer_button {
+struct wlr_event_pointer_button {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	uint32_t button;
@@ -51,7 +51,7 @@ enum wlr_axis_orientation {
 	WLR_AXIS_ORIENTATION_HORIZONTAL,
 };
 
-struct wlr_pointer_axis {
+struct wlr_event_pointer_axis {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	enum wlr_axis_source source;

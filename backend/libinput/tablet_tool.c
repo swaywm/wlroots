@@ -23,8 +23,8 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	}
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
-	struct wlr_tablet_tool_axis *wlr_event =
-		calloc(1, sizeof(struct wlr_tablet_tool_axis));
+	struct wlr_event_tablet_tool_axis *wlr_event =
+		calloc(1, sizeof(struct wlr_event_tablet_tool_axis));
 	wlr_event->time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event->time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	libinput_device_get_size(device, &wlr_event->width_mm, &wlr_event->height_mm);
@@ -77,8 +77,8 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	}
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
-	struct wlr_tablet_tool_proximity *wlr_event =
-		calloc(1, sizeof(struct wlr_tablet_tool_proximity));
+	struct wlr_event_tablet_tool_proximity *wlr_event =
+		calloc(1, sizeof(struct wlr_event_tablet_tool_proximity));
 	wlr_event->time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event->time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	switch (libinput_event_tablet_tool_get_proximity_state(tevent)) {
@@ -104,8 +104,8 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 	handle_tablet_tool_axis(event, device);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
-	struct wlr_tablet_tool_tip *wlr_event =
-		calloc(1, sizeof(struct wlr_tablet_tool_tip));
+	struct wlr_event_tablet_tool_tip *wlr_event =
+		calloc(1, sizeof(struct wlr_event_tablet_tool_tip));
 	wlr_event->time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event->time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	switch (libinput_event_tablet_tool_get_tip_state(tevent)) {
@@ -127,13 +127,11 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
-	// Tip events contain axis information. We update this information
-	// before we send the proximity event
 	handle_tablet_tool_axis(event, device);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
-	struct wlr_tablet_tool_button *wlr_event =
-		calloc(1, sizeof(struct wlr_tablet_tool_button));
+	struct wlr_event_tablet_tool_button *wlr_event =
+		calloc(1, sizeof(struct wlr_event_tablet_tool_button));
 	wlr_event->time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event->time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	wlr_event->button = libinput_event_tablet_tool_get_button(tevent);

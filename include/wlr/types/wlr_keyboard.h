@@ -29,7 +29,7 @@ enum wlr_key_state {
 	WLR_KEY_PRESSED,
 };
 
-struct wlr_keyboard_key {
+struct wlr_event_keyboard_key {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	uint32_t keycode;

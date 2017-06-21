@@ -86,7 +86,7 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 }
 
 static void handle_tool_axis(struct tablet_tool_state *tstate,
-			struct wlr_tablet_tool_axis *event) {
+			struct wlr_event_tablet_tool_axis *event) {
 	struct sample_state *sample = tstate->compositor->data;
 	sample->width_mm = event->width_mm;
 	sample->height_mm = event->height_mm;
