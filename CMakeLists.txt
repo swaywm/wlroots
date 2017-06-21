@@ -58,9 +58,9 @@ include(Manpage)
 include_directories(include)
 
 add_subdirectory(backend)
-add_subdirectory(common)
 add_subdirectory(types)
 add_subdirectory(session)
 add_subdirectory(render)
+add_subdirectory(util)
 
 add_subdirectory(example)

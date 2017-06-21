@@ -11,8 +11,8 @@
 #include <gbm.h>
 
 #include <wlr/session.h>
-#include <wlr/common/list.h>
 #include <wlr/backend/drm.h>
+#include <wlr/util/list.h>
 
 #include "backend/egl.h"
 #include "backend/udev.h"

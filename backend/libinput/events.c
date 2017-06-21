@@ -2,10 +2,10 @@
 #include <assert.h>
 #include <libinput.h>
 #include <wlr/session.h>
-#include <wlr/common/list.h>
 #include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/util/list.h>
+#include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "common/log.h"
 
 struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,

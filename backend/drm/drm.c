@@ -14,8 +14,8 @@
 #include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/util/log.h>
 #include "backend/drm.h"
-#include "common/log.h"
 
 static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_Unknown]     = "Unknown",

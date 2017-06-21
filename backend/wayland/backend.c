@@ -1,14 +1,14 @@
 #include <stdlib.h>
 #include <stdint.h>
-#include <wayland-server.h>
 #include <assert.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/util/log.h>
 #include "backend/wayland.h"
-#include "common/log.h"
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_backend_state *state = data;

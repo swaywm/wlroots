@@ -4,9 +4,8 @@
 #include <wlr/session.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/common/list.h>
+#include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "common/log.h"
 
 struct wlr_keyboard_state {
 	struct libinput_device *device;

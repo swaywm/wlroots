@@ -2,9 +2,8 @@
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
 #include <gbm.h> // GBM_FORMAT_XRGB8888
-
+#include <wlr/util/log.h>
 #include "backend/egl.h"
-#include "common/log.h"
 
 const char *egl_error(void) {
 	switch (eglGetError()) {

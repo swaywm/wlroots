@@ -28,7 +28,7 @@ add_library(wlr-backend
 )
 
 target_link_libraries(wlr-backend
-    wlr-common
+    wlr-util
     wlr-types
     ${WAYLAND_LIBRARIES}
     ${DRM_LIBRARIES}

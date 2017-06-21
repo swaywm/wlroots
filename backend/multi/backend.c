@@ -1,9 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
-#include <wlr/common/log.h>
+#include <wlr/util/log.h>
 #include "backend/multi.h"
-#include "common/log.h"
 
 struct subbackend_state {
 	struct wlr_backend *backend;

@@ -9,8 +9,8 @@
 #include <xf86drmMode.h>
 #include <wayland-server.h>
 #include <wlr/session.h>
+#include <wlr/util/log.h>
 #include "backend/udev.h"
-#include "common/log.h"
 
 /* Tests if 'path' is KMS compatible by trying to open it.
  * It leaves the open device in *fd_out it it succeeds.

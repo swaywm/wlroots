@@ -9,8 +9,7 @@
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
-#include <wlr/common/list.h>
-#include "common/log.h"
+#include <wlr/util/log.h>
 
 struct wlr_input_device *wlr_input_device_create(
 		enum wlr_input_device_type type,

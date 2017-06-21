@@ -7,7 +7,7 @@
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
-#include <common/log.h>
+#include <wlr/util/log.h>
 #include "render/gles3.h"
 
 static struct {

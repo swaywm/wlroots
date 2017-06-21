@@ -8,12 +8,12 @@
 #include <xf86drm.h>
 #include <sys/stat.h>
 #include <wlr/session.h>
-#include <wlr/common/list.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/util/list.h>
+#include <wlr/util/log.h>
 #include "backend/udev.h"
 #include "backend/drm.h"
-#include "common/log.h"
 
 static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
 	wlr_drm_scan_connectors(state);

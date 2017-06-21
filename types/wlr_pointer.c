@@ -3,7 +3,6 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/common/list.h>
 
 struct wlr_pointer *wlr_pointer_create(struct wlr_pointer_impl *impl,
 		struct wlr_pointer_state *state) {

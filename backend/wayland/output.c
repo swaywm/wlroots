@@ -6,8 +6,8 @@
 #include <wayland-client.h>
 #include <GLES3/gl3.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/util/log.h>
 #include "backend/wayland.h"
-#include "common/log.h"
 
 static struct wl_callback_listener frame_listener;
 

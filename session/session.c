@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <wlr/session.h>
 #include <wlr/session/interface.h>
-#include "common/log.h"
+#include <wlr/util/log.h>
 
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;

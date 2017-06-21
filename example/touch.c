@@ -11,12 +11,12 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES3/gl3.h>
-#include <wlr/common/list.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles3.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
+#include <wlr/util/list.h>
 #include "shared.h"
 #include "cat.h"
 

@@ -3,7 +3,6 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
-#include <wlr/common/list.h>
 
 struct wlr_tablet_tool *wlr_tablet_tool_create(struct wlr_tablet_tool_impl *impl,
 		struct wlr_tablet_tool_state *state) {

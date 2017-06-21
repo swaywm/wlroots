@@ -6,11 +6,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#include "wlr/common/log.h"
-#include "common/log.h"
+#include <wlr/util/log.h>
 
 static bool colored = true;
-static log_callback_t log_callback = wlr_log_stderr;
 
 static const char *verbosity_colors[] = {
 	[L_SILENT] = "",
@@ -18,10 +16,6 @@ static const char *verbosity_colors[] = {
 	[L_INFO  ] = "\x1B[1;34m",
 	[L_DEBUG ] = "\x1B[1;30m",
 };
-
-void wlr_log_init(log_callback_t callback) {
-	log_callback = callback;
-}
 
 void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
 	// prefix the time to the log message
@@ -46,6 +40,12 @@ void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
 		fprintf(stderr, "\x1B[0m");
 	}
 	fprintf(stderr, "\n");
+}
+
+static log_callback_t log_callback = wlr_log_stderr;
+
+void wlr_log_init(log_callback_t callback) {
+	log_callback = callback;
 }
 
 void _wlr_vlog(log_importance_t verbosity, const char *fmt, va_list args) {

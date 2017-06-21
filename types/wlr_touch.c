@@ -3,7 +3,6 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_touch.h>
 #include <wlr/interfaces/wlr_touch.h>
-#include <wlr/common/list.h>
 
 struct wlr_touch *wlr_touch_create(struct wlr_touch_impl *impl,
 		struct wlr_touch_state *state) {

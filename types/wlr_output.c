@@ -4,7 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/common/list.h>
+#include <wlr/util/list.h>
 
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {

@@ -3,7 +3,6 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/common/list.h>
 
 struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
 		struct wlr_keyboard_state *state) {

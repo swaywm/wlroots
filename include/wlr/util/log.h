@@ -1,9 +1,21 @@
-#ifndef _WLR_INTERNAL_COMMON_LOG_H
-#define _WLR_INTERNAL_COMMON_LOG_H
+#ifndef _WLR_UTIL_LOG_H
+#define _WLR_UTIL_LOG_H
 #include <stdbool.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#include <wlr/common/log.h>
+
+typedef enum {
+	L_SILENT = 0,
+	L_ERROR = 1,
+	L_INFO = 2,
+	L_DEBUG = 3,
+	L_LAST,
+} log_importance_t;
+
+typedef void (*log_callback_t)(log_importance_t importance, const char *fmt, va_list args);
+
+void wlr_init_log(log_callback_t callback);
 
 #ifdef __GNUC__
 #define ATTRIB_PRINTF(start, end) __attribute__((format(printf, start, end)))

@@ -8,8 +8,8 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/util/log.h>
 #include "backend/wayland.h"
-#include "common/log.h"
 
 static void wlr_wl_device_destroy(struct wlr_input_device_state *state) {
 	free(state);

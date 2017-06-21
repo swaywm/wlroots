@@ -1,5 +1,5 @@
-#ifndef _WLR_LIST_H
-#define _WLR_LIST_H
+#ifndef _WLR_UTIL_LIST_H
+#define _WLR_UTIL_LIST_H
 
 #include <stddef.h>
 

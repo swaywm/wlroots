@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <GLES3/gl3.h>
-#include "common/log.h"
+#include <wlr/util/log.h>
 #include "render/gles3.h"
 
 const char *gles3_strerror(GLenum err) {

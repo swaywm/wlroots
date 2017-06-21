@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-client.h>
+#include <wlr/util/log.h>
 #include "backend/wayland.h"
-#include "common/log.h"
 
 static void registry_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {

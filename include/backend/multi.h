@@ -3,7 +3,7 @@
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/multi.h>
-#include <wlr/common/list.h>
+#include <wlr/util/list.h>
 
 struct wlr_backend_state {
 	struct wlr_backend *backend;

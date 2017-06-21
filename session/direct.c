@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/session/interface.h>
-#include "common/log.h"
+#include <wlr/util/log.h>
 
 const struct session_impl session_direct;
 

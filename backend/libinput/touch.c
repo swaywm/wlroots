@@ -4,9 +4,8 @@
 #include <wlr/session.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_touch.h>
-#include <wlr/common/list.h>
+#include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "common/log.h"
 
 struct wlr_touch *wlr_libinput_touch_create(
 		struct libinput_device *device) {

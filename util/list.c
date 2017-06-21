@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
-#include <wlr/common/list.h>
+#include <wlr/util/list.h>
 
 list_t *list_create(void) {
 	list_t *list = malloc(sizeof(list_t));

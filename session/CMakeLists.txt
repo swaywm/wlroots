@@ -8,7 +8,7 @@ set(sources
 )
 
 set(libs
-    wlr-common
+    wlr-util
     ${WAYLAND_LIBRARIES}
 )
 

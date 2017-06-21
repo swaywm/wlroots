@@ -4,9 +4,8 @@
 #include <wlr/session.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
-#include <wlr/common/list.h>
+#include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "common/log.h"
 
 struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
 		struct libinput_device *device) {

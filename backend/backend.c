@@ -10,9 +10,9 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/backend/multi.h>
+#include <wlr/util/log.h>
 #include "backend/libinput.h"
 #include "backend/udev.h"
-#include "common/log.h"
 
 struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
 		struct wlr_backend_state *state) {
