@@ -86,6 +86,21 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_libinput_backend_destroy
 };
 
+static void session_signal(struct wl_listener *listener, void *data) {
+	struct wlr_backend_state *backend = wl_container_of(listener, backend, session_signal);
+	struct wlr_session *session = data;
+
+	if (!backend->libinput) {
+		return;
+	}
+
+	if (session->active) {
+		libinput_resume(backend->libinput);
+	} else {
+		libinput_suspend(backend->libinput);
+	}
+}
+
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev) {
 	assert(display && session && udev);
@@ -111,6 +126,9 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	state->session = session;
 	state->udev = udev;
 	state->display = display;
+
+	state->session_signal.notify = session_signal;
+	wl_signal_add(&session->session_signal, &state->session_signal);
 
 	return backend;
 error_state:

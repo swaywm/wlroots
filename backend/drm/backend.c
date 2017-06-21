@@ -54,8 +54,10 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	} else {
 		wlr_log(L_INFO, "DRM fd paused");
 
-		// TODO: Actually pause the renderer or something.
-		// We currently just expect it to fail its next pageflip.
+		for (size_t i = 0; i < drm->outputs->length; ++i) {
+			struct wlr_output_state *output = drm->outputs->items[i];
+			wlr_drm_output_pause_renderer(output);
+		}
 	}
 }
 
