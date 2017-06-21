@@ -2,11 +2,11 @@
 #include <assert.h>
 #include <libinput.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/common/list.h>
 #include "backend/libinput.h"
 #include "common/log.h"
-#include "types.h"
 
 struct wlr_pointer *wlr_libinput_pointer_create(
 		struct libinput_device *device) {

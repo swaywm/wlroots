@@ -8,7 +8,7 @@
 #include <GLES3/gl3.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
 #include <xkbcommon/xkbcommon.h>
 #include "shared.h"
 

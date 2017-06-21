@@ -4,8 +4,8 @@
 #include <wlr/backend/interface.h>
 #include <wlr/common/list.h>
 #include <wayland-server-core.h>
+#include <wlr/interfaces/wlr_input_device.h>
 #include "backend/udev.h"
-#include "types.h"
 
 struct wlr_backend_state {
 	struct wlr_backend *backend;

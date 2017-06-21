@@ -2,7 +2,7 @@
 #define _WLR_RENDER_H
 #include <stdint.h>
 #include <wayland-server-protocol.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_surface;
 struct wlr_renderer;

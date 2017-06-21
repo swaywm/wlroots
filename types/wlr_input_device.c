@@ -2,10 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/interfaces/wlr_touch.h>
+#include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/common/list.h>
 #include "common/log.h"
-#include "types.h"
 
 struct wlr_input_device *wlr_input_device_create(
 		enum wlr_input_device_type type,
@@ -31,6 +36,18 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 		switch (dev->type) {
 		case WLR_INPUT_DEVICE_KEYBOARD:
 			wlr_keyboard_destroy(dev->keyboard);
+			break;
+		case WLR_INPUT_DEVICE_POINTER:
+			wlr_pointer_destroy(dev->pointer);
+			break;
+		case WLR_INPUT_DEVICE_TOUCH:
+			wlr_touch_destroy(dev->touch);
+			break;
+		case WLR_INPUT_DEVICE_TABLET_TOOL:
+			wlr_tablet_tool_destroy(dev->tablet_tool);
+			break;
+		case WLR_INPUT_DEVICE_TABLET_PAD:
+			wlr_tablet_pad_destroy(dev->tablet_pad);
 			break;
 		default:
 			wlr_log(L_DEBUG, "Warning: leaking memory %p %p %d",

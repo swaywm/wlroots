@@ -8,9 +8,9 @@
 #include <xf86drm.h>
 #include <sys/stat.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
 #include <wlr/common/list.h>
 #include <wlr/backend/interface.h>
+#include <wlr/interfaces/wlr_output.h>
 #include "backend/udev.h"
 #include "backend/drm.h"
 #include "common/log.h"

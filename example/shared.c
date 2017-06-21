@@ -9,7 +9,8 @@
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_input_device.h>
 #include "shared.h"
 
 static void keyboard_led_update(struct keyboard_state *kbstate) {

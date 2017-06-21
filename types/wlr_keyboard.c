@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/common/list.h>
-#include "types.h"
 
 struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
 		struct wlr_keyboard_state *state) {

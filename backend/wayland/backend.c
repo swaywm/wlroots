@@ -3,10 +3,10 @@
 #include <wayland-server.h>
 #include <assert.h>
 #include <wlr/backend/interface.h>
-#include <wlr/types.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_input_device.h>
 #include "backend/wayland.h"
 #include "common/log.h"
-#include "types.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 

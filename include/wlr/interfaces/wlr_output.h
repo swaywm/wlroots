@@ -1,6 +1,6 @@
 #ifndef _WLR_INTERFACE_OUTPUT_H
 #define _WLR_INTERFACE_OUTPUT_H
-#include <wlr/interfaces/wlr_output.h>
+#include <wlr/types/wlr_output.h>
 #include <stdbool.h>
 
 struct wlr_output_impl {
@@ -18,5 +18,6 @@ struct wlr_output_impl {
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
 		struct wlr_output_state *state);
 void wlr_output_free(struct wlr_output *output);
+void wlr_output_update_matrix(struct wlr_output *output);
 
 #endif

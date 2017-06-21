@@ -7,7 +7,8 @@
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_input_device.h>
 
 struct output_state {
 	struct compositor_state *compositor;

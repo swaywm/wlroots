@@ -3,7 +3,7 @@
 #include <wayland-server-protocol.h>
 #include <stdbool.h>
 #include <wlr/render.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_renderer_impl;
 struct wlr_renderer_state;

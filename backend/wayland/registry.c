@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-client.h>
-#include <wlr/types.h>
-#include "types.h"
 #include "backend/wayland.h"
 #include "common/log.h"
 

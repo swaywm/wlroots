@@ -6,7 +6,7 @@
 #include <wlr/session.h>
 #include <wlr/backend.h>
 #include <wlr/backend/udev.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_input_device.h>
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev);

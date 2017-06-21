@@ -17,7 +17,6 @@
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
-#include <wlr/types.h>
 #include "shared.h"
 #include "cat.h"
 

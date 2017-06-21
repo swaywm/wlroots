@@ -2,9 +2,9 @@
 #include <string.h>
 #include <tgmath.h>
 #include <wayland-server.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/common/list.h>
-#include "types.h"
 
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {

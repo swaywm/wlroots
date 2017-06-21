@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types.h>
+#include <wlr/types/wlr_touch.h>
+#include <wlr/interfaces/wlr_touch.h>
 #include <wlr/common/list.h>
-#include "types.h"
 
 struct wlr_touch *wlr_touch_create(struct wlr_touch_impl *impl,
 		struct wlr_touch_state *state) {
