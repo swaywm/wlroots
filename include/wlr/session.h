@@ -1,22 +1,17 @@
 #ifndef WLR_SESSION_H
 #define WLR_SESSION_H
 
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <sys/types.h>
 
 struct session_impl;
 
-// Passed to the listeners of device_paused/resumed
-struct device_arg {
-	dev_t dev;
-	int fd; // Only for device_resumed
-};
-
 struct wlr_session {
 	const struct session_impl *impl;
 
-	struct wl_signal device_paused;
-	struct wl_signal device_resumed;
+	bool active;
+	struct wl_signal session_signal;
 };
 
 struct wlr_session *wlr_session_start(struct wl_display *disp);

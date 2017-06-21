@@ -14,6 +14,8 @@
 #include <wlr/session/interface.h>
 #include "common/log.h"
 
+enum { DRM_MAJOR = 226 };
+
 const struct session_impl session_logind;
 
 struct logind_session {
@@ -25,12 +27,15 @@ struct logind_session {
 	char *id;
 	char *path;
 	char *seat;
+
+	int drm_fd;
 };
 
 static int logind_take_device(struct wlr_session *restrict base,
 		const char *restrict path) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
+	wlr_log(L_DEBUG, "Taking '%s'", path);
 	int ret;
 	int fd = -1;
 	sd_bus_message *msg = NULL;
@@ -58,13 +63,17 @@ static int logind_take_device(struct wlr_session *restrict base,
 		goto error;
 	}
 
-	// The original fd seem to be closed when the message is freed
+	// The original fd seems to be closed when the message is freed
 	// so we just clone it.
 	fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
 	if (fd == -1) {
 		wlr_log(L_ERROR, "Failed to clone file descriptor for '%s': %s",
 			path, strerror(errno));
 		goto error;
+	}
+
+	if (major(st.st_rdev) == DRM_MAJOR) {
+		session->drm_fd = fd;
 	}
 
 error:
@@ -91,6 +100,10 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 		&error, &msg, "uu", major(st.st_rdev), minor(st.st_rdev));
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to release device '%d'", fd);
+	}
+
+	if (major(st.st_rdev) == DRM_MAJOR) {
+		session->drm_fd = -1;
 	}
 
 	sd_bus_error_free(&error);
@@ -185,30 +198,32 @@ static int session_removed(sd_bus_message *msg, void *userdata, sd_bus_error *re
 }
 
 static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
-	wlr_log(L_INFO, "PauseDevice signal received");
 	struct logind_session *session = userdata;
 	int ret;
 
 	uint32_t major, minor;
-	ret = sd_bus_message_read(msg, "uu", &major, &minor);
+	const char *type;
+	ret = sd_bus_message_read(msg, "uus", &major, &minor, &type);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to parse D-Bus response for PauseDevice: %s",
 			strerror(-ret));
 		goto error;
 	}
+	wlr_log(L_INFO, "PauseDevice signal received: (%lu) %s", makedev(major, minor), type);
 
-	struct device_arg arg = {
-		.dev = makedev(major, minor),
-		.fd = -1,
-	};
+	if (major == DRM_MAJOR) {
+		session->base.active = false;
+		wl_signal_emit(&session->base.session_signal, session);
+	}
 
-	wl_signal_emit(&session->base.device_paused, &arg);
-
-	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
-		session->path, "org.freedesktop.login1.Session", "PauseDeviceComplete",
-		ret_error, &msg, "uu", major, minor);
-	if (ret < 0) {
-		wlr_log(L_ERROR, "Failed to send PauseDeviceComplete signal");
+	if (strcmp(type, "pause") == 0) {
+		ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+			session->path, "org.freedesktop.login1.Session", "PauseDeviceComplete",
+			ret_error, &msg, "uu", major, minor);
+		if (ret < 0) {
+			wlr_log(L_ERROR, "Failed to send PauseDeviceComplete signal: %s",
+				strerror(-ret));
+		}
 	}
 
 error:
@@ -216,7 +231,6 @@ error:
 }
 
 static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
-	wlr_log(L_INFO, "ResumeDevice signal received");
 	struct logind_session *session = userdata;
 	int ret;
 
@@ -228,13 +242,13 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 			strerror(-ret));
 		goto error;
 	}
+	wlr_log(L_INFO, "ResumeDevice signal received (%lu)", makedev(major, minor));
 
-	struct device_arg arg = {
-		.dev = makedev(major, minor),
-		.fd = fd,
-	};
-
-	wl_signal_emit(&session->base.device_resumed, &arg);
+	if (major == DRM_MAJOR) {
+		dup2(fd, session->drm_fd);
+		session->base.active = true;
+		wl_signal_emit(&session->base.session_signal, session);
+	}
 
 error:
 	return 0;
@@ -334,9 +348,10 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 
 	wlr_log(L_INFO, "Successfully loaded logind session");
 
+	session->drm_fd = -1;
 	session->base.impl = &session_logind;
-	wl_signal_init(&session->base.device_paused);
-	wl_signal_init(&session->base.device_resumed);
+	session->base.active = true;
+	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 
 error_bus:

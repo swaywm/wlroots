@@ -40,36 +40,22 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_drm_backend_destroy
 };
 
-static void device_paused(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_paused);
-	struct device_arg *arg = data;
+static void session_signal(struct wl_listener *listener, void *data) {
+	struct wlr_backend_state *drm = wl_container_of(listener, drm, session_signal);
+	struct wlr_session *session = data;
 
-	// TODO: Actually pause the renderer or something.
-	// We currently just expect it to fail its next pageflip.
+	if (session->active) {
+		wlr_log(L_INFO, "DRM fd resumed");
 
-	if (arg->dev == drm->dev) {
+		for (size_t i = 0; i < drm->outputs->length; ++i) {
+			struct wlr_output_state *output = drm->outputs->items[i];
+			wlr_drm_output_start_renderer(output);
+		}
+	} else {
 		wlr_log(L_INFO, "DRM fd paused");
-	}
-}
 
-static void device_resumed(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *drm = wl_container_of(listener, drm, device_resumed);
-	struct device_arg *arg = data;
-
-	if (arg->dev != drm->dev) {
-		return;
-	}
-
-	if (dup2(arg->fd, drm->fd) < 0) {
-		wlr_log(L_ERROR, "dup2 failed: %s", strerror(errno));
-		return;
-	}
-
-	wlr_log(L_INFO, "DRM fd resumed");
-
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		struct wlr_output_state *output = drm->outputs->items[i];
-		wlr_drm_output_start_renderer(output);
+		// TODO: Actually pause the renderer or something.
+		// We currently just expect it to fail its next pageflip.
 	}
 }
 
@@ -139,14 +125,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_fd;
 	}
 
-	wl_list_init(&state->device_paused.link);
-	wl_list_init(&state->device_paused.link);
-
-	state->device_paused.notify = device_paused;
-	state->device_resumed.notify = device_resumed;
-
-	wl_signal_add(&session->device_paused, &state->device_paused);
-	wl_signal_add(&session->device_resumed, &state->device_resumed);
+	state->session_signal.notify = session_signal;
+	wl_signal_add(&session->session_signal, &state->session_signal);
 
 	// TODO: what is the difference between the per-output renderer and this
 	// one?
