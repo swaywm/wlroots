@@ -30,7 +30,9 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
-
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer && dev->pointer->state);
+	dev->pointer->state->current_output = NULL;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
@@ -38,7 +40,11 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer && dev->pointer->state);
 	struct wlr_pointer_state *state = dev->pointer->state;
-	assert(state->current_output);
+
+	if(!state->current_output) {
+		wlr_log(L_ERROR, "pointer motion event without current output");
+		return;
+	}
 
 	int width, height;
 	wl_egl_window_get_attached_size(state->current_output->state->egl_window,
