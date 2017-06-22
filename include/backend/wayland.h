@@ -39,16 +39,17 @@ struct wlr_output_state {
 };
 
 struct wlr_input_device_state {
-	enum wlr_input_device_type type;
+	struct wlr_backend_state* backend;
 	void *resource;
 };
 
 struct wlr_pointer_state {
-	double surface_x;
-	double surface_y;
+	struct wlr_output *current_output;
 };
 
 void wlr_wl_registry_poll(struct wlr_backend_state *backend);
+struct wlr_output *wlr_wl_output_for_surface(struct wlr_backend_state *backend,
+	struct wl_surface *surface);
 
 extern const struct wl_seat_listener seat_listener;
 

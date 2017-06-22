@@ -17,9 +17,15 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer && dev->pointer->state);
-	struct wlr_pointer_state *state = dev->pointer->state;
-	state->surface_x = wl_fixed_to_double(surface_x);
-	state->surface_y = wl_fixed_to_double(surface_y);
+	struct wlr_output* output = wlr_wl_output_for_surface(dev->state->backend,
+			surface);
+
+	if (!output) {
+		wlr_log(L_ERROR, "pointer entered invalid surface");
+		return;
+	}
+
+	dev->pointer->state->current_output = output;
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -32,22 +38,20 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer && dev->pointer->state);
 	struct wlr_pointer_state *state = dev->pointer->state;
+	assert(state->current_output);
 
-	double x = wl_fixed_to_double(surface_x);
-	double y = wl_fixed_to_double(surface_y);
+	int width, height;
+	wl_egl_window_get_attached_size(state->current_output->state->egl_window,
+		&width, &height);
 
-	if (x == state->surface_x && y == state->surface_y)
-		return;
-
-	struct wlr_event_pointer_motion wlr_event;
+	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_event.delta_x = x - state->surface_x;
-	wlr_event.delta_y = y - state->surface_y;
-	wl_signal_emit(&dev->pointer->events.motion, &wlr_event);
-
-	state->surface_x = x;
-	state->surface_y = y;
+	wlr_event.width_mm = width;
+	wlr_event.height_mm = height;
+	wlr_event.x_mm = wl_fixed_to_double(surface_x);
+	wlr_event.y_mm = wl_fixed_to_double(surface_y);
+	wl_signal_emit(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -73,7 +77,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.orientation = axis;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_event.source = WLR_AXIS_SOURCE_CONTINUOUS; // TODO
+	wlr_event.source = WLR_AXIS_SOURCE_CONTINUOUS;
 	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
 }
 
@@ -182,7 +186,8 @@ static struct wlr_input_device *allocate_device(struct wlr_backend_state *state,
 		return NULL;
 	}
 
-	// TODO: any way to retrieve those information?
+	devstate->backend = state;
+
 	int vendor = 0;
 	int product = 0;
 	const char *name = "wayland";

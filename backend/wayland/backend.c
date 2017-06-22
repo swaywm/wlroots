@@ -63,7 +63,7 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	state->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
 			dispatch_events, state);
 	wl_event_source_check(state->remote_display_src);
-	
+
 	return true;
 }
 
@@ -100,6 +100,17 @@ static struct wlr_backend_impl backend_impl = {
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
+}
+
+struct wlr_output *wlr_wl_output_for_surface(struct wlr_backend_state *backend,
+	struct wl_surface *surface) {
+	for (size_t i = 0; i < backend->outputs->length; ++i) {
+		struct wlr_output *output = backend->outputs->items[i];
+		if(output->state->surface == surface)
+			return output;
+	}
+
+	return NULL;
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
