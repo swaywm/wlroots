@@ -65,3 +65,16 @@ target_link_libraries(tablet
     wlr-render
     ${XKBCOMMON_LIBRARIES}
 )
+
+add_executable(compositor
+    compositor
+    shared.c
+)
+
+target_link_libraries(compositor
+    wlr-backend
+    wlr-session
+    wlr-render
+    wlr-wlcore
+    ${XKBCOMMON_LIBRARIES}
+)

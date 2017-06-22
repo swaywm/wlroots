@@ -129,6 +129,7 @@ static void draw_quad() {
 static bool wlr_gles2_render_surface(struct wlr_renderer_state *state,
 		struct wlr_surface *surface, const float (*matrix)[16]) {
 	assert(surface && surface->valid);
+	// TODO: Convert GL formats to WL_SHM formats
 	switch (surface->format) {
 	case GL_RGB:
 		GL_CALL(glUseProgram(shaders.rgb));
@@ -163,6 +164,16 @@ static void wlr_gles2_render_ellipse(struct wlr_renderer_state *state,
 	draw_quad();
 }
 
+static const enum wl_shm_format *wlr_gles2_formats(
+		struct wlr_renderer_state *state, size_t *len) {
+	static enum wl_shm_format formats[] = {
+		WL_SHM_FORMAT_ARGB8888,
+		WL_SHM_FORMAT_XRGB8888,
+	};
+	*len = sizeof(formats) / sizeof(formats[0]);
+	return formats;
+}
+
 static void wlr_gles2_destroy(struct wlr_renderer_state *state) {
 	// no-op
 }
@@ -174,6 +185,7 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.render_with_matrix = wlr_gles2_render_surface,
 	.render_quad = wlr_gles2_render_quad,
 	.render_ellipse = wlr_gles2_render_ellipse,
+	.formats = wlr_gles2_formats,
 	.destroy = wlr_gles2_destroy
 };
 

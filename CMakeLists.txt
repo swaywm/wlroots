@@ -61,6 +61,7 @@ add_subdirectory(backend)
 add_subdirectory(types)
 add_subdirectory(session)
 add_subdirectory(render)
+add_subdirectory(wlcore)
 add_subdirectory(util)
 
 add_subdirectory(example)

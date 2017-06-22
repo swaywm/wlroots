@@ -126,7 +126,6 @@ struct compositor_state {
 	struct wl_listener output_remove;
 	struct wl_list outputs;
 
-	bool exit;
 	void *data;
 };
 

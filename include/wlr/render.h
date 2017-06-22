@@ -39,6 +39,11 @@ void wlr_render_colored_quad(struct wlr_renderer *r,
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
 		const float (*color)[4], const float (*matrix)[16]);
 /**
+ * Returns a list of pixel formats supported by this renderer.
+ */
+const enum wl_shm_format *wlr_renderer_get_formats(
+		struct wlr_renderer *r, size_t *len);
+/**
  * Destroys this wlr_renderer. Surfaces must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
