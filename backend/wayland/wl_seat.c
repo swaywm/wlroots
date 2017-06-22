@@ -8,13 +8,18 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x,
 		wl_fixed_t surface_y) {
-
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer && dev->pointer->state);
+	struct wlr_pointer_state *state = dev->pointer->state;
+	state->surface_x = wl_fixed_to_double(surface_x);
+	state->surface_y = wl_fixed_to_double(surface_y);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -24,17 +29,46 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer && dev->pointer->state);
+	struct wlr_pointer_state *state = dev->pointer->state;
 
+	struct wlr_event_pointer_motion wlr_event;
+	wlr_event.time_sec = time / 1000;
+	wlr_event.time_usec = time * 1000;
+	wlr_event.delta_x = wl_fixed_to_double(surface_x) - state->surface_x;
+	wlr_event.delta_y = wl_fixed_to_double(surface_y) - state->surface_y;
+	wl_signal_emit(&dev->pointer->events.motion, &wlr_event);
+
+	state->surface_x = surface_x;
+	state->surface_y = surface_y;
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer);
 
+	struct wlr_event_pointer_button wlr_event;
+	wlr_event.button = button;
+	wlr_event.state = state;
+	wlr_event.time_sec = time / 1000;
+	wlr_event.time_usec = time * 1000;
+	wl_signal_emit(&dev->pointer->events.button, &wlr_event);
 }
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer);
 
+	struct wlr_event_pointer_axis wlr_event;
+	wlr_event.delta = value;
+	wlr_event.orientation = axis;
+	wlr_event.time_sec = time / 1000;
+	wlr_event.time_usec = time * 1000;
+	wlr_event.source = WLR_AXIS_SOURCE_CONTINUOUS; // TODO
+	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
@@ -85,7 +119,15 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->keyboard);
 
+	struct wlr_event_keyboard_key wlr_event;
+	wlr_event.keycode = key;
+	wlr_event.state = state;
+	wlr_event.time_sec = time / 1000;
+	wlr_event.time_usec = time * 1000;
+	wl_signal_emit(&dev->keyboard->events.key, &wlr_event);
 }
 
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
@@ -109,6 +151,8 @@ static struct wl_keyboard_listener keyboard_listener = {
 };
 
 static void input_device_destroy(struct wlr_input_device_state *state) {
+	if (state->resource)
+		wl_proxy_destroy(state->resource);
 	free(state);
 }
 
@@ -116,11 +160,18 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy
 };
 
+static void pointer_destroy(struct wlr_pointer_state *state) {
+	free(state);
+}
+
+static struct wlr_pointer_impl pointer_impl = {
+	.destroy = pointer_destroy
+};
+
 static struct wlr_input_device *allocate_device(struct wlr_backend_state *state,
 		enum wlr_input_device_type type) {
-	struct wlr_input_device_state *devstate =
-		calloc(1, sizeof(struct wlr_input_device_state));
-	if(!devstate) {
+	struct wlr_input_device_state *devstate;
+	if (!(devstate = calloc(1, sizeof(struct wlr_input_device_state)))) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
@@ -128,11 +179,11 @@ static struct wlr_input_device *allocate_device(struct wlr_backend_state *state,
 	// TODO: any way to retrieve those information?
 	int vendor = 0;
 	int product = 0;
-	const char *name = "unknown;wayland";
+	const char *name = "wayland";
 	struct wlr_input_device *wlr_device = wlr_input_device_create(
 		type, &input_device_impl, devstate,
 		name, vendor, product);
-	if(!wlr_device) {
+	if (!wlr_device) {
 		free(devstate);
 		return NULL;
 	}
@@ -147,38 +198,41 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	assert(state->seat == wl_seat);
 
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
-		wlr_log(L_DEBUG, "seat %p offered pointer", wl_seat);
-		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
-
-		struct wlr_input_device *wlr_device = allocate_device(state,
-			WLR_INPUT_DEVICE_POINTER);
-		if(!wlr_device) {
-			wl_pointer_destroy(wl_pointer);
-			wlr_log(L_ERROR, "Unable to allocate wl_pointer device");
+		wlr_log(L_DEBUG, "seat %p offered pointer", (void*) wl_seat);
+		struct wlr_pointer_state *pointer_state;
+		if (!(pointer_state = calloc(1, sizeof(struct wlr_pointer_state)))) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_pointer_state");
 			return;
 		}
 
-		wlr_device->pointer = wlr_pointer_create(NULL, NULL);
-		list_add(state->devices, wlr_device);
+		struct wlr_input_device *wlr_device;
+		if (!(wlr_device = allocate_device(state, WLR_INPUT_DEVICE_POINTER))) {
+			free(pointer_state);
+			wlr_log(L_ERROR, "Unable to allocate wlr_device for pointer");
+			return;
+		}
+
+		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
+		wl_pointer_add_listener(wl_pointer, &pointer_listener, wlr_device);
+		wlr_device->pointer = wlr_pointer_create(&pointer_impl, pointer_state);
+		wlr_device->state->resource = wl_pointer;
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wlr_log(L_DEBUG, "seat %p offered keyboard", wl_seat);
-		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
+		wlr_log(L_DEBUG, "seat %p offered keyboard", (void*) wl_seat);
 		struct wlr_input_device *wlr_device = allocate_device(state,
 			WLR_INPUT_DEVICE_KEYBOARD);
-		if(!wlr_device) {
-			wl_keyboard_release(wl_keyboard);
+		if (!wlr_device) {
 			wlr_log(L_ERROR, "Unable to allocate wl_pointer device");
 			return;
 		}
 
+		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
+		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_device);
 		wlr_device->keyboard = wlr_keyboard_create(NULL, NULL);
-		list_add(state->devices, wlr_device);
+		wlr_device->state->resource = wl_keyboard;
 		wl_signal_emit(&state->backend->events.input_add, wlr_device);
 	}
-
-	// TODO: touch
 }
 
 static void seat_handle_name(void *data, struct wl_seat *wl_seat, const char *name) {

@@ -43,6 +43,11 @@ struct wlr_input_device_state {
 	void *resource;
 };
 
+struct wlr_pointer_state {
+	double surface_x;
+	double surface_y;
+};
+
 void wlr_wl_registry_poll(struct wlr_backend_state *backend);
 
 extern const struct wl_seat_listener seat_listener;

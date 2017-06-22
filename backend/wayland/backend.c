@@ -63,7 +63,7 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	state->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
 			dispatch_events, state);
 	wl_event_source_check(state->remote_display_src);
-
+	
 	return true;
 }
 
@@ -76,14 +76,14 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 		wlr_output_destroy(state->outputs->items[i]);
 	}
 
-	for (size_t i = 0; state->devices && i < state->devices->length; ++i) {
+	for (size_t i = 0; i < state->devices->length; ++i) {
 		wlr_input_device_destroy(state->devices->items[i]);
 	}
 
 	list_free(state->devices);
+	list_free(state->outputs);
 
 	wlr_egl_free(&state->egl);
-	free(state->outputs);
 	if (state->seat) wl_seat_destroy(state->seat);
 	if (state->shm) wl_shm_destroy(state->shm);
 	if (state->shell) wl_shell_destroy(state->shell);
@@ -133,9 +133,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 
 error:
 	if (state) {
-		free(state->outputs);
-		free(state->devices);
-		free(state->devices);
+		list_free(state->devices);
+		list_free(state->outputs);
 	}
 	free(state);
 	free(backend);
