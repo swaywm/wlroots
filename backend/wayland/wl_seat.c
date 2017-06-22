@@ -77,7 +77,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.orientation = axis;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_event.source = WLR_AXIS_SOURCE_CONTINUOUS;
+	wlr_event.source = dev->pointer->state->axis_source;
 	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
 }
 
@@ -87,7 +87,9 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 
 static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
 		uint32_t axis_source) {
-
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->pointer && dev->pointer->state);
+	dev->pointer->state->axis_source = axis_source;
 }
 
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,

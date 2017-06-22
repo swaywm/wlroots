@@ -44,6 +44,7 @@ struct wlr_input_device_state {
 };
 
 struct wlr_pointer_state {
+	enum wlr_axis_source axis_source;
 	struct wlr_output *current_output;
 };
 
