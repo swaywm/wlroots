@@ -89,8 +89,11 @@ bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
-	wlr_output_update_matrix(output);
-	return output->impl->set_mode(output->state, mode);
+	bool result = output->impl->set_mode(output->state, mode);
+	if (result) {
+		wlr_output_update_matrix(output);
+	}
+	return result;
 }
 
 void wlr_output_transform(struct wlr_output *output,
