@@ -54,6 +54,13 @@ static void handle_pointer_motion(struct pointer_state *pstate,
 	state->cur_y += d_y;
 }
 
+static void handle_pointer_motion_absolute(struct pointer_state *pstate,
+		double x, double y) {
+	struct sample_state *state = pstate->compositor->data;
+	state->cur_x = x;
+	state->cur_y = y;
+}
+
 static void handle_pointer_button(struct pointer_state *pstate,
 		uint32_t button, enum wlr_button_state state) {
 	struct sample_state *sample = pstate->compositor->data;
@@ -109,6 +116,7 @@ int main(int argc, char *argv[]) {
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.pointer_motion_cb = handle_pointer_motion;
+	compositor.pointer_motion_absolute_cb = handle_pointer_motion_absolute;
 	compositor.pointer_button_cb = handle_pointer_button;
 	compositor.pointer_axis_cb = handle_pointer_axis;
 	compositor_init(&compositor);
