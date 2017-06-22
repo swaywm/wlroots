@@ -83,6 +83,8 @@ struct compositor_state {
 			enum wlr_key_state key_state);
 	void (*pointer_motion_cb)(struct pointer_state *s,
 			double d_x, double d_y);
+	void (*pointer_motion_absolute_cb)(struct pointer_state *s,
+			double x, double y);
 	void (*pointer_button_cb)(struct pointer_state *s,
 			uint32_t button, enum wlr_button_state state);
 	void (*pointer_axis_cb)(struct pointer_state *s,

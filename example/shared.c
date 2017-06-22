@@ -105,6 +105,15 @@ static void pointer_motion_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void pointer_motion_absolute_notify(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_motion_absolute *event = data;
+	struct pointer_state *pstate = wl_container_of(listener, pstate, motion_absolute);
+	if (pstate->compositor->pointer_motion_absolute_cb) {
+		pstate->compositor->pointer_motion_absolute_cb(pstate,
+				event->x_mm, event->y_mm);
+	}
+}
+
 static void pointer_button_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_button *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, button);
@@ -132,9 +141,11 @@ static void pointer_add(struct wlr_input_device *device, struct compositor_state
 	wl_list_init(&pstate->button.link);
 	wl_list_init(&pstate->axis.link);
 	pstate->motion.notify = pointer_motion_notify;
+	pstate->motion_absolute.notify = pointer_motion_absolute_notify;
 	pstate->button.notify = pointer_button_notify;
 	pstate->axis.notify = pointer_axis_notify;
 	wl_signal_add(&device->pointer->events.motion, &pstate->motion);
+	wl_signal_add(&device->pointer->events.motion_absolute, &pstate->motion_absolute);
 	wl_signal_add(&device->pointer->events.button, &pstate->button);
 	wl_signal_add(&device->pointer->events.axis, &pstate->axis);
 	wl_list_insert(&state->pointers, &pstate->link);
@@ -308,7 +319,7 @@ static void pointer_remove(struct wlr_input_device *device, struct compositor_st
 	}
 	wl_list_remove(&pstate->link);
 	wl_list_remove(&pstate->motion.link);
-	//wl_list_remove(&pstate->motion_absolute.link);
+	wl_list_remove(&pstate->motion_absolute.link);
 	wl_list_remove(&pstate->button.link);
 	wl_list_remove(&pstate->axis.link);
 }

@@ -76,14 +76,14 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 		wlr_output_destroy(state->outputs->items[i]);
 	}
 
-	for (size_t i = 0; state->devices && i < state->devices->length; ++i) {
+	for (size_t i = 0; i < state->devices->length; ++i) {
 		wlr_input_device_destroy(state->devices->items[i]);
 	}
 
 	list_free(state->devices);
+	list_free(state->outputs);
 
 	wlr_egl_free(&state->egl);
-	free(state->outputs);
 	if (state->seat) wl_seat_destroy(state->seat);
 	if (state->shm) wl_shm_destroy(state->shm);
 	if (state->shell) wl_shell_destroy(state->shell);
@@ -100,6 +100,17 @@ static struct wlr_backend_impl backend_impl = {
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
+}
+
+struct wlr_output *wlr_wl_output_for_surface(struct wlr_backend_state *backend,
+	struct wl_surface *surface) {
+	for (size_t i = 0; i < backend->outputs->length; ++i) {
+		struct wlr_output *output = backend->outputs->items[i];
+		if(output->state->surface == surface)
+			return output;
+	}
+
+	return NULL;
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
@@ -133,9 +144,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 
 error:
 	if (state) {
-		free(state->outputs);
-		free(state->devices);
-		free(state->devices);
+		list_free(state->devices);
+		list_free(state->outputs);
 	}
 	free(state);
 	free(backend);
