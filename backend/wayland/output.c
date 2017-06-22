@@ -150,6 +150,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		return false;
 	}
 
+	wlr_output_create_global(wlr_output, backend->local_display);
 	list_add(backend->outputs, wlr_output);
 	wl_signal_emit(&backend->backend->events.output_add, wlr_output);
 	return wlr_output;

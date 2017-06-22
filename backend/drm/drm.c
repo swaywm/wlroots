@@ -564,6 +564,7 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 
 			scan_property_ids(state->fd, conn, output);
 
+			wlr_output_create_global(wlr_output, state->display);
 			list_add(state->outputs, output);
 			wlr_log(L_INFO, "Found display '%s'", wlr_output->name);
 		} else {

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
@@ -5,6 +6,83 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
+#include <wlr/util/log.h>
+
+static void wl_output_send_to_resource(struct wl_resource *resource) {
+	assert(resource);
+	struct wlr_output *output = wl_resource_get_user_data(resource);
+	assert(output);
+	const uint32_t version = wl_resource_get_version(resource);
+	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
+		wl_output_send_geometry(resource, 0, 0, // TODO: get position from layout?
+				output->phys_width, output->phys_height, output->subpixel,
+				output->make, output->model, output->transform);
+	}
+	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
+		for (size_t i = 0; i < output->modes->length; ++i) {
+			struct wlr_output_mode *mode = output->modes->items[i];
+			// TODO: mode->flags should just be preferred
+			uint32_t flags = mode->flags;
+			if (output->current_mode == mode) {
+				flags |= WL_OUTPUT_MODE_CURRENT;
+			}
+			wl_output_send_mode(resource, flags,
+					mode->width, mode->height, mode->refresh);
+		}
+	}
+	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
+		wl_output_send_scale(resource, output->scale);
+	}
+	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
+		wl_output_send_done(resource);
+	}
+}
+
+static void wl_output_destroy(struct wl_resource *resource) {
+	struct wlr_output *output = wl_resource_get_user_data(resource);
+	struct wl_resource *_resource = NULL;
+	wl_resource_for_each(_resource, &output->resource_list) {
+		if (_resource == resource) {
+			struct wl_list *link = wl_resource_get_link(_resource);
+			wl_list_remove(link);
+			break;
+		}
+	}
+}
+
+static void wl_output_release(struct wl_client *client, struct wl_resource *resource) {
+	wl_output_destroy(resource);
+}
+
+static struct wl_output_interface wl_output_impl = {
+	.release = wl_output_release
+};
+
+static void wl_output_bind(struct wl_client *wl_client, void *_wlr_output,
+		uint32_t version, uint32_t id) {
+	struct wlr_output *wlr_output = _wlr_output;
+	assert(wl_client && wlr_output);
+	if (version > 3) {
+		wlr_log(L_ERROR, "Client requested unsupported wl_output version, disconnecting");
+		wl_client_destroy(wl_client);
+		return;
+	}
+	struct wl_resource *wl_resource = wl_resource_create(
+			wl_client, &wl_output_interface, version, id);
+	wl_resource_set_implementation(wl_resource, &wl_output_impl,
+			wlr_output, wl_output_destroy);
+	wl_list_insert(&wlr_output->resource_list, wl_resource_get_link(wl_resource));
+	wl_output_send_to_resource(wl_resource);
+}
+
+struct wl_global *wlr_output_create_global(
+		struct wlr_output *wlr_output, struct wl_display *display) {
+	struct wl_global *wl_global = wl_global_create(display,
+		&wl_output_interface, 3, wlr_output, wl_output_bind);
+	wlr_output->wl_global = wl_global;
+	wl_list_init(&wlr_output->resource_list);
+	return wl_global;
+}
 
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {

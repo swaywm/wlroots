@@ -118,6 +118,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	state->drm_invalidated.notify = drm_invalidated;
 	wlr_udev_signal_add(udev, state->dev, &state->drm_invalidated);
 
+	state->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
 	state->drm_event = wl_event_loop_add_fd(event_loop, state->fd,

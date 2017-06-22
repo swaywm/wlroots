@@ -32,6 +32,7 @@ struct wlr_backend_state {
 	dev_t dev;
 
 	struct wlr_backend *backend;
+	struct wl_display *display;
 	struct wl_event_source *drm_event;
 
 	struct wl_listener session_signal;

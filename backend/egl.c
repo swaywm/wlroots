@@ -87,7 +87,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	for (int i = 0; i < matched; ++i) {
 		EGLint gbm_format;
 
-		if(platform == EGL_PLATFORM_WAYLAND_EXT) {
+		if (platform == EGL_PLATFORM_WAYLAND_EXT) {
 			*out = configs[i];
 			return true;
 		}
@@ -99,8 +99,6 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 			continue;
 		}
 
-		// XXX: Is GBM_FORMAT_XRGB8888 what we want?
-		// I don't know if this works for wl_displays.
 		if (gbm_format == GBM_FORMAT_XRGB8888) {
 			*out = configs[i];
 			return true;
@@ -110,7 +108,6 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	wlr_log(L_ERROR, "no valid egl config found");
 	return false;
 }
-
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 	if (!egl_exts()) {
@@ -155,14 +152,12 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		EGL_EXTENSIONS));
 	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
 	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", glGetString(GL_EXTENSIONS));
-
 	return true;
 
 error:
 	eglTerminate(egl->display);
 	eglReleaseThread();
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
 	return false;
 }
 
@@ -180,6 +175,5 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
 		return EGL_NO_SURFACE;
 	}
-
 	return surf;
 }

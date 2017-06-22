@@ -19,6 +19,8 @@ struct wlr_output_state;
 struct wlr_output {
 	const struct wlr_output_impl *impl;
 	struct wlr_output_state *state;
+	struct wl_global *wl_global;
+	struct wl_list resource_list;
 
 	uint32_t flags;
 	char name[16];
