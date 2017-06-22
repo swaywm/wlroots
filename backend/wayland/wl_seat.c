@@ -33,15 +33,21 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	assert(dev && dev->pointer && dev->pointer->state);
 	struct wlr_pointer_state *state = dev->pointer->state;
 
+	double x = wl_fixed_to_double(surface_x);
+	double y = wl_fixed_to_double(surface_y);
+
+	if (x == state->surface_x && y == state->surface_y)
+		return;
+
 	struct wlr_event_pointer_motion wlr_event;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_event.delta_x = wl_fixed_to_double(surface_x) - state->surface_x;
-	wlr_event.delta_y = wl_fixed_to_double(surface_y) - state->surface_y;
+	wlr_event.delta_x = x - state->surface_x;
+	wlr_event.delta_y = y - state->surface_y;
 	wl_signal_emit(&dev->pointer->events.motion, &wlr_event);
 
-	state->surface_x = surface_x;
-	state->surface_y = surface_y;
+	state->surface_x = x;
+	state->surface_y = y;
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
