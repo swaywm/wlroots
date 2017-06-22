@@ -11,12 +11,109 @@
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
 
-static void wlr_wl_device_destroy(struct wlr_input_device_state *state) {
+static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x,
+		wl_fixed_t surface_y) {
+
+}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface) {
+
+}
+
+static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+
+}
+
+static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+
+}
+
+static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, uint32_t axis, wl_fixed_t value) {
+
+}
+
+static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
+
+}
+
+static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
+		uint32_t axis_source) {
+
+}
+
+static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, uint32_t axis) {
+
+}
+
+static void pointer_handle_axis_discrete(void *data, struct wl_pointer *wl_pointer,
+		uint32_t axis, int32_t discrete) {
+
+}
+
+static const struct wl_pointer_listener pointer_listener = {
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
+	.motion = pointer_handle_motion,
+	.button = pointer_handle_button,
+	.axis = pointer_handle_axis,
+	.frame = pointer_handle_frame,
+	.axis_source = pointer_handle_axis_source,
+	.axis_stop = pointer_handle_axis_stop,
+	.axis_discrete = pointer_handle_axis_discrete
+};
+
+static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t format, int32_t fd, uint32_t size) {
+
+}
+
+static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+
+}
+
+static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface) {
+
+}
+
+static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+
+}
+
+static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group) {
+
+}
+
+static void keyboard_handle_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
+	int32_t rate, int32_t delay) {
+
+}
+
+static struct wl_keyboard_listener keyboard_listener = {
+	.keymap = keyboard_handle_keymap,
+	.enter = keyboard_handle_enter,
+	.leave = keyboard_handle_leave,
+	.key = keyboard_handle_key,
+	.modifiers = keyboard_handle_modifiers,
+	.repeat_info = keyboard_handle_repeat_info
+};
+
+static void input_device_destroy(struct wlr_input_device_state *state) {
 	free(state);
 }
 
 static struct wlr_input_device_impl input_device_impl = {
-	.destroy = wlr_wl_device_destroy
+	.destroy = input_device_destroy
 };
 
 static struct wlr_input_device *allocate_device(struct wlr_backend_state *state,
@@ -49,7 +146,6 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	struct wlr_backend_state *state = data;
 	assert(state->seat == wl_seat);
 
-	// TODO: add listeners and receive input
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
 		wlr_log(L_DEBUG, "seat %p offered pointer", wl_seat);
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
