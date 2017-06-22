@@ -54,15 +54,6 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_end(sample->renderer);
 }
 
-static void handle_keyboard_key(struct keyboard_state *kbstate,
-		xkb_keysym_t sym, enum wlr_key_state key_state) {
-	if (sym == XKB_KEY_Escape) {
-		kbstate->compositor->exit = true;
-	} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
-		wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
-	}
-}
-
 static void handle_touch_down(struct touch_state *tstate, int32_t slot,
 		double x, double y, double width, double height) {
 	struct sample_state *sample = tstate->compositor->data;
@@ -104,7 +95,6 @@ int main(int argc, char *argv[]) {
 	struct compositor_state compositor = { 0,
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
-		.keyboard_key_cb = handle_keyboard_key,
 		.touch_down_cb = handle_touch_down,
 		.touch_up_cb = handle_touch_up,
 		.touch_motion_cb = handle_touch_motion,

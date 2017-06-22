@@ -107,9 +107,6 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 	// Also, key repeat
 	if (key_state == WLR_KEY_PRESSED) {
 		switch (sym) {
-		case XKB_KEY_Escape:
-			kbstate->compositor->exit = true;
-			break;
 		case XKB_KEY_Left:
 			update_velocities(kbstate->compositor, -16, 0);
 			break;
@@ -122,10 +119,6 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 		case XKB_KEY_Down:
 			update_velocities(kbstate->compositor, 0, 16);
 			break;
-		}
-
-		if (sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
-			wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
 		}
 	}
 }
