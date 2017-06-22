@@ -47,15 +47,6 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_end(sample->renderer);
 }
 
-static void handle_keyboard_key(struct keyboard_state *kbstate,
-		xkb_keysym_t sym, enum wlr_key_state key_state) {
-	if (sym == XKB_KEY_Escape) {
-		kbstate->compositor->exit = true;
-	} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
-		wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
-	}
-}
-
 static void handle_pointer_motion(struct pointer_state *pstate,
 		double d_x, double d_y) {
 	struct sample_state *state = pstate->compositor->data;
@@ -117,7 +108,6 @@ int main(int argc, char *argv[]) {
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor.pointer_motion_cb = handle_pointer_motion;
 	compositor.pointer_button_cb = handle_pointer_button;
 	compositor.pointer_axis_cb = handle_pointer_axis;

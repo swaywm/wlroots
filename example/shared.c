@@ -42,6 +42,11 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		if (kbstate->compositor->keyboard_key_cb) {
 			kbstate->compositor->keyboard_key_cb(kbstate, sym, key_state);
 		}
+		if (sym == XKB_KEY_Escape) {
+			wl_display_terminate(kbstate->compositor->display);
+		} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
+			wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
+		}
 	}
 	xkb_state_update_key(kbstate->xkb_state, keycode,
 		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
@@ -470,10 +475,7 @@ void compositor_init(struct compositor_state *state) {
 }
 
 void compositor_run(struct compositor_state *state) {
-	while (!state->exit) {
-		wl_event_loop_dispatch(state->event_loop, 0);
-	}
-
+	wl_display_run(state->display);
 	wlr_backend_destroy(state->backend);
 	wlr_session_finish(state->session);
 	wl_display_destroy(state->display);
