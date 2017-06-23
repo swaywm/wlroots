@@ -75,6 +75,6 @@ target_link_libraries(compositor
     wlr-backend
     wlr-session
     wlr-render
-    wlr-wlcore
+    wlr-wayland
     ${XKBCOMMON_LIBRARIES}
 )

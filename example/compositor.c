@@ -10,7 +10,7 @@
 #include <wlr/render.h>
 #include <wlr/render/gles2.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/wlcore/wl_shm.h>
+#include <wlr/wayland/wlr_compositor.h>
 #include <xkbcommon/xkbcommon.h>
 #include "shared.h"
 
@@ -37,7 +37,8 @@ int main() {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_init();
-	wlr_wl_shm_init(compositor.display);
+	wl_display_init_shm(compositor.display);
+	wlr_compositor_init(compositor.display);
 
 	compositor_run(&compositor);
 }
