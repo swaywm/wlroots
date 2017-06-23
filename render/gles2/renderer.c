@@ -142,7 +142,7 @@ static bool wlr_gles2_render_surface(struct wlr_renderer_state *state,
 	}
 	gles2_flush_errors();
 	wlr_surface_bind(surface);
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
 	draw_quad();
 	return true;
 }
