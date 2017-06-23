@@ -1,15 +1,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
-#include "render/gles3.h"
+#include "render/gles2.h"
 
-static bool gles3_surface_attach_pixels(struct wlr_surface_state *surface,
+static bool gles2_surface_attach_pixels(struct wlr_surface_state *surface,
 		uint32_t format, int width, int height, const unsigned char *pixels) {
 	assert(surface);
 	surface->wlr_surface->width = width;
@@ -23,7 +23,7 @@ static bool gles3_surface_attach_pixels(struct wlr_surface_state *surface,
 	return true;
 }
 
-static void gles3_surface_get_matrix(struct wlr_surface_state *surface,
+static void gles2_surface_get_matrix(struct wlr_surface_state *surface,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	struct wlr_surface *_surface = surface->wlr_surface;
 	float world[16];
@@ -35,27 +35,27 @@ static void gles3_surface_get_matrix(struct wlr_surface_state *surface,
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
-static void gles3_surface_bind(struct wlr_surface_state *surface) {
+static void gles2_surface_bind(struct wlr_surface_state *surface) {
 	GL_CALL(glActiveTexture(GL_TEXTURE0 + 1));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 }
 
-static void gles3_surface_destroy(struct wlr_surface_state *surface) {
+static void gles2_surface_destroy(struct wlr_surface_state *surface) {
 	GL_CALL(glDeleteTextures(1, &surface->tex_id));
 	free(surface);
 }
 
 static struct wlr_surface_impl wlr_surface_impl = {
-	.attach_pixels = gles3_surface_attach_pixels,
+	.attach_pixels = gles2_surface_attach_pixels,
 	// .attach_shm = TODO
-	.get_matrix = gles3_surface_get_matrix,
-	.bind = gles3_surface_bind,
-	.destroy = gles3_surface_destroy,
+	.get_matrix = gles2_surface_get_matrix,
+	.bind = gles2_surface_bind,
+	.destroy = gles2_surface_destroy,
 };
 
-struct wlr_surface *gles3_surface_init() {
+struct wlr_surface *gles2_surface_init() {
 	struct wlr_surface_state *state = calloc(sizeof(struct wlr_surface_state), 1);
 	struct wlr_surface *surface = wlr_surface_init(state, &wlr_surface_impl);
 	state->wlr_surface = surface;

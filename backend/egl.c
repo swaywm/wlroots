@@ -136,7 +136,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display) {
 		goto error;
 	}
 
-	static const EGLint attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+	static const EGLint attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
 
 	egl->context = eglCreateContext(egl->display, egl->config,
 		EGL_NO_CONTEXT, attribs);

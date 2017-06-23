@@ -2,8 +2,8 @@ add_library(wlr-render STATIC
 	matrix.c
     wlr_renderer.c
     wlr_surface.c
-    gles3/shaders.c
-    gles3/renderer.c
-    gles3/surface.c
-    gles3/util.c
+    gles2/shaders.c
+    gles2/renderer.c
+    gles2/surface.c
+    gles2/util.c
 )

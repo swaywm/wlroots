@@ -5,7 +5,7 @@
 #include <time.h>
 #include <inttypes.h>
 #include <wayland-server.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
 #include <wlr/types/wlr_output.h>

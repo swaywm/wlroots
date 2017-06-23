@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
 #include <wlr/util/log.h>
-#include "render/gles3.h"
+#include "render/gles2.h"
 
-const char *gles3_strerror(GLenum err) {
+const char *gles2_strerror(GLenum err) {
 	switch (err) {
 	case GL_INVALID_ENUM:
 		return "Invalid enum";
@@ -21,7 +21,7 @@ const char *gles3_strerror(GLenum err) {
 	}
 }
 
-bool _gles3_flush_errors(const char *file, int line) {
+bool _gles2_flush_errors(const char *file, int line) {
 	GLenum err;
 	bool failure = false;
 	while ((err = glGetError()) != GL_NO_ERROR) {
@@ -31,7 +31,7 @@ bool _gles3_flush_errors(const char *file, int line) {
 			_wlr_log(L_ERROR, "[%s:%d] Fatal GL error: out of memory", file, line);
 			exit(1);
 		} else {
-			_wlr_log(L_ERROR, "[%s:%d] GL error %d %s", file, line, err, gles3_strerror(err));
+			_wlr_log(L_ERROR, "[%s:%d] GL error %d %s", file, line, err, gles2_strerror(err));
 		}
 	}
 	return failure;

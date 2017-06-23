@@ -8,9 +8,9 @@
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>
-#include <wlr/render/gles3.h>
+#include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/session.h>
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles3_renderer_init();
+	state.renderer = wlr_gles2_renderer_init();
 
 	compositor_run(&compositor);
 
