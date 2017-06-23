@@ -32,8 +32,9 @@ struct wlr_renderer *wlr_renderer_init(struct wlr_renderer_state *state,
 		struct wlr_renderer_impl *impl);
 
 struct wlr_surface_impl {
-	bool (*attach_pixels)(struct wlr_surface_state *state, uint32_t format,
-		int width, int height, const unsigned char *pixels);
+	bool (*attach_pixels)(struct wlr_surface_state *state,
+		enum wl_shm_format format, int width, int height,
+		const unsigned char *pixels);
 	bool (*attach_shm)(struct wlr_surface_state *state, uint32_t format,
 		struct wl_shm_buffer *shm);
 	// TODO: egl

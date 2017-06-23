@@ -10,12 +10,7 @@
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 
-static struct {
-	bool initialized;
-	GLuint rgb, rgba;
-	GLuint quad;
-	GLuint ellipse;
-} shaders;
+struct shaders shaders;
 
 static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
 	*shader = GL_CALL(glCreateShader(type));
@@ -58,10 +53,10 @@ static void init_default_shaders() {
 	if (shaders.initialized) {
 		return;
 	}
-	if (!compile_program(vertex_src, fragment_src_RGB, &shaders.rgb)) {
+	if (!compile_program(vertex_src, fragment_src_rgba, &shaders.rgba)) {
 		goto error;
 	}
-	if (!compile_program(vertex_src, fragment_src_RGBA, &shaders.rgba)) {
+	if (!compile_program(vertex_src, fragment_src_rgbx, &shaders.rgbx)) {
 		goto error;
 	}
 	if (!compile_program(quad_vertex_src, quad_fragment_src, &shaders.quad)) {
@@ -129,21 +124,10 @@ static void draw_quad() {
 static bool wlr_gles2_render_surface(struct wlr_renderer_state *state,
 		struct wlr_surface *surface, const float (*matrix)[16]) {
 	assert(surface && surface->valid);
-	// TODO: Convert GL formats to WL_SHM formats
-	switch (surface->format) {
-	case GL_RGB:
-		GL_CALL(glUseProgram(shaders.rgb));
-		break;
-	case GL_RGBA:
-		GL_CALL(glUseProgram(shaders.rgba));
-		break;
-	default:
-		wlr_log(L_ERROR, "No shader for this surface format");
-		return false;
-	}
-	gles2_flush_errors();
 	wlr_surface_bind(surface);
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
+	// TODO: source alpha from somewhere else I guess
+	GL_CALL(glUniform1f(2, 1.0f));
 	draw_quad();
 	return true;
 }
@@ -169,6 +153,8 @@ static const enum wl_shm_format *wlr_gles2_formats(
 	static enum wl_shm_format formats[] = {
 		WL_SHM_FORMAT_ARGB8888,
 		WL_SHM_FORMAT_XRGB8888,
+		WL_SHM_FORMAT_ABGR8888,
+		WL_SHM_FORMAT_XBGR8888,
 	};
 	*len = sizeof(formats) / sizeof(formats[0]);
 	return formats;

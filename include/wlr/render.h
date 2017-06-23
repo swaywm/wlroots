@@ -63,8 +63,9 @@ struct wlr_surface {
  * Attaches a pixel buffer to this surface. The buffer may be discarded after
  * calling this function.
  */
-bool wlr_surface_attach_pixels(struct wlr_surface *surf, uint32_t format,
-		int width, int height, const unsigned char *pixels);
+bool wlr_surface_attach_pixels(struct wlr_surface *surf,
+		enum wl_shm_format format, int width, int height,
+		const unsigned char *pixels);
 /**
  * Attaches pixels from a wl_shm_buffer to this surface. The shm buffer may be
  * invalidated after calling this function.

@@ -7,18 +7,26 @@
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
+#include <wlr/util/log.h>
 #include "render/gles2.h"
 
 static bool gles2_surface_attach_pixels(struct wlr_surface_state *surface,
-		uint32_t format, int width, int height, const unsigned char *pixels) {
+		enum wl_shm_format format, int width, int height,
+		const unsigned char *pixels) {
 	assert(surface);
+	const struct pixel_format *fmt = gl_format_for_wl_format(format);
+	if (!fmt || !fmt->gl_format) {
+		wlr_log(L_ERROR, "No supported pixel format for this surface");
+		return false;
+	}
 	surface->wlr_surface->width = width;
 	surface->wlr_surface->height = height;
 	surface->wlr_surface->format = format;
+	surface->pixel_format = fmt;
 	GL_CALL(glGenTextures(1, &surface->tex_id));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
-	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0,
-			format, GL_UNSIGNED_BYTE, pixels));
+	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
+			fmt->gl_format, fmt->gl_type, pixels));
 	surface->wlr_surface->valid = true;
 	return true;
 }
@@ -40,6 +48,7 @@ static void gles2_surface_bind(struct wlr_surface_state *surface) {
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+	GL_CALL(glUseProgram(*surface->pixel_format->shader));
 }
 
 static void gles2_surface_destroy(struct wlr_surface_state *surface) {

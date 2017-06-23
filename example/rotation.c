@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
 
 	state.renderer = wlr_gles2_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
+	wlr_surface_attach_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	compositor_run(&compositor);

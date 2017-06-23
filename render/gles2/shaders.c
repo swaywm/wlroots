@@ -20,7 +20,6 @@ const GLchar quad_vertex_src[] =
 "                 vec4(i0.z, i1.z, i2.z, i3.z),"
 "                 vec4(i0.w, i1.w, i2.w, i3.w)"
 "                 );"
-""
 "    return outMatrix;"
 "}"
 "void main() {"
@@ -37,8 +36,7 @@ const GLchar quad_fragment_src[] =
 "  gl_FragColor = v_color;"
 "}";
 
-// Colored ellipses (TODO)
-
+// Colored ellipses
 const GLchar ellipse_fragment_src[] =
 "precision mediump float;"
 "varying vec4 v_color;"
@@ -74,18 +72,21 @@ const GLchar vertex_src[] =
 "	v_texcoord = texcoord;"
 "}";
 
-const GLchar fragment_src_RGB[] =
+const GLchar fragment_src_rgba[] =
 "precision mediump float;"
 "varying vec2 v_texcoord;"
 "uniform sampler2D tex;"
+"uniform float alpha;"
 "void main() {"
-"	gl_FragColor = vec4(texture2D(tex, v_texcoord).rgb, 1.0);"
+"	gl_FragColor = alpha * texture2D(tex, v_texcoord);"
 "}";
 
-const GLchar fragment_src_RGBA[] =
+const GLchar fragment_src_rgbx[] =
 "precision mediump float;"
 "varying vec2 v_texcoord;"
 "uniform sampler2D tex;"
+"uniform float alpha;"
 "void main() {"
-"	gl_FragColor = texture2D(tex, v_texcoord);"
+"   gl_FragColor.rgb = alpha * texture2D(tex, v_texcoord).rgb;"
+"   gl_FragColor.a = alpha;"
 "}";
