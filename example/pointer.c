@@ -38,11 +38,9 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 			sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	float matrix[16];
-	wlr_surface_get_matrix(sample->cat_texture, &matrix,
-		&wlr_output->transform_matrix, sample->cur_x, sample->cur_y);
-	wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix);
+	if (!wlr_output_move_cursor(wlr_output, sample->cur_x, sample->cur_y)) {
+		wlr_log(L_DEBUG, "Failed to move hardware cursor");
+	}
 
 	wlr_renderer_end(sample->renderer);
 }
@@ -95,7 +93,7 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 
 static void handle_output_add(struct output_state *ostate) {
 	struct wlr_output *wlr_output = ostate->output;
-	int width = 16, height = 16;
+	int width = 128, height = 128;
 	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
 			width * 4, width, height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
