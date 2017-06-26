@@ -21,9 +21,7 @@
 #include "cat.h"
 
 struct sample_state {
-	struct wlr_renderer *renderer;
-	struct wlr_surface *cat_texture;
-	int cur_x, cur_y;
+	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
 };
@@ -33,18 +31,13 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_output_make_current(wlr_output);
+
 	glClearColor(sample->clear_color[0], sample->clear_color[1],
 			sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	float matrix[16];
-	wlr_surface_get_matrix(sample->cat_texture, &matrix,
-		&wlr_output->transform_matrix, sample->cur_x, sample->cur_y);
-	wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix);
-
-	wlr_renderer_end(sample->renderer);
+	wlr_output_swap_buffers(wlr_output);
 }
 
 static void handle_pointer_motion(struct pointer_state *pstate,
@@ -52,6 +45,11 @@ static void handle_pointer_motion(struct pointer_state *pstate,
 	struct sample_state *state = pstate->compositor->data;
 	state->cur_x += d_x;
 	state->cur_y += d_y;
+
+	struct output_state *output;
+	wl_list_for_each(output, &pstate->compositor->outputs, link) {
+		wlr_output_move_cursor(output->output, state->cur_x, state->cur_y);
+	}
 }
 
 static void handle_pointer_motion_absolute(struct pointer_state *pstate,
@@ -59,6 +57,11 @@ static void handle_pointer_motion_absolute(struct pointer_state *pstate,
 	struct sample_state *state = pstate->compositor->data;
 	state->cur_x = x;
 	state->cur_y = y;
+
+	struct output_state *output;
+	wl_list_for_each(output, &pstate->compositor->outputs, link) {
+		wlr_output_move_cursor(output->output, state->cur_x, state->cur_y);
+	}
 }
 
 static void handle_pointer_button(struct pointer_state *pstate,
@@ -95,9 +98,8 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 
 static void handle_output_add(struct output_state *ostate) {
 	struct wlr_output *wlr_output = ostate->output;
-	int width = 16, height = 16;
 	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
-			width * 4, width, height)) {
+			cat_tex.width, cat_tex.width, cat_tex.height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
 		return;
 	}
@@ -121,13 +123,5 @@ int main(int argc, char *argv[]) {
 	compositor.pointer_axis_cb = handle_pointer_axis;
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init();
-	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
-		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
-
 	compositor_run(&compositor);
-
-	wlr_surface_destroy(state.cat_texture);
-	wlr_renderer_destroy(state.renderer);
 }

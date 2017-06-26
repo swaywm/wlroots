@@ -13,6 +13,8 @@ struct wlr_output_impl {
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height);
 	bool (*move_cursor)(struct wlr_output_state *state, int x, int y);
 	void (*destroy)(struct wlr_output_state *state);
+	void (*make_current)(struct wlr_output_state *state);
+	void (*swap_buffers)(struct wlr_output_state *state);
 };
 
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,

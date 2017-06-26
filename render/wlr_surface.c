@@ -20,9 +20,9 @@ void wlr_surface_bind(struct wlr_surface *surface) {
 }
 
 bool wlr_surface_attach_pixels(struct wlr_surface *surface, uint32_t format,
-		int width, int height, const unsigned char *pixels) {
+		int stride, int width, int height, const unsigned char *pixels) {
 	return surface->impl->attach_pixels(surface->state,
-			format, width, height, pixels);
+			format, stride, width, height, pixels);
 }
 
 bool wlr_surface_attach_shm(struct wlr_surface *surface, uint32_t format,

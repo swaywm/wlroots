@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render.h>
@@ -10,15 +11,17 @@
 #include "render/gles2.h"
 
 static bool gles2_surface_attach_pixels(struct wlr_surface_state *surface,
-		uint32_t format, int width, int height, const unsigned char *pixels) {
+		uint32_t format, int stride, int width, int height, const unsigned char *pixels) {
 	assert(surface);
 	surface->wlr_surface->width = width;
 	surface->wlr_surface->height = height;
 	surface->wlr_surface->format = format;
 	GL_CALL(glGenTextures(1, &surface->tex_id));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
+	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride));
 	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0,
 			format, GL_UNSIGNED_BYTE, pixels));
+	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0));
 	surface->wlr_surface->valid = true;
 	return true;
 }

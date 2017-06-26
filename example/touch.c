@@ -38,6 +38,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
+
+	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	float matrix[16];
@@ -52,6 +54,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 
 	wlr_renderer_end(sample->renderer);
+	wlr_output_swap_buffers(wlr_output);
 }
 
 static void handle_touch_down(struct touch_state *tstate, int32_t slot,
@@ -104,7 +107,7 @@ int main(int argc, char *argv[]) {
 	state.renderer = wlr_gles2_renderer_init();
 	state.cat_texture = wlr_render_surface_init(state.renderer);
 	wlr_surface_attach_pixels(state.cat_texture, GL_RGBA,
-		cat_tex.width, cat_tex.height, cat_tex.pixel_data);
+		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	compositor_run(&compositor);
 

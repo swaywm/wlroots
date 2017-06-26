@@ -92,13 +92,13 @@ static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo) {
 	return *id;
 }
 
-static void wlr_drm_output_begin(struct wlr_output_state *output) {
+static void wlr_drm_output_make_current(struct wlr_output_state *output) {
 	struct wlr_drm_renderer *renderer = output->renderer;
 	eglMakeCurrent(renderer->egl.display, output->egl,
 			output->egl, renderer->egl.context);
 }
 
-static void wlr_drm_output_end(struct wlr_output_state *output) {
+static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
 	struct wlr_drm_renderer *renderer = output->renderer;
 
 	if (!eglSwapBuffers(renderer->egl.display, output->egl)) {
@@ -207,10 +207,10 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 			DRM_MODE_DPMS_ON);
 
 		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_begin(output);
+		wlr_drm_output_make_current(output);
 		glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_end(output);
+		wlr_drm_output_swap_buffers(output);
 	} else {
 		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
 			DRM_MODE_DPMS_STANDBY);
@@ -342,8 +342,13 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		wlr_log(L_ERROR, "Failed to write cursor to bo");
 		return false;
 	}
-	return !drmModeSetCursor(state->fd, output->crtc,
-			gbm_bo_get_handle(bo).s32, width, height);
+
+	if (drmModeSetCursor(state->fd, output->crtc, gbm_bo_get_handle(bo).u32, width, height)) {
+		wlr_log_errno(L_INFO, "Failed to set hardware cursor");
+		return false;
+	}
+
+	return true;
 }
 
 static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
@@ -365,6 +370,8 @@ static struct wlr_output_impl output_impl = {
 	.set_cursor = wlr_drm_output_set_cursor,
 	.move_cursor = wlr_drm_output_move_cursor,
 	.destroy = wlr_drm_output_destroy,
+	.make_current = wlr_drm_output_make_current,
+	.swap_buffers = wlr_drm_output_swap_buffers,
 };
 
 static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
@@ -625,9 +632,7 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	output->pageflip_pending = false;
 	if (output->state == DRM_OUTPUT_CONNECTED && state->session->active) {
-		wlr_drm_output_begin(output);
 		wl_signal_emit(&output->wlr_output->events.frame, output->wlr_output);
-		wlr_drm_output_end(output);
 	}
 }
 
