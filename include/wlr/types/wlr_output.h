@@ -42,6 +42,14 @@ struct wlr_output {
 		struct wl_signal frame;
 		struct wl_signal resolution;
 	} events;
+
+	struct {
+		bool is_sw;
+		int32_t x, y;
+		uint32_t width, height;
+		struct wlr_renderer *renderer;
+		struct wlr_surface *texture;
+	} cursor;
 };
 
 void wlr_output_enable(struct wlr_output *output, bool enable);
@@ -55,5 +63,7 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height);
+void wlr_output_make_current(struct wlr_output *output);
+void wlr_output_swap_buffers(struct wlr_output *output);
 
 #endif

@@ -15,5 +15,6 @@ add_library(wlr-types
 
 target_link_libraries(wlr-types
     wlr-util
+    wlr-render
     ${WAYLAND_LIBRARIES}
 )

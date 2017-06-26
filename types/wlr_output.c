@@ -7,6 +7,10 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
+#include <GLES2/gl2.h>
+#include <wlr/render/matrix.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render.h>
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
@@ -182,16 +186,44 @@ void wlr_output_transform(struct wlr_output *output,
 
 bool wlr_output_set_cursor(struct wlr_output *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	if (!output->impl || !output->impl->set_cursor) {
-		return false;
+	if (output->impl->set_cursor && output->impl->set_cursor(output->state, buf,
+			stride, width, height)) {
+		output->cursor.is_sw = false;
+		return true;
 	}
-	return output->impl->set_cursor(output->state, buf, stride, width, height);
+
+	wlr_log(L_INFO, "Falling back to software cursor");
+
+	output->cursor.is_sw = true;
+	output->cursor.width = width;
+	output->cursor.height = height;
+
+	if (!output->cursor.renderer) {
+		output->cursor.renderer = wlr_gles2_renderer_init();
+	}
+
+	if (!output->cursor.texture) {
+		output->cursor.texture = wlr_render_surface_init(output->cursor.renderer);
+	}
+
+	wlr_surface_attach_pixels(output->cursor.texture, GL_RGBA,
+		stride, width, height, buf);
+
+	return true;
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
-	if (!output->impl || !output->impl->move_cursor) {
+	output->cursor.x = x;
+	output->cursor.y = y;
+
+	if (output->cursor.is_sw) {
+		return true;
+	}
+
+	if (!output->impl->move_cursor) {
 		return false;
 	}
+
 	return output->impl->move_cursor(output->state, x, y);
 }
 
@@ -215,4 +247,19 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 		*width = output->width;
 		*height = output->height;
 	}
+}
+
+void wlr_output_make_current(struct wlr_output *output) {
+	output->impl->make_current(output->state);
+}
+
+void wlr_output_swap_buffers(struct wlr_output *output) {
+	if (output->cursor.is_sw) {
+		float matrix[16];
+		wlr_surface_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
+			output->cursor.x, output->cursor.y);
+		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
+	}
+
+	output->impl->swap_buffers(output->state);
 }
