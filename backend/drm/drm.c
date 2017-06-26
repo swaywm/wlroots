@@ -296,54 +296,60 @@ static void wlr_drm_output_transform(struct wlr_output_state *output,
 	output->wlr_output->transform = transform;
 }
 
-static void wlr_drm_cursor_bo_update(struct wlr_output_state *output,
-		uint32_t width, uint32_t height) {
-	if (output->cursor_width == width && output->cursor_height == height) {
-		return;
-	}
-	wlr_log(L_DEBUG, "Allocating new cursor bos");
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
-	for (size_t i = 0; i < 2; ++i) {
-		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm,
-				width, height, GBM_FORMAT_ARGB8888,
-				GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
-		if (!output->cursor_bo[i]) {
-			wlr_log(L_ERROR, "Failed to create cursor bo");
-			return;
-		}
-		if (!get_fb_for_bo(state->fd, output->cursor_bo[i])) {
-			wlr_log(L_ERROR, "Failed to create cursor fb");
-			return;
-		}
-	}
-}
-
 static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *state = wl_container_of(output->renderer, state, renderer);
 	if (!buf) {
 		drmModeSetCursor(state->fd, output->crtc, 0, 0, 0);
 		return true;
 	}
-	wlr_drm_cursor_bo_update(output, width, height);
+
+	uint64_t bo_width, bo_height;
+	int ret;
+
+	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_WIDTH, &bo_width);
+	bo_width = ret ? 64 : bo_width;
+	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_HEIGHT, &bo_height);
+	bo_height = ret ? 64 : bo_height;
+
+	if (width > bo_width || height > bo_width) {
+		wlr_log(L_INFO, "Cursor too large");
+		return false;
+	}
+
+	for (int i = 0; i < 2; ++i) {
+		if (output->cursor_bo[i]) {
+			continue;
+		}
+
+		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm, bo_width, bo_height,
+			GBM_FORMAT_RGBA8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+
+		if (!output->cursor_bo[i]) {
+			wlr_log(L_ERROR, "Failed to create cursor bo");
+			return false;
+		}
+	}
+
 	struct gbm_bo *bo;
 	output->current_cursor ^= 1;
 	bo = output->cursor_bo[output->current_cursor];
-	uint32_t _buf[width * height];
-	memset(_buf, 0, sizeof(_buf));
+
+	uint32_t bo_stride = gbm_bo_get_stride(bo);
+	uint8_t tmp[bo_stride * height];
+	memset(tmp, 0, sizeof(tmp));
+
 	for (size_t i = 0; i < height; ++i) {
-		memcpy(_buf + i * width,
-				buf + i * stride,
-				width * 4);
+		memcpy(tmp + i * bo_stride, buf + i * stride * 4, width * 4);
 	}
-	if (gbm_bo_write(bo, _buf, sizeof(_buf)) < 0) {
+
+	if (gbm_bo_write(bo, tmp, sizeof(tmp)) < 0) {
 		wlr_log(L_ERROR, "Failed to write cursor to bo");
 		return false;
 	}
 
-	if (drmModeSetCursor(state->fd, output->crtc, gbm_bo_get_handle(bo).u32, width, height)) {
+	uint32_t bo_handle = gbm_bo_get_handle(bo).u32;
+	if (drmModeSetCursor(state->fd, output->crtc, bo_handle, bo_width, bo_height)) {
 		wlr_log_errno(L_INFO, "Failed to set hardware cursor");
 		return false;
 	}
