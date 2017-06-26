@@ -313,7 +313,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 	bo_height = ret ? 64 : bo_height;
 
 	if (width > bo_width || height > bo_width) {
-		wlr_log(L_INFO, "Cursor too large");
+		wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)bo_width, (int)bo_height);
 		return false;
 	}
 
