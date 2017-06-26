@@ -15,28 +15,33 @@ static void surface_frame_callback(void *data, struct wl_callback *cb, uint32_t 
 	struct wlr_output_state *output = data;
 	assert(output);
 
-	if (!eglMakeCurrent(output->backend->egl.display,
-		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-		return;
-	}
-
+	wlr_log(L_DEBUG, "frame_callback");
 	struct wlr_output *wlr_output = output->wlr_output;
 	wl_signal_emit(&wlr_output->events.frame, wlr_output);
-	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 	wl_callback_destroy(cb);
-
-	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		return;
-	}
 }
 
 static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
+
+static void wlr_wl_output_make_current(struct wlr_output_state *output) {
+	wlr_log(L_DEBUG, "make_current");
+	if (!eglMakeCurrent(output->backend->egl.display,
+		output->egl_surface, output->egl_surface,
+		output->backend->egl.context)) {
+		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+	}
+}
+
+static void wlr_wl_output_swap_buffers(struct wlr_output_state *output) {
+	wlr_log(L_DEBUG, "swap_buffers");
+	output->frame_callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
+	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
+		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+	}
+}
 
 static void wlr_wl_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
@@ -55,6 +60,8 @@ static void wlr_wl_output_destroy(struct wlr_output_state *output) {
 static struct wlr_output_impl output_impl = {
 	.transform = wlr_wl_output_transform,
 	.destroy = wlr_wl_output_destroy,
+	.make_current = wlr_wl_output_make_current,
+	.swap_buffers = wlr_wl_output_swap_buffers,
 };
 
 void handle_ping(void* data, struct wl_shell_surface* ssurface, uint32_t serial) {
