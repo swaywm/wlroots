@@ -63,4 +63,4 @@ add_subdirectory(session)
 add_subdirectory(render)
 add_subdirectory(util)
 
-add_subdirectory(example)
+add_subdirectory(examples)

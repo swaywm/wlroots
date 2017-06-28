@@ -67,7 +67,7 @@ target_link_libraries(tablet
 )
 
 add_executable(compositor
-    compositor
+    compositor/main.c
     shared.c
 )
 
@@ -75,6 +75,5 @@ target_link_libraries(compositor
     wlr-backend
     wlr-session
     wlr-render
-    wlr-wayland
     ${XKBCOMMON_LIBRARIES}
 )
