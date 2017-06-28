@@ -68,6 +68,8 @@ target_link_libraries(tablet
 
 add_executable(compositor
     compositor/main.c
+    compositor/wl_compositor.c
+    compositor/wl_shell.c
     shared.c
 )
 

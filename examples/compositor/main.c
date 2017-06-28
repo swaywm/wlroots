@@ -12,9 +12,12 @@
 #include <wlr/types/wlr_output.h>
 #include <xkbcommon/xkbcommon.h>
 #include "shared.h"
+#include "compositor.h"
 
 struct sample_state {
 	struct wlr_renderer *renderer;
+	struct wl_compositor_state compositor;
+	struct wl_shell_state shell;
 };
 
 void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -37,6 +40,8 @@ int main() {
 
 	state.renderer = wlr_gles2_renderer_init();
 	wl_display_init_shm(compositor.display);
+	wl_compositor_init(compositor.display, &state.compositor);
+	wl_shell_init(compositor.display, &state.shell);
 
 	compositor_run(&compositor);
 }
