@@ -15,7 +15,6 @@ static void surface_frame_callback(void *data, struct wl_callback *cb, uint32_t 
 	struct wlr_output_state *output = data;
 	assert(output);
 
-	wlr_log(L_DEBUG, "frame_callback");
 	struct wlr_output *wlr_output = output->wlr_output;
 	wl_signal_emit(&wlr_output->events.frame, wlr_output);
 	wl_callback_destroy(cb);
@@ -26,7 +25,6 @@ static struct wl_callback_listener frame_listener = {
 };
 
 static void wlr_wl_output_make_current(struct wlr_output_state *output) {
-	wlr_log(L_DEBUG, "make_current");
 	if (!eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
@@ -35,7 +33,6 @@ static void wlr_wl_output_make_current(struct wlr_output_state *output) {
 }
 
 static void wlr_wl_output_swap_buffers(struct wlr_output_state *output) {
-	wlr_log(L_DEBUG, "swap_buffers");
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
