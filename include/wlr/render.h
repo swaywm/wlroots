@@ -39,6 +39,11 @@ void wlr_render_colored_quad(struct wlr_renderer *r,
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
 		const float (*color)[4], const float (*matrix)[16]);
 /**
+ * Returns a list of pixel formats supported by this renderer.
+ */
+const enum wl_shm_format *wlr_renderer_get_formats(
+		struct wlr_renderer *r, size_t *len);
+/**
  * Destroys this wlr_renderer. Surfaces must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
@@ -58,8 +63,9 @@ struct wlr_surface {
  * Attaches a pixel buffer to this surface. The buffer may be discarded after
  * calling this function.
  */
-bool wlr_surface_attach_pixels(struct wlr_surface *surf, uint32_t format,
-		int stride, int width, int height, const unsigned char *pixels);
+bool wlr_surface_attach_pixels(struct wlr_surface *surf,
+		enum wl_shm_format format, int stride, int width, int height,
+		const unsigned char *pixels);
 /**
  * Attaches pixels from a wl_shm_buffer to this surface. The shm buffer may be
  * invalidated after calling this function.

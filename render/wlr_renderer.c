@@ -41,3 +41,8 @@ void wlr_render_colored_ellipse(struct wlr_renderer *r,
 		const float (*color)[4], const float (*matrix)[16]) {
 	r->impl->render_ellipse(r->state, color, matrix);
 }
+
+const enum wl_shm_format *wlr_renderer_get_formats(
+		struct wlr_renderer *r, size_t *len) {
+	return r->impl->formats(r->state, len);
+}
