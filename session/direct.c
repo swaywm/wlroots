@@ -1,6 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
@@ -10,6 +12,8 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/capability.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 #include <linux/kd.h>
 #include <linux/major.h>
 #include <linux/vt.h>
@@ -31,32 +35,89 @@ struct direct_session {
 	int tty_fd;
 	int drm_fd;
 	int kb_mode;
+	int sock;
+	pid_t child;
 
 	struct wl_event_source *vt_source;
 };
+
+enum session_message_type {
+	SESSION_OPEN,
+	SESSION_SETMASTER,
+	SESSION_DROPMASTER,
+	SESSION_END,
+};
+
+struct session_message {
+	enum session_message_type type;
+	char path[60];
+};
+
+static int send_message(int sock, enum session_message_type type, const char *path) {
+	struct session_message msg = {
+		.type = type,
+	};
+	struct msghdr request = {
+		.msg_iov = &(struct iovec) {
+			.iov_base = &msg,
+			.iov_len = sizeof(msg),
+		},
+		.msg_iovlen = 1,
+	};
+
+	if (path) {
+		snprintf(msg.path, sizeof(msg.path), "%s", path);
+	}
+
+	sendmsg(sock, &request, 0);
+
+	int err = 0, fd = -1;
+	char control[CMSG_SPACE(sizeof(fd))] = {0};
+	struct msghdr reply = {
+		.msg_iov = &(struct iovec) {
+			.iov_base = &err,
+			.iov_len = sizeof(err),
+		},
+		.msg_iovlen = 1,
+		.msg_control = control,
+		.msg_controllen = sizeof(control),
+	};
+
+	recvmsg(sock, &reply, 0);
+
+	// The other types have no meaningful return value
+	if (type != SESSION_OPEN) {
+		return 0;
+	}
+
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&reply);
+	memcpy(&fd, CMSG_DATA(cmsg), sizeof(fd));
+
+	return err ? -err : fd;
+}
 
 static int direct_session_open(struct wlr_session *restrict base,
 		const char *restrict path) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	// These are the flags logind uses
-	int fd = open(path, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
-	if (fd == -1) {
-		wlr_log_errno(L_ERROR, "Cannot open %s", path);
+	struct stat st;
+	if (stat(path, &st)) {
 		return -errno;
 	}
 
-	struct stat st;
-	if (fstat(fd, &st) == 0 && major(st.st_rdev) == DRM_MAJOR) {
-		if (drmSetMaster(fd)) {
-			// Save errno, in case close() clobbers it
-			int e = errno;
-			wlr_log(L_ERROR, "Cannot become DRM master: %s%s", strerror(e),
-				e == EINVAL ? "; is another display server running?" : "");
-			close(fd);
-			return -e;
-		}
+	uint32_t maj = major(st.st_rdev);
+	if (maj != DRM_MAJOR && maj != INPUT_MAJOR) {
+		return -EINVAL;
+	}
 
+	int fd = send_message(session->sock, SESSION_OPEN, path);
+	if (fd < 0) {
+		wlr_log(L_ERROR, "Failed to open %s: %s%s", path, strerror(-fd),
+			fd == -EINVAL ? "; is another display server running?" : "");
+		return fd;
+	}
+
+	if (maj == DRM_MAJOR) {
 		session->drm_fd = fd;
 	}
 
@@ -67,7 +128,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
 	if (fd == session->drm_fd) {
-		drmDropMaster(fd);
+		send_message(session->sock, SESSION_DROPMASTER, NULL);
 		session->drm_fd = -1;
 	}
 
@@ -91,6 +152,10 @@ static void direct_session_finish(struct wlr_session *base) {
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
+	send_message(session->sock, SESSION_END, NULL);
+	close(session->sock);
+	wait(NULL);
+
 	wl_event_source_remove(session->vt_source);
 	close(session->tty_fd);
 	free(session);
@@ -102,11 +167,11 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wl_signal_emit(&session->base.session_signal, session);
-		drmDropMaster(session->drm_fd);
+		send_message(session->sock, SESSION_DROPMASTER, NULL);
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
-		drmSetMaster(session->drm_fd);
+		send_message(session->sock, SESSION_SETMASTER, NULL);
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}
@@ -184,6 +249,78 @@ error:
 	return false;
 }
 
+static void communicate(int sock) {
+	struct session_message msg;
+	struct msghdr hdr = {
+		.msg_iov = &(struct iovec) {
+			.iov_base = &msg,
+			.iov_len = sizeof(msg),
+		},
+		.msg_iovlen = 1,
+	};
+
+	int drm_fd = -1;
+
+	while (recvmsg(sock, &hdr, 0) >= 0 || errno == EINTR) {
+		switch (msg.type) {
+		case SESSION_OPEN:
+			errno = 0;
+			// These are the flags that logind use
+			int fd = open(msg.path, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
+			int e = errno;
+
+			struct stat st;
+			if (fstat(fd, &st) >= 0 && major(st.st_rdev) == DRM_MAJOR) {
+				if (drmSetMaster(fd)) {
+					close(fd);
+					fd = -1;
+					e = errno;
+				}
+
+				drm_fd = fd;
+			}
+
+			char control[CMSG_SPACE(sizeof(fd))] = {0};
+			struct msghdr reply = {
+				.msg_iov = &(struct iovec) {
+					.iov_base = &e,
+					.iov_len = sizeof(e),
+				},
+				.msg_iovlen = 1,
+				.msg_control = &control,
+				.msg_controllen = sizeof(control),
+			};
+			struct cmsghdr *cmsg = CMSG_FIRSTHDR(&reply);
+			cmsg->cmsg_level = SOL_SOCKET;
+			cmsg->cmsg_type = SCM_RIGHTS;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+			memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+
+			sendmsg(sock, &reply, 0);
+			break;
+		case SESSION_SETMASTER:
+			if (drm_fd != -1) {
+				drmSetMaster(drm_fd);
+			}
+
+			sendmsg(sock, &(struct msghdr){0}, 0);
+			break;
+		case SESSION_DROPMASTER:
+			if (drm_fd != -1) {
+				drmDropMaster(drm_fd);
+			}
+
+			sendmsg(sock, &(struct msghdr){0}, 0);
+			break;
+		case SESSION_END:
+			sendmsg(sock, &(struct msghdr){0}, 0);
+			return;
+		}
+	}
+
+
+}
+
 static struct wlr_session *direct_session_start(struct wl_display *disp) {
 	cap_t cap = cap_get_proc();
 	cap_flag_value_t val;
@@ -196,11 +333,35 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 
 	cap_free(cap);
 
-	struct direct_session *session = calloc(1, sizeof(*session));
-	if (!session) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+	int sock[2];
+	if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sock) < 0) {
+		wlr_log_errno(L_ERROR, "Failed to create socket pair");
 		return NULL;
 	}
+
+	pid_t pid = fork();
+	if (pid < 0) {
+		wlr_log_errno(L_ERROR, "Fork failed");
+		goto error_sock;
+	} else if (pid == 0) {
+		close(sock[0]);
+
+		communicate(sock[1]);
+
+		_Exit(0);
+	}
+
+	close(sock[1]);
+	sock[1] = -1;
+
+	struct direct_session *session = calloc(1, sizeof(*session));
+	if (!session) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		goto error_child;
+	}
+
+	session->child = pid;
+	session->sock = sock[0];
 
 	if (!setup_tty(session, disp)) {
 		goto error_session;
@@ -215,6 +376,12 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 
 error_session:
 	free(session);
+error_child:
+	send_message(sock[0], SESSION_END, NULL);
+	wait(NULL);
+error_sock:
+	close(sock[0]);
+	close(sock[1]);
 	return NULL;
 }
 
