@@ -1,5 +1,7 @@
 include_directories(
-	${WAYLAND_INCLUDE_DIR}
+    ${WAYLAND_INCLUDE_DIR}
+    ${DRM_INCLUDE_DIRS}
+    ${Libcap_INCLUDE_DIRS}
 )
 
 set(sources
@@ -10,6 +12,7 @@ set(sources
 set(libs
     wlr-util
     ${WAYLAND_LIBRARIES}
+    ${Libcap_LIBRARIES}
 )
 
 if (SYSTEMD_FOUND)
