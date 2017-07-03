@@ -38,16 +38,26 @@ struct direct_session {
 static int direct_session_open(struct wlr_session *restrict base,
 		const char *restrict path) {
 	struct direct_session *session = wl_container_of(base, session, base);
+
+	// These are the flags logind uses
 	int fd = open(path, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
 	if (fd == -1) {
-		wlr_log_errno(L_ERROR, "%s", path);
+		wlr_log_errno(L_ERROR, "Cannot open %s", path);
 		return -errno;
 	}
 
 	struct stat st;
 	if (fstat(fd, &st) == 0 && major(st.st_rdev) == DRM_MAJOR) {
+		if (drmSetMaster(fd)) {
+			// Save errno, in case close() clobbers it
+			int e = errno;
+			wlr_log(L_ERROR, "Cannot become DRM master: %s%s", strerror(e),
+				e == EINVAL ? "; is another display server running?" : "");
+			close(fd);
+			return -e;
+		}
+
 		session->drm_fd = fd;
-		drmSetMaster(fd);
 	}
 
 	return fd;
@@ -105,6 +115,7 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
+	// TODO: Change this to accept any TTY, instead of just the current one
 	session->tty_fd = dup(STDIN_FILENO);
 
 	struct stat st;
@@ -144,7 +155,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 	}
 
 	if (ioctl(session->tty_fd, KDSETMODE, KD_GRAPHICS)) {
-		wlr_log_errno(L_ERROR, "Failed to get graphics mode on tty");
+		wlr_log_errno(L_ERROR, "Failed to set graphics mode on tty");
 		goto error;
 	}
 
@@ -174,22 +185,22 @@ error:
 }
 
 static struct wlr_session *direct_session_start(struct wl_display *disp) {
-	struct direct_session *session = calloc(1, sizeof(*session));
-	if (!session) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return NULL;
-	}
-
 	cap_t cap = cap_get_proc();
 	cap_flag_value_t val;
 
 	if (!cap || cap_get_flag(cap, CAP_SYS_ADMIN, CAP_PERMITTED, &val) || val != CAP_SET) {
 		wlr_log(L_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
 		cap_free(cap);
-		goto error_session;
+		return NULL;
 	}
 
 	cap_free(cap);
+
+	struct direct_session *session = calloc(1, sizeof(*session));
+	if (!session) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		return NULL;
+	}
 
 	if (!setup_tty(session, disp)) {
 		goto error_session;
