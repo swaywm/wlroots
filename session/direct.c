@@ -321,17 +321,35 @@ static void communicate(int sock) {
 
 }
 
-static struct wlr_session *direct_session_start(struct wl_display *disp) {
+#ifdef HAS_LIBCAP
+static bool have_permissions(void) {
 	cap_t cap = cap_get_proc();
 	cap_flag_value_t val;
 
 	if (!cap || cap_get_flag(cap, CAP_SYS_ADMIN, CAP_PERMITTED, &val) || val != CAP_SET) {
 		wlr_log(L_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
 		cap_free(cap);
-		return NULL;
+		return false;
 	}
 
 	cap_free(cap);
+	return true;
+}
+#else
+static bool have_permissions(void) {
+	if (geteuid() != 0) {
+		wlr_log(L_ERROR, "Do not have root privileges; cannot become DRM master");
+		return false;
+	}
+
+	return true;
+}
+#endif
+
+static struct wlr_session *direct_session_start(struct wl_display *disp) {
+	if (!have_permissions()) {
+		return NULL;
+	}
 
 	int sock[2];
 	if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sock) < 0) {
