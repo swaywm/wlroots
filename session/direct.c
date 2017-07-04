@@ -2,7 +2,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
@@ -11,7 +10,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <sys/capability.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <linux/kd.h>
@@ -21,6 +19,9 @@
 #include <xf86drm.h>
 #include <wlr/session/interface.h>
 #include <wlr/util/log.h>
+#ifdef HAS_LIBCAP
+#include <sys/capability.h>
+#endif
 
 #ifndef KDSKBMUTE
 #define KDSKBMUTE	0x4B51
