@@ -33,9 +33,7 @@ void wlr_session_finish(struct wlr_session *session) {
 	session->impl->finish(session);
 };
 
-int wlr_session_open_file(struct wlr_session *restrict session,
-	const char *restrict path) {
-
+int wlr_session_open_file(struct wlr_session *session, const char *path) {
 	return session->impl->open(session, path);
 }
 
@@ -43,6 +41,6 @@ void wlr_session_close_file(struct wlr_session *session, int fd) {
 	session->impl->close(session, fd);
 }
 
-bool wlr_session_change_vt(struct wlr_session *session, int vt) {
+bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 	return session->impl->change_vt(session, vt);
 }

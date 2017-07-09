@@ -26,13 +26,9 @@ struct logind_session {
 
 	char *id;
 	char *path;
-	char *seat;
-
-	int drm_fd;
 };
 
-static int logind_take_device(struct wlr_session *restrict base,
-		const char *restrict path) {
+static int logind_take_device(struct wlr_session *base, const char *path) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
 	int ret;
@@ -72,7 +68,7 @@ static int logind_take_device(struct wlr_session *restrict base,
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->drm_fd = fd;
+		session->base.drm_fd = fd;
 	}
 
 error:
@@ -102,14 +98,14 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->drm_fd = -1;
+		session->base.drm_fd = -1;
 	}
 
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
 }
 
-static bool logind_change_vt(struct wlr_session *base, int vt) {
+static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
 	int ret;
@@ -187,7 +183,6 @@ static void logind_session_finish(struct wlr_session *base) {
 	sd_bus_unref(session->bus);
 	free(session->id);
 	free(session->path);
-	free(session->seat);
 	free(session);
 }
 
@@ -242,7 +237,7 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 	}
 
 	if (major == DRM_MAJOR) {
-		dup2(fd, session->drm_fd);
+		dup2(fd, session->base.drm_fd);
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}
@@ -305,11 +300,20 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 		goto error;
 	}
 
-	ret = sd_session_get_seat(session->id, &session->seat);
+	ret = sd_session_get_vt(session->id, &session->base.vtnr);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Session not running in virtual terminal");
+		goto error;
+	}
+
+	char *seat;
+	ret = sd_session_get_seat(session->id, &seat);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to get seat id: %s", strerror(-ret));
 		goto error;
 	}
+	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
+	free(seat);
 
 	const char *fmt = "/org/freedesktop/login1/session/%s";
 	int len = snprintf(NULL, 0, fmt, session->id);
@@ -345,7 +349,7 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 
 	wlr_log(L_INFO, "Successfully loaded logind session");
 
-	session->drm_fd = -1;
+	session->base.drm_fd = -1;
 	session->base.impl = &session_logind;
 	session->base.active = true;
 	wl_signal_init(&session->base.session_signal);
@@ -357,7 +361,6 @@ error_bus:
 error:
 	free(session->path);
 	free(session->id);
-	free(session->seat);
 	return NULL;
 }
 

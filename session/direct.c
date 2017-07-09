@@ -30,8 +30,7 @@ const struct session_impl session_direct;
 struct direct_session {
 	struct wlr_session base;
 	int tty_fd;
-	int drm_fd;
-	int kb_mode;
+	int old_kbmode;
 	int sock;
 	pid_t child;
 
@@ -93,8 +92,7 @@ static int send_message(int sock, enum session_message_type type, const char *pa
 	return err ? -err : fd;
 }
 
-static int direct_session_open(struct wlr_session *restrict base,
-		const char *restrict path) {
+static int direct_session_open(struct wlr_session *base, const char *path) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
 	struct stat st;
@@ -115,7 +113,7 @@ static int direct_session_open(struct wlr_session *restrict base,
 	}
 
 	if (maj == DRM_MAJOR) {
-		session->drm_fd = fd;
+		session->base.drm_fd = fd;
 	}
 
 	return fd;
@@ -124,17 +122,17 @@ static int direct_session_open(struct wlr_session *restrict base,
 static void direct_session_close(struct wlr_session *base, int fd) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	if (fd == session->drm_fd) {
+	if (fd == session->base.drm_fd) {
 		send_message(session->sock, SESSION_DROPMASTER, NULL);
-		session->drm_fd = -1;
+		session->base.drm_fd = -1;
 	}
 
 	close(fd);
 }
 
-static bool direct_change_vt(struct wlr_session *base, int vt) {
+static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	struct direct_session *session = wl_container_of(base, session, base);
-	return ioctl(session->tty_fd, VT_ACTIVATE, vt) == 0;
+	return ioctl(session->tty_fd, VT_ACTIVATE, (int)vt) == 0;
 }
 
 static void direct_session_finish(struct wlr_session *base) {
@@ -143,9 +141,15 @@ static void direct_session_finish(struct wlr_session *base) {
 		.mode = VT_AUTO,
 	};
 
-	ioctl(session->tty_fd, KDSKBMODE, session->kb_mode);
+	errno = 0;
+
+	ioctl(session->tty_fd, KDSKBMODE, session->old_kbmode);
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
+
+	if (errno) {
+		wlr_log(L_ERROR, "Failed to restore tty");
+	}
 
 	send_message(session->sock, SESSION_END, NULL);
 	close(session->sock);
@@ -175,8 +179,11 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	// TODO: Change this to accept any TTY, instead of just the current one
 	session->tty_fd = dup(STDIN_FILENO);
+	if (session->tty_fd == -1) {
+		wlr_log_errno(L_ERROR, "Cannot open tty");
+		return false;
+	}
 
 	struct stat st;
 	if (fstat(session->tty_fd, &st) == -1 || major(st.st_rdev) != TTY_MAJOR ||
@@ -185,9 +192,10 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
-	int ret;
+	int tty = minor(st.st_rdev);
+	int ret, kd_mode;
+	session->base.vtnr = tty;
 
-	int kd_mode;
 	ret = ioctl(session->tty_fd, KDGETMODE, &kd_mode);
 	if (ret) {
 		wlr_log_errno(L_ERROR, "Failed to get tty mode");
@@ -200,10 +208,10 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
-	ioctl(session->tty_fd, VT_ACTIVATE, minor(st.st_rdev));
-	ioctl(session->tty_fd, VT_WAITACTIVE, minor(st.st_rdev));
+	ioctl(session->tty_fd, VT_ACTIVATE, tty);
+	ioctl(session->tty_fd, VT_WAITACTIVE, tty);
 
-	if (ioctl(session->tty_fd, KDGKBMODE, &session->kb_mode)) {
+	if (ioctl(session->tty_fd, KDGKBMODE, &session->old_kbmode)) {
 		wlr_log_errno(L_ERROR, "Failed to read keyboard mode");
 		goto error;
 	}
@@ -311,8 +319,6 @@ static void communicate(int sock) {
 			return;
 		}
 	}
-
-
 }
 
 #ifdef HAS_LIBCAP
@@ -379,8 +385,16 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 		goto error_session;
 	}
 
+	// XXX: Is it okay to trust the environment like this?
+	const char *seat = getenv("XDG_SEAT");
+	if (!seat) {
+		seat = "seat0";
+	}
+
 	wlr_log(L_INFO, "Successfully loaded direct session");
 
+	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
+	session->base.drm_fd = -1;
 	session->base.impl = &session_direct;
 	session->base.active = true;
 	wl_signal_init(&session->base.session_signal);
