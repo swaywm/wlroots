@@ -65,7 +65,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		direct_ipc_dropmaster(session->sock);
+		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
 		session->base.drm_fd = -1;
 	} else if (major(st.st_rdev) == INPUT_MAJOR) {
 		ioctl(fd, EVIOCREVOKE, 0);
@@ -109,11 +109,11 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wl_signal_emit(&session->base.session_signal, session);
-		direct_ipc_dropmaster(session->sock);
+		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
-		direct_ipc_setmaster(session->sock);
+		direct_ipc_setmaster(session->sock, session->base.drm_fd);
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}

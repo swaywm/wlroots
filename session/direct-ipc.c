@@ -116,7 +116,7 @@ static void communicate(int sock) {
 	int drm_fd = -1;
 	bool running = true;
 
-	while (running && recv_msg(sock, NULL, &msg, sizeof(msg)) >= 0) {
+	while (running && recv_msg(sock, &drm_fd, &msg, sizeof(msg)) >= 0) {
 		switch (msg.type) {
 		case MSG_OPEN:
 			errno = 0;
@@ -140,29 +140,24 @@ static void communicate(int sock) {
 				goto error;
 			}
 
-			if (maj == DRM_MAJOR) {
-				if (drmSetMaster(fd)) {
-					ret = errno;
-				} else {
-					drm_fd = fd;
-				}
+			if (maj == DRM_MAJOR && drmSetMaster(fd)) {
+				ret = errno;
 			}
 error:
 			send_msg(sock, ret ? -1 : fd, &ret, sizeof(ret));
-
-			if (fd != drm_fd) {
-				close(fd);
-			}
+			close(fd);
 
 			break;
 
 		case MSG_SETMASTER:
 			drmSetMaster(drm_fd);
+			close(drm_fd);
 			send_msg(sock, -1, NULL, 0);
 			break;
 
 		case MSG_DROPMASTER:
 			drmDropMaster(drm_fd);
+			close(drm_fd);
 			send_msg(sock, -1, NULL, 0);
 			break;
 
@@ -173,7 +168,6 @@ error:
 		}
 	}
 
-	close(drm_fd);
 	close(sock);
 }
 
@@ -189,17 +183,17 @@ int direct_ipc_open(int sock, const char *path) {
 	return err ? -err : fd;
 }
 
-void direct_ipc_setmaster(int sock) {
+void direct_ipc_setmaster(int sock, int fd) {
 	struct msg msg = { .type = MSG_SETMASTER };
 
-	send_msg(sock, -1, &msg, sizeof(msg));
+	send_msg(sock, fd, &msg, sizeof(msg));
 	recv_msg(sock, NULL, NULL, 0);
 }
 
-void direct_ipc_dropmaster(int sock) {
+void direct_ipc_dropmaster(int sock, int fd) {
 	struct msg msg = { .type = MSG_DROPMASTER };
 
-	send_msg(sock, -1, &msg, sizeof(msg));
+	send_msg(sock, fd, &msg, sizeof(msg));
 	recv_msg(sock, NULL, NULL, 0);
 }
 
