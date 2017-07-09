@@ -23,10 +23,6 @@
 #include <sys/capability.h>
 #endif
 
-#ifndef KDSKBMUTE
-#define KDSKBMUTE	0x4B51
-#endif
-
 enum { DRM_MAJOR = 226 };
 
 const struct session_impl session_direct;
@@ -147,9 +143,7 @@ static void direct_session_finish(struct wlr_session *base) {
 		.mode = VT_AUTO,
 	};
 
-	if (ioctl(session->tty_fd, KDSKBMUTE, 0)) {
-		ioctl(session->tty_fd, KDSKBMODE, session->kb_mode);
-	}
+	ioctl(session->tty_fd, KDSKBMODE, session->kb_mode);
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
@@ -214,8 +208,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
-	if (ioctl(session->tty_fd, KDSKBMUTE, 1) &&
-			ioctl(session->tty_fd, KDSKBMODE, K_OFF)) {
+	if (ioctl(session->tty_fd, KDSKBMODE, K_OFF)) {
 		wlr_log_errno(L_ERROR, "Failed to set keyboard mode");
 		goto error;
 	}
