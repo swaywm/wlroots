@@ -6,6 +6,7 @@ include_directories(
 set(sources
     session.c
     direct.c
+    direct-ipc.c
 )
 
 set(libs

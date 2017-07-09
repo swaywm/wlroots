@@ -3,25 +3,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <string.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
 #include <linux/kd.h>
 #include <linux/major.h>
+#include <linux/input.h>
 #include <linux/vt.h>
 #include <wayland-server.h>
-#include <xf86drm.h>
 #include <wlr/session/interface.h>
 #include <wlr/util/log.h>
-#ifdef HAS_LIBCAP
-#include <sys/capability.h>
-#endif
+#include "session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };
 
@@ -37,82 +31,23 @@ struct direct_session {
 	struct wl_event_source *vt_source;
 };
 
-enum session_message_type {
-	SESSION_OPEN,
-	SESSION_SETMASTER,
-	SESSION_DROPMASTER,
-	SESSION_END,
-};
-
-struct session_message {
-	enum session_message_type type;
-	char path[60];
-};
-
-static int send_message(int sock, enum session_message_type type, const char *path) {
-	struct session_message msg = {
-		.type = type,
-	};
-	struct msghdr request = {
-		.msg_iov = &(struct iovec) {
-			.iov_base = &msg,
-			.iov_len = sizeof(msg),
-		},
-		.msg_iovlen = 1,
-	};
-
-	if (path) {
-		snprintf(msg.path, sizeof(msg.path), "%s", path);
-	}
-
-	sendmsg(sock, &request, 0);
-
-	int err = 0, fd = -1;
-	char control[CMSG_SPACE(sizeof(fd))] = {0};
-	struct msghdr reply = {
-		.msg_iov = &(struct iovec) {
-			.iov_base = &err,
-			.iov_len = sizeof(err),
-		},
-		.msg_iovlen = 1,
-		.msg_control = control,
-		.msg_controllen = sizeof(control),
-	};
-
-	recvmsg(sock, &reply, 0);
-
-	// The other types have no meaningful return value
-	if (type != SESSION_OPEN) {
-		return 0;
-	}
-
-	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&reply);
-	memcpy(&fd, CMSG_DATA(cmsg), sizeof(fd));
-
-	return err ? -err : fd;
-}
-
 static int direct_session_open(struct wlr_session *base, const char *path) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	struct stat st;
-	if (stat(path, &st)) {
-		return -errno;
-	}
-
-	uint32_t maj = major(st.st_rdev);
-	if (maj != DRM_MAJOR && maj != INPUT_MAJOR) {
-		return -EINVAL;
-	}
-
-	int fd = send_message(session->sock, SESSION_OPEN, path);
+	int fd = direct_ipc_open(session->sock, path);
 	if (fd < 0) {
 		wlr_log(L_ERROR, "Failed to open %s: %s%s", path, strerror(-fd),
 			fd == -EINVAL ? "; is another display server running?" : "");
 		return fd;
 	}
 
-	if (maj == DRM_MAJOR) {
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		close(fd);
+		return -errno;
+	}
+
+	if (major(st.st_rdev) == DRM_MAJOR) {
 		session->base.drm_fd = fd;
 	}
 
@@ -122,9 +57,18 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 static void direct_session_close(struct wlr_session *base, int fd) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	if (fd == session->base.drm_fd) {
-		send_message(session->sock, SESSION_DROPMASTER, NULL);
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		wlr_log_errno(L_ERROR, "Stat failed");
+		close(fd);
+		return;
+	}
+
+	if (major(st.st_rdev) == DRM_MAJOR) {
+		direct_ipc_dropmaster(session->sock);
 		session->base.drm_fd = -1;
+	} else if (major(st.st_rdev) == INPUT_MAJOR) {
+		ioctl(fd, EVIOCREVOKE, 0);
 	}
 
 	close(fd);
@@ -151,9 +95,8 @@ static void direct_session_finish(struct wlr_session *base) {
 		wlr_log(L_ERROR, "Failed to restore tty");
 	}
 
-	send_message(session->sock, SESSION_END, NULL);
+	direct_ipc_finish(session->sock, session->child);
 	close(session->sock);
-	wait(NULL);
 
 	wl_event_source_remove(session->vt_source);
 	close(session->tty_fd);
@@ -166,11 +109,11 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wl_signal_emit(&session->base.session_signal, session);
-		send_message(session->sock, SESSION_DROPMASTER, NULL);
+		direct_ipc_dropmaster(session->sock);
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
-		send_message(session->sock, SESSION_SETMASTER, NULL);
+		direct_ipc_setmaster(session->sock);
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}
@@ -179,24 +122,22 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	session->tty_fd = dup(STDIN_FILENO);
-	if (session->tty_fd == -1) {
+	int fd = dup(STDIN_FILENO);
+	if (fd == -1) {
 		wlr_log_errno(L_ERROR, "Cannot open tty");
 		return false;
 	}
 
 	struct stat st;
-	if (fstat(session->tty_fd, &st) == -1 || major(st.st_rdev) != TTY_MAJOR ||
-			minor(st.st_rdev) == 0) {
+	if (fstat(fd, &st) == -1 || major(st.st_rdev) != TTY_MAJOR || minor(st.st_rdev) == 0) {
 		wlr_log(L_ERROR, "Not running from a virtual terminal");
 		goto error;
 	}
 
 	int tty = minor(st.st_rdev);
-	int ret, kd_mode;
-	session->base.vtnr = tty;
+	int ret, kd_mode, old_kbmode;
 
-	ret = ioctl(session->tty_fd, KDGETMODE, &kd_mode);
+	ret = ioctl(fd, KDGETMODE, &kd_mode);
 	if (ret) {
 		wlr_log_errno(L_ERROR, "Failed to get tty mode");
 		goto error;
@@ -208,20 +149,20 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
-	ioctl(session->tty_fd, VT_ACTIVATE, tty);
-	ioctl(session->tty_fd, VT_WAITACTIVE, tty);
+	ioctl(fd, VT_ACTIVATE, tty);
+	ioctl(fd, VT_WAITACTIVE, tty);
 
-	if (ioctl(session->tty_fd, KDGKBMODE, &session->old_kbmode)) {
+	if (ioctl(fd, KDGKBMODE, &old_kbmode)) {
 		wlr_log_errno(L_ERROR, "Failed to read keyboard mode");
 		goto error;
 	}
 
-	if (ioctl(session->tty_fd, KDSKBMODE, K_OFF)) {
+	if (ioctl(fd, KDSKBMODE, K_OFF)) {
 		wlr_log_errno(L_ERROR, "Failed to set keyboard mode");
 		goto error;
 	}
 
-	if (ioctl(session->tty_fd, KDSETMODE, KD_GRAPHICS)) {
+	if (ioctl(fd, KDSETMODE, KD_GRAPHICS)) {
 		wlr_log_errno(L_ERROR, "Failed to set graphics mode on tty");
 		goto error;
 	}
@@ -232,7 +173,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		.acqsig = SIGUSR1,
 	};
 
-	if (ioctl(session->tty_fd, VT_SETMODE, &mode) < 0) {
+	if (ioctl(fd, VT_SETMODE, &mode) < 0) {
 		wlr_log(L_ERROR, "Failed to take control of tty");
 		goto error;
 	}
@@ -244,145 +185,31 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
+	session->base.vtnr = tty;
+	session->tty_fd = fd;
+	session->old_kbmode = old_kbmode;
+
 	return true;
 
 error:
-	close(session->tty_fd);
+	close(fd);
 	return false;
 }
 
-static void communicate(int sock) {
-	struct session_message msg;
-	struct msghdr hdr = {
-		.msg_iov = &(struct iovec) {
-			.iov_base = &msg,
-			.iov_len = sizeof(msg),
-		},
-		.msg_iovlen = 1,
-	};
-
-	int drm_fd = -1;
-
-	while (recvmsg(sock, &hdr, 0) >= 0 || errno == EINTR) {
-		switch (msg.type) {
-		case SESSION_OPEN:
-			errno = 0;
-			// These are the flags that logind use
-			int fd = open(msg.path, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
-			int e = errno;
-
-			struct stat st;
-			if (fstat(fd, &st) >= 0 && major(st.st_rdev) == DRM_MAJOR) {
-				if (drmSetMaster(fd)) {
-					close(fd);
-					fd = -1;
-					e = errno;
-				}
-
-				drm_fd = fd;
-			}
-
-			char control[CMSG_SPACE(sizeof(fd))] = {0};
-			struct msghdr reply = {
-				.msg_iov = &(struct iovec) {
-					.iov_base = &e,
-					.iov_len = sizeof(e),
-				},
-				.msg_iovlen = 1,
-				.msg_control = &control,
-				.msg_controllen = sizeof(control),
-			};
-			struct cmsghdr *cmsg = CMSG_FIRSTHDR(&reply);
-			cmsg->cmsg_level = SOL_SOCKET;
-			cmsg->cmsg_type = SCM_RIGHTS;
-			cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-			memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
-
-			sendmsg(sock, &reply, 0);
-			break;
-		case SESSION_SETMASTER:
-			if (drm_fd != -1) {
-				drmSetMaster(drm_fd);
-			}
-
-			sendmsg(sock, &(struct msghdr){0}, 0);
-			break;
-		case SESSION_DROPMASTER:
-			if (drm_fd != -1) {
-				drmDropMaster(drm_fd);
-			}
-
-			sendmsg(sock, &(struct msghdr){0}, 0);
-			break;
-		case SESSION_END:
-			sendmsg(sock, &(struct msghdr){0}, 0);
-			return;
-		}
-	}
-}
-
-#ifdef HAS_LIBCAP
-static bool have_permissions(void) {
-	cap_t cap = cap_get_proc();
-	cap_flag_value_t val;
-
-	if (!cap || cap_get_flag(cap, CAP_SYS_ADMIN, CAP_PERMITTED, &val) || val != CAP_SET) {
-		wlr_log(L_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
-		cap_free(cap);
-		return false;
-	}
-
-	cap_free(cap);
-	return true;
-}
-#else
-static bool have_permissions(void) {
-	if (geteuid() != 0) {
-		wlr_log(L_ERROR, "Do not have root privileges; cannot become DRM master");
-		return false;
-	}
-
-	return true;
-}
-#endif
-
 static struct wlr_session *direct_session_start(struct wl_display *disp) {
-	if (!have_permissions()) {
-		return NULL;
-	}
-
-	int sock[2];
-	if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sock) < 0) {
-		wlr_log_errno(L_ERROR, "Failed to create socket pair");
-		return NULL;
-	}
-
-	pid_t pid = fork();
-	if (pid < 0) {
-		wlr_log_errno(L_ERROR, "Fork failed");
-		goto error_sock;
-	} else if (pid == 0) {
-		close(sock[0]);
-
-		communicate(sock[1]);
-
-		_Exit(0);
-	}
-
-	close(sock[1]);
-	sock[1] = -1;
-
 	struct direct_session *session = calloc(1, sizeof(*session));
 	if (!session) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
-		goto error_child;
+		return NULL;
 	}
 
-	session->child = pid;
-	session->sock = sock[0];
+	session->sock = direct_ipc_start(&session->child);
+	if (session->sock == -1) {
+		goto error_session;
+	}
 
 	if (!setup_tty(session, disp)) {
-		goto error_session;
+		goto error_ipc;
 	}
 
 	// XXX: Is it okay to trust the environment like this?
@@ -400,14 +227,11 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 
+error_ipc:
+	direct_ipc_finish(session->sock, session->child);
+	close(session->sock);
 error_session:
 	free(session);
-error_child:
-	send_message(sock[0], SESSION_END, NULL);
-	wait(NULL);
-error_sock:
-	close(sock[0]);
-	close(sock[1]);
 	return NULL;
 }
 
