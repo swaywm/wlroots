@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <GLES2/gl2.h>
 #include <wlr/render.h>
+#include <wlr/util/log.h>
 
 struct pixel_format {
 	uint32_t wl_format;
@@ -41,7 +42,7 @@ extern const GLchar fragment_src_rgbx[];
 
 bool _gles2_flush_errors(const char *file, int line);
 #define gles2_flush_errors(...) \
-	_gles2_flush_errors(__FILE__ + strlen(WLR_SRC_DIR) + 1, __LINE__)
+	_gles2_flush_errors(_strip_path(__FILE__), __LINE__)
 
 #define GL_CALL(func) func; gles2_flush_errors()
 

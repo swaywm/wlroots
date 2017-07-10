@@ -192,7 +192,7 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 }
 
 int main(int argc, char *argv[]) {
-	struct sample_state state = { 0 };
+	struct sample_state state = {0};
 	wl_list_init(&state.config);
 	parse_args(argc, argv, &state.config);
 

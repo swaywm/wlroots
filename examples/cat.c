@@ -1,11 +1,8 @@
 /* GIMP RGBA C-Source image dump (cat.c) */
 
-const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char	 pixel_data[128 * 128 * 4 + 1];
-} cat_tex = {
+#include "cat.h"
+
+const struct gimp_texture cat_tex = {
   128, 128, 4,
   "[\227\017\377L\206\001\377M\212\002\377T\227\011\377V\231\010\377W\224\001\377[\222"
   "\001\377T\212\001\377P\211\001\377M\203\001\377P\212\001\377Q\217\001\377K\210\001\377"

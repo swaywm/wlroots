@@ -1,6 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -62,7 +64,7 @@ static void send_msg(int sock, int fd, void *buf, size_t buf_len) {
 			.cmsg_type = SCM_RIGHTS,
 			.cmsg_len = CMSG_LEN(sizeof(fd)),
 		};
-		*(int *)CMSG_DATA(cmsg) = fd;
+		memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
 	}
 
 	ssize_t ret;
@@ -93,7 +95,11 @@ static ssize_t recv_msg(int sock, int *fd_out, void *buf, size_t buf_len) {
 
 	if (fd_out) {
 		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msghdr);
-		*fd_out = cmsg ? *(int *)CMSG_DATA(cmsg) : -1;
+		if (cmsg) {
+			memcpy(fd_out, CMSG_DATA(cmsg), sizeof(*fd_out));
+		} else {
+			*fd_out = -1;
+		}
 	}
 
 	return ret;
