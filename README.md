@@ -8,7 +8,7 @@ WIP - [Status](https://github.com/SirCmpwn/wlroots/issues/9)
 
 Install dependencies:
 
-* cmake
+* meson
 * wayland
 * wayland-protocols
 * EGL
@@ -23,8 +23,6 @@ Install dependencies:
 
 Run these commands:
 
-    mkdir build
+    meson --buildtype=release build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make
-    sudo make install
+    ninja

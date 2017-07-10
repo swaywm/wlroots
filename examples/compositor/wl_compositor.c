@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
-#include "compositor.h"
+#include "../compositor.h"
 
 static void wl_compositor_create_surface(struct wl_client *client,
 			   struct wl_resource *resource, uint32_t id) {
