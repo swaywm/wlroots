@@ -466,6 +466,7 @@ void compositor_init(struct compositor_state *state) {
 	struct wlr_backend *wlr = wlr_backend_autocreate(
 			state->display, state->session);
 	if (!wlr) {
+		wlr_session_finish(state->session);
 		exit(1);
 	}
 	wl_signal_add(&wlr->events.input_add, &state->input_add);
@@ -477,10 +478,19 @@ void compositor_init(struct compositor_state *state) {
 	clock_gettime(CLOCK_MONOTONIC, &state->last_frame);
 
 	const char *socket = wl_display_add_socket_auto(state->display);
+	if (!socket) {
+		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
+		wlr_backend_destroy(wlr);
+		wlr_session_finish(state->session);
+		exit(1);
+	}
+
 	wlr_log(L_INFO, "Running compositor on wayland display '%s'", socket);
 	setenv("_WAYLAND_DISPLAY", socket, true);
 	if (!wlr_backend_init(state->backend)) {
 		wlr_log(L_ERROR, "Failed to initialize backend");
+		wlr_backend_destroy(wlr);
+		wlr_session_finish(state->session);
 		exit(1);
 	}
 }

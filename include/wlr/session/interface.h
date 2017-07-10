@@ -6,10 +6,9 @@
 struct session_impl {
 	struct wlr_session *(*start)(struct wl_display *disp);
 	void (*finish)(struct wlr_session *session);
-	int (*open)(struct wlr_session *restrict session,
-			const char *restrict path);
+	int (*open)(struct wlr_session *session, const char *path);
 	void (*close)(struct wlr_session *session, int fd);
-	bool (*change_vt)(struct wlr_session *session, int vt);
+	bool (*change_vt)(struct wlr_session *session, unsigned vt);
 };
 
 #endif
