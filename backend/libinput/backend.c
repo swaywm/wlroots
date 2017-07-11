@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/util/log.h>
 #include "backend/udev.h"

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdarg.h>
-#include <wlr/session.h>
-#include <wlr/session/interface.h>
+#include <wlr/backend/session.h>
+#include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 
 extern const struct session_impl session_logind;

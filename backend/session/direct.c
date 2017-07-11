@@ -13,9 +13,9 @@
 #include <linux/input.h>
 #include <linux/vt.h>
 #include <wayland-server.h>
-#include <wlr/session/interface.h>
+#include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include "session/direct-ipc.h"
+#include "backend/session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };
 

@@ -5,7 +5,7 @@
 #include <wlr/backend/multi.h>
 #include <wlr/backend/udev.h>
 #include <wlr/util/list.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 
 struct wlr_backend_state {
 	struct wlr_backend *backend;

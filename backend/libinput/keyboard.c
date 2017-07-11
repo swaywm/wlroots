@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/util/log.h>

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/udev.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 

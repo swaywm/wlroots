@@ -7,7 +7,7 @@
 #include <wayland-server.h>
 #include <xf86drm.h>
 #include <sys/stat.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
