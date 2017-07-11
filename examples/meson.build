@@ -1,5 +1,6 @@
 lib_shared = static_library('shared',
     ['shared.c', 'cat.c'],
+    link_with: lib_wlr,
     dependencies: dep_wlr)
 
 all_libs = [
