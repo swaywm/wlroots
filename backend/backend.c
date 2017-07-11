@@ -62,8 +62,7 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	return backend;
 }
 
-struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
-		struct wlr_session *session) {
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend;
 	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
 		backend = attempt_wl_backend(display);
@@ -71,43 +70,61 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 			return backend;
 		}
 	}
-	// Attempt DRM+libinput
-	struct wlr_udev *udev;
-	if (!(udev = wlr_udev_create(display))) {
-		wlr_log(L_ERROR, "Failed to start udev");
-		goto error;
+
+	if (getenv("DISPLAY")) {
+		// TODO: X11 backend
+		return NULL;
 	}
+
+	// Attempt DRM+libinput
+
+	struct wlr_session *session = wlr_session_start(display);
+	if (!session) {
+		wlr_log(L_ERROR, "Failed to start a DRM session");
+		return NULL;
+	}
+
+	struct wlr_udev *udev = wlr_udev_create(display);
+	if (!udev) {
+		wlr_log(L_ERROR, "Failed to start udev");
+		goto error_session;
+	}
+
 	int gpu = wlr_udev_find_gpu(udev, session);
 	if (gpu == -1) {
 		wlr_log(L_ERROR, "Failed to open DRM device");
 		goto error_udev;
 	}
-	backend = wlr_multi_backend_create();
+
+	backend = wlr_multi_backend_create(session, udev);
 	if (!backend) {
 		goto error_gpu;
 	}
-	struct wlr_backend *libinput =
-		wlr_libinput_backend_create(display, session, udev);
+
+	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session, udev);
 	if (!libinput) {
 		goto error_multi;
 	}
-	struct wlr_backend *drm =
-		wlr_drm_backend_create(display, session, udev, gpu);
+
+	struct wlr_backend *drm = wlr_drm_backend_create(display, session, udev, gpu);
 	if (!drm) {
 		goto error_libinput;
 	}
+
 	wlr_multi_backend_add(backend, libinput);
 	wlr_multi_backend_add(backend, drm);
 	return backend;
+
 error_libinput:
 	wlr_backend_destroy(libinput);
 error_multi:
 	wlr_backend_destroy(backend);
 error_gpu:
-	close(gpu);
+	wlr_session_close_file(session, gpu);
 error_udev:
 	wlr_udev_destroy(udev);
-error:
+error_session:
+	wlr_session_finish(session);
 	return NULL;
 }
 

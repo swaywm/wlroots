@@ -440,12 +440,6 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 void compositor_init(struct compositor_state *state) {
 	state->display = wl_display_create();
 	state->event_loop = wl_display_get_event_loop(state->display);
-	state->session = wlr_session_start(state->display);
-	if (!state->session
-			|| !state->display
-			|| !state->event_loop) {
-		exit(1);
-	}
 
 	wl_list_init(&state->keyboards);
 	wl_list_init(&state->pointers);
@@ -463,10 +457,8 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->output_remove.link);
 	state->output_remove.notify = output_remove_notify;
 
-	struct wlr_backend *wlr = wlr_backend_autocreate(
-			state->display, state->session);
+	struct wlr_backend *wlr = wlr_backend_autocreate(state->display);
 	if (!wlr) {
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 	wl_signal_add(&wlr->events.input_add, &state->input_add);
@@ -481,7 +473,6 @@ void compositor_init(struct compositor_state *state) {
 	if (!socket) {
 		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
 		wlr_backend_destroy(wlr);
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 
@@ -490,7 +481,6 @@ void compositor_init(struct compositor_state *state) {
 	if (!wlr_backend_init(state->backend)) {
 		wlr_log(L_ERROR, "Failed to initialize backend");
 		wlr_backend_destroy(wlr);
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 }
@@ -498,6 +488,5 @@ void compositor_init(struct compositor_state *state) {
 void compositor_run(struct compositor_state *state) {
 	wl_display_run(state->display);
 	wlr_backend_destroy(state->backend);
-	wlr_session_finish(state->session);
 	wl_display_destroy(state->display);
 }

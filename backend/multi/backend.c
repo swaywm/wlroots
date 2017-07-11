@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/udev.h>
+#include <wlr/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 
@@ -31,6 +33,8 @@ static void multi_backend_destroy(struct wlr_backend_state *state) {
 		free(sub);
 	}
 	list_free(state->backends);
+	wlr_session_finish(state->session);
+	wlr_udev_destroy(state->udev);
 	free(state);
 }
 
@@ -39,21 +43,26 @@ struct wlr_backend_impl backend_impl = {
 	.destroy = multi_backend_destroy
 };
 
-struct wlr_backend *wlr_multi_backend_create() {
+struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
+		struct wlr_udev *udev) {
 	struct wlr_backend_state *state =
 		calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
+
 	state->backends = list_create();
 	if (!state->backends) {
 		free(state);
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
+
 	struct wlr_backend *backend = wlr_backend_create(&backend_impl, state);
 	state->backend = backend;
+	state->session = session;
+	state->udev = udev;
 	return backend;
 }
 
