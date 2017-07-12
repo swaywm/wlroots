@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
-#include "compositor.h"
+#include "../compositor.h"
 
 void wl_shell_get_shell_surface(struct wl_client *client,
 				  struct wl_resource *resource, uint32_t id,
