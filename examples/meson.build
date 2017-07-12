@@ -8,21 +8,11 @@ all_libs = [
     lib_wlr,
 ]
 
-executable('simple', 'simple.c',
-    dependencies: dep_wlr,
-    link_with: all_libs)
-executable('rotation', 'rotation.c',
-    dependencies: dep_wlr,
-    link_with: all_libs)
-executable('pointer', 'pointer.c',
-    dependencies: dep_wlr,
-    link_with: all_libs)
-executable('touch', 'touch.c',
-    dependencies: dep_wlr,
-    link_with: all_libs)
-executable('tablet', 'tablet.c',
-    dependencies: dep_wlr,
-    link_with: all_libs)
+executable('simple', 'simple.c', link_with: all_libs)
+executable('rotation', 'rotation.c', link_with: all_libs)
+executable('pointer', 'pointer.c', link_with: all_libs)
+executable('touch', 'touch.c', link_with: all_libs)
+executable('tablet', 'tablet.c', link_with: all_libs)
 
 compositor_src = [
     'compositor/main.c',
@@ -30,6 +20,4 @@ compositor_src = [
     'compositor/wl_shell.c',
 ]
 
-executable('compositor', compositor_src,
-    dependencies: dep_wlr,
-    link_with: all_libs)
+executable('compositor', compositor_src, link_with: all_libs)
