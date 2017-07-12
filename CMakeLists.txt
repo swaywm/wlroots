@@ -10,6 +10,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wextra")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-field-initializers") # fuck off, clang
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-braces") # oh my god clang
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
 if (CMAKE_COMPILER_IS_GNUCC)
     if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 7.0)
