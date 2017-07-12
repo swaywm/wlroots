@@ -15,6 +15,10 @@ if (CMAKE_COMPILER_IS_GNUCC)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
     endif()
 endif()
+if (CMAKE_BUILD_TYPE MATCHES Release)
+    # Some variables are only used for assertions
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+endif()
 
 list(INSERT CMAKE_MODULE_PATH 0
 	${CMAKE_CURRENT_SOURCE_DIR}/CMake
