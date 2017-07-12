@@ -16,7 +16,6 @@
 
 #include "backend/egl.h"
 #include "backend/udev.h"
-#include "event.h"
 
 struct wlr_drm_renderer {
 	int fd;
