@@ -1,4 +1,4 @@
-# wlroots
+# wlroots [![](https://api.travis-ci.org/SirCmpwn/wlroots.svg)](https://travis-ci.org/SirCmpwn/wlroots)
 
 Pluggable, composable modules for building a Wayland compositor.
 

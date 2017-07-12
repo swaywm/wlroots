@@ -1,0 +1,23 @@
+sudo: required
+
+language: c
+
+compiler:
+  - gcc
+  - clang
+
+arch:
+  packages:
+    - cmake
+    - wayland
+    - wayland-protocols
+    - mesa
+    - libinput
+    - libxkbcommon
+    - libcap
+  script:
+    - "cmake -DCMAKE_BUILD_TYPE=Release ."
+    - "make"
+
+script:
+  - "curl -s https://raw.githubusercontent.com/mikkeloscar/arch-travis/master/arch-travis.sh | bash"
