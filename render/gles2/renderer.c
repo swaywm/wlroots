@@ -123,7 +123,11 @@ static void draw_quad() {
 
 static bool wlr_gles2_render_surface(struct wlr_renderer_state *state,
 		struct wlr_surface *surface, const float (*matrix)[16]) {
-	assert(surface && surface->valid);
+	if(!surface || !surface->valid) {
+		wlr_log(L_ERROR, "attempt to render invalid surface");
+		return false;
+	}
+
 	wlr_surface_bind(surface);
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
 	// TODO: source alpha from somewhere else I guess
