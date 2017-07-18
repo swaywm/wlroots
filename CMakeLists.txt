@@ -16,6 +16,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
     if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 7.0)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
     endif()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-lto-type-mismatch")
 endif()
 if (CMAKE_BUILD_TYPE MATCHES Release)
     # Some variables are only used for assertions
