@@ -26,7 +26,7 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
 	}
 	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
 		struct wlr_output_state *output = state->outputs->items[i];
-		wlr_output_destroy(output->wlr_output);
+		wlr_output_destroy(output->base);
 	}
 	wlr_udev_signal_remove(state->udev, &state->drm_invalidated);
 	wlr_drm_renderer_free(&state->renderer);
@@ -98,7 +98,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	state->backend = backend;
+	state->base = backend;
 	state->session = session;
 	state->udev = udev;
 	state->outputs = list_create();

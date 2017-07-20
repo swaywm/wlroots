@@ -44,6 +44,18 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *cursor;
 	
 	union wlr_drm_crtc_props props;
+
+	struct wl_list connectors;
+};
+
+struct wlr_drm_connector {
+	struct wlr_output *base;
+	uint32_t id;
+	struct wlr_drm_crtc *crtc;
+
+	union wlr_drm_connector_props props;
+
+	struct wl_list link;
 };
 
 struct wlr_drm_renderer {
@@ -56,6 +68,8 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
 struct wlr_backend_state {
+	struct wlr_backend *base;
+
 	int fd;
 	dev_t dev;
 
@@ -71,7 +85,6 @@ struct wlr_backend_state {
 	size_t num_cursor_planes;
 	struct wlr_drm_plane *cursor_planes;
 
-	struct wlr_backend *backend;
 	struct wl_display *display;
 	struct wl_event_source *drm_event;
 
@@ -87,9 +100,9 @@ struct wlr_backend_state {
 };
 
 enum wlr_drm_output_state {
-	DRM_OUTPUT_DISCONNECTED,
-	DRM_OUTPUT_NEEDS_MODESET,
-	DRM_OUTPUT_CONNECTED,
+	WLR_DRM_OUTPUT_DISCONNECTED,
+	WLR_DRM_OUTPUT_NEEDS_MODESET,
+	WLR_DRM_OUTPUT_CONNECTED,
 };
 
 struct wlr_output_mode_state {
@@ -98,13 +111,11 @@ struct wlr_output_mode_state {
 };
 
 struct wlr_output_state {
-	struct wlr_output *wlr_output;
+	struct wlr_output *base;
 	enum wlr_drm_output_state state;
 	uint32_t connector;
 
-	struct {
-		uint32_t dpms;
-	} props;
+	union wlr_drm_connector_props props;
 
 	uint32_t width;
 	uint32_t height;

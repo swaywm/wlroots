@@ -248,7 +248,7 @@ static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
 }
 
 void wlr_drm_output_pause_renderer(struct wlr_output_state *output) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
@@ -263,12 +263,12 @@ void wlr_drm_output_pause_renderer(struct wlr_output_state *output) {
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
 	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_output_mode *mode = output->wlr_output->current_mode;
+	struct wlr_output_mode *mode = output->base->current_mode;
 
 	// Render black frame
 	eglMakeCurrent(renderer->egl.display, output->egl, output->egl, renderer->egl.context);
@@ -293,19 +293,19 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 
 static bool display_init_renderer(struct wlr_drm_renderer *renderer,
 	struct wlr_output_state *output) {
-	struct wlr_output_mode *mode = output->wlr_output->current_mode;
+	struct wlr_output_mode *mode = output->base->current_mode;
 	output->renderer = renderer;
 	output->gbm = gbm_surface_create(renderer->gbm, mode->width,
 		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
 	if (!output->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->wlr_output->name,
+		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->base->name,
 			strerror(errno));
 		return false;
 	}
 
 	output->egl = wlr_egl_create_surface(&renderer->egl, output->gbm);
 	if (output->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->wlr_output->name);
+		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->base->name);
 		return false;
 	}
 
@@ -329,7 +329,7 @@ static int find_id(const void *item, const void *cmp_to) {
 static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
-	if (output->state != DRM_OUTPUT_CONNECTED) {
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
@@ -353,7 +353,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
 
-	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->wlr_output->name,
+	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->base->name,
 			mode->width, mode->height, mode->refresh);
 
 	drmModeConnector *conn = drmModeGetConnector(state->fd, output->connector);
@@ -363,7 +363,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	}
 
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(L_ERROR, "%s is not connected", output->wlr_output->name);
+		wlr_log(L_ERROR, "%s is not connected", output->base->name);
 		goto error;
 	}
 
@@ -398,18 +398,18 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	drmModeFreeResources(res);
 
 	if (!success) {
-		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->wlr_output->name);
+		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->base->name);
 		goto error;
 	}
 
-	output->state = DRM_OUTPUT_CONNECTED;
-	output->width = output->wlr_output->width = mode->width;
-	output->height = output->wlr_output->height = mode->height;
-	output->wlr_output->current_mode = mode;
-	wl_signal_emit(&output->wlr_output->events.resolution, output->wlr_output);
+	output->state = WLR_DRM_OUTPUT_CONNECTED;
+	output->width = output->base->width = mode->width;
+	output->height = output->base->height = mode->height;
+	output->base->current_mode = mode;
+	wl_signal_emit(&output->base->events.resolution, output->base);
 
 	if (!display_init_renderer(&state->renderer, output)) {
-		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->wlr_output->name);
+		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->base->name);
 		goto error;
 	}
 
@@ -424,7 +424,7 @@ error:
 
 static void wlr_drm_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
-	output->wlr_output->transform = transform;
+	output->base->transform = transform;
 }
 
 static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
@@ -533,7 +533,7 @@ static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
 }
 
 // Constructed from http://edid.tv/manufacturer
-const char *get_manufacturer(uint16_t id) {
+static const char *get_manufacturer(uint16_t id) {
 #define ID(a, b, c) ((a & 0x1f) << 10) | ((b & 0x1f) << 5) | (c & 0x1f)
 	switch (id) {
 	case ID('A', 'A', 'A'): return "Avolites Ltd";
@@ -590,8 +590,14 @@ const char *get_manufacturer(uint16_t id) {
 /* See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data for layout of EDID data.
  * We don't parse the EDID properly. We just expect to receive valid data.
  */
-static void parse_edid(struct wlr_output *restrict output, const uint8_t *restrict data) {
-	uint32_t id = (data[8] << 8) | data[9];
+static void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *data) {
+	if (!data || len < 128) {
+		snprintf(output->make, sizeof(output->make), "<Unknown>");
+		snprintf(output->model, sizeof(output->model), "<Unknown>");
+		return;
+	}
+
+	uint16_t id = (data[8] << 8) | data[9];
 	snprintf(output->make, sizeof(output->make), "%s", get_manufacturer(id));
 
 	output->phys_width = ((data[68] & 0xf0) << 4) | data[66];
@@ -613,121 +619,87 @@ static void parse_edid(struct wlr_output *restrict output, const uint8_t *restri
 	}
 }
 
-static void scan_property_ids(int fd, drmModeConnector *conn,
-		struct wlr_output_state *output) {
-	for (int i = 0; i < conn->count_props; ++i) {
-		drmModePropertyRes *prop = drmModeGetProperty(fd, conn->props[i]);
-		if (!prop) {
-			continue;
-		}
+static const int32_t subpixel_map[] = {
+	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_BGR] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR,
+	[DRM_MODE_SUBPIXEL_VERTICAL_RGB] = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB,
+	[DRM_MODE_SUBPIXEL_VERTICAL_BGR] = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR,
+	[DRM_MODE_SUBPIXEL_NONE] = WL_OUTPUT_SUBPIXEL_NONE,
+};
 
-		if (strcmp(prop->name, "DPMS") == 0) {
-			output->props.dpms = prop->prop_id;
-		} else if (strcmp(prop->name, "EDID") == 0) {
-			drmModePropertyBlobRes *edid = drmModeGetPropertyBlob(fd, conn->prop_values[i]);
-			if (!edid) {
-				drmModeFreeProperty(prop);
-				continue;
-			}
-
-			parse_edid(output->wlr_output, edid->data);
-
-			drmModeFreePropertyBlob(edid);
-		}
-
-		drmModeFreeProperty(prop);
-	}
-}
-
-void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
+void wlr_drm_scan_connectors(struct wlr_backend_state *drm) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
-	drmModeRes *res = drmModeGetResources(state->fd);
+	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
-		wlr_log(L_ERROR, "Failed to get DRM resources");
+		wlr_log_errno(L_ERROR, "Failed to get DRM resources");
 		return;
 	}
 
 	for (int i = 0; i < res->count_connectors; ++i) {
-		uint32_t id = res->connectors[i];
-
-		drmModeConnector *conn = drmModeGetConnector(state->fd, id);
+		drmModeConnector *conn = drmModeGetConnector(drm->fd,
+			res->connectors[i]);
 		if (!conn) {
-			wlr_log(L_ERROR, "Failed to get DRM connector");
+			wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
 
 		struct wlr_output_state *output;
-		struct wlr_output *wlr_output;
-		int index = list_seq_find(state->outputs, find_id, &id);
+		int index = list_seq_find(drm->outputs, find_id, &conn->connector_id);
 
 		if (index == -1) {
-			output = calloc(1, sizeof(struct wlr_output_state));
-			if (!state) {
+			output = calloc(1, sizeof(*output));
+			if (!output) {
+				wlr_log_errno(L_ERROR, "Allocation failed");
 				drmModeFreeConnector(conn);
-				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-				return;
-			}
-			wlr_output = output->wlr_output = wlr_output_create(&output_impl, output);
-			if (!wlr_output) {
-				drmModeFreeConnector(conn);
-				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-				return;
+				continue;
 			}
 
-			output->renderer = &state->renderer;
-			output->state = DRM_OUTPUT_DISCONNECTED;
-			output->connector = id;
-			// TODO: Populate more wlr_output fields
-			// TODO: Move this to wlr_output->name
-			snprintf(wlr_output->name, sizeof(wlr_output->name), "%s-%"PRIu32,
+			output->base = wlr_output_create(&output_impl, output);
+			if (!output->base) {
+				wlr_log_errno(L_ERROR, "Allocation failed");
+				drmModeFreeConnector(conn);
+				free(output);
+				continue;
+			}
+
+			output->renderer = &drm->renderer;
+			output->state = WLR_DRM_OUTPUT_DISCONNECTED;
+			output->connector = conn->connector_id;
+
+			drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd, conn->encoder_id);
+			if (curr_enc) {
+				output->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
+				drmModeFreeEncoder(curr_enc);
+			}
+
+			output->base->phys_width = conn->mmWidth;
+			output->base->phys_height = conn->mmHeight;
+			output->base->subpixel = subpixel_map[conn->subpixel];
+			snprintf(output->base->name, sizeof(output->base->name), "%s-%"PRIu32,
 				 conn_name[conn->connector_type],
 				 conn->connector_type_id);
-			wlr_output->phys_width = conn->mmWidth;
-			wlr_output->phys_height = conn->mmHeight;
-			switch (conn->subpixel) {
-			case DRM_MODE_SUBPIXEL_UNKNOWN:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_UNKNOWN;
-				break;
-			case DRM_MODE_SUBPIXEL_HORIZONTAL_RGB:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB;
-				break;
-			case DRM_MODE_SUBPIXEL_HORIZONTAL_BGR:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR;
-				break;
-			case DRM_MODE_SUBPIXEL_VERTICAL_RGB:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB;
-				break;
-			case DRM_MODE_SUBPIXEL_VERTICAL_BGR:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR;
-				break;
-			case DRM_MODE_SUBPIXEL_NONE:
-			default:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_NONE;
-				break;
-			}
 
-			drmModeEncoder *curr_enc = drmModeGetEncoder(state->fd, conn->encoder_id);
-			if (curr_enc) {
-				output->old_crtc = drmModeGetCrtc(state->fd, curr_enc->crtc_id);
-				free(curr_enc);
-			}
+			wlr_drm_get_connector_props(drm->fd, output->connector, &output->props);
 
-			scan_property_ids(state->fd, conn, output);
+			size_t edid_len = 0;
+			uint8_t *edid = wlr_drm_get_prop_blob(drm->fd, output->connector,
+				output->props.edid, &edid_len);
+			parse_edid(output->base, edid_len, edid);
+			free(edid);
 
-			wlr_output_create_global(wlr_output, state->display);
-			list_add(state->outputs, output);
-			wlr_log(L_INFO, "Found display '%s'", wlr_output->name);
+			wlr_output_create_global(output->base, drm->display);
+			list_add(drm->outputs, output);
+			wlr_log(L_INFO, "Found display '%s'", output->base->name);
 		} else {
-			output = state->outputs->items[index];
-			wlr_output = output->wlr_output;
+			output = drm->outputs->items[index];
 		}
 
-		// TODO: move state into wlr_output
-		if (output->state == DRM_OUTPUT_DISCONNECTED &&
-			conn->connection == DRM_MODE_CONNECTED) {
+		if (output->state == WLR_DRM_OUTPUT_DISCONNECTED &&
+				conn->connection == DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' connected", output->wlr_output->name);
+			wlr_log(L_INFO, "'%s' connected", output->base->name);
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < conn->count_modes; ++i) {
@@ -744,16 +716,16 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				wlr_log(L_INFO, "  %"PRId32"@%"PRId32"@%"PRId32,
 					mode->width, mode->height, mode->refresh);
 
-				list_add(wlr_output->modes, mode);
+				list_add(output->base->modes, mode);
 			}
 
-			output->state = DRM_OUTPUT_NEEDS_MODESET;
-			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->wlr_output->name);
-			wl_signal_emit(&state->backend->events.output_add, wlr_output);
-		} else if (output->state == DRM_OUTPUT_CONNECTED &&
-			conn->connection != DRM_MODE_CONNECTED) {
+			output->state = WLR_DRM_OUTPUT_NEEDS_MODESET;
+			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->base->name);
+			wl_signal_emit(&drm->base->events.output_add, output->base);
+		} else if (output->state == WLR_DRM_OUTPUT_CONNECTED &&
+				conn->connection != DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' disconnected", output->wlr_output->name);
+			wlr_log(L_INFO, "'%s' disconnected", output->base->name);
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -775,8 +747,8 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	output->pageflip_pending = false;
-	if (output->state == DRM_OUTPUT_CONNECTED && state->session->active) {
-		wl_signal_emit(&output->wlr_output->events.frame, output->wlr_output);
+	if (output->state == WLR_DRM_OUTPUT_CONNECTED && state->session->active) {
+		wl_signal_emit(&output->base->events.frame, output->base);
 	}
 }
 
@@ -815,8 +787,8 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 	struct wlr_backend_state *state = wl_container_of(renderer, state, renderer);
 
 	switch (output->state) {
-	case DRM_OUTPUT_CONNECTED:
-		output->state = DRM_OUTPUT_DISCONNECTED;
+	case WLR_DRM_OUTPUT_CONNECTED:
+		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 		if (restore) {
 			restore_output(output, renderer->fd);
 			restore = false;
@@ -826,15 +798,15 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 		output->egl = EGL_NO_SURFACE;
 		output->gbm = NULL;
 		/* Fallthrough */
-	case DRM_OUTPUT_NEEDS_MODESET:
-		output->state = DRM_OUTPUT_DISCONNECTED;
+	case WLR_DRM_OUTPUT_NEEDS_MODESET:
+		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 		if (restore) {
 			restore_output(output, renderer->fd);
 		}
-		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->wlr_output->name);
-		wl_signal_emit(&state->backend->events.output_remove, output->wlr_output);
+		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->base->name);
+		wl_signal_emit(&state->base->events.output_remove, output->base);
 		break;
-	case DRM_OUTPUT_DISCONNECTED:
+	case WLR_DRM_OUTPUT_DISCONNECTED:
 		break;
 	}
 }
