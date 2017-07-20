@@ -14,8 +14,37 @@
 #include <wlr/backend/drm.h>
 #include <wlr/util/list.h>
 
-#include "backend/egl.h"
-#include "backend/udev.h"
+#include <backend/egl.h>
+#include <backend/udev.h>
+#include "drm-properties.h"
+
+struct wlr_drm_plane {
+	uint32_t type;
+	uint32_t id;
+	uint32_t fb_id;
+
+	uint32_t possible_crtcs;
+
+	int32_t x, y;
+	uint32_t width, height;
+
+	struct gbm_surface *gbm;
+	EGLSurface egl;
+
+	struct gbm_bo *front;
+	struct gbm_bo *back;
+
+	union wlr_drm_plane_props props;
+};
+
+struct wlr_drm_crtc {
+	uint32_t id;
+	struct wlr_drm_plane *primary;
+	struct wlr_drm_plane *overlay;
+	struct wlr_drm_plane *cursor;
+	
+	union wlr_drm_crtc_props props;
+};
 
 struct wlr_drm_renderer {
 	int fd;
@@ -29,6 +58,18 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 struct wlr_backend_state {
 	int fd;
 	dev_t dev;
+
+	size_t num_crtcs;
+	struct wlr_drm_crtc *crtcs;
+	size_t num_planes;
+	struct wlr_drm_plane *planes;
+
+	size_t num_overlay_planes;
+	struct wlr_drm_plane *overlay_planes;
+	size_t num_primary_planes;
+	struct wlr_drm_plane *primary_planes;
+	size_t num_cursor_planes;
+	struct wlr_drm_plane *cursor_planes;
 
 	struct wlr_backend *backend;
 	struct wl_display *display;
@@ -83,6 +124,7 @@ struct wlr_output_state {
 	bool cleanup;
 };
 
+bool wlr_drm_init_resources(struct wlr_backend_state *drm);
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);

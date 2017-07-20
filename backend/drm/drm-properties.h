@@ -6,7 +6,7 @@
 
 /*
  * These types contain the property ids for several DRM objects.
- * See https://01.org/linuxgraphics/gfx-docs/drm/drm-kms-properties.html
+ * See https://01.org/linuxgraphics/gfx-docs/drm/gpu/drm-kms.html#kms-properties
  * for more details.
  */
 
@@ -55,5 +55,8 @@ union wlr_drm_plane_props {
 bool wlr_drm_get_connector_props(int fd, uint32_t id, union wlr_drm_connector_props *out);
 bool wlr_drm_get_crtc_props(int fd, uint32_t id, union wlr_drm_crtc_props *out);
 bool wlr_drm_get_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out);
+
+bool wlr_drm_get_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret);
+void *wlr_drm_get_prop_blob(int fd, uint32_t obj, uint32_t prop, size_t *ret_len);
 
 #endif

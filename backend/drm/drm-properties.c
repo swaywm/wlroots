@@ -49,10 +49,10 @@ static const struct prop_info plane_info[] = {
 };
 
 static int cmp_prop_info(const void *arg1, const void *arg2) {
-	const struct prop_info *a = arg1;
-	const struct prop_info *b = arg2;
+	const char *key = arg1;
+	const struct prop_info *elem = arg2;
 
-	return strcmp(a->name, b->name);
+	return strcmp(key, elem->name);
 }
 
 static bool scan_properties(int fd, uint32_t id, uint32_t type, uint32_t *result,
@@ -96,4 +96,48 @@ bool wlr_drm_get_crtc_props(int fd, uint32_t id, union wlr_drm_crtc_props *out) 
 bool wlr_drm_get_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out) {
 	return scan_properties(fd, id, DRM_MODE_OBJECT_PLANE, out->props,
 		plane_info, sizeof(plane_info) / sizeof(plane_info[0]));
+}
+
+bool wlr_drm_get_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret) {
+	drmModeObjectProperties *props = drmModeObjectGetProperties(fd, obj, DRM_MODE_OBJECT_ANY);
+	if (!props) {
+		return false;
+	}
+
+	bool found = false;
+
+	for (uint32_t i = 0; i < props->count_props; ++i) {
+		if (props->props[i] == prop) {
+			*ret = props->prop_values[i];
+			found = true;
+			break;
+		}
+	}
+
+	drmModeFreeObjectProperties(props);
+	return found;
+}
+
+void *wlr_drm_get_prop_blob(int fd, uint32_t obj, uint32_t prop, size_t *ret_len) {
+	uint64_t blob_id;
+	if (!wlr_drm_get_prop(fd, obj, prop, &blob_id)) {
+		return NULL;
+	}
+
+	drmModePropertyBlobRes *blob = drmModeGetPropertyBlob(fd, blob_id);
+	if (!blob) {
+		return NULL;
+	}
+
+	void *ptr = malloc(blob->length);
+	if (!ptr) {
+		drmModeFreePropertyBlob(blob);
+		return NULL;
+	}
+
+	memcpy(ptr, blob->data, blob->length);
+	*ret_len = blob->length;
+
+	drmModeFreePropertyBlob(blob);
+	return ptr;
 }

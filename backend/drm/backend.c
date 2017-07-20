@@ -12,8 +12,8 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
-#include "backend/udev.h"
-#include "backend/drm.h"
+#include <backend/udev.h>
+#include "drm.h"
 
 static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
 	wlr_drm_scan_connectors(state);
@@ -130,6 +130,15 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	state->session_signal.notify = session_signal;
 	wl_signal_add(&session->session_signal, &state->session_signal);
+
+	if (drmSetClientCap(state->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
+		wlr_log(L_INFO, "DRM universal planes unsupported");
+	}
+	if (drmSetClientCap(state->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
+		wlr_log(L_INFO, "Atomic modesetting unsupported");
+	}
+
+	wlr_drm_init_resources(state);
 
 	// TODO: what is the difference between the per-output renderer and this
 	// one?

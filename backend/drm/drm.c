@@ -15,7 +15,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include "backend/drm.h"
+#include "drm.h"
 
 static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_Unknown]     = "Unknown",
@@ -36,6 +36,137 @@ static const char *conn_name[] = {
 	[DRM_MODE_CONNECTOR_VIRTUAL]     = "Virtual",
 	[DRM_MODE_CONNECTOR_DSI]         = "DSI",
 };
+
+static int cmp_plane(const void *arg1, const void *arg2)
+{
+	const struct wlr_drm_plane *a = arg1;
+	const struct wlr_drm_plane *b = arg2;
+
+	return (int)a->type - (int)b->type;
+}
+
+static bool init_planes(struct wlr_backend_state *drm)
+{
+	drmModePlaneRes *plane_res = drmModeGetPlaneResources(drm->fd);
+	if (!plane_res) {
+		wlr_log_errno(L_ERROR, "Failed to get DRM plane resources");
+		return false;
+	}
+
+	wlr_log(L_INFO, "Found %"PRIu32" DRM planes", plane_res->count_planes);
+
+	if (plane_res->count_planes == 0) {
+		drmModeFreePlaneResources(plane_res);
+		return true;
+	}
+
+	size_t num_planes = plane_res->count_planes;
+	struct wlr_drm_plane *planes = calloc(num_planes, sizeof(*planes));
+	if (!planes) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		goto error_res;
+	}
+
+	size_t num_overlay = 0;
+	size_t num_primary = 0;
+	size_t num_cursor = 0;
+
+	for (size_t i = 0; i < num_planes; ++i) {
+		struct wlr_drm_plane *p = &planes[i];
+
+		drmModePlane *plane = drmModeGetPlane(drm->fd, plane_res->planes[i]);
+		if (!plane) {
+			wlr_log_errno(L_ERROR, "Failed to get DRM plane");
+			goto error_planes;
+		}
+
+		p->id = plane->plane_id;
+		p->possible_crtcs = plane->possible_crtcs;
+		uint64_t type;
+
+		if (!wlr_drm_get_plane_props(drm->fd, p->id, &p->props) ||
+				!wlr_drm_get_prop(drm->fd, p->id, p->props.type, &type)) {
+			drmModeFreePlane(plane);
+			goto error_planes;
+		}
+
+		p->type = type;
+
+		switch (type) {
+		case DRM_PLANE_TYPE_OVERLAY:
+			++num_overlay;
+			break;
+		case DRM_PLANE_TYPE_PRIMARY:
+			++num_primary;
+			break;
+		case DRM_PLANE_TYPE_CURSOR:
+			++num_cursor;
+			break;
+		}
+
+		drmModeFreePlane(plane);
+	}
+
+	wlr_log(L_INFO, "(%zu overlay, %zu primary, %zu cursor)",
+		num_overlay, num_primary, num_cursor);
+
+	qsort(planes, num_planes, sizeof(*planes), cmp_plane);
+
+	drm->num_planes = num_planes;
+	drm->num_overlay_planes = num_overlay;
+	drm->num_primary_planes = num_primary;
+	drm->num_cursor_planes = num_cursor;
+
+	drm->planes = planes;
+	drm->overlay_planes = planes;
+	drm->primary_planes = planes + num_overlay;
+	drm->cursor_planes = planes + num_overlay + num_primary;
+
+	return true;
+
+error_planes:
+	free(planes);
+error_res:
+	drmModeFreePlaneResources(plane_res);
+	return false;
+}
+
+bool wlr_drm_init_resources(struct wlr_backend_state *drm) {
+	drmModeRes *res = drmModeGetResources(drm->fd);
+	if (!res) {
+		wlr_log_errno(L_ERROR, "Failed to get DRM resources");
+		return false;
+	}
+
+	wlr_log(L_INFO, "Found %d DRM CRTCs", res->count_crtcs);
+
+	drm->num_crtcs = res->count_crtcs;
+	drm->crtcs = calloc(drm->num_crtcs, sizeof(drm->crtcs[0]));
+	if (!drm->crtcs) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		goto error_res;
+	}
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
+		crtc->id = res->crtcs[i];
+		wlr_drm_get_crtc_props(drm->fd, crtc->id, &crtc->props);
+	}
+
+	if (!init_planes(drm)) {
+		goto error_crtcs;
+	}
+
+	drmModeFreeResources(res);
+
+	return true;
+
+error_crtcs:
+	free(drm->crtcs);
+error_res:
+	drmModeFreeResources(res);
+	return false;
+}
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 	renderer->gbm = gbm_create_device(fd);
