@@ -631,7 +631,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
 
-	if (output->bo[1]) {
+	if (output->gbm && output->bo[1]) {
 		gbm_surface_release_buffer(output->gbm, output->bo[1]);
 		output->bo[1] = NULL;
 	}
