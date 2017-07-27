@@ -304,6 +304,13 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		return true;
 	}
 
+	if (!gbm_device_is_format_supported(state->renderer.gbm,
+				GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE)) {
+		wlr_log(L_ERROR, "Failed to create cursor bo: ARGB8888 pixel format is "
+				"unsupported on this device");
+		return false;
+	}
+
 	uint64_t bo_width, bo_height;
 	int ret;
 
@@ -323,7 +330,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		}
 
 		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm, bo_width, bo_height,
-			GBM_FORMAT_RGBA8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
 
 		if (!output->cursor_bo[i]) {
 			wlr_log(L_ERROR, "Failed to create cursor bo");
