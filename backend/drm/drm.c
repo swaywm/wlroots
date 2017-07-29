@@ -348,17 +348,155 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 	}
 }
 
+static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key)
+{
+	for (size_t i = 0; i < n; ++i) {
+		if (arr[i] == key) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+ * Store all of the non-recursive state in a struct, so we aren't literally
+ * passing 12 arguments to a function.
+ */
+struct match_state {
+	const size_t num_objs;
+	const uint32_t *restrict objs;
+	const size_t num_res;
+	size_t score;
+	size_t replaced;
+	uint32_t *restrict res;
+	uint32_t *restrict best;
+	const uint32_t *restrict orig;
+	bool exit_early;
+};
+
+#define UNMATCHED (uint32_t)-1
+
+/*
+ * score: The number of resources we've matched so far.
+ * replaced: The number of changes from the original solution.
+ * i: The index of the current element.
+ *
+ * This tries to match a solution as close to st->orig as it can.
+ *
+ * Returns whether we've set a new best element with this solution.
+ */
+static bool match_obj_(struct match_state *st, size_t score, size_t replaced, size_t i) {
+	// Finished
+	if (i >= st->num_res) {
+		if (score > st->score || (score == st->score && replaced < st->replaced)) {
+			st->score = score;
+			st->replaced = replaced;
+			memcpy(st->best, st->res, sizeof st->best[0] * st->num_res);
+
+			if (st->score == st->num_objs && st->replaced == 0) {
+				st->exit_early = true;
+			}
+
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/*
+	 * Attempt to use the current solution first, to try and avoid
+	 * recalculating everything
+	 */
+
+	if (st->orig[i] != UNMATCHED && !is_taken(i, st->res, st->orig[i])) {
+		st->res[i] = st->orig[i];
+		if (match_obj_(st, score + 1, replaced, i + 1)) {
+			return true;
+		}
+	}
+
+	if (st->orig[i] != UNMATCHED) {
+		++replaced;
+	}
+
+	bool is_best = false;
+	for (st->res[i] = 0; st->res[i] < st->num_objs; ++st->res[i]) {
+		// We tried this earlier
+		if (st->res[i] == st->orig[i]) {
+			continue;
+		}
+
+		// Not compatable
+		if (!(st->objs[st->res[i]] & (1 << i))) {
+			continue;
+		}
+
+		// Already taken
+		if (is_taken(i, st->res, st->res[i])) {
+			continue;
+		}
+
+		if (match_obj_(st, score + 1, replaced, i + 1)) {
+			is_best = true;
+		}
+
+		if (st->exit_early) {
+			return true;
+		}
+	}
+
+	if (is_best) {
+		return true;
+	}
+
+	// Maybe this resource can't be matched
+	st->res[i] = UNMATCHED;
+	return match_obj_(st, score, replaced, i + 1);
+}
+
+/*
+ * Tries to match some DRM objects with some other DRM resource.
+ * e.g. Match CRTCs with Encoders, CRTCs with Planes.
+ *
+ * objs contains a bit array which resources it can be matched with.
+ * e.g. Bit 0 set means can be matched with res[0]
+ *
+ * res contains an index of which objs it is matched with or UNMATCHED.
+ *
+ * This solution is left in out.
+ */
+static size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
+		size_t num_res, const uint32_t res[static restrict num_res],
+		uint32_t out[static restrict num_res]) {
+	uint32_t solution[num_res];
+
+	struct match_state st = {
+		.num_objs = num_objs,
+		.num_res = num_res,
+		.score = 0,
+		.replaced = SIZE_MAX,
+		.objs = objs,
+		.res = solution,
+		.best = out,
+		.orig = res,
+		.exit_early = false,
+	};
+
+	match_obj_(&st, 0, 0, 0);
+	return st.score;
+}
+
 static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		struct wlr_output_mode *mode) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
 
 	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->base->name,
 			mode->width, mode->height, mode->refresh);
 
-	drmModeConnector *conn = drmModeGetConnector(state->fd, output->connector);
+	drmModeConnector *conn = drmModeGetConnector(drm->fd, output->connector);
 	if (!conn) {
-		wlr_log(L_ERROR, "Failed to get DRM connector");
+		wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 		goto error;
 	}
 
@@ -367,39 +505,80 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		goto error;
 	}
 
-	drmModeRes *res = drmModeGetResources(state->fd);
-	if (!res) {
-		wlr_log(L_ERROR, "Failed to get DRM resources");
-		goto error;
-	}
+	{
+		size_t index;
+		uint32_t crtc[drm->num_crtcs];
+		uint32_t possible_crtc[drm->outputs->length];
+		memset(possible_crtc, 0, sizeof(possible_crtc));
 
-	bool success = false;
-	for (int i = 0; !success && i < conn->count_encoders; ++i) {
-		drmModeEncoder *enc = drmModeGetEncoder(state->fd, conn->encoders[i]);
-		if (!enc) {
-			continue;
+		for (size_t i = 0; i < drm->num_crtcs; ++i) {
+			crtc[i] = UNMATCHED;
 		}
 
-		for (int j = 0; j < res->count_crtcs; ++j) {
-			if ((enc->possible_crtcs & (1 << j)) == 0) {
+		for (size_t i = 0; i < drm->outputs->length; ++i) {
+			struct wlr_output_state *o = drm->outputs->items[i];
+			if (o == output) {
+				index = i;
+			}
+
+			if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
 				continue;
 			}
 
-			if ((state->taken_crtcs & (1 << j)) == 0) {
-				state->taken_crtcs |= 1 << j;
-				output->crtc = res->crtcs[j];
-				success = true;
-				break;
-			}
+			possible_crtc[i] = o->possible_crtc;
+			crtc[o->crtc_ - drm->crtcs] = i;
 		}
-		drmModeFreeEncoder(enc);
-	}
 
-	drmModeFreeResources(res);
+		for (int i = 0; i < conn->count_encoders; ++i) {
+			drmModeEncoder *enc = drmModeGetEncoder(drm->fd, conn->encoders[i]);
+			if (!enc) {
+				continue;
+			}
 
-	if (!success) {
-		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->base->name);
-		goto error;
+			uint32_t res[drm->num_crtcs];
+
+			possible_crtc[index] = enc->possible_crtcs;
+			match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs, crtc, res);
+
+			wlr_log(L_DEBUG, "-----");
+			for (size_t i = 0; i < drm->num_crtcs; ++i) {
+				wlr_log(L_DEBUG, "%d", (int)res[i]);
+			}
+			wlr_log(L_DEBUG, "-----");
+
+			bool handled[drm->outputs->length];
+			memset(handled, 0, sizeof(handled));
+
+			for (size_t i = 0; i < drm->num_crtcs; ++i) {
+				if (res[i] == UNMATCHED) {
+					continue;
+				}
+
+				handled[res[i]] = true;
+
+				if (res[i] != crtc[i]) {
+					struct wlr_output_state *o = drm->outputs->items[res[i]];
+					o->crtc_ = &drm->crtcs[i];
+					o->crtc = o->crtc_->id;
+				}
+			}
+
+			for (size_t i = 0; i < drm->num_crtcs; ++i) {
+				if (!handled[i]) {
+					wlr_drm_output_cleanup(drm->outputs->items[i], false);
+				}
+			}
+
+			if (!output->crtc_) {
+				wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->base->name);
+				goto error;
+			}
+
+			output->possible_crtc = enc->possible_crtcs;
+
+			drmModeFreeEncoder(enc);
+			break;
+		}
 	}
 
 	output->state = WLR_DRM_OUTPUT_CONNECTED;
@@ -408,7 +587,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	output->base->current_mode = mode;
 	wl_signal_emit(&output->base->events.resolution, output->base);
 
-	if (!display_init_renderer(&state->renderer, output)) {
+	if (!display_init_renderer(&drm->renderer, output)) {
 		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->base->name);
 		goto error;
 	}
@@ -522,12 +701,17 @@ static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
 	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +
 		mode->vtotal / 2) / mode->vtotal;
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		refresh *= 2;
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+	}
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
 		refresh /= 2;
-	if (mode->vscan > 1)
+	}
+
+	if (mode->vscan > 1) {
 		refresh /= mode->vscan;
+	}
 
 	return refresh;
 }
@@ -793,10 +977,22 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 			restore_output(output, renderer->fd);
 			restore = false;
 		}
+
+		if (output->bo[0]) {
+			gbm_surface_release_buffer(output->gbm, output->bo[0]);
+			output->bo[0] = NULL;
+		}
+		if (output->bo[1]) {
+			gbm_surface_release_buffer(output->gbm, output->bo[1]);
+			output->bo[1] = NULL;
+		}
+
 		eglDestroySurface(renderer->egl.display, output->egl);
 		gbm_surface_destroy(output->gbm);
 		output->egl = EGL_NO_SURFACE;
 		output->gbm = NULL;
+		output->crtc_ = NULL;
+		output->possible_crtc = 0;
 		/* Fallthrough */
 	case WLR_DRM_OUTPUT_NEEDS_MODESET:
 		output->state = WLR_DRM_OUTPUT_DISCONNECTED;

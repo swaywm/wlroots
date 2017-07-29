@@ -42,7 +42,7 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *primary;
 	struct wlr_drm_plane *overlay;
 	struct wlr_drm_plane *cursor;
-	
+
 	union wlr_drm_crtc_props props;
 
 	struct wl_list connectors;
@@ -114,6 +114,9 @@ struct wlr_output_state {
 	struct wlr_output *base;
 	enum wlr_drm_output_state state;
 	uint32_t connector;
+
+	struct wlr_drm_crtc *crtc_;
+	uint32_t possible_crtc;
 
 	union wlr_drm_connector_props props;
 
