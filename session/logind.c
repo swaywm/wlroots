@@ -124,6 +124,36 @@ static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	return ret >= 0;
 }
 
+static bool find_sesion_path(struct logind_session *session) {
+	int ret;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+			"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
+			"GetSession", &error, &msg, "s", session->id);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to get session path: %s", strerror(-ret));
+		goto out;
+	}
+
+	const char *path;
+
+	ret = sd_bus_message_read(msg, "o", &path);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Could not parse session path: %s", strerror(-ret));
+		goto out;
+	}
+
+	session->path = strdup(path);
+
+out:
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+
+	return ret >= 0;
+}
+
 static bool session_activate(struct logind_session *session) {
 	int ret;
 	sd_bus_message *msg = NULL;
@@ -315,19 +345,14 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	free(seat);
 
-	const char *fmt = "/org/freedesktop/login1/session/%s";
-	int len = snprintf(NULL, 0, fmt, session->id);
-
-	session->path = malloc(len + 1);
-	if (!session->path) {
-		goto error;
-	}
-
-	sprintf(session->path, fmt, session->id);
-
 	ret = sd_bus_default_system(&session->bus);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to open D-Bus connection: %s", strerror(-ret));
+		goto error;
+	}
+
+	if (!find_sesion_path(session)) {
+		sd_bus_unref(session->bus);
 		goto error;
 	}
 
@@ -357,9 +382,9 @@ static struct wlr_session *logind_session_start(struct wl_display *disp) {
 
 error_bus:
 	sd_bus_unref(session->bus);
+	free(session->path);
 
 error:
-	free(session->path);
 	free(session->id);
 	return NULL;
 }
