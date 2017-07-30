@@ -39,9 +39,14 @@ struct wlr_drm_plane {
 
 struct wlr_drm_crtc {
 	uint32_t id;
-	struct wlr_drm_plane *primary;
-	struct wlr_drm_plane *overlay;
-	struct wlr_drm_plane *cursor;
+	union {
+		struct {
+			struct wlr_drm_plane *overlay;
+			struct wlr_drm_plane *primary;
+			struct wlr_drm_plane *cursor;
+		};
+		struct wlr_drm_plane *planes[3];
+	};
 
 	union wlr_drm_crtc_props props;
 
@@ -78,12 +83,23 @@ struct wlr_backend_state {
 	size_t num_planes;
 	struct wlr_drm_plane *planes;
 
-	size_t num_overlay_planes;
-	struct wlr_drm_plane *overlay_planes;
-	size_t num_primary_planes;
-	struct wlr_drm_plane *primary_planes;
-	size_t num_cursor_planes;
-	struct wlr_drm_plane *cursor_planes;
+	union {
+		struct {
+			size_t num_overlay_planes;
+			size_t num_primary_planes;
+			size_t num_cursor_planes;
+		};
+		size_t num_type_planes[3];
+	};
+
+	union {
+		struct {
+			struct wlr_drm_plane *overlay_planes;
+			struct wlr_drm_plane *primary_planes;
+			struct wlr_drm_plane *cursor_planes;
+		};
+		struct wlr_drm_plane *type_planes[3];
+	};
 
 	struct wl_display *display;
 	struct wl_event_source *drm_event;

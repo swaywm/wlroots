@@ -374,9 +374,13 @@ struct match_state {
 	bool exit_early;
 };
 
-#define UNMATCHED (uint32_t)-1
+enum {
+	UNMATCHED = (uint32_t)-1,
+	SKIP = (uint32_t)-2,
+};
 
 /*
+ * skips: The number of SKIP elements encountered so far.
  * score: The number of resources we've matched so far.
  * replaced: The number of changes from the original solution.
  * i: The index of the current element.
@@ -385,7 +389,7 @@ struct match_state {
  *
  * Returns whether we've set a new best element with this solution.
  */
-static bool match_obj_(struct match_state *st, size_t score, size_t replaced, size_t i) {
+static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_t replaced, size_t i) {
 	// Finished
 	if (i >= st->num_res) {
 		if (score > st->score || (score == st->score && replaced < st->replaced)) {
@@ -396,11 +400,19 @@ static bool match_obj_(struct match_state *st, size_t score, size_t replaced, si
 			if (st->score == st->num_objs && st->replaced == 0) {
 				st->exit_early = true;
 			}
+			st->exit_early = (st->score == st->num_res - skips
+					|| st->score == st->num_objs)
+					&& st->replaced == 0;
 
 			return true;
 		} else {
 			return false;
 		}
+	}
+
+	if (st->orig[i] == SKIP) {
+		st->res[i] = SKIP;
+		return match_obj_(st, skips + 1, score, replaced, i + 1);
 	}
 
 	/*
@@ -410,7 +422,7 @@ static bool match_obj_(struct match_state *st, size_t score, size_t replaced, si
 
 	if (st->orig[i] != UNMATCHED && !is_taken(i, st->res, st->orig[i])) {
 		st->res[i] = st->orig[i];
-		if (match_obj_(st, score + 1, replaced, i + 1)) {
+		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
 			return true;
 		}
 	}
@@ -436,7 +448,7 @@ static bool match_obj_(struct match_state *st, size_t score, size_t replaced, si
 			continue;
 		}
 
-		if (match_obj_(st, score + 1, replaced, i + 1)) {
+		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
 			is_best = true;
 		}
 
@@ -451,7 +463,7 @@ static bool match_obj_(struct match_state *st, size_t score, size_t replaced, si
 
 	// Maybe this resource can't be matched
 	st->res[i] = UNMATCHED;
-	return match_obj_(st, score, replaced, i + 1);
+	return match_obj_(st, skips, score, replaced, i + 1);
 }
 
 /*
@@ -464,6 +476,7 @@ static bool match_obj_(struct match_state *st, size_t score, size_t replaced, si
  * res contains an index of which objs it is matched with or UNMATCHED.
  *
  * This solution is left in out.
+ * Returns the total number of matched solutions.
  */
 static size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 		size_t num_res, const uint32_t res[static restrict num_res],
@@ -482,14 +495,101 @@ static size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num
 		.exit_early = false,
 	};
 
-	match_obj_(&st, 0, 0, 0);
+	match_obj_(&st, 0, 0, 0, 0);
 	return st.score;
+}
+
+static void realloc_planes(struct wlr_backend_state *drm, const uint32_t *crtc_in) {
+	for (int i = 0; i < 3; ++i) {
+		if (drm->num_type_planes[i] == 0)
+			continue;
+
+		uint32_t possible[drm->num_type_planes[i]];
+		uint32_t crtc[drm->num_crtcs];
+		uint32_t crtc_res[drm->num_crtcs];
+
+		for (size_t j = 0; j < drm->num_type_planes[i]; ++j)
+			possible[j] = drm->type_planes[i][j].possible_crtcs;
+
+		for (size_t j = 0; j < drm->num_crtcs; ++j) {
+			if (crtc_in[j] == UNMATCHED) {
+				crtc[j] = SKIP;
+				continue;
+			}
+
+			if (drm->crtcs[j].planes[j]) {
+				crtc[j] = drm->crtcs[j].planes[i] - drm->type_planes[i];
+			} else {
+				crtc[j] = UNMATCHED;
+			}
+		}
+
+		match_obj(drm->num_type_planes[i], possible, drm->num_crtcs, crtc, crtc_res);
+
+		for (size_t j = 0; j < drm->num_crtcs; ++j) {
+			struct wlr_drm_crtc *c = &drm->crtcs[j];
+			c->planes[i] = &drm->type_planes[i][crtc_res[j]];
+		}
+	};
+}
+
+static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state *output) {
+	bool handled[drm->outputs->length];
+	uint32_t crtc[drm->num_crtcs];
+	uint32_t crtc_res[drm->num_crtcs];
+	uint32_t possible_crtc[drm->outputs->length];
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		crtc[i] = UNMATCHED;
+	}
+
+	memset(possible_crtc, 0, sizeof(possible_crtc));
+	memset(handled, 0, sizeof(handled));
+
+	size_t index;
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_output_state *o = drm->outputs->items[i];
+		if (o == output) {
+			index = i;
+		}
+
+		if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
+			continue;
+		}
+
+		possible_crtc[i] = o->possible_crtc;
+		crtc[o->crtc_ - drm->crtcs] = i;
+	}
+
+	possible_crtc[index] = output->possible_crtc;
+	match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs, crtc, crtc_res);
+
+	realloc_planes(drm, crtc_res);
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		if (crtc_res[i] == UNMATCHED) {
+			continue;
+		}
+
+		handled[crtc_res[i]] = true;
+
+		if (crtc_res[i] != crtc[i]) {
+			struct wlr_output_state *o = drm->outputs->items[crtc_res[i]];
+			o->crtc_ = &drm->crtcs[i];
+			o->crtc = o->crtc_->id;
+		}
+	}
+
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		if (!handled[i]) {
+			wlr_drm_output_cleanup(drm->outputs->items[i], false);
+		}
+	}
 }
 
 static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		struct wlr_output_mode *mode) {
-	struct wlr_backend_state *drm =
-		wl_container_of(output->renderer, drm, renderer);
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
 
 	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->base->name,
 			mode->width, mode->height, mode->refresh);
@@ -497,89 +597,38 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	drmModeConnector *conn = drmModeGetConnector(drm->fd, output->connector);
 	if (!conn) {
 		wlr_log_errno(L_ERROR, "Failed to get DRM connector");
-		goto error;
+		goto error_output;
 	}
 
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
 		wlr_log(L_ERROR, "%s is not connected", output->base->name);
-		goto error;
+		goto error_output;
 	}
 
-	{
-		size_t index;
-		uint32_t crtc[drm->num_crtcs];
-		uint32_t possible_crtc[drm->outputs->length];
-		memset(possible_crtc, 0, sizeof(possible_crtc));
-
-		for (size_t i = 0; i < drm->num_crtcs; ++i) {
-			crtc[i] = UNMATCHED;
-		}
-
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_output_state *o = drm->outputs->items[i];
-			if (o == output) {
-				index = i;
-			}
-
-			if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
-				continue;
-			}
-
-			possible_crtc[i] = o->possible_crtc;
-			crtc[o->crtc_ - drm->crtcs] = i;
-		}
-
-		for (int i = 0; i < conn->count_encoders; ++i) {
-			drmModeEncoder *enc = drmModeGetEncoder(drm->fd, conn->encoders[i]);
-			if (!enc) {
-				continue;
-			}
-
-			uint32_t res[drm->num_crtcs];
-
-			possible_crtc[index] = enc->possible_crtcs;
-			match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs, crtc, res);
-
-			wlr_log(L_DEBUG, "-----");
-			for (size_t i = 0; i < drm->num_crtcs; ++i) {
-				wlr_log(L_DEBUG, "%d", (int)res[i]);
-			}
-			wlr_log(L_DEBUG, "-----");
-
-			bool handled[drm->outputs->length];
-			memset(handled, 0, sizeof(handled));
-
-			for (size_t i = 0; i < drm->num_crtcs; ++i) {
-				if (res[i] == UNMATCHED) {
-					continue;
-				}
-
-				handled[res[i]] = true;
-
-				if (res[i] != crtc[i]) {
-					struct wlr_output_state *o = drm->outputs->items[res[i]];
-					o->crtc_ = &drm->crtcs[i];
-					o->crtc = o->crtc_->id;
-				}
-			}
-
-			for (size_t i = 0; i < drm->num_crtcs; ++i) {
-				if (!handled[i]) {
-					wlr_drm_output_cleanup(drm->outputs->items[i], false);
-				}
-			}
-
-			if (!output->crtc_) {
-				wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->base->name);
-				goto error;
-			}
-
-			output->possible_crtc = enc->possible_crtcs;
-
-			drmModeFreeEncoder(enc);
-			break;
-		}
+	drmModeEncoder *enc = NULL;
+	for (int i = 0; !enc && i < conn->count_encoders; ++i) {
+		enc = drmModeGetEncoder(drm->fd, conn->encoders[i]);
 	}
+
+	if (!enc) {
+		wlr_log(L_ERROR, "Failed to get DRM encoder");
+		goto error_conn;
+	}
+
+	output->possible_crtc = enc->possible_crtcs;
+	realloc_crtcs(drm, output);
+
+	if (!output->crtc_) {
+		wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->base->name);
+		goto error_enc;
+	}
+
+	struct wlr_drm_crtc *crtc = output->crtc_;
+	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", output->base->name,
+		crtc - drm->crtcs,
+		crtc->overlay ? crtc->overlay - drm->overlay_planes : -1,
+		crtc->primary ? crtc->primary - drm->primary_planes : -1,
+		crtc->cursor ? crtc->cursor - drm->cursor_planes : -1);
 
 	output->state = WLR_DRM_OUTPUT_CONNECTED;
 	output->width = output->base->width = mode->width;
@@ -589,15 +638,19 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 
 	if (!display_init_renderer(&drm->renderer, output)) {
 		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->base->name);
-		goto error;
+		goto error_enc;
 	}
 
+	drmModeFreeEncoder(enc);
 	drmModeFreeConnector(conn);
 	return true;
 
-error:
-	wlr_drm_output_cleanup(output, false);
+error_enc:
+	drmModeFreeEncoder(enc);
+error_conn:
 	drmModeFreeConnector(conn);
+error_output:
+	wlr_drm_output_cleanup(output, false);
 	return false;
 }
 
