@@ -11,6 +11,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/types/wlr_output.h>
 #include <xkbcommon/xkbcommon.h>
+#include <wlr/util/log.h>
 #include "shared.h"
 #include "compositor.h"
 
@@ -42,7 +43,7 @@ int main() {
 
 	state.renderer = wlr_gles2_renderer_init();
 	wl_display_init_shm(compositor.display);
-	wl_compositor_init(compositor.display, &state.compositor);
+	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
 	wl_shell_init(compositor.display, &state.shell);
 
 	compositor_run(&compositor);
