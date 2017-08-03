@@ -65,7 +65,7 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // '../backend/wayland/backend.c' will both be stripped to
 // 'backend/wayland/backend.c'
 const char *_strip_path(const char *filepath) {
-	static int srclen = strlen(WLR_SRC_DIR) + 1;
+	static int srclen = sizeof(WLR_SRC_DIR);
 	if (strstr(filepath, WLR_SRC_DIR) == filepath) {
 		filepath += srclen;
 	} else if (*filepath == '.') {
