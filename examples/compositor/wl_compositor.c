@@ -10,7 +10,10 @@ static void surface_destroy(struct wl_client *client, struct wl_resource *resour
 static void surface_attach(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *buffer_resource, int32_t sx, int32_t sy) {
-	wlr_log(L_DEBUG, "TODO: surface attach");
+	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
+	uint32_t format = wl_shm_buffer_get_format(buffer);
+	wlr_surface_attach_shm(surface, format, buffer);
 }
 
 static void surface_damage(struct wl_client *client,
@@ -87,7 +90,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	wl_resource_set_implementation(surface_resource, &surface_interface,
 			surface, destroy_surface);
 	wl_resource_set_user_data(surface_resource, surface);
-
+	wl_list_insert(&state->surfaces, wl_resource_get_link(surface_resource));
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
@@ -135,4 +138,5 @@ void wl_compositor_init(struct wl_display *display,
 	state->wl_global = wl_global;
 	state->renderer = renderer;
 	wl_list_init(&state->wl_resources);
+	wl_list_init(&state->surfaces);
 }

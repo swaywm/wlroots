@@ -28,7 +28,18 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	// TODO: render surfaces
+
+	struct wl_resource *_res;
+	float matrix[16];
+	wl_list_for_each(_res, &sample->compositor.surfaces, link) {
+		struct wlr_surface *surface = wl_resource_get_user_data(_res);
+		if (surface->valid) {
+			wlr_surface_get_matrix(surface, &matrix,
+					&wlr_output->transform_matrix, 200, 200);
+			wlr_render_with_matrix(sample->renderer, surface, &matrix);
+		}
+	}
+
 	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
 }

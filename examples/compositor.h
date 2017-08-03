@@ -7,6 +7,7 @@ struct wl_compositor_state {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wlr_renderer *renderer;
+	struct wl_list surfaces;
 };
 
 void wl_compositor_init(struct wl_display *display,
