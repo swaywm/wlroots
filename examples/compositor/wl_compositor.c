@@ -87,19 +87,13 @@ static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	struct wlr_surface *surface = data;
 	state = wl_container_of(listener, state, destroy_surface_listener);
 
-	struct wl_resource *res = NULL, *_res;
-	wl_list_for_each(_res, &state->surfaces, link) {
+	struct wl_resource *res = NULL;
+	wl_list_for_each(res, &state->surfaces, link) {
 		if (_res == surface->resource) {
-			res = _res;
+			wl_list_remove(&res->link);
 			break;
 		}
 	}
-
-	if (!res) {
-		return;
-	}
-
-	wl_list_remove(&res->link);
 }
 
 static void wl_compositor_create_surface(struct wl_client *client,
