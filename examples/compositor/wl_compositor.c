@@ -78,7 +78,28 @@ struct wl_surface_interface surface_interface = {
 };
 
 static void destroy_surface(struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: destroy surface");
+	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+	wlr_surface_destroy(surface);
+}
+
+static void destroy_surface_listener(struct wl_listener *listener, void *data) {
+	struct wl_compositor_state *state;
+	struct wlr_surface *surface = data;
+	state = wl_container_of(listener, state, destroy_surface_listener);
+
+	struct wl_resource *res = NULL, *_res;
+	wl_list_for_each(_res, &state->surfaces, link) {
+		if (_res == surface->resource) {
+			res = _res;
+			break;
+		}
+	}
+
+	if (!res) {
+		return;
+	}
+
+	wl_list_remove(&res->link);
 }
 
 static void wl_compositor_create_surface(struct wl_client *client,
@@ -87,10 +108,12 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	struct wl_resource *surface_resource = wl_resource_create(client,
 			&wl_surface_interface, wl_resource_get_version(resource), id);
 	struct wlr_surface *surface = wlr_render_surface_init(state->renderer);
+	surface->resource = surface_resource;
 	wl_resource_set_implementation(surface_resource, &surface_interface,
 			surface, destroy_surface);
 	wl_resource_set_user_data(surface_resource, surface);
 	wl_list_insert(&state->surfaces, wl_resource_get_link(surface_resource));
+	wl_signal_add(&surface->destroy_signal, &state->destroy_surface_listener);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
@@ -137,6 +160,7 @@ void wl_compositor_init(struct wl_display *display,
 		&wl_compositor_interface, 4, state, wl_compositor_bind);
 	state->wl_global = wl_global;
 	state->renderer = renderer;
+	state->destroy_surface_listener.notify = destroy_surface_listener;
 	wl_list_init(&state->wl_resources);
 	wl_list_init(&state->surfaces);
 }

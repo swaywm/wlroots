@@ -84,6 +84,7 @@ static void gles2_surface_bind(struct wlr_surface_state *surface) {
 }
 
 static void gles2_surface_destroy(struct wlr_surface_state *surface) {
+	wl_signal_emit(&surface->wlr_surface->destroy_signal, surface->wlr_surface);
 	GL_CALL(glDeleteTextures(1, &surface->tex_id));
 	free(surface);
 }
@@ -100,5 +101,6 @@ struct wlr_surface *gles2_surface_init() {
 	struct wlr_surface_state *state = calloc(sizeof(struct wlr_surface_state), 1);
 	struct wlr_surface *surface = wlr_surface_init(state, &wlr_surface_impl);
 	state->wlr_surface = surface;
+	wl_signal_init(&surface->destroy_signal);
 	return surface;
 }
