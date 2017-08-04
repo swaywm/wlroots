@@ -89,7 +89,7 @@ static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 
 	struct wl_resource *res = NULL;
 	wl_list_for_each(res, &state->surfaces, link) {
-		if (_res == surface->resource) {
+		if (res == surface->resource) {
 			wl_list_remove(&res->link);
 			break;
 		}
