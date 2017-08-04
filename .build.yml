@@ -1,0 +1,25 @@
+image: archlinux
+packages:
+  - cmake
+  - wayland
+  - wayland-protocols
+  - mesa
+  - libinput
+  - libxkbcommon
+  - libcap
+  - clang
+sources:
+  - https://git.sr.ht/~sircmpwn/wlroots
+tasks:
+  - setup: |
+      mkdir wlroots/build-{gcc,clang}
+      cd wlroots/build-gcc
+      cmake ..
+      cd ../build-clang
+      CC=clang cmake ..
+  - gcc: |
+      cd wlroots/build-gcc
+      make
+  - clang: |
+      cd wlroots/build-clang
+      make
