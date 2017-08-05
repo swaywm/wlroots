@@ -173,6 +173,56 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
 	gbm_device_destroy(renderer->gbm);
 }
 
+static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane, uint32_t width, uint32_t height) {
+	if (plane->width == width && plane->height == height) {
+		return true;
+	}
+
+	plane->width = width;
+	plane->height = height;
+
+	plane->gbm = gbm_surface_create(renderer->gbm, width, height,
+		GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+	if (!plane->gbm) {
+		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
+		return false;
+	}
+
+	plane->egl = wlr_egl_create_surface(&renderer->egl, plane->gbm);
+	if (plane->egl == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface for plane");
+		return false;
+	}
+
+	return true;
+}
+
+static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	if (!renderer || !plane)
+		return;
+
+	wlr_log(L_DEBUG, "%s called", __func__);
+
+	if (plane->front)
+		gbm_surface_release_buffer(plane->gbm, plane->front);
+	if (plane->back)
+		gbm_surface_release_buffer(plane->gbm, plane->back);
+
+	if (plane->egl)
+		eglDestroySurface(renderer->egl.display, plane->egl);
+	if (plane->gbm)
+		gbm_surface_destroy(plane->gbm);
+
+	plane->width = 0;
+	plane->height = 0;
+	plane->egl = EGL_NO_SURFACE;
+	plane->gbm = NULL;
+	plane->front = NULL;
+	plane->back = NULL;
+}
+
 static void free_fb(struct gbm_bo *bo, void *data) {
 	uint32_t id = (uintptr_t)data;
 
@@ -258,40 +308,6 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 	output->pageflip_pending = true;
 }
 
-static bool plane_init_renderer(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane, struct wlr_output_mode *mode) {
-	plane->width = mode->width;
-	plane->height = mode->height;
-
-	plane->gbm = gbm_surface_create(renderer->gbm, mode->width,
-		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!plane->gbm) {
-		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
-		return false;
-	}
-
-	plane->egl = wlr_egl_create_surface(&renderer->egl, plane->gbm);
-	if (plane->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for plane");
-		return false;
-	}
-
-	return true;
-}
-
-static int find_id(const void *item, const void *cmp_to) {
-	const struct wlr_output_state *output = item;
-	const uint32_t *id = cmp_to;
-
-	if (output->connector < *id) {
-		return -1;
-	} else if (output->connector > *id) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
-
 static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
@@ -303,11 +319,7 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
 			DRM_MODE_DPMS_ON);
 
-		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_make_current(output);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_swap_buffers(output);
+		wlr_drm_output_start_renderer(output);
 	} else {
 		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
 			DRM_MODE_DPMS_OFF);
@@ -343,13 +355,19 @@ static void realloc_planes(struct wlr_backend_state *drm, const uint32_t *crtc_i
 				continue;
 
 			struct wlr_drm_crtc *c = &drm->crtcs[i];
-			c->planes[type] = &drm->type_planes[type][crtc_res[i]];
+			struct wlr_drm_plane **old = &c->planes[type];
+			struct wlr_drm_plane *new = &drm->type_planes[type][crtc_res[i]];
+
+			if (*old != new) {
+				wlr_drm_plane_renderer_free(&drm->renderer, *old);
+				wlr_drm_plane_renderer_free(&drm->renderer, new);
+				*old = new;
+			}
 		}
 	}
 }
 
 static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state *output) {
-	bool handled[drm->outputs->length];
 	uint32_t crtc[drm->num_crtcs];
 	uint32_t crtc_res[drm->num_crtcs];
 	uint32_t possible_crtc[drm->outputs->length];
@@ -359,18 +377,15 @@ static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state
 	}
 
 	memset(possible_crtc, 0, sizeof(possible_crtc));
-	memset(handled, 0, sizeof(handled));
 
 	size_t index;
 	for (size_t i = 0; i < drm->outputs->length; ++i) {
 		struct wlr_output_state *o = drm->outputs->items[i];
-		if (o == output) {
+		if (o == output)
 			index = i;
-		}
 
-		if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
+		if (o->state != WLR_DRM_OUTPUT_CONNECTED)
 			continue;
-		}
 
 		possible_crtc[i] = o->possible_crtc;
 		crtc[o->crtc - drm->crtcs] = i;
@@ -379,14 +394,22 @@ static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state
 	possible_crtc[index] = output->possible_crtc;
 	match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs, crtc, crtc_res);
 
-	realloc_planes(drm, crtc_res);
+	bool matched = false;
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		// We don't want any of the current monitors to be deactivated.
+		if (crtc[i] != UNMATCHED && crtc_res[i] == UNMATCHED)
+			return;
+		if (crtc_res[i] == index)
+			matched = true;
+	}
+
+	// There is no point doing anything if this monitor doesn't get activated
+	if (!matched)
+		return;
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		if (crtc_res[i] == UNMATCHED) {
+		if (crtc_res[i] == UNMATCHED)
 			continue;
-		}
-
-		handled[crtc_res[i]] = true;
 
 		if (crtc_res[i] != crtc[i]) {
 			struct wlr_output_state *o = drm->outputs->items[crtc_res[i]];
@@ -394,11 +417,7 @@ static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state
 		}
 	}
 
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		if (!handled[i]) {
-			wlr_drm_output_cleanup(drm->outputs->items[i], false);
-		}
-	}
+	realloc_planes(drm, crtc_res);
 }
 
 static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
@@ -450,12 +469,24 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	output->base->current_mode = mode;
 	wl_signal_emit(&output->base->events.resolution, output->base);
 
-	if (!plane_init_renderer(&drm->renderer, output->crtc->primary, mode)) {
-		wlr_log(L_ERROR, "Failed to initalise renderer for plane");
-		goto error_enc;
-	}
+	// Since realloc_crtcs can deallocate planes on OTHER outputs,
+	// we actually need to reinitalise all of them
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_output_state *output = drm->outputs->items[i];
+		struct wlr_output_mode *mode = output->base->current_mode;
+		struct wlr_drm_crtc *crtc = output->crtc;
 
-	wlr_drm_output_start_renderer(output);
+		if (output->state != WLR_DRM_OUTPUT_CONNECTED)
+			continue;
+
+		if (!wlr_drm_plane_renderer_init(&drm->renderer, crtc->primary,
+				mode->width, mode->height)) {
+			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
+			goto error_enc;
+		}
+
+		wlr_drm_output_start_renderer(output);
+	}
 
 	drmModeFreeEncoder(enc);
 	drmModeFreeConnector(conn);
@@ -565,6 +596,19 @@ static struct wlr_output_impl output_impl = {
 	.make_current = wlr_drm_output_make_current,
 	.swap_buffers = wlr_drm_output_swap_buffers,
 };
+
+static int find_id(const void *item, const void *cmp_to) {
+	const struct wlr_output_state *output = item;
+	const uint32_t *id = cmp_to;
+
+	if (output->connector < *id) {
+		return -1;
+	} else if (output->connector > *id) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
 
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
@@ -741,6 +785,10 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 			restore_output(output, renderer->fd);
 			restore = false;
 		}
+
+		wlr_drm_plane_renderer_free(renderer, output->crtc->overlay);
+		wlr_drm_plane_renderer_free(renderer, output->crtc->primary);
+		wlr_drm_plane_renderer_free(renderer, output->crtc->cursor);
 
 		output->crtc = NULL;
 		output->possible_crtc = 0;

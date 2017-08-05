@@ -148,7 +148,6 @@ struct wlr_output_state {
 	uint32_t cursor_width, cursor_height;
 
 	bool pageflip_pending;
-	bool cleanup;
 };
 
 bool wlr_drm_check_features(struct wlr_backend_state *drm);
