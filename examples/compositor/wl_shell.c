@@ -1,12 +1,95 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <stdlib.h>
 #include "compositor.h"
+
+static void shell_surface_pong(struct wl_client *client, struct wl_resource
+		*resource, uint32_t serial) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface pong");
+}
+
+static void shell_surface_move(struct wl_client *client, struct wl_resource
+		*resource, struct wl_resource *seat, uint32_t serial) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface move");
+}
+
+static void shell_surface_resize(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *seat, uint32_t serial,
+		uint32_t edges) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface resize");
+}
+
+static void shell_surface_set_toplevel(struct wl_client *client,
+		struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_toplevel");
+}
+
+static void shell_surface_set_transient(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *parent, int32_t x,
+		int32_t y, uint32_t flags) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_transient");
+}
+
+static void shell_surface_set_fullscreen(struct wl_client *client,
+		struct wl_resource *resource, uint32_t method, uint32_t framerate,
+		struct wl_resource *output) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_fullscreen");
+}
+
+static void shell_surface_set_popup(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *seat, uint32_t serial,
+		struct wl_resource *parent, int32_t x, int32_t y, uint32_t flags) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_popup");
+}
+
+static void shell_surface_set_maximized(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *output) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_maximized");
+}
+
+static void shell_surface_set_title(struct wl_client *client,
+		struct wl_resource *resource, const char *title) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_title");
+}
+
+static void shell_surface_set_class(struct wl_client *client,
+		struct wl_resource *resource, const char *class_) {
+	wlr_log(L_DEBUG, "TODO: implement shell surface set_class");
+}
+
+struct wl_shell_surface_interface shell_surface_interface = {
+	.pong = shell_surface_pong,
+	.move = shell_surface_move,
+	.resize = shell_surface_resize,
+	.set_toplevel = shell_surface_set_toplevel,
+	.set_transient = shell_surface_set_transient,
+	.set_fullscreen = shell_surface_set_fullscreen,
+	.set_popup = shell_surface_set_popup,
+	.set_maximized = shell_surface_set_maximized,
+	.set_title = shell_surface_set_title,
+	.set_class = shell_surface_set_class,
+};
+
+struct shell_surface_state {
+	struct wlr_surface *wlr_surface;
+};
+
+static void destroy_shell_surface(struct wl_resource *resource) {
+	struct shell_surface_state *state = wl_resource_get_user_data(resource);
+	free(state);
+}
 
 void wl_shell_get_shell_surface(struct wl_client *client,
 				  struct wl_resource *resource, uint32_t id,
 				  struct wl_resource *surface) {
-	wlr_log(L_DEBUG, "TODO: implement get_shell_surface");
+	struct wlr_surface *wlr_surface = wl_resource_get_user_data(surface);
+	struct shell_surface_state *state = malloc(sizeof(struct shell_surface_state));
+	state->wlr_surface = wlr_surface;
+	struct wl_resource *shell_surface_resource = wl_resource_create(client,
+			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
+	wl_resource_set_implementation(shell_surface_resource,
+			&shell_surface_interface, state, destroy_shell_surface);
 }
 
 static struct wl_shell_interface wl_shell_impl = {
