@@ -18,6 +18,19 @@
 #include "drm.h"
 #include "drm-util.h"
 
+bool wlr_drm_check_features(struct wlr_backend_state *drm) {
+	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
+		wlr_log(L_INFO, "DRM universal planes unsupported");
+		return false;
+	}
+
+	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
+		wlr_log(L_INFO, "Atomic modesetting unsupported");
+	}
+
+	return true;
+}
+
 static int cmp_plane(const void *arg1, const void *arg2)
 {
 	const struct wlr_drm_plane *a = arg1;
@@ -112,7 +125,7 @@ error_res:
 	return false;
 }
 
-bool wlr_drm_init_resources(struct wlr_backend_state *drm) {
+bool wlr_drm_resources_init(struct wlr_backend_state *drm) {
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
 		wlr_log_errno(L_ERROR, "Failed to get DRM resources");

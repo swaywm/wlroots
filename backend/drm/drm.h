@@ -151,7 +151,8 @@ struct wlr_output_state {
 	bool cleanup;
 };
 
-bool wlr_drm_init_resources(struct wlr_backend_state *drm);
+bool wlr_drm_check_features(struct wlr_backend_state *drm);
+bool wlr_drm_resources_init(struct wlr_backend_state *drm);
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
