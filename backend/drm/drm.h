@@ -131,7 +131,7 @@ struct wlr_output_state {
 	enum wlr_drm_output_state state;
 	uint32_t connector;
 
-	struct wlr_drm_crtc *crtc_;
+	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtc;
 
 	union wlr_drm_connector_props props;
@@ -139,12 +139,9 @@ struct wlr_output_state {
 	uint32_t width;
 	uint32_t height;
 
-	uint32_t crtc;
 	drmModeCrtc *old_crtc;
 
 	struct wlr_drm_renderer *renderer;
-	EGLSurface *egl;
-	struct gbm_surface *gbm;
 	struct gbm_bo *bo[2];
 	struct gbm_bo *cursor_bo[2];
 	int current_cursor;
