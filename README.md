@@ -23,8 +23,5 @@ Install dependencies:
 
 Run these commands:
 
-    mkdir build
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make
-    sudo make install
+    meson build
+    ninja -C build

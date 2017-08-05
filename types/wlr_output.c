@@ -206,7 +206,7 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 		output->cursor.texture = wlr_render_surface_init(output->cursor.renderer);
 	}
 
-	wlr_surface_attach_pixels(output->cursor.texture, WL_SHM_FORMAT_XBGR8888,
+	wlr_surface_attach_pixels(output->cursor.texture, WL_SHM_FORMAT_ABGR8888,
 		stride, width, height, buf);
 
 	return true;

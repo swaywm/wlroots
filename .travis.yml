@@ -8,7 +8,8 @@ compiler:
 
 arch:
   packages:
-    - cmake
+    - meson
+    - ninja
     - wayland
     - wayland-protocols
     - mesa
@@ -16,8 +17,8 @@ arch:
     - libxkbcommon
     - libcap
   script:
-    - "cmake -DCMAKE_BUILD_TYPE=Release ."
-    - "make"
+    - "meson build"
+    - "ninja -C build"
 
 script:
   - "curl -s https://raw.githubusercontent.com/mikkeloscar/arch-travis/master/arch-travis.sh | bash"
