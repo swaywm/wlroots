@@ -54,19 +54,15 @@ static bool init_planes(struct wlr_backend_state *drm)
 		return true;
 	}
 
-	size_t num_planes = plane_res->count_planes;
-	struct wlr_drm_plane *planes = calloc(num_planes, sizeof(*planes));
-	if (!planes) {
+	drm->num_planes = plane_res->count_planes;
+	drm->planes = calloc(drm->num_planes, sizeof(*drm->planes));
+	if (!drm->planes) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		goto error_res;
 	}
 
-	size_t num_overlay = 0;
-	size_t num_primary = 0;
-	size_t num_cursor = 0;
-
-	for (size_t i = 0; i < num_planes; ++i) {
-		struct wlr_drm_plane *p = &planes[i];
+	for (size_t i = 0; i < drm->num_planes; ++i) {
+		struct wlr_drm_plane *p = &drm->planes[i];
 
 		drmModePlane *plane = drmModeGetPlane(drm->fd, plane_res->planes[i]);
 		if (!plane) {
@@ -85,41 +81,24 @@ static bool init_planes(struct wlr_backend_state *drm)
 		}
 
 		p->type = type;
-
-		switch (type) {
-		case DRM_PLANE_TYPE_OVERLAY:
-			++num_overlay;
-			break;
-		case DRM_PLANE_TYPE_PRIMARY:
-			++num_primary;
-			break;
-		case DRM_PLANE_TYPE_CURSOR:
-			++num_cursor;
-			break;
-		}
+		drm->num_type_planes[type]++;
 
 		drmModeFreePlane(plane);
 	}
 
 	wlr_log(L_INFO, "(%zu overlay, %zu primary, %zu cursor)",
-		num_overlay, num_primary, num_cursor);
+		drm->num_overlay_planes, drm->num_primary_planes, drm->num_cursor_planes);
 
-	qsort(planes, num_planes, sizeof(*planes), cmp_plane);
+	qsort(drm->planes, drm->num_planes, sizeof(*drm->planes), cmp_plane);
 
-	drm->num_planes = num_planes;
-	drm->num_overlay_planes = num_overlay;
-	drm->num_primary_planes = num_primary;
-	drm->num_cursor_planes = num_cursor;
-
-	drm->planes = planes;
-	drm->overlay_planes = planes;
-	drm->primary_planes = planes + num_overlay;
-	drm->cursor_planes = planes + num_overlay + num_primary;
+	drm->overlay_planes = drm->planes;
+	drm->primary_planes = drm->overlay_planes + drm->num_overlay_planes;
+	drm->cursor_planes = drm->primary_planes + drm->num_primary_planes;
 
 	return true;
 
 error_planes:
-	free(planes);
+	free(drm->planes);
 error_res:
 	drmModeFreePlaneResources(plane_res);
 	return false;
@@ -162,6 +141,14 @@ error_res:
 	return false;
 }
 
+void wlr_drm_resources_free(struct wlr_backend_state *drm) {
+	if (!drm)
+		return;
+
+	free(drm->crtcs);
+	free(drm->planes);
+}
+
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 	renderer->gbm = gbm_create_device(fd);
 	if (!renderer->gbm) {
@@ -179,54 +166,55 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 }
 
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
-	if (!renderer) {
+	if (!renderer)
 		return;
-	}
+
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 
 static void free_fb(struct gbm_bo *bo, void *data) {
-	uint32_t *id = data;
+	uint32_t id = (uintptr_t)data;
 
-	if (id && *id) {
+	if (id) {
 		struct gbm_device *gbm = gbm_bo_get_device(bo);
-		drmModeRmFB(gbm_device_get_fd(gbm), *id);
+		drmModeRmFB(gbm_device_get_fd(gbm), id);
 	}
-
-	free(id);
 }
 
 static uint32_t get_fb_for_bo(struct gbm_bo *bo) {
-	uint32_t *id = gbm_bo_get_user_data(bo);
-
-	if (id) {
-		return *id;
-	}
-
-	id = calloc(1, sizeof *id);
-	if (!id) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return 0;
-	}
+	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
+	if (id)
+		return id;
 
 	struct gbm_device *gbm = gbm_bo_get_device(bo);
-	int fd = gbm_device_get_fd(gbm);
+	drmModeAddFB(gbm_device_get_fd(gbm), gbm_bo_get_width(bo), gbm_bo_get_height(bo),
+		24, 32, gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, &id);
 
-	drmModeAddFB(fd, gbm_bo_get_width(bo), gbm_bo_get_height(bo), 24, 32,
-		     gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, id);
+	gbm_bo_set_user_data(bo, (void *)(uintptr_t)id, free_fb);
 
-	gbm_bo_set_user_data(bo, id, free_fb);
+	return id;
+}
 
-	return *id;
+static void wlr_drm_plane_make_current(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	eglMakeCurrent(renderer->egl.display, plane->egl, plane->egl,
+		renderer->egl.context);
+}
+
+static void wlr_drm_plane_swap_buffers(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	if (plane->front)
+		gbm_surface_release_buffer(plane->gbm, plane->front);
+
+	eglSwapBuffers(renderer->egl.display, plane->egl);
+
+	plane->front = plane->back;
+	plane->back = gbm_surface_lock_front_buffer(plane->gbm);
 }
 
 static void wlr_drm_output_make_current(struct wlr_output_state *output) {
-	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_drm_plane *plane = output->crtc->primary;
-
-	eglMakeCurrent(renderer->egl.display, plane->egl,
-			plane->egl, renderer->egl.context);
+	wlr_drm_plane_make_current(output->renderer, output->crtc->primary);
 }
 
 static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
@@ -234,39 +222,11 @@ static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	if (!eglSwapBuffers(renderer->egl.display, plane->egl)) {
-		return;
-	}
+	wlr_drm_plane_swap_buffers(renderer, plane);
+	uint32_t fb_id = get_fb_for_bo(plane->back);
 
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(plane->gbm);
-	if (!bo) {
-		return;
-	}
-
-	uint32_t fb_id = get_fb_for_bo(bo);
 	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
 	output->pageflip_pending = true;
-
-	plane->front = plane->back;
-	plane->back = bo;
-}
-
-void wlr_drm_output_pause_renderer(struct wlr_output_state *output) {
-	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	struct wlr_drm_plane *plane = output->crtc->primary;
-
-	if (plane->front) {
-		gbm_surface_release_buffer(plane->gbm, plane->front);
-		plane->front = NULL;
-	}
-	if (plane->back) {
-		gbm_surface_release_buffer(plane->gbm, plane->back);
-		plane->back = NULL;
-	}
-
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
@@ -279,19 +239,16 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	eglMakeCurrent(renderer->egl.display, plane->egl, plane->egl, renderer->egl.context);
-
-	glViewport(0, 0, output->width, output->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	if (!eglSwapBuffers(renderer->egl.display, plane->egl)) {
-		return;
-	}
-
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(plane->gbm);
+	struct gbm_bo *bo = plane->front;
 	if (!bo) {
-		return;
+		// Render a black frame to start the rendering loop
+		wlr_drm_plane_make_current(renderer, plane);
+		glViewport(0, 0, plane->width, plane->height);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_plane_swap_buffers(renderer, plane);
+
+		bo = plane->back;
 	}
 
 	uint32_t fb_id = get_fb_for_bo(bo);
@@ -299,9 +256,6 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 		&output->connector, 1, &mode->state->mode);
 	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
 	output->pageflip_pending = true;
-
-	plane->back = plane->front;
-	plane->front = bo;
 }
 
 static bool plane_init_renderer(struct wlr_drm_renderer *renderer,

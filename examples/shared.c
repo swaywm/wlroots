@@ -9,7 +9,7 @@
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/backend/multi.h> 
+#include <wlr/backend/multi.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>

@@ -32,6 +32,7 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *drm) {
 
 	wlr_udev_signal_remove(drm->udev, &drm->drm_invalidated);
 	wlr_drm_renderer_free(&drm->renderer);
+	wlr_drm_resources_free(drm);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
 	free(drm);
@@ -55,11 +56,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		}
 	} else {
 		wlr_log(L_INFO, "DRM fd paused");
-
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_output_state *output = drm->outputs->items[i];
-			wlr_drm_output_pause_renderer(output);
-		}
 	}
 }
 

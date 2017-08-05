@@ -153,12 +153,12 @@ struct wlr_output_state {
 
 bool wlr_drm_check_features(struct wlr_backend_state *drm);
 bool wlr_drm_resources_init(struct wlr_backend_state *drm);
+void wlr_drm_resources_free(struct wlr_backend_state *drm);
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);
-void wlr_drm_output_pause_renderer(struct wlr_output_state *output);
 
 #endif
