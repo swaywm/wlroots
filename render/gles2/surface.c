@@ -51,7 +51,6 @@ static bool gles2_surface_attach_shm(struct wlr_surface_state *surface,
 	surface->wlr_surface->format = format;
 	surface->pixel_format = fmt;
 
-	GL_CALL(glActiveTexture(GL_TEXTURE0));
 	GL_CALL(glGenTextures(1, &surface->tex_id));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, pitch));
@@ -76,7 +75,6 @@ static void gles2_surface_get_matrix(struct wlr_surface_state *surface,
 }
 
 static void gles2_surface_bind(struct wlr_surface_state *surface) {
-	GL_CALL(glActiveTexture(GL_TEXTURE0 + 1));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
