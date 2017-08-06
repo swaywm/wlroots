@@ -12,8 +12,8 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
-#include <backend/udev.h>
-#include "drm.h"
+#include "backend/udev.h"
+#include "backend/drm.h"
 
 static bool wlr_drm_backend_init(struct wlr_backend_state *drm) {
 	wlr_drm_scan_connectors(drm);

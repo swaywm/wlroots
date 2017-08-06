@@ -18,8 +18,8 @@
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
-#include "drm.h"
-#include "drm-util.h"
+#include "backend/drm.h"
+#include "backend/drm-util.h"
 
 bool wlr_drm_check_features(struct wlr_backend_state *drm) {
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {

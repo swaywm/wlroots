@@ -2,7 +2,7 @@
 #include <string.h>
 #include <drm.h>
 #include <drm_mode.h>
-#include "drm-util.h"
+#include "backend/drm-util.h"
 
 int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
 	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +

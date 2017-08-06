@@ -5,7 +5,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wlr/util/log.h>
-#include "drm-properties.h"
+#include "backend/drm-properties.h"
 
 /*
  * Creates a mapping between property names and an array index where to store
