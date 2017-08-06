@@ -9,6 +9,7 @@
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/backend/multi.h> 
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
@@ -44,8 +45,14 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		}
 		if (sym == XKB_KEY_Escape) {
 			wl_display_terminate(kbstate->compositor->display);
-		} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
-			wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
+		} else if (key_state == WLR_KEY_PRESSED &&
+				sym >= XKB_KEY_XF86Switch_VT_1 &&
+				sym <= XKB_KEY_XF86Switch_VT_12) {
+			struct wlr_session *session =
+				wlr_multi_get_session(kbstate->compositor->backend);
+			if (session) {
+				wlr_session_change_vt(session, sym - XKB_KEY_XF86Switch_VT_1 + 1);
+			}
 		}
 	}
 	xkb_state_update_key(kbstate->xkb_state, keycode,

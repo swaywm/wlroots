@@ -113,3 +113,11 @@ void wlr_multi_backend_add(struct wlr_backend *multi,
 
 	list_add(multi->state->backends, sub);
 }
+
+struct wlr_session *wlr_multi_get_session(struct wlr_backend *base) {
+	if (base->impl != &backend_impl)
+		return NULL;
+
+	struct wlr_backend_state *multi = base->state;
+	return multi->session;
+}
