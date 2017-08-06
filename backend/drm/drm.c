@@ -15,6 +15,9 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/render/matrix.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render.h>
 #include "drm.h"
 #include "drm-util.h"
 
@@ -174,7 +177,7 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
 }
 
 static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane, uint32_t width, uint32_t height) {
+		struct wlr_drm_plane *plane, uint32_t width, uint32_t height, uint32_t flags) {
 	if (plane->width == width && plane->height == height) {
 		return true;
 	}
@@ -183,7 +186,7 @@ static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
 	plane->height = height;
 
 	plane->gbm = gbm_surface_create(renderer->gbm, width, height,
-		GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+		GBM_FORMAT_ARGB8888, GBM_BO_USE_RENDERING | flags);
 	if (!plane->gbm) {
 		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
 		return false;
@@ -203,8 +206,6 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	if (!renderer || !plane)
 		return;
 
-	wlr_log(L_DEBUG, "%s called", __func__);
-
 	if (plane->front)
 		gbm_surface_release_buffer(plane->gbm, plane->front);
 	if (plane->back)
@@ -215,12 +216,19 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	if (plane->gbm)
 		gbm_surface_destroy(plane->gbm);
 
+	if (plane->wlr_surf)
+		wlr_surface_destroy(plane->wlr_surf);
+	if (plane->wlr_rend)
+		wlr_renderer_destroy(plane->wlr_rend);
+
 	plane->width = 0;
 	plane->height = 0;
 	plane->egl = EGL_NO_SURFACE;
 	plane->gbm = NULL;
 	plane->front = NULL;
 	plane->back = NULL;
+	plane->wlr_rend = NULL;
+	plane->wlr_surf = NULL;
 }
 
 static void free_fb(struct gbm_bo *bo, void *data) {
@@ -480,7 +488,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 			continue;
 
 		if (!wlr_drm_plane_renderer_init(&drm->renderer, crtc->primary,
-				mode->width, mode->height)) {
+				mode->width, mode->height, GBM_BO_USE_SCANOUT)) {
 			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
 			goto error_enc;
 		}
@@ -506,79 +514,95 @@ static void wlr_drm_output_transform(struct wlr_output_state *output,
 	output->base->transform = transform;
 }
 
-static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	struct wlr_backend_state *state = wl_container_of(output->renderer, state, renderer);
-	if (!buf) {
-		drmModeSetCursor(state->fd, output->crtc->id, 0, 0, 0);
+bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc) {
+	if (!crtc || !crtc->cursor || !crtc->cursor->gbm)
 		return true;
-	}
 
-	if (!gbm_device_is_format_supported(state->renderer.gbm,
-				GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE)) {
-		wlr_log(L_ERROR, "Failed to create cursor bo: ARGB8888 pixel format is "
-				"unsupported on this device");
-		return false;
-	}
+	struct wlr_drm_plane *plane = crtc->cursor;
 
-	uint64_t bo_width, bo_height;
-	int ret;
-
-	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_WIDTH, &bo_width);
-	bo_width = ret ? 64 : bo_width;
-	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_HEIGHT, &bo_height);
-	bo_height = ret ? 64 : bo_height;
-
-	if (width > bo_width || height > bo_width) {
-		wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)bo_width, (int)bo_height);
-		return false;
-	}
-
-	for (int i = 0; i < 2; ++i) {
-		if (output->cursor_bo[i]) {
-			continue;
-		}
-
-		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm, bo_width, bo_height,
-			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
-
-		if (!output->cursor_bo[i]) {
-			wlr_log(L_ERROR, "Failed to create cursor bo");
-			return false;
-		}
-	}
-
-	struct gbm_bo *bo;
-	output->current_cursor ^= 1;
-	bo = output->cursor_bo[output->current_cursor];
-
-	uint32_t bo_stride = gbm_bo_get_stride(bo);
-	uint8_t tmp[bo_stride * height];
-	memset(tmp, 0, sizeof(tmp));
-
-	for (size_t i = 0; i < height; ++i) {
-		memcpy(tmp + i * bo_stride, buf + i * stride * 4, width * 4);
-	}
-
-	if (gbm_bo_write(bo, tmp, sizeof(tmp)) < 0) {
-		wlr_log(L_ERROR, "Failed to write cursor to bo");
-		return false;
-	}
-
-	uint32_t bo_handle = gbm_bo_get_handle(bo).u32;
-	if (drmModeSetCursor(state->fd, output->crtc->id, bo_handle, bo_width, bo_height)) {
-		wlr_log_errno(L_INFO, "Failed to set hardware cursor");
+	uint32_t bo_handle = gbm_bo_get_handle(plane->back).u32;
+	if (drmModeSetCursor(drm->fd, crtc->id, bo_handle, plane->width, plane->height)) {
+		wlr_log_errno(L_ERROR, "Failed to set hardware cursor");
 		return false;
 	}
 
 	return true;
 }
 
+static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
+	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->cursor;
+
+	if (!buf) {
+		drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0);
+		return true;
+	}
+
+	if (!plane) {
+		plane = calloc(1, sizeof(*plane));
+		if (!plane) {
+			wlr_log_errno(L_ERROR, "Allocation failed");
+			return false;
+		}
+		crtc->cursor = plane;
+	}
+
+	if (!plane->gbm) {
+		int ret;
+		uint64_t w, h;
+		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
+		w = ret ? 64 : w;
+		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
+		h = ret ? 64 : h;
+
+		if (width > w || height > h) {
+			wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)w, (int)h);
+			return false;
+		}
+
+		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, GBM_BO_USE_CURSOR)) {
+			wlr_log(L_ERROR, "Cannot allocate cursor resources");
+			return false;
+		}
+
+		wlr_matrix_surface(plane->matrix, plane->width, plane->height,
+			output->base->transform);
+
+		plane->wlr_rend = wlr_gles2_renderer_init();
+		if (!plane->wlr_rend)
+			return false;
+
+		plane->wlr_surf = wlr_render_surface_init(plane->wlr_rend);
+		if (!plane->wlr_surf)
+			return false;
+	}
+
+	wlr_drm_plane_make_current(renderer, plane);
+
+	wlr_surface_attach_pixels(plane->wlr_surf, WL_SHM_FORMAT_ARGB8888,
+		stride, width, height, buf);
+
+	glViewport(0, 0, plane->width, plane->height);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	float matrix[16];
+	wlr_surface_get_matrix(plane->wlr_surf, &matrix, &plane->matrix, 0, 0);
+	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_surf, &matrix);
+
+	wlr_drm_plane_swap_buffers(renderer, plane);
+
+	return wlr_drm_crtc_set_cursor(drm, crtc);
+}
+
 static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
 		int x, int y) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
-	return !drmModeMoveCursor(state->fd, output->crtc->id, x, y);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
+	return !drmModeMoveCursor(drm->fd, output->crtc->id, x, y);
 }
 
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
@@ -786,9 +810,14 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 			restore = false;
 		}
 
-		wlr_drm_plane_renderer_free(renderer, output->crtc->overlay);
-		wlr_drm_plane_renderer_free(renderer, output->crtc->primary);
-		wlr_drm_plane_renderer_free(renderer, output->crtc->cursor);
+		struct wlr_drm_crtc *crtc = output->crtc;
+		for (int i = 0; i < 3; ++i) {
+			wlr_drm_plane_renderer_free(renderer, crtc->planes[i]);
+			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
+				free(crtc->planes[i]);
+				crtc->planes[i] = NULL;
+			}
+		}
 
 		output->crtc = NULL;
 		output->possible_crtc = 0;

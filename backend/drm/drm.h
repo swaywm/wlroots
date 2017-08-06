@@ -21,11 +21,9 @@
 struct wlr_drm_plane {
 	uint32_t type;
 	uint32_t id;
-	uint32_t fb_id;
 
 	uint32_t possible_crtcs;
 
-	int32_t x, y;
 	uint32_t width, height;
 
 	struct gbm_surface *gbm;
@@ -33,6 +31,11 @@ struct wlr_drm_plane {
 
 	struct gbm_bo *front;
 	struct gbm_bo *back;
+
+	// Only used by cursor
+	float matrix[16];
+	struct wlr_renderer *wlr_rend;
+	struct wlr_surface *wlr_surf;
 
 	union wlr_drm_plane_props props;
 };
@@ -159,5 +162,6 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);
+bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc);
 
 #endif

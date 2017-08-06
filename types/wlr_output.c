@@ -88,67 +88,8 @@ struct wl_global *wlr_output_create_global(
 	return wl_global;
 }
 
-static const float transforms[][4] = {
-	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f,
-		0.0f, -1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f,
-		-1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f,
-		0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f,
-		1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f,
-		0.0f, -1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, 1.0f,
-		-1.0f, 0.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f,
-		0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, -1.0f,
-		1.0f, 0.0f,
-	},
-};
-
-// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-static void set_matrix(float mat[static 16], int32_t width, int32_t height,
-		enum wl_output_transform transform) {
-	memset(mat, 0, sizeof(*mat) * 16);
-
-	const float *t = transforms[transform];
-	float x = 2.0f / width;
-	float y = 2.0f / height;
-
-	// Rotation + relection
-	mat[0] = x * t[0];
-	mat[1] = x * t[1];
-	mat[4] = y * t[2];
-	mat[5] = y * t[3];
-
-	// Translation
-	mat[3] = -copysign(1.0f, mat[0] + mat[1]);
-	mat[7] = -copysign(1.0f, mat[4] + mat[5]);
-
-	// Identity
-	mat[10] = 1.0f;
-	mat[15] = 1.0f;
-}
-
 void wlr_output_update_matrix(struct wlr_output *output) {
-	set_matrix(output->transform_matrix, output->width, output->height, output->transform);
+	wlr_matrix_surface(output->transform_matrix, output->width, output->height, output->transform);
 }
 
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,

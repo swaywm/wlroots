@@ -53,6 +53,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		for (size_t i = 0; i < drm->outputs->length; ++i) {
 			struct wlr_output_state *output = drm->outputs->items[i];
 			wlr_drm_output_start_renderer(output);
+			wlr_drm_crtc_set_cursor(drm, output->crtc);
 		}
 	} else {
 		wlr_log(L_INFO, "DRM fd paused");
