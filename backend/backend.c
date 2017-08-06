@@ -72,7 +72,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	}
 
 	if (getenv("DISPLAY")) {
-		// TODO: X11 backend
+		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
 		return NULL;
 	}
 
