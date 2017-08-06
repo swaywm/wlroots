@@ -48,10 +48,12 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		} else if (key_state == WLR_KEY_PRESSED &&
 				sym >= XKB_KEY_XF86Switch_VT_1 &&
 				sym <= XKB_KEY_XF86Switch_VT_12) {
-			struct wlr_session *session =
-				wlr_multi_get_session(kbstate->compositor->backend);
-			if (session) {
-				wlr_session_change_vt(session, sym - XKB_KEY_XF86Switch_VT_1 + 1);
+			if (wlr_backend_is_multi(kbstate->compositor->backend)) {
+				struct wlr_session *session =
+					wlr_multi_get_session(kbstate->compositor->backend);
+				if (session) {
+					wlr_session_change_vt(session, sym - XKB_KEY_XF86Switch_VT_1 + 1);
+				}
 			}
 		}
 	}

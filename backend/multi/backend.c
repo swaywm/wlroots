@@ -66,6 +66,10 @@ struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
 	return backend;
 }
 
+bool wlr_backend_is_multi(struct wlr_backend *b) {
+	return b->impl == &backend_impl;
+}
+
 static void input_add_reemit(struct wl_listener *listener, void *data) {
 	struct subbackend_state *state = wl_container_of(listener,
 			state, input_add);
