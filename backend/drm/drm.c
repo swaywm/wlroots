@@ -753,8 +753,8 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *drm) {
 static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, void *user) {
 	struct wlr_output_state *output = user;
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
 
 	struct wlr_drm_plane *plane = output->crtc->primary;
 	if (plane->front) {
@@ -763,7 +763,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	output->pageflip_pending = false;
-	if (output->state == WLR_DRM_OUTPUT_CONNECTED && state->session->active) {
+	if (output->state == WLR_DRM_OUTPUT_CONNECTED && drm->session->active) {
 		wl_signal_emit(&output->base->events.frame, output->base);
 	}
 }
@@ -800,7 +800,7 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 	}
 
 	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_backend_state *state = wl_container_of(renderer, state, renderer);
+	struct wlr_backend_state *drm = wl_container_of(renderer, drm, renderer);
 
 	switch (output->state) {
 	case WLR_DRM_OUTPUT_CONNECTED:
@@ -828,7 +828,7 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 			restore_output(output, renderer->fd);
 		}
 		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->base->name);
-		wl_signal_emit(&state->base->events.output_remove, output->base);
+		wl_signal_emit(&drm->base->events.output_remove, output->base);
 		break;
 	case WLR_DRM_OUTPUT_DISCONNECTED:
 		break;
