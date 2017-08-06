@@ -7,7 +7,7 @@
 #include <wayland-server.h>
 #include <GLES2/gl2.h>
 #include <wlr/backend.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
 #include <xkbcommon/xkbcommon.h>
 #include "shared.h"

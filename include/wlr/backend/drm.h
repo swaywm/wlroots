@@ -2,7 +2,7 @@
 #define WLR_BACKEND_DRM_H
 
 #include <wayland-server.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/backend.h>
 #include <wlr/backend/udev.h>
 

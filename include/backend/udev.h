@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 #include <libudev.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wayland-server.h>
 #include <wlr/backend/udev.h>
 

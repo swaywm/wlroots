@@ -13,7 +13,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_pad.h>

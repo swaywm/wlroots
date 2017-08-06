@@ -13,7 +13,7 @@
 #include <xf86drm.h>
 #include <linux/major.h>
 #include <wlr/util/log.h>
-#include "session/direct-ipc.h"
+#include "backend/session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };
 

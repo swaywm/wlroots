@@ -63,7 +63,6 @@ wlr_files = []
 
 subdir('backend')
 subdir('render')
-subdir('session')
 subdir('types')
 subdir('util')
 

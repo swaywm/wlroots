@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <wayland-server.h>
-#include <wlr/session/interface.h>
+#include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 
 enum { DRM_MAJOR = 226 };

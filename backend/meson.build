@@ -2,6 +2,9 @@ wlr_files += files(
     'backend.c',
     'egl.c',
     'udev.c',
+    'session/direct-ipc.c',
+    'session/direct.c',
+    'session/session.c',
     'drm/backend.c',
     'drm/drm.c',
     'libinput/backend.c',
@@ -17,3 +20,7 @@ wlr_files += files(
     'wayland/registry.c',
     'wayland/wl_seat.c',
 )
+
+if dep_systemd.found()
+    wlr_files += files('session/logind.c')
+endif

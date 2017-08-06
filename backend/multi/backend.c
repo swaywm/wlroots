@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/udev.h>
+#include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 
@@ -31,6 +33,8 @@ static void multi_backend_destroy(struct wlr_backend_state *state) {
 		free(sub);
 	}
 	list_free(state->backends);
+	wlr_session_finish(state->session);
+	wlr_udev_destroy(state->udev);
 	free(state);
 }
 
@@ -39,22 +43,31 @@ struct wlr_backend_impl backend_impl = {
 	.destroy = multi_backend_destroy
 };
 
-struct wlr_backend *wlr_multi_backend_create() {
+struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
+		struct wlr_udev *udev) {
 	struct wlr_backend_state *state =
 		calloc(1, sizeof(struct wlr_backend_state));
 	if (!state) {
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
+
 	state->backends = list_create();
 	if (!state->backends) {
 		free(state);
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
+
 	struct wlr_backend *backend = wlr_backend_create(&backend_impl, state);
 	state->backend = backend;
+	state->session = session;
+	state->udev = udev;
 	return backend;
+}
+
+bool wlr_backend_is_multi(struct wlr_backend *b) {
+	return b->impl == &backend_impl;
 }
 
 static void input_add_reemit(struct wl_listener *listener, void *data) {
@@ -103,4 +116,12 @@ void wlr_multi_backend_add(struct wlr_backend *multi,
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
 
 	list_add(multi->state->backends, sub);
+}
+
+struct wlr_session *wlr_multi_get_session(struct wlr_backend *base) {
+	if (base->impl != &backend_impl)
+		return NULL;
+
+	struct wlr_backend_state *multi = base->state;
+	return multi->session;
 }

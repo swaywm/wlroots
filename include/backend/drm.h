@@ -10,7 +10,7 @@
 #include <libudev.h>
 #include <gbm.h>
 
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
 #include <wlr/util/list.h>
 

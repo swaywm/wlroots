@@ -8,7 +8,8 @@
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
+#include <wlr/backend/multi.h> 
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
@@ -44,8 +45,16 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		}
 		if (sym == XKB_KEY_Escape) {
 			wl_display_terminate(kbstate->compositor->display);
-		} else if (key_state == WLR_KEY_PRESSED && sym >= XKB_KEY_F1 && sym <= XKB_KEY_F12) {
-			wlr_session_change_vt(kbstate->compositor->session, sym - XKB_KEY_F1 + 1);
+		} else if (key_state == WLR_KEY_PRESSED &&
+				sym >= XKB_KEY_XF86Switch_VT_1 &&
+				sym <= XKB_KEY_XF86Switch_VT_12) {
+			if (wlr_backend_is_multi(kbstate->compositor->backend)) {
+				struct wlr_session *session =
+					wlr_multi_get_session(kbstate->compositor->backend);
+				if (session) {
+					wlr_session_change_vt(session, sym - XKB_KEY_XF86Switch_VT_1 + 1);
+				}
+			}
 		}
 	}
 	xkb_state_update_key(kbstate->xkb_state, keycode,
@@ -440,12 +449,6 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 void compositor_init(struct compositor_state *state) {
 	state->display = wl_display_create();
 	state->event_loop = wl_display_get_event_loop(state->display);
-	state->session = wlr_session_start(state->display);
-	if (!state->session
-			|| !state->display
-			|| !state->event_loop) {
-		exit(1);
-	}
 
 	wl_list_init(&state->keyboards);
 	wl_list_init(&state->pointers);
@@ -463,10 +466,8 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->output_remove.link);
 	state->output_remove.notify = output_remove_notify;
 
-	struct wlr_backend *wlr = wlr_backend_autocreate(
-			state->display, state->session);
+	struct wlr_backend *wlr = wlr_backend_autocreate(state->display);
 	if (!wlr) {
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 	wl_signal_add(&wlr->events.input_add, &state->input_add);
@@ -481,7 +482,6 @@ void compositor_init(struct compositor_state *state) {
 	if (!socket) {
 		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
 		wlr_backend_destroy(wlr);
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 
@@ -490,7 +490,6 @@ void compositor_init(struct compositor_state *state) {
 	if (!wlr_backend_init(state->backend)) {
 		wlr_log(L_ERROR, "Failed to initialize backend");
 		wlr_backend_destroy(wlr);
-		wlr_session_finish(state->session);
 		exit(1);
 	}
 }
@@ -498,6 +497,5 @@ void compositor_init(struct compositor_state *state) {
 void compositor_run(struct compositor_state *state) {
 	wl_display_run(state->display);
 	wlr_backend_destroy(state->backend);
-	wlr_session_finish(state->session);
 	wl_display_destroy(state->display);
 }

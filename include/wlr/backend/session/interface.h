@@ -1,7 +1,7 @@
 #ifndef WLR_SESSION_INTERFACE_H
 #define WLR_SESSION_INTERFACE_H
 
-#include <wlr/session.h>
+#include <wlr/backend/session.h>
 
 struct session_impl {
 	struct wlr_session *(*start)(struct wl_display *disp);
