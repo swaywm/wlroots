@@ -145,8 +145,9 @@ error_res:
 }
 
 void wlr_drm_resources_free(struct wlr_backend_state *drm) {
-	if (!drm)
+	if (!drm) {
 		return;
+	}
 
 	free(drm->crtcs);
 	free(drm->planes);
@@ -169,8 +170,9 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 }
 
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
-	if (!renderer)
+	if (!renderer) {
 		return;
+	}
 
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
@@ -203,23 +205,30 @@ static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
 
 static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_plane *plane) {
-	if (!renderer || !plane)
+	if (!renderer || !plane) {
 		return;
+	}
 
-	if (plane->front)
+	if (plane->front) {
 		gbm_surface_release_buffer(plane->gbm, plane->front);
-	if (plane->back)
+	}
+	if (plane->back) {
 		gbm_surface_release_buffer(plane->gbm, plane->back);
+	}
 
-	if (plane->egl)
+	if (plane->egl) {
 		eglDestroySurface(renderer->egl.display, plane->egl);
-	if (plane->gbm)
+	}
+	if (plane->gbm) {
 		gbm_surface_destroy(plane->gbm);
+	}
 
-	if (plane->wlr_surf)
+	if (plane->wlr_surf) {
 		wlr_surface_destroy(plane->wlr_surf);
-	if (plane->wlr_rend)
+	}
+	if (plane->wlr_rend) {
 		wlr_renderer_destroy(plane->wlr_rend);
+	}
 
 	plane->width = 0;
 	plane->height = 0;
@@ -242,8 +251,9 @@ static void free_fb(struct gbm_bo *bo, void *data) {
 
 static uint32_t get_fb_for_bo(struct gbm_bo *bo) {
 	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
-	if (id)
+	if (id) {
 		return id;
+	}
 
 	struct gbm_device *gbm = gbm_bo_get_device(bo);
 	drmModeAddFB(gbm_device_get_fd(gbm), gbm_bo_get_width(bo), gbm_bo_get_height(bo),
@@ -262,8 +272,9 @@ static void wlr_drm_plane_make_current(struct wlr_drm_renderer *renderer,
 
 static void wlr_drm_plane_swap_buffers(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_plane *plane) {
-	if (plane->front)
+	if (plane->front) {
 		gbm_surface_release_buffer(plane->gbm, plane->front);
+	}
 
 	eglSwapBuffers(renderer->egl.display, plane->egl);
 
@@ -337,30 +348,34 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 static void realloc_planes(struct wlr_backend_state *drm, const uint32_t *crtc_in) {
 	// overlay, primary, cursor
 	for (int type = 0; type < 3; ++type) {
-		if (drm->num_type_planes[type] == 0)
+		if (drm->num_type_planes[type] == 0) {
 			continue;
+		}
 
 		uint32_t possible[drm->num_type_planes[type]];
 		uint32_t crtc[drm->num_crtcs];
 		uint32_t crtc_res[drm->num_crtcs];
 
-		for (size_t i = 0; i < drm->num_type_planes[type]; ++i)
+		for (size_t i = 0; i < drm->num_type_planes[type]; ++i) {
 			possible[i] = drm->type_planes[type][i].possible_crtcs;
+		}
 
 		for (size_t i = 0; i < drm->num_crtcs; ++i) {
-			if (crtc_in[i] == UNMATCHED)
+			if (crtc_in[i] == UNMATCHED) {
 				crtc[i] = SKIP;
-			else if (drm->crtcs[i].planes[type])
+			} else if (drm->crtcs[i].planes[type]) {
 				crtc[i] = drm->crtcs[i].planes[type] - drm->type_planes[type];
-			else
+			} else {
 				crtc[i] = UNMATCHED;
+			}
 		}
 
 		match_obj(drm->num_type_planes[type], possible, drm->num_crtcs, crtc, crtc_res);
 
 		for (size_t i = 0; i < drm->num_crtcs; ++i) {
-			if (crtc_res[i] == UNMATCHED || crtc_res[i] == SKIP)
+			if (crtc_res[i] == UNMATCHED || crtc_res[i] == SKIP) {
 				continue;
+			}
 
 			struct wlr_drm_crtc *c = &drm->crtcs[i];
 			struct wlr_drm_plane **old = &c->planes[type];
@@ -389,11 +404,13 @@ static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state
 	size_t index;
 	for (size_t i = 0; i < drm->outputs->length; ++i) {
 		struct wlr_output_state *o = drm->outputs->items[i];
-		if (o == output)
+		if (o == output) {
 			index = i;
+		}
 
-		if (o->state != WLR_DRM_OUTPUT_CONNECTED)
+		if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
 			continue;
+		}
 
 		possible_crtc[i] = o->possible_crtc;
 		crtc[o->crtc - drm->crtcs] = i;
@@ -405,19 +422,23 @@ static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state
 	bool matched = false;
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		// We don't want any of the current monitors to be deactivated.
-		if (crtc[i] != UNMATCHED && crtc_res[i] == UNMATCHED)
+		if (crtc[i] != UNMATCHED && crtc_res[i] == UNMATCHED) {
 			return;
-		if (crtc_res[i] == index)
+		}
+		if (crtc_res[i] == index) {
 			matched = true;
+		}
 	}
 
 	// There is no point doing anything if this monitor doesn't get activated
-	if (!matched)
+	if (!matched) {
 		return;
+	}
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		if (crtc_res[i] == UNMATCHED)
+		if (crtc_res[i] == UNMATCHED) {
 			continue;
+		}
 
 		if (crtc_res[i] != crtc[i]) {
 			struct wlr_output_state *o = drm->outputs->items[crtc_res[i]];
@@ -484,8 +505,9 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		struct wlr_output_mode *mode = output->base->current_mode;
 		struct wlr_drm_crtc *crtc = output->crtc;
 
-		if (output->state != WLR_DRM_OUTPUT_CONNECTED)
+		if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 			continue;
+		}
 
 		if (!wlr_drm_plane_renderer_init(&drm->renderer, crtc->primary,
 				mode->width, mode->height, GBM_BO_USE_SCANOUT)) {
@@ -515,8 +537,9 @@ static void wlr_drm_output_transform(struct wlr_output_state *output,
 }
 
 bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc) {
-	if (!crtc || !crtc->cursor || !crtc->cursor->gbm)
+	if (!crtc || !crtc->cursor || !crtc->cursor->gbm) {
 		return true;
+	}
 
 	struct wlr_drm_plane *plane = crtc->cursor;
 
@@ -572,12 +595,14 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 			output->base->transform);
 
 		plane->wlr_rend = wlr_gles2_renderer_init();
-		if (!plane->wlr_rend)
+		if (!plane->wlr_rend) {
 			return false;
+		}
 
 		plane->wlr_surf = wlr_render_surface_init(plane->wlr_rend);
-		if (!plane->wlr_surf)
+		if (!plane->wlr_surf) {
 			return false;
+		}
 	}
 
 	wlr_drm_plane_make_current(renderer, plane);
