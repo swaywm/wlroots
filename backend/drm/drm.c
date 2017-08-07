@@ -10,7 +10,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <gbm.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -229,6 +230,9 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	if (plane->wlr_rend) {
 		wlr_renderer_destroy(plane->wlr_rend);
 	}
+	if (plane->cursor_bo) {
+		gbm_bo_destroy(plane->cursor_bo);
+	}
 
 	plane->width = 0;
 	plane->height = 0;
@@ -238,6 +242,7 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	plane->back = NULL;
 	plane->wlr_rend = NULL;
 	plane->wlr_surf = NULL;
+	plane->cursor_bo = NULL;
 }
 
 static void free_fb(struct gbm_bo *bo, void *data) {
@@ -543,7 +548,7 @@ bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc 
 
 	struct wlr_drm_plane *plane = crtc->cursor;
 
-	uint32_t bo_handle = gbm_bo_get_handle(plane->back).u32;
+	uint32_t bo_handle = gbm_bo_get_handle(plane->cursor_bo).u32;
 	if (drmModeSetCursor(drm->fd, crtc->id, bo_handle, plane->width, plane->height)) {
 		wlr_log_errno(L_ERROR, "Failed to set hardware cursor");
 		return false;
@@ -586,13 +591,22 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 			return false;
 		}
 
-		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, GBM_BO_USE_CURSOR)) {
+		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
 
+		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h, GBM_FORMAT_ARGB8888,
+			GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+		if (!plane->cursor_bo) {
+			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
+			return false;
+		}
+
+		// OpenGL will read the pixels out upside down,
+		// so we need to flip the image vertically
 		wlr_matrix_surface(plane->matrix, plane->width, plane->height,
-			output->base->transform);
+			output->base->transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
 		plane->wlr_rend = wlr_gles2_renderer_init();
 		if (!plane->wlr_rend) {
@@ -605,20 +619,39 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		}
 	}
 
+	struct gbm_bo *bo = plane->cursor_bo;
+	uint32_t bo_width = gbm_bo_get_width(bo);
+	uint32_t bo_height = gbm_bo_get_height(bo);
+	uint32_t bo_stride;
+	void *bo_data;
+
+	if (!gbm_bo_map(bo, 0, 0, bo_width, bo_height,
+			GBM_BO_TRANSFER_WRITE, &bo_stride, &bo_data)) {
+		wlr_log_errno(L_ERROR, "Unable to map buffer");
+		return false;
+	}
+
 	wlr_drm_plane_make_current(renderer, plane);
 
 	wlr_surface_attach_pixels(plane->wlr_surf, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
 
 	glViewport(0, 0, plane->width, plane->height);
-	glClearColor(0, 0, 0, 0);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	float matrix[16];
 	wlr_surface_get_matrix(plane->wlr_surf, &matrix, &plane->matrix, 0, 0);
 	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_surf, &matrix);
 
+	glFinish();
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
+	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+
 	wlr_drm_plane_swap_buffers(renderer, plane);
+
+	gbm_bo_unmap(bo, bo_data);
 
 	return wlr_drm_crtc_set_cursor(drm, crtc);
 }
