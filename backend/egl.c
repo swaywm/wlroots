@@ -99,7 +99,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 			continue;
 		}
 
-		if (gbm_format == GBM_FORMAT_XRGB8888) {
+		if (gbm_format == GBM_FORMAT_ARGB8888) {
 			*out = configs[i];
 			return true;
 		}

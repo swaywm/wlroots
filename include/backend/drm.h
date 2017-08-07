@@ -14,8 +14,58 @@
 #include <wlr/backend/drm.h>
 #include <wlr/util/list.h>
 
-#include "backend/egl.h"
-#include "backend/udev.h"
+#include <backend/egl.h>
+#include <backend/udev.h>
+#include "drm-properties.h"
+
+struct wlr_drm_plane {
+	uint32_t type;
+	uint32_t id;
+
+	uint32_t possible_crtcs;
+
+	uint32_t width, height;
+
+	struct gbm_surface *gbm;
+	EGLSurface egl;
+
+	struct gbm_bo *front;
+	struct gbm_bo *back;
+
+	// Only used by cursor
+	float matrix[16];
+	struct wlr_renderer *wlr_rend;
+	struct wlr_surface *wlr_surf;
+	struct gbm_bo *cursor_bo;
+
+	union wlr_drm_plane_props props;
+};
+
+struct wlr_drm_crtc {
+	uint32_t id;
+	union {
+		struct {
+			struct wlr_drm_plane *overlay;
+			struct wlr_drm_plane *primary;
+			struct wlr_drm_plane *cursor;
+		};
+		struct wlr_drm_plane *planes[3];
+	};
+
+	union wlr_drm_crtc_props props;
+
+	struct wl_list connectors;
+};
+
+struct wlr_drm_connector {
+	struct wlr_output *base;
+	uint32_t id;
+	struct wlr_drm_crtc *crtc;
+
+	union wlr_drm_connector_props props;
+
+	struct wl_list link;
+};
 
 struct wlr_drm_renderer {
 	int fd;
@@ -27,10 +77,34 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
 struct wlr_backend_state {
+	struct wlr_backend *base;
+
 	int fd;
 	dev_t dev;
 
-	struct wlr_backend *backend;
+	size_t num_crtcs;
+	struct wlr_drm_crtc *crtcs;
+	size_t num_planes;
+	struct wlr_drm_plane *planes;
+
+	union {
+		struct {
+			size_t num_overlay_planes;
+			size_t num_primary_planes;
+			size_t num_cursor_planes;
+		};
+		size_t num_type_planes[3];
+	};
+
+	union {
+		struct {
+			struct wlr_drm_plane *overlay_planes;
+			struct wlr_drm_plane *primary_planes;
+			struct wlr_drm_plane *cursor_planes;
+		};
+		struct wlr_drm_plane *type_planes[3];
+	};
+
 	struct wl_display *display;
 	struct wl_event_source *drm_event;
 
@@ -46,9 +120,9 @@ struct wlr_backend_state {
 };
 
 enum wlr_drm_output_state {
-	DRM_OUTPUT_DISCONNECTED,
-	DRM_OUTPUT_NEEDS_MODESET,
-	DRM_OUTPUT_CONNECTED,
+	WLR_DRM_OUTPUT_DISCONNECTED,
+	WLR_DRM_OUTPUT_NEEDS_MODESET,
+	WLR_DRM_OUTPUT_CONNECTED,
 };
 
 struct wlr_output_mode_state {
@@ -57,38 +131,34 @@ struct wlr_output_mode_state {
 };
 
 struct wlr_output_state {
-	struct wlr_output *wlr_output;
+	struct wlr_output *base;
 	enum wlr_drm_output_state state;
 	uint32_t connector;
 
-	struct {
-		uint32_t dpms;
-	} props;
+	struct wlr_drm_crtc *crtc;
+	uint32_t possible_crtc;
+
+	union wlr_drm_connector_props props;
 
 	uint32_t width;
 	uint32_t height;
 
-	uint32_t crtc;
 	drmModeCrtc *old_crtc;
 
 	struct wlr_drm_renderer *renderer;
-	EGLSurface *egl;
-	struct gbm_surface *gbm;
-	struct gbm_bo *bo[2];
-	struct gbm_bo *cursor_bo[2];
-	int current_cursor;
-	uint32_t cursor_width, cursor_height;
 
 	bool pageflip_pending;
-	bool cleanup;
 };
 
+bool wlr_drm_check_features(struct wlr_backend_state *drm);
+bool wlr_drm_resources_init(struct wlr_backend_state *drm);
+void wlr_drm_resources_free(struct wlr_backend_state *drm);
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);
-void wlr_drm_output_pause_renderer(struct wlr_output_state *output);
+bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc);
 
 #endif

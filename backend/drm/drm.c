@@ -10,32 +10,149 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <gbm.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/render/matrix.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render.h>
 #include "backend/drm.h"
+#include "backend/drm-util.h"
 
-static const char *conn_name[] = {
-	[DRM_MODE_CONNECTOR_Unknown]     = "Unknown",
-	[DRM_MODE_CONNECTOR_VGA]         = "VGA",
-	[DRM_MODE_CONNECTOR_DVII]        = "DVI-I",
-	[DRM_MODE_CONNECTOR_DVID]        = "DVI-D",
-	[DRM_MODE_CONNECTOR_DVIA]        = "DVI-A",
-	[DRM_MODE_CONNECTOR_Composite]   = "Composite",
-	[DRM_MODE_CONNECTOR_SVIDEO]      = "SVIDEO",
-	[DRM_MODE_CONNECTOR_LVDS]        = "LVDS",
-	[DRM_MODE_CONNECTOR_Component]   = "Component",
-	[DRM_MODE_CONNECTOR_9PinDIN]     = "DIN",
-	[DRM_MODE_CONNECTOR_DisplayPort] = "DP",
-	[DRM_MODE_CONNECTOR_HDMIA]       = "HDMI-A",
-	[DRM_MODE_CONNECTOR_HDMIB]       = "HDMI-B",
-	[DRM_MODE_CONNECTOR_TV]          = "TV",
-	[DRM_MODE_CONNECTOR_eDP]         = "eDP",
-	[DRM_MODE_CONNECTOR_VIRTUAL]     = "Virtual",
-	[DRM_MODE_CONNECTOR_DSI]         = "DSI",
-};
+bool wlr_drm_check_features(struct wlr_backend_state *drm) {
+	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
+		wlr_log(L_INFO, "DRM universal planes unsupported");
+		return false;
+	}
+
+	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
+		wlr_log(L_INFO, "Atomic modesetting unsupported");
+	}
+
+	return true;
+}
+
+static int cmp_plane(const void *arg1, const void *arg2)
+{
+	const struct wlr_drm_plane *a = arg1;
+	const struct wlr_drm_plane *b = arg2;
+
+	return (int)a->type - (int)b->type;
+}
+
+static bool init_planes(struct wlr_backend_state *drm)
+{
+	drmModePlaneRes *plane_res = drmModeGetPlaneResources(drm->fd);
+	if (!plane_res) {
+		wlr_log_errno(L_ERROR, "Failed to get DRM plane resources");
+		return false;
+	}
+
+	wlr_log(L_INFO, "Found %"PRIu32" DRM planes", plane_res->count_planes);
+
+	if (plane_res->count_planes == 0) {
+		drmModeFreePlaneResources(plane_res);
+		return true;
+	}
+
+	drm->num_planes = plane_res->count_planes;
+	drm->planes = calloc(drm->num_planes, sizeof(*drm->planes));
+	if (!drm->planes) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		goto error_res;
+	}
+
+	for (size_t i = 0; i < drm->num_planes; ++i) {
+		struct wlr_drm_plane *p = &drm->planes[i];
+
+		drmModePlane *plane = drmModeGetPlane(drm->fd, plane_res->planes[i]);
+		if (!plane) {
+			wlr_log_errno(L_ERROR, "Failed to get DRM plane");
+			goto error_planes;
+		}
+
+		p->id = plane->plane_id;
+		p->possible_crtcs = plane->possible_crtcs;
+		uint64_t type;
+
+		if (!wlr_drm_get_plane_props(drm->fd, p->id, &p->props) ||
+				!wlr_drm_get_prop(drm->fd, p->id, p->props.type, &type)) {
+			drmModeFreePlane(plane);
+			goto error_planes;
+		}
+
+		p->type = type;
+		drm->num_type_planes[type]++;
+
+		drmModeFreePlane(plane);
+	}
+
+	wlr_log(L_INFO, "(%zu overlay, %zu primary, %zu cursor)",
+		drm->num_overlay_planes, drm->num_primary_planes, drm->num_cursor_planes);
+
+	qsort(drm->planes, drm->num_planes, sizeof(*drm->planes), cmp_plane);
+
+	drm->overlay_planes = drm->planes;
+	drm->primary_planes = drm->overlay_planes + drm->num_overlay_planes;
+	drm->cursor_planes = drm->primary_planes + drm->num_primary_planes;
+
+	return true;
+
+error_planes:
+	free(drm->planes);
+error_res:
+	drmModeFreePlaneResources(plane_res);
+	return false;
+}
+
+bool wlr_drm_resources_init(struct wlr_backend_state *drm) {
+	drmModeRes *res = drmModeGetResources(drm->fd);
+	if (!res) {
+		wlr_log_errno(L_ERROR, "Failed to get DRM resources");
+		return false;
+	}
+
+	wlr_log(L_INFO, "Found %d DRM CRTCs", res->count_crtcs);
+
+	drm->num_crtcs = res->count_crtcs;
+	drm->crtcs = calloc(drm->num_crtcs, sizeof(drm->crtcs[0]));
+	if (!drm->crtcs) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		goto error_res;
+	}
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
+		crtc->id = res->crtcs[i];
+		wlr_drm_get_crtc_props(drm->fd, crtc->id, &crtc->props);
+	}
+
+	if (!init_planes(drm)) {
+		goto error_crtcs;
+	}
+
+	drmModeFreeResources(res);
+
+	return true;
+
+error_crtcs:
+	free(drm->crtcs);
+error_res:
+	drmModeFreeResources(res);
+	return false;
+}
+
+void wlr_drm_resources_free(struct wlr_backend_state *drm) {
+	if (!drm) {
+		return;
+	}
+
+	free(drm->crtcs);
+	free(drm->planes);
+}
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 	renderer->gbm = gbm_create_device(fd);
@@ -57,148 +174,168 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
 	if (!renderer) {
 		return;
 	}
+
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 
-static void free_fb(struct gbm_bo *bo, void *data) {
-	uint32_t *id = data;
-
-	if (id && *id) {
-		drmModeRmFB(gbm_bo_get_fd(bo), *id);
+static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane, uint32_t width, uint32_t height, uint32_t flags) {
+	if (plane->width == width && plane->height == height) {
+		return true;
 	}
 
-	free(id);
+	plane->width = width;
+	plane->height = height;
+
+	plane->gbm = gbm_surface_create(renderer->gbm, width, height,
+		GBM_FORMAT_ARGB8888, GBM_BO_USE_RENDERING | flags);
+	if (!plane->gbm) {
+		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
+		return false;
+	}
+
+	plane->egl = wlr_egl_create_surface(&renderer->egl, plane->gbm);
+	if (plane->egl == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface for plane");
+		return false;
+	}
+
+	return true;
 }
 
-static uint32_t get_fb_for_bo(int fd, struct gbm_bo *bo) {
-	uint32_t *id = gbm_bo_get_user_data(bo);
+static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	if (!renderer || !plane) {
+		return;
+	}
+
+	if (plane->front) {
+		gbm_surface_release_buffer(plane->gbm, plane->front);
+	}
+	if (plane->back) {
+		gbm_surface_release_buffer(plane->gbm, plane->back);
+	}
+
+	if (plane->egl) {
+		eglDestroySurface(renderer->egl.display, plane->egl);
+	}
+	if (plane->gbm) {
+		gbm_surface_destroy(plane->gbm);
+	}
+
+	if (plane->wlr_surf) {
+		wlr_surface_destroy(plane->wlr_surf);
+	}
+	if (plane->wlr_rend) {
+		wlr_renderer_destroy(plane->wlr_rend);
+	}
+	if (plane->cursor_bo) {
+		gbm_bo_destroy(plane->cursor_bo);
+	}
+
+	plane->width = 0;
+	plane->height = 0;
+	plane->egl = EGL_NO_SURFACE;
+	plane->gbm = NULL;
+	plane->front = NULL;
+	plane->back = NULL;
+	plane->wlr_rend = NULL;
+	plane->wlr_surf = NULL;
+	plane->cursor_bo = NULL;
+}
+
+static void free_fb(struct gbm_bo *bo, void *data) {
+	uint32_t id = (uintptr_t)data;
 
 	if (id) {
-		return *id;
+		struct gbm_device *gbm = gbm_bo_get_device(bo);
+		drmModeRmFB(gbm_device_get_fd(gbm), id);
+	}
+}
+
+static uint32_t get_fb_for_bo(struct gbm_bo *bo) {
+	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
+	if (id) {
+		return id;
 	}
 
-	id = calloc(1, sizeof *id);
-	if (!id) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return 0;
+	struct gbm_device *gbm = gbm_bo_get_device(bo);
+	drmModeAddFB(gbm_device_get_fd(gbm), gbm_bo_get_width(bo), gbm_bo_get_height(bo),
+		24, 32, gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, &id);
+
+	gbm_bo_set_user_data(bo, (void *)(uintptr_t)id, free_fb);
+
+	return id;
+}
+
+static void wlr_drm_plane_make_current(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	eglMakeCurrent(renderer->egl.display, plane->egl, plane->egl,
+		renderer->egl.context);
+}
+
+static void wlr_drm_plane_swap_buffers(struct wlr_drm_renderer *renderer,
+		struct wlr_drm_plane *plane) {
+	if (plane->front) {
+		gbm_surface_release_buffer(plane->gbm, plane->front);
 	}
 
-	drmModeAddFB(fd, gbm_bo_get_width(bo), gbm_bo_get_height(bo), 24, 32,
-		     gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, id);
+	eglSwapBuffers(renderer->egl.display, plane->egl);
 
-	gbm_bo_set_user_data(bo, id, free_fb);
-
-	return *id;
+	plane->front = plane->back;
+	plane->back = gbm_surface_lock_front_buffer(plane->gbm);
 }
 
 static void wlr_drm_output_make_current(struct wlr_output_state *output) {
-	struct wlr_drm_renderer *renderer = output->renderer;
-	eglMakeCurrent(renderer->egl.display, output->egl,
-			output->egl, renderer->egl.context);
+	wlr_drm_plane_make_current(output->renderer, output->crtc->primary);
 }
 
 static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
 	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->primary;
 
-	if (!eglSwapBuffers(renderer->egl.display, output->egl)) {
-		return;
-	}
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
-	if (!bo) {
-		return;
-	}
-	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
-	drmModePageFlip(renderer->fd, output->crtc, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
+	wlr_drm_plane_swap_buffers(renderer, plane);
+	uint32_t fb_id = get_fb_for_bo(plane->back);
+
+	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
 	output->pageflip_pending = true;
-
-	output->bo[1] = output->bo[0];
-	output->bo[0] = bo;
-}
-
-void wlr_drm_output_pause_renderer(struct wlr_output_state *output) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
-		return;
-	}
-
-	if (output->bo[1]) {
-		gbm_surface_release_buffer(output->gbm, output->bo[1]);
-		output->bo[1] = NULL;
-	}
-	if (output->bo[0]) {
-		gbm_surface_release_buffer(output->gbm, output->bo[0]);
-		output->bo[0] = NULL;
-	}
 }
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
-	if (output->state != DRM_OUTPUT_CONNECTED) {
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
 	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_output_mode *mode = output->wlr_output->current_mode;
+	struct wlr_output_mode *mode = output->base->current_mode;
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->primary;
 
-	// Render black frame
-	eglMakeCurrent(renderer->egl.display, output->egl, output->egl, renderer->egl.context);
+	struct gbm_bo *bo = plane->front;
+	if (!bo) {
+		// Render a black frame to start the rendering loop
+		wlr_drm_plane_make_current(renderer, plane);
+		glViewport(0, 0, plane->width, plane->height);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_drm_plane_swap_buffers(renderer, plane);
 
-	glViewport(0, 0, output->width, output->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	eglSwapBuffers(renderer->egl.display, output->egl);
-
-	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm);
-	uint32_t fb_id = get_fb_for_bo(renderer->fd, bo);
-
-	drmModeSetCrtc(renderer->fd, output->crtc, fb_id, 0, 0,
-			&output->connector, 1, &mode->state->mode);
-	drmModePageFlip(renderer->fd, output->crtc, fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, output);
-
-	output->bo[1] = NULL;
-	output->bo[0] = bo;
-}
-
-static bool display_init_renderer(struct wlr_drm_renderer *renderer,
-	struct wlr_output_state *output) {
-	struct wlr_output_mode *mode = output->wlr_output->current_mode;
-	output->renderer = renderer;
-	output->gbm = gbm_surface_create(renderer->gbm, mode->width,
-		mode->height, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!output->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM surface for %s: %s", output->wlr_output->name,
-			strerror(errno));
-		return false;
+		bo = plane->back;
 	}
 
-	output->egl = wlr_egl_create_surface(&renderer->egl, output->gbm);
-	if (output->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for %s", output->wlr_output->name);
-		return false;
-	}
-
-	wlr_drm_output_start_renderer(output);
-	return true;
-}
-
-static int find_id(const void *item, const void *cmp_to) {
-	const struct wlr_output_state *output = item;
-	const uint32_t *id = cmp_to;
-
-	if (output->connector < *id) {
-		return -1;
-	} else if (output->connector > *id) {
-		return 1;
-	} else {
-		return 0;
-	}
+	uint32_t fb_id = get_fb_for_bo(bo);
+	drmModeSetCrtc(renderer->fd, crtc->id, fb_id, 0, 0,
+		&output->connector, 1, &mode->state->mode);
+	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
+	output->pageflip_pending = true;
 }
 
 static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
 	struct wlr_backend_state *state =
 		wl_container_of(output->renderer, state, renderer);
-	if (output->state != DRM_OUTPUT_CONNECTED) {
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
@@ -206,169 +343,324 @@ static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) 
 		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
 			DRM_MODE_DPMS_ON);
 
-		// Start rendering loop again by drawing a black frame
-		wlr_drm_output_make_current(output);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_output_swap_buffers(output);
+		wlr_drm_output_start_renderer(output);
 	} else {
 		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_STANDBY);
+			DRM_MODE_DPMS_OFF);
 	}
+}
+
+static void realloc_planes(struct wlr_backend_state *drm, const uint32_t *crtc_in) {
+	// overlay, primary, cursor
+	for (int type = 0; type < 3; ++type) {
+		if (drm->num_type_planes[type] == 0) {
+			continue;
+		}
+
+		uint32_t possible[drm->num_type_planes[type]];
+		uint32_t crtc[drm->num_crtcs];
+		uint32_t crtc_res[drm->num_crtcs];
+
+		for (size_t i = 0; i < drm->num_type_planes[type]; ++i) {
+			possible[i] = drm->type_planes[type][i].possible_crtcs;
+		}
+
+		for (size_t i = 0; i < drm->num_crtcs; ++i) {
+			if (crtc_in[i] == UNMATCHED) {
+				crtc[i] = SKIP;
+			} else if (drm->crtcs[i].planes[type]) {
+				crtc[i] = drm->crtcs[i].planes[type] - drm->type_planes[type];
+			} else {
+				crtc[i] = UNMATCHED;
+			}
+		}
+
+		match_obj(drm->num_type_planes[type], possible, drm->num_crtcs, crtc, crtc_res);
+
+		for (size_t i = 0; i < drm->num_crtcs; ++i) {
+			if (crtc_res[i] == UNMATCHED || crtc_res[i] == SKIP) {
+				continue;
+			}
+
+			struct wlr_drm_crtc *c = &drm->crtcs[i];
+			struct wlr_drm_plane **old = &c->planes[type];
+			struct wlr_drm_plane *new = &drm->type_planes[type][crtc_res[i]];
+
+			if (*old != new) {
+				wlr_drm_plane_renderer_free(&drm->renderer, *old);
+				wlr_drm_plane_renderer_free(&drm->renderer, new);
+				*old = new;
+			}
+		}
+	}
+}
+
+static void realloc_crtcs(struct wlr_backend_state *drm, struct wlr_output_state *output) {
+	uint32_t crtc[drm->num_crtcs];
+	uint32_t crtc_res[drm->num_crtcs];
+	uint32_t possible_crtc[drm->outputs->length];
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		crtc[i] = UNMATCHED;
+	}
+
+	memset(possible_crtc, 0, sizeof(possible_crtc));
+
+	size_t index;
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_output_state *o = drm->outputs->items[i];
+		if (o == output) {
+			index = i;
+		}
+
+		if (o->state != WLR_DRM_OUTPUT_CONNECTED) {
+			continue;
+		}
+
+		possible_crtc[i] = o->possible_crtc;
+		crtc[o->crtc - drm->crtcs] = i;
+	}
+
+	possible_crtc[index] = output->possible_crtc;
+	match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs, crtc, crtc_res);
+
+	bool matched = false;
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		// We don't want any of the current monitors to be deactivated.
+		if (crtc[i] != UNMATCHED && crtc_res[i] == UNMATCHED) {
+			return;
+		}
+		if (crtc_res[i] == index) {
+			matched = true;
+		}
+	}
+
+	// There is no point doing anything if this monitor doesn't get activated
+	if (!matched) {
+		return;
+	}
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		if (crtc_res[i] == UNMATCHED) {
+			continue;
+		}
+
+		if (crtc_res[i] != crtc[i]) {
+			struct wlr_output_state *o = drm->outputs->items[crtc_res[i]];
+			o->crtc = &drm->crtcs[i];
+		}
+	}
+
+	realloc_planes(drm, crtc_res);
 }
 
 static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		struct wlr_output_mode *mode) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
 
-	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->wlr_output->name,
+	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->base->name,
 			mode->width, mode->height, mode->refresh);
 
-	drmModeConnector *conn = drmModeGetConnector(state->fd, output->connector);
+	drmModeConnector *conn = drmModeGetConnector(drm->fd, output->connector);
 	if (!conn) {
-		wlr_log(L_ERROR, "Failed to get DRM connector");
-		goto error;
+		wlr_log_errno(L_ERROR, "Failed to get DRM connector");
+		goto error_output;
 	}
 
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(L_ERROR, "%s is not connected", output->wlr_output->name);
-		goto error;
+		wlr_log(L_ERROR, "%s is not connected", output->base->name);
+		goto error_output;
 	}
 
-	drmModeRes *res = drmModeGetResources(state->fd);
-	if (!res) {
-		wlr_log(L_ERROR, "Failed to get DRM resources");
-		goto error;
+	drmModeEncoder *enc = NULL;
+	for (int i = 0; !enc && i < conn->count_encoders; ++i) {
+		enc = drmModeGetEncoder(drm->fd, conn->encoders[i]);
 	}
 
-	bool success = false;
-	for (int i = 0; !success && i < conn->count_encoders; ++i) {
-		drmModeEncoder *enc = drmModeGetEncoder(state->fd, conn->encoders[i]);
-		if (!enc) {
+	if (!enc) {
+		wlr_log(L_ERROR, "Failed to get DRM encoder");
+		goto error_conn;
+	}
+
+	output->possible_crtc = enc->possible_crtcs;
+	realloc_crtcs(drm, output);
+
+	if (!output->crtc) {
+		wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->base->name);
+		goto error_enc;
+	}
+
+	struct wlr_drm_crtc *crtc = output->crtc;
+	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", output->base->name,
+		crtc - drm->crtcs,
+		crtc->overlay ? crtc->overlay - drm->overlay_planes : -1,
+		crtc->primary ? crtc->primary - drm->primary_planes : -1,
+		crtc->cursor ? crtc->cursor - drm->cursor_planes : -1);
+
+	output->state = WLR_DRM_OUTPUT_CONNECTED;
+	output->width = output->base->width = mode->width;
+	output->height = output->base->height = mode->height;
+	output->base->current_mode = mode;
+	wl_signal_emit(&output->base->events.resolution, output->base);
+
+	// Since realloc_crtcs can deallocate planes on OTHER outputs,
+	// we actually need to reinitalise all of them
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_output_state *output = drm->outputs->items[i];
+		struct wlr_output_mode *mode = output->base->current_mode;
+		struct wlr_drm_crtc *crtc = output->crtc;
+
+		if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 			continue;
 		}
 
-		for (int j = 0; j < res->count_crtcs; ++j) {
-			if ((enc->possible_crtcs & (1 << j)) == 0) {
-				continue;
-			}
-
-			if ((state->taken_crtcs & (1 << j)) == 0) {
-				state->taken_crtcs |= 1 << j;
-				output->crtc = res->crtcs[j];
-				success = true;
-				break;
-			}
+		if (!wlr_drm_plane_renderer_init(&drm->renderer, crtc->primary,
+				mode->width, mode->height, GBM_BO_USE_SCANOUT)) {
+			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
+			goto error_enc;
 		}
-		drmModeFreeEncoder(enc);
+
+		wlr_drm_output_start_renderer(output);
 	}
 
-	drmModeFreeResources(res);
-
-	if (!success) {
-		wlr_log(L_ERROR, "Failed to find CRTC for %s", output->wlr_output->name);
-		goto error;
-	}
-
-	output->state = DRM_OUTPUT_CONNECTED;
-	output->width = output->wlr_output->width = mode->width;
-	output->height = output->wlr_output->height = mode->height;
-	output->wlr_output->current_mode = mode;
-	wl_signal_emit(&output->wlr_output->events.resolution, output->wlr_output);
-
-	if (!display_init_renderer(&state->renderer, output)) {
-		wlr_log(L_ERROR, "Failed to initalise renderer for %s", output->wlr_output->name);
-		goto error;
-	}
-
+	drmModeFreeEncoder(enc);
 	drmModeFreeConnector(conn);
 	return true;
 
-error:
-	wlr_drm_output_cleanup(output, false);
+error_enc:
+	drmModeFreeEncoder(enc);
+error_conn:
 	drmModeFreeConnector(conn);
+error_output:
+	wlr_drm_output_cleanup(output, false);
 	return false;
 }
 
 static void wlr_drm_output_transform(struct wlr_output_state *output,
 		enum wl_output_transform transform) {
-	output->wlr_output->transform = transform;
+	output->base->transform = transform;
 }
 
-static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	struct wlr_backend_state *state = wl_container_of(output->renderer, state, renderer);
-	if (!buf) {
-		drmModeSetCursor(state->fd, output->crtc, 0, 0, 0);
+bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc) {
+	if (!crtc || !crtc->cursor || !crtc->cursor->gbm) {
 		return true;
 	}
 
-	if (!gbm_device_is_format_supported(state->renderer.gbm,
-				GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE)) {
-		wlr_log(L_ERROR, "Failed to create cursor bo: ARGB8888 pixel format is "
-				"unsupported on this device");
-		return false;
-	}
+	struct wlr_drm_plane *plane = crtc->cursor;
 
-	uint64_t bo_width, bo_height;
-	int ret;
-
-	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_WIDTH, &bo_width);
-	bo_width = ret ? 64 : bo_width;
-	ret = drmGetCap(state->fd, DRM_CAP_CURSOR_HEIGHT, &bo_height);
-	bo_height = ret ? 64 : bo_height;
-
-	if (width > bo_width || height > bo_width) {
-		wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)bo_width, (int)bo_height);
-		return false;
-	}
-
-	for (int i = 0; i < 2; ++i) {
-		if (output->cursor_bo[i]) {
-			continue;
-		}
-
-		output->cursor_bo[i] = gbm_bo_create(state->renderer.gbm, bo_width, bo_height,
-			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
-
-		if (!output->cursor_bo[i]) {
-			wlr_log(L_ERROR, "Failed to create cursor bo");
-			return false;
-		}
-	}
-
-	struct gbm_bo *bo;
-	output->current_cursor ^= 1;
-	bo = output->cursor_bo[output->current_cursor];
-
-	uint32_t bo_stride = gbm_bo_get_stride(bo);
-	uint8_t tmp[bo_stride * height];
-	memset(tmp, 0, sizeof(tmp));
-
-	for (size_t i = 0; i < height; ++i) {
-		memcpy(tmp + i * bo_stride, buf + i * stride * 4, width * 4);
-	}
-
-	if (gbm_bo_write(bo, tmp, sizeof(tmp)) < 0) {
-		wlr_log(L_ERROR, "Failed to write cursor to bo");
-		return false;
-	}
-
-	uint32_t bo_handle = gbm_bo_get_handle(bo).u32;
-	if (drmModeSetCursor(state->fd, output->crtc, bo_handle, bo_width, bo_height)) {
-		wlr_log_errno(L_INFO, "Failed to set hardware cursor");
+	uint32_t bo_handle = gbm_bo_get_handle(plane->cursor_bo).u32;
+	if (drmModeSetCursor(drm->fd, crtc->id, bo_handle, plane->width, plane->height)) {
+		wlr_log_errno(L_ERROR, "Failed to set hardware cursor");
 		return false;
 	}
 
 	return true;
 }
 
+static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
+	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->cursor;
+
+	if (!buf) {
+		drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0);
+		return true;
+	}
+
+	if (!plane) {
+		plane = calloc(1, sizeof(*plane));
+		if (!plane) {
+			wlr_log_errno(L_ERROR, "Allocation failed");
+			return false;
+		}
+		crtc->cursor = plane;
+	}
+
+	if (!plane->gbm) {
+		int ret;
+		uint64_t w, h;
+		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
+		w = ret ? 64 : w;
+		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
+		h = ret ? 64 : h;
+
+		if (width > w || height > h) {
+			wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)w, (int)h);
+			return false;
+		}
+
+		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, 0)) {
+			wlr_log(L_ERROR, "Cannot allocate cursor resources");
+			return false;
+		}
+
+		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h, GBM_FORMAT_ARGB8888,
+			GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+		if (!plane->cursor_bo) {
+			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
+			return false;
+		}
+
+		// OpenGL will read the pixels out upside down,
+		// so we need to flip the image vertically
+		wlr_matrix_surface(plane->matrix, plane->width, plane->height,
+			output->base->transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
+
+		plane->wlr_rend = wlr_gles2_renderer_init();
+		if (!plane->wlr_rend) {
+			return false;
+		}
+
+		plane->wlr_surf = wlr_render_surface_init(plane->wlr_rend);
+		if (!plane->wlr_surf) {
+			return false;
+		}
+	}
+
+	struct gbm_bo *bo = plane->cursor_bo;
+	uint32_t bo_width = gbm_bo_get_width(bo);
+	uint32_t bo_height = gbm_bo_get_height(bo);
+	uint32_t bo_stride;
+	void *bo_data;
+
+	if (!gbm_bo_map(bo, 0, 0, bo_width, bo_height,
+			GBM_BO_TRANSFER_WRITE, &bo_stride, &bo_data)) {
+		wlr_log_errno(L_ERROR, "Unable to map buffer");
+		return false;
+	}
+
+	wlr_drm_plane_make_current(renderer, plane);
+
+	wlr_surface_attach_pixels(plane->wlr_surf, WL_SHM_FORMAT_ARGB8888,
+		stride, width, height, buf);
+
+	glViewport(0, 0, plane->width, plane->height);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	float matrix[16];
+	wlr_surface_get_matrix(plane->wlr_surf, &matrix, &plane->matrix, 0, 0);
+	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_surf, &matrix);
+
+	glFinish();
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
+	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+
+	wlr_drm_plane_swap_buffers(renderer, plane);
+
+	gbm_bo_unmap(bo, bo_data);
+
+	return wlr_drm_crtc_set_cursor(drm, crtc);
+}
+
 static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
 		int x, int y) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
-	return !drmModeMoveCursor(state->fd, output->crtc, x, y);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
+	return !drmModeMoveCursor(drm->fd, output->crtc->id, x, y);
 }
 
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {
@@ -387,216 +679,100 @@ static struct wlr_output_impl output_impl = {
 	.swap_buffers = wlr_drm_output_swap_buffers,
 };
 
-static int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
-	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +
-		mode->vtotal / 2) / mode->vtotal;
+static int find_id(const void *item, const void *cmp_to) {
+	const struct wlr_output_state *output = item;
+	const uint32_t *id = cmp_to;
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		refresh *= 2;
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		refresh /= 2;
-	if (mode->vscan > 1)
-		refresh /= mode->vscan;
-
-	return refresh;
-}
-
-// Constructed from http://edid.tv/manufacturer
-const char *get_manufacturer(uint16_t id) {
-#define ID(a, b, c) ((a & 0x1f) << 10) | ((b & 0x1f) << 5) | (c & 0x1f)
-	switch (id) {
-	case ID('A', 'A', 'A'): return "Avolites Ltd";
-	case ID('A', 'C', 'I'): return "Ancor Communications Inc";
-	case ID('A', 'C', 'R'): return "Acer Technologies";
-	case ID('A', 'P', 'P'): return "Apple Computer Inc";
-	case ID('B', 'N', 'O'): return "Bang & Olufsen";
-	case ID('C', 'M', 'N'): return "Chimei Innolux Corporation";
-	case ID('C', 'M', 'O'): return "Chi Mei Optoelectronics corp.";
-	case ID('C', 'R', 'O'): return "Extraordinary Technologies PTY Limited";
-	case ID('D', 'E', 'L'): return "Dell Inc.";
-	case ID('D', 'O', 'N'): return "DENON, Ltd.";
-	case ID('E', 'N', 'C'): return "Eizo Nanao Corporation";
-	case ID('E', 'P', 'H'): return "Epiphan Systems Inc.";
-	case ID('F', 'U', 'S'): return "Fujitsu Siemens Computers GmbH";
-	case ID('G', 'S', 'M'): return "Goldstar Company Ltd";
-	case ID('H', 'I', 'Q'): return "Kaohsiung Opto Electronics Americas, Inc.";
-	case ID('H', 'S', 'D'): return "HannStar Display Corp";
-	case ID('H', 'W', 'P'): return "Hewlett Packard";
-	case ID('I', 'N', 'T'): return "Interphase Corporation";
-	case ID('I', 'V', 'M'): return "Iiyama North America";
-	case ID('L', 'E', 'N'): return "Lenovo Group Limited";
-	case ID('M', 'A', 'X'): return "Rogen Tech Distribution Inc";
-	case ID('M', 'E', 'G'): return "Abeam Tech Ltd";
-	case ID('M', 'E', 'I'): return "Panasonic Industry Company";
-	case ID('M', 'T', 'C'): return "Mars-Tech Corporation";
-	case ID('M', 'T', 'X'): return "Matrox";
-	case ID('N', 'E', 'C'): return "NEC Corporation";
-	case ID('O', 'N', 'K'): return "ONKYO Corporation";
-	case ID('O', 'R', 'N'): return "ORION ELECTRIC CO., LTD.";
-	case ID('O', 'T', 'M'): return "Optoma Corporation";
-	case ID('O', 'V', 'R'): return "Oculus VR, Inc.";
-	case ID('P', 'H', 'L'): return "Philips Consumer Electronics Company";
-	case ID('P', 'I', 'O'): return "Pioneer Electronic Corporation";
-	case ID('P', 'N', 'R'): return "Planar Systems, Inc.";
-	case ID('Q', 'D', 'S'): return "Quanta Display Inc.";
-	case ID('S', 'A', 'M'): return "Samsung Electric Company";
-	case ID('S', 'E', 'C'): return "Seiko Epson Corporation";
-	case ID('S', 'H', 'P'): return "Sharp Corporation";
-	case ID('S', 'I', 'I'): return "Silicon Image, Inc.";
-	case ID('S', 'N', 'Y'): return "Sony";
-	case ID('T', 'O', 'P'): return "Orion Communications Co., Ltd.";
-	case ID('T', 'S', 'B'): return "Toshiba America Info Systems Inc";
-	case ID('T', 'S', 'T'): return "Transtream Inc";
-	case ID('U', 'N', 'K'): return "Unknown";
-	case ID('V', 'I', 'Z'): return "VIZIO, Inc";
-	case ID('V', 'S', 'C'): return "ViewSonic Corporation";
-	case ID('Y', 'M', 'H'): return "Yamaha Corporation";
-	default: return "Unknown";
-	}
-#undef ID
-}
-
-/* See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data for layout of EDID data.
- * We don't parse the EDID properly. We just expect to receive valid data.
- */
-static void parse_edid(struct wlr_output *restrict output, const uint8_t *restrict data) {
-	uint32_t id = (data[8] << 8) | data[9];
-	snprintf(output->make, sizeof(output->make), "%s", get_manufacturer(id));
-
-	output->phys_width = ((data[68] & 0xf0) << 4) | data[66];
-	output->phys_height = ((data[68] & 0x0f) << 8) | data[67];
-
-	for (size_t i = 72; i <= 108; i += 18) {
-		uint16_t flag = (data[i] << 8) | data[i + 1];
-		if (flag == 0 && data[i + 3] == 0xFC) {
-			sprintf(output->model, "%.13s", &data[i + 5]);
-
-			// Monitor names are terminated by newline if they're too short
-			char *nl = strchr(output->model, '\n');
-			if (nl) {
-				*nl = '\0';
-			}
-
-			break;
-		}
+	if (output->connector < *id) {
+		return -1;
+	} else if (output->connector > *id) {
+		return 1;
+	} else {
+		return 0;
 	}
 }
 
-static void scan_property_ids(int fd, drmModeConnector *conn,
-		struct wlr_output_state *output) {
-	for (int i = 0; i < conn->count_props; ++i) {
-		drmModePropertyRes *prop = drmModeGetProperty(fd, conn->props[i]);
-		if (!prop) {
-			continue;
-		}
+static const int32_t subpixel_map[] = {
+	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_BGR] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR,
+	[DRM_MODE_SUBPIXEL_VERTICAL_RGB] = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB,
+	[DRM_MODE_SUBPIXEL_VERTICAL_BGR] = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR,
+	[DRM_MODE_SUBPIXEL_NONE] = WL_OUTPUT_SUBPIXEL_NONE,
+};
 
-		if (strcmp(prop->name, "DPMS") == 0) {
-			output->props.dpms = prop->prop_id;
-		} else if (strcmp(prop->name, "EDID") == 0) {
-			drmModePropertyBlobRes *edid = drmModeGetPropertyBlob(fd, conn->prop_values[i]);
-			if (!edid) {
-				drmModeFreeProperty(prop);
-				continue;
-			}
-
-			parse_edid(output->wlr_output, edid->data);
-
-			drmModeFreePropertyBlob(edid);
-		}
-
-		drmModeFreeProperty(prop);
-	}
-}
-
-void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
+void wlr_drm_scan_connectors(struct wlr_backend_state *drm) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
-	drmModeRes *res = drmModeGetResources(state->fd);
+	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
-		wlr_log(L_ERROR, "Failed to get DRM resources");
+		wlr_log_errno(L_ERROR, "Failed to get DRM resources");
 		return;
 	}
 
 	for (int i = 0; i < res->count_connectors; ++i) {
-		uint32_t id = res->connectors[i];
-
-		drmModeConnector *conn = drmModeGetConnector(state->fd, id);
+		drmModeConnector *conn = drmModeGetConnector(drm->fd,
+			res->connectors[i]);
 		if (!conn) {
-			wlr_log(L_ERROR, "Failed to get DRM connector");
+			wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
 
 		struct wlr_output_state *output;
-		struct wlr_output *wlr_output;
-		int index = list_seq_find(state->outputs, find_id, &id);
+		int index = list_seq_find(drm->outputs, find_id, &conn->connector_id);
 
 		if (index == -1) {
-			output = calloc(1, sizeof(struct wlr_output_state));
-			if (!state) {
+			output = calloc(1, sizeof(*output));
+			if (!output) {
+				wlr_log_errno(L_ERROR, "Allocation failed");
 				drmModeFreeConnector(conn);
-				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-				return;
-			}
-			wlr_output = output->wlr_output = wlr_output_create(&output_impl, output);
-			if (!wlr_output) {
-				drmModeFreeConnector(conn);
-				wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-				return;
+				continue;
 			}
 
-			output->renderer = &state->renderer;
-			output->state = DRM_OUTPUT_DISCONNECTED;
-			output->connector = id;
-			// TODO: Populate more wlr_output fields
-			// TODO: Move this to wlr_output->name
-			snprintf(wlr_output->name, sizeof(wlr_output->name), "%s-%"PRIu32,
-				 conn_name[conn->connector_type],
-				 conn->connector_type_id);
-			wlr_output->phys_width = conn->mmWidth;
-			wlr_output->phys_height = conn->mmHeight;
-			switch (conn->subpixel) {
-			case DRM_MODE_SUBPIXEL_UNKNOWN:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_UNKNOWN;
-				break;
-			case DRM_MODE_SUBPIXEL_HORIZONTAL_RGB:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB;
-				break;
-			case DRM_MODE_SUBPIXEL_HORIZONTAL_BGR:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR;
-				break;
-			case DRM_MODE_SUBPIXEL_VERTICAL_RGB:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB;
-				break;
-			case DRM_MODE_SUBPIXEL_VERTICAL_BGR:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR;
-				break;
-			case DRM_MODE_SUBPIXEL_NONE:
-			default:
-				wlr_output->subpixel = WL_OUTPUT_SUBPIXEL_NONE;
-				break;
+			output->base = wlr_output_create(&output_impl, output);
+			if (!output->base) {
+				wlr_log_errno(L_ERROR, "Allocation failed");
+				drmModeFreeConnector(conn);
+				free(output);
+				continue;
 			}
 
-			drmModeEncoder *curr_enc = drmModeGetEncoder(state->fd, conn->encoder_id);
+			output->renderer = &drm->renderer;
+			output->state = WLR_DRM_OUTPUT_DISCONNECTED;
+			output->connector = conn->connector_id;
+
+			drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd, conn->encoder_id);
 			if (curr_enc) {
-				output->old_crtc = drmModeGetCrtc(state->fd, curr_enc->crtc_id);
-				free(curr_enc);
+				output->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
+				drmModeFreeEncoder(curr_enc);
 			}
 
-			scan_property_ids(state->fd, conn, output);
+			output->base->phys_width = conn->mmWidth;
+			output->base->phys_height = conn->mmHeight;
+			output->base->subpixel = subpixel_map[conn->subpixel];
+			snprintf(output->base->name, sizeof(output->base->name), "%s-%"PRIu32,
+				 conn_get_name(conn->connector_type),
+				 conn->connector_type_id);
 
-			wlr_output_create_global(wlr_output, state->display);
-			list_add(state->outputs, output);
-			wlr_log(L_INFO, "Found display '%s'", wlr_output->name);
+			wlr_drm_get_connector_props(drm->fd, output->connector, &output->props);
+
+			size_t edid_len = 0;
+			uint8_t *edid = wlr_drm_get_prop_blob(drm->fd, output->connector,
+				output->props.edid, &edid_len);
+			parse_edid(output->base, edid_len, edid);
+			free(edid);
+
+			wlr_output_create_global(output->base, drm->display);
+			list_add(drm->outputs, output);
+			wlr_log(L_INFO, "Found display '%s'", output->base->name);
 		} else {
-			output = state->outputs->items[index];
-			wlr_output = output->wlr_output;
+			output = drm->outputs->items[index];
 		}
 
-		// TODO: move state into wlr_output
-		if (output->state == DRM_OUTPUT_DISCONNECTED &&
-			conn->connection == DRM_MODE_CONNECTED) {
+		if (output->state == WLR_DRM_OUTPUT_DISCONNECTED &&
+				conn->connection == DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' connected", output->wlr_output->name);
+			wlr_log(L_INFO, "'%s' connected", output->base->name);
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < conn->count_modes; ++i) {
@@ -613,16 +789,16 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 				wlr_log(L_INFO, "  %"PRId32"@%"PRId32"@%"PRId32,
 					mode->width, mode->height, mode->refresh);
 
-				list_add(wlr_output->modes, mode);
+				list_add(output->base->modes, mode);
 			}
 
-			output->state = DRM_OUTPUT_NEEDS_MODESET;
-			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->wlr_output->name);
-			wl_signal_emit(&state->backend->events.output_add, wlr_output);
-		} else if (output->state == DRM_OUTPUT_CONNECTED &&
-			conn->connection != DRM_MODE_CONNECTED) {
+			output->state = WLR_DRM_OUTPUT_NEEDS_MODESET;
+			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->base->name);
+			wl_signal_emit(&drm->base->events.output_add, output->base);
+		} else if (output->state == WLR_DRM_OUTPUT_CONNECTED &&
+				conn->connection != DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' disconnected", output->wlr_output->name);
+			wlr_log(L_INFO, "'%s' disconnected", output->base->name);
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -635,17 +811,18 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state) {
 static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, void *user) {
 	struct wlr_output_state *output = user;
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
 
-	if (output->gbm && output->bo[1]) {
-		gbm_surface_release_buffer(output->gbm, output->bo[1]);
-		output->bo[1] = NULL;
+	struct wlr_drm_plane *plane = output->crtc->primary;
+	if (plane->front) {
+		gbm_surface_release_buffer(plane->gbm, plane->front);
+		plane->front = NULL;
 	}
 
 	output->pageflip_pending = false;
-	if (output->state == DRM_OUTPUT_CONNECTED && state->session->active) {
-		wl_signal_emit(&output->wlr_output->events.frame, output->wlr_output);
+	if (output->state == WLR_DRM_OUTPUT_CONNECTED && drm->session->active) {
+		wl_signal_emit(&output->base->events.frame, output->base);
 	}
 }
 
@@ -681,29 +858,37 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 	}
 
 	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_backend_state *state = wl_container_of(renderer, state, renderer);
+	struct wlr_backend_state *drm = wl_container_of(renderer, drm, renderer);
 
 	switch (output->state) {
-	case DRM_OUTPUT_CONNECTED:
-		output->state = DRM_OUTPUT_DISCONNECTED;
+	case WLR_DRM_OUTPUT_CONNECTED:
+		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 		if (restore) {
 			restore_output(output, renderer->fd);
 			restore = false;
 		}
-		eglDestroySurface(renderer->egl.display, output->egl);
-		gbm_surface_destroy(output->gbm);
-		output->egl = EGL_NO_SURFACE;
-		output->gbm = NULL;
+
+		struct wlr_drm_crtc *crtc = output->crtc;
+		for (int i = 0; i < 3; ++i) {
+			wlr_drm_plane_renderer_free(renderer, crtc->planes[i]);
+			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
+				free(crtc->planes[i]);
+				crtc->planes[i] = NULL;
+			}
+		}
+
+		output->crtc = NULL;
+		output->possible_crtc = 0;
 		/* Fallthrough */
-	case DRM_OUTPUT_NEEDS_MODESET:
-		output->state = DRM_OUTPUT_DISCONNECTED;
+	case WLR_DRM_OUTPUT_NEEDS_MODESET:
+		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 		if (restore) {
 			restore_output(output, renderer->fd);
 		}
-		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->wlr_output->name);
-		wl_signal_emit(&state->backend->events.output_remove, output->wlr_output);
+		wlr_log(L_INFO, "Emmiting destruction signal for '%s'", output->base->name);
+		wl_signal_emit(&drm->base->events.output_remove, output->base);
 		break;
-	case DRM_OUTPUT_DISCONNECTED:
+	case WLR_DRM_OUTPUT_DISCONNECTED:
 		break;
 	}
 }

@@ -15,24 +15,27 @@
 #include "backend/udev.h"
 #include "backend/drm.h"
 
-static bool wlr_drm_backend_init(struct wlr_backend_state *state) {
-	wlr_drm_scan_connectors(state);
+static bool wlr_drm_backend_init(struct wlr_backend_state *drm) {
+	wlr_drm_scan_connectors(drm);
 	return true;
 }
 
-static void wlr_drm_backend_destroy(struct wlr_backend_state *state) {
-	if (!state) {
+static void wlr_drm_backend_destroy(struct wlr_backend_state *drm) {
+	if (!drm) {
 		return;
 	}
-	for (size_t i = 0; state->outputs && i < state->outputs->length; ++i) {
-		struct wlr_output_state *output = state->outputs->items[i];
-		wlr_output_destroy(output->wlr_output);
+
+	for (size_t i = 0; drm->outputs && i < drm->outputs->length; ++i) {
+		struct wlr_output_state *output = drm->outputs->items[i];
+		wlr_output_destroy(output->base);
 	}
-	wlr_udev_signal_remove(state->udev, &state->drm_invalidated);
-	wlr_drm_renderer_free(&state->renderer);
-	wlr_session_close_file(state->session, state->fd);
-	wl_event_source_remove(state->drm_event);
-	free(state);
+
+	wlr_udev_signal_remove(drm->udev, &drm->drm_invalidated);
+	wlr_drm_renderer_free(&drm->renderer);
+	wlr_drm_resources_free(drm);
+	wlr_session_close_file(drm->session, drm->fd);
+	wl_event_source_remove(drm->drm_event);
+	free(drm);
 }
 
 static struct wlr_backend_impl backend_impl = {
@@ -50,14 +53,10 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		for (size_t i = 0; i < drm->outputs->length; ++i) {
 			struct wlr_output_state *output = drm->outputs->items[i];
 			wlr_drm_output_start_renderer(output);
+			wlr_drm_crtc_set_cursor(drm, output->crtc);
 		}
 	} else {
 		wlr_log(L_INFO, "DRM fd paused");
-
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_output_state *output = drm->outputs->items[i];
-			wlr_drm_output_pause_renderer(output);
-		}
 	}
 }
 
@@ -76,64 +75,68 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev, int gpu_fd) {
-	assert(display && session && gpu_fd > 0);
+	assert(display && session && gpu_fd >= 0);
 
 	char *name = drmGetDeviceNameFromFd2(gpu_fd);
 	drmVersion *version = drmGetVersion(gpu_fd);
-
 	wlr_log(L_INFO, "Initalizing DRM backend for %s (%s)", name, version->name);
-
 	free(name);
 	drmFreeVersion(version);
 
-	struct wlr_backend_state *state = calloc(1, sizeof(struct wlr_backend_state));
-	if (!state) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+	struct wlr_backend_state *drm = calloc(1, sizeof(*drm));
+	if (!drm) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
-	struct wlr_backend *backend = wlr_backend_create(&backend_impl, state);
+	struct wlr_backend *backend = wlr_backend_create(&backend_impl, drm);
 	if (!backend) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
-	state->backend = backend;
-	state->session = session;
-	state->udev = udev;
-	state->outputs = list_create();
-	if (!state->outputs) {
+	drm->base = backend;
+	drm->session = session;
+	drm->udev = udev;
+	drm->outputs = list_create();
+	if (!drm->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
 		goto error_backend;
 	}
 
-	state->fd = gpu_fd;
+	drm->fd = gpu_fd;
 
 	struct stat st;
-	if (fstat(state->fd, &st) < 0) {
-		wlr_log(L_ERROR, "Stat failed: %s", strerror(errno));
+	if (fstat(drm->fd, &st) < 0) {
+		wlr_log_errno(L_ERROR, "Stat failed");
 	}
-	state->dev = st.st_rdev;
+	drm->dev = st.st_rdev;
 
-	state->drm_invalidated.notify = drm_invalidated;
-	wlr_udev_signal_add(udev, state->dev, &state->drm_invalidated);
+	drm->drm_invalidated.notify = drm_invalidated;
+	wlr_udev_signal_add(udev, drm->dev, &drm->drm_invalidated);
 
-	state->display = display;
+	drm->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
-	state->drm_event = wl_event_loop_add_fd(event_loop, state->fd,
+	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
 		WL_EVENT_READABLE, wlr_drm_event, NULL);
-	if (!state->drm_event) {
+	if (!drm->drm_event) {
 		wlr_log(L_ERROR, "Failed to create DRM event source");
 		goto error_fd;
 	}
 
-	state->session_signal.notify = session_signal;
-	wl_signal_add(&session->session_signal, &state->session_signal);
+	drm->session_signal.notify = session_signal;
+	wl_signal_add(&session->session_signal, &drm->session_signal);
 
-	// TODO: what is the difference between the per-output renderer and this
-	// one?
-	if (!wlr_drm_renderer_init(&state->renderer, state->fd)) {
+	if (!wlr_drm_check_features(drm)) {
+		goto error_event;
+	}
+
+	if (!wlr_drm_resources_init(drm)) {
+		goto error_event;
+	}
+
+	if (!wlr_drm_renderer_init(&drm->renderer, drm->fd)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}
@@ -141,12 +144,12 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	return backend;
 
 error_event:
-	wl_event_source_remove(state->drm_event);
+	wl_event_source_remove(drm->drm_event);
 error_fd:
-	wlr_session_close_file(state->session, state->fd);
-	list_free(state->outputs);
+	wlr_session_close_file(drm->session, drm->fd);
+	list_free(drm->outputs);
 error_backend:
-	free(state);
+	free(drm);
 	free(backend);
 	return NULL;
 }
