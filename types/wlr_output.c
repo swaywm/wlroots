@@ -196,6 +196,9 @@ void wlr_output_make_current(struct wlr_output *output) {
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
 	if (output->cursor.is_sw) {
+		glViewport(0, 0, output->width, output->height);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		float matrix[16];
 		wlr_surface_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
 			output->cursor.x, output->cursor.y);
