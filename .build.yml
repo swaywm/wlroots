@@ -1,6 +1,6 @@
 image: archlinux
 packages:
-  - cmake
+  - meson
   - wayland
   - wayland-protocols
   - mesa
@@ -14,12 +14,12 @@ tasks:
   - setup: |
       mkdir wlroots/build-{gcc,clang}
       cd wlroots/build-gcc
-      cmake ..
+      meson ..
       cd ../build-clang
-      CC=clang cmake ..
+      CC=clang meson ..
   - gcc: |
       cd wlroots/build-gcc
-      make
+      ninja
   - clang: |
       cd wlroots/build-clang
-      make
+      ninja
