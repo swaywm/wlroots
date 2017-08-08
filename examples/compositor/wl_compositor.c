@@ -10,10 +10,10 @@ static void surface_destroy(struct wl_client *client, struct wl_resource *resour
 static void surface_attach(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *buffer_resource, int32_t sx, int32_t sy) {
-	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+	struct wlr_texture *texture = wl_resource_get_user_data(resource);
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
 	uint32_t format = wl_shm_buffer_get_format(buffer);
-	wlr_surface_attach_shm(surface, format, buffer);
+	wlr_texture_upload_shm(texture, format, buffer);
 }
 
 static void surface_damage(struct wl_client *client,
@@ -78,13 +78,13 @@ struct wl_surface_interface surface_interface = {
 };
 
 static void destroy_surface(struct wl_resource *resource) {
-	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wlr_surface_destroy(surface);
+	struct wlr_texture *surface = wl_resource_get_user_data(resource);
+	wlr_texture_destroy(surface);
 }
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	struct wl_compositor_state *state;
-	struct wlr_surface *surface = data;
+	struct wlr_texture *surface = data;
 	state = wl_container_of(listener, state, destroy_surface_listener);
 
 	struct wl_resource *res = NULL;
@@ -101,13 +101,13 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	struct wl_compositor_state *state = wl_resource_get_user_data(resource);
 	struct wl_resource *surface_resource = wl_resource_create(client,
 			&wl_surface_interface, wl_resource_get_version(resource), id);
-	struct wlr_surface *surface = wlr_render_surface_init(state->renderer);
-	surface->resource = surface_resource;
+	struct wlr_texture *texture = wlr_render_texture_init(state->renderer);
+	texture->resource = surface_resource;
 	wl_resource_set_implementation(surface_resource, &surface_interface,
-			surface, destroy_surface);
-	wl_resource_set_user_data(surface_resource, surface);
+			texture, destroy_surface);
+	wl_resource_set_user_data(surface_resource, texture);
 	wl_list_insert(&state->surfaces, wl_resource_get_link(surface_resource));
-	wl_signal_add(&surface->destroy_signal, &state->destroy_surface_listener);
+	wl_signal_add(&texture->destroy_signal, &state->destroy_surface_listener);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,

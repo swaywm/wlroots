@@ -89,7 +89,7 @@ struct wl_global *wlr_output_create_global(
 }
 
 void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_surface(output->transform_matrix, output->width, output->height, output->transform);
+	wlr_matrix_texture(output->transform_matrix, output->width, output->height, output->transform);
 }
 
 struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
@@ -144,10 +144,10 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	}
 
 	if (!output->cursor.texture) {
-		output->cursor.texture = wlr_render_surface_init(output->cursor.renderer);
+		output->cursor.texture = wlr_render_texture_init(output->cursor.renderer);
 	}
 
-	wlr_surface_attach_pixels(output->cursor.texture, WL_SHM_FORMAT_ARGB8888,
+	wlr_texture_upload_pixels(output->cursor.texture, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
 
 	return true;
@@ -200,7 +200,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		float matrix[16];
-		wlr_surface_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
+		wlr_texture_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
 			output->cursor.x, output->cursor.y);
 		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
 	}

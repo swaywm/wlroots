@@ -22,7 +22,7 @@
 
 struct sample_state {
 	struct wlr_renderer *renderer;
-	struct wlr_surface *cat_texture;
+	struct wlr_texture *cat_texture;
 	list_t *touch_points;
 };
 
@@ -45,7 +45,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	float matrix[16];
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *p = sample->touch_points->items[i];
-		wlr_surface_get_matrix(sample->cat_texture, &matrix,
+		wlr_texture_get_matrix(sample->cat_texture, &matrix,
 			&wlr_output->transform_matrix,
 			(int)(p->x * width) - sample->cat_texture->width / 2,
 			(int)(p->y * height) - sample->cat_texture->height / 2);
@@ -105,12 +105,12 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_init();
-	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
+	state.cat_texture = wlr_render_texture_init(state.renderer);
+	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	compositor_run(&compositor);
 
-	wlr_surface_destroy(state.cat_texture);
+	wlr_texture_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
 }

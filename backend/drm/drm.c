@@ -224,8 +224,8 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 		gbm_surface_destroy(plane->gbm);
 	}
 
-	if (plane->wlr_surf) {
-		wlr_surface_destroy(plane->wlr_surf);
+	if (plane->wlr_tex) {
+		wlr_texture_destroy(plane->wlr_tex);
 	}
 	if (plane->wlr_rend) {
 		wlr_renderer_destroy(plane->wlr_rend);
@@ -241,7 +241,7 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	plane->front = NULL;
 	plane->back = NULL;
 	plane->wlr_rend = NULL;
-	plane->wlr_surf = NULL;
+	plane->wlr_tex = NULL;
 	plane->cursor_bo = NULL;
 }
 
@@ -605,7 +605,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 
 		// OpenGL will read the pixels out upside down,
 		// so we need to flip the image vertically
-		wlr_matrix_surface(plane->matrix, plane->width, plane->height,
+		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
 			output->base->transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
 		plane->wlr_rend = wlr_gles2_renderer_init();
@@ -613,8 +613,8 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 			return false;
 		}
 
-		plane->wlr_surf = wlr_render_surface_init(plane->wlr_rend);
-		if (!plane->wlr_surf) {
+		plane->wlr_tex = wlr_render_texture_init(plane->wlr_rend);
+		if (!plane->wlr_tex) {
 			return false;
 		}
 	}
@@ -633,7 +633,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 
 	wlr_drm_plane_make_current(renderer, plane);
 
-	wlr_surface_attach_pixels(plane->wlr_surf, WL_SHM_FORMAT_ARGB8888,
+	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
 
 	glViewport(0, 0, plane->width, plane->height);
@@ -641,8 +641,8 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	float matrix[16];
-	wlr_surface_get_matrix(plane->wlr_surf, &matrix, &plane->matrix, 0, 0);
-	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_surf, &matrix);
+	wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
+	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_tex, &matrix);
 
 	glFinish();
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);

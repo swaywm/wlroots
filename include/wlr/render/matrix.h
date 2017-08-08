@@ -10,7 +10,7 @@ void wlr_matrix_rotate(float (*output)[16], float radians);
 void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]);
 
 enum wl_output_transform;
-void wlr_matrix_surface(float mat[static 16], int32_t width, int32_t height,
+void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 		enum wl_output_transform transform);
 
 #endif

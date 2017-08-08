@@ -23,7 +23,7 @@
 struct sample_state {
 	struct wl_list config;
 	struct wlr_renderer *renderer;
-	struct wlr_surface *cat_texture;
+	struct wlr_texture *cat_texture;
 };
 
 struct output_data {
@@ -52,7 +52,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	float matrix[16];
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
-			wlr_surface_get_matrix(sample->cat_texture, &matrix,
+			wlr_texture_get_matrix(sample->cat_texture, &matrix,
 				&wlr_output->transform_matrix, x, y);
 			wlr_render_with_matrix(sample->renderer,
 					sample->cat_texture, &matrix);
@@ -205,13 +205,13 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_init();
-	state.cat_texture = wlr_render_surface_init(state.renderer);
-	wlr_surface_attach_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
+	state.cat_texture = wlr_render_texture_init(state.renderer);
+	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	compositor_run(&compositor);
 
-	wlr_surface_destroy(state.cat_texture);
+	wlr_texture_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
 
 	struct output_config *ptr, *tmp;

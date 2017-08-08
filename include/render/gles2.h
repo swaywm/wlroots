@@ -14,8 +14,8 @@ struct pixel_format {
 	GLuint *shader;
 };
 
-struct wlr_surface_state {
-	struct wlr_surface *wlr_surface;
+struct wlr_texture_state {
+	struct wlr_texture *wlr_texture;
 	GLuint tex_id;
 	const struct pixel_format *pixel_format;
 };
@@ -31,7 +31,7 @@ extern struct shaders shaders;
 
 const struct pixel_format *gl_format_for_wl_format(enum wl_shm_format fmt);
 
-struct wlr_surface *gles2_surface_init();
+struct wlr_texture *gles2_texture_init();
 
 extern const GLchar quad_vertex_src[];
 extern const GLchar quad_fragment_src[];
