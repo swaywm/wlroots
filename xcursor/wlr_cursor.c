@@ -26,6 +26,7 @@
 #define _XOPEN_SOURCE 500
 #include <wlr/render.h>
 #include <wlr/xcursor.h>
+#include <wlr/util/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -236,6 +237,16 @@ struct wlr_cursor_theme *wlr_cursor_theme_load(const char *name, int size) {
 
 	if (theme->cursor_count == 0) {
 		load_default_theme(theme);
+	}
+
+	wlr_log(L_DEBUG, "Loaded cursor theme '%s', available cursors:",
+			theme->name);
+	for (size_t i = 0; i < theme->cursor_count; ++i) {
+		struct wlr_cursor *c = theme->cursors[i];
+		struct wlr_cursor_image *i = c->images[0];
+		wlr_log(L_DEBUG, "%s (%u images) %dx%d+%d,%d",
+				c->name, c->image_count,
+				i->width, i->height, i->hotspot_x, i->hotspot_y);
 	}
 
 	return theme;
