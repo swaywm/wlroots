@@ -48,9 +48,13 @@ static void handle_pointer_motion(struct pointer_state *pstate,
 	state->cur_x += d_x;
 	state->cur_y += d_y;
 
+	struct wlr_cursor_image *image = state->cursor->images[0];
+
 	struct output_state *output;
 	wl_list_for_each(output, &pstate->compositor->outputs, link) {
-		wlr_output_move_cursor(output->output, state->cur_x, state->cur_y);
+		wlr_output_move_cursor(output->output,
+				state->cur_x - image->hotspot_x,
+				state->cur_y - image->hotspot_y);
 	}
 }
 
@@ -60,9 +64,13 @@ static void handle_pointer_motion_absolute(struct pointer_state *pstate,
 	state->cur_x = x;
 	state->cur_y = y;
 
+	struct wlr_cursor_image *image = state->cursor->images[0];
+
 	struct output_state *output;
 	wl_list_for_each(output, &pstate->compositor->outputs, link) {
-		wlr_output_move_cursor(output->output, state->cur_x, state->cur_y);
+		wlr_output_move_cursor(output->output,
+				state->cur_x - image->hotspot_x,
+				state->cur_y - image->hotspot_y);
 	}
 }
 
