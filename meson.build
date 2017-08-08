@@ -65,6 +65,7 @@ subdir('backend')
 subdir('render')
 subdir('types')
 subdir('util')
+subdir('xcursor')
 
 lib_wlr = library('wlroots', wlr_files,
 	dependencies: all_deps,

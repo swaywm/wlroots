@@ -16,11 +16,13 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/xcursor.h>
 #include <wlr/util/log.h>
 #include "shared.h"
 #include "cat.h"
 
 struct sample_state {
+	struct wlr_cursor *cursor;
 	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
@@ -97,9 +99,11 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 }
 
 static void handle_output_add(struct output_state *ostate) {
+	struct sample_state *state = ostate->compositor->data;
 	struct wlr_output *wlr_output = ostate->output;
-	if (!wlr_output_set_cursor(wlr_output, cat_tex.pixel_data,
-			cat_tex.width, cat_tex.width, cat_tex.height)) {
+	struct wlr_cursor_image *image = state->cursor->images[0];
+	if (!wlr_output_set_cursor(wlr_output, image->buffer,
+			image->width, image->width, image->height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
 		return;
 	}
@@ -121,7 +125,20 @@ int main(int argc, char *argv[]) {
 	compositor.pointer_motion_absolute_cb = handle_pointer_motion_absolute;
 	compositor.pointer_button_cb = handle_pointer_button;
 	compositor.pointer_axis_cb = handle_pointer_axis;
-	compositor_init(&compositor);
 
+	struct wlr_cursor_theme *theme = wlr_cursor_theme_load("default", 16);
+	if (!theme) {
+		wlr_log(L_ERROR, "Failed to load cursor theme");
+		return 1;
+	}
+	state.cursor = wlr_cursor_theme_get_cursor(theme, "left_ptr");
+	if (!state.cursor) {
+		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
+		return 1;
+	}
+
+	compositor_init(&compositor);
 	compositor_run(&compositor);
+
+	wlr_cursor_theme_destroy(theme);
 }
