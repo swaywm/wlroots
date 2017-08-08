@@ -5,6 +5,90 @@
 #include "compositor.h"
 #include "compositor/protocols/xdg-shell.h"
 
+static void xdg_toplevel_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: xdg toplevel destroy");
+}
+
+static void xdg_toplevel_set_parent(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *parent_resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel set parent");
+}
+
+static void xdg_toplevel_set_title(struct wl_client *client,
+		struct wl_resource *resource, const char *title) {
+	wlr_log(L_DEBUG, "TODO: toplevel set title");
+}
+
+static void xdg_toplevel_set_app_id(struct wl_client *client,
+		struct wl_resource *resource, const char *app_id) {
+	wlr_log(L_DEBUG, "TODO: toplevel set app id");
+}
+
+static void xdg_toplevel_show_window_menu(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *seat, uint32_t serial,
+		int32_t x, int32_t y) {
+	wlr_log(L_DEBUG, "TODO: toplevel show window menu");
+}
+
+static void xdg_toplevel_move(struct wl_client *client, struct wl_resource *resource, struct wl_resource *seat_resource, uint32_t serial) {
+	wlr_log(L_DEBUG, "TODO: toplevel move");
+}
+
+static void xdg_toplevel_resize(struct wl_client *client, struct wl_resource
+		*resource, struct wl_resource *seat_resource, uint32_t serial,
+		uint32_t edges) {
+	wlr_log(L_DEBUG, "TODO: toplevel resize");
+}
+
+static void xdg_toplevel_set_max_size(struct wl_client *client,
+		struct wl_resource *resource, int32_t width, int32_t height) {
+	wlr_log(L_DEBUG, "TODO: toplevel set max size");
+}
+
+static void xdg_toplevel_set_min_size(struct wl_client *client,
+		struct wl_resource *resource, int32_t width, int32_t height) {
+	wlr_log(L_DEBUG, "TODO: toplevel set min size");
+}
+
+static void xdg_toplevel_set_maximized(struct wl_client *client,
+		struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel set maximized");
+}
+
+static void xdg_toplevel_unset_maximized(struct wl_client *client, struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel unset maximized");
+}
+
+static void xdg_toplevel_set_fullscreen(struct wl_client *client, struct wl_resource *resource, struct wl_resource *output_resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel set fullscreen");
+}
+
+static void xdg_toplevel_unset_fullscreen(struct wl_client *client, struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel unset fullscreen");
+}
+
+static void xdg_toplevel_set_minimized(struct wl_client *client, struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: toplevel set minimized");
+}
+
+static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation = {
+	.destroy = xdg_toplevel_destroy,
+	.set_parent = xdg_toplevel_set_parent,
+	.set_title = xdg_toplevel_set_title,
+	.set_app_id = xdg_toplevel_set_app_id,
+	.show_window_menu = xdg_toplevel_show_window_menu,
+	.move = xdg_toplevel_move,
+	.resize = xdg_toplevel_resize,
+	.set_max_size = xdg_toplevel_set_max_size,
+	.set_min_size = xdg_toplevel_set_min_size,
+	.set_maximized = xdg_toplevel_set_maximized,
+	.unset_maximized = xdg_toplevel_unset_maximized,
+	.set_fullscreen = xdg_toplevel_set_fullscreen,
+	.unset_fullscreen = xdg_toplevel_unset_fullscreen,
+	.set_minimized = xdg_toplevel_set_minimized
+};
+
 static void xdg_surface_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO xdg surface destroy");
@@ -17,7 +101,11 @@ static void destroy_xdg_shell_surface(struct wl_resource *resource) {
 
 static void xdg_surface_get_toplevel(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	wlr_log(L_DEBUG, "TODO xdg surface get toplevel");
+	struct xdg_surface_state *state = wl_resource_get_user_data(resource);
+	struct wl_resource *toplevel_resource = wl_resource_create(client,
+			&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
+	wl_resource_set_implementation(toplevel_resource,
+			&zxdg_toplevel_v6_implementation, state, destroy_xdg_shell_surface);
 }
 
 static void xdg_surface_get_popup(struct wl_client *client,
