@@ -91,8 +91,8 @@ static void wlr_gles2_end(struct wlr_renderer_state *state) {
 	// no-op
 }
 
-static struct wlr_surface *wlr_gles2_surface_init(struct wlr_renderer_state *state) {
-	return gles2_surface_init();
+static struct wlr_texture *wlr_gles2_texture_init(struct wlr_renderer_state *state) {
+	return gles2_texture_init();
 }
 
 static void draw_quad() {
@@ -121,14 +121,14 @@ static void draw_quad() {
 	GL_CALL(glDisableVertexAttribArray(1));
 }
 
-static bool wlr_gles2_render_surface(struct wlr_renderer_state *state,
-		struct wlr_surface *surface, const float (*matrix)[16]) {
-	if(!surface || !surface->valid) {
-		wlr_log(L_ERROR, "attempt to render invalid surface");
+static bool wlr_gles2_render_texture(struct wlr_renderer_state *state,
+		struct wlr_texture *texture, const float (*matrix)[16]) {
+	if(!texture || !texture->valid) {
+		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
 	}
 
-	wlr_surface_bind(surface);
+	wlr_texture_bind(texture);
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
 	// TODO: source alpha from somewhere else I guess
 	GL_CALL(glUniform1f(2, 1.0f));
@@ -171,8 +171,8 @@ static void wlr_gles2_destroy(struct wlr_renderer_state *state) {
 static struct wlr_renderer_impl wlr_renderer_impl = {
 	.begin = wlr_gles2_begin,
 	.end = wlr_gles2_end,
-	.surface_init = wlr_gles2_surface_init,
-	.render_with_matrix = wlr_gles2_render_surface,
+	.texture_init = wlr_gles2_texture_init,
+	.render_with_matrix = wlr_gles2_render_texture,
 	.render_quad = wlr_gles2_render_quad,
 	.render_ellipse = wlr_gles2_render_ellipse,
 	.formats = wlr_gles2_formats,

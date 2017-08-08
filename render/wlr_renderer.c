@@ -23,13 +23,13 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->impl->end(r->state);
 }
 
-struct wlr_surface *wlr_render_surface_init(struct wlr_renderer *r) {
-	return r->impl->surface_init(r->state);
+struct wlr_texture *wlr_render_texture_init(struct wlr_renderer *r) {
+	return r->impl->texture_init(r->state);
 }
 
 bool wlr_render_with_matrix(struct wlr_renderer *r,
-		struct wlr_surface *surface, const float (*matrix)[16]) {
-	return r->impl->render_with_matrix(r->state, surface, matrix);
+		struct wlr_texture *texture, const float (*matrix)[16]) {
+	return r->impl->render_with_matrix(r->state, texture, matrix);
 }
 
 void wlr_render_colored_quad(struct wlr_renderer *r,

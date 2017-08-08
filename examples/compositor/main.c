@@ -32,11 +32,11 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	struct wl_resource *_res;
 	float matrix[16];
 	wl_list_for_each(_res, &sample->compositor.surfaces, link) {
-		struct wlr_surface *surface = wl_resource_get_user_data(_res);
-		if (surface->valid) {
-			wlr_surface_get_matrix(surface, &matrix,
+		struct wlr_texture *texture = wl_resource_get_user_data(_res);
+		if (texture->valid) {
+			wlr_texture_get_matrix(texture, &matrix,
 					&wlr_output->transform_matrix, 200, 200);
-			wlr_render_with_matrix(sample->renderer, surface, &matrix);
+			wlr_render_with_matrix(sample->renderer, texture, &matrix);
 		}
 	}
 

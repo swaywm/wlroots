@@ -119,7 +119,7 @@ static const float transforms[][4] = {
 };
 
 // Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-void wlr_matrix_surface(float mat[static 16], int32_t width, int32_t height,
+void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 		enum wl_output_transform transform) {
 	memset(mat, 0, sizeof(*mat) * 16);
 

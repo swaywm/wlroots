@@ -49,7 +49,7 @@ struct wlr_output {
 		int32_t x, y;
 		uint32_t width, height;
 		struct wlr_renderer *renderer;
-		struct wlr_surface *texture;
+		struct wlr_texture *texture;
 	} cursor;
 };
 

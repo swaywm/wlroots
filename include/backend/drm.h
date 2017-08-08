@@ -35,7 +35,7 @@ struct wlr_drm_plane {
 	// Only used by cursor
 	float matrix[16];
 	struct wlr_renderer *wlr_rend;
-	struct wlr_surface *wlr_surf;
+	struct wlr_texture *wlr_tex;
 	struct gbm_bo *cursor_bo;
 
 	union wlr_drm_plane_props props;
