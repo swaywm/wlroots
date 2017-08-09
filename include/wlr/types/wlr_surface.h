@@ -3,6 +3,11 @@
 
 #include <wayland-server.h>
 
+struct wlr_frame_callback {
+	struct wl_resource *resource;
+	struct wl_list link;
+};
+
 struct wlr_surface {
 	struct wl_resource *pending_buffer;
 	bool pending_attached;
@@ -16,6 +21,8 @@ struct wlr_surface {
 		struct wl_signal destroy;
 		struct wl_signal commit;
 	} signals;
+
+	struct wl_list frame_callback_list; // wl_surface.frame
 };
 
 struct wlr_renderer;
