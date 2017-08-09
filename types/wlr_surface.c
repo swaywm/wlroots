@@ -6,8 +6,6 @@
 #include <wlr/types/wlr_surface.h>
 
 static void surface_destroy(struct wl_client *client, struct wl_resource *resource) {
-	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->signals.destroy, surface);
 	wl_resource_destroy(resource);
 }
 
@@ -104,6 +102,7 @@ static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 	wl_signal_emit(&surface->signals.destroy, surface);
 	wlr_texture_destroy(surface->texture);
+	free(surface);
 }
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
