@@ -10,7 +10,7 @@ static inline int mind(int row, int col) {
 
 void wlr_matrix_identity(float (*output)[16]) {
 	static const float identity[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
