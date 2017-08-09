@@ -27,8 +27,13 @@ union wlr_drm_crtc_props {
 		// Neither of these are guranteed to exist
 		uint32_t rotation;
 		uint32_t scaling_mode;
+
+		// atomic-modesetting only
+
+		uint32_t active;
+		uint32_t mode_id;
 	};
-	uint32_t props[2];
+	uint32_t props[4];
 };
 
 union wlr_drm_plane_props {

@@ -162,6 +162,7 @@ error:
 }
 
 void wlr_egl_free(struct wlr_egl *egl) {
+	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
