@@ -54,6 +54,10 @@ static void session_signal(struct wl_listener *listener, void *data) {
 			struct wlr_output_state *output = drm->outputs->items[i];
 			wlr_drm_output_start_renderer(output);
 
+			if (!output->crtc) {
+				continue;
+			}
+
 			struct wlr_drm_plane *plane = output->crtc->cursor;
 
 			drm->iface->crtc_set_cursor(drm, output->crtc,
