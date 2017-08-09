@@ -35,22 +35,22 @@ static void surface_frame(struct wl_client *client,
 	struct wlr_frame_callback *cb;
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 
-	cb = malloc(sizeof *cb);
+	cb = malloc(sizeof(struct wlr_frame_callback));
 	if (cb == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
-	cb->resource = wl_resource_create(client, &wl_callback_interface, 1,
-					  callback);
+	cb->resource = wl_resource_create(client,
+			&wl_callback_interface, 1, callback);
 	if (cb->resource == NULL) {
 		free(cb);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
-	wl_resource_set_implementation(cb->resource, NULL, cb,
-				       destroy_frame_callback);
+	wl_resource_set_implementation(cb->resource,
+			NULL, cb, destroy_frame_callback);
 
 	wl_list_insert(surface->frame_callback_list.prev, &cb->link);
 }
@@ -64,7 +64,6 @@ static void surface_set_opaque_region(struct wl_client *client,
 static void surface_set_input_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
-
 	wlr_log(L_DEBUG, "TODO: surface input region");
 }
 
@@ -131,12 +130,10 @@ static void destroy_surface(struct wl_resource *resource) {
 	wl_signal_emit(&surface->signals.destroy, surface);
 	wlr_texture_destroy(surface->texture);
 
-
 	struct wlr_frame_callback *cb, *next;
 	wl_list_for_each_safe(cb, next, &surface->frame_callback_list, link) {
 		wl_resource_destroy(cb->resource);
 	}
-
 	free(surface);
 }
 
@@ -150,6 +147,5 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	wl_list_init(&surface->frame_callback_list);
 	wl_resource_set_implementation(res, &surface_interface,
 			surface, destroy_surface);
-
 	return surface;
 }
