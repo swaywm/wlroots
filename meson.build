@@ -30,6 +30,7 @@ dep_gbm            = dependency('gbm')
 dep_libinput       = dependency('libinput')
 dep_xkbcommon      = dependency('xkbcommon')
 dep_udev           = dependency('libudev')
+dep_pixman           = dependency('pixman-1')
 dep_libcap         = dependency('libcap', required: false)
 dep_systemd        = dependency('libsystemd', required: false)
 dep_math           = cc.find_library('m', required: false)
@@ -46,6 +47,7 @@ all_deps = [
     dep_libinput,
     dep_xkbcommon,
     dep_udev,
+    dep_pixman,
     dep_libcap,
     dep_systemd,
     dep_math,
