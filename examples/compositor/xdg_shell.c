@@ -101,8 +101,8 @@ static void xdg_surface_destroy(struct wl_client *client,
 }
 
 static void destroy_xdg_shell_surface(struct wl_resource *resource) {
-	struct xdg_surface_state *state = wl_resource_get_user_data(resource);
-	free(state);
+	wlr_log(L_DEBUG, "TODO destroy xdg shell surface");
+	//struct xdg_surface_state *state = wl_resource_get_user_data(resource);
 }
 
 static void xdg_surface_get_toplevel(struct wl_client *client,
