@@ -55,6 +55,7 @@ static void surface_commit(struct wl_client *client,
 			} else {
 				uint32_t format = wl_shm_buffer_get_format(buffer);
 				wlr_texture_upload_shm(surface->texture, format, buffer);
+				wl_resource_queue_event(surface->pending_buffer, WL_BUFFER_RELEASE);
 			}
 		}
 	}
