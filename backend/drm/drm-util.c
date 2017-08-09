@@ -2,7 +2,9 @@
 #include <string.h>
 #include <drm.h>
 #include <drm_mode.h>
+#include <gbm.h>
 #include "backend/drm-util.h"
+#include <wlr/util/log.h>
 
 int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
 	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +
@@ -131,6 +133,40 @@ const char *conn_get_name(uint32_t type_id) {
 	case DRM_MODE_CONNECTOR_DSI:         return "DSI";
 	default:                             return "Unknown";
 	}
+}
+
+static void free_fb(struct gbm_bo *bo, void *data) {
+	uint32_t id = (uintptr_t)data;
+
+	if (id) {
+		struct gbm_device *gbm = gbm_bo_get_device(bo);
+		drmModeRmFB(gbm_device_get_fd(gbm), id);
+	}
+}
+
+uint32_t get_fb_for_bo(struct gbm_bo *bo) {
+	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
+	if (id) {
+		return id;
+	}
+
+	struct gbm_device *gbm = gbm_bo_get_device(bo);
+
+	int fd = gbm_device_get_fd(gbm);
+	uint32_t width = gbm_bo_get_width(bo);
+	uint32_t height = gbm_bo_get_height(bo);
+	uint32_t handles[4] = {gbm_bo_get_handle(bo).u32};
+	uint32_t pitches[4] = {gbm_bo_get_stride(bo)};
+	uint32_t offsets[4] = {gbm_bo_get_offset(bo, 0)};
+	uint32_t format = gbm_bo_get_format(bo);
+
+	if (drmModeAddFB2(fd, width, height, format, handles, pitches, offsets, &id, 0)) {
+		wlr_log_errno(L_ERROR, "Unable to add DRM framebuffer");
+	}
+
+	gbm_bo_set_user_data(bo, (void *)(uintptr_t)id, free_fb);
+
+	return id;
 }
 
 static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {

@@ -23,28 +23,33 @@
 #include "backend/drm-util.h"
 
 bool wlr_drm_check_features(struct wlr_backend_state *drm) {
+	extern const struct wlr_drm_interface legacy_iface;
+	extern const struct wlr_drm_interface atomic_iface;
+
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
-		wlr_log(L_INFO, "DRM universal planes unsupported");
+		wlr_log(L_ERROR, "DRM universal planes unsupported");
 		return false;
 	}
 
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
-		wlr_log(L_INFO, "Atomic modesetting unsupported");
+		wlr_log(L_DEBUG, "Atomic modesetting unsupported, using legacy DRM interface");
+		drm->iface = &legacy_iface;
+	} else {
+		wlr_log(L_DEBUG, "Using atomic DRM interface");
+		drm->iface = &atomic_iface;
 	}
 
 	return true;
 }
 
-static int cmp_plane(const void *arg1, const void *arg2)
-{
+static int cmp_plane(const void *arg1, const void *arg2) {
 	const struct wlr_drm_plane *a = arg1;
 	const struct wlr_drm_plane *b = arg2;
 
 	return (int)a->type - (int)b->type;
 }
 
-static bool init_planes(struct wlr_backend_state *drm)
-{
+static bool init_planes(struct wlr_backend_state *drm) {
 	drmModePlaneRes *plane_res = drmModeGetPlaneResources(drm->fd);
 	if (!plane_res) {
 		wlr_log_errno(L_ERROR, "Failed to get DRM plane resources");
@@ -150,6 +155,15 @@ void wlr_drm_resources_free(struct wlr_backend_state *drm) {
 		return;
 	}
 
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
+
+		drmModeAtomicFree(crtc->atomic);
+		if (crtc->mode_id) {
+			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
+		}
+	}
+
 	free(drm->crtcs);
 	free(drm->planes);
 }
@@ -180,7 +194,7 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
 }
 
 static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane, uint32_t width, uint32_t height, uint32_t flags) {
+		struct wlr_drm_plane *plane, uint32_t width, uint32_t height, uint32_t format, uint32_t flags) {
 	if (plane->width == width && plane->height == height) {
 		return true;
 	}
@@ -189,7 +203,7 @@ static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
 	plane->height = height;
 
 	plane->gbm = gbm_surface_create(renderer->gbm, width, height,
-		GBM_FORMAT_ARGB8888, GBM_BO_USE_RENDERING | flags);
+		format, GBM_BO_USE_RENDERING | flags);
 	if (!plane->gbm) {
 		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
 		return false;
@@ -209,6 +223,8 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	if (!renderer || !plane) {
 		return;
 	}
+
+	eglMakeCurrent(renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 	if (plane->front) {
 		gbm_surface_release_buffer(plane->gbm, plane->front);
@@ -245,30 +261,6 @@ static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
 	plane->cursor_bo = NULL;
 }
 
-static void free_fb(struct gbm_bo *bo, void *data) {
-	uint32_t id = (uintptr_t)data;
-
-	if (id) {
-		struct gbm_device *gbm = gbm_bo_get_device(bo);
-		drmModeRmFB(gbm_device_get_fd(gbm), id);
-	}
-}
-
-static uint32_t get_fb_for_bo(struct gbm_bo *bo) {
-	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
-	if (id) {
-		return id;
-	}
-
-	struct gbm_device *gbm = gbm_bo_get_device(bo);
-	drmModeAddFB(gbm_device_get_fd(gbm), gbm_bo_get_width(bo), gbm_bo_get_height(bo),
-		24, 32, gbm_bo_get_stride(bo), gbm_bo_get_handle(bo).u32, &id);
-
-	gbm_bo_set_user_data(bo, (void *)(uintptr_t)id, free_fb);
-
-	return id;
-}
-
 static void wlr_drm_plane_make_current(struct wlr_drm_renderer *renderer,
 		struct wlr_drm_plane *plane) {
 	eglMakeCurrent(renderer->egl.display, plane->egl, plane->egl,
@@ -292,14 +284,14 @@ static void wlr_drm_output_make_current(struct wlr_output_state *output) {
 }
 
 static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
 	struct wlr_drm_renderer *renderer = output->renderer;
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	wlr_drm_plane_swap_buffers(renderer, plane);
-	uint32_t fb_id = get_fb_for_bo(plane->back);
 
-	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
+	drm->iface->crtc_pageflip(drm, output, crtc, get_fb_for_bo(plane->back), NULL);
 	output->pageflip_pending = true;
 }
 
@@ -308,8 +300,8 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 		return;
 	}
 
+	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
 	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_output_mode *mode = output->base->current_mode;
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
@@ -325,28 +317,22 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 		bo = plane->back;
 	}
 
-	uint32_t fb_id = get_fb_for_bo(bo);
-	drmModeSetCrtc(renderer->fd, crtc->id, fb_id, 0, 0,
-		&output->connector, 1, &mode->state->mode);
-	drmModePageFlip(renderer->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output);
+	drmModeModeInfo *mode = &output->base->current_mode->state->mode;
+	drm->iface->crtc_pageflip(drm, output, crtc, get_fb_for_bo(bo), mode);
 	output->pageflip_pending = true;
 }
 
 static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
-	struct wlr_backend_state *state =
-		wl_container_of(output->renderer, state, renderer);
+	struct wlr_backend_state *drm =
+		wl_container_of(output->renderer, drm, renderer);
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
 
-	if (enable) {
-		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_ON);
+	drm->iface->conn_enable(drm, output, enable);
 
+	if (enable) {
 		wlr_drm_output_start_renderer(output);
-	} else {
-		drmModeConnectorSetProperty(state->fd, output->connector, output->props.dpms,
-			DRM_MODE_DPMS_OFF);
 	}
 }
 
@@ -515,7 +501,8 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 		}
 
 		if (!wlr_drm_plane_renderer_init(&drm->renderer, crtc->primary,
-				mode->width, mode->height, GBM_BO_USE_SCANOUT)) {
+				mode->width, mode->height, GBM_FORMAT_XRGB8888,
+				GBM_BO_USE_SCANOUT)) {
 			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
 			goto error_enc;
 		}
@@ -541,22 +528,6 @@ static void wlr_drm_output_transform(struct wlr_output_state *output,
 	output->base->transform = transform;
 }
 
-bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc) {
-	if (!crtc || !crtc->cursor || !crtc->cursor->gbm) {
-		return true;
-	}
-
-	struct wlr_drm_plane *plane = crtc->cursor;
-
-	uint32_t bo_handle = gbm_bo_get_handle(plane->cursor_bo).u32;
-	if (drmModeSetCursor(drm->fd, crtc->id, bo_handle, plane->width, plane->height)) {
-		wlr_log_errno(L_ERROR, "Failed to set hardware cursor");
-		return false;
-	}
-
-	return true;
-}
-
 static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
 	struct wlr_backend_state *drm = wl_container_of(output->renderer, drm, renderer);
@@ -565,10 +536,10 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 	struct wlr_drm_plane *plane = crtc->cursor;
 
 	if (!buf) {
-		drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0);
-		return true;
+		return drm->iface->crtc_set_cursor(drm, crtc, NULL);
 	}
 
+	// We don't have a real cursor plane, so we make a fake one
 	if (!plane) {
 		plane = calloc(1, sizeof(*plane));
 		if (!plane) {
@@ -591,7 +562,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 			return false;
 		}
 
-		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, 0)) {
+		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
@@ -653,14 +624,14 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 
 	gbm_bo_unmap(bo, bo_data);
 
-	return wlr_drm_crtc_set_cursor(drm, crtc);
+	return drm->iface->crtc_set_cursor(drm, crtc, bo);
 }
 
 static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
 		int x, int y) {
 	struct wlr_backend_state *drm =
 		wl_container_of(output->renderer, drm, renderer);
-	return !drmModeMoveCursor(drm->fd, output->crtc->id, x, y);
+	return drm->iface->crtc_move_cursor(drm, output->crtc, x, y);
 }
 
 static void wlr_drm_output_destroy(struct wlr_output_state *output) {

@@ -43,6 +43,9 @@ struct wlr_drm_plane {
 
 struct wlr_drm_crtc {
 	uint32_t id;
+	uint32_t mode_id; // atomic modesetting only
+	drmModeAtomicReq *atomic;
+
 	union {
 		struct {
 			struct wlr_drm_plane *overlay;
@@ -76,8 +79,11 @@ struct wlr_drm_renderer {
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
 void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
+struct wlr_drm_interface;
+
 struct wlr_backend_state {
 	struct wlr_backend *base;
+	const struct wlr_drm_interface *iface;
 
 	int fd;
 	dev_t dev;
@@ -150,6 +156,22 @@ struct wlr_output_state {
 	bool pageflip_pending;
 };
 
+// Used to provide atomic or legacy DRM functions
+struct wlr_drm_interface {
+	// Enable or disable DPMS for output
+	void (*conn_enable)(struct wlr_backend_state *drm, struct wlr_output_state *output,
+		bool enable);
+	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
+	bool (*crtc_pageflip)(struct wlr_backend_state *drm, struct wlr_output_state *output,
+		struct wlr_drm_crtc *crtc, uint32_t fb_id, drmModeModeInfo *mode);
+	// Enable the cursor buffer on crtc. Set bo to NULL to disable
+	bool (*crtc_set_cursor)(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
+		struct gbm_bo *bo);
+	// Move the cursor on crtc
+	bool (*crtc_move_cursor)(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
+		int x, int y);
+};
+
 bool wlr_drm_check_features(struct wlr_backend_state *drm);
 bool wlr_drm_resources_init(struct wlr_backend_state *drm);
 void wlr_drm_resources_free(struct wlr_backend_state *drm);
@@ -159,6 +181,5 @@ void wlr_drm_scan_connectors(struct wlr_backend_state *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);
-bool wlr_drm_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc);
 
 #endif

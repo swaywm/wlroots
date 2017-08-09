@@ -7,6 +7,8 @@ wlr_files += files(
     'session/session.c',
     'drm/backend.c',
     'drm/drm.c',
+    'drm/drm-atomic.c',
+    'drm/drm-legacy.c',
     'drm/drm-properties.c',
     'drm/drm-util.c',
     'libinput/backend.c',
