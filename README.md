@@ -8,7 +8,6 @@ WIP - [Status](https://github.com/SirCmpwn/wlroots/issues/9)
 
 Install dependencies:
 
-* cmake
 * wayland
 * wayland-protocols
 * EGL
@@ -17,6 +16,7 @@ Install dependencies:
 * GBM
 * libinput
 * udev
+* pixman
 * systemd (optional, for logind support)
 * libcap (optional, for capability support)
 * asciidoc (optional, for man pages)
