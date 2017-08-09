@@ -99,12 +99,14 @@ static void surface_commit(struct wl_client *client,
 		// callbacks instead of immediately here
 		if (surface->current.buffer) {
 			struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
-			if (!buffer) {
-				wlr_log(L_INFO, "Unknown buffer handle attached");
-			} else {
+			if (buffer) {
 				uint32_t format = wl_shm_buffer_get_format(buffer);
 				wlr_texture_upload_shm(surface->texture, format, buffer);
 				wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
+			} else if (wlr_texture_upload_drm(surface->texture, surface->pending.buffer)) {
+				wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
+			} else {
+				wlr_log(L_INFO, "Unknown buffer handle attached");
 			}
 		}
 	}

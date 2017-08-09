@@ -90,3 +90,13 @@ const GLchar fragment_src_rgbx[] =
 "   gl_FragColor.rgb = alpha * texture2D(tex, v_texcoord).rgb;"
 "   gl_FragColor.a = alpha;"
 "}";
+
+const GLchar fragment_src_external[] =
+"#extension GL_OES_EGL_image_external : require\n"
+"precision mediump float;"
+"uniform samplerExternalOES texture0;"
+"varying vec2 v_uv;"
+"void main() {"
+"  vec4 col = texture2D(texture0, v_uv);"
+"  gl_FragColor = vec4(col.rgb, col.a);"
+"}";

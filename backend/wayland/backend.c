@@ -52,6 +52,8 @@ static bool wlr_wl_backend_init(struct wlr_backend_state* state) {
 	}
 
 	wlr_egl_init(&state->egl, EGL_PLATFORM_WAYLAND_EXT, state->remote_display);
+	wlr_egl_bind_display(&state->egl, state->local_display);
+
 	for (size_t i = 0; i < state->requested_outputs; ++i) {
 		wlr_wl_output_create(state->backend);
 	}

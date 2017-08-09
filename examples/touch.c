@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init();
+	state.renderer = wlr_gles2_renderer_init(compositor.backend->egl);
 	state.cat_texture = wlr_render_texture_init(state.renderer);
 	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);

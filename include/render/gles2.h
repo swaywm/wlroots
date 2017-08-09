@@ -4,8 +4,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <wlr/render.h>
 #include <wlr/util/log.h>
+
+extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 
 struct pixel_format {
 	uint32_t wl_format;
@@ -18,6 +23,7 @@ struct wlr_texture_state {
 	struct wlr_texture *wlr_texture;
 	GLuint tex_id;
 	const struct pixel_format *pixel_format;
+	EGLImageKHR image;
 };
 
 struct shaders {
@@ -25,6 +31,7 @@ struct shaders {
 	GLuint rgba, rgbx;
 	GLuint quad;
 	GLuint ellipse;
+	Gluint external;
 };
 
 extern struct shaders shaders;
@@ -39,6 +46,7 @@ extern const GLchar ellipse_fragment_src[];
 extern const GLchar vertex_src[];
 extern const GLchar fragment_src_rgba[];
 extern const GLchar fragment_src_rgbx[];
+extern const GLchar fragment_src_external[];
 
 bool _gles2_flush_errors(const char *file, int line);
 #define gles2_flush_errors(...) \

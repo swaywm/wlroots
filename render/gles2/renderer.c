@@ -2,14 +2,17 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
+#include "backend/egl.h"
 #include "render/gles2.h"
 
+PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = NULL;
 struct shaders shaders;
 
 static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
@@ -65,13 +68,36 @@ static void init_default_shaders() {
 	if (!compile_program(quad_vertex_src, ellipse_fragment_src, &shaders.ellipse)) {
 		goto error;
 	}
+	if (glEGLImageTargetTexture2DOES) {
+		if (!compile_program(quad_vertex_src, fragment_src_external, &shaders.external)) {
+			goto error;
+		}
+	}
+
 	wlr_log(L_DEBUG, "Compiled default shaders");
 	return;
 error:
 	wlr_log(L_ERROR, "Failed to set up default shaders!");
 }
 
+static void init_image_ext() {
+	if (glEGLImageTargetTexture2DOES)
+		return;
+
+	const char *exts = (const char*) glGetString(GL_EXTENSIONS);
+	if (strstr(exts, "GL_OES_EGL_image_external")) {
+ 		glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
+			eglGetProcAddress("glEGLImageTargetTexture2DOES");
+	}
+
+	if (!glEGLImageTargetTexture2DOES) {
+		wlr_log(L_INFO, "Failed to load glEGLImageTargetTexture2DOES "
+			"Will not be able to attach drm buffers");
+	}
+}
+
 static void init_globals() {
+	init_image_ext();
 	init_default_shaders();
 }
 
@@ -179,7 +205,7 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.destroy = wlr_gles2_destroy
 };
 
-struct wlr_renderer *wlr_gles2_renderer_init() {
+struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_egl *egl) {
 	init_globals();
 	return wlr_renderer_init(NULL, &wlr_renderer_impl);
 }

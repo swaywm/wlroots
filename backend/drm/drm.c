@@ -579,7 +579,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
 			output->base->transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
-		plane->wlr_rend = wlr_gles2_renderer_init();
+		plane->wlr_rend = wlr_gles2_renderer_init(&output->renderer->egl);
 		if (!plane->wlr_rend) {
 			return false;
 		}

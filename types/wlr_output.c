@@ -133,6 +133,7 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 		return true;
 	}
 
+	/*
 	wlr_log(L_INFO, "Falling back to software cursor");
 
 	output->cursor.is_sw = true;
@@ -149,8 +150,9 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 
 	wlr_texture_upload_pixels(output->cursor.texture, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
+	*/
 
-	return true;
+	return false;
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {

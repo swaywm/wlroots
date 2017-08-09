@@ -10,6 +10,26 @@
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "backend/egl.h"
+
+static struct pixel_format external_pixel_format = {
+	.wl_format = 0,
+	.depth = 0,
+	.bpp = 0,
+	.gl_format = 0,
+	.gl_type = 0,
+	.shader = &shaders.external
+};
+
+static void gles2_texture_gen_texture(struct wlr_texture_state *surface) {
+	if (surface->tex_id)
+		return;
+
+	GL_CALL(glGenTextures(1, &surface->tex_id));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+}
 
 static bool gles2_texture_upload_pixels(struct wlr_texture_state *texture,
 		enum wl_shm_format format, int stride, int width, int height,
@@ -24,7 +44,8 @@ static bool gles2_texture_upload_pixels(struct wlr_texture_state *texture,
 	texture->wlr_texture->height = height;
 	texture->wlr_texture->format = format;
 	texture->pixel_format = fmt;
-	GL_CALL(glGenTextures(1, &texture->tex_id));
+
+	gles2_texture_gen_texture(texture);
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride));
 	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
@@ -72,7 +93,7 @@ static bool gles2_texture_upload_shm(struct wlr_texture_state *texture,
 	texture->wlr_texture->format = format;
 	texture->pixel_format = fmt;
 
-	GL_CALL(glGenTextures(1, &texture->tex_id));
+	gles2_texture_gen_texture(texture);
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, pitch));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0));
@@ -109,6 +130,62 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0));
 
 	wl_shm_buffer_end_access(buffer);
+
+	return true;
+}
+
+static bool gles2_texture_upload_drm(struct wlr_texture_state *texture,
+		struct wl_resource* buf) {
+	if (!glEGLImageTargetTexture2DOES) {
+		return false;
+	}
+
+	EGLint format;
+	if (!wlr_egl_query_buffer(buf, EGL_TEXTURE_FORMAT, &format)) {
+		wlr_log(L_INFO, "upload_drm called with no drm buffer");
+		return false;
+	}
+
+	wlr_egl_query_buffer(buf, EGL_WIDTH, (EGLint*) &texture->wlr_texture->width);
+	wlr_egl_query_buffer(buf, EGL_HEIGHT, (EGLint*) &texture->wlr_texture->height);
+
+	EGLint inverted_y;
+	wlr_egl_query_buffer(buf, EGL_WAYLAND_Y_INVERTED_WL, &inverted_y);
+
+	GLenum target;
+	const struct pixel_format *pf;
+	switch (format) {
+	case EGL_TEXTURE_RGB:
+	case EGL_TEXTURE_RGBA:
+		target = GL_TEXTURE_2D;
+		pf = gl_format_for_wl_format(WL_SHM_FORMAT_ARGB8888);
+		break;
+	case EGL_TEXTURE_EXTERNAL_WL:
+		target = GL_TEXTURE_EXTERNAL_OES;
+		pf = &external_pixel_format;
+		break;
+	default:
+		wlr_log(L_ERROR, "invalid/unsupported egl buffer format");
+		return false;
+	}
+
+	gles2_texture_gen_texture(texture);
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
+
+	EGLint attribs[] = { EGL_WAYLAND_PLANE_WL, 0, EGL_NONE };
+	texture->image = wlr_egl_create_image(EGL_WAYLAND_BUFFER_WL,
+		(EGLClientBuffer*) buf, attribs);
+	if (!texture->image) {
+		wlr_log(L_ERROR, "failed to create egl image: %s", egl_error());
+ 		return false;
+	}
+
+	GL_CALL(glActiveTexture(GL_TEXTURE0));
+	GL_CALL(glBindTexture(target, texture->tex_id));
+	GL_CALL(glEGLImageTargetTexture2DOES(target, texture->image));
+	texture->wlr_texture->valid = true;
+	texture->pixel_format = pf;
+
 	return true;
 }
 
@@ -142,6 +219,7 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.update_pixels = gles2_texture_update_pixels,
 	.upload_shm = gles2_texture_upload_shm,
 	.update_shm = gles2_texture_update_shm,
+	.upload_drm = gles2_texture_upload_drm,
 	.get_matrix = gles2_texture_get_matrix,
 	.bind = gles2_texture_bind,
 	.destroy = gles2_texture_destroy,

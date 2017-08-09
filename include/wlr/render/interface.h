@@ -42,7 +42,8 @@ struct wlr_texture_impl {
 		struct wl_shm_buffer *shm);
 	bool (*update_shm)(struct wlr_texture_state *surf, uint32_t format,
 		int x, int y, int width, int height, struct wl_shm_buffer *shm);
-	// TODO: egl
+	bool (*upload_drm)(struct wlr_texture_state *state,
+		struct wl_resource *drm_buf);
 	void (*get_matrix)(struct wlr_texture_state *state,
 		float (*matrix)[16], const float (*projection)[16], int x, int y);
 	void (*bind)(struct wlr_texture_state *state);
