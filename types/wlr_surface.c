@@ -23,9 +23,36 @@ static void surface_damage(struct wl_client *client,
 	wlr_log(L_DEBUG, "TODO: surface damage");
 }
 
+static void destroy_frame_callback(struct wl_resource *resource) {
+	struct wlr_frame_callback *cb = wl_resource_get_user_data(resource);
+
+	wl_list_remove(&cb->link);
+	free(cb);
+}
+
 static void surface_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
-	wlr_log(L_DEBUG, "TODO: surface frame");
+	struct wlr_frame_callback *cb;
+	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+
+	cb = malloc(sizeof(struct wlr_frame_callback));
+	if (cb == NULL) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
+	cb->resource = wl_resource_create(client,
+			&wl_callback_interface, 1, callback);
+	if (cb->resource == NULL) {
+		free(cb);
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
+	wl_resource_set_implementation(cb->resource,
+			NULL, cb, destroy_frame_callback);
+
+	wl_list_insert(surface->frame_callback_list.prev, &cb->link);
 }
 
 static void surface_set_opaque_region(struct wl_client *client,
@@ -37,7 +64,6 @@ static void surface_set_opaque_region(struct wl_client *client,
 static void surface_set_input_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
-
 	wlr_log(L_DEBUG, "TODO: surface input region");
 }
 
@@ -55,6 +81,7 @@ static void surface_commit(struct wl_client *client,
 			} else {
 				uint32_t format = wl_shm_buffer_get_format(buffer);
 				wlr_texture_upload_shm(surface->texture, format, buffer);
+				wl_resource_queue_event(surface->pending_buffer, WL_BUFFER_RELEASE);
 			}
 		}
 	}
@@ -102,6 +129,11 @@ static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 	wl_signal_emit(&surface->signals.destroy, surface);
 	wlr_texture_destroy(surface->texture);
+
+	struct wlr_frame_callback *cb, *next;
+	wl_list_for_each_safe(cb, next, &surface->frame_callback_list, link) {
+		wl_resource_destroy(cb->resource);
+	}
 	free(surface);
 }
 
@@ -112,8 +144,8 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	surface->resource = res;
 	wl_signal_init(&surface->signals.commit);
 	wl_signal_init(&surface->signals.destroy);
+	wl_list_init(&surface->frame_callback_list);
 	wl_resource_set_implementation(res, &surface_interface,
 			surface, destroy_surface);
-
 	return surface;
 }

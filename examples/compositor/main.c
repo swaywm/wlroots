@@ -23,6 +23,13 @@ struct sample_state {
 	struct xdg_shell_state xdg_shell;
 };
 
+/*
+ * Convert timespec to milliseconds
+ */
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
 void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
@@ -39,6 +46,12 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 			wlr_texture_get_matrix(surface->texture, &matrix,
 					&wlr_output->transform_matrix, 200, 200);
 			wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
+
+			struct wlr_frame_callback *cb, *cnext;
+			wl_list_for_each_safe(cb, cnext, &surface->frame_callback_list, link) {
+				wl_callback_send_done(cb->resource, timespec_to_msec(ts));
+				wl_resource_destroy(cb->resource);
+			}
 		}
 	}
 
