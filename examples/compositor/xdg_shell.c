@@ -135,7 +135,7 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
 };
 
 struct xdg_surface_state {
-	struct wlr_surface *wlr_surface;
+	struct wlr_texture *wlr_texture;
 };
 
 static void xdg_shell_destroy(struct wl_client *client,
@@ -151,9 +151,9 @@ static void xdg_shell_create_positioner(struct wl_client *client,
 static void xdg_shell_get_xdg_surface(struct wl_client *client, struct
 		wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
-	struct wlr_surface *wlr_surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface_resource);
 	struct xdg_surface_state *state = malloc(sizeof(struct xdg_surface_state));
-	state->wlr_surface = wlr_surface;
+	state->wlr_texture = wlr_texture;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&zxdg_surface_v6_interface, wl_resource_get_version(resource), id);
 	wl_resource_set_implementation(shell_surface_resource,

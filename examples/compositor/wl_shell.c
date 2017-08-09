@@ -72,7 +72,7 @@ struct wl_shell_surface_interface shell_surface_interface = {
 };
 
 struct shell_surface_state {
-	struct wlr_surface *wlr_surface;
+	struct wlr_texture *wlr_texture;
 };
 
 static void destroy_shell_surface(struct wl_resource *resource) {
@@ -83,9 +83,9 @@ static void destroy_shell_surface(struct wl_resource *resource) {
 void wl_shell_get_shell_surface(struct wl_client *client,
 				  struct wl_resource *resource, uint32_t id,
 				  struct wl_resource *surface) {
-	struct wlr_surface *wlr_surface = wl_resource_get_user_data(surface);
+	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface);
 	struct shell_surface_state *state = malloc(sizeof(struct shell_surface_state));
-	state->wlr_surface = wlr_surface;
+	state->wlr_texture = wlr_texture;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
 	wl_resource_set_implementation(shell_surface_resource,
