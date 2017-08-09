@@ -31,4 +31,6 @@ void wl_shell_init(struct wl_display *display,
 void xdg_shell_init(struct wl_display *display,
 		struct xdg_shell_state *state);
 
+void xdg_shell_release(struct xdg_shell_state *state);
+
 #endif

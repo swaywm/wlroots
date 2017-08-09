@@ -61,4 +61,6 @@ int main() {
 	xdg_shell_init(compositor.display, &state.xdg_shell);
 
 	compositor_run(&compositor);
+
+	xdg_shell_release(&state.xdg_shell);
 }

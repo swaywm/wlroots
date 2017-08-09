@@ -5,9 +5,9 @@
 #include "compositor.h"
 #include "compositor/protocols/xdg-shell.h"
 
-static void xdg_toplevel_destroy(struct wl_client *client,
+static void resource_destructor(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: xdg toplevel destroy");
+   wl_resource_destroy(resource);
 }
 
 static void xdg_toplevel_set_parent(struct wl_client *client,
@@ -73,7 +73,7 @@ static void xdg_toplevel_set_minimized(struct wl_client *client, struct wl_resou
 }
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation = {
-	.destroy = xdg_toplevel_destroy,
+	.destroy = resource_destructor,
 	.set_parent = xdg_toplevel_set_parent,
 	.set_title = xdg_toplevel_set_title,
 	.set_app_id = xdg_toplevel_set_app_id,
@@ -95,14 +95,9 @@ struct xdg_surface_state {
 };
 
 
-static void xdg_surface_destroy(struct wl_client *client,
-		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO xdg surface destroy");
-}
-
 static void destroy_xdg_shell_surface(struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO destroy xdg shell surface");
-	//struct xdg_surface_state *state = wl_resource_get_user_data(resource);
+	struct xdg_surface_state *state = wl_resource_get_user_data(resource);
+	free(state);
 }
 
 static void xdg_surface_get_toplevel(struct wl_client *client,
@@ -111,7 +106,7 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 	struct wl_resource *toplevel_resource = wl_resource_create(client,
 			&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
 	wl_resource_set_implementation(toplevel_resource,
-			&zxdg_toplevel_v6_implementation, state, destroy_xdg_shell_surface);
+			&zxdg_toplevel_v6_implementation, state, NULL);
     zxdg_surface_v6_send_configure(resource, wl_display_next_serial(state->display));
 }
 
@@ -134,17 +129,12 @@ static void xdg_surface_set_window_geometry(struct wl_client *client,
 }
 
 static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
-   .destroy = xdg_surface_destroy,
+   .destroy = resource_destructor,
    .get_toplevel = xdg_surface_get_toplevel,
    .get_popup = xdg_surface_get_popup,
    .ack_configure = xdg_surface_ack_configure,
    .set_window_geometry = xdg_surface_set_window_geometry,
 };
-
-static void xdg_shell_destroy(struct wl_client *client,
-		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: xdg shell destroy");
-}
 
 static void xdg_shell_create_positioner(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
@@ -156,6 +146,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client, struct
 		struct wl_resource *surface_resource) {
 	struct xdg_shell_state *shell_state = wl_resource_get_user_data(resource);
 	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface_resource);
+	wlr_log(L_DEBUG, "@@ MALLOC STATE");
 	struct xdg_surface_state *state = malloc(sizeof(struct xdg_surface_state));
 	state->display = shell_state->display;
 	state->wlr_texture = wlr_texture;
@@ -170,23 +161,11 @@ static void xdg_shell_pong(struct wl_client *client, struct wl_resource *resourc
 }
 
 static struct zxdg_shell_v6_interface xdg_shell_impl = {
-   .destroy = xdg_shell_destroy,
+   .destroy = resource_destructor,
    .create_positioner = xdg_shell_create_positioner,
    .get_xdg_surface = xdg_shell_get_xdg_surface,
    .pong = xdg_shell_pong,
 };
-
-static void xdg_destroy_shell(struct wl_resource *resource) {
-	struct xdg_shell_state *state = wl_resource_get_user_data(resource);
-	struct wl_resource *_resource = NULL;
-	wl_resource_for_each(_resource, &state->wl_resources) {
-		if (_resource == resource) {
-			struct wl_list *link = wl_resource_get_link(_resource);
-			wl_list_remove(link);
-			break;
-		}
-	}
-}
 
 static void xdg_shell_bind(struct wl_client *wl_client, void *_state,
 		uint32_t version, uint32_t id) {
@@ -200,7 +179,7 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_state,
 	struct wl_resource *wl_resource = wl_resource_create(
 			wl_client, &zxdg_shell_v6_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &xdg_shell_impl,
-			state, xdg_destroy_shell);
+			state, NULL);
 	wl_list_insert(&state->wl_resources, wl_resource_get_link(wl_resource));
 }
 
@@ -210,4 +189,15 @@ void xdg_shell_init(struct wl_display *display, struct xdg_shell_state *state) {
 	state->wl_global = wl_global;
 	state->display = display;
 	wl_list_init(&state->wl_resources);
+}
+
+void xdg_shell_release(struct xdg_shell_state *state) {
+	if (!state)
+		return;
+
+	struct wl_resource *_resource = NULL;
+	wl_resource_for_each(_resource, &state->wl_resources) {
+		struct wl_list *link = wl_resource_get_link(_resource);
+		wl_list_remove(link);
+	}
 }
