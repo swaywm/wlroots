@@ -89,6 +89,12 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 	.set_minimized = xdg_toplevel_set_minimized
 };
 
+struct xdg_surface_state {
+	struct wlr_texture *wlr_texture;
+	struct wl_display *display;
+};
+
+
 static void xdg_surface_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO xdg surface destroy");
@@ -106,6 +112,7 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 			&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
 	wl_resource_set_implementation(toplevel_resource,
 			&zxdg_toplevel_v6_implementation, state, destroy_xdg_shell_surface);
+    zxdg_surface_v6_send_configure(resource, wl_display_next_serial(state->display));
 }
 
 static void xdg_surface_get_popup(struct wl_client *client,
@@ -134,10 +141,6 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
    .set_window_geometry = xdg_surface_set_window_geometry,
 };
 
-struct xdg_surface_state {
-	struct wlr_texture *wlr_texture;
-};
-
 static void xdg_shell_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO: xdg shell destroy");
@@ -151,8 +154,10 @@ static void xdg_shell_create_positioner(struct wl_client *client,
 static void xdg_shell_get_xdg_surface(struct wl_client *client, struct
 		wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
+	struct xdg_shell_state *shell_state = wl_resource_get_user_data(resource);
 	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface_resource);
 	struct xdg_surface_state *state = malloc(sizeof(struct xdg_surface_state));
+	state->display = shell_state->display;
 	state->wlr_texture = wlr_texture;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&zxdg_surface_v6_interface, wl_resource_get_version(resource), id);
@@ -203,5 +208,6 @@ void xdg_shell_init(struct wl_display *display, struct xdg_shell_state *state) {
 	struct wl_global *wl_global = wl_global_create(display,
 		&zxdg_shell_v6_interface, 1, state, xdg_shell_bind);
 	state->wl_global = wl_global;
+	state->display = display;
 	wl_list_init(&state->wl_resources);
 }

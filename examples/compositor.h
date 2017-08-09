@@ -22,6 +22,7 @@ struct wl_shell_state {
 struct xdg_shell_state {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
+	struct wl_display *display;
 };
 
 void wl_shell_init(struct wl_display *display,
