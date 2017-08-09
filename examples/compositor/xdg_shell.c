@@ -3,7 +3,7 @@
 #include <wlr/util/log.h>
 #include <stdlib.h>
 #include "compositor.h"
-#include "compositor/protocols/xdg-shell.h"
+#include "xdg-shell-unstable-v6-protocol.h"
 
 static void resource_destructor(struct wl_client *client,
 		struct wl_resource *resource) {
