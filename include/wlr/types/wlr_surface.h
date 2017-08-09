@@ -1,5 +1,5 @@
-#ifndef _EXAMPLES_COMPOSITOR_SURFACE_H
-#define _EXAMPLES_COMPOSITOR_SURFACE_H
+#ifndef _WLR_TYPES_WLR_SURFACE_H
+#define _WLR_TYPES_WLR_SURFACE_H
 
 #include <wayland-server.h>
 
@@ -18,6 +18,7 @@ struct wlr_surface {
 	} signals;
 };
 
+struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
 

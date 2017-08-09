@@ -10,11 +10,11 @@
 #include <wlr/render.h>
 #include <wlr/render/gles2.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_surface.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
 #include "compositor.h"
-#include "wlr_surface.h"
 
 struct sample_state {
 	struct wlr_renderer *renderer;

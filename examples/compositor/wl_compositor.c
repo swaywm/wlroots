@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_surface.h>
 #include "compositor.h"
-#include "compositor/wlr_surface.h"
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	struct wl_compositor_state *state;
