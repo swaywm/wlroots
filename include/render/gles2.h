@@ -31,7 +31,7 @@ struct shaders {
 	GLuint rgba, rgbx;
 	GLuint quad;
 	GLuint ellipse;
-	Gluint external;
+	GLuint external;
 };
 
 extern struct shaders shaders;
