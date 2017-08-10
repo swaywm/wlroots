@@ -231,8 +231,7 @@ bool wlr_egl_query_buffer(struct wl_resource *buf, int attrib, int *value) {
 }
 
 EGLImage wlr_egl_create_image(EGLenum target,
-		EGLClientBuffer buffer, const EGLint *attribs)
-{
+		EGLClientBuffer buffer, const EGLint *attribs) {
 	if (!egl_global || !eglCreateImageKHR) {
 		return false;
 	}
@@ -241,8 +240,7 @@ EGLImage wlr_egl_create_image(EGLenum target,
 		buffer, attribs);
 }
 
-bool wlr_egl_destroy_image(EGLImage image)
-{
+bool wlr_egl_destroy_image(EGLImage image) {
 	if (!egl_global || !eglDestroyImageKHR) {
 		return false;
 	}

@@ -22,8 +22,9 @@ static struct pixel_format external_pixel_format = {
 };
 
 static void gles2_texture_gen_texture(struct wlr_texture_state *surface) {
-	if (surface->tex_id)
+	if (surface->tex_id) {
 		return;
+	}
 
 	GL_CALL(glGenTextures(1, &surface->tex_id));
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
