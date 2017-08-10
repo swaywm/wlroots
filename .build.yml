@@ -15,7 +15,7 @@ tasks:
   - setup: |
       mkdir wlroots/build-{gcc,clang}
       cd wlroots/build-gcc
-      meson ..
+      CC=gcc meson ..
       cd ../build-clang
       CC=clang meson ..
   - gcc: |
