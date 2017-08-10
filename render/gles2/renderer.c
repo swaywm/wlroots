@@ -109,6 +109,11 @@ static void wlr_gles2_begin(struct wlr_renderer_state *state,
 	int32_t width = output->width;
 	int32_t height = output->height;
 	GL_CALL(glViewport(0, 0, width, height));
+
+	// enable transparency
+	GL_CALL(glEnable(GL_BLEND));
+	GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
 	// Note: maybe we should save output projection and remove some of the need
 	// for users to sling matricies themselves
 }

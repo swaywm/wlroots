@@ -48,6 +48,7 @@ struct wlr_surface {
 
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-	struct wlr_renderer *renderer);
+		struct wlr_renderer *renderer);
+void wlr_surface_flush_damage(struct wlr_surface *surface);
 
 #endif

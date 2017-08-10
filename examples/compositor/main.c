@@ -42,6 +42,7 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	float matrix[16];
 	wl_list_for_each(_res, &sample->compositor.surfaces, link) {
 		struct wlr_surface *surface = wl_resource_get_user_data(_res);
+		wlr_surface_flush_damage(surface);
 		if (surface->texture->valid) {
 			wlr_texture_get_matrix(surface->texture, &matrix,
 					&wlr_output->transform_matrix, 200, 200);

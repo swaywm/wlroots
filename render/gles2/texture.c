@@ -61,7 +61,9 @@ static bool gles2_texture_update_pixels(struct wlr_texture_state *texture,
 	assert(texture && texture->wlr_texture->valid);
 	// TODO: Test if the unpack subimage extension is supported and adjust the
 	// upload strategy if not
-	if (texture->wlr_texture->format != format) {
+	if (!texture->wlr_texture->valid
+			|| texture->wlr_texture->format != format
+		/*	|| unpack not supported */) {
 		return gles2_texture_upload_pixels(texture, format, stride,
 				width, height, pixels);
 	}
@@ -112,8 +114,10 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 		struct wl_shm_buffer *buffer) {
 	// TODO: Test if the unpack subimage extension is supported and adjust the
 	// upload strategy if not
-	assert(texture && texture->wlr_texture->valid);
-	if (texture->wlr_texture->format != format) {
+	assert(texture);
+	if (!texture->wlr_texture->valid
+			|| texture->wlr_texture->format != format
+		/*	|| unpack not supported */) {
 		return gles2_texture_upload_shm(texture, format, buffer);
 	}
 	const struct pixel_format *fmt = texture->pixel_format;
@@ -125,8 +129,8 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, pitch));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, x));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, y));
-	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
-				fmt->gl_format, fmt->gl_type, pixels));
+	GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height,
+			fmt->gl_format, fmt->gl_type, pixels));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0));
 

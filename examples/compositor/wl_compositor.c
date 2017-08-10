@@ -3,6 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_region.h>
 #include "compositor.h"
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
@@ -33,7 +34,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 
 static void wl_compositor_create_region(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	wlr_log(L_DEBUG, "TODO: implement create_region");
+	wlr_region_create(client, resource, id);
 }
 
 struct wl_compositor_interface wl_compositor_impl = {
