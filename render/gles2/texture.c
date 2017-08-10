@@ -107,7 +107,6 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, pitch));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, x));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, y));
-	wlr_log(L_DEBUG, "%dx%d@%d,%d", width, height, x, y);
 	GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height,
 			fmt->gl_format, fmt->gl_type, pixels));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0));

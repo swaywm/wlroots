@@ -135,7 +135,6 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	uint32_t format = wl_shm_buffer_get_format(buffer);
 	for (int i = 0; i < n; ++i) {
 		pixman_box32_t rect = rects[i];
-		wlr_log(L_DEBUG, "%d,%d:%d,%d", rect.x1, rect.y1, rect.x2, rect.y2);
 		if (!wlr_texture_update_shm(surface->texture, format,
 				rect.x1, rect.y1, 
 				rect.x2 - rect.x1,
