@@ -95,18 +95,6 @@ static void surface_commit(struct wl_client *client,
 
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_BUFFER)) {
 		surface->current.buffer = surface->pending.buffer;
-		// TODO: Move to wlr_surface_flush_damage and call from output frame
-		// callbacks instead of immediately here
-		if (surface->current.buffer) {
-			struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
-			if (!buffer) {
-				wlr_log(L_INFO, "Unknown buffer handle attached");
-			} else {
-				uint32_t format = wl_shm_buffer_get_format(buffer);
-				wlr_texture_upload_shm(surface->texture, format, buffer);
-				wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
-			}
-		}
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
 		// TODO: Sort out buffer damage too
@@ -124,6 +112,41 @@ static void surface_commit(struct wl_client *client,
 	surface->pending.invalid = 0;
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->signals.commit, surface);
+}
+
+void wlr_surface_flush_damage(struct wlr_surface *surface) {
+	if (!surface->current.buffer) {
+		if (surface->texture->valid) {
+			// TODO: Detach buffers
+		}
+		return;
+	}
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
+	if (!buffer) {
+		wlr_log(L_INFO, "Unknown buffer handle attached");
+		return;
+	}
+	pixman_region32_t damage = surface->current.surface_damage;
+	if (!pixman_region32_not_empty(&damage)) {
+		return;
+	}
+	int n;
+	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
+	uint32_t format = wl_shm_buffer_get_format(buffer);
+	for (int i = 0; i < n; ++i) {
+		pixman_box32_t rect = rects[i];
+		wlr_log(L_DEBUG, "%d,%d:%d,%d", rect.x1, rect.y1, rect.x2, rect.y2);
+		if (!wlr_texture_update_shm(surface->texture, format,
+				rect.x1, rect.y1, 
+				rect.x2 - rect.x1,
+				rect.y2 - rect.y1,
+				buffer)) {
+			break;
+		}
+	}
+	pixman_region32_fini(&surface->current.surface_damage);
+	pixman_region32_init(&surface->current.surface_damage);
+	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
