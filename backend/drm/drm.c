@@ -785,14 +785,18 @@ static void page_flip_handler(int fd, unsigned seq,
 	struct wlr_backend_state *drm =
 		wl_container_of(output->renderer, drm, renderer);
 
+	output->pageflip_pending = false;
+	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
+		return;
+	}
+
 	struct wlr_drm_plane *plane = output->crtc->primary;
 	if (plane->front) {
 		gbm_surface_release_buffer(plane->gbm, plane->front);
 		plane->front = NULL;
 	}
 
-	output->pageflip_pending = false;
-	if (output->state == WLR_DRM_OUTPUT_CONNECTED && drm->session->active) {
+	if (drm->session->active) {
 		wl_signal_emit(&output->base->events.frame, output->base);
 	}
 }
