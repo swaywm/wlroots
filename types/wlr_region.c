@@ -37,8 +37,23 @@ static void destroy_region(struct wl_resource *resource) {
 	free(reg);
 }
 
-void wlr_region_create(struct wl_resource *res) {
+void wlr_region_create(struct wl_client *client, struct wl_resource *res,
+		uint32_t id) {
 	pixman_region32_t *region = calloc(1, sizeof(pixman_region32_t));
+	if (region == NULL) {
+		wl_resource_post_no_memory(res);
+		return;
+	}
+
 	pixman_region32_init(region);
-	wl_resource_set_implementation(res, &region_interface, region, destroy_region);
+
+	struct wl_resource *region_resource = wl_resource_create(client,
+		&wl_region_interface, 1, id);
+	if (region_resource == NULL) {
+		free(region);
+		wl_resource_post_no_memory(res);
+		return;
+	}
+	wl_resource_set_implementation(region_resource, &region_interface, region,
+		destroy_region);
 }
