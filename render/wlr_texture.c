@@ -25,9 +25,22 @@ bool wlr_texture_upload_pixels(struct wlr_texture *texture, uint32_t format,
 			format, stride, width, height, pixels);
 }
 
+bool wlr_texture_update_pixels(struct wlr_texture *texture,
+		enum wl_shm_format format, int stride, int x, int y,
+		int width, int height, const unsigned char *pixels) {
+	return texture->impl->update_pixels(texture->state,
+			format, stride, x, y, width, height, pixels);
+}
+
 bool wlr_texture_upload_shm(struct wlr_texture *texture, uint32_t format,
 		struct wl_shm_buffer *shm) {
 	return texture->impl->upload_shm(texture->state, format, shm);
+}
+
+bool wlr_texture_update_shm(struct wlr_texture *texture, uint32_t format,
+		int x, int y, int width, int height, struct wl_shm_buffer *shm) {
+	return texture->impl->update_shm(texture->state, format,
+			x, y, width, height, shm);
 }
 
 void wlr_texture_get_matrix(struct wlr_texture *texture,

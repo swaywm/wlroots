@@ -20,7 +20,7 @@ static void surface_attach(struct wl_client *client,
 static void surface_damage(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
-	wlr_log(L_DEBUG, "TODO: surface damage");
+	wlr_log(L_DEBUG, "damage: %dx%d@%d,%d", width, height, x, y);
 }
 
 static void destroy_frame_callback(struct wl_resource *resource) {

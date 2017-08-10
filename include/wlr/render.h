@@ -62,18 +62,34 @@ struct wlr_texture {
 };
 
 /**
- * Uploads a pixel buffer to this texture. The buffer may be discarded after
- * calling this function.
+ * Copies pixels to this texture. The buffer is not accessed after this function
+ * returns.
  */
 bool wlr_texture_upload_pixels(struct wlr_texture *surf,
 		enum wl_shm_format format, int stride, int width, int height,
 		const unsigned char *pixels);
 /**
- * Uploads pixels from a wl_shm_buffer to this texture. The shm buffer may be
- * invalidated after calling this function.
+ * Copies pixels to this texture. The buffer is not accessed after this function
+ * returns. Under some circumstances, this function may re-upload the entire
+ * buffer - therefore, the entire buffer must be valid.
+ */
+bool wlr_texture_update_pixels(struct wlr_texture *surf,
+		enum wl_shm_format format, int stride, int x, int y,
+		int width, int height, const unsigned char *pixels);
+/**
+ * Copies pixels from a wl_shm_buffer into this texture. The buffer is not
+ * accessed after this function returns.
  */
 bool wlr_texture_upload_shm(struct wlr_texture *surf, uint32_t format,
 		struct wl_shm_buffer *shm);
+/**
+ * Copies a rectangle of pixels from a wl_shm_buffer onto the texture. The
+ * buffer is not accessed after this function returns. Under some circumstances,
+ * this function may re-upload the entire buffer - therefore, the entire buffer
+ * must be valid.
+ */
+bool wlr_texture_update_shm(struct wlr_texture *surf, uint32_t format,
+		int x, int y, int width, int height, struct wl_shm_buffer *shm);
 /**
  * Prepares a matrix with the appropriate scale for the given texture and
  * multiplies it with the projection, producing a matrix that the shader can
