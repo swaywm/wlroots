@@ -107,6 +107,7 @@ static void surface_commit(struct wl_client *client,
 		//		&surface->current.surface_damage,
 		//		0, 0, surface->width, surface->height);
 		pixman_region32_clear(&surface->pending.surface_damage);
+		pixman_region32_clear(&surface->pending.buffer_damage);
 	}
 	// TODO: Commit other changes
 
@@ -151,6 +152,9 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	pixman_region32_fini(&surface->current.surface_damage);
 	pixman_region32_init(&surface->current.surface_damage);
+
+	pixman_region32_fini(&surface->current.buffer_damage);
+	pixman_region32_init(&surface->current.buffer_damage);
 release:
 	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
 }
@@ -170,7 +174,14 @@ static void surface_damage_buffer(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width,
 		int32_t height) {
-	wlr_log(L_DEBUG, "TODO: surface damage buffer");
+	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+	if (width < 0 || height < 0) {
+		return;
+	}
+	surface->pending.invalid |= WLR_SURFACE_INVALID_SURFACE_DAMAGE;
+	pixman_region32_union_rect(&surface->pending.buffer_damage,
+		&surface->pending.buffer_damage,
+		x, y, width, height);
 }
 
 const struct wl_surface_interface surface_interface = {
