@@ -128,7 +128,7 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	pixman_region32_t damage = surface->current.surface_damage;
 	if (!pixman_region32_not_empty(&damage)) {
-		return;
+		goto release;
 	}
 	int n;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
@@ -145,6 +145,7 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	pixman_region32_fini(&surface->current.surface_damage);
 	pixman_region32_init(&surface->current.surface_damage);
+release:
 	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
 }
 
