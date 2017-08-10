@@ -161,13 +161,13 @@ const struct wl_surface_interface surface_interface = {
 
 static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->signals.destroy, surface);
-	wlr_texture_destroy(surface->texture);
 
+	wlr_texture_destroy(surface->texture);
 	struct wlr_frame_callback *cb, *next;
 	wl_list_for_each_safe(cb, next, &surface->frame_callback_list, link) {
 		wl_resource_destroy(cb->resource);
 	}
+
 	free(surface);
 }
 
@@ -177,7 +177,6 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	surface->texture = wlr_render_texture_init(renderer);
 	surface->resource = res;
 	wl_signal_init(&surface->signals.commit);
-	wl_signal_init(&surface->signals.destroy);
 	wl_list_init(&surface->frame_callback_list);
 	wl_resource_set_implementation(res, &surface_interface,
 			surface, destroy_surface);

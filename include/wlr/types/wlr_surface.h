@@ -37,15 +37,17 @@ struct wlr_surface {
 	float surface_to_buffer_matrix[16];
 
 	struct {
-		struct wl_signal destroy;
 		struct wl_signal commit;
 	} signals;
 
 	struct wl_list frame_callback_list; // wl_surface.frame
+
+	struct wl_listener compositor_listener; // destroy listener used by compositor
+	void *compositor_data;
 };
 
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-		struct wlr_renderer *renderer);
+	struct wlr_renderer *renderer);
 
 #endif
