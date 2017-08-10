@@ -121,8 +121,8 @@ bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode
 
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	wlr_output_update_matrix(output);
 	output->impl->transform(output->state, transform);
+	wlr_output_update_matrix(output);
 }
 
 bool wlr_output_set_cursor(struct wlr_output *output,
