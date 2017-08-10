@@ -43,11 +43,7 @@ static bool gles2_texture_update_pixels(struct wlr_texture_state *texture,
 		return gles2_texture_upload_pixels(texture, format, stride,
 				width, height, pixels);
 	}
-	const struct pixel_format *fmt = gl_format_for_wl_format(format);
-	if (!fmt || !fmt->gl_format) {
-		wlr_log(L_ERROR, "No supported pixel format for this texture");
-		return false;
-	}
+	const struct pixel_format *fmt = texture->pixel_format;
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, x));
@@ -98,11 +94,7 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	if (texture->wlr_texture->format != format) {
 		return gles2_texture_upload_shm(texture, format, buffer);
 	}
-	const struct pixel_format *fmt = gl_format_for_wl_format(format);
-	if (!fmt || !fmt->gl_format) {
-		wlr_log(L_ERROR, "No supported pixel format for this texture");
-		return false;
-	}
+	const struct pixel_format *fmt = texture->pixel_format;
 	wl_shm_buffer_begin_access(buffer);
 	uint8_t *pixels = wl_shm_buffer_get_data(buffer);
 	int pitch = wl_shm_buffer_get_stride(buffer) / (fmt->bpp / 8);
