@@ -217,6 +217,7 @@ void wlr_udev_destroy(struct wlr_udev *udev) {
 	wl_event_source_remove(udev->event);
 	udev_monitor_unref(udev->mon);
 	udev_unref(udev->udev);
+	free(udev);
 }
 
 bool wlr_udev_signal_add(struct wlr_udev *udev, dev_t dev, struct wl_listener *listener) {

@@ -171,10 +171,15 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
-	if (!output) return;
+	if (!output) {
+		return;
+	}
+
 	output->impl->destroy(output->state);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
-		free(output->modes->items[i]);
+		struct wlr_output_mode *mode = output->modes->items[i];
+		free(mode->state);
+		free(mode);
 	}
 	list_free(output->modes);
 	free(output);
