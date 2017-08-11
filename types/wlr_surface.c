@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
-#include "backend/egl.h"
 
 static void surface_destroy(struct wl_client *client, struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -124,8 +124,7 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
 	if (!buffer) {
-		EGLint format;
-		if (wlr_egl_query_buffer(surface->current.buffer, EGL_TEXTURE_FORMAT, &format)) {
+		if (wlr_renderer_buffer_is_drm(surface->renderer, surface->pending.buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->pending.buffer);
 			goto release;
 		} else {
@@ -202,6 +201,7 @@ static void destroy_surface(struct wl_resource *resource) {
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
+	surface->renderer = renderer;
 	surface->texture = wlr_render_texture_init(renderer);
 	surface->resource = res;
 	wl_signal_init(&surface->signals.commit);

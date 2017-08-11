@@ -39,6 +39,13 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	free(backend);
 }
 
+struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
+	if (!backend->impl->get_egl) {
+		return NULL;
+	}
+	return backend->impl->get_egl(backend->state);
+}
+
 static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_wl_backend_create(display);
 	if (backend) {

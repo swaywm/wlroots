@@ -38,9 +38,21 @@ static void multi_backend_destroy(struct wlr_backend_state *state) {
 	free(state);
 }
 
+static struct wlr_egl *multi_backend_get_egl(struct wlr_backend_state *state) {
+	for (size_t i = 0; i < state->backends->length; ++i) {
+		struct subbackend_state *sub = state->backends->items[i];
+		struct wlr_egl *egl = wlr_backend_get_egl(sub->backend);
+		if (egl) {
+			return egl;
+		}
+	}
+	return NULL;
+}
+
 struct wlr_backend_impl backend_impl = {
 	.init = multi_backend_init,
-	.destroy = multi_backend_destroy
+	.destroy = multi_backend_destroy,
+	.get_egl = multi_backend_get_egl
 };
 
 struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,

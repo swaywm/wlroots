@@ -5,12 +5,12 @@
 #include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
+#include <wlr/egl.h>
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
-#include "backend/egl.h"
 
 static struct pixel_format external_pixel_format = {
 	.wl_format = 0,
@@ -139,23 +139,25 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	return true;
 }
 
-static bool gles2_texture_upload_drm(struct wlr_texture_state *texture,
-		struct wl_resource* buf) {
+static bool gles2_texture_upload_drm(struct wlr_texture_state *tex,
+		struct wl_resource *buf) {
 	if (!glEGLImageTargetTexture2DOES) {
 		return false;
 	}
 
 	EGLint format;
-	if (!wlr_egl_query_buffer(buf, EGL_TEXTURE_FORMAT, &format)) {
+	if (!wlr_egl_query_buffer(tex->egl, buf, EGL_TEXTURE_FORMAT, &format)) {
 		wlr_log(L_INFO, "upload_drm called with no drm buffer");
 		return false;
 	}
 
-	wlr_egl_query_buffer(buf, EGL_WIDTH, (EGLint*) &texture->wlr_texture->width);
-	wlr_egl_query_buffer(buf, EGL_HEIGHT, (EGLint*) &texture->wlr_texture->height);
+	wlr_egl_query_buffer(tex->egl, buf, EGL_WIDTH,
+			(EGLint*)&tex->wlr_texture->width);
+	wlr_egl_query_buffer(tex->egl, buf, EGL_HEIGHT,
+			(EGLint*)&tex->wlr_texture->height);
 
 	EGLint inverted_y;
-	wlr_egl_query_buffer(buf, EGL_WAYLAND_Y_INVERTED_WL, &inverted_y);
+	wlr_egl_query_buffer(tex->egl, buf, EGL_WAYLAND_Y_INVERTED_WL, &inverted_y);
 
 	GLenum target;
 	const struct pixel_format *pf;
@@ -174,22 +176,22 @@ static bool gles2_texture_upload_drm(struct wlr_texture_state *texture,
 		return false;
 	}
 
-	gles2_texture_gen_texture(texture);
-	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
+	gles2_texture_gen_texture(tex);
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, tex->tex_id));
 
 	EGLint attribs[] = { EGL_WAYLAND_PLANE_WL, 0, EGL_NONE };
-	texture->image = wlr_egl_create_image(EGL_WAYLAND_BUFFER_WL,
+	tex->image = wlr_egl_create_image(tex->egl, EGL_WAYLAND_BUFFER_WL,
 		(EGLClientBuffer*) buf, attribs);
-	if (!texture->image) {
+	if (!tex->image) {
 		wlr_log(L_ERROR, "failed to create egl image: %s", egl_error());
  		return false;
 	}
 
 	GL_CALL(glActiveTexture(GL_TEXTURE0));
-	GL_CALL(glBindTexture(target, texture->tex_id));
-	GL_CALL(glEGLImageTargetTexture2DOES(target, texture->image));
-	texture->wlr_texture->valid = true;
-	texture->pixel_format = pf;
+	GL_CALL(glBindTexture(target, tex->tex_id));
+	GL_CALL(glEGLImageTargetTexture2DOES(target, tex->image));
+	tex->wlr_texture->valid = true;
+	tex->pixel_format = pf;
 
 	return true;
 }
@@ -230,10 +232,11 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *gles2_texture_init() {
+struct wlr_texture *gles2_texture_init(struct wlr_egl *egl) {
 	struct wlr_texture_state *state = calloc(sizeof(struct wlr_texture_state), 1);
 	struct wlr_texture *texture = wlr_texture_init(state, &wlr_texture_impl);
 	state->wlr_texture = texture;
+	state->egl = egl;
 	wl_signal_init(&texture->destroy_signal);
 	return texture;
 }

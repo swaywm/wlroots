@@ -29,6 +29,7 @@ struct wlr_surface_state {
 
 struct wlr_surface {
 	struct wl_resource *resource;
+	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
 	struct wlr_surface_state current, pending;
 	const char *role; // the lifetime-bound role or null

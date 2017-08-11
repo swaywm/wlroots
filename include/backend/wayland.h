@@ -4,10 +4,10 @@
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wayland-egl.h>
+#include <wlr/egl.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/list.h>
-#include "backend/egl.h"
 
 struct wlr_backend_state {
 	/* local state */

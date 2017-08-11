@@ -68,7 +68,7 @@ int main() {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init();
+	state.renderer = wlr_gles2_renderer_init(compositor.backend);
 	wl_display_init_shm(compositor.display);
 	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
 	wl_shell_init(compositor.display, &state.shell);

@@ -1,5 +1,5 @@
-#ifndef WLR_BACKEND_EGL_H
-#define WLR_BACKEND_EGL_H
+#ifndef WLR_EGL_H
+#define WLR_EGL_H
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -10,12 +10,22 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
+	PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
+	PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
+
+	PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+	PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+	PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
+	PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
+	PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
+
 	const char *egl_exts;
 	const char *gl_exts;
 
 	struct wl_display *wl_display;
 };
 
+// TODO: Allocate and return a wlr_egl
 /**
  *  Initializes an egl context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
@@ -35,15 +45,9 @@ void wlr_egl_free(struct wlr_egl *egl);
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
 
 /**
- * Queries information about the given (potential egl/drm) buffer, returns
- * the information in value.
- * Refer to eglQueryWaylandBufferWL for more information about attrib and value.
- * Makes only sense when a wl_display was bound to it since otherwise there
- * cannot be any egl/drm buffers.
- * Will only work after a wlr_egl objct was initialized and if the needed egl extension
- * is present.
+ * Refer to the eglQueryWaylandBufferWL extension function.
  */
-bool wlr_egl_query_buffer(struct wl_resource *buf,
+bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 	EGLint attrib, EGLint *value);
 
 /**
@@ -54,16 +58,14 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
 
 /**
  * Creates an egl image from the given client buffer and attributes.
- * Will only work after a wlr_egl objct was initialized and if the needed egl extension
- * is present.
  */
-EGLImageKHR wlr_egl_create_image(EGLenum target, EGLClientBuffer buffer,
-	const EGLint *attribs);
+EGLImageKHR wlr_egl_create_image(struct wlr_egl *egl,
+		EGLenum target, EGLClientBuffer buffer, const EGLint *attribs);
 
 /**
  * Destroys an egl image created with the given wlr_egl.
  */
-bool wlr_egl_destroy_image(EGLImageKHR image);
+bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
 /**
  * Returns a string for the last error ocurred with egl.

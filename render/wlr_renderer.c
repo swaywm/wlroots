@@ -46,3 +46,8 @@ const enum wl_shm_format *wlr_renderer_get_formats(
 		struct wlr_renderer *r, size_t *len) {
 	return r->impl->formats(r->state, len);
 }
+
+bool wlr_renderer_buffer_is_drm(struct wlr_renderer *r,
+		struct wl_resource *buffer) {
+	return r->impl->buffer_is_drm(r->state, buffer);
+}

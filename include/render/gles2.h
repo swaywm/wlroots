@@ -7,6 +7,8 @@
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <wlr/egl.h>
+#include <wlr/backend.h>
 #include <wlr/render.h>
 #include <wlr/util/log.h>
 
@@ -19,8 +21,14 @@ struct pixel_format {
 	GLuint *shader;
 };
 
+struct wlr_renderer_state {
+	struct wlr_renderer *renderer;
+	struct wlr_egl *egl;
+};
+
 struct wlr_texture_state {
 	struct wlr_texture *wlr_texture;
+	struct wlr_egl *egl;
 	GLuint tex_id;
 	const struct pixel_format *pixel_format;
 	EGLImageKHR image;

@@ -44,6 +44,11 @@ void wlr_render_colored_ellipse(struct wlr_renderer *r,
 const enum wl_shm_format *wlr_renderer_get_formats(
 		struct wlr_renderer *r, size_t *len);
 /**
+ * Returns true if this wl_buffer is a DRM buffer.
+ */
+bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
+		struct wl_resource *buffer);
+/**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);

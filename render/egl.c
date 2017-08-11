@@ -4,13 +4,11 @@
 #include <gbm.h> // GBM_FORMAT_XRGB8888
 #include <stdlib.h>
 #include <wlr/util/log.h>
-#include "backend/egl.h"
+#include <wlr/egl.h>
 
 // Extension documentation
 // https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
 // https://cgit.freedesktop.org/mesa/mesa/tree/docs/specs/WL_bind_wayland_display.spec
-
-struct wlr_egl *egl_global;
 
 const char *egl_error(void) {
 	switch (eglGetError()) {
@@ -49,29 +47,19 @@ const char *egl_error(void) {
 	}
 }
 
-// EGL extensions
-PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
-PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
-
-PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
-PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
-PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
-
-static bool egl_exts() {
-	get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)
+static bool egl_exts(struct wlr_egl *egl) {
+	egl->get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)
 		eglGetProcAddress("eglGetPlatformDisplayEXT");
 
-	if (!get_platform_display) {
+	if (!egl->get_platform_display) {
 		wlr_log(L_ERROR, "Failed to load EGL extension 'eglGetPlatformDisplayEXT'");
 		return false;
 	}
 
-	create_platform_window_surface = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)
+	egl->create_platform_window_surface = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)
 		eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 
-	if (!get_platform_display) {
+	if (!egl->get_platform_display) {
 		wlr_log(L_ERROR,
 			"Failed to load EGL extension 'eglCreatePlatformWindowSurfaceEXT'");
 		return false;
@@ -124,7 +112,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
 		void *remote_display) {
-	if (!egl_exts()) {
+	if (!egl_exts(egl)) {
 		return false;
 	}
 
@@ -133,7 +121,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
 		goto error;
 	}
 
-	egl->display = get_platform_display(platform, remote_display, NULL);
+	egl->display = egl->get_platform_display(platform, remote_display, NULL);
 	if (egl->display == EGL_NO_DISPLAY) {
 		wlr_log(L_ERROR, "Failed to create EGL display: %s", egl_error());
 		goto error;
@@ -168,18 +156,16 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
 		goto error;
 	}
 
-	eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)
+	egl->eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)
 		eglGetProcAddress("eglCreateImageKHR");
-	eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
+	egl->eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
 		eglGetProcAddress("eglDestroyImageKHR");
-	eglQueryWaylandBufferWL = (PFNEGLQUERYWAYLANDBUFFERWL)
+	egl->eglQueryWaylandBufferWL = (PFNEGLQUERYWAYLANDBUFFERWL)
 		(void*) eglGetProcAddress("eglQueryWaylandBufferWL");
-	eglBindWaylandDisplayWL = (PFNEGLBINDWAYLANDDISPLAYWL)
+	egl->eglBindWaylandDisplayWL = (PFNEGLBINDWAYLANDDISPLAYWL)
 		(void*) eglGetProcAddress("eglBindWaylandDisplayWL");
-	eglUnbindWaylandDisplayWL = (PFNEGLUNBINDWAYLANDDISPLAYWL)
+	egl->eglUnbindWaylandDisplayWL = (PFNEGLUNBINDWAYLANDDISPLAYWL)
 		(void*) eglGetProcAddress("eglUnbindWaylandDisplayWL");
-
-	egl_global = egl;
 
 	egl->gl_exts = (const char*) glGetString(GL_EXTENSIONS);
 	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
@@ -196,25 +182,22 @@ error:
 }
 
 void wlr_egl_free(struct wlr_egl *egl) {
-	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
-		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
+	if (egl->wl_display && egl->eglUnbindWaylandDisplayWL) {
+		egl->eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-	if (egl_global == egl)
-		egl_global = NULL;
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!eglBindWaylandDisplayWL) {
+	if (!egl->eglBindWaylandDisplayWL) {
 		return false;
 	}
 
-	if (eglBindWaylandDisplayWL(egl->display, local_display)) {
+	if (egl->eglBindWaylandDisplayWL(egl->display, local_display)) {
 		egl->wl_display = local_display;
 		return true;
 	}
@@ -222,35 +205,35 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 	return false;
 }
 
-bool wlr_egl_query_buffer(struct wl_resource *buf, int attrib, int *value) {
-	if (!egl_global || !eglQueryWaylandBufferWL) {
+bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
+		int attrib, int *value) {
+	if (!egl->eglQueryWaylandBufferWL) {
 		return false;
 	}
-
-	return eglQueryWaylandBufferWL(egl_global->display, buf, attrib, value);
+	return egl->eglQueryWaylandBufferWL(egl->display, buf, attrib, value);
 }
 
-EGLImage wlr_egl_create_image(EGLenum target,
+EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
 		EGLClientBuffer buffer, const EGLint *attribs) {
-	if (!egl_global || !eglCreateImageKHR) {
+	if (!egl->eglCreateImageKHR) {
 		return false;
 	}
 
-	return eglCreateImageKHR(egl_global->display, egl_global->context, target,
+	return egl->eglCreateImageKHR(egl->display, egl->context, target,
 		buffer, attribs);
 }
 
-bool wlr_egl_destroy_image(EGLImage image) {
-	if (!egl_global || !eglDestroyImageKHR) {
+bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
+	if (!egl->eglDestroyImageKHR) {
 		return false;
 	}
 
-	eglDestroyImageKHR(egl_global->display, image);
+	egl->eglDestroyImageKHR(egl->display, image);
 	return true;
 }
 
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
-	EGLSurface surf = create_platform_window_surface(egl->display, egl->config,
+	EGLSurface surf = egl->create_platform_window_surface(egl->display, egl->config,
 		window, NULL);
 	if (surf == EGL_NO_SURFACE) {
 		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());

@@ -4,6 +4,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-server.h>
+#include <wlr/egl.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -95,9 +96,14 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 	free(state);
 }
 
+static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend_state *state) {
+	return &state->egl;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.init = wlr_wl_backend_init,
-	.destroy = wlr_wl_backend_destroy
+	.destroy = wlr_wl_backend_destroy,
+	.get_egl = wlr_wl_backend_get_egl
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {

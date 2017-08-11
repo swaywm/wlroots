@@ -25,6 +25,8 @@ struct wlr_renderer_impl {
 		const float (*color)[4], const float (*matrix)[16]);
 	const enum wl_shm_format *(*formats)(
 		struct wlr_renderer_state *state, size_t *len);
+	bool (*buffer_is_drm)(struct wlr_renderer_state *state,
+		struct wl_resource *buffer);
 	void (*destroy)(struct wlr_renderer_state *state);
 };
 
