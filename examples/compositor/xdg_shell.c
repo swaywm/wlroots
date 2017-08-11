@@ -197,8 +197,8 @@ void xdg_shell_release(struct xdg_shell_state *state) {
 		return;
 	}
 
-	struct wl_resource *resource = NULL;
-	wl_resource_for_each(resource, &state->wl_resources) {
+	struct wl_resource *resource = NULL, *temp = NULL;
+	wl_resource_for_each_safe(resource, temp, &state->wl_resources) {
 		struct wl_list *link = wl_resource_get_link(resource);
 		wl_list_remove(link);
 	}
