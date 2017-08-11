@@ -27,8 +27,8 @@ static void surface_damage(struct wl_client *client,
 	}
 	surface->pending.invalid |= WLR_SURFACE_INVALID_SURFACE_DAMAGE;
 	pixman_region32_union_rect(&surface->pending.surface_damage,
-			&surface->pending.surface_damage,
-			x, y, width, height);
+		&surface->pending.surface_damage,
+		x, y, width, height);
 }
 
 static void destroy_frame_callback(struct wl_resource *resource) {
