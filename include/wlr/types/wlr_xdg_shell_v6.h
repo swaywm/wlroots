@@ -6,12 +6,16 @@ struct wlr_xdg_shell_v6 {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wl_list surfaces;
+
+	void *data;
 };
 
 struct wlr_xdg_surface_v6 {
 	struct wl_resource *resource;
 	struct wl_resource *surface;
 	struct wl_list link;
+
+	void *data;
 };
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display);

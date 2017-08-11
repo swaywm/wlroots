@@ -17,6 +17,8 @@ struct wlr_tablet_tool {
 		struct wl_signal tip;
 		struct wl_signal button;
 	} events;
+
+	void *data;
 };
 
 enum wlr_tablet_tool_axes {
