@@ -46,6 +46,7 @@ static void wlr_wl_output_transform(struct wlr_output_state *output,
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
+	wl_signal_emit(&output->backend->backend->events.output_remove, output->wlr_output);
 	if(output->frame_callback) wl_callback_destroy(output->frame_callback);
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
