@@ -258,6 +258,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 static void seat_handle_name(void *data, struct wl_seat *wl_seat, const char *name) {
 	struct wlr_backend_state *state = data;
 	assert(state->seat == wl_seat);
+	// Do we need to check if seatName was previously set for name change?
 	state->seatName = strdup(name);
 }
 

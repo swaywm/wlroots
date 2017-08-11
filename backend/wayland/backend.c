@@ -85,6 +85,7 @@ static void wlr_wl_backend_destroy(struct wlr_backend_state *state) {
 
 	list_free(state->devices);
 	list_free(state->outputs);
+	free(state->seatName);
 
 	wlr_egl_free(&state->egl);
 	if (state->seat) wl_seat_destroy(state->seat);

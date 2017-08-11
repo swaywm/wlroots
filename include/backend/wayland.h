@@ -25,7 +25,7 @@ struct wlr_backend_state {
 	struct wl_shell *shell;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
-	const char *seatName;
+	char *seatName;
 };
 
 struct wlr_output_state {
