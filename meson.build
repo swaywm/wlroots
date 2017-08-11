@@ -19,61 +19,71 @@ if cc.get_id() == 'clang'
     add_project_arguments('-Wno-missing-braces', language: 'c')
 endif
 
-dep_wayland_server = dependency('wayland-server')
-dep_wayland_client = dependency('wayland-client')
-dep_wayland_egl    = dependency('wayland-egl')
-dep_wayland_proto  = dependency('wayland-protocols')
-dep_egl            = dependency('egl')
-dep_glesv2         = dependency('glesv2')
-dep_drm            = dependency('libdrm')
-dep_gbm            = dependency('gbm')
-dep_libinput       = dependency('libinput')
-dep_xkbcommon      = dependency('xkbcommon')
-dep_udev           = dependency('libudev')
-dep_pixman           = dependency('pixman-1')
-dep_libcap         = dependency('libcap', required: false)
-dep_systemd        = dependency('libsystemd', required: false)
-dep_math           = cc.find_library('m', required: false)
+wayland_server = dependency('wayland-server')
+wayland_client = dependency('wayland-client')
+wayland_egl    = dependency('wayland-egl')
+wayland_protos = dependency('wayland-protocols')
+egl            = dependency('egl')
+glesv2         = dependency('glesv2')
+drm            = dependency('libdrm')
+gbm            = dependency('gbm')
+libinput       = dependency('libinput')
+xkbcommon      = dependency('xkbcommon')
+udev           = dependency('libudev')
+pixman         = dependency('pixman-1')
+libcap         = dependency('libcap', required: false)
+systemd        = dependency('libsystemd', required: false)
+math           = cc.find_library('m', required: false)
 
-all_deps = [
-    dep_wayland_server,
-    dep_wayland_client,
-    dep_wayland_egl,
-    dep_wayland_proto,
-    dep_egl,
-    dep_glesv2,
-    dep_drm,
-    dep_gbm,
-    dep_libinput,
-    dep_xkbcommon,
-    dep_udev,
-    dep_pixman,
-    dep_libcap,
-    dep_systemd,
-    dep_math,
-]
-
-if dep_libcap.found()
+if libcap.found()
     add_project_arguments('-DHAS_LIBCAP', language: 'c')
 endif
 
-if dep_systemd.found()
+if systemd.found()
     add_project_arguments('-DHAS_SYSTEMD', language: 'c')
 endif
 
 wlr_files = []
 
+subdir('protocol')
 subdir('backend')
 subdir('render')
 subdir('types')
 subdir('util')
 subdir('xcursor')
 
+_wlr_deps = [
+    wayland_server,
+    wayland_client,
+    wayland_egl,
+    wayland_protos,
+    egl,
+    glesv2,
+    drm,
+    gbm,
+    libinput,
+    xkbcommon,
+    udev,
+    pixman,
+    libcap,
+    systemd,
+    math,
+]
+
 lib_wlr = library('wlroots', wlr_files,
-	dependencies: all_deps,
+    link_whole: [
+        lib_wl_protos,
+        lib_wlr_backend,
+        lib_wlr_render,
+        lib_wlr_types,
+        lib_wlr_util,
+        lib_wlr_xcursor,
+    ],
+	dependencies: _wlr_deps,
 	include_directories: wlr_inc)
-dep_wlr = declare_dependency(link_with: lib_wlr,
-	dependencies: all_deps,
+
+wlroots = declare_dependency(link_with: lib_wlr,
+	dependencies: _wlr_deps,
 	include_directories: wlr_inc)
 
 subdir('examples')

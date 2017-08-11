@@ -11,6 +11,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
@@ -20,7 +21,7 @@ struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wl_compositor_state compositor;
 	struct wl_shell_state shell;
-	struct xdg_shell_state xdg_shell;
+	struct wlr_xdg_shell_v6 *xdg_shell;
 };
 
 /*
@@ -72,9 +73,7 @@ int main() {
 	wl_display_init_shm(compositor.display);
 	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
 	wl_shell_init(compositor.display, &state.shell);
-	xdg_shell_init(compositor.display, &state.xdg_shell);
+	state.xdg_shell = wlr_xdg_shell_v6_init(compositor.display);
 
 	compositor_run(&compositor);
-
-	xdg_shell_release(&state.xdg_shell);
 }
