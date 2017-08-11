@@ -24,11 +24,6 @@ struct wlr_input_device *get_appropriate_device(
 }
 
 static void wlr_libinput_device_destroy(struct wlr_input_device_state *state) {
-	list_t *devices = libinput_device_get_user_data(state->handle);
-	// devices themselves are freed in wlr_libinput_backend_destroy
-	// this list only has a part of the same elements so just free list
-	list_free(devices);
-
 	libinput_device_unref(state->handle);
 	free(state);
 }
@@ -51,7 +46,6 @@ static struct wlr_input_device *allocate_device(
 		type, &input_device_impl, devstate,
 		name, vendor, product);
 	list_add(devices, wlr_device);
-	list_add(state->devices, wlr_device);
 	return wlr_device;
 }
 
@@ -109,6 +103,7 @@ static void handle_device_added(struct wlr_backend_state *state,
 
 	if (devices->length > 0) {
 		libinput_device_set_user_data(device, devices);
+		list_add(state->devices, devices);
 	} else {
 		list_free(devices);
 	}
