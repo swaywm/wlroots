@@ -313,6 +313,7 @@ static void keyboard_remove(struct wlr_input_device *device, struct compositor_s
 	}
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
+	free(kbstate);
 }
 
 static void pointer_remove(struct wlr_input_device *device, struct compositor_state *state) {
@@ -331,6 +332,7 @@ static void pointer_remove(struct wlr_input_device *device, struct compositor_st
 	wl_list_remove(&pstate->motion_absolute.link);
 	wl_list_remove(&pstate->button.link);
 	wl_list_remove(&pstate->axis.link);
+	free(pstate);
 }
 
 static void touch_remove(struct wlr_input_device *device, struct compositor_state *state) {
@@ -349,6 +351,7 @@ static void touch_remove(struct wlr_input_device *device, struct compositor_stat
 	wl_list_remove(&tstate->motion.link);
 	wl_list_remove(&tstate->up.link);
 	wl_list_remove(&tstate->cancel.link);
+	free(tstate);
 }
 
 static void tablet_tool_remove(struct wlr_input_device *device, struct compositor_state *state) {
@@ -367,8 +370,25 @@ static void tablet_tool_remove(struct wlr_input_device *device, struct composito
 	wl_list_remove(&tstate->proximity.link);
 	//wl_list_remove(&tstate->tip.link);
 	wl_list_remove(&tstate->button.link);
+	free(tstate);
 }
 
+static void tablet_pad_remove(struct wlr_input_device *device, struct compositor_state *state) {
+	struct tablet_pad_state *pstate = NULL, *_pstate;
+	wl_list_for_each(_pstate, &state->tablet_pads, link) {
+		if (_pstate->device ==device) {
+			pstate = _pstate;
+			break;
+		}
+	}
+	if (!pstate) {
+		return;
+	}
+	// TODO probably missing more actions
+	free(pstate);
+}
+
+// TODO missing something that calls this on teardown
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_add);
@@ -384,6 +404,9 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		tablet_tool_remove(device, state);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		tablet_pad_remove(device, state);
 		break;
 	default:
 		break;
@@ -444,6 +467,7 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 	}
 	wl_list_remove(&ostate->link);
 	wl_list_remove(&ostate->frame.link);
+	free(ostate);
 }
 
 void compositor_init(struct compositor_state *state) {
