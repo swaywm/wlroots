@@ -81,15 +81,15 @@ static void wlr_libinput_backend_destroy(struct wlr_backend_state *state) {
 	if (!state) {
 		return;
 	}
-
 	for (size_t i = 0; i < state->devices->length; i++) {
-		struct wlr_input_device *wlr_device = state->devices->items[i];
-
-		wlr_input_device_destroy(wlr_device);
+		list_t *wlr_devices = state->devices->items[i];
+		for (size_t j = 0; j < wlr_devices->length; j++) {
+			wlr_input_device_destroy(wlr_devices->items[j]);
+		}
+		list_free(wlr_devices);
 	}
 	list_free(state->devices);
 	libinput_unref(state->libinput);
-
 	free(state);
 }
 
