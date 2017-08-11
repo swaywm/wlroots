@@ -24,6 +24,11 @@ struct wlr_input_device *get_appropriate_device(
 }
 
 static void wlr_libinput_device_destroy(struct wlr_input_device_state *state) {
+	list_t *devices = libinput_device_get_user_data(state->handle);
+	// devices themselves are freed in wlr_libinput_backend_destroy
+	// this list only has a part of the same elements so just free list
+	list_free(devices);
+
 	libinput_device_unref(state->handle);
 	free(state);
 }

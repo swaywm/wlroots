@@ -78,7 +78,19 @@ static bool wlr_libinput_backend_init(struct wlr_backend_state *state) {
 }
 
 static void wlr_libinput_backend_destroy(struct wlr_backend_state *state) {
-	// TODO
+	if (!state) {
+		return;
+	}
+
+	for (size_t i = 0; i < state->devices->length; i++) {
+		struct wlr_input_device *wlr_device = state->devices->items[i];
+
+		wlr_input_device_destroy(wlr_device);
+	}
+	list_free(state->devices);
+	libinput_unref(state->libinput);
+
+	free(state);
 }
 
 static struct wlr_backend_impl backend_impl = {
