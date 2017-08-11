@@ -33,6 +33,7 @@ static int wlr_libinput_readable(int fd, uint32_t mask, void *_state) {
 	struct libinput_event *event;
 	while ((event = libinput_get_event(state->libinput))) {
 		wlr_libinput_event(state, event);
+		libinput_event_destroy(event);
 	}
 	return 0;
 }

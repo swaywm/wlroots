@@ -311,6 +311,8 @@ static void keyboard_remove(struct wlr_input_device *device, struct compositor_s
 	if (!kbstate) {
 		return;
 	}
+	xkb_state_unref(kbstate->xkb_state);
+	xkb_map_unref(kbstate->keymap);
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
 	free(kbstate);
