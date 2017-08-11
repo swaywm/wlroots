@@ -10,4 +10,4 @@ lib_wlr_render = static_library('wlr_render', files(
         'wlr_texture.c',
     ),
     include_directories: wlr_inc,
-    dependencies: [glesv2, egl])
+    dependencies: [glesv2, egl, pixman])
