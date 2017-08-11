@@ -44,6 +44,11 @@ void wlr_render_colored_ellipse(struct wlr_renderer *r,
 const enum wl_shm_format *wlr_renderer_get_formats(
 		struct wlr_renderer *r, size_t *len);
 /**
+ * Returns true if this wl_buffer is a DRM buffer.
+ */
+bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
+		struct wl_resource *buffer);
+/**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
@@ -65,7 +70,7 @@ struct wlr_texture {
  * Copies pixels to this texture. The buffer is not accessed after this function
  * returns.
  */
-bool wlr_texture_upload_pixels(struct wlr_texture *surf,
+bool wlr_texture_upload_pixels(struct wlr_texture *tex,
 		enum wl_shm_format format, int stride, int width, int height,
 		const unsigned char *pixels);
 /**
@@ -80,8 +85,17 @@ bool wlr_texture_update_pixels(struct wlr_texture *surf,
  * Copies pixels from a wl_shm_buffer into this texture. The buffer is not
  * accessed after this function returns.
  */
-bool wlr_texture_upload_shm(struct wlr_texture *surf, uint32_t format,
+bool wlr_texture_upload_shm(struct wlr_texture *tex, uint32_t format,
 		struct wl_shm_buffer *shm);
+
+/**
+ * Attaches the contents from the given wl_drm wl_buffer resource onto the
+ * texture. The wl_resource is not used after this call.
+ * Will fail (return false) if the given resource is no drm buffer.
+ */
+ bool wlr_texture_upload_drm(struct wlr_texture *tex,
+ 	struct wl_resource *drm_buffer);
+
 /**
  * Copies a rectangle of pixels from a wl_shm_buffer onto the texture. The
  * buffer is not accessed after this function returns. Under some circumstances,

@@ -12,9 +12,9 @@
 
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
+#include <wlr/egl.h>
 #include <wlr/util/list.h>
 
-#include <backend/egl.h>
 #include <backend/udev.h>
 #include "drm-properties.h"
 

@@ -117,6 +117,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
 			backend->outputs->length + 1);
+	wlr_output_update_matrix(wlr_output);
 
 	ostate->backend = backend;
 	ostate->wlr_output = wlr_output;

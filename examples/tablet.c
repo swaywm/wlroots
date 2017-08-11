@@ -152,8 +152,7 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init();
-
+	state.renderer = wlr_gles2_renderer_init(compositor.backend);
 	compositor_run(&compositor);
 
 	wlr_renderer_destroy(state.renderer);

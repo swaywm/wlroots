@@ -29,6 +29,7 @@ struct wlr_surface_state {
 
 struct wlr_surface {
 	struct wl_resource *resource;
+	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
 	struct wlr_surface_state current, pending;
 	const char *role; // the lifetime-bound role or null
@@ -37,11 +38,13 @@ struct wlr_surface {
 	float surface_to_buffer_matrix[16];
 
 	struct {
-		struct wl_signal destroy;
 		struct wl_signal commit;
 	} signals;
 
 	struct wl_list frame_callback_list; // wl_surface.frame
+
+	struct wl_listener compositor_listener; // destroy listener used by compositor
+	void *compositor_data;
 };
 
 struct wlr_renderer;

@@ -2,14 +2,18 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
+#include <wlr/egl.h>
+#include <wlr/backend.h>
 #include <wlr/render.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 
+PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = NULL;
 struct shaders shaders;
 
 static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
@@ -65,13 +69,36 @@ static void init_default_shaders() {
 	if (!compile_program(quad_vertex_src, ellipse_fragment_src, &shaders.ellipse)) {
 		goto error;
 	}
+	if (glEGLImageTargetTexture2DOES) {
+		if (!compile_program(quad_vertex_src, fragment_src_external, &shaders.external)) {
+			goto error;
+		}
+	}
+
 	wlr_log(L_DEBUG, "Compiled default shaders");
 	return;
 error:
 	wlr_log(L_ERROR, "Failed to set up default shaders!");
 }
 
+static void init_image_ext() {
+	if (glEGLImageTargetTexture2DOES)
+		return;
+
+	const char *exts = (const char*) glGetString(GL_EXTENSIONS);
+	if (strstr(exts, "GL_OES_EGL_image_external")) {
+ 		glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
+			eglGetProcAddress("glEGLImageTargetTexture2DOES");
+	}
+
+	if (!glEGLImageTargetTexture2DOES) {
+		wlr_log(L_INFO, "Failed to load glEGLImageTargetTexture2DOES "
+			"Will not be able to attach drm buffers");
+	}
+}
+
 static void init_globals() {
+	init_image_ext();
 	init_default_shaders();
 }
 
@@ -97,7 +124,7 @@ static void wlr_gles2_end(struct wlr_renderer_state *state) {
 }
 
 static struct wlr_texture *wlr_gles2_texture_init(struct wlr_renderer_state *state) {
-	return gles2_texture_init();
+	return gles2_texture_init(state->egl);
 }
 
 static void draw_quad() {
@@ -169,8 +196,14 @@ static const enum wl_shm_format *wlr_gles2_formats(
 	return formats;
 }
 
+static bool wlr_gles2_buffer_is_drm(struct wlr_renderer_state *state,
+		struct wl_resource *buffer) {
+	EGLint format;
+	return wlr_egl_query_buffer(state->egl, buffer, EGL_TEXTURE_FORMAT, &format);
+}
+
 static void wlr_gles2_destroy(struct wlr_renderer_state *state) {
-	// no-op
+	free(state);
 }
 
 static struct wlr_renderer_impl wlr_renderer_impl = {
@@ -181,10 +214,16 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.render_quad = wlr_gles2_render_quad,
 	.render_ellipse = wlr_gles2_render_ellipse,
 	.formats = wlr_gles2_formats,
+	.buffer_is_drm = wlr_gles2_buffer_is_drm,
 	.destroy = wlr_gles2_destroy
 };
 
-struct wlr_renderer *wlr_gles2_renderer_init() {
+struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {
 	init_globals();
-	return wlr_renderer_init(NULL, &wlr_renderer_impl);
+	struct wlr_egl *egl = wlr_backend_get_egl(backend);
+	struct wlr_renderer_state *state = calloc(1, sizeof(struct wlr_renderer_state));
+	struct wlr_renderer *renderer = wlr_renderer_init(state, &wlr_renderer_impl);
+	state->renderer = renderer;
+	state->egl = egl;
+	return renderer;
 }

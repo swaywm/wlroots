@@ -12,6 +12,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
+#include <wlr/egl.h>
 #include "backend/udev.h"
 #include "backend/drm.h"
 
@@ -38,9 +39,14 @@ static void wlr_drm_backend_destroy(struct wlr_backend_state *drm) {
 	free(drm);
 }
 
+static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend_state *drm) {
+	return &drm->renderer.egl;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.init = wlr_drm_backend_init,
-	.destroy = wlr_drm_backend_destroy
+	.destroy = wlr_drm_backend_destroy,
+	.get_egl = wlr_drm_backend_get_egl
 };
 
 static void session_signal(struct wl_listener *listener, void *data) {
@@ -147,6 +153,10 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	if (!wlr_drm_renderer_init(&drm->renderer, drm->fd)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
+	}
+
+	if (!wlr_egl_bind_display(&drm->renderer.egl, display)) {
+		wlr_log(L_INFO, "Failed to bind egl/wl display: %s", egl_error());
 	}
 
 	return backend;

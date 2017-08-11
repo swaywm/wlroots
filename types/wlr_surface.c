@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
 
@@ -123,8 +124,13 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
 	if (!buffer) {
-		wlr_log(L_INFO, "Unknown buffer handle attached");
-		return;
+		if (wlr_renderer_buffer_is_drm(surface->renderer, surface->pending.buffer)) {
+			wlr_texture_upload_drm(surface->texture, surface->pending.buffer);
+			goto release;
+		} else {
+			wlr_log(L_INFO, "Unknown buffer handle attached");
+			return;
+		}
 	}
 	pixman_region32_t damage = surface->current.surface_damage;
 	if (!pixman_region32_not_empty(&damage)) {
@@ -182,23 +188,23 @@ const struct wl_surface_interface surface_interface = {
 
 static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->signals.destroy, surface);
-	wlr_texture_destroy(surface->texture);
 
+	wlr_texture_destroy(surface->texture);
 	struct wlr_frame_callback *cb, *next;
 	wl_list_for_each_safe(cb, next, &surface->frame_callback_list, link) {
 		wl_resource_destroy(cb->resource);
 	}
+
 	free(surface);
 }
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
+	surface->renderer = renderer;
 	surface->texture = wlr_render_texture_init(renderer);
 	surface->resource = res;
 	wl_signal_init(&surface->signals.commit);
-	wl_signal_init(&surface->signals.destroy);
 	wl_list_init(&surface->frame_callback_list);
 	wl_resource_set_implementation(res, &surface_interface,
 			surface, destroy_surface);

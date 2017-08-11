@@ -1,6 +1,5 @@
 wlr_files += files(
     'backend.c',
-    'egl.c',
     'udev.c',
     'session/direct-ipc.c',
     'session/direct.c',

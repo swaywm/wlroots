@@ -14,6 +14,10 @@ struct wl_compositor_state {
 void wl_compositor_init(struct wl_display *display,
 		struct wl_compositor_state *state, struct wlr_renderer *renderer);
 
+struct wlr_surface;
+void wl_compositor_surface_destroyed(struct wl_compositor_state *compositor,
+		struct wlr_surface *surface);
+
 struct wl_shell_state {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;

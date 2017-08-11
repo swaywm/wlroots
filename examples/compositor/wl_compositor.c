@@ -7,9 +7,8 @@
 #include "compositor.h"
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
-	struct wl_compositor_state *state;
-	struct wlr_surface *surface = data;
-	state = wl_container_of(listener, state, destroy_surface_listener);
+	struct wlr_surface *surface = wl_resource_get_user_data(data);
+	struct wl_compositor_state *state = surface->compositor_data;
 
 	struct wl_resource *res = NULL;
 	wl_list_for_each(res, &state->surfaces, link) {
@@ -26,8 +25,11 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	struct wl_resource *surface_resource = wl_resource_create(client,
 			&wl_surface_interface, wl_resource_get_version(resource), id);
 	struct wlr_surface *surface = wlr_surface_create(surface_resource, state->renderer);
+	surface->compositor_data = state;
+	surface->compositor_listener.notify = &destroy_surface_listener;
+	wl_resource_add_destroy_listener(surface_resource, &surface->compositor_listener);
+
 	wl_list_insert(&state->surfaces, wl_resource_get_link(surface_resource));
-	wl_signal_add(&surface->signals.destroy, &state->destroy_surface_listener);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
@@ -74,7 +76,6 @@ void wl_compositor_init(struct wl_display *display,
 		&wl_compositor_interface, 4, state, wl_compositor_bind);
 	state->wl_global = wl_global;
 	state->renderer = renderer;
-	state->destroy_surface_listener.notify = destroy_surface_listener;
 	wl_list_init(&state->wl_resources);
 	wl_list_init(&state->surfaces);
 }

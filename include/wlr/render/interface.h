@@ -25,6 +25,8 @@ struct wlr_renderer_impl {
 		const float (*color)[4], const float (*matrix)[16]);
 	const enum wl_shm_format *(*formats)(
 		struct wlr_renderer_state *state, size_t *len);
+	bool (*buffer_is_drm)(struct wlr_renderer_state *state,
+		struct wl_resource *buffer);
 	void (*destroy)(struct wlr_renderer_state *state);
 };
 
@@ -42,7 +44,8 @@ struct wlr_texture_impl {
 		struct wl_shm_buffer *shm);
 	bool (*update_shm)(struct wlr_texture_state *surf, uint32_t format,
 		int x, int y, int width, int height, struct wl_shm_buffer *shm);
-	// TODO: egl
+	bool (*upload_drm)(struct wlr_texture_state *state,
+		struct wl_resource *drm_buf);
 	void (*get_matrix)(struct wlr_texture_state *state,
 		float (*matrix)[16], const float (*projection)[16], int x, int y);
 	void (*bind)(struct wlr_texture_state *state);

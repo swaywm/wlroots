@@ -43,6 +43,11 @@ bool wlr_texture_update_shm(struct wlr_texture *texture, uint32_t format,
 			x, y, width, height, shm);
 }
 
+bool wlr_texture_upload_drm(struct wlr_texture *texture,
+		struct wl_resource *drm_buffer) {
+	return texture->impl->upload_drm(texture->state, drm_buffer);
+}
+
 void wlr_texture_get_matrix(struct wlr_texture *texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	texture->impl->get_matrix(texture->state, matrix, projection, x, y);
