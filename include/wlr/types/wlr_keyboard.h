@@ -20,6 +20,8 @@ struct wlr_keyboard {
 	struct {
 		struct wl_signal key;
 	} events;
+
+	void *data;
 };
 
 void wlr_keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds);

@@ -17,6 +17,8 @@ struct wlr_pointer {
 		struct wl_signal button;
 		struct wl_signal axis;
 	} events;
+
+	void *data;
 };
 
 struct wlr_event_pointer_motion {

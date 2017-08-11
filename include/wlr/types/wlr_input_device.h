@@ -41,6 +41,8 @@ struct wlr_input_device {
 		struct wlr_tablet_tool *tablet_tool;
 		struct wlr_tablet_pad *tablet_pad;
 	};
+
+	void *data;
 };
 
 #endif

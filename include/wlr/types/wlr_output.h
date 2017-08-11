@@ -51,6 +51,8 @@ struct wlr_output {
 		struct wlr_renderer *renderer;
 		struct wlr_texture *texture;
 	} cursor;
+
+	void *data;
 };
 
 void wlr_output_enable(struct wlr_output *output, bool enable);

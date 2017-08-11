@@ -45,6 +45,8 @@ struct wlr_surface {
 
 	struct wl_listener compositor_listener; // destroy listener used by compositor
 	void *compositor_data;
+
+	void *data;
 };
 
 struct wlr_renderer;

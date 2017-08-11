@@ -22,6 +22,8 @@ struct wlr_tablet_pad {
 		struct wl_signal ring;
 		struct wl_signal strip;
 	} events;
+
+	void *data;
 };
 
 struct wlr_event_tablet_pad_button {
