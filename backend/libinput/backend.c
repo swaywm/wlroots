@@ -146,3 +146,7 @@ error_backend:
 	free(backend);
 	return NULL;
 }
+
+struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
+	return dev->state->handle;
+}

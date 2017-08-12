@@ -7,10 +7,10 @@
 #include <libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
-//#include <wlr/backend/drm.h>
-//#include <wlr/backend/libinput.h>
+#include <wlr/backend/drm.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/backend/wayland.h>
-//#include <wlr/backend/multi.h>
+#include <wlr/backend/multi.h>
 #include <wlr/util/log.h>
 #include "backend/udev.h"
 
@@ -75,65 +75,60 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 			return backend;
 		}
 	}
+
+	if (getenv("DISPLAY")) {
+		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
+		return NULL;
+	}
+
+	// Attempt DRM+libinput
+
+	struct wlr_session *session = wlr_session_start(display);
+	if (!session) {
+		wlr_log(L_ERROR, "Failed to start a DRM session");
+		return NULL;
+	}
+
+	struct wlr_udev *udev = wlr_udev_create(display);
+	if (!udev) {
+		wlr_log(L_ERROR, "Failed to start udev");
+		goto error_session;
+	}
+
+	int gpu = wlr_udev_find_gpu(udev, session);
+	if (gpu == -1) {
+		wlr_log(L_ERROR, "Failed to open DRM device");
+		goto error_udev;
+	}
+
+	backend = wlr_multi_backend_create(session, udev);
+	if (!backend) {
+		goto error_gpu;
+	}
+
+	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session, udev);
+	if (!libinput) {
+		goto error_multi;
+	}
+
+	struct wlr_backend *drm = wlr_drm_backend_create(display, session, udev, gpu);
+	if (!drm) {
+		goto error_libinput;
+	}
+
+	wlr_multi_backend_add(backend, libinput);
+	wlr_multi_backend_add(backend, drm);
+	return backend;
+
+error_libinput:
+	wlr_backend_destroy(libinput);
+error_multi:
+	wlr_backend_destroy(backend);
+error_gpu:
+	wlr_session_close_file(session, gpu);
+error_udev:
+	wlr_udev_destroy(udev);
+error_session:
+	wlr_session_finish(session);
 	return NULL;
-
-//	if (getenv("DISPLAY")) {
-//		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
-//		return NULL;
-//	}
-//
-//	// Attempt DRM+libinput
-//
-//	struct wlr_session *session = wlr_session_start(display);
-//	if (!session) {
-//		wlr_log(L_ERROR, "Failed to start a DRM session");
-//		return NULL;
-//	}
-//
-//	struct wlr_udev *udev = wlr_udev_create(display);
-//	if (!udev) {
-//		wlr_log(L_ERROR, "Failed to start udev");
-//		goto error_session;
-//	}
-//
-//	int gpu = wlr_udev_find_gpu(udev, session);
-//	if (gpu == -1) {
-//		wlr_log(L_ERROR, "Failed to open DRM device");
-//		goto error_udev;
-//	}
-//
-//	backend = wlr_multi_backend_create(session, udev);
-//	if (!backend) {
-//		goto error_gpu;
-//	}
-//
-//	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session, udev);
-//	if (!libinput) {
-//		goto error_multi;
-//	}
-//
-//	struct wlr_backend *drm = wlr_drm_backend_create(display, session, udev, gpu);
-//	if (!drm) {
-//		goto error_libinput;
-//	}
-//
-//	wlr_multi_backend_add(backend, libinput);
-//	wlr_multi_backend_add(backend, drm);
-//	return backend;
-//
-//error_libinput:
-//	wlr_backend_destroy(libinput);
-//error_multi:
-//	wlr_backend_destroy(backend);
-//error_gpu:
-//	wlr_session_close_file(session, gpu);
-//error_udev:
-//	wlr_udev_destroy(udev);
-//error_session:
-//	wlr_session_finish(session);
-//	return NULL;
 }
-
-//struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
-//	return dev->state->handle;
-//}
