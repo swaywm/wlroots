@@ -134,10 +134,8 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 void wlr_libinput_event(struct wlr_libinput_backend *backend,
 		struct libinput_event *event) {
 	assert(backend && event);
-	struct libinput *context = libinput_event_get_context(event);
 	struct libinput_device *device = libinput_event_get_device(event);
 	enum libinput_event_type event_type = libinput_event_get_type(event);
-	(void)context;
 	switch (event_type) {
 	case LIBINPUT_EVENT_DEVICE_ADDED:
 		handle_device_added(backend, device);
