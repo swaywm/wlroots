@@ -87,14 +87,16 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 	}
 }
 
-static bool atomic_crtc_pageflip(struct wlr_backend_state *drm, struct wlr_output_state *output,
-		struct wlr_drm_crtc *crtc, uint32_t fb_id, drmModeModeInfo *mode) {
+static bool atomic_crtc_pageflip(struct wlr_drm_backend *backend,
+		struct wlr_output_state *output,
+		struct wlr_drm_crtc *crtc,
+		uint32_t fb_id, drmModeModeInfo *mode) {
 	if (mode) {
 		if (crtc->mode_id) {
-			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
+			drmModeDestroyPropertyBlob(backend->fd, crtc->mode_id);
 		}
 
-		if (drmModeCreatePropertyBlob(drm->fd, mode, sizeof(*mode), &crtc->mode_id)) {
+		if (drmModeCreatePropertyBlob(backend->fd, mode, sizeof(*mode), &crtc->mode_id)) {
 			wlr_log_errno(L_ERROR, "Unable to create property blob");
 			return false;
 		}
@@ -107,24 +109,25 @@ static bool atomic_crtc_pageflip(struct wlr_backend_state *drm, struct wlr_outpu
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
-	return atomic_commit(drm->fd, &atom, output, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0);
+	return atomic_commit(backend->fd, &atom,
+			output, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0);
 }
 
-static void atomic_conn_enable(struct wlr_backend_state *drm, struct wlr_output_state *output,
-		bool enable) {
+static void atomic_conn_enable(struct wlr_drm_backend *backend,
+		struct wlr_output_state *output, bool enable) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct atomic atom;
 
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.active, enable);
-	atomic_end(drm->fd, &atom);
+	atomic_end(backend->fd, &atom);
 }
 
-bool legacy_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-	struct gbm_bo *bo);
+bool legacy_crtc_set_cursor(struct wlr_drm_backend *backend,
+		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
 
-static bool atomic_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-		struct gbm_bo *bo) {
+static bool atomic_crtc_set_cursor(struct wlr_drm_backend *backend,
+		struct wlr_drm_crtc *crtc, struct gbm_bo *bo) {
 	if (!crtc || !crtc->cursor) {
 		return true;
 	}
@@ -132,7 +135,7 @@ static bool atomic_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm
 	struct wlr_drm_plane *plane = crtc->cursor;
 	// We can't use atomic operations on fake planes
 	if (plane->id == 0) {
-		return legacy_crtc_set_cursor(drm, crtc, bo);
+		return legacy_crtc_set_cursor(backend, crtc, bo);
 	}
 
 	struct atomic atom;
@@ -146,18 +149,18 @@ static bool atomic_crtc_set_cursor(struct wlr_backend_state *drm, struct wlr_drm
 		atomic_add(&atom, plane->id, plane->props.crtc_id, 0);
 	}
 
-	return atomic_end(drm->fd, &atom);
+	return atomic_end(backend->fd, &atom);
 }
 
-bool legacy_crtc_move_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-	int x, int y);
+bool legacy_crtc_move_cursor(struct wlr_drm_backend *backend,
+		struct wlr_drm_crtc *crtc, int x, int y);
 
-static bool atomic_crtc_move_cursor(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-		int x, int y) {
+static bool atomic_crtc_move_cursor(struct wlr_drm_backend *backend,
+		struct wlr_drm_crtc *crtc, int x, int y) {
 	struct wlr_drm_plane *plane = crtc->cursor;
 	// We can't use atomic operations on fake planes
 	if (plane->id == 0) {
-		return legacy_crtc_move_cursor(drm, crtc, x, y);
+		return legacy_crtc_move_cursor(backend, crtc, x, y);
 	}
 
 	struct atomic atom;
@@ -165,7 +168,7 @@ static bool atomic_crtc_move_cursor(struct wlr_backend_state *drm, struct wlr_dr
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, plane->id, plane->props.crtc_x, x);
 	atomic_add(&atom, plane->id, plane->props.crtc_y, y);
-	return atomic_end(drm->fd, &atom);
+	return atomic_end(backend->fd, &atom);
 }
 
 const struct wlr_drm_interface atomic_iface = {

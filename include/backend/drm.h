@@ -81,7 +81,7 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
 struct wlr_drm_interface;
 
-struct wlr_drm_backend_state {
+struct wlr_drm_backend {
 	struct wlr_backend backend;
 
 	const struct wlr_drm_interface *iface;
@@ -160,25 +160,26 @@ struct wlr_output_state {
 // Used to provide atomic or legacy DRM functions
 struct wlr_drm_interface {
 	// Enable or disable DPMS for output
-	void (*conn_enable)(struct wlr_backend_state *drm, struct wlr_output_state *output,
-		bool enable);
+	void (*conn_enable)(struct wlr_drm_backend *backend,
+			struct wlr_output_state *output, bool enable);
 	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
-	bool (*crtc_pageflip)(struct wlr_backend_state *drm, struct wlr_output_state *output,
-		struct wlr_drm_crtc *crtc, uint32_t fb_id, drmModeModeInfo *mode);
+	bool (*crtc_pageflip)(struct wlr_drm_backend *backend,
+			struct wlr_output_state *output, struct wlr_drm_crtc *crtc,
+			uint32_t fb_id, drmModeModeInfo *mode);
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
-	bool (*crtc_set_cursor)(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-		struct gbm_bo *bo);
+	bool (*crtc_set_cursor)(struct wlr_drm_backend *backend,
+			struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
 	// Move the cursor on crtc
-	bool (*crtc_move_cursor)(struct wlr_backend_state *drm, struct wlr_drm_crtc *crtc,
-		int x, int y);
+	bool (*crtc_move_cursor)(struct wlr_drm_backend *backend,
+			struct wlr_drm_crtc *crtc, int x, int y);
 };
 
-bool wlr_drm_check_features(struct wlr_backend_state *drm);
-bool wlr_drm_resources_init(struct wlr_backend_state *drm);
-void wlr_drm_resources_free(struct wlr_backend_state *drm);
+bool wlr_drm_check_features(struct wlr_drm_backend *drm);
+bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
+void wlr_drm_resources_free(struct wlr_drm_backend *drm);
 void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
 
-void wlr_drm_scan_connectors(struct wlr_backend_state *state);
+void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_output_start_renderer(struct wlr_output_state *output);

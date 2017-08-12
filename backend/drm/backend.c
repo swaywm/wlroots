@@ -16,32 +16,34 @@
 #include "backend/udev.h"
 #include "backend/drm.h"
 
-static bool wlr_drm_backend_init(struct wlr_backend_state *drm) {
-	wlr_drm_scan_connectors(drm);
+static bool wlr_drm_backend_init(struct wlr_backend *_backend) {
+	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
+	wlr_drm_scan_connectors(backend);
 	return true;
 }
 
-static void wlr_drm_backend_destroy(struct wlr_backend_state *drm) {
-	if (!drm) {
+static void wlr_drm_backend_destroy(struct wlr_backend *_backend) {
+	if (!_backend) {
 		return;
 	}
-
-	for (size_t i = 0; drm->outputs && i < drm->outputs->length; ++i) {
-		struct wlr_output_state *output = drm->outputs->items[i];
+	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
+	for (size_t i = 0; backend->outputs && i < backend->outputs->length; ++i) {
+		struct wlr_output_state *output = backend->outputs->items[i];
 		wlr_output_destroy(output->base);
 	}
 
-	wlr_udev_signal_remove(drm->udev, &drm->drm_invalidated);
-	wlr_drm_renderer_free(&drm->renderer);
-	wlr_drm_resources_free(drm);
-	wlr_session_close_file(drm->session, drm->fd);
-	wl_event_source_remove(drm->drm_event);
-	list_free(drm->outputs);
-	free(drm);
+	wlr_udev_signal_remove(backend->udev, &backend->drm_invalidated);
+	wlr_drm_renderer_free(&backend->renderer);
+	wlr_drm_resources_free(backend);
+	wlr_session_close_file(backend->session, backend->fd);
+	wl_event_source_remove(backend->drm_event);
+	list_free(backend->outputs);
+	free(backend);
 }
 
-static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend_state *drm) {
-	return &drm->renderer.egl;
+static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *_backend) {
+	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
+	return &backend->renderer.egl;
 }
 
 static struct wlr_backend_impl backend_impl = {
@@ -51,14 +53,15 @@ static struct wlr_backend_impl backend_impl = {
 };
 
 static void session_signal(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *drm = wl_container_of(listener, drm, session_signal);
+	struct wlr_drm_backend *backend =
+		wl_container_of(listener, backend, session_signal);
 	struct wlr_session *session = data;
 
 	if (session->active) {
 		wlr_log(L_INFO, "DRM fd resumed");
 
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_output_state *output = drm->outputs->items[i];
+		for (size_t i = 0; i < backend->outputs->length; ++i) {
+			struct wlr_output_state *output = backend->outputs->items[i];
 			wlr_drm_output_start_renderer(output);
 
 			if (!output->crtc) {
@@ -67,7 +70,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 			struct wlr_drm_plane *plane = output->crtc->cursor;
 
-			drm->iface->crtc_set_cursor(drm, output->crtc,
+			backend->iface->crtc_set_cursor(backend, output->crtc,
 				plane ? plane->cursor_bo : NULL);
 		}
 	} else {
@@ -76,16 +79,16 @@ static void session_signal(struct wl_listener *listener, void *data) {
 }
 
 static void drm_invalidated(struct wl_listener *listener, void *data) {
-	struct wlr_backend_state *drm = wl_container_of(listener, drm, drm_invalidated);
+	struct wlr_drm_backend *backend =
+		wl_container_of(listener, backend, drm_invalidated);
 	struct wlr_udev *udev = data;
-
 	(void)udev;
 
-	char *name = drmGetDeviceNameFromFd2(drm->fd);
+	char *name = drmGetDeviceNameFromFd2(backend->fd);
 	wlr_log(L_DEBUG, "%s invalidated", name);
 	free(name);
 
-	wlr_drm_scan_connectors(drm);
+	wlr_drm_scan_connectors(backend);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
@@ -98,77 +101,70 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	free(name);
 	drmFreeVersion(version);
 
-	struct wlr_backend_state *drm = calloc(1, sizeof(*drm));
-	if (!drm) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
-		return NULL;
-	}
-
-	struct wlr_backend *backend = wlr_backend_create(&backend_impl, drm);
+	struct wlr_drm_backend *backend = calloc(1, sizeof(struct wlr_drm_backend));
 	if (!backend) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
+	wlr_backend_create(&backend->backend, &backend_impl);
 
-	drm->base = backend;
-	drm->session = session;
-	drm->udev = udev;
-	drm->outputs = list_create();
-	if (!drm->outputs) {
+	backend->session = session;
+	backend->udev = udev;
+	backend->outputs = list_create();
+	if (!backend->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
 		goto error_backend;
 	}
 
-	drm->fd = gpu_fd;
+	backend->fd = gpu_fd;
 
 	struct stat st;
-	if (fstat(drm->fd, &st) < 0) {
+	if (fstat(backend->fd, &st) < 0) {
 		wlr_log_errno(L_ERROR, "Stat failed");
 	}
-	drm->dev = st.st_rdev;
+	backend->dev = st.st_rdev;
 
-	drm->drm_invalidated.notify = drm_invalidated;
-	wlr_udev_signal_add(udev, drm->dev, &drm->drm_invalidated);
+	backend->drm_invalidated.notify = drm_invalidated;
+	wlr_udev_signal_add(udev, backend->dev, &backend->drm_invalidated);
 
-	drm->display = display;
+	backend->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
-	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
+	backend->drm_event = wl_event_loop_add_fd(event_loop, backend->fd,
 		WL_EVENT_READABLE, wlr_drm_event, NULL);
-	if (!drm->drm_event) {
+	if (!backend->drm_event) {
 		wlr_log(L_ERROR, "Failed to create DRM event source");
 		goto error_fd;
 	}
 
-	drm->session_signal.notify = session_signal;
-	wl_signal_add(&session->session_signal, &drm->session_signal);
+	backend->session_signal.notify = session_signal;
+	wl_signal_add(&session->session_signal, &backend->session_signal);
 
-	if (!wlr_drm_check_features(drm)) {
+	if (!wlr_drm_check_features(backend)) {
 		goto error_event;
 	}
 
-	if (!wlr_drm_resources_init(drm)) {
+	if (!wlr_drm_resources_init(backend)) {
 		goto error_event;
 	}
 
-	if (!wlr_drm_renderer_init(&drm->renderer, drm->fd)) {
+	if (!wlr_drm_renderer_init(&backend->renderer, backend->fd)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}
 
-	if (!wlr_egl_bind_display(&drm->renderer.egl, display)) {
+	if (!wlr_egl_bind_display(&backend->renderer.egl, display)) {
 		wlr_log(L_INFO, "Failed to bind egl/wl display: %s", egl_error());
 	}
 
-	return backend;
+	return &backend->backend;
 
 error_event:
-	wl_event_source_remove(drm->drm_event);
+	wl_event_source_remove(backend->drm_event);
 error_fd:
-	wlr_session_close_file(drm->session, drm->fd);
-	list_free(drm->outputs);
+	wlr_session_close_file(backend->session, backend->fd);
+	list_free(backend->outputs);
 error_backend:
-	free(drm);
 	free(backend);
 	return NULL;
 }
