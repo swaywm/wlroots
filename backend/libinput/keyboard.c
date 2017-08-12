@@ -8,15 +8,15 @@
 #include "backend/libinput.h"
 
 struct wlr_keyboard_state {
-	struct libinput_device *device;
+	struct libinput_device *libinput_dev;
 };
 
 static void wlr_libinput_keyboard_set_leds(struct wlr_keyboard_state *kbstate, uint32_t leds) {
-	libinput_device_led_update(kbstate->device, leds);
+	libinput_device_led_update(kbstate->libinput_dev, leds);
 }
 
 static void wlr_libinput_keyboard_destroy(struct wlr_keyboard_state *kbstate) {
-	libinput_device_unref(kbstate->device);
+	libinput_device_unref(kbstate->libinput_dev);
 	free(kbstate);
 }
 
@@ -26,20 +26,20 @@ struct wlr_keyboard_impl impl = {
 };
 
 struct wlr_keyboard *wlr_libinput_keyboard_create(
-		struct libinput_device *device) {
-	assert(device);
+		struct libinput_device *libinput_dev) {
+	assert(libinput_dev);
 	struct wlr_keyboard_state *kbstate = calloc(1, sizeof(struct wlr_keyboard_state));
-	kbstate->device = device;
-	libinput_device_ref(device);
-	libinput_device_led_update(device, 0);
+	kbstate->libinput_dev = libinput_dev;
+	libinput_device_ref(libinput_dev);
+	libinput_device_led_update(libinput_dev, 0);
 	return wlr_keyboard_create(&impl, kbstate);
 }
 
 void handle_keyboard_key(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_KEYBOARD, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_KEYBOARD, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a keyboard event for a device with no keyboards?");
 		return;
 	}
@@ -59,5 +59,5 @@ void handle_keyboard_key(struct libinput_event *event,
 		wlr_event.state = WLR_KEY_PRESSED;
 		break;
 	}
-	wl_signal_emit(&dev->keyboard->events.key, &wlr_event);
+	wl_signal_emit(&wlr_dev->keyboard->events.key, &wlr_event);
 }

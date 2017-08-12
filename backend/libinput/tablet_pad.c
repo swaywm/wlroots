@@ -8,16 +8,16 @@
 #include "backend/libinput.h"
 
 struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
-		struct libinput_device *device) {
-	assert(device);
+		struct libinput_device *libinput_dev) {
+	assert(libinput_dev);
 	return wlr_tablet_pad_create(NULL, NULL);
 }
 
 void handle_tablet_pad_button(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet pad event for a device with no tablet pad?");
 		return;
 	}
@@ -35,14 +35,14 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_RELEASED;
 		break;
 	}
-	wl_signal_emit(&dev->tablet_pad->events.button, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_pad->events.button, &wlr_event);
 }
 
 void handle_tablet_pad_ring(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet pad event for a device with no tablet pad?");
 		return;
 	}
@@ -61,14 +61,14 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 		wlr_event.source = WLR_TABLET_PAD_RING_SOURCE_FINGER;
 		break;
 	}
-	wl_signal_emit(&dev->tablet_pad->events.ring, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_pad->events.ring, &wlr_event);
 }
 
 void handle_tablet_pad_strip(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_PAD, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet pad event for a device with no tablet pad?");
 		return;
 	}
@@ -87,5 +87,5 @@ void handle_tablet_pad_strip(struct libinput_event *event,
 		wlr_event.source = WLR_TABLET_PAD_STRIP_SOURCE_FINGER;
 		break;
 	}
-	wl_signal_emit(&dev->tablet_pad->events.strip, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_pad->events.strip, &wlr_event);
 }

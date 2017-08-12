@@ -8,16 +8,16 @@
 #include "backend/libinput.h"
 
 struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
-		struct libinput_device *device) {
-	assert(device);
+		struct libinput_device *libinput_dev) {
+	assert(libinput_dev);
 	return wlr_tablet_tool_create(NULL, NULL);
 }
 
 void handle_tablet_tool_axis(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
@@ -26,7 +26,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	struct wlr_event_tablet_tool_axis wlr_event = { 0 };
 	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
-	libinput_device_get_size(device, &wlr_event.width_mm, &wlr_event.height_mm);
+	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
 	if (libinput_event_tablet_tool_x_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_X;
 		wlr_event.x_mm = libinput_event_tablet_tool_get_x(tevent);
@@ -63,14 +63,14 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_WHEEL;
 		wlr_event.wheel_delta = libinput_event_tablet_tool_get_wheel_delta(tevent);
 	}
-	wl_signal_emit(&dev->tablet_tool->events.axis, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_tool->events.axis, &wlr_event);
 }
 
 void handle_tablet_tool_proximity(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
@@ -85,21 +85,21 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		break;
 	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN:
 		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_IN;
-		handle_tablet_tool_axis(event, device);
+		handle_tablet_tool_axis(event, libinput_dev);
 		break;
 	}
-	wl_signal_emit(&dev->tablet_tool->events.proximity, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_tool->events.proximity, &wlr_event);
 }
 
 void handle_tablet_tool_tip(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
-	handle_tablet_tool_axis(event, device);
+	handle_tablet_tool_axis(event, libinput_dev);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_tip wlr_event = { 0 };
@@ -113,18 +113,18 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		wlr_event.state = WLR_TABLET_TOOL_TIP_DOWN;
 		break;
 	}
-	wl_signal_emit(&dev->tablet_tool->events.tip, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_tool->events.tip, &wlr_event);
 }
 
 void handle_tablet_tool_button(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
-	handle_tablet_tool_axis(event, device);
+	handle_tablet_tool_axis(event, libinput_dev);
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_button wlr_event = { 0 };
@@ -139,5 +139,5 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_PRESSED;
 		break;
 	}
-	wl_signal_emit(&dev->tablet_tool->events.button, &wlr_event);
+	wl_signal_emit(&wlr_dev->tablet_tool->events.button, &wlr_event);
 }

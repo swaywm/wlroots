@@ -8,16 +8,16 @@
 #include "backend/libinput.h"
 
 struct wlr_pointer *wlr_libinput_pointer_create(
-		struct libinput_device *device) {
-	assert(device);
+		struct libinput_device *libinput_dev) {
+	assert(libinput_dev);
 	return wlr_pointer_create(NULL, NULL);
 }
 
 void handle_pointer_motion(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
@@ -28,14 +28,14 @@ void handle_pointer_motion(struct libinput_event *event,
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	wlr_event.delta_x = libinput_event_pointer_get_dx(pevent);
 	wlr_event.delta_y = libinput_event_pointer_get_dy(pevent);
-	wl_signal_emit(&dev->pointer->events.motion, &wlr_event);
+	wl_signal_emit(&wlr_dev->pointer->events.motion, &wlr_event);
 }
 
 void handle_pointer_motion_abs(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
@@ -46,15 +46,15 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	wlr_event.x_mm = libinput_event_pointer_get_absolute_x(pevent);
 	wlr_event.y_mm = libinput_event_pointer_get_absolute_y(pevent);
-	libinput_device_get_size(device, &wlr_event.width_mm, &wlr_event.height_mm);
-	wl_signal_emit(&dev->pointer->events.motion_absolute, &wlr_event);
+	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
+	wl_signal_emit(&wlr_dev->pointer->events.motion_absolute, &wlr_event);
 }
 
 void handle_pointer_button(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
@@ -72,14 +72,14 @@ void handle_pointer_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_RELEASED;
 		break;
 	}
-	wl_signal_emit(&dev->pointer->events.button, &wlr_event);
+	wl_signal_emit(&wlr_dev->pointer->events.button, &wlr_event);
 }
 
 void handle_pointer_axis(struct libinput_event *event,
-		struct libinput_device *device) {
-	struct wlr_input_device *dev =
-		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, device);
-	if (!dev) {
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
 		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
@@ -119,6 +119,6 @@ void handle_pointer_axis(struct libinput_event *event,
 			wlr_event.delta = libinput_event_pointer_get_axis_value(
 					pevent, axies[i]);
 		}
-		wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
+		wl_signal_emit(&wlr_dev->pointer->events.axis, &wlr_event);
 	}
 }

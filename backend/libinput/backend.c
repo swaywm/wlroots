@@ -25,20 +25,20 @@ static const struct libinput_interface libinput_impl = {
 
 static int wlr_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
-	if (libinput_dispatch(backend->libinput) != 0) {
+	if (libinput_dispatch(backend->libinput_context) != 0) {
 		wlr_log(L_ERROR, "Failed to dispatch libinput");
 		// TODO: some kind of abort?
 		return 0;
 	}
 	struct libinput_event *event;
-	while ((event = libinput_get_event(backend->libinput))) {
+	while ((event = libinput_get_event(backend->libinput_context))) {
 		wlr_libinput_event(backend, event);
 		libinput_event_destroy(event);
 	}
 	return 0;
 }
 
-static void wlr_libinput_log(struct libinput *libinput,
+static void wlr_libinput_log(struct libinput *libinput_context,
 		enum libinput_log_priority priority, const char *fmt, va_list args) {
 	_wlr_vlog(L_ERROR, fmt, args);
 }
@@ -46,22 +46,22 @@ static void wlr_libinput_log(struct libinput *libinput,
 static bool wlr_libinput_backend_init(struct wlr_backend *_backend) {
 	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
 	wlr_log(L_DEBUG, "Initializing libinput");
-	backend->libinput = libinput_udev_create_context(&libinput_impl, backend,
+	backend->libinput_context = libinput_udev_create_context(&libinput_impl, backend,
 			backend->udev->udev);
-	if (!backend->libinput) {
+	if (!backend->libinput_context) {
 		wlr_log(L_ERROR, "Failed to create libinput context");
 		return false;
 	}
 
 	// TODO: Let user customize seat used
-	if (libinput_udev_assign_seat(backend->libinput, "seat0") != 0) {
+	if (libinput_udev_assign_seat(backend->libinput_context, "seat0") != 0) {
 		wlr_log(L_ERROR, "Failed to assign libinput seat");
 		return false;
 	}
 
 	// TODO: More sophisticated logging
-	libinput_log_set_handler(backend->libinput, wlr_libinput_log);
-	libinput_log_set_priority(backend->libinput, LIBINPUT_LOG_PRIORITY_ERROR);
+	libinput_log_set_handler(backend->libinput_context, wlr_libinput_log);
+	libinput_log_set_priority(backend->libinput_context, LIBINPUT_LOG_PRIORITY_ERROR);
 
 	struct wl_event_loop *event_loop =
 		wl_display_get_event_loop(backend->display);
@@ -69,7 +69,7 @@ static bool wlr_libinput_backend_init(struct wlr_backend *_backend) {
 		wl_event_source_remove(backend->input_event);
 	}
 	backend->input_event = wl_event_loop_add_fd(event_loop,
-			libinput_get_fd(backend->libinput), WL_EVENT_READABLE,
+			libinput_get_fd(backend->libinput_context), WL_EVENT_READABLE,
 			wlr_libinput_readable, backend);
 	if (!backend->input_event) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
@@ -84,17 +84,17 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 		return;
 	}
 	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
-	for (size_t i = 0; i < backend->devices->length; i++) {
-		list_t *wlr_devices = backend->devices->items[i];
+	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
+		list_t *wlr_devices = backend->wlr_device_lists->items[i];
 		for (size_t j = 0; j < wlr_devices->length; j++) {
-			struct wlr_input_device *wlr_device = wlr_devices->items[j];
-			wl_signal_emit(&backend->backend.events.input_remove, wlr_device);
-			wlr_input_device_destroy(wlr_device);
+			struct wlr_input_device *wlr_dev = wlr_devices->items[j];
+			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
+			wlr_input_device_destroy(wlr_dev);
 		}
 		list_free(wlr_devices);
 	}
-	list_free(backend->devices);
-	libinput_unref(backend->libinput);
+	list_free(backend->wlr_device_lists);
+	libinput_unref(backend->libinput_context);
 	free(backend);
 }
 
@@ -107,14 +107,14 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend = wl_container_of(listener, backend, session_signal);
 	struct wlr_session *session = data;
 
-	if (!backend->libinput) {
+	if (!backend->libinput_context) {
 		return;
 	}
 
 	if (session->active) {
-		libinput_resume(backend->libinput);
+		libinput_resume(backend->libinput_context);
 	} else {
-		libinput_suspend(backend->libinput);
+		libinput_suspend(backend->libinput_context);
 	}
 }
 
@@ -129,7 +129,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	}
 	wlr_backend_create(&backend->backend, &backend_impl);
 
-	if (!(backend->devices = list_create())) {
+	if (!(backend->wlr_device_lists = list_create())) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		goto error_backend;
 	}
