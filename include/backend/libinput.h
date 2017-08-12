@@ -7,7 +7,7 @@
 #include <wlr/util/list.h>
 #include "backend/udev.h"
 
-struct wlr_libinput_backend_state {
+struct wlr_libinput_backend {
 	struct wlr_backend backend;
 
 	struct wlr_session *session;
@@ -26,7 +26,7 @@ struct wlr_input_device_state {
 	struct libinput_device *handle;
 };
 
-void wlr_libinput_event(struct wlr_backend_state *state,
+void wlr_libinput_event(struct wlr_libinput_backend *state,
 		struct libinput_event *event);
 
 struct wlr_input_device *get_appropriate_device(
