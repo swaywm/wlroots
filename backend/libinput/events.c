@@ -112,13 +112,15 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 static void handle_device_removed(struct wlr_libinput_backend *backend,
 		struct libinput_device *device) {
 	list_t *devices = libinput_device_get_user_data(device);
+	int vendor = libinput_device_get_id_vendor(device);
+	int product = libinput_device_get_id_product(device);
+	const char *name = libinput_device_get_name(device);
+	wlr_log(L_DEBUG, "Removing %s [%d:%d]", name, vendor, product);
 	if (!devices) {
 		return;
 	}
 	for (size_t i = 0; i < devices->length; i++) {
 		struct wlr_input_device *wlr_device = devices->items[i];
-		wlr_log(L_DEBUG, "Removing %s [%d:%d]", wlr_device->name,
-			wlr_device->vendor, wlr_device->product);
 		wl_signal_emit(&backend->backend.events.input_remove, wlr_device);
 		wlr_input_device_destroy(wlr_device);
 	}
