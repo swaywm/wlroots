@@ -169,6 +169,7 @@ static struct wl_keyboard_listener keyboard_listener = {
 };
 
 static void input_device_destroy(struct wlr_input_device_state *state) {
+	wl_signal_emit(&state->backend->backend->events.input_remove, state->wlr_device);
 	if (state->resource)
 		wl_proxy_destroy(state->resource);
 	free(state);
@@ -206,7 +207,7 @@ static struct wlr_input_device *allocate_device(struct wlr_backend_state *state,
 		free(devstate);
 		return NULL;
 	}
-
+	devstate->wlr_device = wlr_device;
 	list_add(state->devices, wlr_device);
 	return wlr_device;
 }
@@ -257,6 +258,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 static void seat_handle_name(void *data, struct wl_seat *wl_seat, const char *name) {
 	struct wlr_backend_state *state = data;
 	assert(state->seat == wl_seat);
+	// Do we need to check if seatName was previously set for name change?
 	state->seatName = strdup(name);
 }
 

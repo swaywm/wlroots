@@ -104,6 +104,7 @@ static bool init_planes(struct wlr_backend_state *drm) {
 	drm->primary_planes = drm->overlay_planes + drm->num_overlay_planes;
 	drm->cursor_planes = drm->primary_planes + drm->num_primary_planes;
 
+	drmModeFreePlaneResources(plane_res);
 	return true;
 
 error_planes:

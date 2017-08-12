@@ -311,6 +311,8 @@ static void keyboard_remove(struct wlr_input_device *device, struct compositor_s
 	if (!kbstate) {
 		return;
 	}
+	xkb_state_unref(kbstate->xkb_state);
+	xkb_map_unref(kbstate->keymap);
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
 	free(kbstate);
@@ -384,14 +386,13 @@ static void tablet_pad_remove(struct wlr_input_device *device, struct compositor
 	if (!pstate) {
 		return;
 	}
-	// TODO probably missing more actions
+	wl_list_remove(&pstate->button.link);
 	free(pstate);
 }
 
-// TODO missing something that calls this on teardown
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
-	struct compositor_state *state = wl_container_of(listener, state, input_add);
+	struct compositor_state *state = wl_container_of(listener, state, input_remove);
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
 		keyboard_remove(device, state);

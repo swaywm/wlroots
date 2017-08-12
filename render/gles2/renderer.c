@@ -30,7 +30,7 @@ static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
 		GL_CALL(glGetShaderInfoLog(*shader, loglen, &loglen, msg));
 		wlr_log(L_ERROR, "Shader compilation failed");
 		wlr_log(L_ERROR, "%s", msg);
-		exit(1);
+		glDeleteShader(*shader);
 		return false;
 	}
 	return true;
@@ -43,13 +43,32 @@ static bool compile_program(const GLchar *vert_src,
 		return false;
 	}
 	if (!compile_shader(GL_FRAGMENT_SHADER, frag_src, &fragment)) {
-		glDeleteProgram(vertex);
+		glDeleteShader(vertex);
 		return false;
 	}
 	*program = GL_CALL(glCreateProgram());
 	GL_CALL(glAttachShader(*program, vertex));
 	GL_CALL(glAttachShader(*program, fragment));
 	GL_CALL(glLinkProgram(*program));
+	GLint success;
+	GL_CALL(glGetProgramiv(*program, GL_LINK_STATUS, &success));
+	if (success == GL_FALSE) {
+		GLint loglen;
+		GL_CALL(glGetProgramiv(*program, GL_INFO_LOG_LENGTH, &loglen));
+		GLchar msg[loglen];
+		GL_CALL(glGetProgramInfoLog(*program, loglen, &loglen, msg));
+		wlr_log(L_ERROR, "Program link failed");
+		wlr_log(L_ERROR, "%s", msg);
+		glDeleteProgram(*program);
+		glDeleteShader(vertex);
+		glDeleteShader(fragment);
+		return false;
+	}
+	glDetachShader(*program, vertex);
+	glDetachShader(*program, fragment);
+	glDeleteShader(vertex);
+	glDeleteShader(fragment);
+
 	return true;
 }
 

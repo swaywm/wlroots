@@ -25,7 +25,7 @@ struct wlr_backend_state {
 	struct wl_shell *shell;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
-	const char *seatName;
+	char *seatName;
 };
 
 struct wlr_output_state {
@@ -33,13 +33,14 @@ struct wlr_output_state {
 	struct wlr_output *wlr_output;
 	struct wl_surface *surface;
 	struct wl_shell_surface *shell_surface;
-	struct wl_egl_window* egl_window;
-	struct wl_callback* frame_callback;
+	struct wl_egl_window *egl_window;
+	struct wl_callback *frame_callback;
 	void *egl_surface;
 };
 
 struct wlr_input_device_state {
-	struct wlr_backend_state* backend;
+	struct wlr_backend_state *backend;
+	struct wlr_input_device *wlr_device;
 	void *resource;
 };
 
