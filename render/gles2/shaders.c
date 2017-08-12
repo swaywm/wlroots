@@ -94,9 +94,9 @@ const GLchar fragment_src_rgbx[] =
 const GLchar fragment_src_external[] =
 "#extension GL_OES_EGL_image_external : require\n"
 "precision mediump float;"
+"varying vec2 v_texcoord;"
 "uniform samplerExternalOES texture0;"
-"varying vec2 v_uv;"
 "void main() {"
-"  vec4 col = texture2D(texture0, v_uv);"
+"  vec4 col = texture2D(texture0, v_texcoord);"
 "  gl_FragColor = vec4(col.rgb, col.a);"
 "}";
