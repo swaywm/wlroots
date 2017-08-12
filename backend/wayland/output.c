@@ -46,8 +46,10 @@ static void wlr_wl_output_transform(struct wlr_output_state *output,
 }
 
 static void wlr_wl_output_destroy(struct wlr_output_state *output) {
-	wl_signal_emit(&output->backend->backend->events.output_remove, output->wlr_output);
-	if(output->frame_callback) wl_callback_destroy(output->frame_callback);
+	wl_signal_emit(&output->backend->backend.events.output_remove, output->wlr_output);
+	if (output->frame_callback) {
+		wl_callback_destroy(output->frame_callback);
+	}
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
 	wl_shell_surface_destroy(output->shell_surface);
@@ -92,7 +94,7 @@ static struct wl_shell_surface_listener shell_surface_listener = {
 
 struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_wl(_backend));
-	struct wlr_backend_state *backend = _backend->state;
+	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	if (!backend->remote_display) {
 		++backend->requested_outputs;
 		return NULL;
@@ -158,6 +160,6 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	wlr_output_create_global(wlr_output, backend->local_display);
 	list_add(backend->outputs, wlr_output);
-	wl_signal_emit(&backend->backend->events.output_add, wlr_output);
+	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
 }

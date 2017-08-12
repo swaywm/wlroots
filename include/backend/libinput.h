@@ -7,8 +7,9 @@
 #include <wlr/util/list.h>
 #include "backend/udev.h"
 
-struct wlr_backend_state {
-	struct wlr_backend *backend;
+struct wlr_libinput_backend_state {
+	struct wlr_backend backend;
+
 	struct wlr_session *session;
 	struct wlr_udev *udev;
 	struct wl_display *display;

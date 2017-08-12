@@ -9,10 +9,11 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/list.h>
 
-struct wlr_backend_state {
+struct wlr_wl_backend {
+	struct wlr_backend backend;
+
 	/* local state */
 	struct wl_display *local_display;
-	struct wlr_backend *backend;
 	list_t *devices;
 	list_t *outputs;
 	struct wlr_egl egl;
@@ -25,11 +26,11 @@ struct wlr_backend_state {
 	struct wl_shell *shell;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
-	char *seatName;
+	char *seat_name;
 };
 
 struct wlr_output_state {
-	struct wlr_backend_state *backend;
+	struct wlr_wl_backend *backend;
 	struct wlr_output *wlr_output;
 	struct wl_surface *surface;
 	struct wl_shell_surface *shell_surface;
@@ -39,7 +40,7 @@ struct wlr_output_state {
 };
 
 struct wlr_input_device_state {
-	struct wlr_backend_state *backend;
+	struct wlr_wl_backend *backend;
 	struct wlr_input_device *wlr_device;
 	void *resource;
 };
@@ -49,8 +50,8 @@ struct wlr_pointer_state {
 	struct wlr_output *current_output;
 };
 
-void wlr_wl_registry_poll(struct wlr_backend_state *backend);
-struct wlr_output *wlr_wl_output_for_surface(struct wlr_backend_state *backend,
+void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
+struct wlr_output *wlr_wl_output_for_surface(struct wlr_wl_backend *backend,
 	struct wl_surface *surface);
 
 extern const struct wl_seat_listener seat_listener;

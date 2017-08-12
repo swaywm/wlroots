@@ -3,47 +3,45 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include <libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
-#include <wlr/backend/drm.h>
-#include <wlr/backend/libinput.h>
+//#include <wlr/backend/drm.h>
+//#include <wlr/backend/libinput.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/backend/multi.h>
+//#include <wlr/backend/multi.h>
 #include <wlr/util/log.h>
-#include "backend/libinput.h"
 #include "backend/udev.h"
 
-struct wlr_backend *wlr_backend_create(const struct wlr_backend_impl *impl,
-		struct wlr_backend_state *state) {
-	struct wlr_backend *backend = calloc(1, sizeof(struct wlr_backend));
-	if (!backend) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
-		return NULL;
-	}
-	backend->state = state;
+void wlr_backend_create(struct wlr_backend *backend,
+		const struct wlr_backend_impl *impl) {
+	assert(backend);
 	backend->impl = impl;
 	wl_signal_init(&backend->events.input_add);
 	wl_signal_init(&backend->events.input_remove);
 	wl_signal_init(&backend->events.output_add);
 	wl_signal_init(&backend->events.output_remove);
-	return backend;
 }
 
 bool wlr_backend_init(struct wlr_backend *backend) {
-	return backend->impl->init(backend->state);
+	if (backend->impl->init) {
+		return backend->impl->init(backend);
+	}
+	return true;
 }
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
-	backend->impl->destroy(backend->state);
-	free(backend);
+	if (backend->impl->destroy) {
+		backend->impl->destroy(backend);
+	}
 }
 
 struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
-	if (!backend->impl->get_egl) {
-		return NULL;
+	if (backend->impl->get_egl) {
+		return backend->impl->get_egl(backend);
 	}
-	return backend->impl->get_egl(backend->state);
+	return NULL;
 }
 
 static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
@@ -77,64 +75,65 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 			return backend;
 		}
 	}
-
-	if (getenv("DISPLAY")) {
-		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
-		return NULL;
-	}
-
-	// Attempt DRM+libinput
-
-	struct wlr_session *session = wlr_session_start(display);
-	if (!session) {
-		wlr_log(L_ERROR, "Failed to start a DRM session");
-		return NULL;
-	}
-
-	struct wlr_udev *udev = wlr_udev_create(display);
-	if (!udev) {
-		wlr_log(L_ERROR, "Failed to start udev");
-		goto error_session;
-	}
-
-	int gpu = wlr_udev_find_gpu(udev, session);
-	if (gpu == -1) {
-		wlr_log(L_ERROR, "Failed to open DRM device");
-		goto error_udev;
-	}
-
-	backend = wlr_multi_backend_create(session, udev);
-	if (!backend) {
-		goto error_gpu;
-	}
-
-	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session, udev);
-	if (!libinput) {
-		goto error_multi;
-	}
-
-	struct wlr_backend *drm = wlr_drm_backend_create(display, session, udev, gpu);
-	if (!drm) {
-		goto error_libinput;
-	}
-
-	wlr_multi_backend_add(backend, libinput);
-	wlr_multi_backend_add(backend, drm);
-	return backend;
-
-error_libinput:
-	wlr_backend_destroy(libinput);
-error_multi:
-	wlr_backend_destroy(backend);
-error_gpu:
-	wlr_session_close_file(session, gpu);
-error_udev:
-	wlr_udev_destroy(udev);
-error_session:
-	wlr_session_finish(session);
 	return NULL;
+
+//	if (getenv("DISPLAY")) {
+//		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
+//		return NULL;
+//	}
+//
+//	// Attempt DRM+libinput
+//
+//	struct wlr_session *session = wlr_session_start(display);
+//	if (!session) {
+//		wlr_log(L_ERROR, "Failed to start a DRM session");
+//		return NULL;
+//	}
+//
+//	struct wlr_udev *udev = wlr_udev_create(display);
+//	if (!udev) {
+//		wlr_log(L_ERROR, "Failed to start udev");
+//		goto error_session;
+//	}
+//
+//	int gpu = wlr_udev_find_gpu(udev, session);
+//	if (gpu == -1) {
+//		wlr_log(L_ERROR, "Failed to open DRM device");
+//		goto error_udev;
+//	}
+//
+//	backend = wlr_multi_backend_create(session, udev);
+//	if (!backend) {
+//		goto error_gpu;
+//	}
+//
+//	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session, udev);
+//	if (!libinput) {
+//		goto error_multi;
+//	}
+//
+//	struct wlr_backend *drm = wlr_drm_backend_create(display, session, udev, gpu);
+//	if (!drm) {
+//		goto error_libinput;
+//	}
+//
+//	wlr_multi_backend_add(backend, libinput);
+//	wlr_multi_backend_add(backend, drm);
+//	return backend;
+//
+//error_libinput:
+//	wlr_backend_destroy(libinput);
+//error_multi:
+//	wlr_backend_destroy(backend);
+//error_gpu:
+//	wlr_session_close_file(session, gpu);
+//error_udev:
+//	wlr_udev_destroy(udev);
+//error_session:
+//	wlr_session_finish(session);
+//	return NULL;
 }
 
-struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
-	return dev->state->handle;
-}
+//struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
+//	return dev->state->handle;
+//}

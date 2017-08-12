@@ -6,11 +6,9 @@
 #include <wlr/egl.h>
 
 struct wlr_backend_impl;
-struct wlr_backend_state;
 
 struct wlr_backend {
 	const struct wlr_backend_impl *impl;
-	struct wlr_backend_state *state;
 
 	struct {
 		struct wl_signal input_add;

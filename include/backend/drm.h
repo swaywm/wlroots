@@ -81,8 +81,9 @@ void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
 
 struct wlr_drm_interface;
 
-struct wlr_backend_state {
-	struct wlr_backend *base;
+struct wlr_drm_backend_state {
+	struct wlr_backend backend;
+
 	const struct wlr_drm_interface *iface;
 
 	int fd;

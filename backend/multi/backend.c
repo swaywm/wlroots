@@ -15,9 +15,10 @@ struct subbackend_state {
 	struct wl_listener output_remove;
 };
 
-static bool multi_backend_init(struct wlr_backend_state *state) {
-	for (size_t i = 0; i < state->backends->length; ++i) {
-		struct subbackend_state *sub = state->backends->items[i];
+static bool multi_backend_init(struct wlr_backend *_backend) {
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	for (size_t i = 0; i < backend->backends->length; ++i) {
+		struct subbackend_state *sub = backend->backends->items[i];
 		if (!wlr_backend_init(sub->backend)) {
 			wlr_log(L_ERROR, "Failed to initialize backend %zd", i);
 			return false;
@@ -26,21 +27,23 @@ static bool multi_backend_init(struct wlr_backend_state *state) {
 	return true;
 }
 
-static void multi_backend_destroy(struct wlr_backend_state *state) {
-	for (size_t i = 0; i < state->backends->length; ++i) {
-		struct subbackend_state *sub = state->backends->items[i];
+static void multi_backend_destroy(struct wlr_backend *_backend) {
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	for (size_t i = 0; i < backend->backends->length; ++i) {
+		struct subbackend_state *sub = backend->backends->items[i];
 		wlr_backend_destroy(sub->backend);
 		free(sub);
 	}
-	list_free(state->backends);
-	wlr_session_finish(state->session);
-	wlr_udev_destroy(state->udev);
-	free(state);
+	list_free(backend->backends);
+	wlr_session_finish(backend->session);
+	wlr_udev_destroy(backend->udev);
+	free(backend);
 }
 
-static struct wlr_egl *multi_backend_get_egl(struct wlr_backend_state *state) {
-	for (size_t i = 0; i < state->backends->length; ++i) {
-		struct subbackend_state *sub = state->backends->items[i];
+static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *_backend) {
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	for (size_t i = 0; i < backend->backends->length; ++i) {
+		struct subbackend_state *sub = backend->backends->items[i];
 		struct wlr_egl *egl = wlr_backend_get_egl(sub->backend);
 		if (egl) {
 			return egl;
@@ -57,25 +60,25 @@ struct wlr_backend_impl backend_impl = {
 
 struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
 		struct wlr_udev *udev) {
-	struct wlr_backend_state *state =
-		calloc(1, sizeof(struct wlr_backend_state));
-	if (!state) {
+	struct wlr_multi_backend *backend =
+		calloc(1, sizeof(struct wlr_multi_backend));
+	if (!backend) {
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
 
-	state->backends = list_create();
-	if (!state->backends) {
-		free(state);
+	backend->backends = list_create();
+	if (!backend->backends) {
+		free(backend);
 		wlr_log(L_ERROR, "Backend allocation failed");
 		return NULL;
 	}
 
-	struct wlr_backend *backend = wlr_backend_create(&backend_impl, state);
-	state->backend = backend;
-	state->session = session;
-	state->udev = udev;
-	return backend;
+	wlr_backend_create(&backend->backend, &backend_impl);
+
+	backend->session = session;
+	backend->udev = udev;
+	return &backend->backend;
 }
 
 bool wlr_backend_is_multi(struct wlr_backend *b) {
@@ -106,11 +109,12 @@ static void output_remove_reemit(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&state->container->events.output_remove, data);
 }
 
-void wlr_multi_backend_add(struct wlr_backend *multi,
+void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
 	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
 	sub->backend = backend;
-	sub->container = multi;
+	sub->container = &multi->backend;
 
 	sub->input_add.notify = input_add_reemit;
 	sub->input_remove.notify = input_remove_reemit;
@@ -127,13 +131,14 @@ void wlr_multi_backend_add(struct wlr_backend *multi,
 	wl_signal_add(&backend->events.output_add, &sub->output_add);
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
 
-	list_add(multi->state->backends, sub);
+	list_add(multi->backends, sub);
 }
 
-struct wlr_session *wlr_multi_get_session(struct wlr_backend *base) {
-	if (base->impl != &backend_impl)
+struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
+	// TODO: assert(wlr_backend_is_multi(_backend));
+	if (_backend->impl != &backend_impl) {
 		return NULL;
-
-	struct wlr_backend_state *multi = base->state;
-	return multi->session;
+	}
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	return backend->session;
 }
