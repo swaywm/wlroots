@@ -112,6 +112,9 @@ static void handle_device_added(struct wlr_backend_state *state,
 static void handle_device_removed(struct wlr_backend_state *state,
 		struct libinput_device *device) {
 	list_t *devices = libinput_device_get_user_data(device);
+	if (!devices) {
+		return;
+	}
         for (size_t i = 0; i < devices->length; i++) {
 		struct wlr_input_device *wlr_device = devices->items[i];
 		wlr_log(L_DEBUG, "Removing %s [%d:%d]", wlr_device->name,
