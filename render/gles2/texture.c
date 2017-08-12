@@ -179,6 +179,11 @@ static bool gles2_texture_upload_drm(struct wlr_texture_state *tex,
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, tex->tex_id));
 
 	EGLint attribs[] = { EGL_WAYLAND_PLANE_WL, 0, EGL_NONE };
+
+	if (tex->image) {
+		wlr_egl_destroy_image(tex->egl, tex->image);
+	}
+
 	tex->image = wlr_egl_create_image(tex->egl, EGL_WAYLAND_BUFFER_WL,
 		(EGLClientBuffer*) buf, attribs);
 	if (!tex->image) {
@@ -216,7 +221,14 @@ static void gles2_texture_bind(struct wlr_texture_state *texture) {
 
 static void gles2_texture_destroy(struct wlr_texture_state *texture) {
 	wl_signal_emit(&texture->wlr_texture->destroy_signal, texture->wlr_texture);
-	GL_CALL(glDeleteTextures(1, &texture->tex_id));
+	if (texture->tex_id) {
+		GL_CALL(glDeleteTextures(1, &texture->tex_id));
+	}
+
+	if (texture->image) {
+		wlr_egl_destroy_image(texture->egl, texture->image);
+	}
+
 	free(texture);
 }
 
