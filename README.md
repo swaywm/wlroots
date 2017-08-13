@@ -1,8 +1,15 @@
 # wlroots [![](https://api.travis-ci.org/SirCmpwn/wlroots.svg)](https://travis-ci.org/SirCmpwn/wlroots)
 
-Pluggable, composable modules for building a Wayland compositor.
+Pluggable, composable modules for building a
+[Wayland](http://wayland.freedesktop.org/) compositor.
 
-WIP - [Status](https://github.com/SirCmpwn/wlroots/issues/9)
+This is a WIP: [status](https://github.com/SirCmpwn/wlroots/issues/9)
+
+## Contributing
+
+Development is organized in our [IRC
+channel](http://webchat.freenode.net/?channels=sway&uio=d4), #sway on
+irc.freenode.net. Join us and ask how you can help!
 
 ## Building
 
