@@ -6,6 +6,7 @@
 #include <wayland-egl.h>
 #include <wlr/egl.h>
 #include <wlr/backend/wayland.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/list.h>
 
@@ -29,9 +30,10 @@ struct wlr_wl_backend {
 	char *seat_name;
 };
 
-struct wlr_output_state {
+struct wlr_wl_backend_output {
+	struct wlr_output wlr_output;
+
 	struct wlr_wl_backend *backend;
-	struct wlr_output *wlr_output;
 	struct wl_surface *surface;
 	struct wl_shell_surface *shell_surface;
 	struct wl_egl_window *egl_window;
@@ -47,12 +49,12 @@ struct wlr_input_device_state {
 
 struct wlr_pointer_state {
 	enum wlr_axis_source axis_source;
-	struct wlr_output *current_output;
+	struct wlr_wl_backend_output *current_output;
 };
 
 void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
-struct wlr_output *wlr_wl_output_for_surface(struct wlr_wl_backend *backend,
-	struct wl_surface *surface);
+struct wlr_wl_backend_output *wlr_wl_output_for_surface(
+		struct wlr_wl_backend *backend, struct wl_surface *surface);
 
 extern const struct wl_seat_listener seat_listener;
 

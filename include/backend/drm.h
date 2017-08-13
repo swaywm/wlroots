@@ -12,6 +12,7 @@
 
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/egl.h>
 #include <wlr/util/list.h>
 
@@ -137,8 +138,9 @@ struct wlr_output_mode_state {
 	drmModeModeInfo mode;
 };
 
-struct wlr_output_state {
-	struct wlr_output *base;
+struct wlr_drm_output {
+	struct wlr_output output;
+
 	enum wlr_drm_output_state state;
 	uint32_t connector;
 
@@ -161,10 +163,10 @@ struct wlr_output_state {
 struct wlr_drm_interface {
 	// Enable or disable DPMS for output
 	void (*conn_enable)(struct wlr_drm_backend *backend,
-			struct wlr_output_state *output, bool enable);
+			struct wlr_drm_output *output, bool enable);
 	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
 	bool (*crtc_pageflip)(struct wlr_drm_backend *backend,
-			struct wlr_output_state *output, struct wlr_drm_crtc *crtc,
+			struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
 			uint32_t fb_id, drmModeModeInfo *mode);
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *backend,
@@ -177,11 +179,11 @@ struct wlr_drm_interface {
 bool wlr_drm_check_features(struct wlr_drm_backend *drm);
 bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
 void wlr_drm_resources_free(struct wlr_drm_backend *drm);
-void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore);
+void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore);
 
 void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
-void wlr_drm_output_start_renderer(struct wlr_output_state *output);
+void wlr_drm_output_start_renderer(struct wlr_drm_output *output);
 
 #endif

@@ -4,21 +4,19 @@
 #include <stdbool.h>
 
 struct wlr_output_impl {
-	void (*enable)(struct wlr_output_state *state, bool enable);
-	bool (*set_mode)(struct wlr_output_state *state,
-			struct wlr_output_mode *mode);
-	void (*transform)(struct wlr_output_state *state,
+	void (*enable)(struct wlr_output *output, bool enable);
+	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
+	void (*transform)(struct wlr_output *output,
 			enum wl_output_transform transform);
-	bool (*set_cursor)(struct wlr_output_state *state,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height);
-	bool (*move_cursor)(struct wlr_output_state *state, int x, int y);
-	void (*destroy)(struct wlr_output_state *state);
-	void (*make_current)(struct wlr_output_state *state);
-	void (*swap_buffers)(struct wlr_output_state *state);
+	bool (*set_cursor)(struct wlr_output *output, const uint8_t *buf,
+			int32_t stride, uint32_t width, uint32_t height);
+	bool (*move_cursor)(struct wlr_output *output, int x, int y);
+	void (*destroy)(struct wlr_output *output);
+	void (*make_current)(struct wlr_output *output);
+	void (*swap_buffers)(struct wlr_output *output);
 };
 
-struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
-		struct wlr_output_state *state);
+void wlr_output_init(struct wlr_output *output, const struct wlr_output_impl *impl);
 void wlr_output_free(struct wlr_output *output);
 void wlr_output_update_matrix(struct wlr_output *output);
 struct wl_global *wlr_output_create_global(

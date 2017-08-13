@@ -92,27 +92,24 @@ void wlr_output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_texture(output->transform_matrix, output->width, output->height, output->transform);
 }
 
-struct wlr_output *wlr_output_create(struct wlr_output_impl *impl,
-		struct wlr_output_state *state) {
-	struct wlr_output *output = calloc(1, sizeof(struct wlr_output));
+void wlr_output_init(struct wlr_output *output,
+		const struct wlr_output_impl *impl) {
 	output->impl = impl;
-	output->state = state;
 	output->modes = list_create();
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.resolution);
-	return output;
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
-	output->impl->enable(output->state, enable);
+	output->impl->enable(output, enable);
 }
 
 bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
-	bool result = output->impl->set_mode(output->state, mode);
+	bool result = output->impl->set_mode(output, mode);
 	if (result) {
 		wlr_output_update_matrix(output);
 	}
@@ -121,13 +118,13 @@ bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode
 
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	output->impl->transform(output->state, transform);
+	output->impl->transform(output, transform);
 	wlr_output_update_matrix(output);
 }
 
 bool wlr_output_set_cursor(struct wlr_output *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	if (output->impl->set_cursor && output->impl->set_cursor(output->state, buf,
+	if (output->impl->set_cursor && output->impl->set_cursor(output, buf,
 			stride, width, height)) {
 		output->cursor.is_sw = false;
 		return true;
@@ -167,7 +164,7 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 		return false;
 	}
 
-	return output->impl->move_cursor(output->state, x, y);
+	return output->impl->move_cursor(output, x, y);
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -175,10 +172,10 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
-	output->impl->destroy(output->state);
+	output->impl->destroy(output);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
 		struct wlr_output_mode *mode = output->modes->items[i];
-		free(mode->state);
+		free(mode);
 		free(mode);
 	}
 	list_free(output->modes);
@@ -198,7 +195,7 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 }
 
 void wlr_output_make_current(struct wlr_output *output) {
-	output->impl->make_current(output->state);
+	output->impl->make_current(output);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
@@ -212,5 +209,5 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
 	}
 
-	output->impl->swap_buffers(output->state);
+	output->impl->swap_buffers(output);
 }

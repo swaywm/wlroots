@@ -111,11 +111,11 @@ bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
 
-struct wlr_output *wlr_wl_output_for_surface(struct wlr_wl_backend *backend,
-		struct wl_surface *surface) {
+struct wlr_wl_backend_output *wlr_wl_output_for_surface(
+		struct wlr_wl_backend *backend, struct wl_surface *surface) {
 	for (size_t i = 0; i < backend->outputs->length; ++i) {
-		struct wlr_output *output = backend->outputs->items[i];
-		if (output->state->surface == surface) {
+		struct wlr_wl_backend_output *output = backend->outputs->items[i];
+		if (output->surface == surface) {
 			return output;
 		}
 	}

@@ -42,8 +42,8 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 	return true;
 }
 
-static bool atomic_commit(int drm_fd, struct atomic *atom, struct wlr_output_state *output,
-		uint32_t flag) {
+static bool atomic_commit(int drm_fd, struct atomic *atom,
+		struct wlr_drm_output *output, uint32_t flag) {
 	if (atom->failed) {
 		return false;
 	}
@@ -88,7 +88,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 }
 
 static bool atomic_crtc_pageflip(struct wlr_drm_backend *backend,
-		struct wlr_output_state *output,
+		struct wlr_drm_output *output,
 		struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
 	if (mode) {
@@ -114,7 +114,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *backend,
 }
 
 static void atomic_conn_enable(struct wlr_drm_backend *backend,
-		struct wlr_output_state *output, bool enable) {
+		struct wlr_drm_output *output, bool enable) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct atomic atom;
 

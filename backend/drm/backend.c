@@ -28,8 +28,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *_backend) {
 	}
 	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
 	for (size_t i = 0; backend->outputs && i < backend->outputs->length; ++i) {
-		struct wlr_output_state *output = backend->outputs->items[i];
-		wlr_output_destroy(output->base);
+		struct wlr_drm_output *output = backend->outputs->items[i];
+		wlr_output_destroy(&output->output);
 	}
 
 	wlr_udev_signal_remove(backend->udev, &backend->drm_invalidated);
@@ -61,7 +61,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		wlr_log(L_INFO, "DRM fd resumed");
 
 		for (size_t i = 0; i < backend->outputs->length; ++i) {
-			struct wlr_output_state *output = backend->outputs->items[i];
+			struct wlr_drm_output *output = backend->outputs->items[i];
 			wlr_drm_output_start_renderer(output);
 
 			if (!output->crtc) {
@@ -69,7 +69,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 			}
 
 			struct wlr_drm_plane *plane = output->crtc->cursor;
-
 			backend->iface->crtc_set_cursor(backend, output->crtc,
 				plane ? plane->cursor_bo : NULL);
 		}

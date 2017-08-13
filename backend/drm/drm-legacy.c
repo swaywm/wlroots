@@ -6,7 +6,7 @@
 #include "backend/drm-util.h"
 
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *backend,
-		struct wlr_output_state *output, struct wlr_drm_crtc *crtc,
+		struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
 	if (mode) {
 		drmModeSetCrtc(backend->fd, crtc->id, fb_id, 0, 0,
@@ -19,7 +19,7 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *backend,
 }
 
 static void legacy_conn_enable(struct wlr_drm_backend *backend,
-		struct wlr_output_state *output, bool enable) {
+		struct wlr_drm_output *output, bool enable) {
 	drmModeConnectorSetProperty(backend->fd, output->connector, output->props.dpms,
 		enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
 }

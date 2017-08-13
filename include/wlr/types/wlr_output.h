@@ -14,12 +14,10 @@ struct wlr_output_mode {
 };
 
 struct wlr_output_impl;
-struct wlr_output_state;
 
 struct wlr_output {
 	const struct wlr_output_impl *impl;
-	struct wlr_output_state *state;
-	void *user_data;
+
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 

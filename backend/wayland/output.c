@@ -12,10 +12,8 @@
 static struct wl_callback_listener frame_listener;
 
 static void surface_frame_callback(void *data, struct wl_callback *cb, uint32_t time) {
-	struct wlr_output_state *output = data;
-	assert(output);
-
-	struct wlr_output *wlr_output = output->wlr_output;
+	struct wlr_output *wlr_output = data;
+	assert(wlr_output);
 	wl_signal_emit(&wlr_output->events.frame, wlr_output);
 	wl_callback_destroy(cb);
 }
@@ -24,7 +22,8 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
-static void wlr_wl_output_make_current(struct wlr_output_state *output) {
+static void wlr_wl_output_make_current(struct wlr_output *_output) {
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	if (!eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
@@ -32,7 +31,8 @@ static void wlr_wl_output_make_current(struct wlr_output_state *output) {
 	}
 }
 
-static void wlr_wl_output_swap_buffers(struct wlr_output_state *output) {
+static void wlr_wl_output_swap_buffers(struct wlr_output *_output) {
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
@@ -40,13 +40,15 @@ static void wlr_wl_output_swap_buffers(struct wlr_output_state *output) {
 	}
 }
 
-static void wlr_wl_output_transform(struct wlr_output_state *output,
+static void wlr_wl_output_transform(struct wlr_output *_output,
 		enum wl_output_transform transform) {
-	output->wlr_output->transform = transform;
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	output->wlr_output.transform = transform;
 }
 
-static void wlr_wl_output_destroy(struct wlr_output_state *output) {
-	wl_signal_emit(&output->backend->backend.events.output_remove, output->wlr_output);
+static void wlr_wl_output_destroy(struct wlr_output *_output) {
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	wl_signal_emit(&output->backend->backend.events.output_remove, &output->wlr_output);
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
 	}
@@ -65,21 +67,20 @@ static struct wlr_output_impl output_impl = {
 };
 
 void handle_ping(void* data, struct wl_shell_surface* ssurface, uint32_t serial) {
-	struct wlr_output_state *output = data;
+	struct wlr_wl_backend_output *output = data;
 	assert(output && output->shell_surface == ssurface);
 	wl_shell_surface_pong(ssurface, serial);
 }
 
 void handle_configure(void *data, struct wl_shell_surface *wl_shell_surface,
 		uint32_t edges, int32_t width, int32_t height){
-	struct wlr_output_state *ostate = data;
-	assert(ostate && ostate->shell_surface == wl_shell_surface);
-	struct wlr_output *output = ostate->wlr_output;
-	wl_egl_window_resize(ostate->egl_window, width, height, 0, 0);
-	output->width = width;
-	output->height = height;
-	wlr_output_update_matrix(output);
-	wl_signal_emit(&output->events.resolution, output);
+	struct wlr_wl_backend_output *output = data;
+	assert(output && output->shell_surface == wl_shell_surface);
+	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+	output->wlr_output.width = width;
+	output->wlr_output.height = height;
+	wlr_output_update_matrix(&output->wlr_output);
+	wl_signal_emit(&output->wlr_output.events.resolution, output);
 }
 
 void handle_popup_done(void *data, struct wl_shell_surface *wl_shell_surface) {
@@ -100,18 +101,13 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		return NULL;
 	}
 
-	struct wlr_output_state *ostate;
-	if (!(ostate = calloc(sizeof(struct wlr_output_state), 1))) {
+	struct wlr_wl_backend_output *output;
+	if (!(output = calloc(sizeof(struct wlr_wl_backend_output), 1))) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_output_state");
 		return NULL;
 	}
-
-	struct wlr_output *wlr_output = wlr_output_create(&output_impl, ostate);
-	if (!wlr_output) {
-		free(ostate);
-		wlr_log_errno(L_ERROR, "Allocation failed");
-		return NULL;
-	}
+	wlr_output_init(&output->wlr_output, &output_impl);
+	struct wlr_output *wlr_output = &output->wlr_output;
 
 	wlr_output->width = 640;
 	wlr_output->height = 480;
@@ -122,26 +118,27 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 			backend->outputs->length + 1);
 	wlr_output_update_matrix(wlr_output);
 
-	ostate->backend = backend;
-	ostate->wlr_output = wlr_output;
+	output->backend = backend;
 
 	// TODO: error handling
-	ostate->surface = wl_compositor_create_surface(backend->compositor);
-	ostate->shell_surface = wl_shell_get_shell_surface(backend->shell, ostate->surface);
+	output->surface = wl_compositor_create_surface(backend->compositor);
+	output->shell_surface =
+		wl_shell_get_shell_surface(backend->shell, output->surface);
 
-	wl_shell_surface_set_class(ostate->shell_surface, "sway");
-	wl_shell_surface_set_title(ostate->shell_surface, "sway-wl");
-	wl_shell_surface_add_listener(ostate->shell_surface, &shell_surface_listener, ostate);
-	wl_shell_surface_set_toplevel(ostate->shell_surface);
+	wl_shell_surface_set_class(output->shell_surface, "sway");
+	wl_shell_surface_set_title(output->shell_surface, "sway-wl");
+	wl_shell_surface_add_listener(output->shell_surface,
+			&shell_surface_listener, output);
+	wl_shell_surface_set_toplevel(output->shell_surface);
 
-	ostate->egl_window = wl_egl_window_create(ostate->surface,
+	output->egl_window = wl_egl_window_create(output->surface,
 			wlr_output->width, wlr_output->height);
-	ostate->egl_surface = wlr_egl_create_surface(&backend->egl, ostate->egl_window);
+	output->egl_surface = wlr_egl_create_surface(&backend->egl, output->egl_window);
 
 	// start rendering loop per callbacks by rendering first frame
-	if (!eglMakeCurrent(ostate->backend->egl.display,
-		ostate->egl_surface, ostate->egl_surface,
-		ostate->backend->egl.context)) {
+	if (!eglMakeCurrent(output->backend->egl.display,
+		output->egl_surface, output->egl_surface,
+		output->backend->egl.context)) {
 		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
 		return false;
 	}
@@ -150,10 +147,10 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	ostate->frame_callback = wl_surface_frame(ostate->surface);
-	wl_callback_add_listener(ostate->frame_callback, &frame_listener, ostate);
+	output->frame_callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	if (!eglSwapBuffers(ostate->backend->egl.display, ostate->egl_surface)) {
+	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
 		return false;
 	}

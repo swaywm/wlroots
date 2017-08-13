@@ -17,14 +17,9 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer && dev->pointer->state);
-	struct wlr_output* output = wlr_wl_output_for_surface(dev->state->backend,
-			surface);
-
-	if (!output) {
-		wlr_log(L_ERROR, "pointer entered invalid surface");
-		return;
-	}
-
+	struct wlr_wl_backend_output* output =
+		wlr_wl_output_for_surface(dev->state->backend, surface);
+	assert(output);
 	dev->pointer->state->current_output = output;
 }
 
@@ -40,16 +35,13 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer && dev->pointer->state);
 	struct wlr_pointer_state *state = dev->pointer->state;
-
-	if(!state->current_output) {
+	if (!state->current_output) {
 		wlr_log(L_ERROR, "pointer motion event without current output");
 		return;
 	}
-
 	int width, height;
-	wl_egl_window_get_attached_size(state->current_output->state->egl_window,
+	wl_egl_window_get_attached_size(state->current_output->egl_window,
 		&width, &height);
-
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;

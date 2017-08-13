@@ -282,11 +282,13 @@ static void wlr_drm_plane_swap_buffers(struct wlr_drm_renderer *renderer,
 	plane->back = gbm_surface_lock_front_buffer(plane->gbm);
 }
 
-static void wlr_drm_output_make_current(struct wlr_output_state *output) {
+static void wlr_drm_output_make_current(struct wlr_output *_output) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	wlr_drm_plane_make_current(output->renderer, output->crtc->primary);
 }
 
-static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
+static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend =
 		wl_container_of(output->renderer, backend, renderer);
 	struct wlr_drm_renderer *renderer = output->renderer;
@@ -299,7 +301,7 @@ static void wlr_drm_output_swap_buffers(struct wlr_output_state *output) {
 	output->pageflip_pending = true;
 }
 
-void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
+void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
@@ -322,12 +324,13 @@ void wlr_drm_output_start_renderer(struct wlr_output_state *output) {
 		bo = plane->back;
 	}
 
-	drmModeModeInfo *mode = &output->base->current_mode->state->mode;
+	drmModeModeInfo *mode = &output->output.current_mode->state->mode;
 	backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode);
 	output->pageflip_pending = true;
 }
 
-static void wlr_drm_output_enable(struct wlr_output_state *output, bool enable) {
+static void wlr_drm_output_enable(struct wlr_output *_output, bool enable) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend =
 		wl_container_of(output->renderer, backend, renderer);
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
@@ -389,7 +392,7 @@ static void realloc_planes(struct wlr_drm_backend *backend, const uint32_t *crtc
 }
 
 static void realloc_crtcs(struct wlr_drm_backend *backend,
-		struct wlr_output_state *output) {
+		struct wlr_drm_output *output) {
 	uint32_t crtc[backend->num_crtcs];
 	uint32_t crtc_res[backend->num_crtcs];
 	uint32_t possible_crtc[backend->outputs->length];
@@ -402,7 +405,7 @@ static void realloc_crtcs(struct wlr_drm_backend *backend,
 
 	size_t index;
 	for (size_t i = 0; i < backend->outputs->length; ++i) {
-		struct wlr_output_state *o = backend->outputs->items[i];
+		struct wlr_drm_output *o = backend->outputs->items[i];
 		if (o == output) {
 			index = i;
 		}
@@ -441,7 +444,7 @@ static void realloc_crtcs(struct wlr_drm_backend *backend,
 		}
 
 		if (crtc_res[i] != crtc[i]) {
-			struct wlr_output_state *o = backend->outputs->items[crtc_res[i]];
+			struct wlr_drm_output *o = backend->outputs->items[crtc_res[i]];
 			o->crtc = &backend->crtcs[i];
 		}
 	}
@@ -449,12 +452,13 @@ static void realloc_crtcs(struct wlr_drm_backend *backend,
 	realloc_planes(backend, crtc_res);
 }
 
-static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
+static bool wlr_drm_output_set_mode(struct wlr_output *_output,
 		struct wlr_output_mode *mode) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend
 		= wl_container_of(output->renderer, backend, renderer);
 
-	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->base->name,
+	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->output.name,
 			mode->width, mode->height, mode->refresh);
 
 	drmModeConnector *conn = drmModeGetConnector(backend->fd, output->connector);
@@ -464,7 +468,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	}
 
 	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(L_ERROR, "%s is not connected", output->base->name);
+		wlr_log(L_ERROR, "%s is not connected", output->output.name);
 		goto error_output;
 	}
 
@@ -482,28 +486,28 @@ static bool wlr_drm_output_set_mode(struct wlr_output_state *output,
 	realloc_crtcs(backend, output);
 
 	if (!output->crtc) {
-		wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->base->name);
+		wlr_log(L_ERROR, "Unable to match %s with a CRTC", output->output.name);
 		goto error_enc;
 	}
 
 	struct wlr_drm_crtc *crtc = output->crtc;
-	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", output->base->name,
+	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", output->output.name,
 		crtc - backend->crtcs,
 		crtc->overlay ? crtc->overlay - backend->overlay_planes : -1,
 		crtc->primary ? crtc->primary - backend->primary_planes : -1,
 		crtc->cursor ? crtc->cursor - backend->cursor_planes : -1);
 
 	output->state = WLR_DRM_OUTPUT_CONNECTED;
-	output->width = output->base->width = mode->width;
-	output->height = output->base->height = mode->height;
-	output->base->current_mode = mode;
-	wl_signal_emit(&output->base->events.resolution, output->base);
+	output->width = output->output.width = mode->width;
+	output->height = output->output.height = mode->height;
+	output->output.current_mode = mode;
+	wl_signal_emit(&output->output.events.resolution, &output->output);
 
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
 	// we actually need to reinitalise all of them
 	for (size_t i = 0; i < backend->outputs->length; ++i) {
-		struct wlr_output_state *output = backend->outputs->items[i];
-		struct wlr_output_mode *mode = output->base->current_mode;
+		struct wlr_drm_output *output = backend->outputs->items[i];
+		struct wlr_output_mode *mode = output->output.current_mode;
 		struct wlr_drm_crtc *crtc = output->crtc;
 
 		if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
@@ -533,13 +537,14 @@ error_output:
 	return false;
 }
 
-static void wlr_drm_output_transform(struct wlr_output_state *output,
+static void wlr_drm_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	output->base->transform = transform;
+	output->transform = transform;
 }
 
-static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
+static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend
 		= wl_container_of(output->renderer, backend, renderer);
 	struct wlr_drm_renderer *renderer = output->renderer;
@@ -588,7 +593,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 		// OpenGL will read the pixels out upside down,
 		// so we need to flip the image vertically
 		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
-			output->base->transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
+			output->output.transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
 		plane->wlr_rend = wlr_gles2_renderer_init(&backend->backend);
 		if (!plane->wlr_rend) {
@@ -638,14 +643,16 @@ static bool wlr_drm_output_set_cursor(struct wlr_output_state *output,
 	return backend->iface->crtc_set_cursor(backend, crtc, bo);
 }
 
-static bool wlr_drm_output_move_cursor(struct wlr_output_state *output,
+static bool wlr_drm_output_move_cursor(struct wlr_output *_output,
 		int x, int y) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend =
 		wl_container_of(output->renderer, backend, renderer);
 	return backend->iface->crtc_move_cursor(backend, output->crtc, x, y);
 }
 
-static void wlr_drm_output_destroy(struct wlr_output_state *output) {
+static void wlr_drm_output_destroy(struct wlr_output *_output) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	wlr_drm_output_cleanup(output, true);
 	free(output);
 }
@@ -662,7 +669,7 @@ static struct wlr_output_impl output_impl = {
 };
 
 static int find_id(const void *item, const void *cmp_to) {
-	const struct wlr_output_state *output = item;
+	const struct wlr_drm_output *output = item;
 	const uint32_t *id = cmp_to;
 
 	if (output->connector < *id) {
@@ -700,7 +707,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			continue;
 		}
 
-		struct wlr_output_state *output;
+		struct wlr_drm_output *output;
 		int index = list_seq_find(backend->outputs, find_id, &conn->connector_id);
 
 		if (index == -1) {
@@ -710,14 +717,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 				drmModeFreeConnector(conn);
 				continue;
 			}
-
-			output->base = wlr_output_create(&output_impl, output);
-			if (!output->base) {
-				wlr_log_errno(L_ERROR, "Allocation failed");
-				drmModeFreeConnector(conn);
-				free(output);
-				continue;
-			}
+			wlr_output_init(&output->output, &output_impl);
 
 			output->renderer = &backend->renderer;
 			output->state = WLR_DRM_OUTPUT_DISCONNECTED;
@@ -730,10 +730,10 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 				drmModeFreeEncoder(curr_enc);
 			}
 
-			output->base->phys_width = conn->mmWidth;
-			output->base->phys_height = conn->mmHeight;
-			output->base->subpixel = subpixel_map[conn->subpixel];
-			snprintf(output->base->name, sizeof(output->base->name), "%s-%"PRIu32,
+			output->output.phys_width = conn->mmWidth;
+			output->output.phys_height = conn->mmHeight;
+			output->output.subpixel = subpixel_map[conn->subpixel];
+			snprintf(output->output.name, sizeof(output->output.name), "%s-%"PRIu32,
 				 conn_get_name(conn->connector_type),
 				 conn->connector_type_id);
 
@@ -743,12 +743,12 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			size_t edid_len = 0;
 			uint8_t *edid = wlr_drm_get_prop_blob(backend->fd,
 					output->connector, output->props.edid, &edid_len);
-			parse_edid(output->base, edid_len, edid);
+			parse_edid(&output->output, edid_len, edid);
 			free(edid);
 
-			wlr_output_create_global(output->base, backend->display);
+			wlr_output_create_global(&output->output, backend->display);
 			list_add(backend->outputs, output);
-			wlr_log(L_INFO, "Found display '%s'", output->base->name);
+			wlr_log(L_INFO, "Found display '%s'", output->output.name);
 		} else {
 			output = backend->outputs->items[index];
 		}
@@ -756,7 +756,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		if (output->state == WLR_DRM_OUTPUT_DISCONNECTED &&
 				conn->connection == DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' connected", output->base->name);
+			wlr_log(L_INFO, "'%s' connected", output->output.name);
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < conn->count_modes; ++i) {
@@ -773,16 +773,16 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 				wlr_log(L_INFO, "  %"PRId32"@%"PRId32"@%"PRId32,
 					mode->width, mode->height, mode->refresh);
 
-				list_add(output->base->modes, mode);
+				list_add(output->output.modes, mode);
 			}
 
 			output->state = WLR_DRM_OUTPUT_NEEDS_MODESET;
-			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->base->name);
-			wl_signal_emit(&backend->backend.events.output_add, output->base);
+			wlr_log(L_INFO, "Sending modesetting signal for '%s'", output->output.name);
+			wl_signal_emit(&backend->backend.events.output_add, &output->output);
 		} else if (output->state == WLR_DRM_OUTPUT_CONNECTED &&
 				conn->connection != DRM_MODE_CONNECTED) {
 
-			wlr_log(L_INFO, "'%s' disconnected", output->base->name);
+			wlr_log(L_INFO, "'%s' disconnected", output->output.name);
 			wlr_drm_output_cleanup(output, false);
 		}
 
@@ -794,7 +794,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 
 static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, void *user) {
-	struct wlr_output_state *output = user;
+	struct wlr_drm_output *output = user;
 	struct wlr_drm_backend *backend =
 		wl_container_of(output->renderer, backend, renderer);
 
@@ -810,7 +810,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	if (backend->session->active) {
-		wl_signal_emit(&output->base->events.frame, output->base);
+		wl_signal_emit(&output->output.events.frame, &output->output);
 	}
 }
 
@@ -824,7 +824,7 @@ int wlr_drm_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-static void restore_output(struct wlr_output_state *output, int fd) {
+static void restore_output(struct wlr_drm_output *output, int fd) {
 	// Wait for any pending pageflips to finish
 	while (output->pageflip_pending) {
 		wlr_drm_event(fd, 0, NULL);
@@ -840,7 +840,7 @@ static void restore_output(struct wlr_output_state *output, int fd) {
 	drmModeFreeCrtc(crtc);
 }
 
-void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
+void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore) {
 	if (!output) {
 		return;
 	}
@@ -875,8 +875,8 @@ void wlr_drm_output_cleanup(struct wlr_output_state *output, bool restore) {
 			restore_output(output, renderer->fd);
 		}
 		wlr_log(L_INFO, "Emmiting destruction signal for '%s'",
-				output->base->name);
-		wl_signal_emit(&backend->backend.events.output_remove, output->base);
+				output->output.name);
+		wl_signal_emit(&backend->backend.events.output_remove, &output->output);
 		break;
 	case WLR_DRM_OUTPUT_DISCONNECTED:
 		break;
