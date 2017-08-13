@@ -17,9 +17,6 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 	if (mask & WL_EVENT_READABLE) {
 		count = wl_display_dispatch(backend->remote_display);
 	}
-	if (mask & WL_EVENT_WRITABLE) {
-		count = wl_display_flush(backend->remote_display);
-	}
 	if (mask == 0) {
 		count = wl_display_dispatch_pending(backend->remote_display);
 		wl_display_flush(backend->remote_display);
@@ -63,7 +60,7 @@ static bool wlr_wl_backend_init(struct wlr_backend *_backend) {
 	struct wl_event_loop *loop = wl_display_get_event_loop(backend->local_display);
 	int fd = wl_display_get_fd(backend->remote_display);
 	int events = WL_EVENT_READABLE | WL_EVENT_ERROR |
-		WL_EVENT_HANGUP | WL_EVENT_WRITABLE;
+		WL_EVENT_HANGUP;
 	backend->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
 			dispatch_events, backend);
 	wl_event_source_check(backend->remote_display_src);
