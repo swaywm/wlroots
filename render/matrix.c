@@ -1,7 +1,9 @@
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/matrix.h>
+#include <pixman.h>
 
 /* Obtains the index for the given row/column */
 static inline int mind(int row, int col) {
@@ -140,4 +142,78 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	// Identity
 	mat[10] = 1.0f;
 	mat[15] = 1.0f;
+}
+
+struct wlr_vector {
+	float f[4];
+};
+
+/* v <- m * v */
+static void wlr_matrix_transform(float matrix[16], struct wlr_vector *v) {
+	int i, j;
+	struct wlr_vector t;
+
+	for (i = 0; i < 4; i++) {
+		t.f[i] = 0;
+		for (j = 0; j < 4; j++)
+			t.f[i] += v->f[j] * matrix[i + j * 4];
+	}
+
+	*v = t;
+}
+
+/*
+ * Transform a region by a matrix, restricted to axis-aligned transformations
+ *
+ * Warning: This function does not work for projective, affine, or matrices
+ * that encode arbitrary rotations. Only 90-degree step rotations are
+ * supported.
+ */
+void wlr_matrix_transform_region(pixman_region32_t *dest,
+		float matrix[16],
+		pixman_region32_t *src) {
+	pixman_box32_t *src_rects, *dest_rects;
+	int nrects, i;
+
+	src_rects = pixman_region32_rectangles(src, &nrects);
+	dest_rects = malloc(nrects * sizeof(*dest_rects));
+	if (!dest_rects) {
+		return;
+	}
+
+	for (i = 0; i < nrects; i++) {
+		struct wlr_vector vec1 = {{
+			src_rects[i].x1, src_rects[i].y1, 0, 1
+		}};
+		wlr_matrix_transform(matrix, &vec1);
+		vec1.f[0] /= vec1.f[3];
+		vec1.f[1] /= vec1.f[3];
+
+		struct wlr_vector vec2 = {{
+			src_rects[i].x2, src_rects[i].y2, 0, 1
+		}};
+		wlr_matrix_transform(matrix, &vec2);
+		vec2.f[0] /= vec2.f[3];
+		vec2.f[1] /= vec2.f[3];
+
+		if (vec1.f[0] < vec2.f[0]) {
+			dest_rects[i].x1 = floor(vec1.f[0]);
+			dest_rects[i].x2 = ceil(vec2.f[0]);
+		} else {
+			dest_rects[i].x1 = floor(vec2.f[0]);
+			dest_rects[i].x2 = ceil(vec1.f[0]);
+		}
+
+		if (vec1.f[1] < vec2.f[1]) {
+			dest_rects[i].y1 = floor(vec1.f[1]);
+			dest_rects[i].y2 = ceil(vec2.f[1]);
+		} else {
+			dest_rects[i].y1 = floor(vec2.f[1]);
+			dest_rects[i].y2 = ceil(vec1.f[1]);
+		}
+	}
+
+	pixman_region32_clear(dest);
+	pixman_region32_init_rects(dest, dest_rects, nrects);
+	free(dest_rects);
 }
