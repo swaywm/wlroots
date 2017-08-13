@@ -103,6 +103,10 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_libinput_backend_destroy
 };
 
+bool wlr_backend_is_libinput(struct wlr_backend *b) {
+	return b->impl == &backend_impl;
+}
+
 static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend = wl_container_of(listener, backend, session_signal);
 	struct wlr_session *session = data;
