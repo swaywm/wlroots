@@ -43,8 +43,6 @@ if systemd.found()
     add_project_arguments('-DHAS_SYSTEMD', language: 'c')
 endif
 
-wlr_files = []
-
 subdir('protocol')
 subdir('backend')
 subdir('render')
@@ -70,7 +68,7 @@ _wlr_deps = [
     math,
 ]
 
-lib_wlr = library('wlroots', wlr_files,
+lib_wlr = library('wlroots', files('dummy.c'),
     link_whole: [
         lib_wl_protos,
         lib_wlr_backend,

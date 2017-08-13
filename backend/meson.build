@@ -25,7 +25,7 @@ backend_files = files(
 )
 
 if systemd.found()
-  wlr_files += files('session/logind.c')
+  backend_files += files('session/logind.c')
 endif
 
 lib_wlr_backend = static_library('wlr_backend', backend_files,
