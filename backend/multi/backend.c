@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
@@ -111,6 +112,8 @@ static void output_remove_reemit(struct wl_listener *listener, void *data) {
 
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
+	assert(wlr_backend_is_multi(backend));
+
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
 	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
 	sub->backend = backend;
@@ -135,10 +138,8 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
-	// TODO: assert(wlr_backend_is_multi(_backend));
-	if (_backend->impl != &backend_impl) {
-		return NULL;
-	}
+	assert(wlr_backend_is_multi(_backend));
+
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
 	return backend->session;
 }

@@ -12,4 +12,6 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_udev *udev);
 struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev);
 
+bool wlr_backend_is_libinput(struct wlr_backend *backend);
+
 #endif

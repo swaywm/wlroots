@@ -52,6 +52,10 @@ static struct wlr_backend_impl backend_impl = {
 	.get_egl = wlr_drm_backend_get_egl
 };
 
+bool wlr_backend_is_drm(struct wlr_backend *b) {
+	return b->impl == &backend_impl;
+}
+
 static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *backend =
 		wl_container_of(listener, backend, session_signal);
