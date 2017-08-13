@@ -14,12 +14,12 @@ struct wlr_libinput_backend {
 	struct wlr_udev *udev;
 	struct wl_display *display;
 
-	struct libinput *libinput;
+	struct libinput *libinput_context;
 	struct wl_event_source *input_event;
 
 	struct wl_listener session_signal;
 
-	list_t *devices;
+	list_t *wlr_device_lists;
 };
 
 struct wlr_input_device_state {
