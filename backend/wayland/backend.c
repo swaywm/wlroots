@@ -29,7 +29,7 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
  * compositor and creates surfaces for each output, then registers globals on
  * the specified display.
  */
-static bool wlr_wl_backend_init(struct wlr_backend *_backend) {
+static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	wlr_log(L_INFO, "Initializating wayland backend");
 
@@ -102,7 +102,7 @@ static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *_backend) {
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.init = wlr_wl_backend_init,
+	.start = wlr_wl_backend_start,
 	.destroy = wlr_wl_backend_destroy,
 	.get_egl = wlr_wl_backend_get_egl
 };
@@ -130,7 +130,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
-	wlr_backend_create(&backend->backend, &backend_impl);
+	wlr_backend_init(&backend->backend, &backend_impl);
 
 	if (!(backend->devices = list_create())) {
 		wlr_log(L_ERROR, "Could not allocate devices list");

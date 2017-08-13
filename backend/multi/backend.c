@@ -15,11 +15,11 @@ struct subbackend_state {
 	struct wl_listener output_remove;
 };
 
-static bool multi_backend_init(struct wlr_backend *_backend) {
+static bool multi_backend_start(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
 	for (size_t i = 0; i < backend->backends->length; ++i) {
 		struct subbackend_state *sub = backend->backends->items[i];
-		if (!wlr_backend_init(sub->backend)) {
+		if (!wlr_backend_start(sub->backend)) {
 			wlr_log(L_ERROR, "Failed to initialize backend %zd", i);
 			return false;
 		}
@@ -53,7 +53,7 @@ static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *_backend) {
 }
 
 struct wlr_backend_impl backend_impl = {
-	.init = multi_backend_init,
+	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
 	.get_egl = multi_backend_get_egl
 };
@@ -74,7 +74,7 @@ struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
 		return NULL;
 	}
 
-	wlr_backend_create(&backend->backend, &backend_impl);
+	wlr_backend_init(&backend->backend, &backend_impl);
 
 	backend->session = session;
 	backend->udev = udev;

@@ -16,7 +16,7 @@
 #include "backend/udev.h"
 #include "backend/drm.h"
 
-static bool wlr_drm_backend_init(struct wlr_backend *_backend) {
+static bool wlr_drm_backend_start(struct wlr_backend *_backend) {
 	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
 	wlr_drm_scan_connectors(backend);
 	return true;
@@ -47,7 +47,7 @@ static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *_backend) {
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.init = wlr_drm_backend_init,
+	.start = wlr_drm_backend_start,
 	.destroy = wlr_drm_backend_destroy,
 	.get_egl = wlr_drm_backend_get_egl
 };
@@ -106,7 +106,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_backend_create(&backend->backend, &backend_impl);
+	wlr_backend_init(&backend->backend, &backend_impl);
 
 	backend->session = session;
 	backend->udev = udev;

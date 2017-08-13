@@ -43,7 +43,7 @@ static void wlr_libinput_log(struct libinput *libinput_context,
 	_wlr_vlog(L_ERROR, fmt, args);
 }
 
-static bool wlr_libinput_backend_init(struct wlr_backend *_backend) {
+static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
 	wlr_log(L_DEBUG, "Initializing libinput");
 	backend->libinput_context = libinput_udev_create_context(&libinput_impl, backend,
@@ -99,7 +99,7 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.init = wlr_libinput_backend_init,
+	.start = wlr_libinput_backend_start,
 	.destroy = wlr_libinput_backend_destroy
 };
 
@@ -127,7 +127,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
-	wlr_backend_create(&backend->backend, &backend_impl);
+	wlr_backend_init(&backend->backend, &backend_impl);
 
 	if (!(backend->wlr_device_lists = list_create())) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));

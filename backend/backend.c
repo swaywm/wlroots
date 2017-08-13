@@ -14,7 +14,7 @@
 #include <wlr/util/log.h>
 #include "backend/udev.h"
 
-void wlr_backend_create(struct wlr_backend *backend,
+void wlr_backend_init(struct wlr_backend *backend,
 		const struct wlr_backend_impl *impl) {
 	assert(backend);
 	backend->impl = impl;
@@ -24,9 +24,9 @@ void wlr_backend_create(struct wlr_backend *backend,
 	wl_signal_init(&backend->events.output_remove);
 }
 
-bool wlr_backend_init(struct wlr_backend *backend) {
-	if (backend->impl->init) {
-		return backend->impl->init(backend);
+bool wlr_backend_start(struct wlr_backend *backend) {
+	if (backend->impl->start) {
+		return backend->impl->start(backend);
 	}
 	return true;
 }
