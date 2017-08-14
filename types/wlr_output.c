@@ -178,13 +178,16 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wlr_texture_destroy(output->cursor.texture);
 	wlr_renderer_destroy(output->cursor.renderer);
 
-	output->impl->destroy(output);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
 		struct wlr_output_mode *mode = output->modes->items[i];
 		free(mode);
-		free(mode);
 	}
 	list_free(output->modes);
+	if (output->impl->destroy) {
+		output->impl->destroy(output);
+	} else {
+		free(output);
+	}
 }
 
 void wlr_output_effective_resolution(struct wlr_output *output,
