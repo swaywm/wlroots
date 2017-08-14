@@ -10,7 +10,13 @@
 struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	return wlr_tablet_tool_create(NULL, NULL);
+	struct wlr_tablet_tool *wlr_tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
+	if (!wlr_tablet_tool) {
+		wlr_log(L_ERROR, "Unable to allocate wlr_tablet_tool");
+		return NULL;
+	}
+	wlr_tablet_tool_init(wlr_tablet_tool, NULL);
+	return wlr_tablet_tool;
 }
 
 void handle_tablet_tool_axis(struct libinput_event *event,

@@ -5,11 +5,9 @@
 #include <stdint.h>
 
 struct wlr_tablet_tool_impl;
-struct wlr_tablet_tool_state;
 
 struct wlr_tablet_tool {
 	struct wlr_tablet_tool_impl *impl;
-	struct wlr_tablet_tool_state *state;
 
 	struct {
 		struct wl_signal axis;
