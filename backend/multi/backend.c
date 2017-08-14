@@ -112,7 +112,7 @@ static void output_remove_reemit(struct wl_listener *listener, void *data) {
 
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
-	assert(wlr_backend_is_multi(backend));
+	assert(wlr_backend_is_multi(_multi));
 
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
 	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
