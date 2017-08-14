@@ -6,31 +6,29 @@
 #include <wlr/types/wlr_output.h>
 
 struct wlr_renderer_impl;
-struct wlr_renderer_state;
 
 struct wlr_renderer {
 	struct wlr_renderer_impl *impl;
-	struct wlr_renderer_state *state;
 };
 
 struct wlr_renderer_impl {
-	void (*begin)(struct wlr_renderer_state *state, struct wlr_output *output);
-	void (*end)(struct wlr_renderer_state *state);
-	struct wlr_texture *(*texture_init)(struct wlr_renderer_state *state);
-	bool (*render_with_matrix)(struct wlr_renderer_state *state,
+	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
+	void (*end)(struct wlr_renderer *renderer);
+	struct wlr_texture *(*texture_init)(struct wlr_renderer *renderer);
+	bool (*render_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]);
-	void (*render_quad)(struct wlr_renderer_state *state,
+	void (*render_quad)(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]);
-	void (*render_ellipse)(struct wlr_renderer_state *state,
+	void (*render_ellipse)(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]);
 	const enum wl_shm_format *(*formats)(
-		struct wlr_renderer_state *state, size_t *len);
-	bool (*buffer_is_drm)(struct wlr_renderer_state *state,
+		struct wlr_renderer *renderer, size_t *len);
+	bool (*buffer_is_drm)(struct wlr_renderer *renderer,
 		struct wl_resource *buffer);
-	void (*destroy)(struct wlr_renderer_state *state);
+	void (*destroy)(struct wlr_renderer *renderer);
 };
 
-struct wlr_renderer *wlr_renderer_init(struct wlr_renderer_state *state,
+void wlr_renderer_init(struct wlr_renderer *renderer,
 		struct wlr_renderer_impl *impl);
 
 struct wlr_texture_impl {

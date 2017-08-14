@@ -10,6 +10,7 @@
 #include <wlr/egl.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
+#include <wlr/render/interface.h>
 #include <wlr/util/log.h>
 
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
@@ -21,8 +22,9 @@ struct pixel_format {
 	GLuint *shader;
 };
 
-struct wlr_renderer_state {
-	struct wlr_renderer *renderer;
+struct wlr_gles2_renderer {
+	struct wlr_renderer wlr_renderer;
+
 	struct wlr_egl *egl;
 };
 

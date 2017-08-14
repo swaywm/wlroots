@@ -121,7 +121,7 @@ static void init_globals() {
 	init_default_shaders();
 }
 
-static void wlr_gles2_begin(struct wlr_renderer_state *state,
+static void wlr_gles2_begin(struct wlr_renderer *_renderer,
 		struct wlr_output *output) {
 	// TODO: let users customize the clear color?
 	GL_CALL(glClearColor(0.25f, 0.25f, 0.25f, 1));
@@ -138,12 +138,15 @@ static void wlr_gles2_begin(struct wlr_renderer_state *state,
 	// for users to sling matricies themselves
 }
 
-static void wlr_gles2_end(struct wlr_renderer_state *state) {
+static void wlr_gles2_end(struct wlr_renderer *renderer) {
 	// no-op
 }
 
-static struct wlr_texture *wlr_gles2_texture_init(struct wlr_renderer_state *state) {
-	return gles2_texture_init(state->egl);
+static struct wlr_texture *wlr_gles2_texture_init(
+		struct wlr_renderer *_renderer) {
+	struct wlr_gles2_renderer *renderer =
+		(struct wlr_gles2_renderer *)_renderer;
+	return gles2_texture_init(renderer->egl);
 }
 
 static void draw_quad() {
@@ -172,7 +175,7 @@ static void draw_quad() {
 	GL_CALL(glDisableVertexAttribArray(1));
 }
 
-static bool wlr_gles2_render_texture(struct wlr_renderer_state *state,
+static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]) {
 	if(!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
@@ -187,7 +190,7 @@ static bool wlr_gles2_render_texture(struct wlr_renderer_state *state,
 	return true;
 }
 
-static void wlr_gles2_render_quad(struct wlr_renderer_state *state,
+static void wlr_gles2_render_quad(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]) {
 	GL_CALL(glUseProgram(shaders.quad));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
@@ -195,7 +198,7 @@ static void wlr_gles2_render_quad(struct wlr_renderer_state *state,
 	draw_quad();
 }
 
-static void wlr_gles2_render_ellipse(struct wlr_renderer_state *state,
+static void wlr_gles2_render_ellipse(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]) {
 	GL_CALL(glUseProgram(shaders.ellipse));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
@@ -204,7 +207,7 @@ static void wlr_gles2_render_ellipse(struct wlr_renderer_state *state,
 }
 
 static const enum wl_shm_format *wlr_gles2_formats(
-		struct wlr_renderer_state *state, size_t *len) {
+		struct wlr_renderer *renderer, size_t *len) {
 	static enum wl_shm_format formats[] = {
 		WL_SHM_FORMAT_ARGB8888,
 		WL_SHM_FORMAT_XRGB8888,
@@ -215,14 +218,17 @@ static const enum wl_shm_format *wlr_gles2_formats(
 	return formats;
 }
 
-static bool wlr_gles2_buffer_is_drm(struct wlr_renderer_state *state,
+static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *_renderer,
 		struct wl_resource *buffer) {
+	struct wlr_gles2_renderer *renderer =
+		(struct wlr_gles2_renderer *)_renderer;
 	EGLint format;
-	return wlr_egl_query_buffer(state->egl, buffer, EGL_TEXTURE_FORMAT, &format);
+	return wlr_egl_query_buffer(renderer->egl, buffer,
+			EGL_TEXTURE_FORMAT, &format);
 }
 
-static void wlr_gles2_destroy(struct wlr_renderer_state *state) {
-	free(state);
+static void wlr_gles2_destroy(struct wlr_renderer *renderer) {
+	free(renderer);
 }
 
 static struct wlr_renderer_impl wlr_renderer_impl = {
@@ -240,9 +246,9 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {
 	init_globals();
 	struct wlr_egl *egl = wlr_backend_get_egl(backend);
-	struct wlr_renderer_state *state = calloc(1, sizeof(struct wlr_renderer_state));
-	struct wlr_renderer *renderer = wlr_renderer_init(state, &wlr_renderer_impl);
-	state->renderer = renderer;
-	state->egl = egl;
-	return renderer;
+	struct wlr_gles2_renderer *renderer =
+		calloc(1, sizeof(struct wlr_gles2_renderer));
+	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
+	renderer->egl = egl;
+	return &renderer->wlr_renderer;
 }
