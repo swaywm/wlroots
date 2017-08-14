@@ -17,24 +17,4 @@ void wl_compositor_init(struct wl_display *display,
 struct wlr_surface;
 void wl_compositor_surface_destroyed(struct wl_compositor_state *compositor,
 		struct wlr_surface *surface);
-
-struct wl_shell_state {
-	struct wl_global *wl_global;
-	struct wl_list wl_resources;
-};
-
-struct xdg_shell_state {
-	struct wl_global *wl_global;
-	struct wl_list wl_resources;
-	struct wl_display *display;
-};
-
-void wl_shell_init(struct wl_display *display,
-		struct wl_shell_state *state);
-
-void xdg_shell_init(struct wl_display *display,
-		struct xdg_shell_state *state);
-
-void xdg_shell_release(struct xdg_shell_state *state);
-
 #endif

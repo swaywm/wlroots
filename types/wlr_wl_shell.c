@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_wl_shell.h>
 #include <stdlib.h>
-#include "compositor.h"
 
 static void shell_surface_pong(struct wl_client *client, struct wl_resource
 		*resource, uint32_t serial) {
@@ -71,20 +71,18 @@ struct wl_shell_surface_interface shell_surface_interface = {
 	.set_class = shell_surface_set_class,
 };
 
-struct shell_surface_state {
-	struct wlr_texture *wlr_texture;
-};
-
 static void destroy_shell_surface(struct wl_resource *resource) {
-	struct shell_surface_state *state = wl_resource_get_user_data(resource);
+	struct wlr_wl_shell_surface *state = wl_resource_get_user_data(resource);
+	wl_list_remove(wl_resource_get_link(resource));
 	free(state);
 }
 
-void wl_shell_get_shell_surface(struct wl_client *client,
+static void wl_shell_get_shell_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface) {
 	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface);
-	struct shell_surface_state *state = malloc(sizeof(struct shell_surface_state));
+	struct wlr_wl_shell_surface *state =
+		calloc(1, sizeof(struct wlr_wl_shell_surface));
 	state->wlr_texture = wlr_texture;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
@@ -97,9 +95,9 @@ static struct wl_shell_interface wl_shell_impl = {
 };
 
 static void wl_shell_destroy(struct wl_resource *resource) {
-	struct wl_shell_state *state = wl_resource_get_user_data(resource);
+	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(resource);
 	struct wl_resource *_resource = NULL;
-	wl_resource_for_each(_resource, &state->wl_resources) {
+	wl_resource_for_each(_resource, &wl_shell->wl_resources) {
 		if (_resource == resource) {
 			struct wl_list *link = wl_resource_get_link(_resource);
 			wl_list_remove(link);
@@ -108,10 +106,10 @@ static void wl_shell_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void wl_shell_bind(struct wl_client *wl_client, void *_state,
+static void wl_shell_bind(struct wl_client *wl_client, void *_wl_shell,
 		uint32_t version, uint32_t id) {
-	struct wl_shell_state *state = _state;
-	assert(wl_client && state);
+	struct wlr_wl_shell *wl_shell = _wl_shell;
+	assert(wl_client && wl_shell);
 	if (version > 1) {
 		wlr_log(L_ERROR, "Client requested unsupported wl_shell version, disconnecting");
 		wl_client_destroy(wl_client);
@@ -120,14 +118,27 @@ static void wl_shell_bind(struct wl_client *wl_client, void *_state,
 	struct wl_resource *wl_resource = wl_resource_create(
 			wl_client, &wl_shell_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &wl_shell_impl,
-			state, wl_shell_destroy);
-	wl_list_insert(&state->wl_resources, wl_resource_get_link(wl_resource));
+			wl_shell, wl_shell_destroy);
+	wl_list_insert(&wl_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
-void wl_shell_init(struct wl_display *display,
-		struct wl_shell_state *state) {
+void wlr_wl_shell_init(struct wlr_wl_shell *wlr_wl_shell,
+		struct wl_display *display) {
 	struct wl_global *wl_global = wl_global_create(display,
-		&wl_shell_interface, 1, state, wl_shell_bind);
-	state->wl_global = wl_global;
-	wl_list_init(&state->wl_resources);
+		&wl_shell_interface, 1, wlr_wl_shell, wl_shell_bind);
+	wlr_wl_shell->wl_global = wl_global;
+	wl_list_init(&wlr_wl_shell->wl_resources);
+}
+
+void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
+	if (!wlr_wl_shell) {
+		return;
+	}
+	struct wl_resource *resource = NULL, *temp = NULL;
+	wl_resource_for_each_safe(resource, temp, &wlr_wl_shell->wl_resources) {
+		struct wl_list *link = wl_resource_get_link(resource);
+		wl_list_remove(link);
+	}
+	// TODO: destroy surfaces
+	wl_global_destroy(wlr_wl_shell->wl_global);
 }

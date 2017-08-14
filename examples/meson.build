@@ -11,7 +11,6 @@ executable('tablet', 'tablet.c', dependencies: wlroots, link_with: lib_shared)
 compositor_src = [
   'compositor/main.c',
   'compositor/wl_compositor.c',
-  'compositor/wl_shell.c',
 ]
 
 executable('compositor', compositor_src,
