@@ -26,8 +26,9 @@ struct wlr_renderer_state {
 	struct wlr_egl *egl;
 };
 
-struct wlr_texture_state {
-	struct wlr_texture *wlr_texture;
+struct wlr_gles2_texture {
+	struct wlr_texture wlr_texture;
+
 	struct wlr_egl *egl;
 	GLuint tex_id;
 	const struct pixel_format *pixel_format;

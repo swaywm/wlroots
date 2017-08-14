@@ -34,25 +34,26 @@ struct wlr_renderer *wlr_renderer_init(struct wlr_renderer_state *state,
 		struct wlr_renderer_impl *impl);
 
 struct wlr_texture_impl {
-	bool (*upload_pixels)(struct wlr_texture_state *state,
+	bool (*upload_pixels)(struct wlr_texture *texture,
 		enum wl_shm_format format, int stride, int width, int height,
 		const unsigned char *pixels);
-	bool (*update_pixels)(struct wlr_texture_state *state,
+	bool (*update_pixels)(struct wlr_texture *texture,
 		enum wl_shm_format format, int stride, int x, int y,
 		int width, int height, const unsigned char *pixels);
-	bool (*upload_shm)(struct wlr_texture_state *state, uint32_t format,
+	bool (*upload_shm)(struct wlr_texture *texture, uint32_t format,
 		struct wl_shm_buffer *shm);
-	bool (*update_shm)(struct wlr_texture_state *surf, uint32_t format,
+	bool (*update_shm)(struct wlr_texture *texture, uint32_t format,
 		int x, int y, int width, int height, struct wl_shm_buffer *shm);
-	bool (*upload_drm)(struct wlr_texture_state *state,
+	bool (*upload_drm)(struct wlr_texture *texture,
 		struct wl_resource *drm_buf);
-	void (*get_matrix)(struct wlr_texture_state *state,
+	void (*get_matrix)(struct wlr_texture *state,
 		float (*matrix)[16], const float (*projection)[16], int x, int y);
-	void (*bind)(struct wlr_texture_state *state);
-	void (*destroy)(struct wlr_texture_state *state);
+	void (*bind)(struct wlr_texture *texture);
+	void (*destroy)(struct wlr_texture *texture);
 };
 
-struct wlr_texture *wlr_texture_init();
+void wlr_texture_init(struct wlr_texture *texture,
+		struct wlr_texture_impl *impl);
 void wlr_texture_bind(struct wlr_texture *texture);
 
 #endif

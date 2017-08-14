@@ -21,28 +21,29 @@ static struct pixel_format external_pixel_format = {
 	.shader = &shaders.external
 };
 
-static void gles2_texture_ensure_texture(struct wlr_texture_state *surface) {
-	if (surface->tex_id) {
+static void gles2_texture_ensure_texture(struct wlr_gles2_texture *texture) {
+	if (texture->tex_id) {
 		return;
 	}
-	GL_CALL(glGenTextures(1, &surface->tex_id));
-	GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->tex_id));
+	GL_CALL(glGenTextures(1, &texture->tex_id));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 }
 
-static bool gles2_texture_upload_pixels(struct wlr_texture_state *texture,
+static bool gles2_texture_upload_pixels(struct wlr_texture *_texture,
 		enum wl_shm_format format, int stride, int width, int height,
 		const unsigned char *pixels) {
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	assert(texture);
 	const struct pixel_format *fmt = gl_format_for_wl_format(format);
 	if (!fmt || !fmt->gl_format) {
 		wlr_log(L_ERROR, "No supported pixel format for this texture");
 		return false;
 	}
-	texture->wlr_texture->width = width;
-	texture->wlr_texture->height = height;
-	texture->wlr_texture->format = format;
+	texture->wlr_texture.width = width;
+	texture->wlr_texture.height = height;
+	texture->wlr_texture.format = format;
 	texture->pixel_format = fmt;
 
 	gles2_texture_ensure_texture(texture);
@@ -50,21 +51,22 @@ static bool gles2_texture_upload_pixels(struct wlr_texture_state *texture,
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride));
 	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
 			fmt->gl_format, fmt->gl_type, pixels));
-	texture->wlr_texture->valid = true;
+	texture->wlr_texture.valid = true;
 	return true;
 }
 
-static bool gles2_texture_update_pixels(struct wlr_texture_state *texture,
+static bool gles2_texture_update_pixels(struct wlr_texture *_texture,
 		enum wl_shm_format format, int stride, int x, int y,
 		int width, int height, const unsigned char *pixels) {
-	assert(texture && texture->wlr_texture->valid);
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
+	assert(texture);
 	// TODO: Test if the unpack subimage extension is supported and adjust the
 	// upload strategy if not
-	if (!texture->wlr_texture->valid
-			|| texture->wlr_texture->format != format
+	if (!texture->wlr_texture.valid
+			|| texture->wlr_texture.format != format
 		/*	|| unpack not supported */) {
-		return gles2_texture_upload_pixels(texture, format, stride,
-				width, height, pixels);
+		return gles2_texture_upload_pixels(&texture->wlr_texture,
+				format, stride, width, height, pixels);
 	}
 	const struct pixel_format *fmt = texture->pixel_format;
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
@@ -78,8 +80,9 @@ static bool gles2_texture_update_pixels(struct wlr_texture_state *texture,
 	return true;
 }
 
-static bool gles2_texture_upload_shm(struct wlr_texture_state *texture,
+static bool gles2_texture_upload_shm(struct wlr_texture *_texture,
 		uint32_t format, struct wl_shm_buffer *buffer) {
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	const struct pixel_format *fmt = gl_format_for_wl_format(format);
 	if (!fmt || !fmt->gl_format) {
 		wlr_log(L_ERROR, "No supported pixel format for this texture");
@@ -90,9 +93,9 @@ static bool gles2_texture_upload_shm(struct wlr_texture_state *texture,
 	int width = wl_shm_buffer_get_width(buffer);
 	int height = wl_shm_buffer_get_height(buffer);
 	int pitch = wl_shm_buffer_get_stride(buffer) / (fmt->bpp / 8);
-	texture->wlr_texture->width = width;
-	texture->wlr_texture->height = height;
-	texture->wlr_texture->format = format;
+	texture->wlr_texture.width = width;
+	texture->wlr_texture.height = height;
+	texture->wlr_texture.format = format;
 	texture->pixel_format = fmt;
 
 	gles2_texture_ensure_texture(texture);
@@ -103,21 +106,22 @@ static bool gles2_texture_upload_shm(struct wlr_texture_state *texture,
 	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
 				fmt->gl_format, fmt->gl_type, pixels));
 
-	texture->wlr_texture->valid = true;
+	texture->wlr_texture.valid = true;
 	wl_shm_buffer_end_access(buffer);
 	return true;
 }
 
-static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
+static bool gles2_texture_update_shm(struct wlr_texture *_texture,
 		uint32_t format, int x, int y, int width, int height,
 		struct wl_shm_buffer *buffer) {
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	// TODO: Test if the unpack subimage extension is supported and adjust the
 	// upload strategy if not
 	assert(texture);
-	if (!texture->wlr_texture->valid
-			|| texture->wlr_texture->format != format
+	if (!texture->wlr_texture.valid
+			|| texture->wlr_texture.format != format
 		/*	|| unpack not supported */) {
-		return gles2_texture_upload_shm(texture, format, buffer);
+		return gles2_texture_upload_shm(&texture->wlr_texture, format, buffer);
 	}
 	const struct pixel_format *fmt = texture->pixel_format;
 	wl_shm_buffer_begin_access(buffer);
@@ -138,8 +142,9 @@ static bool gles2_texture_update_shm(struct wlr_texture_state *texture,
 	return true;
 }
 
-static bool gles2_texture_upload_drm(struct wlr_texture_state *tex,
+static bool gles2_texture_upload_drm(struct wlr_texture *_tex,
 		struct wl_resource *buf) {
+	struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)_tex;
 	if (!glEGLImageTargetTexture2DOES) {
 		return false;
 	}
@@ -151,9 +156,9 @@ static bool gles2_texture_upload_drm(struct wlr_texture_state *tex,
 	}
 
 	wlr_egl_query_buffer(tex->egl, buf, EGL_WIDTH,
-			(EGLint*)&tex->wlr_texture->width);
+			(EGLint*)&tex->wlr_texture.width);
 	wlr_egl_query_buffer(tex->egl, buf, EGL_HEIGHT,
-			(EGLint*)&tex->wlr_texture->height);
+			(EGLint*)&tex->wlr_texture.height);
 
 	EGLint inverted_y;
 	wlr_egl_query_buffer(tex->egl, buf, EGL_WAYLAND_Y_INVERTED_WL, &inverted_y);
@@ -194,33 +199,36 @@ static bool gles2_texture_upload_drm(struct wlr_texture_state *tex,
 	GL_CALL(glActiveTexture(GL_TEXTURE0));
 	GL_CALL(glBindTexture(target, tex->tex_id));
 	GL_CALL(glEGLImageTargetTexture2DOES(target, tex->image));
-	tex->wlr_texture->valid = true;
+	tex->wlr_texture.valid = true;
 	tex->pixel_format = pf;
 
 	return true;
 }
 
-static void gles2_texture_get_matrix(struct wlr_texture_state *texture,
+static void gles2_texture_get_matrix(struct wlr_texture *_texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
-	struct wlr_texture *_texture = texture->wlr_texture;
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	float world[16];
 	wlr_matrix_identity(matrix);
 	wlr_matrix_translate(&world, x, y, 0);
 	wlr_matrix_mul(matrix, &world, matrix);
-	wlr_matrix_scale(&world, _texture->width, _texture->height, 1);
+	wlr_matrix_scale(&world,
+			texture->wlr_texture.width, texture->wlr_texture.height, 1);
 	wlr_matrix_mul(matrix, &world, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
-static void gles2_texture_bind(struct wlr_texture_state *texture) {
+static void gles2_texture_bind(struct wlr_texture *_texture) {
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 	GL_CALL(glUseProgram(*texture->pixel_format->shader));
 }
 
-static void gles2_texture_destroy(struct wlr_texture_state *texture) {
-	wl_signal_emit(&texture->wlr_texture->destroy_signal, texture->wlr_texture);
+static void gles2_texture_destroy(struct wlr_texture *_texture) {
+	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
+	wl_signal_emit(&texture->wlr_texture.destroy_signal, &texture->wlr_texture);
 	if (texture->tex_id) {
 		GL_CALL(glDeleteTextures(1, &texture->tex_id));
 	}
@@ -244,10 +252,9 @@ static struct wlr_texture_impl wlr_texture_impl = {
 };
 
 struct wlr_texture *gles2_texture_init(struct wlr_egl *egl) {
-	struct wlr_texture_state *state = calloc(sizeof(struct wlr_texture_state), 1);
-	struct wlr_texture *texture = wlr_texture_init(state, &wlr_texture_impl);
-	state->wlr_texture = texture;
-	state->egl = egl;
-	wl_signal_init(&texture->destroy_signal);
-	return texture;
+	struct wlr_gles2_texture *texture =
+		calloc(1, sizeof(struct wlr_gles2_texture));
+	wlr_texture_init(&texture->wlr_texture, &wlr_texture_impl);
+	texture->egl = egl;
+	return &texture->wlr_texture;
 }

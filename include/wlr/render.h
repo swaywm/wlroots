@@ -54,11 +54,10 @@ bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
 
 struct wlr_texture_impl;
-struct wlr_texture_state;
 
 struct wlr_texture {
 	struct wlr_texture_impl *impl;
-	struct wlr_texture_state *state;
+
 	bool valid;
 	uint32_t format;
 	int width, height;
