@@ -126,6 +126,9 @@ static void surface_commit(struct wl_client *client,
 		surface->current.buffer = surface->pending.buffer;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
+		int width, height;
+		wlr_texture_get_buffer_size(surface->texture, surface->current.buffer, &width, &height);
+
 		pixman_region32_union(&surface->current.surface_damage,
 				&surface->current.surface_damage,
 				&surface->pending.surface_damage);
@@ -140,16 +143,9 @@ static void surface_commit(struct wl_client *client,
 		pixman_region32_union(&surface->current.buffer_damage,
 			&surface->current.buffer_damage, &buffer_damage);
 
-		struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
 		pixman_region32_intersect_rect(&surface->current.buffer_damage,
-			&surface->current.buffer_damage, 0, 0,
-			wl_shm_buffer_get_width(buffer),
-			wl_shm_buffer_get_height(buffer));
+			&surface->current.buffer_damage, 0, 0, width, height);
 
-		// TODO: Surface sizing is complicated
-		//pixman_region32_intersect_rect(&surface->current.surface_damage,
-		//		&surface->current.surface_damage,
-		//		0, 0, surface->width, surface->height);
 		pixman_region32_clear(&surface->pending.surface_damage);
 		pixman_region32_clear(&surface->pending.buffer_damage);
 	}
