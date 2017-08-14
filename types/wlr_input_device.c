@@ -23,7 +23,10 @@ void wlr_input_device_init(struct wlr_input_device *dev,
 }
 
 void wlr_input_device_destroy(struct wlr_input_device *dev) {
-	if (!dev) return;
+	if (!dev) {
+		return;
+	}
+	
 	if (dev->_device) {
 		switch (dev->type) {
 		case WLR_INPUT_DEVICE_KEYBOARD:

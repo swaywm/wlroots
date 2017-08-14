@@ -120,7 +120,7 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	if (!wlr_devices) {
 		return;
 	}
-        for (size_t i = 0; i < wlr_devices->length; i++) {
+	for (size_t i = 0; i < wlr_devices->length; i++) {
 		struct wlr_input_device *wlr_dev = wlr_devices->items[i];
 		wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
 		wlr_input_device_destroy(wlr_dev);

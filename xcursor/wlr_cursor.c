@@ -269,7 +269,7 @@ void wlr_cursor_theme_destroy(struct wlr_cursor_theme *theme) {
 }
 
 struct wlr_cursor *wlr_cursor_theme_get_cursor(struct wlr_cursor_theme *theme,
-		   const char *name) {
+		const char *name) {
 	unsigned int i;
 
 	for (i = 0; i < theme->cursor_count; i++) {

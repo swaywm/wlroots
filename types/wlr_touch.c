@@ -14,7 +14,10 @@ void wlr_touch_init(struct wlr_touch *touch,
 }
 
 void wlr_touch_destroy(struct wlr_touch *touch) {
-	if (!touch) return;
+	if (!touch) {
+		return;
+	}
+	
 	if (touch->impl && touch->impl->destroy) {
 		touch->impl->destroy(touch);
 	} else {

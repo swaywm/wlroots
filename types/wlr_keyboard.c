@@ -11,7 +11,10 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
-	if (!kb) return;
+	if (!kb) {
+		return;
+	}
+	
 	if (kb->impl && kb->impl->destroy) {
 		kb->impl->destroy(kb);
 	} else {
