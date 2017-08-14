@@ -23,6 +23,8 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
 	assert(output);
 	wlr_wl_pointer->current_output = output;
+	wlr_wl_pointer->current_output->enter_serial = serial;
+	wlr_wl_output_update_cursor(wlr_wl_pointer->current_output, serial);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -30,7 +32,10 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer);
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
-	wlr_wl_pointer->current_output = NULL;
+	if (wlr_wl_pointer->current_output) {
+		wlr_wl_pointer->current_output->enter_serial = 0;
+		wlr_wl_pointer->current_output = NULL;
+	}
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
@@ -227,6 +232,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wlr_pointer_init(wlr_device->pointer, NULL);
 		wlr_wl_device->resource = wl_pointer;
 		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
+		backend->pointer = wl_pointer;
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
 		wlr_log(L_DEBUG, "seat %p offered keyboard", (void*) wl_seat);

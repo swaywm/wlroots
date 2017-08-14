@@ -22,6 +22,7 @@ backend_files = files(
   'wayland/output.c',
   'wayland/registry.c',
   'wayland/wl_seat.c',
+  'wayland/os-compatibility.c',
 )
 
 if systemd.found()
