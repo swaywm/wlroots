@@ -9,8 +9,10 @@ void wlr_texture_init(struct wlr_texture *texture,
 }
 
 void wlr_texture_destroy(struct wlr_texture *texture) {
-	if (texture && texture->impl->destroy) {
+	if (texture && texture->impl && texture->impl->destroy) {
 		texture->impl->destroy(texture);
+	} else {
+		free(texture);
 	}
 }
 

@@ -32,8 +32,10 @@ bool wlr_backend_start(struct wlr_backend *backend) {
 }
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
-	if (backend->impl->destroy) {
+	if (backend->impl && backend->impl->destroy) {
 		backend->impl->destroy(backend);
+	} else {
+		free(backend);
 	}
 }
 
