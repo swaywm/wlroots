@@ -124,8 +124,8 @@ void wlr_output_transform(struct wlr_output *output,
 
 bool wlr_output_set_cursor(struct wlr_output *output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
-	if (output->impl->set_cursor && output->impl->set_cursor(output, buf,
-			stride, width, height)) {
+	if (output->impl->set_cursor
+			&& output->impl->set_cursor(output, buf, stride, width, height)) {
 		output->cursor.is_sw = false;
 		return true;
 	}
@@ -179,7 +179,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 		free(mode);
 	}
 	list_free(output->modes);
-	free(output);
 }
 
 void wlr_output_effective_resolution(struct wlr_output *output,
