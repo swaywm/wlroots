@@ -17,31 +17,33 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
 	struct wlr_wl_input_device *wlr_wl_dev = (struct wlr_wl_input_device *)dev;
-	assert(dev && dev->pointer && dev->pointer->state);
+	assert(dev && dev->pointer);
+	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 	struct wlr_wl_backend_output* output =
 		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
 	assert(output);
-	dev->pointer->state->current_output = output;
+	wlr_wl_pointer->current_output = output;
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
 	struct wlr_input_device *dev = data;
-	assert(dev && dev->pointer && dev->pointer->state);
-	dev->pointer->state->current_output = NULL;
+	assert(dev && dev->pointer);
+	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
+	wlr_wl_pointer->current_output = NULL;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
-	assert(dev && dev->pointer && dev->pointer->state);
-	struct wlr_pointer_state *state = dev->pointer->state;
-	if (!state->current_output) {
+	assert(dev && dev->pointer);
+	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
+	if (!wlr_wl_pointer->current_output) {
 		wlr_log(L_ERROR, "pointer motion event without current output");
 		return;
 	}
 	int width, height;
-	wl_egl_window_get_attached_size(state->current_output->egl_window,
+	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
 		&width, &height);
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.time_sec = time / 1000;
@@ -70,13 +72,14 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer);
+	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 
 	struct wlr_event_pointer_axis wlr_event;
 	wlr_event.delta = value;
 	wlr_event.orientation = axis;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_event.source = dev->pointer->state->axis_source;
+	wlr_event.source = wlr_wl_pointer->axis_source;
 	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
 }
 
@@ -87,8 +90,10 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
 		uint32_t axis_source) {
 	struct wlr_input_device *dev = data;
-	assert(dev && dev->pointer && dev->pointer->state);
-	dev->pointer->state->axis_source = axis_source;
+	assert(dev && dev->pointer);
+	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
+
+	wlr_wl_pointer->axis_source = axis_source;
 }
 
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
@@ -173,14 +178,6 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy
 };
 
-static void pointer_destroy(struct wlr_pointer_state *state) {
-	free(state);
-}
-
-static struct wlr_pointer_impl pointer_impl = {
-	.destroy = pointer_destroy
-};
-
 static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 		enum wlr_input_device_type type) {
 	struct wlr_wl_input_device *wlr_wl_dev;
@@ -208,15 +205,15 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
 		wlr_log(L_DEBUG, "seat %p offered pointer", (void*) wl_seat);
-		struct wlr_pointer_state *pointer_state;
-		if (!(pointer_state = calloc(1, sizeof(struct wlr_pointer_state)))) {
-			wlr_log(L_ERROR, "Unable to allocate wlr_pointer_state");
+		struct wlr_wl_pointer *wlr_wl_pointer;
+		if (!(wlr_wl_pointer = calloc(1, sizeof(struct wlr_wl_pointer)))) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_wl_pointer");
 			return;
 		}
 
 		struct wlr_input_device *wlr_device;
 		if (!(wlr_device = allocate_device(backend, WLR_INPUT_DEVICE_POINTER))) {
-			free(pointer_state);
+			free(wlr_wl_pointer);
 			wlr_log(L_ERROR, "Unable to allocate wlr_device for pointer");
 			return;
 		}
@@ -225,7 +222,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
 		wl_pointer_add_listener(wl_pointer, &pointer_listener, wlr_device);
-		wlr_device->pointer = wlr_pointer_create(&pointer_impl, pointer_state);
+		wlr_device->pointer = &wlr_wl_pointer->wlr_pointer;
+		wlr_pointer_init(wlr_device->pointer, NULL);
 		wlr_wl_device->resource = wl_pointer;
 		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
 	}

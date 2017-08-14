@@ -4,11 +4,9 @@
 #include <wayland-server.h>
 #include <stdint.h>
 
-struct wlr_pointer_state;
 struct wlr_pointer_impl;
 
 struct wlr_pointer {
-	struct wlr_pointer_state *state;
 	struct wlr_pointer_impl *impl;
 
 	struct {
