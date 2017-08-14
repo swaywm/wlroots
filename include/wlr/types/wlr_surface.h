@@ -53,5 +53,7 @@ struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
 void wlr_surface_flush_damage(struct wlr_surface *surface);
+void wlr_surface_get_matrix(struct wlr_surface *surface, float (*matrix)[16],
+		const float (*projection)[16], int x, int y);
 
 #endif

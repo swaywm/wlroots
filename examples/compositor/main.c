@@ -45,8 +45,8 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 		struct wlr_surface *surface = wl_resource_get_user_data(_res);
 		wlr_surface_flush_damage(surface);
 		if (surface->texture->valid) {
-			wlr_texture_get_matrix(surface->texture, &matrix,
-					&wlr_output->transform_matrix, 200, 200);
+			wlr_surface_get_matrix(surface, &matrix,
+				&wlr_output->transform_matrix, 200, 200);
 			wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
 
 			struct wlr_frame_callback *cb, *cnext;

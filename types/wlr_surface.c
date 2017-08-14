@@ -5,6 +5,7 @@
 #include <wlr/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/render/matrix.h>
 
 static void surface_destroy(struct wl_client *client, struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -267,4 +268,17 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	wl_resource_set_implementation(res, &surface_interface,
 			surface, destroy_surface);
 	return surface;
+}
+
+void wlr_surface_get_matrix(struct wlr_surface *surface,
+		float (*matrix)[16], const float (*projection)[16], int x, int y) {
+	int width = surface->texture->width / surface->current.scale;
+	int height = surface->texture->height / surface->current.scale;
+	float world[16];
+	wlr_matrix_identity(matrix);
+	wlr_matrix_translate(&world, x, y, 0);
+	wlr_matrix_mul(matrix, &world, matrix);
+	wlr_matrix_scale(&world, width, height, 1);
+	wlr_matrix_mul(matrix, &world, matrix);
+	wlr_matrix_mul(projection, matrix, matrix);
 }
