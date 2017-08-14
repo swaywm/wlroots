@@ -141,6 +141,7 @@ static void surface_commit(struct wl_client *client,
 			&surface->pending.buffer_damage);
 
 		pixman_region32_t buffer_damage;
+		pixman_region32_init(&buffer_damage);
 		wlr_surface_to_buffer_region(surface, &surface->current.surface_damage,
 			&buffer_damage);
 		pixman_region32_union(&surface->current.buffer_damage,
