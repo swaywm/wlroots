@@ -3,11 +3,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
 #include <wayland-client.h>
 #include <GLES3/gl3.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+
+int os_create_anonymous_file(off_t size);
 
 static struct wl_callback_listener frame_listener;
 
@@ -46,9 +51,86 @@ static void wlr_wl_output_transform(struct wlr_output *_output,
 	output->wlr_output.transform = transform;
 }
 
+static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	struct wlr_wl_backend *backend = output->backend;
+	stride *= 4; // stride is given in pixels, we need it in bytes
+
+	if (!backend->shm || !backend->pointer) {
+		wlr_log(L_INFO, "cannot set cursor, no shm or pointer");
+		return false;
+	}
+
+	if (!output->cursor_surface) {
+		output->cursor_surface = wl_compositor_create_surface(output->backend->compositor);
+	}
+
+	uint32_t size = stride * height;
+	if (output->cursor_buf_size != size) {
+		if (output->cursor_buffer) {
+			wl_buffer_destroy(output->cursor_buffer);
+		}
+
+		if (size > output->cursor_buf_size) {
+			if (output->cursor_pool) {
+				wl_shm_pool_destroy(output->cursor_pool);
+				output->cursor_pool = NULL;
+				munmap(output->cursor_data, output->cursor_buf_size);
+			}
+		}
+
+		if (!output->cursor_pool) {
+			int fd = os_create_anonymous_file(size);
+			if (fd < 0) {
+				wlr_log_errno(L_INFO, "creating anonymous file for cursor buffer failed");
+				return false;
+			}
+
+			output->cursor_data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+			if (output->cursor_data == MAP_FAILED) {
+				close(fd);
+				wlr_log_errno(L_INFO, "mmap failed");
+				return false;
+			}
+
+			output->cursor_pool = wl_shm_create_pool(backend->shm, fd, size);
+			close(fd);
+		}
+
+		output->cursor_buffer = wl_shm_pool_create_buffer(output->cursor_pool,
+			0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
+		output->cursor_buf_size = size;
+	}
+
+	memcpy(output->cursor_data, buf, size);
+	wl_surface_attach(output->cursor_surface, output->cursor_buffer, 0, 0);
+	wl_surface_damage(output->cursor_surface, 0, 0, width, height);
+	wl_surface_commit(output->cursor_surface);
+
+	wlr_wl_output_update_cursor(output, output->enter_serial);
+	return true;
+}
+
 static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	wl_signal_emit(&output->backend->backend.events.output_remove, &output->wlr_output);
+
+	if (output->cursor_buf_size != 0) {
+		assert(output->cursor_data);
+		assert(output->cursor_buffer);
+		assert(output->cursor_pool);
+
+		wl_buffer_destroy(output->cursor_buffer);
+		munmap(output->cursor_data, output->cursor_buf_size);
+		wl_shm_pool_destroy(output->cursor_pool);
+	}
+
+	if (output->cursor_surface) {
+		wl_surface_destroy(output->cursor_surface);
+	}
+
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
 	}
@@ -59,11 +141,25 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	free(output);
 }
 
+void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output, uint32_t serial) {
+	if (output->cursor_surface && output->backend->pointer && serial) {
+		wl_pointer_set_cursor(output->backend->pointer, serial,
+			output->cursor_surface, 0, 0);
+	}
+}
+
+bool wlr_wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
+	// TODO: only return true if x == current x and y == current y
+	return true;
+}
+
 static struct wlr_output_impl output_impl = {
 	.transform = wlr_wl_output_transform,
 	.destroy = wlr_wl_output_destroy,
 	.make_current = wlr_wl_output_make_current,
 	.swap_buffers = wlr_wl_output_swap_buffers,
+	.set_cursor = wlr_wl_output_set_cursor,
+	.move_cursor = wlr_wl_output_move_cursor
 };
 
 void handle_ping(void* data, struct wl_shell_surface* ssurface, uint32_t serial) {
