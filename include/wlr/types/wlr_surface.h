@@ -23,7 +23,7 @@ struct wlr_surface_state {
 	int32_t sx, sy;
 	pixman_region32_t surface_damage, buffer_damage;
 	pixman_region32_t opaque, input;
-	uint32_t transform;
+	enum wl_output_transform transform;
 	int32_t scale;
 };
 
