@@ -237,12 +237,18 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			wlr_log(L_ERROR, "Unable to allocate wl_pointer device");
 			return;
 		}
+		wlr_device->keyboard = calloc(1, sizeof(struct wlr_keyboard));
+		if (!wlr_device->keyboard) {
+			free(wlr_device);
+			wlr_log(L_ERROR, "Unable to allocate wlr keyboard");
+			return;
+		}
+		wlr_keyboard_init(wlr_device->keyboard, NULL);
 		struct wlr_wl_input_device *wlr_wl_device =
 			(struct wlr_wl_input_device *)wlr_device;
 
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_device);
-		wlr_device->keyboard = wlr_keyboard_create(NULL, NULL);
 		wlr_wl_device->resource = wl_keyboard;
 		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
 	}
