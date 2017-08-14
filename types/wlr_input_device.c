@@ -11,26 +11,19 @@
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
 
-struct wlr_input_device *wlr_input_device_create(
+void wlr_input_device_init(struct wlr_input_device *dev,
 		enum wlr_input_device_type type,
 		struct wlr_input_device_impl *impl,
-		struct wlr_input_device_state *state,
 		const char *name, int vendor, int product) {
-	struct wlr_input_device *dev = calloc(1, sizeof(struct wlr_input_device));
 	dev->type = type;
 	dev->impl = impl;
-	dev->state = state;
 	dev->name = strdup(name);
 	dev->vendor = vendor;
 	dev->product = product;
-	return dev;
 }
 
 void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (!dev) return;
-	if (dev->impl && dev->impl->destroy && dev->state) {
-		dev->impl->destroy(dev->state);
-	}
 	if (dev->_device) {
 		switch (dev->type) {
 		case WLR_INPUT_DEVICE_KEYBOARD:
@@ -55,5 +48,9 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 		}
 	}
 	free(dev->name);
-	free(dev);
+	if (dev->impl && dev->impl->destroy) {
+		dev->impl->destroy(dev);
+	} else {
+		free(dev);
+	}
 }

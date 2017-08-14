@@ -41,9 +41,10 @@ struct wlr_wl_backend_output {
 	void *egl_surface;
 };
 
-struct wlr_input_device_state {
+struct wlr_wl_input_device {
+	struct wlr_input_device wlr_input_device;
+
 	struct wlr_wl_backend *backend;
-	struct wlr_input_device *wlr_device;
 	void *resource;
 };
 

@@ -16,9 +16,10 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x,
 		wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
+	struct wlr_wl_input_device *wlr_wl_dev = (struct wlr_wl_input_device *)dev;
 	assert(dev && dev->pointer && dev->pointer->state);
 	struct wlr_wl_backend_output* output =
-		wlr_wl_output_for_surface(dev->state->backend, surface);
+		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
 	assert(output);
 	dev->pointer->state->current_output = output;
 }
@@ -160,11 +161,12 @@ static struct wl_keyboard_listener keyboard_listener = {
 	.repeat_info = keyboard_handle_repeat_info
 };
 
-static void input_device_destroy(struct wlr_input_device_state *state) {
-	wl_signal_emit(&state->backend->backend.events.input_remove, state->wlr_device);
-	if (state->resource)
-		wl_proxy_destroy(state->resource);
-	free(state);
+static void input_device_destroy(struct wlr_input_device *_dev) {
+	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)_dev;
+	wl_signal_emit(&dev->backend->backend.events.input_remove, &dev->wlr_input_device);
+	if (dev->resource)
+		wl_proxy_destroy(dev->resource);
+	free(dev);
 }
 
 static struct wlr_input_device_impl input_device_impl = {
@@ -181,25 +183,20 @@ static struct wlr_pointer_impl pointer_impl = {
 
 static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 		enum wlr_input_device_type type) {
-	struct wlr_input_device_state *devstate;
-	if (!(devstate = calloc(1, sizeof(struct wlr_input_device_state)))) {
+	struct wlr_wl_input_device *wlr_wl_dev;
+	if (!(wlr_wl_dev = calloc(1, sizeof(struct wlr_wl_input_device)))) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
 
-	devstate->backend = backend;
+	wlr_wl_dev->backend = backend;
 
 	int vendor = 0;
 	int product = 0;
 	const char *name = "wayland";
-	struct wlr_input_device *wlr_device = wlr_input_device_create(
-		type, &input_device_impl, devstate,
-		name, vendor, product);
-	if (!wlr_device) {
-		free(devstate);
-		return NULL;
-	}
-	devstate->wlr_device = wlr_device;
+	struct wlr_input_device *wlr_device = &wlr_wl_dev->wlr_input_device;
+	wlr_input_device_init(wlr_device, type, &input_device_impl,
+			name, vendor, product);
 	list_add(backend->devices, wlr_device);
 	return wlr_device;
 }
@@ -223,11 +220,13 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			wlr_log(L_ERROR, "Unable to allocate wlr_device for pointer");
 			return;
 		}
+		struct wlr_wl_input_device *wlr_wl_device =
+			(struct wlr_wl_input_device *)wlr_device;
 
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
 		wl_pointer_add_listener(wl_pointer, &pointer_listener, wlr_device);
 		wlr_device->pointer = wlr_pointer_create(&pointer_impl, pointer_state);
-		wlr_device->state->resource = wl_pointer;
+		wlr_wl_device->resource = wl_pointer;
 		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
@@ -238,11 +237,13 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			wlr_log(L_ERROR, "Unable to allocate wl_pointer device");
 			return;
 		}
+		struct wlr_wl_input_device *wlr_wl_device =
+			(struct wlr_wl_input_device *)wlr_device;
 
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_device);
 		wlr_device->keyboard = wlr_keyboard_create(NULL, NULL);
-		wlr_device->state->resource = wl_keyboard;
+		wlr_wl_device->resource = wl_keyboard;
 		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
 	}
 }
