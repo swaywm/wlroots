@@ -4,25 +4,23 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 
-struct wlr_keyboard *wlr_keyboard_create(struct wlr_keyboard_impl *impl,
-		struct wlr_keyboard_state *state) {
-	struct wlr_keyboard *kb = calloc(1, sizeof(struct wlr_keyboard));
+void wlr_keyboard_init(struct wlr_keyboard *kb,
+		struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
-	kb->state = state;
 	wl_signal_init(&kb->events.key);
-	return kb;
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	if (!kb) return;
-	if (kb->impl) {
-		kb->impl->destroy(kb->state);
+	if (kb->impl && kb->impl->destroy) {
+		kb->impl->destroy(kb);
+	} else {
+		free(kb);
 	}
-	free(kb);
 }
 
 void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
-	if (kb->impl) {
-		kb->impl->led_update(kb->state, leds);
+	if (kb->impl && kb->impl->led_update) {
+		kb->impl->led_update(kb, leds);
 	}
 }

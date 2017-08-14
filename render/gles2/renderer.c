@@ -227,10 +227,6 @@ static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *_renderer,
 			EGL_TEXTURE_FORMAT, &format);
 }
 
-static void wlr_gles2_destroy(struct wlr_renderer *renderer) {
-	free(renderer);
-}
-
 static struct wlr_renderer_impl wlr_renderer_impl = {
 	.begin = wlr_gles2_begin,
 	.end = wlr_gles2_end,
@@ -240,7 +236,6 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.render_ellipse = wlr_gles2_render_ellipse,
 	.formats = wlr_gles2_formats,
 	.buffer_is_drm = wlr_gles2_buffer_is_drm,
-	.destroy = wlr_gles2_destroy
 };
 
 struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {

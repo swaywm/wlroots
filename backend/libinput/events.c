@@ -23,9 +23,10 @@ struct wlr_input_device *get_appropriate_device(
 	return NULL;
 }
 
-static void wlr_libinput_device_destroy(struct wlr_input_device_state *state) {
-	libinput_device_unref(state->handle);
-	free(state);
+static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
+	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
+	libinput_device_unref(dev->handle);
+	free(dev);
 }
 
 static struct wlr_input_device_impl input_device_impl = {
@@ -38,13 +39,13 @@ static struct wlr_input_device *allocate_device(
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
-	struct wlr_input_device_state *devstate =
-		calloc(1, sizeof(struct wlr_input_device_state));
-	devstate->handle = libinput_dev;
+	struct wlr_libinput_input_device *wlr_libinput_dev =
+		calloc(1, sizeof(struct wlr_libinput_input_device));
+	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
+	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
-	struct wlr_input_device *wlr_dev = wlr_input_device_create(
-		type, &input_device_impl, devstate,
-		name, vendor, product);
+	wlr_input_device_init(wlr_dev, type, &input_device_impl,
+			name, vendor, product);
 	list_add(wlr_devices, wlr_dev);
 	return wlr_dev;
 }

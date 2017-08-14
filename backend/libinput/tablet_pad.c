@@ -10,7 +10,13 @@
 struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	return wlr_tablet_pad_create(NULL, NULL);
+	struct wlr_tablet_pad *wlr_tablet_pad = calloc(1, sizeof(struct wlr_tablet_pad));
+	if (!wlr_tablet_pad) {
+		wlr_log(L_ERROR, "Unable to allocate wlr_tablet_pad");
+		return NULL;
+	}
+	wlr_tablet_pad_init(wlr_tablet_pad, NULL);
+	return wlr_tablet_pad;
 }
 
 void handle_tablet_pad_button(struct libinput_event *event,

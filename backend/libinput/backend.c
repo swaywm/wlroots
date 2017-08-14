@@ -151,6 +151,7 @@ error_backend:
 	return NULL;
 }
 
-struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev) {
-	return dev->state->handle;
+struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *_dev) {
+	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
+	return dev->handle;
 }

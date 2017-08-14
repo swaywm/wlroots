@@ -3,13 +3,13 @@
 #include <wlr/types/wlr_input_device.h>
 
 struct wlr_input_device_impl {
-	void (*destroy)(struct wlr_input_device_state *state);
+	void (*destroy)(struct wlr_input_device *wlr_device);
 };
 
-struct wlr_input_device *wlr_input_device_create(
+void wlr_input_device_init(
+		struct wlr_input_device *wlr_device,
 		enum wlr_input_device_type type,
 		struct wlr_input_device_impl *impl,
-		struct wlr_input_device_state *state,
 		const char *name, int vendor, int product);
 void wlr_input_device_destroy(struct wlr_input_device *dev);
 

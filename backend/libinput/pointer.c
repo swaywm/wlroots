@@ -10,7 +10,13 @@
 struct wlr_pointer *wlr_libinput_pointer_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	return wlr_pointer_create(NULL, NULL);
+	struct wlr_pointer *wlr_pointer = calloc(1, sizeof(struct wlr_pointer));
+	if (!wlr_pointer) {
+		wlr_log(L_ERROR, "Unable to allocate wlr_pointer");
+		return NULL;
+	}
+	wlr_pointer_init(wlr_pointer, NULL);
+	return wlr_pointer;
 }
 
 void handle_pointer_motion(struct libinput_event *event,

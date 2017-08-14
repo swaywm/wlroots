@@ -11,11 +11,9 @@
  */
 
 struct wlr_tablet_pad_impl;
-struct wlr_tablet_pad_state;
 
 struct wlr_tablet_pad {
 	struct wlr_tablet_pad_impl *impl;
-	struct wlr_tablet_pad_state *state;
 
 	struct {
 		struct wl_signal button;

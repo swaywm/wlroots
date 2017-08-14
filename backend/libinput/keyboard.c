@@ -7,17 +7,21 @@
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
 
-struct wlr_keyboard_state {
+struct wlr_libinput_keyboard {
+	struct wlr_keyboard wlr_keyboard;
 	struct libinput_device *libinput_dev;
 };
 
-static void wlr_libinput_keyboard_set_leds(struct wlr_keyboard_state *kbstate, uint32_t leds) {
-	libinput_device_led_update(kbstate->libinput_dev, leds);
+static void wlr_libinput_keyboard_set_leds(struct wlr_keyboard *wlr_kb, uint32_t leds) {
+	struct wlr_libinput_keyboard *wlr_libinput_kb = (struct wlr_libinput_keyboard *)wlr_kb;
+	libinput_device_led_update(wlr_libinput_kb->libinput_dev, leds);
 }
 
-static void wlr_libinput_keyboard_destroy(struct wlr_keyboard_state *kbstate) {
-	libinput_device_unref(kbstate->libinput_dev);
-	free(kbstate);
+static void wlr_libinput_keyboard_destroy(struct wlr_keyboard *wlr_kb) {
+	struct wlr_libinput_keyboard *wlr_libinput_kb =
+		(struct wlr_libinput_keyboard *)wlr_kb;
+	libinput_device_unref(wlr_libinput_kb->libinput_dev);
+	free(wlr_libinput_kb);
 }
 
 struct wlr_keyboard_impl impl = {
@@ -28,11 +32,14 @@ struct wlr_keyboard_impl impl = {
 struct wlr_keyboard *wlr_libinput_keyboard_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	struct wlr_keyboard_state *kbstate = calloc(1, sizeof(struct wlr_keyboard_state));
-	kbstate->libinput_dev = libinput_dev;
+	struct wlr_libinput_keyboard *wlr_libinput_kb =
+		calloc(1, sizeof(struct wlr_libinput_keyboard));
+	wlr_libinput_kb->libinput_dev = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	libinput_device_led_update(libinput_dev, 0);
-	return wlr_keyboard_create(&impl, kbstate);
+	struct wlr_keyboard *wlr_kb = &wlr_libinput_kb->wlr_keyboard;
+	wlr_keyboard_init(wlr_kb, &impl);
+	return wlr_kb;
 }
 
 void handle_keyboard_key(struct libinput_event *event,

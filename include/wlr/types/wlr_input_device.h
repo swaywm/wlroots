@@ -21,11 +21,9 @@ enum wlr_input_device_type {
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_pad.h>
 
-struct wlr_input_device_state;
 struct wlr_input_device_impl;
 
 struct wlr_input_device {
-	struct wlr_input_device_state *state;
 	struct wlr_input_device_impl *impl;
 
 	enum wlr_input_device_type type;

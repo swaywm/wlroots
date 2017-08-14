@@ -183,7 +183,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 		free(mode);
 	}
 	list_free(output->modes);
-	if (output->impl->destroy) {
+	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {
 		free(output);

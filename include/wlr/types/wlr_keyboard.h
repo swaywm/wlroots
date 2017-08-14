@@ -10,11 +10,9 @@ enum WLR_KEYBOARD_LED {
 	WLR_LED_LAST
 };
 
-struct wlr_keyboard_state;
 struct wlr_keyboard_impl;
 
 struct wlr_keyboard {
-	struct wlr_keyboard_state *state;
 	struct wlr_keyboard_impl *impl;
 
 	struct {

@@ -10,7 +10,13 @@
 struct wlr_touch *wlr_libinput_touch_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	return wlr_touch_create(NULL, NULL);
+	struct wlr_touch *wlr_touch = calloc(1, sizeof(struct wlr_touch));
+	if (!wlr_touch) {
+		wlr_log(L_ERROR, "Unable to allocate wlr_touch");
+		return NULL;
+	}
+	wlr_touch_init(wlr_touch, NULL);
+	return wlr_touch;
 }
 
 void handle_touch_down(struct libinput_event *event,

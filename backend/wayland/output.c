@@ -103,7 +103,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	struct wlr_wl_backend_output *output;
 	if (!(output = calloc(sizeof(struct wlr_wl_backend_output), 1))) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_output_state");
+		wlr_log(L_ERROR, "Failed to allocate wlr_wl_backend_output");
 		return NULL;
 	}
 	wlr_output_init(&output->wlr_output, &output_impl);

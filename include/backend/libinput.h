@@ -2,6 +2,7 @@
 #define _WLR_BACKEND_LIBINPUT_INTERNAL_H
 #include <libinput.h>
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/list.h>
@@ -22,7 +23,9 @@ struct wlr_libinput_backend {
 	list_t *wlr_device_lists;
 };
 
-struct wlr_input_device_state {
+struct wlr_libinput_input_device {
+	struct wlr_input_device wlr_input_device;
+
 	struct libinput_device *handle;
 };
 
