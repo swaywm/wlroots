@@ -15,11 +15,8 @@ static void surface_attach(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *buffer, int32_t sx, int32_t sy) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	int scale = surface->current.scale;
 	surface->pending.invalid |= WLR_SURFACE_INVALID_BUFFER;
 	surface->pending.buffer = buffer;
-	surface->texture->height_from_buffer = surface->texture->height / scale;
-	surface->texture->width_from_buffer = surface->texture->width / scale;
 }
 
 static void surface_damage(struct wl_client *client,

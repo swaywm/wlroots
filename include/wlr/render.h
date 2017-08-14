@@ -61,7 +61,6 @@ struct wlr_texture {
 	bool valid;
 	uint32_t format;
 	int width, height;
-	int height_from_buffer, width_from_buffer;
 	struct wl_signal destroy_signal;
 	struct wl_resource *resource;
 };
