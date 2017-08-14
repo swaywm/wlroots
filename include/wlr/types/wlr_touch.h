@@ -3,11 +3,9 @@
 #include <wayland-server.h>
 #include <stdint.h>
 
-struct wlr_touch_state;
 struct wlr_touch_impl;
 
 struct wlr_touch {
-	struct wlr_touch_state *state;
 	struct wlr_touch_impl *impl;
 
 	struct {
