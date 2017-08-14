@@ -169,8 +169,9 @@ static struct wl_keyboard_listener keyboard_listener = {
 static void input_device_destroy(struct wlr_input_device *_dev) {
 	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)_dev;
 	wl_signal_emit(&dev->backend->backend.events.input_remove, &dev->wlr_input_device);
-	if (dev->resource)
+	if (dev->resource) {
 		wl_proxy_destroy(dev->resource);
+	}
 	free(dev);
 }
 
