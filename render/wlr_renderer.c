@@ -8,7 +8,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 }
 
 void wlr_renderer_destroy(struct wlr_renderer *r) {
-	if (r->impl->destroy) {
+	if (r && r->impl->destroy) {
 		r->impl->destroy(r);
 	}
 }

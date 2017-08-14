@@ -130,7 +130,6 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 		return true;
 	}
 
-	/*
 	wlr_log(L_INFO, "Falling back to software cursor");
 
 	output->cursor.is_sw = true;
@@ -138,18 +137,22 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	output->cursor.height = height;
 
 	if (!output->cursor.renderer) {
-		output->cursor.renderer = wlr_gles2_renderer_init();
+		/* NULL egl is okay given that we are only using pixel buffers */
+		output->cursor.renderer = wlr_gles2_renderer_init(NULL);
+		if (!output->cursor.renderer) {
+			return false;
+		}
 	}
 
 	if (!output->cursor.texture) {
 		output->cursor.texture = wlr_render_texture_init(output->cursor.renderer);
+		if (!output->cursor.texture) {
+			return false;
+		}
 	}
 
-	wlr_texture_upload_pixels(output->cursor.texture, WL_SHM_FORMAT_ARGB8888,
-		stride, width, height, buf);
-	*/
-
-	return false;
+	return wlr_texture_upload_pixels(output->cursor.texture,
+				WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
@@ -171,6 +174,9 @@ void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) {
 		return;
 	}
+
+	wlr_texture_destroy(output->cursor.texture);
+	wlr_renderer_destroy(output->cursor.renderer);
 
 	output->impl->destroy(output);
 	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {

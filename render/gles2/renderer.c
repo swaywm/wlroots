@@ -245,10 +245,12 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 
 struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {
 	init_globals();
-	struct wlr_egl *egl = wlr_backend_get_egl(backend);
 	struct wlr_gles2_renderer *renderer =
 		calloc(1, sizeof(struct wlr_gles2_renderer));
 	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
-	renderer->egl = egl;
+	if (backend) {
+		struct wlr_egl *egl = wlr_backend_get_egl(backend);
+		renderer->egl = egl;
+	}
 	return &renderer->wlr_renderer;
 }
