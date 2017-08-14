@@ -4,10 +4,7 @@
 #include <wlr/util/list.h>
 #include <stdbool.h>
 
-struct wlr_output_mode_state;
-
 struct wlr_output_mode {
-	struct wlr_output_mode_state *state;
 	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz

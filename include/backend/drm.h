@@ -133,8 +133,8 @@ enum wlr_drm_output_state {
 	WLR_DRM_OUTPUT_CONNECTED,
 };
 
-struct wlr_output_mode_state {
-	struct wlr_wl_output_mode *wlr_mode;
+struct wlr_drm_output_mode {
+	struct wlr_output_mode wlr_mode;
 	drmModeModeInfo mode;
 };
 

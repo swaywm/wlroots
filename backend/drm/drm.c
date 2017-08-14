@@ -324,7 +324,9 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 		bo = plane->back;
 	}
 
-	drmModeModeInfo *mode = &output->output.current_mode->state->mode;
+	struct wlr_drm_output_mode *_mode =
+		(struct wlr_drm_output_mode *)output->output.current_mode;
+	drmModeModeInfo *mode = &_mode->mode;
 	backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode);
 	output->pageflip_pending = true;
 }
@@ -760,18 +762,16 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < conn->count_modes; ++i) {
-				struct wlr_output_mode_state *_state = calloc(1,
-						sizeof(struct wlr_output_mode_state));
-				_state->mode = conn->modes[i];
-				struct wlr_output_mode *mode = calloc(1,
-						sizeof(struct wlr_output_mode));
-				mode->width = _state->mode.hdisplay;
-				mode->height = _state->mode.vdisplay;
-				mode->refresh = calculate_refresh_rate(&_state->mode);
-				mode->state = _state;
+				struct wlr_drm_output_mode *mode = calloc(1,
+						sizeof(struct wlr_drm_output_mode));
+				mode->mode = conn->modes[i];
+				mode->wlr_mode.width = mode->mode.hdisplay;
+				mode->wlr_mode.height = mode->mode.vdisplay;
+				mode->wlr_mode.refresh = calculate_refresh_rate(&mode->mode);
 
 				wlr_log(L_INFO, "  %"PRId32"@%"PRId32"@%"PRId32,
-					mode->width, mode->height, mode->refresh);
+					mode->wlr_mode.width, mode->wlr_mode.height,
+					mode->wlr_mode.refresh);
 
 				list_add(output->output.modes, mode);
 			}
