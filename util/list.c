@@ -6,9 +6,16 @@
 
 list_t *list_create(void) {
 	list_t *list = malloc(sizeof(list_t));
+	if (!list) {
+		return NULL;
+	}
 	list->capacity = 10;
 	list->length = 0;
 	list->items = malloc(sizeof(void*) * list->capacity);
+	if (!list->items) {
+		free(list);
+		return NULL;
+	}
 	return list;
 }
 

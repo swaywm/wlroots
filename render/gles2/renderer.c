@@ -241,8 +241,10 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 
 struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {
 	init_globals();
-	struct wlr_gles2_renderer *renderer =
-		calloc(1, sizeof(struct wlr_gles2_renderer));
+	struct wlr_gles2_renderer *renderer;
+	if (!(renderer = calloc(1, sizeof(struct wlr_gles2_renderer)))) {
+		return NULL;
+	}
 	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
 	if (backend) {
 		struct wlr_egl *egl = wlr_backend_get_egl(backend);

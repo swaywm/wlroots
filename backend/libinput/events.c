@@ -39,8 +39,10 @@ static struct wlr_input_device *allocate_device(
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
-	struct wlr_libinput_input_device *wlr_libinput_dev =
-		calloc(1, sizeof(struct wlr_libinput_input_device));
+	struct wlr_libinput_input_device *wlr_libinput_dev;
+	if (!(wlr_libinput_dev = calloc(1, sizeof(struct wlr_libinput_input_device)))) {
+		return NULL;
+	}
 	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
 	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
@@ -63,36 +65,74 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
 	list_t *wlr_devices = list_create();
+	if (!wlr_devices) {
+		goto fail;
+	}
 	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_KEYBOARD);
+		if (!wlr_dev) {
+			goto fail;
+		}
 		wlr_dev->keyboard = wlr_libinput_keyboard_create(libinput_dev);
+		if (!wlr_dev->keyboard) {
+			free(wlr_dev);
+			goto fail;
+		}
 		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_POINTER)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_POINTER);
+		if (!wlr_dev) {
+			goto fail;
+		}
 		wlr_dev->pointer = wlr_libinput_pointer_create(libinput_dev);
+		if (!wlr_dev->pointer) {
+			free(wlr_dev);
+			goto fail;
+		}
 		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TOUCH)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TOUCH);
+		if (!wlr_dev) {
+			goto fail;
+		}
 		wlr_dev->touch = wlr_libinput_touch_create(libinput_dev);
+		if (!wlr_dev->touch) {
+			free(wlr_dev);
+			goto fail;
+		}
 		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_TOOL)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TABLET_TOOL);
+		if (!wlr_dev) {
+			goto fail;
+		}
 		wlr_dev->tablet_tool = wlr_libinput_tablet_tool_create(libinput_dev);
+		if (!wlr_dev->tablet_tool) {
+			free(wlr_dev);
+			goto fail;
+		}
 		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_PAD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TABLET_PAD);
+		if (!wlr_dev) {
+			goto fail;
+		}
 		wlr_dev->tablet_pad = wlr_libinput_tablet_pad_create(libinput_dev);
+		if (!wlr_dev->tablet_pad) {
+			free(wlr_dev);
+			goto fail;
+		}
 		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_GESTURE)) {
@@ -108,6 +148,12 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	} else {
 		list_free(wlr_devices);
 	}
+	return;
+
+fail:
+	wlr_log(L_ERROR, "Could not allocate new device");
+	list_foreach(wlr_devices, free);
+	list_free(wlr_devices);
 }
 
 static void handle_device_removed(struct wlr_libinput_backend *backend,

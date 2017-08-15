@@ -115,7 +115,11 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	assert(wlr_backend_is_multi(_multi));
 
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
-	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
+	struct subbackend_state *sub;
+	if (!(sub = calloc(1, sizeof(struct subbackend_state)))) {
+		wlr_log(L_ERROR, "Could not add backend: allocation failed");
+		return;
+	}
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
