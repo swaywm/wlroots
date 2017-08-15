@@ -62,9 +62,9 @@ void wlr_set_pointer_button(struct wlr_seat *seat, uint32_t serial, uint32_t tim
 void wlr_seat_keyboard_keymap(struct wlr_seat *seat, uint32_t format, int fd, uint32_t size);
 void wlr_seat_keyboard_repeat_info(struct wlr_seat *seat, int32_t rate, int32_t delay);
 void wlr_seat_keyboard_key(struct wlr_seat *seat, uint32_t serial, uint32_t time,
-	uint32_t key, uint8_t state);
+		uint32_t key, uint8_t state);
 void wlr_seat_keyboard_focus(struct wlr_seat *seat, uint32_t serial, struct wl_resource *surface,
-	struct wl_array *keys);
+		struct wl_array *keys);
 void wlr_seat_keyboard_modifiers(struct wlr_seat *seat, uint32_t serial, uint32_t mods_depressed,
 		uint32_t mods_latched, uint32_t mods_locked, uint32_t group);
 

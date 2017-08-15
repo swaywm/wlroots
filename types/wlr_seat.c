@@ -113,7 +113,7 @@ static const struct wl_seat_interface seat_implementation = {
 
 static void seat_destroy(struct wl_resource *resource) {
 	struct wlr_seat *seat = wl_resource_get_user_data(resource);
-	for(unsigned int i = 0; i < seat->resources.length; ++i) {
+	for (size_t i = 0; i < seat->resources.length; ++i) {
 		struct wlr_seat_resources *resources = seat->resources.items[i];
 		if (resources->seat == resource) {
 			if (resources == seat->pointer_over_res) {
@@ -190,7 +190,7 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 void wlr_seat_set_caps(struct wlr_seat *seat, uint32_t caps) {
 	seat->caps = caps;
-	for(unsigned int i = 0; i < seat->resources.length; ++i) {
+	for (size_t i = 0; i < seat->resources.length; ++i) {
 		struct wlr_seat_resources *resources = seat->resources.items[i];
 		wl_seat_send_capabilities(resources->seat, caps);
 	}
@@ -281,7 +281,7 @@ void wlr_seat_keyboard_keymap(struct wlr_seat *seat, uint32_t format, int fd, ui
 	seat->keyboard.keymap_fd = fd;
 	seat->keyboard.keymap_size = size;
 
-	for(unsigned int i = 0; i < seat->resources.length; ++i) {
+	for (size_t i = 0; i < seat->resources.length; ++i) {
 		struct wlr_seat_resources *resources = seat->resources.items[i];
 		if (resources->keyboard) {
 			wl_keyboard_send_keymap(resources->keyboard, format, fd, size);
@@ -293,7 +293,7 @@ void wlr_seat_keyboard_repeat_info(struct wlr_seat *seat, int32_t rate, int32_t 
 	 seat->keyboard.repeat_rate = rate;
 	 seat->keyboard.repeat_delay = delay;
 
-	for(unsigned int i = 0; i < seat->resources.length; ++i) {
+	for (size_t i = 0; i < seat->resources.length; ++i) {
 		struct wlr_seat_resources *resources = seat->resources.items[i];
 		if (resources->keyboard) {
 			wl_keyboard_send_repeat_info(resources->keyboard, rate, delay);
