@@ -101,8 +101,9 @@ error:
 }
 
 static void init_image_ext() {
-	if (glEGLImageTargetTexture2DOES)
+	if (glEGLImageTargetTexture2DOES) {
 		return;
+	}
 
 	const char *exts = (const char*) glGetString(GL_EXTENSIONS);
 	if (strstr(exts, "GL_OES_EGL_image_external")) {
@@ -177,7 +178,7 @@ static void draw_quad() {
 
 static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]) {
-	if(!texture || !texture->valid) {
+	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
 	}

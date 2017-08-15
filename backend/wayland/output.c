@@ -162,7 +162,7 @@ static struct wlr_output_impl output_impl = {
 	.move_cursor = wlr_wl_output_move_cursor
 };
 
-void handle_ping(void* data, struct wl_shell_surface* ssurface, uint32_t serial) {
+void handle_ping(void *data, struct wl_shell_surface *ssurface, uint32_t serial) {
 	struct wlr_wl_backend_output *output = data;
 	assert(output && output->shell_surface == ssurface);
 	wl_shell_surface_pong(ssurface, serial);

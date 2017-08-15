@@ -19,7 +19,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_input_device *wlr_wl_dev = (struct wlr_wl_input_device *)dev;
 	assert(dev && dev->pointer);
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
-	struct wlr_wl_backend_output* output =
+	struct wlr_wl_backend_output *output =
 		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
 	assert(output);
 	wlr_wl_pointer->current_output = output;

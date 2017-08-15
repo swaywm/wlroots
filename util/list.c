@@ -74,7 +74,7 @@ void list_cat(list_t *list, list_t *source) {
 	}
 }
 
-void list_qsort(list_t* list, int compare(const void *left, const void *right)) {
+void list_qsort(list_t *list, int compare(const void *left, const void *right)) {
 	qsort(list->items, list->length, sizeof(void *), compare);
 }
 
