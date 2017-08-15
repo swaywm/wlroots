@@ -55,7 +55,17 @@ struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
 void wlr_surface_flush_damage(struct wlr_surface *surface);
-void wlr_surface_get_matrix(struct wlr_surface *surface, float (*matrix)[16],
-		const float (*projection)[16], int x, int y);
+/**
+ * Gets a matrix you can pass into wlr_render_with_matrix to display this
+ * surface. `matrix` is the output matrix, `projection` is the wlr_output
+ * projection matrix, and `transform` is any additional transformations you want
+ * to perform on the surface (or NULL/the identity matrix if you don't).
+ * `transform` is used before the surface is scaled, so its geometry extends
+ * from 0 to 1 in both dimensions.
+ */
+void wlr_surface_get_matrix(struct wlr_surface *surface,
+		float (*matrix)[16],
+		const float (*projection)[16],
+		const float (*transform)[16]);
 
 #endif

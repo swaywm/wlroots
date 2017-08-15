@@ -8,6 +8,7 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/render.h>
+#include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
@@ -41,12 +42,14 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 
 	struct wl_resource *_res;
 	float matrix[16];
+	float transform[16];
 	wl_list_for_each(_res, &sample->compositor.surfaces, link) {
 		struct wlr_surface *surface = wl_resource_get_user_data(_res);
 		wlr_surface_flush_damage(surface);
 		if (surface->texture->valid) {
+			wlr_matrix_translate(&transform, 200, 200, 0);
 			wlr_surface_get_matrix(surface, &matrix,
-				&wlr_output->transform_matrix, 200, 200);
+				&wlr_output->transform_matrix, &transform);
 			wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
 
 			struct wlr_frame_callback *cb, *cnext;
