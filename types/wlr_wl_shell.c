@@ -145,6 +145,7 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 		wl_list_remove(link);
 	}
 	// TODO: destroy surfaces
-	wl_global_destroy(wlr_wl_shell->wl_global);
+	// TODO: this segfault (wl_display->registry_resource_list is not init)
+	// wl_global_destroy(wlr_wl_shell->wl_global);
 	free(wlr_wl_shell);
 }
