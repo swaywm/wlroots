@@ -18,7 +18,7 @@ struct wlr_xdg_surface_v6 {
 	void *data;
 };
 
-struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display);
+struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
 void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell);
 
 #endif

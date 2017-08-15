@@ -117,17 +117,22 @@ static void wl_shell_bind(struct wl_client *wl_client, void *_wl_shell,
 	wl_list_insert(&wl_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
-void wlr_wl_shell_init(struct wlr_wl_shell *wlr_wl_shell,
-		struct wl_display *display) {
+struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
+	struct wlr_wl_shell *wlr_wl_shell =
+		calloc(1, sizeof(struct wlr_wl_shell));
+	if (!wlr_wl_shell) {
+		return NULL;
+	}
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_shell_interface, 1, wlr_wl_shell, wl_shell_bind);
 	if (!wl_global) {
-		// TODO: return failure somehow
-		return;
+		free(wlr_wl_shell);
+		return NULL;
 	}
 	wlr_wl_shell->wl_global = wl_global;
 	wl_list_init(&wlr_wl_shell->wl_resources);
 	wl_list_init(&wlr_wl_shell->surfaces);
+	return wlr_wl_shell;
 }
 
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
@@ -141,4 +146,5 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	}
 	// TODO: destroy surfaces
 	wl_global_destroy(wlr_wl_shell->wl_global);
+	free(wlr_wl_shell);
 }

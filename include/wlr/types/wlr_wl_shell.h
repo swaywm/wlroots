@@ -19,8 +19,7 @@ struct wlr_wl_shell_surface {
 };
 
 
-void wlr_wl_shell_init(struct wlr_wl_shell *wlr_wl_shell,
-		struct wl_display *display);
+struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display);
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell);
 
 #endif

@@ -22,7 +22,7 @@
 struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wl_compositor_state compositor;
-	struct wlr_wl_shell wl_shell;
+	struct wlr_wl_shell *wl_shell;
 	struct wlr_xdg_shell_v6 *xdg_shell;
 };
 
@@ -62,7 +62,7 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	struct wlr_wl_shell_surface *wl_shell_surface;
-	wl_list_for_each(wl_shell_surface, &sample->wl_shell.surfaces, link) {
+	wl_list_for_each(wl_shell_surface, &sample->wl_shell->surfaces, link) {
 		output_frame_handle_surface(sample, wlr_output, ts, wl_shell_surface->surface);
 	}
 	struct wlr_xdg_surface_v6 *xdg_surface;
@@ -85,8 +85,11 @@ int main() {
 	state.renderer = wlr_gles2_renderer_init(compositor.backend);
 	wl_display_init_shm(compositor.display);
 	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
-	wlr_wl_shell_init(&state.wl_shell, compositor.display);
-	state.xdg_shell = wlr_xdg_shell_v6_init(compositor.display);
+	state.wl_shell = wlr_wl_shell_create(compositor.display);
+	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
 
 	compositor_run(&compositor);
+
+	wlr_wl_shell_destroy(state.wl_shell);
+	wlr_xdg_shell_v6_destroy(state.xdg_shell);
 }

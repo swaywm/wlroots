@@ -179,7 +179,7 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 	wl_list_insert(&xdg_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
-struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display) {
+struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	struct wlr_xdg_shell_v6 *xdg_shell =
 		calloc(1, sizeof(struct wlr_xdg_shell_v6));
 	if (!xdg_shell) {
@@ -188,7 +188,7 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display) {
 	struct wl_global *wl_global = wl_global_create(display,
 		&zxdg_shell_v6_interface, 1, xdg_shell, xdg_shell_bind);
 	if (!wl_global) {
-		wlr_xdg_shell_v6_destroy(xdg_shell);
+		free(xdg_shell);
 		return NULL;
 	}
 	xdg_shell->wl_global = wl_global;
