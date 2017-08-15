@@ -58,7 +58,7 @@ static void surface_frame(struct wl_client *client,
 	}
 
 	wl_resource_set_implementation(cb->resource,
-			NULL, cb, destroy_frame_callback);
+		NULL, cb, destroy_frame_callback);
 
 	wl_list_insert(surface->frame_callback_list.prev, &cb->link);
 }
@@ -87,7 +87,7 @@ static void surface_set_input_region(struct wl_client *client,
 	} else {
 		pixman_region32_fini(&surface->pending.input);
 		pixman_region32_init_rect(&surface->pending.input,
-				INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
+			INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
 	}
 }
 
@@ -212,8 +212,8 @@ static void surface_commit(struct wl_client *client,
 			&surface_height);
 
 		pixman_region32_union(&surface->current.surface_damage,
-				&surface->current.surface_damage,
-				&surface->pending.surface_damage);
+			&surface->current.surface_damage,
+			&surface->pending.surface_damage);
 		pixman_region32_intersect_rect(&surface->current.surface_damage,
 			&surface->current.surface_damage, 0, 0, surface_width,
 			surface_height);
@@ -350,7 +350,7 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	wl_signal_init(&surface->signals.commit);
 	wl_list_init(&surface->frame_callback_list);
 	wl_resource_set_implementation(res, &surface_interface,
-			surface, destroy_surface);
+		surface, destroy_surface);
 	return surface;
 }
 
