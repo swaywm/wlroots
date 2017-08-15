@@ -239,7 +239,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		struct wlr_input_device *wlr_device = allocate_device(backend,
 			WLR_INPUT_DEVICE_KEYBOARD);
 		if (!wlr_device) {
-			wlr_log(L_ERROR, "Unable to allocate wl_pointer device");
+			wlr_log(L_ERROR, "Unable to allocate wl_keyboard device");
 			return;
 		}
 		wlr_device->keyboard = calloc(1, sizeof(struct wlr_keyboard));

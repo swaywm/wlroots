@@ -17,6 +17,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_pad.h>
+#include <wlr/util/log.h>
 #include <math.h>
 #include "shared.h"
 #include "cat.h"
@@ -153,6 +154,10 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_init(compositor.backend);
+	if (!state.renderer) {
+		wlr_log(L_ERROR, "Could not start compositor, OOM");
+		exit(EXIT_FAILURE);
+	}
 	compositor_run(&compositor);
 
 	wlr_renderer_destroy(state.renderer);

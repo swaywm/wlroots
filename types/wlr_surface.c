@@ -200,7 +200,11 @@ static void destroy_surface(struct wl_resource *resource) {
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
-	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
+	struct wlr_surface *surface;
+	if (!(surface = calloc(1, sizeof(struct wlr_surface)))) {
+		wl_resource_post_no_memory(res);
+		return NULL;
+	}
 	surface->renderer = renderer;
 	surface->texture = wlr_render_texture_init(renderer);
 	surface->resource = res;

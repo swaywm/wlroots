@@ -141,8 +141,10 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 		struct wl_resource *_xdg_shell, uint32_t id,
 		struct wl_resource *_surface) {
 	struct wlr_xdg_shell_v6 *xdg_shell = wl_resource_get_user_data(_xdg_shell);
-	struct wlr_xdg_surface_v6 *surface =
-		calloc(1, sizeof(struct wlr_xdg_surface_v6));
+	struct wlr_xdg_surface_v6 *surface;
+	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
+		return;
+	}
 	surface->surface = _surface;
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);

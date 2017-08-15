@@ -32,8 +32,10 @@ struct wlr_keyboard_impl impl = {
 struct wlr_keyboard *wlr_libinput_keyboard_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	struct wlr_libinput_keyboard *wlr_libinput_kb =
-		calloc(1, sizeof(struct wlr_libinput_keyboard));
+	struct wlr_libinput_keyboard *wlr_libinput_kb;
+	if (!(wlr_libinput_kb= calloc(1, sizeof(struct wlr_libinput_keyboard)))) {
+		return NULL;
+	}
 	wlr_libinput_kb->libinput_dev = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	libinput_device_led_update(libinput_dev, 0);

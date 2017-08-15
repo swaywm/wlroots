@@ -16,6 +16,7 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/util/log.h>
 #include <math.h>
 #include "shared.h"
 #include "cat.h"
@@ -205,7 +206,15 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_init(compositor.backend);
+	if (!state.renderer) {
+		wlr_log(L_ERROR, "Could not start compositor, OOM");
+		exit(EXIT_FAILURE);
+	}
 	state.cat_texture = wlr_render_texture_init(state.renderer);
+	if (!state.cat_texture) {
+		wlr_log(L_ERROR, "Could not start compositor, OOM");
+		exit(EXIT_FAILURE);
+	}
 	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
