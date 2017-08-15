@@ -93,6 +93,7 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 
 static void xdg_surface_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	wl_list_remove(&surface->link);
 	free(surface);
 }
 

@@ -73,7 +73,7 @@ struct wl_shell_surface_interface shell_surface_interface = {
 
 static void destroy_shell_surface(struct wl_resource *resource) {
 	struct wlr_wl_shell_surface *state = wl_resource_get_user_data(resource);
-	wl_list_remove(wl_resource_get_link(resource));
+	wl_list_remove(&state->link);
 	free(state);
 }
 
@@ -81,13 +81,16 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface) {
 	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface);
+	struct wlr_wl_shell *wlr_wl_shell = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface));
 	state->wlr_texture = wlr_texture;
+	state->surface = surface;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
 	wl_resource_set_implementation(shell_surface_resource,
 			&shell_surface_interface, state, destroy_shell_surface);
+	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
 }
 
 static struct wl_shell_interface wl_shell_impl = {
@@ -126,8 +129,13 @@ void wlr_wl_shell_init(struct wlr_wl_shell *wlr_wl_shell,
 		struct wl_display *display) {
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_shell_interface, 1, wlr_wl_shell, wl_shell_bind);
+	if (!wl_global) {
+		// TODO: return failure somehow
+		return;
+	}
 	wlr_wl_shell->wl_global = wl_global;
 	wl_list_init(&wlr_wl_shell->wl_resources);
+	wl_list_init(&wlr_wl_shell->surfaces);
 }
 
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {

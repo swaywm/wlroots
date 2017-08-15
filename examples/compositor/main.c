@@ -33,6 +33,26 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
+void output_frame_handle_surface(struct sample_state *sample,
+		struct wlr_output *wlr_output, struct timespec *ts,
+		struct wl_resource *_res) {
+	struct wlr_surface *surface = wl_resource_get_user_data(_res);
+	float matrix[16];
+	float transform[16];
+	wlr_surface_flush_damage(surface);
+	if (surface->texture->valid) {
+		wlr_matrix_translate(&transform, 200, 200, 0);
+		wlr_surface_get_matrix(surface, &matrix,
+			&wlr_output->transform_matrix, &transform);
+		wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
+
+		struct wlr_frame_callback *cb, *cnext;
+		wl_list_for_each_safe(cb, cnext, &surface->frame_callback_list, link) {
+			wl_callback_send_done(cb->resource, timespec_to_msec(ts));
+			wl_resource_destroy(cb->resource);
+		}
+	}
+}
 void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
@@ -41,24 +61,13 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
-	struct wl_resource *_res;
-	float matrix[16];
-	float transform[16];
-	wl_list_for_each(_res, &sample->compositor.surfaces, link) {
-		struct wlr_surface *surface = wl_resource_get_user_data(_res);
-		wlr_surface_flush_damage(surface);
-		if (surface->texture->valid) {
-			wlr_matrix_translate(&transform, 200, 200, 0);
-			wlr_surface_get_matrix(surface, &matrix,
-				&wlr_output->transform_matrix, &transform);
-			wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
-
-			struct wlr_frame_callback *cb, *cnext;
-			wl_list_for_each_safe(cb, cnext, &surface->frame_callback_list, link) {
-				wl_callback_send_done(cb->resource, timespec_to_msec(ts));
-				wl_resource_destroy(cb->resource);
-			}
-		}
+	struct wlr_wl_shell_surface *wl_shell_surface;
+	wl_list_for_each(wl_shell_surface, &sample->wl_shell.surfaces, link) {
+		output_frame_handle_surface(sample, wlr_output, ts, wl_shell_surface->surface);
+	}
+	struct wlr_xdg_surface_v6 *xdg_surface;
+	wl_list_for_each(xdg_surface, &sample->xdg_shell->surfaces, link) {
+		output_frame_handle_surface(sample, wlr_output, ts, xdg_surface->surface);
 	}
 
 	wlr_renderer_end(sample->renderer);

@@ -9,11 +9,12 @@
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	struct wlr_surface *surface = wl_resource_get_user_data(data);
 	struct wl_compositor_state *state = surface->compositor_data;
+	assert(data == surface->resource);
 
 	struct wl_resource *res = NULL;
 	wl_list_for_each(res, &state->surfaces, link) {
 		if (res == surface->resource) {
-			wl_list_remove(&res->link);
+			wl_list_remove(wl_resource_get_link(res));
 			break;
 		}
 	}
