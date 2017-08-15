@@ -222,7 +222,19 @@ static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 		wl_resource *resource, int *width, int *height) {
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(resource);
 	if (!buffer) {
-		wlr_log(L_ERROR, "getting buffer size is only implemented for shm buffers");
+		struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)texture;
+		if (!glEGLImageTargetTexture2DOES) {
+			return;
+		}
+		if (!wlr_egl_query_buffer(tex->egl, resource, EGL_WIDTH,
+				(EGLint*)&width)) {
+			wlr_log(L_ERROR, "could not get size of the buffer "
+				"(no buffer found)");
+			return;
+		};
+		wlr_egl_query_buffer(tex->egl, resource, EGL_HEIGHT,
+			(EGLint*)&height);
+
 		return;
 	}
 
