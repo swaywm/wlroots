@@ -12,6 +12,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_seat.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
@@ -22,6 +23,8 @@ struct sample_state {
 	struct wl_compositor_state compositor;
 	struct wl_shell_state shell;
 	struct wlr_xdg_shell_v6 *xdg_shell;
+	struct wlr_seat *seat;
+	struct wl_resource *focus;
 };
 
 /*
@@ -61,11 +64,34 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	wlr_output_swap_buffers(wlr_output);
 }
 
+void handle_keyboard_key(struct keyboard_state *keyboard, xkb_keysym_t sym,
+			enum wlr_key_state key_state) {
+	struct compositor_state *state = keyboard->compositor;
+	struct sample_state *sample = state->data;
+
+	struct wl_resource *res;
+	wl_list_for_each(res, &sample->compositor.surfaces, link) {
+		break;
+	}
+
+	if (res && res != sample->focus) {
+		struct wl_array keys;
+		wl_array_init(&keys);
+		wlr_seat_keyboard_focus(sample->seat, 0, res, &keys);
+		sample->focus = res;
+	}
+
+	if (res) {
+		wlr_seat_keyboard_key(sample->seat, 0, 0, sym, key_state);
+	}
+}
+
 int main() {
 	struct sample_state state = { 0 };
 	struct compositor_state compositor = { 0,
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
+		.keyboard_key_cb = handle_keyboard_key
 	};
 	compositor_init(&compositor);
 
@@ -74,6 +100,9 @@ int main() {
 	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
 	wl_shell_init(compositor.display, &state.shell);
 	state.xdg_shell = wlr_xdg_shell_v6_init(compositor.display);
+	state.seat = wlr_seat_create(compositor.display, "seat0");
+	wlr_seat_set_caps(state.seat, WL_SEAT_CAPABILITY_KEYBOARD | WL_SEAT_CAPABILITY_POINTER |
+		WL_SEAT_CAPABILITY_TOUCH);
 
 	compositor_run(&compositor);
 }
