@@ -98,15 +98,7 @@ static struct wl_shell_interface wl_shell_impl = {
 };
 
 static void wl_shell_destroy(struct wl_resource *resource) {
-	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(resource);
-	struct wl_resource *_resource = NULL;
-	wl_resource_for_each(_resource, &wl_shell->wl_resources) {
-		if (_resource == resource) {
-			struct wl_list *link = wl_resource_get_link(_resource);
-			wl_list_remove(link);
-			break;
-		}
-	}
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void wl_shell_bind(struct wl_client *wl_client, void *_wl_shell,
