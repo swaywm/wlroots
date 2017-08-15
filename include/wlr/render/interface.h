@@ -46,6 +46,8 @@ struct wlr_texture_impl {
 		struct wl_resource *drm_buf);
 	void (*get_matrix)(struct wlr_texture *state,
 		float (*matrix)[16], const float (*projection)[16], int x, int y);
+	void (*get_buffer_size)(struct wlr_texture *texture,
+		struct wl_resource *resource, int *width, int *height);
 	void (*bind)(struct wlr_texture *texture);
 	void (*destroy)(struct wlr_texture *texture);
 };
@@ -53,5 +55,7 @@ struct wlr_texture_impl {
 void wlr_texture_init(struct wlr_texture *texture,
 		struct wlr_texture_impl *impl);
 void wlr_texture_bind(struct wlr_texture *texture);
+void wlr_texture_get_buffer_size(struct wlr_texture *texture,
+		struct wl_resource *resource, int *width, int *height);
 
 #endif

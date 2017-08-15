@@ -218,6 +218,30 @@ static void gles2_texture_get_matrix(struct wlr_texture *_texture,
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
+static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
+		wl_resource *resource, int *width, int *height) {
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(resource);
+	if (!buffer) {
+		struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)texture;
+		if (!glEGLImageTargetTexture2DOES) {
+			return;
+		}
+		if (!wlr_egl_query_buffer(tex->egl, resource, EGL_WIDTH,
+				(EGLint*)&width)) {
+			wlr_log(L_ERROR, "could not get size of the buffer "
+				"(no buffer found)");
+			return;
+		};
+		wlr_egl_query_buffer(tex->egl, resource, EGL_HEIGHT,
+			(EGLint*)&height);
+
+		return;
+	}
+
+	*width = wl_shm_buffer_get_width(buffer);
+	*height = wl_shm_buffer_get_height(buffer);
+}
+
 static void gles2_texture_bind(struct wlr_texture *_texture) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
@@ -247,6 +271,7 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.update_shm = gles2_texture_update_shm,
 	.upload_drm = gles2_texture_upload_drm,
 	.get_matrix = gles2_texture_get_matrix,
+	.get_buffer_size = gles2_texture_get_buffer_size,
 	.bind = gles2_texture_bind,
 	.destroy = gles2_texture_destroy,
 };
