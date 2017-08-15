@@ -93,6 +93,7 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 
 static void xdg_surface_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	wl_list_remove(&surface->link);
 	free(surface);
 }
 
@@ -159,11 +160,14 @@ static void xdg_shell_pong(struct wl_client *client,
 }
 
 static struct zxdg_shell_v6_interface xdg_shell_impl = {
-	.destroy = resource_destroy,
 	.create_positioner = xdg_shell_create_positioner,
 	.get_xdg_surface = xdg_shell_get_xdg_surface,
 	.pong = xdg_shell_pong,
 };
+
+static void xdg_shell_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
 
 static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 		uint32_t version, uint32_t id) {
@@ -176,11 +180,11 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 	}
 	struct wl_resource *wl_resource = wl_resource_create(
 		wl_client, &zxdg_shell_v6_interface, version, id);
-	wl_resource_set_implementation(wl_resource, &xdg_shell_impl, xdg_shell, NULL);
+	wl_resource_set_implementation(wl_resource, &xdg_shell_impl, xdg_shell, xdg_shell_destroy);
 	wl_list_insert(&xdg_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
-struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display) {
+struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	struct wlr_xdg_shell_v6 *xdg_shell =
 		calloc(1, sizeof(struct wlr_xdg_shell_v6));
 	if (!xdg_shell) {
@@ -189,7 +193,7 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_init(struct wl_display *display) {
 	struct wl_global *wl_global = wl_global_create(display,
 		&zxdg_shell_v6_interface, 1, xdg_shell, xdg_shell_bind);
 	if (!wl_global) {
-		wlr_xdg_shell_v6_destroy(xdg_shell);
+		free(xdg_shell);
 		return NULL;
 	}
 	xdg_shell->wl_global = wl_global;
@@ -208,6 +212,7 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 		wl_list_remove(link);
 	}
 	// TODO: destroy surfaces
-	wl_global_destroy(xdg_shell->wl_global);
+	// TODO: this segfault (wl_display->registry_resource_list is not init)
+	// wl_global_destroy(xdg_shell->wl_global);
 	free(xdg_shell);
 }
