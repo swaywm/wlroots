@@ -91,12 +91,15 @@ static void surface_set_input_region(struct wl_client *client,
 	}
 }
 
-static void wlr_surface_get_effective_size(struct wlr_surface *surface,
-		int swidth, int sheight, int *width, int *height) {
+static void wlr_surface_update_size(struct wlr_surface *surface) {
 	int scale = surface->current.scale;
 	enum wl_output_transform transform = surface->current.transform;
-	int _width = swidth / scale;
-	int _height = sheight / scale;
+
+	wlr_texture_get_buffer_size(surface->texture, surface->current.buffer,
+		&surface->current.buffer_width, &surface->current.buffer_height);
+
+	int _width = surface->current.buffer_width / scale;
+	int _height = surface->current.buffer_height / scale;
 
 	if (transform == WL_OUTPUT_TRANSFORM_90 ||
 		transform == WL_OUTPUT_TRANSFORM_270 ||
@@ -107,8 +110,8 @@ static void wlr_surface_get_effective_size(struct wlr_surface *surface,
 		_height = tmp;
 	}
 
-	*width = _width;
-	*height = _height;
+	surface->current.width = _width;
+	surface->current.height = _height;
 }
 
 static void wlr_surface_to_buffer_region(struct wlr_surface *surface,
@@ -203,20 +206,14 @@ static void surface_commit(struct wl_client *client,
 		surface->current.buffer = surface->pending.buffer;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
-		int width, height;
-		wlr_texture_get_buffer_size(surface->texture, surface->current.buffer,
-			&width, &height);
-
-		int surface_width, surface_height;
-		wlr_surface_get_effective_size(surface, width, height, &surface_width,
-			&surface_height);
+		wlr_surface_update_size(surface);
 
 		pixman_region32_union(&surface->current.surface_damage,
 			&surface->current.surface_damage,
 			&surface->pending.surface_damage);
 		pixman_region32_intersect_rect(&surface->current.surface_damage,
-			&surface->current.surface_damage, 0, 0, surface_width,
-			surface_height);
+			&surface->current.surface_damage, 0, 0, surface->current.width,
+			surface->current.height);
 
 		pixman_region32_union(&surface->current.buffer_damage,
 			&surface->current.buffer_damage,
@@ -225,12 +222,13 @@ static void surface_commit(struct wl_client *client,
 		pixman_region32_t buffer_damage;
 		pixman_region32_init(&buffer_damage);
 		wlr_surface_to_buffer_region(surface, &surface->current.surface_damage,
-			&buffer_damage, surface_width, surface_height);
+			&buffer_damage, surface->current.width, surface->current.height);
 		pixman_region32_union(&surface->current.buffer_damage,
 			&surface->current.buffer_damage, &buffer_damage);
 
 		pixman_region32_intersect_rect(&surface->current.buffer_damage,
-			&surface->current.buffer_damage, 0, 0, width, height);
+			&surface->current.buffer_damage, 0, 0,
+			surface->current.buffer_width, surface->current.buffer_height);
 
 		pixman_region32_clear(&surface->pending.surface_damage);
 		pixman_region32_clear(&surface->pending.buffer_damage);

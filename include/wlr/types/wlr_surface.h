@@ -25,6 +25,8 @@ struct wlr_surface_state {
 	pixman_region32_t opaque, input;
 	enum wl_output_transform transform;
 	int32_t scale;
+	int width, height;
+	int buffer_width, buffer_height;
 };
 
 struct wlr_surface {
