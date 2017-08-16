@@ -61,10 +61,14 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_layout_output_coords(sample->layout, output->output, &local_x,
 		&local_y);
 
-	wlr_texture_get_matrix(sample->cat_texture, &matrix,
-		&wlr_output->transform_matrix, local_x, local_y);
-	wlr_render_with_matrix(sample->renderer,
-		sample->cat_texture, &matrix);
+	if (local_x < width && local_x + 128 > 0 && local_y < height &&
+			local_y + 128 > 0) {
+		// render the image if it intersects with the output
+		wlr_texture_get_matrix(sample->cat_texture, &matrix,
+			&wlr_output->transform_matrix, local_x, local_y);
+		wlr_render_with_matrix(sample->renderer,
+			sample->cat_texture, &matrix);
+	}
 
 	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
