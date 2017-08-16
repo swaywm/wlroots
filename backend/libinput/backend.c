@@ -63,14 +63,22 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	libinput_log_set_handler(backend->libinput_context, wlr_libinput_log);
 	libinput_log_set_priority(backend->libinput_context, LIBINPUT_LOG_PRIORITY_ERROR);
 
+	int libinput_fd = libinput_get_fd(backend->libinput_context);
+	if (backend->wlr_device_lists->length == 0) {
+		wlr_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
+		if (backend->wlr_device_lists->length == 0) {
+			wlr_log(L_ERROR, "No input device found, failing initialization");
+			return false;
+		}
+	}
+
 	struct wl_event_loop *event_loop =
 		wl_display_get_event_loop(backend->display);
 	if (backend->input_event) {
 		wl_event_source_remove(backend->input_event);
 	}
-	backend->input_event = wl_event_loop_add_fd(event_loop,
-			libinput_get_fd(backend->libinput_context), WL_EVENT_READABLE,
-			wlr_libinput_readable, backend);
+	backend->input_event = wl_event_loop_add_fd(event_loop, libinput_fd,
+			WL_EVENT_READABLE, wlr_libinput_readable, backend);
 	if (!backend->input_event) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
 		return false;
