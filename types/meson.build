@@ -2,6 +2,7 @@ lib_wlr_types = static_library('wlr_types', files(
     'wlr_input_device.c',
     'wlr_keyboard.c',
     'wlr_output.c',
+    'wlr_output_layout.c',
     'wlr_pointer.c',
     'wlr_region.c',
     'wlr_seat.c',
