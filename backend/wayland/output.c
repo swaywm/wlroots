@@ -137,7 +137,8 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	}
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
-	// xdg_surface/toplevel destroy
+	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
+	zxdg_surface_v6_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
 	free(output);
 }
@@ -230,12 +231,23 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	output->backend = backend;
 
-	// TODO: error handling
 	output->surface = wl_compositor_create_surface(backend->compositor);
+	if (!output->surface) {
+		wlr_log_errno(L_ERROR, "Could not create output surface");
+		goto error;
+	}
 	output->xdg_surface =
 		zxdg_shell_v6_get_xdg_surface(backend->shell, output->surface);
+	if (!output->xdg_surface) {
+		wlr_log_errno(L_ERROR, "Could not get xdg surface");
+		goto error;
+	}
 	output->xdg_toplevel =
 		zxdg_surface_v6_get_toplevel(output->xdg_surface);
+	if (!output->xdg_toplevel) {
+		wlr_log_errno(L_ERROR, "Could not get xdg toplevel");
+		goto error;
+	}
 
 	// class? app_id?
 	zxdg_toplevel_v6_set_title(output->xdg_toplevel, "sway-wl");
@@ -253,8 +265,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
 		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-		free(output);
-		return NULL;
+		goto error;
 	}
 
 	glViewport(0, 0, wlr_output->width, wlr_output->height);
@@ -266,16 +277,18 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		free(output);
-		return NULL;
+		goto error;
 	}
 
 	if (list_add(backend->outputs, wlr_output) == -1) {
 		wlr_log(L_ERROR, "Allocation failed");
-		free(output);
-		return NULL;
+		goto error;
 	}
 	wlr_output_create_global(wlr_output, backend->local_display);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
+
+error:
+	wlr_output_destroy(&output->wlr_output);
+	return NULL;
 }
