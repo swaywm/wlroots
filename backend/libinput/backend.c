@@ -64,10 +64,17 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	libinput_log_set_priority(backend->libinput_context, LIBINPUT_LOG_PRIORITY_ERROR);
 
 	int libinput_fd = libinput_get_fd(backend->libinput_context);
-	if (backend->wlr_device_lists->length == 0) {
+	char *no_devs = getenv("WLR_LIBINPUT_NO_DEVICES");
+	if (no_devs) {
+		if (strcmp(no_devs, "1") != 0) {
+			no_devs = NULL;
+		}
+	}
+	if (!no_devs && backend->wlr_device_lists->length == 0) {
 		wlr_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
 		if (backend->wlr_device_lists->length == 0) {
-			wlr_log(L_ERROR, "No input device found, failing initialization");
+			wlr_log(L_ERROR, "libinput initialization failed, no input devices");
+			wlr_log(L_ERROR, "Set WLR_LIBINPUT_NO_DEVICES=1 to suppress this check");
 			return false;
 		}
 	}
