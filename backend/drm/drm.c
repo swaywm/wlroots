@@ -782,7 +782,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 					mode->wlr_mode.width, mode->wlr_mode.height,
 					mode->wlr_mode.refresh);
 
-				if (list_add(backend->outputs, output) == -1) {
+				if (list_add(output->output.modes, mode) == -1) {
 					wlr_log_errno(L_ERROR, "Allocation failed");
 					free(mode);
 					continue;
