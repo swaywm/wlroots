@@ -255,6 +255,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 			&xdg_surface_listener, output);
 	zxdg_toplevel_v6_add_listener(output->xdg_toplevel,
 			&xdg_toplevel_listener, output);
+	wl_surface_commit(output->surface);
 
 	output->egl_window = wl_egl_window_create(output->surface,
 			wlr_output->width, wlr_output->height);
