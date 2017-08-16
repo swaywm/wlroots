@@ -748,8 +748,13 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			parse_edid(&output->output, edid_len, edid);
 			free(edid);
 
+			if (list_add(backend->outputs, output) == -1) {
+				wlr_log_errno(L_ERROR, "Allocation failed");
+				drmModeFreeConnector(conn);
+				free(output);
+				continue;
+			}
 			wlr_output_create_global(&output->output, backend->display);
-			list_add(backend->outputs, output);
 			wlr_log(L_INFO, "Found display '%s'", output->output.name);
 		} else {
 			output = backend->outputs->items[index];
@@ -764,6 +769,10 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			for (int i = 0; i < conn->count_modes; ++i) {
 				struct wlr_drm_output_mode *mode = calloc(1,
 						sizeof(struct wlr_drm_output_mode));
+				if (!mode) {
+					wlr_log_errno(L_ERROR, "Allocation failed");
+					continue;
+				}
 				mode->mode = conn->modes[i];
 				mode->wlr_mode.width = mode->mode.hdisplay;
 				mode->wlr_mode.height = mode->mode.vdisplay;
@@ -773,7 +782,11 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 					mode->wlr_mode.width, mode->wlr_mode.height,
 					mode->wlr_mode.refresh);
 
-				list_add(output->output.modes, mode);
+				if (list_add(backend->outputs, output) == -1) {
+					wlr_log_errno(L_ERROR, "Allocation failed");
+					free(mode);
+					continue;
+				}
 			}
 
 			output->state = WLR_DRM_OUTPUT_NEEDS_MODESET;

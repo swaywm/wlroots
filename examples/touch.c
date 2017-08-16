@@ -65,7 +65,9 @@ static void handle_touch_down(struct touch_state *tstate, int32_t slot,
 	point->slot = slot;
 	point->x = x / width;
 	point->y = y / height;
-	list_add(sample->touch_points, point);
+	if (list_add(sample->touch_points, point) == -1) {
+		free(point);
+	}
 }
 
 static void handle_touch_up(struct touch_state *tstate, int32_t slot) {

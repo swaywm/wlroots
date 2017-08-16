@@ -188,7 +188,7 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 		enum wlr_input_device_type type) {
 	struct wlr_wl_input_device *wlr_wl_dev;
 	if (!(wlr_wl_dev = calloc(1, sizeof(struct wlr_wl_input_device)))) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
@@ -200,7 +200,11 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 	struct wlr_input_device *wlr_device = &wlr_wl_dev->wlr_input_device;
 	wlr_input_device_init(wlr_device, type, &input_device_impl,
 			name, vendor, product);
-	list_add(backend->devices, wlr_device);
+	if (list_add(backend->devices, wlr_device) == -1) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		free(wlr_wl_dev);
+		return NULL;
+	}
 	return wlr_device;
 }
 

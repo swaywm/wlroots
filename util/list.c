@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
 #include <wlr/util/list.h>
@@ -19,11 +20,16 @@ list_t *list_create(void) {
 	return list;
 }
 
-static void list_resize(list_t *list) {
+static bool list_resize(list_t *list) {
 	if (list->length == list->capacity) {
+		void *new_items = realloc(list->items, sizeof(void*) * (list->capacity + 10));
+		if (!new_items) {
+			return false;
+		}
 		list->capacity += 10;
-		list->items = realloc(list->items, sizeof(void*) * list->capacity);
+		list->items = new_items;
 	}
+	return true;
 }
 
 void list_free(list_t *list) {
@@ -43,20 +49,26 @@ void list_foreach(list_t *list, void (*callback)(void *item)) {
 	}
 }
 
-void list_add(list_t *list, void *item) {
-	list_resize(list);
+int list_add(list_t *list, void *item) {
+	if (!list_resize(list)) {
+		return -1;
+	}
 	list->items[list->length++] = item;
+	return list->length;
 }
 
-void list_push(list_t *list, void *item) {
-	list_add(list, item);
+int list_push(list_t *list, void *item) {
+	return list_add(list, item);
 }
 
-void list_insert(list_t *list, size_t index, void *item) {
-	list_resize(list);
+int list_insert(list_t *list, size_t index, void *item) {
+	if (!list_resize(list)) {
+		return -1;
+	}
 	memmove(&list->items[index + 1], &list->items[index], sizeof(void*) * (list->length - index));
 	list->length++;
 	list->items[index] = item;
+	return list->length;
 }
 
 void list_del(list_t *list, size_t index) {
@@ -74,11 +86,16 @@ void *list_peek(list_t *list) {
 	return list->items[list->length - 1];
 }
 
-void list_cat(list_t *list, list_t *source) {
+int list_cat(list_t *list, list_t *source) {
+	size_t old_len = list->length;
 	size_t i;
 	for (i = 0; i < source->length; ++i) {
-		list_add(list, source->items[i]);
+		if (list_add(list, source->items[i]) == -1) {
+			list->length = old_len;
+			return -1;
+		}
 	}
+	return list->length;
 }
 
 void list_qsort(list_t *list, int compare(const void *left, const void *right)) {

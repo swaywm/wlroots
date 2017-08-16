@@ -44,11 +44,14 @@ static struct wlr_input_device *allocate_device(
 		return NULL;
 	}
 	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
+	if (list_add(wlr_devices, wlr_dev) == -1) {
+		free(wlr_libinput_dev);
+		return NULL;
+	}
 	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	wlr_input_device_init(wlr_dev, type, &input_device_impl,
 			name, vendor, product);
-	list_add(wlr_devices, wlr_dev);
 	return wlr_dev;
 }
 
