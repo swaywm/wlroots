@@ -31,6 +31,7 @@ struct sample_state {
 	float x_offs, y_offs;
 	float x_vel, y_vel;
 	struct wlr_output *main_output;
+	struct wl_list outputs;
 };
 
 struct output_config {
@@ -109,6 +110,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 static void handle_output_add(struct output_state *output) {
 	struct sample_state *sample = output->compositor->data;
 
+	bool found = false;
 	struct output_config *conf;
 	wl_list_for_each(conf, &sample->config, link) {
 		if (strcmp(conf->name, output->output->name) == 0) {
@@ -120,13 +122,35 @@ static void handle_output_add(struct output_state *output) {
 				sample->main_output = output->output;
 				sample->x_offs = conf->x + 20;
 				sample->y_offs = conf->y + 20;
-				sample->x_vel = 500;
-				sample->y_vel = 500;
 			}
 			wlr_log(L_DEBUG, "Adding output to layout: %s", output->output->name);
+			found = true;
+			break;
+		}
+	}
+
+	// if it's not in the config, just place it next to the rightmost output
+	if (!found) {
+		int x = 0;
+		struct output_state *_output;
+		wl_list_for_each(_output, &sample->outputs, link) {
+			struct wlr_output_layout_output *layout_output =
+				wlr_output_layout_get(sample->layout, _output->output);
+			if (layout_output && layout_output->output) {
+				x += layout_output->x + _output->output->width;
+			}
 		}
 
+		wlr_output_layout_add(sample->layout, output->output, x, 0);
+
+		if (wl_list_empty(&sample->config) && !sample->main_output) {
+			sample->main_output = output->output;
+			sample->x_offs = x + 20;
+			sample->y_offs = 20;
+		}
 	}
+
+	wl_list_insert(&sample->outputs, &output->link);
 }
 
 static void update_velocities(struct compositor_state *state,
@@ -245,9 +269,12 @@ static void parse_args(int argc, char *argv[], struct wl_list *config) {
 int main(int argc, char *argv[]) {
 	struct sample_state state = {0};
 
+	state.x_vel = 500;
+	state.y_vel = 500;
 	state.layout = wlr_output_layout_init();
 
 	wl_list_init(&state.config);
+	wl_list_init(&state.outputs);
 	parse_args(argc, argv, &state.config);
 
 	struct compositor_state compositor = { 0 };

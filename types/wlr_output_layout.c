@@ -33,7 +33,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	wl_list_insert(&layout->outputs, &layout_output->link);
 }
 
-static struct wlr_output_layout_output *wlr_output_layout_get(
+struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *ret = NULL;
 	struct wlr_output_layout_output *_output;

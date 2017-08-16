@@ -18,6 +18,9 @@ struct wlr_output_layout *wlr_output_layout_init();
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);
 
+struct wlr_output_layout_output *wlr_output_layout_get(
+		struct wlr_output_layout *layout, struct wlr_output *reference);
+
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 	double x, double y);
 
