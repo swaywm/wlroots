@@ -120,6 +120,12 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 		wlr_log(L_ERROR, "Could not add backend: allocation failed");
 		return;
 	}
+	if (list_add(multi->backends, sub) == -1) {
+		wlr_log(L_ERROR, "Could not add backend: allocation failed");
+		free(sub);
+		return;
+	}
+
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
@@ -137,8 +143,6 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	wl_signal_add(&backend->events.input_remove, &sub->input_remove);
 	wl_signal_add(&backend->events.output_add, &sub->output_add);
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
-
-	list_add(multi->backends, sub);
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {

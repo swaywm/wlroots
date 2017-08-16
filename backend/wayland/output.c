@@ -236,7 +236,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
 		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-		return false;
+		free(output);
+		return NULL;
 	}
 
 	glViewport(0, 0, wlr_output->width, wlr_output->height);
@@ -248,11 +249,16 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		return false;
+		free(output);
+		return NULL;
 	}
 
+	if (list_add(backend->outputs, wlr_output) == -1) {
+		wlr_log(L_ERROR, "Allocation failed");
+		free(output);
+		return NULL;
+	}
 	wlr_output_create_global(wlr_output, backend->local_display);
-	list_add(backend->outputs, wlr_output);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
 }
