@@ -40,4 +40,10 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
     struct wlr_output *reference, int *x, int *y);
 
+bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
+	struct wlr_output *reference, int x, int y);
+
+bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
+	struct wlr_output *reference, int x1, int y1, int x2, int y2);
+
 #endif

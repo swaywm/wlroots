@@ -46,24 +46,20 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
-	int32_t width, height;
-	wlr_output_effective_resolution(wlr_output, &width, &height);
-
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
-	float matrix[16];
+	if (wlr_output_layout_intersects(sample->layout, output->output,
+				sample->x_offs, sample->y_offs,
+				sample->x_offs + 128, sample->y_offs + 128)) {
+		float matrix[16];
 
-	// transform global coordinates to local coordinates
-	int local_x = sample->x_offs;
-	int local_y = sample->y_offs;
+		// transform global coordinates to local coordinates
+		int local_x = sample->x_offs;
+		int local_y = sample->y_offs;
+		wlr_output_layout_output_coords(sample->layout, output->output, &local_x,
+				&local_y);
 
-	wlr_output_layout_output_coords(sample->layout, output->output, &local_x,
-		&local_y);
-
-	if (local_x < width && local_x + 128 > 0 && local_y < height &&
-			local_y + 128 > 0) {
-		// render the image if it intersects with the output
 		wlr_texture_get_matrix(sample->cat_texture, &matrix,
 			&wlr_output->transform_matrix, local_x, local_y);
 		wlr_render_with_matrix(sample->renderer,

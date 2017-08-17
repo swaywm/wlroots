@@ -47,6 +47,36 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 
 }
 
+static bool output_contains_point( struct wlr_output_layout_output *l_output,
+		int x, int y, int width, int height) {
+	return x >= l_output->x && x <= l_output->x + width &&
+		y >= l_output->y && y <= l_output->y + height;
+}
+
+bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
+		struct wlr_output *reference, int x, int y) {
+	struct wlr_output_layout_output *layout_output = wlr_output_layout_get(layout, reference);
+	int width, height;
+	wlr_output_effective_resolution(layout_output->output, &width, &height);
+	return output_contains_point(layout_output, x, y, width, height);
+}
+
+bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
+		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
+	struct wlr_output_layout_output *l_output = wlr_output_layout_get(layout, reference);
+	if (!l_output) {
+		return false;
+	}
+	int width, height;
+	wlr_output_effective_resolution(l_output->output, &width, &height);
+
+	// the output must contain one of the points
+	return output_contains_point(l_output, x1, y1, width, height) ||
+		output_contains_point(l_output, x2, y2, width, height) ||
+		output_contains_point(l_output, x2, y1, width, height) ||
+		output_contains_point(l_output, y2, x1, width, height);
+}
+
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
 	struct wlr_output *ret = NULL;
