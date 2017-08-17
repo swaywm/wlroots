@@ -428,6 +428,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	compositor->last_frame = now;
 }
 
+static void output_resolution_notify(struct wl_listener *listener, void *data) {
+	struct output_state *output = wl_container_of(listener, output, resolution);
+	struct compositor_state *compositor = output->compositor;
+
+	if (compositor->output_resolution_cb) {
+		compositor->output_resolution_cb(output);
+	}
+}
+
 static void output_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct compositor_state *state = wl_container_of(listener, state, output_add);
@@ -442,8 +451,10 @@ static void output_add_notify(struct wl_listener *listener, void *data) {
 	ostate->output = output;
 	ostate->compositor = state;
 	ostate->frame.notify = output_frame_notify;
+	ostate->resolution.notify = output_resolution_notify;
 	wl_list_init(&ostate->frame.link);
 	wl_signal_add(&output->events.frame, &ostate->frame);
+	wl_signal_add(&output->events.resolution, &ostate->resolution);
 	wl_list_insert(&state->outputs, &ostate->link);
 	if (state->output_add_cb) {
 		state->output_add_cb(ostate);
@@ -468,6 +479,7 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 	}
 	wl_list_remove(&ostate->link);
 	wl_list_remove(&ostate->frame.link);
+	wl_list_remove(&ostate->resolution.link);
 	free(ostate);
 }
 
