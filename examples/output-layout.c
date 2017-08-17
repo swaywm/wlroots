@@ -91,22 +91,34 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 				sample->x_offs, sample->y_offs + 128);
 		bool lr_collision = !wlr_output_layout_output_at(sample->layout,
 				sample->x_offs + 128, sample->y_offs + 128);
-		bool has_double_collision = false;
 
-		if ((ur_collision && ul_collision) || (lr_collision && ll_collision)) {
-			sample->y_vel *= -1;
-			has_double_collision = true;
-		}
-
-		if ((ll_collision && ul_collision) || (ur_collision && lr_collision)) {
-			sample->x_vel *= -1;
-			has_double_collision = true;
-		}
-
-		if (!has_double_collision &&
-				(ur_collision || ul_collision || lr_collision || ll_collision)) {
-			sample->x_vel *= -1;
-			sample->y_vel *= -1;
+		if (ur_collision && ul_collision && ll_collision && lr_collision) {
+			// oops we went off the screen somehow
+			struct wlr_output_layout_output *main_l_output;
+			main_l_output = wlr_output_layout_get(sample->layout, sample->main_output);
+			sample->x_offs = main_l_output->x + 20;
+			sample->y_offs = main_l_output->y + 20;
+		} else if (ur_collision && ul_collision) {
+			sample->y_vel = fabs(sample->y_vel);
+		} else if (lr_collision && ll_collision) {
+			sample->y_vel = -fabs(sample->y_vel);
+		} else if (ll_collision && ul_collision) {
+			sample->x_vel = fabs(sample->x_vel);
+		} else if (ur_collision && lr_collision) {
+			sample->x_vel = -fabs(sample->x_vel);
+		} else {
+			if (ur_collision || lr_collision) {
+				sample->x_vel = -fabs(sample->x_vel);
+			}
+			if (ul_collision || ll_collision) {
+				sample->x_vel = fabs(sample->x_vel);
+			}
+			if (ul_collision || ur_collision) {
+				sample->y_vel = fabs(sample->y_vel);
+			}
+			if (ll_collision || lr_collision) {
+				sample->y_vel = -fabs(sample->y_vel);
+			}
 		}
 
 		sample->x_offs += sample->x_vel * seconds;
