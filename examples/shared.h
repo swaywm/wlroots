@@ -79,8 +79,8 @@ struct compositor_state {
 	void (*output_frame_cb)(struct output_state *s, struct timespec *ts);
 	void (*output_remove_cb)(struct output_state *s);
 	void (*keyboard_remove_cb)(struct keyboard_state *s);
-	void (*keyboard_key_cb)(struct keyboard_state *s, xkb_keysym_t sym,
-			enum wlr_key_state key_state);
+	void (*keyboard_key_cb)(struct keyboard_state *s, uint32_t keycode,
+			xkb_keysym_t sym, enum wlr_key_state key_state);
 	void (*pointer_motion_cb)(struct pointer_state *s,
 			double d_x, double d_y);
 	void (*pointer_motion_absolute_cb)(struct pointer_state *s,

@@ -27,6 +27,7 @@ struct wlr_seat {
 	struct {
 		struct wl_signal client_bound;
 		struct wl_signal client_unbound;
+		struct wl_signal keyboard_bound;
 	} events;
 
 	void *data;
@@ -49,10 +50,12 @@ struct wlr_seat_handle *wlr_seat_handle_for_client(struct wlr_seat *wlr_seat,
 		struct wl_client *client);
 /**
  * Updates the capabilities available on this seat.
+ * Will automatically send them to all clients.
  */
 void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat, uint32_t capabilities);
 /**
  * Updates the name of this seat.
+ * Will automatically send it to all clients.
  */
 void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name);
 

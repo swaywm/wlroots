@@ -104,7 +104,7 @@ static void update_velocities(struct compositor_state *state,
 }
 
 static void handle_keyboard_key(struct keyboard_state *kbstate,
-		xkb_keysym_t sym, enum wlr_key_state key_state) {
+		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
 	// NOTE: It may be better to simply refer to our key state during each frame
 	// and make this change in pixels/sec^2
 	// Also, key repeat
