@@ -38,7 +38,7 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 	struct wlr_output_layout_output *ret = NULL;
 	struct wlr_output_layout_output *_output;
 	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output) {
+		if (_output->output == reference) {
 			ret = _output;
 		}
 	}
