@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "xdg-shell-unstable-v6-client-protocol.h"
 
 int os_create_anonymous_file(off_t size);
 
@@ -136,7 +137,8 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	}
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
-	wl_shell_surface_destroy(output->shell_surface);
+	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
+	zxdg_surface_v6_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
 	free(output);
 }
@@ -162,16 +164,29 @@ static struct wlr_output_impl output_impl = {
 	.move_cursor = wlr_wl_output_move_cursor
 };
 
-void handle_ping(void *data, struct wl_shell_surface *ssurface, uint32_t serial) {
+static void xdg_surface_handle_configure(void *data, struct zxdg_surface_v6 *xdg_surface,
+		uint32_t serial) {
 	struct wlr_wl_backend_output *output = data;
-	assert(output && output->shell_surface == ssurface);
-	wl_shell_surface_pong(ssurface, serial);
+	assert(output && output->xdg_surface == xdg_surface);
+
+	zxdg_surface_v6_ack_configure(xdg_surface, serial);
+
+	// nothing else?
 }
 
-void handle_configure(void *data, struct wl_shell_surface *wl_shell_surface,
-		uint32_t edges, int32_t width, int32_t height){
+static struct zxdg_surface_v6_listener xdg_surface_listener = {
+	.configure = xdg_surface_handle_configure,
+};
+
+static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *xdg_toplevel,
+		int32_t width, int32_t height, struct wl_array *states) {
 	struct wlr_wl_backend_output *output = data;
-	assert(output && output->shell_surface == wl_shell_surface);
+	assert(output && output->xdg_toplevel == xdg_toplevel);
+
+	if (width == 0 && height == 0) {
+		return;
+	}
+	// loop over states for maximized etc?
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
 	output->wlr_output.width = width;
 	output->wlr_output.height = height;
@@ -179,14 +194,16 @@ void handle_configure(void *data, struct wl_shell_surface *wl_shell_surface,
 	wl_signal_emit(&output->wlr_output.events.resolution, output);
 }
 
-void handle_popup_done(void *data, struct wl_shell_surface *wl_shell_surface) {
-	wlr_log(L_ERROR, "Unexpected wl_shell_surface.popup_done event");
+static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_toplevel) {
+	struct wlr_wl_backend_output *output = data;
+        assert(output && output->xdg_toplevel == xdg_toplevel);
+
+	wl_display_terminate(output->backend->local_display);
 }
 
-static struct wl_shell_surface_listener shell_surface_listener = {
-	.ping = handle_ping,
-	.configure = handle_configure,
-	.popup_done = handle_popup_done
+static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
+	.configure = xdg_toplevel_handle_configure,
+	.close = xdg_toplevel_handle_close,
 };
 
 struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
@@ -216,28 +233,44 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	output->backend = backend;
 
-	// TODO: error handling
 	output->surface = wl_compositor_create_surface(backend->compositor);
-	output->shell_surface =
-		wl_shell_get_shell_surface(backend->shell, output->surface);
+	if (!output->surface) {
+		wlr_log_errno(L_ERROR, "Could not create output surface");
+		goto error;
+	}
+	output->xdg_surface =
+		zxdg_shell_v6_get_xdg_surface(backend->shell, output->surface);
+	if (!output->xdg_surface) {
+		wlr_log_errno(L_ERROR, "Could not get xdg surface");
+		goto error;
+	}
+	output->xdg_toplevel =
+		zxdg_surface_v6_get_toplevel(output->xdg_surface);
+	if (!output->xdg_toplevel) {
+		wlr_log_errno(L_ERROR, "Could not get xdg toplevel");
+		goto error;
+	}
 
-	wl_shell_surface_set_class(output->shell_surface, "sway");
-	wl_shell_surface_set_title(output->shell_surface, "sway-wl");
-	wl_shell_surface_add_listener(output->shell_surface,
-			&shell_surface_listener, output);
-	wl_shell_surface_set_toplevel(output->shell_surface);
+	zxdg_toplevel_v6_set_app_id(output->xdg_toplevel, "wlroots");
+	zxdg_toplevel_v6_set_title(output->xdg_toplevel, "wlroots");
+	zxdg_surface_v6_add_listener(output->xdg_surface,
+			&xdg_surface_listener, output);
+	zxdg_toplevel_v6_add_listener(output->xdg_toplevel,
+			&xdg_toplevel_listener, output);
+	wl_surface_commit(output->surface);
 
 	output->egl_window = wl_egl_window_create(output->surface,
 			wlr_output->width, wlr_output->height);
 	output->egl_surface = wlr_egl_create_surface(&backend->egl, output->egl_window);
+
+	wl_display_roundtrip(output->backend->remote_display);
 
 	// start rendering loop per callbacks by rendering first frame
 	if (!eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
 		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-		free(output);
-		return NULL;
+		goto error;
 	}
 
 	glViewport(0, 0, wlr_output->width, wlr_output->height);
@@ -249,16 +282,18 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		free(output);
-		return NULL;
+		goto error;
 	}
 
 	if (list_add(backend->outputs, wlr_output) == -1) {
 		wlr_log(L_ERROR, "Allocation failed");
-		free(output);
-		return NULL;
+		goto error;
 	}
 	wlr_output_create_global(wlr_output, backend->local_display);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
+
+error:
+	wlr_output_destroy(&output->wlr_output);
+	return NULL;
 }

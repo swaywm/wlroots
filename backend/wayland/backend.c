@@ -10,6 +10,8 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "xdg-shell-unstable-v6-client-protocol.h"
+
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *backend = data;
@@ -89,7 +91,7 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	wlr_egl_free(&backend->egl);
 	if (backend->seat) wl_seat_destroy(backend->seat);
 	if (backend->shm) wl_shm_destroy(backend->shm);
-	if (backend->shell) wl_shell_destroy(backend->shell);
+	if (backend->shell) zxdg_shell_v6_destroy(backend->shell);
 	if (backend->compositor) wl_compositor_destroy(backend->compositor);
 	if (backend->registry) wl_registry_destroy(backend->registry);
 	if (backend->remote_display) wl_display_disconnect(backend->remote_display);
