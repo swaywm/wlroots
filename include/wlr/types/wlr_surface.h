@@ -38,6 +38,7 @@ struct wlr_surface {
 
 	float buffer_to_surface_matrix[16];
 	float surface_to_buffer_matrix[16];
+	bool reupload_buffer;
 
 	struct {
 		struct wl_signal commit;

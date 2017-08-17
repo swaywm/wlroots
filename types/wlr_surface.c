@@ -206,7 +206,12 @@ static void surface_commit(struct wl_client *client,
 		surface->current.buffer = surface->pending.buffer;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
+		int32_t oldw = surface->current.buffer_width;
+		int32_t oldh = surface->current.buffer_height;
 		wlr_surface_update_size(surface);
+
+		surface->reupload_buffer = oldw != surface->current.buffer_width ||
+			oldh != surface->current.buffer_height;
 
 		pixman_region32_union(&surface->current.surface_damage,
 			&surface->current.surface_damage,
@@ -257,29 +262,36 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 			return;
 		}
 	}
-	pixman_region32_t damage = surface->current.buffer_damage;
-	if (!pixman_region32_not_empty(&damage)) {
-		goto release;
-	}
-	int n;
-	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
+
 	uint32_t format = wl_shm_buffer_get_format(buffer);
-	for (int i = 0; i < n; ++i) {
-		pixman_box32_t rect = rects[i];
-		if (!wlr_texture_update_shm(surface->texture, format,
-				rect.x1, rect.y1,
-				rect.x2 - rect.x1,
-				rect.y2 - rect.y1,
-				buffer)) {
-			break;
+	if (surface->reupload_buffer) {
+		wlr_texture_upload_shm(surface->texture, format, buffer);
+	} else {
+		pixman_region32_t damage = surface->current.buffer_damage;
+		if (!pixman_region32_not_empty(&damage)) {
+			goto release;
+		}
+		int n;
+		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
+		for (int i = 0; i < n; ++i) {
+			pixman_box32_t rect = rects[i];
+			if (!wlr_texture_update_shm(surface->texture, format,
+					rect.x1, rect.y1,
+					rect.x2 - rect.x1,
+					rect.y2 - rect.y1,
+					buffer)) {
+				break;
+			}
 		}
 	}
+
+release:
 	pixman_region32_fini(&surface->current.surface_damage);
 	pixman_region32_init(&surface->current.surface_damage);
 
 	pixman_region32_fini(&surface->current.buffer_damage);
 	pixman_region32_init(&surface->current.buffer_damage);
-release:
+
 	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
 }
 
