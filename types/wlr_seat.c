@@ -12,11 +12,11 @@ static void resource_destroy(struct wl_client *client,
 }
 
 static void wl_pointer_set_cursor(struct wl_client *client,
-			   struct wl_resource *resource,
-			   uint32_t serial,
-			   struct wl_resource *surface,
-			   int32_t hotspot_x,
-			   int32_t hotspot_y) {
+	   struct wl_resource *resource,
+	   uint32_t serial,
+	   struct wl_resource *surface,
+	   int32_t hotspot_x,
+	   int32_t hotspot_y) {
 	wlr_log(L_DEBUG, "TODO: wl_pointer_set_cursor");
 }
 
@@ -47,7 +47,7 @@ static void wl_seat_get_pointer(struct wl_client *client,
 	handle->pointer = wl_resource_create(client, &wl_pointer_interface,
 		wl_resource_get_version(_handle), id);
 	wl_resource_set_implementation(handle->pointer, &wl_pointer_impl,
-			handle, &wl_pointer_destroy);
+		handle, &wl_pointer_destroy);
 }
 
 static const struct wl_keyboard_interface wl_keyboard_impl = {
@@ -76,7 +76,7 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 	handle->keyboard = wl_resource_create(client, &wl_keyboard_interface,
 		wl_resource_get_version(_handle), id);
 	wl_resource_set_implementation(handle->keyboard, &wl_keyboard_impl,
-			handle, &wl_keyboard_destroy);
+		handle, &wl_keyboard_destroy);
 	wl_signal_emit(&handle->wlr_seat->events.keyboard_bound, handle);
 }
 
@@ -106,7 +106,7 @@ static void wl_seat_get_touch(struct wl_client *client,
 	handle->touch = wl_resource_create(client, &wl_touch_interface,
 		wl_resource_get_version(_handle), id);
 	wl_resource_set_implementation(handle->touch, &wl_touch_impl,
-			handle, &wl_touch_destroy);
+		handle, &wl_touch_destroy);
 }
 
 static void wl_seat_destroy(struct wl_resource *resource) {
@@ -146,7 +146,7 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 			wl_client, &wl_seat_interface, version, id);
 	handle->wlr_seat = wlr_seat;
 	wl_resource_set_implementation(handle->wl_resource, &wl_seat_impl,
-			handle, wl_seat_destroy);
+		handle, wl_seat_destroy);
 	wl_list_insert(&wlr_seat->handles, &handle->link);
 	wl_seat_send_capabilities(handle->wl_resource, wlr_seat->capabilities);
 	wl_signal_emit(&wlr_seat->events.client_bound, handle);
