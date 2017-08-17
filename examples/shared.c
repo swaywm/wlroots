@@ -433,7 +433,7 @@ static void output_resolution_notify(struct wl_listener *listener, void *data) {
 	struct compositor_state *compositor = output->compositor;
 
 	if (compositor->output_resolution_cb) {
-		compositor->output_resolution_cb(output);
+		compositor->output_resolution_cb(compositor, output);
 	}
 }
 
