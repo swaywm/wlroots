@@ -110,6 +110,16 @@ static void handle_keyboard_key(struct keyboard_state *keyboard, uint32_t keycod
 	}
 
 	if (seat_handle && seat_handle->keyboard) {
+		uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
+			XKB_STATE_MODS_DEPRESSED);
+		uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
+			XKB_STATE_MODS_LATCHED);
+		uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
+			XKB_STATE_MODS_LOCKED);
+		uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
+			XKB_STATE_LAYOUT_EFFECTIVE);
+		wl_keyboard_send_modifiers(seat_handle->keyboard, ++sample->serial, depressed,
+			latched, locked, group);
 		wl_keyboard_send_key(seat_handle->keyboard, ++sample->serial, 0, keycode, key_state);
 	}
 }

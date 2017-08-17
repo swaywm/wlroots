@@ -32,6 +32,9 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	enum wlr_key_state key_state = event->state;
 	const xkb_keysym_t *syms;
 	int nsyms = xkb_state_key_get_syms(kbstate->xkb_state, keycode, &syms);
+	xkb_state_update_key(kbstate->xkb_state, keycode,
+		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
+	keyboard_led_update(kbstate);
 	for (int i = 0; i < nsyms; ++i) {
 		xkb_keysym_t sym = syms[i];
 		char name[64];
@@ -57,9 +60,6 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 			}
 		}
 	}
-	xkb_state_update_key(kbstate->xkb_state, keycode,
-		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
-	keyboard_led_update(kbstate);
 }
 
 static void keyboard_add(struct wlr_input_device *device, struct compositor_state *state) {
