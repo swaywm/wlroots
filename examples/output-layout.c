@@ -75,6 +75,12 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		// how many seconds have passed since the last frame
 		float seconds = ms / 1000.0f;
 
+		if (seconds > 0.1f) {
+			// XXX when we switch vt, the rendering loop stops so try to detect
+			// that and pause when it happens.
+			seconds = 0.0f;
+		}
+
 		// check for collisions and bounce
 		bool ur_collision = !wlr_output_layout_output_at(sample->layout,
 				sample->x_offs + 128, sample->y_offs);
