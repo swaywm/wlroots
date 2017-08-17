@@ -183,8 +183,10 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	struct wlr_wl_backend_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
+	if (width == 0 && height == 0) {
+		return;
+	}
 	// loop over states for maximized etc?
-
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
 	output->wlr_output.width = width;
 	output->wlr_output.height = height;
@@ -260,6 +262,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	output->egl_window = wl_egl_window_create(output->surface,
 			wlr_output->width, wlr_output->height);
 	output->egl_surface = wlr_egl_create_surface(&backend->egl, output->egl_window);
+
+	wl_display_roundtrip(output->backend->remote_display);
 
 	// start rendering loop per callbacks by rendering first frame
 	if (!eglMakeCurrent(output->backend->egl.display,
