@@ -6,6 +6,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <limits.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
@@ -113,50 +114,73 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 }
 
+static inline int max(int a, int b) {
+	if (a < b)
+		return b;
+	return a;
+}
+
+static void configure_layout(struct sample_state *sample) {
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = wlr_output_layout_init();
+	sample->main_output = NULL;
+	int max_x = wl_list_empty(&sample->config) ? 0 : INT_MIN;
+
+	// first add all the configure outputs
+	struct output_state *output;
+	wl_list_for_each(output, &sample->outputs, link) {
+		struct output_config *conf;
+		wl_list_for_each(conf, &sample->config, link) {
+			if (strcmp(conf->name, output->output->name) == 0) {
+				wlr_output_layout_add(sample->layout, output->output,
+						conf->x, conf->y);
+				wlr_output_transform(output->output, conf->transform);
+				int width, height;
+				wlr_output_effective_resolution(output->output, &width, &height);
+				max_x = max(max_x, conf->x + width);
+
+				if (!sample->main_output) {
+					sample->main_output = output->output;
+					sample->x_offs = conf->x + 20;
+					sample->y_offs = conf->y + 20;
+				}
+				break;
+			}
+		}
+	}
+
+	// now add all the other configured outputs in a sensible position
+	wl_list_for_each(output, &sample->outputs, link) {
+		if (wlr_output_layout_get(sample->layout, output->output)) {
+			continue;
+		}
+		wlr_output_layout_add(sample->layout, output->output, max_x, 0);
+		int width, height;
+		wlr_output_effective_resolution(output->output, &width, &height);
+		wlr_output_effective_resolution(output->output, &width, &height);
+		if (!sample->main_output) {
+			sample->main_output = output->output;
+			sample->x_offs = max_x + 200;
+			sample->y_offs = 200;
+		}
+		max_x += width;
+	}
+}
+
+static void handle_output_resolution(struct compositor_state *state, struct output_state *output) {
+	struct sample_state *sample = state->data;
+	configure_layout(sample);
+
+	// reset the image
+	struct wlr_output_layout_output *l_output = wlr_output_layout_get(sample->layout, sample->main_output);
+	sample->x_offs = l_output->x + 20;
+	sample->y_offs = l_output->y + 20;
+}
+
 static void handle_output_add(struct output_state *output) {
 	struct sample_state *sample = output->compositor->data;
-
-	bool found = false;
-	struct output_config *conf;
-	wl_list_for_each(conf, &sample->config, link) {
-		if (strcmp(conf->name, output->output->name) == 0) {
-			wlr_output_layout_add(sample->layout, output->output,
-					conf->x, conf->y);
-			wlr_output_transform(output->output, conf->transform);
-
-			if (!sample->main_output) {
-				sample->main_output = output->output;
-				sample->x_offs = conf->x + 20;
-				sample->y_offs = conf->y + 20;
-			}
-			wlr_log(L_DEBUG, "Adding output to layout: %s", output->output->name);
-			found = true;
-			break;
-		}
-	}
-
-	// if it's not in the config, just place it next to the rightmost output
-	if (!found) {
-		int x = 0;
-		struct output_state *_output;
-		wl_list_for_each(_output, &sample->outputs, link) {
-			struct wlr_output_layout_output *layout_output =
-				wlr_output_layout_get(sample->layout, _output->output);
-			if (layout_output && layout_output->output) {
-				x += layout_output->x + _output->output->width;
-			}
-		}
-
-		wlr_output_layout_add(sample->layout, output->output, x, 0);
-
-		if (wl_list_empty(&sample->config) && !sample->main_output) {
-			sample->main_output = output->output;
-			sample->x_offs = x + 20;
-			sample->y_offs = 20;
-		}
-	}
-
 	wl_list_insert(&sample->outputs, &output->link);
+	configure_layout(sample);
 }
 
 static void update_velocities(struct compositor_state *state,
@@ -287,6 +311,7 @@ int main(int argc, char *argv[]) {
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_frame_cb = handle_output_frame;
+	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
