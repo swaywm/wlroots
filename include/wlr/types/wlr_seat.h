@@ -14,6 +14,7 @@ struct wlr_seat_handle {
 	struct wl_resource *pointer;
 	struct wl_resource *keyboard;
 	struct wl_resource *touch;
+	struct wl_resource *data_device;
 
 	struct wl_list link;
 };
@@ -23,6 +24,7 @@ struct wlr_seat {
 	struct wl_list handles;
 	char *name;
 	uint32_t capabilities;
+	struct wlr_data_device *data_device;
 
 	struct {
 		struct wl_signal client_bound;
