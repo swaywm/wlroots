@@ -31,7 +31,7 @@
 #define _WLR_XCURSOR_H
 #include <stdint.h>
 
-struct wlr_cursor_image {
+struct wlr_xcursor_image {
 	uint32_t width;		/* actual width */
 	uint32_t height;	/* actual height */
 	uint32_t hotspot_x;	/* hot spot x (must be inside image) */
@@ -40,27 +40,27 @@ struct wlr_cursor_image {
 	uint8_t *buffer;
 };
 
-struct wlr_cursor {
+struct wlr_xcursor {
 	unsigned int image_count;
-	struct wlr_cursor_image **images;
+	struct wlr_xcursor_image **images;
 	char *name;
 	uint32_t total_delay; /* length of the animation in ms */
 };
 
-struct wlr_cursor_theme {
+struct wlr_xcursor_theme {
 	unsigned int cursor_count;
-	struct wlr_cursor **cursors;
+	struct wlr_xcursor **cursors;
 	char *name;
 	int size;
 };
 
-struct wlr_cursor_theme *wlr_cursor_theme_load(const char *name, int size);
+struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size);
 
-void wlr_cursor_theme_destroy(struct wlr_cursor_theme *theme);
+void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme);
 
-struct wlr_cursor *wlr_cursor_theme_get_cursor(
-		struct wlr_cursor_theme *theme, const char *name);
+struct wlr_xcursor *wlr_xcursor_theme_get_cursor(
+		struct wlr_xcursor_theme *theme, const char *name);
 
-int wlr_cursor_frame(struct wlr_cursor *cursor, uint32_t time);
+int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
 
 #endif

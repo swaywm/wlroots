@@ -22,7 +22,7 @@
 #include "cat.h"
 
 struct sample_state {
-	struct wlr_cursor *cursor;
+	struct wlr_xcursor *cursor;
 	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
@@ -48,7 +48,7 @@ static void handle_pointer_motion(struct pointer_state *pstate,
 	state->cur_x += d_x;
 	state->cur_y += d_y;
 
-	struct wlr_cursor_image *image = state->cursor->images[0];
+	struct wlr_xcursor_image *image = state->cursor->images[0];
 
 	struct output_state *output;
 	wl_list_for_each(output, &pstate->compositor->outputs, link) {
@@ -64,7 +64,7 @@ static void handle_pointer_motion_absolute(struct pointer_state *pstate,
 	state->cur_x = x;
 	state->cur_y = y;
 
-	struct wlr_cursor_image *image = state->cursor->images[0];
+	struct wlr_xcursor_image *image = state->cursor->images[0];
 
 	struct output_state *output;
 	wl_list_for_each(output, &pstate->compositor->outputs, link) {
@@ -109,7 +109,7 @@ static void handle_pointer_axis(struct pointer_state *pstate,
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *state = ostate->compositor->data;
 	struct wlr_output *wlr_output = ostate->output;
-	struct wlr_cursor_image *image = state->cursor->images[0];
+	struct wlr_xcursor_image *image = state->cursor->images[0];
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
 			image->width, image->width, image->height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
@@ -134,12 +134,12 @@ int main(int argc, char *argv[]) {
 	compositor.pointer_button_cb = handle_pointer_button;
 	compositor.pointer_axis_cb = handle_pointer_axis;
 
-	struct wlr_cursor_theme *theme = wlr_cursor_theme_load("default", 16);
+	struct wlr_xcursor_theme *theme = wlr_xcursor_theme_load("default", 16);
 	if (!theme) {
 		wlr_log(L_ERROR, "Failed to load cursor theme");
 		return 1;
 	}
-	state.cursor = wlr_cursor_theme_get_cursor(theme, "left_ptr");
+	state.cursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
 	if (!state.cursor) {
 		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
 		return 1;
@@ -148,5 +148,5 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 	compositor_run(&compositor);
 
-	wlr_cursor_theme_destroy(theme);
+	wlr_xcursor_theme_destroy(theme);
 }

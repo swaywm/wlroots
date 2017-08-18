@@ -33,7 +33,7 @@
 #include <string.h>
 #include "xcursor/xcursor.h"
 
-static void wlr_cursor_destroy(struct wlr_cursor *cursor) {
+static void wlr_xcursor_destroy(struct wlr_xcursor *cursor) {
 	for (size_t i = 0; i < cursor->image_count; i++) {
 		free(cursor->images[i]->buffer);
 		free(cursor->images[i]);
@@ -46,10 +46,10 @@ static void wlr_cursor_destroy(struct wlr_cursor *cursor) {
 
 #include "xcursor/cursor_data.h"
 
-static struct wlr_cursor *wlr_cursor_create_from_data(
-		struct cursor_metadata *metadata, struct wlr_cursor_theme *theme) {
-	struct wlr_cursor *cursor;
-	struct wlr_cursor_image *image;
+static struct wlr_xcursor *wlr_xcursor_create_from_data(
+		struct cursor_metadata *metadata, struct wlr_xcursor_theme *theme) {
+	struct wlr_xcursor *cursor;
+	struct wlr_xcursor_image *image;
 	int size;
 
 	cursor = malloc(sizeof(*cursor));
@@ -102,7 +102,7 @@ err_free_cursor:
 	return NULL;
 }
 
-static void load_default_theme(struct wlr_cursor_theme *theme) {
+static void load_default_theme(struct wlr_xcursor_theme *theme) {
 	uint32_t i;
 
 	free(theme->name);
@@ -118,7 +118,7 @@ static void load_default_theme(struct wlr_cursor_theme *theme) {
 
 	for (i = 0; i < theme->cursor_count; ++i) {
 		theme->cursors[i] =
-			wlr_cursor_create_from_data(&cursor_metadata[i], theme);
+			wlr_xcursor_create_from_data(&cursor_metadata[i], theme);
 
 		if (theme->cursors[i] == NULL) {
 			break;
@@ -127,10 +127,10 @@ static void load_default_theme(struct wlr_cursor_theme *theme) {
 	theme->cursor_count = i;
 }
 
-static struct wlr_cursor *wlr_cursor_create_from_xcursor_images(
-		XcursorImages *images, struct wlr_cursor_theme *theme) {
-	struct wlr_cursor *cursor;
-	struct wlr_cursor_image *image;
+static struct wlr_xcursor *wlr_xcursor_create_from_xcursor_images(
+		XcursorImages *images, struct wlr_xcursor_theme *theme) {
+	struct wlr_xcursor *cursor;
+	struct wlr_xcursor_image *image;
 	int i, size;
 
 	cursor = malloc(sizeof(*cursor));
@@ -186,15 +186,15 @@ static struct wlr_cursor *wlr_cursor_create_from_xcursor_images(
 }
 
 static void load_callback(XcursorImages *images, void *data) {
-	struct wlr_cursor_theme *theme = data;
-	struct wlr_cursor *cursor;
+	struct wlr_xcursor_theme *theme = data;
+	struct wlr_xcursor *cursor;
 
-	if (wlr_cursor_theme_get_cursor(theme, images->name)) {
+	if (wlr_xcursor_theme_get_cursor(theme, images->name)) {
 		XcursorImagesDestroy(images);
 		return;
 	}
 
-	cursor = wlr_cursor_create_from_xcursor_images(images, theme);
+	cursor = wlr_xcursor_create_from_xcursor_images(images, theme);
 
 	if (cursor) {
 		theme->cursor_count++;
@@ -213,8 +213,8 @@ static void load_callback(XcursorImages *images, void *data) {
 	XcursorImagesDestroy(images);
 }
 
-struct wlr_cursor_theme *wlr_cursor_theme_load(const char *name, int size) {
-	struct wlr_cursor_theme *theme;
+struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size) {
+	struct wlr_xcursor_theme *theme;
 
 	theme = malloc(sizeof(*theme));
 	if (!theme) {
@@ -242,8 +242,8 @@ struct wlr_cursor_theme *wlr_cursor_theme_load(const char *name, int size) {
 	wlr_log(L_DEBUG, "Loaded cursor theme '%s', available cursors:",
 			theme->name);
 	for (size_t i = 0; i < theme->cursor_count; ++i) {
-		struct wlr_cursor *c = theme->cursors[i];
-		struct wlr_cursor_image *i = c->images[0];
+		struct wlr_xcursor *c = theme->cursors[i];
+		struct wlr_xcursor_image *i = c->images[0];
 		wlr_log(L_DEBUG, "%s (%u images) %dx%d+%d,%d",
 				c->name, c->image_count,
 				i->width, i->height, i->hotspot_x, i->hotspot_y);
@@ -256,11 +256,11 @@ out_error_name:
 	return NULL;
 }
 
-void wlr_cursor_theme_destroy(struct wlr_cursor_theme *theme) {
+void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme) {
 	unsigned int i;
 
 	for (i = 0; i < theme->cursor_count; i++) {
-		wlr_cursor_destroy(theme->cursors[i]);
+		wlr_xcursor_destroy(theme->cursors[i]);
 	}
 
 	free(theme->name);
@@ -268,7 +268,7 @@ void wlr_cursor_theme_destroy(struct wlr_cursor_theme *theme) {
 	free(theme);
 }
 
-struct wlr_cursor *wlr_cursor_theme_get_cursor(struct wlr_cursor_theme *theme,
+struct wlr_xcursor *wlr_xcursor_theme_get_cursor(struct wlr_xcursor_theme *theme,
 		const char *name) {
 	unsigned int i;
 
@@ -281,7 +281,7 @@ struct wlr_cursor *wlr_cursor_theme_get_cursor(struct wlr_cursor_theme *theme,
 	return NULL;
 }
 
-static int wlr_cursor_frame_and_duration(struct wlr_cursor *cursor,
+static int wlr_xcursor_frame_and_duration(struct wlr_xcursor *cursor,
 		uint32_t time, uint32_t *duration) {
 	uint32_t t;
 	int i;
@@ -323,6 +323,6 @@ static int wlr_cursor_frame_and_duration(struct wlr_cursor *cursor,
 	return i;
 }
 
-int wlr_cursor_frame(struct wlr_cursor *_cursor, uint32_t time) {
-	return wlr_cursor_frame_and_duration(_cursor, time, NULL);
+int wlr_xcursor_frame(struct wlr_xcursor *_cursor, uint32_t time) {
+	return wlr_xcursor_frame_and_duration(_cursor, time, NULL);
 }
