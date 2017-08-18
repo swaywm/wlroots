@@ -292,7 +292,7 @@ release:
 	pixman_region32_fini(&surface->current.buffer_damage);
 	pixman_region32_init(&surface->current.buffer_damage);
 
-	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
+	wl_resource_post_event(surface->current.buffer, WL_BUFFER_RELEASE);
 	surface->current.buffer = NULL;
 }
 
