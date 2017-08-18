@@ -120,6 +120,9 @@ static void wl_seat_destroy(struct wl_resource *resource) {
 	if (handle->touch) {
 		wl_resource_destroy(handle->touch);
 	}
+	if (handle->data_device) {
+		wl_resource_destroy(handle->data_device);
+	}
 	wl_signal_emit(&handle->wlr_seat->events.client_unbound, handle);
 	wl_list_remove(&handle->link);
 	free(handle);
