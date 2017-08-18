@@ -293,6 +293,7 @@ release:
 	pixman_region32_init(&surface->current.buffer_damage);
 
 	wl_resource_queue_event(surface->current.buffer, WL_BUFFER_RELEASE);
+	surface->current.buffer = NULL;
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
