@@ -224,7 +224,6 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	wlr_output->width = 640;
 	wlr_output->height = 480;
-	wlr_output->scale = 1;
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
