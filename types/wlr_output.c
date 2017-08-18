@@ -97,6 +97,7 @@ void wlr_output_init(struct wlr_output *output,
 	output->impl = impl;
 	output->modes = list_create();
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+	output->scale = 1;
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.resolution);
 }
