@@ -17,6 +17,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_data_device_manager.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
@@ -31,6 +32,7 @@ struct sample_state {
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_seat *wl_seat;
 	struct wlr_xdg_shell_v6 *xdg_shell;
+	struct wlr_data_device_manager *data_device_manager;
 	struct wl_resource *focus;
 	struct wl_listener keyboard_bound;
 	int keymap_fd;
@@ -130,6 +132,10 @@ static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 
 	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
 		state->keymap_fd, state->keymap_size);
+
+	if (wl_resource_get_version(handle->keyboard) >= 2) {
+		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
+	}
 }
 
 int main() {
@@ -150,6 +156,7 @@ int main() {
 	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
+	state.data_device_manager = wlr_data_device_manager_create(compositor.display);
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	state.keyboard_bound.notify = handle_keyboard_bound;
