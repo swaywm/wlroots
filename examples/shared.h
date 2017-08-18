@@ -16,6 +16,7 @@ struct output_state {
 	struct compositor_state *compositor;
 	struct wlr_output *output;
 	struct wl_listener frame;
+	struct wl_listener resolution;
 	struct timespec last_frame;
 	struct wl_list link;
 	void *data;
@@ -78,6 +79,8 @@ struct compositor_state {
 	void (*keyboard_add_cb)(struct keyboard_state *s);
 	void (*output_frame_cb)(struct output_state *s, struct timespec *ts);
 	void (*output_remove_cb)(struct output_state *s);
+	void (*output_resolution_cb)(struct compositor_state *compositor,
+			struct output_state *s);
 	void (*keyboard_remove_cb)(struct keyboard_state *s);
 	void (*keyboard_key_cb)(struct keyboard_state *s, uint32_t keycode,
 			xkb_keysym_t sym, enum wlr_key_state key_state);
