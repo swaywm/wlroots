@@ -405,7 +405,7 @@ static void realloc_crtcs(struct wlr_drm_backend *backend,
 
 	memset(possible_crtc, 0, sizeof(possible_crtc));
 
-	size_t index;
+	size_t index = 0;
 	for (size_t i = 0; i < backend->outputs->length; ++i) {
 		struct wlr_drm_output *o = backend->outputs->items[i];
 		if (o == output) {
