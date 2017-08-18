@@ -6,12 +6,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <limits.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/multi.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "shared.h"
@@ -109,6 +111,52 @@ void example_config_destroy(struct example_config *config) {
 	}
 	free(config);
 }
+
+struct wlr_output_layout *configure_layout(struct example_config *config, struct wl_list *outputs) {
+	struct wlr_output_layout *layout = wlr_output_layout_init();
+	int max_x = INT_MIN;
+	int max_x_y = INT_MIN; // y value for the max_x output
+
+	// first add all the configured outputs
+	struct output_state *output;
+	wl_list_for_each(output, outputs, link) {
+		struct output_config *conf;
+		wl_list_for_each(conf, &config->outputs, link) {
+			if (strcmp(conf->name, output->output->name) == 0) {
+				wlr_output_layout_add(layout, output->output,
+						conf->x, conf->y);
+				wlr_output_transform(output->output, conf->transform);
+				int width, height;
+				wlr_output_effective_resolution(output->output, &width, &height);
+				if (conf->x + width > max_x) {
+					max_x = conf->x + width;
+					max_x_y = conf->y;
+				}
+				break;
+			}
+		}
+	}
+
+	if (max_x == INT_MIN) {
+		// couldn't find a configured output
+		max_x = 0;
+		max_x_y = 0;
+	}
+
+	// now add all the other configured outputs in a sensible position
+	wl_list_for_each(output, outputs, link) {
+		if (wlr_output_layout_get(layout, output->output)) {
+			continue;
+		}
+		wlr_output_layout_add(layout, output->output, max_x, max_x_y);
+		int width, height;
+		wlr_output_effective_resolution(output->output, &width, &height);
+		max_x += width;
+	}
+
+	return layout;
+}
+
 
 static void keyboard_led_update(struct keyboard_state *kbstate) {
 	uint32_t leds = 0;

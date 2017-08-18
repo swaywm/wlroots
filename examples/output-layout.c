@@ -119,71 +119,29 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 }
 
-static inline int max(int a, int b) {
-	return a < b ? b : a;
-}
-
-static void configure_layout(struct sample_state *sample) {
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout = wlr_output_layout_init();
-	sample->main_output = NULL;
-	int max_x = wl_list_empty(&sample->config->outputs) ? 0 : INT_MIN;
-
-	// first add all the configure outputs
-	struct output_state *output;
-	wl_list_for_each(output, &sample->outputs, link) {
-		struct output_config *conf;
-		wl_list_for_each(conf, &sample->config->outputs, link) {
-			if (strcmp(conf->name, output->output->name) == 0) {
-				wlr_output_layout_add(sample->layout, output->output,
-						conf->x, conf->y);
-				wlr_output_transform(output->output, conf->transform);
-				int width, height;
-				wlr_output_effective_resolution(output->output, &width, &height);
-				max_x = max(max_x, conf->x + width);
-
-				if (!sample->main_output) {
-					sample->main_output = output->output;
-					sample->x_offs = conf->x + 20;
-					sample->y_offs = conf->y + 20;
-				}
-				break;
-			}
-		}
-	}
-
-	// now add all the other configured outputs in a sensible position
-	wl_list_for_each(output, &sample->outputs, link) {
-		if (wlr_output_layout_get(sample->layout, output->output)) {
-			continue;
-		}
-		wlr_output_layout_add(sample->layout, output->output, max_x, 0);
-		int width, height;
-		wlr_output_effective_resolution(output->output, &width, &height);
-		wlr_output_effective_resolution(output->output, &width, &height);
-		if (!sample->main_output) {
-			sample->main_output = output->output;
-			sample->x_offs = max_x + 200;
-			sample->y_offs = 200;
-		}
-		max_x += width;
-	}
+static void set_main_output(struct sample_state *sample,
+		struct wlr_output *output) {
+	sample->main_output = output;
+	struct wlr_output_layout_output *l_output;
+	l_output = wlr_output_layout_get(sample->layout, output);
+	sample->x_offs = l_output->x + 200;
+	sample->y_offs = l_output->y + 200;
 }
 
 static void handle_output_resolution(struct compositor_state *state, struct output_state *output) {
 	struct sample_state *sample = state->data;
-	configure_layout(sample);
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = configure_layout(sample->config, &sample->outputs);
+	set_main_output(sample, output->output);
 
-	// reset the image
-	struct wlr_output_layout_output *l_output = wlr_output_layout_get(sample->layout, sample->main_output);
-	sample->x_offs = l_output->x + 20;
-	sample->y_offs = l_output->y + 20;
 }
 
 static void handle_output_add(struct output_state *output) {
 	struct sample_state *sample = output->compositor->data;
 	wl_list_insert(&sample->outputs, &output->link);
-	configure_layout(sample);
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = configure_layout(sample->config, &sample->outputs);
+	set_main_output(sample, output->output);
 }
 
 static void update_velocities(struct compositor_state *state,

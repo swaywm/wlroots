@@ -27,6 +27,9 @@ struct example_config *parse_args(int argc, char *argv[]);
 
 void example_config_destroy(struct example_config *config);
 
+struct wlr_output_layout *configure_layout(struct example_config *config,
+		struct wl_list *outputs);
+
 struct output_state {
 	struct compositor_state *compositor;
 	struct wlr_output *output;
