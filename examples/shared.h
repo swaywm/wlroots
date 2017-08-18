@@ -12,6 +12,21 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 
+struct output_config {
+	char *name;
+	enum wl_output_transform transform;
+	int x, y;
+	struct wl_list link;
+};
+
+struct example_config {
+	struct wl_list outputs;
+};
+
+struct example_config *parse_args(int argc, char *argv[]);
+
+void example_config_destroy(struct example_config *config);
+
 struct output_state {
 	struct compositor_state *compositor;
 	struct wlr_output *output;

@@ -25,7 +25,7 @@
 #include "cat.h"
 
 struct sample_state {
-	struct wl_list config;
+	struct example_config *config;
 	struct wlr_renderer *renderer;
 	struct wlr_texture *cat_texture;
 	struct wlr_output_layout *layout;
@@ -33,13 +33,6 @@ struct sample_state {
 	float x_vel, y_vel;
 	struct wlr_output *main_output;
 	struct wl_list outputs;
-};
-
-struct output_config {
-	char *name;
-	enum wl_output_transform transform;
-	int x, y;
-	struct wl_list link;
 };
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -134,13 +127,13 @@ static void configure_layout(struct sample_state *sample) {
 	wlr_output_layout_destroy(sample->layout);
 	sample->layout = wlr_output_layout_init();
 	sample->main_output = NULL;
-	int max_x = wl_list_empty(&sample->config) ? 0 : INT_MIN;
+	int max_x = wl_list_empty(&sample->config->outputs) ? 0 : INT_MIN;
 
 	// first add all the configure outputs
 	struct output_state *output;
 	wl_list_for_each(output, &sample->outputs, link) {
 		struct output_config *conf;
-		wl_list_for_each(conf, &sample->config, link) {
+		wl_list_for_each(conf, &sample->config->outputs, link) {
 			if (strcmp(conf->name, output->output->name) == 0) {
 				wlr_output_layout_add(sample->layout, output->output,
 						conf->x, conf->y);
@@ -224,88 +217,6 @@ static void handle_keyboard_key(struct keyboard_state *kbstate, uint32_t keycode
 	}
 }
 
-static void usage(const char *name, int ret) {
-	fprintf(stderr,
-		"usage: %s [-d <name> [-r <rotation> | -f]]*\n"
-		"\n"
-		" -o <output>    The name of the DRM display. e.g. DVI-I-1.\n"
-		" -r <rotation>  The rotation counter clockwise. Valid values are 90, 180, 270.\n"
-		" -x <position>  The X-axis coordinate position of this output in the layout.\n"
-		" -y <position>  The Y-axis coordinate position of this output in the layout.\n"
-		" -f             Flip the output along the vertical axis.\n", name);
-
-	exit(ret);
-}
-
-static void parse_args(int argc, char *argv[], struct wl_list *config) {
-	struct output_config *oc = NULL;
-
-	int c;
-	while ((c = getopt(argc, argv, "o:r:x:y:fh")) != -1) {
-		switch (c) {
-		case 'o':
-			oc = calloc(1, sizeof(*oc));
-			oc->name = optarg;
-			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
-			wl_list_insert(config, &oc->link);
-			break;
-		case 'r':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-
-			if (oc->transform != WL_OUTPUT_TRANSFORM_NORMAL
-					&& oc->transform != WL_OUTPUT_TRANSFORM_FLIPPED) {
-				fprintf(stderr, "Rotation for %s already specified\n", oc->name);
-				usage(argv[0], 1);
-			}
-
-			if (strcmp(optarg, "90") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_90;
-			} else if (strcmp(optarg, "180") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_180;
-			} else if (strcmp(optarg, "270") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_270;
-			} else {
-				fprintf(stderr, "Invalid rotation '%s'\n", optarg);
-				usage(argv[0], 1);
-			}
-			break;
-		case 'x':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-			oc->x = strtol(optarg, NULL, 0);
-			break;
-		case 'y':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-			oc->y = strtol(optarg, NULL, 0);
-			break;
-		case 'f':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-
-			if (oc->transform >= WL_OUTPUT_TRANSFORM_FLIPPED) {
-				fprintf(stderr, "Flip for %s already specified\n", oc->name);
-				usage(argv[0], 1);
-			}
-
-			oc->transform += WL_OUTPUT_TRANSFORM_FLIPPED;
-			break;
-		case 'h':
-		case '?':
-			usage(argv[0], c != 'h');
-		}
-	}
-}
-
 int main(int argc, char *argv[]) {
 	struct sample_state state = {0};
 
@@ -313,9 +224,8 @@ int main(int argc, char *argv[]) {
 	state.y_vel = 500;
 	state.layout = wlr_output_layout_init();
 
-	wl_list_init(&state.config);
 	wl_list_init(&state.outputs);
-	parse_args(argc, argv, &state.config);
+	state.config = parse_args(argc, argv);
 
 	struct compositor_state compositor = { 0 };
 	compositor.data = &state;
@@ -337,8 +247,5 @@ int main(int argc, char *argv[]) {
 
 	wlr_output_layout_destroy(state.layout);
 
-	struct output_config *ptr, *tmp;
-	wl_list_for_each_safe(ptr, tmp, &state.config, link) {
-		free(ptr);
-	}
+	example_config_destroy(state.config);
 }
