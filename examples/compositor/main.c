@@ -133,8 +133,9 @@ static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
 		state->keymap_fd, state->keymap_size);
 
-	if (wl_resource_get_version(handle->keyboard) >= 2)
-		wl_keyboard_send_repeat_info(handle->keyboard, 660, 25);
+	if (wl_resource_get_version(handle->keyboard) >= 2) {
+		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
+	}
 }
 
 int main() {

@@ -157,16 +157,10 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(struct wl_display
 }
 
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-	if (!manager) {
-		return;
+	if (manager) {
+		wl_global_destroy(manager->global);
+		free(manager);
 	}
-
-	// TODO: destroy remaining resources? cancel current selection?
-	//  if this is called why there are still resources active we will
-	//  always get problems
-
-	wl_global_destroy(manager->global);
-	free(manager);
 }
 
 void wlr_data_device_set_selection(struct wlr_data_device *device,

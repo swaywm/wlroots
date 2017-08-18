@@ -180,7 +180,13 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 		return;
 	}
 
+	struct wlr_seat_handle *handle;
+	wl_list_for_each(handle, &wlr_seat->handles, link) {
+		wl_resource_destroy(handle->wl_resource); // will destroy other resources as well
+	}
+
 	wl_global_destroy(wlr_seat->wl_global);
+	free(wlr_seat->data_device);
 	free(wlr_seat->name);
 	free(wlr_seat);
 }
