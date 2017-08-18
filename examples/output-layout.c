@@ -127,9 +127,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 }
 
 static inline int max(int a, int b) {
-	if (a < b)
-		return b;
-	return a;
+	return a < b ? b : a;
 }
 
 static void configure_layout(struct sample_state *sample) {
@@ -202,8 +200,8 @@ static void update_velocities(struct compositor_state *state,
 	sample->y_vel += y_diff;
 }
 
-static void handle_keyboard_key(struct keyboard_state *kbstate,
-		xkb_keysym_t sym, enum wlr_key_state key_state) {
+static void handle_keyboard_key(struct keyboard_state *kbstate, uint32_t keycode,
+	 	xkb_keysym_t sym, enum wlr_key_state key_state) {
 	// NOTE: It may be better to simply refer to our key state during each frame
 	// and make this change in pixels/sec^2
 	// Also, key repeat

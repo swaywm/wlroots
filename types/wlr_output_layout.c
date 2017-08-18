@@ -35,16 +35,13 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
-	struct wlr_output_layout_output *ret = NULL;
 	struct wlr_output_layout_output *_output;
 	wl_list_for_each(_output, &layout->outputs, link) {
 		if (_output->output == reference) {
-			ret = _output;
+			return _output;
 		}
 	}
-
-	return ret;
-
+	return NULL;
 }
 
 static bool output_contains_point( struct wlr_output_layout_output *l_output,
@@ -79,7 +76,6 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
-	struct wlr_output *ret = NULL;
 	struct wlr_output_layout_output *_output;
 	wl_list_for_each(_output, &layout->outputs, link) {
 		if (_output->output) {
@@ -88,13 +84,11 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 			bool has_x = x >= _output->x && x <= _output->x + width;
 			bool has_y = y >= _output->y && y <= _output->y + height;
 			if (has_x && has_y) {
-				ret = _output->output;
-				break;
+				return _output->output;
 			}
 		}
 	}
-
-	return ret;
+	return NULL;
 }
 
 void wlr_output_layout_move(struct wlr_output_layout *layout,
