@@ -19,6 +19,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device_manager.h>
 #include "wlr/types/wlr_compositor.h"
+#include <wlr/xwayland.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
@@ -35,6 +36,7 @@ struct sample_state {
 	struct wlr_data_device_manager *data_device_manager;
 	struct wl_resource *focus;
 	struct wl_listener keyboard_bound;
+	struct wlr_xwayland wlr_xwayland;
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
@@ -176,11 +178,13 @@ int main() {
 		free(keymap);
 		break;
 	}
+	wlr_xwayland_init(&state.wlr_xwayland, compositor.display);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	wl_display_run(compositor.display);
 
+	wlr_xwayland_finish(&state.wlr_xwayland);
 	close(state.keymap_fd);
 	wlr_seat_destroy(state.wl_seat);
 	wlr_data_device_manager_destroy(state.data_device_manager);
