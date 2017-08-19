@@ -83,6 +83,9 @@ void unlink_sockets(int display) {
 
 	snprintf(sun_path, sizeof(sun_path), socket_fmt, display);
 	unlink(sun_path);
+
+	snprintf(sun_path, sizeof(sun_path), lock_fmt, display);
+	unlink(sun_path);
 }
 
 int open_display_sockets(int socks[2]) {
@@ -121,7 +124,7 @@ int open_display_sockets(int socks[2]) {
 		}
 		long int read_pid;
 		read_pid = strtol(pid, &end_pid, 10);
-		if (read_pid < 0 || read_pid > INT32_MAX || end_pid != pid + sizeof(pid)) {
+		if (read_pid < 0 || read_pid > INT32_MAX || end_pid != pid + sizeof(pid) - 2) {
 			continue;
 		}
 		errno = 0;

@@ -35,6 +35,9 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 		exit(EXIT_FAILURE);
 	}
 
+	/* Make Xwayland signal us when it's ready */
+	signal(SIGUSR1, SIG_IGN);
+
 	char *argv[11] = { 0 };
 	argv[0] = "Xwayland";
 	if (asprintf(&argv[1], ":%d", wlr_xwayland->display) < 0) {
@@ -106,6 +109,10 @@ void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 		wl_client_destroy(wlr_xwayland->client);
 	}
 
+	if (wlr_xwayland->sigusr1_source) {
+		wl_event_source_remove(wlr_xwayland->sigusr1_source);
+	}
+
 	xwm_destroy(wlr_xwayland->xwm);
 
 	safe_close(wlr_xwayland->x_fd[0]);
@@ -118,6 +125,24 @@ void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	unlink_sockets(wlr_xwayland->display);	
 	unsetenv("DISPLAY");
 	/* kill Xwayland process? */
+}
+
+static int xserver_handle_ready(int signal_number, void *data) {
+	struct wlr_xwayland *wlr_xwayland = data;
+
+	wlr_log(L_DEBUG, "Xserver is ready");
+
+	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
+	if (!wlr_xwayland->xwm) {
+		wlr_xwayland_finish(wlr_xwayland);
+		return 1;
+	}
+
+	char display_name[16];
+	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
+	setenv("DISPLAY", display_name, true);
+
+	return 1;
 }
 
 bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
@@ -161,9 +186,6 @@ bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
 	wlr_xwayland->wl_fd[1] = wlr_xwayland->wm_fd[1] = -1;
 
-	char display_name[16];
-	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
-	setenv("DISPLAY", display_name, true);
 	wlr_xwayland->server_start = time(NULL);
 
 	if (!(wlr_xwayland->client = wl_client_create(wl_display, wlr_xwayland->wl_fd[0]))) {
@@ -174,11 +196,8 @@ bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 
 	wl_client_add_destroy_listener(wlr_xwayland->client, &xwayland_destroy_listener);
 
-	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
-	if (!wlr_xwayland->xwm) {
-		wlr_xwayland_finish(wlr_xwayland);
-		return false;
-	}
+	struct wl_event_loop *loop = wl_display_get_event_loop(wl_display);
+	wlr_xwayland->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1, xserver_handle_ready, wlr_xwayland);
 
 	return true;
 }
