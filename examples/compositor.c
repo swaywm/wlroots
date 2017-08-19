@@ -18,17 +18,17 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device_manager.h>
+#include "wlr/types/wlr_compositor.h"
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
 #include "shared.h"
-#include "compositor.h"
 
 // TODO: move to common header?
 int os_create_anonymous_file(off_t size);
 
 struct sample_state {
 	struct wlr_renderer *renderer;
-	struct wl_compositor_state compositor;
+	struct wlr_compositor compositor;
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_seat *wl_seat;
 	struct wlr_xdg_shell_v6 *xdg_shell;
@@ -153,7 +153,7 @@ int main() {
 		exit(EXIT_FAILURE);
 	}
 	wl_display_init_shm(compositor.display);
-	wl_compositor_init(compositor.display, &state.compositor, state.renderer);
+	wlr_compositor_init(&state.compositor, compositor.display, state.renderer);
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
 	state.data_device_manager = wlr_data_device_manager_create(compositor.display);
@@ -185,6 +185,7 @@ int main() {
 	wlr_data_device_manager_destroy(state.data_device_manager);
 	wlr_xdg_shell_v6_destroy(state.xdg_shell);
 	wlr_wl_shell_destroy(state.wl_shell);
+	wlr_compositor_finish(&state.compositor);
 	wlr_renderer_destroy(state.renderer);
 	compositor_fini(&compositor);
 }
