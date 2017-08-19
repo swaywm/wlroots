@@ -14,7 +14,7 @@ struct wlr_renderer {
 struct wlr_renderer_impl {
 	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
 	void (*end)(struct wlr_renderer *renderer);
-	struct wlr_texture *(*texture_init)(struct wlr_renderer *renderer);
+	struct wlr_texture *(*texture_create)(struct wlr_renderer *renderer);
 	bool (*render_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]);
 	void (*render_quad)(struct wlr_renderer *renderer,

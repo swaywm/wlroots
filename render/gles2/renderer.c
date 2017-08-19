@@ -143,11 +143,11 @@ static void wlr_gles2_end(struct wlr_renderer *renderer) {
 	// no-op
 }
 
-static struct wlr_texture *wlr_gles2_texture_init(
+static struct wlr_texture *wlr_gles2_texture_create(
 		struct wlr_renderer *_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		(struct wlr_gles2_renderer *)_renderer;
-	return gles2_texture_init(renderer->egl);
+	return gles2_texture_create(renderer->egl);
 }
 
 static void draw_quad() {
@@ -231,7 +231,7 @@ static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *_renderer,
 static struct wlr_renderer_impl wlr_renderer_impl = {
 	.begin = wlr_gles2_begin,
 	.end = wlr_gles2_end,
-	.texture_init = wlr_gles2_texture_init,
+	.texture_create = wlr_gles2_texture_create,
 	.render_with_matrix = wlr_gles2_render_texture,
 	.render_quad = wlr_gles2_render_quad,
 	.render_ellipse = wlr_gles2_render_ellipse,
@@ -239,7 +239,7 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.buffer_is_drm = wlr_gles2_buffer_is_drm,
 };
 
-struct wlr_renderer *wlr_gles2_renderer_init(struct wlr_backend *backend) {
+struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	init_globals();
 	struct wlr_gles2_renderer *renderer;
 	if (!(renderer = calloc(1, sizeof(struct wlr_gles2_renderer)))) {

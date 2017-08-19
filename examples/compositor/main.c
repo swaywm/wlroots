@@ -147,7 +147,7 @@ int main() {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init(compositor.backend);
+	state.renderer = wlr_gles2_renderer_create(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);

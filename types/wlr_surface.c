@@ -356,7 +356,7 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		return NULL;
 	}
 	surface->renderer = renderer;
-	surface->texture = wlr_render_texture_init(renderer);
+	surface->texture = wlr_render_texture_create(renderer);
 	surface->resource = res;
 	surface->current.scale = 1;
 	surface->pending.scale = 1;

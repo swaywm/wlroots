@@ -49,7 +49,7 @@ extern struct shaders shaders;
 
 const struct pixel_format *gl_format_for_wl_format(enum wl_shm_format fmt);
 
-struct wlr_texture *gles2_texture_init();
+struct wlr_texture *gles2_texture_create();
 
 extern const GLchar quad_vertex_src[];
 extern const GLchar quad_fragment_src[];

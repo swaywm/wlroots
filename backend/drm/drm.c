@@ -598,12 +598,12 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
 			output->output.transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
-		plane->wlr_rend = wlr_gles2_renderer_init(&backend->backend);
+		plane->wlr_rend = wlr_gles2_renderer_create(&backend->backend);
 		if (!plane->wlr_rend) {
 			return false;
 		}
 
-		plane->wlr_tex = wlr_render_texture_init(plane->wlr_rend);
+		plane->wlr_tex = wlr_render_texture_create(plane->wlr_rend);
 		if (!plane->wlr_tex) {
 			return false;
 		}

@@ -23,8 +23,8 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->impl->end(r);
 }
 
-struct wlr_texture *wlr_render_texture_init(struct wlr_renderer *r) {
-	return r->impl->texture_init(r);
+struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
+	return r->impl->texture_create(r);
 }
 
 bool wlr_render_with_matrix(struct wlr_renderer *r,

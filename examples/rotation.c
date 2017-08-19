@@ -132,12 +132,12 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init(compositor.backend);
+	state.renderer = wlr_gles2_renderer_create(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_init(state.renderer);
+	state.cat_texture = wlr_render_texture_create(state.renderer);
 	if (!state.cat_texture) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);

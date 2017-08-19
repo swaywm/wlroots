@@ -12,7 +12,7 @@ void wlr_renderer_end(struct wlr_renderer *r);
 /**
  * Requests a texture handle from this renderer.
  */
-struct wlr_texture *wlr_render_texture_init(struct wlr_renderer *r);
+struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
 /**
  * Renders the requested texture using the provided matrix. A typical texture
  * rendering goes like so:
