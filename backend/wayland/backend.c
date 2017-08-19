@@ -88,6 +88,7 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	list_free(backend->outputs);
 	free(backend->seat_name);
 
+	wl_event_source_remove(backend->remote_display_src);
 	wlr_egl_free(&backend->egl);
 	if (backend->seat) wl_seat_destroy(backend->seat);
 	if (backend->shm) wl_shm_destroy(backend->shm);
