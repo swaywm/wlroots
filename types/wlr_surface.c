@@ -204,20 +204,20 @@ static void wlr_surface_to_buffer_region(struct wlr_surface *surface,
 static void surface_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	int update_size = 0;
-	int update_damage = 0;
+	bool update_size = false;
+	bool update_damage = false;
 
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SCALE)) {
 		surface->current.scale = surface->pending.scale;
-		update_size = 1;
+		update_size = true;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
 		surface->current.transform = surface->pending.transform;
-		update_size = 1;
+		update_size = true;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_BUFFER)) {
 		surface->current.buffer = surface->pending.buffer;
-		update_size = 1;
+		update_size = true;
 	}
 	if (update_size) {
 		int32_t oldw = surface->current.buffer_width;
@@ -236,7 +236,7 @@ static void surface_commit(struct wl_client *client,
 			surface->current.height);
 
 		pixman_region32_clear(&surface->pending.surface_damage);
-		update_damage = 1;
+		update_damage = true;
 	}
 	if ((surface->pending.invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
 		pixman_region32_union(&surface->current.buffer_damage,
@@ -244,7 +244,7 @@ static void surface_commit(struct wl_client *client,
 			&surface->pending.buffer_damage);
 
 		pixman_region32_clear(&surface->pending.buffer_damage);
-		update_damage = 1;
+		update_damage = true;
 	}
 	if (update_damage) {
 		pixman_region32_t buffer_damage;
