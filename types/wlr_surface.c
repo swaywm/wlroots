@@ -326,16 +326,16 @@ static void surface_damage_buffer(struct wl_client *client,
 }
 
 const struct wl_surface_interface surface_interface = {
-	surface_destroy,
-	surface_attach,
-	surface_damage,
-	surface_frame,
-	surface_set_opaque_region,
-	surface_set_input_region,
-	surface_commit,
-	surface_set_buffer_transform,
-	surface_set_buffer_scale,
-	surface_damage_buffer
+	.destroy = surface_destroy,
+	.attach = surface_attach,
+	.damage = surface_damage,
+	.frame = surface_frame,
+	.set_opaque_region = surface_set_opaque_region,
+	.set_input_region = surface_set_input_region,
+	.commit = surface_commit,
+	.set_buffer_transform = surface_set_buffer_transform,
+	.set_buffer_scale = surface_set_buffer_scale,
+	.damage_buffer = surface_damage_buffer
 };
 
 static void destroy_surface(struct wl_resource *resource) {
