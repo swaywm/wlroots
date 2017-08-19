@@ -28,7 +28,7 @@ int os_create_anonymous_file(off_t size);
 
 struct sample_state {
 	struct wlr_renderer *renderer;
-	struct wlr_compositor compositor;
+	struct wlr_compositor *wlr_compositor;
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_seat *wl_seat;
 	struct wlr_xdg_shell_v6 *xdg_shell;
@@ -95,7 +95,7 @@ static void handle_keyboard_key(struct keyboard_state *keyboard, uint32_t keycod
 
 	struct wl_resource *res = NULL;
 	struct wlr_seat_handle *seat_handle = NULL;
-	wl_list_for_each(res, &sample->compositor.surfaces, link) {
+	wl_list_for_each(res, &sample->wlr_compositor->surfaces, link) {
 		break;
 	}
 
@@ -153,7 +153,7 @@ int main() {
 		exit(EXIT_FAILURE);
 	}
 	wl_display_init_shm(compositor.display);
-	wlr_compositor_init(&state.compositor, compositor.display, state.renderer);
+	state.wlr_compositor = wlr_compositor_create(compositor.display, state.renderer);
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
 	state.data_device_manager = wlr_data_device_manager_create(compositor.display);
@@ -185,7 +185,7 @@ int main() {
 	wlr_data_device_manager_destroy(state.data_device_manager);
 	wlr_xdg_shell_v6_destroy(state.xdg_shell);
 	wlr_wl_shell_destroy(state.wl_shell);
-	wlr_compositor_finish(&state.compositor);
+	wlr_compositor_destroy(state.wlr_compositor);
 	wlr_renderer_destroy(state.renderer);
 	compositor_fini(&compositor);
 }

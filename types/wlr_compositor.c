@@ -62,16 +62,23 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *_compositor,
 	wl_list_insert(&compositor->wl_resources, wl_resource_get_link(wl_resource));
 }
 
-void wlr_compositor_finish(struct wlr_compositor *compositor) {
+void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	wl_global_destroy(compositor->wl_global);
+	free(compositor);
 }
 
-void wlr_compositor_init(struct wlr_compositor *compositor,
-		struct wl_display *display, struct wlr_renderer *renderer) {
+struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
+		struct wlr_renderer *renderer) {
+	struct wlr_compositor *compositor = calloc(1, sizeof(struct wlr_compositor));
+	if (!compositor) {
+		wlr_log_errno(L_ERROR, "Could not allocate wlr compositor");
+		return NULL;
+	}
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_compositor_interface, 4, compositor, wl_compositor_bind);
 	compositor->wl_global = wl_global;
 	compositor->renderer = renderer;
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
+	return compositor;
 }

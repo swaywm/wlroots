@@ -11,9 +11,9 @@ struct wlr_compositor {
 	struct wl_listener destroy_surface_listener;
 };
 
-void wlr_compositor_finish(struct wlr_compositor *wlr_compositor);
-void wlr_compositor_init(struct wlr_compositor *wlr_compositor,
-		struct wl_display *display, struct wlr_renderer *renderer);
+void wlr_compositor_destroy(struct wlr_compositor *wlr_compositor);
+struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
+		struct wlr_renderer *renderer);
 
 struct wlr_surface;
 void wl_compositor_surface_destroyed(struct wlr_compositor *wlr_compositor,
