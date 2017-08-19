@@ -9,11 +9,6 @@ executable('touch', 'touch.c', dependencies: wlroots, link_with: lib_shared)
 executable('tablet', 'tablet.c', dependencies: wlroots, link_with: lib_shared)
 executable('output-layout', 'output-layout.c', dependencies: wlroots, link_with: lib_shared)
 
-compositor_src = [
-  'compositor/main.c',
-  'compositor/wl_compositor.c',
-]
-
-executable('compositor', compositor_src,
+executable('compositor', 'compositor.c',
   dependencies: wlroots,
   link_with: lib_shared)
