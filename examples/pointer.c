@@ -146,7 +146,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	compositor_init(&compositor);
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
+	compositor_fini(&compositor);
 
 	wlr_xcursor_theme_destroy(theme);
 }

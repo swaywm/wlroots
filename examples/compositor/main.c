@@ -178,9 +178,13 @@ int main() {
 		break;
 	}
 
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
 
-	wlr_wl_shell_destroy(state.wl_shell);
-	wlr_xdg_shell_v6_destroy(state.xdg_shell);
 	close(state.keymap_fd);
+	wlr_seat_destroy(state.wl_seat);
+	wlr_data_device_manager_destroy(state.data_device_manager);
+	wlr_xdg_shell_v6_destroy(state.xdg_shell);
+	wlr_wl_shell_destroy(state.wl_shell);
+	wlr_renderer_destroy(state.renderer);
+	compositor_fini(&compositor);
 }

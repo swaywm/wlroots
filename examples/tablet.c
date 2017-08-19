@@ -158,7 +158,8 @@ int main(int argc, char *argv[]) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
 
 	wlr_renderer_destroy(state.renderer);
+	compositor_fini(&compositor);
 }

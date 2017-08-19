@@ -198,10 +198,11 @@ int main(int argc, char *argv[]) {
 	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
 
 	wlr_texture_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
+	compositor_fini(&compositor);
 
 	wlr_output_layout_destroy(state.layout);
 
