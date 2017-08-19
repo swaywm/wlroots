@@ -76,6 +76,8 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 			wlr_xwayland->display, wlr_xwayland->x_fd[0], wlr_xwayland->x_fd[1],
 			wlr_xwayland->wm_fd[1]);
 
+	// TODO: close stdout/err depending on log level
+
 	execvpe("Xwayland", argv, envp);
 }
 
@@ -88,7 +90,8 @@ static void xwayland_destroy_event(struct wl_listener *listener, void *data) {
 	wlr_xwayland_finish(wlr_xwayland);
 
 	if (wlr_xwayland->server_start - time(NULL) > 5) {
-		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display);
+		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display,
+				wlr_xwayland->compositor);
 	}
 }
 
@@ -103,6 +106,8 @@ void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 		wl_client_destroy(wlr_xwayland->client);
 	}
 
+	xwm_destroy(wlr_xwayland->xwm);
+
 	safe_close(wlr_xwayland->x_fd[0]);
 	safe_close(wlr_xwayland->x_fd[1]);
 	safe_close(wlr_xwayland->wl_fd[0]);
@@ -116,8 +121,10 @@ void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 }
 
 bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
-		struct wl_display *wl_display) {
+		struct wl_display *wl_display, struct wlr_compositor *compositor) {
+	memset(wlr_xwayland, 0, sizeof(struct wlr_xwayland));
 	wlr_xwayland->wl_display = wl_display;
+	wlr_xwayland->compositor = compositor;
 	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
 	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
 	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
@@ -162,9 +169,16 @@ bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 	if (!(wlr_xwayland->client = wl_client_create(wl_display, wlr_xwayland->wl_fd[0]))) {
 		wlr_log_errno(L_ERROR, "wl_client_create failed");
 		wlr_xwayland_finish(wlr_xwayland);
+		return false;
 	}
 
 	wl_client_add_destroy_listener(wlr_xwayland->client, &xwayland_destroy_listener);
+
+	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
+	if (!wlr_xwayland->xwm) {
+		wlr_xwayland_finish(wlr_xwayland);
+		return false;
+	}
 
 	return true;
 }

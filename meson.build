@@ -32,6 +32,7 @@ libinput       = dependency('libinput')
 xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
+xcb            = dependency('xcb')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
 math           = cc.find_library('m', required: false)
@@ -65,6 +66,7 @@ wlr_deps = [
   xkbcommon,
   udev,
   pixman,
+  xcb,
   libcap,
   systemd,
   math,

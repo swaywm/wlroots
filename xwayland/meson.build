@@ -1,5 +1,7 @@
 lib_wlr_xwayland = static_library('wlr_xwayland', files(
     'sockets.c',
     'xwayland.c',
+    'xwm.c',
   ),
-  include_directories: wlr_inc)
+  include_directories: wlr_inc,
+  dependencies: [wayland_server, xcb, pixman])

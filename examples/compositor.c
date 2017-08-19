@@ -178,7 +178,7 @@ int main() {
 		free(keymap);
 		break;
 	}
-	wlr_xwayland_init(&state.wlr_xwayland, compositor.display);
+	wlr_xwayland_init(&state.wlr_xwayland, compositor.display, state.wlr_compositor);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
