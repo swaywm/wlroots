@@ -230,6 +230,7 @@ static void surface_commit(struct wl_client *client,
 			&buffer_damage, surface->current.width, surface->current.height);
 		pixman_region32_union(&surface->current.buffer_damage,
 			&surface->current.buffer_damage, &buffer_damage);
+		pixman_region32_fini(&buffer_damage);
 
 		pixman_region32_intersect_rect(&surface->current.buffer_damage,
 			&surface->current.buffer_damage, 0, 0,
@@ -237,6 +238,7 @@ static void surface_commit(struct wl_client *client,
 
 		pixman_region32_clear(&surface->pending.surface_damage);
 		pixman_region32_clear(&surface->pending.buffer_damage);
+		pixman_region32_clear(&surface->pending.opaque);
 	}
 	// TODO: Commit other changes
 
