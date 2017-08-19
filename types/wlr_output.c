@@ -139,14 +139,14 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 
 	if (!output->cursor.renderer) {
 		/* NULL egl is okay given that we are only using pixel buffers */
-		output->cursor.renderer = wlr_gles2_renderer_init(NULL);
+		output->cursor.renderer = wlr_gles2_renderer_create(NULL);
 		if (!output->cursor.renderer) {
 			return false;
 		}
 	}
 
 	if (!output->cursor.texture) {
-		output->cursor.texture = wlr_render_texture_init(output->cursor.renderer);
+		output->cursor.texture = wlr_render_texture_create(output->cursor.renderer);
 		if (!output->cursor.texture) {
 			return false;
 		}

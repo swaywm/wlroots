@@ -276,7 +276,7 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *gles2_texture_init(struct wlr_egl *egl) {
+struct wlr_texture *gles2_texture_create(struct wlr_egl *egl) {
 	struct wlr_gles2_texture *texture;
 	if (!(texture = calloc(1, sizeof(struct wlr_gles2_texture)))) {
 		return NULL;

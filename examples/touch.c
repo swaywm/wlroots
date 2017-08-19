@@ -107,12 +107,12 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_init(compositor.backend);
+	state.renderer = wlr_gles2_renderer_create(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_init(state.renderer);
+	state.cat_texture = wlr_render_texture_create(state.renderer);
 	if (!state.cat_texture) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
@@ -120,8 +120,9 @@ int main(int argc, char *argv[]) {
 	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
 
 	wlr_texture_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
+	compositor_fini(&compositor);
 }

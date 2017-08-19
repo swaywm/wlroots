@@ -674,8 +674,7 @@ void compositor_init(struct compositor_state *state) {
 	}
 }
 
-void compositor_run(struct compositor_state *state) {
-	wl_display_run(state->display);
+void compositor_fini(struct compositor_state *state) {
 	wlr_backend_destroy(state->backend);
 	wl_display_destroy(state->display);
 }

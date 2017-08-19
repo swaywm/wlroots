@@ -52,5 +52,6 @@ int main() {
 		.output_frame_cb = handle_output_frame,
 	};
 	compositor_init(&compositor);
-	compositor_run(&compositor);
+	wl_display_run(compositor.display);
+	compositor_fini(&compositor);
 }

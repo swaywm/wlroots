@@ -26,9 +26,9 @@ static void region_destroy(struct wl_client *client, struct wl_resource *resourc
 }
 
 static const struct wl_region_interface region_interface = {
-	region_destroy,
-	region_add,
-	region_subtract,
+	.destroy = region_destroy,
+	.add = region_add,
+	.subtract = region_subtract,
 };
 
 static void destroy_region(struct wl_resource *resource) {

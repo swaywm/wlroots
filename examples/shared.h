@@ -151,6 +151,6 @@ struct compositor_state {
 };
 
 void compositor_init(struct compositor_state *state);
-void compositor_run(struct compositor_state *state);
+void compositor_fini(struct compositor_state *state);
 
 #endif
