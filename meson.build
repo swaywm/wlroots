@@ -50,6 +50,7 @@ subdir('render')
 subdir('types')
 subdir('util')
 subdir('xcursor')
+subdir('xwayland')
 
 wlr_deps = [
   wayland_server,
@@ -77,6 +78,7 @@ lib_wlr = library('wlroots', files('dummy.c'),
     lib_wlr_types,
     lib_wlr_util,
     lib_wlr_xcursor,
+    lib_wlr_xwayland,
   ],
   dependencies: wlr_deps,
   include_directories: wlr_inc)
