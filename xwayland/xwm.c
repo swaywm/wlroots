@@ -62,8 +62,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 
 	xwm->surface_listener.notify = create_surface_handler;
-	//wl_signal_add(&wlr_xwayland->compositor->create_surface_signal,
-	//		&xwm->surface_listener);
+	wl_signal_add(&wlr_xwayland->compositor->create_surface_signal,
+			&xwm->surface_listener);
 
 	return xwm;
 }
