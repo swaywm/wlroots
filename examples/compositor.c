@@ -36,7 +36,7 @@ struct sample_state {
 	struct wlr_data_device_manager *data_device_manager;
 	struct wl_resource *focus;
 	struct wl_listener keyboard_bound;
-	struct wlr_xwayland wlr_xwayland;
+	struct wlr_xwayland *wlr_xwayland;
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
@@ -178,13 +178,13 @@ int main() {
 		free(keymap);
 		break;
 	}
-	wlr_xwayland_init(&state.wlr_xwayland, compositor.display, state.wlr_compositor);
+	state.wlr_xwayland = wlr_xwayland_create(compositor.display, state.wlr_compositor);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	wl_display_run(compositor.display);
 
-	wlr_xwayland_finish(&state.wlr_xwayland);
+	wlr_xwayland_destroy(state.wlr_xwayland);
 	close(state.keymap_fd);
 	wlr_seat_destroy(state.wl_seat);
 	wlr_data_device_manager_destroy(state.data_device_manager);

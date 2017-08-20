@@ -11,7 +11,8 @@
 #include <wayland-server.h>
 #include "wlr/util/log.h"
 #include "wlr/xwayland.h"
-#include "xwayland/internals.h"
+#include "sockets.h"
+#include "xwm.h"
 
 static void safe_close(int fd) {
 	if (fd >= 0) {
@@ -84,6 +85,10 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	execvpe("Xwayland", argv, envp);
 }
 
+static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
+		struct wl_display *wl_display, struct wlr_compositor *compositor);
+static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland);
+
 static void xwayland_destroy_event(struct wl_listener *listener, void *data) {
 	struct wl_client *client = data;
 	struct wlr_xwayland *wlr_xwayland = wl_container_of(client, wlr_xwayland, client);
@@ -102,7 +107,7 @@ static struct wl_listener xwayland_destroy_listener = {
 	.notify = xwayland_destroy_event,
 };
 
-void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
+static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 
 	if (wlr_xwayland->client) {
 		wl_list_remove(&xwayland_destroy_listener.link);
@@ -122,7 +127,7 @@ void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	safe_close(wlr_xwayland->wm_fd[0]);
 	safe_close(wlr_xwayland->wm_fd[1]);
 
-	unlink_sockets(wlr_xwayland->display);	
+	unlink_display_sockets(wlr_xwayland->display);
 	unsetenv("DISPLAY");
 	/* kill Xwayland process? */
 }
@@ -148,7 +153,7 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	return 1;
 }
 
-bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
+static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 		struct wl_display *wl_display, struct wlr_compositor *compositor) {
 	memset(wlr_xwayland, 0, sizeof(struct wlr_xwayland));
 	wlr_xwayland->wl_display = wl_display;
@@ -203,4 +208,19 @@ bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1, xserver_handle_ready, wlr_xwayland);
 
 	return true;
+}
+
+void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
+	wlr_xwayland_finish(wlr_xwayland);
+	free(wlr_xwayland);
+}
+
+struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
+		struct wlr_compositor *compositor) {
+	struct wlr_xwayland *wlr_xwayland = calloc(1, sizeof(struct wlr_xwayland));
+	if (wlr_xwayland_init(wlr_xwayland, wl_display, compositor)) {
+		return wlr_xwayland;
+	}
+	free(wlr_xwayland);
+	return NULL;
 }

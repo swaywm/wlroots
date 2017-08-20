@@ -20,8 +20,8 @@ struct wlr_xwayland {
 	struct wlr_xwm *xwm;
 };
 
-void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland);
-bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
-		struct wl_display *wl_display, struct wlr_compositor *compositor);
+void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
+struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
+		struct wlr_compositor *compositor);
 
 #endif

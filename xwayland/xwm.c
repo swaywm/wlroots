@@ -4,9 +4,7 @@
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
-#include "xwayland/internals.h"
-
-
+#include "xwm.h"
 
 
 static int x11_event_handler(int fd, uint32_t mask, void *data) {

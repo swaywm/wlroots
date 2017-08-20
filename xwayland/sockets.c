@@ -12,7 +12,7 @@
 #include <sys/un.h>
 #include <errno.h>
 #include "wlr/util/log.h"
-#include "xwayland/internals.h"
+#include "sockets.h"
 
 static const char *lock_fmt = "/tmp/.X%d-lock";
 static const char *socket_dir = "/tmp/.X11-unix";
@@ -78,7 +78,7 @@ static bool open_sockets(int socks[2], int display) {
 	return true;
 }
 
-void unlink_sockets(int display) {
+void unlink_display_sockets(int display) {
 	char sun_path[64];
 
 	snprintf(sun_path, sizeof(sun_path), socket_fmt, display);
