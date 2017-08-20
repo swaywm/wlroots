@@ -69,7 +69,6 @@ static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 
 static void map_shell_surface(struct wlr_xwm *xwm, struct wlr_x11_window *window,
 		struct wlr_surface *surface) {
-
 	// get xcb geometry for depth = alpha channel
 	window->surface = surface->resource;
 
@@ -206,7 +205,8 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			break;
 		default:
 			wlr_log(L_DEBUG, "X11 event: %d",
-					event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK);
+				event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK);
+			break;
 		}
 	}
 
@@ -214,8 +214,7 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	return count;
 }
 
-static void create_surface_handler(struct wl_listener *listener, void *data)
-{
+static void create_surface_handler(struct wl_listener *listener, void *data) {
 	struct wlr_surface *surface = data;
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, surface_create_listener);
 	struct wlr_x11_window *window;
@@ -272,8 +271,12 @@ static void xcb_init_wm(struct wlr_xwm *xwm) {
 
 	xwm->window = xcb_generate_id(xwm->xcb_conn);
 
-	uint32_t values[] = { XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_PROPERTY_CHANGE,
-		/* , xwm->cursor */ };
+	uint32_t values[] = {
+		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | 
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+			XCB_EVENT_MASK_PROPERTY_CHANGE,
+		/* xwm->cursor, */
+	};
 	XCB_CALL(xwm, xcb_change_window_attributes_checked(xwm->xcb_conn, xwm->screen->root,
 			XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */, values));
 	XCB_CALL(xwm, xcb_composite_redirect_subwindows_checked(xwm->xcb_conn,
@@ -334,7 +337,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xcb_init_wm(xwm);
 
 	xwm->surface_create_listener.notify = create_surface_handler;
-	wl_signal_add(&wlr_xwayland->compositor->create_surface_signal,
+	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
 			&xwm->surface_create_listener);
 
 	return xwm;

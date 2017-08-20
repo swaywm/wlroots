@@ -10,7 +10,9 @@ struct wlr_compositor {
 	struct wl_list surfaces;
 	struct wl_listener destroy_surface_listener;
 
-	struct wl_signal create_surface_signal;
+	struct {
+		struct wl_signal create_surface;
+	} events;
 };
 
 void wlr_compositor_destroy(struct wlr_compositor *wlr_compositor);

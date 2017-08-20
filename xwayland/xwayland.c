@@ -1,5 +1,5 @@
 #define _XOPEN_SOURCE 700
-#define _GNU_SOURCE
+#define _DEFAULT_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <wayland-server.h>
 #include "wlr/util/log.h"
@@ -28,6 +29,27 @@ static int unset_cloexec(int fd) {
 	return 0;
 }
 
+static int fill_arg(char ***argv, const char *fmt, ...) {
+	int len;
+	char **cur_arg = *argv;
+	va_list args;
+	va_start(args, fmt);
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
+	va_end(args);
+	while (*cur_arg) {
+		cur_arg++;
+	}
+	*cur_arg = malloc(len);
+	if (!*cur_arg) {
+		return -1;
+	}
+	*argv = cur_arg;
+	va_start(args, fmt);
+	len = vsnprintf(*cur_arg, len, fmt, args);
+	va_end(args);
+	return len;
+}
+
 static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	if (unset_cloexec(wlr_xwayland->x_fd[0]) ||
 			unset_cloexec(wlr_xwayland->x_fd[1]) ||
@@ -39,27 +61,20 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	/* Make Xwayland signal us when it's ready */
 	signal(SIGUSR1, SIG_IGN);
 
-	char *argv[11] = { 0 };
-	argv[0] = "Xwayland";
-	if (asprintf(&argv[1], ":%d", wlr_xwayland->display) < 0) {
-		wlr_log_errno(L_ERROR, "asprintf failed");
-		exit(EXIT_FAILURE);
-	}
-	argv[2] = "-rootless";
-	argv[3] = "-terminate";
-	argv[4] = "-listen";
-	if (asprintf(&argv[5], "%d", wlr_xwayland->x_fd[0]) < 0) {
-		wlr_log_errno(L_ERROR, "asprintf failed");
-		exit(EXIT_FAILURE);
-	}
-	argv[6] = "-listen";
-	if (asprintf(&argv[7], "%d", wlr_xwayland->x_fd[1]) < 0) {
-		wlr_log_errno(L_ERROR, "asprintf failed");
-		exit(EXIT_FAILURE);
-	}
-	argv[8] = "-wm";
-	if (asprintf(&argv[9], "%d", wlr_xwayland->wm_fd[1]) < 0) {
-		wlr_log_errno(L_ERROR, "asprintf failed");
+	char *argv[] = {
+		"Xwayland", NULL /* display, e.g. :1 */,
+		"-rootless", "-terminate",
+		"-listen", NULL /* x_fd[0] */,
+		"-listen", NULL /* x_fd[1] */,
+		"-wm", NULL /* wm_fd[1] */,
+		NULL };
+	char **cur_arg = argv;
+
+	if (fill_arg(&cur_arg, ":%d", wlr_xwayland->display) < 0 ||
+			fill_arg(&cur_arg, "%d", wlr_xwayland->x_fd[0]) < 0 ||
+			fill_arg(&cur_arg, "%d", wlr_xwayland->x_fd[1]) < 0 ||
+			fill_arg(&cur_arg, "%d", wlr_xwayland->wm_fd[1]) < 0) {
+		wlr_log_errno(L_ERROR, "alloc/print failure");
 		exit(EXIT_FAILURE);
 	}
 
@@ -69,12 +84,14 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 		exit(EXIT_FAILURE);
 	}
 
-	char *envp[3] = { 0 };
-	if (asprintf(&envp[0], "XDG_RUNTIME_DIR=%s", xdg_runtime) < 0 ||
-			asprintf(&envp[1], "WAYLAND_SOCKET=%d", wlr_xwayland->wl_fd[1]) < 0) {
-		wlr_log_errno(L_ERROR, "asprintf failed");
+	if (clearenv()) {	    
+		wlr_log_errno(L_ERROR, "clearenv failed");
 		exit(EXIT_FAILURE);
 	}
+	setenv("XDG_RUNTIME_DIR", xdg_runtime, true);
+	char wayland_socket_str[16];
+	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", wlr_xwayland->wl_fd[1]);
+	setenv("WAYLAND_SOCKET", wayland_socket_str, true);
 
 	wlr_log(L_INFO, "Xwayland :%d -rootless -terminate -listen %d -listen %d -wm %d",
 			wlr_xwayland->display, wlr_xwayland->x_fd[0], wlr_xwayland->x_fd[1],
@@ -82,7 +99,7 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 
 	// TODO: close stdout/err depending on log level
 
-	execvpe("Xwayland", argv, envp);
+	execvp("Xwayland", argv);
 }
 
 static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
@@ -108,7 +125,6 @@ static struct wl_listener xwayland_destroy_listener = {
 };
 
 static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
-
 	if (wlr_xwayland->client) {
 		wl_list_remove(&xwayland_destroy_listener.link);
 		wl_client_destroy(wlr_xwayland->client);
@@ -117,6 +133,9 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	if (wlr_xwayland->sigusr1_source) {
 		wl_event_source_remove(wlr_xwayland->sigusr1_source);
 	}
+
+	// TODO: destroy all these windows, for now just cleanup
+	wl_list_init(&wlr_xwayland->displayable_windows);
 
 	xwm_destroy(wlr_xwayland->xwm);
 
@@ -129,7 +148,9 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 
 	unlink_display_sockets(wlr_xwayland->display);
 	unsetenv("DISPLAY");
-	/* kill Xwayland process? */
+	/* We do not kill the Xwayland process, it dies because of broken pipe
+	 * after we close our side of the wm/wl fds. This is more reliable than
+	 * trying to kill something that might no longer be Xwayland */
 }
 
 static int xserver_handle_ready(int signal_number, void *data) {
@@ -150,7 +171,7 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
 	setenv("DISPLAY", display_name, true);
 
-	return 1;
+	return 1; /* wayland event loop dispatcher's count */
 }
 
 static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,

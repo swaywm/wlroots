@@ -22,7 +22,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	wl_resource_add_destroy_listener(surface_resource, &surface->compositor_listener);
 
 	wl_list_insert(&compositor->surfaces, wl_resource_get_link(surface_resource));
-	wl_signal_emit(&compositor->create_surface_signal, surface);
+	wl_signal_emit(&compositor->events.create_surface, surface);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
@@ -81,6 +81,6 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	compositor->renderer = renderer;
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
-	wl_signal_init(&compositor->create_surface_signal);
+	wl_signal_init(&compositor->events.create_surface);
 	return compositor;
 }
