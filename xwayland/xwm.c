@@ -19,7 +19,7 @@ static struct wlr_x11_window *lookup_window(struct wl_list *list, xcb_window_t w
 }
 static struct wlr_x11_window *lookup_window_any(struct wlr_xwm *xwm, xcb_window_t window_id) {
 	struct wlr_x11_window *window;
-	if ((window = lookup_window(&xwm->paired_windows, window_id)) ||
+	if ((window = lookup_window(&xwm->xwayland->displayable_windows, window_id)) ||
 			(window = lookup_window(&xwm->unpaired_windows, window_id)) ||
 			(window = lookup_window(&xwm->new_windows, window_id))) {
 		return window;
@@ -71,10 +71,10 @@ static void map_shell_surface(struct wlr_xwm *xwm, struct wlr_x11_window *window
 		struct wlr_surface *surface) {
 
 	// get xcb geometry for depth = alpha channel
-	// TODO link to compositor somehow
+	window->surface = surface->resource;
 
 	wl_list_remove(&window->link);
-	wl_list_insert(&xwm->paired_windows, &window->link);
+	wl_list_insert(&xwm->xwayland->displayable_windows, &window->link);
 }
 
 /* xcb event handlers */
@@ -96,7 +96,7 @@ static void handle_destroy_notify(struct wlr_xwm *xwm, xcb_destroy_notify_event_
 static void handle_configure_request(struct wlr_xwm *xwm, xcb_configure_request_event_t *ev) {
 	struct wlr_x11_window *window;
 	wlr_log(L_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
-                                        ev->width, ev->height, ev->x, ev->y);
+			ev->width, ev->height, ev->x, ev->y);
 	if (!(window = lookup_window_any(xwm, ev->window))) {
 		return;
 	}
@@ -211,7 +211,7 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 static void create_surface_handler(struct wl_listener *listener, void *data)
 {
 	struct wlr_surface *surface = data;
-        struct wlr_xwm *xwm = wl_container_of(listener, xwm, surface_create_listener);
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, surface_create_listener);
 	struct wlr_x11_window *window;
 	uint32_t surface_id;
 
@@ -308,7 +308,6 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm->xwayland = wlr_xwayland;
 	wl_list_init(&xwm->new_windows);
 	wl_list_init(&xwm->unpaired_windows);
-	wl_list_init(&xwm->paired_windows);
 
 	xwm->xcb_conn = xcb_connect_to_fd(wlr_xwayland->wm_fd[0], NULL);
 	if ((rc = xcb_connection_has_error(xwm->xcb_conn))) {
@@ -317,7 +316,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		return NULL;
 	}
 
-        struct wl_event_loop *event_loop = wl_display_get_event_loop(wlr_xwayland->wl_display);
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(wlr_xwayland->wl_display);
 	xwm->event_source = wl_event_loop_add_fd(event_loop, wlr_xwayland->wm_fd[0],
 			WL_EVENT_READABLE, x11_event_handler, xwm);
 	// probably not needed

@@ -36,7 +36,7 @@ struct sample_state {
 	struct wlr_data_device_manager *data_device_manager;
 	struct wl_resource *focus;
 	struct wl_listener keyboard_bound;
-	struct wlr_xwayland *wlr_xwayland;
+	struct wlr_xwayland *xwayland;
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
@@ -84,6 +84,10 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct wlr_xdg_surface_v6 *xdg_surface;
 	wl_list_for_each(xdg_surface, &sample->xdg_shell->surfaces, link) {
 		output_frame_handle_surface(sample, wlr_output, ts, xdg_surface->surface);
+	}
+	struct wlr_x11_window *x11_window;
+	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {
+		output_frame_handle_surface(sample, wlr_output, ts, x11_window->surface);
 	}
 
 	wlr_renderer_end(sample->renderer);
@@ -178,13 +182,13 @@ int main() {
 		free(keymap);
 		break;
 	}
-	state.wlr_xwayland = wlr_xwayland_create(compositor.display, state.wlr_compositor);
+	state.xwayland = wlr_xwayland_create(compositor.display, state.wlr_compositor);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	wl_display_run(compositor.display);
 
-	wlr_xwayland_destroy(state.wlr_xwayland);
+	wlr_xwayland_destroy(state.xwayland);
 	close(state.keymap_fd);
 	wlr_seat_destroy(state.wl_seat);
 	wlr_data_device_manager_destroy(state.data_device_manager);

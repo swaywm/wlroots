@@ -1,6 +1,5 @@
 #ifndef XWAYLAND_INTERNALS_H
 #define XWAYLAND_INTERNALS_H
-#include <xcb/xcb.h>
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
 
@@ -65,18 +64,6 @@ static const char * const atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE",
 };
 
-struct wlr_x11_window {
-	xcb_window_t window_id;
-	uint32_t surface_id;
-	struct wl_list link;
-
-	struct wl_resource *surface;
-	struct wl_listener surface_destroy_listener;
-	int16_t x, y;
-	uint16_t width, height;
-	bool override_redirect;
-};
-
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
@@ -89,7 +76,6 @@ struct wlr_xwm {
 
 	struct wl_list new_windows;
 	struct wl_list unpaired_windows;
-	struct wl_list paired_windows;
 };
 
 void xwm_destroy(struct wlr_xwm *xwm);
