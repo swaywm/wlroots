@@ -33,6 +33,7 @@ xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 xcb            = dependency('xcb')
+xcb_composite  = dependency('xcb-composite')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
 math           = cc.find_library('m', required: false)
@@ -67,6 +68,7 @@ wlr_deps = [
   udev,
   pixman,
   xcb,
+  xcb_composite,
   libcap,
   systemd,
   math,

@@ -4,4 +4,4 @@ lib_wlr_xwayland = static_library('wlr_xwayland', files(
     'xwm.c',
   ),
   include_directories: wlr_inc,
-  dependencies: [wayland_server, xcb, pixman])
+  dependencies: [wayland_server, xcb, xcb_composite, pixman])

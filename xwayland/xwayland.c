@@ -138,6 +138,9 @@ static int xserver_handle_ready(int signal_number, void *data) {
 		return 1;
 	}
 
+	wl_event_source_remove(wlr_xwayland->sigusr1_source);
+	wlr_xwayland->sigusr1_source = NULL;
+
 	char display_name[16];
 	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
 	setenv("DISPLAY", display_name, true);
