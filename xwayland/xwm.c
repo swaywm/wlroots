@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <xcb/xcb_event.h>
 #include <xcb/composite.h>
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_surface.h"
@@ -171,6 +170,10 @@ static void handle_client_message(struct wlr_xwm *xwm, xcb_client_message_event_
 	wlr_log(L_DEBUG, "unhandled client message %u", ev->type);
 }
 
+/* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
+ * others redefine anyway is meh
+ */
+#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
 static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	int count = 0;
 	xcb_generic_event_t *event;
