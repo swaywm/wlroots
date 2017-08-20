@@ -119,9 +119,8 @@ pre-allocated memory (e.g. a member of a struct).
 * `create`/`destroy`: These also initialize/deinitialize, but will return a
 pointer to a `malloc`ed chunk of memory, and will `free` it in `destroy`.
 
-A destruction function should always be able to accept a NULL pointer or an
-otherwise uninitialised value and exit cleanly; this simplifies error handling
-a lot.
+A destruction function should always be able to accept a NULL pointer or a
+zeroed value and exit cleanly; this simplifies error handling a lot.
 
 ### Error Codes
 
