@@ -1,8 +1,9 @@
 # Contributing to wlroots
 
 Contributing just involves sending a pull request. You will probably be more
-successful with your contribution if you visit the [IRC
-channel](irc://chat.freenode.net/sway-devel) upfront and discuss your plans.
+successful with your contribution if you visit
+[#sway-devel](https://webchat.freenode.net/?channels=sway-devel) on freenode
+upfront and discuss your plans.
 
 ## Pull Requests
 
