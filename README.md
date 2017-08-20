@@ -7,9 +7,7 @@ This is a WIP: [status](https://github.com/SirCmpwn/wlroots/issues/9)
 
 ## Contributing
 
-Development is organized in our [IRC
-channel](http://webchat.freenode.net/?channels=sway-devel&uio=d4), #sway-devel on
-irc.freenode.net. Join us and ask how you can help!
+See [CONTRIBUTING.md](https://github.com/SirCmpwn/wlroots/blob/master/CONTRIBUTING.md)
 
 ## Building
 
