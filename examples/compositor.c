@@ -143,7 +143,6 @@ int main() {
 	struct compositor_state compositor = { 0,
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
-		.keyboard_key_cb = handle_keyboard_key
 	};
 	compositor_init(&compositor);
 
@@ -177,6 +176,8 @@ int main() {
 		free(keymap);
 		break;
 	}
+
+	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	wl_display_run(compositor.display);
 
