@@ -386,6 +386,7 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		wl_resource_post_no_memory(res);
 		return NULL;
 	}
+	wlr_log(L_DEBUG, "New wlr_surface %p (res %p)", surface, res);
 	surface->renderer = renderer;
 	surface->texture = wlr_render_texture_create(renderer);
 	surface->resource = res;

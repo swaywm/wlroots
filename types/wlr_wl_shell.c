@@ -88,6 +88,7 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	state->surface = surface;
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
+	wlr_log(L_DEBUG, "New wl_shell %p (res %p)", state, shell_surface_resource);
 	wl_resource_set_implementation(shell_surface_resource,
 			&shell_surface_interface, state, destroy_shell_surface);
 	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
