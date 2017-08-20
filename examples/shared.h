@@ -93,6 +93,8 @@ struct tablet_pad_state {
 };
 
 struct compositor_state {
+	void (*input_add_cb)(struct compositor_state *compositor,
+			struct wlr_input_device *device);
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
 	void (*output_frame_cb)(struct output_state *s, struct timespec *ts);

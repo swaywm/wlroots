@@ -441,6 +441,10 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 	default:
 		break;
 	}
+
+	if (state->input_add_cb) {
+		state->input_add_cb(state, device);
+	}
 }
 
 static void keyboard_remove(struct wlr_input_device *device, struct compositor_state *state) {

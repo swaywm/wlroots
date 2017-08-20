@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <math.h>
+#include <assert.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
@@ -16,16 +17,27 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/xcursor.h>
+#include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include "shared.h"
 #include "cat.h"
 
 struct sample_state {
-	struct wlr_xcursor *cursor;
+	struct compositor_state *compositor;
+	struct example_config *config;
+	struct wlr_xcursor *xcursor;
+	struct wlr_cursor *cursor;
 	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
+	struct wlr_output_layout *layout;
+
+	struct wl_listener cursor_motion;
+	struct wl_listener cursor_motion_absolute;
+	struct wl_listener cursor_button;
+	struct wl_listener cursor_axis;
 };
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -42,74 +54,15 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_swap_buffers(wlr_output);
 }
 
-static void handle_pointer_motion(struct pointer_state *pstate,
-		double d_x, double d_y) {
-	struct sample_state *state = pstate->compositor->data;
-	state->cur_x += d_x;
-	state->cur_y += d_y;
-
-	struct wlr_xcursor_image *image = state->cursor->images[0];
-
-	struct output_state *output;
-	wl_list_for_each(output, &pstate->compositor->outputs, link) {
-		wlr_output_move_cursor(output->output,
-				state->cur_x - image->hotspot_x,
-				state->cur_y - image->hotspot_y);
-	}
-}
-
-static void handle_pointer_motion_absolute(struct pointer_state *pstate,
-		double x, double y) {
-	struct sample_state *state = pstate->compositor->data;
-	state->cur_x = x;
-	state->cur_y = y;
-
-	struct wlr_xcursor_image *image = state->cursor->images[0];
-
-	struct output_state *output;
-	wl_list_for_each(output, &pstate->compositor->outputs, link) {
-		wlr_output_move_cursor(output->output,
-				state->cur_x - image->hotspot_x,
-				state->cur_y - image->hotspot_y);
-	}
-}
-
-static void handle_pointer_button(struct pointer_state *pstate,
-		uint32_t button, enum wlr_button_state state) {
-	struct sample_state *sample = pstate->compositor->data;
-	float (*color)[4];
-	if (state == WLR_BUTTON_RELEASED) {
-		color = &sample->default_color;
-	} else {
-		float red[4] = { 0.25f, 0.25f, 0.25f, 1 };
-		red[button % 3] = 1;
-		color = &red;
-	}
-	memcpy(&sample->clear_color, color, sizeof(*color));
-}
-
-static void handle_pointer_axis(struct pointer_state *pstate,
-	enum wlr_axis_source source,
-	enum wlr_axis_orientation orientation,
-	double delta) {
-	struct sample_state *sample = pstate->compositor->data;
-	for (size_t i = 0; i < 3; ++i) {
-		sample->default_color[i] += delta > 0 ? -0.05f : 0.05f;
-		if (sample->default_color[i] > 1.0f) {
-			sample->default_color[i] = 1.0f;
-		}
-		if (sample->default_color[i] < 0.0f) {
-			sample->default_color[i] = 0.0f;
-		}
-	}
-	memcpy(&sample->clear_color, &sample->default_color,
-			sizeof(sample->clear_color));
-}
-
 static void handle_output_add(struct output_state *ostate) {
-	struct sample_state *state = ostate->compositor->data;
+	struct sample_state *sample = ostate->compositor->data;
 	struct wlr_output *wlr_output = ostate->output;
-	struct wlr_xcursor_image *image = state->cursor->images[0];
+	struct wlr_xcursor_image *image = sample->xcursor->images[0];
+
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
 			image->width, image->width, image->height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
@@ -120,34 +73,137 @@ static void handle_output_add(struct output_state *ostate) {
 	}
 }
 
+static void handle_output_remove(struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+}
+
+static void handle_output_resolution(struct compositor_state *state,
+		struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+	wlr_output_layout_destroy(sample->layout);
+	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+}
+
+static void handle_input_add(struct compositor_state *state, struct
+		wlr_input_device *device) {
+	struct sample_state *sample = state->data;
+
+	// TODO handle other input devices
+	if (device->type == WLR_INPUT_DEVICE_POINTER) {
+		wlr_cursor_attach_input_device(sample->cursor, device);
+	}
+}
+
+static void handle_cursor_motion(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion);
+	struct wlr_event_pointer_motion *event = data;
+	wlr_cursor_move(sample->cursor, event->delta_x, event->delta_y);
+}
+
+static void handle_cursor_motion_absolute(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion_absolute);
+	struct wlr_event_pointer_motion_absolute *event = data;
+
+	sample->cur_x = event->x_mm;
+	sample->cur_y = event->y_mm;
+
+	struct wlr_xcursor_image *image = sample->xcursor->images[0];
+
+	struct output_state *output;
+	wl_list_for_each(output, &sample->compositor->outputs, link) {
+		wlr_output_move_cursor(output->output,
+				sample->cur_x - image->hotspot_x,
+				sample->cur_y - image->hotspot_y);
+	}
+}
+
+static void handle_cursor_button(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, cursor_button);
+	struct wlr_event_pointer_button *event = data;
+
+	float (*color)[4];
+	if (event->state == WLR_BUTTON_RELEASED) {
+		color = &sample->default_color;
+		memcpy(&sample->clear_color, color, sizeof(*color));
+	} else {
+		float red[4] = { 0.25f, 0.25f, 0.25f, 1 };
+		red[event->button % 3] = 1;
+		color = &red;
+		memcpy(&sample->clear_color, color, sizeof(*color));
+	}
+}
+
+static void handle_cursor_axis(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, cursor_axis);
+	struct wlr_event_pointer_axis *event = data;
+
+	for (size_t i = 0; i < 3; ++i) {
+		sample->default_color[i] += event->delta > 0 ? -0.05f : 0.05f;
+		if (sample->default_color[i] > 1.0f) {
+			sample->default_color[i] = 1.0f;
+		}
+		if (sample->default_color[i] < 0.0f) {
+			sample->default_color[i] = 0.0f;
+		}
+	}
+
+	memcpy(&sample->clear_color, &sample->default_color,
+			sizeof(sample->clear_color));
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 }
 	};
+
+	state.config = parse_args(argc, argv);
+	state.cursor = wlr_cursor_init();
+
+	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
+	state.cursor_motion.notify = handle_cursor_motion;
+
+	wl_signal_add(&state.cursor->events.motion_absolute, &state.cursor_motion_absolute);
+	state.cursor_motion_absolute.notify = handle_cursor_motion_absolute;
+
+	wl_signal_add(&state.cursor->events.button, &state.cursor_button);
+	state.cursor_button.notify = handle_cursor_button;
+
+	wl_signal_add(&state.cursor->events.axis, &state.cursor_axis);
+	state.cursor_axis.notify = handle_cursor_axis;
+
 	struct compositor_state compositor = { 0 };
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
+	compositor.output_remove_cb = handle_output_remove;
+	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.output_frame_cb = handle_output_frame;
-	compositor.pointer_motion_cb = handle_pointer_motion;
-	compositor.pointer_motion_absolute_cb = handle_pointer_motion_absolute;
-	compositor.pointer_button_cb = handle_pointer_button;
-	compositor.pointer_axis_cb = handle_pointer_axis;
+	compositor.input_add_cb = handle_input_add;
+
+	state.compositor = &compositor;
 
 	struct wlr_xcursor_theme *theme = wlr_xcursor_theme_load("default", 16);
 	if (!theme) {
 		wlr_log(L_ERROR, "Failed to load cursor theme");
 		return 1;
 	}
-	state.cursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
-	if (!state.cursor) {
+	state.xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
+	if (!state.xcursor) {
 		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
 		return 1;
 	}
+
+	wlr_cursor_set_xcursor(state.cursor, state.xcursor);
 
 	compositor_init(&compositor);
 	wl_display_run(compositor.display);
 	compositor_fini(&compositor);
 
 	wlr_xcursor_theme_destroy(theme);
+	example_config_destroy(state.config);
+	wlr_cursor_destroy(state.cursor);
 }
