@@ -106,6 +106,12 @@ static void handle_configure_request(struct wlr_xwm *xwm, xcb_configure_request_
 	window->width = ev->width;
 	window->height = ev->height;
 	// handle parent/sibling?
+
+	uint32_t values[] = { ev->x, ev->y, ev->width, ev->height, 0 };
+	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
+		XCB_CONFIG_WINDOW_BORDER_WIDTH;
+	xcb_configure_window(xwm->xcb_conn, ev->window, mask, values);
 }
 
 static void handle_map_request(struct wlr_xwm *xwm, xcb_map_request_event_t *ev) {
