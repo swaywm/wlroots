@@ -1,0 +1,2 @@
+option('enable_libcap', type: 'boolean', value: true, description: 'Enable support for capabilities')
+option('enable_systemd', type: 'boolean', value: true, description: 'Enable support for logind')
