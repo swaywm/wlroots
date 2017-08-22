@@ -180,8 +180,8 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 		return;
 	}
 
-	struct wlr_seat_handle *handle;
-	wl_list_for_each(handle, &wlr_seat->handles, link) {
+	struct wlr_seat_handle *handle, *tmp;
+	wl_list_for_each_safe(handle, tmp, &wlr_seat->handles, link) {
 		wl_resource_destroy(handle->wl_resource); // will destroy other resources as well
 	}
 
