@@ -134,9 +134,6 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 		wl_event_source_remove(wlr_xwayland->sigusr1_source);
 	}
 
-	// TODO: destroy all these windows, for now just cleanup
-	wl_list_init(&wlr_xwayland->displayable_windows);
-
 	xwm_destroy(wlr_xwayland->xwm);
 
 	safe_close(wlr_xwayland->x_fd[0]);

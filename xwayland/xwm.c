@@ -310,6 +310,16 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
+	struct wlr_x11_window *window, *tmp;
+	wl_list_for_each_safe(window, tmp, &xwm->xwayland->displayable_windows, link) {
+		wlr_x11_window_destroy(window);
+	}
+	wl_list_for_each_safe(window, tmp, &xwm->new_windows, link) {
+		wlr_x11_window_destroy(window);
+	}
+	wl_list_for_each_safe(window, tmp, &xwm->unpaired_windows, link) {
+		wlr_x11_window_destroy(window);
+	}
 	wl_list_remove(&xwm->surface_create_listener.link);
 	xcb_disconnect(xwm->xcb_conn);
 
