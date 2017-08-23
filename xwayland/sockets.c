@@ -24,7 +24,9 @@ static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 
 	fd = socket(PF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (fd < 0) {
-		wlr_log_errno(L_ERROR, "Failed to create socket %s", addr->sun_path);
+		wlr_log_errno(L_DEBUG, "Failed to create socket %c%s",
+			addr->sun_path[0] ? addr->sun_path[0] : '@',
+			addr->sun_path + 1);
 		return -1;
 	}
 
@@ -33,12 +35,16 @@ static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	}
 	if (bind(fd, (struct sockaddr*)addr, size) < 0) {
 		rc = errno;
-		wlr_log_errno(L_ERROR, "Failed to bind socket %s", addr->sun_path);
+		wlr_log_errno(L_DEBUG, "Failed to bind socket %c%s",
+			addr->sun_path[0] ? addr->sun_path[0] : '@',
+			addr->sun_path + 1);
 		goto cleanup;
 	}
 	if (listen(fd, 1) < 0) {
 		rc = errno;
-		wlr_log_errno(L_ERROR, "Failed to listen to socket %s", addr->sun_path);
+		wlr_log_errno(L_DEBUG, "Failed to listen to socket %c%s",
+			addr->sun_path[0] ? addr->sun_path[0] : '@',
+			addr->sun_path + 1);
 		goto cleanup;
 	}
 

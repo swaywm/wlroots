@@ -6,6 +6,8 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -93,9 +95,9 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", wlr_xwayland->wl_fd[1]);
 	setenv("WAYLAND_SOCKET", wayland_socket_str, true);
 
-	wlr_log(L_INFO, "Xwayland :%d -rootless -terminate -listen %d -listen %d -wm %d",
-			wlr_xwayland->display, wlr_xwayland->x_fd[0], wlr_xwayland->x_fd[1],
-			wlr_xwayland->wm_fd[1]);
+	wlr_log(L_INFO, "WAYLAND_SOCKET=%d Xwayland :%d -rootless -terminate -listen %d -listen %d -wm %d",
+		wlr_xwayland->wl_fd[1], wlr_xwayland->display, wlr_xwayland->x_fd[0],
+		wlr_xwayland->x_fd[1], wlr_xwayland->wm_fd[1]);
 
 	// TODO: close stdout/err depending on log level
 
@@ -111,20 +113,23 @@ static void xwayland_destroy_event(struct wl_listener *listener, void *data) {
 
 	/* don't call client destroy */
 	wlr_xwayland->client = NULL;
+	wl_list_remove(&wlr_xwayland->destroy_listener.link);
 	wlr_xwayland_finish(wlr_xwayland);
 
-	if (wlr_xwayland->server_start - time(NULL) > 5) {
+	if (time(NULL) - wlr_xwayland->server_start > 5) {
 		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display,
-				wlr_xwayland->compositor);
+			wlr_xwayland->compositor);
 	}
 }
 
 static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
+	if (!wlr_xwayland || wlr_xwayland->display == -1) {
+		return;
+	}
 	if (wlr_xwayland->client) {
 		wl_list_remove(&wlr_xwayland->destroy_listener.link);
 		wl_client_destroy(wlr_xwayland->client);
 	}
-
 	if (wlr_xwayland->sigusr1_source) {
 		wl_event_source_remove(wlr_xwayland->sigusr1_source);
 	}
@@ -142,10 +147,13 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	safe_close(wlr_xwayland->wm_fd[1]);
 
 	unlink_display_sockets(wlr_xwayland->display);
+	wlr_xwayland->display = -1;
 	unsetenv("DISPLAY");
-	/* We do not kill the Xwayland process, it dies because of broken pipe
-	 * after we close our side of the wm/wl fds. This is more reliable than
-	 * trying to kill something that might no longer be Xwayland */
+	/* We do not kill the Xwayland process, it dies to broken pipe
+	 * after we close our side of the wm/wl fds. This is more reliable
+	 * than trying to kill something that might no longer be Xwayland.
+	 */
+	// TODO: figure how to wait for dying process though. Probably handle SIGCHILD
 }
 
 static int xserver_handle_ready(int signal_number, void *data) {

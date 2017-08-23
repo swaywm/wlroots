@@ -61,7 +61,7 @@ static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 	}
 
 	wlr_log(L_ERROR, "xcb call failed in %s:%u, x11 error code %d",
-			func, line, error->error_code);
+		func, line, error->error_code);
 	free(error);
 	return false;
 }
@@ -79,7 +79,7 @@ static void map_shell_surface(struct wlr_xwm *xwm, struct wlr_x11_window *window
 static void handle_create_notify(struct wlr_xwm *xwm, xcb_create_notify_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_CREATE_NOTIFY (%u)", ev->window);
 	wlr_x11_window_create(xwm, ev->window, ev->x, ev->y,
-			ev->width, ev->height, ev->override_redirect);
+		ev->width, ev->height, ev->override_redirect);
 }
 
 static void handle_destroy_notify(struct wlr_xwm *xwm, xcb_destroy_notify_event_t *ev) {
@@ -94,7 +94,7 @@ static void handle_destroy_notify(struct wlr_xwm *xwm, xcb_destroy_notify_event_
 static void handle_configure_request(struct wlr_xwm *xwm, xcb_configure_request_event_t *ev) {
 	struct wlr_x11_window *window;
 	wlr_log(L_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
-			ev->width, ev->height, ev->x, ev->y);
+		ev->width, ev->height, ev->x, ev->y);
 	if (!(window = lookup_window_any(xwm, ev->window))) {
 		return;
 	}
@@ -154,7 +154,7 @@ static void handle_client_message(struct wlr_xwm *xwm, xcb_client_message_event_
 		window = lookup_window(&xwm->new_windows, ev->window);
 		if (!window) {
 			wlr_log(L_DEBUG, "client message WL_SURFACE_ID but no new window %u ?",
-					ev->window);
+				ev->window);
 			return;
 		}
 		window->surface_id = ev->data.data32[0];
@@ -260,7 +260,7 @@ static void xcb_get_resources(struct wlr_xwm *xwm) {
 		}
 		if (error) {
 			wlr_log(L_ERROR, "could not resolve atom %s, x11 error code %d",
-					atom_map[i], error->error_code);
+				atom_map[i], error->error_code);
 			free(error);
 			return;
 		}
@@ -304,10 +304,13 @@ static void xcb_init_wm(struct wlr_xwm *xwm) {
 }
 
 void xwm_destroy(struct wlr_xwm *xwm) {
+	if (!xwm) {
+		return;
+	}
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
-
+	wl_list_remove(&xwm->surface_create_listener.link);
 	xcb_disconnect(xwm->xcb_conn);
 
 	free(xwm);
