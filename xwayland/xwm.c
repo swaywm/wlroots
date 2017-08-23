@@ -240,7 +240,7 @@ static void create_surface_handler(struct wl_listener *listener, void *data) {
 }
 
 static void xcb_get_resources(struct wlr_xwm *xwm) {
-	int i;
+	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
 
 	for (i = 0; i < ATOM_LAST; i++) {

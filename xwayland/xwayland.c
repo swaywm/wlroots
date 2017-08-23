@@ -107,8 +107,7 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland);
 
 static void xwayland_destroy_event(struct wl_listener *listener, void *data) {
-	struct wl_client *client = data;
-	struct wlr_xwayland *wlr_xwayland = wl_container_of(client, wlr_xwayland, client);
+	struct wlr_xwayland *wlr_xwayland = wl_container_of(listener, wlr_xwayland, destroy_listener);
 
 	/* don't call client destroy */
 	wlr_xwayland->client = NULL;
@@ -120,13 +119,9 @@ static void xwayland_destroy_event(struct wl_listener *listener, void *data) {
 	}
 }
 
-static struct wl_listener xwayland_destroy_listener = {
-	.notify = xwayland_destroy_event,
-};
-
 static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	if (wlr_xwayland->client) {
-		wl_list_remove(&xwayland_destroy_listener.link);
+		wl_list_remove(&wlr_xwayland->destroy_listener.link);
 		wl_client_destroy(wlr_xwayland->client);
 	}
 
@@ -224,7 +219,8 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 		return false;
 	}
 
-	wl_client_add_destroy_listener(wlr_xwayland->client, &xwayland_destroy_listener);
+	wlr_xwayland->destroy_listener.notify = xwayland_destroy_event;
+	wl_client_add_destroy_listener(wlr_xwayland->client, &wlr_xwayland->destroy_listener);
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl_display);
 	wlr_xwayland->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1, xserver_handle_ready, wlr_xwayland);

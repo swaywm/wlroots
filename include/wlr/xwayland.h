@@ -18,6 +18,7 @@ struct wlr_xwayland {
 	time_t server_start;
 
 	struct wl_event_source *sigusr1_source;
+	struct wl_listener destroy_listener;
 	struct wlr_xwm *xwm;
 	struct wl_list displayable_windows;
 };
