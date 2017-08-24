@@ -49,8 +49,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		float matrix[16];
 
 		// transform global coordinates to local coordinates
-		int local_x = sample->x_offs;
-		int local_y = sample->y_offs;
+		double local_x = sample->x_offs;
+		double local_y = sample->y_offs;
 		wlr_output_layout_output_coords(sample->layout, output->output, &local_x,
 				&local_y);
 

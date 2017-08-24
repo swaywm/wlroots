@@ -113,16 +113,16 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 }
 
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int *x, int *y) {
+		struct wlr_output *reference, double *x, double *y) {
 	assert(layout && reference);
-	int src_x = *x;
-	int src_y = *y;
+	double src_x = *x;
+	double src_y = *y;
 
 	struct wlr_output_layout_output *_output;
 	wl_list_for_each(_output, &layout->outputs, link) {
 		if (_output->output == reference) {
-			*x = src_x - _output->x;
-			*y = src_y - _output->y;
+			*x = src_x - (double)_output->x;
+			*y = src_y - (double)_output->y;
 			return;
 		}
 	}

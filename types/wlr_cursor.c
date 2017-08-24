@@ -82,10 +82,9 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
 
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
-		int output_x = x;
-		int output_y = y;
+		double output_x = x;
+		double output_y = y;
 
-		// TODO fix double to int rounding issues
 		wlr_output_layout_output_coords(cur->state->layout,
 			l_output->output, &output_x, &output_y);
 		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,

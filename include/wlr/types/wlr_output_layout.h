@@ -38,7 +38,7 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
  * coordinates relative to the given reference output.
  */
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int *x, int *y);
+		struct wlr_output *reference, double *x, double *y);
 
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y);
