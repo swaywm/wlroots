@@ -135,11 +135,17 @@ static double get_distance(double x1, double y1, double x2, double y2) {
 }
 
 void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
-		int x, int y, int *dest_x, int *dest_y) {
-	int min_x = INT_MAX, min_y = INT_MAX, min_distance = INT_MAX;
+		struct wlr_output *reference, double x, double y, double *dest_x,
+		double *dest_y) {
+	double min_x = INT_MAX, min_y = INT_MAX, min_distance = INT_MAX;
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		int width, height, output_x, output_y, output_distance;
+		if (reference != NULL && reference != l_output->output) {
+			continue;
+		}
+
+		int width, height;
+		double output_x, output_y, output_distance;
 		wlr_output_effective_resolution(l_output->output, &width, &height);
 
 		// find the closest x point

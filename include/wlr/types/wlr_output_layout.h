@@ -47,9 +47,12 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x1, int y1, int x2, int y2);
 
 /**
- * Get the closest boundary point of this layout from the given point.
+ * Get the closest boundary point of this layout from the given point from the
+ * reference output. If reference is NULL, gets the closest boundary point from
+ * the entire layout.
  */
 void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
-		int x, int y, int *dest_x, int *dest_y);
+		struct wlr_output *reference, double x, double y, double *dest_x,
+		double *dest_y);
 
 #endif

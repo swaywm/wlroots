@@ -22,6 +22,7 @@ struct wlr_cursor_state {
 	struct wl_list devices;
 	struct wlr_output_layout *layout;
 	struct wlr_xcursor *xcursor;
+	struct wlr_output *mapped_output;
 };
 
 struct wlr_cursor *wlr_cursor_init() {
@@ -36,6 +37,8 @@ struct wlr_cursor *wlr_cursor_init() {
 		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_state");
 		return NULL;
 	}
+
+	cur->state->mapped_output = NULL;
 
 	wl_list_init(&cur->state->devices);
 
@@ -66,7 +69,16 @@ void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur) {
 
 bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
 	assert(cur->state->layout);
-	if (!wlr_output_layout_output_at(cur->state->layout, x, y)) {
+	struct wlr_output *output;
+	output = wlr_output_layout_output_at(cur->state->layout, x, y);
+
+	if (!output) {
+		return false;
+	}
+
+	if (cur->state->mapped_output &&
+			!wlr_output_layout_contains_point(cur->state->layout,
+				cur->state->mapped_output, x, y)) {
 		return false;
 	}
 
@@ -97,13 +109,16 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
 void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
 	assert(cur->state->layout);
 
-	int x = cur->x + delta_x;
-	int y = cur->y + delta_y;
+	double x = cur->x + delta_x;
+	double y = cur->y + delta_y;
 
-	if (!wlr_output_layout_output_at(cur->state->layout, x, y)) {
-		int closest_x, closest_y;
-		wlr_output_layout_closest_boundary(cur->state->layout, x, y, &closest_x,
-			&closest_y);
+	struct wlr_output *output;
+	output = wlr_output_layout_output_at(cur->state->layout, x, y);
+
+	if (!output || (cur->state->mapped_output && cur->state->mapped_output != output)) {
+		double closest_x, closest_y;
+		wlr_output_layout_closest_boundary(cur->state->layout,
+			cur->state->mapped_output, x, y, &closest_x, &closest_y);
 		x = closest_x;
 		y = closest_y;
 	}
@@ -210,7 +225,7 @@ void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
 
 void wlr_cursor_map_to_output(struct wlr_cursor *cur,
 		struct wlr_output *output) {
-	wlr_log(L_DEBUG, "TODO: map to output");
+	cur->state->mapped_output = output;
 }
 
 void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
