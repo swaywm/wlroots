@@ -65,6 +65,7 @@ void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur) {
 }
 
 bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
+	assert(cur->state->layout);
 	if (!wlr_output_layout_output_at(cur->state->layout, x, y)) {
 		return false;
 	}
@@ -95,7 +96,6 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
 }
 
 void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
-	// TODO handle no layout
 	assert(cur->state->layout);
 
 	int x = cur->x + delta_x;
