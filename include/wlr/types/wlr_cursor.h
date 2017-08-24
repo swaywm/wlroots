@@ -32,14 +32,22 @@ void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur);
  * Warp the cursor to the given x and y in layout coordinates. If x and y are
  * out of the layout boundaries or constraints, no warp will happen.
  *
+ * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
+ * device mapping constraints will be ignored.
+ *
  * Returns true when the mouse warp was successful.
  */
-bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y);
+bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
+		double x, double y);
 
 /**
  * Move the cursor in the direction of the given x and y coordinates.
+ *
+ * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
+ * device mapping constraints will be ignored.
  */
-void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y);
+void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
+		double delta_x, double delta_y);
 
 /**
  * Attaches this input device to this cursor. The input device must be one of:

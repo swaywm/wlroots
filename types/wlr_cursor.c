@@ -11,6 +11,7 @@ struct wlr_cursor_device {
 	struct wlr_cursor *cursor;
 	struct wlr_input_device *device;
 	struct wl_list link;
+	struct wlr_output *mapped_output;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
@@ -54,8 +55,8 @@ struct wlr_cursor *wlr_cursor_init() {
 }
 
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
-	struct wlr_cursor_device *device, *tmp = NULL;
-	wl_list_for_each_safe(device, tmp, &cur->state->devices, link) {
+	struct wlr_cursor_device *device, *device_tmp = NULL;
+	wl_list_for_each_safe(device, device_tmp, &cur->state->devices, link) {
 		wl_list_remove(&device->link);
 		free(device);
 	}
@@ -67,18 +68,41 @@ void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur) {
 	cur->state->xcursor = xcur;
 }
 
-bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
+static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
+		struct wlr_input_device *device) {
+	struct wlr_cursor_device *c_device, *ret = NULL;
+	wl_list_for_each(c_device, &cur->state->devices, link) {
+		if (c_device->device == device) {
+			ret = c_device;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
+		double x, double y) {
 	assert(cur->state->layout);
 	struct wlr_output *output;
 	output = wlr_output_layout_output_at(cur->state->layout, x, y);
+
+	struct wlr_output *mapped_output = NULL;
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+
+	if (c_device && c_device->mapped_output) {
+		mapped_output = c_device->mapped_output;
+	} else {
+		mapped_output = cur->state->mapped_output;
+	}
 
 	if (!output) {
 		return false;
 	}
 
-	if (cur->state->mapped_output &&
-			!wlr_output_layout_contains_point(cur->state->layout,
-				cur->state->mapped_output, x, y)) {
+	if (mapped_output &&
+			!wlr_output_layout_contains_point(cur->state->layout, mapped_output,
+				x, y)) {
 		return false;
 	}
 
@@ -106,8 +130,17 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y) {
 	return true;
 }
 
-void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
+void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
+		double delta_x, double delta_y) {
 	assert(cur->state->layout);
+	struct wlr_output *mapped_output = NULL;
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+
+	if (c_device && c_device->mapped_output) {
+		mapped_output = c_device->mapped_output;
+	} else {
+		mapped_output = cur->state->mapped_output;
+	}
 
 	double x = cur->x + delta_x;
 	double y = cur->y + delta_y;
@@ -115,15 +148,15 @@ void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
 	struct wlr_output *output;
 	output = wlr_output_layout_output_at(cur->state->layout, x, y);
 
-	if (!output || (cur->state->mapped_output && cur->state->mapped_output != output)) {
+	if (!output || (mapped_output && mapped_output != output)) {
 		double closest_x, closest_y;
-		wlr_output_layout_closest_boundary(cur->state->layout,
-			cur->state->mapped_output, x, y, &closest_x, &closest_y);
+		wlr_output_layout_closest_boundary(cur->state->layout, mapped_output, x,
+			y, &closest_x, &closest_y);
 		x = closest_x;
 		y = closest_y;
 	}
 
-	if (wlr_cursor_warp(cur, x, y)) {
+	if (wlr_cursor_warp(cur, dev, x, y)) {
 		cur->x = x;
 		cur->y = y;
 	}
@@ -230,5 +263,11 @@ void wlr_cursor_map_to_output(struct wlr_cursor *cur,
 
 void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_output *output) {
-	wlr_log(L_DEBUG, "TODO map input to output");
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+	if (!c_device) {
+		wlr_log(L_ERROR, "Cannot map device \"%s\" to output (not found in this cursor)", dev->name);
+		return;
+	}
+
+	c_device->mapped_output = output;
 }

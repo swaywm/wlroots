@@ -24,6 +24,11 @@
 #include "shared.h"
 #include "cat.h"
 
+struct sample_input_device {
+	struct wlr_input_device *device;
+	struct wl_list link;
+};
+
 struct sample_state {
 	struct compositor_state *compositor;
 	struct example_config *config;
@@ -33,6 +38,7 @@ struct sample_state {
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
+	struct wl_list devices;
 
 	struct wl_listener cursor_motion;
 	struct wl_listener cursor_motion_absolute;
@@ -62,6 +68,16 @@ static void handle_output_add(struct output_state *ostate) {
 	wlr_output_layout_destroy(sample->layout);
 	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+
+	/*
+	// TODO configuration
+	if (strcmp("DP-1", ostate->output->name) == 0) {
+		struct sample_input_device *dev;
+		wl_list_for_each(dev, &sample->devices, link) {
+			wlr_cursor_map_input_to_output(sample->cursor, dev->device, ostate->output);
+		}
+	}
+	*/
 
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
 			image->width, image->width, image->height)) {
@@ -94,6 +110,20 @@ static void handle_input_add(struct compositor_state *state, struct
 
 	// TODO handle other input devices
 	if (device->type == WLR_INPUT_DEVICE_POINTER) {
+		struct sample_input_device *s_device = calloc(1, sizeof(struct sample_input_device));
+		s_device->device = device;
+		wl_list_insert(&sample->devices, &s_device->link);
+
+		/*
+		// TODO configuration
+		struct output_state *ostate;
+		wl_list_for_each(ostate, &sample->compositor->outputs, link) {
+			if (strcmp(ostate->output->name, "DP-1") == 0) {
+				wlr_cursor_map_input_to_output(sample->cursor, device, ostate->output);
+			}
+		}
+		*/
+
 		wlr_cursor_attach_input_device(sample->cursor, device);
 	}
 }
@@ -101,7 +131,7 @@ static void handle_input_add(struct compositor_state *state, struct
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion);
 	struct wlr_event_pointer_motion *event = data;
-	wlr_cursor_move(sample->cursor, event->delta_x, event->delta_y);
+	wlr_cursor_move(sample->cursor, event->device, event->delta_x, event->delta_y);
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener, void *data) {
@@ -163,6 +193,7 @@ int main(int argc, char *argv[]) {
 
 	state.config = parse_args(argc, argv);
 	state.cursor = wlr_cursor_init();
+	wl_list_init(&state.devices);
 
 	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
 	state.cursor_motion.notify = handle_cursor_motion;

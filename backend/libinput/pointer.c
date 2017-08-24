@@ -30,6 +30,7 @@ void handle_pointer_motion(struct libinput_event *event,
 	struct libinput_event_pointer *pevent =
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_motion wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	wlr_event.delta_x = libinput_event_pointer_get_dx(pevent);
@@ -48,6 +49,7 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 	struct libinput_event_pointer *pevent =
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_motion_absolute wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	wlr_event.x_mm = libinput_event_pointer_get_absolute_x(pevent);
@@ -67,6 +69,7 @@ void handle_pointer_button(struct libinput_event *event,
 	struct libinput_event_pointer *pevent =
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_button wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	wlr_event.button = libinput_event_pointer_get_button(pevent);
@@ -92,6 +95,7 @@ void handle_pointer_axis(struct libinput_event *event,
 	struct libinput_event_pointer *pevent =
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_axis wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
 	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
 	switch (libinput_event_pointer_get_axis_source(pevent)) {
