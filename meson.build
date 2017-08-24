@@ -32,6 +32,8 @@ libinput       = dependency('libinput')
 xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
+xcb            = dependency('xcb')
+xcb_composite  = dependency('xcb-composite')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
 math           = cc.find_library('m', required: false)
@@ -50,6 +52,7 @@ subdir('render')
 subdir('types')
 subdir('util')
 subdir('xcursor')
+subdir('xwayland')
 
 wlr_deps = [
   wayland_server,
@@ -64,6 +67,8 @@ wlr_deps = [
   xkbcommon,
   udev,
   pixman,
+  xcb,
+  xcb_composite,
   libcap,
   systemd,
   math,
@@ -77,6 +82,7 @@ lib_wlr = library('wlroots', files('dummy.c'),
     lib_wlr_types,
     lib_wlr_util,
     lib_wlr_xcursor,
+    lib_wlr_xwayland,
   ],
   dependencies: wlr_deps,
   include_directories: wlr_inc)

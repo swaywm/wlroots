@@ -149,6 +149,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	surface->surface = _surface;
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);
+	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
 		&zxdg_surface_v6_implementation, surface, xdg_surface_destroy);
 	wl_list_insert(&xdg_shell->surfaces, &surface->link);
