@@ -1,6 +1,7 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -125,4 +126,49 @@ void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 			return;
 		}
 	}
+}
+
+static double get_distance(double x1, double y1, double x2, double y2) {
+	double distance;
+	distance = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+	return distance;
+}
+
+void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
+		int x, int y, int *dest_x, int *dest_y) {
+	int min_x = INT_MAX, min_y = INT_MAX, min_distance = INT_MAX;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		int width, height, output_x, output_y, output_distance;
+		wlr_output_effective_resolution(l_output->output, &width, &height);
+
+		// find the closest x point
+		if (x < l_output->x) {
+			output_x = l_output->x;
+		} else if (x > l_output->x + width) {
+			output_x = l_output->x + width;
+		} else {
+			output_x = x;
+		}
+
+		// find closest y point
+		if (y < l_output->y) {
+			output_y = l_output->y;
+		} else if (y > l_output->y + height) {
+			output_y = l_output->y + height;
+		} else {
+			output_y = y;
+		}
+
+		// calculate distance
+		output_distance = get_distance(output_x, output_y, x, y);
+		if (output_distance < min_distance) {
+			min_x = output_x;
+			min_y = output_y;
+			min_distance = output_distance;
+		}
+	}
+
+	*dest_x = min_x;
+	*dest_y = min_y;
 }

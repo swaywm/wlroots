@@ -73,7 +73,7 @@ void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
 
 	// TODO handle no layout
 	assert(cur->state->layout);
-	// TODO handle layout boundaries
+
 	double new_x = cur->x + delta_x;
 	double new_y = cur->y + delta_y;
 	int hotspot_x = 0;
@@ -85,24 +85,28 @@ void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y) {
 		hotspot_y = image->hotspot_y;
 	}
 
-	if (wlr_output_layout_output_at(cur->state->layout, new_x, new_y)) {
-		//struct wlr_output *output;
-		//output = wlr_output_layout_output_at(cur->state->layout, new_x, new_y);
-		struct wlr_output_layout_output *l_output;
-		wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
-			int output_x = new_x;
-			int output_y = new_y;
-
-			// TODO fix double to int rounding issues
-			wlr_output_layout_output_coords(cur->state->layout,
-				l_output->output, &output_x, &output_y);
-			wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
-				output_y - hotspot_y);
-		}
-
-		cur->x = new_x;
-		cur->y = new_y;
+	if (!wlr_output_layout_output_at(cur->state->layout, new_x, new_y)) {
+		int closest_x, closest_y;
+		wlr_output_layout_closest_boundary(cur->state->layout, new_x, new_y,
+			&closest_x, &closest_y);
+		new_x = closest_x;
+		new_y = closest_y;
 	}
+
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
+		int output_x = new_x;
+		int output_y = new_y;
+
+		// TODO fix double to int rounding issues
+		wlr_output_layout_output_coords(cur->state->layout,
+				l_output->output, &output_x, &output_y);
+		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
+				output_y - hotspot_y);
+	}
+
+	cur->x = new_x;
+	cur->y = new_y;
 }
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
