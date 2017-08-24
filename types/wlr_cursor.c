@@ -51,8 +51,8 @@ struct wlr_cursor *wlr_cursor_init() {
 }
 
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
-	struct wlr_cursor_device *device;
-	wl_list_for_each(device, &cur->state->devices, link) {
+	struct wlr_cursor_device *device, *tmp = NULL;
+	wl_list_for_each_safe(device, tmp, &cur->state->devices, link) {
 		wl_list_remove(&device->link);
 		free(device);
 	}
