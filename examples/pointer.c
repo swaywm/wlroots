@@ -22,6 +22,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include "shared.h"
+#include "config.h"
 #include "cat.h"
 
 struct sample_input_device {

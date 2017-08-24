@@ -22,6 +22,7 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <math.h>
 #include "shared.h"
+#include "config.h"
 #include "cat.h"
 
 struct sample_state {
