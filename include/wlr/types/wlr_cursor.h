@@ -28,8 +28,17 @@ void wlr_cursor_destroy(struct wlr_cursor *cur);
 
 void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur);
 
-void wlr_cursor_warp(struct wlr_cursor *cur, double x, double y);
+/**
+ * Warp the cursor to the given x and y in layout coordinates. If x and y are
+ * out of the layout boundaries or constraints, no warp will happen.
+ *
+ * Returns true when the mouse warp was successful.
+ */
+bool wlr_cursor_warp(struct wlr_cursor *cur, double x, double y);
 
+/**
+ * Move the cursor in the direction of the given x and y coordinates.
+ */
 void wlr_cursor_move(struct wlr_cursor *cur, double delta_x, double delta_y);
 
 /**
