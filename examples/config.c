@@ -1,91 +1,119 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdlib.h>
 #include <limits.h>
 #include <getopt.h>
 #include <string.h>
+#include <unistd.h>
+#include <wlr/util/log.h>
 #include "shared.h"
 #include "config.h"
+#include "ini.h"
 
 static void usage(const char *name, int ret) {
 	fprintf(stderr,
-		"usage: %s [-d <name> [-r <rotation> | -f]]*\n"
+		"usage: %s [-C <FILE>]\n"
 		"\n"
-		" -o <output>    The name of the DRM display. e.g. DVI-I-1.\n"
-		" -r <rotation>  The rotation counter clockwise. Valid values are 90, 180, 270.\n"
-		" -x <position>  The X-axis coordinate position of this output in the layout.\n"
-		" -y <position>  The Y-axis coordinate position of this output in the layout.\n"
-		" -f             Flip the output along the vertical axis.\n", name);
+		" -C <FILE>      Path to the configuration file (default: wlr-example.ini).\n"
+		"                See `examples/wlr-example.ini.example` for config file documentation.\n", name);
 
 	exit(ret);
+}
+
+static const char *output_prefix = "output:";
+
+static int config_ini_handler(void *user, const char *section, const char *name, const char *value) {
+	struct example_config *config = user;
+	if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
+		const char *output_name = section + strlen(output_prefix);
+		struct output_config *oc;
+		bool found = false;
+
+		wl_list_for_each(oc, &config->outputs, link) {
+			if (strcmp(oc->name, output_name) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			oc = calloc(1, sizeof(struct output_config));
+			oc->name = strdup(output_name);
+			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+			wl_list_insert(&config->outputs, &oc->link);
+		}
+
+		if (strcmp(name, "x") == 0) {
+			oc->x = strtol(value, NULL, 10);
+		} else if (strcmp(name, "y") == 0) {
+			oc->y = strtol(value, NULL, 10);
+		} else if (strcmp(name, "rotate") == 0) {
+			if (strcmp(value, "90") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_90;
+			} else if (strcmp(value, "180") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_180;
+			} else if (strcmp(value, "270") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_270;
+			} else if (strcmp(value, "flipped") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_FLIPPED;
+			} else if (strcmp(value, "flipped-90") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_FLIPPED_90;
+			} else if (strcmp(value, "flipped-180") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_FLIPPED_180;
+			} else if (strcmp(value, "flipped-270") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
+			} else {
+				wlr_log(L_ERROR, "got unknown transform value: %s", value);
+			}
+		}
+	} else {
+		wlr_log(L_ERROR, "got unknown config section: %s", section);
+	}
+
+	return 1;
 }
 
 struct example_config *parse_args(int argc, char *argv[]) {
 	struct example_config *config = calloc(1, sizeof(struct example_config));
 	wl_list_init(&config->outputs);
-	struct output_config *oc = NULL;
 
 	int c;
-	while ((c = getopt(argc, argv, "o:r:x:y:fh")) != -1) {
+	while ((c = getopt(argc, argv, "C:h")) != -1) {
 		switch (c) {
-		case 'o':
-			oc = calloc(1, sizeof(*oc));
-			oc->name = optarg;
-			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
-			wl_list_insert(&config->outputs, &oc->link);
-			break;
-		case 'r':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-
-			if (oc->transform != WL_OUTPUT_TRANSFORM_NORMAL
-					&& oc->transform != WL_OUTPUT_TRANSFORM_FLIPPED) {
-				fprintf(stderr, "Rotation for %s already specified\n", oc->name);
-				usage(argv[0], 1);
-			}
-
-			if (strcmp(optarg, "90") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_90;
-			} else if (strcmp(optarg, "180") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_180;
-			} else if (strcmp(optarg, "270") == 0) {
-				oc->transform += WL_OUTPUT_TRANSFORM_270;
-			} else {
-				fprintf(stderr, "Invalid rotation '%s'\n", optarg);
-				usage(argv[0], 1);
-			}
-			break;
-		case 'x':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-			oc->x = strtol(optarg, NULL, 0);
-			break;
-		case 'y':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-			oc->y = strtol(optarg, NULL, 0);
-			break;
-		case 'f':
-			if (!oc) {
-				fprintf(stderr, "You must specify an output first\n");
-				usage(argv[0], 1);
-			}
-
-			if (oc->transform >= WL_OUTPUT_TRANSFORM_FLIPPED) {
-				fprintf(stderr, "Flip for %s already specified\n", oc->name);
-				usage(argv[0], 1);
-			}
-
-			oc->transform += WL_OUTPUT_TRANSFORM_FLIPPED;
+		case 'C':
+			config->config_path = strdup(optarg);
 			break;
 		case 'h':
 		case '?':
 			usage(argv[0], c != 'h');
 		}
+	}
+
+	if (!config->config_path) {
+		// get the config path from the current directory
+		char cwd[1024];
+		if (getcwd(cwd, sizeof(cwd)) != NULL) {
+			char buf[1024];
+			sprintf(buf, "%s/%s", cwd, "wlr-example.ini");
+			config->config_path = strdup(buf);
+		} else {
+			wlr_log(L_ERROR, "could not get cwd");
+			exit(1);
+		}
+	}
+
+	int result = ini_parse(config->config_path, config_ini_handler, config);
+
+	if (result == -1) {
+		wlr_log(L_ERROR, "Could not find config file at %s", config->config_path);
+		exit(1);
+	} else if (result == -2) {
+		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
+		exit(1);
+	} else if (result != 0) {
+		wlr_log(L_ERROR, "Could not parse config file");
+		exit(1);
 	}
 
 	return config;
@@ -94,7 +122,11 @@ struct example_config *parse_args(int argc, char *argv[]) {
 void example_config_destroy(struct example_config *config) {
 	struct output_config *oc, *tmp = NULL;
 	wl_list_for_each_safe(oc, tmp, &config->outputs, link) {
+		free(oc->name);
 		free(oc);
+	}
+	if (config->config_path) {
+		free(config->config_path);
 	}
 	free(config);
 }

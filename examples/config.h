@@ -14,6 +14,7 @@ struct output_config {
 
 struct example_config {
 	struct wl_list outputs;
+	char *config_path;
 };
 
 struct example_config *parse_args(int argc, char *argv[]);
