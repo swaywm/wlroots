@@ -13,6 +13,10 @@ struct output_config {
 };
 
 struct example_config {
+	struct {
+		char *mapped_output;
+	} cursor;
+
 	struct wl_list outputs;
 	char *config_path;
 };

@@ -70,6 +70,11 @@ static void handle_output_add(struct output_state *ostate) {
 	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 
+	char *mapped_output = sample->config->cursor.mapped_output;
+	if (mapped_output && strcmp(mapped_output, wlr_output->name) == 0) {
+		wlr_cursor_map_to_output(sample->cursor, wlr_output);
+	}
+
 	/*
 	// TODO configuration
 	if (strcmp("DP-1", ostate->output->name) == 0) {
@@ -95,6 +100,10 @@ static void handle_output_remove(struct output_state *ostate) {
 	wlr_output_layout_destroy(sample->layout);
 	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+
+	if (strcmp(sample->config->cursor.mapped_output, ostate->output->name) == 0) {
+		wlr_cursor_map_to_output(sample->cursor, NULL);
+	}
 }
 
 static void handle_output_resolution(struct compositor_state *state,

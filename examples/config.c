@@ -67,6 +67,12 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 				wlr_log(L_ERROR, "got unknown transform value: %s", value);
 			}
 		}
+	} else if (strcmp(section, "cursor") == 0) {
+		if (strcmp(name, "map-to-output") == 0) {
+			config->cursor.mapped_output = strdup(value);
+		} else {
+			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
+		}
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
@@ -127,6 +133,9 @@ void example_config_destroy(struct example_config *config) {
 	}
 	if (config->config_path) {
 		free(config->config_path);
+	}
+	if (config->cursor.mapped_output) {
+		free(config->cursor.mapped_output);
 	}
 	free(config);
 }

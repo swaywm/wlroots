@@ -30,4 +30,11 @@ rotate=270
 x=1080
 y=232
 
+# Cursor Configuration
+# ~~~~~~~~~~~~~~~~~~~~
+# Value "map-to-output" specifies the output to which the cursor is
+# constrained.
+[cursor]
+map-to-output=HDMI-A-1
+
 # vim:filetype=dosini
