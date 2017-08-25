@@ -204,7 +204,7 @@ static void release_control(struct logind_session *session) {
 	sd_bus_message_unref(msg);
 }
 
-static void logind_session_finish(struct wlr_session *base) {
+static void logind_session_destroy(struct wlr_session *base) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
 	release_control(session);
@@ -316,7 +316,7 @@ static int dbus_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-static struct wlr_session *logind_session_start(struct wl_display *disp) {
+static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	int ret;
 	struct logind_session *session = calloc(1, sizeof(*session));
 	if (!session) {
@@ -390,8 +390,8 @@ error:
 }
 
 const struct session_impl session_logind = {
-	.start = logind_session_start,
-	.finish = logind_session_finish,
+	.create = logind_session_create,
+	.destroy = logind_session_destroy,
 	.open = logind_take_device,
 	.close = logind_release_device,
 	.change_vt = logind_change_vt,

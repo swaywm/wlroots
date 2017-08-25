@@ -85,7 +85,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	// Attempt DRM+libinput
 
-	struct wlr_session *session = wlr_session_start(display);
+	struct wlr_session *session = wlr_session_create(display);
 	if (!session) {
 		wlr_log(L_ERROR, "Failed to start a DRM session");
 		return NULL;
@@ -131,6 +131,6 @@ error_gpu:
 error_udev:
 	wlr_udev_destroy(udev);
 error_session:
-	wlr_session_finish(session);
+	wlr_session_destroy(session);
 	return NULL;
 }

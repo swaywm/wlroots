@@ -31,14 +31,14 @@ struct wlr_session {
  *
  * Returns NULL on error.
  */
-struct wlr_session *wlr_session_start(struct wl_display *disp);
+struct wlr_session *wlr_session_create(struct wl_display *disp);
 
 /*
  * Closes a previously opened session and restores the virtual terminal.
  * You should call wlr_session_close_file on each files you opened
  * with wlr_session_open_file before you call this.
  */
-void wlr_session_finish(struct wlr_session *session);
+void wlr_session_destroy(struct wlr_session *session);
 
 /*
  * Opens the file at path.

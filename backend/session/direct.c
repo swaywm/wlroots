@@ -79,7 +79,7 @@ static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	return ioctl(session->tty_fd, VT_ACTIVATE, (int)vt) == 0;
 }
 
-static void direct_session_finish(struct wlr_session *base) {
+static void direct_session_destroy(struct wlr_session *base) {
 	struct direct_session *session = wl_container_of(base, session, base);
 	struct vt_mode mode = {
 		.mode = VT_AUTO,
@@ -196,14 +196,14 @@ error:
 	return false;
 }
 
-static struct wlr_session *direct_session_start(struct wl_display *disp) {
+static struct wlr_session *direct_session_create(struct wl_display *disp) {
 	struct direct_session *session = calloc(1, sizeof(*session));
 	if (!session) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
-	session->sock = direct_ipc_start(&session->child);
+	session->sock = direct_ipc_init(&session->child);
 	if (session->sock == -1) {
 		goto error_session;
 	}
@@ -236,8 +236,8 @@ error_session:
 }
 
 const struct session_impl session_direct = {
-	.start = direct_session_start,
-	.finish = direct_session_finish,
+	.create = direct_session_create,
+	.destroy = direct_session_destroy,
 	.open = direct_session_open,
 	.close = direct_session_close,
 	.change_vt = direct_change_vt,

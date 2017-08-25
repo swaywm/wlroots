@@ -15,11 +15,11 @@ static const struct session_impl *impls[] = {
 	NULL,
 };
 
-struct wlr_session *wlr_session_start(struct wl_display *disp) {
+struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	const struct session_impl **iter;
 
 	for (iter = impls; *iter; ++iter) {
-		struct wlr_session *session = (*iter)->start(disp);
+		struct wlr_session *session = (*iter)->create(disp);
 		if (session) {
 			return session;
 		}
@@ -29,12 +29,12 @@ struct wlr_session *wlr_session_start(struct wl_display *disp) {
 	return NULL;
 }
 
-void wlr_session_finish(struct wlr_session *session) {
+void wlr_session_destroy(struct wlr_session *session) {
 	if (!session) {
 		return;
 	}
 
-	session->impl->finish(session);
+	session->impl->destroy(session);
 };
 
 int wlr_session_open_file(struct wlr_session *session, const char *path) {
