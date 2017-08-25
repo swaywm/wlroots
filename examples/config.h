@@ -12,12 +12,19 @@ struct output_config {
 	struct wl_list link;
 };
 
+struct device_config {
+	char *name;
+	char *mapped_output;
+	struct wl_list link;
+};
+
 struct example_config {
 	struct {
 		char *mapped_output;
 	} cursor;
 
 	struct wl_list outputs;
+	struct wl_list devices;
 	char *config_path;
 };
 

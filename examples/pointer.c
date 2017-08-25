@@ -61,30 +61,50 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_swap_buffers(wlr_output);
 }
 
+static void configure_devices(struct sample_state *sample) {
+	struct sample_input_device *dev;
+	// reset device to output mappings
+	wl_list_for_each(dev, &sample->devices, link) {
+		wlr_cursor_map_input_to_output(sample->cursor, dev->device, NULL);
+	}
+
+	struct output_state *ostate;
+	wl_list_for_each(ostate, &sample->compositor->outputs, link) {
+		struct device_config *dc;
+		wl_list_for_each(dc, &sample->config->devices, link) {
+			// configure device to output mappings
+			if (dc->mapped_output &&
+					strcmp(dc->mapped_output, ostate->output->name) == 0) {
+				wl_list_for_each(dev, &sample->devices, link) {
+					if (strcmp(dev->device->name, dc->name) == 0) {
+						wlr_cursor_map_input_to_output(sample->cursor,
+							dev->device, ostate->output);
+					}
+				}
+			}
+		}
+	}
+}
+
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
 	struct wlr_output *wlr_output = ostate->output;
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 
+	// reset layout
 	wlr_output_layout_destroy(sample->layout);
 	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 
+	// cursor configuration
 	char *mapped_output = sample->config->cursor.mapped_output;
 	if (mapped_output && strcmp(mapped_output, wlr_output->name) == 0) {
 		wlr_cursor_map_to_output(sample->cursor, wlr_output);
 	}
 
-	/*
-	// TODO configuration
-	if (strcmp("DP-1", ostate->output->name) == 0) {
-		struct sample_input_device *dev;
-		wl_list_for_each(dev, &sample->devices, link) {
-			wlr_cursor_map_input_to_output(sample->cursor, dev->device, ostate->output);
-		}
-	}
-	*/
+	configure_devices(sample);
 
+	// TODO move to wlr_cursor
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
 			image->width, image->width, image->height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
@@ -100,6 +120,8 @@ static void handle_output_remove(struct output_state *ostate) {
 	wlr_output_layout_destroy(sample->layout);
 	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+
+	configure_devices(sample);
 
 	if (strcmp(sample->config->cursor.mapped_output, ostate->output->name) == 0) {
 		wlr_cursor_map_to_output(sample->cursor, NULL);
@@ -122,19 +144,10 @@ static void handle_input_add(struct compositor_state *state, struct
 	if (device->type == WLR_INPUT_DEVICE_POINTER) {
 		struct sample_input_device *s_device = calloc(1, sizeof(struct sample_input_device));
 		s_device->device = device;
+
 		wl_list_insert(&sample->devices, &s_device->link);
-
-		/*
-		// TODO configuration
-		struct output_state *ostate;
-		wl_list_for_each(ostate, &sample->compositor->outputs, link) {
-			if (strcmp(ostate->output->name, "DP-1") == 0) {
-				wlr_cursor_map_input_to_output(sample->cursor, device, ostate->output);
-			}
-		}
-		*/
-
 		wlr_cursor_attach_input_device(sample->cursor, device);
+		configure_devices(sample);
 	}
 }
 
@@ -224,6 +237,8 @@ int main(int argc, char *argv[]) {
 	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.input_add_cb = handle_input_add;
+	// TODO input_remove_cb
+	//compositor.input_remove_cb = handle_input_add;
 
 	state.compositor = &compositor;
 

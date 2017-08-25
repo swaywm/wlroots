@@ -37,4 +37,13 @@ y=232
 [cursor]
 map-to-output=HDMI-A-1
 
+# Device Configuration
+# ~~~~~~~~~~~~~~~~~~~~
+# Each device is specified in a section named [device:{NAME}] where NAME is the
+# name given to this device. See a log file for device names.
+#
+# Value "map-to-output" specifies the output to which the device is constrained.
+[device:Razer Razer DeathAdder 2013]
+map-to-output=DP-1
+
 # vim:filetype=dosini

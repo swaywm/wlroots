@@ -22,6 +22,7 @@ static void usage(const char *name, int ret) {
 }
 
 static const char *output_prefix = "output:";
+static const char *device_prefix = "device:";
 
 static int config_ini_handler(void *user, const char *section, const char *name, const char *value) {
 	struct example_config *config = user;
@@ -73,6 +74,32 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
 		}
+	} else if (strncmp(device_prefix, section, strlen(device_prefix)) == 0) {
+		const char *device_name = section + strlen(device_prefix);
+		struct device_config *dc;
+		bool found = false;
+
+		wl_list_for_each(dc, &config->devices, link) {
+			if (strcmp(dc->name, device_name) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			dc = calloc(1, sizeof(struct device_config));
+			dc->name = strdup(device_name);
+			wl_list_insert(&config->devices, &dc->link);
+		}
+
+		if (strcmp(name, "map-to-output") == 0) {
+			if (dc->mapped_output) {
+				free(dc->mapped_output);
+			}
+			dc->mapped_output = strdup(value);
+		} else {
+			wlr_log(L_ERROR, "got unknown device config: %s", name);
+		}
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
@@ -83,6 +110,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 struct example_config *parse_args(int argc, char *argv[]) {
 	struct example_config *config = calloc(1, sizeof(struct example_config));
 	wl_list_init(&config->outputs);
+	wl_list_init(&config->devices);
 
 	int c;
 	while ((c = getopt(argc, argv, "C:h")) != -1) {
@@ -126,11 +154,21 @@ struct example_config *parse_args(int argc, char *argv[]) {
 }
 
 void example_config_destroy(struct example_config *config) {
-	struct output_config *oc, *tmp = NULL;
-	wl_list_for_each_safe(oc, tmp, &config->outputs, link) {
+	struct output_config *oc, *otmp = NULL;
+	wl_list_for_each_safe(oc, otmp, &config->outputs, link) {
 		free(oc->name);
 		free(oc);
 	}
+
+	struct device_config *dc, *dtmp = NULL;
+	wl_list_for_each_safe(dc, dtmp, &config->devices, link) {
+		free(dc->name);
+		if (dc->mapped_output) {
+			free(dc->mapped_output);
+		}
+		free(dc);
+	}
+
 	if (config->config_path) {
 		free(config->config_path);
 	}
