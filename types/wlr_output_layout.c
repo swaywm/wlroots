@@ -149,6 +149,7 @@ void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
 		wlr_output_effective_resolution(l_output->output, &width, &height);
 
 		// find the closest x point
+		// TODO use wlr_geometry_closest_boundary
 		if (x < l_output->x) {
 			output_x = l_output->x;
 		} else if (x > l_output->x + width) {

@@ -63,14 +63,21 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 static void configure_devices(struct sample_state *sample) {
 	struct sample_input_device *dev;
-	// reset device to output mappings
+	struct device_config *dc;
+
+	// reset device mappings
 	wl_list_for_each(dev, &sample->devices, link) {
 		wlr_cursor_map_input_to_output(sample->cursor, dev->device, NULL);
+		wl_list_for_each(dc, &sample->config->devices, link) {
+			if (strcmp(dev->device->name, dc->name) == 0) {
+				wlr_cursor_map_input_to_region(sample->cursor, dev->device,
+					dc->mapped_geo);
+			}
+		}
 	}
 
 	struct output_state *ostate;
 	wl_list_for_each(ostate, &sample->compositor->outputs, link) {
-		struct device_config *dc;
 		wl_list_for_each(dc, &sample->config->devices, link) {
 			// configure device to output mappings
 			if (dc->mapped_output &&
@@ -123,7 +130,8 @@ static void handle_output_remove(struct output_state *ostate) {
 
 	configure_devices(sample);
 
-	if (strcmp(sample->config->cursor.mapped_output, ostate->output->name) == 0) {
+	char *mapped_output = sample->config->cursor.mapped_output;
+	if (mapped_output && strcmp(mapped_output, ostate->output->name) == 0) {
 		wlr_cursor_map_to_output(sample->cursor, NULL);
 	}
 }
@@ -216,6 +224,7 @@ int main(int argc, char *argv[]) {
 
 	state.config = parse_args(argc, argv);
 	state.cursor = wlr_cursor_init();
+	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_geo);
 	wl_list_init(&state.devices);
 
 	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);

@@ -15,12 +15,14 @@ struct output_config {
 struct device_config {
 	char *name;
 	char *mapped_output;
+	struct wlr_geometry *mapped_geo;
 	struct wl_list link;
 };
 
 struct example_config {
 	struct {
 		char *mapped_output;
+		struct wlr_geometry *mapped_geo;
 	} cursor;
 
 	struct wl_list outputs;

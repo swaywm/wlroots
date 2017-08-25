@@ -34,8 +34,12 @@ y=232
 # ~~~~~~~~~~~~~~~~~~~~
 # Value "map-to-output" specifies the output to which the cursor is
 # constrained.
+#
+# Value "geometry" specifies the geometry (widthxheight+x+y) to which the cursor
+# is constrained.
 [cursor]
 map-to-output=HDMI-A-1
+geometry=500x700+50+50
 
 # Device Configuration
 # ~~~~~~~~~~~~~~~~~~~~
@@ -43,7 +47,11 @@ map-to-output=HDMI-A-1
 # name given to this device. See a log file for device names.
 #
 # Value "map-to-output" specifies the output to which the device is constrained.
+#
+# Value "geometry" specifies the geometry (widthxheight+x+y) to which the device
+# is constrained.
 [device:Razer Razer DeathAdder 2013]
 map-to-output=DP-1
+geometry=500x700+50+50
 
 # vim:filetype=dosini

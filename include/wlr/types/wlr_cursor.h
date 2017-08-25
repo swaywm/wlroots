@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_geometry.h>
 #include <wlr/xcursor.h>
 
 struct wlr_cursor_state;
@@ -87,12 +88,13 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 /**
  * Maps this cursor to an arbitrary region on the associated wlr_output_layout.
  */
-//void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_geometry *geo);
+void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_geometry *geo);
 
 /**
  * Maps inputs from this input device to an arbitrary region on the associated
  * wlr_output_layout.
  */
-//void wlr_cursor_map_input_to_region(struct wlr_cursor *cur, struct wlr_input_device *dev, struct wlr_geometry *geo);
+void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, struct wlr_geometry *geo);
 
 #endif

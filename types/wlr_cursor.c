@@ -12,6 +12,7 @@ struct wlr_cursor_device {
 	struct wlr_input_device *device;
 	struct wl_list link;
 	struct wlr_output *mapped_output;
+	struct wlr_geometry *mapped_geometry;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
@@ -24,6 +25,7 @@ struct wlr_cursor_state {
 	struct wlr_output_layout *layout;
 	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
+	struct wlr_geometry *mapped_geometry;
 };
 
 struct wlr_cursor *wlr_cursor_init() {
@@ -145,6 +147,25 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double x = cur->x + delta_x;
 	double y = cur->y + delta_y;
 
+	// cursor geometry constraints
+	if (cur->state->mapped_geometry) {
+		int closest_x, closest_y;
+		wlr_geometry_closest_boundary(cur->state->mapped_geometry, x, y,
+			&closest_x, &closest_y, NULL);
+		x = closest_x;
+		y = closest_y;
+	}
+
+	// device constraints
+	if (c_device->mapped_geometry) {
+		int closest_x, closest_y;
+		wlr_geometry_closest_boundary(c_device->mapped_geometry, x, y,
+			&closest_x, &closest_y, NULL);
+		x = closest_x;
+		y = closest_y;
+	}
+
+	// layout constraints
 	struct wlr_output *output;
 	output = wlr_output_layout_output_at(cur->state->layout, x, y);
 
@@ -270,4 +291,18 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 	}
 
 	c_device->mapped_output = output;
+}
+
+void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_geometry *geo) {
+	cur->state->mapped_geometry = geo;
+}
+
+void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, struct wlr_geometry *geo) {
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+	if (!c_device) {
+		wlr_log(L_ERROR, "Cannot map device \"%s\" to geometry (not found in this cursor)", dev->name);
+		return;
+	}
+	c_device->mapped_geometry = geo;
 }
