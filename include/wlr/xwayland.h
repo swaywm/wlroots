@@ -1,7 +1,6 @@
 #ifndef _WLR_XWAYLAND_H
 #define _WLR_XWAYLAND_H
 #include <time.h>
-#include <sys/types.h>
 #include <stdbool.h>
 #include <wlr/types/wlr_compositor.h>
 #include <xcb/xcb.h>
