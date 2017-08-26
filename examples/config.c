@@ -32,7 +32,11 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 	char *buf = strdup(str);
 	struct wlr_geometry *geo = calloc(1, sizeof(struct wlr_geometry));
 
-	bool has_width, has_height, has_x, has_y;
+	bool has_width = false;
+	bool has_height = false;
+	bool has_x = false;
+	bool has_y = false;
+
 	char *pch = strtok(buf, "x+");
 	while (pch != NULL) {
 		errno = 0;
@@ -61,7 +65,7 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 			geo->y = val;
 			has_y = true;
 		} else {
-			goto invalid_input;
+			break;
 		}
 		pch = strtok(NULL, "x+");
 	}
