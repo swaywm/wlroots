@@ -6,13 +6,11 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/list.h>
-#include "backend/udev.h"
 
 struct wlr_libinput_backend {
 	struct wlr_backend backend;
 
 	struct wlr_session *session;
-	struct wlr_udev *udev;
 	struct wl_display *display;
 
 	struct libinput *libinput_context;

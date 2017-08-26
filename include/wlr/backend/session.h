@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <libudev.h>
 #include <sys/types.h>
 
 struct session_impl;
@@ -19,6 +20,12 @@ struct wlr_session {
 	int drm_fd;
 	unsigned vtnr;
 	char seat[8];
+
+	struct udev *udev;
+	struct udev_monitor *mon;
+	struct wl_event_source *udev_event;
+
+	struct wl_list devices;
 };
 
 /*
@@ -57,9 +64,13 @@ int wlr_session_open_file(struct wlr_session *session, const char *path);
  */
 void wlr_session_close_file(struct wlr_session *session, int fd);
 
+void wlr_session_signal_add(struct wlr_session *session, int fd,
+		struct wl_listener *listener);
 /*
  * Changes the virtual terminal.
  */
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
+
+int wlr_session_find_gpu(struct wlr_session *session);
 
 #endif

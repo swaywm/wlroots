@@ -7,7 +7,6 @@
 #include <wayland-server.h>
 #include <xf86drmMode.h>
 #include <EGL/egl.h>
-#include <libudev.h>
 #include <gbm.h>
 
 #include <wlr/backend/session.h>
@@ -16,7 +15,6 @@
 #include <wlr/egl.h>
 #include <wlr/util/list.h>
 
-#include <backend/udev.h>
 #include "drm-properties.h"
 
 struct wlr_drm_plane {
@@ -124,7 +122,6 @@ struct wlr_drm_backend {
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
-	struct wlr_udev *udev;
 };
 
 enum wlr_drm_output_state {

@@ -1,6 +1,5 @@
 backend_files = files(
   'backend.c',
-  'udev.c',
   'session/direct-ipc.c',
   'session/direct.c',
   'session/session.c',

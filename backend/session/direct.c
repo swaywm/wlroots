@@ -223,8 +223,6 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.drm_fd = -1;
 	session->base.impl = &session_direct;
-	session->base.active = true;
-	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 
 error_ipc:

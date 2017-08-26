@@ -376,8 +376,6 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 
 	session->base.drm_fd = -1;
 	session->base.impl = &session_logind;
-	session->base.active = true;
-	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 
 error_bus:

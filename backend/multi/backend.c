@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
-#include <wlr/backend/udev.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
@@ -37,7 +36,6 @@ static void multi_backend_destroy(struct wlr_backend *_backend) {
 	}
 	list_free(backend->backends);
 	wlr_session_destroy(backend->session);
-	wlr_udev_destroy(backend->udev);
 	free(backend);
 }
 
@@ -59,8 +57,7 @@ struct wlr_backend_impl backend_impl = {
 	.get_egl = multi_backend_get_egl
 };
 
-struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
-		struct wlr_udev *udev) {
+struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
 	if (!backend) {
@@ -78,7 +75,6 @@ struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session,
 	wlr_backend_init(&backend->backend, &backend_impl);
 
 	backend->session = session;
-	backend->udev = udev;
 	return &backend->backend;
 }
 
