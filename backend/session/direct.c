@@ -48,7 +48,7 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->base.drm_fd = fd;
+		direct_ipc_setmaster(session->sock, fd);
 	}
 
 	return fd;
@@ -65,8 +65,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
-		session->base.drm_fd = -1;
+		direct_ipc_dropmaster(session->sock, fd);
 	} else if (major(st.st_rdev) == INPUT_MAJOR) {
 		ioctl(fd, EVIOCREVOKE, 0);
 	}
@@ -79,7 +78,7 @@ static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	return ioctl(session->tty_fd, VT_ACTIVATE, (int)vt) == 0;
 }
 
-static void direct_session_finish(struct wlr_session *base) {
+static void direct_session_destroy(struct wlr_session *base) {
 	struct direct_session *session = wl_container_of(base, session, base);
 	struct vt_mode mode = {
 		.mode = VT_AUTO,
@@ -109,11 +108,27 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wl_signal_emit(&session->base.session_signal, session);
-		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
+
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (major(dev->dev) == DRM_MAJOR) {
+				direct_ipc_dropmaster(session->sock,
+					dev->fd);
+			}
+		}
+
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
-		direct_ipc_setmaster(session->sock, session->base.drm_fd);
+
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (major(dev->dev) == DRM_MAJOR) {
+				direct_ipc_setmaster(session->sock,
+					dev->fd);
+			}
+		}
+
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}
@@ -196,14 +211,14 @@ error:
 	return false;
 }
 
-static struct wlr_session *direct_session_start(struct wl_display *disp) {
+static struct wlr_session *direct_session_create(struct wl_display *disp) {
 	struct direct_session *session = calloc(1, sizeof(*session));
 	if (!session) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
-	session->sock = direct_ipc_start(&session->child);
+	session->sock = direct_ipc_init(&session->child);
 	if (session->sock == -1) {
 		goto error_session;
 	}
@@ -221,10 +236,7 @@ static struct wlr_session *direct_session_start(struct wl_display *disp) {
 	wlr_log(L_INFO, "Successfully loaded direct session");
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
-	session->base.drm_fd = -1;
 	session->base.impl = &session_direct;
-	session->base.active = true;
-	wl_signal_init(&session->base.session_signal);
 	return &session->base;
 
 error_ipc:
@@ -236,8 +248,8 @@ error_session:
 }
 
 const struct session_impl session_direct = {
-	.start = direct_session_start,
-	.finish = direct_session_finish,
+	.create = direct_session_create,
+	.destroy = direct_session_destroy,
 	.open = direct_session_open,
 	.close = direct_session_close,
 	.change_vt = direct_change_vt,

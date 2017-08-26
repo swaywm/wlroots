@@ -4,7 +4,6 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/util/log.h>
-#include "backend/udev.h"
 #include "backend/libinput.h"
 
 static int wlr_libinput_open_restricted(const char *path,
@@ -47,7 +46,7 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
 	wlr_log(L_DEBUG, "Initializing libinput");
 	backend->libinput_context = libinput_udev_create_context(&libinput_impl, backend,
-			backend->udev->udev);
+			backend->session->udev);
 	if (!backend->libinput_context) {
 		wlr_log(L_ERROR, "Failed to create libinput context");
 		return false;
@@ -139,8 +138,8 @@ static void session_signal(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
-		struct wlr_session *session, struct wlr_udev *udev) {
-	assert(display && session && udev);
+		struct wlr_session *session) {
+	assert(display && session);
 
 	struct wlr_libinput_backend *backend = calloc(1, sizeof(struct wlr_libinput_backend));
 	if (!backend) {
@@ -155,7 +154,6 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	}
 
 	backend->session = session;
-	backend->udev = udev;
 	backend->display = display;
 
 	backend->session_signal.notify = session_signal;

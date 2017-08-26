@@ -13,7 +13,6 @@
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
 #include <wlr/egl.h>
-#include "backend/udev.h"
 #include "backend/drm.h"
 
 static bool wlr_drm_backend_start(struct wlr_backend *_backend) {
@@ -32,7 +31,6 @@ static void wlr_drm_backend_destroy(struct wlr_backend *_backend) {
 		wlr_output_destroy(&output->output);
 	}
 
-	wlr_udev_signal_remove(backend->udev, &backend->drm_invalidated);
 	wlr_drm_renderer_free(&backend->renderer);
 	wlr_drm_resources_free(backend);
 	wlr_session_close_file(backend->session, backend->fd);
@@ -84,8 +82,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *backend =
 		wl_container_of(listener, backend, drm_invalidated);
-	struct wlr_udev *udev = data;
-	(void)udev;
 
 	char *name = drmGetDeviceNameFromFd2(backend->fd);
 	wlr_log(L_DEBUG, "%s invalidated", name);
@@ -95,7 +91,7 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-		struct wlr_session *session, struct wlr_udev *udev, int gpu_fd) {
+		struct wlr_session *session, int gpu_fd) {
 	assert(display && session && gpu_fd >= 0);
 
 	char *name = drmGetDeviceNameFromFd2(gpu_fd);
@@ -112,7 +108,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	wlr_backend_init(&backend->backend, &backend_impl);
 
 	backend->session = session;
-	backend->udev = udev;
 	backend->outputs = list_create();
 	if (!backend->outputs) {
 		wlr_log(L_ERROR, "Failed to allocate list");
@@ -128,7 +123,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	backend->dev = st.st_rdev;
 
 	backend->drm_invalidated.notify = drm_invalidated;
-	wlr_udev_signal_add(udev, backend->dev, &backend->drm_invalidated);
+	wlr_session_signal_add(session, gpu_fd, &backend->drm_invalidated);
 
 	backend->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);

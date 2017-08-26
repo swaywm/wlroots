@@ -212,7 +212,7 @@ void direct_ipc_finish(int sock, pid_t pid) {
 	waitpid(pid, NULL, 0);
 }
 
-int direct_ipc_start(pid_t *pid_out) {
+int direct_ipc_init(pid_t *pid_out) {
 	if (!have_permissions()) {
 		return -1;
 	}

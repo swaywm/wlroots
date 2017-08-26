@@ -3,9 +3,18 @@
 
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <libudev.h>
 #include <sys/types.h>
 
 struct session_impl;
+
+struct wlr_device {
+	int fd;
+	dev_t dev;
+	struct wl_signal signal;
+
+	struct wl_list link;
+};
 
 struct wlr_session {
 	const struct session_impl *impl;
@@ -16,9 +25,14 @@ struct wlr_session {
 	struct wl_signal session_signal;
 	bool active;
 
-	int drm_fd;
 	unsigned vtnr;
 	char seat[8];
+
+	struct udev *udev;
+	struct udev_monitor *mon;
+	struct wl_event_source *udev_event;
+
+	struct wl_list devices;
 };
 
 /*
@@ -31,14 +45,14 @@ struct wlr_session {
  *
  * Returns NULL on error.
  */
-struct wlr_session *wlr_session_start(struct wl_display *disp);
+struct wlr_session *wlr_session_create(struct wl_display *disp);
 
 /*
  * Closes a previously opened session and restores the virtual terminal.
  * You should call wlr_session_close_file on each files you opened
  * with wlr_session_open_file before you call this.
  */
-void wlr_session_finish(struct wlr_session *session);
+void wlr_session_destroy(struct wlr_session *session);
 
 /*
  * Opens the file at path.
@@ -57,9 +71,13 @@ int wlr_session_open_file(struct wlr_session *session, const char *path);
  */
 void wlr_session_close_file(struct wlr_session *session, int fd);
 
+void wlr_session_signal_add(struct wlr_session *session, int fd,
+		struct wl_listener *listener);
 /*
  * Changes the virtual terminal.
  */
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
+
+int wlr_session_find_gpu(struct wlr_session *session);
 
 #endif
