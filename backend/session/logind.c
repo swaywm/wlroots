@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -67,10 +68,6 @@ static int logind_take_device(struct wlr_session *base, const char *path) {
 		goto error;
 	}
 
-	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->base.drm_fd = fd;
-	}
-
 error:
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
@@ -95,10 +92,6 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 		&error, &msg, "uu", major(st.st_rdev), minor(st.st_rdev));
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to release device '%d'", fd);
-	}
-
-	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->base.drm_fd = -1;
 	}
 
 	sd_bus_error_free(&error);
@@ -221,6 +214,20 @@ static int session_removed(sd_bus_message *msg, void *userdata, sd_bus_error *re
 	return 0;
 }
 
+static struct wlr_device *find_device(struct wlr_session *session, dev_t devnum) {
+	struct wlr_device *dev;
+
+	wl_list_for_each(dev, &session->devices, link) {
+		if (dev->dev == devnum) {
+			return dev;
+		}
+	}
+
+	wlr_log(L_ERROR, "Tried to use dev_t %lu not opened by session",
+		(unsigned long)devnum);
+	assert(0);
+}
+
 static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
 	struct logind_session *session = userdata;
 	int ret;
@@ -267,9 +274,13 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 	}
 
 	if (major == DRM_MAJOR) {
-		dup2(fd, session->base.drm_fd);
-		session->base.active = true;
-		wl_signal_emit(&session->base.session_signal, session);
+		struct wlr_device *dev = find_device(&session->base, makedev(major, minor));
+		dup2(fd, dev->fd);
+
+		if (!session->base.active) {
+			session->base.active = true;
+			wl_signal_emit(&session->base.session_signal, session);
+		}
 	}
 
 error:
@@ -374,7 +385,6 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 
 	wlr_log(L_INFO, "Successfully loaded logind session");
 
-	session->base.drm_fd = -1;
 	session->base.impl = &session_logind;
 	return &session->base;
 

@@ -8,6 +8,14 @@
 
 struct session_impl;
 
+struct wlr_device {
+	int fd;
+	dev_t dev;
+	struct wl_signal signal;
+
+	struct wl_list link;
+};
+
 struct wlr_session {
 	const struct session_impl *impl;
 	/*
@@ -17,7 +25,6 @@ struct wlr_session {
 	struct wl_signal session_signal;
 	bool active;
 
-	int drm_fd;
 	unsigned vtnr;
 	char seat[8];
 

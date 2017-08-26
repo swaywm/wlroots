@@ -12,14 +12,6 @@
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 
-struct device {
-	int fd;
-	dev_t dev;
-	struct wl_signal signal;
-
-	struct wl_list link;
-};
-
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 
@@ -49,7 +41,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	dev_t devnum = udev_device_get_devnum(udev_dev);
-	struct device *dev;
+	struct wlr_device *dev;
 
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
@@ -134,7 +126,7 @@ int wlr_session_open_file(struct wlr_session *session, const char *path) {
 		return fd;
 	}
 
-	struct device *dev = malloc(sizeof(*dev));
+	struct wlr_device *dev = malloc(sizeof(*dev));
 	if (!dev) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		goto error;
@@ -158,8 +150,8 @@ error:
 	return fd;
 }
 
-static struct device *find_device(struct wlr_session *session, int fd) {
-	struct device *dev;
+static struct wlr_device *find_device(struct wlr_session *session, int fd) {
+	struct wlr_device *dev;
 
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->fd == fd) {
@@ -172,7 +164,7 @@ static struct device *find_device(struct wlr_session *session, int fd) {
 }
 
 void wlr_session_close_file(struct wlr_session *session, int fd) {
-	struct device *dev = find_device(session, fd);
+	struct wlr_device *dev = find_device(session, fd);
 
 	session->impl->close(session, fd);
 	wl_list_remove(&dev->link);
@@ -181,7 +173,7 @@ void wlr_session_close_file(struct wlr_session *session, int fd) {
 
 void wlr_session_signal_add(struct wlr_session *session, int fd,
 		struct wl_listener *listener) {
-	struct device *dev = find_device(session, fd);
+	struct wlr_device *dev = find_device(session, fd);
 
 	wl_signal_add(&dev->signal, listener);
 }

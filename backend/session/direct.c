@@ -48,7 +48,7 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		session->base.drm_fd = fd;
+		direct_ipc_setmaster(session->sock, fd);
 	}
 
 	return fd;
@@ -65,8 +65,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 	}
 
 	if (major(st.st_rdev) == DRM_MAJOR) {
-		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
-		session->base.drm_fd = -1;
+		direct_ipc_dropmaster(session->sock, fd);
 	} else if (major(st.st_rdev) == INPUT_MAJOR) {
 		ioctl(fd, EVIOCREVOKE, 0);
 	}
@@ -109,11 +108,27 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wl_signal_emit(&session->base.session_signal, session);
-		direct_ipc_dropmaster(session->sock, session->base.drm_fd);
+
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (major(dev->dev) == DRM_MAJOR) {
+				direct_ipc_dropmaster(session->sock,
+					dev->fd);
+			}
+		}
+
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
-		direct_ipc_setmaster(session->sock, session->base.drm_fd);
+
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (major(dev->dev) == DRM_MAJOR) {
+				direct_ipc_setmaster(session->sock,
+					dev->fd);
+			}
+		}
+
 		session->base.active = true;
 		wl_signal_emit(&session->base.session_signal, session);
 	}
@@ -221,7 +236,6 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 	wlr_log(L_INFO, "Successfully loaded direct session");
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
-	session->base.drm_fd = -1;
 	session->base.impl = &session_direct;
 	return &session->base;
 
