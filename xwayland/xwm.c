@@ -52,7 +52,7 @@ static void wlr_x11_window_destroy(struct wlr_x11_window *window) {
 }
 
 /* xcb helpers */
-#define XCB_CALL(xwm, x) xcb_call(xwm, __PRETTY_FUNCTION__, __LINE__, x)
+#define XCB_CALL(xwm, x) xcb_call(xwm, __func__, __LINE__, x)
 static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 		xcb_void_cookie_t cookie) {
 	xcb_generic_error_t *error;
