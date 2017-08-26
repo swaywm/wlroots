@@ -147,19 +147,20 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double x = cur->x + delta_x;
 	double y = cur->y + delta_y;
 
-	// cursor geometry constraints
-	if (cur->state->mapped_geometry) {
-		int closest_x, closest_y;
-		wlr_geometry_closest_boundary(cur->state->mapped_geometry, x, y,
-			&closest_x, &closest_y, NULL);
-		x = closest_x;
-		y = closest_y;
-	}
+	// geometry constraints
+	struct wlr_geometry *constraints = NULL;
+	if (cur->state->mapped_geometry != NULL ||
+			c_device->mapped_geometry != NULL) {
+		constraints = calloc(1, sizeof(struct wlr_geometry));
 
-	// device constraints
-	if (c_device->mapped_geometry) {
+		if (!wlr_geometry_intersection(cur->state->mapped_geometry,
+				c_device->mapped_geometry, &constraints)) {
+			// TODO handle no possible movement
+			goto out;
+		}
+
 		int closest_x, closest_y;
-		wlr_geometry_closest_boundary(c_device->mapped_geometry, x, y,
+		wlr_geometry_closest_boundary(constraints, x, y,
 			&closest_x, &closest_y, NULL);
 		x = closest_x;
 		y = closest_y;
@@ -177,9 +178,19 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		y = closest_y;
 	}
 
+	if (constraints && !wlr_geometry_contains_point(constraints, x, y)) {
+		// TODO handle no possible movement
+		goto out;
+	}
+
 	if (wlr_cursor_warp(cur, dev, x, y)) {
 		cur->x = x;
 		cur->y = y;
+	}
+
+out:
+	if (constraints) {
+		free(constraints);
 	}
 }
 
