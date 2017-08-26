@@ -86,7 +86,6 @@ struct wlr_drm_backend {
 	const struct wlr_drm_interface *iface;
 
 	int fd;
-	dev_t dev;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
@@ -117,7 +116,6 @@ struct wlr_drm_backend {
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 
-	uint32_t taken_crtcs;
 	list_t *outputs;
 
 	struct wlr_drm_renderer renderer;

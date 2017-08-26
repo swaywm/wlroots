@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <xf86drm.h>
-#include <sys/stat.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -118,12 +117,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	backend->fd = gpu_fd;
-
-	struct stat st;
-	if (fstat(backend->fd, &st) < 0) {
-		wlr_log_errno(L_ERROR, "Stat failed");
-	}
-	backend->dev = st.st_rdev;
 
 	backend->drm_invalidated.notify = drm_invalidated;
 	wlr_session_signal_add(session, gpu_fd, &backend->drm_invalidated);
