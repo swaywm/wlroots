@@ -45,8 +45,8 @@ void wlr_geometry_closest_boundary(struct wlr_geometry *geo, double x, double y,
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-static bool wlr_geometry_empty(struct wlr_geometry *geo) {
-	return geo == NULL || geo->width < 0 || geo->height < 0;
+bool wlr_geometry_empty(struct wlr_geometry *geo) {
+	return geo == NULL || geo->width <= 0 || geo->height <= 0;
 }
 
 bool wlr_geometry_intersection(struct wlr_geometry *geo_a,
@@ -55,20 +55,12 @@ bool wlr_geometry_intersection(struct wlr_geometry *geo_a,
 	bool a_empty = wlr_geometry_empty(geo_a);
 	bool b_empty = wlr_geometry_empty(geo_b);
 
-	if (a_empty && b_empty) {
+	if (a_empty || b_empty) {
+		dest->x = 0;
+		dest->y = 0;
+		dest->width = -100;
+		dest->height = -100;
 		return false;
-	} else if (a_empty) {
-		dest->x = geo_b->x;
-		dest->y = geo_b->y;
-		dest->height = geo_b->height;
-		dest->width = geo_b->width;
-		return true;
-	} else if (b_empty) {
-		dest->x = geo_a->x;
-		dest->y = geo_a->y;
-		dest->height = geo_a->height;
-		dest->width = geo_a->width;
-		return true;
 	}
 
 	int x1 = max(geo_a->x, geo_b->x);

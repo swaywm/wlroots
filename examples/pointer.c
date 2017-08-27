@@ -58,12 +58,20 @@ struct touch_point {
 	double x, y;
 };
 
-static void warp_to_touch(struct sample_state *sample) {
-	wlr_log(L_DEBUG, "TODO: warp to touch");
+static void warp_to_touch(struct sample_state *sample, struct wlr_input_device *dev) {
+	if (sample->touch_points->length == 0) {
+		return;
+	}
+
+	double x = 0, y = 0;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
-		wlr_log(L_DEBUG, "have point x=%f,y=%f", point->x, point->y);
+		x += point->x;
+		y += point->y;
 	}
+	x /= sample->touch_points->length;
+	y /= sample->touch_points->length;
+	wlr_cursor_warp_absolute(sample->cursor, dev, x, y);
 }
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -248,7 +256,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
 		}
 	}
 
-	warp_to_touch(sample);
+	warp_to_touch(sample, event->device);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
@@ -262,7 +270,7 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 		free(point);
 	}
 
-	warp_to_touch(sample);
+	warp_to_touch(sample, event->device);
 }
 
 static void handle_touch_motion(struct wl_listener *listener, void *data) {
@@ -277,7 +285,7 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 		}
 	}
 
-	warp_to_touch(sample);
+	warp_to_touch(sample, event->device);
 }
 
 static void handle_touch_cancel(struct wl_listener *listener, void *data) {

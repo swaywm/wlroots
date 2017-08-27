@@ -4,14 +4,20 @@
 #include <wayland-util.h>
 #include <stdbool.h>
 
+struct wlr_output_layout_state;
+
 struct wlr_output_layout {
     struct wl_list outputs;
+	struct wlr_output_layout_state *state;
 };
+
+struct wlr_output_layout_output_state;
 
 struct wlr_output_layout_output {
     struct wlr_output *output;
     int x, y;
     struct wl_list link;
+	struct wlr_output_layout_output_state *state;
 };
 
 struct wlr_output_layout *wlr_output_layout_init();
@@ -54,5 +60,12 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
 		struct wlr_output *reference, double x, double y, double *dest_x,
 		double *dest_y);
+
+/**
+ * Get the geometry of the layout for the given reference output. If `reference`
+ * is NULL, the geometry will be for the extents of the entire layout.
+ */
+struct wlr_geometry *wlr_output_layout_get_geometry(
+		struct wlr_output_layout *layout, struct wlr_output *reference);
 
 #endif

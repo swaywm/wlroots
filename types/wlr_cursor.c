@@ -1,6 +1,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <limits.h>
 #include <wlr/util/log.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
@@ -95,6 +96,29 @@ static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
 	return ret;
 }
 
+static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur, double x, double y) {
+	int hotspot_x = 0;
+	int hotspot_y = 0;
+
+	if (cur->state->xcursor && cur->state->xcursor->image_count > 0) {
+		struct wlr_xcursor_image *image = cur->state->xcursor->images[0];
+		hotspot_x = image->hotspot_x;
+		hotspot_y = image->hotspot_y;
+	}
+
+
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
+		double output_x = x;
+		double output_y = y;
+
+		wlr_output_layout_output_coords(cur->state->layout,
+			l_output->output, &output_x, &output_y);
+		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
+			output_y - hotspot_y);
+	}
+}
+
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double x, double y) {
 	assert(cur->state->layout);
@@ -120,28 +144,59 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		return false;
 	}
 
-	int hotspot_x = 0;
-	int hotspot_y = 0;
-
-	if (cur->state->xcursor && cur->state->xcursor->image_count > 0) {
-		struct wlr_xcursor_image *image = cur->state->xcursor->images[0];
-		hotspot_x = image->hotspot_x;
-		hotspot_y = image->hotspot_y;
-	}
-
-
-	struct wlr_output_layout_output *l_output;
-	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
-		double output_x = x;
-		double output_y = y;
-
-		wlr_output_layout_output_coords(cur->state->layout,
-			l_output->output, &output_x, &output_y);
-		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
-			output_y - hotspot_y);
-	}
-
+	wlr_cursor_warp_unchecked(cur, x, y);
 	return true;
+}
+
+void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, double x_mm, double y_mm) {
+	// convert from absolute to global coordinates
+	assert(cur->state->layout);
+	struct wlr_output *mapped_output = NULL;
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+
+	if (c_device && c_device->mapped_output) {
+		mapped_output = c_device->mapped_output;
+	} else {
+		mapped_output = cur->state->mapped_output;
+	}
+
+	struct wlr_geometry *constraints = calloc(1, sizeof(struct wlr_geometry));
+	// XXX how do we express infinite regions?
+	constraints->x = INT_MIN / 2;
+	constraints->y = INT_MIN / 2;
+	constraints->width = INT_MAX;
+	constraints->height = INT_MAX;
+
+	if (cur->state->mapped_geometry) {
+		wlr_geometry_intersection(cur->state->mapped_geometry, constraints,
+			&constraints);
+	}
+	if (c_device->mapped_geometry) {
+		wlr_geometry_intersection(c_device->mapped_geometry, constraints,
+			&constraints);
+	}
+	struct wlr_geometry *geo;
+	if (mapped_output) {
+		geo = wlr_output_layout_get_geometry(cur->state->layout, mapped_output);
+		wlr_geometry_intersection(geo, constraints, &constraints);
+	}
+	geo = wlr_output_layout_get_geometry(cur->state->layout, NULL);
+	wlr_geometry_intersection(geo, constraints, &constraints);
+
+	if (wlr_geometry_empty(constraints)) {
+		goto out;
+	}
+
+	double x = constraints->width * x_mm + constraints->x;
+	double y = constraints->height * y_mm + constraints->y;
+
+	wlr_cursor_warp_unchecked(cur, x, y);
+
+out:
+	if (constraints) {
+		free(constraints);
+	}
 }
 
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
@@ -195,10 +250,9 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		goto out;
 	}
 
-	if (wlr_cursor_warp(cur, dev, x, y)) {
-		cur->x = x;
-		cur->y = y;
-	}
+	wlr_cursor_warp_unchecked(cur, x, y);
+	cur->x = x;
+	cur->y = y;
 
 out:
 	if (constraints) {

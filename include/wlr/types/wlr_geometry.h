@@ -15,4 +15,6 @@ bool wlr_geometry_intersection(struct wlr_geometry *geo_a,
 
 bool wlr_geometry_contains_point(struct wlr_geometry *geo, int x, int y);
 
+bool wlr_geometry_empty(struct wlr_geometry *geo);
+
 #endif
