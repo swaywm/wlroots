@@ -57,7 +57,7 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 			unset_cloexec(wlr_xwayland->x_fd[1]) ||
 			unset_cloexec(wlr_xwayland->wm_fd[1]) ||
 			unset_cloexec(wlr_xwayland->wl_fd[1])) {
-		exit(EXIT_FAILURE);
+		_exit(EXIT_FAILURE);
 	}
 
 	/* Make Xwayland signal us when it's ready */
@@ -77,18 +77,18 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 			fill_arg(&cur_arg, "%d", wlr_xwayland->x_fd[1]) < 0 ||
 			fill_arg(&cur_arg, "%d", wlr_xwayland->wm_fd[1]) < 0) {
 		wlr_log_errno(L_ERROR, "alloc/print failure");
-		exit(EXIT_FAILURE);
+		_exit(EXIT_FAILURE);
 	}
 
 	const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
 	if (!xdg_runtime) {
 		wlr_log(L_ERROR, "XDG_RUNTIME_DIR is not set");
-		exit(EXIT_FAILURE);
+		_exit(EXIT_FAILURE);
 	}
 
 	if (clearenv()) {	    
 		wlr_log_errno(L_ERROR, "clearenv failed");
-		exit(EXIT_FAILURE);
+		_exit(EXIT_FAILURE);
 	}
 	setenv("XDG_RUNTIME_DIR", xdg_runtime, true);
 	char wayland_socket_str[16];
@@ -150,12 +150,23 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	 * after we close our side of the wm/wl fds. This is more reliable
 	 * than trying to kill something that might no longer be Xwayland.
 	 */
-	// TODO: figure how to wait for dying process though. Probably handle SIGCHILD
 }
 
 static int xserver_handle_ready(int signal_number, void *data) {
 	struct wlr_xwayland *wlr_xwayland = data;
 
+	int stat_val = -1;
+	while (waitpid(wlr_xwayland->pid, &stat_val, 0) < 0) {
+		if (errno == EINTR) {
+			continue;
+		}
+		wlr_log_errno(L_ERROR, "waitpid for Xwayland fork failed");
+		return 1;
+	}
+	if (stat_val) {
+		wlr_log(L_ERROR, "Xwayland startup failed, not setting up xwm");
+		return 1;
+	}
 	wlr_log(L_DEBUG, "Xserver is ready");
 
 	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
@@ -196,26 +207,6 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 		return false;
 	}
 
-	if ((wlr_xwayland->pid = fork()) == 0) {
-		exec_xwayland(wlr_xwayland);
-		wlr_log_errno(L_ERROR, "execvpe failed");
-		exit(EXIT_FAILURE);
-	}
-
-	if (wlr_xwayland->pid < 0) {
-		wlr_log_errno(L_ERROR, "fork failed");
-		wlr_xwayland_finish(wlr_xwayland);
-		return false;
-	}
-
-	/* close child fds */
-	close(wlr_xwayland->x_fd[0]);
-	close(wlr_xwayland->x_fd[1]);
-	close(wlr_xwayland->wl_fd[1]);
-	close(wlr_xwayland->wm_fd[1]);
-	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
-	wlr_xwayland->wl_fd[1] = wlr_xwayland->wm_fd[1] = -1;
-
 	wlr_xwayland->server_start = time(NULL);
 
 	if (!(wlr_xwayland->client = wl_client_create(wl_display, wlr_xwayland->wl_fd[0]))) {
@@ -230,6 +221,49 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl_display);
 	wlr_xwayland->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1, xserver_handle_ready, wlr_xwayland);
+
+	if ((wlr_xwayland->pid = fork()) == 0) {
+		/* Double-fork, but we need to forward SIGUSR1 once Xserver(1)
+		 * is ready, or error if there was one. */
+		pid_t pid, ppid;
+		sigset_t sigset;
+		int sig;
+		ppid = getppid();
+		sigemptyset(&sigset);
+		sigaddset(&sigset, SIGUSR1);
+		sigaddset(&sigset, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &sigset, NULL);
+		if ((pid = fork()) == 0) {
+			exec_xwayland(wlr_xwayland);
+			wlr_log_errno(L_ERROR, "failed to exec Xwayland");
+			_exit(EXIT_FAILURE);
+		}
+		if (pid < 0) {
+			wlr_log_errno(L_ERROR, "second fork failed");
+			_exit(EXIT_FAILURE);
+		}
+		sigwait(&sigset, &sig);
+		kill(ppid, SIGUSR1);
+		wlr_log(L_DEBUG, "sent SIGUSR1 to process %d", ppid);
+		if (sig == SIGCHLD) {
+			waitpid(pid, NULL, 0);
+			_exit(EXIT_FAILURE);
+		}
+		_exit(EXIT_SUCCESS);
+	}
+	if (wlr_xwayland->pid < 0) {
+		wlr_log_errno(L_ERROR, "fork failed");
+		wlr_xwayland_finish(wlr_xwayland);
+		return false;
+	}
+
+	/* close child fds */
+	close(wlr_xwayland->x_fd[0]);
+	close(wlr_xwayland->x_fd[1]);
+	close(wlr_xwayland->wl_fd[1]);
+	close(wlr_xwayland->wm_fd[1]);
+	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
+	wlr_xwayland->wl_fd[1] = wlr_xwayland->wm_fd[1] = -1;
 
 	return true;
 }
