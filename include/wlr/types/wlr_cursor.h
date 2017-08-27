@@ -20,6 +20,11 @@ struct wlr_cursor {
 		struct wl_signal motion_absolute;
 		struct wl_signal button;
 		struct wl_signal axis;
+
+		struct wl_signal touch_up;
+		struct wl_signal touch_down;
+		struct wl_signal touch_motion;
+		struct wl_signal touch_cancel;
     } events;
 };
 

@@ -45,7 +45,26 @@ struct sample_state {
 	struct wl_listener cursor_motion_absolute;
 	struct wl_listener cursor_button;
 	struct wl_listener cursor_axis;
+
+	struct wl_listener touch_motion;
+	struct wl_listener touch_up;
+	struct wl_listener touch_down;
+	struct wl_listener touch_cancel;
+	list_t *touch_points;
 };
+
+struct touch_point {
+	int32_t slot;
+	double x, y;
+};
+
+static void warp_to_touch(struct sample_state *sample) {
+	wlr_log(L_DEBUG, "TODO: warp to touch");
+	for (size_t i = 0; i < sample->touch_points->length; ++i) {
+		struct touch_point *point = sample->touch_points->items[i];
+		wlr_log(L_DEBUG, "have point x=%f,y=%f", point->x, point->y);
+	}
+}
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
@@ -149,8 +168,10 @@ static void handle_input_add(struct compositor_state *state, struct
 	struct sample_state *sample = state->data;
 
 	// TODO handle other input devices
-	if (device->type == WLR_INPUT_DEVICE_POINTER) {
-		struct sample_input_device *s_device = calloc(1, sizeof(struct sample_input_device));
+	if (device->type == WLR_INPUT_DEVICE_POINTER ||
+			device->type == WLR_INPUT_DEVICE_TOUCH) {
+		struct sample_input_device *s_device;
+		s_device = calloc(1, sizeof(struct sample_input_device));
 		s_device->device = device;
 
 		wl_list_insert(&sample->devices, &s_device->link);
@@ -216,10 +237,60 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 			sizeof(sample->clear_color));
 }
 
+static void handle_touch_up(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, touch_up);
+	struct wlr_event_touch_up *event = data;
+	for (size_t i = 0; i < sample->touch_points->length; ++i) {
+		struct touch_point *point = sample->touch_points->items[i];
+		if (point->slot == event->slot) {
+			list_del(sample->touch_points, i);
+			break;
+		}
+	}
+
+	warp_to_touch(sample);
+}
+
+static void handle_touch_down(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, touch_down);
+	struct wlr_event_touch_down *event = data;
+	struct touch_point *point = calloc(1, sizeof(struct touch_state));
+	point->slot = event->slot;
+	point->x = event->x_mm / event->width_mm;
+	point->y = event->y_mm / event->height_mm;
+	if (list_add(sample->touch_points, point) == -1) {
+		free(point);
+	}
+
+	warp_to_touch(sample);
+}
+
+static void handle_touch_motion(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, touch_motion);
+	struct wlr_event_touch_motion *event = data;
+	for (size_t i = 0; i < sample->touch_points->length; ++i) {
+		struct touch_point *point = sample->touch_points->items[i];
+		if (point->slot == event->slot) {
+			point->x = event->x_mm / event->width_mm;
+			point->y = event->y_mm / event->height_mm;
+			break;
+		}
+	}
+
+	warp_to_touch(sample);
+}
+
+static void handle_touch_cancel(struct wl_listener *listener, void *data) {
+	//struct sample_state *sample = wl_container_of(listener, sample, touch_cancel);
+	//struct wlr_event_touch_cancel *event = data;
+	wlr_log(L_DEBUG, "TODO: touch cancel");
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
-		.clear_color = { 0.25f, 0.25f, 0.25f, 1 }
+		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
+		.touch_points = list_create(),
 	};
 
 	state.config = parse_args(argc, argv);
@@ -227,6 +298,7 @@ int main(int argc, char *argv[]) {
 	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_geo);
 	wl_list_init(&state.devices);
 
+	// pointer events
 	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
 	state.cursor_motion.notify = handle_cursor_motion;
 
@@ -238,6 +310,19 @@ int main(int argc, char *argv[]) {
 
 	wl_signal_add(&state.cursor->events.axis, &state.cursor_axis);
 	state.cursor_axis.notify = handle_cursor_axis;
+
+	// touch events
+	wl_signal_add(&state.cursor->events.touch_up, &state.touch_up);
+	state.touch_up.notify = handle_touch_up;
+
+	wl_signal_add(&state.cursor->events.touch_down, &state.touch_down);
+	state.touch_down.notify = handle_touch_down;
+
+	wl_signal_add(&state.cursor->events.touch_motion, &state.touch_motion);
+	state.touch_motion.notify = handle_touch_motion;
+
+	wl_signal_add(&state.cursor->events.touch_cancel, &state.touch_cancel);
+	state.touch_cancel.notify = handle_touch_cancel;
 
 	struct compositor_state compositor = { 0 };
 	compositor.data = &state;

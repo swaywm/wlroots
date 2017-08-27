@@ -18,6 +18,11 @@ struct wlr_cursor_device {
 	struct wl_listener motion_absolute;
 	struct wl_listener button;
 	struct wl_listener axis;
+
+	struct wl_listener touch_down;
+	struct wl_listener touch_up;
+	struct wl_listener touch_motion;
+	struct wl_listener touch_cancel;
 };
 
 struct wlr_cursor_state {
@@ -45,10 +50,17 @@ struct wlr_cursor *wlr_cursor_init() {
 
 	wl_list_init(&cur->state->devices);
 
+	// pointer signals
 	wl_signal_init(&cur->events.motion);
 	wl_signal_init(&cur->events.motion_absolute);
 	wl_signal_init(&cur->events.button);
 	wl_signal_init(&cur->events.axis);
+
+	// touch signals
+	wl_signal_init(&cur->events.touch_up);
+	wl_signal_init(&cur->events.touch_down);
+	wl_signal_init(&cur->events.touch_motion);
+	wl_signal_init(&cur->events.touch_cancel);
 
 	cur->x = 100;
 	cur->y = 100;
@@ -218,19 +230,48 @@ static void handle_pointer_axis(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&device->cursor->events.axis, event);
 }
 
+static void handle_touch_up(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_up *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, touch_up);
+	wl_signal_emit(&device->cursor->events.touch_up, event);
+}
+
+static void handle_touch_down(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_down *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, touch_down);
+	wl_signal_emit(&device->cursor->events.touch_down, event);
+}
+
+static void handle_touch_motion(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_motion *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, touch_motion);
+	wl_signal_emit(&device->cursor->events.touch_motion, event);
+}
+
+static void handle_touch_cancel(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_cancel *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, touch_cancel);
+	wl_signal_emit(&device->cursor->events.touch_cancel, event);
+}
+
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
 			dev->type != WLR_INPUT_DEVICE_TOUCH &&
 			dev->type != WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wlr_log(L_ERROR, "only device types of pointer, touch or tablet tool are"
-				"supported");
+		wlr_log(L_ERROR, "only device types of pointer, touch or tablet tool"
+				"are supported");
 		return;
 	}
 
 	// TODO support other device types
-	if (dev->type != WLR_INPUT_DEVICE_POINTER) {
-		wlr_log(L_ERROR, "TODO: support touch and tablet tool devices");
+	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
+			dev->type != WLR_INPUT_DEVICE_TOUCH) {
+		wlr_log(L_ERROR, "TODO: support tablet tool devices");
 		return;
 	}
 
@@ -242,7 +283,8 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		}
 	}
 
-	struct wlr_cursor_device *device = calloc(1, sizeof(struct wlr_cursor_device));
+	struct wlr_cursor_device *device;
+	device = calloc(1, sizeof(struct wlr_cursor_device));
 	if (!device) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_device");
 		return;
@@ -252,17 +294,32 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	device->device = dev;
 
 	// listen to events
-	wl_signal_add(&dev->pointer->events.motion, &device->motion);
-	device->motion.notify = handle_pointer_motion;
 
-	wl_signal_add(&dev->pointer->events.motion_absolute, &device->motion_absolute);
-	device->motion_absolute.notify = handle_pointer_motion_absolute;
+	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
+		wl_signal_add(&dev->pointer->events.motion, &device->motion);
+		device->motion.notify = handle_pointer_motion;
 
-	wl_signal_add(&dev->pointer->events.button, &device->button);
-	device->button.notify = handle_pointer_button;
+		wl_signal_add(&dev->pointer->events.motion_absolute, &device->motion_absolute);
+		device->motion_absolute.notify = handle_pointer_motion_absolute;
 
-	wl_signal_add(&dev->pointer->events.axis, &device->axis);
-	device->axis.notify = handle_pointer_axis;
+		wl_signal_add(&dev->pointer->events.button, &device->button);
+		device->button.notify = handle_pointer_button;
+
+		wl_signal_add(&dev->pointer->events.axis, &device->axis);
+		device->axis.notify = handle_pointer_axis;
+	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
+		wl_signal_add(&dev->touch->events.motion, &device->touch_motion);
+		device->touch_motion.notify = handle_touch_motion;
+
+		wl_signal_add(&dev->touch->events.down, &device->touch_down);
+		device->touch_down.notify = handle_touch_down;
+
+		wl_signal_add(&dev->touch->events.up, &device->touch_up);
+		device->touch_up.notify = handle_touch_up;
+
+		wl_signal_add(&dev->touch->events.cancel, &device->touch_cancel);
+		device->touch_cancel.notify = handle_touch_cancel;
+	}
 
 	wl_list_insert(&cur->state->devices, &device->link);
 }
