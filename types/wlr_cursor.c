@@ -51,6 +51,7 @@ struct wlr_cursor *wlr_cursor_init() {
 	cur->state = calloc(1, sizeof(struct wlr_cursor_state));
 	if (!cur->state) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_state");
+		free(cur);
 		return NULL;
 	}
 

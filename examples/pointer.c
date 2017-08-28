@@ -274,7 +274,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
 static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, touch_down);
 	struct wlr_event_touch_down *event = data;
-	struct touch_point *point = calloc(1, sizeof(struct touch_state));
+	struct touch_point *point = calloc(1, sizeof(struct touch_point));
 	point->slot = event->slot;
 	point->x = event->x_mm / event->width_mm;
 	point->y = event->y_mm / event->height_mm;
