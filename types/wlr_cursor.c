@@ -24,6 +24,11 @@ struct wlr_cursor_device {
 	struct wl_listener touch_up;
 	struct wl_listener touch_motion;
 	struct wl_listener touch_cancel;
+
+	struct wl_listener tablet_tool_axis;
+	struct wl_listener tablet_tool_proximity;
+	struct wl_listener tablet_tool_tip;
+	struct wl_listener tablet_tool_button;
 };
 
 struct wlr_cursor_state {
@@ -62,6 +67,12 @@ struct wlr_cursor *wlr_cursor_init() {
 	wl_signal_init(&cur->events.touch_down);
 	wl_signal_init(&cur->events.touch_motion);
 	wl_signal_init(&cur->events.touch_cancel);
+
+	// tablet tool signals
+	wl_signal_init(&cur->events.tablet_tool_tip);
+	wl_signal_init(&cur->events.tablet_tool_axis);
+	wl_signal_init(&cur->events.tablet_tool_button);
+	wl_signal_init(&cur->events.tablet_tool_proximity);
 
 	cur->x = 100;
 	cur->y = 100;
@@ -279,6 +290,34 @@ static void handle_touch_cancel(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&device->cursor->events.touch_cancel, event);
 }
 
+static void handle_tablet_tool_tip(struct wl_listener *listener, void *data) {
+	struct wlr_event_tablet_tool_tip *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, tablet_tool_tip);
+	wl_signal_emit(&device->cursor->events.tablet_tool_tip, event);
+}
+
+static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
+	struct wlr_event_tablet_tool_axis *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, tablet_tool_axis);
+	wl_signal_emit(&device->cursor->events.tablet_tool_axis, event);
+}
+
+static void handle_tablet_tool_button(struct wl_listener *listener, void *data) {
+	struct wlr_event_tablet_tool_button *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, tablet_tool_button);
+	wl_signal_emit(&device->cursor->events.tablet_tool_button, event);
+}
+
+static void handle_tablet_tool_proximity(struct wl_listener *listener, void *data) {
+	struct wlr_event_tablet_tool_proximity *event = data;
+	struct wlr_cursor_device *device;
+	device = wl_container_of(listener, device, tablet_tool_proximity);
+	wl_signal_emit(&device->cursor->events.tablet_tool_proximity, event);
+}
+
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
@@ -286,13 +325,6 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 			dev->type != WLR_INPUT_DEVICE_TABLET_TOOL) {
 		wlr_log(L_ERROR, "only device types of pointer, touch or tablet tool"
 				"are supported");
-		return;
-	}
-
-	// TODO support other device types
-	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
-			dev->type != WLR_INPUT_DEVICE_TOUCH) {
-		wlr_log(L_ERROR, "TODO: support tablet tool devices");
 		return;
 	}
 
@@ -340,6 +372,21 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 
 		wl_signal_add(&dev->touch->events.cancel, &device->touch_cancel);
 		device->touch_cancel.notify = handle_touch_cancel;
+	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		wl_signal_add(&dev->tablet_tool->events.tip, &device->tablet_tool_tip);
+		device->tablet_tool_tip.notify = handle_tablet_tool_tip;
+
+		wl_signal_add(&dev->tablet_tool->events.proximity,
+			&device->tablet_tool_proximity);
+		device->tablet_tool_proximity.notify = handle_tablet_tool_proximity;
+
+		wl_signal_add(&dev->tablet_tool->events.axis,
+			&device->tablet_tool_axis);
+		device->tablet_tool_axis.notify = handle_tablet_tool_axis;
+
+		wl_signal_add(&dev->tablet_tool->events.button,
+			&device->tablet_tool_button);
+		device->tablet_tool_button.notify = handle_tablet_tool_button;
 	}
 
 	wl_list_insert(&cur->state->devices, &device->link);

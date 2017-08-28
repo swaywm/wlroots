@@ -175,9 +175,9 @@ static void handle_input_add(struct compositor_state *state, struct
 		wlr_input_device *device) {
 	struct sample_state *sample = state->data;
 
-	// TODO handle other input devices
 	if (device->type == WLR_INPUT_DEVICE_POINTER ||
-			device->type == WLR_INPUT_DEVICE_TOUCH) {
+			device->type == WLR_INPUT_DEVICE_TOUCH ||
+			device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
 		struct sample_input_device *s_device;
 		s_device = calloc(1, sizeof(struct sample_input_device));
 		s_device->device = device;
