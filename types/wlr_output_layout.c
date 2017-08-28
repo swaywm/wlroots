@@ -76,10 +76,14 @@ static bool output_contains_point( struct wlr_output_layout_output *l_output,
 
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y) {
-	struct wlr_output_layout_output *layout_output = wlr_output_layout_get(layout, reference);
-	int width, height;
-	wlr_output_effective_resolution(layout_output->output, &width, &height);
-	return output_contains_point(layout_output, x, y, width, height);
+	if (reference) {
+		struct wlr_output_layout_output *layout_output = wlr_output_layout_get(layout, reference);
+		int width, height;
+		wlr_output_effective_resolution(layout_output->output, &width, &height);
+		return output_contains_point(layout_output, x, y, width, height);
+	} else {
+		return !!wlr_output_layout_output_at(layout, x, y);
+	}
 }
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,

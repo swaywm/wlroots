@@ -97,6 +97,7 @@ static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
 }
 
 static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur, double x, double y) {
+	assert(cur->state->layout);
 	int hotspot_x = 0;
 	int hotspot_y = 0;
 
@@ -119,145 +120,111 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur, double x, double y
 	}
 }
 
+/**
+ * Get the most specific mapping box for the device in this order:
+ *
+ * 1. device geometry mapping
+ * 2. device output mapping
+ * 3. cursor geometry mapping
+ * 4. cursor output mapping
+ *
+ * Absolute movement for touch and pen devices will be relative to this box and
+ * pointer movement will be constrained to this box.
+ *
+ * If none of these are set, returns NULL and absolute movement should be
+ * relative to the extents of the layout.
+ */
+static struct wlr_geometry *get_mapping(struct wlr_cursor *cur,
+		struct wlr_input_device *dev) {
+	assert(cur->state->layout);
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+
+	if (c_device) {
+		if (c_device->mapped_geometry) {
+			return c_device->mapped_geometry;
+		}
+		if (c_device->mapped_output) {
+			return wlr_output_layout_get_geometry(cur->state->layout,
+				c_device->mapped_output);
+		}
+	}
+
+	if (cur->state->mapped_geometry) {
+		return cur->state->mapped_geometry;
+	}
+	if(cur->state->mapped_output) {
+		return wlr_output_layout_get_geometry(cur->state->layout,
+			cur->state->mapped_output);
+	}
+
+	return NULL;
+}
+
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double x, double y) {
 	assert(cur->state->layout);
-	struct wlr_output *output;
-	output = wlr_output_layout_output_at(cur->state->layout, x, y);
+	bool result = false;
 
-	struct wlr_output *mapped_output = NULL;
-	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+	struct wlr_geometry *mapping = get_mapping(cur, dev);
 
-	if (c_device && c_device->mapped_output) {
-		mapped_output = c_device->mapped_output;
-	} else {
-		mapped_output = cur->state->mapped_output;
+	if (mapping) {
+		if (wlr_geometry_contains_point(mapping, x, y)) {
+			wlr_cursor_warp_unchecked(cur, x, y);
+			result = true;
+		}
+	} else if (wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
+		wlr_cursor_warp_unchecked(cur, x, y);
+		result = true;
 	}
 
-	if (!output) {
-		return false;
-	}
-
-	if (mapped_output &&
-			!wlr_output_layout_contains_point(cur->state->layout, mapped_output,
-				x, y)) {
-		return false;
-	}
-
-	wlr_cursor_warp_unchecked(cur, x, y);
-	return true;
+	return result;
 }
 
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, double x_mm, double y_mm) {
-	// convert from absolute to global coordinates
 	assert(cur->state->layout);
-	struct wlr_output *mapped_output = NULL;
-	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 
-	if (c_device && c_device->mapped_output) {
-		mapped_output = c_device->mapped_output;
-	} else {
-		mapped_output = cur->state->mapped_output;
+	struct wlr_geometry *mapping = get_mapping(cur, dev);
+	if (!mapping) {
+		mapping = wlr_output_layout_get_geometry(cur->state->layout, NULL);
 	}
 
-	struct wlr_geometry *constraints = calloc(1, sizeof(struct wlr_geometry));
-	// XXX how do we express infinite regions?
-	constraints->x = INT_MIN / 2;
-	constraints->y = INT_MIN / 2;
-	constraints->width = INT_MAX;
-	constraints->height = INT_MAX;
-
-	if (cur->state->mapped_geometry) {
-		wlr_geometry_intersection(cur->state->mapped_geometry, constraints,
-			&constraints);
-	}
-	if (c_device->mapped_geometry) {
-		wlr_geometry_intersection(c_device->mapped_geometry, constraints,
-			&constraints);
-	}
-	struct wlr_geometry *geo;
-	if (mapped_output) {
-		geo = wlr_output_layout_get_geometry(cur->state->layout, mapped_output);
-		wlr_geometry_intersection(geo, constraints, &constraints);
-	}
-	geo = wlr_output_layout_get_geometry(cur->state->layout, NULL);
-	wlr_geometry_intersection(geo, constraints, &constraints);
-
-	if (wlr_geometry_empty(constraints)) {
-		goto out;
-	}
-
-	double x = constraints->width * x_mm + constraints->x;
-	double y = constraints->height * y_mm + constraints->y;
+	double x = mapping->width * x_mm + mapping->x;
+	double y = mapping->height * y_mm + mapping->y;
 
 	wlr_cursor_warp_unchecked(cur, x, y);
-
-out:
-	if (constraints) {
-		free(constraints);
-	}
 }
 
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double delta_x, double delta_y) {
 	assert(cur->state->layout);
-	struct wlr_output *mapped_output = NULL;
-	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
-
-	if (c_device && c_device->mapped_output) {
-		mapped_output = c_device->mapped_output;
-	} else {
-		mapped_output = cur->state->mapped_output;
-	}
 
 	double x = cur->x + delta_x;
 	double y = cur->y + delta_y;
 
-	// geometry constraints
-	struct wlr_geometry *constraints = NULL;
-	if (cur->state->mapped_geometry != NULL ||
-			c_device->mapped_geometry != NULL) {
-		constraints = calloc(1, sizeof(struct wlr_geometry));
+	struct wlr_geometry *mapping = get_mapping(cur, dev);
 
-		if (!wlr_geometry_intersection(cur->state->mapped_geometry,
-				c_device->mapped_geometry, &constraints)) {
-			// TODO handle no possible movement
-			goto out;
+	if (mapping) {
+		int boundary_x, boundary_y;
+		if (!wlr_geometry_contains_point(mapping, x, y)) {
+			wlr_geometry_closest_boundary(mapping, x, y, &boundary_x,
+				&boundary_y, NULL);
+			x = boundary_x;
+			y = boundary_y;
 		}
-
-		int closest_x, closest_y;
-		wlr_geometry_closest_boundary(constraints, x, y,
-			&closest_x, &closest_y, NULL);
-		x = closest_x;
-		y = closest_y;
-	}
-
-	// layout constraints
-	struct wlr_output *output;
-	output = wlr_output_layout_output_at(cur->state->layout, x, y);
-
-	if (!output || (mapped_output && mapped_output != output)) {
-		double closest_x, closest_y;
-		wlr_output_layout_closest_boundary(cur->state->layout, mapped_output, x,
-			y, &closest_x, &closest_y);
-		x = closest_x;
-		y = closest_y;
-	}
-
-	if (constraints && !wlr_geometry_contains_point(constraints, x, y)) {
-		// TODO handle no possible movement
-		goto out;
+	} else {
+		if (!wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
+			double boundary_x, boundary_y;
+			wlr_output_layout_closest_boundary(cur->state->layout, NULL, x, y,
+				&boundary_x, &boundary_y);
+			x = boundary_x;
+			y = boundary_y;
+		}
 	}
 
 	wlr_cursor_warp_unchecked(cur, x, y);
 	cur->x = x;
 	cur->y = y;
-
-out:
-	if (constraints) {
-		free(constraints);
-	}
 }
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
@@ -416,15 +383,28 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 }
 
 void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_geometry *geo) {
+	if (geo && wlr_geometry_empty(geo)) {
+		wlr_log(L_ERROR, "cannot map cursor to an empty region");
+		return;
+	}
+
 	cur->state->mapped_geometry = geo;
 }
 
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_geometry *geo) {
-	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
-	if (!c_device) {
-		wlr_log(L_ERROR, "Cannot map device \"%s\" to geometry (not found in this cursor)", dev->name);
+	if (geo && wlr_geometry_empty(geo)) {
+		wlr_log(L_ERROR, "cannot map device \"%s\" input to an empty region",
+			dev->name);
 		return;
 	}
+
+	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
+	if (!c_device) {
+		wlr_log(L_ERROR, "Cannot map device \"%s\" to geometry (not found in"
+			"this cursor)", dev->name);
+		return;
+	}
+
 	c_device->mapped_geometry = geo;
 }

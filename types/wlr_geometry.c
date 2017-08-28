@@ -77,6 +77,10 @@ bool wlr_geometry_intersection(struct wlr_geometry *geo_a,
 }
 
 bool wlr_geometry_contains_point(struct wlr_geometry *geo, int x, int y) {
-	return x >= geo->x && x <= geo->x + geo->width &&
-		y >= geo->y && y <= geo->y + geo->height;
+	if (wlr_geometry_empty(geo)) {
+		return false;
+	} else {
+		return x >= geo->x && x <= geo->x + geo->width &&
+			y >= geo->y && y <= geo->y + geo->height;
+	}
 }
