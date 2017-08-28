@@ -188,6 +188,18 @@ static void handle_input_add(struct compositor_state *state, struct
 	}
 }
 
+static void handle_input_remove(struct compositor_state *state, struct
+		wlr_input_device *device) {
+	struct sample_state *sample = state->data;
+	struct sample_input_device *s_device, *tmp = NULL;
+	wl_list_for_each_safe(s_device, tmp, &sample->devices, link) {
+		if (s_device->device == device) {
+			wl_list_remove(&s_device->link);
+			free(s_device);
+		}
+	}
+}
+
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion);
 	struct wlr_event_pointer_motion *event = data;
@@ -339,8 +351,7 @@ int main(int argc, char *argv[]) {
 	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.input_add_cb = handle_input_add;
-	// TODO input_remove_cb
-	//compositor.input_remove_cb = handle_input_add;
+	compositor.input_remove_cb = handle_input_remove;
 
 	state.compositor = &compositor;
 

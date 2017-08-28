@@ -401,6 +401,11 @@ static void tablet_pad_remove(struct wlr_input_device *device, struct compositor
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct compositor_state *state = wl_container_of(listener, state, input_remove);
+
+	if (state->input_remove_cb) {
+		state->input_remove_cb(state, device);
+	}
+
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
 		keyboard_remove(device, state);

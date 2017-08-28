@@ -29,6 +29,8 @@ struct wlr_cursor_device {
 	struct wl_listener tablet_tool_proximity;
 	struct wl_listener tablet_tool_tip;
 	struct wl_listener tablet_tool_button;
+
+	struct wl_listener destroy;
 };
 
 struct wlr_cursor_state {
@@ -318,6 +320,12 @@ static void handle_tablet_tool_proximity(struct wl_listener *listener, void *dat
 	wl_signal_emit(&device->cursor->events.tablet_tool_proximity, event);
 }
 
+static void handle_device_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_device *c_device;
+	c_device = wl_container_of(listener, c_device, destroy);
+	wlr_cursor_detach_input_device(c_device->cursor, c_device->device);
+}
+
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
@@ -347,6 +355,9 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	device->device = dev;
 
 	// listen to events
+
+	wl_signal_add(&dev->events.destroy, &device->destroy);
+	device->destroy.notify = handle_device_destroy;
 
 	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
 		wl_signal_add(&dev->pointer->events.motion, &device->motion);
