@@ -3,6 +3,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_box.h>
 #include <limits.h>
+#include <float.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -157,47 +158,33 @@ void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 	}
 }
 
-static double get_distance(double x1, double y1, double x2, double y2) {
-	double distance;
-	distance = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
-	return distance;
+static struct wlr_box *wlr_output_layout_output_get_box(
+		struct wlr_output_layout_output *l_output) {
+		l_output->state->_box->x = l_output->x;
+		l_output->state->_box->y = l_output->y;
+		wlr_output_effective_resolution(l_output->output,
+			&l_output->state->_box->width, &l_output->state->_box->height);
+		return l_output->state->_box;
 }
 
-void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
+void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, double x, double y, double *dest_x,
 		double *dest_y) {
-	double min_x = INT_MAX, min_y = INT_MAX, min_distance = INT_MAX;
+	double min_x = DBL_MAX, min_y = DBL_MAX, min_distance = DBL_MAX;
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
 		if (reference != NULL && reference != l_output->output) {
 			continue;
 		}
 
-		int width, height;
 		double output_x, output_y, output_distance;
-		wlr_output_effective_resolution(l_output->output, &width, &height);
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		wlr_box_closest_point(box, x, y, &output_x, &output_y);
 
-		// find the closest x point
-		// TODO use wlr_box_closest_boundary
-		if (x < l_output->x) {
-			output_x = l_output->x;
-		} else if (x > l_output->x + width) {
-			output_x = l_output->x + width;
-		} else {
-			output_x = x;
-		}
+		// calculate squared distance suitable for comparison
+		output_distance =
+			(x - output_x) * (x - output_x) + (y - output_y) * (y - output_y);
 
-		// find closest y point
-		if (y < l_output->y) {
-			output_y = l_output->y;
-		} else if (y > l_output->y + height) {
-			output_y = l_output->y + height;
-		} else {
-			output_y = y;
-		}
-
-		// calculate distance
-		output_distance = get_distance(output_x, output_y, x, y);
 		if (output_distance < min_distance) {
 			min_x = output_x;
 			min_y = output_y;
@@ -215,11 +202,7 @@ struct wlr_box *wlr_output_layout_get_box(
 	if (reference) {
 		// output extents
 		l_output= wlr_output_layout_get(layout, reference);
-		l_output->state->_box->x = l_output->x;
-		l_output->state->_box->y = l_output->y;
-		wlr_output_effective_resolution(reference,
-			&l_output->state->_box->width, &l_output->state->_box->height);
-		return l_output->state->_box;
+		return wlr_output_layout_output_get_box(l_output);
 	} else {
 		// layout extents
 		int min_x = INT_MAX, min_y = INT_MAX;

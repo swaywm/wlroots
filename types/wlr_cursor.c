@@ -230,11 +230,11 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		}
 	} else {
 		if (!wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
-			double boundary_x, boundary_y;
-			wlr_output_layout_closest_boundary(cur->state->layout, NULL, x, y,
-				&boundary_x, &boundary_y);
-			x = boundary_x;
-			y = boundary_y;
+			double layout_x, layout_y;
+			wlr_output_layout_closest_point(cur->state->layout, NULL, x, y,
+				&layout_x, &layout_y);
+			x = layout_x;
+			y = layout_y;
 		}
 	}
 
