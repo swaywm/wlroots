@@ -212,9 +212,7 @@ struct example_config *parse_args(int argc, char *argv[]) {
 	int result = ini_parse(config->config_path, config_ini_handler, config);
 
 	if (result == -1) {
-		wlr_log(L_ERROR, "Could not find config file at %s",
-			config->config_path);
-		exit(1);
+		wlr_log(L_DEBUG, "No config file found. Using empty config.");
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
 		exit(1);
