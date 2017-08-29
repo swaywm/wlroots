@@ -7,16 +7,16 @@
 struct wlr_output_layout_state;
 
 struct wlr_output_layout {
-    struct wl_list outputs;
+	struct wl_list outputs;
 	struct wlr_output_layout_state *state;
 };
 
 struct wlr_output_layout_output_state;
 
 struct wlr_output_layout_output {
-    struct wlr_output *output;
-    int x, y;
-    struct wl_list link;
+	struct wlr_output *output;
+	int x, y;
+	struct wl_list link;
 	struct wlr_output_layout_output_state *state;
 };
 

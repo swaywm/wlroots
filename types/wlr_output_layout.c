@@ -15,7 +15,8 @@ struct wlr_output_layout_output_state {
 };
 
 struct wlr_output_layout *wlr_output_layout_init() {
-	struct wlr_output_layout *layout = calloc(1, sizeof(struct wlr_output_layout));
+	struct wlr_output_layout *layout =
+		calloc(1, sizeof(struct wlr_output_layout));
 	layout->state = calloc(1, sizeof(struct wlr_output_layout_state));
 	layout->state->_geo = calloc(1, sizeof(struct wlr_geometry));
 	wl_list_init(&layout->outputs);
@@ -24,10 +25,10 @@ struct wlr_output_layout *wlr_output_layout_init() {
 
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
-		wl_list_remove(&l_output->link);
-		free(l_output->state->_geo);
-		free(l_output->state);
-		free(l_output);
+	wl_list_remove(&l_output->link);
+	free(l_output->state->_geo);
+	free(l_output->state);
+	free(l_output);
 }
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
@@ -59,10 +60,10 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output == reference) {
-			return _output;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output == reference) {
+			return l_output;
 		}
 	}
 	return NULL;
@@ -77,7 +78,8 @@ static bool output_contains_point( struct wlr_output_layout_output *l_output,
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y) {
 	if (reference) {
-		struct wlr_output_layout_output *layout_output = wlr_output_layout_get(layout, reference);
+		struct wlr_output_layout_output *layout_output =
+			wlr_output_layout_get(layout, reference);
 		int width, height;
 		wlr_output_effective_resolution(layout_output->output, &width, &height);
 		return output_contains_point(layout_output, x, y, width, height);
@@ -88,7 +90,8 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
-	struct wlr_output_layout_output *l_output = wlr_output_layout_get(layout, reference);
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, reference);
 	if (!l_output) {
 		return false;
 	}
@@ -104,15 +107,15 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output) {
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output) {
 			int width, height;
-			wlr_output_effective_resolution(_output->output, &width, &height);
-			bool has_x = x >= _output->x && x <= _output->x + width;
-			bool has_y = y >= _output->y && y <= _output->y + height;
+			wlr_output_effective_resolution(l_output->output, &width, &height);
+			bool has_x = x >= l_output->x && x <= l_output->x + width;
+			bool has_y = y >= l_output->y && y <= l_output->y + height;
 			if (has_x && has_y) {
-				return _output->output;
+				return l_output->output;
 			}
 		}
 	}
@@ -121,11 +124,11 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 
 void wlr_output_layout_move(struct wlr_output_layout *layout,
 		struct wlr_output *output, int x, int y) {
-	struct wlr_output_layout_output *layout_output =
-			wlr_output_layout_get(layout, output);
-	if (layout_output) {
-		layout_output->x = x;
-		layout_output->y = y;
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
+	if (l_output) {
+		l_output->x = x;
+		l_output->y = y;
 	}
 }
 
@@ -144,11 +147,11 @@ void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 	double src_x = *x;
 	double src_y = *y;
 
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output == reference) {
-			*x = src_x - (double)_output->x;
-			*y = src_y - (double)_output->y;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output == reference) {
+			*x = src_x - (double)l_output->x;
+			*y = src_y - (double)l_output->y;
 			return;
 		}
 	}
