@@ -8,15 +8,13 @@
 #include <wlr/xcursor.h>
 
 struct wlr_cursor_state;
-//struct wlr_cursor_impl *;
 
 struct wlr_cursor {
-    struct wlr_cursor_state *state;
-    //struct wlr_cursor_impl *impl;
-    int x, y;
+	struct wlr_cursor_state *state;
+	int x, y;
 
-    struct {
-        struct wl_signal motion;
+	struct {
+		struct wl_signal motion;
 		struct wl_signal motion_absolute;
 		struct wl_signal button;
 		struct wl_signal axis;
@@ -30,7 +28,7 @@ struct wlr_cursor {
 		struct wl_signal tablet_tool_proximity;
 		struct wl_signal tablet_tool_tip;
 		struct wl_signal tablet_tool_button;
-    } events;
+	} events;
 };
 
 struct wlr_cursor *wlr_cursor_init();
@@ -71,24 +69,25 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
  * - WLR_INPUT_DEVICE_TABLET_TOOL
  */
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
-    struct wlr_input_device *dev);
+		struct wlr_input_device *dev);
 
 void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
-    struct wlr_input_device *dev);
+		struct wlr_input_device *dev);
 /**
  * Uses the given layout to establish the boundaries and movement semantics of
  * this cursor. Cursors without an output layout allow infinite movement in any
  * direction and do not support absolute input events.
  */
 void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
-    struct wlr_output_layout *l);
+		struct wlr_output_layout *l);
 
 /**
  * Attaches this cursor to the given output, which must be among the outputs in
  * the current output_layout for this cursor. This call is invalid for a cursor
  * without an associated output layout.
  */
-void wlr_cursor_map_to_output(struct wlr_cursor *cur, struct wlr_output *output);
+void wlr_cursor_map_to_output(struct wlr_cursor *cur,
+		struct wlr_output *output);
 
 /**
  * Maps all input from a specific input device to a given output. The input
@@ -96,7 +95,7 @@ void wlr_cursor_map_to_output(struct wlr_cursor *cur, struct wlr_output *output)
  * outputs in the attached output layout.
  */
 void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
-    struct wlr_input_device *dev, struct wlr_output *output);
+		struct wlr_input_device *dev, struct wlr_output *output);
 
 /**
  * Maps this cursor to an arbitrary region on the associated wlr_output_layout.

@@ -110,7 +110,8 @@ static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
 	return ret;
 }
 
-static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur, double x, double y) {
+static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
+		double x, double y) {
 	assert(cur->state->layout);
 	int hotspot_x = 0;
 	int hotspot_y = 0;
@@ -166,7 +167,7 @@ static struct wlr_geometry *get_mapping(struct wlr_cursor *cur,
 	if (cur->state->mapped_geometry) {
 		return cur->state->mapped_geometry;
 	}
-	if(cur->state->mapped_output) {
+	if (cur->state->mapped_output) {
 		return wlr_output_layout_get_geometry(cur->state->layout,
 			cur->state->mapped_output);
 	}
@@ -186,7 +187,8 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 			wlr_cursor_warp_unchecked(cur, x, y);
 			result = true;
 		}
-	} else if (wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
+	} else if (wlr_output_layout_contains_point(cur->state->layout, NULL,
+				x, y)) {
 		wlr_cursor_warp_unchecked(cur, x, y);
 		result = true;
 	}
@@ -243,19 +245,23 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
-	struct wlr_cursor_device *device = wl_container_of(listener, device, motion);
+	struct wlr_cursor_device *device =
+		wl_container_of(listener, device, motion);
 	wl_signal_emit(&device->cursor->events.motion, event);
 }
 
-static void handle_pointer_motion_absolute(struct wl_listener *listener, void *data) {
+static void handle_pointer_motion_absolute(struct wl_listener *listener,
+		void *data) {
 	struct wlr_event_pointer_motion_absolute *event = data;
-	struct wlr_cursor_device *device = wl_container_of(listener, device, motion_absolute);
+	struct wlr_cursor_device *device =
+		wl_container_of(listener, device, motion_absolute);
 	wl_signal_emit(&device->cursor->events.motion_absolute, event);
 }
 
 static void handle_pointer_button(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_button *event = data;
-	struct wlr_cursor_device *device = wl_container_of(listener, device, button);
+	struct wlr_cursor_device *device =
+		wl_container_of(listener, device, button);
 	wl_signal_emit(&device->cursor->events.button, event);
 }
 
@@ -307,14 +313,16 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&device->cursor->events.tablet_tool_axis, event);
 }
 
-static void handle_tablet_tool_button(struct wl_listener *listener, void *data) {
+static void handle_tablet_tool_button(struct wl_listener *listener,
+		void *data) {
 	struct wlr_event_tablet_tool_button *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_button);
 	wl_signal_emit(&device->cursor->events.tablet_tool_button, event);
 }
 
-static void handle_tablet_tool_proximity(struct wl_listener *listener, void *data) {
+static void handle_tablet_tool_proximity(struct wl_listener *listener,
+		void *data) {
 	struct wlr_event_tablet_tool_proximity *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_proximity);
@@ -364,7 +372,8 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		wl_signal_add(&dev->pointer->events.motion, &device->motion);
 		device->motion.notify = handle_pointer_motion;
 
-		wl_signal_add(&dev->pointer->events.motion_absolute, &device->motion_absolute);
+		wl_signal_add(&dev->pointer->events.motion_absolute,
+			&device->motion_absolute);
 		device->motion_absolute.notify = handle_pointer_motion_absolute;
 
 		wl_signal_add(&dev->pointer->events.button, &device->button);
@@ -434,14 +443,16 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_output *output) {
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 	if (!c_device) {
-		wlr_log(L_ERROR, "Cannot map device \"%s\" to output (not found in this cursor)", dev->name);
+		wlr_log(L_ERROR, "Cannot map device \"%s\" to output"
+			"(not found in this cursor)", dev->name);
 		return;
 	}
 
 	c_device->mapped_output = output;
 }
 
-void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_geometry *geo) {
+void wlr_cursor_map_to_region(struct wlr_cursor *cur,
+		struct wlr_geometry *geo) {
 	if (geo && wlr_geometry_empty(geo)) {
 		wlr_log(L_ERROR, "cannot map cursor to an empty region");
 		return;
