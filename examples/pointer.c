@@ -51,6 +51,11 @@ struct sample_state {
 	struct wl_listener touch_down;
 	struct wl_listener touch_cancel;
 	list_t *touch_points;
+
+	struct wl_listener tablet_tool_axis;
+	struct wl_listener tablet_tool_proxmity;
+	struct wl_listener tablet_tool_tip;
+	struct wl_listener tablet_tool_button;
 };
 
 struct touch_point {
@@ -306,6 +311,17 @@ static void handle_touch_cancel(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "TODO: touch cancel");
 }
 
+static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
+	struct sample_state *sample = wl_container_of(listener, sample, tablet_tool_axis);
+	struct wlr_event_tablet_tool_axis *event = data;
+	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)
+			&& (event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
+		wlr_cursor_warp_absolute(sample->cursor, event->device,
+				event->x_mm / event->width_mm,
+				event->y_mm / event->height_mm);
+	}
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
@@ -343,6 +359,10 @@ int main(int argc, char *argv[]) {
 
 	wl_signal_add(&state.cursor->events.touch_cancel, &state.touch_cancel);
 	state.touch_cancel.notify = handle_touch_cancel;
+
+	// tool events
+	wl_signal_add(&state.cursor->events.tablet_tool_axis, &state.tablet_tool_axis);
+	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
 	struct compositor_state compositor = { 0 };
 	compositor.data = &state;

@@ -55,7 +55,7 @@ struct wlr_event_tablet_tool_proximity {
 	struct wlr_input_device *device;
 	uint32_t time_sec;
 	uint64_t time_usec;
-	double x, y;
+	double x_mm, y_mm;
 	double width_mm, height_mm;
 	enum wlr_tablet_tool_proximity_state state;
 };
@@ -69,7 +69,7 @@ struct wlr_event_tablet_tool_tip {
 	struct wlr_input_device *device;
 	uint32_t time_sec;
 	uint64_t time_usec;
-	double x, y;
+	double x_mm, y_mm;
 	double width_mm, height_mm;
 	enum wlr_tablet_tool_tip_state state;
 };
