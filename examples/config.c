@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/param.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_geometry.h>
 #include "shared.h"
@@ -16,15 +17,17 @@ static void usage(const char *name, int ret) {
 	fprintf(stderr,
 		"usage: %s [-C <FILE>]\n"
 		"\n"
-		" -C <FILE>      Path to the configuration file (default: wlr-example.ini).\n"
-		"                See `examples/wlr-example.ini.example` for config file documentation.\n", name);
+		" -C <FILE>      Path to the configuration file\n"
+		"                (default: wlr-example.ini).\n"
+		"                See `examples/wlr-example.ini.example` for config\n"
+		"                file documentation.\n", name);
 
 	exit(ret);
 }
 
 static struct wlr_geometry *parse_geometry(const char *str) {
 	// format: {width}x{height}+{x}+{y}
-	if (strlen(str) > 255l) {
+	if (strlen(str) > 255) {
 		wlr_log(L_ERROR, "cannot parse geometry string, too long");
 		return NULL;
 	}
@@ -43,8 +46,8 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 		char *endptr;
 		long val = strtol(pch, &endptr, 0);
 
-		if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
-				|| (errno != 0 && val == 0)) {
+		if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
+				(errno != 0 && val == 0)) {
 			goto invalid_input;
 		}
 
@@ -70,7 +73,7 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 		pch = strtok(NULL, "x+");
 	}
 
-	if (!has_width || !has_height || !has_x || !has_y) {
+	if (!has_width || !has_height) {
 		goto invalid_input;
 	}
 
@@ -87,7 +90,8 @@ invalid_input:
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 
-static int config_ini_handler(void *user, const char *section, const char *name, const char *value) {
+static int config_ini_handler(void *user, const char *section, const char *name,
+		const char *value) {
 	struct example_config *config = user;
 	if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
 		const char *output_name = section + strlen(output_prefix);
@@ -133,11 +137,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 	} else if (strcmp(section, "cursor") == 0) {
 		if (strcmp(name, "map-to-output") == 0) {
+			free(config->cursor.mapped_output);
 			config->cursor.mapped_output = strdup(value);
 		} else if (strcmp(name, "geometry") == 0) {
-			if (config->cursor.mapped_geo) {
-				free(config->cursor.mapped_geo);
-			}
+			free(config->cursor.mapped_geo);
 			config->cursor.mapped_geo = parse_geometry(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
@@ -161,14 +164,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 
 		if (strcmp(name, "map-to-output") == 0) {
-			if (dc->mapped_output) {
-				free(dc->mapped_output);
-			}
+			free(dc->mapped_output);
 			dc->mapped_output = strdup(value);
 		} else if (strcmp(name, "geometry") == 0) {
-			if (dc->mapped_geo) {
-				free(dc->mapped_geo);
-			}
+			free(dc->mapped_geo);
 			dc->mapped_geo = parse_geometry(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
@@ -199,10 +198,10 @@ struct example_config *parse_args(int argc, char *argv[]) {
 
 	if (!config->config_path) {
 		// get the config path from the current directory
-		char cwd[1024];
+		char cwd[MAXPATHLEN];
 		if (getcwd(cwd, sizeof(cwd)) != NULL) {
-			char buf[1024];
-			sprintf(buf, "%s/%s", cwd, "wlr-example.ini");
+			char buf[MAXPATHLEN];
+			snprintf(buf, MAXPATHLEN, "%s/%s", cwd, "wlr-example.ini");
 			config->config_path = strdup(buf);
 		} else {
 			wlr_log(L_ERROR, "could not get cwd");
@@ -213,7 +212,8 @@ struct example_config *parse_args(int argc, char *argv[]) {
 	int result = ini_parse(config->config_path, config_ini_handler, config);
 
 	if (result == -1) {
-		wlr_log(L_ERROR, "Could not find config file at %s", config->config_path);
+		wlr_log(L_ERROR, "Could not find config file at %s",
+			config->config_path);
 		exit(1);
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
@@ -257,7 +257,8 @@ void example_config_destroy(struct example_config *config) {
 	free(config);
 }
 
-struct wlr_output_layout *configure_layout(struct example_config *config, struct wl_list *outputs) {
+struct wlr_output_layout *configure_layout(struct example_config *config,
+		struct wl_list *outputs) {
 	struct wlr_output_layout *layout = wlr_output_layout_init();
 	int max_x = INT_MIN;
 	int max_x_y = INT_MIN; // y value for the max_x output
@@ -272,7 +273,8 @@ struct wlr_output_layout *configure_layout(struct example_config *config, struct
 						conf->x, conf->y);
 				wlr_output_transform(output->output, conf->transform);
 				int width, height;
-				wlr_output_effective_resolution(output->output, &width, &height);
+				wlr_output_effective_resolution(output->output, &width,
+					&height);
 				if (conf->x + width > max_x) {
 					max_x = conf->x + width;
 					max_x_y = conf->y;
@@ -301,4 +303,3 @@ struct wlr_output_layout *configure_layout(struct example_config *config, struct
 
 	return layout;
 }
-
