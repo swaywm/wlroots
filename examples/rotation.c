@@ -19,6 +19,7 @@
 #include <wlr/util/log.h>
 #include <math.h>
 #include "shared.h"
+#include "config.h"
 #include "cat.h"
 
 struct sample_state {

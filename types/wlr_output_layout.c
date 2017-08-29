@@ -1,13 +1,35 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_box.h>
+#include <limits.h>
+#include <float.h>
 #include <stdlib.h>
 #include <assert.h>
 
+struct wlr_output_layout_state {
+	struct wlr_box *_box;
+};
+
+struct wlr_output_layout_output_state {
+	struct wlr_box *_box;
+};
+
 struct wlr_output_layout *wlr_output_layout_init() {
-	struct wlr_output_layout *layout = calloc(1, sizeof(struct wlr_output_layout));
+	struct wlr_output_layout *layout =
+		calloc(1, sizeof(struct wlr_output_layout));
+	layout->state = calloc(1, sizeof(struct wlr_output_layout_state));
+	layout->state->_box = calloc(1, sizeof(struct wlr_box));
 	wl_list_init(&layout->outputs);
 	return layout;
+}
+
+static void wlr_output_layout_output_destroy(
+		struct wlr_output_layout_output *l_output) {
+	wl_list_remove(&l_output->link);
+	free(l_output->state->_box);
+	free(l_output->state);
+	free(l_output);
 }
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
@@ -17,28 +39,32 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 	struct wlr_output_layout_output *_output, *temp = NULL;
 	wl_list_for_each_safe(_output, temp, &layout->outputs, link) {
-		wl_list_remove(&_output->link);
-		free(_output);
+		wlr_output_layout_output_destroy(_output);
 	}
 
+	free(layout->state->_box);
+	free(layout->state);
 	free(layout);
 }
 
 void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int x, int y) {
-	struct wlr_output_layout_output *layout_output = calloc(1, sizeof(struct wlr_output_layout_output));
-	layout_output->output = output;
-	layout_output->x = x;
-	layout_output->y = y;
-	wl_list_insert(&layout->outputs, &layout_output->link);
+	struct wlr_output_layout_output *l_output;
+	l_output= calloc(1, sizeof(struct wlr_output_layout_output));
+	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
+	l_output->state->_box = calloc(1, sizeof(struct wlr_box));
+	l_output->output = output;
+	l_output->x = x;
+	l_output->y = y;
+	wl_list_insert(&layout->outputs, &l_output->link);
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output == reference) {
-			return _output;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output == reference) {
+			return l_output;
 		}
 	}
 	return NULL;
@@ -52,15 +78,21 @@ static bool output_contains_point( struct wlr_output_layout_output *l_output,
 
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y) {
-	struct wlr_output_layout_output *layout_output = wlr_output_layout_get(layout, reference);
-	int width, height;
-	wlr_output_effective_resolution(layout_output->output, &width, &height);
-	return output_contains_point(layout_output, x, y, width, height);
+	if (reference) {
+		struct wlr_output_layout_output *layout_output =
+			wlr_output_layout_get(layout, reference);
+		int width, height;
+		wlr_output_effective_resolution(layout_output->output, &width, &height);
+		return output_contains_point(layout_output, x, y, width, height);
+	} else {
+		return !!wlr_output_layout_output_at(layout, x, y);
+	}
 }
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
-	struct wlr_output_layout_output *l_output = wlr_output_layout_get(layout, reference);
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, reference);
 	if (!l_output) {
 		return false;
 	}
@@ -76,15 +108,15 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output) {
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output) {
 			int width, height;
-			wlr_output_effective_resolution(_output->output, &width, &height);
-			bool has_x = x >= _output->x && x <= _output->x + width;
-			bool has_y = y >= _output->y && y <= _output->y + height;
+			wlr_output_effective_resolution(l_output->output, &width, &height);
+			bool has_x = x >= l_output->x && x <= l_output->x + width;
+			bool has_y = y >= l_output->y && y <= l_output->y + height;
 			if (has_x && has_y) {
-				return _output->output;
+				return l_output->output;
 			}
 		}
 	}
@@ -93,36 +125,112 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 
 void wlr_output_layout_move(struct wlr_output_layout *layout,
 		struct wlr_output *output, int x, int y) {
-	struct wlr_output_layout_output *layout_output =
-			wlr_output_layout_get(layout, output);
-	if (layout_output) {
-		layout_output->x = x;
-		layout_output->y = y;
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
+	if (l_output) {
+		l_output->x = x;
+		l_output->y = y;
 	}
 }
 
 void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
-	struct wlr_output_layout_output *layout_output =
-			wlr_output_layout_get(layout, output);
-	if (layout_output) {
-		wl_list_remove(&layout_output->link);
-		free(layout_output);
+	struct wlr_output_layout_output *l_output;
+	l_output= wlr_output_layout_get(layout, output);
+	if (l_output) {
+		wlr_output_layout_output_destroy(l_output);
 	}
 }
 
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int *x, int *y) {
+		struct wlr_output *reference, double *x, double *y) {
 	assert(layout && reference);
-	int src_x = *x;
-	int src_y = *y;
+	double src_x = *x;
+	double src_y = *y;
 
-	struct wlr_output_layout_output *_output;
-	wl_list_for_each(_output, &layout->outputs, link) {
-		if (_output->output == reference) {
-			*x = src_x - _output->x;
-			*y = src_y - _output->y;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->output == reference) {
+			*x = src_x - (double)l_output->x;
+			*y = src_y - (double)l_output->y;
 			return;
 		}
 	}
+}
+
+static struct wlr_box *wlr_output_layout_output_get_box(
+		struct wlr_output_layout_output *l_output) {
+		l_output->state->_box->x = l_output->x;
+		l_output->state->_box->y = l_output->y;
+		wlr_output_effective_resolution(l_output->output,
+			&l_output->state->_box->width, &l_output->state->_box->height);
+		return l_output->state->_box;
+}
+
+void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
+		struct wlr_output *reference, double x, double y, double *dest_x,
+		double *dest_y) {
+	double min_x = DBL_MAX, min_y = DBL_MAX, min_distance = DBL_MAX;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (reference != NULL && reference != l_output->output) {
+			continue;
+		}
+
+		double output_x, output_y, output_distance;
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		wlr_box_closest_point(box, x, y, &output_x, &output_y);
+
+		// calculate squared distance suitable for comparison
+		output_distance =
+			(x - output_x) * (x - output_x) + (y - output_y) * (y - output_y);
+
+		if (output_distance < min_distance) {
+			min_x = output_x;
+			min_y = output_y;
+			min_distance = output_distance;
+		}
+	}
+
+	*dest_x = min_x;
+	*dest_y = min_y;
+}
+
+struct wlr_box *wlr_output_layout_get_box(
+		struct wlr_output_layout *layout, struct wlr_output *reference) {
+	struct wlr_output_layout_output *l_output;
+	if (reference) {
+		// output extents
+		l_output= wlr_output_layout_get(layout, reference);
+		return wlr_output_layout_output_get_box(l_output);
+	} else {
+		// layout extents
+		int min_x = INT_MAX, min_y = INT_MAX;
+		int max_x = INT_MIN, max_y = INT_MIN;
+		wl_list_for_each(l_output, &layout->outputs, link) {
+			int width, height;
+			wlr_output_effective_resolution(l_output->output, &width, &height);
+			if (l_output->x < min_x) {
+				min_x = l_output->x;
+			}
+			if (l_output->y < min_y) {
+				min_y = l_output->y;
+			}
+			if (l_output->x + width > max_x) {
+				max_x = l_output->x + width;
+			}
+			if (l_output->y + height > max_y) {
+				max_y = l_output->y + height;
+			}
+		}
+
+		layout->state->_box->x = min_x;
+		layout->state->_box->y = min_y;
+		layout->state->_box->width = max_x - min_x;
+		layout->state->_box->height = max_y - min_y;
+
+		return layout->state->_box;
+	}
+
+	// not reached
 }

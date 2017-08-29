@@ -1,0 +1,57 @@
+# Configuration
+# -------------
+# Some examples will read a configuration file. Not all examples will use all of
+# the configuration options. The configuration file will be loaded from
+# `wlr-example.ini` from the current directory or the path can be specified by the
+# `-C` option given on the command line.
+#
+# Output configuration
+# ~~~~~~~~~~~~~~~~~~~~
+# Each output is specified in a section named [output:{NAME}] where NAME is the
+# drm name for this output.
+#
+# Value "x" specifies the x-coordinate in the output layout.
+#
+# Value "y" specifies the y-coordinate in the output layout.
+#
+# Value "rotate" specifies output rotation and can be 90, 180, 270, flipped,
+# flipped-90, flipped-180, or flipped-270
+[output:HDMI-A-1]
+x=3000
+y=0
+rotate=90
+
+[output:DP-1]
+x=0
+y=0
+rotate=270
+
+[output:DVI-D-1]
+x=1080
+y=232
+
+# Cursor Configuration
+# ~~~~~~~~~~~~~~~~~~~~
+# Value "map-to-output" specifies the output to which the cursor is
+# constrained.
+#
+# Value "geometry" specifies the geometry (widthxheight+x+y) to which the cursor
+# is constrained.
+[cursor]
+map-to-output=HDMI-A-1
+geometry=500x700+50+50
+
+# Device Configuration
+# ~~~~~~~~~~~~~~~~~~~~
+# Each device is specified in a section named [device:{NAME}] where NAME is the
+# name given to this device. See a log file for device names.
+#
+# Value "map-to-output" specifies the output to which the device is constrained.
+#
+# Value "geometry" specifies the geometry (widthxheight+x+y) to which the device
+# is constrained.
+[device:Razer Razer DeathAdder 2013]
+map-to-output=DP-1
+geometry=500x700+50+50
+
+# vim:filetype=dosini

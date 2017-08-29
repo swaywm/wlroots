@@ -12,24 +12,6 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 
-struct output_config {
-	char *name;
-	enum wl_output_transform transform;
-	int x, y;
-	struct wl_list link;
-};
-
-struct example_config {
-	struct wl_list outputs;
-};
-
-struct example_config *parse_args(int argc, char *argv[]);
-
-void example_config_destroy(struct example_config *config);
-
-struct wlr_output_layout *configure_layout(struct example_config *config,
-		struct wl_list *outputs);
-
 struct output_state {
 	struct compositor_state *compositor;
 	struct wlr_output *output;
@@ -93,6 +75,10 @@ struct tablet_pad_state {
 };
 
 struct compositor_state {
+	void (*input_add_cb)(struct compositor_state *compositor,
+			struct wlr_input_device *device);
+	void (*input_remove_cb)(struct compositor_state *compositor,
+			struct wlr_input_device *device);
 	void (*output_add_cb)(struct output_state *s);
 	void (*keyboard_add_cb)(struct keyboard_state *s);
 	void (*output_frame_cb)(struct output_state *s, struct timespec *ts);

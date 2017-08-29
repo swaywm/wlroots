@@ -51,6 +51,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
 		&width, &height);
 	struct wlr_event_pointer_motion_absolute wlr_event;
+	wlr_event.device = dev;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
 	wlr_event.width_mm = width;
@@ -66,6 +67,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	assert(dev && dev->pointer);
 
 	struct wlr_event_pointer_button wlr_event;
+	wlr_event.device = dev;
 	wlr_event.button = button;
 	wlr_event.state = state;
 	wlr_event.time_sec = time / 1000;
@@ -80,6 +82,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 
 	struct wlr_event_pointer_axis wlr_event;
+	wlr_event.device = dev;
 	wlr_event.delta = value;
 	wlr_event.orientation = axis;
 	wlr_event.time_sec = time / 1000;

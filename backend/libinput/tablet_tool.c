@@ -30,6 +30,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_axis wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
@@ -83,6 +84,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_proximity wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	switch (libinput_event_tablet_tool_get_proximity_state(tevent)) {
@@ -109,6 +111,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_tip wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	switch (libinput_event_tablet_tool_get_tip_state(tevent)) {
@@ -134,6 +137,7 @@ void handle_tablet_tool_button(struct libinput_event *event,
 	struct libinput_event_tablet_tool *tevent =
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_button wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
 	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
 	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
 	wlr_event.button = libinput_event_tablet_tool_get_button(tevent);

@@ -20,12 +20,16 @@ void wlr_input_device_init(struct wlr_input_device *dev,
 	dev->name = strdup(name);
 	dev->vendor = vendor;
 	dev->product = product;
+
+	wl_signal_init(&dev->events.destroy);
 }
 
 void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (!dev) {
 		return;
 	}
+
+	wl_signal_emit(&dev->events.destroy, dev);
 	
 	if (dev->_device) {
 		switch (dev->type) {

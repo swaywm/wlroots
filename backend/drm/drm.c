@@ -598,6 +598,8 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
 			output->output.transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
+		// TODO the image needs to be rotated depending on the output rotation
+
 		plane->wlr_rend = wlr_gles2_renderer_create(&backend->backend);
 		if (!plane->wlr_rend) {
 			return false;
@@ -651,6 +653,31 @@ static bool wlr_drm_output_move_cursor(struct wlr_output *_output,
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	struct wlr_drm_backend *backend =
 		wl_container_of(output->renderer, backend, renderer);
+
+	int width, height, tmp;
+	wlr_output_effective_resolution(_output, &width, &height);
+
+	switch (_output->transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		// nothing to do
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		tmp = x;
+		x = y;
+		y = -(tmp - width);
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		tmp = x;
+		x = -(y - height);
+		y = tmp;
+		break;
+	default:
+		// TODO other transformations
+		wlr_log(L_ERROR, "TODO: handle surface to crtc for transformation = %d",
+			_output->transform);
+		break;
+	}
+
 	return backend->iface->crtc_move_cursor(backend, output->crtc, x, y);
 }
 

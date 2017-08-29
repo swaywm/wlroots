@@ -12,3 +12,4 @@ test/
 build/
 .lvimrc
 wayland-*-protocol.*
+wlr-example.ini

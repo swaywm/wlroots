@@ -61,7 +61,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 static void handle_touch_down(struct touch_state *tstate, int32_t slot,
 		double x, double y, double width, double height) {
 	struct sample_state *sample = tstate->compositor->data;
-	struct touch_point *point = calloc(1, sizeof(struct touch_state));
+	struct touch_point *point = calloc(1, sizeof(struct touch_point));
 	point->slot = slot;
 	point->x = x / width;
 	point->y = y / height;
