@@ -133,6 +133,9 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
 			output_y - hotspot_y);
 	}
+
+	cur->x = x;
+	cur->y = y;
 }
 
 /**
@@ -239,8 +242,6 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	}
 
 	wlr_cursor_warp_unchecked(cur, x, y);
-	cur->x = x;
-	cur->y = y;
 }
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
