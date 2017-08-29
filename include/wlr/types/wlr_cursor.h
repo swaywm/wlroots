@@ -31,7 +31,7 @@ struct wlr_cursor {
 	} events;
 };
 
-struct wlr_cursor *wlr_cursor_init();
+struct wlr_cursor *wlr_cursor_create();
 
 void wlr_cursor_destroy(struct wlr_cursor *cur);
 

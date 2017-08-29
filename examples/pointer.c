@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	state.config = parse_args(argc, argv);
-	state.cursor = wlr_cursor_init();
+	state.cursor = wlr_cursor_create();
 	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_geo);
 	wl_list_init(&state.devices);
 
