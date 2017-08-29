@@ -63,7 +63,8 @@ struct touch_point {
 	double x, y;
 };
 
-static void warp_to_touch(struct sample_state *sample, struct wlr_input_device *dev) {
+static void warp_to_touch(struct sample_state *sample,
+        struct wlr_input_device *dev) {
 	if (sample->touch_points->length == 0) {
 		return;
 	}
@@ -79,7 +80,8 @@ static void warp_to_touch(struct sample_state *sample, struct wlr_input_device *
 	wlr_cursor_warp_absolute(sample->cursor, dev, x, y);
 }
 
-static void handle_output_frame(struct output_state *output, struct timespec *ts) {
+static void handle_output_frame(struct output_state *output,
+        struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
@@ -87,7 +89,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_make_current(wlr_output);
 
 	glClearColor(sample->clear_color[0], sample->clear_color[1],
-			sample->clear_color[2], sample->clear_color[3]);
+		sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	wlr_output_swap_buffers(wlr_output);
@@ -132,7 +134,8 @@ static void handle_output_add(struct output_state *ostate) {
 
 	// reset layout
 	wlr_output_layout_destroy(sample->layout);
-	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	sample->layout =
+        configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 
 	// cursor configuration
@@ -155,9 +158,10 @@ static void handle_output_add(struct output_state *ostate) {
 }
 
 static void handle_output_remove(struct output_state *ostate) {
-	struct sample_state *sample = ostate->compositor->data;
+		struct sample_state *sample = ostate->compositor->data;
 	wlr_output_layout_destroy(sample->layout);
-	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	sample->layout =
+        configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 
 	configure_devices(sample);
@@ -172,12 +176,13 @@ static void handle_output_resolution(struct compositor_state *state,
 		struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
 	wlr_output_layout_destroy(sample->layout);
-	sample->layout = configure_layout(sample->config, &ostate->compositor->outputs);
+	sample->layout =
+        configure_layout(sample->config, &ostate->compositor->outputs);
 	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 }
 
-static void handle_input_add(struct compositor_state *state, struct
-		wlr_input_device *device) {
+static void handle_input_add(struct compositor_state *state,
+        struct wlr_input_device *device) {
 	struct sample_state *sample = state->data;
 
 	if (device->type == WLR_INPUT_DEVICE_POINTER ||
@@ -193,8 +198,8 @@ static void handle_input_add(struct compositor_state *state, struct
 	}
 }
 
-static void handle_input_remove(struct compositor_state *state, struct
-		wlr_input_device *device) {
+static void handle_input_remove(struct compositor_state *state,
+        struct wlr_input_device *device) {
 	struct sample_state *sample = state->data;
 	struct sample_input_device *s_device, *tmp = NULL;
 	wl_list_for_each_safe(s_device, tmp, &sample->devices, link) {
@@ -206,13 +211,17 @@ static void handle_input_remove(struct compositor_state *state, struct
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion);
+	struct sample_state *sample =
+        wl_container_of(listener, sample, cursor_motion);
 	struct wlr_event_pointer_motion *event = data;
-	wlr_cursor_move(sample->cursor, event->device, event->delta_x, event->delta_y);
+	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
+        event->delta_y);
 }
 
-static void handle_cursor_motion_absolute(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, cursor_motion_absolute);
+static void handle_cursor_motion_absolute(struct wl_listener *listener,
+        void *data) {
+	struct sample_state *sample =
+        wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
 	sample->cur_x = event->x_mm;
@@ -229,7 +238,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener, void *da
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, cursor_button);
+	struct sample_state *sample =
+        wl_container_of(listener, sample, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 
 	float (*color)[4];
@@ -245,7 +255,8 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, cursor_axis);
+	struct sample_state *sample =
+        wl_container_of(listener, sample, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
 
 	for (size_t i = 0; i < 3; ++i) {
@@ -291,7 +302,8 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 }
 
 static void handle_touch_motion(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, touch_motion);
+	struct sample_state *sample =
+        wl_container_of(listener, sample, touch_motion);
 	struct wlr_event_touch_motion *event = data;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
@@ -306,19 +318,17 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 }
 
 static void handle_touch_cancel(struct wl_listener *listener, void *data) {
-	//struct sample_state *sample = wl_container_of(listener, sample, touch_cancel);
-	//struct wlr_event_touch_cancel *event = data;
 	wlr_log(L_DEBUG, "TODO: touch cancel");
 }
 
 static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
-	struct sample_state *sample = wl_container_of(listener, sample, tablet_tool_axis);
+	struct sample_state *sample =
+        wl_container_of(listener, sample, tablet_tool_axis);
 	struct wlr_event_tablet_tool_axis *event = data;
-	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)
-			&& (event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
+	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
+			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(sample->cursor, event->device,
-				event->x_mm / event->width_mm,
-				event->y_mm / event->height_mm);
+			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
 	}
 }
 
@@ -338,7 +348,8 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
 	state.cursor_motion.notify = handle_cursor_motion;
 
-	wl_signal_add(&state.cursor->events.motion_absolute, &state.cursor_motion_absolute);
+	wl_signal_add(&state.cursor->events.motion_absolute,
+        &state.cursor_motion_absolute);
 	state.cursor_motion_absolute.notify = handle_cursor_motion_absolute;
 
 	wl_signal_add(&state.cursor->events.button, &state.cursor_button);
@@ -361,7 +372,8 @@ int main(int argc, char *argv[]) {
 	state.touch_cancel.notify = handle_touch_cancel;
 
 	// tool events
-	wl_signal_add(&state.cursor->events.tablet_tool_axis, &state.tablet_tool_axis);
+	wl_signal_add(&state.cursor->events.tablet_tool_axis,
+        &state.tablet_tool_axis);
 	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
 	struct compositor_state compositor = { 0 };
