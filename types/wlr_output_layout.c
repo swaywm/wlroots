@@ -1,24 +1,24 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_geometry.h>
+#include <wlr/types/wlr_box.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <assert.h>
 
 struct wlr_output_layout_state {
-	struct wlr_geometry *_geo;
+	struct wlr_box *_box;
 };
 
 struct wlr_output_layout_output_state {
-	struct wlr_geometry *_geo;
+	struct wlr_box *_box;
 };
 
 struct wlr_output_layout *wlr_output_layout_init() {
 	struct wlr_output_layout *layout =
 		calloc(1, sizeof(struct wlr_output_layout));
 	layout->state = calloc(1, sizeof(struct wlr_output_layout_state));
-	layout->state->_geo = calloc(1, sizeof(struct wlr_geometry));
+	layout->state->_box = calloc(1, sizeof(struct wlr_box));
 	wl_list_init(&layout->outputs);
 	return layout;
 }
@@ -26,7 +26,7 @@ struct wlr_output_layout *wlr_output_layout_init() {
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wl_list_remove(&l_output->link);
-	free(l_output->state->_geo);
+	free(l_output->state->_box);
 	free(l_output->state);
 	free(l_output);
 }
@@ -41,7 +41,7 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 		wlr_output_layout_output_destroy(_output);
 	}
 
-	free(layout->state->_geo);
+	free(layout->state->_box);
 	free(layout->state);
 	free(layout);
 }
@@ -51,7 +51,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	struct wlr_output_layout_output *l_output;
 	l_output= calloc(1, sizeof(struct wlr_output_layout_output));
 	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
-	l_output->state->_geo = calloc(1, sizeof(struct wlr_geometry));
+	l_output->state->_box = calloc(1, sizeof(struct wlr_box));
 	l_output->output = output;
 	l_output->x = x;
 	l_output->y = y;
@@ -178,7 +178,7 @@ void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
 		wlr_output_effective_resolution(l_output->output, &width, &height);
 
 		// find the closest x point
-		// TODO use wlr_geometry_closest_boundary
+		// TODO use wlr_box_closest_boundary
 		if (x < l_output->x) {
 			output_x = l_output->x;
 		} else if (x > l_output->x + width) {
@@ -209,17 +209,17 @@ void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
 	*dest_y = min_y;
 }
 
-struct wlr_geometry *wlr_output_layout_get_geometry(
+struct wlr_box *wlr_output_layout_get_box(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *l_output;
 	if (reference) {
 		// output extents
 		l_output= wlr_output_layout_get(layout, reference);
-		l_output->state->_geo->x = l_output->x;
-		l_output->state->_geo->y = l_output->y;
+		l_output->state->_box->x = l_output->x;
+		l_output->state->_box->y = l_output->y;
 		wlr_output_effective_resolution(reference,
-			&l_output->state->_geo->width, &l_output->state->_geo->height);
-		return l_output->state->_geo;
+			&l_output->state->_box->width, &l_output->state->_box->height);
+		return l_output->state->_box;
 	} else {
 		// layout extents
 		int min_x = INT_MAX, min_y = INT_MAX;
@@ -241,12 +241,12 @@ struct wlr_geometry *wlr_output_layout_get_geometry(
 			}
 		}
 
-		layout->state->_geo->x = min_x;
-		layout->state->_geo->y = min_y;
-		layout->state->_geo->width = max_x - min_x;
-		layout->state->_geo->height = max_y - min_y;
+		layout->state->_box->x = min_x;
+		layout->state->_box->y = min_y;
+		layout->state->_box->width = max_x - min_x;
+		layout->state->_box->height = max_y - min_y;
 
-		return layout->state->_geo;
+		return layout->state->_box;
 	}
 
 	// not reached

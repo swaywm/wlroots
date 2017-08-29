@@ -62,10 +62,10 @@ void wlr_output_layout_closest_boundary(struct wlr_output_layout *layout,
 		double *dest_y);
 
 /**
- * Get the geometry of the layout for the given reference output. If `reference`
- * is NULL, the geometry will be for the extents of the entire layout.
+ * Get the box of the layout for the given reference output. If `reference`
+ * is NULL, the box will be for the extents of the entire layout.
  */
-struct wlr_geometry *wlr_output_layout_get_geometry(
+struct wlr_box *wlr_output_layout_get_box(
 		struct wlr_output_layout *layout, struct wlr_output *reference);
 
 #endif

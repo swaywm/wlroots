@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <wlr/util/log.h>
-#include <wlr/types/wlr_geometry.h>
+#include <wlr/types/wlr_box.h>
 #include "shared.h"
 #include "config.h"
 #include "ini.h"
@@ -25,7 +25,7 @@ static void usage(const char *name, int ret) {
 	exit(ret);
 }
 
-static struct wlr_geometry *parse_geometry(const char *str) {
+static struct wlr_box *parse_geometry(const char *str) {
 	// format: {width}x{height}+{x}+{y}
 	if (strlen(str) > 255) {
 		wlr_log(L_ERROR, "cannot parse geometry string, too long");
@@ -33,7 +33,7 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 	}
 
 	char *buf = strdup(str);
-	struct wlr_geometry *geo = calloc(1, sizeof(struct wlr_geometry));
+	struct wlr_box *box = calloc(1, sizeof(struct wlr_box));
 
 	bool has_width = false;
 	bool has_height = false;
@@ -56,16 +56,16 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 		}
 
 		if (!has_width) {
-			geo->width = val;
+			box->width = val;
 			has_width = true;
 		} else if (!has_height) {
-			geo->height = val;
+			box->height = val;
 			has_height = true;
 		} else if (!has_x) {
-			geo->x = val;
+			box->x = val;
 			has_x = true;
 		} else if (!has_y) {
-			geo->y = val;
+			box->y = val;
 			has_y = true;
 		} else {
 			break;
@@ -78,12 +78,12 @@ static struct wlr_geometry *parse_geometry(const char *str) {
 	}
 
 	free(buf);
-	return geo;
+	return box;
 
 invalid_input:
 	wlr_log(L_ERROR, "could not parse geometry string: %s", str);
 	free(buf);
-	free(geo);
+	free(box);
 	return NULL;
 }
 
@@ -140,8 +140,8 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			free(config->cursor.mapped_output);
 			config->cursor.mapped_output = strdup(value);
 		} else if (strcmp(name, "geometry") == 0) {
-			free(config->cursor.mapped_geo);
-			config->cursor.mapped_geo = parse_geometry(value);
+			free(config->cursor.mapped_box);
+			config->cursor.mapped_box = parse_geometry(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
 		}
@@ -167,8 +167,8 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			free(dc->mapped_output);
 			dc->mapped_output = strdup(value);
 		} else if (strcmp(name, "geometry") == 0) {
-			free(dc->mapped_geo);
-			dc->mapped_geo = parse_geometry(value);
+			free(dc->mapped_box);
+			dc->mapped_box = parse_geometry(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
@@ -239,8 +239,8 @@ void example_config_destroy(struct example_config *config) {
 		if (dc->mapped_output) {
 			free(dc->mapped_output);
 		}
-		if (dc->mapped_geo) {
-			free(dc->mapped_geo);
+		if (dc->mapped_box) {
+			free(dc->mapped_box);
 		}
 		free(dc);
 	}
@@ -251,8 +251,8 @@ void example_config_destroy(struct example_config *config) {
 	if (config->cursor.mapped_output) {
 		free(config->cursor.mapped_output);
 	}
-	if (config->cursor.mapped_geo) {
-		free(config->cursor.mapped_geo);
+	if (config->cursor.mapped_box) {
+		free(config->cursor.mapped_box);
 	}
 	free(config);
 }

@@ -13,7 +13,7 @@ struct wlr_cursor_device {
 	struct wlr_input_device *device;
 	struct wl_list link;
 	struct wlr_output *mapped_output;
-	struct wlr_geometry *mapped_geometry;
+	struct wlr_box *mapped_box;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
@@ -38,7 +38,7 @@ struct wlr_cursor_state {
 	struct wlr_output_layout *layout;
 	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
-	struct wlr_geometry *mapped_geometry;
+	struct wlr_box *mapped_box;
 };
 
 struct wlr_cursor *wlr_cursor_create() {
@@ -149,26 +149,26 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
  * If none of these are set, returns NULL and absolute movement should be
  * relative to the extents of the layout.
  */
-static struct wlr_geometry *get_mapping(struct wlr_cursor *cur,
+static struct wlr_box *get_mapping(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	assert(cur->state->layout);
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 
 	if (c_device) {
-		if (c_device->mapped_geometry) {
-			return c_device->mapped_geometry;
+		if (c_device->mapped_box) {
+			return c_device->mapped_box;
 		}
 		if (c_device->mapped_output) {
-			return wlr_output_layout_get_geometry(cur->state->layout,
+			return wlr_output_layout_get_box(cur->state->layout,
 				c_device->mapped_output);
 		}
 	}
 
-	if (cur->state->mapped_geometry) {
-		return cur->state->mapped_geometry;
+	if (cur->state->mapped_box) {
+		return cur->state->mapped_box;
 	}
 	if (cur->state->mapped_output) {
-		return wlr_output_layout_get_geometry(cur->state->layout,
+		return wlr_output_layout_get_box(cur->state->layout,
 			cur->state->mapped_output);
 	}
 
@@ -180,10 +180,10 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	assert(cur->state->layout);
 	bool result = false;
 
-	struct wlr_geometry *mapping = get_mapping(cur, dev);
+	struct wlr_box *mapping = get_mapping(cur, dev);
 
 	if (mapping) {
-		if (wlr_geometry_contains_point(mapping, x, y)) {
+		if (wlr_box_contains_point(mapping, x, y)) {
 			wlr_cursor_warp_unchecked(cur, x, y);
 			result = true;
 		}
@@ -200,9 +200,9 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, double x_mm, double y_mm) {
 	assert(cur->state->layout);
 
-	struct wlr_geometry *mapping = get_mapping(cur, dev);
+	struct wlr_box *mapping = get_mapping(cur, dev);
 	if (!mapping) {
-		mapping = wlr_output_layout_get_geometry(cur->state->layout, NULL);
+		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
 	}
 
 	double x = mapping->width * x_mm + mapping->x;
@@ -218,15 +218,15 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double x = cur->x + delta_x;
 	double y = cur->y + delta_y;
 
-	struct wlr_geometry *mapping = get_mapping(cur, dev);
+	struct wlr_box *mapping = get_mapping(cur, dev);
 
 	if (mapping) {
-		int boundary_x, boundary_y;
-		if (!wlr_geometry_contains_point(mapping, x, y)) {
-			wlr_geometry_closest_boundary(mapping, x, y, &boundary_x,
-				&boundary_y, NULL);
-			x = boundary_x;
-			y = boundary_y;
+		double closest_x, closest_y;
+		if (!wlr_box_contains_point(mapping, x, y)) {
+			wlr_box_closest_point(mapping, x, y, &closest_x,
+				&closest_y);
+			x = closest_x;
+			y = closest_y;
 		}
 	} else {
 		if (!wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
@@ -452,18 +452,18 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 }
 
 void wlr_cursor_map_to_region(struct wlr_cursor *cur,
-		struct wlr_geometry *geo) {
-	if (geo && wlr_geometry_empty(geo)) {
+		struct wlr_box *box) {
+	if (box && wlr_box_empty(box)) {
 		wlr_log(L_ERROR, "cannot map cursor to an empty region");
 		return;
 	}
 
-	cur->state->mapped_geometry = geo;
+	cur->state->mapped_box = box;
 }
 
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
-		struct wlr_input_device *dev, struct wlr_geometry *geo) {
-	if (geo && wlr_geometry_empty(geo)) {
+		struct wlr_input_device *dev, struct wlr_box *box) {
+	if (box && wlr_box_empty(box)) {
 		wlr_log(L_ERROR, "cannot map device \"%s\" input to an empty region",
 			dev->name);
 		return;
@@ -476,5 +476,5 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 		return;
 	}
 
-	c_device->mapped_geometry = geo;
+	c_device->mapped_box = box;
 }

@@ -16,7 +16,7 @@ lib_wlr_types = static_library('wlr_types', files(
     'wlr_xdg_shell_v6.c',
     'wlr_wl_shell.c',
     'wlr_compositor.c',
-    'wlr_geometry.c',
+    'wlr_box.c',
   ),
   include_directories: wlr_inc,
   dependencies: [wayland_server, pixman, wlr_protos])

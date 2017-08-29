@@ -105,7 +105,7 @@ static void configure_devices(struct sample_state *sample) {
 		wl_list_for_each(dc, &sample->config->devices, link) {
 			if (strcmp(dev->device->name, dc->name) == 0) {
 				wlr_cursor_map_input_to_region(sample->cursor, dev->device,
-					dc->mapped_geo);
+					dc->mapped_box);
 			}
 		}
 	}
@@ -341,7 +341,7 @@ int main(int argc, char *argv[]) {
 
 	state.config = parse_args(argc, argv);
 	state.cursor = wlr_cursor_create();
-	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_geo);
+	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
 	wl_list_init(&state.devices);
 
 	// pointer events
