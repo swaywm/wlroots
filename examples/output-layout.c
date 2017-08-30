@@ -36,7 +36,8 @@ struct sample_state {
 	struct wl_list outputs;
 };
 
-static void handle_output_frame(struct output_state *output, struct timespec *ts) {
+static void handle_output_frame(struct output_state *output,
+		struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
@@ -44,16 +45,18 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
-	if (wlr_output_layout_intersects(sample->layout, output->output,
-				sample->x_offs, sample->y_offs,
-				sample->x_offs + 128, sample->y_offs + 128)) {
+	bool intersects = wlr_output_layout_intersects(sample->layout,
+		output->output, sample->x_offs, sample->y_offs,
+		sample->x_offs + 128, sample->y_offs + 128);
+
+	if (intersects) {
 		float matrix[16];
 
 		// transform global coordinates to local coordinates
 		double local_x = sample->x_offs;
 		double local_y = sample->y_offs;
-		wlr_output_layout_output_coords(sample->layout, output->output, &local_x,
-				&local_y);
+		wlr_output_layout_output_coords(sample->layout, output->output,
+			&local_x, &local_y);
 
 		wlr_texture_get_matrix(sample->cat_texture, &matrix,
 			&wlr_output->transform_matrix, local_x, local_y);
@@ -89,7 +92,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		if (ur_collision && ul_collision && ll_collision && lr_collision) {
 			// oops we went off the screen somehow
 			struct wlr_output_layout_output *main_l_output;
-			main_l_output = wlr_output_layout_get(sample->layout, sample->main_output);
+			main_l_output =
+				wlr_output_layout_get(sample->layout, sample->main_output);
 			sample->x_offs = main_l_output->x + 20;
 			sample->y_offs = main_l_output->y + 20;
 		} else if (ur_collision && ul_collision) {
@@ -154,8 +158,8 @@ static void update_velocities(struct compositor_state *state,
 	sample->y_vel += y_diff;
 }
 
-static void handle_keyboard_key(struct keyboard_state *kbstate, uint32_t keycode,
-	 	xkb_keysym_t sym, enum wlr_key_state key_state) {
+static void handle_keyboard_key(struct keyboard_state *kbstate,
+		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
 	// NOTE: It may be better to simply refer to our key state during each frame
 	// and make this change in pixels/sec^2
 	// Also, key repeat
