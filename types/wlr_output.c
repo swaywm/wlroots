@@ -100,6 +100,7 @@ void wlr_output_init(struct wlr_output *output,
 	output->scale = 1;
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.destroy);
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
@@ -175,6 +176,8 @@ void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) {
 		return;
 	}
+
+	wl_signal_emit(&output->events.destroy, output);
 
 	wlr_texture_destroy(output->cursor.texture);
 	wlr_renderer_destroy(output->cursor.renderer);

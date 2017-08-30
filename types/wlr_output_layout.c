@@ -13,9 +13,13 @@ struct wlr_output_layout_state {
 
 struct wlr_output_layout_output_state {
 	struct wlr_output_layout *layout;
+	struct wlr_output_layout_output *l_output;
+
 	struct wlr_box *_box;
 	bool auto_configured;
+
 	struct wl_listener resolution;
+	struct wl_listener output_destroy;
 };
 
 struct wlr_output_layout *wlr_output_layout_init() {
@@ -30,6 +34,7 @@ struct wlr_output_layout *wlr_output_layout_init() {
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wl_list_remove(&l_output->state->resolution.link);
+	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
 	free(l_output->state->_box);
 	free(l_output->state);
@@ -111,11 +116,20 @@ static void handle_output_resolution(struct wl_listener *listener, void *data) {
 	wlr_output_layout_reconfigure(state->layout);
 }
 
+static void handle_output_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_output_layout_output_state *state =
+		wl_container_of(listener, state, output_destroy);
+	struct wlr_output_layout *layout = state->layout;
+	wlr_output_layout_output_destroy(state->l_output);
+	wlr_output_layout_reconfigure(layout);
+}
+
 static struct wlr_output_layout_output *wlr_output_layout_output_create(
 		struct wlr_output_layout *layout, struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output;
 	l_output= calloc(1, sizeof(struct wlr_output_layout_output));
 	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
+	l_output->state->l_output = l_output;
 	l_output->state->_box = calloc(1, sizeof(struct wlr_box));
 	l_output->state->layout = layout;
 	l_output->output = output;
@@ -123,6 +137,9 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
 	l_output->state->resolution.notify = handle_output_resolution;
+
+	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
+	l_output->state->output_destroy.notify = handle_output_destroy;
 
 	return l_output;
 }
