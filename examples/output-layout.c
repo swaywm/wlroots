@@ -33,7 +33,6 @@ struct sample_state {
 	float x_offs, y_offs;
 	float x_vel, y_vel;
 	struct wlr_output *main_output;
-	struct wl_list outputs;
 };
 
 static void handle_output_frame(struct output_state *output,
@@ -130,7 +129,6 @@ static void handle_output_frame(struct output_state *output,
 
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
-	wl_list_insert(&sample->outputs, &ostate->link);
 
 	struct output_config *o_config =
 		example_config_get_output(sample->config, ostate->output);
@@ -192,7 +190,6 @@ int main(int argc, char *argv[]) {
 	state.y_vel = 500;
 	state.layout = wlr_output_layout_init();
 
-	wl_list_init(&state.outputs);
 	state.config = parse_args(argc, argv);
 
 	struct compositor_state compositor = { 0 };
