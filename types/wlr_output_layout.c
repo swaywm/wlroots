@@ -52,13 +52,13 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 static struct wlr_box *wlr_output_layout_output_get_box(
 		struct wlr_output_layout_output *l_output) {
-		l_output->state->_box->x = l_output->x;
-		l_output->state->_box->y = l_output->y;
-		int width, height;
-		wlr_output_effective_resolution(l_output->output, &width, &height);
-		l_output->state->_box->width = width;
-		l_output->state->_box->height = height;
-		return l_output->state->_box;
+	l_output->state->_box->x = l_output->x;
+	l_output->state->_box->y = l_output->y;
+	int width, height;
+	wlr_output_effective_resolution(l_output->output, &width, &height);
+	l_output->state->_box->width = width;
+	l_output->state->_box->height = height;
+	return l_output->state->_box;
 }
 
 /**
@@ -150,20 +150,13 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 	return NULL;
 }
 
-static bool output_contains_point( struct wlr_output_layout_output *l_output,
-		int x, int y, int width, int height) {
-	return x >= l_output->x && x <= l_output->x + width &&
-		y >= l_output->y && y <= l_output->y + height;
-}
-
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y) {
 	if (reference) {
-		struct wlr_output_layout_output *layout_output =
+		struct wlr_output_layout_output *l_output =
 			wlr_output_layout_get(layout, reference);
-		int width, height;
-		wlr_output_effective_resolution(layout_output->output, &width, &height);
-		return output_contains_point(layout_output, x, y, width, height);
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		return wlr_box_contains_point(box, x, y);
 	} else {
 		return !!wlr_output_layout_output_at(layout, x, y);
 	}
@@ -173,17 +166,17 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, reference);
+
 	if (!l_output) {
 		return false;
 	}
-	int width, height;
-	wlr_output_effective_resolution(l_output->output, &width, &height);
 
-	// the output must contain one of the points
-	return output_contains_point(l_output, x1, y1, width, height) ||
-		output_contains_point(l_output, x2, y2, width, height) ||
-		output_contains_point(l_output, x2, y1, width, height) ||
-		output_contains_point(l_output, y2, x1, width, height);
+	// the output box must contain one of the points
+	struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+	return wlr_box_contains_point(box, x1, y1) ||
+		wlr_box_contains_point(box, x2, y2) ||
+		wlr_box_contains_point(box, x2, y1) ||
+		wlr_box_contains_point(box, y2, x1);
 }
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
@@ -191,11 +184,8 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
 		if (l_output->output) {
-			int width, height;
-			wlr_output_effective_resolution(l_output->output, &width, &height);
-			bool has_x = x >= l_output->x && x <= l_output->x + width;
-			bool has_y = y >= l_output->y && y <= l_output->y + height;
-			if (has_x && has_y) {
+			struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+			if (wlr_box_contains_point(box, x, y)) {
 				return l_output->output;
 			}
 		}
@@ -277,26 +267,31 @@ struct wlr_box *wlr_output_layout_get_box(
 	struct wlr_output_layout_output *l_output;
 	if (reference) {
 		// output extents
-		l_output= wlr_output_layout_get(layout, reference);
-		return wlr_output_layout_output_get_box(l_output);
+		l_output = wlr_output_layout_get(layout, reference);
+
+		if (l_output) {
+			return wlr_output_layout_output_get_box(l_output);
+		} else {
+			return NULL;
+		}
 	} else {
 		// layout extents
 		int min_x = INT_MAX, min_y = INT_MAX;
 		int max_x = INT_MIN, max_y = INT_MIN;
 		wl_list_for_each(l_output, &layout->outputs, link) {
-			int width, height;
-			wlr_output_effective_resolution(l_output->output, &width, &height);
-			if (l_output->x < min_x) {
-				min_x = l_output->x;
+			struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+
+			if (box->x < min_x) {
+				min_x = box->x;
 			}
-			if (l_output->y < min_y) {
-				min_y = l_output->y;
+			if (box->y < min_y) {
+				min_y = box->y;
 			}
-			if (l_output->x + width > max_x) {
-				max_x = l_output->x + width;
+			if (box->x + box->width > max_x) {
+				max_x = box->x + box->width;
 			}
-			if (l_output->y + height > max_y) {
-				max_y = l_output->y + height;
+			if (box->y + box->height > max_y) {
+				max_y = box->y + box->height;
 			}
 		}
 
