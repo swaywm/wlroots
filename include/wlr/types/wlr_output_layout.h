@@ -67,4 +67,15 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 struct wlr_box *wlr_output_layout_get_box(
 		struct wlr_output_layout *layout, struct wlr_output *reference);
 
+/**
+* Add an auto configured output to the layout. This will place the output in a
+* sensible location in the layout. The coordinates of the output in the layout
+* may adjust dynamically when the layout changes. If the output is already in
+* the layout, it will become auto configured. If the position of the output is
+* set such as with `wlr_output_layout_move()`, the output will become manually
+* configured.
+*/
+void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
+		struct wlr_output *output);
+
 #endif

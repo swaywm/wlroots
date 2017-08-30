@@ -34,6 +34,11 @@ struct example_config *parse_args(int argc, char *argv[]);
 
 void example_config_destroy(struct example_config *config);
 
-struct wlr_output_layout *configure_layout(struct example_config *config,
-		struct wl_list *outputs);
+/**
+ * Get configuration for the output. If the output is not configured, returns
+ * NULL.
+ */
+struct output_config *example_config_get_output(struct example_config *config,
+		struct wlr_output *output);
+
 #endif

@@ -12,7 +12,10 @@ struct wlr_output_layout_state {
 };
 
 struct wlr_output_layout_output_state {
+	struct wlr_output_layout *layout;
 	struct wlr_box *_box;
+	bool auto_configured;
+	struct wl_listener resolution;
 };
 
 struct wlr_output_layout *wlr_output_layout_init() {
@@ -47,16 +50,93 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 	free(layout);
 }
 
-void wlr_output_layout_add(struct wlr_output_layout *layout,
-		struct wlr_output *output, int x, int y) {
+static struct wlr_box *wlr_output_layout_output_get_box(
+		struct wlr_output_layout_output *l_output) {
+		l_output->state->_box->x = l_output->x;
+		l_output->state->_box->y = l_output->y;
+		int width, height;
+		wlr_output_effective_resolution(l_output->output, &width, &height);
+		l_output->state->_box->width = width;
+		l_output->state->_box->height = height;
+		return l_output->state->_box;
+}
+
+/**
+ * This must be called whenever the layout changes to reconfigure the auto
+ * configured outputs.
+ *
+ * Auto configured outputs are placed to the right of the north east corner of
+ * the rightmost output in the layout in a horizontal line.
+ */
+static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
+	int max_x = INT_MIN;
+	int max_x_y = INT_MIN; // y value for the max_x output
+
+	// find the rightmost x coordinate occupied by a manually configured output
+	// in the layout
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (l_output->state->auto_configured) {
+			continue;
+		}
+
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		if (box->x + box->width > max_x) {
+			max_x = box->x + box->width;
+			max_x_y = box->y;
+		}
+	}
+
+	if (max_x == INT_MIN) {
+		// there are no manually configured outputs
+		max_x = 0;
+		max_x_y = 0;
+	}
+
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (!l_output->state->auto_configured) {
+			continue;
+		}
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		l_output->x = max_x;
+		l_output->y = max_x_y;
+		max_x += box->width;
+	}
+}
+
+static void handle_output_resolution(struct wl_listener *listener, void *data) {
+	struct wlr_output_layout_output_state *state =
+		wl_container_of(listener, state, resolution);
+	wlr_output_layout_reconfigure(state->layout);
+}
+
+static struct wlr_output_layout_output *wlr_output_layout_output_create(
+		struct wlr_output_layout *layout, struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output;
 	l_output= calloc(1, sizeof(struct wlr_output_layout_output));
 	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
 	l_output->state->_box = calloc(1, sizeof(struct wlr_box));
+	l_output->state->layout = layout;
 	l_output->output = output;
+	wl_list_insert(&layout->outputs, &l_output->link);
+
+	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
+	l_output->state->resolution.notify = handle_output_resolution;
+
+	return l_output;
+}
+
+void wlr_output_layout_add(struct wlr_output_layout *layout,
+		struct wlr_output *output, int x, int y) {
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
+	if (!l_output) {
+		l_output = wlr_output_layout_output_create(layout, output);
+	}
 	l_output->x = x;
 	l_output->y = y;
-	wl_list_insert(&layout->outputs, &l_output->link);
+	l_output->state->auto_configured = false;
+	wlr_output_layout_reconfigure(layout);
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
@@ -130,6 +210,10 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 	if (l_output) {
 		l_output->x = x;
 		l_output->y = y;
+		l_output->state->auto_configured = false;
+		wlr_output_layout_reconfigure(layout);
+	} else {
+		wlr_log(L_ERROR, "output not found in this layout: %s", output->name);
 	}
 }
 
@@ -139,6 +223,7 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 	l_output= wlr_output_layout_get(layout, output);
 	if (l_output) {
 		wlr_output_layout_output_destroy(l_output);
+		wlr_output_layout_reconfigure(layout);
 	}
 }
 
@@ -156,15 +241,6 @@ void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 			return;
 		}
 	}
-}
-
-static struct wlr_box *wlr_output_layout_output_get_box(
-		struct wlr_output_layout_output *l_output) {
-		l_output->state->_box->x = l_output->x;
-		l_output->state->_box->y = l_output->y;
-		wlr_output_effective_resolution(l_output->output,
-			&l_output->state->_box->width, &l_output->state->_box->height);
-		return l_output->state->_box;
 }
 
 void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
@@ -233,4 +309,17 @@ struct wlr_box *wlr_output_layout_get_box(
 	}
 
 	// not reached
+}
+
+void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
+		struct wlr_output *output) {
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
+
+	if (!l_output) {
+		l_output = wlr_output_layout_output_create(layout, output);
+	}
+
+	l_output->state->auto_configured = true;
+	wlr_output_layout_reconfigure(layout);
 }

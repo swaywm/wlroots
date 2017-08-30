@@ -129,20 +129,22 @@ static void set_main_output(struct sample_state *sample,
 	sample->y_offs = l_output->y + 200;
 }
 
-static void handle_output_resolution(struct compositor_state *state, struct output_state *output) {
-	struct sample_state *sample = state->data;
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout = configure_layout(sample->config, &sample->outputs);
-	set_main_output(sample, output->output);
+static void handle_output_add(struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+	wl_list_insert(&sample->outputs, &ostate->link);
 
-}
+	struct output_config *o_config =
+		example_config_get_output(sample->config, ostate->output);
 
-static void handle_output_add(struct output_state *output) {
-	struct sample_state *sample = output->compositor->data;
-	wl_list_insert(&sample->outputs, &output->link);
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout = configure_layout(sample->config, &sample->outputs);
-	set_main_output(sample, output->output);
+	if (o_config) {
+		wlr_output_transform(ostate->output, o_config->transform);
+		wlr_output_layout_add(sample->layout, ostate->output, o_config->x,
+			o_config->y);
+	} else {
+		wlr_output_layout_add_auto(sample->layout, ostate->output);
+	}
+
+	set_main_output(sample, ostate->output);
 }
 
 static void update_velocities(struct compositor_state *state,
@@ -190,7 +192,6 @@ int main(int argc, char *argv[]) {
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_frame_cb = handle_output_frame;
-	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
