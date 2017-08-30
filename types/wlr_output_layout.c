@@ -29,6 +29,7 @@ struct wlr_output_layout *wlr_output_layout_init() {
 
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
+	wl_list_remove(&l_output->state->resolution.link);
 	wl_list_remove(&l_output->link);
 	free(l_output->state->_box);
 	free(l_output->state);

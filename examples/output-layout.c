@@ -42,6 +42,10 @@ static void handle_output_frame(struct output_state *output,
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
+	if (sample->main_output == NULL) {
+		sample->main_output = wlr_output;
+	}
+
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
@@ -124,15 +128,6 @@ static void handle_output_frame(struct output_state *output,
 	}
 }
 
-static void set_main_output(struct sample_state *sample,
-		struct wlr_output *output) {
-	sample->main_output = output;
-	struct wlr_output_layout_output *l_output;
-	l_output = wlr_output_layout_get(sample->layout, output);
-	sample->x_offs = l_output->x + 200;
-	sample->y_offs = l_output->y + 200;
-}
-
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
 	wl_list_insert(&sample->outputs, &ostate->link);
@@ -147,8 +142,16 @@ static void handle_output_add(struct output_state *ostate) {
 	} else {
 		wlr_output_layout_add_auto(sample->layout, ostate->output);
 	}
+}
 
-	set_main_output(sample, ostate->output);
+static void handle_output_remove(struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+
+	if (sample->main_output == ostate->output) {
+		sample->main_output = NULL;
+	}
+
+	wlr_output_layout_remove(sample->layout, ostate->output);
 }
 
 static void update_velocities(struct compositor_state *state,
@@ -195,6 +198,7 @@ int main(int argc, char *argv[]) {
 	struct compositor_state compositor = { 0 };
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
+	compositor.output_remove_cb = handle_output_remove;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
