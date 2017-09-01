@@ -32,8 +32,67 @@ struct sample_state {
 	struct wlr_output_layout *layout;
 	float x_offs, y_offs;
 	float x_vel, y_vel;
-	struct wlr_output *main_output;
+	struct timespec ts_last;
 };
+
+static void animate_cat(struct sample_state *sample,
+		struct wlr_output *output) {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	long ms = (ts.tv_sec - sample->ts_last.tv_sec) * 1000 +
+		(ts.tv_nsec - sample->ts_last.tv_nsec) / 1000000;
+	// how many seconds have passed since the last time we animated
+	float seconds = ms / 1000.0f;
+
+	if (seconds > 0.1f) {
+		// XXX when we switch vt, the rendering loop stops so try to detect
+		// that and pause when it happens.
+		seconds = 0.0f;
+	}
+
+	// check for collisions and bounce
+	bool ur_collision = !wlr_output_layout_output_at(sample->layout,
+			sample->x_offs + 128, sample->y_offs);
+	bool ul_collision = !wlr_output_layout_output_at(sample->layout,
+			sample->x_offs, sample->y_offs);
+	bool ll_collision = !wlr_output_layout_output_at(sample->layout,
+			sample->x_offs, sample->y_offs + 128);
+	bool lr_collision = !wlr_output_layout_output_at(sample->layout,
+			sample->x_offs + 128, sample->y_offs + 128);
+
+	if (ur_collision && ul_collision && ll_collision && lr_collision) {
+		// oops we went off the screen somehow
+		struct wlr_output_layout_output *l_output =
+			wlr_output_layout_get(sample->layout, output);
+		sample->x_offs = l_output->x + 20;
+		sample->y_offs = l_output->y + 20;
+	} else if (ur_collision && ul_collision) {
+		sample->y_vel = fabs(sample->y_vel);
+	} else if (lr_collision && ll_collision) {
+		sample->y_vel = -fabs(sample->y_vel);
+	} else if (ll_collision && ul_collision) {
+		sample->x_vel = fabs(sample->x_vel);
+	} else if (ur_collision && lr_collision) {
+		sample->x_vel = -fabs(sample->x_vel);
+	} else {
+		if (ur_collision || lr_collision) {
+			sample->x_vel = -fabs(sample->x_vel);
+		}
+		if (ul_collision || ll_collision) {
+			sample->x_vel = fabs(sample->x_vel);
+		}
+		if (ul_collision || ur_collision) {
+			sample->y_vel = fabs(sample->y_vel);
+		}
+		if (ll_collision || lr_collision) {
+			sample->y_vel = -fabs(sample->y_vel);
+		}
+	}
+
+	sample->x_offs += sample->x_vel * seconds;
+	sample->y_offs += sample->y_vel * seconds;
+	sample->ts_last = ts;
+}
 
 static void handle_output_frame(struct output_state *output,
 		struct timespec *ts) {
@@ -41,12 +100,10 @@ static void handle_output_frame(struct output_state *output,
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
-	if (sample->main_output == NULL) {
-		sample->main_output = wlr_output;
-	}
-
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(sample->renderer, wlr_output);
+
+	animate_cat(sample, output->output);
 
 	bool intersects = wlr_output_layout_intersects(sample->layout,
 		output->output, sample->x_offs, sample->y_offs,
@@ -65,66 +122,11 @@ static void handle_output_frame(struct output_state *output,
 			&wlr_output->transform_matrix, local_x, local_y);
 		wlr_render_with_matrix(sample->renderer,
 			sample->cat_texture, &matrix);
+
 	}
 
 	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
-
-	if (output->output == sample->main_output) {
-		long ms = (ts->tv_sec - output->last_frame.tv_sec) * 1000 +
-			(ts->tv_nsec - output->last_frame.tv_nsec) / 1000000;
-		// how many seconds have passed since the last frame
-		float seconds = ms / 1000.0f;
-
-		if (seconds > 0.1f) {
-			// XXX when we switch vt, the rendering loop stops so try to detect
-			// that and pause when it happens.
-			seconds = 0.0f;
-		}
-
-		// check for collisions and bounce
-		bool ur_collision = !wlr_output_layout_output_at(sample->layout,
-				sample->x_offs + 128, sample->y_offs);
-		bool ul_collision = !wlr_output_layout_output_at(sample->layout,
-				sample->x_offs, sample->y_offs);
-		bool ll_collision = !wlr_output_layout_output_at(sample->layout,
-				sample->x_offs, sample->y_offs + 128);
-		bool lr_collision = !wlr_output_layout_output_at(sample->layout,
-				sample->x_offs + 128, sample->y_offs + 128);
-
-		if (ur_collision && ul_collision && ll_collision && lr_collision) {
-			// oops we went off the screen somehow
-			struct wlr_output_layout_output *main_l_output;
-			main_l_output =
-				wlr_output_layout_get(sample->layout, sample->main_output);
-			sample->x_offs = main_l_output->x + 20;
-			sample->y_offs = main_l_output->y + 20;
-		} else if (ur_collision && ul_collision) {
-			sample->y_vel = fabs(sample->y_vel);
-		} else if (lr_collision && ll_collision) {
-			sample->y_vel = -fabs(sample->y_vel);
-		} else if (ll_collision && ul_collision) {
-			sample->x_vel = fabs(sample->x_vel);
-		} else if (ur_collision && lr_collision) {
-			sample->x_vel = -fabs(sample->x_vel);
-		} else {
-			if (ur_collision || lr_collision) {
-				sample->x_vel = -fabs(sample->x_vel);
-			}
-			if (ul_collision || ll_collision) {
-				sample->x_vel = fabs(sample->x_vel);
-			}
-			if (ul_collision || ur_collision) {
-				sample->y_vel = fabs(sample->y_vel);
-			}
-			if (ll_collision || lr_collision) {
-				sample->y_vel = -fabs(sample->y_vel);
-			}
-		}
-
-		sample->x_offs += sample->x_vel * seconds;
-		sample->y_offs += sample->y_vel * seconds;
-	}
 }
 
 static void handle_output_add(struct output_state *ostate) {
@@ -144,11 +146,6 @@ static void handle_output_add(struct output_state *ostate) {
 
 static void handle_output_remove(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
-
-	if (sample->main_output == ostate->output) {
-		sample->main_output = NULL;
-	}
-
 	wlr_output_layout_remove(sample->layout, ostate->output);
 }
 
@@ -189,6 +186,7 @@ int main(int argc, char *argv[]) {
 	state.x_vel = 500;
 	state.y_vel = 500;
 	state.layout = wlr_output_layout_init();
+	clock_gettime(CLOCK_MONOTONIC, &state.ts_last);
 
 	state.config = parse_args(argc, argv);
 
