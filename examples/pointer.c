@@ -132,11 +132,16 @@ static void handle_output_add(struct output_state *ostate) {
 	struct wlr_output *wlr_output = ostate->output;
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 
-	// reset layout
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout =
-        configure_layout(sample->config, &ostate->compositor->outputs);
-	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+	struct output_config *o_config =
+		example_config_get_output(sample->config, ostate->output);
+
+	if (o_config) {
+		wlr_output_transform(ostate->output, o_config->transform);
+		wlr_output_layout_add(sample->layout, ostate->output, o_config->x,
+			o_config->y);
+	} else {
+		wlr_output_layout_add_auto(sample->layout, ostate->output);
+	}
 
 	// cursor configuration
 	char *mapped_output = sample->config->cursor.mapped_output;
@@ -158,11 +163,9 @@ static void handle_output_add(struct output_state *ostate) {
 }
 
 static void handle_output_remove(struct output_state *ostate) {
-		struct sample_state *sample = ostate->compositor->data;
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout =
-        configure_layout(sample->config, &ostate->compositor->outputs);
-	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
+	struct sample_state *sample = ostate->compositor->data;
+
+	wlr_output_layout_remove(sample->layout, ostate->output);
 
 	configure_devices(sample);
 
@@ -170,15 +173,6 @@ static void handle_output_remove(struct output_state *ostate) {
 	if (mapped_output && strcmp(mapped_output, ostate->output->name) == 0) {
 		wlr_cursor_map_to_output(sample->cursor, NULL);
 	}
-}
-
-static void handle_output_resolution(struct compositor_state *state,
-		struct output_state *ostate) {
-	struct sample_state *sample = ostate->compositor->data;
-	wlr_output_layout_destroy(sample->layout);
-	sample->layout =
-        configure_layout(sample->config, &ostate->compositor->outputs);
-	wlr_cursor_attach_output_layout(sample->cursor, sample->layout);
 }
 
 static void handle_input_add(struct compositor_state *state,
@@ -341,6 +335,8 @@ int main(int argc, char *argv[]) {
 
 	state.config = parse_args(argc, argv);
 	state.cursor = wlr_cursor_create();
+	state.layout = wlr_output_layout_init();
+	wlr_cursor_attach_output_layout(state.cursor, state.layout);
 	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
 	wl_list_init(&state.devices);
 
@@ -380,7 +376,6 @@ int main(int argc, char *argv[]) {
 	compositor.data = &state;
 	compositor.output_add_cb = handle_output_add;
 	compositor.output_remove_cb = handle_output_remove;
-	compositor.output_resolution_cb = handle_output_resolution;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.input_add_cb = handle_input_add;
 	compositor.input_remove_cb = handle_input_remove;
@@ -407,4 +402,5 @@ int main(int argc, char *argv[]) {
 	wlr_xcursor_theme_destroy(theme);
 	example_config_destroy(state.config);
 	wlr_cursor_destroy(state.cursor);
+	wlr_output_layout_destroy(state.layout);
 }
