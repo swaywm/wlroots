@@ -28,6 +28,10 @@ struct wlr_output_layout *wlr_output_layout_init() {
 	layout->state = calloc(1, sizeof(struct wlr_output_layout_state));
 	layout->state->_box = calloc(1, sizeof(struct wlr_box));
 	wl_list_init(&layout->outputs);
+
+	wl_signal_init(&layout->events.change);
+	wl_signal_init(&layout->events.destroy);
+
 	return layout;
 }
 
@@ -45,6 +49,8 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 	if (!layout) {
 		return;
 	}
+
+	wl_signal_emit(&layout->events.destroy, layout);
 
 	struct wlr_output_layout_output *_output, *temp = NULL;
 	wl_list_for_each_safe(_output, temp, &layout->outputs, link) {
@@ -69,7 +75,7 @@ static struct wlr_box *wlr_output_layout_output_get_box(
 
 /**
  * This must be called whenever the layout changes to reconfigure the auto
- * configured outputs.
+ * configured outputs and emit the `changed` event.
  *
  * Auto configured outputs are placed to the right of the north east corner of
  * the rightmost output in the layout in a horizontal line.
@@ -108,6 +114,8 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 		l_output->y = max_x_y;
 		max_x += box->width;
 	}
+
+	wl_signal_emit(&layout->events.change, layout);
 }
 
 static void handle_output_resolution(struct wl_listener *listener, void *data) {

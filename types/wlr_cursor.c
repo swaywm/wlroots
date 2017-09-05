@@ -34,11 +34,15 @@ struct wlr_cursor_device {
 };
 
 struct wlr_cursor_state {
+	struct wlr_cursor *cursor;
 	struct wl_list devices;
 	struct wlr_output_layout *layout;
 	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
 	struct wlr_box *mapped_box;
+
+	struct wl_listener layout_change;
+	struct wl_listener layout_destroy;
 };
 
 struct wlr_cursor *wlr_cursor_create() {
@@ -55,6 +59,7 @@ struct wlr_cursor *wlr_cursor_create() {
 		return NULL;
 	}
 
+	cur->state->cursor = cur;
 	cur->state->mapped_output = NULL;
 
 	wl_list_init(&cur->state->devices);
@@ -83,7 +88,20 @@ struct wlr_cursor *wlr_cursor_create() {
 	return cur;
 }
 
+static void wlr_cursor_detach_output_layout(struct wlr_cursor *cur) {
+	if (!cur->state->layout) {
+		return;
+	}
+
+	wl_list_remove(&cur->state->layout_destroy.link);
+	wl_list_remove(&cur->state->layout_change.link);
+
+	cur->state->layout = NULL;
+}
+
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
+	wlr_cursor_detach_output_layout(cur);
+
 	struct wlr_cursor_device *device, *device_tmp = NULL;
 	wl_list_for_each_safe(device, device_tmp, &cur->state->devices, link) {
 		wl_list_remove(&device->link);
@@ -430,8 +448,42 @@ void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
 	}
 }
 
+static void handle_layout_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_state *state =
+		wl_container_of(listener, state, layout_change);
+	wlr_cursor_detach_output_layout(state->cursor);
+}
+
+static void handle_layout_change(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_state *state =
+		wl_container_of(listener, state, layout_change);
+	struct wlr_output_layout *layout = data;
+	if (!wlr_output_layout_contains_point(layout, NULL, state->cursor->x,
+			state->cursor->y)) {
+		// the output we were on has gone away so go to the closest boundary
+		// point
+		double x, y;
+		wlr_output_layout_closest_point(layout, NULL, state->cursor->x,
+			state->cursor->y, &x, &y);
+
+		wlr_cursor_warp_unchecked(state->cursor, x, y);
+	}
+}
+
 void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
 		struct wlr_output_layout *l) {
+	wlr_cursor_detach_output_layout(cur);
+
+	if (l == NULL) {
+		return;
+	}
+
+	wl_signal_add(&l->events.change, &cur->state->layout_change);
+	cur->state->layout_change.notify = handle_layout_change;
+
+	wl_signal_add(&l->events.destroy, &cur->state->layout_destroy);
+	cur->state->layout_destroy.notify = handle_layout_destroy;
+
 	cur->state->layout = l;
 }
 

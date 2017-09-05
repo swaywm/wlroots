@@ -9,6 +9,11 @@ struct wlr_output_layout_state;
 struct wlr_output_layout {
 	struct wl_list outputs;
 	struct wlr_output_layout_state *state;
+
+	struct {
+		struct wl_signal change;
+		struct wl_signal destroy;
+	} events;
 };
 
 struct wlr_output_layout_output_state;
