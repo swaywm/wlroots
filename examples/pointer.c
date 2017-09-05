@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
 
 	state.config = parse_args(argc, argv);
 	state.cursor = wlr_cursor_create();
-	state.layout = wlr_output_layout_init();
+	state.layout = wlr_output_layout_create();
 	wlr_cursor_attach_output_layout(state.cursor, state.layout);
 	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
 	wl_list_init(&state.devices);
