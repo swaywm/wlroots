@@ -266,3 +266,82 @@ struct output_config *example_config_get_output(struct example_config *config,
 
 	return NULL;
 }
+
+struct device_config *example_config_get_device(struct example_config *config,
+		struct wlr_input_device *device) {
+	struct device_config *d_config;
+	wl_list_for_each(d_config, &config->devices, link) {
+		if (strcmp(d_config->name, device->name) == 0) {
+			return d_config;
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * Set device output mappings to NULL and configure region mappings.
+ */
+static void reset_device_mappings(struct example_config *config,
+		struct wlr_cursor *cursor, struct wlr_input_device *device) {
+	struct device_config *d_config;
+	wlr_cursor_map_input_to_output(cursor, device, NULL);
+	d_config = example_config_get_device(config, device);
+	if (d_config) {
+		wlr_cursor_map_input_to_region(cursor, device,
+			d_config->mapped_box);
+	}
+}
+
+static void set_device_output_mappings(struct example_config *config,
+		struct wlr_cursor *cursor, struct wlr_output *output,
+		struct wlr_input_device *device) {
+	struct device_config *d_config;
+	d_config = example_config_get_device(config, device);
+	if (d_config &&
+			d_config->mapped_output &&
+			strcmp(d_config->mapped_output, output->name) == 0) {
+		wlr_cursor_map_input_to_output(cursor, device, output);
+	}
+}
+
+void example_config_configure_cursor(struct example_config *config,
+		struct wlr_cursor *cursor, struct compositor_state *compositor) {
+	struct pointer_state *p_state;
+	struct tablet_tool_state *tt_state;
+	struct touch_state *tch_state;
+	struct output_state *o_state;
+
+	// reset mappings
+	wlr_cursor_map_to_output(cursor, NULL);
+	wl_list_for_each(p_state, &compositor->pointers, link) {
+		reset_device_mappings(config, cursor, p_state->device);
+	}
+	wl_list_for_each(tt_state, &compositor->tablet_tools, link) {
+		reset_device_mappings(config, cursor, tt_state->device);
+	}
+	wl_list_for_each(tch_state, &compositor->touch, link) {
+		reset_device_mappings(config, cursor, tch_state->device);
+	}
+
+	// configure device to output mappings
+	char *mapped_output = config->cursor.mapped_output;
+	wl_list_for_each(o_state, &compositor->outputs, link) {
+		if (mapped_output && strcmp(mapped_output, o_state->output->name) == 0) {
+			wlr_cursor_map_to_output(cursor, o_state->output);
+		}
+
+		wl_list_for_each(p_state, &compositor->pointers, link) {
+			set_device_output_mappings(config, cursor, o_state->output,
+				p_state->device);
+		}
+		wl_list_for_each(tt_state, &compositor->tablet_tools, link) {
+			set_device_output_mappings(config, cursor, o_state->output,
+				tt_state->device);
+		}
+		wl_list_for_each(tch_state, &compositor->touch, link) {
+			set_device_output_mappings(config, cursor, o_state->output,
+				tch_state->device);
+		}
+	}
+}

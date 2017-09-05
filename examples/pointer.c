@@ -25,11 +25,6 @@
 #include "config.h"
 #include "cat.h"
 
-struct sample_input_device {
-	struct wlr_input_device *device;
-	struct wl_list link;
-};
-
 struct sample_state {
 	struct compositor_state *compositor;
 	struct example_config *config;
@@ -95,38 +90,6 @@ static void handle_output_frame(struct output_state *output,
 	wlr_output_swap_buffers(wlr_output);
 }
 
-static void configure_devices(struct sample_state *sample) {
-	struct sample_input_device *dev;
-	struct device_config *dc;
-
-	// reset device mappings
-	wl_list_for_each(dev, &sample->devices, link) {
-		wlr_cursor_map_input_to_output(sample->cursor, dev->device, NULL);
-		wl_list_for_each(dc, &sample->config->devices, link) {
-			if (strcmp(dev->device->name, dc->name) == 0) {
-				wlr_cursor_map_input_to_region(sample->cursor, dev->device,
-					dc->mapped_box);
-			}
-		}
-	}
-
-	struct output_state *ostate;
-	wl_list_for_each(ostate, &sample->compositor->outputs, link) {
-		wl_list_for_each(dc, &sample->config->devices, link) {
-			// configure device to output mappings
-			if (dc->mapped_output &&
-					strcmp(dc->mapped_output, ostate->output->name) == 0) {
-				wl_list_for_each(dev, &sample->devices, link) {
-					if (strcmp(dev->device->name, dc->name) == 0) {
-						wlr_cursor_map_input_to_output(sample->cursor,
-							dev->device, ostate->output);
-					}
-				}
-			}
-		}
-	}
-}
-
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
 	struct wlr_output *wlr_output = ostate->output;
@@ -143,13 +106,8 @@ static void handle_output_add(struct output_state *ostate) {
 		wlr_output_layout_add_auto(sample->layout, ostate->output);
 	}
 
-	// cursor configuration
-	char *mapped_output = sample->config->cursor.mapped_output;
-	if (mapped_output && strcmp(mapped_output, wlr_output->name) == 0) {
-		wlr_cursor_map_to_output(sample->cursor, wlr_output);
-	}
-
-	configure_devices(sample);
+	example_config_configure_cursor(sample->config, sample->cursor,
+		sample->compositor);
 
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
@@ -167,12 +125,8 @@ static void handle_output_remove(struct output_state *ostate) {
 
 	wlr_output_layout_remove(sample->layout, ostate->output);
 
-	configure_devices(sample);
-
-	char *mapped_output = sample->config->cursor.mapped_output;
-	if (mapped_output && strcmp(mapped_output, ostate->output->name) == 0) {
-		wlr_cursor_map_to_output(sample->cursor, NULL);
-	}
+	example_config_configure_cursor(sample->config, sample->cursor,
+		sample->compositor);
 }
 
 static void handle_input_add(struct compositor_state *state,
@@ -182,25 +136,9 @@ static void handle_input_add(struct compositor_state *state,
 	if (device->type == WLR_INPUT_DEVICE_POINTER ||
 			device->type == WLR_INPUT_DEVICE_TOUCH ||
 			device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		struct sample_input_device *s_device;
-		s_device = calloc(1, sizeof(struct sample_input_device));
-		s_device->device = device;
-
-		wl_list_insert(&sample->devices, &s_device->link);
 		wlr_cursor_attach_input_device(sample->cursor, device);
-		configure_devices(sample);
-	}
-}
-
-static void handle_input_remove(struct compositor_state *state,
-        struct wlr_input_device *device) {
-	struct sample_state *sample = state->data;
-	struct sample_input_device *s_device, *tmp = NULL;
-	wl_list_for_each_safe(s_device, tmp, &sample->devices, link) {
-		if (s_device->device == device) {
-			wl_list_remove(&s_device->link);
-			free(s_device);
-		}
+		example_config_configure_cursor(sample->config, sample->cursor,
+			sample->compositor);
 	}
 }
 
@@ -378,7 +316,6 @@ int main(int argc, char *argv[]) {
 	compositor.output_remove_cb = handle_output_remove;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.input_add_cb = handle_input_add;
-	compositor.input_remove_cb = handle_input_remove;
 
 	state.compositor = &compositor;
 
