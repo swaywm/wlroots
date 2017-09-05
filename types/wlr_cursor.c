@@ -354,6 +354,70 @@ static void handle_device_destroy(struct wl_listener *listener, void *data) {
 	wlr_cursor_detach_input_device(c_device->cursor, c_device->device);
 }
 
+static struct wlr_cursor_device *wlr_cursor_device_create(
+		struct wlr_cursor *cursor, struct wlr_input_device *device) {
+	struct wlr_cursor_device *c_device =
+		calloc(1, sizeof(struct wlr_cursor_device));
+	if (!c_device) {
+		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_device");
+		return NULL;
+	}
+
+	c_device->cursor = cursor;
+	c_device->device = device;
+
+	// listen to events
+	wl_signal_add(&device->events.destroy, &c_device->destroy);
+	c_device->destroy.notify = handle_device_destroy;
+
+	if (device->type == WLR_INPUT_DEVICE_POINTER) {
+		wl_signal_add(&device->pointer->events.motion, &c_device->motion);
+		c_device->motion.notify = handle_pointer_motion;
+
+		wl_signal_add(&device->pointer->events.motion_absolute,
+			&c_device->motion_absolute);
+		c_device->motion_absolute.notify = handle_pointer_motion_absolute;
+
+		wl_signal_add(&device->pointer->events.button, &c_device->button);
+		c_device->button.notify = handle_pointer_button;
+
+		wl_signal_add(&device->pointer->events.axis, &c_device->axis);
+		c_device->axis.notify = handle_pointer_axis;
+	} else if (device->type == WLR_INPUT_DEVICE_TOUCH) {
+		wl_signal_add(&device->touch->events.motion, &c_device->touch_motion);
+		c_device->touch_motion.notify = handle_touch_motion;
+
+		wl_signal_add(&device->touch->events.down, &c_device->touch_down);
+		c_device->touch_down.notify = handle_touch_down;
+
+		wl_signal_add(&device->touch->events.up, &c_device->touch_up);
+		c_device->touch_up.notify = handle_touch_up;
+
+		wl_signal_add(&device->touch->events.cancel, &c_device->touch_cancel);
+		c_device->touch_cancel.notify = handle_touch_cancel;
+	} else if (device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		wl_signal_add(&device->tablet_tool->events.tip,
+			&c_device->tablet_tool_tip);
+		c_device->tablet_tool_tip.notify = handle_tablet_tool_tip;
+
+		wl_signal_add(&device->tablet_tool->events.proximity,
+			&c_device->tablet_tool_proximity);
+		c_device->tablet_tool_proximity.notify = handle_tablet_tool_proximity;
+
+		wl_signal_add(&device->tablet_tool->events.axis,
+			&c_device->tablet_tool_axis);
+		c_device->tablet_tool_axis.notify = handle_tablet_tool_axis;
+
+		wl_signal_add(&device->tablet_tool->events.button,
+			&c_device->tablet_tool_button);
+		c_device->tablet_tool_button.notify = handle_tablet_tool_button;
+	}
+
+	wl_list_insert(&cursor->state->devices, &c_device->link);
+
+	return c_device;
+}
+
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
@@ -372,79 +436,41 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		}
 	}
 
-	struct wlr_cursor_device *device;
-	device = calloc(1, sizeof(struct wlr_cursor_device));
-	if (!device) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_device");
-		return;
-	}
+	wlr_cursor_device_create(cur, dev);
+}
 
-	device->cursor = cur;
-	device->device = dev;
-
-	// listen to events
-
-	wl_signal_add(&dev->events.destroy, &device->destroy);
-	device->destroy.notify = handle_device_destroy;
-
+static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
+	struct wlr_input_device *dev = c_device->device;
 	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
-		wl_signal_add(&dev->pointer->events.motion, &device->motion);
-		device->motion.notify = handle_pointer_motion;
-
-		wl_signal_add(&dev->pointer->events.motion_absolute,
-			&device->motion_absolute);
-		device->motion_absolute.notify = handle_pointer_motion_absolute;
-
-		wl_signal_add(&dev->pointer->events.button, &device->button);
-		device->button.notify = handle_pointer_button;
-
-		wl_signal_add(&dev->pointer->events.axis, &device->axis);
-		device->axis.notify = handle_pointer_axis;
+		wl_list_remove(&c_device->motion.link);
+		wl_list_remove(&c_device->motion_absolute.link);
+		wl_list_remove(&c_device->button.link);
+		wl_list_remove(&c_device->axis.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
-		wl_signal_add(&dev->touch->events.motion, &device->touch_motion);
-		device->touch_motion.notify = handle_touch_motion;
-
-		wl_signal_add(&dev->touch->events.down, &device->touch_down);
-		device->touch_down.notify = handle_touch_down;
-
-		wl_signal_add(&dev->touch->events.up, &device->touch_up);
-		device->touch_up.notify = handle_touch_up;
-
-		wl_signal_add(&dev->touch->events.cancel, &device->touch_cancel);
-		device->touch_cancel.notify = handle_touch_cancel;
+		wl_list_remove(&c_device->touch_down.link);
+		wl_list_remove(&c_device->touch_up.link);
+		wl_list_remove(&c_device->touch_motion.link);
+		wl_list_remove(&c_device->touch_cancel.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wl_signal_add(&dev->tablet_tool->events.tip, &device->tablet_tool_tip);
-		device->tablet_tool_tip.notify = handle_tablet_tool_tip;
-
-		wl_signal_add(&dev->tablet_tool->events.proximity,
-			&device->tablet_tool_proximity);
-		device->tablet_tool_proximity.notify = handle_tablet_tool_proximity;
-
-		wl_signal_add(&dev->tablet_tool->events.axis,
-			&device->tablet_tool_axis);
-		device->tablet_tool_axis.notify = handle_tablet_tool_axis;
-
-		wl_signal_add(&dev->tablet_tool->events.button,
-			&device->tablet_tool_button);
-		device->tablet_tool_button.notify = handle_tablet_tool_button;
+		wl_list_remove(&c_device->tablet_tool_axis.link);
+		wl_list_remove(&c_device->tablet_tool_proximity.link);
+		wl_list_remove(&c_device->tablet_tool_tip.link);
+		wl_list_remove(&c_device->tablet_tool_button.link);
 	}
 
-	wl_list_insert(&cur->state->devices, &device->link);
+	wl_list_remove(&c_device->link);
+	wl_list_remove(&c_device->destroy.link);
+	free(c_device);
+
 }
 
 void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
-	struct wlr_cursor_device *target_device = NULL, *_device = NULL;
-	wl_list_for_each(_device, &cur->state->devices, link) {
-		if (_device->device == dev) {
-			target_device = _device;
-			break;
+	struct wlr_cursor_device *c_device, *tmp = NULL;
+	wl_list_for_each_safe(c_device, tmp, &cur->state->devices, link) {
+		if (c_device->device == dev) {
+			wlr_cursor_device_destroy(c_device);
 		}
-	}
-
-	if (target_device) {
-		wl_list_remove(&target_device->link);
-		free(target_device);
 	}
 }
 
