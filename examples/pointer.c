@@ -151,15 +151,15 @@ static void handle_output_add(struct output_state *ostate) {
 
 	configure_devices(sample);
 
-	// TODO move to wlr_cursor
+	// TODO the cursor must be set depending on which surface it is displayed
+	// over which should happen in the compositor.
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
 			image->width, image->width, image->height)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
 		return;
 	}
-	if (!wlr_output_move_cursor(wlr_output, 0, 0)) {
-		wlr_log(L_DEBUG, "Failed to move hardware cursor");
-	}
+
+	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
 }
 
 static void handle_output_remove(struct output_state *ostate) {
