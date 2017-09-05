@@ -97,31 +97,29 @@ static void handle_output_frame(struct output_state *output,
 
 static void configure_devices(struct sample_state *sample) {
 	struct sample_input_device *dev;
-	struct device_config *dc;
+	struct device_config *d_config;
 
 	// reset device mappings
 	wl_list_for_each(dev, &sample->devices, link) {
 		wlr_cursor_map_input_to_output(sample->cursor, dev->device, NULL);
-		wl_list_for_each(dc, &sample->config->devices, link) {
-			if (strcmp(dev->device->name, dc->name) == 0) {
-				wlr_cursor_map_input_to_region(sample->cursor, dev->device,
-					dc->mapped_box);
-			}
+		d_config = example_config_get_device(sample->config, dev->device);
+		if (d_config) {
+			wlr_cursor_map_input_to_region(sample->cursor, dev->device,
+				d_config->mapped_box);
 		}
 	}
 
 	struct output_state *ostate;
 	wl_list_for_each(ostate, &sample->compositor->outputs, link) {
-		wl_list_for_each(dc, &sample->config->devices, link) {
+		struct wlr_output *output = ostate->output;
+		wl_list_for_each(dev, &sample->devices, link) {
 			// configure device to output mappings
-			if (dc->mapped_output &&
-					strcmp(dc->mapped_output, ostate->output->name) == 0) {
-				wl_list_for_each(dev, &sample->devices, link) {
-					if (strcmp(dev->device->name, dc->name) == 0) {
-						wlr_cursor_map_input_to_output(sample->cursor,
-							dev->device, ostate->output);
-					}
-				}
+			d_config = example_config_get_device(sample->config, dev->device);
+			if (d_config &&
+					d_config->mapped_output &&
+					strcmp(d_config->mapped_output, output->name) == 0) {
+				wlr_cursor_map_input_to_output(sample->cursor, dev->device,
+					ostate->output);
 			}
 		}
 	}

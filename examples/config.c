@@ -266,3 +266,15 @@ struct output_config *example_config_get_output(struct example_config *config,
 
 	return NULL;
 }
+
+struct device_config *example_config_get_device(struct example_config *config,
+		struct wlr_input_device *device) {
+	struct device_config *d_config;
+	wl_list_for_each(d_config, &config->devices, link) {
+		if (strcmp(d_config->name, device->name) == 0) {
+			return d_config;
+		}
+	}
+
+	return NULL;
+}
