@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
 
 	state.x_vel = 500;
 	state.y_vel = 500;
-	state.layout = wlr_output_layout_init();
+	state.layout = wlr_output_layout_create();
 	clock_gettime(CLOCK_MONOTONIC, &state.ts_last);
 
 	state.config = parse_args(argc, argv);

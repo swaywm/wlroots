@@ -25,7 +25,7 @@ struct wlr_output_layout_output {
 	struct wlr_output_layout_output_state *state;
 };
 
-struct wlr_output_layout *wlr_output_layout_init();
+struct wlr_output_layout *wlr_output_layout_create();
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);
 
