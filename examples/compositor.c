@@ -18,6 +18,7 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device_manager.h>
+#include <wlr/types/wlr_gamma_control.h>
 #include "wlr/types/wlr_compositor.h"
 #include <wlr/xwayland.h>
 #include <xkbcommon/xkbcommon.h>
@@ -37,6 +38,7 @@ struct sample_state {
 	struct wl_resource *focus;
 	struct wl_listener keyboard_bound;
 	struct wlr_xwayland *xwayland;
+	struct wlr_gamma_control_manager *gamma_control_manager;
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
@@ -162,6 +164,7 @@ int main() {
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
 	state.data_device_manager = wlr_data_device_manager_create(compositor.display);
+	state.gamma_control_manager = wlr_gamma_control_manager_create(compositor.display);
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	state.keyboard_bound.notify = handle_keyboard_bound;
@@ -191,6 +194,7 @@ int main() {
 	wlr_xwayland_destroy(state.xwayland);
 	close(state.keymap_fd);
 	wlr_seat_destroy(state.wl_seat);
+	wlr_gamma_control_manager_destroy(state.gamma_control_manager);
 	wlr_data_device_manager_destroy(state.data_device_manager);
 	wlr_xdg_shell_v6_destroy(state.xdg_shell);
 	wlr_wl_shell_destroy(state.wl_shell);
