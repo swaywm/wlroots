@@ -301,6 +301,23 @@ static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 	output->pageflip_pending = true;
 }
 
+static void wlr_drm_output_set_gamma(struct wlr_output *_output,
+		uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
+	struct wlr_drm_backend *backend =
+		wl_container_of(output->renderer, backend, renderer);
+	drmModeCrtcSetGamma(backend->fd, output->crtc->id, size, r, g, b);
+}
+
+static uint16_t wlr_drm_output_get_gamma_size(struct wlr_output *_output) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
+	drmModeCrtc *crtc = output->old_crtc;
+	if (!crtc) {
+		return 0;
+	}
+	return crtc->gamma_size;
+}
+
 void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
@@ -696,6 +713,8 @@ static struct wlr_output_impl output_impl = {
 	.destroy = wlr_drm_output_destroy,
 	.make_current = wlr_drm_output_make_current,
 	.swap_buffers = wlr_drm_output_swap_buffers,
+	.set_gamma = wlr_drm_output_set_gamma,
+	.get_gamma_size = wlr_drm_output_get_gamma_size,
 };
 
 static int find_id(const void *item, const void *cmp_to) {
