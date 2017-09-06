@@ -58,7 +58,7 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 	wlr_log(L_DEBUG, "new gamma_control %p (res %p)", gamma_control, gamma_control->resource);
 	wl_resource_set_implementation(gamma_control->resource,
 		&gamma_control_implementation, gamma_control, gamma_control_destroy);
-	gamma_control_send_gamma_size(_gamma_control_manager, wlr_output_get_gamma_size(output));
+	gamma_control_send_gamma_size(gamma_control->resource, wlr_output_get_gamma_size(output));
 }
 
 static struct gamma_control_manager_interface gamma_control_manager_impl = {
