@@ -20,6 +20,7 @@ lib_wlr_types = static_library(
 		'wlr_compositor.c',
 		'wlr_box.c',
 		'wlr_gamma_control.c',
+		'wlr_screenshooter.c',
 	),
 	include_directories: wlr_inc,
 	dependencies: [wayland_server, pixman, wlr_protos],
