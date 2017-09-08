@@ -247,3 +247,9 @@ uint16_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	}
 	return output->impl->get_gamma_size(output);
 }
+
+void wlr_output_read_pixels(struct wlr_output *output, void *out_data) {
+	if (output->impl->read_pixels) {
+		output->impl->read_pixels(output, out_data);
+	}
+}

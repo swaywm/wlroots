@@ -22,3 +22,9 @@ executable(
 	dependencies: wlroots,
 	link_with: lib_shared,
 )
+
+executable(
+	'screenshot',
+	'screenshot.c',
+	dependencies: [wayland_client, wlr_protos, dependency('cairo')],
+)

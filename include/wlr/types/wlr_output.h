@@ -70,5 +70,6 @@ void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint16_t wlr_output_get_gamma_size(struct wlr_output *output);
+void wlr_output_read_pixels(struct wlr_output *output, void *out_data);
 
 #endif

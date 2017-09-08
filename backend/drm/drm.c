@@ -634,6 +634,15 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, x, y);
 }
 
+static void wlr_drm_connector_read_pixels(struct wlr_output *_output,
+		void *out_data) {
+	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->primary;
+	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
+		out_data);
+}
+
 static void wlr_drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	wlr_drm_connector_cleanup(conn);
@@ -652,6 +661,7 @@ static struct wlr_output_impl output_impl = {
 	.swap_buffers = wlr_drm_connector_swap_buffers,
 	.set_gamma = wlr_drm_connector_set_gamma,
 	.get_gamma_size = wlr_drm_connector_get_gamma_size,
+	.read_pixels = wlr_drm_connector_read_pixels,
 };
 
 static int retry_pageflip(void *data) {
