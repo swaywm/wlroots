@@ -42,6 +42,8 @@ struct sample_state {
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
+
+	uint8_t gamma_expose;
 };
 
 /*
@@ -146,6 +148,24 @@ static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 	}
 }
 
+static bool global_filter_fun(const struct wl_client *client,
+		const struct wl_global *global, void *data) {
+	struct sample_state *state = data;
+	(void) client;
+
+	if (wl_global_get_user_data(global) == state->gamma_control_manager) {
+		++state->gamma_expose;
+		if (state->gamma_expose % 5 == 0) {
+			wlr_log(L_DEBUG, "Hiding gamma control");
+			return false;
+		}
+
+		wlr_log(L_DEBUG, "Exposing gamma control");
+	}
+
+	return true;
+}
+
 int main() {
 	struct sample_state state = { 0 };
 	struct compositor_state compositor = { 0,
@@ -159,6 +179,7 @@ int main() {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
+	wl_display_set_global_filter(compositor.display, global_filter_fun, &state);
 	wl_display_init_shm(compositor.display);
 	state.wlr_compositor = wlr_compositor_create(compositor.display, state.renderer);
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
