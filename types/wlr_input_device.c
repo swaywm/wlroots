@@ -30,7 +30,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	}
 
 	wl_signal_emit(&dev->events.destroy, dev);
-	
+
 	if (dev->_device) {
 		switch (dev->type) {
 		case WLR_INPUT_DEVICE_KEYBOARD:
@@ -58,6 +58,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (dev->impl && dev->impl->destroy) {
 		dev->impl->destroy(dev);
 	} else {
+		wl_list_remove(&dev->events.destroy.listener_list);
 		free(dev);
 	}
 }
