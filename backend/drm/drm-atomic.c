@@ -48,7 +48,7 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 		return false;
 	}
 
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK | flag;
+	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | flag;
 
 	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
 	if (ret) {
@@ -117,7 +117,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *backend,
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
 	return atomic_commit(backend->fd, &atom,
-			output, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0);
+			output, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : DRM_MODE_ATOMIC_NONBLOCK);
 }
 
 static void atomic_conn_enable(struct wlr_drm_backend *backend,
