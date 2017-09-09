@@ -748,6 +748,11 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		return;
 	}
 
+	size_t seen_len = backend->outputs->length;
+	// +1 so it can never be 0
+	bool seen[seen_len + 1];
+	memset(seen, 0, sizeof(seen));
+
 	for (int i = 0; i < res->count_connectors; ++i) {
 		drmModeConnector *conn = drmModeGetConnector(backend->fd,
 			res->connectors[i]);
@@ -791,7 +796,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 
 			size_t edid_len = 0;
 			uint8_t *edid = wlr_drm_get_prop_blob(backend->fd,
-					output->connector, output->props.edid, &edid_len);
+				output->connector, output->props.edid, &edid_len);
 			parse_edid(&output->output, edid_len, edid);
 			free(edid);
 
@@ -805,6 +810,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			wlr_log(L_INFO, "Found display '%s'", output->output.name);
 		} else {
 			output = backend->outputs->items[index];
+			seen[index] = true;
 		}
 
 		if (output->state == WLR_DRM_OUTPUT_DISCONNECTED &&
@@ -815,7 +821,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 
 			for (int i = 0; i < conn->count_modes; ++i) {
 				struct wlr_drm_output_mode *mode = calloc(1,
-						sizeof(struct wlr_drm_output_mode));
+					sizeof(struct wlr_drm_output_mode));
 				if (!mode) {
 					wlr_log_errno(L_ERROR, "Allocation failed");
 					continue;
@@ -850,6 +856,22 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 	}
 
 	drmModeFreeResources(res);
+
+	for (size_t i = seen_len; i-- > 0;) {
+		if (seen[i]) {
+			continue;
+		}
+
+		struct wlr_drm_output *output = backend->outputs->items[i];
+
+		wlr_log(L_INFO, "'%s' disappeared", output->output.name);
+		wlr_drm_output_cleanup(output, false);
+
+		drmModeFreeCrtc(output->old_crtc);
+		free(output);
+
+		list_del(backend->outputs, i);
+	}
 }
 
 static void page_flip_handler(int fd, unsigned seq,
