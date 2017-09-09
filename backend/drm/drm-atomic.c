@@ -53,6 +53,13 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
 	if (ret) {
 		wlr_log_errno(L_ERROR, "Atomic commit failed");
+
+		// Try to commit without new changes
+		drmModeAtomicSetCursor(atom->req, atom->cursor);
+		ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
+		if (ret) {
+			wlr_log_errno(L_ERROR, "Atomic commit failed");
+		}
 	}
 
 	drmModeAtomicSetCursor(atom->req, 0);
