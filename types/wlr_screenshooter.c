@@ -59,7 +59,7 @@ static void screenshooter_shoot(struct wl_client *client,
 	state->output = output;
 	state->screenshot = screenshot;
 	state->frame_listener.notify = output_frame_notify;
-	wl_signal_add(&output->events.frame, &state->frame_listener);
+	wl_signal_add(&output->events.post_frame, &state->frame_listener);
 }
 
 static struct orbital_screenshooter_interface screenshooter_impl = {

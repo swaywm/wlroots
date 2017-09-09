@@ -636,9 +636,9 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 
 static void wlr_drm_connector_read_pixels(struct wlr_output *_output,
 		void *out_data) {
-	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_crtc *crtc = output->crtc;
-	struct wlr_drm_plane *plane = crtc->primary;
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	struct wlr_drm_plane *plane = conn->crtc->primary;
+	wlr_drm_plane_make_current(conn->renderer, plane);
 	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
 		out_data);
 }
@@ -846,6 +846,7 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	if (drm->session->active) {
 		wl_signal_emit(&conn->output.events.frame, &conn->output);
+		wl_signal_emit(&conn->output.events.post_frame, &conn->output);
 	}
 }
 

@@ -105,6 +105,7 @@ void wlr_output_init(struct wlr_output *output,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.post_frame);
 	wl_signal_init(&output->events.resolution);
 	wl_signal_init(&output->events.destroy);
 }
