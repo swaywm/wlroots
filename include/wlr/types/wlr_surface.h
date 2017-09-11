@@ -42,6 +42,7 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
+		struct wl_signal destroy;
 	} signals;
 
 	struct wl_list frame_callback_list; // wl_surface.frame
