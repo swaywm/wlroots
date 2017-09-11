@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include "xdg-shell-unstable-v6-protocol.h"
+
+static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -114,8 +117,19 @@ static void xdg_surface_resource_destroy(struct wl_resource *resource) {
 static void xdg_surface_get_toplevel(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	// TODO: Flesh out
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	struct wlr_surface *wsurface = wl_resource_get_user_data(surface->surface);
+
+	if (wlr_surface_set_role(wsurface, wlr_desktop_xdg_toplevel_role,
+			resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
+		return;
+	}
+
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
+
 	struct wl_resource *toplevel_resource = wl_resource_create(client,
 		&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
+
 	wl_resource_set_implementation(toplevel_resource,
 		&zxdg_toplevel_v6_implementation, NULL, NULL);
 	struct wl_display *display = wl_client_get_display(client);
@@ -167,6 +181,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
 		return;
 	}
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
 	surface->surface = _surface;
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);

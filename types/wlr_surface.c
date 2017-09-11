@@ -422,3 +422,24 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	wlr_matrix_mul(matrix, &scale, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
 }
+
+int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
+		struct wl_resource *error_resource, uint32_t error_code) {
+	assert(role);
+
+	if (surface->role == NULL ||
+			surface->role == role ||
+			strcmp(surface->role, role) == 0) {
+		surface->role = role;
+
+		return 0;
+	}
+
+	wl_resource_post_error(error_resource, error_code,
+		"Cannot assign role %s to wl_surface@%d, already has role %s\n",
+		role,
+		wl_resource_get_id(surface->resource),
+		surface->role);
+
+	return -1;
+}
