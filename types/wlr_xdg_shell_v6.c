@@ -5,7 +5,8 @@
 #include <wlr/util/log.h>
 #include "xdg-shell-unstable-v6-protocol.h"
 
-static void resource_destroy(struct wl_client *client, struct wl_resource *resource) {
+static void resource_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
 	// TODO: we probably need to do more than this
 	wl_resource_destroy(resource);
 }
@@ -58,23 +59,28 @@ static void xdg_toplevel_set_maximized(struct wl_client *client,
 	wlr_log(L_DEBUG, "TODO: toplevel set maximized");
 }
 
-static void xdg_toplevel_unset_maximized(struct wl_client *client, struct wl_resource *resource) {
+static void xdg_toplevel_unset_maximized(struct wl_client *client,
+		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO: toplevel unset maximized");
 }
 
-static void xdg_toplevel_set_fullscreen(struct wl_client *client, struct wl_resource *resource, struct wl_resource *output_resource) {
+static void xdg_toplevel_set_fullscreen(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *output_resource) {
 	wlr_log(L_DEBUG, "TODO: toplevel set fullscreen");
 }
 
-static void xdg_toplevel_unset_fullscreen(struct wl_client *client, struct wl_resource *resource) {
+static void xdg_toplevel_unset_fullscreen(struct wl_client *client,
+		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO: toplevel unset fullscreen");
 }
 
-static void xdg_toplevel_set_minimized(struct wl_client *client, struct wl_resource *resource) {
+static void xdg_toplevel_set_minimized(struct wl_client *client,
+		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "TODO: toplevel set minimized");
 }
 
-static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation = {
+static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
+{
 	.destroy = resource_destroy,
 	.set_parent = xdg_toplevel_set_parent,
 	.set_title = xdg_toplevel_set_title,
@@ -118,7 +124,7 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	wlr_log(L_DEBUG, "TODO xdg surface ack configure");
 }
- 
+
 static void xdg_surface_set_window_geometry(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
@@ -175,13 +181,15 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 	struct wlr_xdg_shell_v6 *xdg_shell = _xdg_shell;
 	assert(wl_client && xdg_shell);
 	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported xdg_shell_v6 version, disconnecting");
+		wlr_log(L_ERROR,
+			"Client requested unsupported xdg_shell_v6 version, disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
-	struct wl_resource *wl_resource = wl_resource_create(
-		wl_client, &zxdg_shell_v6_interface, version, id);
-	wl_resource_set_implementation(wl_resource, &xdg_shell_impl, xdg_shell, xdg_shell_destroy);
+	struct wl_resource *wl_resource =
+		wl_resource_create( wl_client, &zxdg_shell_v6_interface, version, id);
+	wl_resource_set_implementation(wl_resource, &xdg_shell_impl, xdg_shell,
+		xdg_shell_destroy);
 	wl_list_insert(&xdg_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
