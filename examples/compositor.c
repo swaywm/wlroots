@@ -20,9 +20,12 @@
 #include <wlr/types/wlr_data_device_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include "wlr/types/wlr_compositor.h"
+#include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/xwayland.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wlr/util/log.h>
+#include "config.h"
 #include "shared.h"
 
 // TODO: move to common header?
@@ -30,6 +33,7 @@ int os_create_anonymous_file(off_t size);
 
 struct sample_state {
 	struct wlr_renderer *renderer;
+	struct compositor_state *compositor;
 	struct wlr_compositor *wlr_compositor;
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_seat *wl_seat;
@@ -42,6 +46,16 @@ struct sample_state {
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
+
+	struct example_config *config;
+	struct wlr_output_layout *layout;
+	struct wlr_cursor *cursor;
+	struct wlr_xcursor *xcursor;
+
+	struct wl_listener cursor_motion;
+	struct wl_listener cursor_motion_absolute;
+	struct wl_listener cursor_button;
+	struct wl_listener cursor_axis;
 };
 
 /*
@@ -71,7 +85,8 @@ static void output_frame_handle_surface(struct sample_state *sample,
 		}
 	}
 }
-static void handle_output_frame(struct output_state *output, struct timespec *ts) {
+static void handle_output_frame(struct output_state *output,
+		struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
@@ -81,23 +96,26 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	struct wlr_wl_shell_surface *wl_shell_surface;
 	wl_list_for_each(wl_shell_surface, &sample->wl_shell->surfaces, link) {
-		output_frame_handle_surface(sample, wlr_output, ts, wl_shell_surface->surface);
+		output_frame_handle_surface(sample, wlr_output, ts,
+			wl_shell_surface->surface);
 	}
 	struct wlr_xdg_surface_v6 *xdg_surface;
 	wl_list_for_each(xdg_surface, &sample->xdg_shell->surfaces, link) {
-		output_frame_handle_surface(sample, wlr_output, ts, xdg_surface->surface);
+		output_frame_handle_surface(sample, wlr_output, ts,
+			xdg_surface->surface);
 	}
 	struct wlr_x11_window *x11_window;
 	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {
-		output_frame_handle_surface(sample, wlr_output, ts, x11_window->surface);
+		output_frame_handle_surface(sample, wlr_output, ts,
+			x11_window->surface);
 	}
 
 	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
 }
 
-static void handle_keyboard_key(struct keyboard_state *keyboard, uint32_t keycode,
-	 	xkb_keysym_t sym, enum wlr_key_state key_state) {
+static void handle_keyboard_key(struct keyboard_state *keyboard,
+		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
 	struct compositor_state *state = keyboard->compositor;
 	struct sample_state *sample = state->data;
 
@@ -115,7 +133,8 @@ static void handle_keyboard_key(struct keyboard_state *keyboard, uint32_t keycod
 	if (res != sample->focus && seat_handle && seat_handle->keyboard) {
 		struct wl_array keys;
 		wl_array_init(&keys);
-		wl_keyboard_send_enter(seat_handle->keyboard, ++sample->serial, res, &keys);
+		wl_keyboard_send_enter(seat_handle->keyboard, ++sample->serial, res,
+			&keys);
 		sample->focus = res;
 	}
 
@@ -128,15 +147,17 @@ static void handle_keyboard_key(struct keyboard_state *keyboard, uint32_t keycod
 			XKB_STATE_MODS_LOCKED);
 		uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
 			XKB_STATE_LAYOUT_EFFECTIVE);
-		wl_keyboard_send_modifiers(seat_handle->keyboard, ++sample->serial, depressed,
-			latched, locked, group);
-		wl_keyboard_send_key(seat_handle->keyboard, ++sample->serial, 0, keycode, key_state);
+		wl_keyboard_send_modifiers(seat_handle->keyboard, ++sample->serial,
+			depressed, latched, locked, group);
+		wl_keyboard_send_key(seat_handle->keyboard, ++sample->serial, 0,
+			keycode, key_state);
 	}
 }
 
 static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 	struct wlr_seat_handle *handle = data;
-	struct sample_state *state = wl_container_of(listener, state, keyboard_bound);
+	struct sample_state *state =
+		wl_container_of(listener, state, keyboard_bound);
 
 	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
 		state->keymap_fd, state->keymap_size);
@@ -146,12 +167,135 @@ static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 	}
 }
 
-int main() {
+static void handle_cursor_motion(struct wl_listener *listener, void *data) {
+	struct sample_state *sample =
+		wl_container_of(listener, sample, cursor_motion);
+	struct wlr_event_pointer_motion *event = data;
+	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
+		event->delta_y);
+}
+
+static void handle_cursor_motion_absolute(struct wl_listener *listener,
+		void *data) {
+	struct sample_state *sample =
+		wl_container_of(listener, sample, cursor_motion_absolute);
+	struct wlr_event_pointer_motion_absolute *event = data;
+
+	wlr_cursor_warp_absolute(sample->cursor, event->device, event->x_mm,
+		event->y_mm);
+}
+
+static void handle_cursor_axis(struct wl_listener *listener, void *data) {
+	//struct sample_state *sample =
+	//wl_container_of(listener, sample, cursor_axis);
+	//struct wlr_event_pointer_axis *event = data;
+	wlr_log(L_DEBUG, "TODO: handle cursor axis");
+}
+
+static void handle_cursor_button(struct wl_listener *listener, void *data) {
+	//struct sample_state *sample =
+	//wl_container_of(listener, sample, cursor_button);
+	//struct wlr_event_pointer_button *event = data;
+	wlr_log(L_DEBUG, "TODO: handle cursor button");
+}
+
+static void handle_input_add(struct compositor_state *state,
+		struct wlr_input_device *device) {
+	struct sample_state *sample = state->data;
+
+	if (device->type == WLR_INPUT_DEVICE_POINTER ||
+			device->type == WLR_INPUT_DEVICE_TOUCH ||
+			device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		wlr_cursor_attach_input_device(sample->cursor, device);
+		example_config_configure_cursor(sample->config, sample->cursor,
+			sample->compositor);
+	}
+}
+
+static void handle_output_add(struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+	struct wlr_output *wlr_output = ostate->output;
+	struct wlr_xcursor_image *image = sample->xcursor->images[0];
+
+	struct output_config *o_config =
+		example_config_get_output(sample->config, ostate->output);
+
+	if (o_config) {
+		wlr_output_transform(ostate->output, o_config->transform);
+		wlr_output_layout_add(sample->layout, ostate->output, o_config->x,
+			o_config->y);
+	} else {
+		wlr_output_layout_add_auto(sample->layout, ostate->output);
+	}
+
+	example_config_configure_cursor(sample->config, sample->cursor,
+		sample->compositor);
+
+	// TODO the cursor must be set depending on which surface it is displayed
+	// over which should happen in the compositor.
+	if (!wlr_output_set_cursor(wlr_output, image->buffer,
+			image->width, image->width, image->height)) {
+		wlr_log(L_DEBUG, "Failed to set hardware cursor");
+		return;
+	}
+
+	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
+}
+
+static void handle_output_remove(struct output_state *ostate) {
+	struct sample_state *sample = ostate->compositor->data;
+
+	wlr_output_layout_remove(sample->layout, ostate->output);
+
+	example_config_configure_cursor(sample->config, sample->cursor,
+		sample->compositor);
+}
+
+int main(int argc, char *argv[]) {
 	struct sample_state state = { 0 };
 	struct compositor_state compositor = { 0,
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
 	};
+
+	compositor.input_add_cb = handle_input_add;
+	compositor.output_add_cb = handle_output_add;
+	compositor.output_remove_cb = handle_output_remove;
+
+	state.compositor = &compositor;
+	state.config = parse_args(argc, argv);
+	state.cursor = wlr_cursor_create();
+	state.layout = wlr_output_layout_create();
+	wlr_cursor_attach_output_layout(state.cursor, state.layout);
+	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
+
+	struct wlr_xcursor_theme *theme = wlr_xcursor_theme_load("default", 16);
+	if (!theme) {
+		wlr_log(L_ERROR, "Failed to load cursor theme");
+		return 1;
+	}
+	state.xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
+	if (!state.xcursor) {
+		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
+		return 1;
+	}
+
+	wlr_cursor_set_xcursor(state.cursor, state.xcursor);
+
+	// pointer events
+	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
+	state.cursor_motion.notify = handle_cursor_motion;
+
+	wl_signal_add(&state.cursor->events.motion_absolute,
+		&state.cursor_motion_absolute);
+	state.cursor_motion_absolute.notify = handle_cursor_motion_absolute;
+
+	wl_signal_add(&state.cursor->events.button, &state.cursor_button);
+	state.cursor_button.notify = handle_cursor_button;
+
+	wl_signal_add(&state.cursor->events.axis, &state.cursor_axis);
+	state.cursor_axis.notify = handle_cursor_axis;
+
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_create(compositor.backend);
@@ -160,11 +304,16 @@ int main() {
 		exit(EXIT_FAILURE);
 	}
 	wl_display_init_shm(compositor.display);
-	state.wlr_compositor = wlr_compositor_create(compositor.display, state.renderer);
+	state.wlr_compositor =
+		wlr_compositor_create(compositor.display, state.renderer);
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
-	state.data_device_manager = wlr_data_device_manager_create(compositor.display);
-	state.gamma_control_manager = wlr_gamma_control_manager_create(compositor.display);
+
+	state.data_device_manager =
+		wlr_data_device_manager_create(compositor.display);
+
+	state.gamma_control_manager =
+		wlr_gamma_control_manager_create(compositor.display);
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	state.keyboard_bound.notify = handle_keyboard_bound;
@@ -178,14 +327,15 @@ int main() {
 			XKB_KEYMAP_FORMAT_TEXT_V1);
 		state.keymap_size = strlen(keymap);
 		state.keymap_fd = os_create_anonymous_file(state.keymap_size);
-		void *ptr = mmap(NULL, state.keymap_size,
-				     PROT_READ | PROT_WRITE,
-				     MAP_SHARED, state.keymap_fd, 0);
+		void *ptr =
+			mmap(NULL, state.keymap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+				state.keymap_fd, 0);
 		strcpy(ptr, keymap);
 		free(keymap);
 		break;
 	}
-	state.xwayland = wlr_xwayland_create(compositor.display, state.wlr_compositor);
+	state.xwayland = wlr_xwayland_create(compositor.display,
+		state.wlr_compositor);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
