@@ -15,6 +15,8 @@ struct wlr_xdg_surface_v6 {
 	struct wl_resource *surface;
 	struct wl_list link;
 
+	struct wl_listener surface_destroy_listener;
+
 	void *data;
 };
 

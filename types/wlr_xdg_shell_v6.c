@@ -97,10 +97,18 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 	.set_minimized = xdg_toplevel_set_minimized
 };
 
-static void xdg_surface_destroy(struct wl_resource *resource) {
-	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
+	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
+	wl_list_remove(&surface->surface_destroy_listener.link);
 	free(surface);
+}
+
+static void xdg_surface_resource_destroy(struct wl_resource *resource) {
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	if (surface != NULL) {
+		xdg_surface_destroy(surface);
+	}
 }
 
 static void xdg_surface_get_toplevel(struct wl_client *client,
@@ -144,6 +152,13 @@ static void xdg_shell_create_positioner(struct wl_client *client,
 	wlr_log(L_DEBUG, "TODO: xdg shell create positioner");
 }
 
+static void handle_wlr_surface_destroyed(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface_v6 *xdg_surface =
+		wl_container_of(listener, xdg_surface, surface_destroy_listener);
+	xdg_surface_destroy(xdg_surface);
+}
+
 static void xdg_shell_get_xdg_surface(struct wl_client *client,
 		struct wl_resource *_xdg_shell, uint32_t id,
 		struct wl_resource *_surface) {
@@ -155,9 +170,14 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	surface->surface = _surface;
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);
+
+	wl_signal_add(&_surface->destroy_signal,
+		&surface->surface_destroy_listener);
+	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
-		&zxdg_surface_v6_implementation, surface, xdg_surface_destroy);
+		&zxdg_surface_v6_implementation, surface, xdg_surface_resource_destroy);
 	wl_list_insert(&xdg_shell->surfaces, &surface->link);
 }
 
