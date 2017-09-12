@@ -18,11 +18,12 @@ enum wlr_xdg_surface_v6_role {
 
 struct wlr_xdg_surface_v6 {
 	struct wl_resource *resource;
-	struct wl_resource *surface;
+	struct wlr_surface *surface;
 	struct wl_list link;
 	enum wlr_xdg_surface_v6_role role;
 
 	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_commit_listener;
 
 	void *data;
 };

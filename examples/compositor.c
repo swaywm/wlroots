@@ -102,7 +102,7 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_xdg_surface_v6 *xdg_surface;
 	wl_list_for_each(xdg_surface, &sample->xdg_shell->surfaces, link) {
 		output_frame_handle_surface(sample, wlr_output, ts,
-			xdg_surface->surface);
+			xdg_surface->surface->resource);
 	}
 	struct wlr_x11_window *x11_window;
 	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {

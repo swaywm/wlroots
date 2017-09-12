@@ -104,6 +104,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
+	wl_list_remove(&surface->surface_commit_listener.link);
 	free(surface);
 }
 
@@ -118,9 +119,8 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	// TODO: Flesh out
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_surface *wsurface = wl_resource_get_user_data(surface->surface);
 
-	if (wlr_surface_set_role(wsurface, wlr_desktop_xdg_toplevel_role,
+	if (wlr_surface_set_role(surface->surface, wlr_desktop_xdg_toplevel_role,
 			resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
 		return;
 	}
@@ -173,6 +173,11 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 	xdg_surface_destroy(xdg_surface);
 }
 
+static void handle_wlr_surface_committed(struct wl_listener *listener,
+		void *data) {
+	wlr_log(L_DEBUG, "TODO: handle wlr surface committed");
+}
+
 static void xdg_shell_get_xdg_surface(struct wl_client *client,
 		struct wl_resource *_xdg_shell, uint32_t id,
 		struct wl_resource *_surface) {
@@ -182,13 +187,17 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 		return;
 	}
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
-	surface->surface = _surface;
+	surface->surface = wl_resource_get_user_data(_surface);
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);
 
-	wl_signal_add(&_surface->destroy_signal,
+	wl_signal_add(&surface->surface->signals.destroy,
 		&surface->surface_destroy_listener);
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+
+	wl_signal_add(&surface->surface->signals.commit,
+			&surface->surface_commit_listener);
+	surface->surface_commit_listener.notify = handle_wlr_surface_committed;
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
