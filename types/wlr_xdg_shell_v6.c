@@ -1,5 +1,9 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_surface.h>
@@ -21,12 +25,30 @@ static void xdg_toplevel_set_parent(struct wl_client *client,
 
 static void xdg_toplevel_set_title(struct wl_client *client,
 		struct wl_resource *resource, const char *title) {
-	wlr_log(L_DEBUG, "TODO: toplevel set title");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	char *tmp;
+
+	tmp = strdup(title);
+	if (tmp == NULL) {
+		return;
+	}
+
+	free(surface->title);
+	surface->title = tmp;
 }
 
 static void xdg_toplevel_set_app_id(struct wl_client *client,
 		struct wl_resource *resource, const char *app_id) {
-	wlr_log(L_DEBUG, "TODO: toplevel set app id");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	char *tmp;
+
+	tmp = strdup(app_id);
+	if (tmp == NULL) {
+		return;
+	}
+
+	free(surface->app_id);
+	surface->app_id = tmp;
 }
 
 static void xdg_toplevel_show_window_menu(struct wl_client *client,
@@ -131,7 +153,7 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 		&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
 
 	wl_resource_set_implementation(toplevel_resource,
-		&zxdg_toplevel_v6_implementation, NULL, NULL);
+		&zxdg_toplevel_v6_implementation, surface, NULL);
 	struct wl_display *display = wl_client_get_display(client);
 	zxdg_surface_v6_send_configure(resource, wl_display_next_serial(display));
 }
