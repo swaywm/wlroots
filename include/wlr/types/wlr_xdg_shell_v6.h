@@ -1,5 +1,6 @@
 #ifndef _WLR_XDG_SHELL_V6_H
 #define _WLR_XDG_SHELL_V6_H
+#include <wlr/types/wlr_box.h>
 #include <wayland-server.h>
 
 struct wlr_xdg_shell_v6 {
@@ -24,6 +25,10 @@ struct wlr_xdg_surface_v6 {
 
 	char *title;
 	char *app_id;
+
+	bool has_next_geometry;
+	struct wlr_box *next_geometry;
+	struct wlr_box *geometry;
 
 	struct wl_listener surface_destroy_listener;
 	struct wl_listener surface_commit_listener;

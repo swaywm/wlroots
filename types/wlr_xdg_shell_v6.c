@@ -127,6 +127,8 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wl_list_remove(&surface->surface_commit_listener.link);
+	free(surface->geometry);
+	free(surface->next_geometry);
 	free(surface);
 }
 
@@ -172,7 +174,12 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 static void xdg_surface_set_window_geometry(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
-	wlr_log(L_DEBUG, "TODO xdg surface set window geometry");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->has_next_geometry = true;
+	surface->next_geometry->height = height;
+	surface->next_geometry->width = width;
+	surface->next_geometry->x = x;
+	surface->next_geometry->y = y;
 }
 
 static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
@@ -197,7 +204,17 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 
 static void handle_wlr_surface_committed(struct wl_listener *listener,
 		void *data) {
-	wlr_log(L_DEBUG, "TODO: handle wlr surface committed");
+
+	struct wlr_xdg_surface_v6 *surface =
+		wl_container_of(listener, surface, surface_commit_listener);
+
+	if (surface->has_next_geometry) {
+		surface->has_next_geometry = false;
+		surface->geometry->x = surface->next_geometry->x;
+		surface->geometry->y = surface->next_geometry->y;
+		surface->geometry->width = surface->next_geometry->width;
+		surface->geometry->height = surface->next_geometry->height;
+	}
 }
 
 static void xdg_shell_get_xdg_surface(struct wl_client *client,
@@ -208,6 +225,18 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
 		return;
 	}
+
+	if (!(surface->geometry = calloc(1, sizeof(struct wlr_box)))) {
+		free(surface);
+		return;
+	}
+
+	if (!(surface->next_geometry = calloc(1, sizeof(struct wlr_box)))) {
+		free(surface->geometry);
+		free(surface);
+		return;
+	}
+
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
 	surface->surface = wl_resource_get_user_data(_surface);
 	surface->resource = wl_resource_create(client,
