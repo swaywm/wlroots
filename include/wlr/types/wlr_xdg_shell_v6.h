@@ -17,11 +17,30 @@ enum wlr_xdg_surface_v6_role {
 	WLR_XDG_SURFACE_V6_ROLE_POPUP,
 };
 
+struct wlr_xdg_toplevel_v6_state {
+	bool maximized;
+	bool fullscreen;
+	bool resizing;
+	bool activated;
+
+	uint32_t max_width;
+	uint32_t max_height;
+
+	uint32_t min_width;
+	uint32_t min_height;
+};
+
+struct wlr_xdg_toplevel_v6 {
+	struct wlr_xdg_toplevel_v6_state next;
+	struct wlr_xdg_toplevel_v6_state current;
+};
+
 struct wlr_xdg_surface_v6 {
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
 	struct wl_list link;
 	enum wlr_xdg_surface_v6_role role;
+	struct wlr_xdg_toplevel_v6 *toplevel_state;
 
 	char *title;
 	char *app_id;

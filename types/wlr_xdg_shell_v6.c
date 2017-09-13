@@ -71,37 +71,46 @@ static void xdg_toplevel_resize(struct wl_client *client,
 
 static void xdg_toplevel_set_max_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
-	wlr_log(L_DEBUG, "TODO: toplevel set max size");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.max_width = width;
+	surface->toplevel_state->next.max_height = height;
 }
 
 static void xdg_toplevel_set_min_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
-	wlr_log(L_DEBUG, "TODO: toplevel set min size");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.min_width = width;
+	surface->toplevel_state->next.min_height = height;
 }
 
 static void xdg_toplevel_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel set maximized");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.maximized = true;
 }
 
 static void xdg_toplevel_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel unset maximized");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.maximized = false;
 }
 
 static void xdg_toplevel_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel set fullscreen");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.fullscreen = true;
 }
 
 static void xdg_toplevel_unset_fullscreen(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel unset fullscreen");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	surface->toplevel_state->next.fullscreen = false;
 }
 
 static void xdg_toplevel_set_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel set minimized");
+	// TODO event for minimization request
+	wlr_log(L_DEBUG, "TODO: xdg toplevel set minimized");
 }
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
@@ -141,11 +150,15 @@ static void xdg_surface_resource_destroy(struct wl_resource *resource) {
 
 static void xdg_surface_get_toplevel(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	// TODO: Flesh out
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 
 	if (wlr_surface_set_role(surface->surface, wlr_desktop_xdg_toplevel_role,
 			resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
+		return;
+	}
+
+	if (!(surface->toplevel_state =
+			calloc(1, sizeof(struct wlr_xdg_toplevel_v6)))) {
 		return;
 	}
 
@@ -202,6 +215,28 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 	xdg_surface_destroy(xdg_surface);
 }
 
+static void wlr_xdg_surface_v6_toplevel_committed(
+		struct wlr_xdg_surface_v6 *surface) {
+	surface->toplevel_state->current.maximized =
+		surface->toplevel_state->next.maximized;
+	surface->toplevel_state->current.fullscreen =
+		surface->toplevel_state->next.fullscreen;
+	surface->toplevel_state->current.resizing =
+		surface->toplevel_state->next.resizing;
+	surface->toplevel_state->current.activated =
+		surface->toplevel_state->next.activated;
+
+	surface->toplevel_state->current.max_width =
+		surface->toplevel_state->next.max_width;
+	surface->toplevel_state->current.max_height =
+		surface->toplevel_state->next.max_height;
+
+	surface->toplevel_state->current.min_width =
+		surface->toplevel_state->next.min_width;
+	surface->toplevel_state->current.min_height =
+		surface->toplevel_state->next.min_height;
+}
+
 static void handle_wlr_surface_committed(struct wl_listener *listener,
 		void *data) {
 
@@ -214,6 +249,10 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 		surface->geometry->y = surface->next_geometry->y;
 		surface->geometry->width = surface->next_geometry->width;
 		surface->geometry->height = surface->next_geometry->height;
+	}
+
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_surface_v6_toplevel_committed(surface);
 	}
 }
 
