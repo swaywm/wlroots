@@ -109,8 +109,8 @@ static void xdg_toplevel_unset_fullscreen(struct wl_client *client,
 
 static void xdg_toplevel_set_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
-	// TODO event for minimization request
-	wlr_log(L_DEBUG, "TODO: xdg toplevel set minimized");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	wl_signal_emit(&surface->events.request_minimize, surface);
 }
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
@@ -132,6 +132,7 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 };
 
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
+	wl_signal_emit(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
@@ -254,6 +255,8 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		wlr_xdg_surface_v6_toplevel_committed(surface);
 	}
+
+	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static void xdg_shell_get_xdg_surface(struct wl_client *client,
@@ -280,6 +283,10 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	surface->surface = wl_resource_get_user_data(_surface);
 	surface->resource = wl_resource_create(client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);
+
+	wl_signal_init(&surface->events.request_minimize);
+	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.destroy);
 
 	wl_signal_add(&surface->surface->signals.destroy,
 		&surface->surface_destroy_listener);

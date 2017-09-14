@@ -52,6 +52,12 @@ struct wlr_xdg_surface_v6 {
 	struct wl_listener surface_destroy_listener;
 	struct wl_listener surface_commit_listener;
 
+	struct {
+		struct wl_signal request_minimize;
+		struct wl_signal commit;
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 
