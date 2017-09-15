@@ -56,6 +56,8 @@ struct sample_state {
 	struct wl_listener cursor_motion_absolute;
 	struct wl_listener cursor_button;
 	struct wl_listener cursor_axis;
+
+	struct wl_listener new_xdg_surface_v6;
 };
 
 /*
@@ -85,6 +87,15 @@ static void output_frame_handle_surface(struct sample_state *sample,
 		}
 	}
 }
+
+static void handle_new_xdg_surface_v6(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface_v6 *surface = data;
+	wlr_log(L_DEBUG, "new xdg surface: title=%s, app_id=%s",
+		surface->title, surface->app_id);
+	// configure the surface and add it to data structures here
+}
+
 static void handle_output_frame(struct output_state *output,
 		struct timespec *ts) {
 	struct compositor_state *state = output->compositor;
@@ -309,6 +320,12 @@ int main(int argc, char *argv[]) {
 	state.wl_shell = wlr_wl_shell_create(compositor.display);
 	state.xdg_shell = wlr_xdg_shell_v6_create(compositor.display);
 
+	// shell events
+	wl_signal_add(&state.xdg_shell->events.new_surface,
+		&state.new_xdg_surface_v6);
+	state.new_xdg_surface_v6.notify = handle_new_xdg_surface_v6;
+
+
 	state.data_device_manager =
 		wlr_data_device_manager_create(compositor.display);
 
@@ -340,6 +357,8 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 
 	wl_display_run(compositor.display);
+
+	wl_list_remove(&state.new_xdg_surface_v6.link);
 
 	wlr_xwayland_destroy(state.xwayland);
 	close(state.keymap_fd);

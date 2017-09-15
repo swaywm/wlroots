@@ -8,6 +8,10 @@ struct wlr_xdg_shell_v6 {
 	struct wl_list wl_resources;
 	struct wl_list surfaces;
 
+	struct {
+		struct wl_signal new_surface;
+	} events;
+
 	void *data;
 };
 
@@ -53,10 +57,12 @@ struct wlr_xdg_surface_v6 {
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
+	struct wlr_xdg_shell_v6 *shell;
 	struct wl_list link;
 	enum wlr_xdg_surface_v6_role role;
 	struct wlr_xdg_toplevel_v6 *toplevel_state;
 
+	bool configured;
 	struct wl_event_source *configure_idle;
 	struct wl_list configure_list;
 
@@ -74,6 +80,7 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal request_minimize;
 		struct wl_signal commit;
 		struct wl_signal destroy;
+		struct wl_signal ack_configure;
 	} events;
 
 	void *data;

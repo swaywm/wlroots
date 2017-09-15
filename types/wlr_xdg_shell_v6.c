@@ -205,7 +205,6 @@ static void wlr_xdg_toplevel_v6_ack_configure(
 
 static void xdg_surface_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
-	wlr_log(L_DEBUG, "TODO xdg surface ack configure");
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 
 	// TODO handle popups
@@ -237,7 +236,13 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		wlr_xdg_toplevel_v6_ack_configure(surface, configure);
 	}
 
-	// TODO send ack_configure event?
+	if (!surface->configured) {
+		surface->configured = true;
+		wl_signal_emit(&surface->shell->events.new_surface, surface);
+	}
+
+	wl_signal_emit(&surface->events.ack_configure, surface);
+
 	free(configure);
 }
 
@@ -444,6 +449,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	}
 
 	surface->client = client;
+	surface->shell = xdg_shell;
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
 	surface->surface = wl_resource_get_user_data(_surface);
 	surface->resource = wl_resource_create(client,
@@ -454,6 +460,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	wl_signal_init(&surface->events.request_minimize);
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
+	wl_signal_init(&surface->events.ack_configure);
 
 	wl_signal_add(&surface->surface->signals.destroy,
 		&surface->surface_destroy_listener);
@@ -514,8 +521,12 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 		return NULL;
 	}
 	xdg_shell->wl_global = wl_global;
+
+	wl_signal_init(&xdg_shell->events.new_surface);
+
 	wl_list_init(&xdg_shell->wl_resources);
 	wl_list_init(&xdg_shell->surfaces);
+
 	return xdg_shell;
 }
 
