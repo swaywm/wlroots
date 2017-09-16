@@ -59,6 +59,13 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 	struct wlr_seat_handle *seat_handle =
 		wl_resource_get_user_data(seat_resource);
 
+	if (!surface->configured) {
+		wl_resource_post_error(surface->toplevel_state->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"surface has not been configured yet");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_show_window_menu_event *event =
 		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_show_window_menu_event));
 	if (event == NULL) {
@@ -85,6 +92,13 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 	struct wlr_seat_handle *seat_handle =
 		wl_resource_get_user_data(seat_resource);
 
+	if (!surface->configured) {
+		wl_resource_post_error(surface->toplevel_state->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"surface has not been configured yet");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_move_event *event =
 		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_move_event));
 	if (event == NULL) {
@@ -108,6 +122,13 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =
 		wl_resource_get_user_data(seat_resource);
+
+	if (!surface->configured) {
+		wl_resource_post_error(surface->toplevel_state->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"surface has not been configured yet");
+		return;
+	}
 
 	struct wlr_xdg_toplevel_v6_resize_event *event =
 		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_resize_event));
@@ -243,6 +264,7 @@ static void copy_toplevel_state(struct wlr_xdg_toplevel_v6_state *src,
 		struct wlr_xdg_toplevel_v6_state *dest) {
 	dest->width = src->width;
 	dest->height = src->height;
+
 	dest->max_width = src->max_width;
 	dest->max_height = src->max_height;
 	dest->min_width = src->min_width;
@@ -265,8 +287,10 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 
-	// TODO handle popups
-	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"xdg_surface must have a role");
 		return;
 	}
 
@@ -285,7 +309,9 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		}
 	}
 	if (!found) {
-		// TODO post error on the client resource
+		wl_resource_post_error(surface->client->resource,
+			ZXDG_SHELL_V6_ERROR_INVALID_SURFACE_STATE,
+			"wrong configure serial: %u", serial);
 		return;
 	}
 
@@ -308,6 +334,14 @@ static void xdg_surface_set_window_geometry(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"xdg_surface must have a role");
+		return;
+	}
+
 	surface->has_next_geometry = true;
 	surface->next_geometry->height = height;
 	surface->next_geometry->width = width;
@@ -400,9 +434,13 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 
 	surface->configure_idle = NULL;
 
-	// TODO handle no memory
 	struct wlr_xdg_surface_v6_configure *configure =
 		calloc(1, sizeof(struct wlr_xdg_surface_v6_configure));
+	if (configure == NULL) {
+		wl_client_post_no_memory(surface->client->client);
+		return;
+	}
+
 	wl_list_insert(surface->configure_list.prev, &configure->link);
 	configure->serial = wl_display_next_serial(display);
 
@@ -454,13 +492,19 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 
 static void wlr_xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
-	if (!surface->toplevel_state->added) {
+	if (!surface->surface->current.buffer && !surface->toplevel_state->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
 		wlr_xdg_surface_v6_schedule_configure(surface, true);
 		surface->toplevel_state->added = true;
 		return;
 	}
+
+	if (!surface->surface->current.buffer) {
+		return;
+	}
+
+	// TODO: error if they try to resize a maximized or fullscreen window
 
 	copy_toplevel_state(&surface->toplevel_state->next,
 		&surface->toplevel_state->current);
@@ -471,6 +515,13 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	struct wlr_xdg_surface_v6 *surface =
 		wl_container_of(listener, surface, surface_commit_listener);
 
+	if (surface->surface->current.buffer && !surface->configured) {
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
+			"xdg_surface has never been configured");
+		return;
+	}
+
 	if (surface->has_next_geometry) {
 		surface->has_next_geometry = false;
 		surface->geometry->x = surface->next_geometry->x;
@@ -479,8 +530,18 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 		surface->geometry->height = surface->next_geometry->height;
 	}
 
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"xdg_surface must have a role");
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		wlr_xdg_surface_v6_toplevel_committed(surface);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		wlr_log(L_DEBUG, "TODO: popup surface committed");
+		break;
 	}
 
 	wl_signal_emit(&surface->events.commit, surface);
@@ -491,6 +552,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 		struct wl_resource *surface_resource) {
 	struct wlr_xdg_client_v6 *client =
 		wl_resource_get_user_data(client_resource);
+
 	struct wlr_xdg_surface_v6 *surface;
 	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
 		wl_client_post_no_memory(wl_client);
@@ -516,6 +578,13 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	surface->resource = wl_resource_create(wl_client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(client_resource),
 		id);
+
+	if (surface->surface->current.buffer != NULL) {
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
+			"xdg_surface must not have a buffer at creation");
+		return;
+	}
 
 	wl_list_init(&surface->configure_list);
 
