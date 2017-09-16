@@ -63,7 +63,7 @@ struct wlr_xdg_toplevel_v6 {
 struct wlr_xdg_surface_v6_configure {
 	struct wl_list link; // wlr_xdg_surface_v6::configure_list
 	uint32_t serial;
-	struct wlr_xdg_toplevel_v6_state *state;
+	struct wlr_xdg_toplevel_v6_state state;
 };
 
 struct wlr_xdg_surface_v6 {

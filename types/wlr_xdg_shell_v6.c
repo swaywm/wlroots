@@ -260,27 +260,13 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	wlr_log(L_DEBUG, "TODO xdg surface get popup");
 }
 
-static void copy_toplevel_state(struct wlr_xdg_toplevel_v6_state *src,
-		struct wlr_xdg_toplevel_v6_state *dest) {
-	dest->width = src->width;
-	dest->height = src->height;
-
-	dest->max_width = src->max_width;
-	dest->max_height = src->max_height;
-	dest->min_width = src->min_width;
-	dest->min_height = src->min_height;
-
-	dest->fullscreen = src->fullscreen;
-	dest->resizing = src->resizing;
-	dest->activated = src->activated;
-	dest->maximized = src->maximized;
-}
-
 static void wlr_xdg_toplevel_v6_ack_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	copy_toplevel_state(configure->state, &surface->toplevel_state->next);
+	surface->toplevel_state->next = configure->state;
+	surface->toplevel_state->pending.width = 0;
+	surface->toplevel_state->pending.height = 0;
 }
 
 static void xdg_surface_ack_configure(struct wl_client *client,
@@ -347,6 +333,7 @@ static void xdg_surface_set_window_geometry(struct wl_client *client,
 	surface->next_geometry->width = width;
 	surface->next_geometry->x = x;
 	surface->next_geometry->y = y;
+
 }
 
 static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
@@ -397,7 +384,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	uint32_t *s;
 	struct wl_array states;
 
-	configure->state = &surface->toplevel_state->pending;
+	configure->state = surface->toplevel_state->pending;
 
 	wl_array_init(&states);
 	if (surface->toplevel_state->pending.maximized) {
@@ -417,10 +404,16 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
 	}
 
-	zxdg_toplevel_v6_send_configure(surface->toplevel_state->resource,
-		surface->toplevel_state->pending.width,
-		surface->toplevel_state->pending.height,
-		&states);
+	uint32_t width = surface->toplevel_state->pending.width;
+	uint32_t height = surface->toplevel_state->pending.height;
+
+	if (width == 0 || height == 0) {
+		width = surface->geometry->width;
+		height = surface->geometry->height;
+	}
+
+	zxdg_toplevel_v6_send_configure(surface->toplevel_state->resource, width,
+		height, &states);
 
 	wl_array_release(&states);
 }
@@ -506,8 +499,7 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 
 	// TODO: error if they try to resize a maximized or fullscreen window
 
-	copy_toplevel_state(&surface->toplevel_state->next,
-		&surface->toplevel_state->current);
+	surface->toplevel_state->current = surface->toplevel_state->next;
 }
 
 static void handle_wlr_surface_committed(struct wl_listener *listener,
