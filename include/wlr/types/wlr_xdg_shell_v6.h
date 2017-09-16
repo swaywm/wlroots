@@ -5,8 +5,8 @@
 
 struct wlr_xdg_shell_v6 {
 	struct wl_global *wl_global;
-	struct wl_list wl_resources;
-	struct wl_list surfaces;
+	struct wl_list clients;
+	uint32_t ping_timeout;
 
 	struct {
 		struct wl_signal new_surface;
@@ -14,6 +14,19 @@ struct wlr_xdg_shell_v6 {
 
 	void *data;
 };
+
+struct wlr_xdg_client_v6 {
+	struct wlr_xdg_shell_v6 *shell;
+	struct wl_resource *resource;
+	struct wl_client *client;
+	struct wl_list surfaces;
+
+	struct wl_list link; // wlr_xdg_shell_v6::clients
+
+	uint32_t ping_serial;
+	struct wl_event_source *ping_timer;
+};
+
 
 enum wlr_xdg_surface_v6_role {
 	WLR_XDG_SURFACE_V6_ROLE_NONE,
@@ -54,11 +67,10 @@ struct wlr_xdg_surface_v6_configure {
 };
 
 struct wlr_xdg_surface_v6 {
-	struct wl_client *client;
+	struct wlr_xdg_client_v6 *client;
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
-	struct wlr_xdg_shell_v6 *shell;
-	struct wl_list link;
+	struct wl_list link; // wlr_xdg_client_v6::surfaces
 	enum wlr_xdg_surface_v6_role role;
 	struct wlr_xdg_toplevel_v6 *toplevel_state;
 
@@ -80,6 +92,7 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal commit;
 		struct wl_signal destroy;
 		struct wl_signal ack_configure;
+		struct wl_signal ping_timeout;
 
 		struct wl_signal request_minimize;
 		struct wl_signal request_move;
@@ -116,6 +129,12 @@ struct wlr_xdg_toplevel_v6_show_window_menu_event {
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
 void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell);
+
+/**
+ * Send a ping to the surface. If the surface does not respond in a reasonable
+ * amount of time, the ping_timeout event will be emitted.
+ */
+void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface);
 
 /**
  * Request that this toplevel surface be the given size.

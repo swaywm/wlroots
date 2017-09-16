@@ -296,7 +296,7 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 
 	if (!surface->configured) {
 		surface->configured = true;
-		wl_signal_emit(&surface->shell->events.new_surface, surface);
+		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
 	}
 
 	wl_signal_emit(&surface->events.ack_configure, surface);
@@ -393,7 +393,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 
 static void wlr_xdg_surface_send_configure(void *user_data) {
 	struct wlr_xdg_surface_v6 *surface = user_data;
-	struct wl_display *display = wl_client_get_display(surface->client);
+	struct wl_display *display = wl_client_get_display(surface->client->client);
 
 	// TODO handle popups
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -416,7 +416,7 @@ static void wlr_xdg_surface_v6_schedule_configure(
 	// TODO handle popups
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
-	struct wl_display *display = wl_client_get_display(surface->client);
+	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
 	bool pending_same = !force &&
@@ -486,32 +486,36 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	wl_signal_emit(&surface->events.commit, surface);
 }
 
-static void xdg_shell_get_xdg_surface(struct wl_client *client,
-		struct wl_resource *_xdg_shell, uint32_t id,
-		struct wl_resource *_surface) {
-	struct wlr_xdg_shell_v6 *xdg_shell = wl_resource_get_user_data(_xdg_shell);
+static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
+		struct wl_resource *client_resource, uint32_t id,
+		struct wl_resource *surface_resource) {
+	struct wlr_xdg_client_v6 *client =
+		wl_resource_get_user_data(client_resource);
 	struct wlr_xdg_surface_v6 *surface;
 	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
+		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
 	if (!(surface->geometry = calloc(1, sizeof(struct wlr_box)))) {
 		free(surface);
+		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
 	if (!(surface->next_geometry = calloc(1, sizeof(struct wlr_box)))) {
 		free(surface->geometry);
 		free(surface);
+		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
 	surface->client = client;
-	surface->shell = xdg_shell;
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
-	surface->surface = wl_resource_get_user_data(_surface);
-	surface->resource = wl_resource_create(client,
-		&zxdg_surface_v6_interface, wl_resource_get_version(_xdg_shell), id);
+	surface->surface = wl_resource_get_user_data(surface_resource);
+	surface->resource = wl_resource_create(wl_client,
+		&zxdg_surface_v6_interface, wl_resource_get_version(client_resource),
+		id);
 
 	wl_list_init(&surface->configure_list);
 
@@ -522,6 +526,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ack_configure);
+	wl_signal_init(&surface->events.ping_timeout);
 
 	wl_signal_add(&surface->surface->signals.destroy,
 		&surface->surface_destroy_listener);
@@ -534,12 +539,19 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
 		&zxdg_surface_v6_implementation, surface, xdg_surface_resource_destroy);
-	wl_list_insert(&xdg_shell->surfaces, &surface->link);
+	wl_list_insert(&client->surfaces, &surface->link);
 }
 
-static void xdg_shell_pong(struct wl_client *client,
+static void xdg_shell_pong(struct wl_client *wl_client,
 		struct wl_resource *resource, uint32_t serial) {
-	wlr_log(L_DEBUG, "TODO xdg shell pong");
+	struct wlr_xdg_client_v6 *client = wl_resource_get_user_data(resource);
+
+	if (client->ping_serial != serial) {
+		return;
+	}
+
+	wl_event_source_timer_update(client->ping_timer, 0);
+	client->ping_serial = 0;
 }
 
 static struct zxdg_shell_v6_interface xdg_shell_impl = {
@@ -548,8 +560,36 @@ static struct zxdg_shell_v6_interface xdg_shell_impl = {
 	.pong = xdg_shell_pong,
 };
 
-static void xdg_shell_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
+static void wlr_xdg_client_v6_destroy(struct wl_resource *resource) {
+	struct wlr_xdg_client_v6 *client = wl_resource_get_user_data(resource);
+	struct wl_list *list = &client->surfaces;
+	struct wl_list *link, *tmp;
+
+	for (link = list->next, tmp = link->next;
+			link != list;
+			link = tmp, tmp = link->next) {
+		wl_list_remove(link);
+		wl_list_init(link);
+	}
+
+	if (client->ping_timer != NULL) {
+		wl_event_source_remove(client->ping_timer);
+	}
+
+	wl_list_remove(&client->link);
+	free(client);
+}
+
+static int wlr_xdg_client_v6_ping_timeout(void *user_data) {
+	struct wlr_xdg_client_v6 *client = user_data;
+
+	struct wlr_xdg_surface_v6 *surface;
+	wl_list_for_each(surface, &client->surfaces, link) {
+		wl_signal_emit(&surface->events.ping_timeout, surface);
+	}
+
+	client->ping_serial = 0;
+	return 1;
 }
 
 static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
@@ -562,11 +602,31 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 		wl_client_destroy(wl_client);
 		return;
 	}
-	struct wl_resource *wl_resource =
-		wl_resource_create( wl_client, &zxdg_shell_v6_interface, version, id);
-	wl_resource_set_implementation(wl_resource, &xdg_shell_impl, xdg_shell,
-		xdg_shell_destroy);
-	wl_list_insert(&xdg_shell->wl_resources, wl_resource_get_link(wl_resource));
+	struct wlr_xdg_client_v6 *client =
+		calloc(1, sizeof(struct wlr_xdg_client_v6));
+	if (client == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
+
+	wl_list_init(&client->surfaces);
+
+	client->resource =
+		wl_resource_create(wl_client, &zxdg_shell_v6_interface, version, id);
+	client->client = wl_client;
+	client->shell = xdg_shell;
+
+	wl_resource_set_implementation(client->resource, &xdg_shell_impl, client,
+		wlr_xdg_client_v6_destroy);
+	wl_list_insert(&xdg_shell->clients, &client->link);
+
+	struct wl_display *display = wl_client_get_display(client->client);
+	struct wl_event_loop *loop = wl_display_get_event_loop(display);
+	client->ping_timer = wl_event_loop_add_timer(loop,
+		wlr_xdg_client_v6_ping_timeout, client);
+	if (client->ping_timer == NULL) {
+		wl_client_post_no_memory(client->client);
+	}
 }
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
@@ -575,6 +635,11 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	if (!xdg_shell) {
 		return NULL;
 	}
+
+	xdg_shell->ping_timeout = 10000;
+
+	wl_list_init(&xdg_shell->clients);
+
 	struct wl_global *wl_global = wl_global_create(display,
 		&zxdg_shell_v6_interface, 1, xdg_shell, xdg_shell_bind);
 	if (!wl_global) {
@@ -585,9 +650,6 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 
 	wl_signal_init(&xdg_shell->events.new_surface);
 
-	wl_list_init(&xdg_shell->wl_resources);
-	wl_list_init(&xdg_shell->surfaces);
-
 	return xdg_shell;
 }
 
@@ -595,15 +657,25 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 	if (!xdg_shell) {
 		return;
 	}
-	struct wl_resource *resource = NULL, *temp = NULL;
-	wl_resource_for_each_safe(resource, temp, &xdg_shell->wl_resources) {
-		struct wl_list *link = wl_resource_get_link(resource);
-		wl_list_remove(link);
-	}
-	// TODO: destroy surfaces
+	// TODO: disconnect clients and destroy surfaces
+
 	// TODO: this segfault (wl_display->registry_resource_list is not init)
 	// wl_global_destroy(xdg_shell->wl_global);
 	free(xdg_shell);
+}
+
+void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
+	if (surface->client->ping_serial != 0) {
+		// already pinged
+		return;
+	}
+
+	surface->client->ping_serial =
+		wl_display_next_serial(wl_client_get_display(surface->client->client));
+	wl_event_source_timer_update(surface->client->ping_timer,
+		surface->client->shell->ping_timeout);
+	zxdg_shell_v6_send_ping(surface->client->resource,
+		surface->client->ping_serial);
 }
 
 void wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,

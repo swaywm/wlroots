@@ -64,6 +64,7 @@ struct example_xdg_surface_v6 {
 	struct wlr_xdg_surface_v6 *surface;
 
 	struct wl_listener destroy_listener;
+	struct wl_listener ping_timeout_listener;
 	struct wl_listener request_minimize_listener;
 	struct wl_listener request_move_listener;
 	struct wl_listener request_resize_listener;
@@ -98,11 +99,18 @@ static void output_frame_handle_surface(struct sample_state *sample,
 	}
 }
 
+static void handle_xdg_surface_v6_ping_timeout(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface_v6 *surface = data;
+	wlr_log(L_DEBUG, "got ping timeout for surface: %s", surface->title);
+}
+
 static void handle_xdg_surface_v6_destroy(struct wl_listener *listener,
 		void *data) {
 	struct example_xdg_surface_v6 *example_surface =
 		wl_container_of(listener, example_surface, destroy_listener);
 	wl_list_remove(&example_surface->destroy_listener.link);
+	wl_list_remove(&example_surface->ping_timeout_listener.link);
 	wl_list_remove(&example_surface->request_move_listener.link);
 	wl_list_remove(&example_surface->request_resize_listener.link);
 	wl_list_remove(&example_surface->request_show_window_menu_listener.link);
@@ -150,6 +158,8 @@ static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 	wlr_log(L_DEBUG, "new xdg surface: title=%s, app_id=%s",
 		surface->title, surface->app_id);
 
+	wlr_xdg_surface_v6_ping(surface);
+
 	struct example_xdg_surface_v6 *esurface =
 		calloc(1, sizeof(struct example_xdg_surface_v6));
 	if (esurface == NULL) {
@@ -160,6 +170,10 @@ static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 
 	wl_signal_add(&surface->events.destroy, &esurface->destroy_listener);
 	esurface->destroy_listener.notify = handle_xdg_surface_v6_destroy;
+
+	wl_signal_add(&surface->events.ping_timeout,
+		&esurface->ping_timeout_listener);
+	esurface->ping_timeout_listener.notify = handle_xdg_surface_v6_ping_timeout;
 
 	wl_signal_add(&surface->events.request_move,
 		&esurface->request_move_listener);
@@ -196,9 +210,12 @@ static void handle_output_frame(struct output_state *output,
 			wl_shell_surface->surface);
 	}
 	struct wlr_xdg_surface_v6 *xdg_surface;
-	wl_list_for_each(xdg_surface, &sample->xdg_shell->surfaces, link) {
-		output_frame_handle_surface(sample, wlr_output, ts,
-			xdg_surface->surface->resource);
+	struct wlr_xdg_client_v6 *xdg_client;
+	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
+		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
+			output_frame_handle_surface(sample, wlr_output, ts,
+					xdg_surface->surface->resource);
+		}
 	}
 	struct wlr_x11_window *x11_window;
 	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {
