@@ -7,6 +7,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "xdg-shell-unstable-v6-protocol.h"
 
@@ -52,21 +53,78 @@ static void xdg_toplevel_protocol_set_app_id(struct wl_client *client,
 }
 
 static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
-		struct wl_resource *resource, struct wl_resource *seat, uint32_t serial,
-		int32_t x, int32_t y) {
-	wlr_log(L_DEBUG, "TODO: toplevel show window menu");
+		struct wl_resource *resource, struct wl_resource *seat_resource,
+		uint32_t serial, int32_t x, int32_t y) {
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	struct wlr_seat_handle *seat_handle =
+		wl_resource_get_user_data(seat_resource);
+
+	struct wlr_xdg_toplevel_v6_show_window_menu_event *event =
+		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_show_window_menu_event));
+	if (event == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	event->client = client;
+	event->surface = surface;
+	event->seat_handle = seat_handle;
+	event->serial = serial;
+	event->x = x;
+	event->y = y;
+
+	wl_signal_emit(&surface->events.request_show_window_menu, event);
+
+	free(event);
 }
 
 static void xdg_toplevel_protocol_move(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
-	wlr_log(L_DEBUG, "TODO: toplevel move");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	struct wlr_seat_handle *seat_handle =
+		wl_resource_get_user_data(seat_resource);
+
+	struct wlr_xdg_toplevel_v6_move_event *event =
+		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_move_event));
+	if (event == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	event->client = client;
+	event->surface = surface;
+	event->seat_handle = seat_handle;
+	event->serial = serial;
+
+	wl_signal_emit(&surface->events.request_move, event);
+
+	free(event);
 }
 
 static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, uint32_t edges) {
-	wlr_log(L_DEBUG, "TODO: toplevel resize");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	struct wlr_seat_handle *seat_handle =
+		wl_resource_get_user_data(seat_resource);
+
+	struct wlr_xdg_toplevel_v6_resize_event *event =
+		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_resize_event));
+	if (event == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	event->client = client;
+	event->surface = surface;
+	event->seat_handle = seat_handle;
+	event->serial = serial;
+	event->edges = edges;
+
+	wl_signal_emit(&surface->events.request_resize, event);
+
+	free(event);
 }
 
 static void xdg_toplevel_protocol_set_max_size(struct wl_client *client,
@@ -458,6 +516,9 @@ static void xdg_shell_get_xdg_surface(struct wl_client *client,
 	wl_list_init(&surface->configure_list);
 
 	wl_signal_init(&surface->events.request_minimize);
+	wl_signal_init(&surface->events.request_move);
+	wl_signal_init(&surface->events.request_resize);
+	wl_signal_init(&surface->events.request_show_window_menu);
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ack_configure);

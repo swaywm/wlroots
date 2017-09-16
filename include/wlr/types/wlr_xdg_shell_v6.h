@@ -77,13 +77,41 @@ struct wlr_xdg_surface_v6 {
 	struct wl_listener surface_commit_listener;
 
 	struct {
-		struct wl_signal request_minimize;
 		struct wl_signal commit;
 		struct wl_signal destroy;
 		struct wl_signal ack_configure;
+
+		struct wl_signal request_minimize;
+		struct wl_signal request_move;
+		struct wl_signal request_resize;
+		struct wl_signal request_show_window_menu;
 	} events;
 
 	void *data;
+};
+
+struct wlr_xdg_toplevel_v6_move_event {
+	struct wl_client *client;
+	struct wlr_xdg_surface_v6 *surface;
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+};
+
+struct wlr_xdg_toplevel_v6_resize_event {
+	struct wl_client *client;
+	struct wlr_xdg_surface_v6 *surface;
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+	uint32_t edges;
+};
+
+struct wlr_xdg_toplevel_v6_show_window_menu_event {
+	struct wl_client *client;
+	struct wlr_xdg_surface_v6 *surface;
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+	uint32_t x;
+	uint32_t y;
 };
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
