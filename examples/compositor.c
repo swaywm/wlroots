@@ -60,6 +60,16 @@ struct sample_state {
 	struct wl_listener new_xdg_surface_v6;
 };
 
+struct example_xdg_surface_v6 {
+	struct wlr_xdg_surface_v6 *surface;
+
+	struct wl_listener destroy_listener;
+	struct wl_listener request_minimize_listener;
+	struct wl_listener request_move_listener;
+	struct wl_listener request_resize_listener;
+	struct wl_listener request_show_window_menu_listener;
+};
+
 /*
  * Convert timespec to milliseconds
  */
@@ -88,12 +98,87 @@ static void output_frame_handle_surface(struct sample_state *sample,
 	}
 }
 
+static void handle_xdg_surface_v6_destroy(struct wl_listener *listener,
+		void *data) {
+	struct example_xdg_surface_v6 *example_surface =
+		wl_container_of(listener, example_surface, destroy_listener);
+	wl_list_remove(&example_surface->destroy_listener.link);
+	wl_list_remove(&example_surface->request_move_listener.link);
+	wl_list_remove(&example_surface->request_resize_listener.link);
+	wl_list_remove(&example_surface->request_show_window_menu_listener.link);
+	wl_list_remove(&example_surface->request_minimize_listener.link);
+	free(example_surface);
+}
+
+static void handle_xdg_surface_v6_request_move(struct wl_listener *listener,
+		void *data) {
+	struct example_xdg_surface_v6 *example_surface =
+		wl_container_of(listener, example_surface, request_move_listener);
+	struct wlr_xdg_toplevel_v6_move_event *e = data;
+	wlr_log(L_DEBUG, "TODO: surface requested move: %s", e->surface->title);
+}
+
+static void handle_xdg_surface_v6_request_resize(struct wl_listener *listener,
+		void *data) {
+	struct example_xdg_surface_v6 *example_surface =
+		wl_container_of(listener, example_surface, request_resize_listener);
+	struct wlr_xdg_toplevel_v6_resize_event *e = data;
+	wlr_log(L_DEBUG, "TODO: surface requested resize: %s", e->surface->title);
+}
+
+static void handle_xdg_surface_v6_request_show_window_menu(
+		struct wl_listener *listener, void *data) {
+	struct example_xdg_surface_v6 *example_surface =
+		wl_container_of(listener, example_surface,
+			request_show_window_menu_listener);
+	struct wlr_xdg_toplevel_v6_show_window_menu_event *e = data;
+	wlr_log(L_DEBUG, "TODO: surface requested to show window menu: %s",
+		e->surface->title);
+}
+
+static void handle_xdg_surface_v6_request_minimize(
+		struct wl_listener *listener, void *data) {
+	struct example_xdg_surface_v6 *example_surface =
+		wl_container_of(listener, example_surface, request_minimize_listener);
+	wlr_log(L_DEBUG, "TODO: surface requested to be minimized: %s",
+		example_surface->surface->title);
+}
+
 static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_surface_v6 *surface = data;
 	wlr_log(L_DEBUG, "new xdg surface: title=%s, app_id=%s",
 		surface->title, surface->app_id);
-	// configure the surface and add it to data structures here
+
+	struct example_xdg_surface_v6 *esurface =
+		calloc(1, sizeof(struct example_xdg_surface_v6));
+	if (esurface == NULL) {
+		return;
+	}
+
+	esurface->surface = surface;
+
+	wl_signal_add(&surface->events.destroy, &esurface->destroy_listener);
+	esurface->destroy_listener.notify = handle_xdg_surface_v6_destroy;
+
+	wl_signal_add(&surface->events.request_move,
+		&esurface->request_move_listener);
+	esurface->request_move_listener.notify = handle_xdg_surface_v6_request_move;
+
+	wl_signal_add(&surface->events.request_resize,
+		&esurface->request_resize_listener);
+	esurface->request_resize_listener.notify =
+		handle_xdg_surface_v6_request_resize;
+
+	wl_signal_add(&surface->events.request_show_window_menu,
+		&esurface->request_show_window_menu_listener);
+	esurface->request_show_window_menu_listener.notify =
+		handle_xdg_surface_v6_request_show_window_menu;
+
+	wl_signal_add(&surface->events.request_minimize,
+		&esurface->request_minimize_listener);
+	esurface->request_minimize_listener.notify =
+		handle_xdg_surface_v6_request_minimize;
 }
 
 static void handle_output_frame(struct output_state *output,
