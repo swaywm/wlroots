@@ -42,6 +42,7 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
+		struct wl_signal destroy;
 	} signals;
 
 	struct wl_list frame_callback_list; // wl_surface.frame
@@ -68,5 +69,13 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 		float (*matrix)[16],
 		const float (*projection)[16],
 		const float (*transform)[16]);
+
+
+/**
+ * Set the lifetime role for this surface. Returns 0 on success or -1 if the
+ * role cannot be set.
+ */
+int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
+		struct wl_resource *error_resource, uint32_t error_code);
 
 #endif
