@@ -15,7 +15,6 @@ static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
-	// TODO: we probably need to do more than this
 	wl_resource_destroy(resource);
 }
 
@@ -225,6 +224,8 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_list_remove(&surface->surface_commit_listener.link);
 	free(surface->geometry);
 	free(surface->next_geometry);
+	free(surface->title);
+	free(surface->app_id);
 	free(surface);
 }
 
@@ -244,8 +245,9 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 		return;
 	}
 
-	if (!(surface->toplevel_state =
-			calloc(1, sizeof(struct wlr_xdg_toplevel_v6)))) {
+	surface->toplevel_state = calloc(1, sizeof(struct wlr_xdg_toplevel_v6));
+	if (surface->toplevel_state == NULL) {
+		wl_client_post_no_memory(client);
 		return;
 	}
 
@@ -492,6 +494,8 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 
 static void wlr_xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+
 	if (!surface->surface->current.buffer && !surface->toplevel_state->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
@@ -503,8 +507,6 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 	if (!surface->surface->current.buffer) {
 		return;
 	}
-
-	// TODO: error if they try to resize a maximized or fullscreen window
 
 	surface->toplevel_state->current = surface->toplevel_state->next;
 }
@@ -601,7 +603,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
 	wl_signal_add(&surface->surface->signals.commit,
-			&surface->surface_commit_listener);
+		&surface->surface_commit_listener);
 	surface->surface_commit_listener.notify = handle_wlr_surface_committed;
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
@@ -725,8 +727,6 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 	if (!xdg_shell) {
 		return;
 	}
-	// TODO: disconnect clients and destroy surfaces
-
 	// TODO: this segfault (wl_display->registry_resource_list is not init)
 	// wl_global_destroy(xdg_shell->wl_global);
 	free(xdg_shell);
