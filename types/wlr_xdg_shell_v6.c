@@ -632,14 +632,11 @@ static struct zxdg_shell_v6_interface xdg_shell_impl = {
 
 static void wlr_xdg_client_v6_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_client_v6 *client = wl_resource_get_user_data(resource);
-	struct wl_list *list = &client->surfaces;
-	struct wl_list *link, *tmp;
 
-	for (link = list->next, tmp = link->next;
-			link != list;
-			link = tmp, tmp = link->next) {
-		wl_list_remove(link);
-		wl_list_init(link);
+	struct wlr_xdg_surface_v6 *surface, *tmp = NULL;
+	wl_list_for_each_safe(surface, tmp, &client->surfaces, link) {
+		wl_list_remove(&surface->link);
+		wl_list_init(&surface->link);
 	}
 
 	if (client->ping_timer != NULL) {
