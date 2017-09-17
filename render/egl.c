@@ -59,7 +59,7 @@ static bool egl_exts(struct wlr_egl *egl) {
 	egl->create_platform_window_surface = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)
 		eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 
-	if (!egl->get_platform_display) {
+	if (!egl->create_platform_window_surface) {
 		wlr_log(L_ERROR,
 			"Failed to load EGL extension 'eglCreatePlatformWindowSurfaceEXT'");
 		return false;

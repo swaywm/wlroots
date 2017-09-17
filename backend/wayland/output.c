@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <wayland-client.h>
-#include <GLES3/gl3.h>
+#include <GLES2/gl2.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
