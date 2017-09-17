@@ -21,7 +21,14 @@ static void resource_destroy(struct wl_client *client,
 
 static void xdg_toplevel_protocol_set_parent(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *parent_resource) {
-	wlr_log(L_DEBUG, "TODO: toplevel set parent");
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	struct wlr_xdg_surface_v6 *parent = NULL;
+
+	if (parent_resource != NULL) {
+		parent = wl_resource_get_user_data(parent_resource);
+	}
+
+	surface->toplevel_state->parent = parent;
 }
 
 static void xdg_toplevel_protocol_set_title(struct wl_client *client,

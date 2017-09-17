@@ -53,6 +53,7 @@ struct wlr_xdg_toplevel_v6_state {
 struct wlr_xdg_toplevel_v6 {
 	struct wl_resource *resource;
 	struct wlr_xdg_surface_v6 *base;
+	struct wlr_xdg_surface_v6 *parent;
 	bool added;
 	struct wlr_xdg_toplevel_v6_state next; // client protocol requests
 	struct wlr_xdg_toplevel_v6_state pending; // user configure requests
