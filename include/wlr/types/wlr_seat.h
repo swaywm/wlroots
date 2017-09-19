@@ -54,7 +54,8 @@ struct wlr_seat_handle *wlr_seat_handle_for_client(struct wlr_seat *wlr_seat,
  * Updates the capabilities available on this seat.
  * Will automatically send them to all clients.
  */
-void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat, uint32_t capabilities);
+void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
+		uint32_t capabilities);
 /**
  * Updates the name of this seat.
  * Will automatically send it to all clients.

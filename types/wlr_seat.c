@@ -12,11 +12,11 @@ static void resource_destroy(struct wl_client *client,
 }
 
 static void wl_pointer_set_cursor(struct wl_client *client,
-	   struct wl_resource *resource,
-	   uint32_t serial,
-	   struct wl_resource *surface,
-	   int32_t hotspot_x,
-	   int32_t hotspot_y) {
+		struct wl_resource *resource,
+		uint32_t serial,
+		struct wl_resource *surface,
+		int32_t hotspot_x,
+		int32_t hotspot_y) {
 	wlr_log(L_DEBUG, "TODO: wl_pointer_set_cursor");
 }
 
@@ -140,7 +140,8 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 	struct wlr_seat *wlr_seat = _wlr_seat;
 	assert(wl_client && wlr_seat);
 	if (version > 6) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_seat version, disconnecting");
+		wlr_log(L_ERROR,
+			"Client requested unsupported wl_seat version, disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
@@ -182,7 +183,8 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 
 	struct wlr_seat_handle *handle, *tmp;
 	wl_list_for_each_safe(handle, tmp, &wlr_seat->handles, link) {
-		wl_resource_destroy(handle->wl_resource); // will destroy other resources as well
+		// will destroy other resources as well
+		wl_resource_destroy(handle->wl_resource);
 	}
 
 	wl_global_destroy(wlr_seat->wl_global);
