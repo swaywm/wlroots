@@ -63,6 +63,11 @@ struct sample_state {
 struct example_xdg_surface_v6 {
 	struct wlr_xdg_surface_v6 *surface;
 
+	struct {
+		int lx;
+		int ly;
+	} position;
+
 	struct wl_listener destroy_listener;
 	struct wl_listener ping_timeout_listener;
 	struct wl_listener request_minimize_listener;
@@ -80,13 +85,13 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void output_frame_handle_surface(struct sample_state *sample,
 		struct wlr_output *wlr_output, struct timespec *ts,
-		struct wl_resource *_res) {
+		struct wl_resource *_res, int ox, int oy) {
 	struct wlr_surface *surface = wl_resource_get_user_data(_res);
 	float matrix[16];
 	float transform[16];
 	wlr_surface_flush_damage(surface);
 	if (surface->texture->valid) {
-		wlr_matrix_translate(&transform, 200, 200, 0);
+		wlr_matrix_translate(&transform, ox, oy, 0);
 		wlr_surface_get_matrix(surface, &matrix,
 			&wlr_output->transform_matrix, &transform);
 		wlr_render_with_matrix(sample->renderer, surface->texture, &matrix);
@@ -167,6 +172,10 @@ static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 	}
 
 	esurface->surface = surface;
+	// TODO sensible default position
+	esurface->position.lx = 300;
+	esurface->position.ly = 300;
+	surface->data = esurface;
 
 	wl_signal_add(&surface->events.destroy, &esurface->destroy_listener);
 	esurface->destroy_listener.notify = handle_xdg_surface_v6_destroy;
@@ -207,20 +216,38 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_wl_shell_surface *wl_shell_surface;
 	wl_list_for_each(wl_shell_surface, &sample->wl_shell->surfaces, link) {
 		output_frame_handle_surface(sample, wlr_output, ts,
-			wl_shell_surface->surface);
+			wl_shell_surface->surface, 200, 200);
 	}
 	struct wlr_xdg_surface_v6 *xdg_surface;
 	struct wlr_xdg_client_v6 *xdg_client;
 	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
 		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
-			output_frame_handle_surface(sample, wlr_output, ts,
-					xdg_surface->surface->resource);
+			if (xdg_surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
+				continue;
+			}
+
+			struct example_xdg_surface_v6 *esurface = xdg_surface->data;
+			int width = xdg_surface->surface->current.buffer_width;
+			int height = xdg_surface->surface->current.buffer_height;
+
+			bool intersects_output = wlr_output_layout_intersects(
+				sample->layout, wlr_output,
+				esurface->position.lx, esurface->position.ly,
+				esurface->position.lx + width, esurface->position.ly + height);
+
+			if (intersects_output) {
+				double ox = esurface->position.lx, oy = esurface->position.ly;
+				wlr_output_layout_output_coords(sample->layout, wlr_output,
+					&ox, &oy);
+				output_frame_handle_surface(sample, wlr_output, ts,
+					xdg_surface->surface->resource, ox, oy);
+			}
 		}
 	}
 	struct wlr_x11_window *x11_window;
 	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {
 		output_frame_handle_surface(sample, wlr_output, ts,
-			x11_window->surface);
+			x11_window->surface, 200, 200);
 	}
 
 	wlr_renderer_end(sample->renderer);
