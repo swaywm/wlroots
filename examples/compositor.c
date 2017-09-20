@@ -17,6 +17,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_data_device_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include "wlr/types/wlr_compositor.h"
@@ -27,6 +28,7 @@
 #include <wlr/util/log.h>
 #include "config.h"
 #include "shared.h"
+#include <assert.h>
 
 // TODO: move to common header?
 int os_create_anonymous_file(off_t size);
@@ -58,6 +60,8 @@ struct sample_state {
 	struct wl_listener cursor_axis;
 
 	struct wl_listener new_xdg_surface_v6;
+
+	struct wlr_xdg_surface_v6 *focused_surface;
 };
 
 struct example_xdg_surface_v6 {
@@ -75,6 +79,25 @@ struct example_xdg_surface_v6 {
 	struct wl_listener request_resize_listener;
 	struct wl_listener request_show_window_menu_listener;
 };
+
+static void example_set_focused_surface(struct sample_state *sample,
+		struct wlr_xdg_surface_v6 *surface) {
+	if (sample->focused_surface == surface) {
+		return;
+	}
+
+	// set activated state of the xdg surfaces
+	struct wlr_xdg_surface_v6 *xdg_surface;
+	struct wlr_xdg_client_v6 *xdg_client;
+	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
+		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
+			wlr_xdg_toplevel_v6_set_activated(xdg_surface,
+				xdg_surface == surface);
+		}
+	}
+
+	sample->focused_surface = surface;
+}
 
 /*
  * Convert timespec to milliseconds
@@ -307,12 +330,53 @@ static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
 	}
 }
 
+static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
+		struct sample_state *sample, int lx, int ly) {
+	struct wlr_xdg_surface_v6 *xdg_surface;
+	struct wlr_xdg_client_v6 *xdg_client;
+	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
+		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
+			struct example_xdg_surface_v6 *esurface = xdg_surface->data;
+
+			if (sample->cursor->x >= esurface->position.lx &&
+					sample->cursor->y >= esurface->position.ly &&
+					sample->cursor->x <= esurface->position.lx +
+						xdg_surface->geometry->width &&
+					sample->cursor->y <= esurface->position.ly +
+						xdg_surface->geometry->height) {
+				return xdg_surface;
+			}
+		}
+	}
+
+	return NULL;
+}
+
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct sample_state *sample =
 		wl_container_of(listener, sample, cursor_motion);
 	struct wlr_event_pointer_motion *event = data;
+
 	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
 		event->delta_y);
+
+	struct wlr_xdg_surface_v6 *surface =
+		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
+
+	if (surface) {
+		struct example_xdg_surface_v6 *esurface = surface->data;
+
+		int32_t sx = sample->cursor->x - esurface->position.lx;
+		int32_t sy = sample->cursor->y - esurface->position.ly;
+
+		// TODO z-order
+		wlr_seat_pointer_enter(sample->wl_seat, surface->surface,
+			sx, sy);
+		wlr_seat_pointer_send_motion(sample->wl_seat, event->time_sec,
+			sx, sy);
+	} else {
+		wlr_seat_pointer_clear_focus(sample->wl_seat);
+	}
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -323,6 +387,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 
 	wlr_cursor_warp_absolute(sample->cursor, event->device, event->x_mm,
 		event->y_mm);
+
+	// TODO move pointer
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
@@ -333,10 +399,17 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
-	//struct sample_state *sample =
-	//wl_container_of(listener, sample, cursor_button);
-	//struct wlr_event_pointer_button *event = data;
-	wlr_log(L_DEBUG, "TODO: handle cursor button");
+	struct sample_state *sample =
+	wl_container_of(listener, sample, cursor_button);
+	struct wlr_event_pointer_button *event = data;
+
+	struct wlr_xdg_surface_v6 *surface =
+		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
+
+	example_set_focused_surface(sample, surface);
+
+	wlr_seat_pointer_send_button(sample->wl_seat, event->time_sec,
+		event->button, event->state);
 }
 
 static void handle_input_add(struct compositor_state *state,
@@ -462,6 +535,7 @@ int main(int argc, char *argv[]) {
 		wlr_gamma_control_manager_create(compositor.display);
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
+	assert(state.wl_seat);
 	state.keyboard_bound.notify = handle_keyboard_bound;
 	wl_signal_add(&state.wl_seat->events.keyboard_bound, &state.keyboard_bound);
 	wlr_seat_set_capabilities(state.wl_seat, WL_SEAT_CAPABILITY_KEYBOARD

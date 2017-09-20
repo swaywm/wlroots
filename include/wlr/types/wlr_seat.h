@@ -1,5 +1,7 @@
 #ifndef _WLR_TYPES_SEAT_H
 #define _WLR_TYPES_SEAT_H
+#include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wayland-server.h>
 
 /**
@@ -19,12 +21,24 @@ struct wlr_seat_handle {
 	struct wl_list link;
 };
 
+struct wlr_seat_pointer_state {
+	struct wlr_seat *wlr_seat;
+	struct wlr_seat_handle *focused_handle;
+	struct wlr_surface *focused_surface;
+
+	struct wl_listener focus_surface_destroy_listener;
+	struct wl_listener focus_resource_destroy_listener;
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
+	struct wl_display *display;
 	struct wl_list handles;
 	char *name;
 	uint32_t capabilities;
 	struct wlr_data_device *data_device;
+
+	struct wlr_seat_pointer_state pointer_state;
 
 	struct {
 		struct wl_signal client_bound;
@@ -61,5 +75,38 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
  * Will automatically send it to all clients.
  */
 void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name);
+
+/**
+ * Whether or not the surface has pointer focus
+ */
+bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface);
+
+/**
+ * Send a pointer enter event to the given surface and consider it to be the
+ * focused surface for the pointer. This will send a leave event to the last
+ * surface that was entered. Coordinates for the enter event are surface-local.
+ */
+void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, int32_t sx, int32_t sy);
+
+/**
+ * Clear the focused surface for the pointer and leave all entered surfaces.
+ */
+void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
+
+/**
+ * Send a motion event to the surface with pointer focus. Coordinates for the
+ * motion event are surface-local.
+ */
+void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		int32_t sx, int32_t sy);
+
+/**
+ * Send a button event to the surface with pointer focus. Coordinates for the
+ * button event are surface-local.
+ */
+void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
+		uint32_t button, enum wlr_button_state state);
 
 #endif
