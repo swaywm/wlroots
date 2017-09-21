@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <wayland-server.h>
+// TODO: BSD et al
+#include <linux/input-event-codes.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/render.h>
@@ -58,6 +60,10 @@ struct sample_state {
 	struct wl_listener cursor_motion_absolute;
 	struct wl_listener cursor_button;
 	struct wl_listener cursor_axis;
+
+	struct wl_listener tool_axis;
+	struct wl_listener tool_tip;
+	struct wl_listener tool_button;
 
 	struct wl_listener new_xdg_surface_v6;
 
@@ -431,6 +437,31 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		event->button, event->state);
 }
 
+static void handle_tool_axis(struct wl_listener *listener, void *data) {
+	struct sample_state *sample =
+		wl_container_of(listener, sample, tool_axis);
+	struct wlr_event_tablet_tool_axis *event = data;
+	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
+			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
+		wlr_cursor_warp_absolute(sample->cursor, event->device,
+			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+		update_pointer_position(sample, event->time_sec);
+	}
+}
+
+static void handle_tool_tip(struct wl_listener *listener, void *data) {
+	struct sample_state *sample =
+		wl_container_of(listener, sample, tool_tip);
+	struct wlr_event_tablet_tool_tip *event = data;
+
+	struct wlr_xdg_surface_v6 *surface =
+		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
+	example_set_focused_surface(sample, surface);
+
+	wlr_seat_pointer_send_button(sample->wl_seat, event->time_sec,
+		BTN_MOUSE, event->state);
+}
+
 static void handle_input_add(struct compositor_state *state,
 		struct wlr_input_device *device) {
 	struct sample_state *sample = state->data;
@@ -527,6 +558,12 @@ int main(int argc, char *argv[]) {
 
 	wl_signal_add(&state.cursor->events.axis, &state.cursor_axis);
 	state.cursor_axis.notify = handle_cursor_axis;
+
+	wl_signal_add(&state.cursor->events.tablet_tool_axis, &state.tool_axis);
+	state.tool_axis.notify = handle_tool_axis;
+
+	wl_signal_add(&state.cursor->events.tablet_tool_tip, &state.tool_tip);
+	state.tool_tip.notify = handle_tool_tip;
 
 	compositor_init(&compositor);
 

@@ -338,7 +338,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 }
 
 void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
-		uint32_t button, enum wlr_button_state state) {
+		uint32_t button, uint32_t state) {
 	if (!wlr_seat->pointer_state.focused_handle) {
 		// nobody to send the event to
 		return;
