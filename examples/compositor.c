@@ -67,6 +67,7 @@ struct sample_state {
 struct example_xdg_surface_v6 {
 	struct wlr_xdg_surface_v6 *surface;
 
+	// position of the wlr_surface in the layout
 	struct {
 		int lx;
 		int ly;
@@ -338,11 +339,14 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
 			struct example_xdg_surface_v6 *esurface = xdg_surface->data;
 
-			if (sample->cursor->x >= esurface->position.lx &&
-					sample->cursor->y >= esurface->position.ly &&
-					sample->cursor->x <= esurface->position.lx +
+			double window_x = esurface->position.lx + xdg_surface->geometry->x;
+			double window_y = esurface->position.ly + xdg_surface->geometry->y;
+
+			if (sample->cursor->x >= window_x &&
+					sample->cursor->y >= window_y &&
+					sample->cursor->x <= window_x +
 						xdg_surface->geometry->width &&
-					sample->cursor->y <= esurface->position.ly +
+					sample->cursor->y <= window_y +
 						xdg_surface->geometry->height) {
 				return xdg_surface;
 			}
