@@ -92,6 +92,10 @@ static void example_set_focused_surface(struct sample_state *sample,
 	struct wlr_xdg_client_v6 *xdg_client;
 	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
 		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
+			if (!xdg_surface->configured ||
+					xdg_surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+				continue;
+			}
 			wlr_xdg_toplevel_v6_set_activated(xdg_surface,
 				xdg_surface == surface);
 		}
@@ -246,11 +250,13 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_xdg_client_v6 *xdg_client;
 	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
 		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
-			if (xdg_surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
+			if (!xdg_surface->configured) {
 				continue;
 			}
 
 			struct example_xdg_surface_v6 *esurface = xdg_surface->data;
+			assert(esurface);
+
 			int width = xdg_surface->surface->current.buffer_width;
 			int height = xdg_surface->surface->current.buffer_height;
 
@@ -337,6 +343,10 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 	struct wlr_xdg_client_v6 *xdg_client;
 	wl_list_for_each(xdg_client, &sample->xdg_shell->clients, link) {
 		wl_list_for_each(xdg_surface, &xdg_client->surfaces, link) {
+			if (!xdg_surface->configured) {
+				continue;
+			}
+
 			struct example_xdg_surface_v6 *esurface = xdg_surface->data;
 
 			double window_x = esurface->position.lx + xdg_surface->geometry->x;
