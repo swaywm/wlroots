@@ -261,7 +261,7 @@ static void handle_pointer_focus_resource_destroyed(
 }
 
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, int32_t sx, int32_t sy) {
+		struct wlr_surface *surface, double sx, double sy) {
 	assert(wlr_seat);
 
 	if (wlr_seat->pointer_state.focused_surface == surface) {
@@ -293,7 +293,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	if (handle) {
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_pointer_send_enter(handle->pointer, serial, surface->resource,
-			wl_fixed_from_int(sx), wl_fixed_from_int(sy));
+			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 		wl_pointer_send_frame(handle->pointer);
 	}
 
@@ -326,14 +326,14 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
 }
 
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
-		int32_t sx, int32_t sy) {
+		double sx, double sy) {
 	if (!wlr_seat->pointer_state.focused_handle) {
 		// nobody to send the event to
 		return;
 	}
 
 	wl_pointer_send_motion(wlr_seat->pointer_state.focused_handle->pointer,
-		time, wl_fixed_from_int(sx), wl_fixed_from_int(sy));
+		time, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
 }
 

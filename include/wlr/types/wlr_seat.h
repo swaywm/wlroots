@@ -88,7 +88,7 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
  * surface that was entered. Coordinates for the enter event are surface-local.
  */
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, int32_t sx, int32_t sy);
+		struct wlr_surface *surface, double sx, double sy);
 
 /**
  * Clear the focused surface for the pointer and leave all entered surfaces.
@@ -100,7 +100,7 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
  * motion event are surface-local.
  */
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
-		int32_t sx, int32_t sy);
+		double sx, double sy);
 
 /**
  * Send a button event to the surface with pointer focus. Coordinates for the

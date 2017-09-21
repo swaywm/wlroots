@@ -366,8 +366,8 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	if (surface) {
 		struct example_xdg_surface_v6 *esurface = surface->data;
 
-		int32_t sx = sample->cursor->x - esurface->position.lx;
-		int32_t sy = sample->cursor->y - esurface->position.ly;
+		double sx = sample->cursor->x - esurface->position.lx;
+		double sy = sample->cursor->y - esurface->position.ly;
 
 		// TODO z-order
 		wlr_seat_pointer_enter(sample->wl_seat, surface->surface,
