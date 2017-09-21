@@ -366,14 +366,8 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 	return NULL;
 }
 
-static void handle_cursor_motion(struct wl_listener *listener, void *data) {
-	struct sample_state *sample =
-		wl_container_of(listener, sample, cursor_motion);
-	struct wlr_event_pointer_motion *event = data;
-
-	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
-		event->delta_y);
-
+static void update_pointer_position(struct sample_state *sample,
+		uint32_t time_sec) {
 	struct wlr_xdg_surface_v6 *surface =
 		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
 
@@ -386,11 +380,22 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 		// TODO z-order
 		wlr_seat_pointer_enter(sample->wl_seat, surface->surface,
 			sx, sy);
-		wlr_seat_pointer_send_motion(sample->wl_seat, event->time_sec,
+		wlr_seat_pointer_send_motion(sample->wl_seat, time_sec,
 			sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(sample->wl_seat);
 	}
+}
+
+static void handle_cursor_motion(struct wl_listener *listener, void *data) {
+	struct sample_state *sample =
+		wl_container_of(listener, sample, cursor_motion);
+	struct wlr_event_pointer_motion *event = data;
+
+	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
+		event->delta_y);
+
+	update_pointer_position(sample, event->time_sec);
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -399,10 +404,10 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 		wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
-	wlr_cursor_warp_absolute(sample->cursor, event->device, event->x_mm,
-		event->y_mm);
+	wlr_cursor_warp_absolute(sample->cursor, event->device,
+		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
 
-	// TODO move pointer
+	update_pointer_position(sample, event->time_sec);
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
