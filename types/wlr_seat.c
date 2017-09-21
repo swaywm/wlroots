@@ -4,6 +4,7 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 
 static void resource_destroy(struct wl_client *client,
@@ -12,11 +13,11 @@ static void resource_destroy(struct wl_client *client,
 }
 
 static void wl_pointer_set_cursor(struct wl_client *client,
-	   struct wl_resource *resource,
-	   uint32_t serial,
-	   struct wl_resource *surface,
-	   int32_t hotspot_x,
-	   int32_t hotspot_y) {
+		struct wl_resource *resource,
+		uint32_t serial,
+		struct wl_resource *surface,
+		int32_t hotspot_x,
+		int32_t hotspot_y) {
 	wlr_log(L_DEBUG, "TODO: wl_pointer_set_cursor");
 }
 
@@ -109,8 +110,12 @@ static void wl_seat_get_touch(struct wl_client *client,
 		handle, &wl_touch_destroy);
 }
 
-static void wl_seat_destroy(struct wl_resource *resource) {
+static void wlr_seat_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
+	if (handle == handle->wlr_seat->pointer_state.focused_handle) {
+		handle->wlr_seat->pointer_state.focused_handle = NULL;
+	}
+
 	if (handle->pointer) {
 		wl_resource_destroy(handle->pointer);
 	}
@@ -140,7 +145,8 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 	struct wlr_seat *wlr_seat = _wlr_seat;
 	assert(wl_client && wlr_seat);
 	if (version > 6) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_seat version, disconnecting");
+		wlr_log(L_ERROR,
+			"Client requested unsupported wl_seat version, disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
@@ -149,7 +155,7 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 			wl_client, &wl_seat_interface, version, id);
 	handle->wlr_seat = wlr_seat;
 	wl_resource_set_implementation(handle->wl_resource, &wl_seat_impl,
-		handle, wl_seat_destroy);
+		handle, wlr_seat_handle_resource_destroy);
 	wl_list_insert(&wlr_seat->handles, &handle->link);
 	wl_seat_send_capabilities(handle->wl_resource, wlr_seat->capabilities);
 	wl_signal_emit(&wlr_seat->events.client_bound, handle);
@@ -160,6 +166,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	if (!wlr_seat) {
 		return NULL;
 	}
+
+	wlr_seat->pointer_state.wlr_seat = wlr_seat;
+
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_seat_interface, 6, wlr_seat, wl_seat_bind);
 	if (!wl_global) {
@@ -167,11 +176,17 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 		return NULL;
 	}
 	wlr_seat->wl_global = wl_global;
+	wlr_seat->display = display;
 	wlr_seat->name = strdup(name);
 	wl_list_init(&wlr_seat->handles);
+
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
 	wl_signal_init(&wlr_seat->events.keyboard_bound);
+
+	wl_list_init(&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
+	wl_list_init(&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
+
 	return wlr_seat;
 }
 
@@ -182,7 +197,8 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 
 	struct wlr_seat_handle *handle, *tmp;
 	wl_list_for_each_safe(handle, tmp, &wlr_seat->handles, link) {
-		wl_resource_destroy(handle->wl_resource); // will destroy other resources as well
+		// will destroy other resources as well
+		wl_resource_destroy(handle->wl_resource);
 	}
 
 	wl_global_destroy(wlr_seat->wl_global);
@@ -219,4 +235,117 @@ void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name) {
 	wl_list_for_each(handle, &wlr_seat->handles, link) {
 		wl_seat_send_name(handle->wl_resource, name);
 	}
+}
+
+bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface) {
+	return surface == wlr_seat->pointer_state.focused_surface;
+}
+
+static void handle_pointer_focus_surface_destroyed(
+		struct wl_listener *listener, void *data) {
+	struct wlr_seat_pointer_state *state =
+		wl_container_of(listener, state, focus_surface_destroy_listener);
+
+	state->focused_surface = NULL;
+	wlr_seat_pointer_clear_focus(state->wlr_seat);
+}
+
+static void handle_pointer_focus_resource_destroyed(
+		struct wl_listener *listener, void *data) {
+	struct wlr_seat_pointer_state *state =
+		wl_container_of(listener, state, focus_resource_destroy_listener);
+
+	state->focused_surface = NULL;
+	wlr_seat_pointer_clear_focus(state->wlr_seat);
+}
+
+void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, double sx, double sy) {
+	assert(wlr_seat);
+
+	if (wlr_seat->pointer_state.focused_surface == surface) {
+		// this surface already got an enter notify
+		return;
+	}
+
+	struct wlr_seat_handle *handle = NULL;
+
+	if (surface) {
+		struct wl_client *client = wl_resource_get_client(surface->resource);
+		handle = wlr_seat_handle_for_client(wlr_seat, client);
+	}
+
+	struct wlr_seat_handle *focused_handle =
+		wlr_seat->pointer_state.focused_handle;
+	struct wlr_surface *focused_surface =
+		wlr_seat->pointer_state.focused_surface;
+
+	// leave the previously entered surface
+	if (focused_handle && focused_surface) {
+		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		wl_pointer_send_leave(focused_handle->pointer, serial,
+			focused_surface->resource);
+		wl_pointer_send_frame(focused_handle->pointer);
+	}
+
+	// enter the current surface
+	if (handle) {
+		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		wl_pointer_send_enter(handle->pointer, serial, surface->resource,
+			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+		wl_pointer_send_frame(handle->pointer);
+	}
+
+	// reinitialize the focus destroy events
+	wl_list_remove(
+		&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
+	wl_list_init(&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
+	wl_list_remove(
+		&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
+	wl_list_init(&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
+	if (surface) {
+		wl_signal_add(&surface->signals.destroy,
+			&wlr_seat->pointer_state.focus_surface_destroy_listener);
+		wl_resource_add_destroy_listener(surface->resource,
+			&wlr_seat->pointer_state.focus_resource_destroy_listener);
+		wlr_seat->pointer_state.focus_resource_destroy_listener.notify =
+			handle_pointer_focus_resource_destroyed;
+		wlr_seat->pointer_state.focus_surface_destroy_listener.notify =
+			handle_pointer_focus_surface_destroyed;
+	}
+
+	wlr_seat->pointer_state.focused_handle = handle;
+	wlr_seat->pointer_state.focused_surface = surface;
+
+	// TODO: send focus change event
+}
+
+void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
+	wlr_seat_pointer_enter(wlr_seat, NULL, 0, 0);
+}
+
+void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		double sx, double sy) {
+	if (!wlr_seat->pointer_state.focused_handle) {
+		// nobody to send the event to
+		return;
+	}
+
+	wl_pointer_send_motion(wlr_seat->pointer_state.focused_handle->pointer,
+		time, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
+}
+
+void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
+		uint32_t button, uint32_t state) {
+	if (!wlr_seat->pointer_state.focused_handle) {
+		// nobody to send the event to
+		return;
+	}
+
+	uint32_t serial = wl_display_next_serial(wlr_seat->display);
+	wl_pointer_send_button(wlr_seat->pointer_state.focused_handle->pointer,
+		serial, time, button, state);
+	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
 }

@@ -11,7 +11,7 @@ struct wlr_cursor_state;
 
 struct wlr_cursor {
 	struct wlr_cursor_state *state;
-	int x, y;
+	double x, y;
 
 	struct {
 		struct wl_signal motion;
