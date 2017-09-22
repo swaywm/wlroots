@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <systemd/sd-bus.h>
-#include <systemd/sd-login.h>
 #include <unistd.h>
 #include <sys/sysmacros.h>
 #include <sys/stat.h>
@@ -14,6 +12,14 @@
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+
+#ifdef HAS_SYSTEMD
+	#include <systemd/sd-bus.h>
+	#include <systemd/sd-login.h>
+#elif HAS_ELOGIND
+	#include <elogind/sd-bus.h>
+	#include <elogind/sd-login.h> 
+#endif
 
 enum { DRM_MAJOR = 226 };
 

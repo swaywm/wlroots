@@ -46,6 +46,7 @@ xcb            = dependency('xcb')
 xcb_composite  = dependency('xcb-composite')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
+elogind        = dependency('libelogind', required: false)
 math           = cc.find_library('m', required: false)
 
 if libcap.found() and get_option('enable_libcap')
@@ -54,6 +55,10 @@ endif
 
 if systemd.found() and get_option('enable_systemd')
 	add_project_arguments('-DHAS_SYSTEMD', language: 'c')
+endif
+
+if elogind.found() and get_option('enable_elogind')
+	add_project_arguments('-DHAS_ELOGIND', language: 'c')
 endif
 
 subdir('protocol')
