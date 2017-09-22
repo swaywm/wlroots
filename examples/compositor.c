@@ -413,7 +413,7 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 }
 
 static void update_pointer_position(struct sample_state *sample,
-		uint32_t time_sec) {
+		uint32_t serial) {
 	if (sample->motion_context.surface) {
 		struct example_xdg_surface_v6 *surface;
 		surface = sample->motion_context.surface;
@@ -432,10 +432,8 @@ static void update_pointer_position(struct sample_state *sample,
 		double sy = sample->cursor->y - esurface->position.ly;
 
 		// TODO z-order
-		wlr_seat_pointer_enter(sample->wl_seat, surface->surface,
-			sx, sy);
-		wlr_seat_pointer_send_motion(sample->wl_seat, time_sec,
-			sx, sy);
+		wlr_seat_pointer_enter(sample->wl_seat, surface->surface, sx, sy);
+		wlr_seat_pointer_send_motion(sample->wl_seat, serial, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(sample->wl_seat);
 	}
@@ -449,7 +447,7 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	wlr_cursor_move(sample->cursor, event->device, event->delta_x,
 		event->delta_y);
 
-	update_pointer_position(sample, event->time_sec);
+	update_pointer_position(sample, (uint32_t)event->time_usec);
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -461,7 +459,7 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	wlr_cursor_warp_absolute(sample->cursor, event->device,
 		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
 
-	update_pointer_position(sample, event->time_sec);
+	update_pointer_position(sample, (uint32_t)event->time_usec);
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
@@ -488,8 +486,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = sample->input_cache_idx;
-		// TODO: serials should probably be based on time_usec
-		sample->input_cache[i].serial = event->time_sec;
+		sample->input_cache[i].serial = (uint32_t)event->time_usec;
 		sample->input_cache[i].cursor = sample->cursor;
 		sample->input_cache[i].device = event->device;
 		sample->input_cache_idx = (i + 1)
@@ -498,7 +495,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		break;
 	}
 
-	wlr_seat_pointer_send_button(sample->wl_seat, event->time_sec,
+	wlr_seat_pointer_send_button(sample->wl_seat, (uint32_t)event->time_usec,
 		event->button, event->state);
 }
 
@@ -510,7 +507,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(sample->cursor, event->device,
 			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-		update_pointer_position(sample, event->time_sec);
+		update_pointer_position(sample, (uint32_t)event->time_usec);
 	}
 }
 
@@ -523,7 +520,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
 	example_set_focused_surface(sample, surface);
 
-	wlr_seat_pointer_send_button(sample->wl_seat, event->time_sec,
+	wlr_seat_pointer_send_button(sample->wl_seat, (uint32_t)event->time_usec,
 		BTN_MOUSE, event->state);
 }
 
