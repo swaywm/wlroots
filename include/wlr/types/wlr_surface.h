@@ -3,6 +3,7 @@
 #include <wayland-server.h>
 #include <pixman.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 struct wlr_frame_callback {
 	struct wl_resource *resource;
