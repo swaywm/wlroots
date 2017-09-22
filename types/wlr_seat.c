@@ -260,6 +260,11 @@ static void handle_pointer_focus_resource_destroyed(
 	wlr_seat_pointer_clear_focus(state->wlr_seat);
 }
 
+static bool wlr_seat_pointer_has_focus_resource(struct wlr_seat *wlr_seat) {
+	return wlr_seat->pointer_state.focused_handle &&
+		wlr_seat->pointer_state.focused_handle->pointer;
+}
+
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	assert(wlr_seat);
@@ -282,7 +287,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		wlr_seat->pointer_state.focused_surface;
 
 	// leave the previously entered surface
-	if (focused_handle && focused_surface) {
+	if (focused_handle && focused_handle->pointer && focused_surface) {
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_pointer_send_leave(focused_handle->pointer, serial,
 			focused_surface->resource);
@@ -290,7 +295,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	}
 
 	// enter the current surface
-	if (handle) {
+	if (handle && handle->pointer) {
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_pointer_send_enter(handle->pointer, serial, surface->resource,
 			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
@@ -327,8 +332,7 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
 
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy) {
-	if (!wlr_seat->pointer_state.focused_handle) {
-		// nobody to send the event to
+	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
 		return;
 	}
 
@@ -339,8 +343,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state) {
-	if (!wlr_seat->pointer_state.focused_handle) {
-		// nobody to send the event to
+	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
 		return;
 	}
 
