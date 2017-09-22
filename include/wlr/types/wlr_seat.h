@@ -104,9 +104,9 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 /**
  * Send a button event to the surface with pointer focus. Coordinates for the
- * button event are surface-local.
+ * button event are surface-local. Returns the serial.
  */
-void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
+uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state);
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,

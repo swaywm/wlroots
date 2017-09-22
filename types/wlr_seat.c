@@ -341,16 +341,17 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
 }
 
-void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
+uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state) {
 	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
-		return;
+		return 0;
 	}
 
 	uint32_t serial = wl_display_next_serial(wlr_seat->display);
 	wl_pointer_send_button(wlr_seat->pointer_state.focused_handle->pointer,
 		serial, time, button, state);
 	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
+	return serial;
 }
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,

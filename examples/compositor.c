@@ -417,8 +417,7 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 	return NULL;
 }
 
-static void update_pointer_position(struct sample_state *sample,
-		uint32_t serial) {
+static void update_pointer_position(struct sample_state *sample, uint32_t time) {
 	if (sample->motion_context.surface) {
 		struct example_xdg_surface_v6 *surface;
 		surface = sample->motion_context.surface;
@@ -438,7 +437,7 @@ static void update_pointer_position(struct sample_state *sample,
 
 		// TODO z-order
 		wlr_seat_pointer_enter(sample->wl_seat, surface->surface, sx, sy);
-		wlr_seat_pointer_send_motion(sample->wl_seat, serial, sx, sy);
+		wlr_seat_pointer_send_motion(sample->wl_seat, time, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(sample->wl_seat);
 	}
@@ -483,6 +482,9 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_surface_v6 *surface =
 		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
 
+	uint32_t serial = wlr_seat_pointer_send_button(sample->wl_seat,
+			(uint32_t)event->time_usec, event->button, event->state);
+
 	int i;
 	switch (event->state) {
 	case WLR_BUTTON_RELEASED:
@@ -492,12 +494,13 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = sample->input_cache_idx;
-		sample->input_cache[i].serial = (uint32_t)event->time_usec;
+		sample->input_cache[i].serial = serial;
 		sample->input_cache[i].cursor = sample->cursor;
 		sample->input_cache[i].device = event->device;
 		sample->input_cache_idx = (i + 1)
 			% (sizeof(sample->input_cache) / sizeof(sample->input_cache[0]));
 		example_set_focused_surface(sample, surface);
+		wlr_log(L_DEBUG, "Stored event %d at %d", serial, i);
 		if (sample->mod_down && event->button == BTN_LEFT) {
 			struct example_xdg_surface_v6 *esurface = surface->data;
 			sample->motion_context.surface = esurface;
@@ -507,9 +510,6 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		}
 		break;
 	}
-
-	wlr_seat_pointer_send_button(sample->wl_seat, (uint32_t)event->time_usec,
-		event->button, event->state);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
