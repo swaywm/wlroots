@@ -28,9 +28,13 @@ if systemd.found()
 	backend_files += files('session/logind.c')
 endif
 
+if elogind.found()
+	backend_files += files('session/logind.c')
+endif
+
 lib_wlr_backend = static_library(
 	'wlr_backend',
 	backend_files,
 	include_directories: wlr_inc,
-	dependencies: [wayland_server, egl, gbm, libinput, systemd, wlr_protos],
+	dependencies: [wayland_server, egl, gbm, libinput, systemd, elogind, wlr_protos],
 )

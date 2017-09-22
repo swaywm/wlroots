@@ -18,6 +18,8 @@ extern const struct session_impl session_direct;
 static const struct session_impl *impls[] = {
 #ifdef HAS_SYSTEMD
 	&session_logind,
+#elif HAS_ELOGIND
+	&session_logind,
 #endif
 	&session_direct,
 	NULL,

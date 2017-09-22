@@ -25,6 +25,7 @@ Install dependencies:
 * udev
 * pixman
 * systemd (optional, for logind support)
+* elogind (optional, for logind support)
 * libcap (optional, for capability support)
 * asciidoc (optional, for man pages)
 
