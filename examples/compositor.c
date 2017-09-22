@@ -184,7 +184,7 @@ static void handle_xdg_surface_v6_request_move(struct wl_listener *listener,
 		wl_container_of(listener, esurface, request_move_listener);
 	struct wlr_xdg_toplevel_v6_move_event *e = data;
 	struct sample_state *sample = esurface->sample;
-	struct input_event_cache *event;
+	struct input_event_cache *event = NULL;
 	for (size_t i = 0;
 			i < sizeof(sample->input_cache) / sizeof(sample->input_cache[0]);
 			++i) {
