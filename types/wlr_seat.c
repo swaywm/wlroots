@@ -481,3 +481,30 @@ uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 
 	return serial;
 }
+
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group) {
+	uint32_t serial = 0;
+	struct wl_resource *keyboard;
+
+	if (wlr_seat_keyboard_has_focus_resource(wlr_seat)) {
+		serial = wl_display_next_serial(wlr_seat->display);
+		keyboard = wlr_seat->keyboard_state.focused_handle->keyboard;
+		wl_keyboard_send_modifiers(keyboard, serial, mods_depressed,
+			mods_latched, mods_locked, group);
+	}
+
+	if (wlr_seat_pointer_has_focus_resource(wlr_seat) &&
+			wlr_seat->pointer_state.focused_handle->keyboard &&
+			wlr_seat->pointer_state.focused_handle !=
+				wlr_seat->keyboard_state.focused_handle) {
+		if (serial == 0) {
+			serial = wl_display_next_serial(wlr_seat->display);
+		}
+		keyboard = wlr_seat->pointer_state.focused_handle->keyboard;
+
+		wl_keyboard_send_modifiers(keyboard, serial, mods_depressed,
+			mods_latched, mods_locked, group);
+	}
+}

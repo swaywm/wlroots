@@ -343,6 +343,17 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 	struct compositor_state *state = keyboard->compositor;
 	struct sample_state *sample = state->data;
 
+	uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_DEPRESSED);
+	uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LATCHED);
+	uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LOCKED);
+	uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
+		XKB_STATE_LAYOUT_EFFECTIVE);
+
+	wlr_seat_keyboard_send_modifiers(sample->wl_seat, depressed, latched,
+		locked, group);
 	wlr_seat_keyboard_send_key(sample->wl_seat, (uint32_t)time_usec, keycode,
 		key_state);
 

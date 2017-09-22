@@ -142,4 +142,12 @@ void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
 uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t key, uint32_t state);
 
+/**
+ * Send the modifiers event to the surface with keyboard focus. Also sends the
+ * event to the surface with pointer focus.
+ */
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group);
+
 #endif
