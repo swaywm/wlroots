@@ -48,7 +48,8 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 					key_state == WLR_KEY_PRESSED ? "pressed" : "released");
 		}
 		if (kbstate->compositor->keyboard_key_cb) {
-			kbstate->compositor->keyboard_key_cb(kbstate, event->keycode, sym, key_state);
+			kbstate->compositor->keyboard_key_cb(kbstate, event->keycode, sym,
+				key_state, event->time_usec);
 		}
 		if (sym == XKB_KEY_Escape) {
 			wl_display_terminate(kbstate->compositor->display);

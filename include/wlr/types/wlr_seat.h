@@ -30,6 +30,15 @@ struct wlr_seat_pointer_state {
 	struct wl_listener focus_resource_destroy_listener;
 };
 
+struct wlr_seat_keyboard_state {
+	struct wlr_seat *wlr_seat;
+	struct wlr_seat_handle *focused_handle;
+	struct wlr_surface *focused_surface;
+
+	struct wl_listener focus_surface_destroy_listener;
+	struct wl_listener focus_resource_destroy_listener;
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
@@ -39,6 +48,7 @@ struct wlr_seat {
 	struct wlr_data_device *data_device;
 
 	struct wlr_seat_pointer_state pointer_state;
+	struct wlr_seat_keyboard_state keyboard_state;
 
 	struct {
 		struct wl_signal client_bound;
@@ -111,5 +121,25 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
+
+/**
+ * Send a keyboard enter event to the given surface and consider it to be the
+ * focused surface for the keyboard. This will send a leave event to the last
+ * surface that was entered.
+ */
+void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface);
+
+/**
+ * Clear the focused surface for the keyboard and leave all entered surfaces.
+ */
+void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
+
+/**
+ * Send a key event to the surface with keyboard focus. Returns the event
+ * serial.
+ */
+uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
+		uint32_t key, uint32_t state);
 
 #endif
