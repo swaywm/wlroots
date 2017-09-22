@@ -78,6 +78,7 @@ struct sample_state {
 	struct wl_listener keyboard_bound;
 	struct wlr_xwayland *xwayland;
 	struct wlr_gamma_control_manager *gamma_control_manager;
+	bool mod_down;
 	int keymap_fd;
 	size_t keymap_size;
 	uint32_t serial;
@@ -368,6 +369,10 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 		wl_keyboard_send_key(seat_handle->keyboard, ++sample->serial, 0,
 			keycode, key_state);
 	}
+
+	if (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R) {
+		sample->mod_down = key_state == WLR_KEY_PRESSED;
+	}
 }
 
 static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
@@ -492,6 +497,13 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 		sample->input_cache_idx = (i + 1)
 			% (sizeof(sample->input_cache) / sizeof(sample->input_cache[0]));
 		example_set_focused_surface(sample, surface);
+		if (sample->mod_down && event->button == BTN_LEFT) {
+			struct example_xdg_surface_v6 *esurface = surface->data;
+			sample->motion_context.surface = esurface;
+			sample->motion_context.off_x = sample->cursor->x - esurface->position.lx;
+			sample->motion_context.off_y = sample->cursor->y - esurface->position.ly;
+			wlr_seat_pointer_clear_focus(sample->wl_seat);
+		}
 		break;
 	}
 
@@ -521,7 +533,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	example_set_focused_surface(sample, surface);
 
 	wlr_seat_pointer_send_button(sample->wl_seat, (uint32_t)event->time_usec,
-		BTN_MOUSE, event->state);
+		BTN_LEFT, event->state);
 }
 
 static void handle_input_add(struct compositor_state *state,
