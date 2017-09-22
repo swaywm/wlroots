@@ -352,3 +352,22 @@ void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		serial, time, button, state);
 	wl_pointer_send_frame(wlr_seat->pointer_state.focused_handle->pointer);
 }
+
+void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value) {
+	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
+		return;
+	}
+
+	struct wl_resource *pointer =
+		wlr_seat->pointer_state.focused_handle->pointer;
+
+	if (value) {
+		wl_pointer_send_axis(pointer, time, orientation,
+			wl_fixed_from_double(value));
+	} else {
+		wl_pointer_send_axis_stop(pointer, time, orientation);
+	}
+
+	wl_pointer_send_frame(pointer);
+}

@@ -417,10 +417,11 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
-	//struct sample_state *sample =
-	//wl_container_of(listener, sample, cursor_axis);
-	//struct wlr_event_pointer_axis *event = data;
-	wlr_log(L_DEBUG, "TODO: handle cursor axis");
+	struct sample_state *sample =
+		wl_container_of(listener, sample, cursor_axis);
+	struct wlr_event_pointer_axis *event = data;
+	wlr_seat_pointer_send_axis(sample->wl_seat, event->time_sec,
+		event->orientation, event->delta);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
