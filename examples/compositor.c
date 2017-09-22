@@ -35,6 +35,37 @@
 // TODO: move to common header?
 int os_create_anonymous_file(off_t size);
 
+struct sample_state;
+
+struct example_xdg_surface_v6 {
+	struct wlr_xdg_surface_v6 *surface;
+	struct sample_state *sample;
+
+	// position of the wlr_surface in the layout
+	struct {
+		int lx;
+		int ly;
+	} position;
+
+	struct wl_listener destroy_listener;
+	struct wl_listener ping_timeout_listener;
+	struct wl_listener request_minimize_listener;
+	struct wl_listener request_move_listener;
+	struct wl_listener request_resize_listener;
+	struct wl_listener request_show_window_menu_listener;
+};
+
+struct input_event_cache {
+	uint32_t serial;
+	struct wlr_cursor *cursor;
+	struct wlr_input_device *device;
+};
+
+struct motion_context {
+	struct example_xdg_surface_v6 *surface;
+	int off_x, off_y;
+};
+
 struct sample_state {
 	struct wlr_renderer *renderer;
 	struct compositor_state *compositor;
@@ -51,10 +82,16 @@ struct sample_state {
 	size_t keymap_size;
 	uint32_t serial;
 
+	struct motion_context motion_context;
+
 	struct example_config *config;
 	struct wlr_output_layout *layout;
 	struct wlr_cursor *cursor;
 	struct wlr_xcursor *xcursor;
+
+	// Ring buffer
+	int input_cache_idx;
+	struct input_event_cache input_cache[16];
 
 	struct wl_listener cursor_motion;
 	struct wl_listener cursor_motion_absolute;
@@ -68,23 +105,6 @@ struct sample_state {
 	struct wl_listener new_xdg_surface_v6;
 
 	struct wlr_xdg_surface_v6 *focused_surface;
-};
-
-struct example_xdg_surface_v6 {
-	struct wlr_xdg_surface_v6 *surface;
-
-	// position of the wlr_surface in the layout
-	struct {
-		int lx;
-		int ly;
-	} position;
-
-	struct wl_listener destroy_listener;
-	struct wl_listener ping_timeout_listener;
-	struct wl_listener request_minimize_listener;
-	struct wl_listener request_move_listener;
-	struct wl_listener request_resize_listener;
-	struct wl_listener request_show_window_menu_listener;
 };
 
 static void example_set_focused_surface(struct sample_state *sample,
@@ -159,10 +179,27 @@ static void handle_xdg_surface_v6_destroy(struct wl_listener *listener,
 
 static void handle_xdg_surface_v6_request_move(struct wl_listener *listener,
 		void *data) {
-	struct example_xdg_surface_v6 *example_surface =
-		wl_container_of(listener, example_surface, request_move_listener);
+	struct example_xdg_surface_v6 *esurface =
+		wl_container_of(listener, esurface, request_move_listener);
 	struct wlr_xdg_toplevel_v6_move_event *e = data;
-	wlr_log(L_DEBUG, "TODO: surface requested move: %s", e->surface->title);
+	struct sample_state *sample = esurface->sample;
+	struct input_event_cache *event;
+	for (size_t i = 0;
+			i < sizeof(sample->input_cache) / sizeof(sample->input_cache[0]);
+			++i) {
+		if (sample->input_cache[i].cursor
+				&& sample->input_cache[i].serial == e->serial) {
+			event = &sample->input_cache[i];
+			break;
+		}
+	}
+	if (!event || sample->motion_context.surface) {
+		return;
+	}
+	sample->motion_context.surface = esurface;
+	sample->motion_context.off_x = sample->cursor->x - esurface->position.lx;
+	sample->motion_context.off_y = sample->cursor->y - esurface->position.ly;
+	wlr_seat_pointer_clear_focus(sample->wl_seat);
 }
 
 static void handle_xdg_surface_v6_request_resize(struct wl_listener *listener,
@@ -193,6 +230,8 @@ static void handle_xdg_surface_v6_request_minimize(
 
 static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 		void *data) {
+	struct sample_state *sample_state =
+		wl_container_of(listener, sample_state, new_xdg_surface_v6);
 	struct wlr_xdg_surface_v6 *surface = data;
 	wlr_log(L_DEBUG, "new xdg surface: title=%s, app_id=%s",
 		surface->title, surface->app_id);
@@ -205,6 +244,7 @@ static void handle_new_xdg_surface_v6(struct wl_listener *listener,
 		return;
 	}
 
+	esurface->sample = sample_state;
 	esurface->surface = surface;
 	// TODO sensible default position
 	esurface->position.lx = 300;
@@ -374,8 +414,16 @@ static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 
 static void update_pointer_position(struct sample_state *sample,
 		uint32_t time_sec) {
-	struct wlr_xdg_surface_v6 *surface =
-		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
+	if (sample->motion_context.surface) {
+		struct example_xdg_surface_v6 *surface;
+		surface = sample->motion_context.surface;
+		surface->position.lx = sample->cursor->x - sample->motion_context.off_x;
+		surface->position.ly = sample->cursor->y - sample->motion_context.off_y;
+		return;
+	}
+
+	struct wlr_xdg_surface_v6 *surface = example_xdg_surface_at(sample,
+			sample->cursor->x, sample->cursor->y);
 
 	if (surface) {
 		struct example_xdg_surface_v6 *esurface = surface->data;
@@ -425,13 +473,30 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	struct sample_state *sample =
-	wl_container_of(listener, sample, cursor_button);
+		wl_container_of(listener, sample, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 
 	struct wlr_xdg_surface_v6 *surface =
 		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
 
-	example_set_focused_surface(sample, surface);
+	int i;
+	switch (event->state) {
+	case WLR_BUTTON_RELEASED:
+		if (sample->motion_context.surface) {
+			sample->motion_context.surface = NULL;
+		}
+		break;
+	case WLR_BUTTON_PRESSED:
+		i = sample->input_cache_idx;
+		// TODO: serials should probably be based on time_usec
+		sample->input_cache[i].serial = event->time_sec;
+		sample->input_cache[i].cursor = sample->cursor;
+		sample->input_cache[i].device = event->device;
+		sample->input_cache_idx = (i + 1)
+			% (sizeof(sample->input_cache) / sizeof(sample->input_cache[0]));
+		example_set_focused_surface(sample, surface);
+		break;
+	}
 
 	wlr_seat_pointer_send_button(sample->wl_seat, event->time_sec,
 		event->button, event->state);
