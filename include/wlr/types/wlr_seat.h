@@ -109,4 +109,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 void wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state);
 
+void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value);
+
 #endif
