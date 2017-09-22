@@ -80,7 +80,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
-		return wlr_x11_backend_create(x11_display);
+		return wlr_x11_backend_create(display, x11_display);
 	}
 
 	// Attempt DRM+libinput
