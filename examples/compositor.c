@@ -350,8 +350,8 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 	if (res != sample->focus && seat_handle && seat_handle->keyboard) {
 		struct wl_array keys;
 		wl_array_init(&keys);
-		wl_keyboard_send_enter(seat_handle->keyboard, ++sample->serial, res,
-			&keys);
+		uint32_t serial = wl_display_next_serial(state->display);
+		wl_keyboard_send_enter(seat_handle->keyboard, serial, res, &keys);
 		sample->focus = res;
 	}
 
@@ -364,10 +364,12 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 			XKB_STATE_MODS_LOCKED);
 		uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
 			XKB_STATE_LAYOUT_EFFECTIVE);
-		wl_keyboard_send_modifiers(seat_handle->keyboard, ++sample->serial,
+		uint32_t modifiers_serial = wl_display_next_serial(state->display);
+		uint32_t key_serial = wl_display_next_serial(state->display);
+		wl_keyboard_send_modifiers(seat_handle->keyboard, modifiers_serial,
 			depressed, latched, locked, group);
-		wl_keyboard_send_key(seat_handle->keyboard, ++sample->serial, 0,
-			keycode, key_state);
+		wl_keyboard_send_key(seat_handle->keyboard, key_serial, 0, keycode,
+			key_state);
 	}
 
 	if (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R) {
