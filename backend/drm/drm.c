@@ -301,8 +301,14 @@ static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 
 	wlr_drm_plane_swap_buffers(renderer, plane);
 
-	backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(plane->back), NULL);
-	output->pageflip_pending = true;
+	uint32_t fb_id = get_fb_for_bo(plane->back);
+
+	if (backend->iface->crtc_pageflip(backend, output, crtc, fb_id, NULL)) {
+		output->pageflip_pending = true;
+	} else {
+		wl_event_source_timer_update(output->retry_pageflip,
+			output->output.current_mode->refresh);
+	}
 }
 
 static void wlr_drm_output_set_gamma(struct wlr_output *_output,
@@ -348,8 +354,12 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 	struct wlr_drm_output_mode *_mode =
 		(struct wlr_drm_output_mode *)output->output.current_mode;
 	drmModeModeInfo *mode = &_mode->mode;
-	backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode);
-	output->pageflip_pending = true;
+	if (backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode)) {
+		output->pageflip_pending = true;
+	} else {
+		wl_event_source_timer_update(output->retry_pageflip,
+			output->output.current_mode->refresh);
+	}
 }
 
 static void wlr_drm_output_enable(struct wlr_output *_output, bool enable) {
@@ -705,6 +715,7 @@ static bool wlr_drm_output_move_cursor(struct wlr_output *_output,
 static void wlr_drm_output_destroy(struct wlr_output *_output) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
 	wlr_drm_output_cleanup(output);
+	wl_event_source_remove(output->retry_pageflip);
 	free(output);
 }
 
@@ -720,6 +731,29 @@ static struct wlr_output_impl output_impl = {
 	.set_gamma = wlr_drm_output_set_gamma,
 	.get_gamma_size = wlr_drm_output_get_gamma_size,
 };
+
+static int retry_pageflip(void *data) {
+	struct wlr_drm_output *output = data;
+	struct wlr_drm_backend *backend =
+		wl_container_of(output->renderer, backend, renderer);
+
+	struct wlr_drm_crtc *crtc = output->crtc;
+	struct wlr_drm_plane *plane = crtc->primary;
+	struct gbm_bo *bo = plane->front ? plane->front : plane->back;
+
+	struct wlr_drm_output_mode *wlr_mode =
+		(struct wlr_drm_output_mode *)output->output.current_mode;
+	drmModeModeInfo *mode = &wlr_mode->mode;
+
+	if (backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode)) {
+		output->pageflip_pending = true;
+	} else {
+		wl_event_source_timer_update(output->retry_pageflip,
+			output->output.current_mode->refresh);
+	}
+
+	return 1;
+}
 
 static int find_id(const void *item, const void *cmp_to) {
 	const struct wlr_drm_output *output = item;
@@ -777,6 +811,11 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			}
 			wlr_output_init(&output->output, &output_impl);
 
+			struct wl_event_loop *ev = wl_display_get_event_loop(backend->display);
+			output->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,
+				output);
+
+
 			output->renderer = &backend->renderer;
 			output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 			output->connector = conn->connector_id;
@@ -807,6 +846,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 			if (list_add(backend->outputs, output) == -1) {
 				wlr_log_errno(L_ERROR, "Allocation failed");
 				drmModeFreeConnector(conn);
+				wl_event_source_remove(output->retry_pageflip);
 				free(output);
 				continue;
 			}
@@ -872,6 +912,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		wlr_drm_output_cleanup(output);
 
 		drmModeFreeCrtc(output->old_crtc);
+		wl_event_source_remove(output->retry_pageflip);
 		free(output);
 
 		list_del(backend->outputs, i);
@@ -926,7 +967,7 @@ void wlr_drm_restore_outputs(struct wlr_drm_backend *drm) {
 		wlr_drm_event(drm->fd, 0, NULL);
 		for (size_t i = 0; i < drm->outputs->length; ++i) {
 			struct wlr_drm_output *output = drm->outputs->items[i];
-			if (!output->pageflip_pending) {
+			if (output->state != WLR_DRM_OUTPUT_CLEANUP || !output->pageflip_pending) {
 				to_close &= ~(1 << i);
 			}
 		}

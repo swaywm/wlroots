@@ -155,6 +155,7 @@ struct wlr_drm_output {
 	struct wlr_drm_renderer *renderer;
 
 	bool pageflip_pending;
+	struct wl_event_source *retry_pageflip;
 };
 
 // Used to provide atomic or legacy DRM functions
