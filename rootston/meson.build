@@ -1,5 +1,5 @@
 executable(
-	'rootson', [
+	'rootston', [
 		'config.c',
 		'cursor.c',
 		'desktop.c',
