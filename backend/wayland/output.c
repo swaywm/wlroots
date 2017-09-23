@@ -209,7 +209,7 @@ static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
 struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_wl(_backend));
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
-	if (!backend->remote_display) {
+	if (!backend->started) {
 		++backend->requested_outputs;
 		return NULL;
 	}

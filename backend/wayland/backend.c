@@ -35,26 +35,7 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	wlr_log(L_INFO, "Initializating wayland backend");
 
-	backend->remote_display = wl_display_connect(NULL);
-	if (!backend->remote_display) {
-		wlr_log_errno(L_ERROR, "Could not connect to remote display");
-		return false;
-	}
-
-	if (!(backend->registry = wl_display_get_registry(backend->remote_display))) {
-		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
-		return false;
-	}
-
-	wlr_wl_registry_poll(backend);
-	if (!(backend->compositor) || (!(backend->shell))) {
-		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
-		return false;
-	}
-
-	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, backend->remote_display);
-	wlr_egl_bind_display(&backend->egl, backend->local_display);
-
+	backend->started = true;
 	for (size_t i = 0; i < backend->requested_outputs; ++i) {
 		wlr_wl_output_create(&backend->backend);
 	}
@@ -146,6 +127,27 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	}
 
 	backend->local_display = display;
+
+	backend->remote_display = wl_display_connect(NULL);
+	if (!backend->remote_display) {
+		wlr_log_errno(L_ERROR, "Could not connect to remote display");
+		return false;
+	}
+
+	if (!(backend->registry = wl_display_get_registry(backend->remote_display))) {
+		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
+		return false;
+	}
+
+	wlr_wl_registry_poll(backend);
+	if (!(backend->compositor) || (!(backend->shell))) {
+		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
+		return false;
+	}
+
+	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, backend->remote_display);
+	wlr_egl_bind_display(&backend->egl, backend->local_display);
+
 	return &backend->backend;
 
 error:

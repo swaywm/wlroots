@@ -3,13 +3,14 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/types/wlr_data_device_manager.h>
 #include <wlr/render.h>
 #include <wlr/xwayland.h>
 #include "rootston/config.h"
 #include "rootston/desktop.h"
 #include "rootston/input.h"
 
-struct rootston {
+struct roots_server {
 	/* Rootston resources */
 	struct roots_config *config;
 	struct roots_desktop *desktop;
@@ -21,11 +22,13 @@ struct rootston {
 
 	/* WLR tools */
 	struct wlr_backend *backend;
-	struct wlr_session *session;
 	struct wlr_renderer *renderer;
 	struct wlr_xwayland *xwayland;
+
+	/* Global resources */
+	struct wlr_data_device_manager *data_device_manager;
 };
 
-extern struct rootston root;
+extern struct roots_server server;
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef _WLR_INTERNAL_BACKEND_WAYLAND_H
 #define _WLR_INTERNAL_BACKEND_WAYLAND_H
 
+#include <stdbool.h>
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wayland-egl.h>
@@ -14,6 +15,7 @@ struct wlr_wl_backend {
 	struct wlr_backend backend;
 
 	/* local state */
+	bool started;
 	struct wl_display *local_display;
 	list_t *devices;
 	list_t *outputs;
