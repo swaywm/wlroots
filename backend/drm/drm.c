@@ -4,6 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <time.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm_mode.h>
@@ -556,7 +557,7 @@ error_enc:
 error_conn:
 	drmModeFreeConnector(conn);
 error_output:
-	wlr_drm_output_cleanup(output, false);
+	wlr_drm_output_cleanup(output);
 	return false;
 }
 
@@ -703,7 +704,7 @@ static bool wlr_drm_output_move_cursor(struct wlr_output *_output,
 
 static void wlr_drm_output_destroy(struct wlr_output *_output) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	wlr_drm_output_cleanup(output, true);
+	wlr_drm_output_cleanup(output);
 	free(output);
 }
 
@@ -852,7 +853,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 				conn->connection != DRM_MODE_CONNECTED) {
 
 			wlr_log(L_INFO, "'%s' disconnected", output->output.name);
-			wlr_drm_output_cleanup(output, false);
+			wlr_drm_output_cleanup(output);
 		}
 
 		drmModeFreeConnector(conn);
@@ -868,7 +869,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 		struct wlr_drm_output *output = backend->outputs->items[i];
 
 		wlr_log(L_INFO, "'%s' disappeared", output->output.name);
-		wlr_drm_output_cleanup(output, false);
+		wlr_drm_output_cleanup(output);
 
 		drmModeFreeCrtc(output->old_crtc);
 		free(output);
@@ -909,23 +910,46 @@ int wlr_drm_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-static void restore_output(struct wlr_drm_output *output, int fd) {
-	// Wait for any pending pageflips to finish
-	while (output->pageflip_pending) {
-		wlr_drm_event(fd, 0, NULL);
+void wlr_drm_restore_outputs(struct wlr_drm_backend *drm) {
+	uint64_t to_close = (1 << drm->outputs->length) - 1;
+
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_drm_output *output = drm->outputs->items[i];
+		if (output->state == WLR_DRM_OUTPUT_CONNECTED) {
+			output->state = WLR_DRM_OUTPUT_CLEANUP;
+		}
 	}
 
-	drmModeCrtc *crtc = output->old_crtc;
-	if (!crtc) {
-		return;
+	time_t timeout = time(NULL) + 5;
+
+	while (to_close && time(NULL) < timeout) {
+		wlr_drm_event(drm->fd, 0, NULL);
+		for (size_t i = 0; i < drm->outputs->length; ++i) {
+			struct wlr_drm_output *output = drm->outputs->items[i];
+			if (!output->pageflip_pending) {
+				to_close &= ~(1 << i);
+			}
+		}
 	}
 
-	drmModeSetCrtc(fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
-		&output->connector, 1, &crtc->mode);
-	drmModeFreeCrtc(crtc);
+	if (to_close) {
+		wlr_log(L_ERROR, "Timed out stopping output renderers");
+	}
+
+	for (size_t i = 0; i < drm->outputs->length; ++i) {
+		struct wlr_drm_output *output = drm->outputs->items[i];
+		drmModeCrtc *crtc = output->old_crtc;
+		if (!crtc) {
+			continue;
+		}
+
+		drmModeSetCrtc(drm->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
+			&output->connector, 1, &crtc->mode);
+		drmModeFreeCrtc(crtc);
+	}
 }
 
-void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore) {
+void wlr_drm_output_cleanup(struct wlr_drm_output *output) {
 	if (!output) {
 		return;
 	}
@@ -936,12 +960,7 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore) {
 
 	switch (output->state) {
 	case WLR_DRM_OUTPUT_CONNECTED:
-		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
-		if (restore) {
-			restore_output(output, renderer->fd);
-			restore = false;
-		}
-
+	case WLR_DRM_OUTPUT_CLEANUP:;
 		struct wlr_drm_crtc *crtc = output->crtc;
 		for (int i = 0; i < 3; ++i) {
 			wlr_drm_plane_renderer_free(renderer, crtc->planes[i]);
@@ -955,10 +974,6 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore) {
 		output->possible_crtc = 0;
 		/* Fallthrough */
 	case WLR_DRM_OUTPUT_NEEDS_MODESET:
-		output->state = WLR_DRM_OUTPUT_DISCONNECTED;
-		if (restore) {
-			restore_output(output, renderer->fd);
-		}
 		wlr_log(L_INFO, "Emmiting destruction signal for '%s'",
 				output->output.name);
 		wl_signal_emit(&backend->backend.events.output_remove, &output->output);

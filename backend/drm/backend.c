@@ -26,6 +26,9 @@ static void wlr_drm_backend_destroy(struct wlr_backend *_backend) {
 		return;
 	}
 	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;
+
+	wlr_drm_restore_outputs(backend);
+
 	for (size_t i = 0; backend->outputs && i < backend->outputs->length; ++i) {
 		struct wlr_drm_output *output = backend->outputs->items[i];
 		wlr_output_destroy(&output->output);
