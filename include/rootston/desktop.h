@@ -21,8 +21,11 @@ struct roots_output {
 };
 
 struct roots_desktop {
+	struct wl_list views;
+
 	struct wl_list outputs;
 	struct timespec last_frame;
+
 	struct roots_server *server;
 	struct roots_config *config;
 
@@ -44,7 +47,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
 
+void view_destroy(struct roots_view *view);
+
 void output_add_notify(struct wl_listener *listener, void *data);
 void output_remove_notify(struct wl_listener *listener, void *data);
+
+void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 
 #endif

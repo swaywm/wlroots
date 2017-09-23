@@ -11,14 +11,9 @@
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 
-static void handle_xdg_shell_v6_surface(struct wl_listener *listener,
-		void *data) {
-	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xdg_shell_v6_surface);
-	struct wlr_xdg_surface_v6 *surface = data;
-	wlr_log(L_DEBUG, "new xdg surface: title=%s, app_id=%s",
-		surface->title, surface->app_id);
-	wlr_xdg_surface_v6_ping(surface);
+void view_destroy(struct roots_view *view) {
+	wl_list_remove(&view->link);
+	free(view);
 }
 
 struct roots_desktop *desktop_create(struct roots_server *server,
@@ -26,6 +21,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	struct roots_desktop *desktop = calloc(1, sizeof(struct roots_desktop));
 	wlr_log(L_DEBUG, "Initializing roots desktop");
 
+	wl_list_init(&desktop->views);
 	wl_list_init(&desktop->outputs);
 	wl_list_init(&desktop->output_add.link);
 	desktop->output_add.notify = output_add_notify;

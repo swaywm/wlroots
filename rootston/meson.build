@@ -6,6 +6,7 @@ executable(
 		'input.c',
 		'main.c',
 		'output.c',
-		'pointer.c'
+		'pointer.c',
+		'xdg_shell_v6.c'
 	], dependencies: wlroots
 )

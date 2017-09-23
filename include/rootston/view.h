@@ -1,5 +1,8 @@
 #ifndef _ROOTSTON_VIEW_H
 #define _ROOTSTON_VIEW_H
+#include <stdbool.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_surface.h>
 
 struct roots_wl_shell_surface {
 	// TODO
@@ -7,13 +10,14 @@ struct roots_wl_shell_surface {
 };
 
 struct roots_xdg_surface_v6 {
+	struct roots_view *view;
 	// TODO: Maybe destroy listener should go in roots_view
-	struct wl_listener destroy_listener;
-	struct wl_listener ping_timeout_listener;
-	struct wl_listener request_minimize_listener;
-	struct wl_listener request_move_listener;
-	struct wl_listener request_resize_listener;
-	struct wl_listener request_show_window_menu_listener;
+	struct wl_listener destroy;
+	struct wl_listener ping_timeout;
+	struct wl_listener request_minimize;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_show_window_menu;
 };
 
 enum roots_view_type {
@@ -29,12 +33,13 @@ struct roots_view {
 	enum roots_view_type type;
 	union {
 		struct wlr_shell_surface *wl_shell_surface;
-		struct xdg_shell_v6_surface *xdg_shell_v6_surface;
+		struct wlr_xdg_surface_v6 *xdg_surface_v6;
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
-		struct xdg_shell_v6_surface *roots_xdg_surface_v6;
+		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
 	};
+	struct wlr_surface *wlr_surface;
 	struct wl_list link;
 };
 

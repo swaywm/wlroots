@@ -1,14 +1,42 @@
 #define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+static void render_view(struct roots_desktop *desktop,
+		struct wlr_output *wlr_output, struct timespec *when,
+		struct roots_view *view, double ox, double oy) {
+	struct wlr_surface *surface = view->wlr_surface;
+	float matrix[16];
+	float transform[16];
+	wlr_surface_flush_damage(surface);
+	if (surface->texture->valid) {
+		wlr_matrix_translate(&transform, ox, oy, 0);
+		wlr_surface_get_matrix(surface, &matrix,
+			&wlr_output->transform_matrix, &transform);
+		wlr_render_with_matrix(desktop->server->renderer,
+				surface->texture, &matrix);
+
+		struct wlr_frame_callback *cb, *cnext;
+		wl_list_for_each_safe(cb, cnext, &surface->frame_callback_list, link) {
+			wl_callback_send_done(cb->resource, timespec_to_msec(when));
+			wl_resource_destroy(cb->resource);
+		}
+	}
+}
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
@@ -22,7 +50,19 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	// TODO: render views
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
+		int width = view->wlr_surface->current.buffer_width;
+		int height = view->wlr_surface->current.buffer_height;
+
+		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
+					view->x, view->y, view->x + width, view->y + height)) {
+			double ox = view->x, oy = view->y;
+			wlr_output_layout_output_coords(
+					desktop->layout, wlr_output, &ox, &oy);
+			render_view(desktop, wlr_output, &now, view, ox, oy);
+		}
+	}
 
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);
