@@ -1,11 +1,12 @@
 #define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <stdlib.h>
-#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/types/wlr_gamma_control.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/server.h"
@@ -42,6 +43,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->compositor = wlr_compositor_create(
 			server->wl_display, server->renderer);
 	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
+
+	wlr_cursor_attach_output_layout(server->input->cursor, desktop->layout);
+	wlr_cursor_map_to_region(server->input->cursor, config->cursor.mapped_box);
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,

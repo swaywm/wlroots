@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/xcursor.h>
+#include "rootston/config.h"
 #include "rootston/view.h"
 
 struct roots_keyboard {
@@ -52,10 +53,10 @@ struct roots_tablet_tool {
 };
 
 enum roots_cursor_mode {
-	ROOTS_CURSOR_PASSTHROUGH,
-	ROOTS_CURSOR_MOVE,
-	ROOTS_CURSOR_RESIZE,
-	ROOTS_CURSOR_ROTATE,
+	ROOTS_CURSOR_PASSTHROUGH = 0,
+	ROOTS_CURSOR_MOVE = 1,
+	ROOTS_CURSOR_RESIZE = 2,
+	ROOTS_CURSOR_ROTATE = 3,
 };
 
 struct roots_input_event {
@@ -65,16 +66,15 @@ struct roots_input_event {
 };
 
 struct roots_input {
+	struct roots_config *config;
+
 	// TODO: multiseat, multicursor
 	struct wlr_cursor *cursor;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
 
 	enum roots_cursor_mode mode;
-	struct roots_view *focused_view;
-	struct roots_view *moving_view;
-	struct roots_view *resizing_view;
-	struct roots_view *rotating_view;
+	struct roots_view *active_view;
 	int offs_x, offs_y;
 
 	// Ring buffer of input events that could trigger move/resize/rotate
@@ -85,7 +85,13 @@ struct roots_input {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
-	struct wl_list tablet_pads;
+
+	struct wl_listener input_add;
+	struct wl_listener input_remove;
 };
+
+struct roots_input *input_create(struct roots_server *server,
+		struct roots_config *config);
+void input_destroy(struct roots_input *input);
 
 #endif

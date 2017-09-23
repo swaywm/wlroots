@@ -35,6 +35,12 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	wlr_log(L_INFO, "Initializating wayland backend");
 
+	wlr_wl_registry_poll(backend);
+	if (!(backend->compositor) || (!(backend->shell))) {
+		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
+		return false;
+	}
+
 	backend->started = true;
 	for (size_t i = 0; i < backend->requested_outputs; ++i) {
 		wlr_wl_output_create(&backend->backend);
@@ -136,12 +142,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 
 	if (!(backend->registry = wl_display_get_registry(backend->remote_display))) {
 		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
-		return false;
-	}
-
-	wlr_wl_registry_poll(backend);
-	if (!(backend->compositor) || (!(backend->shell))) {
-		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
 		return false;
 	}
 
