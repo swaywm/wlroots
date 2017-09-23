@@ -31,6 +31,18 @@ struct wlr_seat_pointer_state {
 	struct wl_listener focus_resource_destroy_listener;
 };
 
+struct wlr_seat_keyboard_state {
+	struct wlr_seat *wlr_seat;
+	struct wlr_seat_handle *focused_handle;
+	struct wlr_surface *focused_surface;
+
+	int keymap_fd;
+	size_t keymap_size;
+
+	struct wl_listener focus_surface_destroy_listener;
+	struct wl_listener focus_resource_destroy_listener;
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
@@ -40,6 +52,7 @@ struct wlr_seat {
 	struct wlr_data_device *data_device;
 
 	struct wlr_seat_pointer_state pointer_state;
+	struct wlr_seat_keyboard_state keyboard_state;
 
 	struct {
 		struct wl_signal client_bound;
@@ -112,5 +125,39 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
+
+/**
+ * Send a keyboard enter event to the given surface and consider it to be the
+ * focused surface for the keyboard. This will send a leave event to the last
+ * surface that was entered. Pass an array of currently pressed keys.
+ */
+void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, struct wl_array keys);
+
+/**
+ * Clear the focused surface for the keyboard and leave all entered surfaces.
+ */
+void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
+
+/**
+ * Send a key event to the surface with keyboard focus. Returns the event
+ * serial.
+ */
+uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
+		uint32_t key, uint32_t state);
+
+/**
+ * Send the modifiers event to the surface with keyboard focus. Also sends the
+ * event to the surface with pointer focus.
+ */
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group);
+
+/**
+ * Set the keymap and send it to seat keyboard resources.
+ */
+void wlr_seat_keyboard_set_keymap(struct wlr_seat *wlr_seat, int keymap_fd,
+		size_t keymap_size);
 
 #endif

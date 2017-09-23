@@ -128,6 +128,15 @@ static void example_set_focused_surface(struct sample_state *sample,
 		}
 	}
 
+	if (surface) {
+		// TODO: send array of currently pressed keys
+		struct wl_array keys;
+		wl_array_init(&keys);
+		wlr_seat_keyboard_enter(sample->wl_seat, surface->surface, keys);
+	} else {
+		wlr_seat_keyboard_clear_focus(sample->wl_seat);
+	}
+
 	sample->focused_surface = surface;
 }
 
@@ -332,61 +341,27 @@ static void handle_output_frame(struct output_state *output,
 }
 
 static void handle_keyboard_key(struct keyboard_state *keyboard,
-		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
+		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state,
+		uint64_t time_usec) {
 	struct compositor_state *state = keyboard->compositor;
 	struct sample_state *sample = state->data;
 
-	struct wl_resource *res = NULL;
-	struct wlr_seat_handle *seat_handle = NULL;
-	wl_list_for_each(res, &sample->wlr_compositor->surfaces, link) {
-		break;
-	}
+	uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_DEPRESSED);
+	uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LATCHED);
+	uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LOCKED);
+	uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
+		XKB_STATE_LAYOUT_EFFECTIVE);
 
-	if (res) {
-		seat_handle = wlr_seat_handle_for_client(sample->wl_seat,
-			wl_resource_get_client(res));
-	}
-
-	if (res != sample->focus && seat_handle && seat_handle->keyboard) {
-		struct wl_array keys;
-		wl_array_init(&keys);
-		uint32_t serial = wl_display_next_serial(state->display);
-		wl_keyboard_send_enter(seat_handle->keyboard, serial, res, &keys);
-		sample->focus = res;
-	}
-
-	if (seat_handle && seat_handle->keyboard) {
-		uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_DEPRESSED);
-		uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_LATCHED);
-		uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_LOCKED);
-		uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
-			XKB_STATE_LAYOUT_EFFECTIVE);
-		uint32_t modifiers_serial = wl_display_next_serial(state->display);
-		uint32_t key_serial = wl_display_next_serial(state->display);
-		wl_keyboard_send_modifiers(seat_handle->keyboard, modifiers_serial,
-			depressed, latched, locked, group);
-		wl_keyboard_send_key(seat_handle->keyboard, key_serial, 0, keycode,
-			key_state);
-	}
+	wlr_seat_keyboard_send_modifiers(sample->wl_seat, depressed, latched,
+		locked, group);
+	wlr_seat_keyboard_send_key(sample->wl_seat, (uint32_t)time_usec, keycode,
+		key_state);
 
 	if (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R) {
 		sample->mod_down = key_state == WLR_KEY_PRESSED;
-	}
-}
-
-static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
-	struct wlr_seat_handle *handle = data;
-	struct sample_state *state =
-		wl_container_of(listener, state, keyboard_bound);
-
-	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
-		state->keymap_fd, state->keymap_size);
-
-	if (wl_resource_get_version(handle->keyboard) >= 2) {
-		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
 	}
 }
 
@@ -669,8 +644,6 @@ int main(int argc, char *argv[]) {
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	assert(state.wl_seat);
-	state.keyboard_bound.notify = handle_keyboard_bound;
-	wl_signal_add(&state.wl_seat->events.keyboard_bound, &state.keyboard_bound);
 	wlr_seat_set_capabilities(state.wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
 		| WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_TOUCH);
 
@@ -687,6 +660,10 @@ int main(int argc, char *argv[]) {
 		free(keymap);
 		break;
 	}
+
+	wlr_seat_keyboard_set_keymap(state.wl_seat, state.keymap_fd,
+		state.keymap_size);
+
 	state.xwayland = wlr_xwayland_create(compositor.display,
 		state.wlr_compositor);
 
