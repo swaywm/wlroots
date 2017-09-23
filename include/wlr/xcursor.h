@@ -27,8 +27,10 @@
  * This is adapted from wayland-cursor, but with the wl_shm client stuff removed
  * so we can use it on the compositor, too.
  */
-#ifndef _WLR_XCURSOR_H
-#define _WLR_XCURSOR_H
+
+#ifndef WLR_XCURSOR_H
+#define WLR_XCURSOR_H
+
 #include <stdint.h>
 
 struct wlr_xcursor_image {

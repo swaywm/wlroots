@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_DATA_SOURCE_H
-#define _WLR_INTERFACES_DATA_SOURCE_H
+#ifndef WLR_INTERFACES_WLR_DATA_SOURCE_H
+#define WLR_INTERFACES_WLR_DATA_SOURCE_H
+
 #include <wlr/types/wlr_data_source.h>
 
 struct wlr_data_source_impl {

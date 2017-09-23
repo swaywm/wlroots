@@ -1,5 +1,6 @@
-#ifndef _WLR_RENDER_GLES2_INTERNAL_H
-#define _WLR_RENDER_GLES2_INTERNAL_H
+#ifndef RENDER_GLES2_H
+#define RENDER_GLES2_H
+
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>

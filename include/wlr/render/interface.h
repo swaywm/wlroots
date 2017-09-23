@@ -1,5 +1,6 @@
-#ifndef _WLR_RENDER_INTERFACE_H
-#define _WLR_RENDER_INTERFACE_H
+#ifndef WLR_RENDER_INTERFACE_H
+#define WLR_RENDER_INTERFACE_H
+
 #include <wayland-server-protocol.h>
 #include <stdbool.h>
 #include <wlr/render.h>

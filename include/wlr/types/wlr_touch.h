@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_TOUCH_H
-#define _WLR_TYPES_TOUCH_H
+#ifndef WLR_TYPES_WLR_TOUCH_H
+#define WLR_TYPES_WLR_TOUCH_H
+
 #include <wayland-server.h>
 #include <stdint.h>
 

@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACE_OUTPUT_H
-#define _WLR_INTERFACE_OUTPUT_H
+#ifndef WLR_INTERFACES_WLR_OUTPUT_H
+#define WLR_INTERFACES_WLR_OUTPUT_H
+
 #include <wlr/types/wlr_output.h>
 #include <stdbool.h>
 

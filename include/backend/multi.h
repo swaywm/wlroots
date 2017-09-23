@@ -1,5 +1,5 @@
-#ifndef _WLR_MULTI_BACKEND_INTERNAL
-#define _WLR_MULTI_BACKEND_INTERNAL
+#ifndef BACKEND_MULTI_H
+#define BACKEND_MULTI_H
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/multi.h>

@@ -1,5 +1,5 @@
-#ifndef _WLR_TYPES_REGION_H
-#define _WLR_TYPES_REGION_H
+#ifndef WLR_TYPES_WLR_REGION_H
+#define WLR_TYPES_WLR_REGION_H
 
 struct wl_resource;
 

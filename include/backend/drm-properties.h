@@ -1,5 +1,5 @@
-#ifndef DRM_PROPERTIES_H
-#define DRM_PROPERTIES_H
+#ifndef BACKEND_DRM_PROPERTIES_H
+#define BACKEND_DRM_PROPERTIES_H
 
 #include <stdbool.h>
 #include <stdint.h>

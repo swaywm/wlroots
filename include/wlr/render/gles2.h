@@ -1,5 +1,6 @@
-#ifndef _WLR_GLES2_RENDERER_H
-#define _WLR_GLES2_RENDERER_H
+#ifndef WLR_RENDER_GLES2_H
+#define WLR_RENDER_GLES2_H
+
 #include <wlr/render.h>
 #include <wlr/backend.h>
 

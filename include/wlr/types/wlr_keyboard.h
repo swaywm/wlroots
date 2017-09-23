@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_KEYBOARD_H
-#define _WLR_TYPES_KEYBOARD_H
+#ifndef WLR_TYPES_WLR_KEYBOARD_H
+#define WLR_TYPES_WLR_KEYBOARD_H
+
 #include <wayland-server.h>
 #include <stdint.h>
 
