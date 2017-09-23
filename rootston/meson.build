@@ -5,6 +5,7 @@ executable(
 		'desktop.c',
 		'ini.c',
 		'input.c',
+		'keyboard.c',
 		'main.c',
 		'output.c',
 		'pointer.c',

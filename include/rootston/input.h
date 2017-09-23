@@ -25,10 +25,8 @@ struct roots_keyboard {
 struct roots_pointer {
 	struct roots_input *input;
 	struct wlr_input_device *device;
-	struct wl_listener motion;
-	struct wl_listener motion_absolute;
-	struct wl_listener button;
-	struct wl_listener axis;
+	// We don't listen to any pointer events directly - they go through
+	// wlr_cursor
 	struct wl_list link;
 };
 
@@ -104,6 +102,7 @@ struct roots_input *input_create(struct roots_server *server,
 void input_destroy(struct roots_input *input);
 
 void pointer_add(struct wlr_input_device *device, struct roots_input *input);
+void keyboard_add(struct wlr_input_device *device, struct roots_input *input);
 
 void cursor_initialize(struct roots_input *input);
 void cursor_load_config(struct roots_config *config,

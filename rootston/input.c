@@ -31,7 +31,7 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 			device->vendor, device->product, device_type(device->type));
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		//keyboard_add(device, input);
+		keyboard_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_add(device, input);
