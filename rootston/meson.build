@@ -1,6 +1,7 @@
 executable(
 	'rootson', [
 		'config.c',
+		'cursor.c',
 		'desktop.c',
 		'ini.c',
 		'input.c',

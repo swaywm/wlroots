@@ -75,12 +75,12 @@ struct roots_input *input_create(struct roots_server *server,
 	assert(input);
 
 	input->config = config;
-	input->cursor = wlr_cursor_create();
+	input->server = server;
 
 	struct wlr_xcursor_theme *theme;
 	assert(theme = wlr_xcursor_theme_load("default", 16));
 	assert(input->xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr"));
-	wlr_cursor_set_xcursor(input->cursor, input->xcursor);
+
 	assert(input->wl_seat = wlr_seat_create(server->wl_display, "seat0"));
 
 	wl_list_init(&input->keyboards);
@@ -97,6 +97,10 @@ struct roots_input *input_create(struct roots_server *server,
 			&input->input_add);
 	wl_signal_add(&server->backend->events.input_remove,
 			&input->input_remove);
+
+	input->cursor = wlr_cursor_create();
+	cursor_initialize(input);
+	wlr_cursor_set_xcursor(input->cursor, input->xcursor);
 
 	return input;
 }

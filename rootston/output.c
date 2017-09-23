@@ -73,6 +73,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 void output_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
 	struct roots_desktop *desktop = wl_container_of(listener, desktop, output_add);
+	struct roots_input *input = desktop->server->input;
 	struct roots_config *config = desktop->config;
 
 	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
@@ -101,10 +102,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
 
-	/* TODO: cursor
-	example_config_configure_cursor(sample->config, sample->cursor,
-		sample->compositor);
+	cursor_load_config(config, input->cursor, input, desktop);
 
+	struct wlr_xcursor_image *image = input->xcursor->images[0];
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
@@ -113,8 +113,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
-	*/
+	wlr_cursor_warp(input->cursor, NULL, input->cursor->x, input->cursor->y);
 }
 
 void output_remove_notify(struct wl_listener *listener, void *data) {

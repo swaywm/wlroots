@@ -68,6 +68,7 @@ struct roots_input_event {
 
 struct roots_input {
 	struct roots_config *config;
+	struct roots_server *server;
 
 	// TODO: multiseat, multicursor
 	struct wlr_cursor *cursor;
@@ -89,6 +90,13 @@ struct roots_input {
 
 	struct wl_listener input_add;
 	struct wl_listener input_remove;
+
+	struct wl_listener cursor_motion;
+	struct wl_listener cursor_motion_absolute;
+	struct wl_listener cursor_button;
+	struct wl_listener cursor_axis;
+	struct wl_listener cursor_tool_axis;
+	struct wl_listener cursor_tool_tip;
 };
 
 struct roots_input *input_create(struct roots_server *server,
@@ -96,5 +104,11 @@ struct roots_input *input_create(struct roots_server *server,
 void input_destroy(struct roots_input *input);
 
 void pointer_add(struct wlr_input_device *device, struct roots_input *input);
+
+void cursor_initialize(struct roots_input *input);
+void cursor_load_config(struct roots_config *config,
+		struct wlr_cursor *cursor,
+		struct roots_input *input,
+		struct roots_desktop *desktop);
 
 #endif
