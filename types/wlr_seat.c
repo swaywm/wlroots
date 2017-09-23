@@ -157,6 +157,7 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 	wl_resource_set_implementation(handle->wl_resource, &wl_seat_impl,
 		handle, wlr_seat_handle_resource_destroy);
 	wl_list_insert(&wlr_seat->handles, &handle->link);
+	wl_seat_send_name(handle->wl_resource, wlr_seat->name);
 	wl_seat_send_capabilities(handle->wl_resource, wlr_seat->capabilities);
 	wl_signal_emit(&wlr_seat->events.client_bound, handle);
 }

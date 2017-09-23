@@ -82,6 +82,8 @@ struct roots_input *input_create(struct roots_server *server,
 	assert(input->xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr"));
 
 	assert(input->wl_seat = wlr_seat_create(server->wl_display, "seat0"));
+	wlr_seat_set_capabilities(input->wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
+		| WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_TOUCH);
 
 	wl_list_init(&input->keyboards);
 	wl_list_init(&input->pointers);

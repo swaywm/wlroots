@@ -1,10 +1,27 @@
+#include <assert.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/server.h"
+
+static void get_input_bounds(struct roots_view *view, struct wlr_box *box) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
+	memcpy(box, surf->geometry, sizeof(struct wlr_box));
+}
+
+static void activate(struct roots_view *view, bool active) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
+	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_toplevel_v6_set_activated(surf, active);
+	}
+}
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
@@ -46,6 +63,8 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->xdg_surface_v6 = surface;
 	view->roots_xdg_surface_v6 = roots_surface;
 	view->wlr_surface = surface->surface;
+	view->get_input_bounds = get_input_bounds;
+	view->activate = activate;
 	roots_surface->view = view;
 	wl_list_insert(&desktop->views, &view->link);
 }

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/desktop.h"
@@ -15,23 +16,34 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		surface->position.ly = sample->cursor->y - sample->motion_context.off_y;
 		return;
 	}
-
-	struct wlr_xdg_surface_v6 *surface = example_xdg_surface_at(sample,
-			sample->cursor->x, sample->cursor->y);
-
-	if (surface) {
-		struct example_xdg_surface_v6 *esurface = surface->data;
-
-		double sx = sample->cursor->x - esurface->position.lx;
-		double sy = sample->cursor->y - esurface->position.ly;
-
-		// TODO z-order
-		wlr_seat_pointer_enter(sample->wl_seat, surface->surface, sx, sy);
-		wlr_seat_pointer_send_motion(sample->wl_seat, time, sx, sy);
-	} else {
-		wlr_seat_pointer_clear_focus(sample->wl_seat);
-	}
 	*/
+	struct roots_desktop *desktop = input->server->desktop;
+	struct roots_view *view = view_at(
+			desktop, input->cursor->x, input->cursor->y);
+	if (view) {
+		struct wlr_box box;
+		view_get_input_bounds(view, &box);
+		double sx = input->cursor->x - view->x;
+		double sy = input->cursor->y - view->y;
+		wlr_log(L_DEBUG, "Moving cursor in view at %f, %f", sx, sy);
+		wlr_seat_pointer_enter(input->wl_seat, view->wlr_surface, sx, sy);
+		wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
+	} else {
+		wlr_seat_pointer_clear_focus(input->wl_seat);
+	}
+}
+
+static void set_view_focus(struct roots_input *input,
+		struct roots_desktop *desktop, struct roots_view *view) {
+	if (input->active_view == view) {
+		return;
+	}
+	struct roots_view *_view;
+	wl_list_for_each(_view, &desktop->views, link) {
+		view_activate(_view, _view == view);
+	}
+	input->active_view = view;
+	input->mode = ROOTS_CURSOR_PASSTHROUGH;
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
@@ -61,43 +73,35 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
-	/* TODO
-	struct sample_state *sample =
-		wl_container_of(listener, sample, cursor_button);
+	struct roots_input *input = wl_container_of(listener, input, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 
-	struct wlr_xdg_surface_v6 *surface =
-		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
+	struct roots_desktop *desktop = input->server->desktop;
+	struct roots_view *view = view_at(
+			desktop, input->cursor->x, input->cursor->y);
 
-	uint32_t serial = wlr_seat_pointer_send_button(sample->wl_seat,
+	uint32_t serial = wlr_seat_pointer_send_button(input->wl_seat,
 			(uint32_t)event->time_usec, event->button, event->state);
 
 	int i;
 	switch (event->state) {
 	case WLR_BUTTON_RELEASED:
+		/*
 		if (sample->motion_context.surface) {
 			sample->motion_context.surface = NULL;
 		}
+		*/
 		break;
 	case WLR_BUTTON_PRESSED:
-		i = sample->input_cache_idx;
-		sample->input_cache[i].serial = serial;
-		sample->input_cache[i].cursor = sample->cursor;
-		sample->input_cache[i].device = event->device;
-		sample->input_cache_idx = (i + 1)
-			% (sizeof(sample->input_cache) / sizeof(sample->input_cache[0]));
-		example_set_focused_surface(sample, surface);
-		wlr_log(L_DEBUG, "Stored event %d at %d", serial, i);
-		if (sample->mod_down && event->button == BTN_LEFT) {
-			struct example_xdg_surface_v6 *esurface = surface->data;
-			sample->motion_context.surface = esurface;
-			sample->motion_context.off_x = sample->cursor->x - esurface->position.lx;
-			sample->motion_context.off_y = sample->cursor->y - esurface->position.ly;
-			wlr_seat_pointer_clear_focus(sample->wl_seat);
-		}
+		i = input->input_events_idx;
+		input->input_events[i].serial = serial;
+		input->input_events[i].cursor = input->cursor;
+		input->input_events[i].device = event->device;
+		input->input_events_idx = (i + 1)
+			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
+		set_view_focus(input, desktop, view);
 		break;
 	}
-	*/
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {

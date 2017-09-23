@@ -1,8 +1,9 @@
 #ifndef _ROOTSTON_VIEW_H
 #define _ROOTSTON_VIEW_H
 #include <stdbool.h>
-#include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
 
 struct roots_wl_shell_surface {
 	// TODO
@@ -41,6 +42,15 @@ struct roots_view {
 	};
 	struct wlr_surface *wlr_surface;
 	struct wl_list link;
+	// TODO: This would probably be better as a field that's updated on a
+	// configure event from the xdg_shell
+	// If not then this should follow the typical type/impl pattern we use
+	// elsewhere
+	void (*get_input_bounds)(struct roots_view *view, struct wlr_box *box);
+	void (*activate)(struct roots_view *view, bool active);
 };
+
+void view_get_input_bounds(struct roots_view *view, struct wlr_box *box);
+void view_activate(struct roots_view *view, bool active);
 
 #endif

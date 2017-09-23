@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <stdlib.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
@@ -14,6 +15,34 @@
 void view_destroy(struct roots_view *view) {
 	wl_list_remove(&view->link);
 	free(view);
+}
+
+void view_get_input_bounds(struct roots_view *view, struct wlr_box *box) {
+	if (view->get_input_bounds) {
+		view->get_input_bounds(view, box);
+		return;
+	}
+	box->x = box->y = 0;
+}
+
+void view_activate(struct roots_view *view, bool activate) {
+	if (view->activate) {
+		view->activate(view, activate);
+	}
+}
+
+struct roots_view *view_at(struct roots_desktop *desktop, int x, int y) {
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
+		struct wlr_box box;
+		view_get_input_bounds(view, &box);
+		box.x += view->x;
+		box.y += view->y;
+		if (wlr_box_contains_point(&box, x, y)) {
+			return view;
+		}
+	}
+	return NULL;
 }
 
 struct roots_desktop *desktop_create(struct roots_server *server,
