@@ -8,6 +8,7 @@
 #include <wlr/xcursor.h>
 #include "rootston/config.h"
 #include "rootston/view.h"
+#include "rootston/server.h"
 
 struct roots_keyboard {
 	struct roots_input *input;
@@ -93,5 +94,7 @@ struct roots_input {
 struct roots_input *input_create(struct roots_server *server,
 		struct roots_config *config);
 void input_destroy(struct roots_input *input);
+
+void pointer_add(struct wlr_input_device *device, struct roots_input *input);
 
 #endif

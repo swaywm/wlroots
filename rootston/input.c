@@ -31,16 +31,16 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 			device->vendor, device->product, device_type(device->type));
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		//keyboard_add(device, state);
+		//keyboard_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
-		//pointer_add(device, state);
+		pointer_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
-		//touch_add(device, state);
+		//touch_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		//tablet_tool_add(device, state);
+		//tablet_tool_add(device, input);
 		break;
 	default:
 		break;
@@ -52,16 +52,16 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, input_remove);
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		//keyboard_remove(device, state);
+		//keyboard_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
-		//pointer_remove(device, state);
+		//pointer_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
-		//touch_remove(device, state);
+		//touch_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		//tablet_tool_remove(device, state);
+		//tablet_tool_remove(device, input);
 		break;
 	default:
 		break;

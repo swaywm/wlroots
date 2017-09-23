@@ -6,5 +6,6 @@ executable(
 		'input.c',
 		'main.c',
 		'output.c',
+		'pointer.c'
 	], dependencies: wlroots
 )
