@@ -1,5 +1,5 @@
-#ifndef WLR_INTERFACE_WLR_KEYBOARD_H
-#define WLR_INTERFACE_WLR_KEYBOARD_H
+#ifndef WLR_INTERFACES_WLR_KEYBOARD_H
+#define WLR_INTERFACES_WLR_KEYBOARD_H
 
 #include <wlr/types/wlr_keyboard.h>
 #include <stdint.h>
