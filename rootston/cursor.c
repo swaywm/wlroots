@@ -8,6 +8,30 @@
 #include "rootston/desktop.h"
 
 void cursor_update_position(struct roots_input *input, uint32_t time) {
+	struct roots_desktop *desktop = input->server->desktop;
+	struct roots_view *view;
+	switch (input->mode) {
+	case ROOTS_CURSOR_PASSTHROUGH:
+		view = view_at(desktop, input->cursor->x, input->cursor->y);
+		if (view) {
+			struct wlr_box box;
+			view_get_input_bounds(view, &box);
+			double sx = input->cursor->x - view->x;
+			double sy = input->cursor->y - view->y;
+			wlr_log(L_DEBUG, "Moving cursor in view at %f, %f", sx, sy);
+			wlr_seat_pointer_enter(input->wl_seat, view->wlr_surface, sx, sy);
+			wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
+		} else {
+			wlr_seat_pointer_clear_focus(input->wl_seat);
+		}
+		break;
+	case ROOTS_CURSOR_MOVE:
+		break;
+	case ROOTS_CURSOR_RESIZE:
+		break;
+	case ROOTS_CURSOR_ROTATE:
+		break;
+	}
 	/*
 	if (input->motion_context.surface) {
 		struct example_xdg_surface_v6 *surface;
@@ -17,20 +41,6 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		return;
 	}
 	*/
-	struct roots_desktop *desktop = input->server->desktop;
-	struct roots_view *view = view_at(
-			desktop, input->cursor->x, input->cursor->y);
-	if (view) {
-		struct wlr_box box;
-		view_get_input_bounds(view, &box);
-		double sx = input->cursor->x - view->x;
-		double sy = input->cursor->y - view->y;
-		wlr_log(L_DEBUG, "Moving cursor in view at %f, %f", sx, sy);
-		wlr_seat_pointer_enter(input->wl_seat, view->wlr_surface, sx, sy);
-		wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
-	} else {
-		wlr_seat_pointer_clear_focus(input->wl_seat);
-	}
 }
 
 static void set_view_focus(struct roots_input *input,
@@ -86,11 +96,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	int i;
 	switch (event->state) {
 	case WLR_BUTTON_RELEASED:
-		/*
-		if (sample->motion_context.surface) {
-			sample->motion_context.surface = NULL;
-		}
-		*/
+		input->active_view = NULL;
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;
@@ -116,17 +122,15 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 }
 
 static void handle_tool_tip(struct wl_listener *listener, void *data) {
-	/* TODO
 	struct roots_input *input = wl_container_of(listener, input, tool_tip);
 	struct wlr_event_tablet_tool_tip *event = data;
 
-	struct wlr_xdg_surface_v6 *surface =
-		example_xdg_surface_at(sample, sample->cursor->x, sample->cursor->y);
-	example_set_focused_surface(sample, surface);
-
-	wlr_seat_pointer_send_button(sample->wl_seat, (uint32_t)event->time_usec,
+	struct roots_desktop *desktop = input->server->desktop;
+	struct roots_view *view = view_at(
+			desktop, input->cursor->x, input->cursor->y);
+	set_view_focus(input, desktop, view);
+	wlr_seat_pointer_send_button(input->wl_seat, (uint32_t)event->time_usec,
 		BTN_LEFT, event->state);
-	*/
 }
 
 void cursor_initialize(struct roots_input *input) {
