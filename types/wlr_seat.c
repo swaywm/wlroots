@@ -406,7 +406,7 @@ static void handle_keyboard_focus_surface_destroyed(
 
 static void handle_keyboard_focus_resource_destroyed(
 		struct wl_listener *listener, void *data) {
-	struct wlr_seat_pointer_state *state =
+	struct wlr_seat_keyboard_state *state =
 		wl_container_of(listener, state, focus_resource_destroy_listener);
 
 	state->focused_surface = NULL;
