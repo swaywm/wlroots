@@ -111,4 +111,5 @@ wlroots = declare_dependency(
 	include_directories: wlr_inc,
 )
 
+subdir('rootston')
 subdir('examples')
