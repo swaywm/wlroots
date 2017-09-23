@@ -362,19 +362,6 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 	}
 }
 
-static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
-	struct wlr_seat_handle *handle = data;
-	struct sample_state *state =
-		wl_container_of(listener, state, keyboard_bound);
-
-	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
-		state->keymap_fd, state->keymap_size);
-
-	if (wl_resource_get_version(handle->keyboard) >= 2) {
-		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
-	}
-}
-
 static struct wlr_xdg_surface_v6 *example_xdg_surface_at(
 		struct sample_state *sample, int lx, int ly) {
 	struct wlr_xdg_surface_v6 *xdg_surface;
@@ -654,8 +641,6 @@ int main(int argc, char *argv[]) {
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	assert(state.wl_seat);
-	state.keyboard_bound.notify = handle_keyboard_bound;
-	wl_signal_add(&state.wl_seat->events.keyboard_bound, &state.keyboard_bound);
 	wlr_seat_set_capabilities(state.wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
 		| WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_TOUCH);
 
@@ -672,6 +657,10 @@ int main(int argc, char *argv[]) {
 		free(keymap);
 		break;
 	}
+
+	wlr_seat_keyboard_set_keymap(state.wl_seat, state.keymap_fd,
+		state.keymap_size);
+
 	state.xwayland = wlr_xwayland_create(compositor.display,
 		state.wlr_compositor);
 

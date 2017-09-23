@@ -35,6 +35,9 @@ struct wlr_seat_keyboard_state {
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
 
+	int keymap_fd;
+	size_t keymap_size;
+
 	struct wl_listener focus_surface_destroy_listener;
 	struct wl_listener focus_resource_destroy_listener;
 };
@@ -149,5 +152,11 @@ uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group);
+
+/**
+ * Set the keymap and send it to seat keyboard resources.
+ */
+void wlr_seat_keyboard_set_keymap(struct wlr_seat *wlr_seat, int keymap_fd,
+		size_t keymap_size);
 
 #endif

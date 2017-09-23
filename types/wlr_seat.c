@@ -70,7 +70,7 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 	}
 	if (handle->keyboard) {
 		// TODO: this is probably a protocol violation but it simplifies our
-		// code and it'd be stupid for clients to create several pointers for
+		// code and it'd be stupid for clients to create several keyboards for
 		// the same seat
 		wl_resource_destroy(handle->keyboard);
 	}
@@ -78,6 +78,20 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 		wl_resource_get_version(_handle), id);
 	wl_resource_set_implementation(handle->keyboard, &wl_keyboard_impl,
 		handle, &wl_keyboard_destroy);
+
+	if (wl_resource_get_version(handle->keyboard) >=
+			WL_KEYBOARD_REPEAT_INFO_SINCE_VERSION) {
+		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
+	}
+
+	if (handle->wlr_seat->keyboard_state.keymap_size) {
+		// TODO: handle no keymap
+		wl_keyboard_send_keymap(handle->keyboard,
+				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
+				handle->wlr_seat->keyboard_state.keymap_fd,
+				handle->wlr_seat->keyboard_state.keymap_size);
+	}
+
 	wl_signal_emit(&handle->wlr_seat->events.keyboard_bound, handle);
 }
 
@@ -507,4 +521,19 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
 		wl_keyboard_send_modifiers(keyboard, serial, mods_depressed,
 			mods_latched, mods_locked, group);
 	}
+}
+
+void wlr_seat_keyboard_set_keymap(struct wlr_seat *wlr_seat, int keymap_fd,
+		size_t keymap_size) {
+	// TODO: we probably should wait to send the keymap if keys are pressed
+	struct wlr_seat_handle *handle;
+	wl_list_for_each(handle, &wlr_seat->handles, link) {
+		if (handle->keyboard) {
+			wl_keyboard_send_keymap(handle->keyboard,
+				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, keymap_fd, keymap_size);
+		}
+	}
+
+	wlr_seat->keyboard_state.keymap_fd = keymap_fd;
+	wlr_seat->keyboard_state.keymap_size = keymap_size;
 }
