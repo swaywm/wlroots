@@ -1,5 +1,6 @@
-#ifndef _WLR_XDG_SHELL_V6_H
-#define _WLR_XDG_SHELL_V6_H
+#ifndef WLR_TYPES_WLR_XDG_SHELL_V6_H
+#define WLR_TYPES_WLR_XDG_SHELL_V6_H
+
 #include <wlr/types/wlr_box.h>
 #include <wayland-server.h>
 

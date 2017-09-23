@@ -1,5 +1,5 @@
-#ifndef DRM_BACKEND_H
-#define DRM_BACKEND_H
+#ifndef BACKEND_DRM_H
+#define BACKEND_DRM_H
 
 #include <stdbool.h>
 #include <stddef.h>

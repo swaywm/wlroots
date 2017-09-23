@@ -1,5 +1,5 @@
-#ifndef _WLR_BACKEND_MULTI_H
-#define _WLR_BACKEND_MULTI_H
+#ifndef WLR_BACKEND_MULTI_H
+#define WLR_BACKEND_MULTI_H
 
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>

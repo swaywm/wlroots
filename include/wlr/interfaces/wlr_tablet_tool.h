@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_TABLET_TOOL_H
-#define _WLR_INTERFACES_TABLET_TOOL_H
+#ifndef WLR_INTERFACES_WLR_TABLET_TOOL_H
+#define WLR_INTERFACES_WLR_TABLET_TOOL_H
+
 #include <wlr/types/wlr_tablet_tool.h>
 
 struct wlr_tablet_tool_impl {

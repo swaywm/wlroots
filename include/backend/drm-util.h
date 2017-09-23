@@ -1,5 +1,5 @@
-#ifndef WLR_DRM_UTIL_H
-#define WLR_DRM_UTIL_H
+#ifndef BACKEND_DRM_UTIL_H
+#define BACKEND_DRM_UTIL_H
 
 #include <stdint.h>
 #include <xf86drm.h>

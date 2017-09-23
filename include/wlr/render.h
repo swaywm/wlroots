@@ -1,5 +1,6 @@
-#ifndef _WLR_RENDER_H
-#define _WLR_RENDER_H
+#ifndef WLR_RENDER_H
+#define WLR_RENDER_H
+
 #include <stdint.h>
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_output.h>

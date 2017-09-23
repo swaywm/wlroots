@@ -1,5 +1,6 @@
-#ifndef _WLR_WL_SHELL_H
-#define _WLR_WL_SHELL_H
+#ifndef WLR_TYPES_WLR_WL_SHELL_H
+#define WLR_TYPES_WLR_WL_SHELL_H
+
 #include <wayland-server.h>
 
 struct wlr_wl_shell {

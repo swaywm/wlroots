@@ -1,5 +1,6 @@
-#ifndef _EXAMPLE_COMPOSITOR_H
-#define _EXAMPLE_COMPOSITOR_H
+#ifndef WLR_TYPES_WLR_COMPOSITOR_H
+#define WLR_TYPES_WLR_COMPOSITOR_H
+
 #include <wayland-server.h>
 #include <wlr/render.h>
 
@@ -22,4 +23,5 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 struct wlr_surface;
 void wl_compositor_surface_destroyed(struct wlr_compositor *wlr_compositor,
 		struct wlr_surface *surface);
+
 #endif

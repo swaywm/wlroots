@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_TABLET_TOOL_H
-#define _WLR_TYPES_TABLET_TOOL_H
+#ifndef WLR_TYPES_TABLET_TOOL_H
+#define WLR_TYPES_TABLET_TOOL_H
+
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-server.h>
 #include <stdint.h>

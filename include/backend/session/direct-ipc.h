@@ -1,5 +1,5 @@
-#ifndef SESSION_DIRECT_IPC
-#define SESSION_DIRECT_IPC
+#ifndef BACKEND_SESSION_DIRECT_IPC_H
+#define BACKEND_SESSION_DIRECT_IPC_H
 
 #include <sys/types.h>
 

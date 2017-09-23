@@ -1,5 +1,5 @@
-#ifndef _WLR_BACKEND_H
-#define _WLR_BACKEND_H
+#ifndef WLR_BACKEND_H
+#define WLR_BACKEND_H
 
 #include <wayland-server.h>
 #include <wlr/backend/session.h>

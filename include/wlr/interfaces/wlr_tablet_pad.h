@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_TABLET_PAD_H
-#define _WLR_INTERFACES_TABLET_PAD_H
+#ifndef WLR_INTERFACES_WLR_TABLET_PAD_H
+#define WLR_INTERFACES_WLR_TABLET_PAD_H
+
 #include <wlr/types/wlr_tablet_pad.h>
 
 struct wlr_tablet_pad_impl {

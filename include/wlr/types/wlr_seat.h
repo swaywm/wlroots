@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_SEAT_H
-#define _WLR_TYPES_SEAT_H
+#ifndef WLR_TYPES_WLR_SEAT_H
+#define WLR_TYPES_WLR_SEAT_H
+
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-server.h>

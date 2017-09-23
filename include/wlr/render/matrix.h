@@ -1,5 +1,5 @@
-#ifndef _WLR_RENDER_MATRIX_H
-#define _WLR_RENDER_MATRIX_H
+#ifndef WLR_RENDER_MATRIX_H
+#define WLR_RENDER_MATRIX_H
 
 #include <stdint.h>
 
