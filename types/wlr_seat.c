@@ -414,7 +414,7 @@ static void handle_keyboard_focus_resource_destroyed(
 }
 
 void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface) {
+		struct wlr_surface *surface, struct wl_array keys) {
 	if (wlr_seat->keyboard_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
@@ -442,9 +442,6 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 	// enter the current surface
 	if (handle && handle->keyboard) {
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
-		// TODO: send currently pressed keys
-		struct wl_array keys;
-		wl_array_init(&keys);
 		wl_keyboard_send_enter(handle->keyboard, serial,
 			surface->resource, &keys);
 
@@ -475,7 +472,9 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 }
 
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat) {
-	wlr_seat_keyboard_enter(wlr_seat, NULL);
+	struct wl_array keys;
+	wl_array_init(&keys);
+	wlr_seat_keyboard_enter(wlr_seat, NULL, keys);
 }
 
 static bool wlr_seat_keyboard_has_focus_resource(struct wlr_seat *wlr_seat) {

@@ -128,10 +128,10 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 /**
  * Send a keyboard enter event to the given surface and consider it to be the
  * focused surface for the keyboard. This will send a leave event to the last
- * surface that was entered.
+ * surface that was entered. Pass an array of currently pressed keys.
  */
 void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface);
+		struct wlr_surface *surface, struct wl_array keys);
 
 /**
  * Clear the focused surface for the keyboard and leave all entered surfaces.

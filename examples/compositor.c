@@ -129,7 +129,10 @@ static void example_set_focused_surface(struct sample_state *sample,
 	}
 
 	if (surface) {
-		wlr_seat_keyboard_enter(sample->wl_seat, surface->surface);
+		// TODO: send array of currently pressed keys
+		struct wl_array keys;
+		wl_array_init(&keys);
+		wlr_seat_keyboard_enter(sample->wl_seat, surface->surface, keys);
 	} else {
 		wlr_seat_keyboard_clear_focus(sample->wl_seat);
 	}
