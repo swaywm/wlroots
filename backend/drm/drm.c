@@ -734,25 +734,9 @@ static struct wlr_output_impl output_impl = {
 
 static int retry_pageflip(void *data) {
 	struct wlr_drm_output *output = data;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
-
-	struct wlr_drm_crtc *crtc = output->crtc;
-	struct wlr_drm_plane *plane = crtc->primary;
-	struct gbm_bo *bo = plane->front ? plane->front : plane->back;
-
-	struct wlr_drm_output_mode *wlr_mode =
-		(struct wlr_drm_output_mode *)output->output.current_mode;
-	drmModeModeInfo *mode = &wlr_mode->mode;
-
-	if (backend->iface->crtc_pageflip(backend, output, crtc, get_fb_for_bo(bo), mode)) {
-		output->pageflip_pending = true;
-	} else {
-		wl_event_source_timer_update(output->retry_pageflip,
-			output->output.current_mode->refresh);
-	}
-
-	return 1;
+	wlr_log(L_INFO, "%s: Retrying pageflip", output->output.name);
+	wlr_drm_output_start_renderer(output);
+	return 0;
 }
 
 static int find_id(const void *item, const void *cmp_to) {
