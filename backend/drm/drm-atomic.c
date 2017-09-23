@@ -57,8 +57,7 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 
 		// Try to commit without new changes
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
-		ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
-		if (ret) {
+		if (drmModeAtomicCommit(drm_fd, atom->req, flags, output)) {
 			wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
 				output->output.name, modeset ? "modeset" : "pageflip");
 		}
