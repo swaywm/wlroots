@@ -1,5 +1,7 @@
 #include <stdint.h>
 #include <string.h>
+// TODO: BSD et al
+#include <linux/input-event-codes.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
@@ -18,7 +20,6 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			view_get_input_bounds(view, &box);
 			double sx = input->cursor->x - view->x;
 			double sy = input->cursor->y - view->y;
-			wlr_log(L_DEBUG, "Moving cursor in view at %f, %f", sx, sy);
 			wlr_seat_pointer_enter(input->wl_seat, view->wlr_surface, sx, sy);
 			wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
 		} else {
@@ -26,21 +27,16 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 		break;
 	case ROOTS_CURSOR_MOVE:
+		if (input->active_view) {
+			input->active_view->x = input->cursor->x - input->offs_x;
+			input->active_view->y = input->cursor->y - input->offs_y;
+		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
 		break;
 	case ROOTS_CURSOR_ROTATE:
 		break;
 	}
-	/*
-	if (input->motion_context.surface) {
-		struct example_xdg_surface_v6 *surface;
-		surface = sample->motion_context.surface;
-		surface->position.lx = sample->cursor->x - sample->motion_context.off_x;
-		surface->position.ly = sample->cursor->y - sample->motion_context.off_y;
-		return;
-	}
-	*/
 }
 
 static void set_view_focus(struct roots_input *input,
@@ -82,32 +78,37 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 		event->orientation, event->delta);
 }
 
-static void handle_cursor_button(struct wl_listener *listener, void *data) {
-	struct roots_input *input = wl_container_of(listener, input, cursor_button);
-	struct wlr_event_pointer_button *event = data;
-
+static void do_cursor_button_press(struct roots_input *input,
+		struct wlr_cursor *cursor, struct wlr_input_device *device,
+		uint32_t time, uint32_t button, uint32_t state) {
 	struct roots_desktop *desktop = input->server->desktop;
-	struct roots_view *view = view_at(
-			desktop, input->cursor->x, input->cursor->y);
-
-	uint32_t serial = wlr_seat_pointer_send_button(input->wl_seat,
-			(uint32_t)event->time_usec, event->button, event->state);
-
+	struct roots_view *view = view_at(desktop,
+			input->cursor->x, input->cursor->y);
+	uint32_t serial = wlr_seat_pointer_send_button(
+			input->wl_seat, time, button, state);
 	int i;
-	switch (event->state) {
+	switch (state) {
 	case WLR_BUTTON_RELEASED:
 		input->active_view = NULL;
+		input->mode = ROOTS_CURSOR_PASSTHROUGH;
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;
 		input->input_events[i].serial = serial;
-		input->input_events[i].cursor = input->cursor;
-		input->input_events[i].device = event->device;
+		input->input_events[i].cursor = cursor;
+		input->input_events[i].device = device;
 		input->input_events_idx = (i + 1)
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
 		break;
 	}
+}
+
+static void handle_cursor_button(struct wl_listener *listener, void *data) {
+	struct roots_input *input = wl_container_of(listener, input, cursor_button);
+	struct wlr_event_pointer_button *event = data;
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)event->time_usec, event->button, event->state);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
@@ -122,15 +123,10 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 }
 
 static void handle_tool_tip(struct wl_listener *listener, void *data) {
-	struct roots_input *input = wl_container_of(listener, input, tool_tip);
+	struct roots_input *input = wl_container_of(listener, input, cursor_tool_tip);
 	struct wlr_event_tablet_tool_tip *event = data;
-
-	struct roots_desktop *desktop = input->server->desktop;
-	struct roots_view *view = view_at(
-			desktop, input->cursor->x, input->cursor->y);
-	set_view_focus(input, desktop, view);
-	wlr_seat_pointer_send_button(input->wl_seat, (uint32_t)event->time_usec,
-		BTN_LEFT, event->state);
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)event->time_usec, BTN_LEFT, event->state);
 }
 
 void cursor_initialize(struct roots_input *input) {

@@ -8,6 +8,7 @@
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/server.h"
+#include "rootston/input.h"
 
 static void get_input_bounds(struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
@@ -21,6 +22,32 @@ static void activate(struct roots_view *view, bool active) {
 	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		wlr_xdg_toplevel_v6_set_activated(surf, active);
 	}
+}
+
+static void handle_request_move(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, request_move);
+	struct roots_view *view = roots_xdg_surface->view;
+	struct roots_input *input = view->desktop->server->input;
+	struct wlr_xdg_toplevel_v6_move_event *e = data;
+
+	// TODO: Some of this might want to live in cursor.c I guess
+	struct roots_input_event *event = NULL;
+	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
+	for (size_t i = 0; i < len; ++i) {
+		if (input->input_events[i].cursor
+				&& input->input_events[i].serial == e->serial) {
+			event = &input->input_events[i];
+			break;
+		}
+	}
+	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		return;
+	}
+	input->mode = ROOTS_CURSOR_MOVE;
+	input->offs_x = input->cursor->x - view->x;
+	input->offs_y = input->cursor->y - view->y;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -54,6 +81,8 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	wl_list_init(&roots_surface->ping_timeout.link);
 	wl_list_init(&roots_surface->request_minimize.link);
 	wl_list_init(&roots_surface->request_move.link);
+	roots_surface->request_move.notify = handle_request_move;
+	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	wl_list_init(&roots_surface->request_resize.link);
 	wl_list_init(&roots_surface->request_show_window_menu.link);
 
@@ -65,6 +94,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->wlr_surface = surface->surface;
 	view->get_input_bounds = get_input_bounds;
 	view->activate = activate;
+	view->desktop = desktop;
 	roots_surface->view = view;
 	wl_list_insert(&desktop->views, &view->link);
 }
