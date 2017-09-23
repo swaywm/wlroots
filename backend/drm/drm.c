@@ -307,7 +307,7 @@ static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 		output->pageflip_pending = true;
 	} else {
 		wl_event_source_timer_update(output->retry_pageflip,
-			output->output.current_mode->refresh);
+			1000.0f / output->output.current_mode->refresh);
 	}
 }
 
@@ -358,7 +358,7 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 		output->pageflip_pending = true;
 	} else {
 		wl_event_source_timer_update(output->retry_pageflip,
-			output->output.current_mode->refresh);
+			1000.0f / output->output.current_mode->refresh);
 	}
 }
 
@@ -1006,4 +1006,6 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *output) {
 	case WLR_DRM_OUTPUT_DISCONNECTED:
 		break;
 	}
+
+	output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 }
