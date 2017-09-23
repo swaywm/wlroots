@@ -19,9 +19,11 @@ static void wl_compositor_create_surface(struct wl_client *client,
 			compositor->renderer);
 	surface->compositor_data = compositor;
 	surface->compositor_listener.notify = &destroy_surface_listener;
-	wl_resource_add_destroy_listener(surface_resource, &surface->compositor_listener);
+	wl_resource_add_destroy_listener(surface_resource,
+		&surface->compositor_listener);
 
-	wl_list_insert(&compositor->surfaces, wl_resource_get_link(surface_resource));
+	wl_list_insert(&compositor->surfaces,
+		wl_resource_get_link(surface_resource));
 	wl_signal_emit(&compositor->events.create_surface, surface);
 }
 
@@ -52,15 +54,17 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *_compositor,
 	struct wlr_compositor *compositor = _compositor;
 	assert(wl_client && compositor);
 	if (version > 4) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_compositor version, disconnecting");
+		wlr_log(L_ERROR, "Client requested unsupported wl_compositor version, "
+			"disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
-	struct wl_resource *wl_resource = wl_resource_create(
-			wl_client, &wl_compositor_interface, version, id);
+	struct wl_resource *wl_resource =
+		wl_resource_create(wl_client, &wl_compositor_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &wl_compositor_impl,
-			compositor, wl_compositor_destroy);
-	wl_list_insert(&compositor->wl_resources, wl_resource_get_link(wl_resource));
+		compositor, wl_compositor_destroy);
+	wl_list_insert(&compositor->wl_resources,
+		wl_resource_get_link(wl_resource));
 }
 
 void wlr_compositor_destroy(struct wlr_compositor *compositor) {
@@ -70,7 +74,8 @@ void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
-	struct wlr_compositor *compositor = calloc(1, sizeof(struct wlr_compositor));
+	struct wlr_compositor *compositor =
+		calloc(1, sizeof(struct wlr_compositor));
 	if (!compositor) {
 		wlr_log_errno(L_ERROR, "Could not allocate wlr compositor");
 		return NULL;
