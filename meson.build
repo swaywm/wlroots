@@ -20,6 +20,7 @@ add_project_link_arguments(
 )
 
 wlr_inc = include_directories('include')
+install_subdir('include/wlr', install_dir: 'include')
 
 cc = meson.get_compiler('c')
 
@@ -103,6 +104,7 @@ lib_wlr = library(
 	],
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
+	install: true,
 )
 
 wlroots = declare_dependency(
@@ -112,3 +114,12 @@ wlroots = declare_dependency(
 )
 
 subdir('examples')
+
+pkgconfig = import('pkgconfig')
+pkgconfig.generate(
+	libraries: lib_wlr,
+	version: '0.0.1',
+	filebase: 'wlroots',
+	name: 'wlroots',
+	description: 'Wayland compositor library',
+)
