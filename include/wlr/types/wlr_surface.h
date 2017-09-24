@@ -19,6 +19,12 @@ struct wlr_frame_callback {
 #define WLR_SURFACE_INVALID_TRANSFORM 32
 #define WLR_SURFACE_INVALID_SCALE 64
 
+struct wlr_subsurface {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wlr_surface *parent;
+};
+
 struct wlr_surface_state {
 	uint32_t invalid;
 	struct wl_resource *buffer;
@@ -52,6 +58,9 @@ struct wlr_surface {
 	struct wl_listener compositor_listener; // destroy listener used by compositor
 	void *compositor_data;
 
+	// subsurface properties
+	struct wlr_subsurface *subsurface;
+
 	void *data;
 };
 
@@ -79,5 +88,11 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
  */
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		struct wl_resource *error_resource, uint32_t error_code);
+
+/**
+ * Create the subsurface implementation for this surface.
+ */
+void wlr_surface_make_subsurface(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t id);
 
 #endif

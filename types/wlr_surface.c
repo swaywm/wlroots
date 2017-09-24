@@ -443,3 +443,79 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 
 	return -1;
 }
+
+void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
+	wlr_log(L_DEBUG, "TODO: wlr subsurface destroy");
+}
+
+static void subsurface_resource_destroy(struct wl_resource *resource) {
+	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
+
+	if (subsurface) {
+		wlr_subsurface_destroy(subsurface);
+	}
+}
+
+static void subsurface_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static void subsurface_set_position(struct wl_client *client,
+		struct wl_resource *resource, int32_t x, int32_t y) {
+	wlr_log(L_DEBUG, "TODO: subsurface set position");
+}
+
+static void subsurface_place_above(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *sibling) {
+	wlr_log(L_DEBUG, "TODO: subsurface place above");
+}
+
+static void subsurface_place_below(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *sibling) {
+	wlr_log(L_DEBUG, "TODO: subsurface place below");
+}
+
+static void subsurface_set_sync(struct wl_client *client,
+		struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: subsurface set sync");
+}
+
+static void subsurface_set_desync(struct wl_client *client,
+		struct wl_resource *resource) {
+	wlr_log(L_DEBUG, "TODO: subsurface set desync");
+}
+
+static const struct wl_subsurface_interface subsurface_implementation = {
+	.destroy = subsurface_destroy,
+	.set_position = subsurface_set_position,
+	.place_above = subsurface_place_above,
+	.place_below = subsurface_place_below,
+	.set_sync = subsurface_set_sync,
+	.set_desync = subsurface_set_desync,
+};
+
+void wlr_surface_make_subsurface(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t id) {
+	assert(surface->subsurface == NULL);
+
+	struct wlr_subsurface *subsurface =
+		calloc(1, sizeof(struct wlr_subsurface));
+	if (!subsurface) {
+		return;
+	}
+
+	subsurface->surface = surface;
+	subsurface->parent = parent;
+
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+
+	subsurface->resource =
+		wl_resource_create(client, &wl_subsurface_interface, 1, id);
+
+	wl_resource_set_implementation(subsurface->resource,
+		&subsurface_implementation, subsurface,
+		subsurface_resource_destroy);
+
+	surface->subsurface = subsurface;
+}

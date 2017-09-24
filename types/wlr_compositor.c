@@ -78,9 +78,27 @@ static void subcompositor_destroy(struct wl_client *client,
 }
 
 static void subcompositor_get_subsurface(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id, struct wl_resource *surface,
-		struct wl_resource *parent) {
-	wlr_log(L_DEBUG, "TODO: subcompositor get subsurface");
+		struct wl_resource *resource, uint32_t id,
+		struct wl_resource *surface_resource,
+		struct wl_resource *parent_resource) {
+	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_surface *parent = wl_resource_get_user_data(parent_resource);
+
+	// TODO: errors
+	// * cannot be its own parent
+	// * cannot already a subsurface
+	// * cannot be an ancestor of parent
+
+	if (wlr_surface_set_role(surface, "wl_subsurface", resource,
+				WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE) < 0) {
+		return;
+	}
+
+	wlr_surface_make_subsurface(surface, parent, id);
+	if (!surface->subsurface) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
 }
 
 
