@@ -537,11 +537,6 @@ void compositor_init(struct compositor_state *state) {
 
 	wlr_log(L_INFO, "Running compositor on wayland display '%s'", socket);
 	setenv("_WAYLAND_DISPLAY", socket, true);
-	if (!wlr_backend_start(state->backend)) {
-		wlr_log(L_ERROR, "Failed to start backend");
-		wlr_backend_destroy(wlr);
-		exit(1);
-	}
 }
 
 void compositor_fini(struct compositor_state *state) {

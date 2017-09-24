@@ -2,6 +2,7 @@
 #define _WLR_TYPES_SEAT_H
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_keyboard.h>
 #include <wayland-server.h>
 
 /**
@@ -12,6 +13,7 @@
 struct wlr_seat_handle {
 	struct wl_resource *wl_resource;
 	struct wlr_seat *wlr_seat;
+	struct wlr_seat_keyboard *seat_keyboard;
 
 	struct wl_resource *pointer;
 	struct wl_resource *keyboard;
@@ -30,10 +32,20 @@ struct wlr_seat_pointer_state {
 	struct wl_listener focus_resource_destroy_listener;
 };
 
+struct wlr_seat_keyboard {
+	struct wlr_seat *seat;
+	struct wlr_keyboard *keyboard;
+	struct wl_listener key;
+	struct wl_listener keymap;
+	struct wl_listener destroy;
+	struct wl_list link;
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
 	struct wl_list handles;
+	struct wl_list keyboards;
 	char *name;
 	uint32_t capabilities;
 	struct wlr_data_device *data_device;
@@ -43,7 +55,6 @@ struct wlr_seat {
 	struct {
 		struct wl_signal client_bound;
 		struct wl_signal client_unbound;
-		struct wl_signal keyboard_bound;
 	} events;
 
 	void *data;
@@ -111,5 +122,19 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
+
+/**
+ * Attaches this keyboard to the seat. Key events from this keyboard will be
+ * propegated to the focused client.
+ */
+void wlr_seat_attach_keyboard(struct wlr_seat *seat,
+		struct wlr_input_device *dev);
+
+/**
+ * Detaches this keyboard from the seat. This is done automatically when the
+ * keyboard is destroyed; you only need to use this if you want to remove it for
+ * some other reason.
+ */
+void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
 
 #endif

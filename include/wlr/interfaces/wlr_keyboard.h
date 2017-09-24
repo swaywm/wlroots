@@ -10,5 +10,7 @@ struct wlr_keyboard_impl {
 
 void wlr_keyboard_init(struct wlr_keyboard *keyboard, struct wlr_keyboard_impl *impl);
 void wlr_keyboard_destroy(struct wlr_keyboard *keyboard);
+void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
+		struct wlr_event_keyboard_key *event);
 
 #endif

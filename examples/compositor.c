@@ -32,9 +32,6 @@
 #include "shared.h"
 #include <assert.h>
 
-// TODO: move to common header?
-int os_create_anonymous_file(off_t size);
-
 struct sample_state;
 
 struct example_xdg_surface_v6 {
@@ -75,13 +72,9 @@ struct sample_state {
 	struct wlr_xdg_shell_v6 *xdg_shell;
 	struct wlr_data_device_manager *data_device_manager;
 	struct wl_resource *focus;
-	struct wl_listener keyboard_bound;
 	struct wlr_xwayland *xwayland;
 	struct wlr_gamma_control_manager *gamma_control_manager;
 	bool mod_down;
-	int keymap_fd;
-	size_t keymap_size;
-	uint32_t serial;
 
 	struct motion_context motion_context;
 
@@ -335,58 +328,8 @@ static void handle_keyboard_key(struct keyboard_state *keyboard,
 		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
 	struct compositor_state *state = keyboard->compositor;
 	struct sample_state *sample = state->data;
-
-	struct wl_resource *res = NULL;
-	struct wlr_seat_handle *seat_handle = NULL;
-	wl_list_for_each(res, &sample->wlr_compositor->surfaces, link) {
-		break;
-	}
-
-	if (res) {
-		seat_handle = wlr_seat_handle_for_client(sample->wl_seat,
-			wl_resource_get_client(res));
-	}
-
-	if (res != sample->focus && seat_handle && seat_handle->keyboard) {
-		struct wl_array keys;
-		wl_array_init(&keys);
-		uint32_t serial = wl_display_next_serial(state->display);
-		wl_keyboard_send_enter(seat_handle->keyboard, serial, res, &keys);
-		sample->focus = res;
-	}
-
-	if (seat_handle && seat_handle->keyboard) {
-		uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_DEPRESSED);
-		uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_LATCHED);
-		uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
-			XKB_STATE_MODS_LOCKED);
-		uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
-			XKB_STATE_LAYOUT_EFFECTIVE);
-		uint32_t modifiers_serial = wl_display_next_serial(state->display);
-		uint32_t key_serial = wl_display_next_serial(state->display);
-		wl_keyboard_send_modifiers(seat_handle->keyboard, modifiers_serial,
-			depressed, latched, locked, group);
-		wl_keyboard_send_key(seat_handle->keyboard, key_serial, 0, keycode,
-			key_state);
-	}
-
 	if (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R) {
 		sample->mod_down = key_state == WLR_KEY_PRESSED;
-	}
-}
-
-static void handle_keyboard_bound(struct wl_listener *listener, void *data) {
-	struct wlr_seat_handle *handle = data;
-	struct sample_state *state =
-		wl_container_of(listener, state, keyboard_bound);
-
-	wl_keyboard_send_keymap(handle->keyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
-		state->keymap_fd, state->keymap_size);
-
-	if (wl_resource_get_version(handle->keyboard) >= 2) {
-		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
 	}
 }
 
@@ -550,6 +493,25 @@ static void handle_input_add(struct compositor_state *state,
 		example_config_configure_cursor(sample->config, sample->cursor,
 			sample->compositor);
 	}
+
+	if (device->type == WLR_INPUT_DEVICE_KEYBOARD) {
+		struct xkb_rule_names rules;
+		memset(&rules, 0, sizeof(rules));
+		rules.rules = getenv("XKB_DEFAULT_RULES");
+		rules.model = getenv("XKB_DEFAULT_MODEL");
+		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+		rules.variant = getenv("XKB_DEFAULT_VARIANT");
+		rules.options = getenv("XKB_DEFAULT_OPTIONS");
+		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+		if (!context) {
+			wlr_log(L_ERROR, "Failed to create XKB context");
+			exit(1);
+		}
+		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(
+				context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+		xkb_context_unref(context);
+		wlr_seat_attach_keyboard(sample->wl_seat, device);
+	}
 }
 
 static void handle_output_add(struct output_state *ostate) {
@@ -669,35 +631,25 @@ int main(int argc, char *argv[]) {
 
 	state.wl_seat = wlr_seat_create(compositor.display, "seat0");
 	assert(state.wl_seat);
-	state.keyboard_bound.notify = handle_keyboard_bound;
-	wl_signal_add(&state.wl_seat->events.keyboard_bound, &state.keyboard_bound);
 	wlr_seat_set_capabilities(state.wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
 		| WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_TOUCH);
 
-	struct keyboard_state *kbstate;
-	wl_list_for_each(kbstate, &compositor.keyboards, link) {
-		char *keymap = xkb_keymap_get_as_string(kbstate->keymap,
-			XKB_KEYMAP_FORMAT_TEXT_V1);
-		state.keymap_size = strlen(keymap);
-		state.keymap_fd = os_create_anonymous_file(state.keymap_size);
-		void *ptr =
-			mmap(NULL, state.keymap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-				state.keymap_fd, 0);
-		strcpy(ptr, keymap);
-		free(keymap);
-		break;
-	}
 	state.xwayland = wlr_xwayland_create(compositor.display,
 		state.wlr_compositor);
 
 	compositor.keyboard_key_cb = handle_keyboard_key;
+
+	if (!wlr_backend_start(compositor.backend)) {
+		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_backend_destroy(compositor.backend);
+		exit(1);
+	}
 
 	wl_display_run(compositor.display);
 
 	wl_list_remove(&state.new_xdg_surface_v6.link);
 
 	wlr_xwayland_destroy(state.xwayland);
-	close(state.keymap_fd);
 	wlr_seat_destroy(state.wl_seat);
 	wlr_gamma_control_manager_destroy(state.gamma_control_manager);
 	wlr_data_device_manager_destroy(state.data_device_manager);

@@ -158,6 +158,11 @@ int main(int argc, char *argv[]) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
+	if (!wlr_backend_start(compositor.backend)) {
+		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_backend_destroy(compositor.backend);
+		exit(1);
+	}
 	wl_display_run(compositor.display);
 
 	wlr_renderer_destroy(state.renderer);
