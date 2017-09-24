@@ -7,7 +7,8 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/matrix.h>
 
-static void surface_destroy(struct wl_client *client, struct wl_resource *resource) {
+static void surface_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
@@ -282,7 +283,8 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	}
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current.buffer);
 	if (!buffer) {
-		if (wlr_renderer_buffer_is_drm(surface->renderer, surface->pending.buffer)) {
+		if (wlr_renderer_buffer_is_drm(surface->renderer,
+					surface->pending.buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->pending.buffer);
 			goto release;
 		} else {

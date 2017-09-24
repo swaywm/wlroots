@@ -54,8 +54,8 @@ struct wlr_surface {
 	} signals;
 
 	struct wl_list frame_callback_list; // wl_surface.frame
-
-	struct wl_listener compositor_listener; // destroy listener used by compositor
+	// destroy listener used by compositor
+	struct wl_listener compositor_listener;
 	void *compositor_data;
 
 	// subsurface properties
