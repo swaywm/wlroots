@@ -19,12 +19,6 @@ struct wlr_frame_callback {
 #define WLR_SURFACE_INVALID_TRANSFORM 32
 #define WLR_SURFACE_INVALID_SCALE 64
 
-struct wlr_subsurface {
-	struct wl_resource *resource;
-	struct wlr_surface *surface;
-	struct wlr_surface *parent;
-};
-
 struct wlr_surface_state {
 	uint32_t invalid;
 	struct wl_resource *buffer;
@@ -35,6 +29,25 @@ struct wlr_surface_state {
 	int32_t scale;
 	int width, height;
 	int buffer_width, buffer_height;
+};
+
+struct wlr_subsurface {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wlr_surface *parent;
+
+	struct wlr_surface_state cached;
+
+	struct {
+		int32_t x, y;
+	} position;
+
+	struct {
+		int32_t x, y;
+		bool set;
+	} pending_position;
+
+	bool synchronized;
 };
 
 struct wlr_surface {

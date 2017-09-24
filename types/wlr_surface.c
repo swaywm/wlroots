@@ -450,6 +450,22 @@ void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_log(L_DEBUG, "TODO: wlr subsurface destroy");
 }
 
+static bool wlr_subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
+	while (subsurface) {
+		if (subsurface->synchronized) {
+			return true;
+		}
+
+		if (!subsurface->parent) {
+			return false;
+		}
+
+		subsurface = subsurface->parent->subsurface;
+	}
+
+	return false;
+}
+
 static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
 
@@ -465,7 +481,10 @@ static void subsurface_destroy(struct wl_client *client,
 
 static void subsurface_set_position(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y) {
-	wlr_log(L_DEBUG, "TODO: subsurface set position");
+	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
+	subsurface->pending_position.set = true;
+	subsurface->pending_position.x = x;
+	subsurface->pending_position.y = y;
 }
 
 static void subsurface_place_above(struct wl_client *client,
@@ -480,12 +499,24 @@ static void subsurface_place_below(struct wl_client *client,
 
 static void subsurface_set_sync(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: subsurface set sync");
+	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
+
+	if (subsurface) {
+		subsurface->synchronized = true;
+	}
 }
 
 static void subsurface_set_desync(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "TODO: subsurface set desync");
+	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
+
+	if (subsurface && subsurface->synchronized) {
+		subsurface->synchronized = false;
+
+		if (!wlr_subsurface_is_synchronized(subsurface)) {
+			// TODO: do a synchronized commit to flush the cache
+		}
+	}
 }
 
 static const struct wl_subsurface_interface subsurface_implementation = {
