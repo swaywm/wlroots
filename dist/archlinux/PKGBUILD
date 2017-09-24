@@ -1,0 +1,48 @@
+pkgname=wlroots
+pkgver=r600.d89272d
+pkgrel=1
+license=('MIT')
+pkgdesc='Wayland compositor library'
+makedepends=("meson")
+depends=(
+	"wayland"
+	"wayland-protocols"
+	"mesa"
+	"libdrm"
+	"libinput"
+	"libxkbcommon"
+	"libsystemd"
+	"pixman"
+	"libxcb"
+)
+arch=("x86_64")
+url="https://github.com/SirCmpwn/wlroots"
+source=("${pkgname}::git+https://github.com/SirCmpwn/wlroots.git")
+sha1sums=('SKIP')
+provides=('wlroots')
+conflicts=('wlroots')
+
+pkgver() {
+	cd "${srcdir}/${pkgname}"
+	printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+	cd "${srcdir}/${pkgname}"
+
+	meson build \
+		--prefix=/usr \
+		-Dbuildtype=debugoptimized \
+		-Db_lto=True \
+		-Denable-systemd=True \
+		-Denable-elogind=False \
+		-Denable-libcap=False
+
+	ninja -C build
+}
+
+package() {
+	cd "${srcdir}/${pkgname}"
+
+	DESTDIR="${pkgdir}" ninja -C build install
+}
