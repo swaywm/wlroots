@@ -72,6 +72,36 @@ void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	free(compositor);
 }
 
+static void subcompositor_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static void subcompositor_get_subsurface(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id, struct wl_resource *surface,
+		struct wl_resource *parent) {
+	wlr_log(L_DEBUG, "TODO: subcompositor get subsurface");
+}
+
+
+static const struct wl_subcompositor_interface subcompositor_interface = {
+	.destroy = subcompositor_destroy,
+	.get_subsurface = subcompositor_get_subsurface,
+};
+
+static void subcompositor_bind(struct wl_client *client, void *data,
+		uint32_t version, uint32_t id) {
+	struct wlr_compositor *compositor = data;
+	struct wl_resource *resource =
+		wl_resource_create(client, &wl_subcompositor_interface, 1, id);
+	if (resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(resource, &subcompositor_interface,
+		compositor, NULL);
+}
+
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
 	struct wlr_compositor *compositor =
@@ -80,12 +110,19 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		wlr_log_errno(L_ERROR, "Could not allocate wlr compositor");
 		return NULL;
 	}
-	struct wl_global *wl_global = wl_global_create(display,
+
+	struct wl_global *compositor_global = wl_global_create(display,
 		&wl_compositor_interface, 4, compositor, wl_compositor_bind);
-	compositor->wl_global = wl_global;
+
+	compositor->wl_global = compositor_global;
 	compositor->renderer = renderer;
+
+	wl_global_create(display, &wl_subcompositor_interface, 1, compositor,
+		subcompositor_bind);
+
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
 	wl_signal_init(&compositor->events.create_surface);
+
 	return compositor;
 }
