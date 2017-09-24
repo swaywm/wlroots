@@ -202,22 +202,21 @@ static void wlr_surface_to_buffer_region(struct wlr_surface *surface,
 	free(dest_rects);
 }
 
-static void surface_commit(struct wl_client *client,
-		struct wl_resource *resource) {
-	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+static void wlr_surface_commit_state(struct wlr_surface *surface,
+		struct wlr_surface_state *pending) {
 	bool update_size = false;
 	bool update_damage = false;
 
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SCALE)) {
-		surface->current.scale = surface->pending.scale;
+	if ((pending->invalid & WLR_SURFACE_INVALID_SCALE)) {
+		surface->current.scale = pending->scale;
 		update_size = true;
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
-		surface->current.transform = surface->pending.transform;
+	if ((pending->invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
+		surface->current.transform = pending->transform;
 		update_size = true;
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_BUFFER)) {
-		surface->current.buffer = surface->pending.buffer;
+	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER)) {
+		surface->current.buffer = pending->buffer;
 		update_size = true;
 	}
 	if (update_size) {
@@ -228,23 +227,23 @@ static void surface_commit(struct wl_client *client,
 		surface->reupload_buffer = oldw != surface->current.buffer_width ||
 			oldh != surface->current.buffer_height;
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
+	if ((pending->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
 		pixman_region32_union(&surface->current.surface_damage,
 			&surface->current.surface_damage,
-			&surface->pending.surface_damage);
+			&pending->surface_damage);
 		pixman_region32_intersect_rect(&surface->current.surface_damage,
 			&surface->current.surface_damage, 0, 0, surface->current.width,
 			surface->current.height);
 
-		pixman_region32_clear(&surface->pending.surface_damage);
+		pixman_region32_clear(&pending->surface_damage);
 		update_damage = true;
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
+	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
 		pixman_region32_union(&surface->current.buffer_damage,
 			&surface->current.buffer_damage,
-			&surface->pending.buffer_damage);
+			&pending->buffer_damage);
 
-		pixman_region32_clear(&surface->pending.buffer_damage);
+		pixman_region32_clear(&pending->buffer_damage);
 		update_damage = true;
 	}
 	if (update_damage) {
@@ -260,18 +259,25 @@ static void surface_commit(struct wl_client *client,
 			&surface->current.buffer_damage, 0, 0,
 			surface->current.buffer_width, surface->current.buffer_height);
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
+	if ((pending->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
 		// TODO: process buffer
-		pixman_region32_clear(&surface->pending.opaque);
+		pixman_region32_clear(&pending->opaque);
 	}
-	if ((surface->pending.invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
+	if ((pending->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
 		// TODO: process buffer
-		pixman_region32_clear(&surface->pending.input);
+		pixman_region32_clear(&pending->input);
 	}
 
-	surface->pending.invalid = 0;
+	pending->invalid = 0;
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->signals.commit, surface);
+}
+
+static void surface_commit(struct wl_client *client,
+		struct wl_resource *resource) {
+	struct wlr_surface *surface = wl_resource_get_user_data(resource);
+
+	wlr_surface_commit_state(surface, &surface->pending);
 }
 
 void wlr_surface_flush_damage(struct wlr_surface *surface) {
@@ -382,6 +388,16 @@ static void destroy_surface(struct wl_resource *resource) {
 	free(surface);
 }
 
+void wlr_surface_state_init(struct wlr_surface_state *state) {
+	state->scale = 1;
+	state->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+
+	pixman_region32_init(&state->surface_damage);
+	pixman_region32_init(&state->buffer_damage);
+	pixman_region32_init(&state->opaque);
+	pixman_region32_init(&state->input);
+}
+
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
 	struct wlr_surface *surface;
@@ -393,14 +409,10 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	surface->renderer = renderer;
 	surface->texture = wlr_render_texture_create(renderer);
 	surface->resource = res;
-	surface->current.scale = 1;
-	surface->pending.scale = 1;
-	surface->current.transform = WL_OUTPUT_TRANSFORM_NORMAL;
-	surface->pending.transform = WL_OUTPUT_TRANSFORM_NORMAL;
-	pixman_region32_init(&surface->pending.surface_damage);
-	pixman_region32_init(&surface->pending.buffer_damage);
-	pixman_region32_init(&surface->pending.opaque);
-	pixman_region32_init(&surface->pending.input);
+
+	wlr_surface_state_init(&surface->current);
+	wlr_surface_state_init(&surface->pending);
+
 	wl_signal_init(&surface->signals.commit);
 	wl_signal_init(&surface->signals.destroy);
 	wl_list_init(&surface->frame_callback_list);
