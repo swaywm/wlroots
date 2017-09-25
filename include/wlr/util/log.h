@@ -1,5 +1,6 @@
-#ifndef _WLR_UTIL_LOG_H
-#define _WLR_UTIL_LOG_H
+#ifndef WLR_UTIL_LOG_H
+#define WLR_UTIL_LOG_H
+
 #include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>

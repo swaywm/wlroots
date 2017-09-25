@@ -1,5 +1,5 @@
-#ifndef _WLR_INTERNAL_BACKEND_WAYLAND_H
-#define _WLR_INTERNAL_BACKEND_WAYLAND_H
+#ifndef BACKEND_WAYLAND_H
+#define BACKEND_WAYLAND_H
 
 #include <stdbool.h>
 #include <wayland-client.h>

@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_CURSOR_H
-#define _WLR_TYPES_CURSOR_H
+#ifndef WLR_TYPES_WLR_CURSOR_H
+#define WLR_TYPES_WLR_CURSOR_H
+
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>

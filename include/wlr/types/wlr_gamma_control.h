@@ -1,5 +1,6 @@
-#ifndef _WLR_GAMMA_CONTROL_H
-#define _WLR_GAMMA_CONTROL_H
+#ifndef WLR_TYPES_WLR_GAMMA_CONTROL_H
+#define WLR_TYPES_WLR_GAMMA_CONTROL_H
+
 #include <wayland-server.h>
 
 struct wlr_gamma_control_manager {

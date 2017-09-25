@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_GEOMETRY_H
-#define _WLR_TYPES_GEOMETRY_H
+#ifndef WLR_TYPES_WLR_BOX_H
+#define WLR_TYPES_WLR_BOX_H
+
 #include <stdbool.h>
 
 struct wlr_box {

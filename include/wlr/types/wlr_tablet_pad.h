@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_TABLET_PAD_H
-#define _WLR_TYPES_TABLET_PAD_H
+#ifndef WLR_TYPES_WLR_TABLET_PAD_H
+#define WLR_TYPES_WLR_TABLET_PAD_H
+
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-server.h>
 #include <stdint.h>

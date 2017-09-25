@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_WLR_SURFACE_H
-#define _WLR_TYPES_WLR_SURFACE_H
+#ifndef WLR_TYPES_WLR_SURFACE_H
+#define WLR_TYPES_WLR_SURFACE_H
+
 #include <wayland-server.h>
 #include <pixman.h>
 #include <stdint.h>

@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_INPUT_DEVICE_H
-#define _WLR_INTERFACES_INPUT_DEVICE_H
+#ifndef WLR_INTERFACES_WLR_INPUT_DEVICE_H
+#define WLR_INTERFACES_WLR_INPUT_DEVICE_H
+
 #include <wlr/types/wlr_input_device.h>
 
 struct wlr_input_device_impl {

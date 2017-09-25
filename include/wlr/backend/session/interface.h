@@ -1,5 +1,5 @@
-#ifndef WLR_SESSION_INTERFACE_H
-#define WLR_SESSION_INTERFACE_H
+#ifndef WLR_BACKEND_SESSION_INTERFACE_H
+#define WLR_BACKEND_SESSION_INTERFACE_H
 
 #include <wlr/backend/session.h>
 

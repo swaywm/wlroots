@@ -121,6 +121,15 @@ static void example_set_focused_surface(struct sample_state *sample,
 		}
 	}
 
+	if (surface) {
+		// TODO: send array of currently pressed keys
+		struct wl_array keys;
+		wl_array_init(&keys);
+		wlr_seat_keyboard_enter(sample->wl_seat, surface->surface, keys);
+	} else {
+		wlr_seat_keyboard_clear_focus(sample->wl_seat);
+	}
+
 	sample->focused_surface = surface;
 }
 
@@ -325,7 +334,8 @@ static void handle_output_frame(struct output_state *output,
 }
 
 static void handle_keyboard_key(struct keyboard_state *keyboard,
-		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state) {
+		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state,
+		uint64_t time_usec) {
 	struct compositor_state *state = keyboard->compositor;
 	struct sample_state *sample = state->data;
 	if (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R) {

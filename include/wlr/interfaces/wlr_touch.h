@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_TOUCH_H
-#define _WLR_INTERFACES_TOUCH_H
+#ifndef WLR_INTERFACES_WLR_TOUCH_H
+#define WLR_INTERFACES_WLR_TOUCH_H
+
 #include <wlr/types/wlr_touch.h>
 
 struct wlr_touch_impl {

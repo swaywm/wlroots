@@ -1,5 +1,6 @@
-#ifndef _WLR_INTERFACES_POINTER_H
-#define _WLR_INTERFACES_POINTER_H
+#ifndef WLR_INTERFACES_WLR_POINTER_H
+#define WLR_INTERFACES_WLR_POINTER_H
+
 #include <wlr/types/wlr_pointer.h>
 
 struct wlr_pointer_impl {

@@ -1,5 +1,5 @@
-#ifndef _WLR_TYPES_DATA_SOURCE_H
-#define _WLR_TYPES_DATA_SOURCE_H
+#ifndef WLR_TYPES_WLR_DATA_SOURCE_H
+#define WLR_TYPES_WLR_DATA_SOURCE_H
 
 #include <wayland-server.h>
 #include <wlr/util/list.h>

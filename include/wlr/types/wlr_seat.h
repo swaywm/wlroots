@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_SEAT_H
-#define _WLR_TYPES_SEAT_H
+#ifndef WLR_TYPES_WLR_SEAT_H
+#define WLR_TYPES_WLR_SEAT_H
+
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -41,6 +42,18 @@ struct wlr_seat_keyboard {
 	struct wl_list link;
 };
 
+struct wlr_seat_keyboard_state {
+	struct wlr_seat *wlr_seat;
+	struct wlr_seat_handle *focused_handle;
+	struct wlr_surface *focused_surface;
+
+	int keymap_fd;
+	size_t keymap_size;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
@@ -51,6 +64,7 @@ struct wlr_seat {
 	struct wlr_data_device *data_device;
 
 	struct wlr_seat_pointer_state pointer_state;
+	struct wlr_seat_keyboard_state keyboard_state;
 
 	struct {
 		struct wl_signal client_bound;
@@ -136,5 +150,20 @@ void wlr_seat_attach_keyboard(struct wlr_seat *seat,
  * some other reason.
  */
 void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
+
+/**
+ * Send a keyboard enter event to the given surface and consider it to be the
+ * focused surface for the keyboard. This will send a leave event to the last
+ * surface that was entered. Pass an array of currently pressed keys.
+ */
+void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface);
+
+/**
+ * Clear the focused surface for the keyboard and leave all entered surfaces.
+ */
+void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
+
+// TODO: May be useful to be able to simulate keyboard input events
 
 #endif

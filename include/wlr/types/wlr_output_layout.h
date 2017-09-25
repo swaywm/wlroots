@@ -1,5 +1,6 @@
-#ifndef _WLR_TYPES_OUTPUT_LAYOUT_H
-#define _WLR_TYPES_OUTPUT_LAYOUT_H
+#ifndef WLR_TYPES_WLR_OUTPUT_LAYOUT_H
+#define WLR_TYPES_WLR_OUTPUT_LAYOUT_H
+
 #include <wlr/types/wlr_output.h>
 #include <wayland-util.h>
 #include <stdbool.h>

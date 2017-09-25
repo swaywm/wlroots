@@ -1,5 +1,5 @@
-#ifndef _WLR_BACKEND_LIBINPUT_INTERNAL_H
-#define _WLR_BACKEND_LIBINPUT_INTERNAL_H
+#ifndef BACKEND_LIBINPUT_H
+#define BACKEND_LIBINPUT_H
 #include <libinput.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>

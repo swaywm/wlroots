@@ -1,5 +1,5 @@
-#ifndef _WLR_TYPES_INPUT_H
-#define _WLR_TYPES_INPUT_H
+#ifndef WLR_TYPES_WLR_INPUT_DEVICE_H
+#define WLR_TYPES_WLR_INPUT_DEVICE_H
 
 enum wlr_button_state {
 	WLR_BUTTON_RELEASED,

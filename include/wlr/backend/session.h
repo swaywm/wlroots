@@ -1,5 +1,5 @@
-#ifndef WLR_SESSION_H
-#define WLR_SESSION_H
+#ifndef WLR_BACKEND_SESSION_H
+#define WLR_BACKEND_SESSION_H
 
 #include <stdbool.h>
 #include <wayland-server.h>
