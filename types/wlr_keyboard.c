@@ -66,7 +66,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	}
 	char *keymap_str = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
-	kb->keymap_size = strlen(keymap_str);
+	kb->keymap_size = strlen(keymap_str) + 1;
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
 	void *ptr = mmap(NULL, kb->keymap_size,
 			PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);

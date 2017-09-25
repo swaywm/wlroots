@@ -29,8 +29,8 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
 
-	struct wl_listener focus_surface_destroy_listener;
-	struct wl_listener focus_resource_destroy_listener;
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
 };
 
 struct wlr_seat_keyboard {
@@ -46,9 +46,6 @@ struct wlr_seat_keyboard_state {
 	struct wlr_seat *wlr_seat;
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
-
-	int keymap_fd;
-	size_t keymap_size;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
