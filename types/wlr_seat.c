@@ -390,8 +390,6 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	if (handle->seat_keyboard != seat_kb) {
 		// TODO: We should probably lift all of the keys set by the other
 		// keyboard
-		wlr_log(L_DEBUG, "Sending key map %d %zd",
-				seat_kb->keyboard->keymap_fd, seat_kb->keyboard->keymap_size);
 		wl_keyboard_send_keymap(handle->keyboard,
 				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
 				seat_kb->keyboard->keymap_fd,

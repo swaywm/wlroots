@@ -26,7 +26,7 @@ void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
 	xkb_state_update_key(keyboard->xkb_state, keycode,
 		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
 	keyboard_led_update(keyboard);
-	wl_signal_emit(&keyboard->events.key, &event);
+	wl_signal_emit(&keyboard->events.key, event);
 }
 
 void wlr_keyboard_init(struct wlr_keyboard *kb,
