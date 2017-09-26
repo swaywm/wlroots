@@ -3,10 +3,19 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <stdlib.h>
+#include <wayland-server-protocol.h>
 
 static void shell_surface_pong(struct wl_client *client, struct wl_resource
 		*resource, uint32_t serial) {
 	wlr_log(L_DEBUG, "TODO: implement shell surface pong");
+	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
+
+	if (surface->ping_serial != serial) {
+		return;
+	}
+
+	wl_event_source_timer_update(surface->ping_timer, 0);
+	surface->ping_serial = 0;
 }
 
 static void shell_surface_move(struct wl_client *client, struct wl_resource
@@ -77,6 +86,14 @@ static void destroy_shell_surface(struct wl_resource *resource) {
 	free(state);
 }
 
+static int wlr_wl_shell_surface_ping_timeout(void *user_data) {
+	struct wlr_wl_shell_surface *surface = user_data;
+	wl_signal_emit(&surface->events.ping_timeout, surface);
+
+	surface->ping_serial = 0;
+	return 1;
+}
+
 static void wl_shell_get_shell_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface) {
@@ -84,14 +101,33 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	struct wlr_wl_shell *wlr_wl_shell = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface));
+	if (state == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	state->shell = wlr_wl_shell;
+	state->client = client;
 	state->wlr_texture = wlr_texture;
 	state->surface = surface;
+
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
 			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
 	wlr_log(L_DEBUG, "New wl_shell %p (res %p)", state, shell_surface_resource);
 	wl_resource_set_implementation(shell_surface_resource,
 			&shell_surface_interface, state, destroy_shell_surface);
 	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
+	wl_signal_emit(&wlr_wl_shell->events.new_surface, state);
+
+	wl_signal_init(&state->events.ping_timeout);
+
+	struct wl_display *display = wl_client_get_display(client);
+	struct wl_event_loop *loop = wl_display_get_event_loop(display);
+	state->ping_timer = wl_event_loop_add_timer(loop,
+		wlr_wl_shell_surface_ping_timeout, state);
+	if (state->ping_timer == NULL) {
+		wl_client_post_no_memory(client);
+	}
 }
 
 static struct wl_shell_interface wl_shell_impl = {
@@ -124,6 +160,7 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 	if (!wlr_wl_shell) {
 		return NULL;
 	}
+	wlr_wl_shell->ping_timeout = 10000;
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_shell_interface, 1, wlr_wl_shell, wl_shell_bind);
 	if (!wl_global) {
@@ -133,6 +170,7 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 	wlr_wl_shell->wl_global = wl_global;
 	wl_list_init(&wlr_wl_shell->wl_resources);
 	wl_list_init(&wlr_wl_shell->surfaces);
+	wl_signal_init(&wlr_wl_shell->events.new_surface);
 	return wlr_wl_shell;
 }
 
@@ -149,4 +187,18 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	// TODO: this segfault (wl_display->registry_resource_list is not init)
 	// wl_global_destroy(wlr_wl_shell->wl_global);
 	free(wlr_wl_shell);
+}
+
+void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
+	if (surface->ping_serial != 0) {
+		// already pinged
+		return;
+	}
+
+	surface->ping_serial =
+		wl_display_next_serial(wl_client_get_display(surface->client));
+	wl_event_source_timer_update(surface->ping_timer,
+		surface->shell->ping_timeout);
+	wl_shell_surface_send_ping(surface->surface,
+		surface->ping_serial);
 }

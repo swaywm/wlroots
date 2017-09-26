@@ -67,7 +67,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->layout = wlr_output_layout_create();
 	desktop->compositor = wlr_compositor_create(
 			server->wl_display, server->renderer);
-	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
 
 	wlr_cursor_attach_output_layout(server->input->cursor, desktop->layout);
 	wlr_cursor_map_to_region(server->input->cursor, config->cursor.mapped_box);
@@ -78,6 +77,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
 		&desktop->xdg_shell_v6_surface);
 	desktop->xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
+
+	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
+	wl_signal_add(&desktop->wl_shell->events.new_surface,
+		&desktop->wl_shell_surface);
+	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 			server->wl_display);
