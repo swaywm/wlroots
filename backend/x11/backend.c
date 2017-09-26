@@ -1,11 +1,14 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <EGL/egl.h>
+#include <wayland-server.h>
 #include <xcb/xcb.h>
 #include <X11/Xlib-xcb.h>
-#include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
 #include <wlr/egl.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
 
@@ -20,7 +23,11 @@ int x11_event(int fd, uint32_t mask, void *data) {
 	}
 
 	switch (event->response_type) {
+		struct wlr_x11_output *output;
+
 	case XCB_EXPOSE:
+		output = &x11->output;
+		wl_signal_emit(&output->wlr_output.events.frame, output);
 		break;
 	case XCB_KEY_PRESS:
 		break;
@@ -80,8 +87,11 @@ error_x11:
 	return NULL;
 }
 
+static struct wlr_output_impl output_impl;
+
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	struct wlr_x11_output *output = &x11->output;
 
 	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 	uint32_t values[2] = {
@@ -89,14 +99,26 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS
 	};
 
-	x11->win = xcb_generate_id(x11->xcb_conn);
+	output->x11 = x11;
 
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, x11->win, x11->screen->root,
+	wlr_output_init(&output->wlr_output, &output_impl);
+	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
+
+	output->win = xcb_generate_id(x11->xcb_conn);
+	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win, x11->screen->root,
 		0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		x11->screen->root_visual, mask, values);
 
-	xcb_map_window(x11->xcb_conn, x11->win);
+	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
+	if (!output->surf) {
+		wlr_log(L_ERROR, "Failed to create EGL surface");
+		return false;
+	}
+
+	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
+
+	wl_signal_emit(&x11->backend.events.output_add, output);
 
 	return true;
 }
@@ -127,4 +149,41 @@ static struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
+};
+
+static void output_transform(struct wlr_output *output, enum wl_output_transform transform) {
+	// TODO
+}
+
+static void output_destroy(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	eglDestroySurface(x11->egl.display, output->surf);
+	xcb_destroy_window(x11->xcb_conn, output->win);
+}
+
+static void output_make_current(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (!eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context)) {
+		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+	}
+}
+
+static void output_swap_buffers(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
+		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+	}
+}
+
+static struct wlr_output_impl output_impl = {
+	.transform = output_transform,
+	.destroy = output_destroy,
+	.make_current = output_make_current,
+	.swap_buffers = output_swap_buffers,
 };
