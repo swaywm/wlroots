@@ -30,7 +30,7 @@ struct wlr_egl {
  *  Initializes an egl context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
  */
-bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *display);
+bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id, void *display);
 
 /**
  * Frees all related egl resources, makes the context not-current and
