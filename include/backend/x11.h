@@ -11,6 +11,7 @@ struct wlr_x11_backend {
 
 	Display *xlib_conn;
 	xcb_connection_t *xcb_conn;
+	xcb_screen_t *screen;
 	xcb_window_t win;
 
 	struct wlr_egl egl;

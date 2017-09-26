@@ -51,7 +51,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
 	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
 		wlr_log(L_ERROR, "Failed to open xcb connection");
-		goto error;
+		goto error_x11;
 	}
 
 	int fd = xcb_get_file_descriptor(x11->xcb_conn);
@@ -59,12 +59,21 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->event_source = wl_event_loop_add_fd(ev, fd, WL_EVENT_READABLE, x11_event, x11);
 	if (!x11->event_source) {
 		wlr_log(L_ERROR, "Could not create event source");
-		goto error;
+		goto error_x11;
+	}
+
+	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
+
+	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR,
+			x11->screen->root_visual, x11->xlib_conn)) {
+		goto error_event;
 	}
 
 	return &x11->backend;
 
-error:
+error_event:
+	wl_event_source_remove(x11->event_source);
+error_x11:
 	xcb_disconnect(x11->xcb_conn);
 	XCloseDisplay(x11->xlib_conn);
 	free(x11);
@@ -74,18 +83,17 @@ error:
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 
-	xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
 	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 	uint32_t values[2] = {
-		screen->white_pixel,
+		x11->screen->white_pixel,
 		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS
 	};
 
 	x11->win = xcb_generate_id(x11->xcb_conn);
 
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, x11->win, screen->root,
+	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, x11->win, x11->screen->root,
 		0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		screen->root_visual, mask, values);
+		x11->screen->root_visual, mask, values);
 
 	xcb_map_window(x11->xcb_conn, x11->win);
 	xcb_flush(x11->xcb_conn);
@@ -100,12 +108,15 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 
+	wlr_egl_free(&x11->egl);
+
 	xcb_disconnect(x11->xcb_conn);
 	free(x11);
 }
 
-struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
-	return NULL;
+static struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	return &x11->egl;
 }
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
