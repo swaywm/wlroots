@@ -16,6 +16,13 @@ struct wlr_wl_shell {
 	void *data;
 };
 
+struct wlr_wl_shell_surface_transient_state {
+	struct wlr_wl_shell_surface *parent;
+	int32_t x;
+	int32_t y;
+	uint32_t flags;
+};
+
 struct wlr_wl_shell_surface {
 	struct wlr_wl_shell *shell;
 	struct wl_client *client;
@@ -26,11 +33,56 @@ struct wlr_wl_shell_surface {
 	uint32_t ping_serial;
 	struct wl_event_source *ping_timer;
 
+	bool toplevel;
+	struct wlr_wl_shell_surface_transient_state *transient_state;
+	char *title;
+	char *class_;
+
 	struct {
+		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
+
+		struct wl_signal request_move;
+		struct wl_signal request_resize;
+		struct wl_signal request_set_fullscreen;
+		struct wl_signal request_set_popup;
+		struct wl_signal request_set_maximized;
+		struct wl_signal set_toplevel;
+		struct wl_signal set_transient;
+		struct wl_signal set_title;
+		struct wl_signal set_class;
 	} events;
 
 	void *data;
+};
+
+struct wlr_wl_shell_surface_move_event {
+	struct wl_client *client;
+	struct wlr_wl_shell_surface *surface;
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+};
+
+struct wlr_wl_shell_surface_resize_event {
+	struct wl_client *client;
+	struct wlr_wl_shell_surface *surface;
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+	uint32_t edges;
+};
+
+struct wlr_wl_shell_surface_set_fullscreen_event {
+	struct wl_client *client;
+	struct wlr_wl_shell_surface *surface;
+	uint32_t method;
+	uint32_t framerate;
+	struct wlr_output *output;
+};
+
+struct wlr_wl_shell_surface_set_maximized_event {
+	struct wl_client *client;
+	struct wlr_wl_shell_surface *surface;
+	struct wlr_output *output;
 };
 
 struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display);

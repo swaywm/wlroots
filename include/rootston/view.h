@@ -7,7 +7,10 @@
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;
-	// TODO
+	// TODO: Maybe destroy listener should go in roots_view
+	struct wl_listener destroy;
+	struct wl_listener ping_timeout;
+	// TODO: other stuff
 };
 
 struct roots_xdg_surface_v6 {
