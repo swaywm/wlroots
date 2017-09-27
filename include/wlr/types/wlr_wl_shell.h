@@ -103,5 +103,8 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display);
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell);
 
 void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface);
+void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
+	uint32_t edges, int32_t width, int32_t height);
+void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface);
 
 #endif

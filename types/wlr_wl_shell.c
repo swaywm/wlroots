@@ -406,3 +406,12 @@ void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
 		surface->shell->ping_timeout);
 	wl_shell_surface_send_ping(surface->resource, surface->ping_serial);
 }
+
+void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
+		uint32_t edges, int32_t width, int32_t height) {
+	wl_shell_surface_send_configure(surface->resource, edges, width, height);
+}
+
+void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface) {
+	wl_shell_surface_send_popup_done(surface->resource);
+}
