@@ -100,15 +100,15 @@ static void surface_set_input_region(struct wl_client *client,
 	}
 }
 
-static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surface_state *current) {
-	int scale = current->scale;
-	enum wl_output_transform transform = current->transform;
+static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surface_state *state) {
+	int scale = state->scale;
+	enum wl_output_transform transform = state->transform;
 
-	wlr_texture_get_buffer_size(surface->texture, current->buffer,
-		&current->buffer_width, &current->buffer_height);
+	wlr_texture_get_buffer_size(surface->texture, state->buffer,
+		&state->buffer_width, &state->buffer_height);
 
-	int _width = current->buffer_width / scale;
-	int _height = current->buffer_height / scale;
+	int _width = state->buffer_width / scale;
+	int _height = state->buffer_height / scale;
 
 	if (transform == WL_OUTPUT_TRANSFORM_90 ||
 		transform == WL_OUTPUT_TRANSFORM_270 ||
@@ -119,10 +119,10 @@ static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surf
 		_height = tmp;
 	}
 
-	wl_list_init(&current->frame_callback_list);
+	wl_list_init(&state->frame_callback_list);
 
-	current->width = _width;
-	current->height = _height;
+	state->width = _width;
+	state->height = _height;
 }
 
 static void wlr_surface_to_buffer_region(int scale,
@@ -209,85 +209,85 @@ static void wlr_surface_to_buffer_region(int scale,
 /**
  * Append pending state to current state and clear pending state.
  */
-static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surface_state *pending,
-		struct wlr_surface_state *current) {
+static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surface_state *next,
+		struct wlr_surface_state *state) {
 	bool update_damage = false;
 	bool update_size = false;
 
-	if ((pending->invalid & WLR_SURFACE_INVALID_SCALE)) {
-		current->scale = pending->scale;
+	if ((next->invalid & WLR_SURFACE_INVALID_SCALE)) {
+		state->scale = next->scale;
 		update_size = true;
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
-		current->transform = pending->transform;
+	if ((next->invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
+		state->transform = next->transform;
 		update_size = true;
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER)) {
-		if (current->buffer) {
-			wl_resource_post_event(current->buffer, WL_BUFFER_RELEASE);
+	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER)) {
+		if (state->buffer) {
+			wl_resource_post_event(state->buffer, WL_BUFFER_RELEASE);
 		}
 
-		current->buffer = pending->buffer;
-		pending->buffer = NULL;
+		state->buffer = next->buffer;
+		next->buffer = NULL;
 		update_size = true;
 	}
 	if (update_size) {
-		wlr_surface_update_size(surface, current);
+		wlr_surface_update_size(surface, state);
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
-		pixman_region32_union(&current->surface_damage,
-			&current->surface_damage,
-			&pending->surface_damage);
-		pixman_region32_intersect_rect(&current->surface_damage,
-			&current->surface_damage, 0, 0, current->width,
-			current->height);
+	if ((next->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
+		pixman_region32_union(&state->surface_damage,
+			&state->surface_damage,
+			&next->surface_damage);
+		pixman_region32_intersect_rect(&state->surface_damage,
+			&state->surface_damage, 0, 0, state->width,
+			state->height);
 
-		pixman_region32_clear(&pending->surface_damage);
+		pixman_region32_clear(&next->surface_damage);
 		update_damage = true;
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
-		pixman_region32_union(&current->buffer_damage,
-			&current->buffer_damage,
-			&pending->buffer_damage);
+	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
+		pixman_region32_union(&state->buffer_damage,
+			&state->buffer_damage,
+			&next->buffer_damage);
 
-		pixman_region32_clear(&pending->buffer_damage);
+		pixman_region32_clear(&next->buffer_damage);
 		update_damage = true;
 	}
 	if (update_damage) {
 		pixman_region32_t buffer_damage;
 		pixman_region32_init(&buffer_damage);
-		wlr_surface_to_buffer_region(current->scale, current->transform,
-			&current->surface_damage, &buffer_damage, current->width,
-			current->height);
-		pixman_region32_union(&current->buffer_damage,
-			&current->buffer_damage, &buffer_damage);
+		wlr_surface_to_buffer_region(state->scale, state->transform,
+			&state->surface_damage, &buffer_damage, state->width,
+			state->height);
+		pixman_region32_union(&state->buffer_damage,
+			&state->buffer_damage, &buffer_damage);
 		pixman_region32_fini(&buffer_damage);
 
-		pixman_region32_intersect_rect(&current->buffer_damage,
-			&current->buffer_damage, 0, 0,
-			current->buffer_width, current->buffer_height);
+		pixman_region32_intersect_rect(&state->buffer_damage,
+			&state->buffer_damage, 0, 0,
+			state->buffer_width, state->buffer_height);
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
+	if ((next->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
 		// TODO: process buffer
-		pixman_region32_clear(&pending->opaque);
+		pixman_region32_clear(&next->opaque);
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
+	if ((next->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
 		// TODO: process buffer
-		pixman_region32_clear(&pending->input);
+		pixman_region32_clear(&next->input);
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
-		current->subsurface_position.x = pending->subsurface_position.x;
-		current->subsurface_position.y = pending->subsurface_position.y;
-		pending->subsurface_position.x = 0;
-		pending->subsurface_position.y = 0;
+	if ((next->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
+		state->subsurface_position.x = next->subsurface_position.x;
+		state->subsurface_position.y = next->subsurface_position.y;
+		next->subsurface_position.x = 0;
+		next->subsurface_position.y = 0;
 	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST)) {
-		wl_list_insert_list(&current->frame_callback_list, &pending->frame_callback_list);
-		wl_list_init(&pending->frame_callback_list);
+	if ((next->invalid & WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST)) {
+		wl_list_insert_list(&state->frame_callback_list, &next->frame_callback_list);
+		wl_list_init(&next->frame_callback_list);
 	}
 
-	current->invalid |= pending->invalid;
-	pending->invalid = 0;
+	state->invalid |= next->invalid;
+	next->invalid = 0;
 }
 
 static void wlr_surface_commit_pending(struct wlr_surface *surface) {
@@ -489,18 +489,18 @@ static struct wlr_surface_state *wlr_surface_state_create() {
 	return state;
 }
 
-static void wlr_surface_state_destroy(struct wlr_surface_state *current) {
+static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
 	struct wlr_frame_callback *cb, *tmp;
-	wl_list_for_each_safe(cb, tmp, &current->frame_callback_list, link) {
+	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
 		wl_resource_destroy(cb->resource);
 	}
 
-	pixman_region32_fini(&current->surface_damage);
-	pixman_region32_fini(&current->buffer_damage);
-	pixman_region32_fini(&current->opaque);
-	pixman_region32_fini(&current->input);
+	pixman_region32_fini(&state->surface_damage);
+	pixman_region32_fini(&state->buffer_damage);
+	pixman_region32_fini(&state->opaque);
+	pixman_region32_fini(&state->input);
 
-	free(current);
+	free(state);
 }
 
 void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
