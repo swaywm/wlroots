@@ -43,16 +43,24 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 }
 
 static bool atomic_commit(int drm_fd, struct atomic *atom,
-		struct wlr_drm_output *output, uint32_t flag) {
+		struct wlr_drm_output *output, uint32_t flag, bool modeset) {
 	if (atom->failed) {
 		return false;
 	}
 
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK | flag;
+	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | flag;
 
 	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
 	if (ret) {
-		wlr_log_errno(L_ERROR, "Atomic commit failed");
+		wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
+			output->output.name, modeset ? "modeset" : "pageflip");
+
+		// Try to commit without new changes
+		drmModeAtomicSetCursor(atom->req, atom->cursor);
+		if (drmModeAtomicCommit(drm_fd, atom->req, flags, output)) {
+			wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
+				output->output.name, modeset ? "modeset" : "pageflip");
+		}
 	}
 
 	drmModeAtomicSetCursor(atom->req, 0);
@@ -109,8 +117,9 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *backend,
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
-	return atomic_commit(backend->fd, &atom,
-			output, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0);
+	return atomic_commit(backend->fd, &atom, output,
+		mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : DRM_MODE_ATOMIC_NONBLOCK,
+		mode);
 }
 
 static void atomic_conn_enable(struct wlr_drm_backend *backend,
