@@ -362,23 +362,22 @@ static void wl_shell_bind(struct wl_client *wl_client, void *_wl_shell,
 }
 
 struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
-	struct wlr_wl_shell *wlr_wl_shell =
-		calloc(1, sizeof(struct wlr_wl_shell));
-	if (!wlr_wl_shell) {
+	struct wlr_wl_shell *wl_shell = calloc(1, sizeof(struct wlr_wl_shell));
+	if (!wl_shell) {
 		return NULL;
 	}
-	wlr_wl_shell->ping_timeout = 10000;
+	wl_shell->ping_timeout = 10000;
 	struct wl_global *wl_global = wl_global_create(display,
-		&wl_shell_interface, 1, wlr_wl_shell, wl_shell_bind);
+		&wl_shell_interface, 1, wl_shell, wl_shell_bind);
 	if (!wl_global) {
-		free(wlr_wl_shell);
+		free(wl_shell);
 		return NULL;
 	}
-	wlr_wl_shell->wl_global = wl_global;
-	wl_list_init(&wlr_wl_shell->wl_resources);
-	wl_list_init(&wlr_wl_shell->surfaces);
-	wl_signal_init(&wlr_wl_shell->events.new_surface);
-	return wlr_wl_shell;
+	wl_shell->wl_global = wl_global;
+	wl_list_init(&wl_shell->wl_resources);
+	wl_list_init(&wl_shell->surfaces);
+	wl_signal_init(&wl_shell->events.new_surface);
+	return wl_shell;
 }
 
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
