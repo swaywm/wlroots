@@ -245,17 +245,17 @@ static void shell_surface_set_title(struct wl_client *client,
 }
 
 static void shell_surface_set_class(struct wl_client *client,
-		struct wl_resource *resource, const char *class_) {
-	wlr_log(L_DEBUG, "new shell surface class: %s", class_);
+		struct wl_resource *resource, const char *class) {
+	wlr_log(L_DEBUG, "new shell surface class: %s", class);
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 
-	char *tmp = strdup(class_);
+	char *tmp = strdup(class);
 	if (tmp == NULL) {
 		return;
 	}
 
-	free(surface->class_);
-	surface->class_ = tmp;
+	free(surface->class);
+	surface->class = tmp;
 
 	wl_signal_emit(&surface->events.set_class, surface);
 }
@@ -277,8 +277,10 @@ static void destroy_shell_surface(struct wl_resource *resource) {
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	wl_signal_emit(&surface->events.destroy, surface);
 	wl_list_remove(&surface->link);
+	free(surface->transient_state);
+	free(surface->popup_state);
 	free(surface->title);
-	free(surface->class_);
+	free(surface->class);
 	free(surface);
 }
 

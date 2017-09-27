@@ -25,7 +25,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	struct wlr_wl_shell_surface *surface = data;
 	wlr_log(L_DEBUG, "new shell surface: title=%s, class=%s",
-		surface->title, surface->class_);
+		surface->title, surface->class);
 	//wlr_wl_shell_surface_ping(surface); // TODO: segfaults
 
 	struct roots_wl_shell_surface *roots_surface =

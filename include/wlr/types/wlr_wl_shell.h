@@ -51,7 +51,7 @@ struct wlr_wl_shell_surface {
 	struct wlr_wl_shell_surface_popup_state *popup_state;
 
 	char *title;
-	char *class_;
+	char *class;
 
 	struct {
 		struct wl_signal destroy;
