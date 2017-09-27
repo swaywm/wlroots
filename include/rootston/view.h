@@ -10,7 +10,10 @@ struct roots_wl_shell_surface {
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener ping_timeout;
-	// TODO: other stuff
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_set_fullscreen;
+	struct wl_listener request_set_maximized;
 };
 
 struct roots_xdg_surface_v6 {

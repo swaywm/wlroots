@@ -10,11 +10,41 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
+static void handle_move(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_move);
+	struct roots_view *view = roots_surface->view;
+	struct roots_input *input = view->desktop->server->input;
+	struct wlr_wl_shell_surface_move_event *e = data;
+
+	// TODO: Some of this might want to live in cursor.c I guess
+	struct roots_input_event *event = NULL;
+	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
+	for (size_t i = 0; i < len; ++i) {
+		if (input->input_events[i].cursor
+				&& input->input_events[i].serial == e->serial) {
+			event = &input->input_events[i];
+			break;
+		}
+	}
+	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		return;
+	}
+	input->mode = ROOTS_CURSOR_MOVE;
+	input->offs_x = input->cursor->x - view->x;
+	input->offs_y = input->cursor->y - view->y;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->ping_timeout.link);
+	wl_list_remove(&roots_surface->request_move.link);
+	wl_list_remove(&roots_surface->request_resize.link);
+	wl_list_remove(&roots_surface->request_set_fullscreen.link);
+	wl_list_remove(&roots_surface->request_set_maximized.link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
 }
@@ -33,7 +63,14 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	// TODO: all of the trimmings
 	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
+	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	wl_list_init(&roots_surface->ping_timeout.link);
+	wl_list_init(&roots_surface->request_move.link);
+	roots_surface->request_move.notify = handle_move;
+	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
+	wl_list_init(&roots_surface->request_resize.link);
+	wl_list_init(&roots_surface->request_set_fullscreen.link);
+	wl_list_init(&roots_surface->request_set_maximized.link);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_WL_SHELL_VIEW;
@@ -41,6 +78,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
 	view->wlr_surface = surface->surface;
+	// TODO
 	//view->get_input_bounds = get_input_bounds;
 	//view->activate = activate;
 	view->desktop = desktop;
