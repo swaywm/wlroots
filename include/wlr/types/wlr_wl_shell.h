@@ -1,6 +1,7 @@
 #ifndef WLR_TYPES_WLR_WL_SHELL_H
 #define WLR_TYPES_WLR_WL_SHELL_H
 
+#include <stdbool.h>
 #include <wayland-server.h>
 
 struct wlr_wl_shell {
@@ -23,6 +24,18 @@ struct wlr_wl_shell_surface_transient_state {
 	uint32_t flags;
 };
 
+struct wlr_wl_shell_surface_popup_state {
+	struct wlr_seat_handle *seat_handle;
+	uint32_t serial;
+};
+
+enum wlr_wl_shell_surface_role {
+	WLR_WL_SHELL_SURFACE_ROLE_NONE,
+	WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL,
+	WLR_WL_SHELL_SURFACE_ROLE_TRANSCIENT,
+	WLR_WL_SHELL_SURFACE_ROLE_POPUP,
+};
+
 struct wlr_wl_shell_surface {
 	struct wlr_wl_shell *shell;
 	struct wl_client *client;
@@ -33,8 +46,10 @@ struct wlr_wl_shell_surface {
 	uint32_t ping_serial;
 	struct wl_event_source *ping_timer;
 
-	bool toplevel;
+	enum wlr_wl_shell_surface_role role;
 	struct wlr_wl_shell_surface_transient_state *transient_state;
+	struct wlr_wl_shell_surface_popup_state *popup_state;
+
 	char *title;
 	char *class_;
 
@@ -45,10 +60,9 @@ struct wlr_wl_shell_surface {
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
 		struct wl_signal request_set_fullscreen;
-		struct wl_signal request_set_popup;
 		struct wl_signal request_set_maximized;
-		struct wl_signal set_toplevel;
-		struct wl_signal set_transient;
+
+		struct wl_signal set_role;
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 	} events;

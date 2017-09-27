@@ -76,13 +76,13 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 	wlr_log(L_DEBUG, "got shell surface toplevel");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 
-	if (surface->transient_state != NULL) {
+	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
 		return;
 	}
 
-	surface->toplevel = true;
+	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL;
 
-	wl_signal_emit(&surface->events.set_toplevel, surface);
+	wl_signal_emit(&surface->events.set_role, surface);
 }
 
 static void shell_surface_set_transient(struct wl_client *client,
@@ -92,8 +92,9 @@ static void shell_surface_set_transient(struct wl_client *client,
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *parent =
 		wl_resource_get_user_data(parent_resource);
+	// TODO: check if parent_resource == NULL?
 
-	if (surface->toplevel) {
+	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
 		return;
 	}
 
@@ -112,7 +113,9 @@ static void shell_surface_set_transient(struct wl_client *client,
 	free(surface->transient_state);
 	surface->transient_state = state;
 
-	wl_signal_emit(&surface->events.set_transient, surface);
+	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TRANSCIENT;
+
+	wl_signal_emit(&surface->events.set_role, surface);
 }
 
 static void shell_surface_set_fullscreen(struct wl_client *client,
@@ -120,9 +123,12 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 		struct wl_resource *output_resource) {
 	wlr_log(L_DEBUG, "got shell surface fullscreen");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-	struct wlr_output *output = wl_resource_get_user_data(output_resource);
+	struct wlr_output *output = NULL;
+	if (output_resource != NULL) {
+		output = wl_resource_get_user_data(output_resource);
+	}
 
-	if (surface->toplevel) {
+	if (surface->role == WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL) {
 		return;
 	}
 
@@ -145,18 +151,64 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 }
 
 static void shell_surface_set_popup(struct wl_client *client,
-		struct wl_resource *resource, struct wl_resource *seat, uint32_t serial,
-		struct wl_resource *parent, int32_t x, int32_t y, uint32_t flags) {
-	wlr_log(L_DEBUG, "TODO: implement shell surface set_popup");
+		struct wl_resource *resource, struct wl_resource *seat_resource,
+		uint32_t serial, struct wl_resource *parent_resource, int32_t x, int32_t y,
+		uint32_t flags) {
+	wlr_log(L_DEBUG, "got shell surface popup");
+	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
+	struct wlr_seat_handle *seat_handle =
+		wl_resource_get_user_data(seat_resource);
+	struct wlr_wl_shell_surface *parent =
+		wl_resource_get_user_data(parent_resource);
+	// TODO: check if parent_resource == NULL?
+
+	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
+		return;
+	}
+
+	struct wlr_wl_shell_surface_transient_state *transcient_state =
+		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
+	if (transcient_state == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	transcient_state->parent = parent;
+	transcient_state->x = x;
+	transcient_state->y = y;
+	transcient_state->flags = flags;
+
+	struct wlr_wl_shell_surface_popup_state *popup_state =
+		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
+	if (popup_state == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	popup_state->seat_handle = seat_handle;
+	popup_state->serial = serial;
+
+	free(surface->transient_state);
+	surface->transient_state = transcient_state;
+
+	free(surface->popup_state);
+	surface->popup_state = popup_state;
+
+	surface->role = WLR_WL_SHELL_SURFACE_ROLE_POPUP;
+
+	wl_signal_emit(&surface->events.set_role, surface);
 }
 
 static void shell_surface_set_maximized(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	wlr_log(L_DEBUG, "got shell surface maximized");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-	struct wlr_output *output = wl_resource_get_user_data(output_resource);
+	struct wlr_output *output = NULL;
+	if (output_resource != NULL) {
+		output = wl_resource_get_user_data(output_resource);
+	}
 
-	if (surface->toplevel) {
+	if (surface->role == WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL) {
 		return;
 	}
 
@@ -266,10 +318,8 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wl_signal_init(&wl_surface->events.request_move);
 	wl_signal_init(&wl_surface->events.request_resize);
 	wl_signal_init(&wl_surface->events.request_set_fullscreen);
-	wl_signal_init(&wl_surface->events.request_set_popup);
 	wl_signal_init(&wl_surface->events.request_set_maximized);
-	wl_signal_init(&wl_surface->events.set_toplevel);
-	wl_signal_init(&wl_surface->events.set_transient);
+	wl_signal_init(&wl_surface->events.set_role);
 	wl_signal_init(&wl_surface->events.set_title);
 	wl_signal_init(&wl_surface->events.set_class);
 
