@@ -116,8 +116,6 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wlr_log(L_DEBUG, "New wl_shell %p (res %p)", state, shell_surface_resource);
 	wl_resource_set_implementation(shell_surface_resource,
 			&shell_surface_interface, state, destroy_shell_surface);
-	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
-	wl_signal_emit(&wlr_wl_shell->events.new_surface, state);
 
 	wl_signal_init(&state->events.ping_timeout);
 
@@ -128,6 +126,9 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	if (state->ping_timer == NULL) {
 		wl_client_post_no_memory(client);
 	}
+
+	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
+	wl_signal_emit(&wlr_wl_shell->events.new_surface, state);
 }
 
 static struct wl_shell_interface wl_shell_impl = {
@@ -199,6 +200,5 @@ void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
 		wl_display_next_serial(wl_client_get_display(surface->client));
 	wl_event_source_timer_update(surface->ping_timer,
 		surface->shell->ping_timeout);
-	wl_shell_surface_send_ping(surface->surface,
-		surface->ping_serial);
+	wl_shell_surface_send_ping(surface->surface, surface->ping_serial);
 }
