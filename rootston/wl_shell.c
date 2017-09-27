@@ -78,9 +78,6 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
 	view->wlr_surface = surface->surface;
-	// TODO
-	//view->get_input_bounds = get_input_bounds;
-	//view->activate = activate;
 	view->desktop = desktop;
 	roots_surface->view = view;
 	wl_list_insert(&desktop->views, &view->link);
