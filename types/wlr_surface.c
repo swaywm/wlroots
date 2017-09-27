@@ -290,82 +290,15 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 	pending->invalid = 0;
 }
 
-static void wlr_surface_commit_state(struct wlr_surface *surface,
-		struct wlr_surface_state *pending) {
-	bool update_size = false;
-	bool update_damage = false;
+static void wlr_surface_commit_pending(struct wlr_surface *surface) {
+	int32_t oldw = surface->current->buffer_width;
+	int32_t oldh = surface->current->buffer_height;
 
-	if ((pending->invalid & WLR_SURFACE_INVALID_SCALE)) {
-		surface->current->scale = pending->scale;
-		update_size = true;
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
-		surface->current->transform = pending->transform;
-		update_size = true;
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER)) {
-		surface->current->buffer = pending->buffer;
-		update_size = true;
-	}
-	if (update_size) {
-		int32_t oldw = surface->current->buffer_width;
-		int32_t oldh = surface->current->buffer_height;
-		wlr_surface_update_size(surface, surface->current);
+	wlr_surface_move_state(surface, surface->pending, surface->current);
 
-		surface->reupload_buffer = oldw != surface->current->buffer_width ||
-			oldh != surface->current->buffer_height;
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
-		pixman_region32_union(&surface->current->surface_damage,
-			&surface->current->surface_damage,
-			&pending->surface_damage);
-		pixman_region32_intersect_rect(&surface->current->surface_damage,
-			&surface->current->surface_damage, 0, 0, surface->current->width,
-			surface->current->height);
+	surface->reupload_buffer = oldw != surface->current->buffer_width ||
+		oldh != surface->current->buffer_height;
 
-		pixman_region32_clear(&pending->surface_damage);
-		update_damage = true;
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
-		pixman_region32_union(&surface->current->buffer_damage,
-			&surface->current->buffer_damage,
-			&pending->buffer_damage);
-
-		pixman_region32_clear(&pending->buffer_damage);
-		update_damage = true;
-	}
-	if (update_damage) {
-		pixman_region32_t buffer_damage;
-		pixman_region32_init(&buffer_damage);
-		wlr_surface_to_buffer_region(surface->current->scale,
-			surface->current->transform, &surface->current->surface_damage,
-			&buffer_damage, surface->current->width, surface->current->height);
-		pixman_region32_union(&surface->current->buffer_damage,
-			&surface->current->buffer_damage, &buffer_damage);
-		pixman_region32_fini(&buffer_damage);
-
-		pixman_region32_intersect_rect(&surface->current->buffer_damage,
-			&surface->current->buffer_damage, 0, 0,
-			surface->current->buffer_width, surface->current->buffer_height);
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
-		// TODO: process buffer
-		pixman_region32_clear(&pending->opaque);
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
-		// TODO: process buffer
-		pixman_region32_clear(&pending->input);
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
-		surface->current->subsurface_position.x = pending->subsurface_position.x;
-		surface->current->subsurface_position.y = pending->subsurface_position.y;
-	}
-	if ((pending->invalid & WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST)) {
-		wl_list_insert_list(&surface->current->frame_callback_list, &pending->frame_callback_list);
-		wl_list_init(&pending->frame_callback_list);
-	}
-
-	pending->invalid = 0;
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->signals.commit, surface);
 }
@@ -396,8 +329,7 @@ static void wlr_subsurface_parent_commit(struct wlr_subsurface *subsurface,
 
 		if (subsurface->has_cache) {
 			wlr_surface_move_state(surface, subsurface->cached, surface->pending);
-			wlr_surface_flush_damage(surface);
-			wlr_surface_commit_state(surface, surface->pending);
+			wlr_surface_commit_pending(surface);
 			subsurface->has_cache = false;
 			subsurface->cached->invalid = 0;
 		}
@@ -418,12 +350,11 @@ static void wlr_subsurface_commit(struct wlr_subsurface *subsurface) {
 	} else {
 		if (subsurface->has_cache) {
 			wlr_surface_move_state(surface, subsurface->cached, surface->pending);
-			wlr_surface_commit_state(surface, surface->pending);
-			wlr_surface_flush_damage(surface);
+			wlr_surface_commit_pending(surface);
 			subsurface->has_cache = false;
 
 		} else {
-			wlr_surface_commit_state(surface, surface->pending);
+			wlr_surface_commit_pending(surface);
 		}
 
 		struct wlr_subsurface *tmp;
@@ -444,7 +375,7 @@ static void surface_commit(struct wl_client *client,
 		return;
 	}
 
-	wlr_surface_commit_state(surface, surface->pending);
+	wlr_surface_commit_pending(surface);
 
 	struct wlr_subsurface *tmp;
 	wl_list_for_each(tmp, &surface->subsurface_list, parent_link) {
@@ -462,8 +393,8 @@ void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
 	if (!buffer) {
 		if (wlr_renderer_buffer_is_drm(surface->renderer,
-					surface->pending->buffer)) {
-			wlr_texture_upload_drm(surface->texture, surface->pending->buffer);
+					surface->current->buffer)) {
+			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
 			goto release;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
