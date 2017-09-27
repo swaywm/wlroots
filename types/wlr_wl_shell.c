@@ -96,9 +96,9 @@ static int wlr_wl_shell_surface_ping_timeout(void *user_data) {
 
 static void wl_shell_get_shell_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
-		struct wl_resource *surface) {
-	struct wlr_texture *wlr_texture = wl_resource_get_user_data(surface);
-	struct wlr_wl_shell *wlr_wl_shell = wl_resource_get_user_data(resource);
+		struct wl_resource *surface_resource) {
+	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface));
 	if (state == NULL) {
@@ -106,9 +106,9 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		return;
 	}
 
-	state->shell = wlr_wl_shell;
+	state->shell = wl_shell;
 	state->client = client;
-	state->wlr_texture = wlr_texture;
+	state->resource = surface_resource;
 	state->surface = surface;
 
 	struct wl_resource *shell_surface_resource = wl_resource_create(client,
@@ -127,8 +127,8 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		wl_client_post_no_memory(client);
 	}
 
-	wl_list_insert(&wlr_wl_shell->surfaces, &state->link);
-	wl_signal_emit(&wlr_wl_shell->events.new_surface, state);
+	wl_list_insert(&wl_shell->surfaces, &state->link);
+	wl_signal_emit(&wl_shell->events.new_surface, state);
 }
 
 static struct wl_shell_interface wl_shell_impl = {
@@ -200,5 +200,5 @@ void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
 		wl_display_next_serial(wl_client_get_display(surface->client));
 	wl_event_source_timer_update(surface->ping_timer,
 		surface->shell->ping_timeout);
-	wl_shell_surface_send_ping(surface->surface, surface->ping_serial);
+	wl_shell_surface_send_ping(surface->resource, surface->ping_serial);
 }

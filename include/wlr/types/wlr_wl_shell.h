@@ -19,8 +19,8 @@ struct wlr_wl_shell {
 struct wlr_wl_shell_surface {
 	struct wlr_wl_shell *shell;
 	struct wl_client *client;
-	struct wl_resource *surface;
-	struct wlr_texture *wlr_texture;
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
 	struct wl_list link;
 
 	uint32_t ping_serial;
