@@ -306,13 +306,12 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 
 	wl_surface->shell = wl_shell;
 	wl_surface->client = client;
-	wl_surface->resource = surface_resource;
 	wl_surface->surface = surface;
 
-	struct wl_resource *shell_surface_resource = wl_resource_create(client,
-			&wl_shell_surface_interface, wl_resource_get_version(resource), id);
-	wlr_log(L_DEBUG, "New wl_shell %p (res %p)", wl_surface, shell_surface_resource);
-	wl_resource_set_implementation(shell_surface_resource,
+	wl_surface->resource = wl_resource_create(client, &wl_shell_surface_interface,
+		wl_resource_get_version(resource), id);
+	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface, wl_surface->resource);
+	wl_resource_set_implementation(wl_surface->resource,
 			&shell_surface_interface, wl_surface, destroy_shell_surface);
 
 	wl_signal_init(&wl_surface->events.destroy);
