@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
@@ -273,15 +274,30 @@ struct wl_shell_surface_interface shell_surface_interface = {
 	.set_class = shell_surface_set_class,
 };
 
-static void destroy_shell_surface(struct wl_resource *resource) {
-	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
+static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
+	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
+	wl_list_remove(&surface->surface_destroy_listener.link);
 	free(surface->transient_state);
 	free(surface->popup_state);
 	free(surface->title);
 	free(surface->class);
 	free(surface);
+}
+
+static void wl_shell_surface_resource_destroy(struct wl_resource *resource) {
+	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
+	if (surface != NULL) {
+		wl_shell_surface_destroy(surface);
+	}
+}
+
+static void handle_wlr_surface_destroyed(struct wl_listener *listener,
+		void *data) {
+	struct wlr_wl_shell_surface *surface =
+		wl_container_of(listener, surface, surface_destroy_listener);
+	wl_shell_surface_destroy(surface);
 }
 
 static int wlr_wl_shell_surface_ping_timeout(void *user_data) {
@@ -312,7 +328,7 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		wl_resource_get_version(resource), id);
 	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface, wl_surface->resource);
 	wl_resource_set_implementation(wl_surface->resource,
-			&shell_surface_interface, wl_surface, destroy_shell_surface);
+			&shell_surface_interface, wl_surface, wl_shell_surface_resource_destroy);
 
 	wl_signal_init(&wl_surface->events.destroy);
 	wl_signal_init(&wl_surface->events.ping_timeout);
@@ -323,6 +339,10 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wl_signal_init(&wl_surface->events.set_role);
 	wl_signal_init(&wl_surface->events.set_title);
 	wl_signal_init(&wl_surface->events.set_class);
+
+	wl_signal_add(&wl_surface->surface->signals.destroy,
+		&wl_surface->surface_destroy_listener);
+	wl_surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
 	struct wl_display *display = wl_client_get_display(client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);

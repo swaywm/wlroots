@@ -53,6 +53,8 @@ struct wlr_wl_shell_surface {
 	char *title;
 	char *class;
 
+	struct wl_listener surface_destroy_listener;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
