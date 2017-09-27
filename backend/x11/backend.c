@@ -1,6 +1,8 @@
+#define _POSIX_C_SOURCE 199309L
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <EGL/egl.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
@@ -9,10 +11,16 @@
 #include <wlr/backend/x11.h>
 #include <wlr/egl.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
 
 static struct wlr_backend_impl backend_impl;
+static struct wlr_input_device_impl input_impl;
+static struct wlr_keyboard_impl keyboard_impl;
+static struct wlr_pointer_impl pointer_impl;
 
 int x11_event(int fd, uint32_t mask, void *data) {
 	struct wlr_x11_backend *x11 = data;
@@ -22,6 +30,9 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		return 0;
 	}
 
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
 	switch (event->response_type) {
 		struct wlr_x11_output *output;
 
@@ -29,8 +40,30 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		output = &x11->output;
 		wl_signal_emit(&output->wlr_output.events.frame, output);
 		break;
-	case XCB_KEY_PRESS:
+	case XCB_KEY_PRESS: {
+		xcb_key_press_event_t *press = (xcb_key_press_event_t *)event;
+		struct wlr_event_keyboard_key key = {
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.keycode = press->detail,
+			.state = WLR_KEY_PRESSED,
+		};
+
+		wl_signal_emit(&x11->keyboard.events.key, &key);
 		break;
+	}
+	case XCB_KEY_RELEASE: {
+		xcb_key_release_event_t *press = (xcb_key_release_event_t *)event;
+		struct wlr_event_keyboard_key key = {
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.keycode = press->detail,
+			.state = WLR_KEY_RELEASED,
+		};
+
+		wl_signal_emit(&x11->keyboard.events.key, &key);
+		break;
+	}
 	default:
 		wlr_log(L_INFO, "Unknown event");
 		break;
@@ -76,6 +109,16 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
+	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
+		&input_impl, "X11 keyboard", 0, 0);
+	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
+	x11->keyboard_dev.keyboard = &x11->keyboard;
+
+	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
+		&input_impl, "X11 pointer", 0, 0);
+	wlr_pointer_init(&x11->pointer, &pointer_impl);
+	x11->pointer_dev.pointer = &x11->pointer;
+
 	return &x11->backend;
 
 error_event:
@@ -96,7 +139,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 	uint32_t values[2] = {
 		x11->screen->white_pixel,
-		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS
+		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE
 	};
 
 	output->x11 = x11;
@@ -119,6 +162,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	xcb_flush(x11->xcb_conn);
 
 	wl_signal_emit(&x11->backend.events.output_add, output);
+	wl_signal_emit(&x11->backend.events.input_add, &x11->keyboard_dev);
+	wl_signal_emit(&x11->backend.events.input_add, &x11->pointer_dev);
 
 	return true;
 }
@@ -186,4 +231,33 @@ static struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
+};
+
+static void input_destroy(struct wlr_input_device *input_dev) {
+	// Do nothing
+}
+
+static struct wlr_input_device_impl input_impl = {
+	.destroy = input_destroy,
+};
+
+static void keyboard_destroy(struct wlr_keyboard *keyboard) {
+	// Do nothing
+}
+
+static void keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds) {
+	// Do nothing
+}
+
+static struct wlr_keyboard_impl keyboard_impl = {
+	.destroy = keyboard_destroy,
+	.led_update = keyboard_led_update,
+};
+
+static void pointer_destroy(struct wlr_pointer *pointer) {
+	// Do nothing
+}
+
+static struct wlr_pointer_impl pointer_impl = {
+	.destroy = pointer_destroy,
 };

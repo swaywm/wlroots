@@ -7,6 +7,7 @@
 #include <wayland-server.h>
 #include <wlr/egl.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_input_device.h>
 
 struct wlr_x11_backend;
 
@@ -26,6 +27,12 @@ struct wlr_x11_backend {
 	xcb_screen_t *screen;
 
 	struct wlr_x11_output output;
+
+	struct wlr_keyboard keyboard;
+	struct wlr_input_device keyboard_dev;
+
+	struct wlr_pointer pointer;
+	struct wlr_input_device pointer_dev;
 
 	struct wlr_egl egl;
 	struct wl_event_source *event_source;
