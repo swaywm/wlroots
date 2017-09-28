@@ -22,10 +22,3 @@ executable(
 	dependencies: wlroots,
 	link_with: lib_shared,
 )
-
-executable(
-	'compositor',
-	'compositor.c',
-	dependencies: wlroots,
-	link_with: lib_shared,
-)
