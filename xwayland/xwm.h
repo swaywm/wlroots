@@ -52,8 +52,8 @@ enum atom_name {
 	NET_SUPPORTED,
 	NET_WM_S0,
 	NET_WM_STATE,
-	ATOM_LAST,
 	WM_TAKE_FOCUS,
+	ATOM_LAST,
 };
 
 static const char * const atom_map[ATOM_LAST] = {
