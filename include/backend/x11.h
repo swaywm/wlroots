@@ -19,8 +19,14 @@ struct wlr_x11_output {
 	EGLSurface surf;
 };
 
+struct wlr_x11_atom {
+	xcb_intern_atom_cookie_t cookie;
+	xcb_intern_atom_reply_t *reply;
+};
+
 struct wlr_x11_backend {
 	struct wlr_backend backend;
+	struct wl_display *wl_display;
 
 	Display *xlib_conn;
 	xcb_connection_t *xcb_conn;
@@ -37,6 +43,11 @@ struct wlr_x11_backend {
 	struct wlr_egl egl;
 	struct wl_event_source *event_source;
 	struct wl_event_source *frame_timer;
+
+	struct {
+		struct wlr_x11_atom wm_protocols;
+		struct wlr_x11_atom wm_delete_window;
+	} atoms;
 };
 
 #endif

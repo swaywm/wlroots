@@ -24,7 +24,7 @@ static struct wlr_input_device_impl input_impl;
 static struct wlr_keyboard_impl keyboard_impl;
 static struct wlr_pointer_impl pointer_impl;
 
-void handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
+static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
 	struct wlr_x11_output *output = &x11->output;
 
 	struct timespec ts;
@@ -151,33 +151,42 @@ void handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
 		wl_signal_emit(&x11->pointer.events.motion_absolute, &abs);
 		break;
 	}
-	case XCB_MAP_NOTIFY:
-	case XCB_REPARENT_NOTIFY:
-	case XCB_GLX_GET_CONVOLUTION_FILTER:
-		break;
-	default:
-		wlr_log(L_INFO, "Unknown event: %d", event->response_type);
+	case XCB_GLX_DELETE_QUERIES_ARB: {
+		wl_display_terminate(x11->wl_display);
+		return true;
 		break;
 	}
+	default:
+		break;
+	}
+
+	return false;
 }
 
-int x11_event(int fd, uint32_t mask, void *data) {
+static int x11_event(int fd, uint32_t mask, void *data) {
 	struct wlr_x11_backend *x11 = data;
 	xcb_generic_event_t *e;
+	bool quit = false;
 
-	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
-		handle_x11_event(x11, e);
+	while (!quit && (e = xcb_poll_for_event(x11->xcb_conn))) {
+		quit = handle_x11_event(x11, e);
 		free(e);
 	}
 
 	return 0;
 }
 
-int signal_frame(void *data) {
+static int signal_frame(void *data) {
 	struct wlr_x11_backend *x11 = data;
 	wl_signal_emit(&x11->output.wlr_output.events.frame, &x11->output);
 	wl_event_source_timer_update(x11->frame_timer, 16);
 	return 0;
+}
+
+static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
+		uint8_t only_if_exists, const char *name) {
+	atom->cookie = xcb_intern_atom(x11->xcb_conn, only_if_exists, strlen(name), name);
+	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
@@ -188,6 +197,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	wlr_backend_init(&x11->backend, &backend_impl);
+	x11->wl_display = display;
 
 	x11->xlib_conn = XOpenDisplay(x11_display);
 	if (!x11->xlib_conn) {
@@ -272,6 +282,13 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		wlr_log(L_ERROR, "Failed to create EGL surface");
 		return false;
 	}
+
+	init_atom(x11, &x11->atoms.wm_protocols, 1, "WM_PROTOCOLS");
+	init_atom(x11, &x11->atoms.wm_delete_window, 0, "WM_DELETE_WINDOW");
+
+	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
+		x11->atoms.wm_protocols.reply->atom, XCB_ATOM_ATOM, 32, 1,
+		&x11->atoms.wm_delete_window.reply->atom);
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
