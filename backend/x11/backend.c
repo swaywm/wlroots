@@ -6,6 +6,7 @@
 #include <EGL/egl.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
+#include <xcb/glx.h>
 #include <X11/Xlib-xcb.h>
 #include <linux/input-event-codes.h>
 #include <wlr/backend/interface.h>
@@ -23,22 +24,14 @@ static struct wlr_input_device_impl input_impl;
 static struct wlr_keyboard_impl keyboard_impl;
 static struct wlr_pointer_impl pointer_impl;
 
-int x11_event(int fd, uint32_t mask, void *data) {
-	struct wlr_x11_backend *x11 = data;
-
-	xcb_generic_event_t *event = xcb_poll_for_event(x11->xcb_conn);
-	if (!event) {
-		return 0;
-	}
+void handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
+	struct wlr_x11_output *output = &x11->output;
 
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
 	switch (event->response_type) {
-		struct wlr_x11_output *output;
-
 	case XCB_EXPOSE:
-		output = &x11->output;
 		wl_signal_emit(&output->wlr_output.events.frame, output);
 		break;
 	case XCB_KEY_PRESS: {
@@ -121,19 +114,62 @@ int x11_event(int fd, uint32_t mask, void *data) {
 			.time_usec = ts.tv_nsec / 1000,
 			.x_mm = motion->event_x,
 			.y_mm = motion->event_y,
-			.width_mm = 1024,
-			.height_mm = 768,
+			.width_mm = output->wlr_output.width,
+			.height_mm = output->wlr_output.height,
 		};
 
 		wl_signal_emit(&x11->pointer.events.motion_absolute, &abs);
 		break;
 	}
-	default:
-		wlr_log(L_INFO, "Unknown event");
+	case XCB_CONFIGURE_NOTIFY: {
+		xcb_configure_notify_event_t *conf = (xcb_configure_notify_event_t *)event;
+
+		output->wlr_output.width = conf->width;
+		output->wlr_output.height = conf->height;
+		wlr_output_update_matrix(&output->wlr_output);
+		wl_signal_emit(&output->wlr_output.events.resolution, output);
+
+		// Move the pointer to its new location
+		xcb_query_pointer_cookie_t cookie =
+			xcb_query_pointer(x11->xcb_conn, output->win);
+		xcb_query_pointer_reply_t *pointer =
+			xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
+		if (!pointer) {
+			break;
+		}
+
+		struct wlr_event_pointer_motion_absolute abs = {
+			.device = &x11->pointer_dev,
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.x_mm = pointer->root_x,
+			.y_mm = pointer->root_y,
+			.width_mm = output->wlr_output.width,
+			.height_mm = output->wlr_output.height,
+		};
+
+		wl_signal_emit(&x11->pointer.events.motion_absolute, &abs);
 		break;
 	}
+	case XCB_MAP_NOTIFY:
+	case XCB_REPARENT_NOTIFY:
+	case XCB_GLX_GET_CONVOLUTION_FILTER:
+		break;
+	default:
+		wlr_log(L_INFO, "Unknown event: %d", event->response_type);
+		break;
+	}
+}
 
-	free(event);
+int x11_event(int fd, uint32_t mask, void *data) {
+	struct wlr_x11_backend *x11 = data;
+	xcb_generic_event_t *e;
+
+	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
+		handle_x11_event(x11, e);
+		free(e);
+	}
+
 	return 0;
 }
 
@@ -215,9 +251,10 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	uint32_t values[2] = {
 		x11->screen->white_pixel,
 		XCB_EVENT_MASK_EXPOSURE |
-			XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-			XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
-			XCB_EVENT_MASK_POINTER_MOTION
+		XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
+		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
+		XCB_EVENT_MASK_POINTER_MOTION |
+		XCB_EVENT_MASK_STRUCTURE_NOTIFY
 	};
 
 	output->x11 = x11;
