@@ -113,6 +113,21 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		wl_signal_emit(&x11->pointer.events.button, &button);
 		break;
 	}
+	case XCB_MOTION_NOTIFY: {
+		xcb_motion_notify_event_t *motion = (xcb_motion_notify_event_t *)event;
+		struct wlr_event_pointer_motion_absolute abs = {
+			.device = &x11->pointer_dev,
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.x_mm = motion->event_x,
+			.y_mm = motion->event_y,
+			.width_mm = 1024,
+			.height_mm = 768,
+		};
+
+		wl_signal_emit(&x11->pointer.events.motion_absolute, &abs);
+		break;
+	}
 	default:
 		wlr_log(L_INFO, "Unknown event");
 		break;
@@ -201,7 +216,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		x11->screen->white_pixel,
 		XCB_EVENT_MASK_EXPOSURE |
 			XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-			XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+			XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
+			XCB_EVENT_MASK_POINTER_MOTION
 	};
 
 	output->x11 = x11;
