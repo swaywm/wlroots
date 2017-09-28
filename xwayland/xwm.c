@@ -16,6 +16,7 @@ static struct wlr_x11_window *lookup_window(struct wl_list *list, xcb_window_t w
 	}
 	return NULL;
 }
+
 static struct wlr_x11_window *lookup_window_any(struct wlr_xwm *xwm, xcb_window_t window_id) {
 	struct wlr_x11_window *window;
 	if ((window = lookup_window(&xwm->xwayland->displayable_windows, window_id)) ||
@@ -43,10 +44,12 @@ static struct wlr_x11_window *wlr_x11_window_create(struct wlr_xwm *xwm,
 	window->height = height;
 	window->override_redirect = override_redirect;
 	wl_list_insert(&xwm->new_windows, &window->link);
+	wl_signal_init(&window->events.destroy);
 	return window;
 }
 
 static void wlr_x11_window_destroy(struct wlr_x11_window *window) {
+	wl_signal_emit(&window->events.destroy, window);
 	wl_list_remove(&window->link);
 	free(window);
 }
@@ -69,10 +72,11 @@ static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 static void map_shell_surface(struct wlr_xwm *xwm, struct wlr_x11_window *window,
 		struct wlr_surface *surface) {
 	// get xcb geometry for depth = alpha channel
-	window->surface = surface->resource;
+	window->surface = surface;
 
 	wl_list_remove(&window->link);
 	wl_list_insert(&xwm->xwayland->displayable_windows, &window->link);
+	wl_signal_emit(&xwm->xwayland->events.new_surface, window);
 }
 
 /* xcb event handlers */

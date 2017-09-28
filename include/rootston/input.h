@@ -15,11 +15,6 @@ struct roots_keyboard {
 	struct wlr_input_device *device;
 	struct wl_listener key;
 	struct wl_list link;
-	struct xkb_keymap *keymap;
-	struct xkb_state *xkb_state;
-	xkb_led_index_t leds[WLR_LED_LAST];
-	int keymap_fd;
-	size_t keymap_size;
 };
 
 struct roots_pointer {

@@ -194,6 +194,7 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
 	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
 	wl_list_init(&wlr_xwayland->displayable_windows);
+	wl_signal_init(&wlr_xwayland->events.new_surface);
 
 	wlr_xwayland->display = open_display_sockets(wlr_xwayland->x_fd);
 	if (wlr_xwayland->display < 0) {

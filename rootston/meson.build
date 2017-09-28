@@ -10,6 +10,7 @@ executable(
 		'output.c',
 		'pointer.c',
 		'xdg_shell_v6.c',
+		'xwayland.c',
 		'wl_shell.c',
 	], dependencies: wlroots
 )

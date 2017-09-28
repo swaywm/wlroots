@@ -34,11 +34,13 @@ struct roots_desktop {
 	struct wlr_compositor *compositor;
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_xdg_shell_v6 *xdg_shell_v6;
+	struct wlr_xwayland *xwayland;
 	struct wlr_gamma_control_manager *gamma_control_manager;
 
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
 	struct wl_listener xdg_shell_v6_surface;
+	struct wl_listener xwayland_surface;
 	struct wl_listener wl_shell_surface;
 };
 
@@ -57,5 +59,6 @@ void output_remove_notify(struct wl_listener *listener, void *data);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);
+void handle_xwayland_surface(struct wl_listener *listener, void *data);
 
 #endif

@@ -21,6 +21,12 @@ struct wlr_xwayland {
 	struct wl_listener destroy_listener;
 	struct wlr_xwm *xwm;
 	struct wl_list displayable_windows;
+
+	struct {
+		struct wl_signal new_surface;
+	} events;
+
+	void *data;
 };
 
 struct wlr_x11_window {
@@ -28,11 +34,17 @@ struct wlr_x11_window {
 	uint32_t surface_id;
 	struct wl_list link;
 
-	struct wl_resource *surface;
+	struct wlr_surface *surface;
 	struct wl_listener surface_destroy_listener;
 	int16_t x, y;
 	uint16_t width, height;
 	bool override_redirect;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
 };
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);

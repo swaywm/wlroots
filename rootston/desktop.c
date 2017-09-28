@@ -83,6 +83,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
+	desktop->xwayland = wlr_xwayland_create(server->wl_display,
+		desktop->compositor);
+	wl_signal_add(&desktop->xwayland->events.new_surface,
+		&desktop->xwayland_surface);
+	desktop->xwayland_surface.notify = handle_xwayland_surface;
+
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 			server->wl_display);
 
