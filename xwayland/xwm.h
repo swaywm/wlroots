@@ -56,15 +56,7 @@ enum atom_name {
 	ATOM_LAST,
 };
 
-static const char *atom_map[ATOM_LAST] = {
-	"WL_SURFACE_ID",
-	"WM_PROTOCOLS",
-	"WM_S0",
-	"_NET_SUPPORTED",
-	"_NET_WM_S0",
-	"_NET_WM_STATE",
-	"WM_TAKE_FOCUS",
-};
+extern const char *atom_map[ATOM_LAST];
 
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
