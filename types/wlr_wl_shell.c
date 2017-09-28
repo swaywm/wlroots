@@ -47,7 +47,7 @@ static void shell_surface_move(struct wl_client *client,
 
 static void shell_surface_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
-		uint32_t serial, uint32_t edges) {
+		uint32_t serial, enum wl_shell_surface_resize edges) {
 	wlr_log(L_DEBUG, "got shell surface resize");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =
@@ -93,7 +93,7 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 
 static void shell_surface_set_transient(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *parent_resource,
-		int32_t x, int32_t y, uint32_t flags) {
+		int32_t x, int32_t y, enum wl_shell_surface_transient flags) {
 	wlr_log(L_DEBUG, "got shell surface transient");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *parent =
@@ -116,7 +116,8 @@ static void shell_surface_set_transient(struct wl_client *client,
 }
 
 static void shell_surface_set_fullscreen(struct wl_client *client,
-		struct wl_resource *resource, uint32_t method, uint32_t framerate,
+		struct wl_resource *resource,
+		enum wl_shell_surface_fullscreen_method method, uint32_t framerate,
 		struct wl_resource *output_resource) {
 	wlr_log(L_DEBUG, "got shell surface fullscreen");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
@@ -149,7 +150,7 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 static void shell_surface_set_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, struct wl_resource *parent_resource, int32_t x, int32_t y,
-		uint32_t flags) {
+		enum wl_shell_surface_transient flags) {
 	wlr_log(L_DEBUG, "got shell surface popup");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =

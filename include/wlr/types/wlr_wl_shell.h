@@ -21,7 +21,7 @@ struct wlr_wl_shell_surface_transient_state {
 	struct wlr_wl_shell_surface *parent;
 	int32_t x;
 	int32_t y;
-	uint32_t flags;
+	enum wl_shell_surface_transient flags;
 };
 
 struct wlr_wl_shell_surface_popup_state {
@@ -84,13 +84,13 @@ struct wlr_wl_shell_surface_resize_event {
 	struct wlr_wl_shell_surface *surface;
 	struct wlr_seat_handle *seat_handle;
 	uint32_t serial;
-	uint32_t edges;
+	enum wl_shell_surface_resize edges;
 };
 
 struct wlr_wl_shell_surface_set_fullscreen_event {
 	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
-	uint32_t method;
+	enum wl_shell_surface_fullscreen_method method;
 	uint32_t framerate;
 	struct wlr_output *output;
 };
