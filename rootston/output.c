@@ -31,7 +31,7 @@ static void render_view(struct roots_desktop *desktop,
 				surface->texture, &matrix);
 
 		struct wlr_frame_callback *cb, *cnext;
-		wl_list_for_each_safe(cb, cnext, &surface->frame_callback_list, link) {
+		wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list, link) {
 			wl_callback_send_done(cb->resource, timespec_to_msec(when));
 			wl_resource_destroy(cb->resource);
 		}
@@ -52,8 +52,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
-		int width = view->wlr_surface->current.buffer_width;
-		int height = view->wlr_surface->current.buffer_height;
+		int width = view->wlr_surface->current->buffer_width;
+		int height = view->wlr_surface->current->buffer_height;
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
 					view->x, view->y, view->x + width, view->y + height)) {

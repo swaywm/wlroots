@@ -31,8 +31,8 @@ void view_get_input_bounds(struct roots_view *view, struct wlr_box *box) {
 		return;
 	}
 	box->x = box->y = 0;
-	box->width = view->wlr_surface->current.width;
-	box->height = view->wlr_surface->current.height;
+	box->width = view->wlr_surface->current->width;
+	box->height = view->wlr_surface->current->height;
 }
 
 void view_activate(struct roots_view *view, bool activate) {
