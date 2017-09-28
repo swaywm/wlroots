@@ -68,5 +68,5 @@ void handle_keyboard_key(struct libinput_event *event,
 		wlr_event.state = WLR_KEY_PRESSED;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->keyboard->events.key, &wlr_event);
+	wlr_keyboard_update_state(wlr_dev->keyboard, &wlr_event);
 }

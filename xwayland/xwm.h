@@ -52,17 +52,11 @@ enum atom_name {
 	NET_SUPPORTED,
 	NET_WM_S0,
 	NET_WM_STATE,
-	ATOM_LAST
+	WM_TAKE_FOCUS,
+	ATOM_LAST,
 };
 
-static const char * const atom_map[ATOM_LAST] = {
-	"WL_SURFACE_ID",
-	"WM_PROTOCOLS",
-	"WM_S0",
-	"_NET_SUPPORTED",
-	"_NET_WM_S0",
-	"_NET_WM_STATE",
-};
+extern const char *atom_map[ATOM_LAST];
 
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
@@ -74,8 +68,8 @@ struct wlr_xwm {
 	xcb_screen_t *screen;
 	xcb_window_t window;
 
-	struct wl_list new_windows;
-	struct wl_list unpaired_windows;
+	struct wl_list new_surfaces;
+	struct wl_list unpaired_surfaces;
 };
 
 void xwm_destroy(struct wlr_xwm *xwm);

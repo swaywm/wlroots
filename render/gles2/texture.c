@@ -227,13 +227,13 @@ static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 			return;
 		}
 		if (!wlr_egl_query_buffer(tex->egl, resource, EGL_WIDTH,
-				(EGLint*)&width)) {
+				(EGLint*)width)) {
 			wlr_log(L_ERROR, "could not get size of the buffer "
 				"(no buffer found)");
 			return;
 		};
 		wlr_egl_query_buffer(tex->egl, resource, EGL_HEIGHT,
-			(EGLint*)&height);
+			(EGLint*)height);
 
 		return;
 	}

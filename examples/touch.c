@@ -120,6 +120,11 @@ int main(int argc, char *argv[]) {
 	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
 		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
+	if (!wlr_backend_start(compositor.backend)) {
+		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_backend_destroy(compositor.backend);
+		exit(1);
+	}
 	wl_display_run(compositor.display);
 
 	wlr_texture_destroy(state.cat_texture);

@@ -128,17 +128,15 @@ static const struct wl_pointer_listener pointer_listener = {
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t format, int32_t fd, uint32_t size) {
-
+	// TODO: set keymap
 }
 
 static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
-
 }
 
 static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface) {
-
 }
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
@@ -151,7 +149,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	wlr_event.state = state;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wl_signal_emit(&dev->keyboard->events.key, &wlr_event);
+	wlr_keyboard_update_state(dev->keyboard, &wlr_event);
 }
 
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,

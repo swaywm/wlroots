@@ -333,6 +333,11 @@ int main(int argc, char *argv[]) {
 	wlr_cursor_set_xcursor(state.cursor, state.xcursor);
 
 	compositor_init(&compositor);
+	if (!wlr_backend_start(compositor.backend)) {
+		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_backend_destroy(compositor.backend);
+		exit(1);
+	}
 	wl_display_run(compositor.display);
 	compositor_fini(&compositor);
 

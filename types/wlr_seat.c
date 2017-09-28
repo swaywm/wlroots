@@ -78,21 +78,6 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 		wl_resource_get_version(_handle), id);
 	wl_resource_set_implementation(handle->keyboard, &wl_keyboard_impl,
 		handle, &wl_keyboard_destroy);
-
-	if (wl_resource_get_version(handle->keyboard) >=
-			WL_KEYBOARD_REPEAT_INFO_SINCE_VERSION) {
-		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
-	}
-
-	if (handle->wlr_seat->keyboard_state.keymap_size) {
-		// TODO: handle no keymap
-		wl_keyboard_send_keymap(handle->keyboard,
-				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
-				handle->wlr_seat->keyboard_state.keymap_fd,
-				handle->wlr_seat->keyboard_state.keymap_size);
-	}
-
-	wl_signal_emit(&handle->wlr_seat->events.keyboard_bound, handle);
 }
 
 static const struct wl_touch_interface wl_touch_impl = {
@@ -174,6 +159,7 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 	wl_resource_set_implementation(handle->wl_resource, &wl_seat_impl,
 		handle, wlr_seat_handle_resource_destroy);
 	wl_list_insert(&wlr_seat->handles, &handle->link);
+	wl_seat_send_name(handle->wl_resource, wlr_seat->name);
 	wl_seat_send_capabilities(handle->wl_resource, wlr_seat->capabilities);
 	wl_signal_emit(&wlr_seat->events.client_bound, handle);
 }
@@ -185,14 +171,13 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	}
 
 	wlr_seat->pointer_state.wlr_seat = wlr_seat;
-	wl_list_init(&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
-	wl_list_init(&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
+	wl_list_init(&wlr_seat->pointer_state.surface_destroy.link);
+	wl_list_init(&wlr_seat->pointer_state.resource_destroy.link);
 
 	wlr_seat->keyboard_state.wlr_seat = wlr_seat;
+	wl_list_init(&wlr_seat->keyboard_state.resource_destroy.link);
 	wl_list_init(
-		&wlr_seat->keyboard_state.focus_resource_destroy_listener.link);
-	wl_list_init(
-		&wlr_seat->keyboard_state.focus_surface_destroy_listener.link);
+		&wlr_seat->keyboard_state.surface_destroy.link);
 
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_seat_interface, 6, wlr_seat, wl_seat_bind);
@@ -204,10 +189,10 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wlr_seat->display = display;
 	wlr_seat->name = strdup(name);
 	wl_list_init(&wlr_seat->handles);
+	wl_list_init(&wlr_seat->keyboards);
 
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
-	wl_signal_init(&wlr_seat->events.keyboard_bound);
 
 	return wlr_seat;
 }
@@ -264,20 +249,18 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
 	return surface == wlr_seat->pointer_state.focused_surface;
 }
 
-static void handle_pointer_focus_surface_destroyed(
-		struct wl_listener *listener, void *data) {
-	struct wlr_seat_pointer_state *state =
-		wl_container_of(listener, state, focus_surface_destroy_listener);
-
+static void pointer_surface_destroy_notify(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_pointer_state *state = wl_container_of(
+			listener, state, surface_destroy);
 	state->focused_surface = NULL;
 	wlr_seat_pointer_clear_focus(state->wlr_seat);
 }
 
-static void handle_pointer_focus_resource_destroyed(
-		struct wl_listener *listener, void *data) {
-	struct wlr_seat_pointer_state *state =
-		wl_container_of(listener, state, focus_resource_destroy_listener);
-
+static void pointer_resource_destroy_notify(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_pointer_state *state = wl_container_of(
+			listener, state, resource_destroy);
 	state->focused_surface = NULL;
 	wlr_seat_pointer_clear_focus(state->wlr_seat);
 }
@@ -325,21 +308,19 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	}
 
 	// reinitialize the focus destroy events
-	wl_list_remove(
-		&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
-	wl_list_init(&wlr_seat->pointer_state.focus_surface_destroy_listener.link);
-	wl_list_remove(
-		&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
-	wl_list_init(&wlr_seat->pointer_state.focus_resource_destroy_listener.link);
+	wl_list_remove(&wlr_seat->pointer_state.surface_destroy.link);
+	wl_list_init(&wlr_seat->pointer_state.surface_destroy.link);
+	wl_list_remove(&wlr_seat->pointer_state.resource_destroy.link);
+	wl_list_init(&wlr_seat->pointer_state.resource_destroy.link);
 	if (surface) {
 		wl_signal_add(&surface->signals.destroy,
-			&wlr_seat->pointer_state.focus_surface_destroy_listener);
+			&wlr_seat->pointer_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
-			&wlr_seat->pointer_state.focus_resource_destroy_listener);
-		wlr_seat->pointer_state.focus_resource_destroy_listener.notify =
-			handle_pointer_focus_resource_destroyed;
-		wlr_seat->pointer_state.focus_surface_destroy_listener.notify =
-			handle_pointer_focus_surface_destroyed;
+			&wlr_seat->pointer_state.resource_destroy);
+		wlr_seat->pointer_state.resource_destroy.notify =
+			pointer_resource_destroy_notify;
+		wlr_seat->pointer_state.surface_destroy.notify =
+			pointer_surface_destroy_notify;
 	}
 
 	wlr_seat->pointer_state.focused_handle = handle;
@@ -395,26 +376,114 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 	wl_pointer_send_frame(pointer);
 }
 
-static void handle_keyboard_focus_surface_destroyed(
-		struct wl_listener *listener, void *data) {
-	struct wlr_seat_keyboard_state *state =
-		wl_container_of(listener, state, focus_surface_destroy_listener);
+static void keyboard_key_notify(struct wl_listener *listener, void *data) {
+	struct wlr_seat_keyboard *seat_kb = wl_container_of(
+			listener, seat_kb, key);
+	struct wlr_seat *seat = seat_kb->seat;
+	struct wlr_seat_handle *handle = seat->keyboard_state.focused_handle;
+	if (!handle || !handle->keyboard) {
+		return;
+	}
+	struct wlr_keyboard *keyboard = seat_kb->keyboard;
+	struct wlr_event_keyboard_key *event = data;
+	enum wlr_key_state key_state = event->state;
+	if (handle->seat_keyboard != seat_kb) {
+		// TODO: We should probably lift all of the keys set by the other
+		// keyboard
+		wl_keyboard_send_keymap(handle->keyboard,
+				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
+				seat_kb->keyboard->keymap_fd,
+				seat_kb->keyboard->keymap_size);
 
+		if (wl_resource_get_version(handle->keyboard) >= 2) {
+			// TODO: Make this better
+			wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
+		}
+		handle->seat_keyboard = seat_kb;
+	}
+
+	uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_DEPRESSED);
+	uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LATCHED);
+	uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
+		XKB_STATE_MODS_LOCKED);
+	uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
+		XKB_STATE_LAYOUT_EFFECTIVE);
+
+	uint32_t modifiers_serial = wl_display_next_serial(seat->display);
+	uint32_t key_serial = wl_display_next_serial(seat->display);
+	wl_keyboard_send_modifiers(handle->keyboard, modifiers_serial,
+		depressed, latched, locked, group);
+	wl_keyboard_send_key(handle->keyboard, key_serial,
+			(uint32_t)event->time_usec, event->keycode, key_state);
+}
+
+static void keyboard_keymap_notify(struct wl_listener *listener, void *data) {
+	struct wlr_seat_keyboard *seat_kb = wl_container_of(
+			listener, seat_kb, keymap);
+	wlr_log(L_DEBUG, "Keymap event for %p", seat_kb);
+}
+
+static void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
+	struct wlr_seat_keyboard *seat_kb = wl_container_of(
+			listener, seat_kb, destroy);
+	wlr_seat_detach_keyboard(seat_kb->seat, seat_kb->keyboard);
+}
+
+void wlr_seat_attach_keyboard(struct wlr_seat *seat,
+		struct wlr_input_device *dev) {
+	assert(seat && dev && dev->type == WLR_INPUT_DEVICE_KEYBOARD);
+	struct wlr_keyboard *kb = dev->keyboard;
+	struct wlr_seat_keyboard *seat_kb =
+		calloc(1, sizeof(struct wlr_seat_keyboard));
+	seat_kb->keyboard = kb;
+	seat_kb->seat = seat;
+	wl_list_init(&seat_kb->key.link);
+	seat_kb->key.notify = keyboard_key_notify;
+	wl_signal_add(&kb->events.key, &seat_kb->key);
+	wl_list_init(&seat_kb->keymap.link);
+	seat_kb->keymap.notify = keyboard_keymap_notify;
+	wl_signal_add(&kb->events.keymap, &seat_kb->keymap);
+	// TODO: update keymap as necessary
+	wl_list_init(&seat_kb->destroy.link);
+	seat_kb->destroy.notify = keyboard_destroy_notify;
+	wl_signal_add(&dev->events.destroy, &seat_kb->destroy);
+	wl_list_insert(&seat->keyboards, &seat_kb->link);
+}
+
+void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb) {
+	struct wlr_seat_keyboard *seat_kb, *_tmp;
+	wl_list_for_each_safe(seat_kb, _tmp, &seat->keyboards, link) {
+		if (seat_kb->keyboard == kb) {
+			wl_list_remove(&seat_kb->link);
+			wl_list_remove(&seat_kb->key.link);
+			wl_list_remove(&seat_kb->keymap.link);
+			wl_list_remove(&seat_kb->destroy.link);
+			free(seat_kb);
+			break;
+		}
+	}
+}
+
+static void keyboard_surface_destroy_notify(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_keyboard_state *state = wl_container_of(
+			listener, state, surface_destroy);
 	state->focused_surface = NULL;
 	wlr_seat_keyboard_clear_focus(state->wlr_seat);
 }
 
-static void handle_keyboard_focus_resource_destroyed(
-		struct wl_listener *listener, void *data) {
-	struct wlr_seat_keyboard_state *state =
-		wl_container_of(listener, state, focus_resource_destroy_listener);
-
+static void keyboard_resource_destroy_notify(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_keyboard_state *state = wl_container_of(
+			listener, state, resource_destroy);
 	state->focused_surface = NULL;
 	wlr_seat_keyboard_clear_focus(state->wlr_seat);
 }
 
 void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, struct wl_array keys) {
+		struct wlr_surface *surface) {
 	if (wlr_seat->keyboard_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
@@ -441,30 +510,28 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 
 	// enter the current surface
 	if (handle && handle->keyboard) {
+		// TODO: handle keys properly
+		struct wl_array keys;
+		wl_array_init(&keys);
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_keyboard_send_enter(handle->keyboard, serial,
 			surface->resource, &keys);
-
-		// TODO: send modifiers
 	}
 
 	// reinitialize the focus destroy events
-	wl_list_remove(
-		&wlr_seat->keyboard_state.focus_surface_destroy_listener.link);
-	wl_list_init(&wlr_seat->keyboard_state.focus_surface_destroy_listener.link);
-	wl_list_remove(
-		&wlr_seat->keyboard_state.focus_resource_destroy_listener.link);
-	wl_list_init(
-		&wlr_seat->keyboard_state.focus_resource_destroy_listener.link);
+	wl_list_remove(&wlr_seat->keyboard_state.surface_destroy.link);
+	wl_list_init(&wlr_seat->keyboard_state.surface_destroy.link);
+	wl_list_remove(&wlr_seat->keyboard_state.resource_destroy.link);
+	wl_list_init(&wlr_seat->keyboard_state.resource_destroy.link);
 	if (surface) {
 		wl_signal_add(&surface->signals.destroy,
-			&wlr_seat->keyboard_state.focus_surface_destroy_listener);
+			&wlr_seat->keyboard_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
-			&wlr_seat->keyboard_state.focus_resource_destroy_listener);
-		wlr_seat->keyboard_state.focus_resource_destroy_listener.notify =
-			handle_keyboard_focus_resource_destroyed;
-		wlr_seat->keyboard_state.focus_surface_destroy_listener.notify =
-			handle_keyboard_focus_surface_destroyed;
+			&wlr_seat->keyboard_state.resource_destroy);
+		wlr_seat->keyboard_state.resource_destroy.notify =
+			keyboard_resource_destroy_notify;
+		wlr_seat->keyboard_state.surface_destroy.notify =
+			keyboard_surface_destroy_notify;
 	}
 
 	wlr_seat->keyboard_state.focused_handle = handle;
@@ -474,65 +541,5 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat) {
 	struct wl_array keys;
 	wl_array_init(&keys);
-	wlr_seat_keyboard_enter(wlr_seat, NULL, keys);
-}
-
-static bool wlr_seat_keyboard_has_focus_resource(struct wlr_seat *wlr_seat) {
-	return wlr_seat->keyboard_state.focused_handle &&
-		wlr_seat->keyboard_state.focused_handle->keyboard;
-}
-
-uint32_t wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
-		uint32_t key, uint32_t state) {
-	if (!wlr_seat_keyboard_has_focus_resource(wlr_seat)) {
-		return 0;
-	}
-
-	uint32_t serial = wl_display_next_serial(wlr_seat->display);
-	wl_keyboard_send_key(wlr_seat->keyboard_state.focused_handle->keyboard,
-		serial, time, key, state);
-
-	return serial;
-}
-
-void wlr_seat_keyboard_send_modifiers(struct wlr_seat *wlr_seat,
-		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
-		uint32_t group) {
-	uint32_t serial = 0;
-	struct wl_resource *keyboard;
-
-	if (wlr_seat_keyboard_has_focus_resource(wlr_seat)) {
-		serial = wl_display_next_serial(wlr_seat->display);
-		keyboard = wlr_seat->keyboard_state.focused_handle->keyboard;
-		wl_keyboard_send_modifiers(keyboard, serial, mods_depressed,
-			mods_latched, mods_locked, group);
-	}
-
-	if (wlr_seat_pointer_has_focus_resource(wlr_seat) &&
-			wlr_seat->pointer_state.focused_handle->keyboard &&
-			wlr_seat->pointer_state.focused_handle !=
-				wlr_seat->keyboard_state.focused_handle) {
-		if (serial == 0) {
-			serial = wl_display_next_serial(wlr_seat->display);
-		}
-		keyboard = wlr_seat->pointer_state.focused_handle->keyboard;
-
-		wl_keyboard_send_modifiers(keyboard, serial, mods_depressed,
-			mods_latched, mods_locked, group);
-	}
-}
-
-void wlr_seat_keyboard_set_keymap(struct wlr_seat *wlr_seat, int keymap_fd,
-		size_t keymap_size) {
-	// TODO: we probably should wait to send the keymap if keys are pressed
-	struct wlr_seat_handle *handle;
-	wl_list_for_each(handle, &wlr_seat->handles, link) {
-		if (handle->keyboard) {
-			wl_keyboard_send_keymap(handle->keyboard,
-				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, keymap_fd, keymap_size);
-		}
-	}
-
-	wlr_seat->keyboard_state.keymap_fd = keymap_fd;
-	wlr_seat->keyboard_state.keymap_size = keymap_size;
+	wlr_seat_keyboard_enter(wlr_seat, NULL);
 }

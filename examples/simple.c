@@ -9,6 +9,7 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "shared.h"
 
@@ -52,6 +53,11 @@ int main() {
 		.output_frame_cb = handle_output_frame,
 	};
 	compositor_init(&compositor);
+	if (!wlr_backend_start(compositor.backend)) {
+		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_backend_destroy(compositor.backend);
+		exit(1);
+	}
 	wl_display_run(compositor.display);
 	compositor_fini(&compositor);
 }
