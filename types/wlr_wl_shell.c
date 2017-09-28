@@ -114,7 +114,7 @@ static void shell_surface_set_transient(struct wl_client *client,
 	free(surface->transient_state);
 	surface->transient_state = state;
 
-	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TRANSCIENT;
+	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TRANSIENT;
 
 	wl_signal_emit(&surface->events.set_role, surface);
 }
@@ -167,17 +167,17 @@ static void shell_surface_set_popup(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_wl_shell_surface_transient_state *transcient_state =
+	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
-	if (transcient_state == NULL) {
+	if (transient_state == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
-	transcient_state->parent = parent;
-	transcient_state->x = x;
-	transcient_state->y = y;
-	transcient_state->flags = flags;
+	transient_state->parent = parent;
+	transient_state->x = x;
+	transient_state->y = y;
+	transient_state->flags = flags;
 
 	struct wlr_wl_shell_surface_popup_state *popup_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
@@ -190,7 +190,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 	popup_state->serial = serial;
 
 	free(surface->transient_state);
-	surface->transient_state = transcient_state;
+	surface->transient_state = transient_state;
 
 	free(surface->popup_state);
 	surface->popup_state = popup_state;
