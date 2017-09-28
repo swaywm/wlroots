@@ -262,6 +262,7 @@ static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
+	wl_event_source_remove(surface->ping_timer);
 	free(surface->transient_state);
 	free(surface->popup_state);
 	free(surface->title);
