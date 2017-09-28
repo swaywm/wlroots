@@ -75,8 +75,8 @@ struct wlr_xwm {
 	xcb_screen_t *screen;
 	xcb_window_t window;
 
-	struct wl_list new_windows;
-	struct wl_list unpaired_windows;
+	struct wl_list new_surfaces;
+	struct wl_list unpaired_surfaces;
 };
 
 void xwm_destroy(struct wlr_xwm *xwm);

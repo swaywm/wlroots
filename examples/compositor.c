@@ -320,10 +320,11 @@ static void handle_output_frame(struct output_state *output,
 			}
 		}
 	}
-	struct wlr_x11_window *x11_window;
-	wl_list_for_each(x11_window, &sample->xwayland->displayable_windows, link) {
+	struct wlr_xwayland_surface *xwayland_surface;
+	wl_list_for_each(xwayland_surface, &sample->xwayland->displayable_surfaces,
+			link) {
 		output_frame_handle_surface(sample, wlr_output, ts,
-			x11_window->surface->resource, 200, 200);
+			xwayland_surface->surface->resource, 200, 200);
 	}
 
 	wlr_renderer_end(sample->renderer);
