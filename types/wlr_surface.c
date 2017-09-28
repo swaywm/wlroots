@@ -117,7 +117,6 @@ static void wlr_surface_update_size(struct wlr_surface *surface) {
 
 	surface->current.width = _width;
 	surface->current.height = _height;
-	wlr_log(L_DEBUG, "%dx%d", _width, _height);
 }
 
 static void wlr_surface_to_buffer_region(struct wlr_surface *surface,

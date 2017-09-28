@@ -377,7 +377,6 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 }
 
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
-	wlr_log(L_DEBUG, "Updating keyboard");
 	struct wlr_seat_keyboard *seat_kb = wl_container_of(
 			listener, seat_kb, key);
 	struct wlr_seat *seat = seat_kb->seat;
