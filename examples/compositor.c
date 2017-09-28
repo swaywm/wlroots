@@ -290,7 +290,7 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_wl_shell_surface *wl_shell_surface;
 	wl_list_for_each(wl_shell_surface, &sample->wl_shell->surfaces, link) {
 		output_frame_handle_surface(sample, wlr_output, ts,
-			wl_shell_surface->surface, 200, 200);
+			wl_shell_surface->surface->resource, 200, 200);
 	}
 	struct wlr_xdg_surface_v6 *xdg_surface;
 	struct wlr_xdg_client_v6 *xdg_client;

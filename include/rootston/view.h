@@ -6,8 +6,14 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 
 struct roots_wl_shell_surface {
-	// TODO
-	void *_placeholder;
+	struct roots_view *view;
+	// TODO: Maybe destroy listener should go in roots_view
+	struct wl_listener destroy;
+	struct wl_listener ping_timeout;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_set_fullscreen;
+	struct wl_listener request_set_maximized;
 };
 
 struct roots_xdg_surface_v6 {
@@ -34,7 +40,7 @@ struct roots_view {
 	// TODO: Something for roots-enforced width/height
 	enum roots_view_type type;
 	union {
-		struct wlr_shell_surface *wl_shell_surface;
+		struct wlr_wl_shell_surface *wl_shell_surface;
 		struct wlr_xdg_surface_v6 *xdg_surface_v6;
 	};
 	union {
