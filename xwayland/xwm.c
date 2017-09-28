@@ -308,6 +308,25 @@ static void xcb_init_wm(struct wlr_xwm *xwm) {
 	xcb_flush(xwm->xcb_conn);
 }
 
+void wlr_x11_window_activate(struct wlr_xwayland *wlr_xwayland,
+		struct wlr_x11_window *window) {
+	struct wlr_xwm *xwm = wlr_xwayland->xwm;
+	xcb_client_message_event_t m = {0};
+	m.response_type = XCB_CLIENT_MESSAGE;
+	m.format = 32;
+	m.window = window->window_id;
+	m.type = xwm->atoms[WM_PROTOCOLS];
+	m.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
+	m.data.data32[1] = XCB_TIME_CURRENT_TIME;
+	xcb_send_event_checked(xwm->xcb_conn, 0, window->window_id,
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&m);
+	xcb_set_input_focus_checked(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			window->window_id, XCB_CURRENT_TIME);
+	xcb_configure_window_checked(xwm->xcb_conn, window->window_id,
+			XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]){XCB_STACK_MODE_ABOVE});
+	xcb_flush(xwm->xcb_conn);
+}
+
 void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;

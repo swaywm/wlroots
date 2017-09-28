@@ -50,5 +50,7 @@ struct wlr_x11_window {
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 		struct wlr_compositor *compositor);
+void wlr_x11_window_activate(struct wlr_xwayland *wlr_xwayland,
+		struct wlr_x11_window *window);
 
 #endif

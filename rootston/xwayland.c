@@ -17,6 +17,10 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	free(roots_surface);
 }
 
+static void x11_activate(struct roots_view *view, bool active) {
+	wlr_x11_window_activate(view->desktop->xwayland, view->x11_window);
+}
+
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, xwayland_surface);
@@ -38,6 +42,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->roots_x11_surface = roots_surface;
 	view->wlr_surface = surface->surface;
 	view->desktop = desktop;
+	view->activate = x11_activate;
 	roots_surface->view = view;
 	wl_list_insert(&desktop->views, &view->link);
 }
