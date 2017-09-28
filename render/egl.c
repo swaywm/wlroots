@@ -175,13 +175,14 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
 	return true;
 
 error:
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglTerminate(egl->display);
 	eglReleaseThread();
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	return false;
 }
 
 void wlr_egl_free(struct wlr_egl *egl) {
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display && egl->eglUnbindWaylandDisplayWL) {
 		egl->eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
@@ -189,7 +190,6 @@ void wlr_egl_free(struct wlr_egl *egl) {
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {

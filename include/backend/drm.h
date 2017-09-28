@@ -127,6 +127,7 @@ struct wlr_drm_backend {
 enum wlr_drm_output_state {
 	WLR_DRM_OUTPUT_DISCONNECTED,
 	WLR_DRM_OUTPUT_NEEDS_MODESET,
+	WLR_DRM_OUTPUT_CLEANUP,
 	WLR_DRM_OUTPUT_CONNECTED,
 };
 
@@ -154,6 +155,7 @@ struct wlr_drm_output {
 	struct wlr_drm_renderer *renderer;
 
 	bool pageflip_pending;
+	struct wl_event_source *retry_pageflip;
 };
 
 // Used to provide atomic or legacy DRM functions
@@ -176,8 +178,8 @@ struct wlr_drm_interface {
 bool wlr_drm_check_features(struct wlr_drm_backend *drm);
 bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
 void wlr_drm_resources_free(struct wlr_drm_backend *drm);
-void wlr_drm_output_cleanup(struct wlr_drm_output *output, bool restore);
-
+void wlr_drm_restore_outputs(struct wlr_drm_backend *drm);
+void wlr_drm_output_cleanup(struct wlr_drm_output *output);
 void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
