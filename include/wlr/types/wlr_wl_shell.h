@@ -29,11 +29,11 @@ struct wlr_wl_shell_surface_popup_state {
 	uint32_t serial;
 };
 
-enum wlr_wl_shell_surface_role {
-	WLR_WL_SHELL_SURFACE_ROLE_NONE,
-	WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL,
-	WLR_WL_SHELL_SURFACE_ROLE_TRANSIENT,
-	WLR_WL_SHELL_SURFACE_ROLE_POPUP,
+enum wlr_wl_shell_surface_state {
+	WLR_WL_SHELL_SURFACE_STATE_NONE,
+	WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL,
+	WLR_WL_SHELL_SURFACE_STATE_TRANSIENT,
+	WLR_WL_SHELL_SURFACE_STATE_POPUP,
 };
 
 struct wlr_wl_shell_surface {
@@ -46,7 +46,7 @@ struct wlr_wl_shell_surface {
 	uint32_t ping_serial;
 	struct wl_event_source *ping_timer;
 
-	enum wlr_wl_shell_surface_role role;
+	enum wlr_wl_shell_surface_state state;
 	struct wlr_wl_shell_surface_transient_state *transient_state;
 	struct wlr_wl_shell_surface_popup_state *popup_state;
 
@@ -64,7 +64,7 @@ struct wlr_wl_shell_surface {
 		struct wl_signal request_set_fullscreen;
 		struct wl_signal request_set_maximized;
 
-		struct wl_signal set_role;
+		struct wl_signal set_state;
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 	} events;

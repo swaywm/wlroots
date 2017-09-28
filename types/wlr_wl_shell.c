@@ -77,13 +77,13 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 	wlr_log(L_DEBUG, "got shell surface toplevel");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 
-	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
+	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		return;
 	}
 
-	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL;
+	surface->state = WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL;
 
-	wl_signal_emit(&surface->events.set_role, surface);
+	wl_signal_emit(&surface->events.set_state, surface);
 }
 
 static void shell_surface_set_transient(struct wl_client *client,
@@ -95,7 +95,7 @@ static void shell_surface_set_transient(struct wl_client *client,
 		wl_resource_get_user_data(parent_resource);
 	// TODO: check if parent_resource == NULL?
 
-	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
+	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		return;
 	}
 
@@ -114,9 +114,9 @@ static void shell_surface_set_transient(struct wl_client *client,
 	free(surface->transient_state);
 	surface->transient_state = state;
 
-	surface->role = WLR_WL_SHELL_SURFACE_ROLE_TRANSIENT;
+	surface->state = WLR_WL_SHELL_SURFACE_STATE_TRANSIENT;
 
-	wl_signal_emit(&surface->events.set_role, surface);
+	wl_signal_emit(&surface->events.set_state, surface);
 }
 
 static void shell_surface_set_fullscreen(struct wl_client *client,
@@ -129,7 +129,7 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 		output = wl_resource_get_user_data(output_resource);
 	}
 
-	if (surface->role == WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL) {
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL) {
 		return;
 	}
 
@@ -163,7 +163,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 		wl_resource_get_user_data(parent_resource);
 	// TODO: check if parent_resource == NULL?
 
-	if (surface->role != WLR_WL_SHELL_SURFACE_ROLE_NONE) {
+	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		return;
 	}
 
@@ -195,9 +195,9 @@ static void shell_surface_set_popup(struct wl_client *client,
 	free(surface->popup_state);
 	surface->popup_state = popup_state;
 
-	surface->role = WLR_WL_SHELL_SURFACE_ROLE_POPUP;
+	surface->state = WLR_WL_SHELL_SURFACE_STATE_POPUP;
 
-	wl_signal_emit(&surface->events.set_role, surface);
+	wl_signal_emit(&surface->events.set_state, surface);
 }
 
 static void shell_surface_set_maximized(struct wl_client *client,
@@ -209,7 +209,7 @@ static void shell_surface_set_maximized(struct wl_client *client,
 		output = wl_resource_get_user_data(output_resource);
 	}
 
-	if (surface->role == WLR_WL_SHELL_SURFACE_ROLE_TOPLEVEL) {
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL) {
 		return;
 	}
 
@@ -336,7 +336,7 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wl_signal_init(&wl_surface->events.request_resize);
 	wl_signal_init(&wl_surface->events.request_set_fullscreen);
 	wl_signal_init(&wl_surface->events.request_set_maximized);
-	wl_signal_init(&wl_surface->events.set_role);
+	wl_signal_init(&wl_surface->events.set_state);
 	wl_signal_init(&wl_surface->events.set_title);
 	wl_signal_init(&wl_surface->events.set_class);
 
