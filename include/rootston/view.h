@@ -27,7 +27,7 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_show_window_menu;
 };
 
-struct roots_x11_surface {
+struct roots_xwayland_surface {
 	struct roots_view *view;
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
@@ -48,12 +48,12 @@ struct roots_view {
 	union {
 		struct wlr_wl_shell_surface *wl_shell_surface;
 		struct wlr_xdg_surface_v6 *xdg_surface_v6;
-		struct wlr_x11_window *x11_window;
+		struct wlr_xwayland_surface *xwayland_surface;
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
 		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
-		struct roots_x11_surface *roots_x11_surface;
+		struct roots_xwayland_surface *roots_xwayland_surface;
 	};
 	struct wlr_surface *wlr_surface;
 	struct wl_list link;

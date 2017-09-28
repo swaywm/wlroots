@@ -20,7 +20,7 @@ struct wlr_xwayland {
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener destroy_listener;
 	struct wlr_xwm *xwm;
-	struct wl_list displayable_windows;
+	struct wl_list displayable_surfaces;
 
 	struct {
 		struct wl_signal new_surface;
@@ -29,7 +29,7 @@ struct wlr_xwayland {
 	void *data;
 };
 
-struct wlr_x11_window {
+struct wlr_xwayland_surface {
 	xcb_window_t window_id;
 	uint32_t surface_id;
 	struct wl_list link;
@@ -49,8 +49,8 @@ struct wlr_x11_window {
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
-		struct wlr_compositor *compositor);
-void wlr_x11_window_activate(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_x11_window *window);
+	struct wlr_compositor *compositor);
+void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
+	struct wlr_xwayland_surface *surface);
 
 #endif
