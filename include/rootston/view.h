@@ -56,7 +56,6 @@ struct roots_view {
 		struct roots_xwayland_surface *roots_xwayland_surface;
 	};
 	struct wlr_surface *wlr_surface;
-	struct wl_list link;
 	// TODO: This would probably be better as a field that's updated on a
 	// configure event from the xdg_shell
 	// If not then this should follow the typical type/impl pattern we use

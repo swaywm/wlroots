@@ -45,5 +45,5 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->desktop = desktop;
 	view->activate = x11_activate;
 	roots_surface->view = view;
-	wl_list_insert(&desktop->views, &view->link);
+	list_add(desktop->views, view);
 }

@@ -16,24 +16,11 @@ static void handle_move(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_wl_shell_surface_move_event *e = data;
-
-	// TODO: Some of this might want to live in cursor.c I guess
-	struct roots_input_event *event = NULL;
-	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
-	for (size_t i = 0; i < len; ++i) {
-		if (input->input_events[i].cursor
-				&& input->input_events[i].serial == e->serial) {
-			event = &input->input_events[i];
-			break;
-		}
-	}
+	const struct roots_input_event *event = get_input_event(input, e->serial);
 	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	input->mode = ROOTS_CURSOR_MOVE;
-	input->offs_x = input->cursor->x - view->x;
-	input->offs_y = input->cursor->y - view->y;
-	wlr_seat_pointer_clear_focus(input->wl_seat);
+	view_begin_move(input, event->cursor, view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -80,5 +67,5 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->wlr_surface = surface->surface;
 	view->desktop = desktop;
 	roots_surface->view = view;
-	wl_list_insert(&desktop->views, &view->link);
+	list_add(desktop->views, view);
 }

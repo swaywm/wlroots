@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#include <assert.h>
 #include <time.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_box.h>
@@ -13,7 +14,14 @@
 #include "rootston/server.h"
 
 void view_destroy(struct roots_view *view) {
-	wl_list_remove(&view->link);
+	struct roots_desktop *desktop = view->desktop;
+	for (size_t i = 0; i < desktop->views->length; ++i) {
+		struct roots_view *_view = desktop->views->items[i];
+		if (view == _view) {
+			list_del(desktop->views, i);
+			break;
+		}
+	}
 	free(view);
 }
 
@@ -34,8 +42,8 @@ void view_activate(struct roots_view *view, bool activate) {
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, int x, int y) {
-	struct roots_view *view;
-	wl_list_for_each(view, &desktop->views, link) {
+	for (size_t i = 0; i < desktop->views->length; ++i) {
+		struct roots_view *view = desktop->views->items[i];
 		struct wlr_box box;
 		view_get_input_bounds(view, &box);
 		box.x += view->x;
@@ -52,7 +60,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	struct roots_desktop *desktop = calloc(1, sizeof(struct roots_desktop));
 	wlr_log(L_DEBUG, "Initializing roots desktop");
 
-	wl_list_init(&desktop->views);
+	assert(desktop->views = list_create());
 	wl_list_init(&desktop->outputs);
 	wl_list_init(&desktop->output_add.link);
 	desktop->output_add.notify = output_add_notify;

@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/util/list.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
 
@@ -21,7 +22,7 @@ struct roots_output {
 };
 
 struct roots_desktop {
-	struct wl_list views;
+	list_t *views;
 
 	struct wl_list outputs;
 	struct timespec last_frame;

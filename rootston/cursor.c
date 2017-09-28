@@ -9,6 +9,26 @@
 #include "rootston/input.h"
 #include "rootston/desktop.h"
 
+const struct roots_input_event *get_input_event(struct roots_input *input,
+		uint32_t serial) {
+	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
+	for (size_t i = 0; i < len; ++i) {
+		if (input->input_events[i].cursor
+				&& input->input_events[i].serial == serial) {
+			return &input->input_events[i];
+		}
+	}
+	return NULL;
+}
+
+void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view) {
+	input->mode = ROOTS_CURSOR_MOVE;
+	input->offs_x = cursor->x - view->x;
+	input->offs_y = cursor->y - view->y;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
@@ -44,12 +64,19 @@ static void set_view_focus(struct roots_input *input,
 	if (input->active_view == view) {
 		return;
 	}
-	struct roots_view *_view;
-	wl_list_for_each(_view, &desktop->views, link) {
+	size_t index = 0;
+	for (size_t i = 0; i < desktop->views->length; ++i) {
+		struct roots_view *_view = desktop->views->items[i];
 		view_activate(_view, _view == view);
+		if (view == _view) {
+			index = i;
+		}
 	}
 	input->active_view = view;
 	input->mode = ROOTS_CURSOR_PASSTHROUGH;
+	// TODO: list_swap
+	list_del(desktop->views, index);
+	list_add(desktop->views, view);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {

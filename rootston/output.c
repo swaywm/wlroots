@@ -50,8 +50,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	struct roots_view *view;
-	wl_list_for_each(view, &desktop->views, link) {
+	for (size_t i = 0; i < desktop->views->length; ++i) {
+		struct roots_view *view = desktop->views->items[i];
 		int width = view->wlr_surface->current.buffer_width;
 		int height = view->wlr_surface->current.buffer_height;
 
