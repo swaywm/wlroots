@@ -25,7 +25,7 @@ static struct wlr_pointer_impl pointer_impl;
 int x11_event(int fd, uint32_t mask, void *data) {
 	struct wlr_x11_backend *x11 = data;
 
-	xcb_generic_event_t *event = xcb_wait_for_event(x11->xcb_conn);
+	xcb_generic_event_t *event = xcb_poll_for_event(x11->xcb_conn);
 	if (!event) {
 		return 0;
 	}
@@ -73,6 +73,13 @@ int x11_event(int fd, uint32_t mask, void *data) {
 	return 0;
 }
 
+int signal_frame(void *data) {
+	struct wlr_x11_backend *x11 = data;
+	wl_signal_emit(&x11->output.wlr_output.events.frame, &x11->output);
+	wl_event_source_timer_update(x11->frame_timer, 16);
+	return 0;
+}
+
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		const char *x11_display) {
 	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
@@ -103,6 +110,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Could not create event source");
 		goto error_x11;
 	}
+
+	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
 
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
 
@@ -167,6 +176,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	wl_signal_emit(&x11->backend.events.input_add, &x11->keyboard_dev);
 	wl_signal_emit(&x11->backend.events.input_add, &x11->pointer_dev);
 
+	signal_frame(x11);
+
 	return true;
 }
 
@@ -177,6 +188,7 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 
+	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_free(&x11->egl);
 
 	xcb_disconnect(x11->xcb_conn);

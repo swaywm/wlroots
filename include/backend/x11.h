@@ -36,6 +36,7 @@ struct wlr_x11_backend {
 
 	struct wlr_egl egl;
 	struct wl_event_source *event_source;
+	struct wl_event_source *frame_timer;
 };
 
 #endif
