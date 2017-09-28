@@ -297,7 +297,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	wl_signal_emit(&x11->backend.events.input_add, &x11->keyboard_dev);
 	wl_signal_emit(&x11->backend.events.input_add, &x11->pointer_dev);
 
-	signal_frame(x11);
+	wl_event_source_timer_update(x11->frame_timer, 16);
 
 	return true;
 }
