@@ -153,6 +153,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, struct wl_resource *parent_resource, int32_t x, int32_t y,
 		enum wl_shell_surface_transient flags) {
+	// TODO: do a pointer grab
 	wlr_log(L_DEBUG, "got shell surface popup");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =
