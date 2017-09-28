@@ -7,6 +7,7 @@
 #include <wayland-server.h>
 #include <xcb/xcb.h>
 #include <X11/Xlib-xcb.h>
+#include <linux/input-event-codes.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
 #include <wlr/egl.h>
@@ -62,6 +63,54 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		};
 
 		wl_signal_emit(&x11->keyboard.events.key, &key);
+		break;
+	}
+	case XCB_BUTTON_PRESS: {
+		xcb_button_press_event_t *press = (xcb_button_press_event_t *)event;
+		struct wlr_event_pointer_button button = {
+			.device = &x11->pointer_dev,
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.state = WLR_BUTTON_PRESSED,
+		};
+
+		switch (press->detail) {
+		case XCB_BUTTON_INDEX_1:
+			button.button = BTN_LEFT;
+			break;
+		case XCB_BUTTON_INDEX_2:
+			button.button = BTN_MIDDLE;
+			break;
+		case XCB_BUTTON_INDEX_3:
+			button.button = BTN_RIGHT;
+			break;
+		}
+
+		wl_signal_emit(&x11->pointer.events.button, &button);
+		break;
+	}
+	case XCB_BUTTON_RELEASE: {
+		xcb_button_release_event_t *press = (xcb_button_release_event_t *)event;
+		struct wlr_event_pointer_button button = {
+			.device = &x11->pointer_dev,
+			.time_sec = ts.tv_sec,
+			.time_usec = ts.tv_nsec / 1000,
+			.state = WLR_BUTTON_RELEASED,
+		};
+
+		switch (press->detail) {
+		case XCB_BUTTON_INDEX_1:
+			button.button = BTN_LEFT;
+			break;
+		case XCB_BUTTON_INDEX_2:
+			button.button = BTN_MIDDLE;
+			break;
+		case XCB_BUTTON_INDEX_3:
+			button.button = BTN_RIGHT;
+			break;
+		}
+
+		wl_signal_emit(&x11->pointer.events.button, &button);
 		break;
 	}
 	default:
@@ -150,7 +199,9 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 	uint32_t values[2] = {
 		x11->screen->white_pixel,
-		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE
+		XCB_EVENT_MASK_EXPOSURE |
+			XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
+			XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
 	};
 
 	output->x11 = x11;
