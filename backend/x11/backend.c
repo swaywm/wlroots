@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <EGL/egl.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
@@ -24,96 +23,73 @@ static struct wlr_input_device_impl input_impl;
 static struct wlr_keyboard_impl keyboard_impl;
 static struct wlr_pointer_impl pointer_impl;
 
+static uint32_t xcb_button_to_wl(uint32_t button) {
+	switch (button) {
+	case XCB_BUTTON_INDEX_1: return BTN_LEFT;
+	case XCB_BUTTON_INDEX_2: return BTN_MIDDLE;
+	case XCB_BUTTON_INDEX_3: return BTN_RIGHT;
+	// XXX: I'm not sure the scroll-wheel direction is right
+	case XCB_BUTTON_INDEX_4: return BTN_GEAR_UP;
+	case XCB_BUTTON_INDEX_5: return BTN_GEAR_DOWN;
+	default: return 0;
+	}
+}
+
 static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
 	struct wlr_x11_output *output = &x11->output;
 
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
 	switch (event->response_type) {
-	case XCB_EXPOSE:
+	case XCB_EXPOSE: {
 		wl_signal_emit(&output->wlr_output.events.frame, output);
 		break;
-	case XCB_KEY_PRESS: {
-		xcb_key_press_event_t *press = (xcb_key_press_event_t *)event;
+		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
 		struct wlr_event_keyboard_key key = {
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
-			.keycode = press->detail - 8,
+			.time_sec = ev->time / 1000,
+			.time_usec = (ev->time % 1000) * 1000,
+			.keycode = ev->detail - 8,
 			.state = WLR_KEY_PRESSED,
 		};
 
 		wl_signal_emit(&x11->keyboard.events.key, &key);
 		break;
 	}
+	case XCB_KEY_PRESS:
 	case XCB_KEY_RELEASE: {
-		xcb_key_release_event_t *press = (xcb_key_release_event_t *)event;
+		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
 		struct wlr_event_keyboard_key key = {
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
-			.keycode = press->detail - 8,
-			.state = WLR_KEY_RELEASED,
+			.time_sec = ev->time / 1000,
+			.time_usec = (ev->time % 1000) * 1000,
+			.keycode = ev->detail - 8,
+			.state = event->response_type == XCB_KEY_PRESS ?
+				WLR_KEY_PRESSED : WLR_KEY_RELEASED,
 		};
 
 		wl_signal_emit(&x11->keyboard.events.key, &key);
 		break;
 	}
-	case XCB_BUTTON_PRESS: {
-		xcb_button_press_event_t *press = (xcb_button_press_event_t *)event;
-		struct wlr_event_pointer_button button = {
-			.device = &x11->pointer_dev,
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
-			.state = WLR_BUTTON_PRESSED,
-		};
-
-		switch (press->detail) {
-		case XCB_BUTTON_INDEX_1:
-			button.button = BTN_LEFT;
-			break;
-		case XCB_BUTTON_INDEX_2:
-			button.button = BTN_MIDDLE;
-			break;
-		case XCB_BUTTON_INDEX_3:
-			button.button = BTN_RIGHT;
-			break;
-		}
-
-		wl_signal_emit(&x11->pointer.events.button, &button);
-		break;
-	}
+	case XCB_BUTTON_PRESS:
 	case XCB_BUTTON_RELEASE: {
-		xcb_button_release_event_t *press = (xcb_button_release_event_t *)event;
+		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
 		struct wlr_event_pointer_button button = {
 			.device = &x11->pointer_dev,
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
-			.state = WLR_BUTTON_RELEASED,
+			.time_sec = ev->time / 1000,
+			.time_usec = (ev->time % 1000) * 1000,
+			.button = xcb_button_to_wl(ev->detail),
+			.state = event->response_type == XCB_BUTTON_PRESS ?
+				WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
 		};
-
-		switch (press->detail) {
-		case XCB_BUTTON_INDEX_1:
-			button.button = BTN_LEFT;
-			break;
-		case XCB_BUTTON_INDEX_2:
-			button.button = BTN_MIDDLE;
-			break;
-		case XCB_BUTTON_INDEX_3:
-			button.button = BTN_RIGHT;
-			break;
-		}
 
 		wl_signal_emit(&x11->pointer.events.button, &button);
 		break;
 	}
 	case XCB_MOTION_NOTIFY: {
-		xcb_motion_notify_event_t *motion = (xcb_motion_notify_event_t *)event;
+		xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
-			.x_mm = motion->event_x,
-			.y_mm = motion->event_y,
+			.time_sec = ev->time / 1000,
+			.time_usec = (ev->time % 1000) * 1000,
+			.x_mm = ev->event_x,
+			.y_mm = ev->event_y,
 			.width_mm = output->wlr_output.width,
 			.height_mm = output->wlr_output.height,
 		};
@@ -122,10 +98,10 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		break;
 	}
 	case XCB_CONFIGURE_NOTIFY: {
-		xcb_configure_notify_event_t *conf = (xcb_configure_notify_event_t *)event;
+		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
-		output->wlr_output.width = conf->width;
-		output->wlr_output.height = conf->height;
+		output->wlr_output.width = ev->width;
+		output->wlr_output.height = ev->height;
 		wlr_output_update_matrix(&output->wlr_output);
 		wl_signal_emit(&output->wlr_output.events.resolution, output);
 
@@ -140,8 +116,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
-			.time_sec = ts.tv_sec,
-			.time_usec = ts.tv_nsec / 1000,
+			//.time_sec = ev->time / 1000,
+			//.time_usec = (ev->time % 1000) * 1000,
 			.x_mm = pointer->root_x,
 			.y_mm = pointer->root_y,
 			.width_mm = output->wlr_output.width,
