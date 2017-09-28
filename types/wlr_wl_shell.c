@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
 
+static const char *wlr_wl_shell_surface_role = "wl_shell_surface";
+
 static void shell_surface_pong(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	wlr_log(L_DEBUG, "got shell surface pong");
@@ -296,6 +298,11 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	if (wlr_surface_set_role(surface, wlr_wl_shell_surface_role,
+			resource, WL_SHELL_ERROR_ROLE)) {
+		return;
+	}
+
 	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(resource);
 	struct wlr_wl_shell_surface *wl_surface =
 		calloc(1, sizeof(struct wlr_wl_shell_surface));
