@@ -45,7 +45,7 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		struct wlr_event_keyboard_key key = {
 			.time_sec = ts.tv_sec,
 			.time_usec = ts.tv_nsec / 1000,
-			.keycode = press->detail,
+			.keycode = press->detail - 8,
 			.state = WLR_KEY_PRESSED,
 		};
 
@@ -57,7 +57,7 @@ int x11_event(int fd, uint32_t mask, void *data) {
 		struct wlr_event_keyboard_key key = {
 			.time_sec = ts.tv_sec,
 			.time_usec = ts.tv_nsec / 1000,
-			.keycode = press->detail,
+			.keycode = press->detail - 8,
 			.state = WLR_KEY_RELEASED,
 		};
 
@@ -93,6 +93,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Failed to open xcb connection");
 		goto error_x11;
 	}
+
+	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
 
 	int fd = xcb_get_file_descriptor(x11->xcb_conn);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
