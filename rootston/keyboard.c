@@ -42,6 +42,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = calloc(sizeof(struct roots_keyboard), 1);
+	device->data = keyboard;
 	keyboard->device = device;
 	keyboard->input = input;
 	wl_list_init(&keyboard->key.link);
@@ -63,4 +64,12 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 				XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
 	wlr_seat_attach_keyboard(input->wl_seat, device);
+}
+
+void keyboard_remove(struct wlr_input_device *device, struct roots_input *input) {
+	struct roots_keyboard *keyboard = device->data;
+	wlr_seat_detach_keyboard(input->wl_seat, device->keyboard);
+	wl_list_remove(&keyboard->key.link);
+	wl_list_remove(&keyboard->link);
+	free(keyboard);
 }

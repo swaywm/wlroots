@@ -52,10 +52,10 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, input_remove);
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		//keyboard_remove(device, input);
+		keyboard_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
-		//pointer_remove(device, input);
+		pointer_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
 		//touch_remove(device, input);
