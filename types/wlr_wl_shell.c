@@ -151,8 +151,8 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 
 static void shell_surface_set_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
-		uint32_t serial, struct wl_resource *parent_resource, int32_t x, int32_t y,
-		enum wl_shell_surface_transient flags) {
+		uint32_t serial, struct wl_resource *parent_resource, int32_t x,
+		int32_t y, enum wl_shell_surface_transient flags) {
 	// TODO: do a pointer grab
 	wlr_log(L_DEBUG, "got shell surface popup");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
@@ -316,11 +316,13 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wl_surface->client = client;
 	wl_surface->surface = surface;
 
-	wl_surface->resource = wl_resource_create(client, &wl_shell_surface_interface,
-		wl_resource_get_version(resource), id);
-	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface, wl_surface->resource);
+	wl_surface->resource = wl_resource_create(client,
+		&wl_shell_surface_interface, wl_resource_get_version(resource), id);
+	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface,
+		wl_surface->resource);
 	wl_resource_set_implementation(wl_surface->resource,
-			&shell_surface_interface, wl_surface, wl_shell_surface_resource_destroy);
+		&shell_surface_interface, wl_surface,
+		wl_shell_surface_resource_destroy);
 
 	wl_signal_init(&wl_surface->events.destroy);
 	wl_signal_init(&wl_surface->events.ping_timeout);
@@ -361,14 +363,15 @@ static void wl_shell_bind(struct wl_client *wl_client, void *_wl_shell,
 	struct wlr_wl_shell *wl_shell = _wl_shell;
 	assert(wl_client && wl_shell);
 	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_shell version, disconnecting");
+		wlr_log(L_ERROR,
+			"Client requested unsupported wl_shell version, disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
-	struct wl_resource *wl_resource = wl_resource_create(
-			wl_client, &wl_shell_interface, version, id);
-	wl_resource_set_implementation(wl_resource, &wl_shell_impl,
-			wl_shell, wl_shell_destroy);
+	struct wl_resource *wl_resource = wl_resource_create(wl_client,
+		&wl_shell_interface, version, id);
+	wl_resource_set_implementation(wl_resource, &wl_shell_impl, wl_shell,
+		wl_shell_destroy);
 	wl_list_insert(&wl_shell->wl_resources, wl_resource_get_link(wl_resource));
 }
 
@@ -378,8 +381,8 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 		return NULL;
 	}
 	wl_shell->ping_timeout = 10000;
-	struct wl_global *wl_global = wl_global_create(display,
-		&wl_shell_interface, 1, wl_shell, wl_shell_bind);
+	struct wl_global *wl_global = wl_global_create(display, &wl_shell_interface,
+		1, wl_shell, wl_shell_bind);
 	if (!wl_global) {
 		free(wl_shell);
 		return NULL;
