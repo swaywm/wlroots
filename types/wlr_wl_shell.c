@@ -35,7 +35,6 @@ static void shell_surface_move(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	event->client = client;
 	event->surface = surface;
 	event->seat_handle = seat_handle;
@@ -60,7 +59,6 @@ static void shell_surface_resize(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	event->client = client;
 	event->surface = surface;
 	event->seat_handle = seat_handle;
@@ -72,18 +70,25 @@ static void shell_surface_resize(struct wl_client *client,
 	free(event);
 }
 
+static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
+		enum wlr_wl_shell_surface_state state,
+		struct wlr_wl_shell_surface_transient_state *transient_state,
+		struct wlr_wl_shell_surface_popup_state *popup_state) {
+	surface->state = state;
+	free(surface->transient_state);
+	surface->transient_state = transient_state;
+	free(surface->popup_state);
+	surface->popup_state = popup_state;
+
+	wl_signal_emit(&surface->events.set_state, surface);
+}
+
 static void shell_surface_set_toplevel(struct wl_client *client,
 		struct wl_resource *resource) {
 	wlr_log(L_DEBUG, "got shell surface toplevel");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-
-	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
-		return;
-	}
-
-	surface->state = WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL;
-
-	wl_signal_emit(&surface->events.set_state, surface);
+	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL, NULL,
+		NULL);
 }
 
 static void shell_surface_set_transient(struct wl_client *client,
@@ -95,28 +100,19 @@ static void shell_surface_set_transient(struct wl_client *client,
 		wl_resource_get_user_data(parent_resource);
 	// TODO: check if parent_resource == NULL?
 
-	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
-		return;
-	}
-
-	struct wlr_wl_shell_surface_transient_state *state =
+	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
-	if (state == NULL) {
+	if (transient_state == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
+	transient_state->parent = parent;
+	transient_state->x = x;
+	transient_state->y = y;
+	transient_state->flags = flags;
 
-	state->parent = parent;
-	state->x = x;
-	state->y = y;
-	state->flags = flags;
-
-	free(surface->transient_state);
-	surface->transient_state = state;
-
-	surface->state = WLR_WL_SHELL_SURFACE_STATE_TRANSIENT;
-
-	wl_signal_emit(&surface->events.set_state, surface);
+	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_TRANSIENT,
+		transient_state, NULL);
 }
 
 static void shell_surface_set_fullscreen(struct wl_client *client,
@@ -139,7 +135,6 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	event->client = client;
 	event->surface = surface;
 	event->method = method;
@@ -163,17 +158,12 @@ static void shell_surface_set_popup(struct wl_client *client,
 		wl_resource_get_user_data(parent_resource);
 	// TODO: check if parent_resource == NULL?
 
-	if (surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
-		return;
-	}
-
 	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
 	if (transient_state == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	transient_state->parent = parent;
 	transient_state->x = x;
 	transient_state->y = y;
@@ -182,22 +172,15 @@ static void shell_surface_set_popup(struct wl_client *client,
 	struct wlr_wl_shell_surface_popup_state *popup_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
 	if (popup_state == NULL) {
+		free(transient_state);
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	popup_state->seat_handle = seat_handle;
 	popup_state->serial = serial;
 
-	free(surface->transient_state);
-	surface->transient_state = transient_state;
-
-	free(surface->popup_state);
-	surface->popup_state = popup_state;
-
-	surface->state = WLR_WL_SHELL_SURFACE_STATE_POPUP;
-
-	wl_signal_emit(&surface->events.set_state, surface);
+	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_POPUP,
+		transient_state, popup_state);
 }
 
 static void shell_surface_set_maximized(struct wl_client *client,
@@ -219,7 +202,6 @@ static void shell_surface_set_maximized(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	event->client = client;
 	event->surface = surface;
 	event->output = output;
