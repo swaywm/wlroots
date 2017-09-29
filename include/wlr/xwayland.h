@@ -45,6 +45,7 @@ struct wlr_xwayland_surface {
 	char *instance;
 	struct wlr_xwayland_surface *parent;
 	list_t *state; // list of xcb_atom_t
+	pid_t pid;
 
 	struct {
 		struct wl_signal destroy;

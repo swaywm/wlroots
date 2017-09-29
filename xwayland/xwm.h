@@ -52,6 +52,7 @@ enum atom_name {
 	WM_S0,
 	NET_SUPPORTED,
 	NET_WM_S0,
+	NET_WM_PID,
 	NET_WM_NAME,
 	NET_WM_STATE,
 	WM_TAKE_FOCUS,
