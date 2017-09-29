@@ -19,9 +19,7 @@
 #include "backend/x11.h"
 
 static struct wlr_backend_impl backend_impl;
-static struct wlr_input_device_impl input_impl;
-static struct wlr_keyboard_impl keyboard_impl;
-static struct wlr_pointer_impl pointer_impl;
+static struct wlr_output_impl output_impl;
 
 static uint32_t xcb_button_to_wl(uint32_t button) {
 	switch (button) {
@@ -197,13 +195,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
-		&input_impl, "X11 keyboard", 0, 0);
-	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
+		NULL, "X11 keyboard", 0, 0);
+	wlr_keyboard_init(&x11->keyboard, NULL);
 	x11->keyboard_dev.keyboard = &x11->keyboard;
 
 	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
-		&input_impl, "X11 pointer", 0, 0);
-	wlr_pointer_init(&x11->pointer, &pointer_impl);
+		NULL, "X11 pointer", 0, 0);
+	wlr_pointer_init(&x11->pointer, NULL);
 	x11->pointer_dev.pointer = &x11->pointer;
 
 	return &x11->backend;
@@ -216,8 +214,6 @@ error_x11:
 	free(x11);
 	return NULL;
 }
-
-static struct wlr_output_impl output_impl;
 
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
@@ -332,33 +328,4 @@ static struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
-};
-
-static void input_destroy(struct wlr_input_device *input_dev) {
-	// Do nothing
-}
-
-static struct wlr_input_device_impl input_impl = {
-	.destroy = input_destroy,
-};
-
-static void keyboard_destroy(struct wlr_keyboard *keyboard) {
-	// Do nothing
-}
-
-static void keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds) {
-	// Do nothing
-}
-
-static struct wlr_keyboard_impl keyboard_impl = {
-	.destroy = keyboard_destroy,
-	.led_update = keyboard_led_update,
-};
-
-static void pointer_destroy(struct wlr_pointer *pointer) {
-	// Do nothing
-}
-
-static struct wlr_pointer_impl pointer_impl = {
-	.destroy = pointer_destroy,
 };
