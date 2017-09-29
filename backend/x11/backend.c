@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <EGL/egl.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
@@ -53,6 +54,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		};
 
 		wl_signal_emit(&x11->keyboard.events.key, &key);
+		x11->time = ev->time;
 		break;
 	}
 	case XCB_BUTTON_PRESS:
@@ -68,6 +70,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		};
 
 		wl_signal_emit(&x11->pointer.events.button, &button);
+		x11->time = ev->time;
 		break;
 	}
 	case XCB_MOTION_NOTIFY: {
@@ -83,6 +86,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		};
 
 		wl_signal_emit(&x11->pointer.events.motion_absolute, &abs);
+		x11->time = ev->time;
 		break;
 	}
 	case XCB_CONFIGURE_NOTIFY: {
@@ -104,8 +108,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
-			//.time_sec = ev->time / 1000,
-			//.time_usec = (ev->time % 1000) * 1000,
+			.time_sec = x11->time / 1000,
+			.time_usec = (x11->time % 1000) * 1000,
 			.x_mm = pointer->root_x,
 			.y_mm = pointer->root_y,
 			.width_mm = output->wlr_output.width,
@@ -293,8 +297,9 @@ static struct wlr_backend_impl backend_impl = {
 	.get_egl = wlr_x11_backend_get_egl,
 };
 
-static void output_transform(struct wlr_output *output, enum wl_output_transform transform) {
-	// TODO
+static void output_transform(struct wlr_output *wlr_output, enum wl_output_transform transform) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	output->wlr_output.transform = transform;
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {

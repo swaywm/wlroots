@@ -48,6 +48,9 @@ struct wlr_x11_backend {
 		struct wlr_x11_atom wm_protocols;
 		struct wlr_x11_atom wm_delete_window;
 	} atoms;
+
+	// The time we last received an event
+	xcb_timestamp_t time;
 };
 
 #endif
