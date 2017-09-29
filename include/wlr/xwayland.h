@@ -43,6 +43,7 @@ struct wlr_xwayland_surface {
 	char *title;
 	char *class;
 	char *instance;
+	struct wlr_xwayland_surface *parent;
 
 	struct {
 		struct wl_signal destroy;

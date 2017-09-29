@@ -11,6 +11,7 @@
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_PROTOCOLS",
+	"UTF8_STRING",
 	"WM_S0",
 	"_NET_SUPPORTED",
 	"_NET_WM_S0",
@@ -84,6 +85,74 @@ static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 	return false;
 }
 
+static void read_surface_class(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->type != XCB_ATOM_STRING &&
+			reply->type != xwm->atoms[UTF8_STRING]) {
+		return;
+	}
+
+	size_t len = xcb_get_property_value_length(reply);
+	char *class = xcb_get_property_value(reply);
+
+	// Unpack two sequentially stored strings: instance, class
+	size_t instance_len = strnlen(class, len);
+	free(surface->instance);
+	if (len > 0 && instance_len < len) {
+		surface->instance = strndup(class, instance_len);
+		class += instance_len + 1;
+	} else {
+		surface->instance = NULL;
+	}
+	free(surface->class);
+	if (len > 0) {
+		surface->class = strndup(class, len);
+	} else {
+		surface->class = NULL;
+	}
+
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance, surface->class);
+}
+
+static void read_surface_title(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->type != XCB_ATOM_STRING &&
+			reply->type != xwm->atoms[UTF8_STRING]) {
+		return;
+	}
+
+	// TODO: if reply->type == XCB_ATOM_STRING, uses latin1 encoding
+	// if reply->type == xwm->atoms[UTF8_STRING], uses utf8 encoding
+
+	size_t len = xcb_get_property_value_length(reply);
+	char *title = xcb_get_property_value(reply);
+
+	free(surface->title);
+	if (len > 0) {
+		surface->title = strndup(title, len);
+	} else {
+		surface->title = NULL;
+	}
+
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", surface->title);
+}
+
+static void read_surface_parent(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->type != XCB_ATOM_WINDOW) {
+		return;
+	}
+
+	xcb_window_t *xid = xcb_get_property_value(reply);
+	if (xid != NULL) {
+		surface->parent = lookup_surface_any(xwm, *xid);
+	} else {
+		surface->parent = NULL;
+	}
+
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
+}
+
 static void read_surface_property(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_atom_t property) {
 	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn, 0,
@@ -94,44 +163,13 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		return;
 	}
 
-	// TODO: check reply->type
-
 	if (property == XCB_ATOM_WM_CLASS) {
-		size_t len = xcb_get_property_value_length(reply);
-		char *class = xcb_get_property_value(reply);
-
-		// Unpack two sequentially stored strings: instance, class
-		size_t instance_len = strnlen(class, len);
-		free(surface->instance);
-		if (len > 0 && instance_len < len) {
-			surface->instance = strndup(class, instance_len);
-			class += instance_len + 1;
-		} else {
-			surface->instance = NULL;
-		}
-		free(surface->class);
-		if (len > 0) {
-			surface->class = strndup(class, len);
-		} else {
-			surface->class = NULL;
-		}
-
-		wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance, surface->class);
+		read_surface_class(xwm, surface, reply);
 	} else if (property == XCB_ATOM_WM_NAME ||
 			property == xwm->atoms[NET_WM_NAME]) {
-		// TODO: if reply->type == XCB_ATOM_STRING, uses latin1 encoding
-		// if reply->type == xwm->atoms[UTF8_STRING], uses utf8 encoding
-		size_t len = xcb_get_property_value_length(reply);
-		char *title = xcb_get_property_value(reply);
-
-		free(surface->title);
-		if (len > 0) {
-			surface->title = strndup(title, len);
-		} else {
-			surface->title = NULL;
-		}
-
-		wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", surface->title);
+		read_surface_title(xwm, surface, reply);
+	} else if (property == XCB_ATOM_WM_TRANSIENT_FOR) {
+		read_surface_parent(xwm, surface, reply);
 	} else {
 		wlr_log(L_DEBUG, "unhandled x11 property %u", property);
 	}

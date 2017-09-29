@@ -48,6 +48,7 @@
 enum atom_name {
 	WL_SURFACE_ID,
 	WM_PROTOCOLS,
+	UTF8_STRING,
 	WM_S0,
 	NET_SUPPORTED,
 	NET_WM_S0,
