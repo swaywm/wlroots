@@ -28,8 +28,8 @@ static void handle_configure(struct wl_listener *listener, void *data) {
 	xwayland_surface->width = event->width;
 	xwayland_surface->height = event->height;
 
-	roots_surface->view->x = (double) event->x;
-	roots_surface->view->y = (double) event->y;
+	roots_surface->view->x = (double)event->x;
+	roots_surface->view->y = (double)event->y;
 
 	wlr_xwayland_surface_configure(roots_surface->view->desktop->xwayland,
 		xwayland_surface);
@@ -60,8 +60,8 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_XWAYLAND_VIEW;
-	view->x = (double) surface->x;
-	view->y = (double) surface->y;
+	view->x = (double)surface->x;
+	view->y = (double)surface->y;
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;
 	view->wlr_surface = surface->surface;
