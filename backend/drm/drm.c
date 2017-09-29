@@ -182,7 +182,8 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 		return false;
 	}
 
-	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA, renderer->gbm)) {
+	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA,
+			GBM_FORMAT_ARGB8888, renderer->gbm)) {
 		gbm_device_destroy(renderer->gbm);
 		return false;
 	}

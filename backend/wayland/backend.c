@@ -42,6 +42,7 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	}
 
 	backend->started = true;
+
 	for (size_t i = 0; i < backend->requested_outputs; ++i) {
 		wlr_wl_output_create(&backend->backend);
 	}
@@ -145,7 +146,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 		return false;
 	}
 
-	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, backend->remote_display);
+	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, WL_SHM_FORMAT_ARGB8888, backend->remote_display);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
 	return &backend->backend;

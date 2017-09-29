@@ -45,6 +45,7 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 xcb            = dependency('xcb')
 xcb_composite  = dependency('xcb-composite')
+x11_xcb        = dependency('x11-xcb')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
 elogind        = dependency('libelogind', required: false)
@@ -85,6 +86,7 @@ wlr_deps = [
 	pixman,
 	xcb,
 	xcb_composite,
+	x11_xcb,
 	libcap,
 	systemd,
 	math,

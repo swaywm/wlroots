@@ -1,7 +1,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
-#include <gbm.h> // GBM_FORMAT_XRGB8888
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/egl.h>
@@ -68,7 +67,7 @@ static bool egl_exts(struct wlr_egl *egl) {
 	return true;
 }
 
-static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
+static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
@@ -86,21 +85,13 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	}
 
 	for (int i = 0; i < matched; ++i) {
-		EGLint gbm_format;
-
-		if (platform == EGL_PLATFORM_WAYLAND_EXT) {
-			*out = configs[i];
-			return true;
-		}
-
-		if (!eglGetConfigAttrib(disp,
-					configs[i],
-					EGL_NATIVE_VISUAL_ID,
-					&gbm_format)) {
+		EGLint visual;
+		if (!eglGetConfigAttrib(disp, configs[i],
+				EGL_NATIVE_VISUAL_ID, &visual)) {
 			continue;
 		}
 
-		if (gbm_format == GBM_FORMAT_ARGB8888) {
+		if (visual == visual_id) {
 			*out = configs[i];
 			return true;
 		}
@@ -110,7 +101,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLenum platform) {
 	return false;
 }
 
-bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
+bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
 		void *remote_display) {
 	if (!egl_exts(egl)) {
 		return false;
@@ -133,7 +124,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform,
 		goto error;
 	}
 
-	if (!egl_get_config(egl->display, &egl->config, platform)) {
+	if (!egl_get_config(egl->display, &egl->config, visual_id)) {
 		wlr_log(L_ERROR, "Failed to get EGL config");
 		goto error;
 	}

@@ -10,6 +10,7 @@
 #include <wlr/backend/drm.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/wayland.h>
+#include <wlr/backend/x11.h>
 #include <wlr/backend/multi.h>
 #include <wlr/util/log.h>
 
@@ -77,9 +78,9 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		}
 	}
 
-	if (getenv("DISPLAY")) {
-		wlr_log(L_ERROR, "X11 backend is not implemented"); // TODO
-		return NULL;
+	const char *x11_display = getenv("DISPLAY");
+	if (x11_display) {
+		return wlr_x11_backend_create(display, x11_display);
 	}
 
 	// Attempt DRM+libinput
