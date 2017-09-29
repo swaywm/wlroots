@@ -40,6 +40,10 @@ struct wlr_xwayland_surface {
 	uint16_t width, height;
 	bool override_redirect;
 
+	char *title;
+	char *class;
+	char *instance;
+
 	struct {
 		struct wl_signal destroy;
 	} events;

@@ -1,3 +1,6 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdlib.h>
 #include <xcb/composite.h>
 #include "wlr/util/log.h"
@@ -11,6 +14,7 @@ const char *atom_map[ATOM_LAST] = {
 	"WM_S0",
 	"_NET_SUPPORTED",
 	"_NET_WM_S0",
+	"_NET_WM_NAME",
 	"_NET_WM_STATE",
 	"WM_TAKE_FOCUS",
 };
@@ -80,11 +84,83 @@ static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
 	return false;
 }
 
+static void read_surface_property(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_atom_t property) {
+	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn, 0,
+		surface->window_id, property, XCB_ATOM_ANY, 0, 2048);
+	xcb_get_property_reply_t *reply = xcb_get_property_reply(xwm->xcb_conn,
+		cookie, NULL);
+	if (reply == NULL) {
+		return;
+	}
+
+	// TODO: check reply->type
+
+	if (property == XCB_ATOM_WM_CLASS) {
+		size_t len = xcb_get_property_value_length(reply);
+		char *class = xcb_get_property_value(reply);
+
+		// Unpack two sequentially stored strings: instance, class
+		size_t instance_len = strnlen(class, len);
+		free(surface->instance);
+		if (len > 0 && instance_len < len) {
+			surface->instance = strndup(class, instance_len);
+			class += instance_len + 1;
+		} else {
+			surface->instance = NULL;
+		}
+		free(surface->class);
+		if (len > 0) {
+			surface->class = strndup(class, len);
+		} else {
+			surface->class = NULL;
+		}
+
+		wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance, surface->class);
+	} else if (property == XCB_ATOM_WM_NAME ||
+			property == xwm->atoms[NET_WM_NAME]) {
+		// TODO: if reply->type == XCB_ATOM_STRING, uses latin1 encoding
+		// if reply->type == xwm->atoms[UTF8_STRING], uses utf8 encoding
+		size_t len = xcb_get_property_value_length(reply);
+		char *title = xcb_get_property_value(reply);
+
+		free(surface->title);
+		if (len > 0) {
+			surface->title = strndup(title, len);
+		} else {
+			surface->title = NULL;
+		}
+
+		wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", surface->title);
+	} else {
+		wlr_log(L_DEBUG, "unhandled x11 property %u", property);
+	}
+
+	free(reply);
+}
+
 static void map_shell_surface(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xwayland_surface,
 		struct wlr_surface *surface) {
 	// get xcb geometry for depth = alpha channel
 	xwayland_surface->surface = surface;
+
+	// read all surface properties
+	const xcb_atom_t props[] = {
+		XCB_ATOM_WM_CLASS,
+		XCB_ATOM_WM_NAME,
+		XCB_ATOM_WM_TRANSIENT_FOR,
+		//xwm->atoms[WM_PROTOCOLS],
+		//xwm->atoms[WM_NORMAL_HINTS],
+		//xwm->atoms[NET_WM_STATE],
+		//xwm->atoms[NET_WM_WINDOW_TYPE],
+		//xwm->atoms[NET_WM_NAME],
+		//xwm->atoms[NET_WM_PID],
+		//xwm->atoms[MOTIF_WM_HINTS],
+	};
+	for (size_t i = 0; i < sizeof(props)/sizeof(xcb_atom_t); i++) {
+		read_surface_property(xwm, xwayland_surface, props[i]);
+	}
 
 	wl_list_remove(&xwayland_surface->link);
 	wl_list_insert(&xwm->xwayland->displayable_surfaces,
@@ -167,7 +243,12 @@ static void handle_unmap_notify(struct wlr_xwm *xwm,
 static void handle_property_notify(struct wlr_xwm *xwm,
 		xcb_property_notify_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_PROPERTY_NOTIFY (%u)", ev->window);
-	// TODO lookup window & get properties
+	struct wlr_xwayland_surface *surface = lookup_surface_any(xwm, ev->window);
+	if (surface == NULL) {
+		return;
+	}
+
+	read_surface_property(xwm, surface, ev->atom);
 }
 
 static void handle_client_message(struct wlr_xwm *xwm,
@@ -192,8 +273,9 @@ static void handle_client_message(struct wlr_xwm *xwm,
 			wl_list_remove(&surface->link);
 			wl_list_insert(&xwm->unpaired_surfaces, &surface->link);
 		}
+	} else {
+		wlr_log(L_DEBUG, "unhandled x11 client message %u", ev->type);
 	}
-	wlr_log(L_DEBUG, "unhandled client message %u", ev->type);
 }
 
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
