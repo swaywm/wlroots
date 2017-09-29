@@ -52,6 +52,7 @@ struct wlr_xwayland_surface {
 
 		struct wl_signal set_title;
 		struct wl_signal set_class;
+		struct wl_signal set_parent;
 	} events;
 
 	void *data;

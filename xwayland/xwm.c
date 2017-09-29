@@ -64,6 +64,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	wl_signal_init(&surface->events.request_configure);
 	wl_signal_init(&surface->events.set_class);
 	wl_signal_init(&surface->events.set_title);
+	wl_signal_init(&surface->events.set_parent);
 	return surface;
 }
 
@@ -156,6 +157,7 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
+	wl_signal_emit(&surface->events.set_parent, surface);
 }
 
 static void read_surface_property(struct wlr_xwm *xwm,
