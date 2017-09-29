@@ -42,16 +42,6 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_EXPOSE: {
 		wl_signal_emit(&output->wlr_output.events.frame, output);
 		break;
-		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
-		struct wlr_event_keyboard_key key = {
-			.time_sec = ev->time / 1000,
-			.time_usec = (ev->time % 1000) * 1000,
-			.keycode = ev->detail - 8,
-			.state = WLR_KEY_PRESSED,
-		};
-
-		wl_signal_emit(&x11->keyboard.events.key, &key);
-		break;
 	}
 	case XCB_KEY_PRESS:
 	case XCB_KEY_RELEASE: {
