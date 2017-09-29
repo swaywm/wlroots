@@ -48,8 +48,10 @@ struct wlr_subsurface {
 	bool has_cache;
 
 	bool synchronized;
+	bool reordered;
 
 	struct wl_list parent_link;
+	struct wl_list parent_pending_link;
 };
 
 struct wlr_surface {
@@ -76,6 +78,8 @@ struct wlr_surface {
 	struct wlr_subsurface *subsurface;
 	struct wl_list subsurface_list; // wlr_subsurface::parent_link
 
+	// wlr_subsurface::parent_pending_link
+	struct wl_list subsurface_pending_list;
 	void *data;
 };
 
