@@ -21,7 +21,6 @@ static void wlr_libinput_keyboard_destroy(struct wlr_keyboard *wlr_kb) {
 	struct wlr_libinput_keyboard *wlr_libinput_kb =
 		(struct wlr_libinput_keyboard *)wlr_kb;
 	libinput_device_unref(wlr_libinput_kb->libinput_dev);
-	free(wlr_libinput_kb);
 }
 
 struct wlr_keyboard_impl impl = {

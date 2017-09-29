@@ -41,9 +41,9 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 		kb->impl->destroy(kb);
 	} else {
 		wl_list_remove(&kb->events.key.listener_list);
-		free(kb);
 	}
 	close(kb->keymap_fd);
+	free(kb);
 }
 
 void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
