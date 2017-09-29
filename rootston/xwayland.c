@@ -19,9 +19,10 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 
 static void handle_configure(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, destroy);
+		wl_container_of(listener, roots_surface, request_configure);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_surface->view->xwayland_surface;
 	struct wlr_xwayland_surface_configure_event *event = data;
-	struct wlr_xwayland_surface *xwayland_surface = event->surface;
 
 	xwayland_surface->x = event->x;
 	xwayland_surface->y = event->y;
@@ -45,11 +46,14 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, desktop, xwayland_surface);
 
 	struct wlr_xwayland_surface *surface = data;
-	// TODO: get and log title, class, etc
-	wlr_log(L_DEBUG, "new xwayland surface");
+	wlr_log(L_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
+		surface->title, surface->class, surface->instance);
 
 	struct roots_xwayland_surface *roots_surface =
 		calloc(1, sizeof(struct roots_xwayland_surface));
+	if (roots_surface == NULL) {
+		return;
+	}
 	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
@@ -59,6 +63,10 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 		&roots_surface->request_configure);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (view == NULL) {
+		free(roots_surface);
+		return;
+	}
 	view->type = ROOTS_XWAYLAND_VIEW;
 	view->x = (double)surface->x;
 	view->y = (double)surface->y;

@@ -44,6 +44,7 @@ struct wlr_xwayland_surface {
 	char *class;
 	char *instance;
 	struct wlr_xwayland_surface *parent;
+	list_t *state; // list of xcb_atom_t
 
 	struct {
 		struct wl_signal destroy;
@@ -53,6 +54,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 		struct wl_signal set_parent;
+		struct wl_signal set_state;
 	} events;
 
 	void *data;
