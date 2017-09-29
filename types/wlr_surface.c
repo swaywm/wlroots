@@ -769,3 +769,14 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 
 	surface->subsurface = subsurface;
 }
+
+
+struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface) {
+	struct wlr_subsurface *sub;
+
+	while (surface && (sub = surface->subsurface)) {
+		surface = sub->parent;
+	}
+
+	return surface;
+}

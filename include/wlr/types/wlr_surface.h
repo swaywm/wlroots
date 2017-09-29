@@ -114,4 +114,9 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id);
 
+/**
+ * Get the top of the subsurface tree for this surface.
+ */
+struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
+
 #endif
