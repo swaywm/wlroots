@@ -50,6 +50,9 @@ struct wlr_xwayland_surface {
 	xcb_atom_t *window_type;
 	size_t window_type_len;
 
+	xcb_atom_t *protocols;
+	size_t protocols_len;
+
 	struct {
 		struct wl_signal destroy;
 
@@ -78,6 +81,8 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
+	struct wlr_xwayland_surface *surface);
+void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
 
 #endif

@@ -47,6 +47,7 @@
 
 enum atom_name {
 	WL_SURFACE_ID,
+	WM_DELETE_WINDOW,
 	WM_PROTOCOLS,
 	UTF8_STRING,
 	WM_S0,
