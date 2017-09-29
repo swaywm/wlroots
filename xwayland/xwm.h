@@ -55,6 +55,7 @@ enum atom_name {
 	NET_WM_PID,
 	NET_WM_NAME,
 	NET_WM_STATE,
+	NET_WM_WINDOW_TYPE,
 	WM_TAKE_FOCUS,
 	ATOM_LAST,
 };

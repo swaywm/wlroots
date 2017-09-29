@@ -47,6 +47,9 @@ struct wlr_xwayland_surface {
 	list_t *state; // list of xcb_atom_t
 	pid_t pid;
 
+	xcb_atom_t *window_type;
+	size_t window_type_len;
+
 	struct {
 		struct wl_signal destroy;
 
@@ -56,6 +59,8 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_class;
 		struct wl_signal set_parent;
 		struct wl_signal set_state;
+		struct wl_signal set_pid;
+		struct wl_signal set_window_type;
 	} events;
 
 	void *data;
