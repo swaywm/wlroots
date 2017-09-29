@@ -61,6 +61,9 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->override_redirect = override_redirect;
 	wl_list_insert(&xwm->new_surfaces, &surface->link);
 	wl_signal_init(&surface->events.destroy);
+	wl_signal_init(&surface->events.request_configure);
+	wl_signal_init(&surface->events.set_class);
+	wl_signal_init(&surface->events.set_title);
 	return surface;
 }
 
@@ -112,6 +115,7 @@ static void read_surface_class(struct wlr_xwm *xwm,
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance, surface->class);
+	wl_signal_emit(&surface->events.set_class, surface);
 }
 
 static void read_surface_title(struct wlr_xwm *xwm,
@@ -135,6 +139,7 @@ static void read_surface_title(struct wlr_xwm *xwm,
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", surface->title);
+	wl_signal_emit(&surface->events.set_title, surface);
 }
 
 static void read_surface_parent(struct wlr_xwm *xwm,
@@ -233,14 +238,32 @@ static void handle_configure_request(struct wlr_xwm *xwm,
 		return;
 	}
 
-	surface->x = ev->x;
-	surface->y = ev->y;
-	surface->width = ev->width;
-	surface->height = ev->height;
-	// TODO: handle parent/sibling?
+	// TODO: handle ev->{parent,sibling}?
 
-	wlr_xwayland_surface_configure(xwm, surface, ev->x, ev->y, ev->width,
-		ev->height);
+	if (surface->surface == NULL) {
+		// Surface has not been mapped yet
+		surface->x = ev->x;
+		surface->y = ev->y;
+		surface->width = ev->width;
+		surface->height = ev->height;
+		wlr_xwayland_surface_configure(xwm->xwayland, surface);
+	} else {
+		struct wlr_xwayland_surface_configure_event *wlr_event =
+			calloc(1, sizeof(struct wlr_xwayland_surface_configure_event));
+		if (wlr_event == NULL) {
+			return;
+		}
+
+		wlr_event->surface = surface;
+		wlr_event->x = ev->x;
+		wlr_event->y = ev->y;
+		wlr_event->width = ev->width;
+		wlr_event->height = ev->height;
+
+		wl_signal_emit(&surface->events.request_configure, wlr_event);
+
+		free(wlr_event);
+	}
 }
 
 static void handle_map_request(struct wlr_xwm *xwm,
@@ -369,7 +392,7 @@ static void create_surface_handler(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	wlr_log(L_DEBUG, "New x11 surface: %p", surface);
+	wlr_log(L_DEBUG, "New xwayland surface: %p", surface);
 
 	uint32_t surface_id = wl_resource_get_id(surface->resource);
 	struct wlr_xwayland_surface *xwayland_surface;
@@ -465,13 +488,14 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	xcb_flush(xwm->xcb_conn);
 }
 
-void wlr_xwayland_surface_configure(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *surface, uint32_t x, uint32_t y,
-		uint32_t width, uint32_t height) {
+void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
+		struct wlr_xwayland_surface *surface) {
+	struct wlr_xwm *xwm = wlr_xwayland->xwm;
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	uint32_t values[] = {x, y, width, height, 0};
+	uint32_t values[] = {surface->x, surface->y, surface->width,
+		surface->height, 0};
 	xcb_configure_window(xwm->xcb_conn, surface->window_id, mask, values);
 }
 
