@@ -199,13 +199,10 @@ static void handle_configure_request(struct wlr_xwm *xwm,
 	surface->y = ev->y;
 	surface->width = ev->width;
 	surface->height = ev->height;
-	// handle parent/sibling?
+	// TODO: handle parent/sibling?
 
-	uint32_t values[] = {ev->x, ev->y, ev->width, ev->height, 0};
-	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
-		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
-		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	xcb_configure_window(xwm->xcb_conn, ev->window, mask, values);
+	wlr_xwayland_surface_configure(xwm, surface, ev->x, ev->y, ev->width,
+		ev->height);
 }
 
 static void handle_map_request(struct wlr_xwm *xwm,
@@ -428,6 +425,16 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	xcb_configure_window_checked(xwm->xcb_conn, surface->window_id,
 		XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]){XCB_STACK_MODE_ABOVE});
 	xcb_flush(xwm->xcb_conn);
+}
+
+void wlr_xwayland_surface_configure(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, uint32_t x, uint32_t y,
+		uint32_t width, uint32_t height) {
+	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
+		XCB_CONFIG_WINDOW_BORDER_WIDTH;
+	uint32_t values[] = {x, y, width, height, 0};
+	xcb_configure_window(xwm->xcb_conn, surface->window_id, mask, values);
 }
 
 void xwm_destroy(struct wlr_xwm *xwm) {

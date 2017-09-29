@@ -56,5 +56,8 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor);
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
+void wlr_xwayland_surface_configure(struct wlr_xwm *xwm,
+	struct wlr_xwayland_surface *surface, uint32_t x, uint32_t y,
+	uint32_t width, uint32_t height);
 
 #endif
