@@ -47,16 +47,27 @@
 
 enum atom_name {
 	WL_SURFACE_ID,
+	WM_DELETE_WINDOW,
 	WM_PROTOCOLS,
+	UTF8_STRING,
 	WM_S0,
 	NET_SUPPORTED,
 	NET_WM_S0,
+	NET_WM_PID,
+	NET_WM_NAME,
 	NET_WM_STATE,
+	NET_WM_WINDOW_TYPE,
 	WM_TAKE_FOCUS,
 	ATOM_LAST,
 };
 
 extern const char *atom_map[ATOM_LAST];
+
+enum net_wm_state_action {
+	NET_WM_STATE_REMOVE = 0,
+	NET_WM_STATE_ADD    = 1,
+	NET_WM_STATE_TOGGLE = 2,
+};
 
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;

@@ -31,6 +31,7 @@ struct roots_xwayland_surface {
 	struct roots_view *view;
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
+	struct wl_listener request_configure;
 };
 
 enum roots_view_type {
