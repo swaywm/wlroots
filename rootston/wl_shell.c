@@ -10,7 +10,7 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
-static void handle_move(struct wl_listener *listener, void *data) {
+static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
 	struct roots_view *view = roots_surface->view;
@@ -53,7 +53,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	wl_list_init(&roots_surface->ping_timeout.link);
 	wl_list_init(&roots_surface->request_move.link);
-	roots_surface->request_move.notify = handle_move;
+	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	wl_list_init(&roots_surface->request_resize.link);
 	wl_list_init(&roots_surface->request_set_fullscreen.link);
