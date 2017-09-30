@@ -86,7 +86,7 @@ static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	for (size_t i = 0; i < desktop->views->length; ++i) {
+	for (int i = desktop->views->length - 1; i >= 0; --i) {
 		struct roots_view *view = desktop->views->items[i];
 
 		double view_sx = lx - view->x;
