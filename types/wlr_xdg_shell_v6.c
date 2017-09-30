@@ -13,9 +13,158 @@
 
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
 
+struct wlr_xdg_positioner_v6 {
+	struct wl_resource *resource;
+
+	struct wlr_box anchor_rect;
+	enum zxdg_positioner_v6_anchor anchor;
+	enum zxdg_positioner_v6_gravity gravity;
+	enum zxdg_positioner_v6_constraint_adjustment constraint_adjustment;
+
+	struct {
+		int32_t width, height;
+	} size;
+
+	struct {
+		int32_t x, y;
+	} offset;
+};
+
+
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
+}
+
+static void xdg_positioner_destroy(struct wl_resource *resource) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+	free(positioner);
+
+}
+
+static void xdg_positioner_protocol_set_size(struct wl_client *client,
+		struct wl_resource *resource, int32_t width, int32_t height) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	if (width < 1 || height < 1) {
+		wl_resource_post_error(resource,
+			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
+			"width and height must be positives and non-zero");
+		return;
+	}
+
+	positioner->size.width = width;
+	positioner->size.height = height;
+}
+
+static void xdg_positioner_protocol_set_anchor_rect(struct wl_client *client,
+		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
+		int32_t height) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	if (width < 1 || height < 1) {
+		wl_resource_post_error(resource,
+			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
+			"width and height must be positives and non-zero");
+		return;
+	}
+
+	positioner->anchor_rect.x = x;
+	positioner->anchor_rect.y = y;
+	positioner->anchor_rect.width = width;
+	positioner->anchor_rect.height = height;
+}
+
+static void xdg_positioner_protocol_set_anchor(struct wl_client *client,
+		struct wl_resource *resource, uint32_t anchor) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	if (((anchor & ZXDG_POSITIONER_V6_ANCHOR_TOP ) &&
+				(anchor & ZXDG_POSITIONER_V6_ANCHOR_BOTTOM)) ||
+			((anchor & ZXDG_POSITIONER_V6_ANCHOR_LEFT) &&
+				(anchor & ZXDG_POSITIONER_V6_ANCHOR_RIGHT))) {
+		wl_resource_post_error(resource,
+			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
+			"same-axis values are not allowed");
+		return;
+	}
+
+	positioner->anchor = anchor;
+}
+
+static void xdg_positioner_protocol_set_gravity(struct wl_client *client,
+		struct wl_resource *resource, uint32_t gravity) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	if (((gravity & ZXDG_POSITIONER_V6_GRAVITY_TOP) &&
+				(gravity & ZXDG_POSITIONER_V6_GRAVITY_BOTTOM)) ||
+			((gravity & ZXDG_POSITIONER_V6_GRAVITY_LEFT) &&
+				(gravity & ZXDG_POSITIONER_V6_GRAVITY_RIGHT))) {
+		wl_resource_post_error(resource,
+			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
+			"same-axis values are not allowed");
+		return;
+	}
+
+	positioner->gravity = gravity;
+}
+
+static void xdg_positioner_protocol_set_constraint_adjustment(
+		struct wl_client *client, struct wl_resource *resource,
+		uint32_t constraint_adjustment) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	positioner->constraint_adjustment = constraint_adjustment;
+}
+
+static void xdg_positioner_protocol_set_offset(struct wl_client *client,
+		struct wl_resource *resource, int32_t x, int32_t y) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		wl_resource_get_user_data(resource);
+
+	positioner->offset.x = x;
+	positioner->offset.y = y;
+}
+
+static const struct zxdg_positioner_v6_interface zxdg_positioner_v6_implementation = {
+	.destroy = resource_destroy,
+	.set_size = xdg_positioner_protocol_set_size,
+	.set_anchor_rect = xdg_positioner_protocol_set_anchor_rect,
+	.set_anchor = xdg_positioner_protocol_set_anchor,
+	.set_gravity = xdg_positioner_protocol_set_gravity,
+	.set_constraint_adjustment =
+		xdg_positioner_protocol_set_constraint_adjustment,
+	.set_offset = xdg_positioner_protocol_set_offset,
+};
+
+static void xdg_shell_create_positioner(struct wl_client *wl_client,
+		struct wl_resource *resource, uint32_t id) {
+	struct wlr_xdg_positioner_v6 *positioner =
+		calloc(1, sizeof(struct wlr_xdg_positioner_v6));
+	if (positioner == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
+
+	positioner->resource = wl_resource_create(wl_client,
+		&zxdg_positioner_v6_interface,
+		wl_resource_get_version(resource),
+		id);
+	if (positioner->resource == NULL) {
+		wl_client_post_no_memory(wl_client);
+		free(positioner);
+		return;
+	}
+
+	wl_resource_set_implementation(positioner->resource,
+		&zxdg_positioner_v6_implementation,
+		positioner, xdg_positioner_destroy);
 }
 
 static void xdg_toplevel_protocol_set_parent(struct wl_client *client,
@@ -375,11 +524,6 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
 	.ack_configure = xdg_surface_ack_configure,
 	.set_window_geometry = xdg_surface_set_window_geometry,
 };
-
-static void xdg_shell_create_positioner(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id) {
-	wlr_log(L_DEBUG, "TODO: xdg shell create positioner");
-}
 
 static bool wlr_xdg_surface_v6_toplevel_state_compare(
 		struct wlr_xdg_toplevel_v6 *state) {
