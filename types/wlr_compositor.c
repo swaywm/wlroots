@@ -19,9 +19,11 @@ static void wl_compositor_create_surface(struct wl_client *client,
 			compositor->renderer);
 	surface->compositor_data = compositor;
 	surface->compositor_listener.notify = &destroy_surface_listener;
-	wl_resource_add_destroy_listener(surface_resource, &surface->compositor_listener);
+	wl_resource_add_destroy_listener(surface_resource,
+		&surface->compositor_listener);
 
-	wl_list_insert(&compositor->surfaces, wl_resource_get_link(surface_resource));
+	wl_list_insert(&compositor->surfaces,
+		wl_resource_get_link(surface_resource));
 	wl_signal_emit(&compositor->events.create_surface, surface);
 }
 
@@ -52,15 +54,17 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *_compositor,
 	struct wlr_compositor *compositor = _compositor;
 	assert(wl_client && compositor);
 	if (version > 4) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_compositor version, disconnecting");
+		wlr_log(L_ERROR, "Client requested unsupported wl_compositor version, "
+			"disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
-	struct wl_resource *wl_resource = wl_resource_create(
-			wl_client, &wl_compositor_interface, version, id);
+	struct wl_resource *wl_resource =
+		wl_resource_create(wl_client, &wl_compositor_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &wl_compositor_impl,
-			compositor, wl_compositor_destroy);
-	wl_list_insert(&compositor->wl_resources, wl_resource_get_link(wl_resource));
+		compositor, wl_compositor_destroy);
+	wl_list_insert(&compositor->wl_resources,
+		wl_resource_get_link(wl_resource));
 }
 
 void wlr_compositor_destroy(struct wlr_compositor *compositor) {
@@ -68,19 +72,96 @@ void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	free(compositor);
 }
 
+static void subcompositor_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static void subcompositor_get_subsurface(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id,
+		struct wl_resource *surface_resource,
+		struct wl_resource *parent_resource) {
+	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_surface *parent = wl_resource_get_user_data(parent_resource);
+
+	static const char msg[] = "get_subsurface: wl_subsurface@";
+
+	if (surface == parent) {
+		wl_resource_post_error(resource,
+			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
+			"%s%d: wl_surface@%d cannot be its own parent",
+			msg, id, wl_resource_get_id(surface_resource));
+		return;
+	}
+
+	if (surface->subsurface) {
+		wl_resource_post_error(resource,
+			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
+			"%s%d: wl_surface@%d is already a sub-surface",
+			msg, id, wl_resource_get_id(surface_resource));
+		return;
+	}
+
+	if (wlr_surface_get_main_surface(parent) == surface) {
+		wl_resource_post_error(resource,
+			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
+			"%s%d: wl_surface@%d is an ancestor of parent",
+			msg, id, wl_resource_get_id(surface_resource));
+		return;
+	}
+
+	if (wlr_surface_set_role(surface, "wl_subsurface", resource,
+				WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE) < 0) {
+		return;
+	}
+
+	wlr_surface_make_subsurface(surface, parent, id);
+	if (!surface->subsurface) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+}
+
+
+static const struct wl_subcompositor_interface subcompositor_interface = {
+	.destroy = subcompositor_destroy,
+	.get_subsurface = subcompositor_get_subsurface,
+};
+
+static void subcompositor_bind(struct wl_client *client, void *data,
+		uint32_t version, uint32_t id) {
+	struct wlr_compositor *compositor = data;
+	struct wl_resource *resource =
+		wl_resource_create(client, &wl_subcompositor_interface, 1, id);
+	if (resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(resource, &subcompositor_interface,
+		compositor, NULL);
+}
+
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
-	struct wlr_compositor *compositor = calloc(1, sizeof(struct wlr_compositor));
+	struct wlr_compositor *compositor =
+		calloc(1, sizeof(struct wlr_compositor));
 	if (!compositor) {
 		wlr_log_errno(L_ERROR, "Could not allocate wlr compositor");
 		return NULL;
 	}
-	struct wl_global *wl_global = wl_global_create(display,
+
+	struct wl_global *compositor_global = wl_global_create(display,
 		&wl_compositor_interface, 4, compositor, wl_compositor_bind);
-	compositor->wl_global = wl_global;
+
+	compositor->wl_global = compositor_global;
 	compositor->renderer = renderer;
+
+	wl_global_create(display, &wl_subcompositor_interface, 1, compositor,
+		subcompositor_bind);
+
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
 	wl_signal_init(&compositor->events.create_surface);
+
 	return compositor;
 }

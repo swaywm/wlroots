@@ -18,6 +18,8 @@ struct wlr_frame_callback {
 #define WLR_SURFACE_INVALID_INPUT_REGION 16
 #define WLR_SURFACE_INVALID_TRANSFORM 32
 #define WLR_SURFACE_INVALID_SCALE 64
+#define WLR_SURFACE_INVALID_SUBSURFACE_POSITION 128
+#define WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST 256
 
 struct wlr_surface_state {
 	uint32_t invalid;
@@ -29,13 +31,36 @@ struct wlr_surface_state {
 	int32_t scale;
 	int width, height;
 	int buffer_width, buffer_height;
+
+	struct {
+		int32_t x, y;
+	} subsurface_position;
+
+	struct wl_list frame_callback_list; // wl_surface.frame
+};
+
+struct wlr_subsurface {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wlr_surface *parent;
+
+	struct wlr_surface_state *cached;
+	bool has_cache;
+
+	bool synchronized;
+	bool reordered;
+
+	struct wl_list parent_link;
+	struct wl_list parent_pending_link;
+
+	struct wl_listener parent_destroy_listener;
 };
 
 struct wlr_surface {
 	struct wl_resource *resource;
 	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
-	struct wlr_surface_state current, pending;
+	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
 	float buffer_to_surface_matrix[16];
@@ -47,11 +72,16 @@ struct wlr_surface {
 		struct wl_signal destroy;
 	} signals;
 
-	struct wl_list frame_callback_list; // wl_surface.frame
-
-	struct wl_listener compositor_listener; // destroy listener used by compositor
+	// destroy listener used by compositor
+	struct wl_listener compositor_listener;
 	void *compositor_data;
 
+	// subsurface properties
+	struct wlr_subsurface *subsurface;
+	struct wl_list subsurface_list; // wlr_subsurface::parent_link
+
+	// wlr_subsurface::parent_pending_link
+	struct wl_list subsurface_pending_list;
 	void *data;
 };
 
@@ -79,5 +109,16 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
  */
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		struct wl_resource *error_resource, uint32_t error_code);
+
+/**
+ * Create the subsurface implementation for this surface.
+ */
+void wlr_surface_make_subsurface(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t id);
+
+/**
+ * Get the top of the subsurface tree for this surface.
+ */
+struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
 
 #endif

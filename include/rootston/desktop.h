@@ -52,7 +52,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 void desktop_destroy(struct roots_desktop *desktop);
 
 void view_destroy(struct roots_view *view);
-struct roots_view *view_at(struct roots_desktop *desktop, int x, int y);
+struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
+		struct wlr_surface **surface, double *sx, double *sy);
 void view_activate(struct roots_view *view, bool activate);
 
 void output_add_notify(struct wl_listener *listener, void *data);
