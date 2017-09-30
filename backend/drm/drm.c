@@ -21,12 +21,10 @@
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include "backend/drm/drm.h"
+#include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 
 bool wlr_drm_check_features(struct wlr_drm_backend *backend) {
-	extern const struct wlr_drm_interface iface_legacy;
-	extern const struct wlr_drm_interface iface_atomic;
-
 	if (drmSetClientCap(backend->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
 		wlr_log(L_ERROR, "DRM universal planes unsupported");
 		return false;
