@@ -10,6 +10,13 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
+static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	assert(view->type == ROOTS_WL_SHELL_VIEW);
+	struct wlr_wl_shell_surface *surf = view->wl_shell_surface;
+	wlr_wl_shell_surface_configure(surf, WL_SHELL_SURFACE_RESIZE_NONE, width,
+		height);
+}
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
@@ -21,6 +28,19 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view_begin_move(input, event->cursor, view);
+}
+
+static void handle_request_resize(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_resize);
+	struct roots_view *view = roots_surface->view;
+	struct roots_input *input = view->desktop->server->input;
+	struct wlr_wl_shell_surface_resize_event *e = data;
+	const struct roots_input_event *event = get_input_event(input, e->serial);
+	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		return;
+	}
+	view_begin_resize(input, event->cursor, view, e->edges);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -56,6 +76,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	wl_list_init(&roots_surface->request_resize.link);
+	roots_surface->request_resize.notify = handle_request_resize;
+	wl_signal_add(&surface->events.request_resize, &roots_surface->request_resize);
 	wl_list_init(&roots_surface->request_set_fullscreen.link);
 	wl_list_init(&roots_surface->request_set_maximized.link);
 
@@ -65,6 +87,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
 	view->wlr_surface = surface->surface;
+	view->resize = resize;
 	view->desktop = desktop;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
