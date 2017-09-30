@@ -173,121 +173,9 @@ void wlr_drm_resources_free(struct wlr_drm_backend *backend) {
 	free(backend->planes);
 }
 
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
-	renderer->gbm = gbm_create_device(fd);
-	if (!renderer->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM device: %s", strerror(errno));
-		return false;
-	}
-
-	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA,
-			GBM_FORMAT_ARGB8888, renderer->gbm)) {
-		gbm_device_destroy(renderer->gbm);
-		return false;
-	}
-
-	renderer->fd = fd;
-	return true;
-}
-
-void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer) {
-	if (!renderer) {
-		return;
-	}
-
-	wlr_egl_free(&renderer->egl);
-	gbm_device_destroy(renderer->gbm);
-}
-
-static bool wlr_drm_plane_renderer_init(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane, uint32_t width, uint32_t height, uint32_t format, uint32_t flags) {
-	if (plane->width == width && plane->height == height) {
-		return true;
-	}
-
-	plane->width = width;
-	plane->height = height;
-
-	plane->gbm = gbm_surface_create(renderer->gbm, width, height,
-		format, GBM_BO_USE_RENDERING | flags);
-	if (!plane->gbm) {
-		wlr_log_errno(L_ERROR, "Failed to create GBM surface for plane");
-		return false;
-	}
-
-	plane->egl = wlr_egl_create_surface(&renderer->egl, plane->gbm);
-	if (plane->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface for plane");
-		return false;
-	}
-
-	return true;
-}
-
-static void wlr_drm_plane_renderer_free(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane) {
-	if (!renderer || !plane) {
-		return;
-	}
-
-	eglMakeCurrent(renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-	if (plane->front) {
-		gbm_surface_release_buffer(plane->gbm, plane->front);
-	}
-	if (plane->back) {
-		gbm_surface_release_buffer(plane->gbm, plane->back);
-	}
-
-	if (plane->egl) {
-		eglDestroySurface(renderer->egl.display, plane->egl);
-	}
-	if (plane->gbm) {
-		gbm_surface_destroy(plane->gbm);
-	}
-
-	if (plane->wlr_tex) {
-		wlr_texture_destroy(plane->wlr_tex);
-	}
-	if (plane->wlr_rend) {
-		wlr_renderer_destroy(plane->wlr_rend);
-	}
-	if (plane->cursor_bo) {
-		gbm_bo_destroy(plane->cursor_bo);
-	}
-
-	plane->width = 0;
-	plane->height = 0;
-	plane->egl = EGL_NO_SURFACE;
-	plane->gbm = NULL;
-	plane->front = NULL;
-	plane->back = NULL;
-	plane->wlr_rend = NULL;
-	plane->wlr_tex = NULL;
-	plane->cursor_bo = NULL;
-}
-
-static void wlr_drm_plane_make_current(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane) {
-	eglMakeCurrent(renderer->egl.display, plane->egl, plane->egl,
-		renderer->egl.context);
-}
-
-static void wlr_drm_plane_swap_buffers(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_plane *plane) {
-	if (plane->front) {
-		gbm_surface_release_buffer(plane->gbm, plane->front);
-	}
-
-	eglSwapBuffers(renderer->egl.display, plane->egl);
-
-	plane->front = plane->back;
-	plane->back = gbm_surface_lock_front_buffer(plane->gbm);
-}
-
 static void wlr_drm_output_make_current(struct wlr_output *_output) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	wlr_drm_plane_make_current(output->renderer, output->crtc->primary);
+	wlr_drm_surface_make_current(output->renderer, &output->crtc->primary->surf);
 }
 
 static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
@@ -298,9 +186,8 @@ static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	wlr_drm_plane_swap_buffers(renderer, plane);
-
-	uint32_t fb_id = get_fb_for_bo(plane->back);
+	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(renderer, &plane->surf);
+	uint32_t fb_id = get_fb_for_bo(bo);
 
 	if (backend->iface->crtc_pageflip(backend, output, crtc, fb_id, NULL)) {
 		output->pageflip_pending = true;
@@ -338,17 +225,7 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = plane->front;
-	if (!bo) {
-		// Render a black frame to start the rendering loop
-		wlr_drm_plane_make_current(renderer, plane);
-		glViewport(0, 0, plane->width, plane->height);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		wlr_drm_plane_swap_buffers(renderer, plane);
-
-		bo = plane->back;
-	}
+	struct gbm_bo *bo = wlr_drm_surface_get_front(renderer, &plane->surf);
 
 	struct wlr_drm_output_mode *_mode =
 		(struct wlr_drm_output_mode *)output->output.current_mode;
@@ -415,8 +292,10 @@ static void realloc_planes(struct wlr_drm_backend *backend, const uint32_t *crtc
 			struct wlr_drm_plane *new = &backend->type_planes[type][crtc_res[i]];
 
 			if (*old != new) {
-				wlr_drm_plane_renderer_free(&backend->renderer, *old);
-				wlr_drm_plane_renderer_free(&backend->renderer, new);
+				if (*old) {
+					wlr_drm_surface_finish(&backend->renderer, &(*old)->surf);
+				}
+				wlr_drm_surface_finish(&backend->renderer, &new->surf);
 				*old = new;
 			}
 		}
@@ -547,7 +426,7 @@ static bool wlr_drm_output_set_mode(struct wlr_output *_output,
 			continue;
 		}
 
-		if (!wlr_drm_plane_renderer_init(&backend->renderer, crtc->primary,
+		if (!wlr_drm_surface_init(&backend->renderer, &crtc->primary->surf,
 				mode->width, mode->height, GBM_FORMAT_XRGB8888,
 				GBM_BO_USE_SCANOUT)) {
 			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
@@ -598,7 +477,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		crtc->cursor = plane;
 	}
 
-	if (!plane->gbm) {
+	if (!plane->surf.gbm) {
 		int ret;
 		uint64_t w, h;
 		ret = drmGetCap(backend->fd, DRM_CAP_CURSOR_WIDTH, &w);
@@ -611,7 +490,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 			return false;
 		}
 
-		if (!wlr_drm_plane_renderer_init(renderer, plane, w, h, GBM_FORMAT_ARGB8888, 0)) {
+		if (!wlr_drm_surface_init(renderer, &plane->surf, w, h, GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
@@ -625,7 +504,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 
 		// OpenGL will read the pixels out upside down,
 		// so we need to flip the image vertically
-		wlr_matrix_texture(plane->matrix, plane->width, plane->height,
+		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
 			output->output.transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
 		// TODO the image needs to be rotated depending on the output rotation
@@ -653,12 +532,12 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		return false;
 	}
 
-	wlr_drm_plane_make_current(renderer, plane);
+	wlr_drm_surface_make_current(renderer, &plane->surf);
 
 	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
 
-	glViewport(0, 0, plane->width, plane->height);
+	glViewport(0, 0, plane->surf.width, plane->surf.height);
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -668,10 +547,10 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 
 	glFinish();
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
+	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
-	wlr_drm_plane_swap_buffers(renderer, plane);
+	wlr_drm_surface_swap_buffers(renderer, &plane->surf);
 
 	gbm_bo_unmap(bo, bo_data);
 
@@ -914,9 +793,9 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	struct wlr_drm_plane *plane = output->crtc->primary;
-	if (plane->front) {
-		gbm_surface_release_buffer(plane->gbm, plane->front);
-		plane->front = NULL;
+	if (plane->surf.front) {
+		gbm_surface_release_buffer(plane->surf.gbm, plane->surf.front);
+		plane->surf.front = NULL;
 	}
 
 	if (backend->session->active) {
@@ -987,7 +866,7 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *output) {
 	case WLR_DRM_OUTPUT_CLEANUP:;
 		struct wlr_drm_crtc *crtc = output->crtc;
 		for (int i = 0; i < 3; ++i) {
-			wlr_drm_plane_renderer_free(renderer, crtc->planes[i]);
+			wlr_drm_surface_finish(renderer, &crtc->planes[i]->surf);
 			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
 				free(crtc->planes[i]);
 				crtc->planes[i] = NULL;

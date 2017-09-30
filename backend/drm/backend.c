@@ -33,7 +33,7 @@ static void wlr_drm_backend_destroy(struct wlr_backend *_backend) {
 		wlr_output_destroy(&output->output);
 	}
 
-	wlr_drm_renderer_free(&backend->renderer);
+	wlr_drm_renderer_finish(&backend->renderer);
 	wlr_drm_resources_free(backend);
 	wlr_session_close_file(backend->session, backend->fd);
 	wl_event_source_remove(backend->drm_event);

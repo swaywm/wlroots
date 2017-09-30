@@ -17,6 +17,7 @@
 
 #include "iface.h"
 #include "properties.h"
+#include "renderer.h"
 
 struct wlr_drm_plane {
 	uint32_t type;
@@ -24,13 +25,7 @@ struct wlr_drm_plane {
 
 	uint32_t possible_crtcs;
 
-	uint32_t width, height;
-
-	struct gbm_surface *gbm;
-	EGLSurface egl;
-
-	struct gbm_bo *front;
-	struct gbm_bo *back;
+	struct wlr_drm_surface surf;
 
 	// Only used by cursor
 	float matrix[16];
@@ -69,17 +64,6 @@ struct wlr_drm_connector {
 
 	struct wl_list link;
 };
-
-struct wlr_drm_renderer {
-	int fd;
-	struct gbm_device *gbm;
-	struct wlr_egl egl;
-};
-
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
-void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
-
-struct wlr_drm_interface;
 
 struct wlr_drm_backend {
 	struct wlr_backend backend;

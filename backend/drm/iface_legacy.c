@@ -45,7 +45,7 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *backend,
 	struct wlr_drm_plane *plane = crtc->cursor;
 
 	if (drmModeSetCursor(backend->fd, crtc->id, gbm_bo_get_handle(bo).u32,
-			plane->width, plane->height)) {
+			plane->surf.width, plane->surf.height)) {
 		wlr_log_errno(L_ERROR, "Failed to set hardware cursor");
 		return false;
 	}

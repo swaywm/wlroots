@@ -8,6 +8,7 @@ backend_files = files(
 	'drm/iface_atomic.c',
 	'drm/iface_legacy.c',
 	'drm/properties.c',
+	'drm/renderer.c',
 	'drm/util.c',
 	'libinput/backend.c',
 	'libinput/events.c',
