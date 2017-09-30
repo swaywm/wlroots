@@ -53,6 +53,13 @@ enum roots_cursor_mode {
 	ROOTS_CURSOR_ROTATE = 3,
 };
 
+enum roots_cursor_resize_edge {
+	ROOTS_CURSOR_RESIZE_EDGE_TOP = 1,
+	ROOTS_CURSOR_RESIZE_EDGE_BOTTOM = 2,
+	ROOTS_CURSOR_RESIZE_EDGE_LEFT = 4,
+	ROOTS_CURSOR_RESIZE_EDGE_RIGHT = 8,
+};
+
 struct roots_input_event {
 	uint32_t serial;
 	struct wlr_cursor *cursor;
@@ -71,6 +78,8 @@ struct roots_input {
 	enum roots_cursor_mode mode;
 	struct roots_view *active_view;
 	int offs_x, offs_y;
+	int view_x, view_y, view_width, view_height;
+	uint32_t resize_edges;
 
 	// Ring buffer of input events that could trigger move/resize/rotate
 	int input_events_idx;
@@ -110,5 +119,7 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 		uint32_t serial);
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view);
+void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view, uint32_t edges);
 
 #endif

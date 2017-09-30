@@ -29,6 +29,22 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
+void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view, uint32_t edges) {
+	input->mode = ROOTS_CURSOR_RESIZE;
+	wlr_log(L_DEBUG, "begin resize");
+	input->offs_x = cursor->x;
+	input->offs_y = cursor->y;
+	input->view_x = view->x;
+	input->view_y = view->y;
+	struct wlr_box size;
+	view_get_size(view, &size);
+	input->view_width = size.width;
+	input->view_height = size.height;
+	input->resize_edges = edges;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
@@ -52,6 +68,27 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
+		if (input->active_view) {
+			int dx = input->cursor->x - input->offs_x;
+			int dy = input->cursor->y - input->offs_y;
+			int width = input->view_width;
+			int height = input->view_height;
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
+				input->active_view->y = input->view_y + dy;
+				height -= dy;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
+				height += dy;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
+				input->active_view->x = input->view_x + dx;
+				width -= dx;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
+				width += dx;
+			}
+			view_resize(input->active_view, width, height);
+		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
 		break;

@@ -355,11 +355,8 @@ static void handle_configure_request(struct wlr_xwm *xwm,
 
 	if (surface->surface == NULL) {
 		// Surface has not been mapped yet
-		surface->x = ev->x;
-		surface->y = ev->y;
-		surface->width = ev->width;
-		surface->height = ev->height;
-		wlr_xwayland_surface_configure(xwm->xwayland, surface);
+		wlr_xwayland_surface_configure(xwm->xwayland, surface, ev->x, ev->y,
+			ev->width, ev->height);
 	} else {
 		struct wlr_xwayland_surface_configure_event *wlr_event =
 			calloc(1, sizeof(struct wlr_xwayland_surface_configure_event));
@@ -610,13 +607,18 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 }
 
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *surface) {
+		struct wlr_xwayland_surface *surface, int16_t x, int16_t y,
+		uint16_t width, uint16_t height) {
+	surface->x = x;
+	surface->y = y;
+	surface->width = width;
+	surface->height = height;
+
 	struct wlr_xwm *xwm = wlr_xwayland->xwm;
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	uint32_t values[] = {surface->x, surface->y, surface->width,
-		surface->height, 0};
+	uint32_t values[] = {x, y, width, height, 0};
 	xcb_configure_window(xwm->xcb_conn, surface->window_id, mask, values);
 }
 
