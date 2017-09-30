@@ -121,6 +121,7 @@ struct wlr_drm_output_mode {
 
 struct wlr_drm_output {
 	struct wlr_output output;
+	struct wlr_drm_backend *drm;
 
 	enum wlr_drm_output_state state;
 	uint32_t connector;
@@ -134,8 +135,6 @@ struct wlr_drm_output {
 	uint32_t height;
 
 	drmModeCrtc *old_crtc;
-
-	struct wlr_drm_renderer *renderer;
 
 	bool pageflip_pending;
 	struct wl_event_source *retry_pageflip;

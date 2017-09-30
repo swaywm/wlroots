@@ -175,14 +175,13 @@ void wlr_drm_resources_free(struct wlr_drm_backend *backend) {
 
 static void wlr_drm_output_make_current(struct wlr_output *_output) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	wlr_drm_surface_make_current(output->renderer, &output->crtc->primary->surf);
+	wlr_drm_surface_make_current(&output->drm->renderer, &output->crtc->primary->surf);
 }
 
 static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
-	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_backend *backend = output->drm;
+	struct wlr_drm_renderer *renderer = &backend->renderer;
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
@@ -200,8 +199,7 @@ static void wlr_drm_output_swap_buffers(struct wlr_output *_output) {
 static void wlr_drm_output_set_gamma(struct wlr_output *_output,
 		uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
 	drmModeCrtcSetGamma(backend->fd, output->crtc->id, size, r, g, b);
 }
 
@@ -219,9 +217,8 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 		return;
 	}
 
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
-	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_backend *backend = output->drm;
+	struct wlr_drm_renderer *renderer = &backend->renderer;
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
@@ -240,8 +237,7 @@ void wlr_drm_output_start_renderer(struct wlr_drm_output *output) {
 
 static void wlr_drm_output_enable(struct wlr_output *_output, bool enable) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
 		return;
 	}
@@ -367,8 +363,7 @@ static void realloc_crtcs(struct wlr_drm_backend *backend,
 static bool wlr_drm_output_set_mode(struct wlr_output *_output,
 		struct wlr_output_mode *mode) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend
-		= wl_container_of(output->renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
 
 	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", output->output.name,
 			mode->width, mode->height, mode->refresh);
@@ -457,9 +452,8 @@ static void wlr_drm_output_transform(struct wlr_output *output,
 static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend
-		= wl_container_of(output->renderer, backend, renderer);
-	struct wlr_drm_renderer *renderer = output->renderer;
+	struct wlr_drm_backend *backend = output->drm;
+	struct wlr_drm_renderer *renderer = &backend->renderer;
 	struct wlr_drm_crtc *crtc = output->crtc;
 	struct wlr_drm_plane *plane = crtc->cursor;
 
@@ -560,8 +554,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 static bool wlr_drm_output_move_cursor(struct wlr_output *_output,
 		int x, int y) {
 	struct wlr_drm_output *output = (struct wlr_drm_output *)_output;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
 
 	int width, height, tmp;
 	wlr_output_effective_resolution(_output, &width, &height);
@@ -678,7 +671,6 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 				output);
 
 
-			output->renderer = &backend->renderer;
 			output->state = WLR_DRM_OUTPUT_DISCONNECTED;
 			output->connector = conn->connector_id;
 
@@ -784,8 +776,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *backend) {
 static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, void *user) {
 	struct wlr_drm_output *output = user;
-	struct wlr_drm_backend *backend =
-		wl_container_of(output->renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
 
 	output->pageflip_pending = false;
 	if (output->state != WLR_DRM_OUTPUT_CONNECTED) {
@@ -857,9 +848,8 @@ void wlr_drm_output_cleanup(struct wlr_drm_output *output) {
 		return;
 	}
 
-	struct wlr_drm_renderer *renderer = output->renderer;
-	struct wlr_drm_backend *backend =
-		wl_container_of(renderer, backend, renderer);
+	struct wlr_drm_backend *backend = output->drm;
+	struct wlr_drm_renderer *renderer = &backend->renderer;
 
 	switch (output->state) {
 	case WLR_DRM_OUTPUT_CONNECTED:
