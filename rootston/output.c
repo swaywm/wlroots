@@ -16,26 +16,47 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
-static void render_view(struct roots_desktop *desktop,
-		struct wlr_output *wlr_output, struct timespec *when,
-		struct roots_view *view, double ox, double oy) {
-	struct wlr_surface *surface = view->wlr_surface;
-	float matrix[16];
-	float transform[16];
+static void render_surface(struct wlr_surface *surface,
+		struct roots_desktop *desktop, struct wlr_output *wlr_output,
+		struct timespec *when, double lx, double ly) {
 	wlr_surface_flush_damage(surface);
 	if (surface->texture->valid) {
-		wlr_matrix_translate(&transform, ox, oy, 0);
-		wlr_surface_get_matrix(surface, &matrix,
-			&wlr_output->transform_matrix, &transform);
-		wlr_render_with_matrix(desktop->server->renderer,
-				surface->texture, &matrix);
+		int width = surface->current->buffer_width;
+		int height = surface->current->buffer_height;
+		double ox = lx, oy = ly;
+		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 
-		struct wlr_frame_callback *cb, *cnext;
-		wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list, link) {
-			wl_callback_send_done(cb->resource, timespec_to_msec(when));
-			wl_resource_destroy(cb->resource);
+		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
+					lx, ly, lx + width, ly + height)) {
+			float matrix[16];
+			float transform[16];
+			wlr_matrix_translate(&transform, ox, oy, 0);
+			wlr_surface_get_matrix(surface, &matrix,
+					&wlr_output->transform_matrix, &transform);
+			wlr_render_with_matrix(desktop->server->renderer,
+					surface->texture, &matrix);
+
+			struct wlr_frame_callback *cb, *cnext;
+			wl_list_for_each_safe(cb, cnext,
+				&surface->current->frame_callback_list, link) {
+				wl_callback_send_done(cb->resource, timespec_to_msec(when));
+				wl_resource_destroy(cb->resource);
+			}
+		}
+
+		struct wlr_subsurface *subsurface;
+		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+			render_surface(subsurface->surface, desktop, wlr_output, when,
+				lx + subsurface->surface->current->subsurface_position.x,
+				ly + subsurface->surface->current->subsurface_position.y);
 		}
 	}
+}
+
+static void render_view(struct roots_view *view, struct roots_desktop *desktop,
+		struct wlr_output *wlr_output, struct timespec *when) {
+	render_surface(view->wlr_surface, desktop, wlr_output, when,
+		view->x, view->y);
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
@@ -52,16 +73,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
-		int width = view->wlr_surface->current->buffer_width;
-		int height = view->wlr_surface->current->buffer_height;
-
-		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-					view->x, view->y, view->x + width, view->y + height)) {
-			double ox = view->x, oy = view->y;
-			wlr_output_layout_output_coords(
-					desktop->layout, wlr_output, &ox, &oy);
-			render_view(desktop, wlr_output, &now, view, ox, oy);
-		}
+		render_view(view, desktop, wlr_output, &now);
 	}
 
 	wlr_renderer_end(server->renderer);
