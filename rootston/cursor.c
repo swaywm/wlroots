@@ -33,8 +33,10 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view, uint32_t edges) {
 	input->mode = ROOTS_CURSOR_RESIZE;
 	wlr_log(L_DEBUG, "begin resize");
-	input->offs_x = cursor->x - (double)view->wlr_surface->current.width - view->x;
-	input->offs_y = cursor->y - (double)view->wlr_surface->current.height - view->y;
+	input->offs_x = cursor->x  - view->x;
+	input->offs_y = cursor->y - view->y;
+	input->view_width = view->wlr_surface->current.width;
+	input->view_height = view->wlr_surface->current.height;
 	input->resize_edges = edges;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
@@ -64,9 +66,24 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		break;
 	case ROOTS_CURSOR_RESIZE:
 		if (input->active_view) {
-			// TODO: edges
-			uint32_t width = input->cursor->x - input->offs_x;
-			uint32_t height = input->cursor->y - input->offs_y;
+			int dx = input->cursor->x - input->offs_x;
+			int dy = input->cursor->y - input->offs_y;
+			int width = input->view_width;
+			int height = input->view_height;
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
+				input->active_view->y = dy;
+				height -= dy;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
+				height += dy;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
+				input->active_view->x = dx;
+				width -= dx;
+			}
+			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
+				width += dx;
+			}
 			view_resize(input->active_view, width, height);
 		}
 		break;
