@@ -78,11 +78,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->compositor = wlr_compositor_create(
 			server->wl_display, server->renderer);
 
-	wlr_cursor_attach_output_layout(server->input->cursor, desktop->layout);
-	wlr_cursor_map_to_region(server->input->cursor, config->cursor.mapped_box);
-	cursor_load_config(config, server->input->cursor,
-			server->input, desktop);
-
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
 		&desktop->xdg_shell_v6_surface);

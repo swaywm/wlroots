@@ -20,8 +20,8 @@ int main(int argc, char **argv) {
 
 	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
 	wl_display_init_shm(server.wl_display);
-	server.input = input_create(&server, server.config);
 	server.desktop = desktop_create(&server, server.config);
+	server.input = input_create(&server, server.config);
 	server.data_device_manager = wlr_data_device_manager_create(
 			server.wl_display);
 

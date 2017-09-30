@@ -71,6 +71,8 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 struct roots_input *input_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots input");
+	assert(server->desktop);
+
 	struct roots_input *input = calloc(1, sizeof(struct roots_input));
 	assert(input);
 
@@ -103,6 +105,11 @@ struct roots_input *input_create(struct roots_server *server,
 	input->cursor = wlr_cursor_create();
 	cursor_initialize(input);
 	wlr_cursor_set_xcursor(input->cursor, input->xcursor);
+
+	wlr_cursor_attach_output_layout(input->cursor, server->desktop->layout);
+	wlr_cursor_map_to_region(input->cursor, config->cursor.mapped_box);
+	cursor_load_config(config, input->cursor,
+		input, server->desktop);
 
 	return input;
 }
