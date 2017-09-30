@@ -219,6 +219,21 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
+
+	if (surface->configure_idle) {
+		wl_event_source_remove(surface->configure_idle);
+	}
+
+	struct wlr_xdg_surface_v6_configure *configure, *tmp;
+	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
+		free(configure);
+	}
+
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wl_resource_set_user_data(surface->toplevel_state->resource, NULL);
+		free(surface->toplevel_state);
+	}
+
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wl_list_remove(&surface->surface_commit_listener.link);
@@ -230,6 +245,13 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 }
 
 static void xdg_surface_resource_destroy(struct wl_resource *resource) {
+	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+	if (surface != NULL) {
+		xdg_surface_destroy(surface);
+	}
+}
+
+static void xdg_toplevel_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	if (surface != NULL) {
 		xdg_surface_destroy(surface);
@@ -260,7 +282,8 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 	surface->toplevel_state->resource = toplevel_resource;
 
 	wl_resource_set_implementation(toplevel_resource,
-		&zxdg_toplevel_v6_implementation, surface, NULL);
+		&zxdg_toplevel_v6_implementation, surface,
+		xdg_toplevel_resource_destroy);
 }
 
 static void xdg_surface_get_popup(struct wl_client *client,
