@@ -44,23 +44,23 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 }
 
 static bool atomic_commit(int drm_fd, struct atomic *atom,
-		struct wlr_drm_output *output, uint32_t flag, bool modeset) {
+		struct wlr_drm_connector *conn, uint32_t flag, bool modeset) {
 	if (atom->failed) {
 		return false;
 	}
 
 	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | flag;
 
-	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, output);
+	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, conn);
 	if (ret) {
 		wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
-			output->output.name, modeset ? "modeset" : "pageflip");
+			conn->output.name, modeset ? "modeset" : "pageflip");
 
 		// Try to commit without new changes
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
-		if (drmModeAtomicCommit(drm_fd, atom->req, flags, output)) {
+		if (drmModeAtomicCommit(drm_fd, atom->req, flags, conn)) {
 			wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
-				output->output.name, modeset ? "modeset" : "pageflip");
+				conn->output.name, modeset ? "modeset" : "pageflip");
 		}
 	}
 
@@ -97,7 +97,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 }
 
 static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output,
+		struct wlr_drm_connector *conn,
 		struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
 	if (mode) {
@@ -114,18 +114,18 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	struct atomic atom;
 
 	atomic_begin(crtc, &atom);
-	atomic_add(&atom, output->connector, output->props.crtc_id, crtc->id);
+	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
-	return atomic_commit(drm->fd, &atom, output,
+	return atomic_commit(drm->fd, &atom, conn,
 		mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : DRM_MODE_ATOMIC_NONBLOCK,
 		mode);
 }
 
 static void atomic_conn_enable(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output, bool enable) {
-	struct wlr_drm_crtc *crtc = output->crtc;
+		struct wlr_drm_connector *conn, bool enable) {
+	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct atomic atom;
 
 	atomic_begin(crtc, &atom);

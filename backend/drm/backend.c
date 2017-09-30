@@ -30,8 +30,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 	wlr_drm_restore_outputs(drm);
 
 	for (size_t i = 0; drm->outputs && i < drm->outputs->length; ++i) {
-		struct wlr_drm_output *output = drm->outputs->items[i];
-		wlr_output_destroy(&output->output);
+		struct wlr_drm_connector *conn = drm->outputs->items[i];
+		wlr_output_destroy(&conn->output);
 	}
 
 	wlr_drm_renderer_finish(&drm->renderer);
@@ -65,15 +65,15 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		wlr_log(L_INFO, "DRM fd resumed");
 
 		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_drm_output *output = drm->outputs->items[i];
-			wlr_drm_output_start_renderer(output);
+			struct wlr_drm_connector *conn = drm->outputs->items[i];
+			wlr_drm_connector_start_renderer(conn);
 
-			if (!output->crtc) {
+			if (!conn->crtc) {
 				continue;
 			}
 
-			struct wlr_drm_plane *plane = output->crtc->cursor;
-			drm->iface->crtc_set_cursor(drm, output->crtc,
+			struct wlr_drm_plane *plane = conn->crtc->cursor;
+			drm->iface->crtc_set_cursor(drm, conn->crtc,
 				plane ? plane->cursor_bo : NULL);
 		}
 	} else {

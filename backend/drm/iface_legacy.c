@@ -7,18 +7,18 @@
 #include "backend/drm/util.h"
 
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
+		struct wlr_drm_connector *conn, struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
 	if (mode) {
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
-				&output->connector, 1, mode)) {
-			wlr_log_errno(L_ERROR, "%s: Failed to set CRTC", output->output.name);
+				&conn->id, 1, mode)) {
+			wlr_log_errno(L_ERROR, "%s: Failed to set CRTC", conn->output.name);
 			return false;
 		}
 	}
 
-	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, output)) {
-		wlr_log_errno(L_ERROR, "%s: Failed to page flip", output->output.name);
+	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, conn)) {
+		wlr_log_errno(L_ERROR, "%s: Failed to page flip", conn->output.name);
 		return false;
 	}
 
@@ -26,8 +26,8 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 }
 
 static void legacy_conn_enable(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output, bool enable) {
-	drmModeConnectorSetProperty(drm->fd, output->connector, output->props.dpms,
+		struct wlr_drm_connector *conn, bool enable) {
+	drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
 		enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
 }
 

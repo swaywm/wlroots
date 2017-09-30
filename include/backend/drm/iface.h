@@ -9,17 +9,17 @@
 #include <xf86drmMode.h>
 
 struct wlr_drm_backend;
-struct wlr_drm_output;
+struct wlr_drm_connector;
 struct wlr_drm_crtc;
 
 // Used to provide atomic or legacy DRM functions
 struct wlr_drm_interface {
-	// Enable or disable DPMS for output
+	// Enable or disable DPMS for connector
 	void (*conn_enable)(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output, bool enable);
+		struct wlr_drm_connector *conn, bool enable);
 	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
 	bool (*crtc_pageflip)(struct wlr_drm_backend *drm,
-		struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
+		struct wlr_drm_connector *conn, struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode);
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,

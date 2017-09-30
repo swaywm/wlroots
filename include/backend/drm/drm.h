@@ -55,16 +55,6 @@ struct wlr_drm_crtc {
 	struct wl_list connectors;
 };
 
-struct wlr_drm_connector {
-	struct wlr_output *base;
-	uint32_t id;
-	struct wlr_drm_crtc *crtc;
-
-	union wlr_drm_connector_props props;
-
-	struct wl_list link;
-};
-
 struct wlr_drm_backend {
 	struct wlr_backend backend;
 
@@ -107,24 +97,24 @@ struct wlr_drm_backend {
 	struct wlr_session *session;
 };
 
-enum wlr_drm_output_state {
-	WLR_DRM_OUTPUT_DISCONNECTED,
-	WLR_DRM_OUTPUT_NEEDS_MODESET,
-	WLR_DRM_OUTPUT_CLEANUP,
-	WLR_DRM_OUTPUT_CONNECTED,
+enum wlr_drm_connector_state {
+	WLR_DRM_CONN_DISCONNECTED,
+	WLR_DRM_CONN_NEEDS_MODESET,
+	WLR_DRM_CONN_CLEANUP,
+	WLR_DRM_CONN_CONNECTED,
 };
 
-struct wlr_drm_output_mode {
+struct wlr_drm_mode {
 	struct wlr_output_mode wlr_mode;
-	drmModeModeInfo mode;
+	drmModeModeInfo drm_mode;
 };
 
-struct wlr_drm_output {
+struct wlr_drm_connector {
 	struct wlr_output output;
 	struct wlr_drm_backend *drm;
 
-	enum wlr_drm_output_state state;
-	uint32_t connector;
+	enum wlr_drm_connector_state state;
+	uint32_t id;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtc;
@@ -144,10 +134,10 @@ bool wlr_drm_check_features(struct wlr_drm_backend *drm);
 bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
 void wlr_drm_resources_free(struct wlr_drm_backend *drm);
 void wlr_drm_restore_outputs(struct wlr_drm_backend *drm);
-void wlr_drm_output_cleanup(struct wlr_drm_output *output);
+void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn);
 void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
-void wlr_drm_output_start_renderer(struct wlr_drm_output *output);
+void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
 
 #endif
