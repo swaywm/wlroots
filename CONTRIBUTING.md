@@ -2,8 +2,8 @@
 
 Contributing just involves sending a pull request. You will probably be more
 successful with your contribution if you visit
-[#sway-devel](https://webchat.freenode.net/?channels=sway-devel) on freenode
-upfront and discuss your plans.
+[#sway-devel](https://webchat.freenode.net/?channels=sway-devel) on
+irc.freenode.net upfront and discuss your plans.
 
 ## Pull Requests
 
