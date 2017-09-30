@@ -41,14 +41,60 @@ void view_activate(struct roots_view *view, bool activate) {
 	}
 }
 
-struct roots_view *view_at(struct roots_desktop *desktop, int x, int y) {
+static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
+		double sx, double sy, double *sub_x, double *sub_y) {
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		double _sub_x = subsurface->surface->current->subsurface_position.x;
+		double _sub_y = subsurface->surface->current->subsurface_position.y;
+		struct wlr_subsurface *sub =
+			subsurface_at(subsurface->surface, _sub_x + sx, _sub_y + sy,
+				sub_x, sub_y);
+		if (sub) {
+			// TODO: convert sub_x and sub_y to the parent coordinate system
+			return sub;
+		}
+
+		int sub_width = subsurface->surface->current->buffer_width;
+		int sub_height = subsurface->surface->current->buffer_height;
+		if ((sx > _sub_x && sx < _sub_x + sub_width) &&
+				(sy > _sub_y && sub_y < sub_y + sub_height)) {
+			*sub_x = _sub_x;
+			*sub_y = _sub_y;
+			return subsurface;
+		}
+	}
+
+	return NULL;
+}
+
+struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
+		struct wlr_surface **surface, double *sx, double *sy) {
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
+
+		double view_sx = lx - view->x;
+		double view_sy = ly - view->y;
+
+		double sub_x, sub_y;
+		struct wlr_subsurface *subsurface =
+			subsurface_at(view->wlr_surface, view_sx, view_sy, &sub_x, &sub_y);
+
+		if (subsurface) {
+			*sx = view_sx - sub_x;
+			*sy = view_sy - sub_y;
+			*surface = subsurface->surface;
+			return view;
+		}
+
 		struct wlr_box box;
 		view_get_input_bounds(view, &box);
 		box.x += view->x;
 		box.y += view->y;
-		if (wlr_box_contains_point(&box, x, y)) {
+		if (wlr_box_contains_point(&box, lx, ly)) {
+			*sx = view_sx;
+			*sy = view_sy;
+			*surface = view->wlr_surface;
 			return view;
 		}
 	}

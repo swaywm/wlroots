@@ -32,15 +32,14 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
+	struct wlr_surface *surface;
+	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		view = view_at(desktop, input->cursor->x, input->cursor->y);
+		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
+			&sx, &sy);
 		if (view) {
-			struct wlr_box box;
-			view_get_input_bounds(view, &box);
-			double sx = input->cursor->x - view->x;
-			double sy = input->cursor->y - view->y;
-			wlr_seat_pointer_enter(input->wl_seat, view->wlr_surface, sx, sy);
+			wlr_seat_pointer_enter(input->wl_seat, surface, sx, sy);
 			wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
 		} else {
 			wlr_seat_pointer_clear_focus(input->wl_seat);
@@ -109,8 +108,10 @@ static void do_cursor_button_press(struct roots_input *input,
 		struct wlr_cursor *cursor, struct wlr_input_device *device,
 		uint32_t time, uint32_t button, uint32_t state) {
 	struct roots_desktop *desktop = input->server->desktop;
+	struct wlr_surface *surface;
+	double sx, sy;
 	struct roots_view *view = view_at(desktop,
-			input->cursor->x, input->cursor->y);
+			input->cursor->x, input->cursor->y, &surface, &sx, &sy);
 	uint32_t serial = wlr_seat_pointer_send_button(
 			input->wl_seat, time, button, state);
 	int i;
@@ -128,7 +129,7 @@ static void do_cursor_button_press(struct roots_input *input,
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
 		if (view) {
-			wlr_seat_keyboard_enter(input->wl_seat, view->wlr_surface);
+			wlr_seat_keyboard_enter(input->wl_seat, surface);
 		}
 		break;
 	}
