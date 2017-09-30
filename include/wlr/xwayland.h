@@ -81,7 +81,8 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface);
+	struct wlr_xwayland_surface *surface, int16_t x, int16_t y,
+	uint16_t width, uint16_t height);
 void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
 
