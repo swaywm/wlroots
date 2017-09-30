@@ -9,6 +9,14 @@
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 
+static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	xwayland_surface->width = width;
+	xwayland_surface->height = height;
+	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -75,6 +83,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->wlr_surface = surface->surface;
 	view->desktop = desktop;
 	view->activate = activate;
+	view->resize = resize;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
 }
