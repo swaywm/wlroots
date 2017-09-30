@@ -25,6 +25,16 @@ void view_destroy(struct roots_view *view) {
 	free(view);
 }
 
+void view_get_size(struct roots_view *view, struct wlr_box *box) {
+	if (view->get_size) {
+		view->get_size(view, box);
+		return;
+	}
+	box->x = box->y = 0;
+	box->width = view->wlr_surface->current.width;
+	box->height = view->wlr_surface->current.height;
+}
+
 void view_get_input_bounds(struct roots_view *view, struct wlr_box *box) {
 	if (view->get_input_bounds) {
 		view->get_input_bounds(view, box);

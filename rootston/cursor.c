@@ -37,8 +37,10 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 	input->offs_y = cursor->y;
 	input->view_x = view->x;
 	input->view_y = view->y;
-	input->view_width = view->wlr_surface->current.width;
-	input->view_height = view->wlr_surface->current.height;
+	struct wlr_box size;
+	view_get_size(view, &size);
+	input->view_width = size.width;
+	input->view_height = size.height;
 	input->resize_edges = edges;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }

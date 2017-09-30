@@ -61,11 +61,13 @@ struct roots_view {
 	// configure event from the xdg_shell
 	// If not then this should follow the typical type/impl pattern we use
 	// elsewhere
+	void (*get_size)(struct roots_view *view, struct wlr_box *box);
 	void (*get_input_bounds)(struct roots_view *view, struct wlr_box *box);
 	void (*activate)(struct roots_view *view, bool active);
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
 };
 
+void view_get_size(struct roots_view *view, struct wlr_box *box);
 void view_get_input_bounds(struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
