@@ -110,6 +110,9 @@ Function and type names should be prefixed with `wlr_submodule_` (e.g. `struct
 wlr_drm_plane`, `wlr_output_set_cursor`).  For static functions and types local
 to a file, the names chosen aren't as important.
 
+For include guards, use the header's filename relative to include.  Uppercase
+all of the characters, and replace any invalid characters with an underscore.
+
 ### Construction/Destruction Functions
 
 For functions that are responsible for constructing and destructing an object,
@@ -134,6 +137,64 @@ Try to keep the use of macros to a minimum, especially if a function can do the
 job.  If you do need to use them, try to keep them close to where they're being
 used and `#undef` them after.
 
-## Meson Coding Style
+## Example
 
-The Meson style is similar to the C style, but indentations are 2 spaces.
+```c
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
+	struct wlr_backend *backend;
+	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
+		backend = attempt_wl_backend(display);
+		if (backend) {
+			return backend;
+		}
+	}
+
+	const char *x11_display = getenv("DISPLAY");
+	if (x11_display) {
+		return wlr_x11_backend_create(display, x11_display);
+	}
+
+	// Attempt DRM+libinput
+
+	struct wlr_session *session = wlr_session_create(display);
+	if (!session) {
+		wlr_log(L_ERROR, "Failed to start a DRM session");
+		return NULL;
+	}
+
+	int gpu = wlr_session_find_gpu(session);
+	if (gpu == -1) {
+		wlr_log(L_ERROR, "Failed to open DRM device");
+		goto error_session;
+	}
+
+	backend = wlr_multi_backend_create(session);
+	if (!backend) {
+		goto error_gpu;
+	}
+
+	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session);
+	if (!libinput) {
+		goto error_multi;
+	}
+
+	struct wlr_backend *drm = wlr_drm_backend_create(display, session, gpu);
+	if (!drm) {
+		goto error_libinput;
+	}
+
+	wlr_multi_backend_add(backend, libinput);
+	wlr_multi_backend_add(backend, drm);
+	return backend;
+
+error_libinput:
+	wlr_backend_destroy(libinput);
+error_multi:
+	wlr_backend_destroy(backend);
+error_gpu:
+	wlr_session_close_file(session, gpu);
+error_session:
+	wlr_session_destroy(session);
+	return NULL;
+}
+```
