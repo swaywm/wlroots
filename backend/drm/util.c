@@ -3,7 +3,7 @@
 #include <drm.h>
 #include <drm_mode.h>
 #include <gbm.h>
-#include "backend/drm-util.h"
+#include "backend/drm/util.h"
 #include <wlr/util/log.h>
 
 int32_t calculate_refresh_rate(drmModeModeInfo *mode) {

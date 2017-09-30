@@ -12,7 +12,7 @@
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
 #include <wlr/egl.h>
-#include "backend/drm.h"
+#include "backend/drm/drm.h"
 
 static bool wlr_drm_backend_start(struct wlr_backend *_backend) {
 	struct wlr_drm_backend *backend = (struct wlr_drm_backend *)_backend;

@@ -2,8 +2,8 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wlr/util/log.h>
-#include "backend/drm.h"
-#include "backend/drm-util.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/util.h"
 
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *backend,
 		struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
@@ -57,7 +57,7 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *backend,
 	return !drmModeMoveCursor(backend->fd, crtc->id, x, y);
 }
 
-const struct wlr_drm_interface legacy_iface = {
+const struct wlr_drm_interface iface_legacy = {
 	.conn_enable = legacy_conn_enable,
 	.crtc_pageflip = legacy_crtc_pageflip,
 	.crtc_set_cursor = legacy_crtc_set_cursor,

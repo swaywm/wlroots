@@ -2,8 +2,8 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wlr/util/log.h>
-#include "backend/drm.h"
-#include "backend/drm-util.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/util.h"
 
 struct atomic {
 	drmModeAtomicReq *req;
@@ -180,7 +180,7 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *backend,
 	return atomic_end(backend->fd, &atom);
 }
 
-const struct wlr_drm_interface atomic_iface = {
+const struct wlr_drm_interface iface_atomic = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,

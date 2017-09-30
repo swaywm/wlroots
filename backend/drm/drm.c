@@ -20,12 +20,12 @@
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
-#include "backend/drm.h"
-#include "backend/drm-util.h"
+#include "backend/drm/drm.h"
+#include "backend/drm/util.h"
 
 bool wlr_drm_check_features(struct wlr_drm_backend *backend) {
-	extern const struct wlr_drm_interface legacy_iface;
-	extern const struct wlr_drm_interface atomic_iface;
+	extern const struct wlr_drm_interface iface_legacy;
+	extern const struct wlr_drm_interface iface_atomic;
 
 	if (drmSetClientCap(backend->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
 		wlr_log(L_ERROR, "DRM universal planes unsupported");
@@ -34,13 +34,13 @@ bool wlr_drm_check_features(struct wlr_drm_backend *backend) {
 
 	if (getenv("WLR_DRM_NO_ATOMIC")) {
 		wlr_log(L_DEBUG, "WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
-		backend->iface = &legacy_iface;
+		backend->iface = &iface_legacy;
 	} else if (drmSetClientCap(backend->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
 		wlr_log(L_DEBUG, "Atomic modesetting unsupported, using legacy DRM interface");
-		backend->iface = &legacy_iface;
+		backend->iface = &iface_legacy;
 	} else {
 		wlr_log(L_DEBUG, "Using atomic DRM interface");
-		backend->iface = &atomic_iface;
+		backend->iface = &iface_atomic;
 	}
 
 	return true;

@@ -1,5 +1,5 @@
-#ifndef BACKEND_DRM_H
-#define BACKEND_DRM_H
+#ifndef BACKEND_DRM_DRM_H
+#define BACKEND_DRM_DRM_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -15,7 +15,7 @@
 #include <wlr/egl.h>
 #include <wlr/util/list.h>
 
-#include "drm-properties.h"
+#include "properties.h"
 
 struct wlr_drm_plane {
 	uint32_t type;
