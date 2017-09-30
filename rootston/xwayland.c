@@ -17,7 +17,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	free(roots_surface);
 }
 
-static void handle_configure(struct wl_listener *listener, void *data) {
+static void handle_request_configure(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_configure);
 	struct wlr_xwayland_surface *xwayland_surface =
@@ -58,7 +58,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	wl_list_init(&roots_surface->request_configure.link);
-	roots_surface->request_configure.notify = handle_configure;
+	roots_surface->request_configure.notify = handle_request_configure;
 	wl_signal_add(&surface->events.request_configure,
 		&roots_surface->request_configure);
 

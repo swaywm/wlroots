@@ -29,6 +29,14 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
+void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view) {
+	input->mode = ROOTS_CURSOR_RESIZE;
+	input->offs_x = cursor->x - view->x;
+	input->offs_y = cursor->y - view->y;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
@@ -53,6 +61,10 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
+		// TODO: this is just for testing
+		if (input->active_view && input->active_view->type == ROOTS_XDG_SHELL_V6_VIEW) {
+			wlr_xdg_toplevel_v6_set_size(input->active_view->xdg_surface_v6, input->cursor->x - input->offs_x, input->cursor->y - input->offs_y);
+		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
 		break;

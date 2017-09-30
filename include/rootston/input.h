@@ -110,5 +110,7 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 		uint32_t serial);
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view);
+void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view);
 
 #endif
