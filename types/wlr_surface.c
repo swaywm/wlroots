@@ -537,7 +537,13 @@ static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
 
 void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_surface_state_destroy(subsurface->cached);
-	wl_list_remove(&subsurface->parent_link);
+
+	if (subsurface->parent) {
+		wl_list_remove(&subsurface->parent_link);
+		wl_list_remove(&subsurface->parent_pending_link);
+		wl_list_remove(&subsurface->parent_destroy_listener.link);
+	}
+
 	wl_resource_set_user_data(subsurface->resource, NULL);
 	if (subsurface->surface) {
 		subsurface->surface->subsurface = NULL;
@@ -742,6 +748,16 @@ static const struct wl_subsurface_interface subsurface_implementation = {
 	.set_desync = subsurface_set_desync,
 };
 
+static void subsurface_handle_parent_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, parent_destroy_listener);
+	wl_list_remove(&subsurface->parent_link);
+	wl_list_remove(&subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->parent_destroy_listener.link);
+	subsurface->parent = NULL;
+}
+
 void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id) {
 	assert(surface->subsurface == NULL);
@@ -752,11 +768,18 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		return;
 	}
 	subsurface->cached = wlr_surface_state_create();
-
-	subsurface->surface = surface;
-	subsurface->parent = parent;
 	subsurface->synchronized = true;
+	subsurface->surface = surface;
+
+	// link parent
+	subsurface->parent = parent;
+	wl_signal_add(&parent->signals.destroy,
+		&subsurface->parent_destroy_listener);
+	subsurface->parent_destroy_listener.notify =
+		subsurface_handle_parent_destroy;
 	wl_list_insert(&parent->subsurface_list, &subsurface->parent_link);
+	wl_list_insert(&parent->subsurface_pending_list,
+		&subsurface->parent_pending_link);
 
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 

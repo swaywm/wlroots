@@ -52,6 +52,8 @@ struct wlr_subsurface {
 
 	struct wl_list parent_link;
 	struct wl_list parent_pending_link;
+
+	struct wl_listener parent_destroy_listener;
 };
 
 struct wlr_surface {
