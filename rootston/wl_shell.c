@@ -32,7 +32,7 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
-		wl_container_of(listener, roots_surface, request_move);
+		wl_container_of(listener, roots_surface, request_resize);
 	struct roots_view *view = roots_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_wl_shell_surface_resize_event *e = data;
