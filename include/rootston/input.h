@@ -71,6 +71,7 @@ struct roots_input {
 	enum roots_cursor_mode mode;
 	struct roots_view *active_view;
 	int offs_x, offs_y;
+	uint32_t resize_edges;
 
 	// Ring buffer of input events that could trigger move/resize/rotate
 	int input_events_idx;
@@ -111,6 +112,6 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view);
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
-		struct roots_view *view);
+		struct roots_view *view, uint32_t edges);
 
 #endif

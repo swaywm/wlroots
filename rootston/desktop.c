@@ -41,6 +41,12 @@ void view_activate(struct roots_view *view, bool activate) {
 	}
 }
 
+void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	if (view->resize) {
+		view->resize(view, width, height);
+	}
+}
+
 struct roots_view *view_at(struct roots_desktop *desktop, int x, int y) {
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];

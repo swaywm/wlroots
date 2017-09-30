@@ -29,6 +29,14 @@ static void activate(struct roots_view *view, bool active) {
 	}
 }
 
+static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
+	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_toplevel_v6_set_size(surf, width, height);
+	}
+}
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, request_move);
@@ -52,7 +60,7 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, event->cursor, view);
+	view_begin_resize(input, event->cursor, view, e->edges);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -102,6 +110,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->wlr_surface = surface->surface;
 	view->get_input_bounds = get_input_bounds;
 	view->activate = activate;
+	view->resize = resize;
 	view->desktop = desktop;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
