@@ -175,7 +175,7 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 
 static void wlr_drm_connector_make_current(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	wlr_drm_surface_make_current(&conn->drm->renderer, &conn->crtc->primary->surf);
+	wlr_drm_surface_make_current(&conn->crtc->primary->surf);
 }
 
 static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
@@ -185,7 +185,7 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&drm->renderer, &plane->surf);
+	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
@@ -217,7 +217,7 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = wlr_drm_surface_get_front(&drm->renderer, &plane->surf);
+	struct gbm_bo *bo = wlr_drm_surface_get_front(&plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
@@ -283,9 +283,9 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in)
 
 			if (*old != new) {
 				if (*old) {
-					wlr_drm_surface_finish(&drm->renderer, &(*old)->surf);
+					wlr_drm_surface_finish(&(*old)->surf);
 				}
-				wlr_drm_surface_finish(&drm->renderer, &new->surf);
+				wlr_drm_surface_finish(&new->surf);
 				*old = new;
 			}
 		}
@@ -430,7 +430,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 			continue;
 		}
 
-		if (!wlr_drm_surface_init(&drm->renderer, &crtc->primary->surf,
+		if (!wlr_drm_surface_init(&crtc->primary->surf, &drm->renderer,
 				mode->width, mode->height, GBM_FORMAT_XRGB8888,
 				GBM_BO_USE_SCANOUT)) {
 			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
@@ -488,7 +488,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		if (!wlr_drm_surface_init(renderer, &plane->surf, w, h, GBM_FORMAT_ARGB8888, 0)) {
+		if (!wlr_drm_surface_init(&plane->surf, renderer, w, h, GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
@@ -530,7 +530,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	wlr_drm_surface_make_current(renderer, &plane->surf);
+	wlr_drm_surface_make_current(&plane->surf);
 
 	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
@@ -548,7 +548,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
-	wlr_drm_surface_swap_buffers(renderer, &plane->surf);
+	wlr_drm_surface_swap_buffers(&plane->surf);
 
 	gbm_bo_unmap(bo, bo_data);
 
@@ -854,7 +854,7 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 	case WLR_DRM_CONN_CLEANUP:;
 		struct wlr_drm_crtc *crtc = conn->crtc;
 		for (int i = 0; i < 3; ++i) {
-			wlr_drm_surface_finish(&drm->renderer, &crtc->planes[i]->surf);
+			wlr_drm_surface_finish(&crtc->planes[i]->surf);
 			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
 				free(crtc->planes[i]);
 				crtc->planes[i] = NULL;

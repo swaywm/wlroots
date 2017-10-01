@@ -35,13 +35,14 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 	gbm_device_destroy(renderer->gbm);
 }
 
-bool wlr_drm_surface_init(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_surface *surf, uint32_t width, uint32_t height,
+bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
+		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 		uint32_t format, uint32_t flags) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
 
+	surf->renderer = renderer;
 	surf->width = width;
 	surf->height = height;
 
@@ -67,13 +68,12 @@ error_zero:
 	return false;
 }
 
-void wlr_drm_surface_finish(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_surface *surf) {
-	if (!renderer || !surf || !surf->gbm) {
+void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
+	if (!surf || !surf->renderer) {
 		return;
 	}
 
-	eglMakeCurrent(renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+	eglMakeCurrent(surf->renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 		EGL_NO_CONTEXT);
 
 	if (surf->front) {
@@ -84,7 +84,7 @@ void wlr_drm_surface_finish(struct wlr_drm_renderer *renderer,
 	}
 
 	if (surf->egl) {
-		eglDestroySurface(renderer->egl.display, surf->egl);
+		eglDestroySurface(surf->renderer->egl.display, surf->egl);
 	}
 	if (surf->gbm) {
 		gbm_surface_destroy(surf->gbm);
@@ -93,34 +93,31 @@ void wlr_drm_surface_finish(struct wlr_drm_renderer *renderer,
 	memset(surf, 0, sizeof(*surf));
 }
 
-void wlr_drm_surface_make_current(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_surface *surf) {
-	eglMakeCurrent(renderer->egl.display, surf->egl, surf->egl,
-		renderer->egl.context);
+void wlr_drm_surface_make_current(struct wlr_drm_surface *surf) {
+	eglMakeCurrent(surf->renderer->egl.display, surf->egl, surf->egl,
+		surf->renderer->egl.context);
 }
 
-struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_surface *surf) {
+struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf) {
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
 
-	eglSwapBuffers(renderer->egl.display, surf->egl);
+	eglSwapBuffers(surf->renderer->egl.display, surf->egl);
 
 	surf->front = surf->back;
 	surf->back = gbm_surface_lock_front_buffer(surf->gbm);
 	return surf->back;
 }
 
-struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_renderer *renderer,
-		struct wlr_drm_surface *surf) {
+struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	if (surf->front) {
 		return surf->front;
 	}
 
-	wlr_drm_surface_make_current(renderer, surf);
+	wlr_drm_surface_make_current(surf);
 	glViewport(0, 0, surf->width, surf->height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	return wlr_drm_surface_swap_buffers(renderer, surf);
+	return wlr_drm_surface_swap_buffers(surf);
 }

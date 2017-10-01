@@ -14,6 +14,8 @@ struct wlr_drm_renderer {
 };
 
 struct wlr_drm_surface {
+	struct wlr_drm_renderer *renderer;
+
 	uint32_t width;
 	uint32_t height;
 
@@ -25,23 +27,15 @@ struct wlr_drm_surface {
 };
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
-
 void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer);
 
-bool wlr_drm_surface_init(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_surface *surf, uint32_t width, uint32_t height,
+bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
+	struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 	uint32_t format, uint32_t flags);
 
-void wlr_drm_surface_finish(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_surface *surf);
-
-void wlr_drm_surface_make_current(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_surface *surf);
-
-struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_surface *surf);
-
-struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_renderer *renderer,
-	struct wlr_drm_surface *surf);
+void wlr_drm_surface_finish(struct wlr_drm_surface *surf);
+void wlr_drm_surface_make_current(struct wlr_drm_surface *surf);
+struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf);
+struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf);
 
 #endif
