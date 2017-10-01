@@ -40,7 +40,7 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		//touch_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		//tablet_tool_add(device, input);
+		tablet_tool_add(device, input);
 		break;
 	default:
 		break;
@@ -61,7 +61,7 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 		//touch_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		//tablet_tool_remove(device, input);
+		tablet_tool_remove(device, input);
 		break;
 	default:
 		break;

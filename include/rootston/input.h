@@ -109,6 +109,8 @@ void pointer_add(struct wlr_input_device *device, struct roots_input *input);
 void pointer_remove(struct wlr_input_device *device, struct roots_input *input);
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input);
 void keyboard_remove(struct wlr_input_device *device, struct roots_input *input);
+void tablet_tool_add(struct wlr_input_device *device, struct roots_input *input);
+void tablet_tool_remove(struct wlr_input_device *device, struct roots_input *input);
 
 void cursor_initialize(struct roots_input *input);
 void cursor_load_config(struct roots_config *config,

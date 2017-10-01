@@ -9,6 +9,7 @@ executable(
 		'main.c',
 		'output.c',
 		'pointer.c',
+		'tablet_tool.c',
 		'xdg_shell_v6.c',
 		'xwayland.c',
 		'wl_shell.c',
