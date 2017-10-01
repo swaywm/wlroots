@@ -28,6 +28,15 @@ struct wlr_xdg_client_v6 {
 	struct wl_event_source *ping_timer;
 };
 
+struct wlr_xdg_popup_v6 {
+	struct wlr_xdg_surface_v6 *base;
+
+	struct wl_resource *resource;
+	bool committed;
+	struct wlr_xdg_surface_v6 *parent;
+	struct wlr_seat *seat;
+	struct wlr_box geometry;
+};
 
 enum wlr_xdg_surface_v6_role {
 	WLR_XDG_SURFACE_V6_ROLE_NONE,
@@ -74,7 +83,11 @@ struct wlr_xdg_surface_v6 {
 	struct wlr_surface *surface;
 	struct wl_list link; // wlr_xdg_client_v6::surfaces
 	enum wlr_xdg_surface_v6_role role;
-	struct wlr_xdg_toplevel_v6 *toplevel_state;
+
+	union {
+		struct wlr_xdg_toplevel_v6 *toplevel_state;
+		struct wlr_xdg_popup_v6 *popup_state;
+	};
 
 	bool configured;
 	struct wl_event_source *configure_idle;
