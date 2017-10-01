@@ -27,9 +27,6 @@ struct keyboard_state {
 	struct wlr_input_device *device;
 	struct wl_listener key;
 	struct wl_list link;
-	struct xkb_keymap *keymap;
-	struct xkb_state *xkb_state;
-	xkb_led_index_t leds[WLR_LED_LAST];
 	void *data;
 };
 

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
@@ -18,27 +19,15 @@
 #include <wlr/util/log.h>
 #include "shared.h"
 
-
-static void keyboard_led_update(struct keyboard_state *kbstate) {
-	uint32_t leds = 0;
-	for (uint32_t i = 0; i < WLR_LED_LAST; ++i) {
-		if (xkb_state_led_index_is_active(kbstate->xkb_state, kbstate->leds[i])) {
-			leds |= (1 << i);
-		}
-	}
-	wlr_keyboard_led_update(kbstate->device->keyboard, leds);
-}
-
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_keyboard_key *event = data;
 	struct keyboard_state *kbstate = wl_container_of(listener, kbstate, key);
 	uint32_t keycode = event->keycode + 8;
 	enum wlr_key_state key_state = event->state;
 	const xkb_keysym_t *syms;
-	int nsyms = xkb_state_key_get_syms(kbstate->xkb_state, keycode, &syms);
-	xkb_state_update_key(kbstate->xkb_state, keycode,
-		event->state == WLR_KEY_PRESSED ?  XKB_KEY_DOWN : XKB_KEY_UP);
-	keyboard_led_update(kbstate);
+	int nsyms = xkb_state_key_get_syms(kbstate->device->keyboard->xkb_state,
+			keycode, &syms);
+
 	for (int i = 0; i < nsyms; ++i) {
 		xkb_keysym_t sym = syms[i];
 		char name[64];
@@ -88,26 +77,9 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 		wlr_log(L_ERROR, "Failed to create XKB context");
 		exit(1);
 	}
-	kbstate->keymap = xkb_map_new_from_names(
-			context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
-	if (!kbstate->keymap) {
-		wlr_log(L_ERROR, "Failed to create XKB keymap");
-		exit(1);
-	}
+	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
+				&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
-	kbstate->xkb_state = xkb_state_new(kbstate->keymap);
-	if (!kbstate->xkb_state) {
-		wlr_log(L_ERROR, "Failed to create XKB state");
-		exit(1);
-	}
-	const char *led_names[3] = {
-		XKB_LED_NAME_NUM,
-		XKB_LED_NAME_CAPS,
-		XKB_LED_NAME_SCROLL
-	};
-	for (uint32_t i = 0; i < 3; ++i) {
-		kbstate->leds[i] = xkb_map_led_get_index(kbstate->keymap, led_names[i]);
-	}
 }
 
 static void pointer_motion_notify(struct wl_listener *listener, void *data) {
@@ -320,8 +292,6 @@ static void keyboard_remove(struct wlr_input_device *device, struct compositor_s
 	if (!kbstate) {
 		return;
 	}
-	xkb_state_unref(kbstate->xkb_state);
-	xkb_map_unref(kbstate->keymap);
 	wl_list_remove(&kbstate->link);
 	wl_list_remove(&kbstate->key.link);
 	free(kbstate);

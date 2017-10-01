@@ -59,9 +59,8 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	rules.options = getenv("XKB_DEFAULT_OPTIONS");
 	struct xkb_context *context;
 	assert(context = xkb_context_new(XKB_CONTEXT_NO_FLAGS));
-	wlr_keyboard_set_keymap(device->keyboard,
-			xkb_map_new_from_names(context, &rules,
-				XKB_KEYMAP_COMPILE_NO_FLAGS));
+	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
+				&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
 	wlr_seat_attach_keyboard(input->wl_seat, device);
 }
