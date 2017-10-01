@@ -42,8 +42,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 	free(drm);
 }
 
-static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *_backend) {
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)_backend;
+static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
 	return &drm->renderer.egl;
 }
 
