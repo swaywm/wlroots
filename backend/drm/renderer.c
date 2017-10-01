@@ -1,12 +1,18 @@
 #include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <gbm.h>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <wayland-util.h>
 
 #include <wlr/egl.h>
 #include <wlr/util/log.h>
+#include <wlr/render/matrix.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render.h>
 #include "backend/drm/drm.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
@@ -21,6 +27,9 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 		gbm_device_destroy(renderer->gbm);
 		return false;
 	}
+
+	struct wlr_drm_backend *drm = wl_container_of(renderer, drm, renderer);
+	renderer->wlr_rend = wlr_gles2_renderer_create(&drm->backend);
 
 	renderer->fd = fd;
 	return true;
@@ -120,4 +129,112 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 	return wlr_drm_surface_swap_buffers(surf);
+}
+
+void wlr_drm_surface_post(struct wlr_drm_surface *surf) {
+	if (surf->front) {
+		gbm_surface_release_buffer(surf->gbm, surf->front);
+		surf->front = NULL;
+	}
+}
+
+struct tex {
+	struct wlr_egl *egl;
+	EGLImageKHR img;
+	struct wlr_texture *tex;
+};
+
+static void free_eglimage(struct gbm_bo *bo, void *data) {
+	struct tex *tex = data;
+
+	wlr_egl_destroy_image(tex->egl, tex->img);
+	wlr_texture_destroy(tex->tex);
+	free(tex);
+}
+
+static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer, struct gbm_bo *bo) {
+	struct tex *tex = gbm_bo_get_user_data(bo);
+	if (tex) {
+		return tex->tex;
+	}
+
+	tex = malloc(sizeof(*tex));
+	if (!tex) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		return NULL;
+	}
+
+	tex->egl = &renderer->egl;
+
+	int dmabuf_fd = gbm_bo_get_fd(bo);
+	uint32_t width = gbm_bo_get_width(bo);
+	uint32_t height = gbm_bo_get_height(bo);
+
+	EGLint attribs[] = {
+		EGL_WIDTH, width,
+		EGL_HEIGHT, height,
+		EGL_LINUX_DRM_FOURCC_EXT, gbm_bo_get_format(bo),
+		EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_fd,
+		EGL_DMA_BUF_PLANE0_OFFSET_EXT, gbm_bo_get_offset(bo, 0),
+		EGL_DMA_BUF_PLANE0_PITCH_EXT, gbm_bo_get_stride_for_plane(bo, 0),
+		EGL_IMAGE_PRESERVED_KHR, EGL_FALSE,
+		EGL_NONE,
+	};
+
+	tex->img = renderer->egl.eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
+		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+	if (!tex->img) {
+		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
+		abort();
+	}
+
+	tex->tex = wlr_render_texture_create(renderer->wlr_rend);
+	wlr_texture_upload_eglimage(tex->tex, tex->img, width, height);
+
+	gbm_bo_set_user_data(bo, tex, free_eglimage);
+
+	return tex->tex;
+}
+
+struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gbm_bo *src) {
+	wlr_drm_surface_make_current(dest);
+
+	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
+
+	static const float matrix[16] = {
+		[0] = 2.0f,
+		[3] = -1.0f,
+		[5] = 2.0f,
+		[7] = -1.0f,
+		[10] = 1.0f,
+		[15] = 1.0f,
+	};
+
+	glViewport(0, 0, dest->width, dest->height);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, &matrix);
+
+	return wlr_drm_surface_swap_buffers(dest);
+}
+
+bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_backend *drm,
+		int32_t width, uint32_t height, uint32_t format) {
+	if (!drm->parent) {
+		return wlr_drm_surface_init(&plane->surf, &drm->renderer, width, height,
+			format, GBM_BO_USE_SCANOUT);
+	}
+
+	if (!wlr_drm_surface_init(&plane->surf, &drm->parent->renderer,
+			width, height, format, GBM_BO_USE_LINEAR)) {
+		return false;
+	}
+
+	if (!wlr_drm_surface_init(&plane->mgpu_surf, &drm->renderer,
+			width, height, format, GBM_BO_USE_SCANOUT)) {
+		wlr_drm_surface_finish(&plane->surf);
+		return false;
+	}
+
+	return true;
 }

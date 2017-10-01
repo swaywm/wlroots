@@ -2,6 +2,8 @@
 #define WLR_RENDER_INTERFACE_H
 
 #include <wayland-server-protocol.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <stdbool.h>
 #include <wlr/render.h>
 #include <wlr/types/wlr_output.h>
@@ -45,6 +47,8 @@ struct wlr_texture_impl {
 		int x, int y, int width, int height, struct wl_shm_buffer *shm);
 	bool (*upload_drm)(struct wlr_texture *texture,
 		struct wl_resource *drm_buf);
+	bool (*upload_eglimage)(struct wlr_texture *texture, EGLImageKHR image,
+		uint32_t width, uint32_t height);
 	void (*get_matrix)(struct wlr_texture *state,
 		float (*matrix)[16], const float (*projection)[16], int x, int y);
 	void (*get_buffer_size)(struct wlr_texture *texture,

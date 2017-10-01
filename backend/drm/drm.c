@@ -186,6 +186,10 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf);
+	if (drm->parent) {
+		bo = wlr_drm_surface_mgpu_copy(&plane->mgpu_surf, bo);
+	}
+
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
@@ -217,7 +221,8 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = wlr_drm_surface_get_front(&plane->surf);
+	struct gbm_bo *bo = wlr_drm_surface_get_front(
+		drm->parent ? &plane->mgpu_surf : &plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
@@ -393,7 +398,6 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 	wlr_log(L_INFO, "Modesetting '%s' with '%ux%u@%u mHz'", conn->output.name,
 			mode->width, mode->height, mode->refresh);
 
-	wlr_log(L_DEBUG, "%p %p", conn, drm);
 	conn->possible_crtc = get_possible_crtcs(drm->fd, conn->id);
 	if (conn->possible_crtc == 0) {
 		goto error_conn;
@@ -430,9 +434,8 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 			continue;
 		}
 
-		if (!wlr_drm_surface_init(&crtc->primary->surf, &drm->renderer,
-				mode->width, mode->height, GBM_FORMAT_XRGB8888,
-				GBM_BO_USE_SCANOUT)) {
+		if (!wlr_drm_plane_surfaces_init(crtc->primary, drm,
+				mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
 			wlr_log(L_ERROR, "Failed to initalise renderer for plane");
 			goto error_conn;
 		}
@@ -782,10 +785,9 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
-	struct wlr_drm_plane *plane = conn->crtc->primary;
-	if (plane->surf.front) {
-		gbm_surface_release_buffer(plane->surf.gbm, plane->surf.front);
-		plane->surf.front = NULL;
+	wlr_drm_surface_post(&conn->crtc->primary->surf);
+	if (drm->parent) {
+		wlr_drm_surface_post(&conn->crtc->primary->mgpu_surf);
 	}
 
 	if (drm->session->active) {
@@ -855,6 +857,7 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		struct wlr_drm_crtc *crtc = conn->crtc;
 		for (int i = 0; i < 3; ++i) {
 			wlr_drm_surface_finish(&crtc->planes[i]->surf);
+			wlr_drm_surface_finish(&crtc->planes[i]->mgpu_surf);
 			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
 				free(crtc->planes[i]);
 				crtc->planes[i] = NULL;

@@ -92,8 +92,9 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-		struct wlr_session *session, int gpu_fd) {
+		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent) {
 	assert(display && session && gpu_fd >= 0);
+	assert(!parent || wlr_backend_is_drm(parent));
 
 	char *name = drmGetDeviceNameFromFd2(gpu_fd);
 	drmVersion *version = drmGetVersion(gpu_fd);
@@ -116,6 +117,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	drm->fd = gpu_fd;
+	drm->parent = (struct wlr_drm_backend *)parent;
 
 	drm->drm_invalidated.notify = drm_invalidated;
 	wlr_session_signal_add(session, gpu_fd, &drm->drm_invalidated);

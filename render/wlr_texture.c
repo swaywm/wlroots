@@ -48,6 +48,11 @@ bool wlr_texture_upload_drm(struct wlr_texture *texture,
 	return texture->impl->upload_drm(texture, drm_buffer);
 }
 
+bool wlr_texture_upload_eglimage(struct wlr_texture *texture,
+		EGLImageKHR image, uint32_t width, uint32_t height) {
+	return texture->impl->upload_eglimage(texture, image, width, height);
+}
+
 void wlr_texture_get_matrix(struct wlr_texture *texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	texture->impl->get_matrix(texture, matrix, projection, x, y);

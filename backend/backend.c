@@ -109,7 +109,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	wlr_log(L_INFO, "Found %zu GPUs", num_gpus);
 
 	for (size_t i = 0; i < num_gpus; ++i) {
-		struct wlr_backend *drm = wlr_drm_backend_create(display, session, gpus[i]);
+		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
+			gpus[i], primary_drm);
 		if (!drm) {
 			wlr_log(L_ERROR, "Failed to open DRM device");
 			continue;
