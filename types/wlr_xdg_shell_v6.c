@@ -607,9 +607,15 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		return;
 	}
 
-	// TODO handle popups
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		assert(0 && "not reached");
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		wlr_xdg_toplevel_v6_ack_configure(surface, configure);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		break;
 	}
 
 	if (!surface->configured) {
@@ -723,9 +729,6 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	struct wlr_xdg_surface_v6 *surface = user_data;
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 
-	// TODO handle popups
-	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-
 	surface->configure_idle = NULL;
 
 	struct wlr_xdg_surface_v6_configure *configure =
@@ -738,21 +741,42 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	wl_list_insert(surface->configure_list.prev, &configure->link);
 	configure->serial = wl_display_next_serial(display);
 
-	wlr_xdg_toplevel_v6_send_configure(surface, configure);
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		assert(0 && "not reached");
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		wlr_xdg_toplevel_v6_send_configure(surface, configure);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		zxdg_popup_v6_send_configure(surface->popup_state->resource,
+			surface->popup_state->geometry.x,
+			surface->popup_state->geometry.y,
+			surface->popup_state->geometry.width,
+			surface->popup_state->geometry.height);
+		break;
+	}
 
 	zxdg_surface_v6_send_configure(surface->resource, configure->serial);
 }
 
 static void wlr_xdg_surface_v6_schedule_configure(
 		struct wlr_xdg_surface_v6 *surface, bool force) {
-	// TODO handle popups
-	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
+	bool pending_same = false;
 
-	bool pending_same = !force &&
-		wlr_xdg_surface_v6_toplevel_state_compare(surface->toplevel_state);
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		assert(0 && "not reached");
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		pending_same = !force &&
+			wlr_xdg_surface_v6_toplevel_state_compare(surface->toplevel_state);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		break;
+	}
 
 	if (surface->configure_idle != NULL) {
 		if (!pending_same) {
@@ -803,6 +827,16 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 	surface->toplevel_state->current = surface->toplevel_state->next;
 }
 
+static void wlr_xdg_surface_v6_popup_committed(
+		struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
+
+	if (!surface->popup_state->committed) {
+		wlr_xdg_surface_v6_schedule_configure(surface, true);
+		surface->popup_state->committed = true;
+	}
+}
+
 static void handle_wlr_surface_committed(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_surface_v6 *surface =
@@ -833,7 +867,7 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 		wlr_xdg_surface_v6_toplevel_committed(surface);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
-		wlr_log(L_DEBUG, "TODO: popup surface committed");
+		wlr_xdg_surface_v6_popup_committed(surface);
 		break;
 	}
 
