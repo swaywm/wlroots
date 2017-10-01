@@ -856,9 +856,13 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 	case WLR_DRM_CONN_CLEANUP:;
 		struct wlr_drm_crtc *crtc = conn->crtc;
 		for (int i = 0; i < 3; ++i) {
+			if (!crtc->planes[i]) {
+				continue;
+			}
+
 			wlr_drm_surface_finish(&crtc->planes[i]->surf);
 			wlr_drm_surface_finish(&crtc->planes[i]->mgpu_surf);
-			if (crtc->planes[i] && crtc->planes[i]->id == 0) {
+			if (crtc->planes[i]->id == 0) {
 				free(crtc->planes[i]);
 				crtc->planes[i] = NULL;
 			}

@@ -15,8 +15,9 @@
 #include <wlr/render.h>
 #include "backend/drm/drm.h"
 
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
-	renderer->gbm = gbm_create_device(fd);
+bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
+		struct wlr_drm_renderer *renderer) {
+	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
 		wlr_log(L_ERROR, "Failed to create GBM device");
 		return false;
@@ -24,15 +25,23 @@ bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd) {
 
 	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA,
 			GBM_FORMAT_ARGB8888, renderer->gbm)) {
-		gbm_device_destroy(renderer->gbm);
-		return false;
+		goto error_gbm;
 	}
 
-	struct wlr_drm_backend *drm = wl_container_of(renderer, drm, renderer);
 	renderer->wlr_rend = wlr_gles2_renderer_create(&drm->backend);
+	if (!renderer->wlr_rend) {
+		wlr_log(L_ERROR, "Failed to create WLR renderer");
+		goto error_egl;
+	}
 
-	renderer->fd = fd;
+	renderer->fd = drm->fd;
 	return true;
+
+error_egl:
+	wlr_egl_free(&renderer->egl);
+error_gbm:
+	gbm_device_destroy(renderer->gbm);
+	return false;
 }
 
 void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
@@ -40,6 +49,7 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
+	wlr_renderer_destroy(renderer->wlr_rend);
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }

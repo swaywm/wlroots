@@ -143,7 +143,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	if (!wlr_drm_renderer_init(&drm->renderer, drm->fd)) {
+	if (!wlr_drm_renderer_init(drm, &drm->renderer)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}

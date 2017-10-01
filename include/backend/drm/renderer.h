@@ -9,6 +9,7 @@
 
 #include <wlr/render.h>
 
+struct wlr_drm_backend;
 struct wlr_drm_plane;
 
 struct wlr_drm_renderer {
@@ -32,7 +33,8 @@ struct wlr_drm_surface {
 	struct gbm_bo *back;
 };
 
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
+bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
+	struct wlr_drm_renderer *renderer);
 void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer);
 
 bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
