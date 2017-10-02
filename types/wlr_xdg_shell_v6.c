@@ -57,6 +57,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
 		wl_resource_set_user_data(surface->popup_state->resource, NULL);
+		wl_list_remove(&surface->popup_link);
 		free(surface->popup_state);
 	}
 
@@ -317,6 +318,8 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	surface->popup_state->parent = parent;
 	surface->popup_state->geometry =
 		xdg_positioner_get_geometry(positioner, surface, parent);
+	wl_list_insert(&surface->popup_state->parent->popups,
+		&surface->popup_link);
 
 	wl_resource_set_implementation(surface->popup_state->resource,
 		&zxdg_popup_v6_implementation, surface,
@@ -914,6 +917,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	}
 
 	wl_list_init(&surface->configure_list);
+	wl_list_init(&surface->popups);
 
 	wl_signal_init(&surface->events.request_minimize);
 	wl_signal_init(&surface->events.request_move);
