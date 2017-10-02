@@ -12,7 +12,7 @@ int os_create_anonymous_file(off_t size);
 
 static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	uint32_t leds = 0;
-	for (uint32_t i = 0; i < WLR_LED_LAST; ++i) {
+	for (uint32_t i = 0; i < WLR_LED_COUNT; ++i) {
 		if (xkb_state_led_index_is_active(keyboard->xkb_state,
 				keyboard->led_indexes[i])) {
 			leds |= (1 << i);
@@ -21,37 +21,12 @@ static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	wlr_keyboard_led_update(keyboard, leds);
 }
 
-static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
-	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_DEPRESSED);
-	xkb_mod_mask_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_LATCHED);
-	xkb_mod_mask_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_LOCKED);
-	xkb_mod_mask_t group = xkb_state_serialize_layout(keyboard->xkb_state,
-		XKB_STATE_LAYOUT_EFFECTIVE);
-	if (depressed == keyboard->modifiers.depressed &&
-			latched == keyboard->modifiers.latched &&
-			locked == keyboard->modifiers.locked &&
-			group == keyboard->modifiers.group) {
-		return;
-	}
-
-	keyboard->modifiers.depressed = depressed;
-	keyboard->modifiers.latched = latched;
-	keyboard->modifiers.locked = locked;
-	keyboard->modifiers.group = group;
-
-	// TODO: wl_keyboard_send_modifiers
-}
-
 void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	uint32_t keycode = event->keycode + 8;
 	xkb_state_update_key(keyboard->xkb_state, keycode,
 		event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
 	keyboard_led_update(keyboard);
-	keyboard_modifier_update(keyboard);
 	wl_signal_emit(&keyboard->events.key, event);
 }
 
@@ -84,16 +59,16 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	kb->keymap = keymap;
 	assert(kb->xkb_state = xkb_state_new(kb->keymap));
 
-	const char *led_names[WLR_LED_LAST] = {
+	const char *led_names[WLR_LED_COUNT] = {
 		XKB_LED_NAME_NUM,
 		XKB_LED_NAME_CAPS,
-		XKB_LED_NAME_SCROLL
+		XKB_LED_NAME_SCROLL,
 	};
-	for (size_t i = 0; i < WLR_LED_LAST; ++i) {
+	for (size_t i = 0; i < WLR_LED_COUNT; ++i) {
 		kb->led_indexes[i] = xkb_map_led_get_index(kb->keymap, led_names[i]);
 	}
 
-	const char *mod_names[WLR_MODIFIER_LAST] = {
+	const char *mod_names[WLR_MODIFIER_COUNT] = {
 		XKB_MOD_NAME_SHIFT,
 		XKB_MOD_NAME_CAPS,
 		XKB_MOD_NAME_CTRL, // "Control"
@@ -104,7 +79,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		"Mod5",
 	};
 	// TODO: there's also "Ctrl", "Alt"?
-	for (size_t i = 0; i < WLR_LED_LAST; ++i) {
+	for (size_t i = 0; i < WLR_MODIFIER_COUNT; ++i) {
 		kb->mod_indexes[i] = xkb_map_mod_get_index(kb->keymap, mod_names[i]);
 	}
 
@@ -118,4 +93,16 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	free(keymap_str);
 
 	wl_signal_emit(&kb->events.keymap, kb);
+}
+
+uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {
+	xkb_mod_mask_t mask = kb->modifiers.depressed | kb->modifiers.latched;
+	uint32_t modifiers = 0;
+	for (size_t i = 0; i < WLR_MODIFIER_COUNT; ++i) {
+		if (kb->mod_indexes[i] != XKB_MOD_INVALID &&
+				(mask & (1 << kb->mod_indexes[i]))) {
+			modifiers |= (1 << i);
+		}
+	}
+	return modifiers;
 }

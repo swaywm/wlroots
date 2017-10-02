@@ -391,9 +391,9 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		// TODO: We should probably lift all of the keys set by the other
 		// keyboard
 		wl_keyboard_send_keymap(handle->keyboard,
-				WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
-				seat_kb->keyboard->keymap_fd,
-				seat_kb->keyboard->keymap_size);
+			WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
+			seat_kb->keyboard->keymap_fd,
+			seat_kb->keyboard->keymap_size);
 
 		if (wl_resource_get_version(handle->keyboard) >= 2) {
 			// TODO: Make this better
@@ -402,21 +402,31 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		handle->seat_keyboard = seat_kb;
 	}
 
-	uint32_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
+	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
 		XKB_STATE_MODS_DEPRESSED);
-	uint32_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
+	xkb_mod_mask_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
 		XKB_STATE_MODS_LATCHED);
-	uint32_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
+	xkb_mod_mask_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
 		XKB_STATE_MODS_LOCKED);
-	uint32_t group = xkb_state_serialize_layout(keyboard->xkb_state,
+	xkb_mod_mask_t group = xkb_state_serialize_layout(keyboard->xkb_state,
 		XKB_STATE_LAYOUT_EFFECTIVE);
+	if (depressed != keyboard->modifiers.depressed ||
+			latched != keyboard->modifiers.latched ||
+			locked != keyboard->modifiers.locked ||
+			group != keyboard->modifiers.group) {
+		keyboard->modifiers.depressed = depressed;
+		keyboard->modifiers.latched = latched;
+		keyboard->modifiers.locked = locked;
+		keyboard->modifiers.group = group;
 
-	uint32_t modifiers_serial = wl_display_next_serial(seat->display);
+		uint32_t modifiers_serial = wl_display_next_serial(seat->display);
+		wl_keyboard_send_modifiers(handle->keyboard, modifiers_serial, depressed,
+			latched, locked, group);
+	}
+
 	uint32_t key_serial = wl_display_next_serial(seat->display);
-	wl_keyboard_send_modifiers(handle->keyboard, modifiers_serial,
-		depressed, latched, locked, group);
 	wl_keyboard_send_key(handle->keyboard, key_serial,
-			(uint32_t)event->time_usec, event->keycode, key_state);
+		(uint32_t)event->time_usec, event->keycode, key_state);
 }
 
 static void keyboard_keymap_notify(struct wl_listener *listener, void *data) {
