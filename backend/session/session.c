@@ -1,7 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stddef.h>
-#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <libudev.h>
@@ -224,11 +225,44 @@ out_fd:
 	return -1;
 }
 
+static size_t explicit_find_gpus(struct wlr_session *session,
+		size_t ret_len, int ret[static ret_len], const char *str) {
+	char *gpus = strdup(str);
+	if (!gpus) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		return 0;
+	}
+
+	size_t i = 0;
+	char *save;
+	char *ptr = strtok_r(gpus, ":", &save);
+	do {
+		if (i >= ret_len) {
+			break;
+		}
+
+		ret[i] = open_if_kms(session, ptr);
+		if (ret[i] <= 0) {
+			wlr_log(L_ERROR, "Unable to open %s as DRM device", ptr);
+		} else {
+			++i;
+		}
+	} while ((ptr = strtok_r(NULL, ":", &save)));
+
+	free(ptr);
+	return i;
+}
+
 /* Tries to find the primary GPU by checking for the "boot_vga" attribute.
  * If it's not found, it returns the first valid GPU it finds.
  */
 size_t wlr_session_find_gpus(struct wlr_session *session,
 		size_t ret_len, int ret[static ret_len]) {
+	const char *explicit = getenv("WLR_DRM_DEVICES");
+	if (explicit) {
+		return explicit_find_gpus(session, ret_len, ret, explicit);
+	}
+
 	struct udev_enumerate *en = udev_enumerate_new(session->udev);
 	if (!en) {
 		wlr_log(L_ERROR, "Failed to create udev enumeration");
