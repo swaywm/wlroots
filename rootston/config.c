@@ -175,14 +175,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
 		wl_list_insert(&config->bindings, &bc->link);
 
-		if (strcmp(value, "quit") == 0) {
-			bc->action = BINDING_CONFIG_ACTION_QUIT;
-		} else {
-			wlr_log(L_ERROR, "got unknown key binding action: %s", value);
-			wl_list_remove(&bc->link);
-			free(bc);
-			return 1;
-		}
+		bc->command = strdup(value);
 
 		bc->keysyms_len = 1;
 		char *symnames = strdup(name);
@@ -226,7 +219,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	// TEMPORARY, probably
 	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
 	wl_list_insert(&config->bindings, &bc->link);
-	bc->action = BINDING_CONFIG_ACTION_QUIT;
+	bc->command = strdup("exit");
 	bc->keysyms_len = 1;
 	bc->keysyms = calloc(1, sizeof(xkb_keysym_t));
 	bc->keysyms[0] = XKB_KEY_Escape;

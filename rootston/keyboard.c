@@ -21,12 +21,10 @@ static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
 }
 
 static void keyboard_binding_execute(struct roots_keyboard *keyboard,
-		struct binding_config *bc) {
+		char *command) {
 	struct roots_server *server = keyboard->input->server;
-	switch (bc->action) {
-	case BINDING_CONFIG_ACTION_QUIT:
+	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(server->wl_display);
-		break;
 	}
 }
 
@@ -67,7 +65,7 @@ static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 		}
 
 		if (ok) {
-			keyboard_binding_execute(keyboard, bc);
+			keyboard_binding_execute(keyboard, bc->command);
 		}
 	}
 }
