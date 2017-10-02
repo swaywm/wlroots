@@ -6,11 +6,23 @@
 #include <wayland-server.h>
 #include <xkbcommon/xkbcommon.h>
 
-enum WLR_KEYBOARD_LED {
+enum wlr_keyboard_led {
 	WLR_LED_NUM_LOCK = 1,
 	WLR_LED_CAPS_LOCK = 2,
 	WLR_LED_SCROLL_LOCK = 4,
 	WLR_LED_LAST
+};
+
+enum wlr_keyboard_modifier {
+	WLR_MODIFIER_SHIFT = 1,
+	WLR_MODIFIER_CAPS = 2,
+	WLR_MODIFIER_CTRL = 4,
+	WLR_MODIFIER_ALT = 8,
+	WLR_MODIFIER_MOD2 = 16,
+	WLR_MODIFIER_MOD3 = 32,
+	WLR_MODIFIER_LOGO = 64,
+	WLR_MODIFIER_MOD5 = 128,
+	WLR_MODIFIER_LAST
 };
 
 struct wlr_keyboard_impl;
@@ -23,7 +35,15 @@ struct wlr_keyboard {
 	size_t keymap_size;
 	struct xkb_keymap *keymap;
 	struct xkb_state *xkb_state;
-	xkb_led_index_t leds[WLR_LED_LAST];
+	xkb_led_index_t led_indexes[WLR_LED_LAST];
+	xkb_mod_index_t mod_indexes[WLR_MODIFIER_LAST];
+
+	struct {
+		xkb_mod_mask_t depressed;
+		xkb_mod_mask_t latched;
+		xkb_mod_mask_t locked;
+		xkb_mod_mask_t group;
+	} modifiers;
 
 	struct {
 		struct wl_signal key;
@@ -48,6 +68,6 @@ struct wlr_event_keyboard_key {
 };
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
-		struct xkb_keymap *keymap);
+	struct xkb_keymap *keymap);
 
 #endif
