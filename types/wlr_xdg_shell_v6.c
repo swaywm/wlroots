@@ -648,6 +648,7 @@ static void xdg_shell_pong(struct wl_client *wl_client,
 }
 
 static struct zxdg_shell_v6_interface xdg_shell_impl = {
+	.destroy = resource_destroy,
 	.create_positioner = xdg_shell_create_positioner,
 	.get_xdg_surface = xdg_shell_get_xdg_surface,
 	.pong = xdg_shell_pong,
