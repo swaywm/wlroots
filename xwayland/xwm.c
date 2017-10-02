@@ -12,6 +12,9 @@ const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_DELETE_WINDOW",
 	"WM_PROTOCOLS",
+	"WM_NORMAL_HINTS",
+	"WM_SIZE_HINTS",
+	"_MOTIF_WM_HINTS",
 	"UTF8_STRING",
 	"WM_S0",
 	"_NET_SUPPORTED",
@@ -269,6 +272,24 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
+static void read_surface_normal_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->type != xwm->atoms[WM_SIZE_HINTS]) {
+		return;
+	}
+
+	// TODO: xcb_icccm_get_wm_size_hints_from_reply
+	// See https://github.com/i3/i3/blob/55bc6741796e8b179b6111a721a3e9631934bb86/src/handlers.c#L994
+
+	wlr_log(L_DEBUG, "WM_NORMAL_HINTS (%d)", reply->value_len);
+}
+
+static void read_surface_motif_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// TODO
+	wlr_log(L_DEBUG, "MOTIF_WM_HINTS (%d)", reply->value_len);
+}
+
 static void read_surface_property(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_atom_t property) {
 	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn, 0,
@@ -294,6 +315,10 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_protocols(xwm, surface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
 		read_surface_state(xwm, surface, reply);
+	} else if (property == xwm->atoms[WM_NORMAL_HINTS]) {
+		read_surface_normal_hints(xwm, surface, reply);
+	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
+		read_surface_motif_hints(xwm, surface, reply);
 	} else {
 		wlr_log(L_DEBUG, "unhandled x11 property %u", property);
 	}
@@ -313,6 +338,8 @@ static void map_shell_surface(struct wlr_xwm *xwm,
 		XCB_ATOM_WM_NAME,
 		XCB_ATOM_WM_TRANSIENT_FOR,
 		xwm->atoms[WM_PROTOCOLS],
+		xwm->atoms[WM_NORMAL_HINTS],
+		xwm->atoms[MOTIF_WM_HINTS],
 		xwm->atoms[NET_WM_STATE],
 		xwm->atoms[NET_WM_WINDOW_TYPE],
 		xwm->atoms[NET_WM_NAME],
