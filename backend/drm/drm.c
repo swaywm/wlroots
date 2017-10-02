@@ -618,7 +618,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 			return false;
 		}
 
-		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h, GBM_FORMAT_ARGB8888,
+		plane->cursor_bo = gbm_bo_create(renderer->gbm, width, height, GBM_FORMAT_ARGB8888,
 			GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
 		if (!plane->cursor_bo) {
 			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
@@ -670,7 +670,7 @@ static bool wlr_drm_output_set_cursor(struct wlr_output *_output,
 
 	glFinish();
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
+	glReadPixels(0, 0, width, height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
 	wlr_drm_plane_swap_buffers(renderer, plane);
