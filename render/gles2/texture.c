@@ -205,6 +205,25 @@ static bool gles2_texture_upload_drm(struct wlr_texture *_tex,
 	return true;
 }
 
+static bool gles2_texture_upload_eglimage(struct wlr_texture *wlr_tex,
+		EGLImageKHR image, uint32_t width, uint32_t height) {
+	struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)wlr_tex;
+
+	tex->image = image;
+	tex->pixel_format = &external_pixel_format;
+	tex->wlr_texture.valid = true;
+	tex->wlr_texture.width = width;
+	tex->wlr_texture.height = height;
+
+	gles2_texture_ensure_texture(tex);
+
+	GL_CALL(glActiveTexture(GL_TEXTURE0));
+	GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->tex_id));
+	GL_CALL(glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image));
+
+	return true;
+}
+
 static void gles2_texture_get_matrix(struct wlr_texture *_texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
@@ -270,6 +289,7 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.upload_shm = gles2_texture_upload_shm,
 	.update_shm = gles2_texture_update_shm,
 	.upload_drm = gles2_texture_upload_drm,
+	.upload_eglimage = gles2_texture_upload_eglimage,
 	.get_matrix = gles2_texture_get_matrix,
 	.get_buffer_size = gles2_texture_get_buffer_size,
 	.bind = gles2_texture_bind,

@@ -1,7 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stddef.h>
-#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <libudev.h>
@@ -191,18 +192,16 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 /* Tests if 'path' is KMS compatible by trying to open it.
  * It leaves the open device in *fd_out it it succeeds.
  */
-static bool device_is_kms(struct wlr_session *restrict session,
-	const char *restrict path, int *restrict fd_out) {
-
+static int open_if_kms(struct wlr_session *restrict session, const char *restrict path) {
 	int fd;
 
 	if (!path) {
-		return false;
+		return -1;
 	}
 
 	fd = wlr_session_open_file(session, path);
 	if (fd < 0) {
-		return false;
+		return -1;
 	}
 
 	drmModeRes *res = drmModeGetResources(fd);
@@ -216,26 +215,54 @@ static bool device_is_kms(struct wlr_session *restrict session,
 		goto out_res;
 	}
 
-	if (*fd_out >= 0) {
-		wlr_session_close_file(session, *fd_out);
-	}
-
-	*fd_out = fd;
-
 	drmModeFreeResources(res);
-	return true;
+	return fd;
 
 out_res:
 	drmModeFreeResources(res);
 out_fd:
 	wlr_session_close_file(session, fd);
-	return false;
+	return -1;
+}
+
+static size_t explicit_find_gpus(struct wlr_session *session,
+		size_t ret_len, int ret[static ret_len], const char *str) {
+	char *gpus = strdup(str);
+	if (!gpus) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		return 0;
+	}
+
+	size_t i = 0;
+	char *save;
+	char *ptr = strtok_r(gpus, ":", &save);
+	do {
+		if (i >= ret_len) {
+			break;
+		}
+
+		ret[i] = open_if_kms(session, ptr);
+		if (ret[i] < 0) {
+			wlr_log(L_ERROR, "Unable to open %s as DRM device", ptr);
+		} else {
+			++i;
+		}
+	} while ((ptr = strtok_r(NULL, ":", &save)));
+
+	free(ptr);
+	return i;
 }
 
 /* Tries to find the primary GPU by checking for the "boot_vga" attribute.
  * If it's not found, it returns the first valid GPU it finds.
  */
-int wlr_session_find_gpu(struct wlr_session *session) {
+size_t wlr_session_find_gpus(struct wlr_session *session,
+		size_t ret_len, int ret[static ret_len]) {
+	const char *explicit = getenv("WLR_DRM_DEVICES");
+	if (explicit) {
+		return explicit_find_gpus(session, ret_len, ret, explicit);
+	}
+
 	struct udev_enumerate *en = udev_enumerate_new(session->udev);
 	if (!en) {
 		wlr_log(L_ERROR, "Failed to create udev enumeration");
@@ -247,9 +274,13 @@ int wlr_session_find_gpu(struct wlr_session *session) {
 	udev_enumerate_scan_devices(en);
 
 	struct udev_list_entry *entry;
-	int fd = -1;
+	size_t i = 0;
 
 	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(en)) {
+		if (i == ret_len) {
+			break;
+		}
+
 		bool is_boot_vga = false;
 
 		const char *path = udev_list_entry_get_name(entry);
@@ -258,15 +289,13 @@ int wlr_session_find_gpu(struct wlr_session *session) {
 			continue;
 		}
 
-		/*
 		const char *seat = udev_device_get_property_value(dev, "ID_SEAT");
 		if (!seat)
 			seat = "seat0";
-		if (strcmp(session->seat, seat) != 0) {
+		if (session->seat[0] && strcmp(session->seat, seat) != 0) {
 			udev_device_unref(dev);
 			continue;
 		}
-		*/
 
 		// This is owned by 'dev', so we don't need to free it
 		struct udev_device *pci =
@@ -279,27 +308,25 @@ int wlr_session_find_gpu(struct wlr_session *session) {
 			}
 		}
 
-		// We already have a valid GPU
-		if (!is_boot_vga && fd >= 0) {
-			udev_device_unref(dev);
-			continue;
-		}
-
-		path = udev_device_get_devnode(dev);
-		if (!device_is_kms(session, path, &fd)) {
+		int fd = open_if_kms(session, udev_device_get_devnode(dev));
+		if (fd < 0) {
 			udev_device_unref(dev);
 			continue;
 		}
 
 		udev_device_unref(dev);
 
-		// We've found the primary GPU
+		ret[i] = fd;
 		if (is_boot_vga) {
-			break;
+			int tmp = ret[0];
+			ret[0] = ret[i];
+			ret[i] = tmp;
 		}
+
+		++i;
 	}
 
 	udev_enumerate_unref(en);
 
-	return fd;
+	return i;
 }

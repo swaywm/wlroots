@@ -72,12 +72,13 @@ int wlr_session_open_file(struct wlr_session *session, const char *path);
 void wlr_session_close_file(struct wlr_session *session, int fd);
 
 void wlr_session_signal_add(struct wlr_session *session, int fd,
-		struct wl_listener *listener);
+	struct wl_listener *listener);
 /*
  * Changes the virtual terminal.
  */
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 
-int wlr_session_find_gpu(struct wlr_session *session);
+size_t wlr_session_find_gpus(struct wlr_session *session,
+	size_t ret_len, int ret[static ret_len]);
 
 #endif

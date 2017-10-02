@@ -2,6 +2,8 @@
 #define WLR_RENDER_H
 
 #include <stdint.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_output.h>
 
@@ -93,8 +95,11 @@ bool wlr_texture_upload_shm(struct wlr_texture *tex, uint32_t format,
  * texture. The wl_resource is not used after this call.
  * Will fail (return false) if the given resource is no drm buffer.
  */
- bool wlr_texture_upload_drm(struct wlr_texture *tex,
- 	struct wl_resource *drm_buffer);
+bool wlr_texture_upload_drm(struct wlr_texture *tex,
+	struct wl_resource *drm_buffer);
+
+bool wlr_texture_upload_eglimage(struct wlr_texture *tex,
+	EGLImageKHR image, uint32_t width, uint32_t height);
 
 /**
  * Copies a rectangle of pixels from a wl_shm_buffer onto the texture. The

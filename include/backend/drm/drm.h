@@ -1,5 +1,5 @@
-#ifndef BACKEND_DRM_H
-#define BACKEND_DRM_H
+#ifndef BACKEND_DRM_DRM_H
+#define BACKEND_DRM_DRM_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -15,7 +15,9 @@
 #include <wlr/egl.h>
 #include <wlr/util/list.h>
 
-#include "drm-properties.h"
+#include "iface.h"
+#include "properties.h"
+#include "renderer.h"
 
 struct wlr_drm_plane {
 	uint32_t type;
@@ -23,13 +25,8 @@ struct wlr_drm_plane {
 
 	uint32_t possible_crtcs;
 
-	uint32_t width, height;
-
-	struct gbm_surface *gbm;
-	EGLSurface egl;
-
-	struct gbm_bo *front;
-	struct gbm_bo *back;
+	struct wlr_drm_surface surf;
+	struct wlr_drm_surface mgpu_surf;
 
 	// Only used by cursor
 	float matrix[16];
@@ -59,34 +56,13 @@ struct wlr_drm_crtc {
 	struct wl_list connectors;
 };
 
-struct wlr_drm_connector {
-	struct wlr_output *base;
-	uint32_t id;
-	struct wlr_drm_crtc *crtc;
-
-	union wlr_drm_connector_props props;
-
-	struct wl_list link;
-};
-
-struct wlr_drm_renderer {
-	int fd;
-	struct gbm_device *gbm;
-	struct wlr_egl egl;
-};
-
-bool wlr_drm_renderer_init(struct wlr_drm_renderer *renderer, int fd);
-void wlr_drm_renderer_free(struct wlr_drm_renderer *renderer);
-
-struct wlr_drm_interface;
-
 struct wlr_drm_backend {
 	struct wlr_backend backend;
 
+	struct wlr_drm_backend *parent;
 	const struct wlr_drm_interface *iface;
 
 	int fd;
-	dev_t dev;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
@@ -117,30 +93,30 @@ struct wlr_drm_backend {
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 
-	uint32_t taken_crtcs;
 	list_t *outputs;
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
 };
 
-enum wlr_drm_output_state {
-	WLR_DRM_OUTPUT_DISCONNECTED,
-	WLR_DRM_OUTPUT_NEEDS_MODESET,
-	WLR_DRM_OUTPUT_CLEANUP,
-	WLR_DRM_OUTPUT_CONNECTED,
+enum wlr_drm_connector_state {
+	WLR_DRM_CONN_DISCONNECTED,
+	WLR_DRM_CONN_NEEDS_MODESET,
+	WLR_DRM_CONN_CLEANUP,
+	WLR_DRM_CONN_CONNECTED,
 };
 
-struct wlr_drm_output_mode {
+struct wlr_drm_mode {
 	struct wlr_output_mode wlr_mode;
-	drmModeModeInfo mode;
+	drmModeModeInfo drm_mode;
 };
 
-struct wlr_drm_output {
+struct wlr_drm_connector {
 	struct wlr_output output;
+	struct wlr_drm_backend *drm;
 
-	enum wlr_drm_output_state state;
-	uint32_t connector;
+	enum wlr_drm_connector_state state;
+	uint32_t id;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtc;
@@ -152,37 +128,18 @@ struct wlr_drm_output {
 
 	drmModeCrtc *old_crtc;
 
-	struct wlr_drm_renderer *renderer;
-
 	bool pageflip_pending;
 	struct wl_event_source *retry_pageflip;
-};
-
-// Used to provide atomic or legacy DRM functions
-struct wlr_drm_interface {
-	// Enable or disable DPMS for output
-	void (*conn_enable)(struct wlr_drm_backend *backend,
-			struct wlr_drm_output *output, bool enable);
-	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
-	bool (*crtc_pageflip)(struct wlr_drm_backend *backend,
-			struct wlr_drm_output *output, struct wlr_drm_crtc *crtc,
-			uint32_t fb_id, drmModeModeInfo *mode);
-	// Enable the cursor buffer on crtc. Set bo to NULL to disable
-	bool (*crtc_set_cursor)(struct wlr_drm_backend *backend,
-			struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
-	// Move the cursor on crtc
-	bool (*crtc_move_cursor)(struct wlr_drm_backend *backend,
-			struct wlr_drm_crtc *crtc, int x, int y);
 };
 
 bool wlr_drm_check_features(struct wlr_drm_backend *drm);
 bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
 void wlr_drm_resources_free(struct wlr_drm_backend *drm);
 void wlr_drm_restore_outputs(struct wlr_drm_backend *drm);
-void wlr_drm_output_cleanup(struct wlr_drm_output *output);
+void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn);
 void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
-void wlr_drm_output_start_renderer(struct wlr_drm_output *output);
+void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
 
 #endif

@@ -91,15 +91,9 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		return NULL;
 	}
 
-	int gpu = wlr_session_find_gpu(session);
-	if (gpu == -1) {
-		wlr_log(L_ERROR, "Failed to open DRM device");
-		goto error_session;
-	}
-
 	backend = wlr_multi_backend_create(session);
 	if (!backend) {
-		goto error_gpu;
+		goto error_session;
 	}
 
 	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session);
@@ -107,21 +101,37 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		goto error_multi;
 	}
 
-	struct wlr_backend *drm = wlr_drm_backend_create(display, session, gpu);
-	if (!drm) {
-		goto error_libinput;
+	wlr_multi_backend_add(backend, libinput);
+
+	int gpus[8];
+	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
+	struct wlr_backend *primary_drm = NULL;
+	wlr_log(L_INFO, "Found %zu GPUs", num_gpus);
+
+	for (size_t i = 0; i < num_gpus; ++i) {
+		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
+			gpus[i], primary_drm);
+		if (!drm) {
+			wlr_log(L_ERROR, "Failed to open DRM device");
+			continue;
+		}
+
+		if (!primary_drm) {
+			primary_drm = drm;
+		}
+
+		wlr_multi_backend_add(backend, drm);
 	}
 
-	wlr_multi_backend_add(backend, libinput);
-	wlr_multi_backend_add(backend, drm);
+	if (!primary_drm) {
+		wlr_log(L_ERROR, "Failed to open any DRM device");
+		goto error_multi;
+	}
+
 	return backend;
 
-error_libinput:
-	wlr_backend_destroy(libinput);
 error_multi:
 	wlr_backend_destroy(backend);
-error_gpu:
-	wlr_session_close_file(session, gpu);
 error_session:
 	wlr_session_destroy(session);
 	return NULL;
