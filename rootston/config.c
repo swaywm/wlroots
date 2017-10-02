@@ -250,7 +250,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 		wl_list_insert(&config->bindings, &bc->link);
 		bc->command = strdup("exit");
 		bc->keysyms_len = 2;
-		bc->keysyms = calloc(1, sizeof(xkb_keysym_t));
+		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
 		bc->keysyms[0] = XKB_KEY_Meta_L;
 		bc->keysyms[1] = XKB_KEY_q;
 	} else if (result == -2) {
@@ -279,7 +279,12 @@ void roots_config_destroy(struct roots_config *config) {
 		free(dc);
 	}
 
-	// TODO: free bindings
+	struct binding_config *bc, *btmp = NULL;
+	wl_list_for_each_safe(bc, btmp, &config->bindings, link) {
+		free(bc->keysyms);
+		free(bc->command);
+		free(bc);
+	}
 
 	free(config->config_path);
 	free(config->cursor.mapped_output);
