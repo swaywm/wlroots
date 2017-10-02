@@ -242,7 +242,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 		}
 
 		ret[i] = open_if_kms(session, ptr);
-		if (ret[i] <= 0) {
+		if (ret[i] < 0) {
 			wlr_log(L_ERROR, "Unable to open %s as DRM device", ptr);
 		} else {
 			++i;
