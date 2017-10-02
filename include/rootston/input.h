@@ -10,14 +10,7 @@
 #include "rootston/view.h"
 #include "rootston/server.h"
 
-#define ROOTS_KEYBOARD_PRESSED_KEYS_CAP 32
-
-struct roots_keyboard_key {
-	uint32_t keycode;
-
-	const xkb_keysym_t *syms;
-	size_t syms_len;
-};
+#define ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP 32
 
 struct roots_keyboard {
 	struct roots_input *input;
@@ -25,7 +18,7 @@ struct roots_keyboard {
 	struct wl_listener key;
 	struct wl_list link;
 
-	struct roots_keyboard_key pressed_keys[ROOTS_KEYBOARD_PRESSED_KEYS_CAP];
+	xkb_keysym_t pressed_keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 };
 
 struct roots_pointer {

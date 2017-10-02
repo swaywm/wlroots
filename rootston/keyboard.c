@@ -10,54 +10,49 @@
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
 
-static ssize_t keyboard_pressed_key_index(struct roots_keyboard *keyboard,
-		uint32_t keycode) {
-	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYS_CAP; i++) {
-		if (keyboard->pressed_keys[i].keycode == keycode) {
+static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
+		xkb_keysym_t keysym) {
+	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; i++) {
+		if (keyboard->pressed_keysyms[i] == keysym) {
 			return i;
 		}
 	}
 	return -1;
 }
 
-static void keyboard_key_press(struct roots_keyboard *keyboard,
-		struct roots_keyboard_key *key) {
+static void keyboard_keysym_press(struct roots_keyboard *keyboard,
+		xkb_keysym_t keysym) {
 	struct roots_server *server = keyboard->input->server;
 
-	ssize_t i = keyboard_pressed_key_index(keyboard, key->keycode);
+	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
 	if (i < 0) {
-		i = keyboard_pressed_key_index(keyboard, 0);
+		i = keyboard_pressed_keysym_index(keyboard, 0);
 		if (i >= 0) {
-			memcpy(&keyboard->pressed_keys[i], key,
-				sizeof(struct roots_keyboard_key));
+			keyboard->pressed_keysyms[i] = keysym;
 		}
 	}
 
-	for (size_t i = 0; i < key->syms_len; i++) {
-		xkb_keysym_t sym = key->syms[i];
-		if (sym == XKB_KEY_Escape) {
-			// TEMPORARY, probably
-			wl_display_terminate(server->wl_display);
-		} else if (sym >= XKB_KEY_XF86Switch_VT_1 &&
-				sym <= XKB_KEY_XF86Switch_VT_12) {
-			if (wlr_backend_is_multi(server->backend)) {
-				struct wlr_session *session =
-					wlr_multi_get_session(server->backend);
-				if (session) {
-					unsigned vt = sym - XKB_KEY_XF86Switch_VT_1 + 1;
-					wlr_session_change_vt(session, vt);
-				}
+	if (keysym == XKB_KEY_Escape) {
+		// TEMPORARY, probably
+		wl_display_terminate(server->wl_display);
+	} else if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
+			keysym <= XKB_KEY_XF86Switch_VT_12) {
+		if (wlr_backend_is_multi(server->backend)) {
+			struct wlr_session *session =
+				wlr_multi_get_session(server->backend);
+			if (session) {
+				unsigned vt = keysym - XKB_KEY_XF86Switch_VT_1 + 1;
+				wlr_session_change_vt(session, vt);
 			}
 		}
 	}
 }
 
-static void keyboard_key_release(struct roots_keyboard *keyboard,
-		struct roots_keyboard_key *key) {
-	ssize_t i = keyboard_pressed_key_index(keyboard, key->keycode);
+static void keyboard_keysym_release(struct roots_keyboard *keyboard,
+		xkb_keysym_t keysym) {
+	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
 	if (i >= 0) {
-		struct roots_keyboard_key *pressed_key = &keyboard->pressed_keys[i];
-		memset(pressed_key, 0, sizeof(struct roots_keyboard_key));
+		keyboard->pressed_keysyms[i] = 0;
 	}
 }
 
@@ -69,26 +64,13 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	const xkb_keysym_t *syms;
 	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
 		keycode, &syms);
-
-	struct roots_keyboard_key *key = calloc(1,
-		sizeof(struct roots_keyboard_key));
-	if (key == NULL) {
-		return;
+	for (int i = 0; i < syms_len; i++) {
+		if (event->state == WLR_KEY_PRESSED) {
+			keyboard_keysym_press(keyboard, syms[i]);
+		} else { // WLR_KEY_RELEASED
+			keyboard_keysym_release(keyboard, syms[i]);
+		}
 	}
-	key->keycode = keycode;
-	key->syms = syms;
-	key->syms_len = syms_len;
-
-	switch (event->state) {
-	case WLR_KEY_PRESSED:
-		keyboard_key_press(keyboard, key);
-		break;
-	case WLR_KEY_RELEASED:
-		keyboard_key_release(keyboard, key);
-		break;
-	}
-
-	free(key);
 }
 
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
