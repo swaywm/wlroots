@@ -171,6 +171,45 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
+	} else if (strcmp(section, "bindings") == 0) {
+		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+		wl_list_insert(&config->bindings, &bc->link);
+
+		if (strcmp(value, "quit") == 0) {
+			bc->action = BINDING_CONFIG_ACTION_QUIT;
+		} else {
+			wlr_log(L_ERROR, "got unknown key binding action: %s", value);
+			wl_list_remove(&bc->link);
+			free(bc);
+			return 1;
+		}
+
+		bc->keysyms_len = 1;
+		char *symnames = strdup(name);
+		for (char *c = symnames; *c != '\0'; c++) {
+			if (*c == '+') {
+				*c = '\0';
+				bc->keysyms_len++;
+			}
+		}
+
+		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
+		char *symname = symnames;
+		for (size_t i = 0; i < bc->keysyms_len; i++) {
+			xkb_keysym_t sym = xkb_keysym_from_name(symname,
+				XKB_KEYSYM_NO_FLAGS);
+			if (sym == XKB_KEY_NoSymbol) {
+				wlr_log(L_ERROR, "got unknown key binding symbol: %s", symname);
+				wl_list_remove(&bc->link);
+				free(bc->keysyms);
+				free(bc);
+				break;
+			}
+			bc->keysyms[i] = sym;
+			symname += strlen(symname) + 1;
+		}
+
+		free(symnames);
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
@@ -182,6 +221,15 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
+	wl_list_init(&config->bindings);
+
+	// TEMPORARY, probably
+	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+	wl_list_insert(&config->bindings, &bc->link);
+	bc->action = BINDING_CONFIG_ACTION_QUIT;
+	bc->keysyms_len = 1;
+	bc->keysyms = calloc(1, sizeof(xkb_keysym_t));
+	bc->keysyms[0] = XKB_KEY_Escape;
 
 	int c;
 	while ((c = getopt(argc, argv, "C:h")) != -1) {
@@ -237,6 +285,8 @@ void roots_config_destroy(struct roots_config *config) {
 		free(dc->mapped_box);
 		free(dc);
 	}
+
+	// TODO: free bindings
 
 	free(config->config_path);
 	free(config->cursor.mapped_output);

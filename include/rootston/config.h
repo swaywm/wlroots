@@ -18,6 +18,17 @@ struct device_config {
 	struct wl_list link;
 };
 
+enum binding_config_action {
+	BINDING_CONFIG_ACTION_QUIT,
+};
+
+struct binding_config {
+	xkb_keysym_t *keysyms;
+	size_t keysyms_len;
+	enum binding_config_action action;
+	struct wl_list link;
+};
+
 struct roots_config {
 	// TODO: Multiple cursors, multiseat
 	struct {
@@ -27,6 +38,7 @@ struct roots_config {
 
 	struct wl_list outputs;
 	struct wl_list devices;
+	struct wl_list bindings;
 	char *config_path;
 };
 

@@ -20,23 +20,29 @@ static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
 	return -1;
 }
 
+static void keyboard_binding_execute(struct roots_keyboard *keyboard,
+		struct binding_config *bc) {
+	struct roots_server *server = keyboard->input->server;
+	switch (bc->action) {
+	case BINDING_CONFIG_ACTION_QUIT:
+		wl_display_terminate(server->wl_display);
+		break;
+	}
+}
+
 static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
-	struct roots_server *server = keyboard->input->server;
-
 	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
 	if (i < 0) {
-		i = keyboard_pressed_keysym_index(keyboard, 0);
+		i = keyboard_pressed_keysym_index(keyboard, XKB_KEY_NoSymbol);
 		if (i >= 0) {
 			keyboard->pressed_keysyms[i] = keysym;
 		}
 	}
 
-	if (keysym == XKB_KEY_Escape) {
-		// TEMPORARY, probably
-		wl_display_terminate(server->wl_display);
-	} else if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
+	if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
 			keysym <= XKB_KEY_XF86Switch_VT_12) {
+		struct roots_server *server = keyboard->input->server;
 		if (wlr_backend_is_multi(server->backend)) {
 			struct wlr_session *session =
 				wlr_multi_get_session(server->backend);
@@ -45,6 +51,24 @@ static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 				wlr_session_change_vt(session, vt);
 			}
 		}
+		return;
+	}
+
+	struct wl_list *bindings = &keyboard->input->server->config->bindings;
+	struct binding_config *bc;
+	wl_list_for_each(bc, bindings, link) {
+		bool ok = true;
+		for (size_t i = 0; i < bc->keysyms_len; i++) {
+			ssize_t j = keyboard_pressed_keysym_index(keyboard, bc->keysyms[i]);
+			if (j < 0) {
+				ok = false;
+				break;
+			}
+		}
+
+		if (ok) {
+			keyboard_binding_execute(keyboard, bc);
+		}
 	}
 }
 
@@ -52,7 +76,7 @@ static void keyboard_keysym_release(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
 	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
 	if (i >= 0) {
-		keyboard->pressed_keysyms[i] = 0;
+		keyboard->pressed_keysyms[i] = XKB_KEY_NoSymbol;
 	}
 }
 
