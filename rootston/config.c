@@ -216,14 +216,6 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	wl_list_init(&config->devices);
 	wl_list_init(&config->bindings);
 
-	// TEMPORARY, probably
-	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
-	wl_list_insert(&config->bindings, &bc->link);
-	bc->command = strdup("exit");
-	bc->keysyms_len = 1;
-	bc->keysyms = calloc(1, sizeof(xkb_keysym_t));
-	bc->keysyms[0] = XKB_KEY_Escape;
-
 	int c;
 	while ((c = getopt(argc, argv, "C:h")) != -1) {
 		switch (c) {
@@ -253,6 +245,14 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using empty config.");
+
+		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+		wl_list_insert(&config->bindings, &bc->link);
+		bc->command = strdup("exit");
+		bc->keysyms_len = 2;
+		bc->keysyms = calloc(1, sizeof(xkb_keysym_t));
+		bc->keysyms[0] = XKB_KEY_Meta_L;
+		bc->keysyms[1] = XKB_KEY_q;
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
 		exit(1);
