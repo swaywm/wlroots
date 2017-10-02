@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer.h>
@@ -25,6 +26,14 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	struct roots_server *server = keyboard->input->server;
 	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(server->wl_display);
+	} else {
+		pid_t pid = fork();
+		if (pid < 0) {
+			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
+			return;
+		} else if (pid == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", command, (void *)NULL);
+		}
 	}
 }
 
