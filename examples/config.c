@@ -19,7 +19,7 @@ static void usage(const char *name, int ret) {
 		"\n"
 		" -C <FILE>      Path to the configuration file\n"
 		"                (default: wlr-example.ini).\n"
-		"                See `examples/wlr-example.ini.example` for config\n"
+		"                See `rootston/rootston.ini.example` for config\n"
 		"                file documentation.\n", name);
 
 	exit(ret);

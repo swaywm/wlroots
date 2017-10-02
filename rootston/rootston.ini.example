@@ -1,0 +1,26 @@
+# Single output configuration. String after semicolon must match output's name.
+[output:VGA-1]
+# Set logical (layout) coordinates for this screen
+x = 1920
+y = 0
+
+# Screen transformation
+# possible values are:
+# '90', '180' or '270' - rotate output by specified angle clockwise
+# 'flipped' - flip output horizontally
+# 'flipped-90', 'flipped-180', 'flipped-270' - flip output horizontally
+#                                              and rotate by specified angle
+rotate = 90
+
+[cursor]
+# Restrict cursor movements to single output
+map-to-output = VGA-1
+# Restrict cursor movements to concrete rectangle
+geometry = 2500x800
+
+# Single device configuration. String after semicolon must match device's name.
+[device:PixArt Dell MS116 USB Optical Mouse]
+# Restrict cursor movements for this mouse to single output
+map-to-output = VGA-1
+# Restrict cursor movements for this mouse to concrete rectangle
+geometry = 2500x800
