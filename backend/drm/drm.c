@@ -32,13 +32,13 @@ bool wlr_drm_check_features(struct wlr_drm_backend *drm) {
 
 	if (getenv("WLR_DRM_NO_ATOMIC")) {
 		wlr_log(L_DEBUG, "WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
-		drm->iface = &iface_legacy;
+		drm->iface = &legacy_iface;
 	} else if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
 		wlr_log(L_DEBUG, "Atomic modesetting unsupported, using legacy DRM interface");
-		drm->iface = &iface_legacy;
+		drm->iface = &legacy_iface;
 	} else {
 		wlr_log(L_DEBUG, "Using atomic DRM interface");
-		drm->iface = &iface_atomic;
+		drm->iface = &atomic_iface;
 	}
 
 	return true;

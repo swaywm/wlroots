@@ -58,7 +58,7 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
 	return !drmModeMoveCursor(drm->fd, crtc->id, x, y);
 }
 
-const struct wlr_drm_interface iface_legacy = {
+const struct wlr_drm_interface legacy_iface = {
 	.conn_enable = legacy_conn_enable,
 	.crtc_pageflip = legacy_crtc_pageflip,
 	.crtc_set_cursor = legacy_crtc_set_cursor,

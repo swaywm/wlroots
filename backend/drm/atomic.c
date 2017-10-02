@@ -181,7 +181,7 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 	return atomic_end(drm->fd, &atom);
 }
 
-const struct wlr_drm_interface iface_atomic = {
+const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,

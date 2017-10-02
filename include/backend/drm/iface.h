@@ -29,7 +29,7 @@ struct wlr_drm_interface {
 		struct wlr_drm_crtc *crtc, int x, int y);
 };
 
-extern const struct wlr_drm_interface iface_atomic;
-extern const struct wlr_drm_interface iface_legacy;
+extern const struct wlr_drm_interface atomic_iface;
+extern const struct wlr_drm_interface legacy_iface;
 
 #endif
