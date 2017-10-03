@@ -18,7 +18,7 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double lx, double ly) {
+		struct timespec *when, double lx, double ly, float rotation) {
 	wlr_surface_flush_damage(surface);
 	if (surface->texture->valid) {
 		int width = surface->current->buffer_width;
@@ -27,10 +27,20 @@ static void render_surface(struct wlr_surface *surface,
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-					lx, ly, lx + width, ly + height)) {
+				lx, ly, lx + width, ly + height)) {
 			float matrix[16];
+
+			float translate_origin[16];
+			wlr_matrix_translate(&translate_origin,
+				ox + width/2, oy + height/2, 0);
+			float rotate[16];
+			wlr_matrix_rotate(&rotate, rotation);
+			float translate_center[16];
+			wlr_matrix_translate(&translate_center, -width/2, -height/2, 0);
 			float transform[16];
-			wlr_matrix_translate(&transform, ox, oy, 0);
+			wlr_matrix_mul(&translate_origin, &rotate, &transform);
+			wlr_matrix_mul(&transform, &translate_center, &transform);
+
 			wlr_surface_get_matrix(surface, &matrix,
 					&wlr_output->transform_matrix, &transform);
 			wlr_render_with_matrix(desktop->server->renderer,
@@ -48,7 +58,8 @@ static void render_surface(struct wlr_surface *surface,
 		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
 			render_surface(subsurface->surface, desktop, wlr_output, when,
 				lx + subsurface->surface->current->subsurface_position.x,
-				ly + subsurface->surface->current->subsurface_position.y);
+				ly + subsurface->surface->current->subsurface_position.y,
+				rotation);
 		}
 	}
 }
@@ -56,7 +67,7 @@ static void render_surface(struct wlr_surface *surface,
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
 	render_surface(view->wlr_surface, desktop, wlr_output, when,
-		view->x, view->y);
+		view->x, view->y, view->rotation);
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {

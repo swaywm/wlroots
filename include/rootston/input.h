@@ -83,6 +83,7 @@ struct roots_input {
 	struct roots_view *active_view;
 	int offs_x, offs_y;
 	int view_x, view_y, view_width, view_height;
+	float view_rotation;
 	uint32_t resize_edges;
 
 	// Ring buffer of input events that could trigger move/resize/rotate
