@@ -13,7 +13,7 @@ upstream. Try this:
 
 1. Fork wlroots
 2. `git clone https://github.com/username/wlroots && cd wlroots`
-3. `git remote add upstream https://github.com/SirCmpwn/wlroots`
+3. `git remote add upstream https://github.com/swaywm/wlroots`
 
 You only need to do this once. You're never going to use your fork's master
 branch. Instead, when you start working on a feature, do this:

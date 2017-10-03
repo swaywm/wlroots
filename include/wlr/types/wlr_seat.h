@@ -37,6 +37,7 @@ struct wlr_seat_keyboard {
 	struct wlr_seat *seat;
 	struct wlr_keyboard *keyboard;
 	struct wl_listener key;
+	struct wl_listener modifiers;
 	struct wl_listener keymap;
 	struct wl_listener destroy;
 	struct wl_list link;

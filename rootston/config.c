@@ -171,6 +171,59 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
+	} else if (strcmp(section, "bindings") == 0) {
+		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+		wl_list_insert(&config->bindings, &bc->link);
+
+		bc->command = strdup(value);
+
+		size_t keysyms_len = 1;
+		char *symnames = strdup(name);
+		for (char *c = symnames; *c != '\0'; c++) {
+			if (*c == '+') {
+				*c = '\0';
+				keysyms_len++;
+			}
+		}
+
+		// TODO: bc->keysyms is larger than needed
+		bc->keysyms = calloc(1, keysyms_len * sizeof(xkb_keysym_t));
+		char *symname = symnames;
+		for (size_t i = 0; i < keysyms_len; i++) {
+			if (strcmp(symname, "Shift") == 0) {
+				bc->modifiers |= WLR_MODIFIER_SHIFT;
+			} else if (strcmp(symname, "Caps") == 0) {
+				bc->modifiers |= WLR_MODIFIER_CAPS;
+			} else if (strcmp(symname, "Ctrl") == 0) {
+				bc->modifiers |= WLR_MODIFIER_CTRL;
+			} else if (strcmp(symname, "Alt") == 0) {
+				bc->modifiers |= WLR_MODIFIER_ALT;
+			} else if (strcmp(symname, "Mod2") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD2;
+			} else if (strcmp(symname, "Mod3") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD3;
+			} else if (strcmp(symname, "Logo") == 0) {
+				bc->modifiers |= WLR_MODIFIER_LOGO;
+			} else if (strcmp(symname, "Mod5") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD5;
+			} else {
+				xkb_keysym_t sym = xkb_keysym_from_name(symname,
+					XKB_KEYSYM_NO_FLAGS);
+				if (sym == XKB_KEY_NoSymbol) {
+					wlr_log(L_ERROR, "got unknown key binding symbol: %s",
+						symname);
+					wl_list_remove(&bc->link);
+					free(bc->keysyms);
+					free(bc);
+					break;
+				}
+				bc->keysyms[bc->keysyms_len] = sym;
+				bc->keysyms_len++;
+			}
+			symname += strlen(symname) + 1;
+		}
+
+		free(symnames);
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
@@ -182,6 +235,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
+	wl_list_init(&config->bindings);
 
 	int c;
 	while ((c = getopt(argc, argv, "C:h")) != -1) {
@@ -212,6 +266,15 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using empty config.");
+
+		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+		wl_list_insert(&config->bindings, &bc->link);
+		bc->command = strdup("exit");
+		bc->modifiers = WLR_MODIFIER_LOGO;
+		bc->keysyms_len = 2;
+		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
+		bc->keysyms[0] = XKB_KEY_Meta_L;
+		bc->keysyms[1] = XKB_KEY_q;
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
 		exit(1);
@@ -236,6 +299,13 @@ void roots_config_destroy(struct roots_config *config) {
 		free(dc->mapped_output);
 		free(dc->mapped_box);
 		free(dc);
+	}
+
+	struct binding_config *bc, *btmp = NULL;
+	wl_list_for_each_safe(bc, btmp, &config->bindings, link) {
+		free(bc->keysyms);
+		free(bc->command);
+		free(bc);
 	}
 
 	free(config->config_path);

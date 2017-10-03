@@ -7,6 +7,39 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/matrix.h>
 
+static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
+	if (state->buffer) {
+		wl_list_remove(&state->buffer_destroy_listener.link);
+		state->buffer = NULL;
+	}
+}
+
+static void buffer_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_surface_state *state =
+		wl_container_of(listener, state, buffer_destroy_listener);
+
+	wl_list_remove(&state->buffer_destroy_listener.link);
+	state->buffer = NULL;
+}
+
+static void wlr_surface_state_release_buffer(struct wlr_surface_state *state) {
+	if (state->buffer) {
+		wl_resource_post_event(state->buffer, WL_BUFFER_RELEASE);
+		wl_list_remove(&state->buffer_destroy_listener.link);
+		state->buffer = NULL;
+	}
+}
+
+static void wlr_surface_state_set_buffer(struct wlr_surface_state *state,
+		struct wl_resource *buffer) {
+	state->buffer = buffer;
+	if (buffer) {
+		wl_resource_add_destroy_listener(buffer,
+			&state->buffer_destroy_listener);
+		state->buffer_destroy_listener.notify = buffer_destroy;
+	}
+}
+
 static void surface_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -18,7 +51,8 @@ static void surface_attach(struct wl_client *client,
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 
 	surface->pending->invalid |= WLR_SURFACE_INVALID_BUFFER;
-	surface->pending->buffer = buffer;
+	wlr_surface_state_reset_buffer(surface->pending);
+	wlr_surface_state_set_buffer(surface->pending, buffer);
 }
 
 static void surface_damage(struct wl_client *client,
@@ -223,12 +257,9 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 		update_size = true;
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER)) {
-		if (state->buffer) {
-			wl_resource_post_event(state->buffer, WL_BUFFER_RELEASE);
-		}
-
-		state->buffer = next->buffer;
-		next->buffer = NULL;
+		wlr_surface_state_release_buffer(state);
+		wlr_surface_state_set_buffer(state, next->buffer);
+		wlr_surface_state_reset_buffer(next);
 		update_size = true;
 	}
 	if (update_size) {
@@ -460,8 +491,7 @@ release:
 	pixman_region32_clear(&surface->current->surface_damage);
 	pixman_region32_clear(&surface->current->buffer_damage);
 
-	wl_resource_post_event(surface->current->buffer, WL_BUFFER_RELEASE);
-	surface->current->buffer = NULL;
+	wlr_surface_state_release_buffer(surface->current);
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
@@ -522,6 +552,7 @@ static struct wlr_surface_state *wlr_surface_state_create() {
 }
 
 static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
+	wlr_surface_state_reset_buffer(state);
 	struct wlr_frame_callback *cb, *tmp;
 	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
 		wl_resource_destroy(cb->resource);
