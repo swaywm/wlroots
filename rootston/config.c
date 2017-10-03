@@ -177,28 +177,49 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 
 		bc->command = strdup(value);
 
-		bc->keysyms_len = 1;
+		size_t keysyms_len = 1;
 		char *symnames = strdup(name);
 		for (char *c = symnames; *c != '\0'; c++) {
 			if (*c == '+') {
 				*c = '\0';
-				bc->keysyms_len++;
+				keysyms_len++;
 			}
 		}
 
-		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
+		// TODO: bc->keysyms is larger than needed
+		bc->keysyms = calloc(1, keysyms_len * sizeof(xkb_keysym_t));
 		char *symname = symnames;
-		for (size_t i = 0; i < bc->keysyms_len; i++) {
-			xkb_keysym_t sym = xkb_keysym_from_name(symname,
-				XKB_KEYSYM_NO_FLAGS);
-			if (sym == XKB_KEY_NoSymbol) {
-				wlr_log(L_ERROR, "got unknown key binding symbol: %s", symname);
-				wl_list_remove(&bc->link);
-				free(bc->keysyms);
-				free(bc);
-				break;
+		for (size_t i = 0; i < keysyms_len; i++) {
+			if (strcmp(symname, "Shift") == 0) {
+				bc->modifiers |= WLR_MODIFIER_SHIFT;
+			} else if (strcmp(symname, "Caps") == 0) {
+				bc->modifiers |= WLR_MODIFIER_CAPS;
+			} else if (strcmp(symname, "Ctrl") == 0) {
+				bc->modifiers |= WLR_MODIFIER_CTRL;
+			} else if (strcmp(symname, "Alt") == 0) {
+				bc->modifiers |= WLR_MODIFIER_ALT;
+			} else if (strcmp(symname, "Mod2") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD2;
+			} else if (strcmp(symname, "Mod3") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD3;
+			} else if (strcmp(symname, "Logo") == 0) {
+				bc->modifiers |= WLR_MODIFIER_LOGO;
+			} else if (strcmp(symname, "Mod5") == 0) {
+				bc->modifiers |= WLR_MODIFIER_MOD5;
+			} else {
+				xkb_keysym_t sym = xkb_keysym_from_name(symname,
+					XKB_KEYSYM_NO_FLAGS);
+				if (sym == XKB_KEY_NoSymbol) {
+					wlr_log(L_ERROR, "got unknown key binding symbol: %s",
+						symname);
+					wl_list_remove(&bc->link);
+					free(bc->keysyms);
+					free(bc);
+					break;
+				}
+				bc->keysyms[bc->keysyms_len] = sym;
+				bc->keysyms_len++;
 			}
-			bc->keysyms[i] = sym;
 			symname += strlen(symname) + 1;
 		}
 
@@ -249,6 +270,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
 		wl_list_insert(&config->bindings, &bc->link);
 		bc->command = strdup("exit");
+		bc->modifiers = WLR_MODIFIER_LOGO;
 		bc->keysyms_len = 2;
 		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
 		bc->keysyms[0] = XKB_KEY_Meta_L;

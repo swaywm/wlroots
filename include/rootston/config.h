@@ -19,6 +19,7 @@ struct device_config {
 };
 
 struct binding_config {
+	uint32_t modifiers;
 	xkb_keysym_t *keysyms;
 	size_t keysyms_len;
 	char *command;

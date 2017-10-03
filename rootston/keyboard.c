@@ -61,9 +61,14 @@ static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 		return;
 	}
 
+	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
 	struct binding_config *bc;
 	wl_list_for_each(bc, bindings, link) {
+		if (modifiers ^ bc->modifiers) {
+			continue;
+		}
+
 		bool ok = true;
 		for (size_t i = 0; i < bc->keysyms_len; i++) {
 			ssize_t j = keyboard_pressed_keysym_index(keyboard, bc->keysyms[i]);

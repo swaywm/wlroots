@@ -30,6 +30,15 @@ void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
 	wl_signal_emit(&keyboard->events.key, event);
 }
 
+void wlr_keyboard_update_modifiers(struct wlr_keyboard *keyboard,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group) {
+	keyboard->modifiers.depressed = mods_depressed;
+	keyboard->modifiers.latched = mods_latched;
+	keyboard->modifiers.locked = mods_locked;
+	keyboard->modifiers.group = group;
+}
+
 void wlr_keyboard_init(struct wlr_keyboard *kb,
 		struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
