@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 // TODO: BSD et al
@@ -141,6 +142,18 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 		event->orientation, event->delta);
 }
 
+static bool is_logo_pressed(struct roots_input *input) {
+	struct roots_keyboard *keyboard;
+	wl_list_for_each(keyboard, &input->keyboards, link) {
+		uint32_t modifiers =
+			wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+		if ((modifiers ^ WLR_MODIFIER_LOGO) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static void do_cursor_button_press(struct roots_input *input,
 		struct wlr_cursor *cursor, struct wlr_input_device *device,
 		uint32_t time, uint32_t button, uint32_t state) {
@@ -148,9 +161,27 @@ static void do_cursor_button_press(struct roots_input *input,
 	struct wlr_surface *surface;
 	double sx, sy;
 	struct roots_view *view = view_at(desktop,
-			input->cursor->x, input->cursor->y, &surface, &sx, &sy);
-	uint32_t serial = wlr_seat_pointer_send_button(
-			input->wl_seat, time, button, state);
+		input->cursor->x, input->cursor->y, &surface, &sx, &sy);
+
+	if (state == WLR_BUTTON_PRESSED && view && is_logo_pressed(input)) {
+		set_view_focus(input, desktop, view);
+
+		switch (button) {
+		case BTN_LEFT:
+			view_begin_move(input, cursor, view);
+			break;
+		case BTN_RIGHT:
+			view_begin_resize(input, cursor, view,
+				ROOTS_CURSOR_RESIZE_EDGE_RIGHT |
+				ROOTS_CURSOR_RESIZE_EDGE_BOTTOM);
+			break;
+		}
+		return;
+	}
+
+	uint32_t serial = wlr_seat_pointer_send_button(input->wl_seat, time, button,
+		state);
+
 	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
