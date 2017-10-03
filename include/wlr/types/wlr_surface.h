@@ -24,6 +24,7 @@ struct wlr_frame_callback {
 struct wlr_surface_state {
 	uint32_t invalid;
 	struct wl_resource *buffer;
+	struct wl_listener buffer_destroy_listener;
 	int32_t sx, sy;
 	pixman_region32_t surface_damage, buffer_damage;
 	pixman_region32_t opaque, input;
