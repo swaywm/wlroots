@@ -40,6 +40,15 @@ void view_get_input_bounds(struct roots_view *view, struct wlr_box *box) {
 		view->get_input_bounds(view, box);
 		return;
 	}
+
+	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
+		box->x = view->xdg_surface_v6->geometry->x;
+		box->y = view->xdg_surface_v6->geometry->y;
+		box->width = view->xdg_surface_v6->geometry->width;
+		box->height = view->xdg_surface_v6->geometry->height;
+		return;
+	}
+
 	box->x = box->y = 0;
 	box->width = view->wlr_surface->current->width;
 	box->height = view->wlr_surface->current->height;
