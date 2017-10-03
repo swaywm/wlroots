@@ -49,6 +49,7 @@ struct wlr_keyboard {
 
 	struct {
 		struct wl_signal key;
+		struct wl_signal modifiers;
 		struct wl_signal keymap;
 	} events;
 

@@ -155,11 +155,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
 		uint32_t mods_locked, uint32_t group) {
-	struct wlr_input_device *dev = data;
-	assert(dev && dev->keyboard);
 
-	wlr_keyboard_update_modifiers(dev->keyboard, mods_depressed, mods_latched,
-		mods_locked, group);
 }
 
 static void keyboard_handle_repeat_info(void *data, struct wl_keyboard *wl_keyboard,

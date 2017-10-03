@@ -21,28 +21,7 @@ static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	wlr_keyboard_led_update(keyboard, leds);
 }
 
-void wlr_keyboard_update_modifiers(struct wlr_keyboard *keyboard,
-		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
-		uint32_t group) {
-	if (mods_depressed == keyboard->modifiers.depressed &&
-			mods_latched == keyboard->modifiers.latched &&
-			mods_locked == keyboard->modifiers.locked &&
-			group == keyboard->modifiers.group) {
-		return;
-	}
-	keyboard->modifiers.depressed = mods_depressed;
-	keyboard->modifiers.latched = mods_latched;
-	keyboard->modifiers.locked = mods_locked;
-	keyboard->modifiers.group = group;
-}
-
-void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
-		struct wlr_event_keyboard_key *event) {
-	uint32_t keycode = event->keycode + 8;
-	xkb_state_update_key(keyboard->xkb_state, keycode,
-		event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
-	keyboard_led_update(keyboard);
-
+static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
 		XKB_STATE_MODS_DEPRESSED);
 	xkb_mod_mask_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
@@ -51,8 +30,28 @@ void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
 		XKB_STATE_MODS_LOCKED);
 	xkb_mod_mask_t group = xkb_state_serialize_layout(keyboard->xkb_state,
 		XKB_STATE_LAYOUT_EFFECTIVE);
-	wlr_keyboard_update_modifiers(keyboard, depressed, latched, locked, group);
+	if (depressed == keyboard->modifiers.depressed &&
+			latched == keyboard->modifiers.latched &&
+			locked == keyboard->modifiers.locked &&
+			group == keyboard->modifiers.group) {
+		return;
+	}
 
+	keyboard->modifiers.depressed = depressed;
+	keyboard->modifiers.latched = latched;
+	keyboard->modifiers.locked = locked;
+	keyboard->modifiers.group = group;
+
+	wl_signal_emit(&keyboard->events.modifiers, keyboard);
+}
+
+void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
+		struct wlr_event_keyboard_key *event) {
+	uint32_t keycode = event->keycode + 8;
+	xkb_state_update_key(keyboard->xkb_state, keycode,
+		event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
+	keyboard_led_update(keyboard);
+	keyboard_modifier_update(keyboard);
 	wl_signal_emit(&keyboard->events.key, event);
 }
 
@@ -60,6 +59,7 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 		struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
 	wl_signal_init(&kb->events.key);
+	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
 }
 
