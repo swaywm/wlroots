@@ -402,28 +402,10 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		handle->seat_keyboard = seat_kb;
 	}
 
-	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_MODS_DEPRESSED);
-	xkb_mod_mask_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_MODS_LATCHED);
-	xkb_mod_mask_t locked = xkb_state_serialize_mods(keyboard->xkb_state,
-		XKB_STATE_MODS_LOCKED);
-	xkb_mod_mask_t group = xkb_state_serialize_layout(keyboard->xkb_state,
-		XKB_STATE_LAYOUT_EFFECTIVE);
-	if (depressed != keyboard->modifiers.depressed ||
-			latched != keyboard->modifiers.latched ||
-			locked != keyboard->modifiers.locked ||
-			group != keyboard->modifiers.group) {
-		keyboard->modifiers.depressed = depressed;
-		keyboard->modifiers.latched = latched;
-		keyboard->modifiers.locked = locked;
-		keyboard->modifiers.group = group;
-
-		uint32_t modifiers_serial = wl_display_next_serial(seat->display);
-		wl_keyboard_send_modifiers(handle->keyboard, modifiers_serial, depressed,
-			latched, locked, group);
-	}
-
+	uint32_t modifiers_serial = wl_display_next_serial(seat->display);
+	wl_keyboard_send_modifiers(handle->keyboard, modifiers_serial,
+		keyboard->modifiers.depressed, keyboard->modifiers.latched,
+		keyboard->modifiers.locked, keyboard->modifiers.group);
 	uint32_t key_serial = wl_display_next_serial(seat->display);
 	wl_keyboard_send_key(handle->keyboard, key_serial,
 		(uint32_t)event->time_usec, event->keycode, key_state);

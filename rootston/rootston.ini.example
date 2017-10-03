@@ -24,3 +24,9 @@ geometry = 2500x800
 map-to-output = VGA-1
 # Restrict cursor movements for this mouse to concrete rectangle
 geometry = 2500x800
+
+# Keybindings
+# Maps key combinations with commands to execute
+# The special command "exit" stops the compositor
+[bindings]
+Logo+q=exit
