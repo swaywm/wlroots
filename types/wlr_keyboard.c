@@ -42,6 +42,8 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	} else {
 		wl_list_remove(&kb->events.key.listener_list);
 	}
+	xkb_state_unref(kb->xkb_state);
+	xkb_map_unref(kb->keymap);
 	close(kb->keymap_fd);
 	free(kb);
 }
