@@ -1,13 +1,13 @@
-# wlroots [![](https://api.travis-ci.org/SirCmpwn/wlroots.svg)](https://travis-ci.org/SirCmpwn/wlroots)
+# wlroots [![](https://api.travis-ci.org/swaywm/wlroots.svg)](https://travis-ci.org/swaywm/wlroots)
 
 Pluggable, composable modules for building a
 [Wayland](http://wayland.freedesktop.org/) compositor.
 
-This is a WIP: [status](https://github.com/SirCmpwn/wlroots/issues/9)
+This is a WIP: [status](https://github.com/swaywm/wlroots/issues/9)
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/SirCmpwn/wlroots/blob/master/CONTRIBUTING.md)
+See [CONTRIBUTING.md](https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md)
 
 ## Building
 

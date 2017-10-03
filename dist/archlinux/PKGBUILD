@@ -16,8 +16,8 @@ depends=(
 	"libxcb"
 )
 arch=("x86_64")
-url="https://github.com/SirCmpwn/wlroots"
-source=("${pkgname}::git+https://github.com/SirCmpwn/wlroots.git")
+url="https://github.com/swaywm/wlroots"
+source=("${pkgname}::git+https://github.com/swaywm/wlroots.git")
 sha1sums=('SKIP')
 provides=('wlroots')
 conflicts=('wlroots')
