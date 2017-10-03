@@ -33,6 +33,10 @@ struct roots_config {
 		struct wlr_box *mapped_box;
 	} cursor;
 
+	struct {
+		uint32_t meta_key;
+	} keyboard;
+
 	struct wl_list outputs;
 	struct wl_list devices;
 	struct wl_list bindings;

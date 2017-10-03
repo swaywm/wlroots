@@ -86,6 +86,28 @@ invalid_input:
 	return NULL;
 }
 
+static uint32_t parse_modifier(const char *symname) {
+	if (strcmp(symname, "Shift") == 0) {
+		return WLR_MODIFIER_SHIFT;
+	} else if (strcmp(symname, "Caps") == 0) {
+		return WLR_MODIFIER_CAPS;
+	} else if (strcmp(symname, "Ctrl") == 0) {
+		return WLR_MODIFIER_CTRL;
+	} else if (strcmp(symname, "Alt") == 0) {
+		return WLR_MODIFIER_ALT;
+	} else if (strcmp(symname, "Mod2") == 0) {
+		return WLR_MODIFIER_MOD2;
+	} else if (strcmp(symname, "Mod3") == 0) {
+		return WLR_MODIFIER_MOD3;
+	} else if (strcmp(symname, "Logo") == 0) {
+		return WLR_MODIFIER_LOGO;
+	} else if (strcmp(symname, "Mod5") == 0) {
+		return WLR_MODIFIER_MOD5;
+	} else {
+		return 0;
+	}
+}
+
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 
@@ -171,6 +193,15 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
+	} else if (strcmp(section, "keyboard") == 0) {
+		if (strcmp(name, "meta-key") == 0) {
+			config->keyboard.meta_key = parse_modifier(value);
+			if (config->keyboard.meta_key == 0) {
+				wlr_log(L_ERROR, "got unknown meta key: %s", name);
+			}
+		} else {
+			wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
+		}
 	} else if (strcmp(section, "bindings") == 0) {
 		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
 		wl_list_insert(&config->bindings, &bc->link);
@@ -190,22 +221,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		bc->keysyms = calloc(1, keysyms_len * sizeof(xkb_keysym_t));
 		char *symname = symnames;
 		for (size_t i = 0; i < keysyms_len; i++) {
-			if (strcmp(symname, "Shift") == 0) {
-				bc->modifiers |= WLR_MODIFIER_SHIFT;
-			} else if (strcmp(symname, "Caps") == 0) {
-				bc->modifiers |= WLR_MODIFIER_CAPS;
-			} else if (strcmp(symname, "Ctrl") == 0) {
-				bc->modifiers |= WLR_MODIFIER_CTRL;
-			} else if (strcmp(symname, "Alt") == 0) {
-				bc->modifiers |= WLR_MODIFIER_ALT;
-			} else if (strcmp(symname, "Mod2") == 0) {
-				bc->modifiers |= WLR_MODIFIER_MOD2;
-			} else if (strcmp(symname, "Mod3") == 0) {
-				bc->modifiers |= WLR_MODIFIER_MOD3;
-			} else if (strcmp(symname, "Logo") == 0) {
-				bc->modifiers |= WLR_MODIFIER_LOGO;
-			} else if (strcmp(symname, "Mod5") == 0) {
-				bc->modifiers |= WLR_MODIFIER_MOD5;
+			uint32_t modifier = parse_modifier(symname);
+			if (modifier != 0) {
+				bc->modifiers |= modifier;
 			} else {
 				xkb_keysym_t sym = xkb_keysym_from_name(symname,
 					XKB_KEYSYM_NO_FLAGS);
