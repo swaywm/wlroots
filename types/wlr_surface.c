@@ -12,6 +12,13 @@ static void surface_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
+static void buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_surface_state *state =
+		wl_container_of(listener, state, buffer_destroy_listener);
+	state->buffer = NULL;
+}
+
 static void surface_attach(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *buffer, int32_t sx, int32_t sy) {
@@ -229,6 +236,10 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 
 		state->buffer = next->buffer;
 		next->buffer = NULL;
+
+		wl_resource_add_destroy_listener(state->buffer, &state->buffer_destroy_listener);
+		state->buffer_destroy_listener.notify = buffer_destroy;
+
 		update_size = true;
 	}
 	if (update_size) {
