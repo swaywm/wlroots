@@ -10,11 +10,15 @@
 #include "rootston/view.h"
 #include "rootston/server.h"
 
+#define ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP 32
+
 struct roots_keyboard {
 	struct roots_input *input;
 	struct wlr_input_device *device;
 	struct wl_listener key;
 	struct wl_list link;
+
+	xkb_keysym_t pressed_keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 };
 
 struct roots_pointer {
