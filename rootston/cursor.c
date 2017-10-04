@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -114,6 +115,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			int vx = input->cursor->x - ox,
 				vy = input->cursor->y - oy;
 			float angle = atan2(vx*uy - vy*ux, vx*ux + vy*uy);
+			int steps = 12;
+			angle = round(angle/M_PI*steps) / (steps/M_PI);
 			view->rotation = input->view_rotation + angle;
 		}
 		break;
