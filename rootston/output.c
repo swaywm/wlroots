@@ -56,9 +56,24 @@ static void render_surface(struct wlr_surface *surface,
 
 		struct wlr_subsurface *subsurface;
 		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+			double sx = subsurface->surface->current->subsurface_position.x,
+				sy = subsurface->surface->current->subsurface_position.y;
+			double sw = subsurface->surface->current->buffer_width,
+				sh = subsurface->surface->current->buffer_height;
+			if (rotation != 0.0) {
+				// Coordinates relative to the center of the subsurface
+				double ox = sx - (double)width/2 + sw/2,
+					oy = sy - (double)height/2 + sh/2;
+				// Rotated coordinates
+				double rx = cos(-rotation)*ox - sin(-rotation)*oy,
+					ry = cos(-rotation)*oy + sin(-rotation)*ox;
+				sx = rx + (double)width/2 - sw/2;
+				sy = ry + (double)height/2 - sh/2;
+			}
+
 			render_surface(subsurface->surface, desktop, wlr_output, when,
-				lx + subsurface->surface->current->subsurface_position.x,
-				ly + subsurface->surface->current->subsurface_position.y,
+				lx + sx,
+				ly + sy,
 				rotation);
 		}
 	}

@@ -102,8 +102,8 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			// Rotated coordinates
 			double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
 				ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
-			view_sx = (double)box.width/2 + rx;
-			view_sy = (double)box.height/2 + ry;
+			view_sx = rx + (double)box.width/2;
+			view_sy = ry + (double)box.height/2;
 		}
 
 		double sub_x, sub_y;
