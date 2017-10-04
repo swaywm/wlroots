@@ -215,6 +215,12 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 		wlr_xwayland_finish(wlr_xwayland);
 		return false;
 	}
+
+	// set $DISPLAY
+	char dpy[4] = {0};
+	snprintf(dpy, 4, ":%d", wlr_xwayland->display);
+	setenv("DISPLAY", dpy, true);
+
 	wlr_xwayland->wl_fd[0] = -1; /* not ours anymore */
 
 	wlr_xwayland->destroy_listener.notify = xwayland_destroy_event;
