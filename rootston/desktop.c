@@ -93,17 +93,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		double view_sx = lx - view->x;
 		double view_sy = ly - view->y;
 
-		double sub_x, sub_y;
-		struct wlr_subsurface *subsurface =
-			subsurface_at(view->wlr_surface, view_sx, view_sy, &sub_x, &sub_y);
-
-		if (subsurface) {
-			*sx = view_sx - sub_x;
-			*sy = view_sy - sub_y;
-			*surface = subsurface->surface;
-			return view;
-		}
-
 		struct wlr_box box;
 		view_get_input_bounds(view, &box);
 		if (view->rotation != 0.0) {
@@ -115,6 +104,16 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 				ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
 			view_sx = (double)box.width/2 + rx;
 			view_sy = (double)box.height/2 + ry;
+		}
+
+		double sub_x, sub_y;
+		struct wlr_subsurface *subsurface =
+			subsurface_at(view->wlr_surface, view_sx, view_sy, &sub_x, &sub_y);
+		if (subsurface) {
+			*sx = view_sx - sub_x;
+			*sy = view_sy - sub_y;
+			*surface = subsurface->surface;
+			return view;
 		}
 
 		if (wlr_box_contains_point(&box, view_sx, view_sy)) {
