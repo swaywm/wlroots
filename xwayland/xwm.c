@@ -89,12 +89,14 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	for (size_t i = 0; i < surface->state->length; i++) {
 		free(surface->state->items[i]);
 	}
+	free(surface->title);
+	free(surface->class);
+	free(surface->instance);
 	list_free(surface->state);
 	free(surface->window_type);
 	free(surface->protocols);
-	free(surface->class);
-	free(surface->instance);
-	free(surface->title);
+	free(surface->hints);
+	free(surface->size_hints);
 	free(surface);
 }
 
@@ -286,7 +288,12 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xcb_icccm_get_wm_hints_from_reply(&surface->hints, reply);
+	free(surface->hints);
+	surface->hints = calloc(1, sizeof(xcb_icccm_wm_hints_t));
+	if (surface->hints == NULL) {
+		return;
+	}
+	xcb_icccm_get_wm_hints_from_reply(surface->hints, reply);
 
 	wlr_log(L_DEBUG, "WM_HINTS (%d)", reply->value_len);
 }
@@ -304,7 +311,12 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xcb_icccm_get_wm_size_hints_from_reply(&surface->size_hints, reply);
+	free(surface->size_hints);
+	surface->size_hints = calloc(1, sizeof(xcb_size_hints_t));
+	if (surface->size_hints == NULL) {
+		return;
+	}
+	xcb_icccm_get_wm_size_hints_from_reply(surface->size_hints, reply);
 
 	wlr_log(L_DEBUG, "WM_NORMAL_HINTS (%d)", reply->value_len);
 }
