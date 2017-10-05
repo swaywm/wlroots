@@ -8,10 +8,18 @@
 #include "wlr/xwayland.h"
 #include "xwm.h"
 
+#ifdef HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_DELETE_WINDOW",
+	"WM_HINTS",
 	"WM_PROTOCOLS",
+	"WM_NORMAL_HINTS",
+	"WM_SIZE_HINTS",
+	"_MOTIF_WM_HINTS",
 	"UTF8_STRING",
 	"WM_S0",
 	"_NET_SUPPORTED",
@@ -81,12 +89,14 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	for (size_t i = 0; i < surface->state->length; i++) {
 		free(surface->state->items[i]);
 	}
+	free(surface->title);
+	free(surface->class);
+	free(surface->instance);
 	list_free(surface->state);
 	free(surface->window_type);
 	free(surface->protocols);
-	free(surface->class);
-	free(surface->instance);
-	free(surface->title);
+	free(surface->hints);
+	free(surface->size_hints);
 	free(surface);
 }
 
@@ -269,6 +279,98 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
+#ifdef HAS_XCB_ICCCM
+static void read_surface_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// According to the docs, reply->type == xwm->atoms[WM_HINTS]
+	// In practice, reply->type == XCB_ATOM_ATOM
+	if (reply->value_len == 0) {
+		return;
+	}
+
+	xcb_icccm_wm_hints_t hints;
+	xcb_icccm_get_wm_hints_from_reply(&hints, reply);
+
+	free(surface->hints);
+	surface->hints = calloc(1, sizeof(struct wlr_xwayland_surface_hints));
+	if (surface->hints == NULL) {
+		return;
+	}
+	memcpy(surface->hints, &hints, sizeof(struct wlr_xwayland_surface_hints));
+	surface->hints_urgency = xcb_icccm_wm_hints_get_urgency(&hints);
+
+	wlr_log(L_DEBUG, "WM_HINTS (%d)", reply->value_len);
+}
+#else
+static void read_surface_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// Do nothing
+}
+#endif
+
+#ifdef HAS_XCB_ICCCM
+static void read_surface_normal_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->type != xwm->atoms[WM_SIZE_HINTS] || reply->value_len == 0) {
+		return;
+	}
+
+	xcb_size_hints_t size_hints;
+	xcb_icccm_get_wm_size_hints_from_reply(&size_hints, reply);
+
+	free(surface->size_hints);
+	surface->size_hints =
+		calloc(1, sizeof(struct wlr_xwayland_surface_size_hints));
+	if (surface->size_hints == NULL) {
+		return;
+	}
+	memcpy(surface->size_hints, &size_hints,
+		sizeof(struct wlr_xwayland_surface_size_hints));
+
+	wlr_log(L_DEBUG, "WM_NORMAL_HINTS (%d)", reply->value_len);
+}
+#else
+static void read_surface_normal_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// Do nothing
+}
+#endif
+
+
+#define MWM_HINTS_FLAGS_FIELD 0
+#define MWM_HINTS_DECORATIONS_FIELD 2
+
+#define MWM_HINTS_DECORATIONS (1 << 1)
+
+#define MWM_DECOR_ALL (1 << 0)
+#define MWM_DECOR_BORDER (1 << 1)
+#define MWM_DECOR_TITLE (1 << 3)
+
+static void read_surface_motif_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	if (reply->value_len < 5) {
+		return;
+	}
+
+	uint32_t *motif_hints = xcb_get_property_value(reply);
+	if (motif_hints[MWM_HINTS_FLAGS_FIELD] & MWM_HINTS_DECORATIONS) {
+		surface->decorations = WLR_XWAYLAND_SURFACE_DECORATIONS_ALL;
+		uint32_t decorations = motif_hints[MWM_HINTS_DECORATIONS_FIELD];
+		if ((decorations & MWM_DECOR_ALL) == 0) {
+			if ((decorations & MWM_DECOR_BORDER) == 0) {
+				surface->decorations |=
+					WLR_XWAYLAND_SURFACE_DECORATIONS_NO_BORDER;
+			}
+			if ((decorations & MWM_DECOR_TITLE) == 0) {
+				surface->decorations |=
+					WLR_XWAYLAND_SURFACE_DECORATIONS_NO_TITLE;
+			}
+		}
+	}
+
+	wlr_log(L_DEBUG, "MOTIF_WM_HINTS (%d)", reply->value_len);
+}
+
 static void read_surface_property(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_atom_t property) {
 	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn, 0,
@@ -294,6 +396,12 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_protocols(xwm, surface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
 		read_surface_state(xwm, surface, reply);
+	} else if (property == xwm->atoms[WM_HINTS]) {
+		read_surface_hints(xwm, surface, reply);
+	} else if (property == xwm->atoms[WM_NORMAL_HINTS]) {
+		read_surface_normal_hints(xwm, surface, reply);
+	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
+		read_surface_motif_hints(xwm, surface, reply);
 	} else {
 		wlr_log(L_DEBUG, "unhandled x11 property %u", property);
 	}
@@ -313,6 +421,9 @@ static void map_shell_surface(struct wlr_xwm *xwm,
 		XCB_ATOM_WM_NAME,
 		XCB_ATOM_WM_TRANSIENT_FOR,
 		xwm->atoms[WM_PROTOCOLS],
+		xwm->atoms[WM_HINTS],
+		xwm->atoms[WM_NORMAL_HINTS],
+		xwm->atoms[MOTIF_WM_HINTS],
 		xwm->atoms[NET_WM_STATE],
 		xwm->atoms[NET_WM_WINDOW_TYPE],
 		xwm->atoms[NET_WM_NAME],

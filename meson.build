@@ -45,11 +45,16 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 xcb            = dependency('xcb')
 xcb_composite  = dependency('xcb-composite')
+xcb_icccm      = dependency('xcb-icccm', required: false)
 x11_xcb        = dependency('x11-xcb')
 libcap         = dependency('libcap', required: false)
 systemd        = dependency('libsystemd', required: false)
 elogind        = dependency('libelogind', required: false)
 math           = cc.find_library('m', required: false)
+
+if xcb_icccm.found()
+	add_project_arguments('-DHAS_XCB_ICCCM', language: 'c')
+endif
 
 if libcap.found() and get_option('enable_libcap')
 	add_project_arguments('-DHAS_LIBCAP', language: 'c')
