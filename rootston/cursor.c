@@ -120,7 +120,7 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
 	wlr_cursor_move(input->cursor, event->device,
 			event->delta_x, event->delta_y);
-	cursor_update_position(input, (uint32_t)event->time_usec);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -130,7 +130,7 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	struct wlr_event_pointer_motion_absolute *event = data;
 	wlr_cursor_warp_absolute(input->cursor, event->device,
 		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-	cursor_update_position(input, (uint32_t)event->time_usec);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
@@ -176,7 +176,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)event->time_usec, event->button, event->state);
+			(uint32_t)(event->time_usec / 1000), event->button, event->state);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
@@ -186,7 +186,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(input->cursor, event->device,
 			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-		cursor_update_position(input, (uint32_t)event->time_usec);
+		cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 	}
 }
 
@@ -194,7 +194,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_tip);
 	struct wlr_event_tablet_tool_tip *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)event->time_usec, BTN_LEFT, event->state);
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, event->state);
 }
 
 void cursor_initialize(struct roots_input *input) {
