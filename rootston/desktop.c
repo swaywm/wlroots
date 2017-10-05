@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <time.h>
 #include <stdlib.h>
+#include <math.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
@@ -92,10 +93,22 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		double view_sx = lx - view->x;
 		double view_sy = ly - view->y;
 
+		struct wlr_box box;
+		view_get_input_bounds(view, &box);
+		if (view->rotation != 0.0) {
+			// Coordinates relative to the center of the view
+			double ox = view_sx - (double)box.width/2,
+				oy = view_sy - (double)box.height/2;
+			// Rotated coordinates
+			double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
+				ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
+			view_sx = rx + (double)box.width/2;
+			view_sy = ry + (double)box.height/2;
+		}
+
 		double sub_x, sub_y;
 		struct wlr_subsurface *subsurface =
 			subsurface_at(view->wlr_surface, view_sx, view_sy, &sub_x, &sub_y);
-
 		if (subsurface) {
 			*sx = view_sx - sub_x;
 			*sy = view_sy - sub_y;
@@ -103,11 +116,7 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			return view;
 		}
 
-		struct wlr_box box;
-		view_get_input_bounds(view, &box);
-		box.x += view->x;
-		box.y += view->y;
-		if (wlr_box_contains_point(&box, lx, ly)) {
+		if (wlr_box_contains_point(&box, view_sx, view_sy)) {
 			*sx = view_sx;
 			*sy = view_sy;
 			*surface = view->wlr_surface;
