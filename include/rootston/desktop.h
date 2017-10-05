@@ -16,7 +16,6 @@ struct roots_output {
 	struct roots_desktop *desktop;
 	struct wlr_output *wlr_output;
 	struct wl_listener frame;
-	struct wl_listener resolution;
 	struct timespec last_frame;
 	struct wl_list link;
 };

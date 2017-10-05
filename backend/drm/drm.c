@@ -169,6 +169,19 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
 	}
+	for (size_t i = 0; i < drm->num_planes; ++i) {
+		struct wlr_drm_plane *plane = &drm->planes[i];
+		if (plane->cursor_bo) {
+			gbm_bo_destroy(plane->cursor_bo);
+		}
+		if (plane->wlr_tex) {
+			wlr_texture_destroy(plane->wlr_tex);
+		}
+		if (plane->wlr_rend) {
+			wlr_renderer_destroy(plane->wlr_rend);
+		}
+	}
+
 	free(drm->crtcs);
 	free(drm->planes);
 }

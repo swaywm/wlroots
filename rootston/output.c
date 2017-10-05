@@ -147,6 +147,5 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//	sample->compositor);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
-	wl_list_remove(&output->resolution.link);
 	free(output);
 }

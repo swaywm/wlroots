@@ -76,6 +76,7 @@ struct roots_input {
 
 	// TODO: multiseat, multicursor
 	struct wlr_cursor *cursor;
+	struct wlr_xcursor_theme *theme;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
 
