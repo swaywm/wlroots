@@ -288,12 +288,16 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 		return;
 	}
 
+	xcb_icccm_wm_hints_t hints;
+	xcb_icccm_get_wm_hints_from_reply(&hints, reply);
+
 	free(surface->hints);
-	surface->hints = calloc(1, sizeof(xcb_icccm_wm_hints_t));
+	surface->hints = calloc(1, sizeof(struct wlr_xwayland_surface_hints));
 	if (surface->hints == NULL) {
 		return;
 	}
-	xcb_icccm_get_wm_hints_from_reply(surface->hints, reply);
+	memcpy(surface->hints, &hints, sizeof(struct wlr_xwayland_surface_hints));
+	surface->hints_urgency = xcb_icccm_wm_hints_get_urgency(&hints);
 
 	wlr_log(L_DEBUG, "WM_HINTS (%d)", reply->value_len);
 }
@@ -311,12 +315,17 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		return;
 	}
 
+	xcb_size_hints_t size_hints;
+	xcb_icccm_get_wm_size_hints_from_reply(&size_hints, reply);
+
 	free(surface->size_hints);
-	surface->size_hints = calloc(1, sizeof(xcb_size_hints_t));
+	surface->size_hints =
+		calloc(1, sizeof(struct wlr_xwayland_surface_size_hints));
 	if (surface->size_hints == NULL) {
 		return;
 	}
-	xcb_icccm_get_wm_size_hints_from_reply(surface->size_hints, reply);
+	memcpy(surface->size_hints, &size_hints,
+		sizeof(struct wlr_xwayland_surface_size_hints));
 
 	wlr_log(L_DEBUG, "WM_NORMAL_HINTS (%d)", reply->value_len);
 }
