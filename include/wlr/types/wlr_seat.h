@@ -24,6 +24,30 @@ struct wlr_seat_handle {
 	struct wl_list link;
 };
 
+struct wlr_seat_pointer_grab;
+
+struct wlr_pointer_grab_interface {
+	void (*enter)(struct wlr_seat_pointer_grab *grab,
+			struct wlr_surface *surface, double sx, double sy);
+	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			double sx, double sy);
+	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			uint32_t button, uint32_t state);
+	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			enum wlr_axis_orientation orientation, double value);
+	void (*cancel)(struct wlr_seat_pointer_grab *grab);
+};
+
+/**
+ * Passed to `wlr_seat_pointer_start_grab()` to start a grab of the pointer. The
+ * grabber is responsible for handling pointer events for the seat.
+ */
+struct wlr_seat_pointer_grab {
+	const struct wlr_pointer_grab_interface *interface;
+	struct wlr_seat *seat;
+	void *data;
+};
+
 struct wlr_seat_pointer_state {
 	struct wlr_seat *wlr_seat;
 	struct wlr_seat_handle *focused_handle;
@@ -31,6 +55,9 @@ struct wlr_seat_pointer_state {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
+
+	struct wlr_seat_pointer_grab *grab;
+	struct wlr_seat_pointer_grab *default_grab;
 };
 
 struct wlr_seat_keyboard {
@@ -109,6 +136,8 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
  * Send a pointer enter event to the given surface and consider it to be the
  * focused surface for the pointer. This will send a leave event to the last
  * surface that was entered. Coordinates for the enter event are surface-local.
+ * Compositor should use `wlr_seat_pointer_notify_enter()` to change pointer
+ * focus to respect pointer grabs.
  */
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
@@ -120,19 +149,69 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
  * Send a motion event to the surface with pointer focus. Coordinates for the
- * motion event are surface-local.
+ * motion event are surface-local. Compositors should use
+ * `wlr_seat_pointer_notify_motion()` to send motion events to respect pointer
+ * grabs.
  */
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy);
 
 /**
  * Send a button event to the surface with pointer focus. Coordinates for the
- * button event are surface-local. Returns the serial.
+ * button event are surface-local. Returns the serial. Compositors should use
+ * `wlr_seat_pointer_notify_button()` to send button events to respect pointer
+ * grabs.
  */
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state);
 
+/**
+ * Send an axis event to the surface with pointer focus. Compositors should use
+ * `wlr_seat_pointer_notify_axis()` to send axis events to respect pointer
+ * grabs.
+ **/
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value);
+
+/**
+ * Start a grab of the pointer of this seat. The grabber is responsible for
+ * handling all pointer events until the grab ends.
+ */
+void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_pointer_grab *grab);
+
+/**
+ * End the grab of the pointer of this seat. This reverts the grab back to the
+ * default grab for the pointer.
+ */
+void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
+
+/**
+ * Notify the seat of a pointer enter event to the given surface and request it to be the
+ * focused surface for the pointer. Pass surface-local coordinates where the
+ * enter occurred.
+ */
+void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, double sx, double sy);
+
+/**
+ * Notify the seat of motion over the given surface. Pass surface-local
+ * coordinates where the pointer motion occurred.
+ */
+void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		double sx, double sy);
+
+/**
+ * Notify the seat that a button has been pressed. Returns the serial of the
+ * button press or zero if no button press was sent.
+ */
+uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
+		uint32_t time, uint32_t button, uint32_t state);
+
+/**
+ * Notify the seat of an axis event.
+ */
+void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
 
 /**

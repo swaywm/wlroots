@@ -55,8 +55,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
 		if (view) {
-			wlr_seat_pointer_enter(input->wl_seat, surface, sx, sy);
-			wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
+			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
+			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 		} else {
 			wlr_seat_pointer_clear_focus(input->wl_seat);
 		}
@@ -137,7 +137,7 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
-	wlr_seat_pointer_send_axis(input->wl_seat, event->time_sec,
+	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_sec,
 		event->orientation, event->delta);
 }
 
@@ -149,7 +149,7 @@ static void do_cursor_button_press(struct roots_input *input,
 	double sx, sy;
 	struct roots_view *view = view_at(desktop,
 			input->cursor->x, input->cursor->y, &surface, &sx, &sy);
-	uint32_t serial = wlr_seat_pointer_send_button(
+	uint32_t serial = wlr_seat_pointer_notify_button(
 			input->wl_seat, time, button, state);
 	int i;
 	switch (state) {
