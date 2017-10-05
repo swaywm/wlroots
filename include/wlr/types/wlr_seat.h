@@ -125,9 +125,18 @@ struct wlr_seat {
 
 		struct wl_signal keyboard_grab_begin;
 		struct wl_signal keyboard_grab_end;
+
+		struct wl_signal request_set_cursor;
 	} events;
 
 	void *data;
+};
+
+struct wlr_seat_pointer_request_set_cursor_event {
+	struct wl_client *client;
+	struct wlr_seat_handle *seat_handle;
+	struct wlr_surface *surface;
+	int32_t hotspot_x, hotspot_y;
 };
 
 /**

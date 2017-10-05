@@ -20,12 +20,26 @@ static void pointer_send_frame(struct wl_resource *resource) {
 }
 
 static void wl_pointer_set_cursor(struct wl_client *client,
-		struct wl_resource *resource,
-		uint32_t serial,
-		struct wl_resource *surface,
-		int32_t hotspot_x,
-		int32_t hotspot_y) {
-	wlr_log(L_DEBUG, "TODO: wl_pointer_set_cursor");
+		struct wl_resource *resource, uint32_t serial,
+		struct wl_resource *surface_resource,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
+	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+
+	struct wlr_seat_pointer_request_set_cursor_event *event =
+		calloc(1, sizeof(struct wlr_seat_pointer_request_set_cursor_event));
+	if (event == NULL) {
+		return;
+	}
+	event->client = client;
+	event->seat_handle = handle;
+	event->surface = surface;
+	event->hotspot_x = hotspot_x;
+	event->hotspot_y = hotspot_y;
+
+	wl_signal_emit(&handle->wlr_seat->events.request_set_cursor, event);
+
+	free(event);
 }
 
 static const struct wl_pointer_interface wl_pointer_impl = {
@@ -285,6 +299,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
+	wl_signal_init(&wlr_seat->events.request_set_cursor);
 
 	wl_signal_init(&wlr_seat->events.pointer_grab_begin);
 	wl_signal_init(&wlr_seat->events.pointer_grab_end);
