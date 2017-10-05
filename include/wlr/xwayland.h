@@ -53,6 +53,8 @@ struct wlr_xwayland_surface {
 	xcb_atom_t *protocols;
 	size_t protocols_len;
 
+	uint32_t motif_hints[5];
+
 	struct {
 		struct wl_signal destroy;
 

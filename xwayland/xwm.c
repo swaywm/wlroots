@@ -286,7 +286,13 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 
 static void read_surface_motif_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
-	// TODO
+	if (reply->value_len < 5) {
+		return;
+	}
+
+	uint32_t *motif_hints = xcb_get_property_value(reply);
+	memcpy(surface->motif_hints, motif_hints, sizeof(surface->motif_hints));
+
 	wlr_log(L_DEBUG, "MOTIF_WM_HINTS (%d)", reply->value_len);
 }
 
