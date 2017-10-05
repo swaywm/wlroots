@@ -32,15 +32,14 @@ static void render_surface(struct wlr_surface *surface,
 
 			float translate_origin[16];
 			wlr_matrix_translate(&translate_origin,
-				ox + width/2, oy + height/2, 0);
+				(int)ox + width / 2, (int)oy + height / 2, 0);
 			float rotate[16];
 			wlr_matrix_rotate(&rotate, rotation);
 			float translate_center[16];
-			wlr_matrix_translate(&translate_center, -width/2, -height/2, 0);
+			wlr_matrix_translate(&translate_center, -width / 2, -height / 2, 0);
 			float transform[16];
 			wlr_matrix_mul(&translate_origin, &rotate, &transform);
 			wlr_matrix_mul(&transform, &translate_center, &transform);
-
 			wlr_surface_get_matrix(surface, &matrix,
 					&wlr_output->transform_matrix, &transform);
 			wlr_render_with_matrix(desktop->server->renderer,
