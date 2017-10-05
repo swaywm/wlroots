@@ -47,7 +47,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
 		struct wlr_event_keyboard_key key = {
 			.time_sec = ev->time / 1000,
-			.time_usec = (ev->time % 1000) * 1000,
+			.time_usec = ev->time * 1000,
 			.keycode = ev->detail - 8,
 			.state = event->response_type == XCB_KEY_PRESS ?
 				WLR_KEY_PRESSED : WLR_KEY_RELEASED,
@@ -63,7 +63,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		struct wlr_event_pointer_button button = {
 			.device = &x11->pointer_dev,
 			.time_sec = ev->time / 1000,
-			.time_usec = (ev->time % 1000) * 1000,
+			.time_usec = ev->time * 1000,
 			.button = xcb_button_to_wl(ev->detail),
 			.state = event->response_type == XCB_BUTTON_PRESS ?
 				WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
@@ -78,7 +78,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
 			.time_sec = ev->time / 1000,
-			.time_usec = (ev->time % 1000) * 1000,
+			.time_usec = ev->time * 1000,
 			.x_mm = ev->event_x,
 			.y_mm = ev->event_y,
 			.width_mm = output->wlr_output.width,
@@ -109,7 +109,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
 			.time_sec = x11->time / 1000,
-			.time_usec = (x11->time % 1000) * 1000,
+			.time_usec = x11->time * 1000,
 			.x_mm = pointer->root_x,
 			.y_mm = pointer->root_y,
 			.width_mm = output->wlr_output.width,
