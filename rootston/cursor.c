@@ -128,6 +128,12 @@ static void set_view_focus(struct roots_input *input,
 	if (input->active_view == view) {
 		return;
 	}
+	input->active_view = view;
+	input->mode = ROOTS_CURSOR_PASSTHROUGH;
+	if (!view) {
+		return;
+	}
+
 	size_t index = 0;
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
@@ -136,8 +142,6 @@ static void set_view_focus(struct roots_input *input,
 			index = i;
 		}
 	}
-	input->active_view = view;
-	input->mode = ROOTS_CURSOR_PASSTHROUGH;
 	// TODO: list_swap
 	list_del(desktop->views, index);
 	list_add(desktop->views, view);
@@ -219,8 +223,7 @@ static void do_cursor_button_press(struct roots_input *input,
 	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
-		input->active_view = NULL;
-		input->mode = ROOTS_CURSOR_PASSTHROUGH;
+		set_view_focus(input, desktop, NULL);
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;
