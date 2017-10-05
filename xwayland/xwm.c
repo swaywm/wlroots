@@ -8,6 +8,10 @@
 #include "wlr/xwayland.h"
 #include "xwm.h"
 
+#ifdef HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_DELETE_WINDOW",
@@ -272,17 +276,23 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
+#ifdef HAS_XCB_ICCCM
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
 	if (reply->type != xwm->atoms[WM_SIZE_HINTS]) {
 		return;
 	}
 
-	// TODO: xcb_icccm_get_wm_size_hints_from_reply
-	// See https://github.com/i3/i3/blob/55bc6741796e8b179b6111a721a3e9631934bb86/src/handlers.c#L994
+	xcb_icccm_get_wm_size_hints_from_reply(&surface->size_hints, reply);
 
 	wlr_log(L_DEBUG, "WM_NORMAL_HINTS (%d)", reply->value_len);
 }
+#else
+static void read_surface_normal_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// Do nothing
+}
+#endif
 
 static void read_surface_motif_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {

@@ -6,6 +6,10 @@
 #include <wlr/types/wlr_compositor.h>
 #include <xcb/xcb.h>
 
+#ifdef HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+
 struct wlr_xwm;
 
 struct wlr_xwayland {
@@ -54,6 +58,9 @@ struct wlr_xwayland_surface {
 	size_t protocols_len;
 
 	uint32_t motif_hints[5];
+	#ifdef HAS_XCB_ICCCM
+	xcb_size_hints_t size_hints;
+	#endif
 
 	struct {
 		struct wl_signal destroy;
