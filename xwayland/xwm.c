@@ -15,6 +15,7 @@
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_DELETE_WINDOW",
+	"WM_HINTS",
 	"WM_PROTOCOLS",
 	"WM_NORMAL_HINTS",
 	"WM_SIZE_HINTS",
@@ -277,9 +278,29 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 }
 
 #ifdef HAS_XCB_ICCCM
+static void read_surface_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// According to the docs, reply->type == xwm->atoms[WM_HINTS]
+	// In practice, reply->type == XCB_ATOM_ATOM
+	if (reply->value_len == 0) {
+		return;
+	}
+
+	xcb_icccm_get_wm_hints_from_reply(&surface->hints, reply);
+
+	wlr_log(L_DEBUG, "WM_HINTS (%d)", reply->value_len);
+}
+#else
+static void read_surface_hints(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
+	// Do nothing
+}
+#endif
+
+#ifdef HAS_XCB_ICCCM
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
-	if (reply->type != xwm->atoms[WM_SIZE_HINTS]) {
+	if (reply->type != xwm->atoms[WM_SIZE_HINTS] || reply->value_len == 0) {
 		return;
 	}
 
@@ -331,6 +352,8 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_protocols(xwm, surface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
 		read_surface_state(xwm, surface, reply);
+	} else if (property == xwm->atoms[WM_HINTS]) {
+		read_surface_hints(xwm, surface, reply);
 	} else if (property == xwm->atoms[WM_NORMAL_HINTS]) {
 		read_surface_normal_hints(xwm, surface, reply);
 	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
@@ -354,6 +377,7 @@ static void map_shell_surface(struct wlr_xwm *xwm,
 		XCB_ATOM_WM_NAME,
 		XCB_ATOM_WM_TRANSIENT_FOR,
 		xwm->atoms[WM_PROTOCOLS],
+		xwm->atoms[WM_HINTS],
 		xwm->atoms[WM_NORMAL_HINTS],
 		xwm->atoms[MOTIF_WM_HINTS],
 		xwm->atoms[NET_WM_STATE],

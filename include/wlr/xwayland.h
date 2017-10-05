@@ -59,8 +59,10 @@ struct wlr_xwayland_surface {
 
 	uint32_t motif_hints[5];
 	#ifdef HAS_XCB_ICCCM
+	xcb_icccm_wm_hints_t hints;
 	xcb_size_hints_t size_hints;
 	#else
+	char hints_padding[36];
 	char size_hints_padding[72];
 	#endif
 
