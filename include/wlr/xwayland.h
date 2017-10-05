@@ -33,6 +33,12 @@ struct wlr_xwayland {
 	void *data;
 };
 
+enum wlr_xwayland_surface_decorations {
+	WLR_XWAYLAND_SURFACE_DECORATIONS_ALL = 0,
+	WLR_XWAYLAND_SURFACE_DECORATIONS_NO_BORDER = 1,
+	WLR_XWAYLAND_SURFACE_DECORATIONS_NO_TITLE = 2,
+};
+
 struct wlr_xwayland_surface {
 	xcb_window_t window_id;
 	uint32_t surface_id;
@@ -57,7 +63,8 @@ struct wlr_xwayland_surface {
 	xcb_atom_t *protocols;
 	size_t protocols_len;
 
-	uint32_t motif_hints[5];
+	uint32_t decorations;
+
 	#ifdef HAS_XCB_ICCCM
 	xcb_icccm_wm_hints_t *hints;
 	xcb_size_hints_t *size_hints;

@@ -327,6 +327,16 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 }
 #endif
 
+
+#define MWM_HINTS_FLAGS_FIELD 0
+#define MWM_HINTS_DECORATIONS_FIELD 2
+
+#define MWM_HINTS_DECORATIONS (1 << 1)
+
+#define MWM_DECOR_ALL (1 << 0)
+#define MWM_DECOR_BORDER (1 << 1)
+#define MWM_DECOR_TITLE (1 << 3)
+
 static void read_surface_motif_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
 	if (reply->value_len < 5) {
@@ -334,7 +344,20 @@ static void read_surface_motif_hints(struct wlr_xwm *xwm,
 	}
 
 	uint32_t *motif_hints = xcb_get_property_value(reply);
-	memcpy(surface->motif_hints, motif_hints, sizeof(surface->motif_hints));
+	if (motif_hints[MWM_HINTS_FLAGS_FIELD] & MWM_HINTS_DECORATIONS) {
+		surface->decorations = WLR_XWAYLAND_SURFACE_DECORATIONS_ALL;
+		uint32_t decorations = motif_hints[MWM_HINTS_DECORATIONS_FIELD];
+		if ((decorations & MWM_DECOR_ALL) == 0) {
+			if ((decorations & MWM_DECOR_BORDER) == 0) {
+				surface->decorations |=
+					WLR_XWAYLAND_SURFACE_DECORATIONS_NO_BORDER;
+			}
+			if ((decorations & MWM_DECOR_TITLE) == 0) {
+				surface->decorations |=
+					WLR_XWAYLAND_SURFACE_DECORATIONS_NO_TITLE;
+			}
+		}
+	}
 
 	wlr_log(L_DEBUG, "MOTIF_WM_HINTS (%d)", reply->value_len);
 }
