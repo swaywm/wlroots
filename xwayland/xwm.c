@@ -83,6 +83,10 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	}
 	list_free(surface->state);
 	free(surface->window_type);
+	free(surface->protocols);
+	free(surface->class);
+	free(surface->instance);
+	free(surface->title);
 	free(surface);
 }
 

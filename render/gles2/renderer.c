@@ -95,6 +95,7 @@ static void init_default_shaders() {
 	}
 
 	wlr_log(L_DEBUG, "Compiled default shaders");
+	shaders.initialized = true;
 	return;
 error:
 	wlr_log(L_ERROR, "Failed to set up default shaders!");

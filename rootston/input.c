@@ -79,9 +79,8 @@ struct roots_input *input_create(struct roots_server *server,
 	input->config = config;
 	input->server = server;
 
-	struct wlr_xcursor_theme *theme;
-	assert(theme = wlr_xcursor_theme_load("default", 16));
-	assert(input->xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr"));
+	assert(input->theme = wlr_xcursor_theme_load("default", 16));
+	assert(input->xcursor = wlr_xcursor_theme_get_cursor(input->theme, "left_ptr"));
 
 	assert(input->wl_seat = wlr_seat_create(server->wl_display, "seat0"));
 	wlr_seat_set_capabilities(input->wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
