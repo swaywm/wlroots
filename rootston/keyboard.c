@@ -21,19 +21,28 @@ static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
 	return -1;
 }
 
+static const char *exec_prefix = "exec ";
+
 static void keyboard_binding_execute(struct roots_keyboard *keyboard,
-		char *command) {
+		const char *command) {
 	struct roots_server *server = keyboard->input->server;
 	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(server->wl_display);
-	} else {
+	} else if (strcmp(command, "close") == 0) {
+		if (keyboard->input->last_active_view != NULL) {
+			view_close(keyboard->input->last_active_view);
+		}
+	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
+		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();
 		if (pid < 0) {
 			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
 			return;
 		} else if (pid == 0) {
-			execl("/bin/sh", "/bin/sh", "-c", command, (void *)NULL);
+			execl("/bin/sh", "/bin/sh", "-c", shell_cmd, (void *)NULL);
 		}
+	} else {
+		wlr_log(L_ERROR, "unknown binding command: %s", command);
 	}
 }
 
