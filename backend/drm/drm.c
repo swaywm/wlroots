@@ -469,7 +469,8 @@ static void wlr_drm_connector_transform(struct wlr_output *output,
 }
 
 static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = conn->drm;
 	struct wlr_drm_renderer *renderer = &drm->renderer;
@@ -534,6 +535,37 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
+	switch (output->transform) {
+	case WL_OUTPUT_TRANSFORM_90:
+		output->cursor.hotspot_x = hotspot_x;
+		output->cursor.hotspot_y = -plane->surf.height + hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		output->cursor.hotspot_x = plane->surf.width - hotspot_x;
+		output->cursor.hotspot_y = plane->surf.height - hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		output->cursor.hotspot_x = -plane->surf.height + hotspot_x;
+		output->cursor.hotspot_y = hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		output->cursor.hotspot_x = plane->surf.width - hotspot_x;
+		output->cursor.hotspot_y = hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		output->cursor.hotspot_x = hotspot_x;
+		output->cursor.hotspot_y = -hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		output->cursor.hotspot_x = hotspot_x;
+		output->cursor.hotspot_y = plane->surf.height - hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		output->cursor.hotspot_x = -plane->surf.height + hotspot_x;
+		output->cursor.hotspot_y = plane->surf.width - hotspot_y;
+		break;
+	}
+
 	struct gbm_bo *bo = plane->cursor_bo;
 	uint32_t bo_width = gbm_bo_get_width(bo);
 	uint32_t bo_height = gbm_bo_get_height(bo);
@@ -581,22 +613,21 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 
 	switch (output->transform) {
 	case WL_OUTPUT_TRANSFORM_NORMAL:
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
 		// nothing to do
 		break;
 	case WL_OUTPUT_TRANSFORM_270:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
 		tmp = x;
 		x = y;
 		y = -(tmp - width);
 		break;
 	case WL_OUTPUT_TRANSFORM_90:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
 		tmp = x;
 		x = -(y - height);
 		y = tmp;
-		break;
-	default:
-		// TODO other transformations
-		wlr_log(L_ERROR, "TODO: handle surface to crtc for transformation = %d",
-			output->transform);
 		break;
 	}
 

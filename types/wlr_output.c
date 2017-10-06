@@ -125,9 +125,11 @@ void wlr_output_transform(struct wlr_output *output,
 }
 
 bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
 	if (output->impl->set_cursor
-			&& output->impl->set_cursor(output, buf, stride, width, height)) {
+			&& output->impl->set_cursor(output, buf, stride, width, height,
+				hotspot_x, hotspot_y)) {
 		output->cursor.is_sw = false;
 		return true;
 	}
@@ -137,6 +139,8 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	output->cursor.is_sw = true;
 	output->cursor.width = width;
 	output->cursor.height = height;
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
 
 	if (!output->cursor.renderer) {
 		/* NULL egl is okay given that we are only using pixel buffers */

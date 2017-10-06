@@ -112,7 +112,8 @@ static void handle_output_add(struct output_state *ostate) {
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
-			image->width, image->width, image->height)) {
+			image->width, image->width, image->height,
+			image->hotspot_x, image->hotspot_y)) {
 		wlr_log(L_DEBUG, "Failed to set hardware cursor");
 		return;
 	}

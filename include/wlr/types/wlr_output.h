@@ -45,6 +45,7 @@ struct wlr_output {
 		bool is_sw;
 		int32_t x, y;
 		uint32_t width, height;
+		int32_t hotspot_x, hotspot_y;
 		struct wlr_renderer *renderer;
 		struct wlr_texture *texture;
 	} cursor;
@@ -58,7 +59,8 @@ bool wlr_output_set_mode(struct wlr_output *output,
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform);
 bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height);
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y);
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
