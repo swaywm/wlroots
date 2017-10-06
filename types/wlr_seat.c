@@ -246,6 +246,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
 
+	wl_signal_init(&wlr_seat->events.pointer_grab_begin);
+	wl_signal_init(&wlr_seat->events.pointer_grab_end);
+
 	return wlr_seat;
 }
 
@@ -438,12 +441,14 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_pointer_grab *grab) {
 	grab->seat = wlr_seat;
 	wlr_seat->pointer_state.grab = grab;
-	// TODO: replay the last enter
+
+	wl_signal_emit(&wlr_seat->events.pointer_grab_begin, grab);
 }
 
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	wlr_seat->pointer_state.grab = wlr_seat->pointer_state.default_grab;
-	// TODO: replay the last enter
+	wl_signal_emit(&wlr_seat->events.pointer_grab_end, grab);
 }
 
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,

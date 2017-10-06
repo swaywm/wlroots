@@ -265,6 +265,12 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 			(uint32_t)(event->time_usec / 1000), BTN_LEFT, event->state);
 }
 
+static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
+	struct roots_input *input =
+		wl_container_of(listener, input, pointer_grab_end);
+	cursor_update_position(input, 0);
+}
+
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
 
@@ -292,6 +298,9 @@ void cursor_initialize(struct roots_input *input) {
 	wl_list_init(&input->cursor_tool_tip.link);
 	wl_signal_add(&cursor->events.tablet_tool_tip, &input->cursor_tool_tip);
 	input->cursor_tool_tip.notify = handle_tool_tip;
+
+	wl_signal_add(&input->wl_seat->events.pointer_grab_end, &input->pointer_grab_end);
+	input->pointer_grab_end.notify = handle_pointer_grab_end;
 }
 
 static void reset_device_mappings(struct roots_config *config,

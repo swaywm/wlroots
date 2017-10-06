@@ -94,6 +94,9 @@ struct wlr_seat {
 	struct {
 		struct wl_signal client_bound;
 		struct wl_signal client_unbound;
+
+		struct wl_signal pointer_grab_begin;
+		struct wl_signal pointer_grab_end;
 	} events;
 
 	void *data;
