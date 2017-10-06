@@ -170,7 +170,8 @@ static void xdg_positioner_protocol_set_offset(struct wl_client *client,
 	positioner->offset.y = y;
 }
 
-static const struct zxdg_positioner_v6_interface zxdg_positioner_v6_implementation = {
+static const struct zxdg_positioner_v6_interface
+		zxdg_positioner_v6_implementation = {
 	.destroy = resource_destroy,
 	.set_size = xdg_positioner_protocol_set_size,
 	.set_anchor_rect = xdg_positioner_protocol_set_anchor_rect,
@@ -259,6 +260,7 @@ static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
 	.motion = xdg_pointer_grab_motion,
 	.button = xdg_pointer_grab_button,
 	.cancel = xdg_pointer_grab_cancel,
+	.axis = xdg_pointer_grab_axis,
 };
 
 static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
@@ -431,8 +433,6 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	wl_resource_set_implementation(surface->popup_state->resource,
 		&zxdg_popup_v6_implementation, surface,
 		xdg_popup_resource_destroy);
-
-	// TODO: set relative to parent?
 }
 
 

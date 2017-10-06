@@ -49,7 +49,6 @@ struct wlr_xdg_popup_grab_v6 {
 	struct wlr_seat *seat;
 	struct wl_list popups;
 	struct wl_list link; // wlr_xdg_shell_v6::popup_grabs
-	// TODO: seat_handle destroy will release the grab
 };
 
 enum wlr_xdg_surface_v6_role {
@@ -84,7 +83,6 @@ struct wlr_xdg_toplevel_v6 {
 	struct wlr_xdg_toplevel_v6_state current;
 };
 
-// TODO split up into toplevel and popup configure
 struct wlr_xdg_surface_v6_configure {
 	struct wl_list link; // wlr_xdg_surface_v6::configure_list
 	uint32_t serial;
