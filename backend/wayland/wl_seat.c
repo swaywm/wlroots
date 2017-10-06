@@ -24,7 +24,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	assert(output);
 	wlr_wl_pointer->current_output = output;
 	wlr_wl_pointer->current_output->enter_serial = serial;
-	wlr_wl_output_update_cursor(wlr_wl_pointer->current_output, serial);
+	wlr_wl_output_update_cursor(wlr_wl_pointer->current_output, serial, 0, 0);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,

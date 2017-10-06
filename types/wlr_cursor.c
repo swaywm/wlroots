@@ -131,15 +131,6 @@ static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
 static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 		double x, double y) {
 	assert(cur->state->layout);
-	int hotspot_x = 0;
-	int hotspot_y = 0;
-
-	if (cur->state->xcursor && cur->state->xcursor->image_count > 0) {
-		struct wlr_xcursor_image *image = cur->state->xcursor->images[0];
-		hotspot_x = image->hotspot_x;
-		hotspot_y = image->hotspot_y;
-	}
-
 
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
@@ -148,8 +139,9 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 
 		wlr_output_layout_output_coords(cur->state->layout,
 			l_output->output, &output_x, &output_y);
-		wlr_output_move_cursor(l_output->output, output_x - hotspot_x,
-			output_y - hotspot_y);
+		wlr_output_move_cursor(l_output->output,
+			output_x - l_output->output->cursor.hotspot_x,
+			output_y - l_output->output->cursor.hotspot_y);
 	}
 
 	cur->x = x;

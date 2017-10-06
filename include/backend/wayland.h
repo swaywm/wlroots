@@ -67,7 +67,8 @@ struct wlr_wl_pointer {
 };
 
 void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
-void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output, uint32_t serial);
+void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output,
+		uint32_t serial, int32_t hotspot_x, int32_t hotspot_y);
 struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface);
 
