@@ -807,3 +807,8 @@ void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 
 	wlr_xdg_surface_v6_schedule_configure(surface, false);
 }
+
+void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
+}

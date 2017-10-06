@@ -172,4 +172,9 @@ void wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing);
 
+/**
+ * Request that this toplevel surface closes.
+ */
+void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface);
+
 #endif
