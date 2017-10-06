@@ -9,28 +9,6 @@
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 
-static void handle_destroy(struct wl_listener *listener, void *data) {
-	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, destroy);
-	wl_list_remove(&roots_surface->destroy.link);
-	view_destroy(roots_surface->view);
-	free(roots_surface);
-}
-
-static void handle_request_configure(struct wl_listener *listener, void *data) {
-	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, request_configure);
-	struct wlr_xwayland_surface *xwayland_surface =
-		roots_surface->view->xwayland_surface;
-	struct wlr_xwayland_surface_configure_event *event = data;
-
-	roots_surface->view->x = (double)event->x;
-	roots_surface->view->y = (double)event->y;
-
-	wlr_xwayland_surface_configure(roots_surface->view->desktop->xwayland,
-		xwayland_surface, event->x, event->y, event->width, event->height);
-}
-
 static void activate(struct roots_view *view, bool active) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	if (active) {
@@ -51,6 +29,28 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	wlr_xwayland_surface_close(view->desktop->xwayland, view->xwayland_surface);
+}
+
+static void handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, destroy);
+	wl_list_remove(&roots_surface->destroy.link);
+	view_destroy(roots_surface->view);
+	free(roots_surface);
+}
+
+static void handle_request_configure(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_configure);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_surface->view->xwayland_surface;
+	struct wlr_xwayland_surface_configure_event *event = data;
+
+	roots_surface->view->x = (double)event->x;
+	roots_surface->view->y = (double)event->y;
+
+	wlr_xwayland_surface_configure(roots_surface->view->desktop->xwayland,
+		xwayland_surface, event->x, event->y, event->width, event->height);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
