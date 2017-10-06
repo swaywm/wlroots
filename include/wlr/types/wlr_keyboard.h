@@ -65,6 +65,7 @@ struct wlr_event_keyboard_key {
 	uint32_t time_sec;
 	uint64_t time_usec;
 	uint32_t keycode;
+	bool update_state;
 	enum wlr_key_state state;
 };
 
