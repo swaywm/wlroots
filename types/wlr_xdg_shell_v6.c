@@ -37,9 +37,100 @@ static void resource_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
+static struct wlr_xdg_surface_v6 *xdg_popup_grab_get_topmost(
+		struct wlr_xdg_popup_grab_v6 *grab) {
+	struct wlr_xdg_popup_v6 *popup;
+	wl_list_for_each(popup, &grab->popups, grab_link) {
+		return popup->base;
+	}
+
+	return NULL;
+}
+
+static void xdg_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
+
+	struct wlr_xdg_popup_v6 *popup, *tmp;
+	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
+		zxdg_popup_v6_send_popup_done(popup->resource);
+	}
+
+	wlr_seat_pointer_end_grab(grab->seat);
+}
+
+static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
+		struct wlr_surface *surface, double sx, double sy) {
+	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
+	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
+		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
+	} else {
+		wlr_seat_pointer_clear_focus(grab->seat);
+	}
+}
+
+static void xdg_pointer_grab_motion(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, double sx, double sy) {
+	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
+}
+
+static uint32_t xdg_pointer_grab_button(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, uint32_t button, uint32_t state) {
+	uint32_t serial =
+		wlr_seat_pointer_send_button(grab->seat, time, button, state);
+	if (serial) {
+		return serial;
+	} else {
+		xdg_pointer_grab_end(grab);
+		return 0;
+	}
+}
+
+static void xdg_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, enum wlr_axis_orientation orientation, double value) {
+	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value);
+}
+
+static void xdg_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
+	xdg_pointer_grab_end(grab);
+}
+
+static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
+	.enter = xdg_pointer_grab_enter,
+	.motion = xdg_pointer_grab_motion,
+	.button = xdg_pointer_grab_button,
+	.cancel = xdg_pointer_grab_cancel,
+	.axis = xdg_pointer_grab_axis,
+};
+
+static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
+		struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat) {
+	struct wlr_xdg_popup_grab_v6 *xdg_grab;
+	wl_list_for_each(xdg_grab, &shell->popup_grabs, link) {
+		if (xdg_grab->seat == seat) {
+			return xdg_grab;
+		}
+	}
+
+	xdg_grab = calloc(1, sizeof(struct wlr_xdg_popup_grab_v6));
+	if (!xdg_grab) {
+		return NULL;
+	}
+
+	xdg_grab->pointer_grab.data = xdg_grab;
+	xdg_grab->pointer_grab.interface = &xdg_pointer_grab_impl;
+	// TODO: keyboard grab
+
+	wl_list_init(&xdg_grab->popups);
+
+	wl_list_insert(&shell->popup_grabs, &xdg_grab->link);
+	xdg_grab->seat = seat;
+
+	return xdg_grab;
+}
+
+
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
-	wl_resource_set_user_data(surface->resource, NULL);
 
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
@@ -56,13 +147,36 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	}
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
-		// TODO: get the current grab and if it has no more popups, end the grab
 		wl_resource_set_user_data(surface->popup_state->resource, NULL);
+
+		if (surface->popup_state->seat) {
+			struct wlr_xdg_popup_grab_v6 *grab =
+				xdg_shell_popup_grab_from_seat(surface->client->shell,
+					surface->popup_state->seat);
+
+			struct wlr_xdg_surface_v6 *topmost =
+				xdg_popup_grab_get_topmost(grab);
+
+			if (topmost != surface) {
+				wl_resource_post_error(surface->client->resource,
+						ZXDG_SHELL_V6_ERROR_NOT_THE_TOPMOST_POPUP,
+						"xdg_popup was destroyed while it was not the topmost "
+						"popup.");
+			}
+
+			wl_list_remove(&surface->popup_state->grab_link);
+
+			if (wl_list_empty(&grab->popups) &&
+					grab->seat->pointer_state.grab == &grab->pointer_grab) {
+				wlr_seat_pointer_end_grab(grab->seat);
+			}
+		}
+
 		wl_list_remove(&surface->popup_link);
-		wl_list_remove(&surface->popup_state->grab_link);
 		free(surface->popup_state);
 	}
 
+	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wl_list_remove(&surface->surface_commit_listener.link);
@@ -206,98 +320,11 @@ static void xdg_shell_create_positioner(struct wl_client *wl_client,
 		positioner, xdg_positioner_destroy);
 }
 
-static void xdg_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
-	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
-
-	struct wlr_xdg_popup_v6 *popup, *tmp;
-	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
-		wl_list_remove(&popup->grab_link);
-		wl_list_init(&popup->grab_link);
-		zxdg_popup_v6_send_popup_done(popup->resource);
-	}
-
-	wlr_seat_pointer_end_grab(grab->seat);
-}
-
-static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
-		struct wlr_surface *surface, double sx, double sy) {
-	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
-	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
-		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
-	} else {
-		wlr_seat_pointer_clear_focus(grab->seat);
-	}
-}
-
-static void xdg_pointer_grab_motion(struct wlr_seat_pointer_grab *grab,
-		uint32_t time, double sx, double sy) {
-	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
-}
-
-static uint32_t xdg_pointer_grab_button(struct wlr_seat_pointer_grab *grab,
-		uint32_t time, uint32_t button, uint32_t state) {
-	uint32_t serial =
-		wlr_seat_pointer_send_button(grab->seat, time, button, state);
-	if (serial) {
-		return serial;
-	} else {
-		xdg_pointer_grab_end(grab);
-		return 0;
-	}
-}
-
-static void xdg_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
-		uint32_t time, enum wlr_axis_orientation orientation, double value) {
-	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value);
-}
-
-static void xdg_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
-	xdg_pointer_grab_end(grab);
-}
-
-static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
-	.enter = xdg_pointer_grab_enter,
-	.motion = xdg_pointer_grab_motion,
-	.button = xdg_pointer_grab_button,
-	.cancel = xdg_pointer_grab_cancel,
-	.axis = xdg_pointer_grab_axis,
-};
-
-static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
-		struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat) {
-	struct wlr_xdg_popup_grab_v6 *xdg_grab;
-	wl_list_for_each(xdg_grab, &shell->popup_grabs, link) {
-		if (xdg_grab->seat == seat) {
-			return xdg_grab;
-		}
-	}
-
-	xdg_grab = calloc(1, sizeof(struct wlr_xdg_popup_grab_v6));
-	if (!xdg_grab) {
-		return NULL;
-	}
-
-	xdg_grab->pointer_grab.data = xdg_grab;
-	xdg_grab->pointer_grab.interface = &xdg_pointer_grab_impl;
-	// TODO: keyboard grab
-
-	wl_list_init(&xdg_grab->popups);
-
-	wl_list_insert(&shell->popup_grabs, &xdg_grab->link);
-	xdg_grab->seat = seat;
-
-	return xdg_grab;
-}
-
 static void xdg_popup_protocol_grab(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(seat_resource);
-	//bool parent_is_toplevel =
-		//surface->popup_state->parent->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
-
-	// TODO: handle make sure the grab is valid for the protocol
 
 	if (surface->popup_state->committed) {
 		wl_resource_post_error(surface->popup_state->resource,
@@ -310,7 +337,20 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 		xdg_shell_popup_grab_from_seat(surface->client->shell,
 			handle->wlr_seat);
 
+	struct wlr_xdg_surface_v6 *topmost = xdg_popup_grab_get_topmost(popup_grab);
+	bool parent_is_toplevel =
+		surface->popup_state->parent->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
+
+	if ((topmost == NULL && !parent_is_toplevel) ||
+			(topmost != NULL && topmost != surface->popup_state->parent)) {
+		wl_resource_post_error(surface->client->resource,
+			ZXDG_SHELL_V6_ERROR_NOT_THE_TOPMOST_POPUP,
+			"xdg_popup was not created on the topmost popup");
+		return;
+	}
+
 	popup_grab->client = surface->client->client;
+	surface->popup_state->seat = handle->wlr_seat;
 
 	wl_list_insert(&popup_grab->popups, &surface->popup_state->grab_link);
 
@@ -423,10 +463,10 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	}
 
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_POPUP;
+	surface->popup_state->base = surface;
 	surface->popup_state->parent = parent;
 	surface->popup_state->geometry =
 		xdg_positioner_get_geometry(positioner, surface, parent);
-	wl_list_init(&surface->popup_state->grab_link);
 	wl_list_insert(&surface->popup_state->parent->popups,
 		&surface->popup_link);
 
