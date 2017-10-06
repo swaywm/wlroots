@@ -49,12 +49,16 @@ struct roots_view {
 	union {
 		struct wlr_wl_shell_surface *wl_shell_surface;
 		struct wlr_xdg_surface_v6 *xdg_surface_v6;
+#ifdef HAS_XWAYLAND
 		struct wlr_xwayland_surface *xwayland_surface;
+#endif
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
 		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
+#ifdef HAS_XWAYLAND
 		struct roots_xwayland_surface *roots_xwayland_surface;
+#endif
 	};
 	struct wlr_surface *wlr_surface;
 	// TODO: This would probably be better as a field that's updated on a

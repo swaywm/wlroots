@@ -159,6 +159,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
+#ifdef HAS_XWAYLAND
 	if (config->xwayland) {
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);
@@ -166,6 +167,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
 	}
+#endif
 
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 			server->wl_display);

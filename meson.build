@@ -20,7 +20,6 @@ add_project_link_arguments(
 )
 
 wlr_inc = include_directories('include')
-install_subdir('include/wlr', install_dir: 'include')
 
 cc = meson.get_compiler('c')
 
@@ -68,13 +67,36 @@ if elogind.found() and get_option('enable_elogind')
 	add_project_arguments('-DHAS_ELOGIND', language: 'c')
 endif
 
+exclude_files = []
+wlr_parts = []
+conf_data = configuration_data()
+if get_option('enable_xwayland')
+	add_project_arguments('-DHAS_XWAYLAND', language: 'c')
+	subdir('xwayland')
+	wlr_parts += [lib_wlr_xwayland]
+	conf_data.set('WLR_HAS_XWAYLAND', true)
+else
+	exclude_files += ['xwayland.h']
+endif
+configure_file(output: 'config.h', install_dir: 'include/wlr', configuration: conf_data)
+install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_files)
+
+
 subdir('protocol')
 subdir('backend')
 subdir('render')
 subdir('types')
 subdir('util')
 subdir('xcursor')
-subdir('xwayland')
+
+wlr_parts += [
+	lib_wl_protos,
+	lib_wlr_backend,
+	lib_wlr_render,
+	lib_wlr_types,
+	lib_wlr_util,
+	lib_wlr_xcursor,
+]
 
 wlr_deps = [
 	wayland_server,
@@ -100,15 +122,7 @@ wlr_deps = [
 lib_wlr = library(
 	'wlroots',
 	files('dummy.c'),
-	link_whole: [
-		lib_wl_protos,
-		lib_wlr_backend,
-		lib_wlr_render,
-		lib_wlr_types,
-		lib_wlr_util,
-		lib_wlr_xcursor,
-		lib_wlr_xwayland,
-	],
+	link_whole: wlr_parts,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
 	install: true,
