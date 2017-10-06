@@ -9,13 +9,6 @@
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 
-static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
-	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		xwayland_surface->x, xwayland_surface->y, width, height);
-}
-
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -39,12 +32,25 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 }
 
 static void activate(struct roots_view *view, bool active) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	if (active) {
 		wlr_xwayland_surface_activate(view->desktop->xwayland,
 			view->xwayland_surface);
 	} else {
 		wlr_xwayland_surface_activate(view->desktop->xwayland, NULL);
 	}
+}
+
+static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
+		xwayland_surface->x, xwayland_surface->y, width, height);
+}
+
+static void close(struct roots_view *view) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	wlr_xwayland_surface_close(view->desktop->xwayland, view->xwayland_surface);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
@@ -82,6 +88,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->desktop = desktop;
 	view->activate = activate;
 	view->resize = resize;
+	view->close = close;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
 }

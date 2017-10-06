@@ -28,6 +28,10 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	struct roots_server *server = keyboard->input->server;
 	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(server->wl_display);
+	} else if (strcmp(command, "close") == 0) {
+		if (keyboard->input->last_active_view != NULL) {
+			view_close(keyboard->input->last_active_view);
+		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();

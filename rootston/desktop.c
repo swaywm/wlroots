@@ -58,6 +58,12 @@ void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	}
 }
 
+void view_close(struct roots_view *view) {
+	if (view->close) {
+		view->close(view);
+	}
+}
+
 static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;

@@ -133,6 +133,7 @@ static void set_view_focus(struct roots_input *input,
 	if (!view) {
 		return;
 	}
+	input->last_active_view = view;
 
 	size_t index = 0;
 	for (size_t i = 0; i < desktop->views->length; ++i) {
