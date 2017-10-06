@@ -27,6 +27,7 @@ struct binding_config {
 };
 
 struct roots_config {
+	bool xwayland;
 	// TODO: Multiple cursors, multiseat
 	struct {
 		char *mapped_output;

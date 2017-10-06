@@ -1,3 +1,7 @@
+[core]
+# Disable X11 support. Enabled by default.
+xwayland=false
+
 # Single output configuration. String after semicolon must match output's name.
 [output:VGA-1]
 # Set logical (layout) coordinates for this screen
