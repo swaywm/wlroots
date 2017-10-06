@@ -149,13 +149,16 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	wlr_event.state = state;
 	wlr_event.time_sec = time / 1000;
 	wlr_event.time_usec = time * 1000;
-	wlr_keyboard_update_state(dev->keyboard, &wlr_event);
+	wlr_keyboard_notify_key(dev->keyboard, &wlr_event);
 }
 
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
 		uint32_t mods_locked, uint32_t group) {
-
+	struct wlr_input_device *dev = data;
+	assert(dev && dev->keyboard);
+	wlr_keyboard_notify_modifiers(dev->keyboard, mods_depressed, mods_latched,
+		mods_locked, group);
 }
 
 static void keyboard_handle_repeat_info(void *data, struct wl_keyboard *wl_keyboard,

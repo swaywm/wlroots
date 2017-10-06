@@ -45,11 +45,21 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
-void wlr_keyboard_update_state(struct wlr_keyboard *keyboard,
+void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group) {
+	xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
+		mods_locked, 0, 0, group);
+	keyboard_modifier_update(keyboard);
+}
+
+void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
-	uint32_t keycode = event->keycode + 8;
-	xkb_state_update_key(keyboard->xkb_state, keycode,
-		event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
+	if (event->update_state) {
+		uint32_t keycode = event->keycode + 8;
+		xkb_state_update_key(keyboard->xkb_state, keycode,
+			event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
+	}
 	keyboard_led_update(keyboard);
 	keyboard_modifier_update(keyboard);
 	wl_signal_emit(&keyboard->events.key, event);
