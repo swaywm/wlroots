@@ -2,11 +2,13 @@
 #define WLR_TYPES_WLR_XDG_SHELL_V6_H
 
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_seat.h>
 #include <wayland-server.h>
 
 struct wlr_xdg_shell_v6 {
 	struct wl_global *wl_global;
 	struct wl_list clients;
+	struct wl_list popup_grabs;
 	uint32_t ping_timeout;
 
 	struct {
@@ -36,6 +38,18 @@ struct wlr_xdg_popup_v6 {
 	struct wlr_xdg_surface_v6 *parent;
 	struct wlr_seat *seat;
 	struct wlr_box geometry;
+
+	struct wl_list grab_link; // wlr_xdg_popup_grab_v6::popups
+};
+
+// each seat gets a popup grab
+struct wlr_xdg_popup_grab_v6 {
+	struct wl_client *client;
+	struct wlr_seat_pointer_grab pointer_grab;
+	struct wlr_seat *seat;
+	struct wl_list popups;
+	struct wl_list link; // wlr_xdg_shell_v6::popup_grabs
+	// TODO: seat_handle destroy will release the grab
 };
 
 enum wlr_xdg_surface_v6_role {
