@@ -43,5 +43,6 @@ int main(int argc, char **argv) {
 
 	setenv("WAYLAND_DISPLAY", socket, true);
 	wl_display_run(server.wl_display);
+	wlr_backend_destroy(server.backend);
 	return 0;
 }

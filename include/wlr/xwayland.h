@@ -6,6 +6,10 @@
 #include <wlr/types/wlr_compositor.h>
 #include <xcb/xcb.h>
 
+#ifdef HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+
 struct wlr_xwm;
 
 struct wlr_xwayland {
@@ -27,6 +31,36 @@ struct wlr_xwayland {
 	} events;
 
 	void *data;
+};
+
+enum wlr_xwayland_surface_decorations {
+	WLR_XWAYLAND_SURFACE_DECORATIONS_ALL = 0,
+	WLR_XWAYLAND_SURFACE_DECORATIONS_NO_BORDER = 1,
+	WLR_XWAYLAND_SURFACE_DECORATIONS_NO_TITLE = 2,
+};
+
+struct wlr_xwayland_surface_hints {
+	uint32_t flags;
+	uint32_t input;
+	int32_t initial_state;
+	xcb_pixmap_t icon_pixmap;
+	xcb_window_t icon_window;
+	int32_t icon_x, icon_y;
+	xcb_pixmap_t icon_mask;
+	xcb_window_t window_group;
+};
+
+struct wlr_xwayland_surface_size_hints {
+	uint32_t flags;
+	int32_t x, y;
+	int32_t width, height;
+	int32_t min_width, min_height;
+	int32_t max_width, max_height;
+	int32_t width_inc, height_inc;
+	int32_t base_width, base_height;
+	int32_t min_aspect_num, min_aspect_den;
+	int32_t max_aspect_num, max_aspect_den;
+	uint32_t win_gravity;
 };
 
 struct wlr_xwayland_surface {
@@ -52,6 +86,11 @@ struct wlr_xwayland_surface {
 
 	xcb_atom_t *protocols;
 	size_t protocols_len;
+
+	uint32_t decorations;
+	struct wlr_xwayland_surface_hints *hints;
+	uint32_t hints_urgency;
+	struct wlr_xwayland_surface_size_hints *size_hints;
 
 	struct {
 		struct wl_signal destroy;

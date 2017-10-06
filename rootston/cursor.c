@@ -1,5 +1,8 @@
+#define _XOPEN_SOURCE 500
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 // TODO: BSD et al
 #include <linux/input-event-codes.h>
 #include <wayland-server.h>
@@ -24,15 +27,16 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view) {
 	input->mode = ROOTS_CURSOR_MOVE;
-	input->offs_x = cursor->x - view->x;
-	input->offs_y = cursor->y - view->y;
+	input->offs_x = cursor->x;
+	input->offs_y = cursor->y;
+	input->view_x = view->x;
+	input->view_y = view->y;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view, uint32_t edges) {
 	input->mode = ROOTS_CURSOR_RESIZE;
-	wlr_log(L_DEBUG, "begin resize");
 	input->offs_x = cursor->x;
 	input->offs_y = cursor->y;
 	input->view_x = view->x;
@@ -42,6 +46,15 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 	input->view_width = size.width;
 	input->view_height = size.height;
 	input->resize_edges = edges;
+	wlr_seat_pointer_clear_focus(input->wl_seat);
+}
+
+void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
+		struct roots_view *view) {
+	input->mode = ROOTS_CURSOR_ROTATE;
+	input->offs_x = cursor->x;
+	input->offs_y = cursor->y;
+	input->view_rotation = view->rotation;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
@@ -63,16 +76,18 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		break;
 	case ROOTS_CURSOR_MOVE:
 		if (input->active_view) {
-			input->active_view->x = input->cursor->x - input->offs_x;
-			input->active_view->y = input->cursor->y - input->offs_y;
+			int dx = input->cursor->x - input->offs_x,
+				dy = input->cursor->y - input->offs_y;
+			input->active_view->x = input->view_x + dx;
+			input->active_view->y = input->view_y + dy;
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
 		if (input->active_view) {
-			int dx = input->cursor->x - input->offs_x;
-			int dy = input->cursor->y - input->offs_y;
-			int width = input->view_width;
-			int height = input->view_height;
+			int dx = input->cursor->x - input->offs_x,
+				dy = input->cursor->y - input->offs_y;
+			int width = input->view_width,
+				height = input->view_height;
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
 				input->active_view->y = input->view_y + dy;
 				height -= dy;
@@ -91,6 +106,19 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
+		if (input->active_view) {
+			struct roots_view *view = input->active_view;
+			int ox = view->x + view->wlr_surface->current->width/2,
+				oy = view->y + view->wlr_surface->current->height/2;
+			int ux = input->offs_x - ox,
+				uy = input->offs_y - oy;
+			int vx = input->cursor->x - ox,
+				vy = input->cursor->y - oy;
+			float angle = atan2(vx*uy - vy*ux, vx*ux + vy*uy);
+			int steps = 12;
+			angle = round(angle/M_PI*steps) / (steps/M_PI);
+			view->rotation = input->view_rotation + angle;
+		}
 		break;
 	}
 }
@@ -100,6 +128,12 @@ static void set_view_focus(struct roots_input *input,
 	if (input->active_view == view) {
 		return;
 	}
+	input->active_view = view;
+	input->mode = ROOTS_CURSOR_PASSTHROUGH;
+	if (!view) {
+		return;
+	}
+
 	size_t index = 0;
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
@@ -108,8 +142,6 @@ static void set_view_focus(struct roots_input *input,
 			index = i;
 		}
 	}
-	input->active_view = view;
-	input->mode = ROOTS_CURSOR_PASSTHROUGH;
 	// TODO: list_swap
 	list_del(desktop->views, index);
 	list_add(desktop->views, view);
@@ -141,6 +173,23 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 		event->orientation, event->delta);
 }
 
+static bool is_meta_pressed(struct roots_input *input) {
+	uint32_t meta_key = input->server->config->keyboard.meta_key;
+	if (meta_key == 0) {
+		return false;
+	}
+
+	struct roots_keyboard *keyboard;
+	wl_list_for_each(keyboard, &input->keyboards, link) {
+		uint32_t modifiers =
+			wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+		if ((modifiers ^ meta_key) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static void do_cursor_button_press(struct roots_input *input,
 		struct wlr_cursor *cursor, struct wlr_input_device *device,
 		uint32_t time, uint32_t button, uint32_t state) {
@@ -148,14 +197,33 @@ static void do_cursor_button_press(struct roots_input *input,
 	struct wlr_surface *surface;
 	double sx, sy;
 	struct roots_view *view = view_at(desktop,
-			input->cursor->x, input->cursor->y, &surface, &sx, &sy);
-	uint32_t serial = wlr_seat_pointer_notify_button(
-			input->wl_seat, time, button, state);
+		input->cursor->x, input->cursor->y, &surface, &sx, &sy);
+
+	if (state == WLR_BUTTON_PRESSED && view && is_meta_pressed(input)) {
+		set_view_focus(input, desktop, view);
+
+		switch (button) {
+		case BTN_LEFT:
+			view_begin_move(input, cursor, view);
+			break;
+		case BTN_RIGHT:
+			view_begin_resize(input, cursor, view,
+				ROOTS_CURSOR_RESIZE_EDGE_RIGHT |
+				ROOTS_CURSOR_RESIZE_EDGE_BOTTOM);
+			break;
+		case BTN_MIDDLE:
+			view_begin_rotate(input, cursor, view);
+		}
+		return;
+	}
+
+	uint32_t serial = wlr_seat_pointer_notify_button(input->wl_seat, time, button,
+		state);
+
 	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
-		input->active_view = NULL;
-		input->mode = ROOTS_CURSOR_PASSTHROUGH;
+		set_view_focus(input, desktop, NULL);
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;

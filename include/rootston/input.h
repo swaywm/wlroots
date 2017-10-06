@@ -76,6 +76,7 @@ struct roots_input {
 
 	// TODO: multiseat, multicursor
 	struct wlr_cursor *cursor;
+	struct wlr_xcursor_theme *theme;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
 
@@ -83,6 +84,7 @@ struct roots_input {
 	struct roots_view *active_view;
 	int offs_x, offs_y;
 	int view_x, view_y, view_width, view_height;
+	float view_rotation;
 	uint32_t resize_edges;
 
 	// Ring buffer of input events that could trigger move/resize/rotate

@@ -18,7 +18,7 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double lx, double ly) {
+		struct timespec *when, double lx, double ly, float rotation) {
 	wlr_surface_flush_damage(surface);
 	if (surface->texture->valid) {
 		int width = surface->current->buffer_width;
@@ -27,10 +27,19 @@ static void render_surface(struct wlr_surface *surface,
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-					lx, ly, lx + width, ly + height)) {
+				lx, ly, lx + width, ly + height)) {
 			float matrix[16];
+
+			float translate_origin[16];
+			wlr_matrix_translate(&translate_origin,
+				(int)ox + width / 2, (int)oy + height / 2, 0);
+			float rotate[16];
+			wlr_matrix_rotate(&rotate, rotation);
+			float translate_center[16];
+			wlr_matrix_translate(&translate_center, -width / 2, -height / 2, 0);
 			float transform[16];
-			wlr_matrix_translate(&transform, ox, oy, 0);
+			wlr_matrix_mul(&translate_origin, &rotate, &transform);
+			wlr_matrix_mul(&transform, &translate_center, &transform);
 			wlr_surface_get_matrix(surface, &matrix,
 					&wlr_output->transform_matrix, &transform);
 			wlr_render_with_matrix(desktop->server->renderer,
@@ -46,16 +55,33 @@ static void render_surface(struct wlr_surface *surface,
 
 		struct wlr_subsurface *subsurface;
 		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+			double sx = subsurface->surface->current->subsurface_position.x,
+				sy = subsurface->surface->current->subsurface_position.y;
+			double sw = subsurface->surface->current->buffer_width,
+				sh = subsurface->surface->current->buffer_height;
+			if (rotation != 0.0) {
+				// Coordinates relative to the center of the subsurface
+				double ox = sx - (double)width/2 + sw/2,
+					oy = sy - (double)height/2 + sh/2;
+				// Rotated coordinates
+				double rx = cos(-rotation)*ox - sin(-rotation)*oy,
+					ry = cos(-rotation)*oy + sin(-rotation)*ox;
+				sx = rx + (double)width/2 - sw/2;
+				sy = ry + (double)height/2 - sh/2;
+			}
+
 			render_surface(subsurface->surface, desktop, wlr_output, when,
-				lx + subsurface->surface->current->subsurface_position.x,
-				ly + subsurface->surface->current->subsurface_position.y);
+				lx + sx,
+				ly + sy,
+				rotation);
 		}
 	}
 }
 
 static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double base_x, double base_y) {
+		struct timespec *when, double base_x, double base_y, float rotation) {
+	// TODO: make sure this works with view rotation
 	struct wlr_xdg_surface_v6 *popup;
 	wl_list_for_each(popup, &surface->popups, popup_link) {
 		if (!popup->configured) {
@@ -67,18 +93,18 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		double popup_y = base_y + surface->geometry->y +
 			popup->popup_state->geometry.y - popup->geometry->y;
 		render_surface(popup->surface, desktop, wlr_output, when, popup_x,
-			popup_y);
-		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y);
+			popup_y, rotation);
+		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y, rotation);
 	}
 }
 
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
 	render_surface(view->wlr_surface, desktop, wlr_output, when,
-		view->x, view->y);
+		view->x, view->y, view->rotation);
 	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
 		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output,
-			when, view->x, view->y);
+			when, view->x, view->y, view->rotation);
 	}
 }
 
@@ -170,6 +196,5 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//	sample->compositor);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
-	wl_list_remove(&output->resolution.link);
 	free(output);
 }
