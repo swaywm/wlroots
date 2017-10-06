@@ -42,6 +42,8 @@ static void activate(struct roots_view *view, bool active) {
 	if (active) {
 		wlr_xwayland_surface_activate(view->desktop->xwayland,
 			view->xwayland_surface);
+	} else {
+		wlr_xwayland_surface_activate(view->desktop->xwayland, NULL);
 	}
 }
 
