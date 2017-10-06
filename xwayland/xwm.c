@@ -735,6 +735,7 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
 	uint32_t values[] = {x, y, width, height, 0};
 	xcb_configure_window(xwm->xcb_conn, surface->window_id, mask, values);
+	xcb_flush(xwm->xcb_conn);
 }
 
 void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
