@@ -39,8 +39,10 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 }
 
 static void activate(struct roots_view *view, bool active) {
-	wlr_xwayland_surface_activate(view->desktop->xwayland,
-		view->xwayland_surface);
+	if (active) {
+		wlr_xwayland_surface_activate(view->desktop->xwayland,
+			view->xwayland_surface);
+	}
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
