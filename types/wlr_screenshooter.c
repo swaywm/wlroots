@@ -1,12 +1,25 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
 
+static void copy_bgra_yflip(uint8_t *dst, uint8_t *src, int32_t height,
+		int32_t stride) {
+	uint8_t *end = dst + height * stride;
+	while (dst < end) {
+		memcpy(dst, src, stride);
+		dst += stride;
+		src -= stride;
+	}
+}
+
 struct screenshot_state {
+	int32_t width, height, stride;
+	uint8_t *pixels;
 	struct wl_shm_buffer *shm_buffer;
 	struct wlr_output *output;
 	struct wlr_screenshot *screenshot;
@@ -14,14 +27,20 @@ struct screenshot_state {
 };
 
 static void output_frame_notify(struct wl_listener *listener, void *_data) {
-	struct screenshot_state *state = wl_container_of(listener, state, frame_listener);
+	struct screenshot_state *state = wl_container_of(listener, state,
+		frame_listener);
+
+	wlr_output_read_pixels(state->output, state->pixels);
 
 	void *data = wl_shm_buffer_get_data(state->shm_buffer);
 	wl_shm_buffer_begin_access(state->shm_buffer);
-	wlr_output_read_pixels(state->output, data);
+	copy_bgra_yflip(data, state->pixels + state->stride * (state->height - 1),
+		state->height, state->stride);
 	wl_shm_buffer_end_access(state->shm_buffer);
 
+	free(state->pixels);
 	wl_list_remove(&listener->link);
+
 	orbital_screenshot_send_done(state->screenshot->resource);
 
 	// TODO: free(state)
@@ -38,9 +57,15 @@ static void screenshooter_shoot(struct wl_client *client,
 	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(_buffer);
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
-	// TODO: int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
+	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 	if (width < output->width || height < output->height) {
 		wlr_log(L_ERROR, "Invalid buffer: too small");
+		return;
+	}
+
+	uint8_t *pixels = malloc(stride * height);
+	if (pixels == NULL) {
+		wl_client_post_no_memory(client);
 		return;
 	}
 
@@ -50,11 +75,18 @@ static void screenshooter_shoot(struct wl_client *client,
 	}
 	screenshot->output = _output;
 	screenshot->resource = wl_resource_create(client,
-		&orbital_screenshot_interface, wl_resource_get_version(_screenshooter), id);
-	wlr_log(L_DEBUG, "new screenshot %p (res %p)", screenshot, screenshot->resource);
-	wl_resource_set_implementation(screenshot->resource, NULL, screenshot, NULL);
+		&orbital_screenshot_interface, wl_resource_get_version(_screenshooter),
+		id);
+	wlr_log(L_DEBUG, "new screenshot %p (res %p)", screenshot,
+		screenshot->resource);
+	wl_resource_set_implementation(screenshot->resource, NULL, screenshot,
+		NULL);
 
 	struct screenshot_state *state = calloc(1, sizeof(struct screenshot_state));
+	state->width = width;
+	state->height = height;
+	state->stride = stride;
+	state->pixels = pixels;
 	state->shm_buffer = shm_buffer;
 	state->output = output;
 	state->screenshot = screenshot;
@@ -71,7 +103,8 @@ static void screenshooter_bind(struct wl_client *wl_client,
 	struct wlr_screenshooter *screenshooter = _screenshooter;
 	assert(wl_client && screenshooter);
 	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported screenshooter version, disconnecting");
+		wlr_log(L_ERROR, "Client requested unsupported screenshooter version,"
+			"disconnecting");
 		wl_client_destroy(wl_client);
 		return;
 	}
