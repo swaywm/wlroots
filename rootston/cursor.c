@@ -234,7 +234,7 @@ static void do_cursor_button_press(struct roots_input *input,
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
 		if (view) {
-			wlr_seat_keyboard_enter(input->wl_seat, surface);
+			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
 		}
 		break;
 	}

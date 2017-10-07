@@ -102,6 +102,33 @@ static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
 	.axis = xdg_pointer_grab_axis,
 };
 
+static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab, struct wlr_surface *surface) {
+	// keyboard focus should remain on the popup
+}
+
+static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab, uint32_t time,
+		uint32_t key, uint32_t state) {
+	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
+}
+
+static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab,
+		uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group) {
+	wlr_seat_keyboard_send_modifiers(grab->seat, mods_depressed, mods_latched,
+		mods_locked, group);
+}
+
+static void xdg_keyboard_grab_cancel(struct wlr_seat_keyboard_grab *grab) {
+	wlr_seat_keyboard_end_grab(grab->seat);
+}
+
+static const struct wlr_keyboard_grab_interface xdg_keyboard_grab_impl = {
+	.enter = xdg_keyboard_grab_enter,
+	.key = xdg_keyboard_grab_key,
+	.modifiers = xdg_keyboard_grab_modifiers,
+	.cancel = xdg_keyboard_grab_cancel,
+};
+
 static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 		struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat) {
 	struct wlr_xdg_popup_grab_v6 *xdg_grab;
@@ -118,7 +145,8 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 
 	xdg_grab->pointer_grab.data = xdg_grab;
 	xdg_grab->pointer_grab.interface = &xdg_pointer_grab_impl;
-	// TODO: keyboard grab
+	xdg_grab->keyboard_grab.data = xdg_grab;
+	xdg_grab->keyboard_grab.interface = &xdg_keyboard_grab_impl;
 
 	wl_list_init(&xdg_grab->popups);
 
@@ -130,6 +158,7 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 
 
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
+	// TODO: probably need to ungrab before this event
 	wl_signal_emit(&surface->events.destroy, surface);
 
 	if (surface->configure_idle) {
@@ -166,9 +195,13 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 
 			wl_list_remove(&surface->popup_state->grab_link);
 
-			if (wl_list_empty(&grab->popups) &&
-					grab->seat->pointer_state.grab == &grab->pointer_grab) {
-				wlr_seat_pointer_end_grab(grab->seat);
+			if (wl_list_empty(&grab->popups)) {
+				if (grab->seat->pointer_state.grab == &grab->pointer_grab) {
+					wlr_seat_pointer_end_grab(grab->seat);
+				}
+				if (grab->seat->keyboard_state.grab == &grab->keyboard_grab) {
+					wlr_seat_keyboard_end_grab(grab->seat);
+				}
 			}
 		}
 
@@ -355,6 +388,7 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 	wl_list_insert(&popup_grab->popups, &surface->popup_state->grab_link);
 
 	wlr_seat_pointer_start_grab(handle->wlr_seat, &popup_grab->pointer_grab);
+	wlr_seat_keyboard_start_grab(handle->wlr_seat, &popup_grab->keyboard_grab);
 }
 
 static const struct zxdg_popup_v6_interface zxdg_popup_v6_implementation = {
