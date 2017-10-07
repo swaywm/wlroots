@@ -37,8 +37,8 @@
 #include <screenshooter-client-protocol.h>
 #include "../backend/wayland/os-compatibility.c"
 
-static struct wl_shm *shm;
-static struct orbital_screenshooter *screenshooter;
+static struct wl_shm *shm = NULL;
+static struct orbital_screenshooter *screenshooter = NULL;
 static struct wl_list output_list;
 int min_x, min_y, max_x, max_y;
 int buffer_copy_done;
@@ -51,7 +51,7 @@ struct screenshooter_output {
 	struct wl_list link;
 };
 
-static void display_handle_geometry(void *data, struct wl_output *wl_output,
+static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int x, int y, int physical_width, int physical_height, int subpixel,
 		const char *make, const char *model, int transform) {
 	struct screenshooter_output *output = wl_output_get_user_data(wl_output);
@@ -62,7 +62,7 @@ static void display_handle_geometry(void *data, struct wl_output *wl_output,
 	}
 }
 
-static void display_handle_mode(void *data, struct wl_output *wl_output,
+static void output_handle_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int width, int height, int refresh) {
 	struct screenshooter_output *output = wl_output_get_user_data(wl_output);
 
@@ -72,9 +72,14 @@ static void display_handle_mode(void *data, struct wl_output *wl_output,
 	}
 }
 
+static void output_handle_done(void *data, struct wl_output *wl_output) {
+
+}
+
 static const struct wl_output_listener output_listener = {
-	display_handle_geometry,
-	display_handle_mode
+	.geometry = output_handle_geometry,
+	.mode = output_handle_mode,
+	.done = output_handle_done,
 };
 
 static void screenshot_done(void *data, struct orbital_screenshot *screenshot) {
@@ -82,7 +87,7 @@ static void screenshot_done(void *data, struct orbital_screenshot *screenshot) {
 }
 
 static const struct orbital_screenshot_listener screenshot_listener = {
-	screenshot_done
+	.done = screenshot_done,
 };
 
 static void handle_global(void *data, struct wl_registry *registry,
@@ -109,8 +114,8 @@ static void handle_global_remove(void *data, struct wl_registry *registry,
 }
 
 static const struct wl_registry_listener registry_listener = {
-	handle_global,
-	handle_global_remove
+	.global = handle_global,
+	.global_remove = handle_global_remove,
 };
 
 static struct wl_buffer *create_shm_buffer(int width, int height,
@@ -165,7 +170,7 @@ static void write_image(const char *filename, int width, int height) {
 		int output_stride = output->width * 4;
 		void *s = output->data;
 		void *d = data + (output->offset_y - min_y) * buffer_stride +
-			   (output->offset_x - min_x) * 4;
+			(output->offset_x - min_x) * 4;
 
 		for (int i = 0; i < output->height; i++) {
 			memcpy(d, s, output_stride);
