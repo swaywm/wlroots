@@ -51,21 +51,10 @@ struct screenshooter_output {
 	struct wl_list link;
 };
 
-static void
-display_handle_geometry(void *data,
-			struct wl_output *wl_output,
-			int x,
-			int y,
-			int physical_width,
-			int physical_height,
-			int subpixel,
-			const char *make,
-			const char *model,
-			int transform)
-{
-	struct screenshooter_output *output;
-
-	output = wl_output_get_user_data(wl_output);
+static void display_handle_geometry(void *data, struct wl_output *wl_output,
+		int x, int y, int physical_width, int physical_height, int subpixel,
+		const char *make, const char *model, int transform) {
+	struct screenshooter_output *output = wl_output_get_user_data(wl_output);
 
 	if (wl_output == output->output) {
 		output->offset_x = x;
@@ -73,17 +62,9 @@ display_handle_geometry(void *data,
 	}
 }
 
-static void
-display_handle_mode(void *data,
-		    struct wl_output *wl_output,
-		    uint32_t flags,
-		    int width,
-		    int height,
-		    int refresh)
-{
-	struct screenshooter_output *output;
-
-	output = wl_output_get_user_data(wl_output);
+static void display_handle_mode(void *data, struct wl_output *wl_output,
+		uint32_t flags, int width, int height, int refresh) {
+	struct screenshooter_output *output = wl_output_get_user_data(wl_output);
 
 	if (wl_output == output->output && (flags & WL_OUTPUT_MODE_CURRENT)) {
 		output->width = width;
@@ -96,9 +77,7 @@ static const struct wl_output_listener output_listener = {
 	display_handle_mode
 };
 
-static void
-screenshot_done(void *data, struct orbital_screenshot *screenshot)
-{
+static void screenshot_done(void *data, struct orbital_screenshot *screenshot) {
 	buffer_copy_done = 1;
 }
 
@@ -106,31 +85,27 @@ static const struct orbital_screenshot_listener screenshot_listener = {
 	screenshot_done
 };
 
-static void
-handle_global(void *data, struct wl_registry *registry,
-	      uint32_t name, const char *interface, uint32_t version)
-{
+static void handle_global(void *data, struct wl_registry *registry,
+		uint32_t name, const char *interface, uint32_t version) {
 	static struct screenshooter_output *output;
 
 	if (strcmp(interface, "wl_output") == 0) {
 		output = calloc(1, sizeof *output);
-		output->output = wl_registry_bind(registry, name,
-						  &wl_output_interface, 1);
+		output->output = wl_registry_bind(registry, name, &wl_output_interface,
+			1);
 		wl_list_insert(&output_list, &output->link);
 		wl_output_add_listener(output->output, &output_listener, output);
 	} else if (strcmp(interface, "wl_shm") == 0) {
 		shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, "orbital_screenshooter") == 0) {
 		screenshooter = wl_registry_bind(registry, name,
-						 &orbital_screenshooter_interface,
-						 1);
+			&orbital_screenshooter_interface, 1);
 	}
 }
 
-static void
-handle_global_remove(void *data, struct wl_registry *registry, uint32_t name)
-{
-	/* XXX: unimplemented */
+static void handle_global_remove(void *data, struct wl_registry *registry,
+		uint32_t name) {
+	// Unimplemented
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -138,35 +113,28 @@ static const struct wl_registry_listener registry_listener = {
 	handle_global_remove
 };
 
-static struct wl_buffer *
-create_shm_buffer(int width, int height, void **data_out)
-{
-	struct wl_shm_pool *pool;
-	struct wl_buffer *buffer;
-	int fd, size, stride;
-	void *data;
+static struct wl_buffer *create_shm_buffer(int width, int height,
+		void **data_out) {
+	int stride = width * 4;
+	int size = stride * height;
 
-	stride = width * 4;
-	size = stride * height;
-
-	fd = os_create_anonymous_file(size);
+	int fd = os_create_anonymous_file(size);
 	if (fd < 0) {
-		fprintf(stderr, "creating a buffer file for %d B failed: %m\n",
-			size);
+		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
 		return NULL;
 	}
 
-	data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (data == MAP_FAILED) {
 		fprintf(stderr, "mmap failed: %m\n");
 		close(fd);
 		return NULL;
 	}
 
-	pool = wl_shm_create_pool(shm, fd, size);
+	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 	close(fd);
-	buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride,
-					   WL_SHM_FORMAT_XRGB8888);
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
+		stride, WL_SHM_FORMAT_XRGB8888);
 	wl_shm_pool_destroy(pool);
 
 	*data_out = data;
@@ -184,26 +152,22 @@ static void argb_to_rgba(uint32_t *data, size_t height, size_t stride) {
 	}
 }
 
-static void
-write_image(const char *filename, int width, int height)
-{
-	int output_stride, buffer_stride, i;
-	void *data, *d, *s;
-	struct screenshooter_output *output, *next;
+static void write_image(const char *filename, int width, int height) {
+	int buffer_stride = width * 4;
 
-	buffer_stride = width * 4;
-
-	data = calloc(1, buffer_stride * height);
-	if (!data)
+	void *data = calloc(1, buffer_stride * height);
+	if (!data) {
 		return;
+	}
 
+	struct screenshooter_output *output, *next;
 	wl_list_for_each_safe(output, next, &output_list, link) {
-		output_stride = output->width * 4;
-		s = output->data;
-		d = data + (output->offset_y - min_y) * buffer_stride +
+		int output_stride = output->width * 4;
+		void *s = output->data;
+		void *d = data + (output->offset_y - min_y) * buffer_stride +
 			   (output->offset_x - min_x) * 4;
 
-		for (i = 0; i < output->height; i++) {
+		for (int i = 0; i < output->height; i++) {
 			memcpy(d, s, output_stride);
 			d += buffer_stride;
 			s += output_stride;
@@ -234,6 +198,7 @@ write_image(const char *filename, int width, int height)
 		close(fd[1]);
 		if (dup2(fd[0], 0) != 0) {
 			fprintf(stderr, "cannot dup the pipe\n");
+			exit(EXIT_FAILURE);
 		}
 		close(fd[0]);
 		execlp("convert", "convert", "-depth", "8", "-size", size, "rgba:-",
@@ -243,9 +208,7 @@ write_image(const char *filename, int width, int height)
 	}
 }
 
-static int
-set_buffer_size(int *width, int *height)
-{
+static int set_buffer_size(int *width, int *height) {
 	struct screenshooter_output *output;
 	min_x = min_y = INT_MAX;
 	max_x = max_y = INT_MIN;
@@ -263,8 +226,9 @@ set_buffer_size(int *width, int *height)
 		max_y = MAX(max_y, output->offset_y + output->height);
 	}
 
-	if (max_x <= min_x || max_y <= min_y)
+	if (max_x <= min_x || max_y <= min_y) {
 		return -1;
+	}
 
 	*width = max_x - min_x;
 	*height = max_y - min_y;
@@ -272,21 +236,15 @@ set_buffer_size(int *width, int *height)
 	return 0;
 }
 
-int main(int argc, char *argv[])
-{
-	struct wl_display *display;
-	struct wl_registry *registry;
-	struct screenshooter_output *output;
-	int width, height;
-
-	display = wl_display_connect(NULL);
+int main(int argc, char *argv[]) {
+	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "failed to create display: %m\n");
 		return -1;
 	}
 
 	wl_list_init(&output_list);
-	registry = wl_display_get_registry(display);
+	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
 	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
@@ -296,11 +254,13 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	int width, height;
 	if (set_buffer_size(&width, &height)) {
 		fprintf(stderr, "cannot set buffer size\n");
 		return -1;
 	}
 
+	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
 		if (output->width == 0 || output->height == 0) {
 			continue;
