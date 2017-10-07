@@ -43,7 +43,7 @@ static void output_frame_notify(struct wl_listener *listener, void *_data) {
 
 	orbital_screenshot_send_done(state->screenshot->resource);
 
-	// TODO: free(state)
+	free(state);
 }
 
 static void screenshooter_shoot(struct wl_client *client,
@@ -69,8 +69,10 @@ static void screenshooter_shoot(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_screenshot *screenshot;
-	if (!(screenshot = calloc(1, sizeof(struct wlr_screenshot)))) {
+	struct wlr_screenshot *screenshot =
+		calloc(1, sizeof(struct wlr_screenshot));
+	if (!screenshot) {
+		wl_client_post_no_memory(client);
 		return;
 	}
 	screenshot->output = _output;
