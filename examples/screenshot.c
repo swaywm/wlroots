@@ -204,7 +204,7 @@ write_png(int width, int height)
 	}
 
 	surface = cairo_image_surface_create_for_data(data,
-						      CAIRO_FORMAT_ARGB32,
+						      CAIRO_FORMAT_RGB24,
 						      width, height, buffer_stride);
 	cairo_surface_write_to_png(surface, "wayland-screenshot.png");
 	cairo_surface_destroy(surface);

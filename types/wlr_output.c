@@ -8,6 +8,7 @@
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
@@ -105,7 +106,7 @@ void wlr_output_init(struct wlr_output *output,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_signal_init(&output->events.frame);
-	wl_signal_init(&output->events.post_frame);
+	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
 	wl_signal_init(&output->events.destroy);
 }
@@ -232,6 +233,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
 	}
 
+	wl_signal_emit(&output->events.swap_buffers, &output);
+
 	output->impl->swap_buffers(output);
 }
 
@@ -250,7 +253,8 @@ uint16_t wlr_output_get_gamma_size(struct wlr_output *output) {
 }
 
 void wlr_output_read_pixels(struct wlr_output *output, void *out_data) {
-	if (output->impl->read_pixels) {
-		output->impl->read_pixels(output, out_data);
-	}
+	// TODO: is wlr_output_make_current required?
+	wlr_output_make_current(output);
+	glReadPixels(0, 0, output->width, output->height, GL_BGRA_EXT,
+		GL_UNSIGNED_BYTE, out_data);
 }

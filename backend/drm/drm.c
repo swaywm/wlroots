@@ -634,14 +634,6 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, x, y);
 }
 
-static void wlr_drm_connector_read_pixels(struct wlr_output *output,
-		void *out_data) {
-	int width, height;
-	wlr_output_effective_resolution(output, &width, &height);
-	wlr_drm_connector_make_current(output);
-	glReadPixels(0, 0, width, height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, out_data);
-}
-
 static void wlr_drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	wlr_drm_connector_cleanup(conn);
@@ -660,7 +652,6 @@ static struct wlr_output_impl output_impl = {
 	.swap_buffers = wlr_drm_connector_swap_buffers,
 	.set_gamma = wlr_drm_connector_set_gamma,
 	.get_gamma_size = wlr_drm_connector_get_gamma_size,
-	.read_pixels = wlr_drm_connector_read_pixels,
 };
 
 static int retry_pageflip(void *data) {
@@ -845,7 +836,6 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	if (drm->session->active) {
 		wl_signal_emit(&conn->output.events.frame, &conn->output);
-		wl_signal_emit(&conn->output.events.post_frame, &conn->output);
 	}
 }
 
