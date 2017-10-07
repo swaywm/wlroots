@@ -24,6 +24,52 @@ struct wlr_seat_handle {
 	struct wl_list link;
 };
 
+struct wlr_seat_pointer_grab;
+
+struct wlr_pointer_grab_interface {
+	void (*enter)(struct wlr_seat_pointer_grab *grab,
+			struct wlr_surface *surface, double sx, double sy);
+	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			double sx, double sy);
+	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			uint32_t button, uint32_t state);
+	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+			enum wlr_axis_orientation orientation, double value);
+	void (*cancel)(struct wlr_seat_pointer_grab *grab);
+};
+
+struct wlr_seat_keyboard_grab;
+
+struct wlr_keyboard_grab_interface {
+	void (*enter)(struct wlr_seat_keyboard_grab *grab, struct wlr_surface *surface);
+	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time,
+			uint32_t key, uint32_t state);
+	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
+			uint32_t mods_depressed, uint32_t mods_latched,
+			uint32_t mods_locked, uint32_t group);
+	void (*cancel)(struct wlr_seat_keyboard_grab *grab);
+};
+
+/**
+ * Passed to `wlr_seat_keyboard_start_grab()` to start a grab of the keyboard.
+ * The grabber is responsible for handling keyboard events for the seat.
+ */
+struct wlr_seat_keyboard_grab {
+	const struct wlr_keyboard_grab_interface *interface;
+	struct wlr_seat *seat;
+	void *data;
+};
+
+/**
+ * Passed to `wlr_seat_pointer_start_grab()` to start a grab of the pointer. The
+ * grabber is responsible for handling pointer events for the seat.
+ */
+struct wlr_seat_pointer_grab {
+	const struct wlr_pointer_grab_interface *interface;
+	struct wlr_seat *seat;
+	void *data;
+};
+
 struct wlr_seat_pointer_state {
 	struct wlr_seat *wlr_seat;
 	struct wlr_seat_handle *focused_handle;
@@ -31,6 +77,9 @@ struct wlr_seat_pointer_state {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
+
+	struct wlr_seat_pointer_grab *grab;
+	struct wlr_seat_pointer_grab *default_grab;
 };
 
 struct wlr_seat_keyboard {
@@ -50,6 +99,9 @@ struct wlr_seat_keyboard_state {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
+
+	struct wlr_seat_keyboard_grab *grab;
+	struct wlr_seat_keyboard_grab *default_grab;
 };
 
 struct wlr_seat {
@@ -67,11 +119,16 @@ struct wlr_seat {
 	struct {
 		struct wl_signal client_bound;
 		struct wl_signal client_unbound;
+
+		struct wl_signal pointer_grab_begin;
+		struct wl_signal pointer_grab_end;
+
+		struct wl_signal keyboard_grab_begin;
+		struct wl_signal keyboard_grab_end;
 	} events;
 
 	void *data;
 };
-
 
 /**
  * Allocates a new wlr_seat and adds a wl_seat global to the display.
@@ -109,6 +166,8 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
  * Send a pointer enter event to the given surface and consider it to be the
  * focused surface for the pointer. This will send a leave event to the last
  * surface that was entered. Coordinates for the enter event are surface-local.
+ * Compositor should use `wlr_seat_pointer_notify_enter()` to change pointer
+ * focus to respect pointer grabs.
  */
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
@@ -120,19 +179,69 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
  * Send a motion event to the surface with pointer focus. Coordinates for the
- * motion event are surface-local.
+ * motion event are surface-local. Compositors should use
+ * `wlr_seat_pointer_notify_motion()` to send motion events to respect pointer
+ * grabs.
  */
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy);
 
 /**
  * Send a button event to the surface with pointer focus. Coordinates for the
- * button event are surface-local. Returns the serial.
+ * button event are surface-local. Returns the serial. Compositors should use
+ * `wlr_seat_pointer_notify_button()` to send button events to respect pointer
+ * grabs.
  */
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state);
 
+/**
+ * Send an axis event to the surface with pointer focus. Compositors should use
+ * `wlr_seat_pointer_notify_axis()` to send axis events to respect pointer
+ * grabs.
+ **/
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value);
+
+/**
+ * Start a grab of the pointer of this seat. The grabber is responsible for
+ * handling all pointer events until the grab ends.
+ */
+void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_pointer_grab *grab);
+
+/**
+ * End the grab of the pointer of this seat. This reverts the grab back to the
+ * default grab for the pointer.
+ */
+void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
+
+/**
+ * Notify the seat of a pointer enter event to the given surface and request it to be the
+ * focused surface for the pointer. Pass surface-local coordinates where the
+ * enter occurred.
+ */
+void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, double sx, double sy);
+
+/**
+ * Notify the seat of motion over the given surface. Pass surface-local
+ * coordinates where the pointer motion occurred.
+ */
+void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		double sx, double sy);
+
+/**
+ * Notify the seat that a button has been pressed. Returns the serial of the
+ * button press or zero if no button press was sent.
+ */
+uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
+		uint32_t time, uint32_t button, uint32_t state);
+
+/**
+ * Notify the seat of an axis event.
+ */
+void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
 
 /**
@@ -150,9 +259,47 @@ void wlr_seat_attach_keyboard(struct wlr_seat *seat,
 void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
 
 /**
+ * Start a grab of the keyboard of this seat. The grabber is responsible for
+ * handling all keyboard events until the grab ends.
+ */
+void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_keyboard_grab *grab);
+
+/**
+ * End the grab of the keyboard of this seat. This reverts the grab back to the
+ * default grab for the keyboard.
+ */
+void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
+
+/**
+ * Send the keyboard key to focused keyboard resources. Compositors should use
+ * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ */
+void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time,
+		uint32_t key, uint32_t state);
+
+/**
+ * Send the modifier state to focused keyboard resources. Compositors should use
+ * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ */
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group);
+
+/**
+ * Notify the seat that the keyboard focus has changed and request it to be the
+ * focused surface for this keyboard. Defers to any current grab of the seat's
+ * keyboard.
+ */
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface);
+
+/**
  * Send a keyboard enter event to the given surface and consider it to be the
  * focused surface for the keyboard. This will send a leave event to the last
- * surface that was entered. Pass an array of currently pressed keys.
+ * surface that was entered. Compositors should use
+ * `wlr_seat_keyboard_notify_enter()` to change keyboard focus to respect
+ * keyboard grabs.
  */
 void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface);

@@ -105,6 +105,8 @@ struct roots_input {
 	struct wl_listener cursor_axis;
 	struct wl_listener cursor_tool_axis;
 	struct wl_listener cursor_tool_tip;
+
+	struct wl_listener pointer_grab_end;
 };
 
 struct roots_input *input_create(struct roots_server *server,

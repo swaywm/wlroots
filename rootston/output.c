@@ -78,10 +78,34 @@ static void render_surface(struct wlr_surface *surface,
 	}
 }
 
+static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
+		struct roots_desktop *desktop, struct wlr_output *wlr_output,
+		struct timespec *when, double base_x, double base_y, float rotation) {
+	// TODO: make sure this works with view rotation
+	struct wlr_xdg_surface_v6 *popup;
+	wl_list_for_each(popup, &surface->popups, popup_link) {
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_x = base_x + surface->geometry->x +
+			popup->popup_state->geometry.x - popup->geometry->x;
+		double popup_y = base_y + surface->geometry->y +
+			popup->popup_state->geometry.y - popup->geometry->y;
+		render_surface(popup->surface, desktop, wlr_output, when, popup_x,
+			popup_y, rotation);
+		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y, rotation);
+	}
+}
+
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
 	render_surface(view->wlr_surface, desktop, wlr_output, when,
 		view->x, view->y, view->rotation);
+	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
+		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output,
+			when, view->x, view->y, view->rotation);
+	}
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {

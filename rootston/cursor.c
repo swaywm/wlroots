@@ -68,8 +68,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
 		if (view) {
-			wlr_seat_pointer_enter(input->wl_seat, surface, sx, sy);
-			wlr_seat_pointer_send_motion(input->wl_seat, time, sx, sy);
+			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
+			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 		} else {
 			wlr_seat_pointer_clear_focus(input->wl_seat);
 		}
@@ -156,7 +156,7 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
 	wlr_cursor_move(input->cursor, event->device,
 			event->delta_x, event->delta_y);
-	cursor_update_position(input, (uint32_t)event->time_usec);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -166,14 +166,14 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	struct wlr_event_pointer_motion_absolute *event = data;
 	wlr_cursor_warp_absolute(input->cursor, event->device,
 		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-	cursor_update_position(input, (uint32_t)event->time_usec);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
-	wlr_seat_pointer_send_axis(input->wl_seat, event->time_sec,
+	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_sec,
 		event->orientation, event->delta);
 }
 
@@ -221,7 +221,7 @@ static void do_cursor_button_press(struct roots_input *input,
 		return;
 	}
 
-	uint32_t serial = wlr_seat_pointer_send_button(input->wl_seat, time, button,
+	uint32_t serial = wlr_seat_pointer_notify_button(input->wl_seat, time, button,
 		state);
 
 	int i;
@@ -238,7 +238,7 @@ static void do_cursor_button_press(struct roots_input *input,
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
 		if (view) {
-			wlr_seat_keyboard_enter(input->wl_seat, surface);
+			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
 		}
 		break;
 	}
@@ -248,7 +248,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)event->time_usec, event->button, event->state);
+			(uint32_t)(event->time_usec / 1000), event->button, event->state);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
@@ -258,7 +258,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(input->cursor, event->device,
 			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-		cursor_update_position(input, (uint32_t)event->time_usec);
+		cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
 	}
 }
 
@@ -266,7 +266,13 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_tip);
 	struct wlr_event_tablet_tool_tip *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)event->time_usec, BTN_LEFT, event->state);
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, event->state);
+}
+
+static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
+	struct roots_input *input =
+		wl_container_of(listener, input, pointer_grab_end);
+	cursor_update_position(input, 0);
 }
 
 void cursor_initialize(struct roots_input *input) {
@@ -296,6 +302,9 @@ void cursor_initialize(struct roots_input *input) {
 	wl_list_init(&input->cursor_tool_tip.link);
 	wl_signal_add(&cursor->events.tablet_tool_tip, &input->cursor_tool_tip);
 	input->cursor_tool_tip.notify = handle_tool_tip;
+
+	wl_signal_add(&input->wl_seat->events.pointer_grab_end, &input->pointer_grab_end);
+	input->pointer_grab_end.notify = handle_pointer_grab_end;
 }
 
 static void reset_device_mappings(struct roots_config *config,
