@@ -705,19 +705,25 @@ static void xcb_init_wm(struct wlr_xwm *xwm) {
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 		struct wlr_xwayland_surface *surface) {
 	struct wlr_xwm *xwm = wlr_xwayland->xwm;
-	xcb_client_message_event_t m = {0};
-	m.response_type = XCB_CLIENT_MESSAGE;
-	m.format = 32;
-	m.window = surface->window_id;
-	m.type = xwm->atoms[WM_PROTOCOLS];
-	m.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
-	m.data.data32[1] = XCB_TIME_CURRENT_TIME;
-	xcb_send_event_checked(xwm->xcb_conn, 0, surface->window_id,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&m);
-	xcb_set_input_focus_checked(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-		surface->window_id, XCB_CURRENT_TIME);
-	xcb_configure_window_checked(xwm->xcb_conn, surface->window_id,
-		XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]){XCB_STACK_MODE_ABOVE});
+	if (surface) {
+		xcb_client_message_event_t m = {0};
+		m.response_type = XCB_CLIENT_MESSAGE;
+		m.format = 32;
+		m.window = surface->window_id;
+		m.type = xwm->atoms[WM_PROTOCOLS];
+		m.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
+		m.data.data32[1] = XCB_TIME_CURRENT_TIME;
+		xcb_send_event_checked(xwm->xcb_conn, 0, surface->window_id,
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&m);
+		xcb_set_input_focus_checked(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			surface->window_id, XCB_CURRENT_TIME);
+		xcb_configure_window_checked(xwm->xcb_conn, surface->window_id,
+			XCB_CONFIG_WINDOW_STACK_MODE, (uint32_t[]){XCB_STACK_MODE_ABOVE});
+	} else {
+		wlr_log(L_DEBUG, "Deactivating xwayland");
+		xcb_set_input_focus_checked(xwm->xcb_conn, XCB_INPUT_FOCUS_NONE,
+			-1, XCB_CURRENT_TIME);
+	}
 	xcb_flush(xwm->xcb_conn);
 }
 
@@ -735,6 +741,7 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
 	uint32_t values[] = {x, y, width, height, 0};
 	xcb_configure_window(xwm->xcb_conn, surface->window_id, mask, values);
+	xcb_flush(xwm->xcb_conn);
 }
 
 void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,

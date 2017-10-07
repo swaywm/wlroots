@@ -16,6 +16,16 @@
 
 void view_destroy(struct roots_view *view) {
 	struct roots_desktop *desktop = view->desktop;
+
+	struct roots_input *input = desktop->server->input;
+	if (input->active_view == view) {
+		input->active_view = NULL;
+		input->mode = ROOTS_CURSOR_PASSTHROUGH;
+	}
+	if (input->last_active_view == view) {
+		input->last_active_view = NULL;
+	}
+
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
 		if (view == _view) {
@@ -64,6 +74,12 @@ void view_activate(struct roots_view *view, bool activate) {
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	if (view->resize) {
 		view->resize(view, width, height);
+	}
+}
+
+void view_close(struct roots_view *view) {
+	if (view->close) {
+		view->close(view);
 	}
 }
 

@@ -30,6 +30,7 @@ meta-key = Logo
 
 # Keybindings
 # Maps key combinations with commands to execute
-# The special command "exit" stops the compositor
+# Use the prefix "exec" to execute a shell command
 [bindings]
-Logo+q = exit
+Logo+Shift+e = exit # Stop the compositor
+Logo+q = close # Close the current view

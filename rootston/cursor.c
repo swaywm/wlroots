@@ -133,15 +133,19 @@ static void set_view_focus(struct roots_input *input,
 	if (!view) {
 		return;
 	}
+	input->last_active_view = view;
 
 	size_t index = 0;
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
-		view_activate(_view, _view == view);
+		if (_view != view) {
+			view_activate(_view, false);
+		}
 		if (view == _view) {
 			index = i;
 		}
 	}
+	view_activate(view, true);
 	// TODO: list_swap
 	list_del(desktop->views, index);
 	list_add(desktop->views, view);

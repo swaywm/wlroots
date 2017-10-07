@@ -19,8 +19,8 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
 		wl_output_send_geometry(resource, 0, 0, // TODO: get position from layout?
-				output->phys_width, output->phys_height, output->subpixel,
-				output->make, output->model, output->transform);
+			output->phys_width, output->phys_height, output->subpixel,
+			output->make, output->model, output->transform);
 	}
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		for (size_t i = 0; i < output->modes->length; ++i) {
@@ -31,7 +31,13 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
 			wl_output_send_mode(resource, flags,
-					mode->width, mode->height, mode->refresh);
+				mode->width, mode->height, mode->refresh);
+		}
+
+		if (output->modes->length == 0) {
+			// Output has no mode, send the current width/height
+			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
+				output->width, output->height, 0);
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
@@ -125,9 +131,11 @@ void wlr_output_transform(struct wlr_output *output,
 }
 
 bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height) {
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
 	if (output->impl->set_cursor
-			&& output->impl->set_cursor(output, buf, stride, width, height)) {
+			&& output->impl->set_cursor(output, buf, stride, width, height,
+				hotspot_x, hotspot_y)) {
 		output->cursor.is_sw = false;
 		return true;
 	}
@@ -137,6 +145,8 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	output->cursor.is_sw = true;
 	output->cursor.width = width;
 	output->cursor.height = height;
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
 
 	if (!output->cursor.renderer) {
 		/* NULL egl is okay given that we are only using pixel buffers */

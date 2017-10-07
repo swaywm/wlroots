@@ -33,6 +33,14 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	}
 }
 
+static void close(struct roots_view *view) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
+	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_toplevel_v6_send_close(surf);
+	}
+}
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, request_move);
@@ -114,6 +122,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->get_size = get_size;
 	view->activate = activate;
 	view->resize = resize;
+	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;
 	list_add(desktop->views, view);

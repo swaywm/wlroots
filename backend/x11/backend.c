@@ -51,9 +51,11 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 			.keycode = ev->detail - 8,
 			.state = event->response_type == XCB_KEY_PRESS ?
 				WLR_KEY_PRESSED : WLR_KEY_RELEASED,
+			.update_state = true,
 		};
 
-		wl_signal_emit(&x11->keyboard.events.key, &key);
+		// TODO use xcb-xkb for more precise modifiers state?
+		wlr_keyboard_notify_key(&x11->keyboard, &key);
 		x11->time = ev->time;
 		break;
 	}
