@@ -634,13 +634,12 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, x, y);
 }
 
-static void wlr_drm_connector_read_pixels(struct wlr_output *_output,
+static void wlr_drm_connector_read_pixels(struct wlr_output *output,
 		void *out_data) {
-	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	struct wlr_drm_plane *plane = conn->crtc->primary;
-	wlr_drm_plane_make_current(conn->renderer, plane);
-	glReadPixels(0, 0, plane->width, plane->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE,
-		out_data);
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+	wlr_drm_connector_make_current(output);
+	glReadPixels(0, 0, width, height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, out_data);
 }
 
 static void wlr_drm_connector_destroy(struct wlr_output *output) {
