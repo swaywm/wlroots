@@ -91,7 +91,7 @@ static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 		int sub_width = subsurface->surface->current->buffer_width;
 		int sub_height = subsurface->surface->current->buffer_height;
 		if ((sx > _sub_x && sx < _sub_x + sub_width) &&
-				(sy > _sub_y && sub_y < sub_y + sub_height)) {
+				(sy > _sub_y && sy < _sub_y + sub_height)) {
 			*sub_x = _sub_x;
 			*sub_y = _sub_y;
 			return subsurface;
