@@ -8,7 +8,6 @@
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
@@ -252,9 +251,19 @@ uint16_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
+static void rgba_to_argb(uint32_t *data, size_t height, size_t stride) {
+	size_t n = height*stride/4;
+	for (size_t i = 0; i < n; ++i) {
+		uint32_t v = data[i];
+		uint32_t rgb = (v & 0xffffff00) >> 8;
+		uint32_t a = v & 0x000000ff;
+		data[i] = rgb | (a << 24);
+	}
+}
+
 void wlr_output_read_pixels(struct wlr_output *output, void *out_data) {
-	// TODO: is wlr_output_make_current required?
 	wlr_output_make_current(output);
-	glReadPixels(0, 0, output->width, output->height, GL_BGRA_EXT,
-		GL_UNSIGNED_BYTE, out_data);
+	glReadPixels(0, 0, output->width, output->height, GL_RGBA, GL_UNSIGNED_BYTE,
+		out_data);
+	rgba_to_argb(out_data, output->height, output->width*4);
 }

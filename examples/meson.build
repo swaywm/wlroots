@@ -26,5 +26,5 @@ executable(
 executable(
 	'screenshot',
 	'screenshot.c',
-	dependencies: [wayland_client, wlr_protos, dependency('cairo')],
+	dependencies: [wayland_client, wlr_protos],
 )

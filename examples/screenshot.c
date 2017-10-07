@@ -33,7 +33,6 @@
 #include <wayland-client.h>
 #include <limits.h>
 #include <sys/param.h>
-#include <cairo.h>
 #include <screenshooter-client-protocol.h>
 #include "../backend/wayland/os-compatibility.c"
 
@@ -174,11 +173,20 @@ create_shm_buffer(int width, int height, void **data_out)
 	return buffer;
 }
 
+static void argb_to_rgba(uint32_t *data, size_t height, size_t stride) {
+	size_t n = height*stride/4;
+	for (size_t i = 0; i < n; ++i) {
+		uint32_t v = data[i];
+		uint32_t rgb = v & 0x00ffffff;
+		uint32_t a = (v & 0xff000000) >> 24;
+		data[i] = (rgb << 8) | a;
+	}
+}
+
 static void
 write_png(int width, int height)
 {
 	int output_stride, buffer_stride, i;
-	cairo_surface_t *surface;
 	void *data, *d, *s;
 	struct screenshooter_output *output, *next;
 
@@ -203,11 +211,13 @@ write_png(int width, int height)
 		free(output);
 	}
 
-	surface = cairo_image_surface_create_for_data(data,
-						      CAIRO_FORMAT_RGB24,
-						      width, height, buffer_stride);
-	cairo_surface_write_to_png(surface, "wayland-screenshot.png");
-	cairo_surface_destroy(surface);
+	argb_to_rgba(data, height, buffer_stride);
+
+	// TODO: call convert
+	FILE *f = fopen("wayland-screenshot", "w");
+	fwrite(data, buffer_stride * height, 1, f);
+	fclose(f);
+
 	free(data);
 }
 
