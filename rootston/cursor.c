@@ -274,6 +274,24 @@ static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
 	cursor_update_position(input, 0);
 }
 
+static void handle_request_set_cursor(struct wl_listener *listener,
+		void *data) {
+	struct roots_input *input = wl_container_of(listener, input,
+		request_set_cursor);
+	//struct wlr_seat_pointer_request_set_cursor_event *event = data;
+
+	struct wlr_xcursor_image *image = input->xcursor->images[0];
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
+				image->width, image->width, image->height,
+				image->hotspot_x, image->hotspot_y)) {
+			wlr_log(L_DEBUG, "Failed to set hardware cursor");
+			return;
+		}
+	}
+}
+
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
 
@@ -304,6 +322,11 @@ void cursor_initialize(struct roots_input *input) {
 
 	wl_signal_add(&input->wl_seat->events.pointer_grab_end, &input->pointer_grab_end);
 	input->pointer_grab_end.notify = handle_pointer_grab_end;
+
+	wl_list_init(&input->request_set_cursor.link);
+	wl_signal_add(&input->wl_seat->events.request_set_cursor,
+		&input->request_set_cursor);
+	input->request_set_cursor.notify = handle_request_set_cursor;
 }
 
 static void reset_device_mappings(struct roots_config *config,

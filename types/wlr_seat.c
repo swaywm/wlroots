@@ -24,7 +24,10 @@ static void wl_pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *surface_resource,
 		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
-	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_surface *surface = NULL;
+	if (surface_resource != NULL) {
+		surface = wl_resource_get_user_data(surface_resource);
+	}
 
 	struct wlr_seat_pointer_request_set_cursor_event *event =
 		calloc(1, sizeof(struct wlr_seat_pointer_request_set_cursor_event));
