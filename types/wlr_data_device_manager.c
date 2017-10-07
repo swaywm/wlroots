@@ -33,6 +33,10 @@ static void data_device_start_drag(struct wl_client *client,
 static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *source_resource,
 		uint32_t serial) {
+	if (!source_resource) {
+		return;
+	}
+
 	// TODO: serial validation
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
 	struct wlr_data_device *device = handle->wlr_seat->data_device;
@@ -176,6 +180,10 @@ void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
 
 void wlr_data_device_set_selection(struct wlr_data_device *device,
 		struct wlr_data_source *source) {
+	if (device->selection == source) {
+		return;
+	}
+
 	if (device->selection) {
 		wl_list_remove(&device->selection_destroyed.link);
 		wlr_data_source_cancelled(device->selection);
