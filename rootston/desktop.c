@@ -154,16 +154,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_list_init(&desktop->output_remove.link);
 	desktop->output_remove.notify = output_remove_notify;
 
-	wl_signal_add(&server->backend->events.output_add,
-			&desktop->output_add);
+	wl_signal_add(&server->backend->events.output_add, &desktop->output_add);
 	wl_signal_add(&server->backend->events.output_remove,
-			&desktop->output_remove);
+		&desktop->output_remove);
 
 	desktop->server = server;
 	desktop->config = config;
 	desktop->layout = wlr_output_layout_create();
-	desktop->compositor = wlr_compositor_create(
-			server->wl_display, server->renderer);
+	desktop->compositor = wlr_compositor_create(server->wl_display,
+		server->renderer);
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
@@ -182,7 +181,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->xwayland_surface.notify = handle_xwayland_surface;
 
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
-			server->wl_display);
+		server->wl_display);
+	desktop->screenshooter = wlr_screenshooter_create(server->wl_display);
 
 	return desktop;
 }
