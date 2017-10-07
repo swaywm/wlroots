@@ -19,8 +19,8 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
 		wl_output_send_geometry(resource, 0, 0, // TODO: get position from layout?
-				output->phys_width, output->phys_height, output->subpixel,
-				output->make, output->model, output->transform);
+			output->phys_width, output->phys_height, output->subpixel,
+			output->make, output->model, output->transform);
 	}
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		for (size_t i = 0; i < output->modes->length; ++i) {
@@ -31,7 +31,13 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
 			wl_output_send_mode(resource, flags,
-					mode->width, mode->height, mode->refresh);
+				mode->width, mode->height, mode->refresh);
+		}
+
+		if (output->modes->length == 0) {
+			// Output has no mode, send the current width/height
+			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
+				output->width, output->height, 0);
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
