@@ -85,9 +85,15 @@ static void data_source_destroy(struct wl_client *client, struct wl_resource *re
 	wl_resource_destroy(resource);
 }
 
+static void data_source_set_actions(struct wl_client *client,
+		struct wl_resource *resource, uint32_t dnd_actions) {
+	wlr_log(L_DEBUG, "TODO: data source set actions");
+}
+
 static struct wl_data_source_interface wl_data_source_impl = {
 	.offer = data_source_offer,
-	.destroy = data_source_destroy
+	.destroy = data_source_destroy,
+	.set_actions = data_source_set_actions,
 };
 
 static void destroy_wl_data_source(struct wl_resource *resource) {
