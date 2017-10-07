@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -184,7 +185,7 @@ static void argb_to_rgba(uint32_t *data, size_t height, size_t stride) {
 }
 
 static void
-write_png(int width, int height)
+write_image(const char *filename, int width, int height)
 {
 	int output_stride, buffer_stride, i;
 	void *data, *d, *s;
@@ -213,12 +214,33 @@ write_png(int width, int height)
 
 	argb_to_rgba(data, height, buffer_stride);
 
-	// TODO: call convert
-	FILE *f = fopen("wayland-screenshot", "w");
-	fwrite(data, buffer_stride * height, 1, f);
-	fclose(f);
+	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
+	sprintf(size, "%dx%d+0", width, height);
 
-	free(data);
+	int fd[2];
+	pipe(fd);
+
+	pid_t child = fork();
+	if (child < 0) {
+		fprintf(stderr, "fork() failed\n");
+		exit(EXIT_FAILURE);
+	} else if (child != 0) {
+		close(fd[0]);
+		write(fd[1], data, buffer_stride * height);
+		close(fd[1]);
+		free(data);
+		waitpid(child, NULL, 0);
+	} else {
+		close(fd[1]);
+		if (dup2(fd[0], 0) != 0) {
+			fprintf(stderr, "cannot dup the pipe\n");
+		}
+		close(fd[0]);
+		execlp("convert", "convert", "-depth", "8", "-size", size, "rgba:-",
+			"-alpha", "opaque", filename, NULL);
+		fprintf(stderr, "cannot execute convert\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 static int
@@ -296,7 +318,6 @@ int main(int argc, char *argv[])
 			wl_display_roundtrip(display);
 	}
 
-	write_png(width, height);
-
-	return 0;
+	write_image("wayland-screenshot.png", width, height);
+	return EXIT_SUCCESS;
 }
