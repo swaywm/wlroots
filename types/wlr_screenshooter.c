@@ -7,7 +7,7 @@
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
 
-static void copy_bgra_yflip(uint8_t *dst, uint8_t *src, int32_t height,
+static void copy_yflip(uint8_t *dst, uint8_t *src, int32_t height,
 		int32_t stride) {
 	uint8_t *end = dst + height * stride;
 	while (dst < end) {
@@ -34,7 +34,7 @@ static void output_frame_notify(struct wl_listener *listener, void *_data) {
 
 	void *data = wl_shm_buffer_get_data(state->shm_buffer);
 	wl_shm_buffer_begin_access(state->shm_buffer);
-	copy_bgra_yflip(data, state->pixels + state->stride * (state->height - 1),
+	copy_yflip(data, state->pixels + state->stride * (state->height - 1),
 		state->height, state->stride);
 	wl_shm_buffer_end_access(state->shm_buffer);
 
@@ -60,6 +60,12 @@ static void screenshooter_shoot(struct wl_client *client,
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 	if (width < output->width || height < output->height) {
 		wlr_log(L_ERROR, "Invalid buffer: too small");
+		return;
+	}
+
+	uint32_t format = wl_shm_buffer_get_format(shm_buffer);
+	if (format != WL_SHM_FORMAT_XRGB8888) {
+		wlr_log(L_ERROR, "Invalid buffer: unsupported format");
 		return;
 	}
 
