@@ -27,7 +27,8 @@ void wlr_data_source_finish(struct wlr_data_source *source) {
 	}
 }
 
-void wlr_data_source_send(struct wlr_data_source *src, const char *type, int fd) {
+void wlr_data_source_send(struct wlr_data_source *src, const char *type,
+		int fd) {
 	assert(src && src->impl && src->impl->send);
 	src->impl->send(src, type, fd);
 }
@@ -53,7 +54,8 @@ static void data_source_send(struct wlr_data_source *src,
 	close(fd);
 }
 
-static void data_source_accepted(struct wlr_data_source *src, const char *type) {
+static void data_source_accepted(struct wlr_data_source *src,
+		const char *type) {
 	struct wlr_wl_data_source *wl_src = (struct wlr_wl_data_source *) src;
 	wl_data_source_send_target(wl_src->resource, type);
 }
@@ -69,7 +71,8 @@ static struct wlr_data_source_impl data_source_wl_impl = {
 	.cancelled = data_source_cancelled,
 };
 
-static void data_source_offer(struct wl_client *client, struct wl_resource *resource,
+static void data_source_offer(struct wl_client *client,
+		struct wl_resource *resource,
 		const char *type) {
 	struct wlr_wl_data_source *src = wl_resource_get_user_data(resource);
 	char *dtype = strdup(type);
@@ -81,7 +84,8 @@ static void data_source_offer(struct wl_client *client, struct wl_resource *reso
 	list_add(src->base.types, dtype);
 }
 
-static void data_source_destroy(struct wl_client *client, struct wl_resource *resource) {
+static void data_source_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
