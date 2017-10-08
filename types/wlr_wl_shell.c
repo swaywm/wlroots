@@ -93,14 +93,44 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 		NULL);
 }
 
+static void shell_surface_set_parent(struct wlr_wl_shell_surface *surface,
+		struct wlr_wl_shell_surface *parent) {
+	assert(surface);
+	surface->parent = parent;
+	wl_list_remove(&surface->child_link);
+	wl_list_init(&surface->child_link);
+	if (parent) {
+		wl_list_insert(&parent->children, &surface->child_link);
+	}
+}
+
+static struct wlr_wl_shell_surface *shell_get_shell_surface(struct wlr_wl_shell *shell,
+		struct wlr_surface *surface) {
+	if (surface) {
+		struct wlr_wl_shell_surface *wl_surface;
+		wl_list_for_each(wl_surface, &shell->surfaces, link) {
+			if (wl_surface->surface == surface) {
+				return wl_surface;
+			}
+		}
+	}
+	return NULL;
+}
+
 static void shell_surface_set_transient(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *parent_resource,
 		int32_t x, int32_t y, enum wl_shell_surface_transient flags) {
 	wlr_log(L_DEBUG, "got shell surface transient");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-	struct wlr_wl_shell_surface *parent =
+	struct wlr_surface *parent =
 		wl_resource_get_user_data(parent_resource);
 	// TODO: check if parent_resource == NULL?
+
+	struct wlr_wl_shell_surface *wl_parent = shell_get_shell_surface(surface->shell, parent);
+
+	if (!wl_parent) {
+		return;
+	}
 
 	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
@@ -108,7 +138,8 @@ static void shell_surface_set_transient(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	transient_state->parent = parent;
+
+	shell_surface_set_parent(surface, wl_parent);
 	transient_state->x = x;
 	transient_state->y = y;
 	transient_state->flags = flags;
@@ -158,9 +189,10 @@ static void shell_surface_set_popup(struct wl_client *client,
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =
 		wl_resource_get_user_data(seat_resource);
-	struct wlr_wl_shell_surface *parent =
+	struct wlr_surface *parent =
 		wl_resource_get_user_data(parent_resource);
-	// TODO: check if parent_resource == NULL?
+
+	struct wlr_wl_shell_surface *wl_parent = shell_get_shell_surface(surface->shell, parent);
 
 	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
@@ -168,7 +200,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	transient_state->parent = parent;
+	shell_surface_set_parent(surface, wl_parent);
 	transient_state->x = x;
 	transient_state->y = y;
 	transient_state->flags = flags;
@@ -263,6 +295,13 @@ struct wl_shell_surface_interface shell_surface_interface = {
 static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
+
+	struct wlr_wl_shell_surface *child;
+	wl_list_for_each(child, &surface->children, child_link) {
+		shell_surface_set_parent(child, NULL);
+	}
+	wl_list_remove(&surface->child_link);
+
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wl_event_source_remove(surface->ping_timer);
@@ -311,6 +350,8 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
+	wl_list_init(&wl_surface->child_link);
+	wl_list_init(&wl_surface->children);
 
 	wl_surface->shell = wl_shell;
 	wl_surface->client = client;
@@ -429,4 +470,8 @@ void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 
 void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface) {
 	wl_shell_surface_send_popup_done(surface->resource);
+}
+
+bool wlr_wl_shell_surface_is_transient(struct wlr_wl_shell_surface *surface) {
+	return surface->parent != NULL;
 }

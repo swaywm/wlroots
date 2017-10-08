@@ -18,7 +18,6 @@ struct wlr_wl_shell {
 };
 
 struct wlr_wl_shell_surface_transient_state {
-	struct wlr_wl_shell_surface *parent;
 	int32_t x;
 	int32_t y;
 	enum wl_shell_surface_transient flags;
@@ -54,6 +53,10 @@ struct wlr_wl_shell_surface {
 	char *class;
 
 	struct wl_listener surface_destroy_listener;
+
+	struct wlr_wl_shell_surface *parent;
+	struct wl_list child_link;
+	struct wl_list children; // transient and popups
 
 	struct {
 		struct wl_signal destroy;
@@ -108,5 +111,6 @@ void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface);
 void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 	enum wl_shell_surface_resize edges, int32_t width, int32_t height);
 void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface);
+bool wlr_wl_shell_surface_is_transient(struct wlr_wl_shell_surface *surface);
 
 #endif
