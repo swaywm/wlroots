@@ -30,28 +30,36 @@ CHECK_FMT='if (!%s) {
 }'
 
 while read -r COMMAND; do
-	[ ${COMMAND::1} = "-" ]
-	OPTIONAL=$?
+	OPTIONAL=0
+	FUNC_PTR_FMT='PFN%sPROC'
+
+	case $COMMAND in
+	-*)
+		OPTIONAL=1
+		;;
+	esac
+
+	case $COMMAND in
+	*WL)
+		FUNC_PTR_FMT='PFN%s'
+		;;
+	esac
 
 	COMMAND=${COMMAND#-}
-	if [ ${COMMAND: -2} = "WL" ]; then
-		FUNC_PTR_FMT='PFN%s'
-	else
-		FUNC_PTR_FMT='PFN%sPROC'
-	fi
-
 	FUNC_PTR=$(printf "$FUNC_PTR_FMT" "$COMMAND" | tr [:lower:] [:upper:])
 
 	DECL="$DECL$(printf "\n$DECL_FMT" "$FUNC_PTR" "$COMMAND")"
 	DEFN="$DEFN$(printf "\n$DEFN_FMT" "$FUNC_PTR" "$COMMAND")"
 	LOADER="$LOADER$(printf "\n$LOADER_FMT" "$COMMAND" "$FUNC_PTR" "$COMMAND")"
 
-	if [ $OPTIONAL -ne 0 ]; then
+	if [ $OPTIONAL -eq 0 ]; then
 		LOADER="$LOADER$(printf "\n$CHECK_FMT" "$COMMAND" "$COMMAND")"
 	fi
 done < $SPEC
 
-if [ ${OUT: -2} = '.h' ]; then
+
+case $OUT in
+*.h)
 	cat > $OUT << EOF
 	#ifndef $INCLUDE_GUARD
 	#define $INCLUDE_GUARD
@@ -69,7 +77,8 @@ if [ ${OUT: -2} = '.h' ]; then
 
 	#endif
 EOF
-elif [ ${OUT: -2} = '.c' ]; then
+	;;
+*.c)
 	cat > $OUT << EOF
 	#include <wlr/util/log.h>
 	#include "$BASE.h"
@@ -86,6 +95,8 @@ elif [ ${OUT: -2} = '.c' ]; then
 		return true;
 	}
 EOF
-else
+	;;
+*)
 	exit 1
-fi
+	;;
+esac
