@@ -30,27 +30,32 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
  * This will render the texture at <123, 321>.
  */
 bool wlr_render_with_matrix(struct wlr_renderer *r,
-		struct wlr_texture *texture, const float (*matrix)[16]);
+	struct wlr_texture *texture, const float (*matrix)[16]);
 /**
  * Renders a solid quad in the specified color.
  */
 void wlr_render_colored_quad(struct wlr_renderer *r,
-		const float (*color)[4], const float (*matrix)[16]);
+	const float (*color)[4], const float (*matrix)[16]);
 /**
  * Renders a solid ellipse in the specified color.
  */
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
-		const float (*color)[4], const float (*matrix)[16]);
+	const float (*color)[4], const float (*matrix)[16]);
 /**
  * Returns a list of pixel formats supported by this renderer.
  */
 const enum wl_shm_format *wlr_renderer_get_formats(
-		struct wlr_renderer *r, size_t *len);
+	struct wlr_renderer *r, size_t *len);
 /**
  * Returns true if this wl_buffer is a DRM buffer.
  */
 bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
-		struct wl_resource *buffer);
+	struct wl_resource *buffer);
+/**
+ * Reads pixels and stores them in out_data as ARGB8888.
+ */
+void wlr_renderer_read_pixels(struct wlr_renderer *r, int x, int y,
+	int width, int height, void *out_data);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */

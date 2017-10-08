@@ -182,7 +182,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 		server->wl_display);
-	desktop->screenshooter = wlr_screenshooter_create(server->wl_display);
+	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
+		server->renderer);
 
 	return desktop;
 }

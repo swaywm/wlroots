@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
+#include <wlr/render.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
@@ -21,7 +22,6 @@ struct screenshot_state {
 	int32_t width, height, stride;
 	uint8_t *pixels;
 	struct wl_shm_buffer *shm_buffer;
-	struct wlr_output *output;
 	struct wlr_screenshot *screenshot;
 	struct wl_listener frame_listener;
 };
@@ -29,8 +29,12 @@ struct screenshot_state {
 static void output_frame_notify(struct wl_listener *listener, void *_data) {
 	struct screenshot_state *state = wl_container_of(listener, state,
 		frame_listener);
+	struct wlr_renderer *renderer = state->screenshot->screenshooter->renderer;
+	struct wlr_output *output = state->screenshot->output;
 
-	wlr_output_read_pixels(state->output, state->pixels);
+	wlr_output_make_current(output);
+	wlr_renderer_read_pixels(renderer, 0, 0, output->width, output->height,
+		state->pixels);
 
 	void *data = wl_shm_buffer_get_data(state->shm_buffer);
 	wl_shm_buffer_begin_access(state->shm_buffer);
@@ -49,6 +53,8 @@ static void output_frame_notify(struct wl_listener *listener, void *_data) {
 static void screenshooter_shoot(struct wl_client *client,
 		struct wl_resource *_screenshooter, uint32_t id,
 		struct wl_resource *_output, struct wl_resource *_buffer) {
+	struct wlr_screenshooter *screenshooter =
+		wl_resource_get_user_data(_screenshooter);
 	struct wlr_output *output = wl_resource_get_user_data(_output);
 	if (!wl_shm_buffer_get(_buffer)) {
 		wlr_log(L_ERROR, "Invalid buffer: not a shared memory buffer");
@@ -81,7 +87,9 @@ static void screenshooter_shoot(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	screenshot->output = _output;
+	screenshot->output_resource = _output;
+	screenshot->output = output;
+	screenshot->screenshooter = screenshooter;
 	screenshot->resource = wl_resource_create(client,
 		&orbital_screenshot_interface, wl_resource_get_version(_screenshooter),
 		id);
@@ -91,12 +99,15 @@ static void screenshooter_shoot(struct wl_client *client,
 		NULL);
 
 	struct screenshot_state *state = calloc(1, sizeof(struct screenshot_state));
+	if (!state) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 	state->width = width;
 	state->height = height;
 	state->stride = stride;
 	state->pixels = pixels;
 	state->shm_buffer = shm_buffer;
-	state->output = output;
 	state->screenshot = screenshot;
 	state->frame_listener.notify = output_frame_notify;
 	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
@@ -122,12 +133,15 @@ static void screenshooter_bind(struct wl_client *wl_client,
 		screenshooter, NULL);
 }
 
-struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
+struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
+		struct wlr_renderer *renderer) {
 	struct wlr_screenshooter *screenshooter =
 		calloc(1, sizeof(struct wlr_screenshooter));
 	if (!screenshooter) {
 		return NULL;
 	}
+	screenshooter->renderer = renderer;
+
 	struct wl_global *wl_global = wl_global_create(display,
 		&orbital_screenshooter_interface, 1, screenshooter, screenshooter_bind);
 	if (!wl_global) {
@@ -135,6 +149,7 @@ struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
 		return NULL;
 	}
 	screenshooter->wl_global = wl_global;
+
 	return screenshooter;
 }
 

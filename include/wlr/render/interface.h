@@ -28,6 +28,8 @@ struct wlr_renderer_impl {
 		struct wlr_renderer *renderer, size_t *len);
 	bool (*buffer_is_drm)(struct wlr_renderer *renderer,
 		struct wl_resource *buffer);
+	void (*read_pixels)(struct wlr_renderer *renderer, int x, int y, int width,
+		int height, void *out_data);
 	void (*destroy)(struct wlr_renderer *renderer);
 };
 
