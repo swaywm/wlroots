@@ -360,7 +360,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 		oldh != surface->current->buffer_height;
 
 	// TODO: add the invalid bitfield to this callback
-	wl_signal_emit(&surface->signals.commit, surface);
+	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static bool wlr_subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
@@ -583,7 +583,7 @@ void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
 
 static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->signals.destroy, surface);
+	wl_signal_emit(&surface->events.destroy, surface);
 
 	if (surface->subsurface) {
 		wlr_subsurface_destroy(surface->subsurface);
@@ -611,8 +611,8 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	surface->current = wlr_surface_state_create();
 	surface->pending = wlr_surface_state_create();
 
-	wl_signal_init(&surface->signals.commit);
-	wl_signal_init(&surface->signals.destroy);
+	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.destroy);
 	wl_list_init(&surface->subsurface_list);
 	wl_list_init(&surface->subsurface_pending_list);
 	wl_resource_set_implementation(res, &surface_interface,
@@ -803,7 +803,7 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 
 	// link parent
 	subsurface->parent = parent;
-	wl_signal_add(&parent->signals.destroy,
+	wl_signal_add(&parent->events.destroy,
 		&subsurface->parent_destroy_listener);
 	subsurface->parent_destroy_listener.notify =
 		subsurface_handle_parent_destroy;

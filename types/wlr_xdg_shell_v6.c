@@ -1109,11 +1109,11 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.ack_configure);
 	wl_signal_init(&surface->events.ping_timeout);
 
-	wl_signal_add(&surface->surface->signals.destroy,
+	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
-	wl_signal_add(&surface->surface->signals.commit,
+	wl_signal_add(&surface->surface->events.commit,
 		&surface->surface_commit_listener);
 	surface->surface_commit_listener.notify = handle_wlr_surface_committed;
 

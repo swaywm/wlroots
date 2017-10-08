@@ -417,7 +417,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	wl_list_remove(&wlr_seat->pointer_state.resource_destroy.link);
 	wl_list_init(&wlr_seat->pointer_state.resource_destroy.link);
 	if (surface) {
-		wl_signal_add(&surface->signals.destroy,
+		wl_signal_add(&surface->events.destroy,
 			&wlr_seat->pointer_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
 			&wlr_seat->pointer_state.resource_destroy);
@@ -733,7 +733,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 	wl_list_remove(&wlr_seat->keyboard_state.resource_destroy.link);
 	wl_list_init(&wlr_seat->keyboard_state.resource_destroy.link);
 	if (surface) {
-		wl_signal_add(&surface->signals.destroy,
+		wl_signal_add(&surface->events.destroy,
 			&wlr_seat->keyboard_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
 			&wlr_seat->keyboard_state.resource_destroy);

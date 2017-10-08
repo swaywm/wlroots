@@ -334,7 +334,7 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	wl_signal_init(&wl_surface->events.set_title);
 	wl_signal_init(&wl_surface->events.set_class);
 
-	wl_signal_add(&wl_surface->surface->signals.destroy,
+	wl_signal_add(&wl_surface->surface->events.destroy,
 		&wl_surface->surface_destroy_listener);
 	wl_surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
