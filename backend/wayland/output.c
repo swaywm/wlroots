@@ -55,9 +55,15 @@ static void wlr_wl_output_transform(struct wlr_output *_output,
 static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
-
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
+
+	if (!buf) {
+		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
+			NULL, 0, 0);
+		return true;
+	}
+
 	stride *= 4; // stride is given in pixels, we need it in bytes
 
 	if (!backend->shm || !backend->pointer) {

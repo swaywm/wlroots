@@ -278,14 +278,18 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 		void *data) {
 	struct roots_input *input = wl_container_of(listener, input,
 		request_set_cursor);
-	//struct wlr_seat_pointer_request_set_cursor_event *event = data;
+	struct wlr_seat_pointer_request_set_cursor_event *event = data;
+	if (event->surface == NULL) {
+		wlr_log(L_DEBUG, "handle_request_set_cursor with NULL surface");
+		return;
+	}
 
-	struct wlr_xcursor_image *image = input->xcursor->images[0];
+	wlr_log(L_DEBUG, "handle_request_set_cursor");
+
 	struct roots_output *output;
 	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
-				image->width, image->width, image->height,
-				image->hotspot_x, image->hotspot_y)) {
+		if (!wlr_output_set_cursor_surface(output->wlr_output,
+				event->surface, event->hotspot_x, event->hotspot_y)) {
 			wlr_log(L_DEBUG, "Failed to set hardware cursor");
 			return;
 		}

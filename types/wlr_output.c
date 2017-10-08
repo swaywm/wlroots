@@ -4,6 +4,7 @@
 #include <tgmath.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
@@ -158,7 +159,8 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	}
 
 	if (!output->cursor.texture) {
-		output->cursor.texture = wlr_render_texture_create(output->cursor.renderer);
+		output->cursor.texture =
+			wlr_render_texture_create(output->cursor.renderer);
 		if (!output->cursor.texture) {
 			return false;
 		}
@@ -166,6 +168,28 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 
 	return wlr_texture_upload_pixels(output->cursor.texture,
 				WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+}
+
+bool wlr_output_set_cursor_surface(struct wlr_output *output,
+		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	if (output->impl->set_cursor) {
+		output->impl->set_cursor(output, NULL, 0, 0, 0, 0, 0);
+		wlr_log(L_INFO, "TODO: wlr_output_set_cursor_surface for hw cursors");
+	}
+
+	output->cursor.is_sw = true;
+	output->cursor.width = surface->current->width;
+	output->cursor.height = surface->current->height;
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
+
+	wlr_texture_destroy(output->cursor.texture);
+	output->cursor.texture = surface->texture;
+
+	wlr_renderer_destroy(output->cursor.renderer);
+	output->cursor.renderer = surface->renderer;
+
+	return true;
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
