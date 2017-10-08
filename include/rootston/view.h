@@ -83,5 +83,6 @@ void view_activate(struct roots_view *view, bool active);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
+bool view_initialize(struct roots_view *view);
 
 #endif

@@ -132,4 +132,7 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view, uint32_t edges);
 
+void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
+	struct roots_view *view);
+
 #endif

@@ -56,10 +56,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 	if (view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL &&
 			!roots_surface->initialized) {
-		bool centered = view_center(view);
-		if (centered) {
-			roots_surface->initialized = true;
-		}
+		roots_surface->initialized = view_initialize(view);
 	}
 }
 

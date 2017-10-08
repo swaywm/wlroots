@@ -103,6 +103,16 @@ bool view_center(struct roots_view *view) {
 	return true;
 }
 
+bool view_initialize(struct roots_view *view) {
+	bool centered = view_center(view);
+	if (centered) {
+		struct roots_input *input = view->desktop->server->input;
+		set_view_focus(input, view->desktop, view);
+		wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
+	}
+	return centered;
+}
+
 static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;

@@ -73,10 +73,7 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_xdg_surface->view;
 
 	if (!roots_xdg_surface->initialized) {
-		bool centered = view_center(view);
-		if (centered) {
-			roots_xdg_surface->initialized = true;
-		}
+		roots_xdg_surface->initialized = view_initialize(view);
 	}
 }
 

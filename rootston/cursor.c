@@ -123,8 +123,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	}
 }
 
-static void set_view_focus(struct roots_input *input,
-		struct roots_desktop *desktop, struct roots_view *view) {
+void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
+		struct roots_view *view) {
 	if (input->active_view == view) {
 		return;
 	}
@@ -140,8 +140,7 @@ static void set_view_focus(struct roots_input *input,
 		struct roots_view *_view = desktop->views->items[i];
 		if (_view != view) {
 			view_activate(_view, false);
-		}
-		if (view == _view) {
+		} else {
 			index = i;
 		}
 	}
