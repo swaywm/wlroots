@@ -14,6 +14,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include "backend/drm/drm.h"
+#include "render/glapi.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
@@ -191,7 +192,7 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer, str
 		EGL_NONE,
 	};
 
-	tex->img = renderer->egl.eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
+	tex->img = eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 	if (!tex->img) {
 		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
