@@ -72,9 +72,11 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_xdg_surface, commit);
 	struct roots_view *view = roots_xdg_surface->view;
 
-	bool centered = view_center(view);
-	if (centered) {
-		wl_list_remove(&listener->link);
+	if (!roots_xdg_surface->initialized) {
+		bool centered = view_center(view);
+		if (centered) {
+			roots_xdg_surface->initialized = true;
+		}
 	}
 }
 

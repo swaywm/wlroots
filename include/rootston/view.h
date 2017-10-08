@@ -28,6 +28,8 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_show_window_menu;
+
+	bool initialized;
 };
 
 struct roots_xwayland_surface {
