@@ -1,0 +1,8 @@
+eglGetPlatformDisplayEXT
+eglCreatePlatformWindowSurfaceEXT
+-eglCreateImageKHR
+-eglDestroyImageKHR
+-eglQueryWaylandBufferWL
+-eglBindWaylandDisplayWL
+-eglUnbindWaylandDisplayWL
+-glEGLImageTargetTexture2DOES

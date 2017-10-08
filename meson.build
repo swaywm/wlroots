@@ -14,6 +14,10 @@ add_project_arguments(
 	'-DWLR_SRC_DIR="@0@"'.format(meson.source_root()),
 	language: 'c',
 )
+add_project_arguments(
+	'-I@0@'.format(meson.build_root()),
+	language: 'c',
+)
 add_project_link_arguments(
 	'-Wl,-rpath,@0@'.format(meson.build_root()),
 	language: 'c',
@@ -69,8 +73,8 @@ if elogind.found() and get_option('enable_elogind')
 endif
 
 subdir('protocol')
-subdir('backend')
 subdir('render')
+subdir('backend')
 subdir('types')
 subdir('util')
 subdir('xcursor')

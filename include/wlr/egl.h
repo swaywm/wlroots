@@ -10,15 +10,6 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
-	PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC create_platform_window_surface;
-
-	PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-	PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-	PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
-	PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
-	PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
-
 	const char *egl_exts;
 	const char *gl_exts;
 

@@ -12,8 +12,8 @@
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "render/glapi.h"
 
-PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = NULL;
 struct shaders shaders;
 
 static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
@@ -101,25 +101,7 @@ error:
 	wlr_log(L_ERROR, "Failed to set up default shaders!");
 }
 
-static void init_image_ext() {
-	if (glEGLImageTargetTexture2DOES) {
-		return;
-	}
-
-	const char *exts = (const char*) glGetString(GL_EXTENSIONS);
-	if (strstr(exts, "GL_OES_EGL_image_external")) {
- 		glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
-			eglGetProcAddress("glEGLImageTargetTexture2DOES");
-	}
-
-	if (!glEGLImageTargetTexture2DOES) {
-		wlr_log(L_INFO, "Failed to load glEGLImageTargetTexture2DOES "
-			"Will not be able to attach drm buffers");
-	}
-}
-
 static void init_globals() {
-	init_image_ext();
 	init_default_shaders();
 }
 
