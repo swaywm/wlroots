@@ -121,9 +121,6 @@ static void surface_set_input_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	if ((surface->pending->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
-		pixman_region32_clear(&surface->pending->input);
-	}
 	surface->pending->invalid |= WLR_SURFACE_INVALID_INPUT_REGION;
 	if (region_resource) {
 		pixman_region32_t *region = wl_resource_get_user_data(region_resource);
@@ -304,7 +301,7 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
 		// TODO: process buffer
-		pixman_region32_clear(&next->input);
+		pixman_region32_copy(&state->input, &next->input);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
 		state->subsurface_position.x = next->subsurface_position.x;
@@ -546,7 +543,9 @@ static struct wlr_surface_state *wlr_surface_state_create() {
 	pixman_region32_init(&state->surface_damage);
 	pixman_region32_init(&state->buffer_damage);
 	pixman_region32_init(&state->opaque);
-	pixman_region32_init(&state->input);
+	pixman_region32_init_rect(&state->input,
+		INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
+
 
 	return state;
 }
