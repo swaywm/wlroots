@@ -72,7 +72,8 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_xdg_surface, commit);
 	struct roots_view *view = roots_xdg_surface->view;
 
-	if (!roots_xdg_surface->initialized) {
+	if (view->xdg_surface_v6->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL &&
+			!roots_xdg_surface->initialized) {
 		roots_xdg_surface->initialized = view_initialize(view);
 	}
 }
