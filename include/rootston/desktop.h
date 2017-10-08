@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_screenshooter.h>
 #include <wlr/util/list.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
@@ -36,6 +37,7 @@ struct roots_desktop {
 	struct wlr_xdg_shell_v6 *xdg_shell_v6;
 	struct wlr_xwayland *xwayland;
 	struct wlr_gamma_control_manager *gamma_control_manager;
+	struct wlr_screenshooter *screenshooter;
 
 	struct wl_listener output_add;
 	struct wl_listener output_remove;

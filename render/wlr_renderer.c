@@ -51,3 +51,8 @@ bool wlr_renderer_buffer_is_drm(struct wlr_renderer *r,
 		struct wl_resource *buffer) {
 	return r->impl->buffer_is_drm(r, buffer);
 }
+
+void wlr_renderer_read_pixels(struct wlr_renderer *r, int x, int y,
+		int width, int height, void *out_data) {
+	r->impl->read_pixels(r, x, y, width, height, out_data);
+}

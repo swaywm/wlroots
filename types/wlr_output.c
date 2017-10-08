@@ -105,6 +105,7 @@ void wlr_output_init(struct wlr_output *output,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
 	wl_signal_init(&output->events.destroy);
 }
@@ -230,6 +231,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 			output->cursor.x, output->cursor.y);
 		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
 	}
+
+	wl_signal_emit(&output->events.swap_buffers, &output);
 
 	output->impl->swap_buffers(output);
 }
