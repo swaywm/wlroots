@@ -46,25 +46,6 @@ void view_get_size(struct roots_view *view, struct wlr_box *box) {
 	box->height = view->wlr_surface->current->height;
 }
 
-void view_get_input_bounds(struct roots_view *view, struct wlr_box *box) {
-	if (view->get_input_bounds) {
-		view->get_input_bounds(view, box);
-		return;
-	}
-
-	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-		box->x = view->xdg_surface_v6->geometry->x;
-		box->y = view->xdg_surface_v6->geometry->y;
-		box->width = view->xdg_surface_v6->geometry->width;
-		box->height = view->xdg_surface_v6->geometry->height;
-		return;
-	}
-
-	box->x = box->y = 0;
-	box->width = view->wlr_surface->current->width;
-	box->height = view->wlr_surface->current->height;
-}
-
 void view_activate(struct roots_view *view, bool activate) {
 	if (view->activate) {
 		view->activate(view, activate);
@@ -93,7 +74,8 @@ static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 			subsurface_at(subsurface->surface, _sub_x + sx, _sub_y + sy,
 				sub_x, sub_y);
 		if (sub) {
-			// TODO: convert sub_x and sub_y to the parent coordinate system
+			// TODO: This won't work for nested subsurfaces. Convert sub_x and
+			// sub_y to the parent coordinate system
 			return sub;
 		}
 
@@ -101,9 +83,13 @@ static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 		int sub_height = subsurface->surface->current->buffer_height;
 		if ((sx > _sub_x && sx < _sub_x + sub_width) &&
 				(sy > _sub_y && sy < _sub_y + sub_height)) {
-			*sub_x = _sub_x;
-			*sub_y = _sub_y;
-			return subsurface;
+			if (pixman_region32_contains_point(
+						&subsurface->surface->current->input,
+						sx - _sub_x, sy - _sub_y, NULL)) {
+				*sub_x = _sub_x;
+				*sub_y = _sub_y;
+				return subsurface;
+			}
 		}
 	}
 
@@ -113,6 +99,9 @@ static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 static struct wlr_xdg_surface_v6 *xdg_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy) {
+	// XXX: I think this is so complicated because we're mixing geometry
+	// coordinates with surface coordinates. Input handling should only deal
+	// with surface coordinates.
 	struct wlr_xdg_surface_v6 *popup;
 	wl_list_for_each(popup, &surface->popups, popup_link) {
 		double _popup_sx = surface->geometry->x + popup->popup_state->geometry.x;
@@ -131,9 +120,13 @@ static struct wlr_xdg_surface_v6 *xdg_v6_popup_at(
 
 		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
 				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
-			*popup_sx = _popup_sx - popup->geometry->x;
-			*popup_sy = _popup_sy - popup->geometry->y;
-			return popup;
+			if (pixman_region32_contains_point(&popup->surface->current->input,
+						sx - _popup_sx + popup->geometry->x,
+						sy - _popup_sy + popup->geometry->y, NULL)) {
+				*popup_sx = _popup_sx - popup->geometry->x;
+				*popup_sy = _popup_sy - popup->geometry->y;
+				return popup;
+			}
 		}
 	}
 
@@ -148,8 +141,12 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		double view_sx = lx - view->x;
 		double view_sy = ly - view->y;
 
-		struct wlr_box box;
-		view_get_input_bounds(view, &box);
+		struct wlr_box box = {
+			.x = 0,
+			.y = 0,
+			.width = view->wlr_surface->current->buffer_width,
+			.height = view->wlr_surface->current->buffer_height,
+		};
 		if (view->rotation != 0.0) {
 			// Coordinates relative to the center of the view
 			double ox = view_sx - (double)box.width/2,
@@ -186,7 +183,10 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			return view;
 		}
 
-		if (wlr_box_contains_point(&box, view_sx, view_sy)) {
+		if (wlr_box_contains_point(&box, view_sx, view_sy) &&
+				pixman_region32_contains_point(
+					&view->wlr_surface->current->input,
+					view_sx, view_sy, NULL)) {
 			*sx = view_sx;
 			*sy = view_sy;
 			*surface = view->wlr_surface;
