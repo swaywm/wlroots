@@ -132,6 +132,12 @@ static void surface_set_input_region(struct wl_client *client,
 }
 
 static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surface_state *state) {
+	if (!state->buffer) {
+		state->height = 0;
+		state->width = 0;
+		return;
+	}
+
 	int scale = state->scale;
 	enum wl_output_transform transform = state->transform;
 
@@ -342,6 +348,9 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	int32_t oldh = surface->current->buffer_height;
 
 	wlr_surface_move_state(surface, surface->pending, surface->current);
+	if (!surface->current->buffer) {
+		surface->texture->valid = false;
+	}
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
@@ -445,9 +454,6 @@ static void surface_commit(struct wl_client *client,
 
 void wlr_surface_flush_damage(struct wlr_surface *surface) {
 	if (!surface->current->buffer) {
-		if (surface->texture->valid) {
-			// TODO: Detach buffers
-		}
 		return;
 	}
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
