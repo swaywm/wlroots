@@ -49,6 +49,17 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	view_begin_resize(input, event->cursor, view, e->edges);
 }
 
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, surface_commit);
+	struct roots_view *view = roots_surface->view;
+
+	if (view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL &&
+			!roots_surface->initialized) {
+		roots_surface->initialized = view_initialize(view);
+	}
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -73,7 +84,9 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	struct roots_wl_shell_surface *roots_surface =
 		calloc(1, sizeof(struct roots_wl_shell_surface));
-	// TODO: all of the trimmings
+	if (!roots_surface) {
+		return;
+	}
 	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
@@ -83,9 +96,14 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	wl_list_init(&roots_surface->request_resize.link);
 	roots_surface->request_resize.notify = handle_request_resize;
-	wl_signal_add(&surface->events.request_resize, &roots_surface->request_resize);
+	wl_signal_add(&surface->events.request_resize,
+		&roots_surface->request_resize);
 	wl_list_init(&roots_surface->request_set_fullscreen.link);
 	wl_list_init(&roots_surface->request_set_maximized.link);
+	wl_list_init(&roots_surface->surface_commit.link);
+	roots_surface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&surface->surface->signals.commit,
+		&roots_surface->surface_commit);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_WL_SHELL_VIEW;

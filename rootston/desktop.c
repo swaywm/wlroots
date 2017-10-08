@@ -83,6 +83,36 @@ void view_close(struct roots_view *view) {
 	}
 }
 
+bool view_center(struct roots_view *view) {
+	struct wlr_box size;
+	view_get_size(view, &size);
+	if (size.width == 0 && size.height == 0) {
+		return false;
+	}
+
+	struct roots_desktop *desktop = view->desktop;
+	struct wlr_cursor *cursor = desktop->server->input->cursor;
+	struct wlr_output *output = wlr_output_layout_output_at(desktop->layout,
+		cursor->x, cursor->y);
+	if (!output) {
+		return false;
+	}
+
+	view->x = (double)(output->width - size.width) / 2;
+	view->y = (double)(output->height - size.height) / 2;
+	return true;
+}
+
+bool view_initialize(struct roots_view *view) {
+	bool centered = view_center(view);
+	if (centered) {
+		struct roots_input *input = view->desktop->server->input;
+		set_view_focus(input, view->desktop, view);
+		wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
+	}
+	return centered;
+}
+
 static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
