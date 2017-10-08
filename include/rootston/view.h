@@ -15,6 +15,10 @@ struct roots_wl_shell_surface {
 	struct wl_listener request_resize;
 	struct wl_listener request_set_fullscreen;
 	struct wl_listener request_set_maximized;
+
+	struct wl_listener surface_commit;
+
+	bool initialized;
 };
 
 struct roots_xdg_surface_v6 {
