@@ -75,12 +75,16 @@ bool view_center(struct roots_view *view) {
 	struct wlr_cursor *cursor = desktop->server->input->cursor;
 	struct wlr_output *output = wlr_output_layout_output_at(desktop->layout,
 		cursor->x, cursor->y);
+	const struct wlr_output_layout_output *output_layout =
+		wlr_output_layout_get(desktop->layout, output);
 	if (!output) {
 		return false;
 	}
 
-	view->x = (double)(output->width - size.width) / 2;
-	view->y = (double)(output->height - size.height) / 2;
+	view->x = (double)(output->width - size.width) / 2
+		+ output_layout->x;
+	view->y = (double)(output->height - size.height) / 2
+		+ output_layout->y;
 	return true;
 }
 
