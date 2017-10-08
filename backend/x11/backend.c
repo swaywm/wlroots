@@ -62,16 +62,31 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_BUTTON_PRESS:
 	case XCB_BUTTON_RELEASE: {
 		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
-		struct wlr_event_pointer_button button = {
-			.device = &x11->pointer_dev,
-			.time_sec = ev->time / 1000,
-			.time_usec = ev->time * 1000,
-			.button = xcb_button_to_wl(ev->detail),
-			.state = event->response_type == XCB_BUTTON_PRESS ?
-				WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
-		};
 
-		wl_signal_emit(&x11->pointer.events.button, &button);
+		if (ev->detail == XCB_BUTTON_INDEX_4 ||
+				ev->detail == XCB_BUTTON_INDEX_5) {
+			double delta = (ev->detail == XCB_BUTTON_INDEX_4 ? -15 : 15);
+			struct wlr_event_pointer_axis axis = {
+				.device = &x11->pointer_dev,
+				.time_sec = ev->time / 1000,
+				.time_usec = ev->time * 1000,
+				.source = WLR_AXIS_SOURCE_WHEEL,
+				.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
+				.delta = delta,
+			};
+			wl_signal_emit(&x11->pointer.events.axis, &axis);
+		} else {
+			struct wlr_event_pointer_button button = {
+				.device = &x11->pointer_dev,
+				.time_sec = ev->time / 1000,
+				.time_usec = ev->time * 1000,
+				.button = xcb_button_to_wl(ev->detail),
+				.state = event->response_type == XCB_BUTTON_PRESS ?
+					WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
+			};
+
+			wl_signal_emit(&x11->pointer.events.button, &button);
+		}
 		x11->time = ev->time;
 		break;
 	}
