@@ -99,18 +99,6 @@ void wlr_output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_texture(output->transform_matrix, output->width, output->height, output->transform);
 }
 
-void wlr_output_init(struct wlr_output *output,
-		const struct wlr_output_impl *impl) {
-	output->impl = impl;
-	output->modes = list_create();
-	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
-	output->scale = 1;
-	wl_signal_init(&output->events.frame);
-	wl_signal_init(&output->events.swap_buffers);
-	wl_signal_init(&output->events.resolution);
-	wl_signal_init(&output->events.destroy);
-}
-
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	output->impl->enable(output, enable);
 }
@@ -167,29 +155,67 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	}
 
 	return wlr_texture_upload_pixels(output->cursor.texture,
-				WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+		WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
 }
 
-bool wlr_output_set_cursor_surface(struct wlr_output *output,
-		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+static void handle_cursor_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		cursor.surface_commit);
+	struct wlr_surface *surface = data;
+
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
 	if (buffer == NULL) {
-		return false;
+		return;
 	}
 
 	uint32_t format = wl_shm_buffer_get_format(buffer);
 	if (format != WL_SHM_FORMAT_ARGB8888) {
-		return false;
+		return;
 	}
 
-	void *data = wl_shm_buffer_get_data(buffer);
+	void *buffer_data = wl_shm_buffer_get_data(buffer);
 	int32_t width = wl_shm_buffer_get_width(buffer);
 	int32_t height = wl_shm_buffer_get_height(buffer);
 	wl_shm_buffer_begin_access(buffer);
-	bool ok = wlr_output_set_cursor(output, data, width, width, height,
-		hotspot_x, hotspot_y);
+	wlr_output_set_cursor(output, buffer_data, width, width, height,
+		output->cursor.hotspot_x, output->cursor.hotspot_y);
 	wl_shm_buffer_end_access(buffer);
-	return ok;
+}
+
+static void handle_cursor_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		cursor.surface_destroy);
+	struct wlr_surface *surface = data;
+
+	if (output->cursor.surface == surface) {
+		wl_list_remove(&output->cursor.surface_commit.link);
+		wl_list_remove(&output->cursor.surface_destroy.link);
+		output->cursor.surface = NULL;
+	}
+}
+
+void wlr_output_set_cursor_surface(struct wlr_output *output,
+		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
+
+	if (output->cursor.surface == surface) {
+		return;
+	}
+	output->cursor.surface = surface;
+
+	if (output->cursor.surface) {
+		wl_list_remove(&output->cursor.surface_commit.link);
+		wl_list_remove(&output->cursor.surface_destroy.link);
+		output->cursor.surface = NULL;
+	}
+
+	if (surface != NULL) {
+		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
+		wl_signal_add(&surface->events.destroy, &output->cursor.surface_destroy);
+	}
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
@@ -205,6 +231,23 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 	}
 
 	return output->impl->move_cursor(output, x, y);
+}
+
+void wlr_output_init(struct wlr_output *output,
+		const struct wlr_output_impl *impl) {
+	output->impl = impl;
+	output->modes = list_create();
+	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+	output->scale = 1;
+	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.swap_buffers);
+	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.destroy);
+
+	wl_list_init(&output->cursor.surface_commit.link);
+	output->cursor.surface_commit.notify = handle_cursor_surface_commit;
+	wl_list_init(&output->cursor.surface_destroy.link);
+	output->cursor.surface_destroy.notify = handle_cursor_surface_destroy;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {

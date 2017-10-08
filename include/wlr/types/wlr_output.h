@@ -49,6 +49,11 @@ struct wlr_output {
 		int32_t hotspot_x, hotspot_y;
 		struct wlr_renderer *renderer;
 		struct wlr_texture *texture;
+
+		// only when using a cursor surface
+		struct wlr_surface *surface;
+		struct wl_listener surface_commit;
+		struct wl_listener surface_destroy;
 	} cursor;
 
 	void *data;
@@ -64,7 +69,7 @@ void wlr_output_transform(struct wlr_output *output,
 bool wlr_output_set_cursor(struct wlr_output *output,
 	const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);
-bool wlr_output_set_cursor_surface(struct wlr_output *output,
+void wlr_output_set_cursor_surface(struct wlr_output *output,
 	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);

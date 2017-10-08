@@ -288,11 +288,8 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 	struct roots_output *output;
 	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		if (!wlr_output_set_cursor_surface(output->wlr_output,
-				event->surface, event->hotspot_x, event->hotspot_y)) {
-			wlr_log(L_DEBUG, "Failed to set hardware cursor");
-			return;
-		}
+		wlr_output_set_cursor_surface(output->wlr_output, event->surface,
+			event->hotspot_x, event->hotspot_y);
 	}
 }
 
