@@ -198,6 +198,10 @@ static void handle_cursor_surface_destroy(struct wl_listener *listener,
 
 void wlr_output_set_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	if (strcmp(surface->role, "cursor") != 0) {
+		return;
+	}
+
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
