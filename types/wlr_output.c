@@ -193,7 +193,8 @@ static void handle_cursor_surface_commit(struct wl_listener *listener,
 	int32_t stride = wl_shm_buffer_get_stride(buffer);
 	wl_shm_buffer_begin_access(buffer);
 	wlr_output_set_cursor(output, buffer_data, stride/4, width, height,
-		output->cursor.hotspot_x, output->cursor.hotspot_y);
+		output->cursor.hotspot_x - surface->current->sx,
+		output->cursor.hotspot_y - surface->current->sy);
 	wl_shm_buffer_end_access(buffer);
 }
 

@@ -51,6 +51,8 @@ static void surface_attach(struct wl_client *client,
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 
 	surface->pending->invalid |= WLR_SURFACE_INVALID_BUFFER;
+	surface->pending->sx = sx;
+	surface->pending->sy = sy;
 	wlr_surface_state_reset_buffer(surface->pending);
 	wlr_surface_state_set_buffer(surface->pending, buffer);
 }
