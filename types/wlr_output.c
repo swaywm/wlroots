@@ -135,8 +135,6 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 	output->cursor.is_sw = true;
 	output->cursor.width = width;
 	output->cursor.height = height;
-	output->cursor.hotspot_x = hotspot_x;
-	output->cursor.hotspot_y = hotspot_y;
 
 	if (!output->cursor.renderer) {
 		/* NULL egl is okay given that we are only using pixel buffers */
@@ -166,6 +164,9 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 		wl_list_remove(&output->cursor.surface_destroy.link);
 		output->cursor.surface = NULL;
 	}
+
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
 
 	return set_cursor(output, buf, stride, width, height, hotspot_x, hotspot_y);
 }
@@ -199,25 +200,22 @@ static void handle_cursor_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output *output = wl_container_of(listener, output,
 		cursor.surface_destroy);
-	struct wlr_surface *surface = data;
 
-	if (output->cursor.surface == surface) {
-		wl_list_remove(&output->cursor.surface_commit.link);
-		wl_list_remove(&output->cursor.surface_destroy.link);
-		output->cursor.surface = NULL;
-	}
+	wl_list_remove(&output->cursor.surface_commit.link);
+	wl_list_remove(&output->cursor.surface_destroy.link);
+	output->cursor.surface = NULL;
 }
 
 void wlr_output_set_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (strcmp(surface->role, "cursor") != 0) {
+	if (surface && strcmp(surface->role, "cursor") != 0) {
 		return;
 	}
 
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
-	if (output->cursor.surface == surface) {
+	if (surface && output->cursor.surface == surface) {
 		return;
 	}
 	output->cursor.surface = surface;
@@ -231,6 +229,8 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
 		wl_signal_add(&surface->events.destroy, &output->cursor.surface_destroy);
+	} else {
+		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
 	}
 }
 
