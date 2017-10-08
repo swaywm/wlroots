@@ -120,9 +120,9 @@ void wlr_output_transform(struct wlr_output *output,
 	wlr_output_update_matrix(output);
 }
 
-bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y) {
+static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
+		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
+		int32_t hotspot_y) {
 	if (output->impl->set_cursor
 			&& output->impl->set_cursor(output, buf, stride, width, height,
 				hotspot_x, hotspot_y)) {
@@ -156,6 +156,18 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 
 	return wlr_texture_upload_pixels(output->cursor.texture,
 		WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+}
+
+bool wlr_output_set_cursor(struct wlr_output *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	if (output->cursor.surface) {
+		wl_list_remove(&output->cursor.surface_commit.link);
+		wl_list_remove(&output->cursor.surface_destroy.link);
+		output->cursor.surface = NULL;
+	}
+
+	return set_cursor(output, buf, stride, width, height, hotspot_x, hotspot_y);
 }
 
 static void handle_cursor_surface_commit(struct wl_listener *listener,
