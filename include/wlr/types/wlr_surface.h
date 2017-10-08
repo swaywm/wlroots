@@ -71,7 +71,7 @@ struct wlr_surface {
 	struct {
 		struct wl_signal commit;
 		struct wl_signal destroy;
-	} signals;
+	} events;
 
 	// destroy listener used by compositor
 	struct wl_listener compositor_listener;
