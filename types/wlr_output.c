@@ -172,24 +172,24 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 
 bool wlr_output_set_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (output->impl->set_cursor) {
-		output->impl->set_cursor(output, NULL, 0, 0, 0, 0, 0);
-		wlr_log(L_INFO, "TODO: wlr_output_set_cursor_surface for hw cursors");
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
+	if (buffer == NULL) {
+		return false;
 	}
 
-	output->cursor.is_sw = true;
-	output->cursor.width = surface->current->width;
-	output->cursor.height = surface->current->height;
-	output->cursor.hotspot_x = hotspot_x;
-	output->cursor.hotspot_y = hotspot_y;
+	uint32_t format = wl_shm_buffer_get_format(buffer);
+	if (format != WL_SHM_FORMAT_ARGB8888) {
+		return false;
+	}
 
-	wlr_texture_destroy(output->cursor.texture);
-	output->cursor.texture = surface->texture;
-
-	wlr_renderer_destroy(output->cursor.renderer);
-	output->cursor.renderer = surface->renderer;
-
-	return true;
+	void *data = wl_shm_buffer_get_data(buffer);
+	int32_t width = wl_shm_buffer_get_width(buffer);
+	int32_t height = wl_shm_buffer_get_height(buffer);
+	wl_shm_buffer_begin_access(buffer);
+	bool ok = wlr_output_set_cursor(output, data, width, width, height,
+		hotspot_x, hotspot_y);
+	wl_shm_buffer_end_access(buffer);
+	return ok;
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
