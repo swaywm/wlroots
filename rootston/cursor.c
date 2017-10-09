@@ -69,8 +69,6 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 			return;
 		}
 	}
-
-	input->client_cursor = false;
 }
 
 void cursor_update_position(struct roots_input *input, uint32_t time) {
@@ -82,15 +80,16 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
+		if (view != input->client_cursor_view) {
+			wlr_log(L_DEBUG, "Switching to compositor cursor");
+			cursor_set_xcursor_image(input, input->xcursor->images[0]);
+			input->client_cursor_view = NULL;
+		}
 		if (view) {
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 		} else {
 			wlr_seat_pointer_clear_focus(input->wl_seat);
-			if (input->client_cursor) {
-				wlr_log(L_DEBUG, "Switching to compositor cursor");
-				cursor_set_xcursor_image(input, input->xcursor->images[0]);
-			}
 		}
 		break;
 	case ROOTS_CURSOR_MOVE:
@@ -301,8 +300,8 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 	struct wlr_surface *focused_surface = NULL;
 	double sx, sy;
-	view_at(input->server->desktop, input->cursor->x, input->cursor->y,
-		&focused_surface, &sx, &sy);
+	struct roots_view *focused_view = view_at(input->server->desktop,
+		input->cursor->x, input->cursor->y, &focused_surface, &sx, &sy);
 	bool ok = focused_surface != NULL;
 	if (focused_surface != NULL) {
 		struct wl_client *focused_client =
@@ -322,7 +321,7 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 			event->hotspot_x, event->hotspot_y);
 	}
 
-	input->client_cursor = true;
+	input->client_cursor_view = focused_view;
 }
 
 void cursor_initialize(struct roots_input *input) {
