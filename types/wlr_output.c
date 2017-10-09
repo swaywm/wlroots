@@ -1,7 +1,9 @@
+#define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
@@ -171,12 +173,12 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	return set_cursor(output, buf, stride, width, height, hotspot_x, hotspot_y);
 }
 
-static void handle_cursor_surface_commit(struct wl_listener *listener,
-		void *data) {
-	struct wlr_output *output = wl_container_of(listener, output,
-		cursor.surface_commit);
-	struct wlr_surface *surface = data;
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
 
+static void commit_cursor_surface(struct wlr_output *output,
+		struct wlr_surface *surface) {
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
 	if (buffer == NULL) {
 		return;
@@ -196,6 +198,25 @@ static void handle_cursor_surface_commit(struct wl_listener *listener,
 		output->cursor.hotspot_x - surface->current->sx,
 		output->cursor.hotspot_y - surface->current->sy);
 	wl_shm_buffer_end_access(buffer);
+}
+
+static void handle_cursor_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		cursor.surface_commit);
+	struct wlr_surface *surface = data;
+
+	commit_cursor_surface(output, surface);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	struct wlr_frame_callback *cb, *cnext;
+	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
+			link) {
+		wl_callback_send_done(cb->resource, timespec_to_msec(&now));
+		wl_resource_destroy(cb->resource);
+	}
 }
 
 static void handle_cursor_surface_destroy(struct wl_listener *listener,
