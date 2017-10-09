@@ -347,8 +347,13 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	int32_t oldw = surface->current->buffer_width;
 	int32_t oldh = surface->current->buffer_height;
 
+	bool null_buffer_commit =
+		(surface->pending->invalid & WLR_SURFACE_INVALID_BUFFER &&
+		 surface->pending->buffer == NULL);
+
 	wlr_surface_move_state(surface, surface->pending, surface->current);
-	if (!surface->current->buffer) {
+
+	if (null_buffer_commit) {
 		surface->texture->valid = false;
 	}
 
