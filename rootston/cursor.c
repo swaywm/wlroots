@@ -299,6 +299,21 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 		request_set_cursor);
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
 
+	struct wlr_surface *focused_surface = NULL;
+	double sx, sy;
+	view_at(input->server->desktop, input->cursor->x, input->cursor->y,
+		&focused_surface, &sx, &sy);
+	bool ok = focused_surface != NULL;
+	if (focused_surface != NULL) {
+		struct wl_client *focused_client =
+			wl_resource_get_client(focused_surface->resource);
+		ok = event->client == focused_client;
+	}
+	if (!ok) {
+		wlr_log(L_DEBUG, "Denying request to set cursor outside view");
+		return;
+	}
+
 	wlr_log(L_DEBUG, "Setting client cursor");
 
 	struct roots_output *output;
