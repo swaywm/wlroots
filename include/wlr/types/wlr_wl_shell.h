@@ -3,11 +3,13 @@
 
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_seat.h>
 
 struct wlr_wl_shell {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wl_list surfaces;
+	struct wl_list popup_grabs;
 	uint32_t ping_timeout;
 
 	struct {
@@ -24,8 +26,17 @@ struct wlr_wl_shell_surface_transient_state {
 };
 
 struct wlr_wl_shell_surface_popup_state {
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat *seat;
 	uint32_t serial;
+};
+
+// each seat gets a popup grab
+struct wlr_wl_shell_popup_grab {
+	struct wl_client *client;
+	struct wlr_seat_pointer_grab pointer_grab;
+	struct wlr_seat *seat;
+	struct wl_list popups;
+	struct wl_list link; // wlr_wl_shell::popup_grabs
 };
 
 enum wlr_wl_shell_surface_state {
@@ -48,6 +59,7 @@ struct wlr_wl_shell_surface {
 	enum wlr_wl_shell_surface_state state;
 	struct wlr_wl_shell_surface_transient_state *transient_state;
 	struct wlr_wl_shell_surface_popup_state *popup_state;
+	struct wl_list grab_link; // wlr_wl_shell_popup_grab::popups
 
 	char *title;
 	char *class;

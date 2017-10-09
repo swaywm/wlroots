@@ -11,6 +11,61 @@
 
 static const char *wlr_wl_shell_surface_role = "wl_shell_surface";
 
+static void shell_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_wl_shell_popup_grab *popup_grab = grab->data;
+
+	struct wlr_wl_shell_surface *popup, *tmp = NULL;
+	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
+		wl_shell_surface_send_popup_done(popup->resource);
+	}
+
+	wlr_seat_pointer_end_grab(grab->seat);
+}
+
+static void shell_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
+		struct wlr_surface *surface, double sx, double sy) {
+	struct wlr_wl_shell_popup_grab *popup_grab = grab->data;
+	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
+		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
+	} else {
+		wlr_seat_pointer_clear_focus(grab->seat);
+	}
+}
+
+static void shell_pointer_grab_motion(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, double sx, double sy) {
+	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
+}
+
+static uint32_t shell_pointer_grab_button(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, uint32_t button, uint32_t state) {
+	uint32_t serial =
+		wlr_seat_pointer_send_button(grab->seat, time, button, state);
+	if (serial) {
+		return serial;
+	} else {
+		shell_pointer_grab_end(grab);
+		return 0;
+	}
+}
+
+static void shell_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
+	shell_pointer_grab_end(grab);
+}
+
+static void shell_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, enum wlr_axis_orientation orientation, double value) {
+	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value);
+}
+
+static const struct wlr_pointer_grab_interface shell_pointer_grab_impl = {
+	.enter = shell_pointer_grab_enter,
+	.motion = shell_pointer_grab_motion,
+	.button = shell_pointer_grab_button,
+	.cancel = shell_pointer_grab_cancel,
+	.axis = shell_pointer_grab_axis,
+};
+
 static void shell_surface_pong(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	wlr_log(L_DEBUG, "got shell surface pong");
@@ -47,6 +102,48 @@ static void shell_surface_move(struct wl_client *client,
 	free(event);
 }
 
+static struct wlr_wl_shell_popup_grab *shell_popup_grab_from_seat(
+		struct wlr_wl_shell *shell, struct wlr_seat *seat) {
+	struct wlr_wl_shell_popup_grab *shell_grab;
+	wl_list_for_each(shell_grab, &shell->popup_grabs, link) {
+		if (shell_grab->seat == seat) {
+			return shell_grab;
+		}
+	}
+
+	shell_grab = calloc(1, sizeof(struct wlr_wl_shell_popup_grab));
+	if (!shell_grab) {
+		return NULL;
+	}
+
+	shell_grab->pointer_grab.data = shell_grab;
+	shell_grab->pointer_grab.interface = &shell_pointer_grab_impl;
+
+	wl_list_init(&shell_grab->popups);
+
+	wl_list_insert(&shell->popup_grabs, &shell_grab->link);
+	shell_grab->seat = seat;
+
+	return shell_grab;
+}
+
+static void shell_destroy_popup_state(struct wlr_wl_shell_surface *surface) {
+	if (surface->popup_state) {
+		wl_list_remove(&surface->grab_link);
+		struct wlr_wl_shell_popup_grab *grab =
+			shell_popup_grab_from_seat(surface->shell,
+					surface->popup_state->seat);
+		if (wl_list_empty(&grab->popups)) {
+			if (grab->seat->pointer_state.grab == &grab->pointer_grab) {
+				wlr_seat_pointer_end_grab(grab->seat);
+			}
+		}
+		free(surface->popup_state);
+		surface->popup_state = NULL;
+	}
+}
+
+
 static void shell_surface_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, enum wl_shell_surface_resize edges) {
@@ -76,11 +173,16 @@ static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
 		enum wlr_wl_shell_surface_state state,
 		struct wlr_wl_shell_surface_transient_state *transient_state,
 		struct wlr_wl_shell_surface_popup_state *popup_state) {
+	bool is_new = (surface->state == WLR_WL_SHELL_SURFACE_STATE_NONE);
 	surface->state = state;
 	free(surface->transient_state);
 	surface->transient_state = transient_state;
-	free(surface->popup_state);
+	shell_destroy_popup_state(surface);
 	surface->popup_state = popup_state;
+
+	if (is_new) {
+		wl_signal_emit(&surface->shell->events.new_surface, surface);
+	}
 
 	wl_signal_emit(&surface->events.set_state, surface);
 }
@@ -96,10 +198,12 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 static void shell_surface_set_parent(struct wlr_wl_shell_surface *surface,
 		struct wlr_wl_shell_surface *parent) {
 	assert(surface);
+	if (surface->parent == parent) {
+		return;
+	}
 	surface->parent = parent;
-	wl_list_remove(&surface->child_link);
-	wl_list_init(&surface->child_link);
 	if (parent) {
+		wl_list_remove(&surface->child_link);
 		wl_list_insert(&parent->children, &surface->child_link);
 	}
 }
@@ -180,19 +284,34 @@ static void shell_surface_set_fullscreen(struct wl_client *client,
 	free(event);
 }
 
+
 static void shell_surface_set_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, struct wl_resource *parent_resource, int32_t x,
 		int32_t y, enum wl_shell_surface_transient flags) {
-	// TODO: do a pointer grab
-	wlr_log(L_DEBUG, "got shell surface popup");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_handle *seat_handle =
 		wl_resource_get_user_data(seat_resource);
 	struct wlr_surface *parent =
 		wl_resource_get_user_data(parent_resource);
+	struct wlr_wl_shell_popup_grab *grab =
+		shell_popup_grab_from_seat(surface->shell, seat_handle->wlr_seat);
+	if (!grab) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 
-	struct wlr_wl_shell_surface *wl_parent = shell_get_shell_surface(surface->shell, parent);
+	struct wlr_wl_shell_surface *wl_parent =
+		shell_get_shell_surface(surface->shell, parent);
+
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+		surface->transient_state->x = x;
+		surface->transient_state->y = y;
+		shell_surface_set_parent(surface, wl_parent);
+		grab->client = surface->client;
+		wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
+		return;
+	}
 
 	struct wlr_wl_shell_surface_transient_state *transient_state =
 		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
@@ -212,11 +331,15 @@ static void shell_surface_set_popup(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	popup_state->seat_handle = seat_handle;
+	popup_state->seat = seat_handle->wlr_seat;
 	popup_state->serial = serial;
 
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_POPUP,
 		transient_state, popup_state);
+
+	grab->client = surface->client;
+	wl_list_insert(&grab->popups, &surface->grab_link);
+	wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
 }
 
 static void shell_surface_set_maximized(struct wl_client *client,
@@ -294,6 +417,7 @@ struct wl_shell_surface_interface shell_surface_interface = {
 
 static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
+	shell_destroy_popup_state(surface);
 	wl_resource_set_user_data(surface->resource, NULL);
 
 	struct wlr_wl_shell_surface *child;
@@ -306,7 +430,6 @@ static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wl_event_source_remove(surface->ping_timer);
 	free(surface->transient_state);
-	free(surface->popup_state);
 	free(surface->title);
 	free(surface->class);
 	free(surface);
@@ -350,6 +473,7 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
+	wl_list_init(&wl_surface->grab_link);
 	wl_list_init(&wl_surface->child_link);
 	wl_list_init(&wl_surface->children);
 
@@ -388,7 +512,6 @@ static void wl_shell_get_shell_surface(struct wl_client *client,
 	}
 
 	wl_list_insert(&wl_shell->surfaces, &wl_surface->link);
-	wl_signal_emit(&wl_shell->events.new_surface, wl_surface);
 }
 
 static struct wl_shell_interface wl_shell_impl = {
@@ -431,6 +554,7 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 	wl_shell->wl_global = wl_global;
 	wl_list_init(&wl_shell->wl_resources);
 	wl_list_init(&wl_shell->surfaces);
+	wl_list_init(&wl_shell->popup_grabs);
 	wl_signal_init(&wl_shell->events.new_surface);
 	return wl_shell;
 }
