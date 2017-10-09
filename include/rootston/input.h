@@ -79,6 +79,7 @@ struct roots_input {
 	struct wlr_xcursor_theme *theme;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
+	struct roots_view *client_cursor_view;
 
 	enum roots_cursor_mode mode;
 	struct roots_view *active_view, *last_active_view;
@@ -107,6 +108,8 @@ struct roots_input {
 	struct wl_listener cursor_tool_tip;
 
 	struct wl_listener pointer_grab_end;
+
+	struct wl_listener request_set_cursor;
 };
 
 struct roots_input *input_create(struct roots_server *server,

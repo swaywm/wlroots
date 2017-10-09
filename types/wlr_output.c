@@ -1,9 +1,12 @@
+#define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/list.h>
 #include <wlr/util/log.h>
@@ -98,18 +101,6 @@ void wlr_output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_texture(output->transform_matrix, output->width, output->height, output->transform);
 }
 
-void wlr_output_init(struct wlr_output *output,
-		const struct wlr_output_impl *impl) {
-	output->impl = impl;
-	output->modes = list_create();
-	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
-	output->scale = 1;
-	wl_signal_init(&output->events.frame);
-	wl_signal_init(&output->events.swap_buffers);
-	wl_signal_init(&output->events.resolution);
-	wl_signal_init(&output->events.destroy);
-}
-
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	output->impl->enable(output, enable);
 }
@@ -131,9 +122,9 @@ void wlr_output_transform(struct wlr_output *output,
 	wlr_output_update_matrix(output);
 }
 
-bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y) {
+static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
+		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
+		int32_t hotspot_y) {
 	if (output->impl->set_cursor
 			&& output->impl->set_cursor(output, buf, stride, width, height,
 				hotspot_x, hotspot_y)) {
@@ -146,8 +137,6 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	output->cursor.is_sw = true;
 	output->cursor.width = width;
 	output->cursor.height = height;
-	output->cursor.hotspot_x = hotspot_x;
-	output->cursor.hotspot_y = hotspot_y;
 
 	if (!output->cursor.renderer) {
 		/* NULL egl is okay given that we are only using pixel buffers */
@@ -158,14 +147,115 @@ bool wlr_output_set_cursor(struct wlr_output *output,
 	}
 
 	if (!output->cursor.texture) {
-		output->cursor.texture = wlr_render_texture_create(output->cursor.renderer);
+		output->cursor.texture =
+			wlr_render_texture_create(output->cursor.renderer);
 		if (!output->cursor.texture) {
 			return false;
 		}
 	}
 
 	return wlr_texture_upload_pixels(output->cursor.texture,
-				WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+		WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+}
+
+bool wlr_output_set_cursor(struct wlr_output *output,
+		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	if (output->cursor.surface) {
+		wl_list_remove(&output->cursor.surface_commit.link);
+		wl_list_remove(&output->cursor.surface_destroy.link);
+		output->cursor.surface = NULL;
+	}
+
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
+
+	return set_cursor(output, buf, stride, width, height, hotspot_x, hotspot_y);
+}
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+static void commit_cursor_surface(struct wlr_output *output,
+		struct wlr_surface *surface) {
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
+	if (buffer == NULL) {
+		return;
+	}
+
+	uint32_t format = wl_shm_buffer_get_format(buffer);
+	if (format != WL_SHM_FORMAT_ARGB8888) {
+		return;
+	}
+
+	void *buffer_data = wl_shm_buffer_get_data(buffer);
+	int32_t width = wl_shm_buffer_get_width(buffer);
+	int32_t height = wl_shm_buffer_get_height(buffer);
+	int32_t stride = wl_shm_buffer_get_stride(buffer);
+	wl_shm_buffer_begin_access(buffer);
+	wlr_output_set_cursor(output, buffer_data, stride/4, width, height,
+		output->cursor.hotspot_x - surface->current->sx,
+		output->cursor.hotspot_y - surface->current->sy);
+	wl_shm_buffer_end_access(buffer);
+}
+
+static void handle_cursor_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		cursor.surface_commit);
+	struct wlr_surface *surface = data;
+
+	commit_cursor_surface(output, surface);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	struct wlr_frame_callback *cb, *cnext;
+	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
+			link) {
+		wl_callback_send_done(cb->resource, timespec_to_msec(&now));
+		wl_resource_destroy(cb->resource);
+	}
+}
+
+static void handle_cursor_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		cursor.surface_destroy);
+
+	wl_list_remove(&output->cursor.surface_commit.link);
+	wl_list_remove(&output->cursor.surface_destroy.link);
+	output->cursor.surface = NULL;
+}
+
+void wlr_output_set_cursor_surface(struct wlr_output *output,
+		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	if (surface && strcmp(surface->role, "cursor") != 0) {
+		return;
+	}
+
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
+
+	if (surface && output->cursor.surface == surface) {
+		return;
+	}
+
+	if (output->cursor.surface) {
+		wl_list_remove(&output->cursor.surface_commit.link);
+		wl_list_remove(&output->cursor.surface_destroy.link);
+		output->cursor.surface = NULL;
+	}
+
+	output->cursor.surface = surface;
+
+	if (surface != NULL) {
+		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
+		wl_signal_add(&surface->events.destroy, &output->cursor.surface_destroy);
+	} else {
+		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
+	}
 }
 
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
@@ -181,6 +271,23 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 	}
 
 	return output->impl->move_cursor(output, x, y);
+}
+
+void wlr_output_init(struct wlr_output *output,
+		const struct wlr_output_impl *impl) {
+	output->impl = impl;
+	output->modes = list_create();
+	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+	output->scale = 1;
+	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.swap_buffers);
+	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.destroy);
+
+	wl_list_init(&output->cursor.surface_commit.link);
+	output->cursor.surface_commit.notify = handle_cursor_surface_commit;
+	wl_list_init(&output->cursor.surface_destroy.link);
+	output->cursor.surface_destroy.notify = handle_cursor_surface_destroy;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {

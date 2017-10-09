@@ -49,23 +49,32 @@ struct wlr_output {
 		int32_t hotspot_x, hotspot_y;
 		struct wlr_renderer *renderer;
 		struct wlr_texture *texture;
+
+		// only when using a cursor surface
+		struct wlr_surface *surface;
+		struct wl_listener surface_commit;
+		struct wl_listener surface_destroy;
 	} cursor;
 
 	void *data;
 };
 
+struct wlr_surface;
+
 void wlr_output_enable(struct wlr_output *output, bool enable);
 bool wlr_output_set_mode(struct wlr_output *output,
-		struct wlr_output_mode *mode);
+	struct wlr_output_mode *mode);
 void wlr_output_transform(struct wlr_output *output,
-		enum wl_output_transform transform);
+	enum wl_output_transform transform);
 bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y);
+	const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
+	int32_t hotspot_x, int32_t hotspot_y);
+void wlr_output_set_cursor_surface(struct wlr_output *output,
+	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
 bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
-		int *width, int *height);
+	int *width, int *height);
 void wlr_output_make_current(struct wlr_output *output);
 void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,

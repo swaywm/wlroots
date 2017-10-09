@@ -58,6 +58,19 @@ void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
+static void cursor_set_xcursor_image(struct roots_input *input,
+		struct wlr_xcursor_image *image) {
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
+				image->width, image->width, image->height,
+				image->hotspot_x, image->hotspot_y)) {
+			wlr_log(L_DEBUG, "Failed to set hardware cursor");
+			return;
+		}
+	}
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
@@ -67,6 +80,11 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
+		if (view != input->client_cursor_view) {
+			wlr_log(L_DEBUG, "Switching to compositor cursor");
+			cursor_set_xcursor_image(input, input->xcursor->images[0]);
+			input->client_cursor_view = NULL;
+		}
 		if (view) {
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
@@ -274,6 +292,38 @@ static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
 	cursor_update_position(input, 0);
 }
 
+static void handle_request_set_cursor(struct wl_listener *listener,
+		void *data) {
+	struct roots_input *input = wl_container_of(listener, input,
+		request_set_cursor);
+	struct wlr_seat_pointer_request_set_cursor_event *event = data;
+
+	struct wlr_surface *focused_surface = NULL;
+	double sx, sy;
+	struct roots_view *focused_view = view_at(input->server->desktop,
+		input->cursor->x, input->cursor->y, &focused_surface, &sx, &sy);
+	bool ok = focused_surface != NULL;
+	if (focused_surface != NULL) {
+		struct wl_client *focused_client =
+			wl_resource_get_client(focused_surface->resource);
+		ok = event->client == focused_client;
+	}
+	if (!ok) {
+		wlr_log(L_DEBUG, "Denying request to set cursor outside view");
+		return;
+	}
+
+	wlr_log(L_DEBUG, "Setting client cursor");
+
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		wlr_output_set_cursor_surface(output->wlr_output, event->surface,
+			event->hotspot_x, event->hotspot_y);
+	}
+
+	input->client_cursor_view = focused_view;
+}
+
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
 
@@ -304,6 +354,11 @@ void cursor_initialize(struct roots_input *input) {
 
 	wl_signal_add(&input->wl_seat->events.pointer_grab_end, &input->pointer_grab_end);
 	input->pointer_grab_end.notify = handle_pointer_grab_end;
+
+	wl_list_init(&input->request_set_cursor.link);
+	wl_signal_add(&input->wl_seat->events.request_set_cursor,
+		&input->request_set_cursor);
+	input->request_set_cursor.notify = handle_request_set_cursor;
 }
 
 static void reset_device_mappings(struct roots_config *config,
