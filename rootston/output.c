@@ -100,7 +100,7 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when, double lx,
 		double ly, float rotation, bool is_child) {
-	if (is_child || !wlr_wl_shell_surface_is_transient(surface)) {
+	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
 		render_surface(surface->surface, desktop, wlr_output, when,
 			lx, ly, rotation);
 		struct wlr_wl_shell_surface *child;

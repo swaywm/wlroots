@@ -195,9 +195,9 @@ static void shell_surface_set_toplevel(struct wl_client *client,
 		NULL);
 }
 
-static void shell_surface_set_parent(struct wlr_wl_shell_surface *surface,
+static void popup_set_parent(struct wlr_wl_shell_surface *surface,
 		struct wlr_wl_shell_surface *parent) {
-	assert(surface);
+	assert(surface && surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP);
 	if (surface->parent == parent) {
 		return;
 	}
@@ -243,7 +243,7 @@ static void shell_surface_set_transient(struct wl_client *client,
 		return;
 	}
 
-	shell_surface_set_parent(surface, wl_parent);
+	surface->parent = wl_parent;
 	transient_state->x = x;
 	transient_state->y = y;
 	transient_state->flags = flags;
@@ -307,7 +307,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
 		surface->transient_state->x = x;
 		surface->transient_state->y = y;
-		shell_surface_set_parent(surface, wl_parent);
+		popup_set_parent(surface, wl_parent);
 		grab->client = surface->client;
 		wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
 		return;
@@ -319,7 +319,6 @@ static void shell_surface_set_popup(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	shell_surface_set_parent(surface, wl_parent);
 	transient_state->x = x;
 	transient_state->y = y;
 	transient_state->flags = flags;
@@ -337,6 +336,7 @@ static void shell_surface_set_popup(struct wl_client *client,
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_POPUP,
 		transient_state, popup_state);
 
+	popup_set_parent(surface, wl_parent);
 	grab->client = surface->client;
 	wl_list_insert(&grab->popups, &surface->grab_link);
 	wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
@@ -422,7 +422,7 @@ static void wl_shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 
 	struct wlr_wl_shell_surface *child;
 	wl_list_for_each(child, &surface->children, child_link) {
-		shell_surface_set_parent(child, NULL);
+		popup_set_parent(child, NULL);
 	}
 	wl_list_remove(&surface->child_link);
 
