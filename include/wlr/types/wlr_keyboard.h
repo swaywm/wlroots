@@ -3,6 +3,7 @@
 
 #include <wayland-server.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <xkbcommon/xkbcommon.h>
 
