@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <getopt.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <wlr/util/log.h>
@@ -114,7 +115,19 @@ static const char *device_prefix = "device:";
 static int config_ini_handler(void *user, const char *section, const char *name,
 		const char *value) {
 	struct roots_config *config = user;
-	if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
+	if (strcmp(section, "core") == 0) {
+		   if (strcmp(name, "xwayland") == 0) {
+			   if (strcasecmp(value, "true") == 0) {
+					config->xwayland = true;
+			   } else if (strcasecmp(value, "false") == 0) {
+					config->xwayland = false;
+			   } else {
+					wlr_log(L_ERROR, "got unknown xwayland value: %s", value);
+			   }
+		   } else {
+			   wlr_log(L_ERROR, "got unknown core config: %s", name);
+		   }
+	} else if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
 		const char *output_name = section + strlen(output_prefix);
 		struct output_config *oc;
 		bool found = false;
@@ -251,6 +264,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 
 struct roots_config *parse_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
+	config->xwayland = true;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
 	wl_list_init(&config->bindings);

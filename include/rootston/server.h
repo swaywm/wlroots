@@ -5,7 +5,9 @@
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_data_device_manager.h>
 #include <wlr/render.h>
+#ifdef HAS_XWAYLAND
 #include <wlr/xwayland.h>
+#endif
 #include "rootston/config.h"
 #include "rootston/desktop.h"
 #include "rootston/input.h"
