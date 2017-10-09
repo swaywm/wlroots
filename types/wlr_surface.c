@@ -844,3 +844,35 @@ struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface) {
 
 	return surface;
 }
+
+struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
+		double sx, double sy, double *sub_x, double *sub_y) {
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		double _sub_x = subsurface->surface->current->subsurface_position.x;
+		double _sub_y = subsurface->surface->current->subsurface_position.y;
+		struct wlr_subsurface *sub =
+			wlr_surface_subsurface_at(subsurface->surface, _sub_x + sx,
+				_sub_y + sy, sub_x, sub_y);
+		if (sub) {
+			// TODO: This won't work for nested subsurfaces. Convert sub_x and
+			// sub_y to the parent coordinate system
+			return sub;
+		}
+
+		int sub_width = subsurface->surface->current->buffer_width;
+		int sub_height = subsurface->surface->current->buffer_height;
+		if ((sx > _sub_x && sx < _sub_x + sub_width) &&
+				(sy > _sub_y && sy < _sub_y + sub_height)) {
+			if (pixman_region32_contains_point(
+						&subsurface->surface->current->input,
+						sx - _sub_x, sy - _sub_y, NULL)) {
+				*sub_x = _sub_x;
+				*sub_y = _sub_y;
+				return subsurface;
+			}
+		}
+	}
+
+	return NULL;
+}

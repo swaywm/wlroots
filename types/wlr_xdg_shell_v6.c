@@ -1301,3 +1301,44 @@ void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
 }
+
+struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
+		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
+		double *popup_sx, double *popup_sy) {
+	// XXX: I think this is so complicated because we're mixing geometry
+	// coordinates with surface coordinates. Input handling should only deal
+	// with surface coordinates.
+	struct wlr_xdg_surface_v6 *popup;
+	wl_list_for_each(popup, &surface->popups, popup_link) {
+		double _popup_sx =
+			surface->geometry->x + popup->popup_state->geometry.x;
+		double _popup_sy =
+			surface->geometry->y + popup->popup_state->geometry.y;
+		int popup_width =  popup->popup_state->geometry.width;
+		int popup_height =  popup->popup_state->geometry.height;
+
+		struct wlr_xdg_surface_v6 *_popup =
+			wlr_xdg_surface_v6_popup_at(popup,
+				sx - _popup_sx + popup->geometry->x,
+				sy - _popup_sy + popup->geometry->y,
+				popup_sx, popup_sy);
+		if (_popup) {
+			*popup_sx = *popup_sx + _popup_sx - popup->geometry->x;
+			*popup_sy = *popup_sy + _popup_sy - popup->geometry->y;
+			return _popup;
+		}
+
+		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
+				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
+			if (pixman_region32_contains_point(&popup->surface->current->input,
+						sx - _popup_sx + popup->geometry->x,
+						sy - _popup_sy + popup->geometry->y, NULL)) {
+				*popup_sx = _popup_sx - popup->geometry->x;
+				*popup_sy = _popup_sy - popup->geometry->y;
+				return popup;
+			}
+		}
+	}
+
+	return NULL;
+}

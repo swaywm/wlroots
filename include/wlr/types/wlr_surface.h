@@ -122,4 +122,11 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
  */
 struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
 
+/**
+ * Find a subsurface within this surface at the surface-local coordinates.
+ * Returns the surface and coordinates in the topmost surface coordinate system
+ * or NULL if no subsurface is found at that location.
+ */
+struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
+		double sx, double sy, double *sub_x, double *sub_y);
 #endif

@@ -98,75 +98,6 @@ bool view_initialize(struct roots_view *view) {
 	return centered;
 }
 
-static struct wlr_subsurface *subsurface_at(struct wlr_surface *surface,
-		double sx, double sy, double *sub_x, double *sub_y) {
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-		double _sub_x = subsurface->surface->current->subsurface_position.x;
-		double _sub_y = subsurface->surface->current->subsurface_position.y;
-		struct wlr_subsurface *sub =
-			subsurface_at(subsurface->surface, _sub_x + sx, _sub_y + sy,
-				sub_x, sub_y);
-		if (sub) {
-			// TODO: This won't work for nested subsurfaces. Convert sub_x and
-			// sub_y to the parent coordinate system
-			return sub;
-		}
-
-		int sub_width = subsurface->surface->current->buffer_width;
-		int sub_height = subsurface->surface->current->buffer_height;
-		if ((sx > _sub_x && sx < _sub_x + sub_width) &&
-				(sy > _sub_y && sy < _sub_y + sub_height)) {
-			if (pixman_region32_contains_point(
-						&subsurface->surface->current->input,
-						sx - _sub_x, sy - _sub_y, NULL)) {
-				*sub_x = _sub_x;
-				*sub_y = _sub_y;
-				return subsurface;
-			}
-		}
-	}
-
-	return NULL;
-}
-
-static struct wlr_xdg_surface_v6 *xdg_v6_popup_at(
-		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
-		double *popup_sx, double *popup_sy) {
-	// XXX: I think this is so complicated because we're mixing geometry
-	// coordinates with surface coordinates. Input handling should only deal
-	// with surface coordinates.
-	struct wlr_xdg_surface_v6 *popup;
-	wl_list_for_each(popup, &surface->popups, popup_link) {
-		double _popup_sx = surface->geometry->x + popup->popup_state->geometry.x;
-		double _popup_sy =  surface->geometry->y + popup->popup_state->geometry.y;
-		int popup_width =  popup->popup_state->geometry.width;
-		int popup_height =  popup->popup_state->geometry.height;
-
-		struct wlr_xdg_surface_v6 *_popup =
-			xdg_v6_popup_at(popup, sx - _popup_sx + popup->geometry->x,
-				sy - _popup_sy + popup->geometry->y, popup_sx, popup_sy);
-		if (_popup) {
-			*popup_sx = *popup_sx + _popup_sx - popup->geometry->x;
-			*popup_sy = *popup_sy + _popup_sy - popup->geometry->y;
-			return _popup;
-		}
-
-		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
-				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
-			if (pixman_region32_contains_point(&popup->surface->current->input,
-						sx - _popup_sx + popup->geometry->x,
-						sy - _popup_sy + popup->geometry->y, NULL)) {
-				*popup_sx = _popup_sx - popup->geometry->x;
-				*popup_sy = _popup_sy - popup->geometry->y;
-				return popup;
-			}
-		}
-	}
-
-	return NULL;
-}
-
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
 	for (int i = desktop->views->length - 1; i >= 0; --i) {
@@ -196,8 +127,8 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			// TODO: test if this works with rotated views
 			double popup_sx, popup_sy;
 			struct wlr_xdg_surface_v6 *popup =
-				xdg_v6_popup_at(view->xdg_surface_v6, view_sx, view_sy,
-					&popup_sx, &popup_sy);
+				wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
+					view_sx, view_sy, &popup_sx, &popup_sy);
 
 			if (popup) {
 				*sx = view_sx - popup_sx;
@@ -209,7 +140,8 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 
 		double sub_x, sub_y;
 		struct wlr_subsurface *subsurface =
-			subsurface_at(view->wlr_surface, view_sx, view_sy, &sub_x, &sub_y);
+			wlr_surface_subsurface_at(view->wlr_surface,
+				view_sx, view_sy, &sub_x, &sub_y);
 		if (subsurface) {
 			*sx = view_sx - sub_x;
 			*sy = view_sy - sub_y;

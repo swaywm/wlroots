@@ -206,4 +206,12 @@ void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
  */
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface);
 
+/**
+ * Find a popup within this surface at the surface-local coordinates. Returns
+ * the popup and coordinates in the topmost surface coordinate system or NULL if
+ * no popup is found at that location.
+ */
+struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
+		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
+		double *popup_sx, double *popup_sy);
 #endif
