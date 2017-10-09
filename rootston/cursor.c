@@ -58,6 +58,21 @@ void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 }
 
+static void cursor_set_xcursor_image(struct roots_input *input,
+		struct wlr_xcursor_image *image) {
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
+				image->width, image->width, image->height,
+				image->hotspot_x, image->hotspot_y)) {
+			wlr_log(L_DEBUG, "Failed to set hardware cursor");
+			return;
+		}
+	}
+
+	input->client_cursor = false;
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
@@ -72,6 +87,10 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 		} else {
 			wlr_seat_pointer_clear_focus(input->wl_seat);
+			if (input->client_cursor) {
+				wlr_log(L_DEBUG, "Switching to compositor cursor");
+				cursor_set_xcursor_image(input, input->xcursor->images[0]);
+			}
 		}
 		break;
 	case ROOTS_CURSOR_MOVE:
@@ -279,18 +298,16 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	struct roots_input *input = wl_container_of(listener, input,
 		request_set_cursor);
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
-	if (event->surface == NULL) {
-		wlr_log(L_DEBUG, "handle_request_set_cursor with NULL surface");
-		return;
-	}
 
-	wlr_log(L_DEBUG, "handle_request_set_cursor");
+	wlr_log(L_DEBUG, "Setting client cursor");
 
 	struct roots_output *output;
 	wl_list_for_each(output, &input->server->desktop->outputs, link) {
 		wlr_output_set_cursor_surface(output->wlr_output, event->surface,
 			event->hotspot_x, event->hotspot_y);
 	}
+
+	input->client_cursor = true;
 }
 
 void cursor_initialize(struct roots_input *input) {
