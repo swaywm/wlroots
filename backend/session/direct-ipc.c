@@ -1,4 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
+#ifdef __FreeBSD__
+#define __BSD_VISIBLE 1
+#define INPUT_MAJOR 0
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,10 +12,12 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/sysmacros.h>
 #include <sys/wait.h>
-#include <xf86drm.h>
+#ifdef __linux__
+#include <sys/sysmacros.h>
 #include <linux/major.h>
+#endif
+#include <xf86drm.h>
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
 
@@ -35,11 +41,12 @@ static bool have_permissions(void) {
 }
 #else
 static bool have_permissions(void) {
+#ifdef __linux__
 	if (geteuid() != 0) {
 		wlr_log(L_ERROR, "Do not have root privileges; cannot become DRM master");
 		return false;
 	}
-
+#endif
 	return true;
 }
 #endif

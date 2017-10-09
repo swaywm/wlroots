@@ -1,10 +1,13 @@
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 700
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-// TODO: BSD et al
+#ifdef __linux__
 #include <linux/input-event-codes.h>
+#elif __FreeBSD__
+#include <dev/evdev/input-event-codes.h>
+#endif
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>

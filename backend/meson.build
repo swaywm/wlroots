@@ -1,7 +1,6 @@
 backend_files = files(
 	'backend.c',
 	'session/direct-ipc.c',
-	'session/direct.c',
 	'session/session.c',
 	'drm/atomic.c',
 	'drm/backend.c',
@@ -25,6 +24,12 @@ backend_files = files(
 	'wayland/os-compatibility.c',
 	'x11/backend.c',
 )
+
+if host_machine.system().startswith('freebsd')
+	backend_files += files('session/direct-freebsd.c')
+else
+	backend_files += files('session/direct.c')
+endif
 
 if systemd.found()
 	backend_files += files('session/logind.c')
