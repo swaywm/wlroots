@@ -103,6 +103,12 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 	for (int i = desktop->views->length - 1; i >= 0; --i) {
 		struct roots_view *view = desktop->views->items[i];
 
+		if (view->type == ROOTS_WL_SHELL_VIEW &&
+				view->wl_shell_surface->state ==
+				WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+			continue;
+		}
+
 		double view_sx = lx - view->x;
 		double view_sy = ly - view->y;
 
@@ -128,6 +134,21 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			double popup_sx, popup_sy;
 			struct wlr_xdg_surface_v6 *popup =
 				wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
+					view_sx, view_sy, &popup_sx, &popup_sy);
+
+			if (popup) {
+				*sx = view_sx - popup_sx;
+				*sy = view_sy - popup_sy;
+				*surface = popup->surface;
+				return view;
+			}
+		}
+
+		if (view->type == ROOTS_WL_SHELL_VIEW) {
+			// TODO: test if this works with rotated views
+			double popup_sx, popup_sy;
+			struct wlr_wl_shell_surface *popup =
+				wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
 					view_sx, view_sy, &popup_sx, &popup_sy);
 
 			if (popup) {

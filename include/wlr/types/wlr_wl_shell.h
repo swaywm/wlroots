@@ -125,4 +125,13 @@ void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface);
 bool wlr_wl_shell_surface_is_transient(struct wlr_wl_shell_surface *surface);
 
+/**
+ * Find a popup within this surface at the surface-local coordinates. Returns
+ * the popup and coordinates in the topmost surface coordinate system or NULL if
+ * no popup is found at that location.
+ */
+struct wlr_wl_shell_surface *wlr_wl_shell_surface_popup_at(
+		struct wlr_wl_shell_surface *surface, double sx, double sy,
+		double *popup_sx, double *popup_sy);
+
 #endif
