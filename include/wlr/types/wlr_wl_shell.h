@@ -52,7 +52,7 @@ struct wlr_wl_shell_surface {
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
 	bool configured;
-	struct wl_list link;
+	struct wl_list link; // wlr_wl_shell::surfaces
 
 	uint32_t ping_serial;
 	struct wl_event_source *ping_timer;
@@ -119,10 +119,25 @@ struct wlr_wl_shell_surface_set_maximized_event {
 	struct wlr_output *output;
 };
 
+/**
+ * Create a wl_shell for this display.
+ */
 struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display);
+
+/**
+ * Destroy this surface.
+ */
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell);
 
+/**
+ * Send a ping to the surface. If the surface does not respond with a pong
+ * within a reasonable amount of time, the ping timeout event will be emitted.
+ */
 void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface);
+
+/**
+ * Request that the surface configure itself to be the given size.
+ */
 void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 	enum wl_shell_surface_resize edges, int32_t width, int32_t height);
 
