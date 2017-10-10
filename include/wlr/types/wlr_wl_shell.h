@@ -51,6 +51,7 @@ struct wlr_wl_shell_surface {
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
+	bool configured;
 	struct wl_list link;
 
 	uint32_t ping_serial;
@@ -65,6 +66,7 @@ struct wlr_wl_shell_surface {
 	char *class;
 
 	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_commit_listener;
 
 	struct wlr_wl_shell_surface *parent;
 	struct wl_list child_link;
