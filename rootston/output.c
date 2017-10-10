@@ -103,11 +103,11 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface, struct
 	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
 		render_surface(surface->surface, desktop, wlr_output, when,
 			lx, ly, rotation);
-		struct wlr_wl_shell_surface *child;
-		wl_list_for_each(child, &surface->children, child_link) {
-			render_wl_shell_surface(child, desktop, wlr_output, when,
-				lx + child->transient_state->x,
-				ly + child->transient_state->y,
+		struct wlr_wl_shell_surface *popup;
+		wl_list_for_each(popup, &surface->popups, popup_link) {
+			render_wl_shell_surface(popup, desktop, wlr_output, when,
+				lx + popup->transient_state->x,
+				ly + popup->transient_state->y,
 				rotation, true);
 		}
 	}

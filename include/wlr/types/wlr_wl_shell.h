@@ -69,8 +69,8 @@ struct wlr_wl_shell_surface {
 	struct wl_listener surface_commit_listener;
 
 	struct wlr_wl_shell_surface *parent;
-	struct wl_list child_link;
-	struct wl_list children; // transient and popups
+	struct wl_list popup_link;
+	struct wl_list popups;
 
 	struct {
 		struct wl_signal destroy;
@@ -124,8 +124,6 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell);
 void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface);
 void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 	enum wl_shell_surface_resize edges, int32_t width, int32_t height);
-void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface);
-bool wlr_wl_shell_surface_is_transient(struct wlr_wl_shell_surface *surface);
 
 /**
  * Find a popup within this surface at the surface-local coordinates. Returns
