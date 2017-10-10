@@ -190,19 +190,18 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
-	struct wlr_output_layout_output *l_output =
+	struct wlr_output_layout_output *layout_output =
 		wlr_output_layout_get(layout, reference);
-
-	if (!l_output) {
+	if (!layout_output) {
 		return false;
 	}
 
-	// the output box must contain one of the points
-	struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-	return wlr_box_contains_point(box, x1, y1) ||
-		wlr_box_contains_point(box, x2, y2) ||
-		wlr_box_contains_point(box, x2, y1) ||
-		wlr_box_contains_point(box, y2, x1);
+	struct wlr_box *output_box = wlr_output_layout_output_get_box(layout_output);
+	struct wlr_box target_box = {x1, y1, x2 - x1, y2 - y1};
+
+	struct wlr_box out;
+	struct wlr_box *out_ptr = &out;
+	return wlr_box_intersection(output_box, &target_box, &out_ptr);
 }
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
