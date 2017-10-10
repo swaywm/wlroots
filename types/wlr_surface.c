@@ -345,6 +345,52 @@ static void wlr_surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	}
 }
 
+static void wlr_surface_flush_damage(struct wlr_surface *surface,
+		bool reupload_buffer) {
+	if (!surface->current->buffer) {
+		return;
+	}
+	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
+	if (!buffer) {
+		if (wlr_renderer_buffer_is_drm(surface->renderer,
+					surface->current->buffer)) {
+			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
+			goto release;
+		} else {
+			wlr_log(L_INFO, "Unknown buffer handle attached");
+			return;
+		}
+	}
+
+	uint32_t format = wl_shm_buffer_get_format(buffer);
+	if (reupload_buffer) {
+		wlr_texture_upload_shm(surface->texture, format, buffer);
+	} else {
+		pixman_region32_t damage = surface->current->buffer_damage;
+		if (!pixman_region32_not_empty(&damage)) {
+			goto release;
+		}
+		int n;
+		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
+		for (int i = 0; i < n; ++i) {
+			pixman_box32_t rect = rects[i];
+			if (!wlr_texture_update_shm(surface->texture, format,
+					rect.x1, rect.y1,
+					rect.x2 - rect.x1,
+					rect.y2 - rect.y1,
+					buffer)) {
+				break;
+			}
+		}
+	}
+
+release:
+	pixman_region32_clear(&surface->current->surface_damage);
+	pixman_region32_clear(&surface->current->buffer_damage);
+
+	wlr_surface_state_release_buffer(surface->current);
+}
+
 static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	int32_t oldw = surface->current->buffer_width;
 	int32_t oldh = surface->current->buffer_height;
@@ -359,6 +405,10 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 		surface->texture->valid = false;
 	}
 
+	bool reupload_buffer = oldw != surface->current->buffer_width ||
+		oldh != surface->current->buffer_height;
+	wlr_surface_flush_damage(surface, reupload_buffer);
+
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each_reverse(subsurface, &surface->subsurface_pending_list,
@@ -371,9 +421,6 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 			wlr_surface_damage_subsurfaces(subsurface);
 		}
 	}
-
-	surface->reupload_buffer = oldw != surface->current->buffer_width ||
-		oldh != surface->current->buffer_height;
 
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->events.commit, surface);
@@ -457,51 +504,6 @@ static void surface_commit(struct wl_client *client,
 	wl_list_for_each(tmp, &surface->subsurface_list, parent_link) {
 		wlr_subsurface_parent_commit(tmp, false);
 	}
-}
-
-void wlr_surface_flush_damage(struct wlr_surface *surface) {
-	if (!surface->current->buffer) {
-		return;
-	}
-	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
-	if (!buffer) {
-		if (wlr_renderer_buffer_is_drm(surface->renderer,
-					surface->current->buffer)) {
-			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
-			goto release;
-		} else {
-			wlr_log(L_INFO, "Unknown buffer handle attached");
-			return;
-		}
-	}
-
-	uint32_t format = wl_shm_buffer_get_format(buffer);
-	if (surface->reupload_buffer) {
-		wlr_texture_upload_shm(surface->texture, format, buffer);
-	} else {
-		pixman_region32_t damage = surface->current->buffer_damage;
-		if (!pixman_region32_not_empty(&damage)) {
-			goto release;
-		}
-		int n;
-		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
-		for (int i = 0; i < n; ++i) {
-			pixman_box32_t rect = rects[i];
-			if (!wlr_texture_update_shm(surface->texture, format,
-					rect.x1, rect.y1,
-					rect.x2 - rect.x1,
-					rect.y2 - rect.y1,
-					buffer)) {
-				break;
-			}
-		}
-	}
-
-release:
-	pixman_region32_clear(&surface->current->surface_damage);
-	pixman_region32_clear(&surface->current->buffer_damage);
-
-	wlr_surface_state_release_buffer(surface->current);
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
