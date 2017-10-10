@@ -19,7 +19,6 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
-	wlr_surface_flush_damage(surface);
 	if (surface->texture->valid) {
 		int width = surface->current->buffer_width;
 		int height = surface->current->buffer_height;

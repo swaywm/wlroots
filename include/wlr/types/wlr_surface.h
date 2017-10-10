@@ -66,7 +66,6 @@ struct wlr_surface {
 
 	float buffer_to_surface_matrix[16];
 	float surface_to_buffer_matrix[16];
-	bool reupload_buffer;
 
 	struct {
 		struct wl_signal commit;
@@ -89,7 +88,6 @@ struct wlr_surface {
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
-void wlr_surface_flush_damage(struct wlr_surface *surface);
 /**
  * Gets a matrix you can pass into wlr_render_with_matrix to display this
  * surface. `matrix` is the output matrix, `projection` is the wlr_output
