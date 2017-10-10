@@ -97,13 +97,39 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 	}
 }
 
+static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface, struct roots_desktop *desktop,
+		struct wlr_output *wlr_output, struct timespec *when, double lx,
+		double ly, float rotation, bool is_child) {
+	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+		render_surface(surface->surface, desktop, wlr_output, when,
+			lx, ly, rotation);
+		struct wlr_wl_shell_surface *popup;
+		wl_list_for_each(popup, &surface->popups, popup_link) {
+			render_wl_shell_surface(popup, desktop, wlr_output, when,
+				lx + popup->transient_state->x,
+				ly + popup->transient_state->y,
+				rotation, true);
+		}
+	}
+}
+
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
-	render_surface(view->wlr_surface, desktop, wlr_output, when,
-		view->x, view->y, view->rotation);
-	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
+	switch (view->type) {
+	case ROOTS_XDG_SHELL_V6_VIEW:
+		render_surface(view->wlr_surface, desktop, wlr_output, when,
+			view->x, view->y, view->rotation);
 		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output,
 			when, view->x, view->y, view->rotation);
+		break;
+	case ROOTS_WL_SHELL_VIEW:
+		render_wl_shell_surface(view->wl_shell_surface, desktop, wlr_output,
+			when, view->x, view->y, view->rotation, false);
+		break;
+	case ROOTS_XWAYLAND_VIEW:
+		render_surface(view->wlr_surface, desktop, wlr_output, when,
+			view->x, view->y, view->rotation);
+		break;
 	}
 }
 

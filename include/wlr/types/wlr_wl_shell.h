@@ -3,11 +3,13 @@
 
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_seat.h>
 
 struct wlr_wl_shell {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wl_list surfaces;
+	struct wl_list popup_grabs;
 	uint32_t ping_timeout;
 
 	struct {
@@ -18,15 +20,23 @@ struct wlr_wl_shell {
 };
 
 struct wlr_wl_shell_surface_transient_state {
-	struct wlr_wl_shell_surface *parent;
 	int32_t x;
 	int32_t y;
 	enum wl_shell_surface_transient flags;
 };
 
 struct wlr_wl_shell_surface_popup_state {
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat *seat;
 	uint32_t serial;
+};
+
+// each seat gets a popup grab
+struct wlr_wl_shell_popup_grab {
+	struct wl_client *client;
+	struct wlr_seat_pointer_grab pointer_grab;
+	struct wlr_seat *seat;
+	struct wl_list popups;
+	struct wl_list link; // wlr_wl_shell::popup_grabs
 };
 
 enum wlr_wl_shell_surface_state {
@@ -41,7 +51,8 @@ struct wlr_wl_shell_surface {
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
-	struct wl_list link;
+	bool configured;
+	struct wl_list link; // wlr_wl_shell::surfaces
 
 	uint32_t ping_serial;
 	struct wl_event_source *ping_timer;
@@ -49,11 +60,18 @@ struct wlr_wl_shell_surface {
 	enum wlr_wl_shell_surface_state state;
 	struct wlr_wl_shell_surface_transient_state *transient_state;
 	struct wlr_wl_shell_surface_popup_state *popup_state;
+	struct wl_list grab_link; // wlr_wl_shell_popup_grab::popups
 
 	char *title;
 	char *class;
 
 	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_commit_listener;
+
+	struct wlr_wl_shell_surface *parent;
+	struct wl_list popup_link;
+	struct wl_list popups;
+	bool popup_mapped;
 
 	struct {
 		struct wl_signal destroy;
@@ -101,12 +119,35 @@ struct wlr_wl_shell_surface_set_maximized_event {
 	struct wlr_output *output;
 };
 
+/**
+ * Create a wl_shell for this display.
+ */
 struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display);
+
+/**
+ * Destroy this surface.
+ */
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell);
 
+/**
+ * Send a ping to the surface. If the surface does not respond with a pong
+ * within a reasonable amount of time, the ping timeout event will be emitted.
+ */
 void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface);
+
+/**
+ * Request that the surface configure itself to be the given size.
+ */
 void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 	enum wl_shell_surface_resize edges, int32_t width, int32_t height);
-void wlr_wl_shell_surface_popup_done(struct wlr_wl_shell_surface *surface);
+
+/**
+ * Find a popup within this surface at the surface-local coordinates. Returns
+ * the popup and coordinates in the topmost surface coordinate system or NULL if
+ * no popup is found at that location.
+ */
+struct wlr_wl_shell_surface *wlr_wl_shell_surface_popup_at(
+		struct wlr_wl_shell_surface *surface, double sx, double sy,
+		double *popup_sx, double *popup_sy);
 
 #endif

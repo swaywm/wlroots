@@ -73,6 +73,14 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	free(roots_surface);
 }
 
+static int shell_surface_compare_equals(const void *item, const void *cmp_to) {
+	const struct roots_view *view = item;
+	if (view->type == ROOTS_WL_SHELL_VIEW && view->wl_shell_surface == cmp_to) {
+		return 0;
+	}
+	return -1;
+}
+
 void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, wl_shell_surface);
@@ -107,7 +115,20 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_WL_SHELL_VIEW;
-	view->x = view->y = 200;
+
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
+		// we need to map it relative to the parent
+		int i =
+			list_seq_find(desktop->views,
+				shell_surface_compare_equals, surface->parent);
+		if (i != -1) {
+			struct roots_view *parent = desktop->views->items[i];
+			view->x = parent->x + surface->transient_state->x;
+			view->y = parent->y + surface->transient_state->y;
+		}
+	} else {
+		view->x = view->y = 200;
+	}
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
 	view->wlr_surface = surface->surface;
