@@ -158,6 +158,10 @@ static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surf
 		_height = tmp;
 	}
 
+	struct wlr_frame_callback *cb, *tmp;
+	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
+		wl_resource_destroy(cb->resource);
+	}
 	wl_list_init(&state->frame_callback_list);
 
 	state->width = _width;
