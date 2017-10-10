@@ -17,10 +17,38 @@ static void shell_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
 
 	struct wlr_wl_shell_surface *popup, *tmp = NULL;
 	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
-		wl_shell_surface_send_popup_done(popup->resource);
+		if (popup->popup_mapped) {
+			wl_shell_surface_send_popup_done(popup->resource);
+			popup->popup_mapped = false;
+		}
 	}
 
-	wlr_seat_pointer_end_grab(grab->seat);
+
+	if (grab->seat->pointer_state.grab == grab) {
+		wlr_seat_pointer_end_grab(grab->seat);
+	}
+}
+
+static void shell_pointer_grab_maybe_end(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_wl_shell_popup_grab *popup_grab = grab->data;
+
+	if (grab->seat->pointer_state.grab != grab) {
+		return;
+	}
+
+	bool has_mapped = false;
+
+	struct wlr_wl_shell_surface *popup, *tmp = NULL;
+	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
+		if (popup->popup_mapped) {
+			has_mapped = true;
+			break;
+		}
+	}
+
+	if (!has_mapped) {
+		shell_pointer_grab_end(grab);
+	}
 }
 
 static void shell_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
@@ -307,6 +335,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 		surface->transient_state->y = y;
 		shell_surface_popup_set_parent(surface, wl_parent);
 		grab->client = surface->client;
+		surface->popup_mapped = true;
 		wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
 		return;
 	}
@@ -337,6 +366,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 	shell_surface_popup_set_parent(surface, wl_parent);
 	grab->client = surface->client;
 	wl_list_insert(&grab->popups, &surface->grab_link);
+	surface->popup_mapped = true;
 	wlr_seat_pointer_start_grab(seat_handle->wlr_seat, &grab->pointer_grab);
 }
 
@@ -456,6 +486,16 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		surface->configured = true;
 		wl_signal_emit(&surface->shell->events.new_surface, surface);
+	}
+
+	if (surface->popup_mapped &&
+			surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP &&
+			!surface->surface->texture->valid) {
+		surface->popup_mapped = false;
+		struct wlr_wl_shell_popup_grab *grab =
+			shell_popup_grab_from_seat(surface->shell,
+				surface->popup_state->seat);
+		shell_pointer_grab_maybe_end(&grab->pointer_grab);
 	}
 }
 
@@ -611,6 +651,9 @@ struct wlr_wl_shell_surface *wlr_wl_shell_surface_popup_at(
 		double *popup_sx, double *popup_sy) {
 	struct wlr_wl_shell_surface *popup;
 	wl_list_for_each(popup, &surface->popups, popup_link) {
+		if (!popup->popup_mapped) {
+			continue;
+		}
 		double _popup_sx = popup->transient_state->x;
 		double _popup_sy = popup->transient_state->y;
 		int popup_width =

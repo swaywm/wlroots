@@ -71,6 +71,7 @@ struct wlr_wl_shell_surface {
 	struct wlr_wl_shell_surface *parent;
 	struct wl_list popup_link;
 	struct wl_list popups;
+	bool popup_mapped;
 
 	struct {
 		struct wl_signal destroy;
