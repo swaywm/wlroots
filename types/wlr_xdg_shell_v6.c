@@ -1147,8 +1147,7 @@ static void wlr_xdg_client_v6_destroy(struct wl_resource *resource) {
 
 	struct wlr_xdg_surface_v6 *surface, *tmp = NULL;
 	wl_list_for_each_safe(surface, tmp, &client->surfaces, link) {
-		wl_list_remove(&surface->link);
-		wl_list_init(&surface->link);
+		xdg_surface_destroy(surface);
 	}
 
 	if (client->ping_timer != NULL) {
