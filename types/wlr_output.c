@@ -238,10 +238,6 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
-	if (surface && output->cursor.surface == surface) {
-		return;
-	}
-
 	if (output->cursor.surface) {
 		wl_list_remove(&output->cursor.surface_commit.link);
 		wl_list_remove(&output->cursor.surface_destroy.link);
@@ -252,7 +248,9 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
-		wl_signal_add(&surface->events.destroy, &output->cursor.surface_destroy);
+		wl_signal_add(&surface->events.destroy,
+			&output->cursor.surface_destroy);
+		commit_cursor_surface(output, surface);
 	} else {
 		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
 	}
