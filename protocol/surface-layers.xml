@@ -49,6 +49,10 @@
       <arg name="layer" type="uint" summary="surface_layer to add this surface to"/>
     </request>
 
+    <enum name="error">
+      <entry name="role" value="0" summary="given wl_surface has another role"/>
+    </enum>
+
     <enum name="surface_layer">
       <description summary="available layers for surfaces">
         These values indicate which layers a surface can be rendered in. They

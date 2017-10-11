@@ -8,9 +8,6 @@
 
 static const char *surface_layers_role = "layer_surface";
 
-// TODO
-#define SURFACE_LAYERS_ERROR_ROLE 1
-
 static void layer_surface_set_interactivity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t input_types,
 		uint32_t exclusive_types) {
