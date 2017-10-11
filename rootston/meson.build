@@ -12,6 +12,7 @@ sources = [
 	'touch.c',
 	'xdg_shell_v6.c',
 	'wl_shell.c',
+	'surface_layers.c',
 ]
 if get_option('enable_xwayland')
 	sources += ['xwayland.c']

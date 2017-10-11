@@ -229,11 +229,13 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		server->renderer);
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
+	wl_list_init(&desktop->xdg_shell_v6_surface.link);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
 		&desktop->xdg_shell_v6_surface);
 	desktop->xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
 
 	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
+	wl_list_init(&desktop->wl_shell_surface.link);
 	wl_signal_add(&desktop->wl_shell->events.new_surface,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
@@ -242,6 +244,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	if (config->xwayland) {
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);
+		wl_list_init(&desktop->xwayland_surface.link);
 		wl_signal_add(&desktop->xwayland->events.new_surface,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
@@ -252,6 +255,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		server->wl_display);
 	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
 		server->renderer);
+
+	desktop->surface_layers = wlr_surface_layers_create(server->wl_display);
+	wl_list_init(&desktop->surface_layers_surface.link);
+	wl_signal_add(&desktop->surface_layers->events.new_surface,
+		&desktop->surface_layers_surface);
+	desktop->surface_layers_surface.notify = handle_surface_layers_surface;
 
 	return desktop;
 }

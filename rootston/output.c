@@ -130,6 +130,9 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		render_surface(view->wlr_surface, desktop, wlr_output, when,
 			view->x, view->y, view->rotation);
 		break;
+	case ROOTS_SURFACE_LAYERS_VIEW:
+		// TODO
+		break;
 	}
 }
 

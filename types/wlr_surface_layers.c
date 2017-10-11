@@ -69,7 +69,8 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
 	struct wlr_output *output = wl_resource_get_user_data(output_resource);
 
-	if (wlr_surface_set_role(surface, surface_layers_role, resource, SURFACE_LAYERS_ERROR_ROLE)) {
+	if (wlr_surface_set_role(surface, surface_layers_role, resource,
+			SURFACE_LAYERS_ERROR_ROLE)) {
 		return;
 	}
 

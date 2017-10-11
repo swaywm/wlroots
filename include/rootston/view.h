@@ -5,6 +5,8 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_surface_layers.h>
+#include <wlr/xwayland.h>
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;
@@ -36,10 +38,18 @@ struct roots_xwayland_surface {
 	struct wl_listener request_configure;
 };
 
+struct roots_layer_surface {
+	struct roots_view *view;
+
+	// TODO: Maybe destroy listener should go in roots_view
+	struct wl_listener destroy;
+};
+
 enum roots_view_type {
 	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
 	ROOTS_XWAYLAND_VIEW,
+	ROOTS_SURFACE_LAYERS_VIEW,
 };
 
 struct roots_view {
@@ -54,6 +64,7 @@ struct roots_view {
 #ifdef HAS_XWAYLAND
 		struct wlr_xwayland_surface *xwayland_surface;
 #endif
+		struct wlr_layer_surface *layer_surface;
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
@@ -61,6 +72,7 @@ struct roots_view {
 #ifdef HAS_XWAYLAND
 		struct roots_xwayland_surface *roots_xwayland_surface;
 #endif
+		struct roots_layer_surface *roots_layer_surface;
 	};
 	struct wlr_surface *wlr_surface;
 	// TODO: This would probably be better as a field that's updated on a
