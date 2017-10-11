@@ -16,7 +16,7 @@ typedef enum {
 
 typedef void (*log_callback_t)(log_importance_t importance, const char *fmt, va_list args);
 
-void wlr_init_log(log_callback_t callback);
+void wlr_log_init(log_callback_t callback);
 
 #ifdef __GNUC__
 #define ATTRIB_PRINTF(start, end) __attribute__((format(printf, start, end)))
