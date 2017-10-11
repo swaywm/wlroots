@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="surface_layers">
+
+  <copyright>
+    Copyright © 2017 Drew DeVault
+
+    Permission to use, copy, modify, distribute, and sell this
+    software and its documentation for any purpose is hereby granted
+    without fee, provided that the above copyright notice appear in
+    all copies and that both that copyright notice and this permission
+    notice appear in supporting documentation, and that the name of
+    the copyright holders not be used in advertising or publicity
+    pertaining to distribution of the software without specific,
+    written prior permission.  The copyright holders make no
+    representations about the suitability of this software for any
+    purpose.  It is provided "as is" without express or implied
+    warranty.
+
+    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
+  </copyright>
+
+  <interface name="surface_layers" version="1">
+    <description summary="create surfaces that are layers of the desktop">
+      Clients can use this interface to assign the surface_layer role to
+      wl_surfaces. Such surfaces are assigned to a "layer" of the output and
+      rendered with a defined z-depth respective to each other. They may also be
+      anchored to the edges and corners of a screen and specify input handling
+      semantics. This interface should be suitable for the implementation of
+      many desktop shell components, and a broad number of other applications
+      that interact with the desktop.
+    </description>
+
+    <request name="get_layer_surface">
+      <description summary="create a layer_surface from a surface">
+        Create a layer surface for an existing surface. This assigns the role of
+        layer_surface, or raises a protocol error if another role is already
+        assigned.
+      </description>
+      <arg name="id" type="new_id" interface="layer_surface"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="layer" type="uint" summary="surface_layer to add this surface to"/>
+    </request>
+
+    <enum name="surface_layer">
+      <description summary="available layers for surfaces">
+        These values indicate which layers a surface can be rendered in. They
+        are ordered by z depth, bottom-most first. Traditional shell surfaces
+        will typically be rendered between the bottom and top layers.
+        Fullscreen shell surfaces are typically rendered at the top layer.
+        Multiple surfaces can share a single layer, and ordering within a
+        single layer is undefined.
+      </description>
+
+      <entry name="background" value="0"/>
+      <entry name="bottom" value="1"/>
+      <entry name="top" value="2"/>
+      <entry name="overlay" value="3"/>
+    </enum>
+  </interface>
+
+  <interface name="layer_surface" version="1">
+    <description summary="layer metadata interface">
+      An interface that may be implemented by a wl_surface, for surfaces that
+      are designed to be rendered as a layer of a stacked desktop-like
+      environment.
+    </description>
+
+    <request name="set_interactivity">
+      <description summary="indicates that this surface is interactive">
+        This request indicates to the compositor what kind of interactivity
+        this surface requires. This may be changed at runtime. Any inputs
+        included in exclusive_types will not be given to other clients at lower
+        depths. The compositor may choose under which circumstances to send
+        inputs. By convention, the compositor will send input events to
+        the top-most surface of the top-most layer.
+      </description>
+      <arg name="input_types" type="uint" summary="mask of input devices to use"/>
+      <arg name="exclusive_types" type="uint" summary="mask of input devices to use exclusively"/>
+    </request>
+
+    <request name="set_anchor">
+      <description summary="configures the anchor point of the surface">
+        Requests that the compositor anchor the surface to the specified edges
+        and corners. If two orthoginal edges are specified (e.g. 'top' and
+        'left'), then the anchor point will be the intersection of the edges
+        (e.g. the top left corner of the output); otherwise the anchor point
+        will be centered on that edge, or in the center if none is specified.
+      </description>
+      <arg name="anchor" type="uint"/>
+    </request>
+
+    <request name="set_exclusive_zone">
+      <description summary="configures the exclusive geometry of this surface">
+        Requests that the compositor avoids occluding an area of the surface
+        with other surfaces. The compositor's use of this information is
+        implementation-dependent - do not assume that this region will not
+        actually be occluded.
+
+        This value is only meaningful if the surface is anchored to an edge,
+        rather than a corner. The zone is the number of pixels from the edge
+        that are considered exclusive.
+      </description>
+      <arg name="zone" type="uint"/>
+    </request>
+
+    <request name="set_margin">
+      <description summary="sets a margin from the anchor point">
+        Requests that the surface be placed some distance away from the anchor
+        point on the output, in pixels.
+      </description>
+      <arg name="horizontal" type="uint"/>
+      <arg name="vertical" type="uint"/>
+    </request>
+
+    <enum name="input_devices">
+      <description summary="types of input devices">
+        These flags are a bitfield and are used by set_interactive to specify
+        what sorts of input the surface should interact with.
+      </description>
+      <entry name="none" value="0"/>
+      <entry name="pointer" value="1"/>
+      <entry name="keyboard" value="2"/>
+      <entry name="touch" value="4"/>
+    </enum>
+
+    <enum name="anchor" bitfield="true">
+      <entry name="none" value="0"
+       summary="the center of the anchor rectangle"/>
+      <entry name="top" value="1"
+       summary="the top edge of the anchor rectangle"/>
+      <entry name="bottom" value="2"
+       summary="the bottom edge of the anchor rectangle"/>
+      <entry name="left" value="4"
+       summary="the left edge of the anchor rectangle"/>
+      <entry name="right" value="8"
+       summary="the right edge of the anchor rectangle"/>
+    </enum>
+  </interface>
+
+</protocol>

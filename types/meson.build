@@ -17,6 +17,7 @@ lib_wlr_types = static_library(
 		'wlr_screenshooter.c',
 		'wlr_seat.c',
 		'wlr_surface.c',
+		'wlr_surface_layers.c',
 		'wlr_tablet_pad.c',
 		'wlr_tablet_tool.c',
 		'wlr_touch.c',
