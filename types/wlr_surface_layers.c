@@ -11,23 +11,33 @@ static const char *surface_layers_role = "layer_surface";
 static void layer_surface_set_interactivity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t input_types,
 		uint32_t exclusive_types) {
-	// TODO
+	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+	surface->input_types = input_types;
+	surface->exclusive_types = exclusive_types;
+	wl_signal_emit(&surface->events.set_interactivity, surface);
 }
 
 static void layer_surface_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
-	// TODO
+	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+	surface->anchor = anchor;
+	wl_signal_emit(&surface->events.set_anchor, surface);
 }
 
 static void layer_surface_set_exclusive_zone(struct wl_client *client,
 		struct wl_resource *resource, uint32_t zone) {
-	// TODO
+	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+	surface->exclusive_zone = zone;
+	wl_signal_emit(&surface->events.set_exclusive_zone, surface);
 }
 
 static void layer_surface_set_margin(struct wl_client *client,
 		struct wl_resource *resource, uint32_t horizontal,
 		uint32_t vertical) {
-	// TODO
+	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+	surface->margin_horizontal = horizontal;
+	surface->margin_vertical = vertical;
+	wl_signal_emit(&surface->events.set_margin, surface);
 }
 
 static void layer_surface_destroy(struct wlr_layer_surface *surface) {
@@ -54,20 +64,21 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource,
 		struct wl_resource *output_resource, uint32_t layer) {
+	struct wlr_surface_layers *surface_layers =
+		wl_resource_get_user_data(resource);
 	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+	struct wlr_output *output = wl_resource_get_user_data(output_resource);
+
 	if (wlr_surface_set_role(surface, surface_layers_role, resource, SURFACE_LAYERS_ERROR_ROLE)) {
 		return;
 	}
 
-	struct wlr_surface_layers *surface_layers =
-		wl_resource_get_user_data(resource);
 	struct wlr_layer_surface *layer_surface =
 		calloc(1, sizeof(struct wlr_layer_surface));
 	if (layer_surface == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-	layer_surface->surface_layers = surface_layers;
 
 	layer_surface->resource = wl_resource_create(client,
 		&layer_surface_interface, wl_resource_get_version(resource), id);
@@ -75,6 +86,19 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 		layer_surface->resource);
 	wl_resource_set_implementation(layer_surface->resource, &layer_surface_impl,
 		layer_surface, layer_surface_resource_destroy);
+
+	layer_surface->surface_layers = surface_layers;
+	layer_surface->surface = surface;
+	layer_surface->output = output;
+	layer_surface->layer = layer;
+
+	wl_signal_init(&layer_surface->events.destroy);
+	wl_signal_init(&layer_surface->events.set_interactivity);
+	wl_signal_init(&layer_surface->events.set_anchor);
+	wl_signal_init(&layer_surface->events.set_exclusive_zone);
+	wl_signal_init(&layer_surface->events.set_margin);
+
+	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
 
 static const struct surface_layers_interface surface_layers_impl = {
@@ -112,6 +136,8 @@ struct wlr_surface_layers *wlr_surface_layers_create(
 		return NULL;
 	}
 	surface_layers->wl_global = wl_global;
+
+	wl_signal_init(&surface_layers->events.new_surface);
 
 	return surface_layers;
 }
