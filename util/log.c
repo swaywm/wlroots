@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 1
+#define _POSIX_C_SOURCE 199506L
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>

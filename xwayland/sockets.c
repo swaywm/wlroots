@@ -1,4 +1,8 @@
 #define _XOPEN_SOURCE 700
+#ifdef __FreeBSD__
+// for SOCK_CLOEXEC
+#define __BSD_VISIBLE 1
+#endif
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -65,9 +69,12 @@ static bool open_sockets(int socks[2], int display) {
 
 	mkdir(socket_dir, 0777);
 
-	// TODO: non-linux apparently want another format
+#ifdef __linux__
 	addr.sun_path[0] = 0;
 	path_size = snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1, socket_fmt, display);
+#else
+	path_size = snprintf(addr.sun_path, sizeof(addr.sun_path), socket_fmt, display);
+#endif
 	socks[0] = open_socket(&addr, path_size);
 	if (socks[0] < 0) {
 		return false;

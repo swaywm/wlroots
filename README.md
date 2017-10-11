@@ -31,3 +31,5 @@ Run these commands:
 
     meson build
     ninja -C build
+
+(On FreeBSD, you need to pass an extra flag to prevent a linking error: `meson build -D b_lundef=false`)

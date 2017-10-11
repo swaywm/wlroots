@@ -1,5 +1,9 @@
 #define _XOPEN_SOURCE 700
 #define _DEFAULT_SOURCE
+#ifdef __FreeBSD__
+// for SOCK_CLOEXEC
+#define __BSD_VISIBLE 1
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -16,6 +20,14 @@
 #include "wlr/xwayland.h"
 #include "sockets.h"
 #include "xwm.h"
+
+#ifdef __FreeBSD__
+static inline int clearenv(void) {
+	extern char **environ;
+	environ[0] = NULL;
+	return 0;
+}
+#endif
 
 static void safe_close(int fd) {
 	if (fd >= 0) {
