@@ -359,7 +359,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 		if (wlr_renderer_buffer_is_drm(surface->renderer,
 					surface->current->buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
-			goto release;
+			goto clear_damage;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
 			return;
@@ -372,7 +372,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 	} else {
 		pixman_region32_t damage = surface->current->buffer_damage;
 		if (!pixman_region32_not_empty(&damage)) {
-			goto release;
+			goto clear_damage;
 		}
 		int n;
 		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
@@ -388,7 +388,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 		}
 	}
 
-release:
+clear_damage:
 	pixman_region32_clear(&surface->current->surface_damage);
 	pixman_region32_clear(&surface->current->buffer_damage);
 }
