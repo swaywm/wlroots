@@ -1,8 +1,7 @@
 lib_wlr_types = static_library(
 	'wlr_types',
 	files(
-		'wlr_data_device_manager.c',
-		'wlr_data_source.c',
+		'wlr_data_device.c',
 		'wlr_input_device.c',
 		'wlr_keyboard.c',
 		'wlr_output.c',

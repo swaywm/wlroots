@@ -111,7 +111,10 @@ struct wlr_seat {
 	struct wl_list keyboards;
 	char *name;
 	uint32_t capabilities;
-	struct wlr_data_device *data_device;
+
+	struct wlr_data_device *data_device; // TODO needed?
+	struct wlr_data_source *selection_source;
+	uint32_t selection_serial;
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
