@@ -119,6 +119,8 @@ struct wlr_seat {
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
 
+	struct wl_listener selection_data_source_destroy;
+
 	struct {
 		struct wl_signal client_bound;
 		struct wl_signal client_unbound;

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_seat.h>
@@ -12,16 +13,172 @@ static void data_device_start_drag(struct wl_client *client, struct wl_resource
 		struct wl_resource *origin, struct wl_resource *icon, uint32_t serial) {
 	wlr_log(L_DEBUG, "TODO: data device start drag");
 }
+static void data_source_accept(struct wlr_data_source *source,
+		uint32_t time, const char *mime_type) {
+	wl_data_source_send_target(source->resource, mime_type);
+}
 
-static struct wlr_data_offer *wlr_data_source_send_offer(
-		struct wlr_data_source *source,
-		struct wl_resource *data_device_resourec) {
-	// TODO
-	return NULL;
+static void data_source_send(struct wlr_data_source *source,
+		const char *mime_type, int32_t fd) {
+	wl_data_source_send_send(source->resource, mime_type, fd);
+	close(fd);
+}
+
+static void data_source_cancel(struct wlr_data_source *source) {
+	wl_data_source_send_cancelled(source->resource);
 }
 
 
-static void wlr_seat_handle_send_selection(struct wlr_seat_handle *handle) {
+static void data_offer_accept(struct wl_client *client,
+		struct wl_resource *resource, uint32_t serial, const char *mime_type) {
+	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
+
+	if (!offer->source || offer != offer->source->offer) {
+		return;
+	}
+
+	// TODO check that client is currently focused by the input device
+
+	data_source_accept(offer->source, serial, mime_type);
+	offer->source->accepted = (mime_type != NULL);
+}
+
+static void data_offer_receive(struct wl_client *client,
+		struct wl_resource *resource, const char *mime_type, int32_t fd) {
+	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
+
+	if (offer->source && offer == offer->source->offer) {
+		data_source_send(offer->source, mime_type, fd);
+	} else {
+		close(fd);
+	}
+}
+static void data_offer_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static void data_source_notify_finish(struct wlr_data_source *source) {
+	// TODO
+	/*
+	if (!source->actions_set) {
+		return;
+	}
+
+	if (source->offer->in_ask &&
+			wl_resource_get_version(source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		wl_data_source_send_action(source->resource,
+				source->current_dnd_action);
+	}
+
+	if (wl_resource_get_version(source->resource) >=
+			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
+		wl_data_source_send_dnd_finished(source->resource);
+	}
+	*/
+
+	source->offer = NULL;
+}
+
+static void data_offer_finish(struct wl_client *client,
+		struct wl_resource *resource) {
+	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
+
+	if (!offer->source || offer->source->offer != offer) {
+		return;
+	}
+
+	data_source_notify_finish(offer->source);
+}
+
+static void data_offer_set_actions(struct wl_client *client,
+		struct wl_resource *resource, uint32_t dnd_actions,
+		uint32_t preferred_action) {
+	// TODO
+}
+
+static void data_offer_resource_destroy(struct wl_resource *resource) {
+	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
+
+	if (!offer->source) {
+		goto out;
+	}
+
+	wl_list_remove(&offer->source_destroy.link);
+
+	if (offer->source->offer != offer) {
+		goto out;
+	}
+
+	// If the drag destination has version < 3, wl_data_offer.finish
+	// won't be called, so do this here as a safety net, because
+	// we still want the version >=3 drag source to be happy.
+	if (wl_resource_get_version(offer->resource) <
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		data_source_notify_finish(offer->source);
+	} else if (offer->source->resource &&
+			wl_resource_get_version(offer->source->resource) >=
+			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
+		wl_data_source_send_cancelled(offer->source->resource);
+	}
+
+	offer->source->offer = NULL;
+out:
+	free(offer);
+}
+
+static const struct wl_data_offer_interface data_offer_impl = {
+	.accept = data_offer_accept,
+	.receive = data_offer_receive,
+	.destroy = data_offer_destroy,
+	.finish = data_offer_finish,
+	.set_actions = data_offer_set_actions,
+};
+
+static void handle_offer_source_destroyed(struct wl_listener *listener,
+		void *data) {
+	struct wlr_data_offer *offer =
+		wl_container_of(listener, offer, source_destroy);
+
+	offer->source = NULL;
+}
+
+static struct wlr_data_offer *wlr_data_source_send_offer(
+		struct wlr_data_source *source,
+		struct wl_resource *target) {
+	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
+
+	offer->resource =
+		wl_resource_create(wl_resource_get_client(target),
+			&wl_data_offer_interface,
+			wl_resource_get_version(target), 0);
+	if (offer->resource == NULL) {
+		free(offer);
+		return NULL;
+	}
+
+	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
+		data_offer_resource_destroy);
+
+	offer->source_destroy.notify = handle_offer_source_destroyed;
+	wl_signal_add(&source->events.destroy, &offer->source_destroy);
+
+	wl_data_device_send_data_offer(target, offer->resource);
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		wl_data_offer_send_offer(offer->resource, *p);
+	}
+
+	offer->source = source;
+	source->offer = offer;
+	source->accepted = false;
+
+	return offer;
+}
+
+
+void wlr_seat_handle_send_selection(struct wlr_seat_handle *handle) {
 	if (!handle->data_device) {
 		return;
 	}
@@ -36,6 +193,18 @@ static void wlr_seat_handle_send_selection(struct wlr_seat_handle *handle) {
 	}
 }
 
+static void seat_handle_selection_data_source_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_seat *seat =
+		wl_container_of(listener, seat, selection_data_source_destroy);
+
+	// TODO send null selection to focused keyboard
+
+	seat->selection_source = NULL;
+
+	// TODO emit selection signal
+}
+
 static void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
 	if (seat->selection_source &&
@@ -44,7 +213,9 @@ static void wlr_seat_set_selection(struct wlr_seat *seat,
 	}
 
 	if (seat->selection_source) {
-		// TODO cancel
+		data_source_cancel(seat->selection_source);
+		seat->selection_source = NULL;
+		wl_list_remove(&seat->selection_data_source_destroy.link);
 	}
 
 	seat->selection_source = source;
@@ -54,14 +225,16 @@ static void wlr_seat_set_selection(struct wlr_seat *seat,
 		seat->keyboard_state.focused_handle;
 
 	if (focused_handle) {
-		// TODO send selection to keyboard
 		wlr_seat_handle_send_selection(focused_handle);
 	}
 
 	// TODO emit selection signal
 
 	if (source) {
-		// TODO set destroy listener
+		seat->selection_data_source_destroy.notify =
+			seat_handle_selection_data_source_destroy;
+		wl_signal_add(&source->events.destroy,
+			&seat->selection_data_source_destroy);
 	}
 }
 

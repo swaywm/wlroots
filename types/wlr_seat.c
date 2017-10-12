@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_data_device.h>
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -23,6 +24,7 @@ static void wl_pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial,
 		struct wl_resource *surface_resource,
 		int32_t hotspot_x, int32_t hotspot_y) {
+	return;
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
 	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
@@ -750,6 +752,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_keyboard_send_enter(handle->keyboard, serial,
 			surface->resource, &keys);
+		wlr_seat_handle_send_selection(handle);
 	}
 
 	// reinitialize the focus destroy events
