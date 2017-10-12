@@ -107,8 +107,13 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 	uint32_t keycode = event->keycode + 8;
 	const xkb_keysym_t *syms;
-	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
-		keycode, &syms);
+	struct xkb_state *xkb_state = keyboard->device->keyboard->xkb_state;
+
+	// Always process keys in 0 shift level (lower case)
+	int syms_len = xkb_keymap_key_get_syms_by_level(
+		xkb_state_get_keymap(xkb_state), keycode,
+		xkb_state_key_get_layout(xkb_state, keycode), 0, &syms);
+
 	for (int i = 0; i < syms_len; i++) {
 		if (event->state == WLR_KEY_PRESSED) {
 			keyboard_keysym_press(keyboard, syms[i]);
