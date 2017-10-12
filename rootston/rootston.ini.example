@@ -38,3 +38,4 @@ meta-key = Logo
 [bindings]
 Logo+Shift+e = exit # Stop the compositor
 Logo+q = close # Close the current view
+Alt+Tab = next_window # Cycle through windows
