@@ -516,6 +516,7 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	if (grab != wlr_seat->pointer_state.default_grab) {
 		wlr_seat->pointer_state.grab = wlr_seat->pointer_state.default_grab;
+		wl_signal_emit(&wlr_seat->events.pointer_grab_end, grab);
 	}
 }
 
