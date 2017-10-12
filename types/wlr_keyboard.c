@@ -48,6 +48,9 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group) {
+	if (!keyboard->xkb_state) {
+		return;
+	}
 	xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
 		mods_locked, 0, 0, group);
 	keyboard_modifier_update(keyboard);
@@ -55,6 +58,9 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
+	if (!keyboard->xkb_state) {
+		return;
+	}
 	if (event->update_state) {
 		uint32_t keycode = event->keycode + 8;
 		xkb_state_update_key(keyboard->xkb_state, keycode,
