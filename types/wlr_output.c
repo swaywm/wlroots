@@ -127,7 +127,7 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 		int32_t hotspot_y) {
 	if (output->impl->set_cursor
 			&& output->impl->set_cursor(output, buf, stride, width, height,
-				hotspot_x, hotspot_y)) {
+				hotspot_x, hotspot_y, true)) {
 		output->cursor.is_sw = false;
 		return true;
 	}
@@ -237,6 +237,15 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
+
+	if (surface && surface == output->cursor.surface) {
+		if (output->impl->set_cursor && !output->cursor.is_sw) {
+			// Only update the hotspot
+			output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x,
+				hotspot_y, false);
+		}
+		return;
+	}
 
 	if (output->cursor.surface) {
 		wl_list_remove(&output->cursor.surface_commit.link);

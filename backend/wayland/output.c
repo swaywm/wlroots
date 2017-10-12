@@ -54,11 +54,18 @@ static void wlr_wl_output_transform(struct wlr_output *_output,
 
 static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y) {
+		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
 
+	if (!update_pixels) {
+		// Update hotspot without changing cursor image
+		wlr_wl_output_update_cursor(output, output->enter_serial, hotspot_x,
+			hotspot_y);
+		return true;
+	}
 	if (!buf) {
+		// Hide cursor
 		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
 			NULL, 0, 0);
 		return true;
