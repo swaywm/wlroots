@@ -429,7 +429,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 
 	// Release the buffer after calling commit, because some listeners
 	// might need it (e.g. for cursor surfaces)
-	wlr_surface_state_release_buffer(surface->current);
+	// TODO: breaks weston-subsurfaces
+	//wlr_surface_state_release_buffer(surface->current);
 }
 
 static bool wlr_subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
