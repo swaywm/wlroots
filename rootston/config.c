@@ -11,6 +11,7 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
+#include "rootston/input.h"
 #include "rootston/ini.h"
 
 static void usage(const char *name, int ret) {
@@ -217,44 +218,37 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 	} else if (strcmp(section, "bindings") == 0) {
 		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
-		wl_list_insert(&config->bindings, &bc->link);
 
-		bc->command = strdup(value);
-
-		size_t keysyms_len = 1;
+		xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 		char *symnames = strdup(name);
-		for (char *c = symnames; *c != '\0'; c++) {
-			if (*c == '+') {
-				*c = '\0';
-				keysyms_len++;
-			}
-		}
-
-		// TODO: bc->keysyms is larger than needed
-		bc->keysyms = calloc(1, keysyms_len * sizeof(xkb_keysym_t));
-		char *symname = symnames;
-		for (size_t i = 0; i < keysyms_len; i++) {
+		char* symname = strtok(symnames, "+");
+		while (symname) {
 			uint32_t modifier = parse_modifier(symname);
 			if (modifier != 0) {
 				bc->modifiers |= modifier;
 			} else {
 				xkb_keysym_t sym = xkb_keysym_from_name(symname,
-					XKB_KEYSYM_NO_FLAGS);
+					XKB_KEYSYM_CASE_INSENSITIVE);
 				if (sym == XKB_KEY_NoSymbol) {
 					wlr_log(L_ERROR, "got unknown key binding symbol: %s",
 						symname);
-					wl_list_remove(&bc->link);
-					free(bc->keysyms);
 					free(bc);
+					bc = NULL;
 					break;
 				}
-				bc->keysyms[bc->keysyms_len] = sym;
+				keysyms[bc->keysyms_len] = sym;
 				bc->keysyms_len++;
 			}
-			symname += strlen(symname) + 1;
+			symname = strtok(NULL, "+");
 		}
-
 		free(symnames);
+
+		if (bc) {
+			wl_list_insert(&config->bindings, &bc->link);
+			bc->command = strdup(value);
+			bc->keysyms = malloc(bc->keysyms_len * sizeof(xkb_keysym_t));
+			memcpy(bc->keysyms, keysyms, bc->keysyms_len * sizeof(xkb_keysym_t));
+		}
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
