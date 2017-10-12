@@ -248,6 +248,9 @@ static void do_cursor_button_press(struct roots_input *input,
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
 		set_view_focus(input, desktop, NULL);
+		if (view) {
+			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
+		}
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;
