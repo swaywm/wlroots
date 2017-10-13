@@ -128,7 +128,7 @@ void handle_pointer_axis(struct libinput_event *event,
 			}
 			wlr_event.delta = libinput_event_pointer_get_axis_value(
 					pevent, axies[i]);
+			wl_signal_emit(&wlr_dev->pointer->events.axis, &wlr_event);
 		}
-		wl_signal_emit(&wlr_dev->pointer->events.axis, &wlr_event);
 	}
 }
