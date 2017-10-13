@@ -11,6 +11,7 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
+#include "rootston/input.h"
 #include "rootston/ini.h"
 
 static void usage(const char *name, int ret) {
@@ -106,6 +107,42 @@ static uint32_t parse_modifier(const char *symname) {
 		return WLR_MODIFIER_MOD5;
 	} else {
 		return 0;
+	}
+}
+
+void add_binding_config(struct wl_list *bindings, const char* combination,
+		const char* command) {
+	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+
+	xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
+	char *symnames = strdup(combination);
+	char* symname = strtok(symnames, "+");
+	while (symname) {
+		uint32_t modifier = parse_modifier(symname);
+		if (modifier != 0) {
+			bc->modifiers |= modifier;
+		} else {
+			xkb_keysym_t sym = xkb_keysym_from_name(symname,
+				XKB_KEYSYM_NO_FLAGS);
+			if (sym == XKB_KEY_NoSymbol) {
+				wlr_log(L_ERROR, "got unknown key binding symbol: %s",
+					symname);
+				free(bc);
+				bc = NULL;
+				break;
+			}
+			keysyms[bc->keysyms_len] = sym;
+			bc->keysyms_len++;
+		}
+		symname = strtok(NULL, "+");
+	}
+	free(symnames);
+
+	if (bc) {
+		wl_list_insert(bindings, &bc->link);
+		bc->command = strdup(command);
+		bc->keysyms = malloc(bc->keysyms_len * sizeof(xkb_keysym_t));
+		memcpy(bc->keysyms, keysyms, bc->keysyms_len * sizeof(xkb_keysym_t));
 	}
 }
 
@@ -216,45 +253,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
 		}
 	} else if (strcmp(section, "bindings") == 0) {
-		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
-		wl_list_insert(&config->bindings, &bc->link);
-
-		bc->command = strdup(value);
-
-		size_t keysyms_len = 1;
-		char *symnames = strdup(name);
-		for (char *c = symnames; *c != '\0'; c++) {
-			if (*c == '+') {
-				*c = '\0';
-				keysyms_len++;
-			}
-		}
-
-		// TODO: bc->keysyms is larger than needed
-		bc->keysyms = calloc(1, keysyms_len * sizeof(xkb_keysym_t));
-		char *symname = symnames;
-		for (size_t i = 0; i < keysyms_len; i++) {
-			uint32_t modifier = parse_modifier(symname);
-			if (modifier != 0) {
-				bc->modifiers |= modifier;
-			} else {
-				xkb_keysym_t sym = xkb_keysym_from_name(symname,
-					XKB_KEYSYM_NO_FLAGS);
-				if (sym == XKB_KEY_NoSymbol) {
-					wlr_log(L_ERROR, "got unknown key binding symbol: %s",
-						symname);
-					wl_list_remove(&bc->link);
-					free(bc->keysyms);
-					free(bc);
-					break;
-				}
-				bc->keysyms[bc->keysyms_len] = sym;
-				bc->keysyms_len++;
-			}
-			symname += strlen(symname) + 1;
-		}
-
-		free(symnames);
+		add_binding_config(&config->bindings, name, value);
 	} else {
 		wlr_log(L_ERROR, "got unknown config section: %s", section);
 	}
@@ -298,15 +297,9 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using empty config.");
-
-		struct binding_config *bc = calloc(1, sizeof(struct binding_config));
-		wl_list_insert(&config->bindings, &bc->link);
-		bc->command = strdup("exit");
-		bc->modifiers = WLR_MODIFIER_LOGO;
-		bc->keysyms_len = 2;
-		bc->keysyms = calloc(1, bc->keysyms_len * sizeof(xkb_keysym_t));
-		bc->keysyms[0] = XKB_KEY_Meta_L;
-		bc->keysyms[1] = XKB_KEY_q;
+		add_binding_config(&config->bindings, "Logo+Shift+e", "exit");
+		add_binding_config(&config->bindings, "Ctrl+q", "close");
+		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
 		exit(1);
