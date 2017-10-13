@@ -65,24 +65,20 @@ static void data_offer_destroy(struct wl_client *client,
 }
 
 static void data_source_notify_finish(struct wlr_data_source *source) {
-	// TODO
-	/*
 	if (!source->actions_set) {
 		return;
 	}
 
-	if (source->offer->in_ask &&
-			wl_resource_get_version(source->resource) >=
+	if (source->offer->in_ask && wl_resource_get_version(source->resource) >=
 			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
 		wl_data_source_send_action(source->resource,
-				source->current_dnd_action);
+			source->current_dnd_action);
 	}
 
 	if (wl_resource_get_version(source->resource) >=
 			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
 		wl_data_source_send_dnd_finished(source->resource);
 	}
-	*/
 
 	source->offer = NULL;
 }
@@ -403,7 +399,33 @@ static void data_source_destroy(struct wl_client *client,
 
 static void data_source_set_actions(struct wl_client *client,
 		struct wl_resource *resource, uint32_t dnd_actions) {
-	wlr_log(L_DEBUG, "TODO: data source set actions");
+	struct wlr_data_source *source =
+		wl_resource_get_user_data(resource);
+
+	if (source->actions_set) {
+		wl_resource_post_error(source->resource,
+				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+				"cannot set actions more than once");
+		return;
+	}
+
+	if (dnd_actions & ~ALL_ACTIONS) {
+		wl_resource_post_error(source->resource,
+				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+				"invalid action mask %x", dnd_actions);
+		return;
+	}
+
+	if (source->seat) {
+		wl_resource_post_error(source->resource,
+				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+				"invalid action change after "
+				"wl_data_device.start_drag");
+		return;
+	}
+
+	source->dnd_actions = dnd_actions;
+	source->actions_set = true;
 }
 
 static void data_source_offer(struct wl_client *client,

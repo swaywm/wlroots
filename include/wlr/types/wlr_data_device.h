@@ -30,6 +30,7 @@ struct wlr_data_source {
 	enum wl_data_device_manager_dnd_action current_dnd_action;
 	uint32_t dnd_actions;
 	uint32_t compositor_action;
+	bool actions_set;
 
 	struct {
 		struct wl_signal destroy;
