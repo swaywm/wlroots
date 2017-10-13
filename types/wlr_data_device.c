@@ -1,12 +1,18 @@
 #define _XOPEN_SOURCE 700
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <assert.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
+
+
+#define ALL_ACTIONS (WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | \
+		WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE | \
+		WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK)
 
 static void data_device_start_drag(struct wl_client *client, struct wl_resource
 		*resource, struct wl_resource *source_resource,
@@ -92,10 +98,99 @@ static void data_offer_finish(struct wl_client *client,
 	data_source_notify_finish(offer->source);
 }
 
+static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
+	uint32_t available_actions, preferred_action = 0;
+	uint32_t source_actions, offer_actions;
+
+	if (wl_resource_get_version(offer->resource) >=
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		offer_actions = offer->dnd_actions;
+		preferred_action = offer->preferred_dnd_action;
+	} else {
+		offer_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+	}
+
+	if (wl_resource_get_version(offer->source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		source_actions = offer->source->dnd_actions;
+	} else {
+		source_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+	}
+
+	available_actions = offer_actions & source_actions;
+
+	if (!available_actions) {
+		return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+	}
+
+	if (offer->source->seat &&
+			offer->source->compositor_action & available_actions) {
+		return offer->source->compositor_action;
+	}
+
+	// If the dest side has a preferred DnD action, use it
+	if ((preferred_action & available_actions) != 0) {
+		return preferred_action;
+	}
+
+	// Use the first found action, in bit order
+	return 1 << (ffs(available_actions) - 1);
+}
+
+static void data_offer_update_action(struct wlr_data_offer *offer) {
+	uint32_t action;
+
+	if (!offer->source) {
+		return;
+	}
+
+	action = data_offer_choose_action(offer);
+
+	if (offer->source->current_dnd_action == action) {
+		return;
+	}
+
+	offer->source->current_dnd_action = action;
+
+	if (offer->in_ask) {
+		return;
+	}
+
+	if (wl_resource_get_version(offer->source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		wl_data_source_send_action(offer->source->resource, action);
+	}
+
+	if (wl_resource_get_version(offer->resource) >=
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		wl_data_offer_send_action(offer->resource, action);
+	}
+}
+
 static void data_offer_set_actions(struct wl_client *client,
 		struct wl_resource *resource, uint32_t dnd_actions,
 		uint32_t preferred_action) {
-	// TODO
+	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
+
+	if (dnd_actions & ~ALL_ACTIONS) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_ACTION_MASK,
+			"invalid action mask %x", dnd_actions);
+		return;
+	}
+
+	if (preferred_action && (!(preferred_action & dnd_actions) ||
+				__builtin_popcount(preferred_action) > 1)) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_ACTION,
+			"invalid action %x", preferred_action);
+		return;
+	}
+
+	offer->dnd_actions = dnd_actions;
+	offer->preferred_dnd_action = preferred_action;
+
+	data_offer_update_action(offer);
 }
 
 static void data_offer_resource_destroy(struct wl_resource *resource) {

@@ -11,6 +11,10 @@ struct wlr_data_offer {
 	struct wl_resource *resource;
 	struct wlr_data_source *source;
 
+	uint32_t dnd_actions;
+	enum wl_data_device_manager_dnd_action preferred_dnd_action;
+	bool in_ask;
+
 	struct wl_listener source_destroy;
 };
 
@@ -22,8 +26,10 @@ struct wlr_data_source {
 
 	bool accepted;
 
-	// TODO
-	//bool actions_set;
+	// drag and drop
+	enum wl_data_device_manager_dnd_action current_dnd_action;
+	uint32_t dnd_actions;
+	uint32_t compositor_action;
 
 	struct {
 		struct wl_signal destroy;
