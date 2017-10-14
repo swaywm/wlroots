@@ -179,6 +179,11 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void commit_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
+	if (!output->impl->set_cursor) {
+		output->cursor.is_sw = true;
+		return;
+	}
+
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
 	if (buffer == NULL) {
 		return;
@@ -342,10 +347,20 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		glViewport(0, 0, output->width, output->height);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		float matrix[16];
-		wlr_texture_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
-			output->cursor.x, output->cursor.y);
-		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
+
+		struct wlr_texture *texture = output->cursor.texture;
+		struct wlr_renderer *renderer = output->cursor.renderer;
+		if (output->cursor.surface) {
+			texture = output->cursor.surface->texture;
+			renderer = output->cursor.surface->renderer;
+		}
+
+		if (texture && renderer) {
+			float matrix[16];
+			wlr_texture_get_matrix(texture, &matrix, &output->transform_matrix,
+				output->cursor.x, output->cursor.y);
+			wlr_render_with_matrix(renderer, texture, &matrix);
+		}
 	}
 
 	wl_signal_emit(&output->events.swap_buffers, &output);
