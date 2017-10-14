@@ -1,6 +1,7 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
+#include <wayland-util.h>
 #include <wayland-server.h>
 #include <stdbool.h>
 

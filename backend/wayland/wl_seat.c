@@ -204,11 +204,7 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 	struct wlr_input_device *wlr_device = &wlr_wl_dev->wlr_input_device;
 	wlr_input_device_init(wlr_device, type, &input_device_impl,
 			name, vendor, product);
-	if (list_add(backend->devices, wlr_device) == -1) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
-		free(wlr_wl_dev);
-		return NULL;
-	}
+	wl_list_insert(&backend->devices, &wlr_device->link);
 	return wlr_device;
 }
 
