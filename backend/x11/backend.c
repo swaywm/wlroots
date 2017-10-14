@@ -63,8 +63,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		x11->time = ev->time;
 		break;
 	}
-	case XCB_BUTTON_PRESS:
-	case XCB_BUTTON_RELEASE: {
+	case XCB_BUTTON_PRESS: {
 		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
 
 		if (ev->detail == XCB_BUTTON_INDEX_4 ||
@@ -79,7 +78,16 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 				.delta = delta,
 			};
 			wl_signal_emit(&x11->pointer.events.axis, &axis);
-		} else {
+			x11->time = ev->time;
+			break;
+		}
+	}
+	/* fallthrough */
+	case XCB_BUTTON_RELEASE: {
+		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
+
+		if (ev->detail != XCB_BUTTON_INDEX_4 &&
+				ev->detail != XCB_BUTTON_INDEX_5) {
 			struct wlr_event_pointer_button button = {
 				.device = &x11->pointer_dev,
 				.time_sec = ev->time / 1000,
