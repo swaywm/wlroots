@@ -153,7 +153,6 @@ error_event:
 	wl_event_source_remove(drm->drm_event);
 error_fd:
 	wlr_session_close_file(drm->session, drm->fd);
-error_backend:
 	free(drm);
 	return NULL;
 }

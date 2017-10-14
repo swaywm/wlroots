@@ -21,6 +21,7 @@
 #include <wlr/xcursor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
+#include <wlr/util/list.h>
 #include "shared.h"
 #include "config.h"
 #include "cat.h"

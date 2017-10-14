@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <wlr/types/wlr_compositor.h>
 #include <xcb/xcb.h>
+#include <wlr/util/list.h>
 
 #ifdef HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
