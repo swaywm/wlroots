@@ -2,6 +2,7 @@
 #define WLR_TYPES_WLR_DATA_DEVICE_H
 
 #include <wayland-server.h>
+#include <wlr/types/wlr_seat.h>
 
 struct wlr_data_device_manager {
 	struct wl_global *global;
@@ -35,6 +36,20 @@ struct wlr_data_source {
 	struct {
 		struct wl_signal destroy;
 	} events;
+};
+
+struct wlr_drag {
+	struct wlr_seat_pointer_grab pointer_grab;
+	struct wlr_seat_handle *handle;
+	struct wlr_seat_handle *focus_handle;
+
+	struct wlr_surface *icon;
+	struct wlr_surface *focus;
+	struct wlr_data_source *source;
+
+	struct wl_listener icon_destroy;
+	struct wl_listener source_destroy;
+	struct wl_listener handle_unbound;
 };
 
 /**

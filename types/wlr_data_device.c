@@ -9,16 +9,79 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
 
-
 #define ALL_ACTIONS (WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | \
 		WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE | \
 		WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK)
 
-static void data_device_start_drag(struct wl_client *client, struct wl_resource
-		*resource, struct wl_resource *source_resource,
-		struct wl_resource *origin, struct wl_resource *icon, uint32_t serial) {
-	wlr_log(L_DEBUG, "TODO: data device start drag");
+static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
+	uint32_t available_actions, preferred_action = 0;
+	uint32_t source_actions, offer_actions;
+
+	if (wl_resource_get_version(offer->resource) >=
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		offer_actions = offer->dnd_actions;
+		preferred_action = offer->preferred_dnd_action;
+	} else {
+		offer_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+	}
+
+	if (wl_resource_get_version(offer->source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		source_actions = offer->source->dnd_actions;
+	} else {
+		source_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+	}
+
+	available_actions = offer_actions & source_actions;
+
+	if (!available_actions) {
+		return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+	}
+
+	if (offer->source->seat &&
+			offer->source->compositor_action & available_actions) {
+		return offer->source->compositor_action;
+	}
+
+	// If the dest side has a preferred DnD action, use it
+	if ((preferred_action & available_actions) != 0) {
+		return preferred_action;
+	}
+
+	// Use the first found action, in bit order
+	return 1 << (ffs(available_actions) - 1);
 }
+
+static void data_offer_update_action(struct wlr_data_offer *offer) {
+	uint32_t action;
+
+	if (!offer->source) {
+		return;
+	}
+
+	action = data_offer_choose_action(offer);
+
+	if (offer->source->current_dnd_action == action) {
+		return;
+	}
+
+	offer->source->current_dnd_action = action;
+
+	if (offer->in_ask) {
+		return;
+	}
+
+	if (wl_resource_get_version(offer->source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		wl_data_source_send_action(offer->source->resource, action);
+	}
+
+	if (wl_resource_get_version(offer->resource) >=
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		wl_data_offer_send_action(offer->resource, action);
+	}
+}
+
 static void data_source_accept(struct wlr_data_source *source,
 		uint32_t time, const char *mime_type) {
 	wl_data_source_send_target(source->resource, mime_type);
@@ -92,75 +155,6 @@ static void data_offer_finish(struct wl_client *client,
 	}
 
 	data_source_notify_finish(offer->source);
-}
-
-static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
-	uint32_t available_actions, preferred_action = 0;
-	uint32_t source_actions, offer_actions;
-
-	if (wl_resource_get_version(offer->resource) >=
-			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-		offer_actions = offer->dnd_actions;
-		preferred_action = offer->preferred_dnd_action;
-	} else {
-		offer_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
-	}
-
-	if (wl_resource_get_version(offer->source->resource) >=
-			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
-		source_actions = offer->source->dnd_actions;
-	} else {
-		source_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
-	}
-
-	available_actions = offer_actions & source_actions;
-
-	if (!available_actions) {
-		return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
-	}
-
-	if (offer->source->seat &&
-			offer->source->compositor_action & available_actions) {
-		return offer->source->compositor_action;
-	}
-
-	// If the dest side has a preferred DnD action, use it
-	if ((preferred_action & available_actions) != 0) {
-		return preferred_action;
-	}
-
-	// Use the first found action, in bit order
-	return 1 << (ffs(available_actions) - 1);
-}
-
-static void data_offer_update_action(struct wlr_data_offer *offer) {
-	uint32_t action;
-
-	if (!offer->source) {
-		return;
-	}
-
-	action = data_offer_choose_action(offer);
-
-	if (offer->source->current_dnd_action == action) {
-		return;
-	}
-
-	offer->source->current_dnd_action = action;
-
-	if (offer->in_ask) {
-		return;
-	}
-
-	if (wl_resource_get_version(offer->source->resource) >=
-			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
-		wl_data_source_send_action(offer->source->resource, action);
-	}
-
-	if (wl_resource_get_version(offer->resource) >=
-			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-		wl_data_offer_send_action(offer->resource, action);
-	}
 }
 
 static void data_offer_set_actions(struct wl_client *client,
@@ -348,6 +342,244 @@ static void data_device_release(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
+static void drag_handle_seat_unbound(struct wl_listener *listener, void *data) {
+	struct wlr_drag *drag = wl_container_of(listener, drag, handle_unbound);
+	struct wlr_seat_handle *unbound_handle = data;
+
+	if (drag->focus_handle == unbound_handle) {
+		drag->focus_handle = NULL;
+	}
+}
+
+static void wlr_drag_set_focus(struct wlr_drag *drag,
+		struct wlr_surface *surface, double sx, double sy) {
+	if (drag->focus == surface) {
+		return;
+	}
+
+	if (drag->focus_handle && drag->focus_handle->data_device) {
+		wl_list_remove(&drag->handle_unbound.link);
+		wl_data_device_send_leave(drag->focus_handle->data_device);
+		drag->focus_handle = NULL;
+		drag->focus = NULL;
+	}
+
+	if (!surface || !surface->resource) {
+		return;
+	}
+
+	if (!drag->source &&
+			wl_resource_get_client(surface->resource) !=
+			wl_resource_get_client(drag->handle->wl_resource)) {
+		return;
+	}
+
+	if (drag->source && drag->source->offer) {
+		// unlink the offer from the source
+		wl_list_remove(&drag->source->offer->source_destroy.link);
+		drag->source->offer->source = NULL;
+		drag->source->offer = NULL;
+	}
+
+	struct wlr_seat_handle *focus_handle =
+		wlr_seat_handle_for_client(drag->handle->wlr_seat,
+			wl_resource_get_client(surface->resource));
+
+	if (!focus_handle || !focus_handle->data_device) {
+		return;
+	}
+
+	struct wl_resource *offer_resource = NULL;
+	if (drag->source) {
+		drag->source->accepted = false;
+		struct wlr_data_offer *offer =
+			wlr_data_source_send_offer(drag->source, focus_handle->data_device);
+		if (offer == NULL) {
+			return;
+		}
+
+		data_offer_update_action(offer);
+
+		if (wl_resource_get_version(offer->resource) >=
+				WL_DATA_OFFER_SOURCE_ACTIONS_SINCE_VERSION) {
+			wl_data_offer_send_source_actions(offer->resource,
+				drag->source->dnd_actions);
+		}
+
+		offer_resource = offer->resource;
+	}
+
+	uint32_t serial = wl_display_next_serial(drag->handle->wlr_seat->display);
+
+	wl_data_device_send_enter(focus_handle->data_device, serial,
+		surface->resource, wl_fixed_from_double(sx),
+		wl_fixed_from_double(sy), offer_resource);
+
+	drag->focus = surface;
+	drag->focus_handle = focus_handle;
+	drag->handle_unbound.notify = drag_handle_seat_unbound;
+	wl_signal_add(&focus_handle->wlr_seat->events.client_unbound,
+		&drag->handle_unbound);
+}
+
+static void wlr_drag_end(struct wlr_drag *drag) {
+	if (drag->icon) {
+		wl_list_remove(&drag->icon_destroy.link);
+	}
+
+	if (drag->source) {
+		wl_list_remove(&drag->source_destroy.link);
+	}
+
+	wlr_drag_set_focus(drag, NULL, 0, 0);
+	wlr_seat_pointer_end_grab(drag->pointer_grab.seat);
+	free(drag);
+}
+
+static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
+		struct wlr_surface *surface, double sx, double sy) {
+	struct wlr_drag *drag = grab->data;
+	wlr_drag_set_focus(drag, surface, sx, sy);
+}
+
+static void pointer_drag_motion(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, double sx, double sy) {
+	struct wlr_drag *drag = grab->data;
+	if (drag->focus && drag->focus_handle && drag->focus_handle->data_device) {
+		wl_data_device_send_motion(drag->focus_handle->data_device, time,
+			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	}
+}
+
+static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, uint32_t button, uint32_t state) {
+	struct wlr_drag *drag = grab->data;
+
+	// TODO check no buttons are pressed to end the drag
+	// TODO make sure the button pressed to do the drag was the same to end the
+	// drag
+
+	if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
+		if (drag->source) {
+			if (drag->focus_handle && drag->focus_handle->data_device &&
+					drag->source->current_dnd_action &&
+					drag->source->accepted) {
+				wl_data_device_send_drop(drag->focus_handle->data_device);
+				if (wl_resource_get_version(drag->source->resource) >=
+						WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
+					wl_data_source_send_dnd_drop_performed(
+						drag->source->resource);
+				}
+
+				drag->source->offer->in_ask =
+					drag->source->current_dnd_action ==
+					WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
+			}
+		} else if (wl_resource_get_version(drag->source->resource) >=
+				WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
+			wl_data_source_send_cancelled(drag->source->resource);
+		}
+
+		wlr_drag_end(drag);
+	}
+
+	return 0;
+}
+
+static void pointer_drag_axis(struct wlr_seat_pointer_grab *grab, uint32_t time,
+		enum wlr_axis_orientation orientation, double value) {
+}
+
+static void pointer_drag_cancel(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_drag *drag = grab->data;
+	wlr_drag_end(drag);
+}
+
+static const struct wlr_pointer_grab_interface pointer_drag_interface = {
+	.enter = pointer_drag_enter,
+	.motion = pointer_drag_motion,
+	.button = pointer_drag_button,
+	.axis = pointer_drag_axis,
+	.cancel = pointer_drag_cancel,
+};
+
+static void drag_handle_icon_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drag *drag = wl_container_of(listener, drag, icon_destroy);
+	drag->icon = NULL;
+}
+
+static void drag_handle_drag_source_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drag *drag = wl_container_of(listener, drag, source_destroy);
+	wlr_drag_end(drag);
+}
+
+static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
+		struct wlr_data_source *source, struct wlr_surface *icon) {
+	struct wlr_drag *drag = calloc(1, sizeof(struct wlr_drag));
+	if (drag == NULL) {
+		return false;
+	}
+
+	if (drag->icon) {
+		drag->icon_destroy.notify = drag_handle_icon_destroy;
+		wl_signal_add(&icon->events.destroy, &drag->icon_destroy);
+		drag->icon = icon;
+	}
+
+	if (source) {
+		drag->source_destroy.notify = drag_handle_drag_source_destroy;
+		wl_signal_add(&source->events.destroy, &drag->source_destroy);
+		drag->source = source;
+	}
+
+	drag->handle = handle;
+	drag->pointer_grab.data = drag;
+	drag->pointer_grab.interface = &pointer_drag_interface;
+
+	wlr_seat_pointer_clear_focus(handle->wlr_seat);
+
+	wlr_seat_pointer_start_grab(handle->wlr_seat, &drag->pointer_grab);
+
+	// TODO keyboard grab
+
+	return true;
+}
+
+static void data_device_start_drag(struct wl_client *client,
+		struct wl_resource *handle_resource,
+		struct wl_resource *source_resource,
+		struct wl_resource *origin_resource, struct wl_resource *icon_resource,
+		uint32_t serial) {
+	struct wlr_seat_handle *handle = wl_resource_get_user_data(handle_resource);
+	struct wlr_surface *origin = wl_resource_get_user_data(origin_resource);
+	struct wlr_data_source *source = NULL;
+	struct wlr_surface *icon = NULL;
+
+	if (source_resource) {
+		source = wl_resource_get_user_data(source_resource);
+	}
+
+	if (icon_resource) {
+		icon = wl_resource_get_user_data(icon_resource);
+	}
+	if (icon) {
+		if (wlr_surface_set_role(icon, "wl_data_device-icon",
+					handle_resource, WL_DATA_DEVICE_ERROR_ROLE) < 0) {
+			return;
+		}
+	}
+
+	// TODO touch grab
+	if (handle->wlr_seat->pointer_state.focused_surface == origin) {
+		if (!seat_handle_start_drag(handle, source, icon)) {
+			wl_resource_post_no_memory(handle_resource);
+		} else {
+			source->seat = handle;
+		}
+	}
+}
+
 static const struct wl_data_device_interface data_device_impl = {
 	.start_drag = data_device_start_drag,
 	.set_selection = data_device_set_selection,
@@ -404,23 +636,23 @@ static void data_source_set_actions(struct wl_client *client,
 
 	if (source->actions_set) {
 		wl_resource_post_error(source->resource,
-				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
-				"cannot set actions more than once");
+			WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+			"cannot set actions more than once");
 		return;
 	}
 
 	if (dnd_actions & ~ALL_ACTIONS) {
 		wl_resource_post_error(source->resource,
-				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
-				"invalid action mask %x", dnd_actions);
+			WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+			"invalid action mask %x", dnd_actions);
 		return;
 	}
 
 	if (source->seat) {
 		wl_resource_post_error(source->resource,
-				WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
-				"invalid action change after "
-				"wl_data_device.start_drag");
+			WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
+			"invalid action change after "
+			"wl_data_device.start_drag");
 		return;
 	}
 
@@ -492,8 +724,8 @@ static void data_device_manager_bind(struct wl_client *client,
 		return;
 	}
 
-	wl_resource_set_implementation(resource, &data_device_manager_impl,
-		NULL, NULL);
+	wl_resource_set_implementation(resource,
+			&data_device_manager_impl, NULL, NULL);
 }
 
 struct wlr_data_device_manager *wlr_data_device_manager_create(
