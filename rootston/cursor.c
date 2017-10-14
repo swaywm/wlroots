@@ -306,8 +306,8 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 	struct wlr_surface *focused_surface =
 		event->seat_handle->wlr_seat->pointer_state.focused_surface;
-	bool ok = focused_surface != NULL;
-	if (focused_surface != NULL) {
+	bool ok = focused_surface != NULL && focused_surface->resource != NULL;
+	if (ok) {
 		struct wl_client *focused_client =
 			wl_resource_get_client(focused_surface->resource);
 		ok = event->client == focused_client;

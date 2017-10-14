@@ -231,7 +231,7 @@ static void handle_cursor_surface_destroy(struct wl_listener *listener,
 
 void wlr_output_set_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (surface && strcmp(surface->role, "cursor") != 0) {
+	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
 		return;
 	}
 

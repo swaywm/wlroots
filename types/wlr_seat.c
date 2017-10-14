@@ -28,7 +28,7 @@ static void wl_pointer_set_cursor(struct wl_client *client,
 	if (surface_resource != NULL) {
 		surface = wl_resource_get_user_data(surface_resource);
 
-		if (wlr_surface_set_role(surface, "cursor", resource,
+		if (wlr_surface_set_role(surface, "wl_pointer-cursor", resource,
 				WL_POINTER_ERROR_ROLE) < 0) {
 			return;
 		}
