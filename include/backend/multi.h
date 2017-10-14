@@ -3,14 +3,14 @@
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/multi.h>
-#include <wlr/util/list.h>
 #include <wlr/backend/session.h>
+#include <wayland-util.h>
 
 struct wlr_multi_backend {
 	struct wlr_backend backend;
 
 	struct wlr_session *session;
-	list_t *backends;
+	struct wl_list backends;
 };
 
 #endif
