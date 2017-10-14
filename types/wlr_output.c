@@ -264,9 +264,7 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
 		wl_signal_add(&surface->events.destroy,
 			&output->cursor.surface_destroy);
-		// TODO: doing it breaks GTK apps
-		// TODO: not doing it breaks weston-subsurfaces
-		//commit_cursor_surface(output, surface);
+		commit_cursor_surface(output, surface);
 	} else {
 		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
 	}

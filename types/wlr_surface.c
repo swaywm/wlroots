@@ -359,7 +359,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 		if (wlr_renderer_buffer_is_drm(surface->renderer,
 					surface->current->buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
-			goto clear_damage;
+			goto release;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
 			return;
@@ -372,7 +372,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 	} else {
 		pixman_region32_t damage = surface->current->buffer_damage;
 		if (!pixman_region32_not_empty(&damage)) {
-			goto clear_damage;
+			goto release;
 		}
 		int n;
 		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
@@ -388,9 +388,11 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 		}
 	}
 
-clear_damage:
+release:
 	pixman_region32_clear(&surface->current->surface_damage);
 	pixman_region32_clear(&surface->current->buffer_damage);
+
+	wlr_surface_state_release_buffer(surface->current);
 }
 
 static void wlr_surface_commit_pending(struct wlr_surface *surface) {
@@ -426,11 +428,6 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->events.commit, surface);
-
-	// Release the buffer after calling commit, because some listeners
-	// might need it (e.g. for cursor surfaces)
-	// TODO: breaks weston-subsurfaces
-	//wlr_surface_state_release_buffer(surface->current);
 }
 
 static bool wlr_subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
