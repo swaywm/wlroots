@@ -179,8 +179,7 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void commit_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
-	if (!output->impl->set_cursor) {
-		output->cursor.is_sw = true;
+	if (output->cursor.is_sw) {
 		return;
 	}
 
@@ -258,6 +257,7 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 		output->cursor.surface = NULL;
 	}
 
+	output->cursor.is_sw = output->impl->set_cursor == NULL;
 	output->cursor.surface = surface;
 
 	if (surface != NULL) {
