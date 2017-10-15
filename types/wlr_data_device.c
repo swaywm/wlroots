@@ -82,18 +82,18 @@ static void data_offer_update_action(struct wlr_data_offer *offer) {
 	}
 }
 
-static void data_source_accept(struct wlr_data_source *source,
-		uint32_t time, const char *mime_type) {
+static void client_data_source_accept(struct wlr_data_source *source,
+		uint32_t serial, const char *mime_type) {
 	wl_data_source_send_target(source->resource, mime_type);
 }
 
-static void data_source_send(struct wlr_data_source *source,
+static void client_data_source_send(struct wlr_data_source *source,
 		const char *mime_type, int32_t fd) {
 	wl_data_source_send_send(source->resource, mime_type, fd);
 	close(fd);
 }
 
-static void data_source_cancel(struct wlr_data_source *source) {
+static void client_data_source_cancel(struct wlr_data_source *source) {
 	wl_data_source_send_cancelled(source->resource);
 }
 
@@ -108,7 +108,7 @@ static void data_offer_accept(struct wl_client *client,
 
 	// TODO check that client is currently focused by the input device
 
-	data_source_accept(offer->source, serial, mime_type);
+	offer->source->accept(offer->source, serial, mime_type);
 	offer->source->accepted = (mime_type != NULL);
 }
 
@@ -117,7 +117,7 @@ static void data_offer_receive(struct wl_client *client,
 	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
 
 	if (offer->source && offer == offer->source->offer) {
-		data_source_send(offer->source, mime_type, fd);
+		offer->source->send(offer->source, mime_type, fd);
 	} else {
 		close(fd);
 	}
@@ -290,7 +290,7 @@ static void seat_handle_selection_data_source_destroy(
 	// TODO emit selection signal
 }
 
-static void wlr_seat_set_selection(struct wlr_seat *seat,
+void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
 	if (seat->selection_source &&
 			seat->selection_serial - serial < UINT32_MAX / 2) {
@@ -298,7 +298,7 @@ static void wlr_seat_set_selection(struct wlr_seat *seat,
 	}
 
 	if (seat->selection_source) {
-		data_source_cancel(seat->selection_source);
+		seat->selection_source->cancel(seat->selection_source);
 		seat->selection_source = NULL;
 		wl_list_remove(&seat->selection_data_source_destroy.link);
 	}
@@ -700,6 +700,10 @@ static void data_device_manager_create_data_source(struct wl_client *client,
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+
+	source->accept = client_data_source_accept;
+	source->send = client_data_source_send;
+	source->cancel = client_data_source_cancel;
 
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);

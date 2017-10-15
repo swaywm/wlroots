@@ -36,6 +36,12 @@ struct wlr_data_source {
 	uint32_t compositor_action;
 	bool actions_set;
 
+	void (*accept)(struct wlr_data_source *source, uint32_t serial,
+			const char *mime_type);
+	void (*send)(struct wlr_data_source *source, const char *mime_type,
+			int32_t fd);
+	void (*cancel)(struct wlr_data_source *source);
+
 	struct {
 		struct wl_signal destroy;
 	} events;
@@ -71,5 +77,8 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
  * done.
  */
 void wlr_seat_handle_send_selection(struct wlr_seat_handle *handle);
+
+void wlr_seat_set_selection(struct wlr_seat *seat,
+		struct wlr_data_source *source, uint32_t serial);
 
 #endif
