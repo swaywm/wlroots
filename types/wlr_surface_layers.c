@@ -42,6 +42,7 @@ static void layer_surface_set_margin(struct wl_client *client,
 
 static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
+	wl_list_remove(&surface->link);
 	wl_resource_set_user_data(surface->resource, NULL);
 	free(surface);
 }
@@ -111,6 +112,7 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	layer_surface->surface_destroy_listener.notify =
 		handle_layer_surface_destroyed;
 
+	wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
 	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
 
@@ -149,6 +151,8 @@ struct wlr_surface_layers *wlr_surface_layers_create(
 		return NULL;
 	}
 	surface_layers->wl_global = wl_global;
+
+	wl_list_init(&surface_layers->surfaces);
 
 	wl_signal_init(&surface_layers->events.new_surface);
 

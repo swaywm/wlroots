@@ -5,6 +5,7 @@
 
 struct wlr_surface_layers {
 	struct wl_global *wl_global;
+	struct wl_list surfaces; // list of wlr_layer_surface
 
 	struct {
 		struct wl_signal new_surface;
@@ -19,6 +20,7 @@ struct wlr_layer_surface {
 	struct wlr_surface *surface;
 	struct wlr_output *output;
 	uint32_t layer;
+	struct wl_list link; // wlr_surface_layers.surfaces
 
 	uint32_t input_types, exclusive_types;
 	uint32_t anchor;
