@@ -427,8 +427,10 @@ static void output_add_notify(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "Output '%s' added", output->name);
 	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm", output->make, output->model,
 		output->phys_width, output->phys_height);
-	if (output->modes->length > 0) {
-		wlr_output_set_mode(output, output->modes->items[0]);
+	if (wl_list_length(&output->modes) > 0) {
+		struct wlr_output_mode *mode = NULL;
+		wl_container_of((&output->modes)->prev, mode, link);
+		wlr_output_set_mode(output, mode);
 	}
 	struct output_state *ostate = calloc(1, sizeof(struct output_state));
 	clock_gettime(CLOCK_MONOTONIC, &ostate->last_frame);
