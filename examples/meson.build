@@ -28,3 +28,9 @@ executable(
 	'screenshot.c',
 	dependencies: [wayland_client, wlr_protos],
 )
+
+executable(
+	'layer-surface',
+	'layer-surface.c',
+	dependencies: [wayland_client, wlr_protos, wayland_egl, egl, glesv2],
+)

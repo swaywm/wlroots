@@ -132,6 +132,7 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		break;
 	case ROOTS_SURFACE_LAYERS_VIEW:
 		// TODO
+		render_surface(view->wlr_surface, desktop, wlr_output, when, 0, 0, 0);
 		break;
 	}
 }
