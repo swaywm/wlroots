@@ -25,6 +25,8 @@ struct wlr_layer_surface {
 	uint32_t exclusive_zone;
 	uint32_t margin_horizontal, margin_vertical;
 
+	struct wl_listener surface_destroy_listener;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal set_interactivity;

@@ -60,6 +60,13 @@ static const struct layer_surface_interface layer_surface_impl = {
 	.set_margin = layer_surface_set_margin,
 };
 
+static void handle_layer_surface_destroyed(struct wl_listener *listener,
+		void *data) {
+	struct wlr_layer_surface *surface =
+		wl_container_of(listener, surface, surface_destroy_listener);
+	layer_surface_destroy(surface);
+}
+
 static void surface_layers_get_layer_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource,
@@ -98,6 +105,11 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	wl_signal_init(&layer_surface->events.set_anchor);
 	wl_signal_init(&layer_surface->events.set_exclusive_zone);
 	wl_signal_init(&layer_surface->events.set_margin);
+
+	wl_signal_add(&layer_surface->surface->events.destroy,
+		&layer_surface->surface_destroy_listener);
+	layer_surface->surface_destroy_listener.notify =
+		handle_layer_surface_destroyed;
 
 	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
