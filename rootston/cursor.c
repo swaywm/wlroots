@@ -1,8 +1,10 @@
 #define _XOPEN_SOURCE 700
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
@@ -11,6 +13,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_data_device.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/desktop.h"
@@ -289,6 +292,49 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 			(uint32_t)(event->time_usec / 1000), BTN_LEFT, event->state);
 }
 
+static void handle_drag_icon_destroy(struct wl_listener *listener, void *data) {
+	struct roots_drag_icon *drag_icon =
+		wl_container_of(listener, drag_icon, surface_destroy);
+	wl_list_remove(&drag_icon->link);
+	wl_list_remove(&drag_icon->surface_destroy.link);
+	wl_list_remove(&drag_icon->surface_commit.link);
+	free(drag_icon);
+}
+
+static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
+	struct roots_drag_icon *drag_icon =
+		wl_container_of(listener, drag_icon, surface_commit);
+	// TODO the spec hints at rules that can determine whether the drag icon is
+	// mapped here, but it is not completely clear so we need to test more
+	// toolkits to see how we should interpret the surface state here.
+	drag_icon->mapped = drag_icon->surface->texture->valid;
+}
+
+static void handle_pointer_grab_begin(struct wl_listener *listener,
+		void *data) {
+	struct roots_input *input =
+		wl_container_of(listener, input, pointer_grab_begin);
+	struct wlr_seat_pointer_grab *grab = data;
+
+	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
+		struct wlr_drag *drag = grab->data;
+		if (drag->icon) {
+			struct roots_drag_icon *drag_icon =
+				calloc(1, sizeof(struct roots_drag_icon));
+			drag_icon->surface = drag->icon;
+			wl_list_insert(&input->drag_icons, &drag_icon->link);
+
+			wl_signal_add(&drag->icon->events.destroy,
+				&drag_icon->surface_destroy);
+			drag_icon->surface_destroy.notify = handle_drag_icon_destroy;
+
+			wl_signal_add(&drag->icon->events.commit,
+				&drag_icon->surface_commit);
+			drag_icon->surface_commit.notify = handle_drag_icon_commit;
+		}
+	}
+}
+
 static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, pointer_grab_end);
@@ -357,6 +403,9 @@ void cursor_initialize(struct roots_input *input) {
 
 	wl_signal_add(&input->wl_seat->events.pointer_grab_end, &input->pointer_grab_end);
 	input->pointer_grab_end.notify = handle_pointer_grab_end;
+
+	wl_signal_add(&input->wl_seat->events.pointer_grab_begin, &input->pointer_grab_begin);
+	input->pointer_grab_begin.notify = handle_pointer_grab_begin;
 
 	wl_list_init(&input->request_set_cursor.link);
 	wl_signal_add(&input->wl_seat->events.request_set_cursor,

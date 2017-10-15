@@ -495,7 +495,8 @@ static void pointer_drag_cancel(struct wlr_seat_pointer_grab *grab) {
 	wlr_drag_end(drag);
 }
 
-static const struct wlr_pointer_grab_interface pointer_drag_interface = {
+const struct
+wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface = {
 	.enter = pointer_drag_enter,
 	.motion = pointer_drag_motion,
 	.button = pointer_drag_button,
@@ -521,7 +522,8 @@ static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
 		return false;
 	}
 
-	if (drag->icon) {
+	if (icon) {
+		drag->icon = icon;
 		drag->icon_destroy.notify = drag_handle_icon_destroy;
 		wl_signal_add(&icon->events.destroy, &drag->icon_destroy);
 		drag->icon = icon;
@@ -535,7 +537,7 @@ static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
 
 	drag->handle = handle;
 	drag->pointer_grab.data = drag;
-	drag->pointer_grab.interface = &pointer_drag_interface;
+	drag->pointer_grab.interface = &wlr_data_device_pointer_drag_interface;
 
 	wlr_seat_pointer_clear_focus(handle->wlr_seat);
 

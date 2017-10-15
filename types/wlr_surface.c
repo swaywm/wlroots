@@ -269,6 +269,8 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 		wlr_surface_state_release_buffer(state);
 		wlr_surface_state_set_buffer(state, next->buffer);
 		wlr_surface_state_reset_buffer(next);
+		state->sx = next->sx;
+		state->sy = next->sy;
 		update_size = true;
 	}
 	if (update_size) {

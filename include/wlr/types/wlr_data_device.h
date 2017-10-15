@@ -4,6 +4,9 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
+extern const struct
+wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
+
 struct wlr_data_device_manager {
 	struct wl_global *global;
 };

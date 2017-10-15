@@ -110,6 +110,8 @@ struct roots_input *input_create(struct roots_server *server,
 	cursor_load_config(config, input->cursor,
 		input, server->desktop);
 
+	wl_list_init(&input->drag_icons);
+
 	return input;
 }
 
