@@ -257,7 +257,15 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 		output->cursor.surface = NULL;
 	}
 
-	output->cursor.is_sw = output->impl->set_cursor == NULL;
+	// Disable hardware cursor
+	// TODO: support hardware cursors
+	output->cursor.is_sw = true;
+	if (output->impl->set_cursor) {
+		output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y,
+			true);
+	}
+
+	//output->cursor.is_sw = output->impl->set_cursor == NULL;
 	output->cursor.surface = surface;
 
 	if (surface != NULL) {
