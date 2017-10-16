@@ -652,8 +652,12 @@ void data_device_manager_get_data_device(struct wl_client *client,
 		return;
 	}
 
-	// TODO handle a seat handle having multiple data devices
-	assert(handle->data_device == NULL);
+	if (handle->data_device != NULL) {
+		// XXX this is probably a protocol violation, but it simplfies our code
+		// and it's stupid to create several data devices for the same seat.
+		wl_resource_destroy(handle->data_device);
+	}
+
 	handle->data_device = resource;
 
 	wl_resource_set_implementation(resource, &data_device_impl,
