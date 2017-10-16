@@ -84,4 +84,10 @@ struct wlr_box *wlr_output_layout_get_box(
 void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output);
 
+/**
+ * Get the output closest to the center of the layout extents.
+ */
+struct wlr_output *wlr_output_layout_get_center_output(
+		struct wlr_output_layout *layout);
+
 #endif

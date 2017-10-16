@@ -50,14 +50,7 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
-	struct roots_wl_shell_surface *roots_surface =
-		wl_container_of(listener, roots_surface, surface_commit);
-	struct roots_view *view = roots_surface->view;
-
-	if (view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL &&
-			!roots_surface->initialized) {
-		roots_surface->initialized = view_initialize(view);
-	}
+	// TODO do we need to do anything here?
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -137,4 +130,5 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->desktop = desktop;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
+	view_initialize(view);
 }
