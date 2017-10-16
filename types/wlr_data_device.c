@@ -283,11 +283,16 @@ static void seat_handle_selection_data_source_destroy(
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_data_source_destroy);
 
-	// TODO send null selection to focused keyboard
+	if (seat->keyboard_state.focused_handle &&
+			seat->keyboard_state.focused_surface &&
+			seat->keyboard_state.focused_handle->data_device) {
+		wl_data_device_send_selection(
+			seat->keyboard_state.focused_handle->data_device, NULL);
+	}
 
 	seat->selection_source = NULL;
 
-	// TODO emit selection signal
+	wl_signal_emit(&seat->events.selection, seat);
 }
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
@@ -313,7 +318,7 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 		wlr_seat_handle_send_selection(focused_handle);
 	}
 
-	// TODO emit selection signal
+	wl_signal_emit(&seat->events.selection, seat);
 
 	if (source) {
 		seat->selection_data_source_destroy.notify =

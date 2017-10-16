@@ -309,7 +309,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
+
 	wl_signal_init(&wlr_seat->events.request_set_cursor);
+	wl_signal_init(&wlr_seat->events.selection);
 
 	wl_signal_init(&wlr_seat->events.pointer_grab_begin);
 	wl_signal_init(&wlr_seat->events.pointer_grab_end);

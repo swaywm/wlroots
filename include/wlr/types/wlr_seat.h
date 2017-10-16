@@ -132,6 +132,8 @@ struct wlr_seat {
 		struct wl_signal keyboard_grab_end;
 
 		struct wl_signal request_set_cursor;
+
+		struct wl_signal selection;
 	} events;
 
 	void *data;
