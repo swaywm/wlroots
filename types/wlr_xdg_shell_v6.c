@@ -802,10 +802,7 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 		break;
 	}
 
-	if (!surface->configured) {
-		surface->configured = true;
-		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
-	}
+	surface->configured = true;
 
 	wl_signal_emit(&surface->events.ack_configure, surface);
 
@@ -1053,6 +1050,11 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
 		wlr_xdg_surface_v6_popup_committed(surface);
 		break;
+	}
+
+	if (surface->configured && !surface->added) {
+		surface->added = true;
+		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
 	}
 
 	wl_signal_emit(&surface->events.commit, surface);

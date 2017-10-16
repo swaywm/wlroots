@@ -17,8 +17,6 @@ struct roots_wl_shell_surface {
 	struct wl_listener request_set_maximized;
 
 	struct wl_listener surface_commit;
-
-	bool initialized;
 };
 
 struct roots_xdg_surface_v6 {
@@ -32,8 +30,6 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_show_window_menu;
-
-	bool initialized;
 };
 
 struct roots_xwayland_surface {
@@ -85,6 +81,6 @@ void view_activate(struct roots_view *view, bool active);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
-bool view_initialize(struct roots_view *view);
+void view_initialize(struct roots_view *view);
 
 #endif

@@ -343,3 +343,20 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = true;
 	wlr_output_layout_reconfigure(layout);
 }
+
+struct wlr_output *wlr_output_layout_get_center_output(
+		struct wlr_output_layout *layout) {
+	if (wl_list_empty(&layout->outputs)) {
+		return NULL;
+	}
+
+	struct wlr_box *extents = wlr_output_layout_get_box(layout, NULL);
+	double center_x = extents->width / 2 + extents->x;
+	double center_y = extents->height / 2 + extents->y;
+
+	double dest_x = 0, dest_y = 0;
+	wlr_output_layout_closest_point(layout, NULL, center_x, center_y,
+		&dest_x, &dest_y);
+
+	return wlr_output_layout_output_at(layout, dest_x, dest_y);
+}

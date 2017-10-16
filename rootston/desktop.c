@@ -67,35 +67,42 @@ void view_close(struct roots_view *view) {
 bool view_center(struct roots_view *view) {
 	struct wlr_box size;
 	view_get_size(view, &size);
-	if (size.width == 0 && size.height == 0) {
-		return false;
-	}
 
 	struct roots_desktop *desktop = view->desktop;
 	struct wlr_cursor *cursor = desktop->server->input->cursor;
-	struct wlr_output *output = wlr_output_layout_output_at(desktop->layout,
-		cursor->x, cursor->y);
-	const struct wlr_output_layout_output *output_layout =
-		wlr_output_layout_get(desktop->layout, output);
+
+	struct wlr_output *output =
+		wlr_output_layout_output_at(desktop->layout, cursor->x, cursor->y);
+
 	if (!output) {
+		output = wlr_output_layout_get_center_output(desktop->layout);
+	}
+
+	if (!output) {
+		// empty layout
 		return false;
 	}
 
-	view->x = (double)(output->width - size.width) / 2
-		+ output_layout->x;
-	view->y = (double)(output->height - size.height) / 2
-		+ output_layout->y;
+	const struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(desktop->layout, output);
+
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+
+	view->x = (double)(width - size.width) / 2
+		+ l_output->x;
+	view->y = (double)(height - size.height) / 2
+		+ l_output->y;
+
 	return true;
 }
 
-bool view_initialize(struct roots_view *view) {
-	bool centered = view_center(view);
-	if (centered) {
-		struct roots_input *input = view->desktop->server->input;
-		set_view_focus(input, view->desktop, view);
-		wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
-	}
-	return centered;
+void view_initialize(struct roots_view *view) {
+	view_center(view);
+	struct roots_input *input = view->desktop->server->input;
+
+	set_view_focus(input, view->desktop, view);
+	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
