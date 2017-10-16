@@ -21,6 +21,13 @@ enum wlr_layer_surface_layer {
 	WLR_LAYER_SURFACE_LAYER_OVERLAY,
 };
 
+enum wlr_layer_surface_input_devices {
+	WLR_LAYER_SURFACE_INPUT_NONE = 0,
+	WLR_LAYER_SURFACE_INPUT_POINTER = 1,
+	WLR_LAYER_SURFACE_INPUT_KEYBOARD = 2,
+	WLR_LAYER_SURFACE_INPUT_TOUCH = 3,
+};
+
 enum wlr_layer_surface_anchor {
 	WLR_LAYER_SURFACE_ANCHOR_NONE = 0,
 	WLR_LAYER_SURFACE_ANCHOR_TOP = 1,
@@ -34,7 +41,7 @@ struct wlr_layer_surface {
 	struct wlr_surface_layers *surface_layers;
 	struct wlr_surface *surface;
 	struct wlr_output *output;
-	uint32_t layer;
+	enum wlr_layer_surface_layer layer;
 	struct wl_list link; // wlr_surface_layers.surfaces
 
 	uint32_t input_types, exclusive_types;
