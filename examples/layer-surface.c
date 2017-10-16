@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
 	}
 
 	layer = surface_layers_get_layer_surface(layers, surface, output,
-		SURFACE_LAYERS_SURFACE_LAYER_OVERLAY);
+		SURFACE_LAYERS_LAYER_OVERLAY);
 	if (!layer) {
 		fprintf(stderr, "Can't create surface_layer\n");
 		exit(1);

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <protocol name="surface_layers">
-
   <copyright>
     Copyright © 2017 Drew DeVault
 
@@ -46,14 +45,14 @@
       <arg name="id" type="new_id" interface="layer_surface"/>
       <arg name="surface" type="object" interface="wl_surface"/>
       <arg name="output" type="object" interface="wl_output"/>
-      <arg name="layer" type="uint" summary="surface_layer to add this surface to"/>
+      <arg name="layer" type="uint" summary="layer to add this surface to"/>
     </request>
 
     <enum name="error">
       <entry name="role" value="0" summary="given wl_surface has another role"/>
     </enum>
 
-    <enum name="surface_layer">
+    <enum name="layer">
       <description summary="available layers for surfaces">
         These values indicate which layers a surface can be rendered in. They
         are ordered by z depth, bottom-most first. Traditional shell surfaces
@@ -136,17 +135,11 @@
     </enum>
 
     <enum name="anchor" bitfield="true">
-      <entry name="none" value="0"
-       summary="the center of the anchor rectangle"/>
-      <entry name="top" value="1"
-       summary="the top edge of the anchor rectangle"/>
-      <entry name="bottom" value="2"
-       summary="the bottom edge of the anchor rectangle"/>
-      <entry name="left" value="4"
-       summary="the left edge of the anchor rectangle"/>
-      <entry name="right" value="8"
-       summary="the right edge of the anchor rectangle"/>
+      <entry name="none" value="0" summary="the center of the anchor rectangle"/>
+      <entry name="top" value="1" summary="the top edge of the anchor rectangle"/>
+      <entry name="bottom" value="2" summary="the bottom edge of the anchor rectangle"/>
+      <entry name="left" value="4" summary="the left edge of the anchor rectangle"/>
+      <entry name="right" value="8" summary="the right edge of the anchor rectangle"/>
     </enum>
   </interface>
-
 </protocol>
