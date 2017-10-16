@@ -438,6 +438,7 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 
 	wlr_drag_set_focus(drag, NULL, 0, 0);
 	wlr_seat_pointer_end_grab(drag->pointer_grab.seat);
+	wlr_seat_keyboard_end_grab(drag->keyboard_grab.seat);
 	free(drag);
 }
 
@@ -508,6 +509,36 @@ wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface = {
 	.cancel = pointer_drag_cancel,
 };
 
+static void keyboard_drag_enter(struct wlr_seat_keyboard_grab *grab,
+		struct wlr_surface *surface) {
+	// nothing has keyboard focus during drags
+}
+
+static void keyboard_drag_key(struct wlr_seat_keyboard_grab *grab,
+		uint32_t time, uint32_t key, uint32_t state) {
+	// no keyboard input during drags
+}
+
+static void keyboard_drag_modifiers(struct wlr_seat_keyboard_grab *grab,
+		uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group) {
+	// TODO change the dnd action based on what modifier is pressed on the
+	// keyboard
+}
+
+static void keyboard_drag_cancel(struct wlr_seat_keyboard_grab *grab) {
+	struct wlr_drag *drag = grab->data;
+	wlr_drag_end(drag);
+}
+
+const struct
+wlr_keyboard_grab_interface wlr_data_device_keyboard_drag_interface = {
+	.enter = keyboard_drag_enter,
+	.key = keyboard_drag_key,
+	.modifiers = keyboard_drag_modifiers,
+	.cancel = keyboard_drag_cancel,
+};
+
 static void drag_handle_icon_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drag *drag = wl_container_of(listener, drag, icon_destroy);
 	drag->icon = NULL;
@@ -545,8 +576,12 @@ static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
 	drag->pointer_grab.data = drag;
 	drag->pointer_grab.interface = &wlr_data_device_pointer_drag_interface;
 
+	drag->keyboard_grab.data = drag;
+	drag->keyboard_grab.interface = &wlr_data_device_keyboard_drag_interface;
+
 	wlr_seat_pointer_clear_focus(seat);
 
+	wlr_seat_keyboard_start_grab(seat, &drag->keyboard_grab);
 	wlr_seat_pointer_start_grab(seat, &drag->pointer_grab);
 
 	// TODO keyboard grab

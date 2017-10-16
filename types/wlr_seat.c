@@ -696,9 +696,11 @@ void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_keyboard_grab *grab = wlr_seat->keyboard_state.grab;
-	wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
 
-	wl_signal_emit(&wlr_seat->events.keyboard_grab_end, grab);
+	if (grab != wlr_seat->keyboard_state.default_grab) {
+		wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
+		wl_signal_emit(&wlr_seat->events.keyboard_grab_end, grab);
+	}
 }
 
 static void keyboard_surface_destroy_notify(struct wl_listener *listener,
