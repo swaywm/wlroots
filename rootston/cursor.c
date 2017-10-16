@@ -319,6 +319,14 @@ static void handle_pointer_grab_begin(struct wl_listener *listener,
 	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
 		struct wlr_drag *drag = grab->data;
 		if (drag->icon) {
+			struct roots_drag_icon *iter_icon;
+			wl_list_for_each(iter_icon, &input->drag_icons, link) {
+				if (iter_icon->surface == drag->icon) {
+					// already in the list
+					return;
+				}
+			}
+
 			struct roots_drag_icon *drag_icon =
 				calloc(1, sizeof(struct roots_drag_icon));
 			drag_icon->surface = drag->icon;
