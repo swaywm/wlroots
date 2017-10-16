@@ -77,8 +77,12 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {}
 
 static const struct wl_pointer_listener pointer_listener = {
-	pointer_handle_enter, pointer_handle_leave, pointer_handle_motion,
-	pointer_handle_button, pointer_handle_axis, pointer_handle_frame,
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
+	.motion = pointer_handle_motion,
+	.button = pointer_handle_button,
+	.axis = pointer_handle_axis,
+	.frame = pointer_handle_frame,
 };
 
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
@@ -96,8 +100,8 @@ static void seat_handle_name(void *data, struct wl_seat *wl_seat,
 		const char *name) {}
 
 static const struct wl_seat_listener seat_listener = {
-	seat_handle_capabilities,
-	seat_handle_name,
+	.capabilities = seat_handle_capabilities,
+	.name = seat_handle_name,
 };
 
 void global_registry_handler(void *data, struct wl_registry *registry,
@@ -128,7 +132,9 @@ static void redraw(void *data, struct wl_callback *callback, uint32_t time) {
 	printf("Redrawing\n");
 }
 
-//static const struct wl_callback_listener frame_listener = {redraw};
+//static const struct wl_callback_listener frame_listener = {
+//	.done = redraw
+//};
 
 static void configure_callback(void *data, struct wl_callback *callback,
 		uint32_t time) {
@@ -138,7 +144,7 @@ static void configure_callback(void *data, struct wl_callback *callback,
 }
 
 static struct wl_callback_listener configure_callback_listener = {
-	configure_callback,
+	.done = configure_callback,
 };
 
 static void create_window() {
@@ -159,10 +165,6 @@ static void create_window() {
 }
 
 static void init_egl() {
-	EGLint major, minor, count, n, size;
-	EGLConfig *configs;
-	EGLBoolean ret;
-	int i;
 	EGLint config_attribs[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_RED_SIZE, 8,
@@ -185,6 +187,7 @@ static void init_egl() {
 		fprintf(stderr, "Created egl display\n");
 	}
 
+	EGLint major, minor;
 	if (eglInitialize(egl_display, &major, &minor) != EGL_TRUE) {
 		fprintf(stderr, "Can't initialise egl display\n");
 		exit(1);
@@ -198,14 +201,21 @@ static void init_egl() {
 		fprintf(stderr, "Bound API\n");
 	}
 
+	EGLint count;
 	eglGetConfigs(egl_display, NULL, 0, &count);
 	printf("EGL has %d configs\n", count);
 
-	configs = calloc(count, sizeof *configs);
+	EGLConfig *configs = calloc(count, sizeof(EGLConfig));
+	if (configs == NULL) {
+		fprintf(stderr, "Can't allocate EGL configs\n");
+		exit(1);
+	}
 
-	ret = eglChooseConfig(egl_display, config_attribs, configs, count, &n);
+	EGLint n;
+	eglChooseConfig(egl_display, config_attribs, configs, count, &n);
 
-	for (i = 0; i < n; i++) {
+	EGLint size;
+	for (int i = 0; i < n; ++i) {
 		eglGetConfigAttrib(egl_display, configs[i], EGL_BUFFER_SIZE, &size);
 		printf("Buffer size for config %d is %d\n", i, size);
 		eglGetConfigAttrib(egl_display, configs[i], EGL_RED_SIZE, &size);
