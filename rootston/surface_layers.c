@@ -14,24 +14,27 @@
 static void get_position(struct roots_view *view, double *x, double *y) {
 	assert(view->type == ROOTS_SURFACE_LAYERS_VIEW);
 	struct wlr_layer_surface *layer_surface = view->layer_surface;
-	struct wlr_output *output = layer_surface->output;
 
 	struct wlr_box size;
 	view_get_size(view, &size);
 
+	int output_width, output_height;
+	wlr_output_effective_resolution(layer_surface->output, &output_width,
+		&output_height);
+
 	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_LEFT) {
 		*x = layer_surface->margin_horizontal;
 	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_RIGHT) {
-		*x = output->width - size.width - layer_surface->margin_horizontal;
+		*x = output_width - size.width - layer_surface->margin_horizontal;
 	} else {
-		*x = (double)(output->width - size.width) / 2;
+		*x = (double)(output_width - size.width) / 2;
 	}
 	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_TOP) {
 		*y = layer_surface->margin_vertical;
 	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_BOTTOM) {
-		*y = output->height - size.height - layer_surface->margin_vertical;
+		*y = output_height - size.height - layer_surface->margin_vertical;
 	} else {
-		*y = (double)(output->height - size.height) / 2;
+		*y = (double)(output_height - size.height) / 2;
 	}
 }
 
