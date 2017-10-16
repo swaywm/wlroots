@@ -38,18 +38,10 @@ struct roots_xwayland_surface {
 	struct wl_listener request_configure;
 };
 
-struct roots_layer_surface {
-	struct roots_view *view;
-
-	// TODO: Maybe destroy listener should go in roots_view
-	struct wl_listener destroy;
-};
-
 enum roots_view_type {
 	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
 	ROOTS_XWAYLAND_VIEW,
-	ROOTS_SURFACE_LAYERS_VIEW,
 };
 
 struct roots_view {
@@ -79,7 +71,6 @@ struct roots_view {
 	// configure event from the xdg_shell
 	// If not then this should follow the typical type/impl pattern we use
 	// elsewhere
-	void (*get_position)(struct roots_view *view, double *x, double *y);
 	void (*get_size)(struct roots_view *view, struct wlr_box *box);
 	void (*activate)(struct roots_view *view, bool active);
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
@@ -87,7 +78,6 @@ struct roots_view {
 	void (*close)(struct roots_view *view);
 };
 
-void view_get_position(struct roots_view *view, double *x, double *y);
 void view_get_size(struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);

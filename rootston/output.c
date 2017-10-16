@@ -115,40 +115,22 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 	}
 }
 
-static void render_layer_surface(struct wlr_layer_surface *layer_surface,
-		struct roots_desktop *desktop, struct wlr_output *output,
-		struct timespec *when, double lx, double ly, float rotation) {
-	if (layer_surface->output != output) {
-		return;
-	}
-
-	render_surface(layer_surface->surface, desktop, output, when, lx, ly,
-		rotation);
-}
-
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
-	double x, y;
-	view_get_position(view, &x, &y);
-
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
-		render_surface(view->wlr_surface, desktop, wlr_output, when, x, y,
-			view->rotation);
-		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output, when, x,
-			y, view->rotation);
+		render_surface(view->wlr_surface, desktop, wlr_output, when, view->x,
+			view->y, view->rotation);
+		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output, when,
+			view->x, view->y, view->rotation);
 		break;
 	case ROOTS_WL_SHELL_VIEW:
 		render_wl_shell_surface(view->wl_shell_surface, desktop, wlr_output,
-			when, x, y, view->rotation, false);
+			when, view->x, view->y, view->rotation, false);
 		break;
 	case ROOTS_XWAYLAND_VIEW:
 		render_surface(view->wlr_surface, desktop, wlr_output, when,
-			x, y, view->rotation);
-		break;
-	case ROOTS_SURFACE_LAYERS_VIEW:
-		render_layer_surface(view->layer_surface, desktop, wlr_output, when,
-			x, y, view->rotation);
+			view->x, view->y, view->rotation);
 		break;
 	}
 }
@@ -167,6 +149,19 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
 		render_view(view, desktop, wlr_output, &now);
+	}
+
+	// TODO: z-depth support
+	struct wlr_layer_surface *layer_surface;
+	wl_list_for_each(layer_surface, &desktop->surface_layers->surfaces, link) {
+		if (wlr_output != layer_surface->output) {
+			continue;
+		}
+
+		double x, y;
+		wlr_layer_surface_get_position(layer_surface, &x, &y);
+		render_surface(layer_surface->surface, desktop, wlr_output, &now, x, y,
+			0);
 	}
 
 	wlr_renderer_end(server->renderer);

@@ -59,4 +59,7 @@ struct wlr_surface_layers *wlr_surface_layers_create(
 	struct wl_display *display);
 void wlr_surface_layers_destroy(struct wlr_surface_layers *surface_layers);
 
+void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
+	double *x, double *y);
+
 #endif

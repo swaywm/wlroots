@@ -11,69 +11,12 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
-static void get_position(struct roots_view *view, double *x, double *y) {
-	assert(view->type == ROOTS_SURFACE_LAYERS_VIEW);
-	struct wlr_layer_surface *layer_surface = view->layer_surface;
-
-	struct wlr_box size;
-	view_get_size(view, &size);
-
-	int output_width, output_height;
-	wlr_output_effective_resolution(layer_surface->output, &output_width,
-		&output_height);
-
-	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_LEFT) {
-		*x = layer_surface->margin_horizontal;
-	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_RIGHT) {
-		*x = output_width - size.width - layer_surface->margin_horizontal;
-	} else {
-		*x = (double)(output_width - size.width) / 2;
-	}
-	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_TOP) {
-		*y = layer_surface->margin_vertical;
-	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_BOTTOM) {
-		*y = output_height - size.height - layer_surface->margin_vertical;
-	} else {
-		*y = (double)(output_height - size.height) / 2;
-	}
-}
-
-static void handle_destroy(struct wl_listener *listener, void *data) {
-	struct roots_layer_surface *roots_surface =
-		wl_container_of(listener, roots_surface, destroy);
-	wl_list_remove(&roots_surface->destroy.link);
-	view_destroy(roots_surface->view);
-	free(roots_surface);
-}
-
 void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
-	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, surface_layers_surface);
+	//struct roots_desktop *desktop =
+	//	wl_container_of(listener, desktop, surface_layers_surface);
 
 	struct wlr_layer_surface *surface = data;
-	wlr_log(L_DEBUG, "new surface_layers surface");
+	wlr_log(L_DEBUG, "new surface_layers surface at layer %d", surface->layer);
 
-	struct roots_layer_surface *roots_surface =
-		calloc(1, sizeof(struct roots_layer_surface));
-	if (!roots_surface) {
-		return;
-	}
-	roots_surface->destroy.notify = handle_destroy;
-	wl_list_init(&roots_surface->destroy.link);
-	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-
-	struct roots_view *view = calloc(1, sizeof(struct roots_view));
-	if (!view) {
-		free(roots_surface);
-		return;
-	}
-	view->type = ROOTS_SURFACE_LAYERS_VIEW;
-
-	view->layer_surface = surface;
-	view->roots_layer_surface = roots_surface;
-	view->wlr_surface = surface->surface;
-	view->desktop = desktop;
-	view->get_position = get_position;
-	roots_surface->view = view;
-	list_add(desktop->views, view);
+	// TODO
 }
