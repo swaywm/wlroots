@@ -45,7 +45,7 @@
       <arg name="id" type="new_id" interface="layer_surface"/>
       <arg name="surface" type="object" interface="wl_surface"/>
       <arg name="output" type="object" interface="wl_output"/>
-      <arg name="layer" type="uint" summary="layer to add this surface to"/>
+      <arg name="layer" type="uint" enum="layer" summary="layer to add this surface to"/>
     </request>
 
     <enum name="error">
@@ -123,7 +123,7 @@
       <arg name="vertical" type="uint"/>
     </request>
 
-    <enum name="input_devices">
+    <enum name="input_devices" bitfield="true">
       <description summary="types of input devices">
         These flags are a bitfield and are used by set_interactive to specify
         what sorts of input the surface should interact with.
