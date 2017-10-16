@@ -75,11 +75,16 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
 
-	struct wl_listener surface_destroy;
-	struct wl_listener resource_destroy;
-
 	struct wlr_seat_pointer_grab *grab;
 	struct wlr_seat_pointer_grab *default_grab;
+
+	uint32_t button_count;
+	uint32_t grab_button;
+	uint32_t grab_serial;
+	uint32_t grab_time;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
 };
 
 struct wlr_seat_keyboard {
