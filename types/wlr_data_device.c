@@ -460,31 +460,30 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, uint32_t button, uint32_t state) {
 	struct wlr_drag *drag = grab->data;
 
-	// TODO check no buttons are pressed to end the drag
-	// TODO make sure the button pressed to do the drag was the same to end the
-	// drag
-
-	if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
-		if (drag->source) {
-			if (drag->focus_handle && drag->focus_handle->data_device &&
-					drag->source->current_dnd_action &&
-					drag->source->accepted) {
-				wl_data_device_send_drop(drag->focus_handle->data_device);
-				if (wl_resource_get_version(drag->source->resource) >=
-						WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
-					wl_data_source_send_dnd_drop_performed(
+	if (drag->source &&
+			grab->seat->pointer_state.grab_button == button &&
+			state == WL_POINTER_BUTTON_STATE_RELEASED) {
+		if (drag->focus_handle && drag->focus_handle->data_device &&
+				drag->source->current_dnd_action &&
+				drag->source->accepted) {
+			wl_data_device_send_drop(drag->focus_handle->data_device);
+			if (wl_resource_get_version(drag->source->resource) >=
+					WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
+				wl_data_source_send_dnd_drop_performed(
 						drag->source->resource);
-				}
-
-				drag->source->offer->in_ask =
-					drag->source->current_dnd_action ==
-					WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
 			}
+
+			drag->source->offer->in_ask =
+				drag->source->current_dnd_action ==
+				WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
 		} else if (wl_resource_get_version(drag->source->resource) >=
 				WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
 			wl_data_source_send_cancelled(drag->source->resource);
 		}
+	}
 
+	if (grab->seat->pointer_state.button_count == 0 &&
+			state == WL_POINTER_BUTTON_STATE_RELEASED) {
 		wlr_drag_end(drag);
 	}
 
@@ -527,6 +526,8 @@ static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
 		return false;
 	}
 
+	struct wlr_seat *seat = handle->wlr_seat;
+
 	if (icon) {
 		drag->icon = icon;
 		drag->icon_destroy.notify = drag_handle_icon_destroy;
@@ -544,9 +545,9 @@ static bool seat_handle_start_drag(struct wlr_seat_handle *handle,
 	drag->pointer_grab.data = drag;
 	drag->pointer_grab.interface = &wlr_data_device_pointer_drag_interface;
 
-	wlr_seat_pointer_clear_focus(handle->wlr_seat);
+	wlr_seat_pointer_clear_focus(seat);
 
-	wlr_seat_pointer_start_grab(handle->wlr_seat, &drag->pointer_grab);
+	wlr_seat_pointer_start_grab(seat, &drag->pointer_grab);
 
 	// TODO keyboard grab
 
@@ -559,9 +560,19 @@ static void data_device_start_drag(struct wl_client *client,
 		struct wl_resource *origin_resource, struct wl_resource *icon_resource,
 		uint32_t serial) {
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(handle_resource);
+	struct wlr_seat *seat = handle->wlr_seat;
 	struct wlr_surface *origin = wl_resource_get_user_data(origin_resource);
 	struct wlr_data_source *source = NULL;
 	struct wlr_surface *icon = NULL;
+
+	bool is_pointer_grab = seat->pointer_state.button_count == 1 &&
+		seat->pointer_state.grab_serial == serial &&
+		seat->pointer_state.focused_surface &&
+		seat->pointer_state.focused_surface == origin;
+
+	if (!is_pointer_grab) {
+		return;
+	}
 
 	if (source_resource) {
 		source = wl_resource_get_user_data(source_resource);
@@ -578,12 +589,11 @@ static void data_device_start_drag(struct wl_client *client,
 	}
 
 	// TODO touch grab
-	if (handle->wlr_seat->pointer_state.focused_surface == origin) {
-		if (!seat_handle_start_drag(handle, source, icon)) {
-			wl_resource_post_no_memory(handle_resource);
-		} else {
-			source->seat = handle;
-		}
+
+	if (!seat_handle_start_drag(handle, source, icon)) {
+		wl_resource_post_no_memory(handle_resource);
+	} else {
+		source->seat = handle;
 	}
 }
 
