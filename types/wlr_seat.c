@@ -142,6 +142,8 @@ static void wl_seat_get_touch(struct wl_client *client,
 
 static void wlr_seat_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
+	wl_signal_emit(&handle->wlr_seat->events.client_unbound, handle);
+
 	if (handle == handle->wlr_seat->pointer_state.focused_handle) {
 		handle->wlr_seat->pointer_state.focused_handle = NULL;
 	}
@@ -161,7 +163,6 @@ static void wlr_seat_handle_resource_destroy(struct wl_resource *resource) {
 	if (handle->data_device) {
 		wl_resource_destroy(handle->data_device);
 	}
-	wl_signal_emit(&handle->wlr_seat->events.client_unbound, handle);
 	wl_list_remove(&handle->link);
 	free(handle);
 }

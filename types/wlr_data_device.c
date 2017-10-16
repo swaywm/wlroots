@@ -353,6 +353,7 @@ static void drag_handle_seat_unbound(struct wl_listener *listener, void *data) {
 
 	if (drag->focus_handle == unbound_handle) {
 		drag->focus_handle = NULL;
+		wl_list_remove(&drag->handle_unbound.link);
 	}
 }
 
