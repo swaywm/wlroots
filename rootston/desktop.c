@@ -36,6 +36,15 @@ void view_destroy(struct roots_view *view) {
 	free(view);
 }
 
+void view_get_position(struct roots_view *view, double *x, double *y) {
+	if (view->get_position) {
+		view->get_position(view, x, y);
+		return;
+	}
+	*x = view->x;
+	*y = view->y;
+}
+
 void view_get_size(struct roots_view *view, struct wlr_box *box) {
 	if (view->get_size) {
 		view->get_size(view, box);
@@ -126,8 +135,11 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			continue;
 		}
 
-		double view_sx = lx - view->x;
-		double view_sy = ly - view->y;
+		double view_x, view_y;
+		view_get_position(view, &view_x, &view_y);
+
+		double view_sx = lx - view_x;
+		double view_sy = ly - view_y;
 
 		struct wlr_box box = {
 			.x = 0,

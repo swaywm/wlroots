@@ -14,6 +14,21 @@ struct wlr_surface_layers {
 	void *data;
 };
 
+enum wlr_layer_surface_layer {
+	WLR_LAYER_SURFACE_LAYER_BACKGROUND,
+	WLR_LAYER_SURFACE_LAYER_BOTTOM,
+	WLR_LAYER_SURFACE_LAYER_TOP,
+	WLR_LAYER_SURFACE_LAYER_OVERLAY,
+};
+
+enum wlr_layer_surface_anchor {
+	WLR_LAYER_SURFACE_ANCHOR_NONE = 0,
+	WLR_LAYER_SURFACE_ANCHOR_TOP = 1,
+	WLR_LAYER_SURFACE_ANCHOR_BOTTOM = 2,
+	WLR_LAYER_SURFACE_ANCHOR_LEFT = 4,
+	WLR_LAYER_SURFACE_ANCHOR_RIGHT = 8,
+};
+
 struct wlr_layer_surface {
 	struct wl_resource *resource;
 	struct wlr_surface_layers *surface_layers;

@@ -3,12 +3,37 @@
 #include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_surface_layers.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 #include "rootston/input.h"
+
+static void get_position(struct roots_view *view, double *x, double *y) {
+	assert(view->type == ROOTS_SURFACE_LAYERS_VIEW);
+	struct wlr_layer_surface *layer_surface = view->layer_surface;
+	struct wlr_output *output = layer_surface->output;
+
+	struct wlr_box size;
+	view_get_size(view, &size);
+
+	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_LEFT) {
+		*x = layer_surface->margin_horizontal;
+	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_RIGHT) {
+		*x = output->width - size.width - layer_surface->margin_horizontal;
+	} else {
+		*x = (double)(output->width - size.width) / 2;
+	}
+	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_TOP) {
+		*y = layer_surface->margin_vertical;
+	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_BOTTOM) {
+		*y = output->height - size.height - layer_surface->margin_vertical;
+	} else {
+		*y = (double)(output->height - size.height) / 2;
+	}
+}
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *roots_surface =
@@ -45,6 +70,7 @@ void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 	view->roots_layer_surface = roots_surface;
 	view->wlr_surface = surface->surface;
 	view->desktop = desktop;
+	view->get_position = get_position;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
 }
