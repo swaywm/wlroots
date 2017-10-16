@@ -80,11 +80,18 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
 	struct wlr_surface *surface;
+	struct wlr_layer_surface *layer_surface;
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		view = view_at(desktop, input->cursor->x, input->cursor->y,
-			&surface, &sx, &sy);
+		layer_surface = layer_surface_at(desktop, input->cursor->x,
+			input->cursor->y, &sx, &sy);
+		if (layer_surface) {
+			// TODO
+		}
+
+		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
+			&sx, &sy);
 		bool set_compositor_cursor = !view && input->cursor_client;
 		if (view) {
 			struct wl_client *view_client =

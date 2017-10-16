@@ -54,13 +54,16 @@ struct roots_desktop {
 struct roots_server;
 
 struct roots_desktop *desktop_create(struct roots_server *server,
-		struct roots_config *config);
+	struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
 
 void view_destroy(struct roots_view *view);
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
-		struct wlr_surface **surface, double *sx, double *sy);
+	struct wlr_surface **surface, double *sx, double *sy);
 void view_activate(struct roots_view *view, bool activate);
+
+struct wlr_layer_surface *layer_surface_at(struct roots_desktop *desktop,
+	double lx, double ly, double *sx, double *sy);
 
 void output_add_notify(struct wl_listener *listener, void *data);
 void output_remove_notify(struct wl_listener *listener, void *data);
