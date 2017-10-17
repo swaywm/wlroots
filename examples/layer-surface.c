@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -247,10 +248,54 @@ enum surface_layers_layer parse_layer(const char *s) {
 	exit(EXIT_FAILURE);
 }
 
+enum layer_surface_anchor parse_anchor(const char *s) {
+	if (strcmp(s, "top") == 0) {
+		return LAYER_SURFACE_ANCHOR_TOP;
+	} else if (strcmp(s, "bottom") == 0) {
+		return LAYER_SURFACE_ANCHOR_BOTTOM;
+	} else if (strcmp(s, "left") == 0) {
+		return LAYER_SURFACE_ANCHOR_LEFT;
+	} else if (strcmp(s, "right") == 0) {
+		return LAYER_SURFACE_ANCHOR_RIGHT;
+	}
+	fprintf(stderr, "Unknown anchor name: %s\n", s);
+	exit(EXIT_FAILURE);
+}
+
+enum layer_surface_input_device parse_input_device(const char *s) {
+	if (strcmp(s, "pointer") == 0) {
+		return LAYER_SURFACE_INPUT_DEVICE_POINTER;
+	} else if (strcmp(s, "keyboard") == 0) {
+		return LAYER_SURFACE_INPUT_DEVICE_KEYBOARD;
+	} else if (strcmp(s, "touch") == 0) {
+		return LAYER_SURFACE_INPUT_DEVICE_TOUCH;
+	}
+	fprintf(stderr, "Unknown input device: %s\n", s);
+	exit(EXIT_FAILURE);
+}
+
+void parse_margin(const char *s, uint32_t *margin_horizontal,
+		uint32_t *margin_vertical) {
+	char *buf = strdup(s);
+	char *pch = strchr(buf, ',');
+	if (pch == NULL) {
+		fprintf(stderr, "Invalid margin: %s\n", s);
+		exit(EXIT_FAILURE);
+	}
+
+	*pch = '\0';
+	*margin_horizontal = atoi(buf);
+	*margin_vertical = atoi(pch + 1);
+}
+
 int main(int argc, char **argv) {
 	enum surface_layers_layer layer_index = SURFACE_LAYERS_LAYER_OVERLAY;
+	uint32_t anchor = LAYER_SURFACE_ANCHOR_NONE;
+	uint32_t input_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
+	uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
+	uint32_t margin_horizontal = 0, margin_vertical = 0;
 	while (1) {
-		int opt = getopt(argc, argv, "l:h");
+		int opt = getopt(argc, argv, "l:a:i:e:m:h");
 		if (opt == -1) {
 			break;
 		}
@@ -259,9 +304,23 @@ int main(int argc, char **argv) {
 		case 'l':
 			layer_index = parse_layer(optarg);
 			break;
+		case 'a':
+			anchor |= parse_anchor(optarg);
+			break;
+		case 'i':
+			input_types |= parse_input_device(optarg);
+			break;
+		case 'e':
+			exclusive_types |= parse_input_device(optarg);
+			break;
+		case 'm':
+			parse_margin(optarg, &margin_horizontal, &margin_vertical);
+			break;
 		case 'h':
 		default:
-			fprintf(stderr, "Usage: %s [-l <layer>] [-h]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-l <layer>] [-a <anchor>] "
+				"[-i <input-type>] [-e <exclusive-type>] "
+				"[-m <margin_h,margin_v>] [-h]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -307,8 +366,10 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	layer_surface_set_interactivity(layer,
-		LAYER_SURFACE_INPUT_DEVICES_POINTER, LAYER_SURFACE_INPUT_DEVICES_NONE);
+	layer_surface_set_anchor(layer, anchor);
+	layer_surface_set_interactivity(layer, input_types, exclusive_types);
+	layer_surface_set_margin(layer, margin_horizontal, margin_vertical);
+	// TODO: layer_surface_set_exclusive_zone
 
 	init_egl();
 	create_window();

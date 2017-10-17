@@ -123,7 +123,7 @@
       <arg name="vertical" type="uint"/>
     </request>
 
-    <enum name="input_devices" bitfield="true">
+    <enum name="input_device" bitfield="true">
       <description summary="types of input devices">
         These flags are a bitfield and are used by set_interactive to specify
         what sorts of input the surface should interact with.

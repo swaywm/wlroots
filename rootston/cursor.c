@@ -84,10 +84,20 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		layer_surface = layer_surface_at(desktop, input->cursor->x,
-			input->cursor->y, &sx, &sy);
-		if (layer_surface &&
-				layer_surface->input_types & WLR_LAYER_SURFACE_INPUT_POINTER) {
+		layer_surface = layer_surface_get_exclusive(desktop,
+			WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER);
+		if (layer_surface) {
+			// TODO: get coordinates relative to layer_surface->output
+			double x, y;
+			wlr_layer_surface_get_position(layer_surface, &x, &y);
+			sx = input->cursor->x - x;
+			sy = input->cursor->y - y;
+		} else {
+			layer_surface = layer_surface_at(desktop, input->cursor->x,
+				input->cursor->y, &sx, &sy);
+		}
+		if (layer_surface && layer_surface->input_types &
+				WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER) {
 			// TODO: client cursor support
 			surface = layer_surface->surface;
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);

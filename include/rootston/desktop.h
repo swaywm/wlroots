@@ -64,6 +64,8 @@ void view_activate(struct roots_view *view, bool activate);
 
 struct wlr_layer_surface *layer_surface_at(struct roots_desktop *desktop,
 	double lx, double ly, double *sx, double *sy);
+struct wlr_layer_surface *layer_surface_get_exclusive(
+	struct roots_desktop *desktop, uint32_t input_devices);
 
 void output_add_notify(struct wl_listener *listener, void *data);
 void output_remove_notify(struct wl_listener *listener, void *data);
