@@ -79,8 +79,8 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct roots_view *view;
-	struct wlr_surface *surface;
 	struct wlr_layer_surface *layer_surface;
+	struct wlr_surface *surface = NULL;
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
@@ -98,27 +98,27 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 		if (layer_surface && layer_surface->input_types &
 				WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER) {
-			// TODO: client cursor support
 			surface = layer_surface->surface;
-			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
-			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 			break;
 		}
 
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
-		bool set_compositor_cursor = !view && input->cursor_client;
-		if (view) {
-			struct wl_client *view_client =
-				wl_resource_get_client(view->wlr_surface->resource);
-			set_compositor_cursor = view_client != input->cursor_client;
+
+		bool set_compositor_cursor = (!surface || !surface->resource) &&
+			input->cursor_client;
+		if (surface && surface->resource) {
+			struct wl_client *surface_client =
+				wl_resource_get_client(surface->resource);
+			set_compositor_cursor = surface_client != input->cursor_client;
 		}
 		if (set_compositor_cursor) {
 			wlr_log(L_DEBUG, "Switching to compositor cursor");
 			cursor_set_xcursor_image(input, input->xcursor->images[0]);
 			input->cursor_client = NULL;
 		}
-		if (view) {
+
+		if (surface) {
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
 		} else {
