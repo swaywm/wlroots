@@ -11,6 +11,7 @@
 #endif
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
@@ -86,11 +87,12 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		layer_surface = wlr_surface_layers_get_exclusive(
 			desktop->surface_layers, WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER);
 		if (layer_surface) {
-			// TODO: get coordinates relative to layer_surface->output
+			struct wlr_box *output_box = wlr_output_layout_get_box(
+				desktop->layout, layer_surface->output);
 			double x, y;
 			wlr_layer_surface_get_position(layer_surface, &x, &y);
-			sx = input->cursor->x - x;
-			sy = input->cursor->y - y;
+			sx = input->cursor->x - output_box->x - x;
+			sy = input->cursor->y - output_box->y - y;
 		} else {
 			layer_surface = layer_surface_at(desktop, input->cursor->x,
 				input->cursor->y, &sx, &sy);

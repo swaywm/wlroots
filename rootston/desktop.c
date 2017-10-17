@@ -208,13 +208,12 @@ struct wlr_layer_surface *layer_surface_at(struct roots_desktop *desktop,
 
 	struct wlr_layer_surface *_layer_surface;
 	wl_list_for_each(_layer_surface, &desktop->surface_layers->surfaces, link) {
-		// TODO: get coordinates relative to _layer_surface->output
-
+		struct wlr_box *output_box = wlr_output_layout_get_box(desktop->layout,
+			_layer_surface->output);
 		double x, y;
 		wlr_layer_surface_get_position(_layer_surface, &x, &y);
-
-		double layer_sx = lx - x;
-		double layer_sy = ly - y;
+		double layer_sx = lx - output_box->x - x;
+		double layer_sy = ly - output_box->y - y;
 
 		struct wlr_box box = {
 			.x = 0,
