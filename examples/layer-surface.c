@@ -28,6 +28,8 @@ struct wl_callback *callback;
 struct wl_seat *seat;
 struct wl_pointer *pointer;
 
+uint32_t width = 300, height = 200;
+
 EGLDisplay egl_display;
 EGLConfig egl_conf;
 EGLSurface egl_surface;
@@ -151,24 +153,6 @@ static struct wl_callback_listener configure_callback_listener = {
 	.done = configure_callback,
 };
 
-static void create_window() {
-	egl_window = wl_egl_window_create(surface, 480, 360);
-	if (egl_window == EGL_NO_SURFACE) {
-		fprintf(stderr, "Can't create egl window\n");
-		exit(EXIT_FAILURE);
-	} else {
-		fprintf(stderr, "Created egl window\n");
-	}
-
-	egl_surface = eglCreateWindowSurface(egl_display, egl_conf,
-		(EGLNativeWindowType)egl_window, NULL);
-
-	draw();
-
-	wl_display_dispatch(display);
-	wl_display_roundtrip(display);
-}
-
 static void init_egl() {
 	EGLint config_attribs[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
@@ -234,6 +218,24 @@ static void init_egl() {
 		context_attribs);
 }
 
+static void create_window() {
+	egl_window = wl_egl_window_create(surface, width, height);
+	if (egl_window == EGL_NO_SURFACE) {
+		fprintf(stderr, "Can't create egl window\n");
+		exit(EXIT_FAILURE);
+	} else {
+		fprintf(stderr, "Created egl window\n");
+	}
+
+	egl_surface = eglCreateWindowSurface(egl_display, egl_conf,
+		(EGLNativeWindowType)egl_window, NULL);
+
+	draw();
+
+	wl_display_dispatch(display);
+	wl_display_roundtrip(display);
+}
+
 enum surface_layers_layer parse_layer(const char *s) {
 	if (strcmp(s, "background") == 0) {
 		return SURFACE_LAYERS_LAYER_BACKGROUND;
@@ -274,8 +276,7 @@ enum layer_surface_input_device parse_input_device(const char *s) {
 	exit(EXIT_FAILURE);
 }
 
-void parse_margin(const char *s, uint32_t *margin_horizontal,
-		uint32_t *margin_vertical) {
+void parse_pair(const char *s, uint32_t *x, uint32_t *y) {
 	char *buf = strdup(s);
 	char *pch = strchr(buf, ',');
 	if (pch == NULL) {
@@ -284,8 +285,8 @@ void parse_margin(const char *s, uint32_t *margin_horizontal,
 	}
 
 	*pch = '\0';
-	*margin_horizontal = atoi(buf);
-	*margin_vertical = atoi(pch + 1);
+	*x = atoi(buf);
+	*y = atoi(pch + 1);
 }
 
 int main(int argc, char **argv) {
@@ -295,7 +296,7 @@ int main(int argc, char **argv) {
 	uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
 	uint32_t margin_horizontal = 0, margin_vertical = 0;
 	while (1) {
-		int opt = getopt(argc, argv, "l:a:i:e:m:h");
+		int opt = getopt(argc, argv, "l:a:i:e:m:s:h");
 		if (opt == -1) {
 			break;
 		}
@@ -314,13 +315,16 @@ int main(int argc, char **argv) {
 			exclusive_types |= parse_input_device(optarg);
 			break;
 		case 'm':
-			parse_margin(optarg, &margin_horizontal, &margin_vertical);
+			parse_pair(optarg, &margin_horizontal, &margin_vertical);
+			break;
+		case 's':
+			parse_pair(optarg, &width, &height);
 			break;
 		case 'h':
 		default:
 			fprintf(stderr, "Usage: %s [-l <layer>] [-a <anchor>] "
 				"[-i <input-type>] [-e <exclusive-type>] "
-				"[-m <margin_h,margin_v>] [-h]\n", argv[0]);
+				"[-m <margin_h,margin_v>] [-s <width,height>] [-h]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
