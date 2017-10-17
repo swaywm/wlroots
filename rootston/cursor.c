@@ -313,6 +313,9 @@ static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
 	// TODO the spec hints at rules that can determine whether the drag icon is
 	// mapped here, but it is not completely clear so we need to test more
 	// toolkits to see how we should interpret the surface state here.
+	drag_icon->sx += drag_icon->surface->current->sx;
+	drag_icon->sy += drag_icon->surface->current->sy;
+
 	drag_icon->mapped = drag_icon->surface->texture->valid;
 }
 

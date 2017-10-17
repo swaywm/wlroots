@@ -75,6 +75,9 @@ struct roots_drag_icon {
 	struct wl_list link; // roots_input::drag_icons
 	bool mapped;
 
+	int32_t sx;
+	int32_t sy;
+
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
 };

@@ -158,10 +158,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 		struct wlr_surface *icon = drag_icon->surface;
 		struct wlr_cursor *cursor = server->input->cursor;
-		// TODO should also use the hotspot to determine the location, but
-		// hotspot is broken right now.
-		double icon_x = cursor->x - icon->current->sx;
-		double icon_y = cursor->y - icon->current->sy;
+		double icon_x = cursor->x + drag_icon->sx;
+		double icon_y = cursor->y + drag_icon->sy;
 		render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
 	}
 
