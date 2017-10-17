@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <wayland-client-protocol.h>
@@ -323,15 +324,22 @@ enum layer_surface_input_device parse_input_device(const char *s) {
 	exit(EXIT_FAILURE);
 }
 
-void parse_pair(const char *s, uint32_t *x, uint32_t *y) {
-	char *pch = strchr(s, ',');
-	if (pch == NULL) {
-		fprintf(stderr, "Invalid margin: %s\n", s);
-		exit(EXIT_FAILURE);
+int parse_pair(const char *s, uint32_t *x, uint32_t *y) {
+	char *sep;
+	long lx = strtol(s, &sep, 10);
+	if (s == sep || *sep != ',' || lx < 0 || lx > INT_MAX) {
+		return 1;
 	}
 
-	*x = atoi(s);
-	*y = atoi(pch + 1);
+	char *end;
+	long ly = strtol(sep + 1, &end, 10);
+	if (sep + 1 == end || *end != '\0'|| ly < 0 || ly > INT_MAX) {
+		return 1;
+	}
+
+	*x = (uint32_t)lx;
+	*y = (uint32_t)ly;
+	return 0;
 }
 
 int main(int argc, char **argv) {
@@ -346,6 +354,7 @@ int main(int argc, char **argv) {
 			break;
 		}
 
+		int err;
 		switch (opt) {
 		case 'l':
 			layer_index = parse_layer(optarg);
@@ -360,10 +369,18 @@ int main(int argc, char **argv) {
 			exclusive_types |= parse_input_device(optarg);
 			break;
 		case 'm':
-			parse_pair(optarg, &margin_horizontal, &margin_vertical);
+			err = parse_pair(optarg, &margin_horizontal, &margin_vertical);
+			if (err) {
+				fprintf(stderr, "Invalid margin: %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 's':
-			parse_pair(optarg, &width, &height);
+			err = parse_pair(optarg, &width, &height);
+			if (err) {
+				fprintf(stderr, "Invalid size: %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 'h':
 		default:
