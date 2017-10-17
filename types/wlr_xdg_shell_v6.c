@@ -840,6 +840,10 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
 static bool wlr_xdg_surface_v6_toplevel_state_compare(
 		struct wlr_xdg_toplevel_v6 *state) {
 	// is pending state different from current state?
+	if (!state->base->configured) {
+		return false;
+	}
+
 	if (state->pending.activated != state->current.activated) {
 		return false;
 	}
@@ -1260,42 +1264,49 @@ void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
 void wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	bool force =
+		(surface->toplevel_state->pending.width != width ||
+		 surface->toplevel_state->pending.height != height);
 	surface->toplevel_state->pending.width = width;
 	surface->toplevel_state->pending.height = height;
 
-	wlr_xdg_surface_v6_schedule_configure(surface, false);
+	wlr_xdg_surface_v6_schedule_configure(surface, force);
 }
 
 void wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 		bool activated) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	bool force = surface->toplevel_state->pending.activated != activated;
 	surface->toplevel_state->pending.activated = activated;
 
-	wlr_xdg_surface_v6_schedule_configure(surface, false);
+	wlr_xdg_surface_v6_schedule_configure(surface, force);
 }
 
 void wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 		bool maximized) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	bool force = surface->toplevel_state->pending.maximized != maximized;
 	surface->toplevel_state->pending.maximized = maximized;
 
-	wlr_xdg_surface_v6_schedule_configure(surface, false);
+	wlr_xdg_surface_v6_schedule_configure(surface, force);
 }
 
 void wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 		bool fullscreen) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	bool force = surface->toplevel_state->pending.fullscreen != fullscreen;
 	surface->toplevel_state->pending.fullscreen = fullscreen;
 
-	wlr_xdg_surface_v6_schedule_configure(surface, false);
+	wlr_xdg_surface_v6_schedule_configure(surface, force);
 }
 
 void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.fullscreen = resizing;
+	bool force = surface->toplevel_state->pending.resizing != resizing;
+	surface->toplevel_state->pending.resizing = resizing;
 
-	wlr_xdg_surface_v6_schedule_configure(surface, false);
+	wlr_xdg_surface_v6_schedule_configure(surface, force);
 }
 
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
