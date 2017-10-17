@@ -307,6 +307,9 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	layer_surface_set_interactivity(layer,
+		LAYER_SURFACE_INPUT_DEVICES_POINTER, LAYER_SURFACE_INPUT_DEVICES_NONE);
+
 	init_egl();
 	create_window();
 

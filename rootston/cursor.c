@@ -86,8 +86,13 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		layer_surface = layer_surface_at(desktop, input->cursor->x,
 			input->cursor->y, &sx, &sy);
-		if (layer_surface) {
-			// TODO
+		if (layer_surface &&
+				layer_surface->input_types & WLR_LAYER_SURFACE_INPUT_POINTER) {
+			// TODO: client cursor support
+			surface = layer_surface->surface;
+			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
+			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
+			break;
 		}
 
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
