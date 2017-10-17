@@ -88,8 +88,8 @@ struct roots_input {
 	struct wlr_xcursor_theme *theme;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
-	struct roots_view *client_cursor_view;
 	struct wl_list drag_icons;
+	struct wl_client *cursor_client;
 
 	enum roots_cursor_mode mode;
 	struct roots_view *active_view, *last_active_view;

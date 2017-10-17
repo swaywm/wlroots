@@ -106,6 +106,7 @@ struct wlr_xdg_surface_v6 {
 	struct wl_list popup_link;
 
 	bool configured;
+	bool added;
 	struct wl_event_source *configure_idle;
 	struct wl_list configure_list;
 

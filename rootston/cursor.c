@@ -86,10 +86,16 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
-		if (view != input->client_cursor_view) {
+		bool set_compositor_cursor = !view && input->cursor_client;
+		if (view) {
+			struct wl_client *view_client =
+				wl_resource_get_client(view->wlr_surface->resource);
+			set_compositor_cursor = view_client != input->cursor_client;
+		}
+		if (set_compositor_cursor) {
 			wlr_log(L_DEBUG, "Switching to compositor cursor");
 			cursor_set_xcursor_image(input, input->xcursor->images[0]);
-			input->client_cursor_view = NULL;
+			input->cursor_client = NULL;
 		}
 		if (view) {
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
@@ -355,18 +361,16 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 		request_set_cursor);
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
 
-	struct wlr_surface *focused_surface = NULL;
-	double sx, sy;
-	struct roots_view *focused_view = view_at(input->server->desktop,
-		input->cursor->x, input->cursor->y, &focused_surface, &sx, &sy);
-	bool ok = focused_surface != NULL;
-	if (focused_surface != NULL) {
+	struct wlr_surface *focused_surface =
+		event->seat_handle->wlr_seat->pointer_state.focused_surface;
+	bool ok = focused_surface != NULL && focused_surface->resource != NULL;
+	if (ok) {
 		struct wl_client *focused_client =
 			wl_resource_get_client(focused_surface->resource);
 		ok = event->client == focused_client;
 	}
 	if (!ok) {
-		wlr_log(L_DEBUG, "Denying request to set cursor outside view");
+		wlr_log(L_DEBUG, "Denying request to set cursor from unfocused client");
 		return;
 	}
 
@@ -378,7 +382,7 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 			event->hotspot_x, event->hotspot_y);
 	}
 
-	input->client_cursor_view = focused_view;
+	input->cursor_client = event->client;
 }
 
 void cursor_initialize(struct roots_input *input) {
