@@ -114,7 +114,6 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	struct atomic atom;
 
 	atomic_begin(crtc, &atom);
-	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
