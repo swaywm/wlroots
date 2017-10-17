@@ -162,6 +162,23 @@ static void surface_layers_bind(struct wl_client *wl_client,
 		surface_layers, NULL);
 }
 
+struct wlr_layer_surface *wlr_surface_layers_get_exclusive(
+		struct wlr_surface_layers *surface_layers, uint32_t input_devices) {
+	struct wlr_layer_surface *layer_surface = NULL;
+	int32_t layer = -1;
+
+	struct wlr_layer_surface *_layer_surface;
+	wl_list_for_each(_layer_surface, &surface_layers->surfaces, link) {
+		if (_layer_surface->exclusive_types & input_devices &&
+				(int32_t)_layer_surface->layer > layer) {
+			layer = _layer_surface->layer;
+			layer_surface = _layer_surface;
+		}
+	}
+
+	return layer_surface;
+}
+
 struct wlr_surface_layers *wlr_surface_layers_create(
 		struct wl_display *display) {
 	struct wlr_surface_layers *surface_layers =

@@ -64,6 +64,8 @@ struct wlr_layer_surface {
 
 struct wlr_surface_layers *wlr_surface_layers_create(
 	struct wl_display *display);
+struct wlr_layer_surface *wlr_surface_layers_get_exclusive(
+	struct wlr_surface_layers *surface_layers, uint32_t input_devices);
 void wlr_surface_layers_destroy(struct wlr_surface_layers *surface_layers);
 
 void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,

@@ -84,8 +84,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		layer_surface = layer_surface_get_exclusive(desktop,
-			WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER);
+		layer_surface = wlr_surface_layers_get_exclusive(
+			desktop->surface_layers, WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER);
 		if (layer_surface) {
 			// TODO: get coordinates relative to layer_surface->output
 			double x, y;
