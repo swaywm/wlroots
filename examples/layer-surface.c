@@ -53,9 +53,11 @@ static void draw() {
 }
 
 static void pointer_handle_enter(void *data, struct wl_pointer *pointer,
-		uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
-		wl_fixed_t sy) {
-	printf("Pointer entered surface %p at %d %d\n", surface, sx, sy);
+		uint32_t serial, struct wl_surface *surface, wl_fixed_t _sx,
+		wl_fixed_t _sy) {
+	double sx = wl_fixed_to_double(_sx);
+	double sy = wl_fixed_to_double(_sy);
+	printf("Pointer entered surface %p at %f,%f\n", surface, sx, sy);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *pointer,
@@ -64,8 +66,10 @@ static void pointer_handle_leave(void *data, struct wl_pointer *pointer,
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *pointer,
-		uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-	printf("Pointer moved at %d %d\n", sx, sy);
+		uint32_t time, wl_fixed_t _sx, wl_fixed_t _sy) {
+	double sx = wl_fixed_to_double(_sx);
+	double sy = wl_fixed_to_double(_sy);
+	printf("Pointer moved at %f,%f\n", sx, sy);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
