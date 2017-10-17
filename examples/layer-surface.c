@@ -44,7 +44,6 @@ static void draw() {
 
 	glClearColor(1.0, 1.0, 0.0, 0.1);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glFlush();
 
 	if (eglSwapBuffers(egl_display, egl_surface)) {
 		fprintf(stderr, "Swapped buffers\n");
@@ -321,15 +320,13 @@ enum layer_surface_input_device parse_input_device(const char *s) {
 }
 
 void parse_pair(const char *s, uint32_t *x, uint32_t *y) {
-	char *buf = strdup(s);
-	char *pch = strchr(buf, ',');
+	char *pch = strchr(s, ',');
 	if (pch == NULL) {
 		fprintf(stderr, "Invalid margin: %s\n", s);
 		exit(EXIT_FAILURE);
 	}
 
-	*pch = '\0';
-	*x = atoi(buf);
+	*x = atoi(s);
 	*y = atoi(pch + 1);
 }
 
