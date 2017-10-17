@@ -78,10 +78,9 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
-	struct roots_view *view;
-	struct wlr_layer_surface *layer_surface;
 	struct wlr_surface *surface = NULL;
 	double sx, sy;
+	struct wlr_layer_surface *layer_surface;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		layer_surface = wlr_surface_layers_get_exclusive(
@@ -99,10 +98,9 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		if (layer_surface && layer_surface->input_types &
 				WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER) {
 			surface = layer_surface->surface;
-			break;
 		}
 
-		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
+		view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 			&sx, &sy);
 
 		bool set_compositor_cursor = (!surface || !surface->resource) &&
