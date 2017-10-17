@@ -50,16 +50,16 @@ void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
 	wlr_output_effective_resolution(layer_surface->output, &output_width,
 		&output_height);
 
-	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_LEFT) {
+	if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_LEFT) {
 		*x = layer_surface->margin_horizontal;
-	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_RIGHT) {
+	} else if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_RIGHT) {
 		*x = output_width - width - layer_surface->margin_horizontal;
 	} else {
 		*x = (double)(output_width - width) / 2;
 	}
-	if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_TOP) {
+	if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_TOP) {
 		*y = layer_surface->margin_vertical;
-	} else if (layer_surface->anchor & WLR_LAYER_SURFACE_ANCHOR_BOTTOM) {
+	} else if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_BOTTOM) {
 		*y = output_height - height - layer_surface->margin_vertical;
 	} else {
 		*y = (double)(output_height - height) / 2;

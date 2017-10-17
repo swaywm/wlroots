@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_surface_layers.h>
 #include <wlr/util/log.h>
+#include "surface-layers-protocol.h"
 #include "rootston/desktop.h"
 #include "rootston/server.h"
 #include "rootston/input.h"
@@ -18,7 +19,7 @@ static void handle_set_interactivity(struct wl_listener *listener, void *data) {
 
 	// Handle keyboard input exclusivity
 	struct wlr_layer_surface *surface = wlr_surface_layers_get_exclusive(
-		desktop->surface_layers, WLR_LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
+		desktop->surface_layers, LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
 	if (surface) {
 		wlr_seat_keyboard_notify_enter(desktop->server->input->wl_seat,
 			surface->surface);

@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
+#include "surface-layers-protocol.h"
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
@@ -137,7 +138,7 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 
 static void render_layer_surfaces(struct wl_list *layer_surfaces,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, enum wlr_layer_surface_layer layer) {
+		struct timespec *when, enum surface_layers_layer layer) {
 	struct wlr_layer_surface *layer_surface;
 	wl_list_for_each(layer_surface, layer_surfaces, link) {
 		if (wlr_output != layer_surface->output ||
@@ -164,9 +165,9 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_renderer_begin(server->renderer, wlr_output);
 
 	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, WLR_LAYER_SURFACE_LAYER_BACKGROUND);
+		wlr_output, &now, SURFACE_LAYERS_LAYER_BACKGROUND);
 	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, WLR_LAYER_SURFACE_LAYER_BOTTOM);
+		wlr_output, &now, SURFACE_LAYERS_LAYER_BOTTOM);
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
@@ -174,9 +175,9 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	}
 
 	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, WLR_LAYER_SURFACE_LAYER_TOP);
+		wlr_output, &now, SURFACE_LAYERS_LAYER_TOP);
 	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, WLR_LAYER_SURFACE_LAYER_OVERLAY);
+		wlr_output, &now, SURFACE_LAYERS_LAYER_OVERLAY);
 
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);

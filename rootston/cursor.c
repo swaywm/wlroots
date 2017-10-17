@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/util/log.h>
+#include "surface-layers-protocol.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/desktop.h"
@@ -85,7 +86,7 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		layer_surface = wlr_surface_layers_get_exclusive(
-			desktop->surface_layers, WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER);
+			desktop->surface_layers, LAYER_SURFACE_INPUT_DEVICE_POINTER);
 		if (layer_surface) {
 			struct wlr_box *output_box = wlr_output_layout_get_box(
 				desktop->layout, layer_surface->output);
@@ -98,7 +99,7 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 				input->cursor->y, &sx, &sy);
 		}
 		if (layer_surface && layer_surface->input_types &
-				WLR_LAYER_SURFACE_INPUT_DEVICE_POINTER) {
+				LAYER_SURFACE_INPUT_DEVICE_POINTER) {
 			surface = layer_surface->surface;
 		}
 
@@ -298,7 +299,7 @@ static void do_cursor_button_press(struct roots_input *input,
 
 		struct wlr_layer_surface *layer_surface =
 			wlr_surface_layers_get_exclusive(desktop->surface_layers,
-			WLR_LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
+			LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
 		if (view && !layer_surface) {
 			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
 		}
