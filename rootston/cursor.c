@@ -85,6 +85,9 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct wlr_layer_surface *layer_surface;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
+		// Check if a layer surface is supposed to receive the event.
+		// Either it owns exclusive pointer events, either it's at the right
+		// position.
 		layer_surface = wlr_surface_layers_get_exclusive(
 			desktop->surface_layers, LAYER_SURFACE_INPUT_DEVICE_POINTER);
 		if (layer_surface) {
@@ -103,9 +106,14 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			surface = layer_surface->surface;
 		}
 
-		view_at(desktop, input->cursor->x, input->cursor->y, &surface,
-			&sx, &sy);
+		// If there's no layer surface, check for views
+		if (!surface) {
+			view_at(desktop, input->cursor->x, input->cursor->y, &surface,
+				&sx, &sy);
+		}
 
+		// We need to set the compositor cursor if we're switching between
+		// clients
 		bool set_compositor_cursor = (!surface || !surface->resource) &&
 			input->cursor_client;
 		if (surface && surface->resource) {
