@@ -21,6 +21,13 @@ struct roots_output {
 	struct wl_list link;
 };
 
+struct roots_layer_surface {
+	struct roots_desktop *desktop;
+	struct wlr_layer_surface *layer_surface;
+	struct wl_listener destroy;
+	struct wl_listener set_interactivity;
+};
+
 struct roots_desktop {
 	struct wlr_list *views;
 

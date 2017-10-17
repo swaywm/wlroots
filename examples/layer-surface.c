@@ -24,9 +24,9 @@ struct wl_egl_window *egl_window;
 struct wl_region *region;
 struct wl_callback *callback;
 
-// input devices
 struct wl_seat *seat;
 struct wl_pointer *pointer;
+struct wl_keyboard *keyboard;
 
 uint32_t width = 300, height = 200;
 
@@ -56,12 +56,12 @@ static void draw() {
 static void pointer_handle_enter(void *data, struct wl_pointer *pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
 		wl_fixed_t sy) {
-	fprintf(stderr, "Pointer entered surface %p at %d %d\n", surface, sx, sy);
+	printf("Pointer entered surface %p at %d %d\n", surface, sx, sy);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *pointer,
 		uint32_t serial, struct wl_surface *surface) {
-	fprintf(stderr, "Pointer left surface %p\n", surface);
+	printf("Pointer left surface %p\n", surface);
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *pointer,
@@ -90,6 +90,42 @@ static const struct wl_pointer_listener pointer_listener = {
 	.frame = pointer_handle_frame,
 };
 
+static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		enum wl_keyboard_keymap_format format, int fd, uint32_t size) {}
+
+static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	printf("Keyboard entered surface %p\n", surface);
+}
+
+static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface) {
+	printf("Keyboard left surface %p\n", surface);
+}
+
+static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key,
+		enum wl_keyboard_key_state state) {
+	printf("Keyboard key: key=%d state=%d\n", key, state);
+}
+
+static void keyboard_handle_modifiers(void *data,
+		struct wl_keyboard *wl_keyboard, uint32_t serial,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group) {}
+
+static void keyboard_handle_repeat_info(void *data,
+		struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay) {}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+	.keymap = keyboard_handle_keymap,
+	.enter = keyboard_handle_enter,
+	.leave = keyboard_handle_leave,
+	.key = keyboard_handle_key,
+	.modifiers = keyboard_handle_modifiers,
+	.repeat_info = keyboard_handle_repeat_info,
+};
+
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 		enum wl_seat_capability caps) {
 	if ((caps & WL_SEAT_CAPABILITY_POINTER) && !pointer) {
@@ -98,6 +134,14 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 	} else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && pointer) {
 		wl_pointer_destroy(pointer);
 		pointer = NULL;
+	}
+
+	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && !keyboard) {
+		keyboard = wl_seat_get_keyboard(seat);
+		wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
+	} else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && keyboard) {
+		wl_keyboard_destroy(keyboard);
+		keyboard = NULL;
 	}
 }
 
