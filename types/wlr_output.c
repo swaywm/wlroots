@@ -127,7 +127,7 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 		int32_t hotspot_y) {
 	if (output->impl->set_cursor
 			&& output->impl->set_cursor(output, buf, stride, width, height,
-				hotspot_x, hotspot_y)) {
+				hotspot_x, hotspot_y, true)) {
 		output->cursor.is_sw = false;
 		return true;
 	}
@@ -179,6 +179,10 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 static void commit_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
+	if (output->cursor.is_sw) {
+		return;
+	}
+
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
 	if (buffer == NULL) {
 		return;
@@ -231,14 +235,19 @@ static void handle_cursor_surface_destroy(struct wl_listener *listener,
 
 void wlr_output_set_cursor_surface(struct wlr_output *output,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (surface && strcmp(surface->role, "cursor") != 0) {
+	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
 		return;
 	}
 
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
-	if (surface && output->cursor.surface == surface) {
+	if (surface && surface == output->cursor.surface) {
+		if (output->impl->set_cursor && !output->cursor.is_sw) {
+			// Only update the hotspot
+			output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x,
+				hotspot_y, false);
+		}
 		return;
 	}
 
@@ -248,11 +257,22 @@ void wlr_output_set_cursor_surface(struct wlr_output *output,
 		output->cursor.surface = NULL;
 	}
 
+	// Disable hardware cursor
+	// TODO: support hardware cursors
+	output->cursor.is_sw = true;
+	if (output->impl->set_cursor) {
+		output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y,
+			true);
+	}
+
+	//output->cursor.is_sw = output->impl->set_cursor == NULL;
 	output->cursor.surface = surface;
 
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
-		wl_signal_add(&surface->events.destroy, &output->cursor.surface_destroy);
+		wl_signal_add(&surface->events.destroy,
+			&output->cursor.surface_destroy);
+		commit_cursor_surface(output, surface);
 	} else {
 		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
 	}
@@ -333,10 +353,20 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		glViewport(0, 0, output->width, output->height);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		float matrix[16];
-		wlr_texture_get_matrix(output->cursor.texture, &matrix, &output->transform_matrix,
-			output->cursor.x, output->cursor.y);
-		wlr_render_with_matrix(output->cursor.renderer, output->cursor.texture, &matrix);
+
+		struct wlr_texture *texture = output->cursor.texture;
+		struct wlr_renderer *renderer = output->cursor.renderer;
+		if (output->cursor.surface) {
+			texture = output->cursor.surface->texture;
+			renderer = output->cursor.surface->renderer;
+		}
+
+		if (texture && renderer) {
+			float matrix[16];
+			wlr_texture_get_matrix(texture, &matrix, &output->transform_matrix,
+				output->cursor.x, output->cursor.y);
+			wlr_render_with_matrix(renderer, texture, &matrix);
+		}
 	}
 
 	wl_signal_emit(&output->events.swap_buffers, &output);
