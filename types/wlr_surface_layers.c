@@ -9,10 +9,26 @@
 
 static const char *surface_layers_role = "layer_surface";
 
+#define WLR_LAYER_SURFACE_INPUT_DEVICE_COUNT 3
+
 static void layer_surface_set_interactivity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t input_types,
 		uint32_t exclusive_types) {
 	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+
+	if (input_types >> WLR_LAYER_SURFACE_INPUT_DEVICE_COUNT) {
+		wl_resource_post_error(resource,
+			LAYER_SURFACE_ERROR_INVALID_INPUT_DEVICE,
+			"Unknown input device in input_types");
+		return;
+	}
+	if (exclusive_types >> WLR_LAYER_SURFACE_INPUT_DEVICE_COUNT) {
+		wl_resource_post_error(resource,
+			LAYER_SURFACE_ERROR_INVALID_INPUT_DEVICE,
+			"Unknown input device in exclusive_types");
+		return;
+	}
+
 	surface->input_types = input_types;
 	surface->exclusive_types = exclusive_types;
 	wl_signal_emit(&surface->events.set_interactivity, surface);
@@ -21,6 +37,13 @@ static void layer_surface_set_interactivity(struct wl_client *client,
 static void layer_surface_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
 	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
+
+	if (anchor >> 4) {
+		wl_resource_post_error(resource, LAYER_SURFACE_ERROR_INVALID_ANCHOR,
+			"Unknown anchor");
+		return;
+	}
+
 	surface->anchor = anchor;
 	wl_signal_emit(&surface->events.set_anchor, surface);
 }
@@ -33,8 +56,7 @@ static void layer_surface_set_exclusive_zone(struct wl_client *client,
 }
 
 static void layer_surface_set_margin(struct wl_client *client,
-		struct wl_resource *resource, uint32_t horizontal,
-		uint32_t vertical) {
+		struct wl_resource *resource, int32_t horizontal, int32_t vertical) {
 	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
 	surface->margin_horizontal = horizontal;
 	surface->margin_vertical = vertical;
@@ -103,6 +125,11 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
 	struct wlr_output *output = wl_resource_get_user_data(output_resource);
 
+	if (layer > SURFACE_LAYERS_LAYER_OVERLAY) {
+		wl_resource_post_error(resource, SURFACE_LAYERS_ERROR_INVALID_LAYER,
+			"Unknown layer");
+		return;
+	}
 	if (wlr_surface_set_role(surface, surface_layers_role, resource,
 			SURFACE_LAYERS_ERROR_ROLE)) {
 		return;

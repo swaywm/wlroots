@@ -50,6 +50,7 @@
 
     <enum name="error">
       <entry name="role" value="0" summary="given wl_surface has another role"/>
+      <entry name="invalid_layer" value="1" summary="layer value is invalid"/>
     </enum>
 
     <enum name="layer">
@@ -119,9 +120,14 @@
         Requests that the surface be placed some distance away from the anchor
         point on the output, in pixels.
       </description>
-      <arg name="horizontal" type="uint"/>
-      <arg name="vertical" type="uint"/>
+      <arg name="horizontal" type="int"/>
+      <arg name="vertical" type="int"/>
     </request>
+
+    <enum name="error">
+      <entry name="invalid_input_device" value="0" summary="input device bitfield is invalid"/>
+      <entry name="invalid_anchor" value="1" summary="anchor bitfield is invalid"/>
+    </enum>
 
     <enum name="input_device" bitfield="true">
       <description summary="types of input devices">

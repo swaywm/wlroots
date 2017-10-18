@@ -25,7 +25,7 @@ struct wlr_layer_surface {
 	uint32_t input_types, exclusive_types; // layer_surface_input_device
 	uint32_t anchor; // layer_surface_anchor
 	uint32_t exclusive_zone;
-	uint32_t margin_horizontal, margin_vertical;
+	int32_t margin_horizontal, margin_vertical;
 
 	struct wl_listener surface_destroy_listener;
 

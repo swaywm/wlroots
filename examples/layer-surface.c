@@ -384,8 +384,8 @@ int main(int argc, char **argv) {
 			break;
 		case 'h':
 		default:
-			fprintf(stderr, "Usage: %s [-l <layer>] [-a <anchor>] "
-				"[-i <input-type>] [-e <exclusive-type>] "
+			fprintf(stderr, "Usage: %s [-l <layer>] [-a <anchor>]... "
+				"[-i <input-type>]... [-e <exclusive-type>]... "
 				"[-m <margin_h,margin_v>] [-s <width,height>] [-h]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
