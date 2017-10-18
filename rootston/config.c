@@ -263,6 +263,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 
 struct roots_config *parse_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
+	if (config == NULL) {
+		return NULL;
+	}
+
 	config->xwayland = true;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
@@ -296,7 +300,8 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	int result = ini_parse(config->config_path, config_ini_handler, config);
 
 	if (result == -1) {
-		wlr_log(L_DEBUG, "No config file found. Using empty config.");
+		wlr_log(L_DEBUG, "No config file found. Using sensible defaults.");
+		config->keyboard.meta_key = WLR_MODIFIER_LOGO;
 		add_binding_config(&config->bindings, "Logo+Shift+e", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
