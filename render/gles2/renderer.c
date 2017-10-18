@@ -167,7 +167,7 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 	}
 
 	wlr_texture_bind(texture);
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
 	// TODO: source alpha from somewhere else I guess
 	GL_CALL(glUniform1f(2, 1.0f));
 	draw_quad();
