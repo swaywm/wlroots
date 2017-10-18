@@ -263,6 +263,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 
 struct roots_config *parse_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
+
+	// sensible defaults
+	config->keyboard.meta_key = WLR_MODIFIER_LOGO;
+
 	config->xwayland = true;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
