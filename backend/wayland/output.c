@@ -66,10 +66,12 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 	}
 	if (!buf) {
 		// Hide cursor
-		wl_surface_destroy(output->cursor_surface);
-		munmap(output->cursor_data, output->cursor_buf_size);
-		output->cursor_surface = NULL;
-		output->cursor_buf_size = 0;
+		if (output->cursor_surface) {
+			wl_surface_destroy(output->cursor_surface);
+			munmap(output->cursor_data, output->cursor_buf_size);
+			output->cursor_surface = NULL;
+			output->cursor_buf_size = 0;
+		}
 		wlr_wl_output_update_cursor(output, output->enter_serial, hotspot_x,
 			hotspot_y);
 		return true;

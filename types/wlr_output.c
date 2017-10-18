@@ -361,7 +361,9 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 			renderer = output->cursor.surface->renderer;
 		}
 
-		if (texture && renderer) {
+		// We check texture->valid because some clients set a cursor surface
+		// with a NULL buffer to hide it
+		if (renderer && texture && texture->valid) {
 			float matrix[16];
 			wlr_texture_get_matrix(texture, &matrix, &output->transform_matrix,
 				output->cursor.x, output->cursor.y);
