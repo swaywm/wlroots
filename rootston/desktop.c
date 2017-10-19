@@ -46,6 +46,16 @@ void view_get_size(struct roots_view *view, struct wlr_box *box) {
 	box->height = view->wlr_surface->current->height;
 }
 
+void view_set_position(struct roots_view *view, double x, double y) {
+	if (view->set_position) {
+		view->set_position(view, x, y);
+		return;
+	}
+
+	view->x = x;
+	view->y = y;
+}
+
 void view_activate(struct roots_view *view, bool activate) {
 	if (view->activate) {
 		view->activate(view, activate);

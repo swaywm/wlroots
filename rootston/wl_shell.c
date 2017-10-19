@@ -109,19 +109,6 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_WL_SHELL_VIEW;
 
-	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
-		// we need to map it relative to the parent
-		int i =
-			list_seq_find(desktop->views,
-				shell_surface_compare_equals, surface->parent);
-		if (i != -1) {
-			struct roots_view *parent = desktop->views->items[i];
-			view->x = parent->x + surface->transient_state->x;
-			view->y = parent->y + surface->transient_state->y;
-		}
-	} else {
-		view->x = view->y = 200;
-	}
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
 	view->wlr_surface = surface->surface;
@@ -131,4 +118,17 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->view = view;
 	list_add(desktop->views, view);
 	view_initialize(view);
+
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
+		// we need to map it relative to the parent
+		int i =
+			list_seq_find(desktop->views,
+				shell_surface_compare_equals, surface->parent);
+		if (i != -1) {
+			struct roots_view *parent = desktop->views->items[i];
+			view_set_position(view,
+				parent->x + surface->transient_state->x,
+				parent->y + surface->transient_state->y);
+		}
+	}
 }

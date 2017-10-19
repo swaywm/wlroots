@@ -14,6 +14,7 @@
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/desktop.h"
+#include "rootston/view.h"
 
 const struct roots_input_event *get_input_event(struct roots_input *input,
 		uint32_t serial) {
@@ -103,31 +104,39 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		break;
 	case ROOTS_CURSOR_MOVE:
 		if (input->active_view) {
-			int dx = input->cursor->x - input->offs_x,
-				dy = input->cursor->y - input->offs_y;
-			input->active_view->x = input->view_x + dx;
-			input->active_view->y = input->view_y + dy;
+			double dx = input->cursor->x - input->offs_x;
+			double dy = input->cursor->y - input->offs_y;
+			view_set_position(input->active_view,
+				input->view_x + dx, input->view_y + dy);
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
 		if (input->active_view) {
-			int dx = input->cursor->x - input->offs_x,
-				dy = input->cursor->y - input->offs_y;
-			int width = input->view_width,
-				height = input->view_height;
+			double dx = input->cursor->x - input->offs_x;
+			double dy = input->cursor->y - input->offs_y;
+			double active_x = input->active_view->x;
+			double active_y = input->active_view->y;
+			int width = input->view_width;
+			int height = input->view_height;
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
-				input->active_view->y = input->view_y + dy;
+				active_y = input->view_y + dy;
 				height -= dy;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
 				height += dy;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-				input->active_view->x = input->view_x + dx;
+				active_x = input->view_x + dx;
 				width -= dx;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
 				width += dx;
+			}
+
+			// TODO we might need one configure event for this
+			if (active_x != input->active_view->x ||
+					active_y != input->active_view->y) {
+				view_set_position(input->active_view, active_x, active_y);
 			}
 			view_resize(input->active_view, width, height);
 		}

@@ -73,12 +73,14 @@ struct roots_view {
 	void (*get_size)(struct roots_view *view, struct wlr_box *box);
 	void (*activate)(struct roots_view *view, bool active);
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
+	void (*set_position)(struct roots_view *view, double x, double y);
 	void (*close)(struct roots_view *view);
 };
 
 void view_get_size(struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
+void view_set_position(struct roots_view *view, double x, double y);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_initialize(struct roots_view *view);
