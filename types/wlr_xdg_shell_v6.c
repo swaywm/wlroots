@@ -840,30 +840,46 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
 
 static bool wlr_xdg_surface_v6_toplevel_state_compare(
 		struct wlr_xdg_toplevel_v6 *state) {
+	struct {
+		struct wlr_xdg_toplevel_v6_state state;
+		uint32_t width;
+		uint32_t height;
+
+	} configured;
+
 	// is pending state different from current state?
 	if (!state->base->configured) {
 		return false;
 	}
 
-	if (!wl_list_empty(&state->base->configure_list)) {
+	if (wl_list_empty(&state->base->configure_list)) {
+		// last configure is actually the current state, just use it
+		configured.state = state->current;
+		configured.width = state->base->surface->current->width;
+		configured.height = state->base->surface->current->width;
+	} else {
+		struct wlr_xdg_surface_v6_configure *configure =
+			wl_container_of(state->base->configure_list.prev, configure, link);
+		configured.state = configure->state;
+		configured.width = configure->state.width;
+		configured.height = configure->state.height;
+	}
+
+	if (state->pending.activated != configured.state.activated) {
+		return false;
+	}
+	if (state->pending.fullscreen != configured.state.fullscreen) {
+		return false;
+	}
+	if (state->pending.maximized != configured.state.maximized) {
+		return false;
+	}
+	if (state->pending.resizing != configured.state.resizing) {
 		return false;
 	}
 
-	if (state->pending.activated != state->current.activated) {
-		return false;
-	}
-	if (state->pending.fullscreen != state->current.fullscreen) {
-		return false;
-	}
-	if (state->pending.maximized != state->current.maximized) {
-		return false;
-	}
-	if (state->pending.resizing != state->current.resizing) {
-		return false;
-	}
-
-	if ((uint32_t)state->base->geometry->width == state->pending.width &&
-			(uint32_t)state->base->geometry->height == state->pending.height) {
+	if (state->pending.width == configured.width &&
+			state->pending.height == configured.height) {
 		return true;
 	}
 
