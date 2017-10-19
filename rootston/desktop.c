@@ -201,40 +201,33 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 	return NULL;
 }
 
-struct wlr_layer_surface *layer_surface_at(struct roots_desktop *desktop,
-		double lx, double ly, double *sx, double *sy) {
-	struct wlr_layer_surface *layer_surface = NULL;
-	int32_t layer = -1;
+bool layer_surface_is_at(struct roots_desktop *desktop,
+		struct wlr_layer_surface *layer_surface, double lx, double ly,
+		double *sx, double *sy) {
+	struct wlr_box *output_box = wlr_output_layout_get_box(desktop->layout,
+		layer_surface->output);
+	double x, y;
+	wlr_layer_surface_get_position(layer_surface, &x, &y);
+	double layer_sx = lx - output_box->x - x;
+	double layer_sy = ly - output_box->y - y;
 
-	struct wlr_layer_surface *_layer_surface;
-	wl_list_for_each(_layer_surface, &desktop->surface_layers->surfaces, link) {
-		struct wlr_box *output_box = wlr_output_layout_get_box(desktop->layout,
-			_layer_surface->output);
-		double x, y;
-		wlr_layer_surface_get_position(_layer_surface, &x, &y);
-		double layer_sx = lx - output_box->x - x;
-		double layer_sy = ly - output_box->y - y;
+	struct wlr_box box = {
+		.x = 0,
+		.y = 0,
+		.width = layer_surface->surface->current->buffer_width,
+		.height = layer_surface->surface->current->buffer_height,
+	};
 
-		struct wlr_box box = {
-			.x = 0,
-			.y = 0,
-			.width = _layer_surface->surface->current->buffer_width,
-			.height = _layer_surface->surface->current->buffer_height,
-		};
-
-		if ((int32_t)_layer_surface->layer > layer &&
-				wlr_box_contains_point(&box, layer_sx, layer_sy) &&
-				pixman_region32_contains_point(
-					&_layer_surface->surface->current->input,
-					layer_sx, layer_sy, NULL)) {
-			*sx = layer_sx;
-			*sy = layer_sy;
-			layer = _layer_surface->layer;
-			layer_surface = _layer_surface;
-		}
+	if (wlr_box_contains_point(&box, layer_sx, layer_sy) &&
+			pixman_region32_contains_point(
+				&layer_surface->surface->current->input,
+				layer_sx, layer_sy, NULL)) {
+		*sx = layer_sx;
+		*sy = layer_sy;
+		return true;
+	} else {
+		return false;
 	}
-
-	return layer_surface;
 }
 
 struct roots_desktop *desktop_create(struct roots_server *server,

@@ -78,6 +78,42 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 	}
 }
 
+static struct wlr_layer_surface *surface_layers_update_position(
+		struct roots_desktop *desktop, double x, double y, uint32_t time,
+		enum surface_layers_layer layer) {
+	struct wlr_layer_surface *layer_surface;
+	wl_list_for_each(layer_surface, &desktop->surface_layers->surfaces, link) {
+		if (layer_surface->layer != layer ||
+				!(layer_surface->current->input_types &
+				LAYER_SURFACE_INPUT_DEVICE_POINTER)) {
+			continue;
+		}
+
+		double sx, sy;
+		bool ok = layer_surface_is_at(desktop, layer_surface, x, y, &sx, &sy);
+		if (!ok) {
+			continue;
+		}
+
+		if (layer_surface->current->exclusive_types &
+				LAYER_SURFACE_INPUT_DEVICE_POINTER) {
+			return layer_surface;
+		}
+
+		// TODO: send enter, leave
+		struct wl_client *client =
+			wl_resource_get_client(layer_surface->resource);
+		struct wlr_seat_handle *handle =
+			wlr_seat_handle_for_client(desktop->server->input->wl_seat, client);
+		if (handle && handle->pointer) {
+			wl_pointer_send_motion(handle->pointer, time,
+				wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+		}
+	}
+
+	return NULL;
+}
+
 void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct wlr_surface *surface = NULL;
@@ -85,31 +121,38 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct wlr_layer_surface *layer_surface;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		// Check if a layer surface is supposed to receive the event.
-		// Either it owns exclusive pointer events, either it's at the right
-		// position.
-		layer_surface = wlr_surface_layers_get_exclusive(
-			desktop->surface_layers, LAYER_SURFACE_INPUT_DEVICE_POINTER);
-		if (layer_surface) {
-			struct wlr_box *output_box = wlr_output_layout_get_box(
-				desktop->layout, layer_surface->output);
-			double x, y;
-			wlr_layer_surface_get_position(layer_surface, &x, &y);
-			sx = input->cursor->x - output_box->x - x;
-			sy = input->cursor->y - output_box->y - y;
-		} else {
-			layer_surface = layer_surface_at(desktop, input->cursor->x,
-				input->cursor->y, &sx, &sy);
-		}
-		if (layer_surface && layer_surface->current->input_types &
-				LAYER_SURFACE_INPUT_DEVICE_POINTER) {
-			surface = layer_surface->surface;
+		// Send events to non-exclusive layer surfaces, check if a layer surface
+		// gets exclusive events
+		layer_surface = surface_layers_update_position(desktop,
+			input->cursor->x, input->cursor->y, time,
+			SURFACE_LAYERS_LAYER_OVERLAY);
+		if (!layer_surface) {
+			layer_surface = surface_layers_update_position(desktop,
+				input->cursor->x, input->cursor->y, time,
+				SURFACE_LAYERS_LAYER_TOP);
 		}
 
-		// If there's no layer surface, check for views
-		if (!surface) {
+		if (layer_surface) {
+			surface = layer_surface->surface;
+		} else {
+			// If there's no exclusive layer surface, check for views
 			view_at(desktop, input->cursor->x, input->cursor->y, &surface,
 				&sx, &sy);
+		}
+
+		// No focused view, look for a layer surface underneath
+		if (!surface) {
+			layer_surface = surface_layers_update_position(desktop,
+				input->cursor->x, input->cursor->y, time,
+				SURFACE_LAYERS_LAYER_BOTTOM);
+			if (!layer_surface) {
+				layer_surface = surface_layers_update_position(desktop,
+					input->cursor->x, input->cursor->y, time,
+					SURFACE_LAYERS_LAYER_BACKGROUND);
+			}
+			if (layer_surface) {
+				surface = layer_surface->surface;
+			}
 		}
 
 		// We need to set the compositor cursor if we're switching between
@@ -127,6 +170,7 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			input->cursor_client = NULL;
 		}
 
+		// Send events to the surface
 		if (surface) {
 			wlr_seat_pointer_notify_enter(input->wl_seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(input->wl_seat, time, sx, sy);
@@ -240,6 +284,7 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
+	// TODO: surface layers
 	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_sec,
 		event->orientation, event->delta);
 }
@@ -267,6 +312,7 @@ static void do_cursor_button_press(struct roots_input *input,
 	struct roots_desktop *desktop = input->server->desktop;
 	struct wlr_surface *surface;
 	double sx, sy;
+	// TODO: surface layers
 	struct roots_view *view = view_at(desktop,
 		input->cursor->x, input->cursor->y, &surface, &sx, &sy);
 
