@@ -136,13 +136,15 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 	}
 }
 
-static void render_layer_surfaces(struct wl_list *layer_surfaces,
+struct wl_list *render_layer_surfaces(struct wl_list *layer_surfaces,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, enum surface_layers_layer layer) {
+		struct timespec *when, enum surface_layers_layer until_layer) {
 	struct wlr_layer_surface *layer_surface;
 	wl_list_for_each(layer_surface, layer_surfaces, link) {
-		if (wlr_output != layer_surface->output ||
-				layer != layer_surface->layer) {
+		if (layer_surface->layer > until_layer) {
+			return layer_surface->link.prev;
+		}
+		if (layer_surface->output != wlr_output) {
 			continue;
 		}
 
@@ -151,6 +153,8 @@ static void render_layer_surfaces(struct wl_list *layer_surfaces,
 		render_surface(layer_surface->surface, desktop, wlr_output, when, x, y,
 			0);
 	}
+
+	return NULL;
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
@@ -164,20 +168,19 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, SURFACE_LAYERS_LAYER_BACKGROUND);
-	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, SURFACE_LAYERS_LAYER_BOTTOM);
+	struct wl_list *remaining_layer_surfaces = render_layer_surfaces(
+		&desktop->surface_layers->surfaces, desktop, wlr_output, &now,
+		SURFACE_LAYERS_LAYER_BOTTOM);
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *view = desktop->views->items[i];
 		render_view(view, desktop, wlr_output, &now);
 	}
 
-	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, SURFACE_LAYERS_LAYER_TOP);
-	render_layer_surfaces(&desktop->surface_layers->surfaces, desktop,
-		wlr_output, &now, SURFACE_LAYERS_LAYER_OVERLAY);
+	if (remaining_layer_surfaces != NULL) {
+		render_layer_surfaces(remaining_layer_surfaces, desktop, wlr_output,
+			&now, SURFACE_LAYERS_LAYER_OVERLAY);
+	}
 
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);

@@ -78,13 +78,17 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 	}
 }
 
-static struct wlr_layer_surface *surface_layers_update_position(
-		struct roots_desktop *desktop, double x, double y, uint32_t time,
-		enum surface_layers_layer layer) {
+static struct wl_list *surface_layers_update_position(
+		struct roots_desktop *desktop, struct wl_list *layer_surfaces, double x,
+		double y, uint32_t time, enum surface_layers_layer until_layer,
+		struct wlr_layer_surface **exclusive, double *exclusive_sx,
+		double *exclusive_sy) {
 	struct wlr_layer_surface *layer_surface;
-	wl_list_for_each(layer_surface, &desktop->surface_layers->surfaces, link) {
-		if (layer_surface->layer != layer ||
-				!(layer_surface->current->input_types &
+	wl_list_for_each_reverse(layer_surface, layer_surfaces, link) {
+		if (layer_surface->layer < until_layer) {
+			return layer_surface->link.next;
+		}
+		if (!(layer_surface->current->input_types &
 				LAYER_SURFACE_INPUT_DEVICE_POINTER)) {
 			continue;
 		}
@@ -97,7 +101,10 @@ static struct wlr_layer_surface *surface_layers_update_position(
 
 		if (layer_surface->current->exclusive_types &
 				LAYER_SURFACE_INPUT_DEVICE_POINTER) {
-			return layer_surface;
+			*exclusive = layer_surface;
+			*exclusive_sx = sx;
+			*exclusive_sy = sy;
+			return NULL;
 		}
 
 		// TODO: send enter, leave
@@ -118,19 +125,16 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	struct roots_desktop *desktop = input->server->desktop;
 	struct wlr_surface *surface = NULL;
 	double sx, sy;
-	struct wlr_layer_surface *layer_surface;
+	struct wlr_layer_surface *layer_surface = NULL;
+	struct wl_list *remaining_layer_surfaces;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		// Send events to non-exclusive layer surfaces, check if a layer surface
 		// gets exclusive events
-		layer_surface = surface_layers_update_position(desktop,
-			input->cursor->x, input->cursor->y, time,
-			SURFACE_LAYERS_LAYER_OVERLAY);
-		if (!layer_surface) {
-			layer_surface = surface_layers_update_position(desktop,
-				input->cursor->x, input->cursor->y, time,
-				SURFACE_LAYERS_LAYER_TOP);
-		}
+		remaining_layer_surfaces = surface_layers_update_position(desktop,
+			&desktop->surface_layers->surfaces, input->cursor->x,
+			input->cursor->y, time, SURFACE_LAYERS_LAYER_TOP, &layer_surface,
+			&sx, &sy);
 
 		if (layer_surface) {
 			surface = layer_surface->surface;
@@ -141,15 +145,10 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		}
 
 		// No focused view, look for a layer surface underneath
-		if (!surface) {
-			layer_surface = surface_layers_update_position(desktop,
+		if (!surface && remaining_layer_surfaces) {
+			surface_layers_update_position(desktop, remaining_layer_surfaces,
 				input->cursor->x, input->cursor->y, time,
-				SURFACE_LAYERS_LAYER_BOTTOM);
-			if (!layer_surface) {
-				layer_surface = surface_layers_update_position(desktop,
-					input->cursor->x, input->cursor->y, time,
-					SURFACE_LAYERS_LAYER_BACKGROUND);
-			}
+				SURFACE_LAYERS_LAYER_BACKGROUND, &layer_surface, &sx, &sy);
 			if (layer_surface) {
 				surface = layer_surface->surface;
 			}
