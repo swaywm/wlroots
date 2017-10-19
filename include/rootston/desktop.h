@@ -25,7 +25,7 @@ struct roots_layer_surface {
 	struct roots_desktop *desktop;
 	struct wlr_layer_surface *layer_surface;
 	struct wl_listener destroy;
-	struct wl_listener set_interactivity;
+	struct wl_listener commit;
 };
 
 struct roots_desktop {

@@ -29,9 +29,9 @@ static void layer_surface_set_interactivity(struct wl_client *client,
 		return;
 	}
 
-	surface->input_types = input_types;
-	surface->exclusive_types = exclusive_types;
-	wl_signal_emit(&surface->events.set_interactivity, surface);
+	surface->pending->input_types = input_types;
+	surface->pending->exclusive_types = exclusive_types;
+	surface->pending->invalid |= WLR_LAYER_SURFACE_INVALID_INTERACTIVITY;
 }
 
 static void layer_surface_set_anchor(struct wl_client *client,
@@ -44,45 +44,67 @@ static void layer_surface_set_anchor(struct wl_client *client,
 		return;
 	}
 
-	surface->anchor = anchor;
-	wl_signal_emit(&surface->events.set_anchor, surface);
+	surface->pending->anchor = anchor;
+	surface->pending->invalid |= WLR_LAYER_SURFACE_INVALID_ANCHOR;
 }
 
 static void layer_surface_set_exclusive_zone(struct wl_client *client,
 		struct wl_resource *resource, uint32_t zone) {
 	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
-	surface->exclusive_zone = zone;
-	wl_signal_emit(&surface->events.set_exclusive_zone, surface);
+	surface->pending->exclusive_zone = zone;
+	surface->pending->invalid |= WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE;
 }
 
 static void layer_surface_set_margin(struct wl_client *client,
 		struct wl_resource *resource, int32_t horizontal, int32_t vertical) {
 	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
-	surface->margin_horizontal = horizontal;
-	surface->margin_vertical = vertical;
-	wl_signal_emit(&surface->events.set_margin, surface);
+	surface->pending->margin_horizontal = horizontal;
+	surface->pending->margin_vertical = vertical;
+	surface->pending->invalid |= WLR_LAYER_SURFACE_INVALID_MARGIN;
+}
+
+void wlr_layer_surface_move_state(struct wlr_layer_surface_state *next,
+		struct wlr_layer_surface_state *state) {
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_INTERACTIVITY) {
+		state->input_types = next->input_types;
+		state->exclusive_types = next->exclusive_types;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_ANCHOR) {
+		state->anchor = next->anchor;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE) {
+		state->exclusive_zone = next->exclusive_zone;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_MARGIN) {
+		state->margin_horizontal = next->margin_horizontal;
+		state->margin_vertical = next->margin_vertical;
+	}
+
+	state->invalid |= next->invalid;
+	next->invalid = 0;
 }
 
 void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
 		double *x, double *y) {
 	int width = layer_surface->surface->current->width;
 	int height = layer_surface->surface->current->height;
+	struct wlr_layer_surface_state *state = layer_surface->current;
 
 	int output_width, output_height;
 	wlr_output_effective_resolution(layer_surface->output, &output_width,
 		&output_height);
 
-	if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_LEFT) {
-		*x = layer_surface->margin_horizontal;
-	} else if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_RIGHT) {
-		*x = output_width - width - layer_surface->margin_horizontal;
+	if (state->anchor & LAYER_SURFACE_ANCHOR_LEFT) {
+		*x = state->margin_horizontal;
+	} else if (state->anchor & LAYER_SURFACE_ANCHOR_RIGHT) {
+		*x = output_width - width - state->margin_horizontal;
 	} else {
 		*x = (double)(output_width - width) / 2;
 	}
-	if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_TOP) {
-		*y = layer_surface->margin_vertical;
-	} else if (layer_surface->anchor & LAYER_SURFACE_ANCHOR_BOTTOM) {
-		*y = output_height - height - layer_surface->margin_vertical;
+	if (state->anchor & LAYER_SURFACE_ANCHOR_TOP) {
+		*y = state->margin_vertical;
+	} else if (state->anchor & LAYER_SURFACE_ANCHOR_BOTTOM) {
+		*y = output_height - height - state->margin_vertical;
 	} else {
 		*y = (double)(output_height - height) / 2;
 	}
@@ -92,6 +114,8 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
 	wl_list_remove(&surface->link);
 	wl_resource_set_user_data(surface->resource, NULL);
+	free(surface->current);
+	free(surface->pending);
 	free(surface);
 }
 
@@ -109,7 +133,15 @@ static const struct layer_surface_interface layer_surface_impl = {
 	.set_margin = layer_surface_set_margin,
 };
 
-static void handle_layer_surface_destroyed(struct wl_listener *listener,
+static void handle_layer_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_layer_surface *surface =
+		wl_container_of(listener, surface, surface_commit_listener);
+	wlr_layer_surface_move_state(surface->pending, surface->current);
+	wl_signal_emit(&surface->events.commit, surface);
+}
+
+static void handle_layer_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_layer_surface *surface =
 		wl_container_of(listener, surface, surface_destroy_listener);
@@ -154,16 +186,31 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	layer_surface->output = output;
 	layer_surface->layer = layer;
 
+	layer_surface->current = calloc(1, sizeof(struct wlr_layer_surface_state));
+	if (layer_surface->current == NULL) {
+		free(layer_surface);
+		wl_client_post_no_memory(client);
+		return;
+	}
+	layer_surface->pending = calloc(1, sizeof(struct wlr_layer_surface_state));
+	if (layer_surface->pending == NULL) {
+		free(layer_surface->current);
+		free(layer_surface);
+		wl_client_post_no_memory(client);
+		return;
+	}
+
 	wl_signal_init(&layer_surface->events.destroy);
-	wl_signal_init(&layer_surface->events.set_interactivity);
-	wl_signal_init(&layer_surface->events.set_anchor);
-	wl_signal_init(&layer_surface->events.set_exclusive_zone);
-	wl_signal_init(&layer_surface->events.set_margin);
+	wl_signal_init(&layer_surface->events.commit);
 
 	wl_signal_add(&layer_surface->surface->events.destroy,
 		&layer_surface->surface_destroy_listener);
 	layer_surface->surface_destroy_listener.notify =
-		handle_layer_surface_destroyed;
+		handle_layer_surface_destroy;
+	wl_signal_add(&layer_surface->surface->events.commit,
+		&layer_surface->surface_commit_listener);
+	layer_surface->surface_commit_listener.notify =
+		handle_layer_surface_commit;
 
 	wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
 	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
@@ -196,7 +243,7 @@ struct wlr_layer_surface *wlr_surface_layers_get_exclusive(
 
 	struct wlr_layer_surface *_layer_surface;
 	wl_list_for_each(_layer_surface, &surface_layers->surfaces, link) {
-		if (_layer_surface->exclusive_types & input_devices &&
+		if (_layer_surface->current->exclusive_types & input_devices &&
 				(int32_t)_layer_surface->layer > layer) {
 			layer = _layer_surface->layer;
 			layer_surface = _layer_surface;

@@ -75,6 +75,12 @@
       An interface that may be implemented by a wl_surface, for surfaces that
       are designed to be rendered as a layer of a stacked desktop-like
       environment.
+
+      Layer surface state (interactivity, anchor, exclusive zone, margin) is
+      double-buffered. Protocol requests modify the pending state, as opposed to
+      the current state in use by the compositor. The wl_surface.commit request
+      atomically applies all pending state, replacing the current state. After
+      commit, the new pending state is as document for each related request.
     </description>
 
     <request name="set_interactivity">
@@ -85,6 +91,8 @@
         depths. The compositor may choose under which circumstances to send
         inputs. By convention, the compositor will send input events to
         the top-most surface of the top-most layer.
+
+        Interactivity is double-buffered, see wl_surface.commit.
       </description>
       <arg name="input_types" type="uint" summary="mask of input devices to use"/>
       <arg name="exclusive_types" type="uint" summary="mask of input devices to use exclusively"/>
@@ -97,6 +105,8 @@
         'left'), then the anchor point will be the intersection of the edges
         (e.g. the top left corner of the output); otherwise the anchor point
         will be centered on that edge, or in the center if none is specified.
+
+        Anchor is double-buffered, see wl_surface.commit.
       </description>
       <arg name="anchor" type="uint"/>
     </request>
@@ -111,6 +121,8 @@
         This value is only meaningful if the surface is anchored to an edge,
         rather than a corner. The zone is the number of pixels from the edge
         that are considered exclusive.
+
+        Exclusive zone is double-buffered, see wl_surface.commit.
       </description>
       <arg name="zone" type="uint"/>
     </request>
@@ -119,6 +131,8 @@
       <description summary="sets a margin from the anchor point">
         Requests that the surface be placed some distance away from the anchor
         point on the output, in pixels.
+
+        Margin is double-buffered, see wl_surface.commit.
       </description>
       <arg name="horizontal" type="int"/>
       <arg name="vertical" type="int"/>

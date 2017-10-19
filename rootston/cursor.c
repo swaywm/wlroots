@@ -101,7 +101,7 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			layer_surface = layer_surface_at(desktop, input->cursor->x,
 				input->cursor->y, &sx, &sy);
 		}
-		if (layer_surface && layer_surface->input_types &
+		if (layer_surface && layer_surface->current->input_types &
 				LAYER_SURFACE_INPUT_DEVICE_POINTER) {
 			surface = layer_surface->surface;
 		}

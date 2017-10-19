@@ -12,9 +12,9 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
-static void handle_set_interactivity(struct wl_listener *listener, void *data) {
+static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *roots_surface =
-		wl_container_of(listener, roots_surface, set_interactivity);
+		wl_container_of(listener, roots_surface, commit);
 	struct roots_desktop *desktop = roots_surface->desktop;
 
 	// Handle keyboard input exclusivity
@@ -30,7 +30,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
 	wl_list_remove(&roots_surface->destroy.link);
-	wl_list_remove(&roots_surface->set_interactivity.link);
+	wl_list_remove(&roots_surface->commit.link);
 	free(roots_surface);
 }
 
@@ -49,11 +49,8 @@ void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 	roots_surface->desktop = desktop;
 	roots_surface->layer_surface = surface;
 
-	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-	wl_list_init(&roots_surface->set_interactivity.link);
-	roots_surface->set_interactivity.notify = handle_set_interactivity;
-	wl_signal_add(&surface->events.set_interactivity,
-		&roots_surface->set_interactivity);
+	roots_surface->commit.notify = handle_commit;
+	wl_signal_add(&surface->events.commit, &roots_surface->commit);
 }
