@@ -313,7 +313,7 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in)
 static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector *conn) {
 	uint32_t crtc[drm->num_crtcs];
 	uint32_t crtc_res[drm->num_crtcs];
-	uint32_t possible_crtc[drm->outputs->length];
+	uint32_t possible_crtc[wl_list_length(&drm->outputs)];
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		crtc[i] = UNMATCHED;
@@ -321,9 +321,9 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector 
 
 	memset(possible_crtc, 0, sizeof(possible_crtc));
 
-	ssize_t index = -1;
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		struct wlr_drm_connector *c = drm->outputs->items[i];
+	ssize_t index = -1, i = 0;
+	struct wlr_drm_connector *c;
+	wl_list_for_each(c, &drm->outputs, link) {
 		if (c == conn) {
 			index = i;
 		}
@@ -334,11 +334,12 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector 
 
 		possible_crtc[i] = c->possible_crtc;
 		crtc[c->crtc - drm->crtcs] = i;
+		i++;
 	}
 	assert(index != -1);
 
 	possible_crtc[index] = conn->possible_crtc;
-	match_obj(drm->outputs->length, possible_crtc, drm->num_crtcs,
+	match_obj(wl_list_length(&drm->outputs), possible_crtc, drm->num_crtcs,
 		crtc, crtc_res);
 
 	bool matched = false;
@@ -363,7 +364,14 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector 
 		}
 
 		if (crtc_res[i] != crtc[i]) {
-			struct wlr_drm_connector *c = drm->outputs->items[crtc_res[i]];
+			struct wlr_drm_connector *c;
+			size_t pos = 0;
+			wl_list_for_each(c, &drm->outputs, link) {
+				if (pos == crtc_res[i]) {
+					break;
+				}
+				pos++;
+			}
 			c->crtc = &drm->crtcs[i];
 		}
 	}
@@ -438,8 +446,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
 	// we actually need to reinitalise all of them
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		struct wlr_drm_connector *conn = drm->outputs->items[i];
+	wl_list_for_each(conn, &drm->outputs, link) {
 		struct wlr_output_mode *mode = conn->output.current_mode;
 		struct wlr_drm_crtc *crtc = conn->crtc;
 
@@ -667,13 +674,6 @@ static int retry_pageflip(void *data) {
 	return 0;
 }
 
-static int find_id(const void *item, const void *cmp_to) {
-	const struct wlr_drm_connector *conn = item;
-	const uint32_t *id = cmp_to;
-
-	return (int)conn->id - (int)*id;
-}
-
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
@@ -692,7 +692,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	size_t seen_len = drm->outputs->length;
+	size_t seen_len = wl_list_length(&drm->outputs);
 	// +1 so it can never be 0
 	bool seen[seen_len + 1];
 	memset(seen, 0, sizeof(seen));
@@ -704,11 +704,16 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
-
-		struct wlr_drm_connector *wlr_conn;
-		int index = list_seq_find(drm->outputs, find_id, &drm_conn->connector_id);
-
-		if (index == -1) {
+		int index = 0;
+		struct wlr_drm_connector *c, *wlr_conn = NULL;
+		wl_list_for_each(c, &drm->outputs, link) {
+			index++;
+			if (c->id == drm_conn->connector_id) {
+				wlr_conn = c;
+				break;
+			}
+		}
+		if (!wlr_conn) {
 			wlr_conn = calloc(1, sizeof(*wlr_conn));
 			if (!wlr_conn) {
 				wlr_log_errno(L_ERROR, "Allocation failed");
@@ -749,17 +754,10 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			parse_edid(&wlr_conn->output, edid_len, edid);
 			free(edid);
 
-			if (list_add(drm->outputs, wlr_conn) == -1) {
-				wlr_log_errno(L_ERROR, "Allocation failed");
-				drmModeFreeConnector(drm_conn);
-				wl_event_source_remove(wlr_conn->retry_pageflip);
-				free(wlr_conn);
-				continue;
-			}
+			wl_list_insert(&drm->outputs, &wlr_conn->link);
 			wlr_output_create_global(&wlr_conn->output, drm->display);
 			wlr_log(L_INFO, "Found display '%s'", wlr_conn->output.name);
 		} else {
-			wlr_conn = drm->outputs->items[index];
 			seen[index] = true;
 		}
 
@@ -807,12 +805,14 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 
 	drmModeFreeResources(res);
 
-	for (size_t i = seen_len; i-- > 0;) {
-		if (seen[i]) {
+	struct wlr_drm_connector *conn, *tmp_conn;
+	size_t index = seen_len - 1;
+	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
+		if (seen[index]) {
+			index--;
 			continue;
 		}
-
-		struct wlr_drm_connector *conn = drm->outputs->items[i];
+		index--;
 
 		wlr_log(L_INFO, "'%s' disappeared", conn->output.name);
 		wlr_drm_connector_cleanup(conn);
@@ -820,8 +820,6 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 		drmModeFreeCrtc(conn->old_crtc);
 		wl_event_source_remove(conn->retry_pageflip);
 		free(conn);
-
-		list_del(drm->outputs, i);
 	}
 }
 
@@ -856,10 +854,10 @@ int wlr_drm_event(int fd, uint32_t mask, void *data) {
 }
 
 void wlr_drm_restore_outputs(struct wlr_drm_backend *drm) {
-	uint64_t to_close = (1 << drm->outputs->length) - 1;
+	uint64_t to_close = (1 << wl_list_length(&drm->outputs)) - 1;
 
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		struct wlr_drm_connector *conn = drm->outputs->items[i];
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
 		if (conn->state == WLR_DRM_CONN_CONNECTED) {
 			conn->state = WLR_DRM_CONN_CLEANUP;
 		}
@@ -869,11 +867,13 @@ void wlr_drm_restore_outputs(struct wlr_drm_backend *drm) {
 
 	while (to_close && time(NULL) < timeout) {
 		wlr_drm_event(drm->fd, 0, NULL);
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_drm_connector *conn = drm->outputs->items[i];
+		size_t i = 0;
+		struct wlr_drm_connector *conn;
+		wl_list_for_each(conn, &drm->outputs, link) {
 			if (conn->state != WLR_DRM_CONN_CLEANUP || !conn->pageflip_pending) {
 				to_close &= ~(1 << i);
 			}
+			i++;
 		}
 	}
 
@@ -881,8 +881,7 @@ void wlr_drm_restore_outputs(struct wlr_drm_backend *drm) {
 		wlr_log(L_ERROR, "Timed out stopping output renderers");
 	}
 
-	for (size_t i = 0; i < drm->outputs->length; ++i) {
-		struct wlr_drm_connector *conn = drm->outputs->items[i];
+	wl_list_for_each(conn, &drm->outputs, link) {
 		drmModeCrtc *crtc = conn->old_crtc;
 		if (!crtc) {
 			continue;
