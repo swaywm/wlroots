@@ -5,7 +5,9 @@
 
 struct wlr_surface_layers {
 	struct wl_global *wl_global;
-	struct wl_list surfaces; // list of wlr_layer_surface
+
+	// list of wlr_layer_surface elements, ordered by ascending layer
+	struct wl_list surfaces;
 
 	struct {
 		struct wl_signal new_surface;

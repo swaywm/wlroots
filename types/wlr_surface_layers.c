@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
@@ -212,7 +213,19 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	layer_surface->surface_commit_listener.notify =
 		handle_layer_surface_commit;
 
-	wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
+	bool inserted = false;
+	struct wlr_layer_surface *ls;
+	wl_list_for_each_reverse(ls, &surface_layers->surfaces, link) {
+		if (ls->layer <= layer_surface->layer) {
+			inserted = true;
+			wl_list_insert(&ls->link, &layer_surface->link);
+			break;
+		}
+	}
+	if (!inserted) {
+		wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
+	}
+
 	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
 
@@ -238,19 +251,14 @@ static void surface_layers_bind(struct wl_client *wl_client,
 
 struct wlr_layer_surface *wlr_surface_layers_get_exclusive(
 		struct wlr_surface_layers *surface_layers, uint32_t input_devices) {
-	struct wlr_layer_surface *layer_surface = NULL;
-	int32_t layer = -1;
-
-	struct wlr_layer_surface *_layer_surface;
-	wl_list_for_each(_layer_surface, &surface_layers->surfaces, link) {
-		if (_layer_surface->current->exclusive_types & input_devices &&
-				(int32_t)_layer_surface->layer > layer) {
-			layer = _layer_surface->layer;
-			layer_surface = _layer_surface;
+	struct wlr_layer_surface *layer_surface;
+	wl_list_for_each_reverse(layer_surface, &surface_layers->surfaces, link) {
+		if (layer_surface->current->exclusive_types & input_devices) {
+			return layer_surface;
 		}
 	}
 
-	return layer_surface;
+	return NULL;
 }
 
 struct wlr_surface_layers *wlr_surface_layers_create(
