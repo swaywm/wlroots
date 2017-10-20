@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200112L
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
@@ -42,6 +43,18 @@ int main(int argc, char **argv) {
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
+
+	if (server.config->startup_cmd != NULL) {
+		const char *cmd = server.config->startup_cmd;
+		pid_t pid = fork();
+		if (pid < 0) {
+			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
+			return 1;
+		} else if (pid == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
+		}
+	}
+
 	wl_display_run(server.wl_display);
 	wlr_backend_destroy(server.backend);
 	return 0;
