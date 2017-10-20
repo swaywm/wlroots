@@ -137,6 +137,8 @@ static void draw_quad(struct wlr_renderer *renderer) {
 	struct wlr_gles2_renderer *gles = (struct wlr_gles2_renderer *)renderer;
 	glBindBuffer(GL_ARRAY_BUFFER, gles->vbo);
 
+	GLsizei stride = sizeof(GLfloat) * 4;
+
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, 0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void *)(sizeof(GLfloat) * 2));
 
@@ -245,8 +247,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 		1, 1, 1, 1, // bottom right
 		0, 1, 0, 1, // bottom left
 	};
-
-	GLsizei stride = sizeof(GLfloat) * 4;
 
 	glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
