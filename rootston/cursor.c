@@ -449,44 +449,35 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
-	
+
 	// TODO: Does this belong here
 	wl_list_init(&input->touch_points);
 
-	wl_list_init(&input->cursor_motion.link);
 	wl_signal_add(&cursor->events.motion, &input->cursor_motion);
 	input->cursor_motion.notify = handle_cursor_motion;
 
-	wl_list_init(&input->cursor_motion_absolute.link);
 	wl_signal_add(&cursor->events.motion_absolute,
 		&input->cursor_motion_absolute);
 	input->cursor_motion_absolute.notify = handle_cursor_motion_absolute;
 
-	wl_list_init(&input->cursor_button.link);
 	wl_signal_add(&cursor->events.button, &input->cursor_button);
 	input->cursor_button.notify = handle_cursor_button;
 
-	wl_list_init(&input->cursor_axis.link);
 	wl_signal_add(&cursor->events.axis, &input->cursor_axis);
 	input->cursor_axis.notify = handle_cursor_axis;
 
-	wl_list_init(&input->cursor_touch_down.link);
 	wl_signal_add(&cursor->events.touch_down, &input->cursor_touch_down);
 	input->cursor_touch_down.notify = handle_touch_down;
 
-	wl_list_init(&input->cursor_touch_up.link);
 	wl_signal_add(&cursor->events.touch_up, &input->cursor_touch_up);
 	input->cursor_touch_up.notify = handle_touch_up;
 
-	wl_list_init(&input->cursor_touch_motion.link);
 	wl_signal_add(&cursor->events.touch_motion, &input->cursor_touch_motion);
 	input->cursor_touch_motion.notify = handle_touch_motion;
 
-	wl_list_init(&input->cursor_tool_axis.link);
 	wl_signal_add(&cursor->events.tablet_tool_axis, &input->cursor_tool_axis);
 	input->cursor_tool_axis.notify = handle_tool_axis;
 
-	wl_list_init(&input->cursor_tool_tip.link);
 	wl_signal_add(&cursor->events.tablet_tool_tip, &input->cursor_tool_tip);
 	input->cursor_tool_tip.notify = handle_tool_tip;
 
@@ -497,6 +488,7 @@ void cursor_initialize(struct roots_input *input) {
 	input->pointer_grab_begin.notify = handle_pointer_grab_begin;
 
 	wl_list_init(&input->request_set_cursor.link);
+
 	wl_signal_add(&input->wl_seat->events.request_set_cursor,
 		&input->request_set_cursor);
 	input->request_set_cursor.notify = handle_request_set_cursor;

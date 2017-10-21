@@ -130,11 +130,6 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->output_add.notify = output_add_reemit;
 	sub->output_remove.notify = output_remove_reemit;
 
-	wl_list_init(&sub->input_add.link);
-	wl_list_init(&sub->input_remove.link);
-	wl_list_init(&sub->output_add.link);
-	wl_list_init(&sub->output_remove.link);
-
 	wl_signal_add(&backend->events.input_add, &sub->input_add);
 	wl_signal_add(&backend->events.input_remove, &sub->input_remove);
 	wl_signal_add(&backend->events.output_add, &sub->output_add);

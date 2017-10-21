@@ -60,7 +60,6 @@ static void keyboard_add(struct wlr_input_device *device, struct compositor_stat
 	struct keyboard_state *kbstate = calloc(sizeof(struct keyboard_state), 1);
 	kbstate->device = device;
 	kbstate->compositor = state;
-	wl_list_init(&kbstate->key.link);
 	kbstate->key.notify = keyboard_key_notify;
 	wl_signal_add(&device->keyboard->events.key, &kbstate->key);
 	wl_list_insert(&state->keyboards, &kbstate->link);
@@ -122,10 +121,6 @@ static void pointer_add(struct wlr_input_device *device, struct compositor_state
 	struct pointer_state *pstate = calloc(sizeof(struct pointer_state), 1);
 	pstate->device = device;
 	pstate->compositor = state;
-	wl_list_init(&pstate->motion.link);
-	wl_list_init(&pstate->motion_absolute.link);
-	wl_list_init(&pstate->button.link);
-	wl_list_init(&pstate->axis.link);
 	pstate->motion.notify = pointer_motion_notify;
 	pstate->motion_absolute.notify = pointer_motion_absolute_notify;
 	pstate->button.notify = pointer_button_notify;
@@ -175,10 +170,6 @@ static void touch_add(struct wlr_input_device *device, struct compositor_state *
 	struct touch_state *tstate = calloc(sizeof(struct touch_state), 1);
 	tstate->device = device;
 	tstate->compositor = state;
-	wl_list_init(&tstate->down.link);
-	wl_list_init(&tstate->motion.link);
-	wl_list_init(&tstate->up.link);
-	wl_list_init(&tstate->cancel.link);
 	tstate->down.notify = touch_down_notify;
 	tstate->motion.notify = touch_motion_notify;
 	tstate->up.notify = touch_up_notify;
@@ -219,10 +210,6 @@ static void tablet_tool_add(struct wlr_input_device *device,
 	struct tablet_tool_state *tstate = calloc(sizeof(struct tablet_tool_state), 1);
 	tstate->device = device;
 	tstate->compositor = state;
-	wl_list_init(&tstate->axis.link);
-	wl_list_init(&tstate->proximity.link);
-	wl_list_init(&tstate->tip.link);
-	wl_list_init(&tstate->button.link);
 	tstate->axis.notify = tablet_tool_axis_notify;
 	tstate->proximity.notify = tablet_tool_proximity_notify;
 	//tstate->tip.notify = tablet_tool_tip_notify;
@@ -247,7 +234,6 @@ static void tablet_pad_add(struct wlr_input_device *device,
 	struct tablet_pad_state *pstate = calloc(sizeof(struct tablet_pad_state), 1);
 	pstate->device = device;
 	pstate->compositor = state;
-	wl_list_init(&pstate->button.link);
 	pstate->button.notify = tablet_pad_button_notify;
 	wl_signal_add(&device->tablet_pad->events.button, &pstate->button);
 	wl_list_insert(&state->tablet_pads, &pstate->link);
@@ -436,7 +422,6 @@ static void output_add_notify(struct wl_listener *listener, void *data) {
 	ostate->compositor = state;
 	ostate->frame.notify = output_frame_notify;
 	ostate->resolution.notify = output_resolution_notify;
-	wl_list_init(&ostate->frame.link);
 	wl_signal_add(&output->events.frame, &ostate->frame);
 	wl_signal_add(&output->events.resolution, &ostate->resolution);
 	wl_list_insert(&state->outputs, &ostate->link);
@@ -476,15 +461,11 @@ void compositor_init(struct compositor_state *state) {
 	wl_list_init(&state->touch);
 	wl_list_init(&state->tablet_tools);
 	wl_list_init(&state->tablet_pads);
-	wl_list_init(&state->input_add.link);
 	state->input_add.notify = input_add_notify;
-	wl_list_init(&state->input_remove.link);
 	state->input_remove.notify = input_remove_notify;
 
 	wl_list_init(&state->outputs);
-	wl_list_init(&state->output_add.link);
 	state->output_add.notify = output_add_notify;
-	wl_list_init(&state->output_remove.link);
 	state->output_remove.notify = output_remove_notify;
 
 	struct wlr_backend *wlr = wlr_backend_autocreate(state->display);

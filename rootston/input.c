@@ -74,15 +74,34 @@ struct roots_input *input_create(struct roots_server *server,
 	assert(server->desktop);
 
 	struct roots_input *input = calloc(1, sizeof(struct roots_input));
-	assert(input);
+	if (input == NULL) {
+		return NULL;
+	}
 
 	input->config = config;
 	input->server = server;
 
-	assert(input->theme = wlr_xcursor_theme_load("default", 16));
-	assert(input->xcursor = wlr_xcursor_theme_get_cursor(input->theme, "left_ptr"));
+	input->theme = wlr_xcursor_theme_load("default", 16);
+	if (input->theme == NULL) {
+		wlr_log(L_ERROR, "Cannot load xcursor theme");
+		free(input);
+		return NULL;
+	}
+	input->xcursor = wlr_xcursor_theme_get_cursor(input->theme, "left_ptr");
+	if (input->xcursor == NULL) {
+		wlr_log(L_ERROR, "Cannot load xcursor from theme");
+		wlr_xcursor_theme_destroy(input->theme);
+		free(input);
+		return NULL;
+	}
 
-	assert(input->wl_seat = wlr_seat_create(server->wl_display, "seat0"));
+	input->wl_seat = wlr_seat_create(server->wl_display, "seat0");
+	if (input->wl_seat == NULL) {
+		wlr_log(L_ERROR, "Cannot create seat");
+		wlr_xcursor_theme_destroy(input->theme);
+		free(input);
+		return NULL;
+	}
 	wlr_seat_set_capabilities(input->wl_seat, WL_SEAT_CAPABILITY_KEYBOARD
 		| WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_TOUCH);
 
@@ -91,15 +110,10 @@ struct roots_input *input_create(struct roots_server *server,
 	wl_list_init(&input->touch);
 	wl_list_init(&input->tablet_tools);
 
-	wl_list_init(&input->input_add.link);
 	input->input_add.notify = input_add_notify;
-	wl_list_init(&input->input_remove.link);
+	wl_signal_add(&server->backend->events.input_add, &input->input_add);
 	input->input_remove.notify = input_remove_notify;
-
-	wl_signal_add(&server->backend->events.input_add,
-			&input->input_add);
-	wl_signal_add(&server->backend->events.input_remove,
-			&input->input_remove);
+	wl_signal_add(&server->backend->events.input_remove, &input->input_remove);
 
 	input->cursor = wlr_cursor_create();
 	cursor_initialize(input);
