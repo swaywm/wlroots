@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
 	state.cursor_motion.notify = handle_cursor_motion;
 
 	wl_signal_add(&state.cursor->events.motion_absolute,
-        &state.cursor_motion_absolute);
+		&state.cursor_motion_absolute);
 	state.cursor_motion_absolute.notify = handle_cursor_motion_absolute;
 
 	wl_signal_add(&state.cursor->events.button, &state.cursor_button);
@@ -308,7 +308,7 @@ int main(int argc, char *argv[]) {
 
 	// tool events
 	wl_signal_add(&state.cursor->events.tablet_tool_axis,
-        &state.tablet_tool_axis);
+		&state.tablet_tool_axis);
 	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
 	struct compositor_state compositor = { 0 };

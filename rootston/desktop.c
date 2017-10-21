@@ -203,16 +203,15 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	struct roots_desktop *desktop = calloc(1, sizeof(struct roots_desktop));
+	assert(desktop);
 	wlr_log(L_DEBUG, "Initializing roots desktop");
 
 	assert(desktop->views = list_create());
 	wl_list_init(&desktop->outputs);
-	wl_list_init(&desktop->output_add.link);
-	desktop->output_add.notify = output_add_notify;
-	wl_list_init(&desktop->output_remove.link);
-	desktop->output_remove.notify = output_remove_notify;
 
+	desktop->output_add.notify = output_add_notify;
 	wl_signal_add(&server->backend->events.output_add, &desktop->output_add);
+	desktop->output_remove.notify = output_remove_notify;
 	wl_signal_add(&server->backend->events.output_remove,
 		&desktop->output_remove);
 

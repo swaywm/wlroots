@@ -130,7 +130,6 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	device->data = keyboard;
 	keyboard->device = device;
 	keyboard->input = input;
-	wl_list_init(&keyboard->key.link);
 	keyboard->key.notify = keyboard_key_notify;
 	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
 	wl_list_insert(&input->keyboards, &keyboard->link);

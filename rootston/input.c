@@ -91,15 +91,10 @@ struct roots_input *input_create(struct roots_server *server,
 	wl_list_init(&input->touch);
 	wl_list_init(&input->tablet_tools);
 
-	wl_list_init(&input->input_add.link);
 	input->input_add.notify = input_add_notify;
-	wl_list_init(&input->input_remove.link);
+	wl_signal_add(&server->backend->events.input_add, &input->input_add);
 	input->input_remove.notify = input_remove_notify;
-
-	wl_signal_add(&server->backend->events.input_add,
-			&input->input_add);
-	wl_signal_add(&server->backend->events.input_remove,
-			&input->input_remove);
+	wl_signal_add(&server->backend->events.input_remove, &input->input_remove);
 
 	input->cursor = wlr_cursor_create();
 	cursor_initialize(input);

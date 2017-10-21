@@ -635,17 +635,13 @@ void wlr_seat_attach_keyboard(struct wlr_seat *seat,
 		calloc(1, sizeof(struct wlr_seat_keyboard));
 	seat_kb->keyboard = kb;
 	seat_kb->seat = seat;
-	wl_list_init(&seat_kb->key.link);
 	seat_kb->key.notify = keyboard_key_notify;
 	wl_signal_add(&kb->events.key, &seat_kb->key);
-	wl_list_init(&seat_kb->modifiers.link);
 	seat_kb->modifiers.notify = keyboard_modifiers_notify;
 	wl_signal_add(&kb->events.modifiers, &seat_kb->modifiers);
-	wl_list_init(&seat_kb->keymap.link);
 	seat_kb->keymap.notify = keyboard_keymap_notify;
 	wl_signal_add(&kb->events.keymap, &seat_kb->keymap);
 	// TODO: update keymap as necessary
-	wl_list_init(&seat_kb->destroy.link);
 	seat_kb->destroy.notify = keyboard_destroy_notify;
 	wl_signal_add(&dev->events.destroy, &seat_kb->destroy);
 	wl_list_insert(&seat->keyboards, &seat_kb->link);

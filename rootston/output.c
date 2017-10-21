@@ -175,7 +175,6 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	output->desktop = desktop;
 	output->wlr_output = wlr_output;
 	output->frame.notify = output_frame_notify;
-	wl_list_init(&output->frame.link);
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
 	wl_list_insert(&desktop->outputs, &output->link);
 
