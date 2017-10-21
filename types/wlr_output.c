@@ -153,8 +153,7 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 	output->cursor.height = height;
 
 	if (!output->cursor.renderer) {
-		/* NULL egl is okay given that we are only using pixel buffers */
-		output->cursor.renderer = wlr_gles2_renderer_create(NULL);
+		output->cursor.renderer = wlr_gles2_renderer_create(output->backend);
 		if (!output->cursor.renderer) {
 			return false;
 		}
