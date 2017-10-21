@@ -127,6 +127,9 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = calloc(sizeof(struct roots_keyboard), 1);
+	if (keyboard == NULL) {
+		return;
+	}
 	device->data = keyboard;
 	keyboard->device = device;
 	keyboard->input = input;
@@ -141,11 +144,15 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	rules.layout = getenv("XKB_DEFAULT_LAYOUT");
 	rules.variant = getenv("XKB_DEFAULT_VARIANT");
 	rules.options = getenv("XKB_DEFAULT_OPTIONS");
-	struct xkb_context *context;
-	assert(context = xkb_context_new(XKB_CONTEXT_NO_FLAGS));
+	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	if (context == NULL) {
+		wlr_log(L_ERROR, "Cannot create XKB context");
+		return;
+	}
 	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
-				&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+		&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
+
 	wlr_seat_attach_keyboard(input->wl_seat, device);
 }
 
