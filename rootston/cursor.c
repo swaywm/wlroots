@@ -436,11 +436,7 @@ static void do_cursor_button_press(struct roots_input *input,
 		input->input_events_idx = (i + 1)
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
-
-		struct wlr_layer_surface *layer_surface =
-			wlr_surface_layers_get_exclusive(desktop->surface_layers,
-			LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
-		if (view && !layer_surface) {
+		if (view) {
 			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
 		}
 		break;

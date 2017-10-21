@@ -13,17 +13,10 @@
 #include "rootston/input.h"
 
 static void handle_commit(struct wl_listener *listener, void *data) {
-	struct roots_layer_surface *roots_surface =
-		wl_container_of(listener, roots_surface, commit);
-	struct roots_desktop *desktop = roots_surface->desktop;
-
-	// Handle keyboard input exclusivity
-	struct wlr_layer_surface *surface = wlr_surface_layers_get_exclusive(
-		desktop->surface_layers, LAYER_SURFACE_INPUT_DEVICE_KEYBOARD);
-	if (surface) {
-		wlr_seat_keyboard_notify_enter(desktop->server->input->wl_seat,
-			surface->surface);
-	}
+	//struct roots_layer_surface *roots_surface =
+	//	wl_container_of(listener, roots_surface, commit);
+	//struct roots_desktop *desktop = roots_surface->desktop;
+	// TODO: is there anything to do here?
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

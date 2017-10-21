@@ -249,18 +249,6 @@ static void surface_layers_bind(struct wl_client *wl_client,
 		surface_layers, NULL);
 }
 
-struct wlr_layer_surface *wlr_surface_layers_get_exclusive(
-		struct wlr_surface_layers *surface_layers, uint32_t input_devices) {
-	struct wlr_layer_surface *layer_surface;
-	wl_list_for_each_reverse(layer_surface, &surface_layers->surfaces, link) {
-		if (layer_surface->current->exclusive_types & input_devices) {
-			return layer_surface;
-		}
-	}
-
-	return NULL;
-}
-
 struct wlr_surface_layers *wlr_surface_layers_create(
 		struct wl_display *display) {
 	struct wlr_surface_layers *surface_layers =
