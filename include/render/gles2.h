@@ -27,6 +27,8 @@ struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
 	struct wlr_egl *egl;
+
+	GLuint vbo;
 };
 
 struct wlr_gles2_texture {

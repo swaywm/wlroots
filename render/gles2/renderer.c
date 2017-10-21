@@ -133,33 +133,19 @@ static struct wlr_texture *wlr_gles2_texture_create(
 	return gles2_texture_create(renderer->egl);
 }
 
-static void draw_quad() {
-	GLfloat verts[] = {
-		1, 0, // top right
-		0, 0, // top left
-		1, 1, // bottom right
-		0, 1, // bottom left
-	};
-	GLfloat texcoord[] = {
-		1, 0, // top right
-		0, 0, // top left
-		1, 1, // bottom right
-		0, 1, // bottom left
-	};
+static void draw_quad(struct wlr_renderer *renderer) {
+	struct wlr_gles2_renderer *gles = (struct wlr_gles2_renderer *)renderer;
+	glBindBuffer(GL_ARRAY_BUFFER, gles->vbo);
 
-	GL_CALL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts));
-	GL_CALL(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoord));
+	GLsizei stride = sizeof(GLfloat) * 4;
 
-	GL_CALL(glEnableVertexAttribArray(0));
-	GL_CALL(glEnableVertexAttribArray(1));
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, 0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void *)(sizeof(GLfloat) * 2));
 
 	GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
-
-	GL_CALL(glDisableVertexAttribArray(0));
-	GL_CALL(glDisableVertexAttribArray(1));
 }
 
-static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
+static bool wlr_gles2_render_texture(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]) {
 	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
@@ -167,10 +153,10 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 	}
 
 	wlr_texture_bind(texture);
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
 	// TODO: source alpha from somewhere else I guess
 	GL_CALL(glUniform1f(2, 1.0f));
-	draw_quad();
+	draw_quad(renderer);
 	return true;
 }
 
@@ -179,7 +165,7 @@ static void wlr_gles2_render_quad(struct wlr_renderer *renderer,
 	GL_CALL(glUseProgram(shaders.quad));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
 	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
-	draw_quad();
+	draw_quad(renderer);
 }
 
 static void wlr_gles2_render_ellipse(struct wlr_renderer *renderer,
@@ -187,7 +173,7 @@ static void wlr_gles2_render_ellipse(struct wlr_renderer *renderer,
 	GL_CALL(glUseProgram(shaders.ellipse));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
 	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
-	draw_quad();
+	draw_quad(renderer);
 }
 
 static const enum wl_shm_format *wlr_gles2_formats(
@@ -246,9 +232,27 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
+
 	if (backend) {
 		struct wlr_egl *egl = wlr_backend_get_egl(backend);
 		renderer->egl = egl;
 	}
+
+	glGenBuffers(1, &renderer->vbo);
+
+	GLfloat data[] = {
+		// pos, texcoord
+		1, 0, 1, 0, // top right
+		0, 0, 0, 0, // top left
+		1, 1, 1, 1, // bottom right
+		0, 1, 0, 1, // bottom left
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
 	return &renderer->wlr_renderer;
 }
