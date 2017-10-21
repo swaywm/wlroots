@@ -374,8 +374,6 @@ static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
 	// toolkits to see how we should interpret the surface state here.
 	drag_icon->sx += drag_icon->surface->current->sx;
 	drag_icon->sy += drag_icon->surface->current->sy;
-
-	drag_icon->mapped = drag_icon->surface->texture->valid;
 }
 
 static void handle_pointer_grab_begin(struct wl_listener *listener,
