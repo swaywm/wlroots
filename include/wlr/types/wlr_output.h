@@ -1,9 +1,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
-#include <wayland-server.h>
-#include <wlr/util/list.h>
 #include <stdbool.h>
+#include <wayland-server.h>
+#include <wlr/backend.h>
+#include <wlr/util/list.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -15,6 +16,7 @@ struct wlr_output_impl;
 
 struct wlr_output {
 	const struct wlr_output_impl *impl;
+	struct wlr_backend *backend;
 
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;

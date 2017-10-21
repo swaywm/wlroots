@@ -1,8 +1,9 @@
 #ifndef WLR_INTERFACES_WLR_OUTPUT_H
 #define WLR_INTERFACES_WLR_OUTPUT_H
 
-#include <wlr/types/wlr_output.h>
 #include <stdbool.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/backend.h>
 
 struct wlr_output_impl {
 	void (*enable)(struct wlr_output *output, bool enable);
@@ -21,7 +22,8 @@ struct wlr_output_impl {
 	uint16_t (*get_gamma_size)(struct wlr_output *output);
 };
 
-void wlr_output_init(struct wlr_output *output, const struct wlr_output_impl *impl);
+void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
+	const struct wlr_output_impl *impl);
 void wlr_output_free(struct wlr_output *output);
 void wlr_output_update_matrix(struct wlr_output *output);
 struct wl_global *wlr_output_create_global(

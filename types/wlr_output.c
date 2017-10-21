@@ -307,8 +307,9 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 	return output->impl->move_cursor(output, x, y);
 }
 
-void wlr_output_init(struct wlr_output *output,
+void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
+	output->backend = backend;
 	output->impl = impl;
 	output->modes = list_create();
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;

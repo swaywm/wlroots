@@ -707,7 +707,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				drmModeFreeConnector(drm_conn);
 				continue;
 			}
-			wlr_output_init(&wlr_conn->output, &output_impl);
+			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl);
 
 			struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
 			wlr_conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,

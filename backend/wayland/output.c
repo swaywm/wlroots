@@ -241,7 +241,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_wl_backend_output");
 		return NULL;
 	}
-	wlr_output_init(&output->wlr_output, &output_impl);
+	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
 	wlr_output->width = 640;
