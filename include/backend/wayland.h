@@ -5,7 +5,7 @@
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wayland-egl.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>

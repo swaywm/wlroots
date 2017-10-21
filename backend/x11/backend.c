@@ -15,7 +15,7 @@
 #endif
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>

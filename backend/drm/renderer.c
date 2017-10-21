@@ -8,8 +8,8 @@
 #include <EGL/eglext.h>
 #include <wayland-util.h>
 
-#include <wlr/egl.h>
 #include <wlr/util/log.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>

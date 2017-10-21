@@ -5,9 +5,9 @@
 #include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
-#include <wlr/egl.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
