@@ -56,6 +56,9 @@ struct wlr_output {
 		struct wl_listener surface_destroy;
 	} cursor;
 
+	// the output position in layout space reported to clients
+	int32_t lx, ly;
+
 	void *data;
 };
 
@@ -66,6 +69,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 void wlr_output_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
+void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
 bool wlr_output_set_cursor(struct wlr_output *output,
 	const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);

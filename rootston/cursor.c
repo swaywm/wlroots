@@ -17,6 +17,7 @@
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/desktop.h"
+#include "rootston/view.h"
 
 const struct roots_input_event *get_input_event(struct roots_input *input,
 		uint32_t serial) {
@@ -84,8 +85,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
-			&sx, &sy);
+		view = view_at(desktop, input->cursor->x, input->cursor->y,
+			&surface, &sx, &sy);
 		bool set_compositor_cursor = !view && input->cursor_client;
 		if (view) {
 			struct wl_client *view_client =
@@ -106,31 +107,39 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 		break;
 	case ROOTS_CURSOR_MOVE:
 		if (input->active_view) {
-			int dx = input->cursor->x - input->offs_x,
-				dy = input->cursor->y - input->offs_y;
-			input->active_view->x = input->view_x + dx;
-			input->active_view->y = input->view_y + dy;
+			double dx = input->cursor->x - input->offs_x;
+			double dy = input->cursor->y - input->offs_y;
+			view_set_position(input->active_view,
+				input->view_x + dx, input->view_y + dy);
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
 		if (input->active_view) {
-			int dx = input->cursor->x - input->offs_x,
-				dy = input->cursor->y - input->offs_y;
-			int width = input->view_width,
-				height = input->view_height;
+			double dx = input->cursor->x - input->offs_x;
+			double dy = input->cursor->y - input->offs_y;
+			double active_x = input->active_view->x;
+			double active_y = input->active_view->y;
+			int width = input->view_width;
+			int height = input->view_height;
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
-				input->active_view->y = input->view_y + dy;
+				active_y = input->view_y + dy;
 				height -= dy;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
 				height += dy;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-				input->active_view->x = input->view_x + dx;
+				active_x = input->view_x + dx;
 				width -= dx;
 			}
 			if (input->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
 				width += dx;
+			}
+
+			// TODO we might need one configure event for this
+			if (active_x != input->active_view->x ||
+					active_y != input->active_view->y) {
+				view_set_position(input->active_view, active_x, active_y);
 			}
 			view_resize(input->active_view, width, height);
 		}
@@ -280,6 +289,56 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 			(uint32_t)(event->time_usec / 1000), event->button, event->state);
 }
 
+static void handle_touch_down(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_down *event = data;
+	struct roots_input *input =
+		wl_container_of(listener, input, cursor_touch_down);
+	struct roots_touch_point *point =
+		calloc(1, sizeof(struct roots_touch_point));
+	point->device = event->device->data;
+	point->slot = event->slot;
+	point->x = event->x_mm / event->width_mm;
+	point->y = event->y_mm / event->height_mm;
+	wlr_cursor_warp_absolute(input->cursor, event->device, point->x, point->y);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+	wl_list_insert(&input->touch_points, &point->link);
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 1);
+}
+
+static void handle_touch_up(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_up *event = data;
+	struct roots_input *input =
+			wl_container_of(listener, input, cursor_touch_up);
+	struct roots_touch_point *point;
+	wl_list_for_each(point, &input->touch_points, link) {
+		if (point->slot == event->slot) {
+			wl_list_remove(&point->link);
+			break;
+		}
+	}
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 0);
+}
+
+static void handle_touch_motion(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_motion *event = data;
+	struct roots_input *input =
+		wl_container_of(listener, input, cursor_touch_motion);
+	struct roots_touch_point *point;
+	wl_list_for_each(point, &input->touch_points, link) {
+		if (point->slot == event->slot) {
+			point->x = event->x_mm / event->width_mm;
+			point->y = event->y_mm / event->height_mm;
+			wlr_cursor_warp_absolute(input->cursor, event->device,
+					point->x, point->y);
+			cursor_update_position(input,
+					(uint32_t)(event->time_usec / 1000));
+			break;
+		}
+	}
+}
+
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_axis);
 	struct wlr_event_tablet_tool_axis *event = data;
@@ -390,6 +449,9 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
+	
+	// TODO: Does this belong here
+	wl_list_init(&input->touch_points);
 
 	wl_list_init(&input->cursor_motion.link);
 	wl_signal_add(&cursor->events.motion, &input->cursor_motion);
@@ -407,6 +469,18 @@ void cursor_initialize(struct roots_input *input) {
 	wl_list_init(&input->cursor_axis.link);
 	wl_signal_add(&cursor->events.axis, &input->cursor_axis);
 	input->cursor_axis.notify = handle_cursor_axis;
+
+	wl_list_init(&input->cursor_touch_down.link);
+	wl_signal_add(&cursor->events.touch_down, &input->cursor_touch_down);
+	input->cursor_touch_down.notify = handle_touch_down;
+
+	wl_list_init(&input->cursor_touch_up.link);
+	wl_signal_add(&cursor->events.touch_up, &input->cursor_touch_up);
+	input->cursor_touch_up.notify = handle_touch_up;
+
+	wl_list_init(&input->cursor_touch_motion.link);
+	wl_signal_add(&cursor->events.touch_motion, &input->cursor_touch_motion);
+	input->cursor_touch_motion.notify = handle_touch_motion;
 
 	wl_list_init(&input->cursor_tool_axis.link);
 	wl_signal_add(&cursor->events.tablet_tool_axis, &input->cursor_tool_axis);

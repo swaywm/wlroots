@@ -37,7 +37,7 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		pointer_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
-		//touch_add(device, input);
+		touch_add(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		tablet_tool_add(device, input);
@@ -58,7 +58,7 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 		pointer_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
-		//touch_remove(device, input);
+		touch_remove(device, input);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		tablet_tool_remove(device, input);

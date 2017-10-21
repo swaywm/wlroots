@@ -115,6 +115,10 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 		max_x += box->width;
 	}
 
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		wlr_output_set_position(l_output->output, l_output->x, l_output->y);
+	}
+
 	wl_signal_emit(&layout->events.change, layout);
 }
 

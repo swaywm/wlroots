@@ -26,6 +26,15 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 		xwayland_surface->x, xwayland_surface->y, width, height);
 }
 
+static void set_position(struct roots_view *view, double x, double y) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	view->x = x;
+	view->y = y;
+	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
+		x, y, xwayland_surface->width, xwayland_surface->height);
+}
+
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	wlr_xwayland_surface_close(view->desktop->xwayland, view->xwayland_surface);
@@ -88,7 +97,12 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->desktop = desktop;
 	view->activate = activate;
 	view->resize = resize;
+	view->set_position = set_position;
 	view->close = close;
 	roots_surface->view = view;
 	list_add(desktop->views, view);
+
+	if (!surface->override_redirect) {
+		view_initialize(view);
+	}
 }
