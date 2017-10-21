@@ -15,7 +15,7 @@
 #endif
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -264,7 +264,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	output->x11 = x11;
 
-	wlr_output_init(&output->wlr_output, &output_impl);
+	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl);
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
 
 	output->win = xcb_generate_id(x11->xcb_conn);

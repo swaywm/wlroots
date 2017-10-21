@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <wlr/backend.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 
 struct wlr_backend_impl {
 	bool (*start)(struct wlr_backend *backend);

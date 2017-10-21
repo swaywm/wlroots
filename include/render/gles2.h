@@ -8,9 +8,9 @@
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <wlr/egl.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/util/log.h>
 

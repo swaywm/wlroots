@@ -12,7 +12,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/util/list.h>
 
 #include "iface.h"
@@ -30,7 +30,6 @@ struct wlr_drm_plane {
 
 	// Only used by cursor
 	float matrix[16];
-	struct wlr_renderer *wlr_rend;
 	struct wlr_texture *wlr_tex;
 	struct gbm_bo *cursor_bo;
 
@@ -113,7 +112,6 @@ struct wlr_drm_mode {
 
 struct wlr_drm_connector {
 	struct wlr_output output;
-	struct wlr_drm_backend *drm;
 
 	enum wlr_drm_connector_state state;
 	uint32_t id;

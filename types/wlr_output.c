@@ -153,8 +153,7 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 	output->cursor.height = height;
 
 	if (!output->cursor.renderer) {
-		/* NULL egl is okay given that we are only using pixel buffers */
-		output->cursor.renderer = wlr_gles2_renderer_create(NULL);
+		output->cursor.renderer = wlr_gles2_renderer_create(output->backend);
 		if (!output->cursor.renderer) {
 			return false;
 		}
@@ -307,8 +306,9 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 	return output->impl->move_cursor(output, x, y);
 }
 
-void wlr_output_init(struct wlr_output *output,
+void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
+	output->backend = backend;
 	output->impl = impl;
 	output->modes = list_create();
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
