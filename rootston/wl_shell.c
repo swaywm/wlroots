@@ -57,11 +57,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
 	wl_list_remove(&roots_surface->destroy.link);
-	wl_list_remove(&roots_surface->ping_timeout.link);
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
-	wl_list_remove(&roots_surface->request_set_fullscreen.link);
-	wl_list_remove(&roots_surface->request_set_maximized.link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
 }
@@ -88,25 +85,22 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	if (!roots_surface) {
 		return;
 	}
-	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-	wl_list_init(&roots_surface->ping_timeout.link);
-	wl_list_init(&roots_surface->request_move.link);
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
-	wl_list_init(&roots_surface->request_resize.link);
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
-	wl_list_init(&roots_surface->request_set_fullscreen.link);
-	wl_list_init(&roots_surface->request_set_maximized.link);
-	wl_list_init(&roots_surface->surface_commit.link);
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit,
 		&roots_surface->surface_commit);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (!view) {
+		free(roots_surface);
+		return;
+	}
 	view->type = ROOTS_WL_SHELL_VIEW;
 
 	view->wl_shell_surface = surface;
@@ -121,9 +115,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
 		// we need to map it relative to the parent
-		int i =
-			list_seq_find(desktop->views,
-				shell_surface_compare_equals, surface->parent);
+		int i = list_seq_find(desktop->views, shell_surface_compare_equals,
+			surface->parent);
 		if (i != -1) {
 			struct roots_view *parent = desktop->views->items[i];
 			view_set_position(view,

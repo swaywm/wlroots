@@ -74,12 +74,10 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, destroy);
+	wl_list_remove(&roots_xdg_surface->commit.link);
 	wl_list_remove(&roots_xdg_surface->destroy.link);
-	wl_list_remove(&roots_xdg_surface->ping_timeout.link);
 	wl_list_remove(&roots_xdg_surface->request_move.link);
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
-	wl_list_remove(&roots_xdg_surface->request_show_window_menu.link);
-	wl_list_remove(&roots_xdg_surface->request_minimize.link);
 	view_destroy(roots_xdg_surface->view);
 	free(roots_xdg_surface);
 }
@@ -105,22 +103,15 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	if (!roots_surface) {
 		return;
 	}
-	wl_list_init(&roots_surface->commit.link);
 	roots_surface->commit.notify = handle_commit;
 	wl_signal_add(&surface->events.commit, &roots_surface->commit);
-	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-	wl_list_init(&roots_surface->ping_timeout.link);
-	wl_list_init(&roots_surface->request_minimize.link);
-	wl_list_init(&roots_surface->request_move.link);
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
-	wl_list_init(&roots_surface->request_resize.link);
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
-	wl_list_init(&roots_surface->request_show_window_menu.link);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	view->type = ROOTS_XDG_SHELL_V6_VIEW;

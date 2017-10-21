@@ -75,10 +75,8 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	if (roots_surface == NULL) {
 		return;
 	}
-	wl_list_init(&roots_surface->destroy.link);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-	wl_list_init(&roots_surface->request_configure.link);
 	roots_surface->request_configure.notify = handle_request_configure;
 	wl_signal_add(&surface->events.request_configure,
 		&roots_surface->request_configure);
