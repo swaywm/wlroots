@@ -112,7 +112,6 @@ struct wlr_drm_mode {
 
 struct wlr_drm_connector {
 	struct wlr_output output;
-	struct wlr_drm_backend *drm;
 
 	enum wlr_drm_connector_state state;
 	uint32_t id;
