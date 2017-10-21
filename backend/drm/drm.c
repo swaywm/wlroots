@@ -177,9 +177,6 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 		if (plane->wlr_tex) {
 			wlr_texture_destroy(plane->wlr_tex);
 		}
-		if (plane->wlr_rend) {
-			wlr_renderer_destroy(plane->wlr_rend);
-		}
 	}
 
 	free(drm->crtcs);
@@ -525,12 +522,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 		// TODO the image needs to be rotated depending on the output rotation
 
-		plane->wlr_rend = wlr_gles2_renderer_create(&drm->backend);
-		if (!plane->wlr_rend) {
-			return false;
-		}
-
-		plane->wlr_tex = wlr_render_texture_create(plane->wlr_rend);
+		plane->wlr_tex = wlr_render_texture_create(plane->surf.renderer->wlr_rend);
 		if (!plane->wlr_tex) {
 			return false;
 		}
@@ -595,7 +587,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	float matrix[16];
 	wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-	wlr_render_with_matrix(plane->wlr_rend, plane->wlr_tex, &matrix);
+	wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex, &matrix);
 
 	glFinish();
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
