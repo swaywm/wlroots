@@ -79,11 +79,12 @@ static void cursor_set_xcursor_image(struct roots_input *input,
 }
 
 static struct wl_list *surface_layers_update_position(
-		struct roots_desktop *desktop, struct wl_list *layer_surfaces, double x,
+		struct roots_input *input, struct wl_list *layer_surfaces, double x,
 		double y, uint32_t time, enum surface_layers_layer until_layer,
-		struct wlr_layer_surface **exclusive, double *exclusive_sx,
-		double *exclusive_sy) {
+		struct wl_list **focused_list, struct wlr_layer_surface **exclusive,
+		double *exclusive_sx, double *exclusive_sy) {
 	struct wlr_layer_surface *layer_surface;
+	struct roots_focused_layer_surface *focused_layer_surface;
 	wl_list_for_each_reverse(layer_surface, layer_surfaces, link) {
 		if (layer_surface->layer < until_layer) {
 			return layer_surface->link.next;
@@ -93,9 +94,37 @@ static struct wl_list *surface_layers_update_position(
 			continue;
 		}
 
+		if (*focused_list != &input->cursor_focused_layer_surfaces) {
+			focused_layer_surface = wl_container_of(*focused_list,
+				focused_layer_surface, link);
+		} else {
+			// Head of list
+			focused_layer_surface = NULL;
+		}
+
+		struct wl_client *client =
+			wl_resource_get_client(layer_surface->resource);
+		struct wlr_seat_handle *handle =
+			wlr_seat_handle_for_client(input->wl_seat, client);
+
 		double sx, sy;
-		bool ok = layer_surface_is_at(desktop, layer_surface, x, y, &sx, &sy);
+		bool ok = layer_surface_is_at(input->server->desktop, layer_surface,
+			x, y, &sx, &sy);
 		if (!ok) {
+			if (focused_layer_surface != NULL &&
+					focused_layer_surface->layer_surface == layer_surface) {
+				// We're leaving this surface
+				*focused_list = (*focused_list)->prev;
+				wl_list_remove(&focused_layer_surface->link);
+				free(focused_layer_surface);
+
+				if (handle && handle->pointer) {
+					uint32_t serial =
+						wl_display_next_serial(handle->wlr_seat->display);
+					wl_pointer_send_leave(handle->pointer, serial,
+						layer_surface->surface->resource);
+				}
+			}
 			continue;
 		}
 
@@ -107,11 +136,30 @@ static struct wl_list *surface_layers_update_position(
 			return NULL;
 		}
 
-		// TODO: send enter, leave
-		struct wl_client *client =
-			wl_resource_get_client(layer_surface->resource);
-		struct wlr_seat_handle *handle =
-			wlr_seat_handle_for_client(desktop->server->input->wl_seat, client);
+		if (focused_layer_surface &&
+				focused_layer_surface->layer_surface == layer_surface) {
+			// This surface was already focused last time
+			*focused_list = (*focused_list)->prev;
+		} else if (!focused_layer_surface ||
+				focused_layer_surface->layer_surface != layer_surface) {
+			// We're entering this surface
+			focused_layer_surface =
+				calloc(1, sizeof(struct roots_focused_layer_surface));
+			if (focused_layer_surface == NULL) {
+				return NULL;
+			}
+			focused_layer_surface->layer_surface = layer_surface;
+			wl_list_insert(*focused_list, &focused_layer_surface->link);
+
+			if (handle && handle->pointer) {
+				uint32_t serial =
+					wl_display_next_serial(handle->wlr_seat->display);
+				wl_pointer_send_enter(handle->pointer, serial,
+					layer_surface->surface->resource, wl_fixed_from_double(sx),
+					wl_fixed_from_double(sy));
+			}
+		}
+
 		if (handle && handle->pointer) {
 			wl_pointer_send_motion(handle->pointer, time,
 				wl_fixed_from_double(sx), wl_fixed_from_double(sy));
@@ -127,13 +175,16 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	double sx, sy;
 	struct wlr_layer_surface *layer_surface = NULL;
 	struct wl_list *remaining_layer_surfaces;
+	struct wl_list *focused_layer_surfaces;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		// Send events to non-exclusive layer surfaces, check if a layer surface
 		// gets exclusive events
-		remaining_layer_surfaces = surface_layers_update_position(desktop,
-			&desktop->surface_layers->surfaces, input->cursor->x,
-			input->cursor->y, time, SURFACE_LAYERS_LAYER_TOP, &layer_surface,
+		remaining_layer_surfaces = &desktop->surface_layers->surfaces;
+		focused_layer_surfaces = input->cursor_focused_layer_surfaces.prev;
+		remaining_layer_surfaces = surface_layers_update_position(input,
+			remaining_layer_surfaces, input->cursor->x, input->cursor->y, time,
+			SURFACE_LAYERS_LAYER_TOP, &focused_layer_surfaces, &layer_surface,
 			&sx, &sy);
 
 		if (layer_surface) {
@@ -146,12 +197,15 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 
 		// No focused view, look for a layer surface underneath
 		if (!surface && remaining_layer_surfaces) {
-			surface_layers_update_position(desktop, remaining_layer_surfaces,
+			surface_layers_update_position(input, remaining_layer_surfaces,
 				input->cursor->x, input->cursor->y, time,
-				SURFACE_LAYERS_LAYER_BACKGROUND, &layer_surface, &sx, &sy);
+				SURFACE_LAYERS_LAYER_BACKGROUND, &focused_layer_surfaces,
+				&layer_surface, &sx, &sy);
 			if (layer_surface) {
 				surface = layer_surface->surface;
 			}
+		} else {
+			// TODO: send leave to focused_layer_surfaces
 		}
 
 		// We need to set the compositor cursor if we're switching between

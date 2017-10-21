@@ -71,6 +71,11 @@ struct roots_touch_point {
 	struct wl_list link;
 };
 
+struct roots_focused_layer_surface {
+	struct wlr_layer_surface *layer_surface;
+	struct wl_list link;
+};
+
 struct roots_input {
 	struct roots_config *config;
 	struct roots_server *server;
@@ -88,6 +93,10 @@ struct roots_input {
 	int view_x, view_y, view_width, view_height;
 	float view_rotation;
 	uint32_t resize_edges;
+
+	// list of roots_focused_layer_surface, in the exact same order as
+	// surface_layers.surfaces
+	struct wl_list cursor_focused_layer_surfaces;
 
 	// Ring buffer of input events that could trigger move/resize/rotate
 	int input_events_idx;

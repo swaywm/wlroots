@@ -29,6 +29,18 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
+
+	// Remove the surface from the list of cursor focused surfaces
+	struct wl_list *focused_list =
+		&roots_surface->desktop->server->input->cursor_focused_layer_surfaces;
+	struct roots_focused_layer_surface *focused, *tmp;
+	wl_list_for_each_safe(focused, tmp, focused_list, link) {
+		if (focused->layer_surface == roots_surface->layer_surface) {
+			wl_list_remove(&focused->link);
+			free(focused);
+		}
+	}
+
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->commit.link);
 	free(roots_surface);
