@@ -157,7 +157,7 @@ static const struct wl_seat_listener seat_listener = {
 	.name = seat_handle_name,
 };
 
-void global_registry_handler(void *data, struct wl_registry *registry,
+void registry_handle_global_add(void *data, struct wl_registry *registry,
 		uint32_t id, const char *interface, uint32_t version) {
 	printf("Got a registry event for %s id %d\n", interface, id);
 	if (strcmp(interface, "wl_compositor") == 0) {
@@ -173,13 +173,14 @@ void global_registry_handler(void *data, struct wl_registry *registry,
 	}
 }
 
-static void global_registry_remover(void *data, struct wl_registry *registry,
-		uint32_t id) {
+static void registry_handle_global_remove(void *data,
+		struct wl_registry *registry, uint32_t id) {
 	printf("Got a registry losing event for %d\n", id);
 }
 
 static const struct wl_registry_listener registry_listener = {
-	global_registry_handler, global_registry_remover,
+	.global = registry_handle_global_add,
+	.global_remove = registry_handle_global_remove,
 };
 
 static void redraw(void *data, struct wl_callback *callback, uint32_t time) {
@@ -199,6 +200,18 @@ static void configure_callback(void *data, struct wl_callback *callback,
 
 static struct wl_callback_listener configure_callback_listener = {
 	.done = configure_callback,
+};
+
+static void layer_surface_handle_configure(void *data,
+		struct layer_surface *layer, uint32_t width, uint32_t height) {
+	printf("Got a layer surface configure event with size %dx%d\n", width,
+		height);
+	wl_egl_window_resize(egl_window, width, height, 0, 0);
+	draw();
+}
+
+static const struct layer_surface_listener layer_listener = {
+	.configure = layer_surface_handle_configure,
 };
 
 static void init_egl() {
@@ -432,10 +445,13 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	layer_surface_add_listener(layer, &layer_listener, NULL);
+
 	layer_surface_set_anchor(layer, anchor);
 	layer_surface_set_interactivity(layer, input_types, exclusive_types);
 	layer_surface_set_margin(layer, margin_horizontal, margin_vertical);
 	// TODO: layer_surface_set_exclusive_zone
+	// create_window will commit the layer surface state
 
 	init_egl();
 	create_window();

@@ -62,4 +62,10 @@ void wlr_surface_layers_destroy(struct wlr_surface_layers *surface_layers);
 void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
 	double *x, double *y);
 
+/**
+ * Sends a configure event to the layer surface.
+ */
+void wlr_layer_surface_configure(struct wlr_layer_surface *layer_surface,
+	int32_t width, int32_t height);
+
 #endif

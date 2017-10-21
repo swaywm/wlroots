@@ -138,6 +138,24 @@
       <arg name="vertical" type="int"/>
     </request>
 
+    <event name="configure">
+      <description summary="suggest a surface change">
+        The configure event asks the client to resize its surface.
+
+        The size is a hint, in the sense that the client is free to ignore it if
+        it doesn't resize, pick a smaller size (to satisfy aspect ratio or
+        resize in steps of NxM pixels).
+
+        The client is free to dismiss all but the last configure event it
+        received.
+
+        The width and height arguments specify the size of the window in
+        surface-local coordinates.
+      </description>
+      <arg name="width" type="uint"/>
+      <arg name="height" type="uint"/>
+    </event>
+
     <enum name="error">
       <entry name="invalid_input_device" value="0" summary="input device bitfield is invalid"/>
       <entry name="invalid_anchor" value="1" summary="anchor bitfield is invalid"/>

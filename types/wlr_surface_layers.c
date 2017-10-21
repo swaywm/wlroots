@@ -111,6 +111,11 @@ void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
 	}
 }
 
+void wlr_layer_surface_configure(struct wlr_layer_surface *layer_surface,
+		int32_t width, int32_t height) {
+	layer_surface_send_configure(layer_surface->resource, width, height);
+}
+
 static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
 	wl_list_remove(&surface->link);

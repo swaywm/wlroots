@@ -15,7 +15,6 @@
 static void handle_commit(struct wl_listener *listener, void *data) {
 	//struct roots_layer_surface *roots_surface =
 	//	wl_container_of(listener, roots_surface, commit);
-	//struct roots_desktop *desktop = roots_surface->desktop;
 	// TODO: is there anything to do here?
 }
 
