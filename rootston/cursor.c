@@ -337,7 +337,26 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
-	// TODO: surface layers
+
+	struct roots_focused_layer_surface *focused_layer_surface;
+	wl_list_for_each_reverse(focused_layer_surface,
+			&input->cursor_focused_layer_surfaces, link) {
+		struct wl_client *client = wl_resource_get_client(
+			focused_layer_surface->layer_surface->resource);
+		struct wlr_seat_handle *handle =
+			wlr_seat_handle_for_client(input->wl_seat, client);
+		if (handle && handle->pointer) {
+			if (event->delta) {
+				wl_pointer_send_axis(handle->pointer, event->time_sec,
+					event->orientation, wl_fixed_from_double(event->delta));
+			} else if (wl_resource_get_version(handle->pointer) >=
+					WL_POINTER_AXIS_STOP_SINCE_VERSION) {
+				wl_pointer_send_axis_stop(handle->pointer, event->time_sec,
+					event->orientation);
+			}
+		}
+	}
+
 	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_sec,
 		event->orientation, event->delta);
 }
@@ -365,7 +384,21 @@ static void do_cursor_button_press(struct roots_input *input,
 	struct roots_desktop *desktop = input->server->desktop;
 	struct wlr_surface *surface;
 	double sx, sy;
-	// TODO: surface layers
+
+	struct roots_focused_layer_surface *focused_layer_surface;
+	wl_list_for_each_reverse(focused_layer_surface,
+			&input->cursor_focused_layer_surfaces, link) {
+		struct wl_client *client = wl_resource_get_client(
+			focused_layer_surface->layer_surface->resource);
+		struct wlr_seat_handle *handle =
+			wlr_seat_handle_for_client(input->wl_seat, client);
+		if (handle && handle->pointer) {
+			uint32_t serial = wl_display_next_serial(handle->wlr_seat->display);
+			wl_pointer_send_button(handle->pointer, serial, time, button,
+				state);
+		}
+	}
+
 	struct roots_view *view = view_at(desktop,
 		input->cursor->x, input->cursor->y, &surface, &sx, &sy);
 
