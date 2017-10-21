@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 700
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -82,8 +83,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 	double sx, sy;
 	switch (input->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		view = view_at(desktop, input->cursor->x, input->cursor->y, &surface,
-			&sx, &sy);
+		view = view_at(desktop, input->cursor->x, input->cursor->y,
+			&surface, &sx, &sy);
 		bool set_compositor_cursor = !view && input->cursor_client;
 		if (view) {
 			struct wl_client *view_client =
@@ -286,6 +287,56 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 			(uint32_t)(event->time_usec / 1000), event->button, event->state);
 }
 
+static void handle_touch_down(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_down *event = data;
+	struct roots_input *input =
+		wl_container_of(listener, input, cursor_touch_down);
+	struct roots_touch_point *point =
+		calloc(1, sizeof(struct roots_touch_point));
+	point->device = event->device->data;
+	point->slot = event->slot;
+	point->x = event->x_mm / event->width_mm;
+	point->y = event->y_mm / event->height_mm;
+	wlr_cursor_warp_absolute(input->cursor, event->device, point->x, point->y);
+	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+	wl_list_insert(&input->touch_points, &point->link);
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 1);
+}
+
+static void handle_touch_up(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_up *event = data;
+	struct roots_input *input =
+			wl_container_of(listener, input, cursor_touch_up);
+	struct roots_touch_point *point;
+	wl_list_for_each(point, &input->touch_points, link) {
+		if (point->slot == event->slot) {
+			wl_list_remove(&point->link);
+			break;
+		}
+	}
+	do_cursor_button_press(input, input->cursor, event->device,
+			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 0);
+}
+
+static void handle_touch_motion(struct wl_listener *listener, void *data) {
+	struct wlr_event_touch_motion *event = data;
+	struct roots_input *input =
+		wl_container_of(listener, input, cursor_touch_motion);
+	struct roots_touch_point *point;
+	wl_list_for_each(point, &input->touch_points, link) {
+		if (point->slot == event->slot) {
+			point->x = event->x_mm / event->width_mm;
+			point->y = event->y_mm / event->height_mm;
+			wlr_cursor_warp_absolute(input->cursor, event->device,
+					point->x, point->y);
+			cursor_update_position(input,
+					(uint32_t)(event->time_usec / 1000));
+			break;
+		}
+	}
+}
+
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_axis);
 	struct wlr_event_tablet_tool_axis *event = data;
@@ -342,6 +393,9 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 void cursor_initialize(struct roots_input *input) {
 	struct wlr_cursor *cursor = input->cursor;
+	
+	// TODO: Does this belong here
+	wl_list_init(&input->touch_points);
 
 	wl_list_init(&input->cursor_motion.link);
 	wl_signal_add(&cursor->events.motion, &input->cursor_motion);
@@ -359,6 +413,18 @@ void cursor_initialize(struct roots_input *input) {
 	wl_list_init(&input->cursor_axis.link);
 	wl_signal_add(&cursor->events.axis, &input->cursor_axis);
 	input->cursor_axis.notify = handle_cursor_axis;
+
+	wl_list_init(&input->cursor_touch_down.link);
+	wl_signal_add(&cursor->events.touch_down, &input->cursor_touch_down);
+	input->cursor_touch_down.notify = handle_touch_down;
+
+	wl_list_init(&input->cursor_touch_up.link);
+	wl_signal_add(&cursor->events.touch_up, &input->cursor_touch_up);
+	input->cursor_touch_up.notify = handle_touch_up;
+
+	wl_list_init(&input->cursor_touch_motion.link);
+	wl_signal_add(&cursor->events.touch_motion, &input->cursor_touch_motion);
+	input->cursor_touch_motion.notify = handle_touch_motion;
 
 	wl_list_init(&input->cursor_tool_axis.link);
 	wl_signal_add(&cursor->events.tablet_tool_axis, &input->cursor_tool_axis);

@@ -24,18 +24,12 @@ struct roots_keyboard {
 struct roots_pointer {
 	struct roots_input *input;
 	struct wlr_input_device *device;
-	// We don't listen to any pointer events directly - they go through
-	// wlr_cursor
 	struct wl_list link;
 };
 
 struct roots_touch {
 	struct roots_input *input;
 	struct wlr_input_device *device;
-	struct wl_listener down;
-	struct wl_listener up;
-	struct wl_listener motion;
-	struct wl_listener cancel;
 	struct wl_list link;
 };
 
@@ -68,6 +62,13 @@ struct roots_input_event {
 	uint32_t serial;
 	struct wlr_cursor *cursor;
 	struct wlr_input_device *device;
+};
+
+struct roots_touch_point {
+	struct roots_touch *device;
+	int32_t slot;
+	double x, y;
+	struct wl_list link;
 };
 
 struct roots_input {
@@ -104,8 +105,15 @@ struct roots_input {
 	struct wl_listener cursor_motion_absolute;
 	struct wl_listener cursor_button;
 	struct wl_listener cursor_axis;
+
+	struct wl_listener cursor_touch_down;
+	struct wl_listener cursor_touch_up;
+	struct wl_listener cursor_touch_motion;
+
 	struct wl_listener cursor_tool_axis;
 	struct wl_listener cursor_tool_tip;
+
+	struct wl_list touch_points;
 
 	struct wl_listener pointer_grab_end;
 
@@ -120,6 +128,8 @@ void pointer_add(struct wlr_input_device *device, struct roots_input *input);
 void pointer_remove(struct wlr_input_device *device, struct roots_input *input);
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input);
 void keyboard_remove(struct wlr_input_device *device, struct roots_input *input);
+void touch_add(struct wlr_input_device *device, struct roots_input *input);
+void touch_remove(struct wlr_input_device *device, struct roots_input *input);
 void tablet_tool_add(struct wlr_input_device *device, struct roots_input *input);
 void tablet_tool_remove(struct wlr_input_device *device, struct roots_input *input);
 

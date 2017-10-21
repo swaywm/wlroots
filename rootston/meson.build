@@ -9,6 +9,7 @@ sources = [
 	'output.c',
 	'pointer.c',
 	'tablet_tool.c',
+	'touch.c',
 	'xdg_shell_v6.c',
 	'wl_shell.c',
 ]
