@@ -8,7 +8,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>
@@ -26,8 +26,8 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 			output->make, output->model, output->transform);
 	}
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
-		for (size_t i = 0; i < output->modes->length; ++i) {
-			struct wlr_output_mode *mode = output->modes->items[i];
+		struct wlr_output_mode *mode;
+		wl_list_for_each(mode, &output->modes, link) {
 			// TODO: mode->flags should just be preferred
 			uint32_t flags = mode->flags;
 			if (output->current_mode == mode) {
@@ -37,7 +37,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 				mode->width, mode->height, mode->refresh);
 		}
 
-		if (output->modes->length == 0) {
+		if (wl_list_length(&output->modes) == 0) {
 			// Output has no mode, send the current width/height
 			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
 				output->width, output->height, 0);
@@ -310,7 +310,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
 	output->backend = backend;
 	output->impl = impl;
-	output->modes = list_create();
+	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_signal_init(&output->events.frame);
@@ -334,11 +334,11 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wlr_texture_destroy(output->cursor.texture);
 	wlr_renderer_destroy(output->cursor.renderer);
 
-	for (size_t i = 0; output->modes && i < output->modes->length; ++i) {
-		struct wlr_output_mode *mode = output->modes->items[i];
+	struct wlr_output_mode *mode, *tmp_mode;
+	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
 		free(mode);
 	}
-	list_free(output->modes);
+	wl_list_remove(&output->modes);
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {

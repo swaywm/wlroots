@@ -9,7 +9,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
 #include "backend/drm/drm.h"
@@ -29,8 +29,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 
 	wlr_drm_restore_outputs(drm);
 
-	for (size_t i = 0; drm->outputs && i < drm->outputs->length; ++i) {
-		struct wlr_drm_connector *conn = drm->outputs->items[i];
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
 		wlr_output_destroy(&conn->output);
 	}
 
@@ -38,7 +38,6 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 	wlr_drm_renderer_finish(&drm->renderer);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
-	list_free(drm->outputs);
 	free(drm);
 }
 
@@ -64,8 +63,8 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	if (session->active) {
 		wlr_log(L_INFO, "DRM fd resumed");
 
-		for (size_t i = 0; i < drm->outputs->length; ++i) {
-			struct wlr_drm_connector *conn = drm->outputs->items[i];
+		struct wlr_drm_connector *conn;
+		wl_list_for_each(conn, &drm->outputs, link){
 			wlr_drm_connector_start_renderer(conn);
 
 			if (!conn->crtc) {
@@ -110,11 +109,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	wlr_backend_init(&drm->backend, &backend_impl);
 
 	drm->session = session;
-	drm->outputs = list_create();
-	if (!drm->outputs) {
-		wlr_log(L_ERROR, "Failed to allocate list");
-		goto error_backend;
-	}
+	wl_list_init(&drm->outputs);
 
 	drm->fd = gpu_fd;
 	drm->parent = (struct wlr_drm_backend *)parent;
@@ -158,8 +153,6 @@ error_event:
 	wl_event_source_remove(drm->drm_event);
 error_fd:
 	wlr_session_close_file(drm->session, drm->fd);
-	list_free(drm->outputs);
-error_backend:
 	free(drm);
 	return NULL;
 }

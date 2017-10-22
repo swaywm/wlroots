@@ -248,8 +248,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wlr_output->height = 480;
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
-			backend->outputs->length + 1);
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d",
+			wl_list_length(&backend->outputs) + 1);
 	wlr_output_update_matrix(wlr_output);
 
 	output->backend = backend;
@@ -306,10 +306,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		goto error;
 	}
 
-	if (list_add(backend->outputs, wlr_output) == -1) {
-		wlr_log(L_ERROR, "Allocation failed");
-		goto error;
-	}
+	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_create_global(wlr_output, backend->local_display);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;

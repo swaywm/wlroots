@@ -8,12 +8,13 @@
 #include <xf86drmMode.h>
 #include <EGL/egl.h>
 #include <gbm.h>
+#include <wayland-util.h>
 
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/render/egl.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 
 #include "iface.h"
 #include "properties.h"
@@ -92,7 +93,7 @@ struct wlr_drm_backend {
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 
-	list_t *outputs;
+	struct wl_list outputs;
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
@@ -128,6 +129,7 @@ struct wlr_drm_connector {
 
 	bool pageflip_pending;
 	struct wl_event_source *retry_pageflip;
+	struct wl_list link;
 };
 
 bool wlr_drm_check_features(struct wlr_drm_backend *drm);

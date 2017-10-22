@@ -21,6 +21,7 @@
 #include <wlr/xcursor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_list.h>
 #include "shared.h"
 #include "config.h"
 #include "cat.h"
@@ -45,7 +46,7 @@ struct sample_state {
 	struct wl_listener touch_up;
 	struct wl_listener touch_down;
 	struct wl_listener touch_cancel;
-	list_t *touch_points;
+	struct wlr_list *touch_points;
 
 	struct wl_listener tablet_tool_axis;
 	struct wl_listener tablet_tool_proxmity;

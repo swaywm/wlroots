@@ -2,13 +2,13 @@
 #define WLR_TYPES_WLR_DATA_SOURCE_H
 
 #include <wayland-server.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 
 struct wlr_data_source_impl;
 
 struct wlr_data_source {
 	struct wlr_data_source_impl *impl;
-	list_t *types;
+	struct wlr_list *types;
 	void *data;
 
 	struct {

@@ -3,10 +3,10 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 
-list_t *list_create(void) {
-	list_t *list = malloc(sizeof(list_t));
+struct wlr_list *list_create(void) {
+	struct wlr_list *list = malloc(sizeof(struct wlr_list));
 	if (!list) {
 		return NULL;
 	}
@@ -20,7 +20,7 @@ list_t *list_create(void) {
 	return list;
 }
 
-static bool list_resize(list_t *list) {
+static bool list_resize(struct wlr_list *list) {
 	if (list->length == list->capacity) {
 		void *new_items = realloc(list->items, sizeof(void*) * (list->capacity + 10));
 		if (!new_items) {
@@ -32,7 +32,7 @@ static bool list_resize(list_t *list) {
 	return true;
 }
 
-void list_free(list_t *list) {
+void list_free(struct wlr_list *list) {
 	if (list == NULL) {
 		return;
 	}
@@ -40,7 +40,7 @@ void list_free(list_t *list) {
 	free(list);
 }
 
-void list_foreach(list_t *list, void (*callback)(void *item)) {
+void list_foreach(struct wlr_list *list, void (*callback)(void *item)) {
 	if (list == NULL || callback == NULL) {
 		return;
 	}
@@ -49,7 +49,7 @@ void list_foreach(list_t *list, void (*callback)(void *item)) {
 	}
 }
 
-int list_add(list_t *list, void *item) {
+int list_add(struct wlr_list *list, void *item) {
 	if (!list_resize(list)) {
 		return -1;
 	}
@@ -57,11 +57,11 @@ int list_add(list_t *list, void *item) {
 	return list->length;
 }
 
-int list_push(list_t *list, void *item) {
+int list_push(struct wlr_list *list, void *item) {
 	return list_add(list, item);
 }
 
-int list_insert(list_t *list, size_t index, void *item) {
+int list_insert(struct wlr_list *list, size_t index, void *item) {
 	if (!list_resize(list)) {
 		return -1;
 	}
@@ -71,22 +71,22 @@ int list_insert(list_t *list, size_t index, void *item) {
 	return list->length;
 }
 
-void list_del(list_t *list, size_t index) {
+void list_del(struct wlr_list *list, size_t index) {
 	list->length--;
 	memmove(&list->items[index], &list->items[index + 1], sizeof(void*) * (list->length - index));
 }
 
-void *list_pop(list_t *list) {
+void *list_pop(struct wlr_list *list) {
 	void *_ = list->items[list->length - 1];
 	list_del(list, list->length - 1);
 	return _;
 }
 
-void *list_peek(list_t *list) {
+void *list_peek(struct wlr_list *list) {
 	return list->items[list->length - 1];
 }
 
-int list_cat(list_t *list, list_t *source) {
+int list_cat(struct wlr_list *list, struct wlr_list *source) {
 	size_t old_len = list->length;
 	size_t i;
 	for (i = 0; i < source->length; ++i) {
@@ -98,11 +98,11 @@ int list_cat(list_t *list, list_t *source) {
 	return list->length;
 }
 
-void list_qsort(list_t *list, int compare(const void *left, const void *right)) {
+void list_qsort(struct wlr_list *list, int compare(const void *left, const void *right)) {
 	qsort(list->items, list->length, sizeof(void *), compare);
 }
 
-int list_seq_find(list_t *list,
+int list_seq_find(struct wlr_list *list,
 		int compare(const void *item, const void *data),
 		const void *data) {
 	for (size_t i = 0; i < list->length; i++) {

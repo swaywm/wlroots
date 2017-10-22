@@ -16,7 +16,7 @@
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include "shared.h"
 #include "cat.h"
@@ -24,7 +24,7 @@
 struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wlr_texture *cat_texture;
-	list_t *touch_points;
+	struct wlr_list *touch_points;
 };
 
 struct touch_point {

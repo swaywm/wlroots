@@ -1,15 +1,15 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
-#include <stdbool.h>
+#include <wayland-util.h>
 #include <wayland-server.h>
-#include <wlr/backend.h>
-#include <wlr/util/list.h>
+#include <stdbool.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz
+	struct wl_list link;
 };
 
 struct wlr_output_impl;
@@ -34,7 +34,7 @@ struct wlr_output {
 	float transform_matrix[16];
 
 	/* Note: some backends may have zero modes */
-	list_t *modes;
+	struct wl_list modes;
 	struct wlr_output_mode *current_mode;
 
 	struct {
