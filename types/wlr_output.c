@@ -76,21 +76,38 @@ static void wl_output_bind(struct wl_client *wl_client, void *_wlr_output,
 	struct wlr_output *wlr_output = _wlr_output;
 	assert(wl_client && wlr_output);
 
-	struct wl_resource *wl_resource = wl_resource_create(
-			wl_client, &wl_output_interface, version, id);
-	wl_resource_set_implementation(wl_resource, &wl_output_impl,
-			wlr_output, wl_output_destroy);
-	wl_list_insert(&wlr_output->wl_resources, wl_resource_get_link(wl_resource));
+	struct wl_resource *wl_resource = wl_resource_create(wl_client,
+		&wl_output_interface, version, id);
+	wl_resource_set_implementation(wl_resource, &wl_output_impl, wlr_output,
+		wl_output_destroy);
+	wl_list_insert(&wlr_output->wl_resources,
+		wl_resource_get_link(wl_resource));
 	wl_output_send_to_resource(wl_resource);
 }
 
-struct wl_global *wlr_output_create_global(
-		struct wlr_output *wlr_output, struct wl_display *display) {
+struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
+		struct wl_display *display) {
+	if (wlr_output->wl_global != NULL) {
+		return wlr_output->wl_global;
+	}
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_output_interface, 3, wlr_output, wl_output_bind);
 	wlr_output->wl_global = wl_global;
 	wl_list_init(&wlr_output->wl_resources);
 	return wl_global;
+}
+
+void wlr_output_destroy_global(struct wlr_output *wlr_output) {
+	if (wlr_output->wl_global == NULL) {
+		return;
+	}
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &wlr_output->wl_resources) {
+		struct wl_list *link = wl_resource_get_link(resource);
+		wl_list_remove(link);
+	}
+	wl_global_destroy(wlr_output->wl_global);
+	wlr_output->wl_global = NULL;
 }
 
 void wlr_output_update_matrix(struct wlr_output *output) {

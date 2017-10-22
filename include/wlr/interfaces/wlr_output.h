@@ -26,7 +26,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	const struct wlr_output_impl *impl);
 void wlr_output_free(struct wlr_output *output);
 void wlr_output_update_matrix(struct wlr_output *output);
-struct wl_global *wlr_output_create_global(
-	struct wlr_output *wlr_output, struct wl_display *display);
+struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
+	struct wl_display *display);
+void wlr_output_destroy_global(struct wlr_output *wlr_output);
 
 #endif

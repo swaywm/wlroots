@@ -267,10 +267,6 @@ int main(int argc, char *argv[]) {
 
 	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
-		if (output->width == 0 || output->height == 0) {
-			continue;
-		}
-
 		output->buffer = create_shm_buffer(output->width, output->height, &output->data);
 		if (output->buffer == NULL) {
 			return -1;
