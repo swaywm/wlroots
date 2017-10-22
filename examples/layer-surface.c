@@ -224,11 +224,19 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 static void layer_surface_handle_configure(void *data,
-		struct layer_surface *layer, uint32_t width, uint32_t height) {
-	printf("Got a layer surface configure event with size %dx%d\n", width,
-		height);
-	wl_egl_window_resize(egl_window, width, height, 0, 0);
-	draw();
+		struct layer_surface *layer, uint32_t w, uint32_t h) {
+	printf("Got a layer surface configure event with size %dx%d\n", w, h);
+	if (w != 0) {
+		width = w;
+	}
+	if (h != 0) {
+		height = h;
+	}
+
+	if (egl_window != NULL) {
+		wl_egl_window_resize(egl_window, width, height, 0, 0);
+		draw();
+	}
 }
 
 static const struct layer_surface_listener layer_listener = {
@@ -317,6 +325,7 @@ static void create_window() {
 static void destroy_window() {
 	eglDestroySurface(egl_display, egl_surface);
 	wl_egl_window_destroy(egl_window);
+	egl_window = NULL;
 	eglDestroyContext(egl_display, egl_context);
 
 	fprintf(stderr, "Destroyed egl window\n");
@@ -339,6 +348,10 @@ void create_surface() {
 	}
 
 	layer_surface_add_listener(layer, &layer_listener, NULL);
+
+	// Wait for a configure event
+	wl_display_dispatch(display);
+	wl_display_roundtrip(display);
 
 	layer_surface_set_anchor(layer, anchor);
 	layer_surface_set_interactivity(layer, input_types, exclusive_types);

@@ -70,27 +70,6 @@ static void layer_surface_set_margin(struct wl_client *client,
 	surface->pending->invalid |= WLR_LAYER_SURFACE_INVALID_MARGIN;
 }
 
-void wlr_layer_surface_move_state(struct wlr_layer_surface_state *next,
-		struct wlr_layer_surface_state *state) {
-	if (next->invalid & WLR_LAYER_SURFACE_INVALID_INTERACTIVITY) {
-		state->input_types = next->input_types;
-		state->exclusive_types = next->exclusive_types;
-	}
-	if (next->invalid & WLR_LAYER_SURFACE_INVALID_ANCHOR) {
-		state->anchor = next->anchor;
-	}
-	if (next->invalid & WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE) {
-		state->exclusive_zone = next->exclusive_zone;
-	}
-	if (next->invalid & WLR_LAYER_SURFACE_INVALID_MARGIN) {
-		state->margin_horizontal = next->margin_horizontal;
-		state->margin_vertical = next->margin_vertical;
-	}
-
-	state->invalid |= next->invalid;
-	next->invalid = 0;
-}
-
 void wlr_layer_surface_get_box(struct wlr_layer_surface *layer_surface,
 		struct wlr_box *box) {
 	int width = layer_surface->surface->current->width;
@@ -133,7 +112,8 @@ void wlr_layer_surface_get_box(struct wlr_layer_surface *layer_surface,
 void wlr_layer_surface_configure(struct wlr_layer_surface *layer_surface,
 		int32_t width, int32_t height) {
 	if (layer_surface->surface->current->width == width &&
-			layer_surface->surface->current->height == height) {
+			layer_surface->surface->current->height == height &&
+			layer_surface->configured) {
 		return;
 	}
 	layer_surface_send_configure(layer_surface->resource, width, height);
@@ -152,9 +132,10 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 }
 
 static void layer_surface_resource_destroy(struct wl_resource *resource) {
-	struct wlr_layer_surface *surface = wl_resource_get_user_data(resource);
-	if (surface != NULL) {
-		layer_surface_destroy(surface);
+	struct wlr_layer_surface *layer_surface =
+		wl_resource_get_user_data(resource);
+	if (layer_surface != NULL) {
+		layer_surface_destroy(layer_surface);
 	}
 }
 
@@ -167,10 +148,10 @@ static const struct layer_surface_interface layer_surface_impl = {
 
 static void handle_layer_surface_commit(struct wl_listener *listener,
 		void *data) {
-	struct wlr_layer_surface *surface =
-		wl_container_of(listener, surface, surface_commit_listener);
-	struct wlr_layer_surface_state *state = surface->current;
-	struct wlr_layer_surface_state *next = surface->pending;
+	struct wlr_layer_surface *layer_surface =
+		wl_container_of(listener, layer_surface, surface_commit_listener);
+	struct wlr_layer_surface_state *state = layer_surface->current;
+	struct wlr_layer_surface_state *next = layer_surface->pending;
 
 	if (next->invalid & WLR_LAYER_SURFACE_INVALID_INTERACTIVITY) {
 		state->input_types = next->input_types;
@@ -190,26 +171,25 @@ static void handle_layer_surface_commit(struct wl_listener *listener,
 	state->invalid |= next->invalid;
 	next->invalid = 0;
 
-	wl_signal_emit(&surface->events.commit, surface);
-
-	if (!surface->configured && surface->surface->texture->valid) {
-		surface->configured = true;
-		wl_signal_emit(&surface->surface_layers->events.new_surface, surface);
+	if (!layer_surface->configured && layer_surface->surface->texture->valid) {
+		layer_surface->configured = true;
 	}
+
+	wl_signal_emit(&layer_surface->events.commit, layer_surface);
 }
 
 static void handle_layer_surface_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_layer_surface *surface =
-		wl_container_of(listener, surface, surface_destroy_listener);
-	layer_surface_destroy(surface);
+	struct wlr_layer_surface *layer_surface =
+		wl_container_of(listener, layer_surface, surface_destroy_listener);
+	layer_surface_destroy(layer_surface);
 }
 
 static void handle_layer_surface_output_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_layer_surface *surface =
-		wl_container_of(listener, surface, output_destroy_listener);
-	layer_surface_destroy(surface);
+	struct wlr_layer_surface *layer_surface =
+		wl_container_of(listener, layer_surface, output_destroy_listener);
+	layer_surface_destroy(layer_surface);
 }
 
 static void surface_layers_get_layer_surface(struct wl_client *client,
@@ -224,6 +204,12 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	if (layer > SURFACE_LAYERS_LAYER_OVERLAY) {
 		wl_resource_post_error(resource, SURFACE_LAYERS_ERROR_INVALID_LAYER,
 			"Unknown layer");
+		return;
+	}
+	if (surface->current->buffer != NULL) {
+		wl_resource_post_error(resource,
+			SURFACE_LAYERS_ERROR_ALREADY_CONSTRUCTED,
+			"Surface has a buffer attached or committed");
 		return;
 	}
 	if (wlr_surface_set_role(surface, surface_layers_role, resource,
@@ -292,6 +278,8 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	if (!inserted) {
 		wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
 	}
+
+	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
 
 static const struct surface_layers_interface surface_layers_impl = {

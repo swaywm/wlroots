@@ -41,6 +41,11 @@
         Create a layer surface for an existing surface. This assigns the role of
         layer_surface, or raises a protocol error if another role is already
         assigned.
+
+        Creating a layer surface from a wl_surface which has a buffer attached
+        or committed is a client error, and any attempts by a client to attach
+        or manipulate a buffer prior to the first layer_surface.configure call
+        must also be treated as errors.
       </description>
       <arg name="id" type="new_id" interface="layer_surface"/>
       <arg name="surface" type="object" interface="wl_surface"/>
@@ -49,8 +54,9 @@
     </request>
 
     <enum name="error">
-      <entry name="role" value="0" summary="given wl_surface has another role"/>
+      <entry name="role" value="0" summary="wl_surface has another role"/>
       <entry name="invalid_layer" value="1" summary="layer value is invalid"/>
+      <entry name="already_constructed" value="2" summary="wl_surface has a buffer attached or committed"/>
     </enum>
 
     <enum name="layer">
@@ -145,6 +151,9 @@
         The size is a hint, in the sense that the client is free to ignore it if
         it doesn't resize, pick a smaller size (to satisfy aspect ratio or
         resize in steps of NxM pixels).
+
+        If the width or height arguments are zero, it means the client should
+        decide its own window dimension.
 
         The client is free to dismiss all but the last configure event it
         received.

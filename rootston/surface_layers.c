@@ -87,9 +87,10 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, surface_layers_surface);
+	struct wlr_layer_surface *layer_surface = data;
 
-	struct wlr_layer_surface *surface = data;
-	wlr_log(L_DEBUG, "new surface_layers surface at layer %d", surface->layer);
+	wlr_log(L_DEBUG, "new surface_layers surface at layer %d",
+		layer_surface->layer);
 
 	struct roots_layer_surface *roots_surface =
 		calloc(1, sizeof(struct roots_layer_surface));
@@ -97,14 +98,14 @@ void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	roots_surface->desktop = desktop;
-	roots_surface->layer_surface = surface;
+	roots_surface->layer_surface = layer_surface;
 
 	roots_surface->destroy.notify = handle_destroy;
-	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
+	wl_signal_add(&layer_surface->events.destroy, &roots_surface->destroy);
 	roots_surface->commit.notify = handle_commit;
-	wl_signal_add(&surface->events.commit, &roots_surface->commit);
+	wl_signal_add(&layer_surface->events.commit, &roots_surface->commit);
 	roots_surface->output_resolution.notify = handle_output_resolution;
-	wl_signal_add(&surface->output->events.resolution,
+	wl_signal_add(&layer_surface->output->events.resolution,
 		&roots_surface->output_resolution);
 
 	layer_surface_configure(roots_surface->layer_surface);
