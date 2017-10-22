@@ -404,13 +404,13 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,
-	uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
+	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	if (output->impl->set_gamma) {
 		output->impl->set_gamma(output, size, r, g, b);
 	}
 }
 
-uint16_t wlr_output_get_gamma_size(struct wlr_output *output) {
+uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	if (!output->impl->get_gamma_size) {
 		return 0;
 	}
