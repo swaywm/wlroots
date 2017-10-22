@@ -53,12 +53,7 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *_compositor,
 		uint32_t version, uint32_t id) {
 	struct wlr_compositor *compositor = _compositor;
 	assert(wl_client && compositor);
-	if (version > 4) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_compositor version, "
-			"disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource =
 		wl_resource_create(wl_client, &wl_compositor_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &wl_compositor_impl,

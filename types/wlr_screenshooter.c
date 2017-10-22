@@ -121,12 +121,7 @@ static void screenshooter_bind(struct wl_client *wl_client,
 		void *_screenshooter, uint32_t version, uint32_t id) {
 	struct wlr_screenshooter *screenshooter = _screenshooter;
 	assert(wl_client && screenshooter);
-	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported screenshooter version,"
-			"disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&orbital_screenshooter_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &screenshooter_impl,

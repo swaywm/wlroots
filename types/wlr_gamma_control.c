@@ -69,11 +69,7 @@ static void gamma_control_manager_bind(struct wl_client *wl_client,
 		void *_gamma_control_manager, uint32_t version, uint32_t id) {
 	struct wlr_gamma_control_manager *gamma_control_manager = _gamma_control_manager;
 	assert(wl_client && gamma_control_manager);
-	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported gamma_control version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(
 		wl_client, &gamma_control_manager_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &gamma_control_manager_impl,

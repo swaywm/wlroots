@@ -133,12 +133,7 @@ static void data_device_manager_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_data_device_manager *manager = data;
 	assert(client && manager);
-	if (version > 3) {
-		wlr_log(L_ERROR, "Client requested unsupported data_device_manager "
-			"version, disconnecting");
-		wl_client_destroy(client);
-		return;
-	}
+
 	struct wl_resource *resource = wl_resource_create(
 			client, &wl_data_device_manager_interface, version, id);
 	if (!resource) {
