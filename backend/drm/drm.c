@@ -314,7 +314,8 @@ static void realloc_crtcs(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool *changed_outputs) {
 	uint32_t crtc[drm->num_crtcs];
 	uint32_t crtc_res[drm->num_crtcs];
-	uint32_t possible_crtc[wl_list_length(&drm->outputs)];
+	ssize_t num_outputs = wl_list_length(&drm->outputs);
+	uint32_t possible_crtc[num_outputs];
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		crtc[i] = UNMATCHED;
@@ -330,33 +331,39 @@ static void realloc_crtcs(struct wlr_drm_backend *drm,
 			index = i;
 		}
 
-		if (c->state != WLR_DRM_CONN_CONNECTED) {
-			continue;
+		if (c->crtc) {
+			crtc[c->crtc - drm->crtcs] = i;
 		}
 
-		possible_crtc[i] = c->possible_crtc;
-		crtc[c->crtc - drm->crtcs] = i;
+		if (c->state == WLR_DRM_CONN_CONNECTED) {
+			possible_crtc[i] = c->possible_crtc;
+		}
+
 	}
 	assert(index != -1);
 
 	possible_crtc[index] = conn->possible_crtc;
-	match_obj(wl_list_length(&drm->outputs), possible_crtc, drm->num_crtcs,
-		crtc, crtc_res);
+	match_obj(wl_list_length(&drm->outputs), possible_crtc,
+		drm->num_crtcs, crtc, crtc_res);
 
-	bool matched = false;
+	bool matched[num_outputs];
+	memset(matched, false, sizeof(matched));
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		// We don't want any of the current monitors to be deactivated.
-		if (crtc[i] != UNMATCHED && crtc_res[i] == UNMATCHED) {
-			return;
-		}
-		if (crtc_res[i] == index) {
-			matched = true;
+		if (crtc_res[i] != UNMATCHED) {
+			matched[crtc_res[i]] = true;
 		}
 	}
 
 	// There is no point doing anything if this monitor doesn't get activated
-	if (!matched) {
+	if (!matched[index]) {
 		return;
+	}
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		// We don't want any of the current monitors to be deactivated.
+		if (crtc[i] != UNMATCHED && !matched[crtc[i]]) {
+			return;
+		}
 	}
 
 	changed_outputs[index] = true;
@@ -711,6 +718,9 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
+		drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
+			drm_conn->encoder_id);
+
 		int index = -1;
 		struct wlr_drm_connector *c, *wlr_conn = NULL;
 		wl_list_for_each(c, &drm->outputs, link) {
@@ -720,10 +730,12 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				break;
 			}
 		}
+
 		if (!wlr_conn) {
 			wlr_conn = calloc(1, sizeof(*wlr_conn));
 			if (!wlr_conn) {
 				wlr_log_errno(L_ERROR, "Allocation failed");
+				drmModeFreeEncoder(curr_enc);
 				drmModeFreeConnector(drm_conn);
 				continue;
 			}
@@ -737,11 +749,8 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 			wlr_conn->id = drm_conn->connector_id;
 
-			drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
-					drm_conn->encoder_id);
 			if (curr_enc) {
 				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
-				drmModeFreeEncoder(curr_enc);
 			}
 
 			wlr_conn->output.phys_width = drm_conn->mmWidth;
@@ -765,6 +774,17 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_log(L_INFO, "Found display '%s'", wlr_conn->output.name);
 		} else {
 			seen[index] = true;
+		}
+
+		if (curr_enc) {
+			for (size_t i = 0; i < drm->num_crtcs; ++i) {
+				if (drm->crtcs[i].id == curr_enc->crtc_id) {
+					wlr_conn->crtc = &drm->crtcs[i];
+					break;
+				}
+			}
+		} else {
+			wlr_conn->crtc = NULL;
 		}
 
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
@@ -802,6 +822,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_drm_connector_cleanup(wlr_conn);
 		}
 
+		drmModeFreeEncoder(curr_enc);
 		drmModeFreeConnector(drm_conn);
 	}
 
