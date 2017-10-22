@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <time.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <wayland-client-protocol.h>
@@ -31,6 +32,7 @@ struct wl_pointer *pointer;
 struct wl_keyboard *keyboard;
 
 uint32_t width = 300, height = 200;
+float color[4] = {1.0, 0.0, 0.0, 1.0};
 
 EGLDisplay egl_display;
 EGLConfig egl_conf;
@@ -44,7 +46,7 @@ static void draw() {
 		fprintf(stderr, "Made current failed\n");
 	}
 
-	glClearColor(1.0, 1.0, 0.0, 0.1);
+	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	if (eglSwapBuffers(egl_display, egl_surface)) {
@@ -406,6 +408,11 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	srand((unsigned) time(NULL));
+	color[0] = (float)rand() / RAND_MAX;
+	color[1] = (float)rand() / RAND_MAX;
+	color[2] = (float)rand() / RAND_MAX;
 
 	display = wl_display_connect(NULL);
 	if (display == NULL) {
