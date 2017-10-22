@@ -105,9 +105,9 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
 			wlr_input_device_destroy(wlr_dev);
 		}
-		list_free(wlr_devices);
+		wlr_list_free(wlr_devices);
 	}
-	list_free(backend->wlr_device_lists);
+	wlr_list_free(backend->wlr_device_lists);
 	wl_event_source_remove(backend->input_event);
 	libinput_unref(backend->libinput_context);
 	free(backend);
@@ -148,7 +148,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
 
-	if (!(backend->wlr_device_lists = list_create())) {
+	if (!(backend->wlr_device_lists = wlr_list_create())) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		goto error_backend;
 	}

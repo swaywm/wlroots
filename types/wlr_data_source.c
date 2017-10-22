@@ -14,16 +14,16 @@ bool wlr_data_source_init(struct wlr_data_source *source,
 		struct wlr_data_source_impl *impl) {
 	source->impl = impl;
 	wl_signal_init(&source->events.destroy);
-	return (source->types = list_create());
+	return (source->types = wlr_list_create());
 }
 
 void wlr_data_source_finish(struct wlr_data_source *source) {
 	if (source) {
 		wl_signal_emit(&source->events.destroy, source);
 		if (source->types) {
-			list_foreach(source->types, free);
+			wlr_list_foreach(source->types, free);
 		}
-		list_free(source->types);
+		wlr_list_free(source->types);
 	}
 }
 
@@ -81,7 +81,7 @@ static void data_source_offer(struct wl_client *client,
 		return;
 	}
 
-	list_add(src->base.types, dtype);
+	wlr_list_add(src->base.types, dtype);
 }
 
 static void data_source_destroy(struct wl_client *client,

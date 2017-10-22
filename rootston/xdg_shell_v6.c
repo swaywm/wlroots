@@ -124,7 +124,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;
-	list_add(desktop->views, view);
+	wlr_list_add(desktop->views, view);
 
 	view_initialize(view);
 }

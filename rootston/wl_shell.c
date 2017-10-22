@@ -110,12 +110,12 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;
-	list_add(desktop->views, view);
+	wlr_list_add(desktop->views, view);
 	view_initialize(view);
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
 		// we need to map it relative to the parent
-		int i = list_seq_find(desktop->views, shell_surface_compare_equals,
+		int i = wlr_list_seq_find(desktop->views, shell_surface_compare_equals,
 			surface->parent);
 		if (i != -1) {
 			struct roots_view *parent = desktop->views->items[i];

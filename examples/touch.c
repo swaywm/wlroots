@@ -65,7 +65,7 @@ static void handle_touch_down(struct touch_state *tstate, int32_t slot,
 	point->slot = slot;
 	point->x = x / width;
 	point->y = y / height;
-	if (list_add(sample->touch_points, point) == -1) {
+	if (wlr_list_add(sample->touch_points, point) == -1) {
 		free(point);
 	}
 }
@@ -75,7 +75,7 @@ static void handle_touch_up(struct touch_state *tstate, int32_t slot) {
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
 		if (point->slot == slot) {
-			list_del(sample->touch_points, i);
+			wlr_list_del(sample->touch_points, i);
 			break;
 		}
 	}
@@ -96,7 +96,7 @@ static void handle_touch_motion(struct touch_state *tstate, int32_t slot,
 
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
-		.touch_points = list_create()
+		.touch_points = wlr_list_create()
 	};
 	struct compositor_state compositor = { 0,
 		.data = &state,

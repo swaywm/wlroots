@@ -98,7 +98,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->set_position = set_position;
 	view->close = close;
 	roots_surface->view = view;
-	list_add(desktop->views, view);
+	wlr_list_add(desktop->views, view);
 
 	if (!surface->override_redirect) {
 		view_initialize(view);
