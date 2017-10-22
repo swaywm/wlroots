@@ -24,8 +24,10 @@ struct roots_output {
 struct roots_layer_surface {
 	struct roots_desktop *desktop;
 	struct wlr_layer_surface *layer_surface;
+
 	struct wl_listener destroy;
 	struct wl_listener commit;
+	struct wl_listener output_resolution;
 };
 
 struct roots_desktop {

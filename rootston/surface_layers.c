@@ -57,6 +57,12 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	layer_surface_configure(roots_surface->layer_surface);
 }
 
+static void handle_output_resolution(struct wl_listener *listener, void *data) {
+	struct roots_layer_surface *roots_surface =
+		wl_container_of(listener, roots_surface, output_resolution);
+	layer_surface_configure(roots_surface->layer_surface);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -74,6 +80,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->commit.link);
+	wl_list_remove(&roots_surface->output_resolution.link);
 	free(roots_surface);
 }
 
@@ -96,6 +103,9 @@ void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	roots_surface->commit.notify = handle_commit;
 	wl_signal_add(&surface->events.commit, &roots_surface->commit);
+	roots_surface->output_resolution.notify = handle_output_resolution;
+	wl_signal_add(&surface->output->events.resolution,
+		&roots_surface->output_resolution);
 
 	layer_surface_configure(roots_surface->layer_surface);
 }
