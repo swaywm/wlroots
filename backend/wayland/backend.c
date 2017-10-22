@@ -4,7 +4,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-server.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>

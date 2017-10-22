@@ -42,6 +42,7 @@ struct roots_config {
 	struct wl_list devices;
 	struct wl_list bindings;
 	char *config_path;
+	char *startup_cmd;
 };
 
 struct roots_config *parse_args(int argc, char *argv[]);

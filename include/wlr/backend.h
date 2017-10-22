@@ -3,7 +3,7 @@
 
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 
 struct wlr_backend_impl;
 

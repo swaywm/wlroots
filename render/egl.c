@@ -3,7 +3,7 @@
 #include <GLES2/gl2.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include "render/glapi.h"
 
 // Extension documentation

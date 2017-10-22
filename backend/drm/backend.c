@@ -11,7 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include "backend/drm/drm.h"
 
 static bool wlr_drm_backend_start(struct wlr_backend *backend) {

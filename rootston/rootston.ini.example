@@ -34,8 +34,12 @@ meta-key = Logo
 
 # Keybindings
 # Maps key combinations with commands to execute
-# Use the prefix "exec" to execute a shell command
+# Commands include:
+# - "exit" to stop the compositor
+# - "exec" to execute a shell command
+# - "close" to close the current view
+# - "next_window" to cycle through windows
 [bindings]
-Logo+Shift+e = exit # Stop the compositor
-Logo+q = close # Close the current view
-Alt+Tab = next_window # Cycle through windows
+Logo+Shift+E = exit
+Logo+q = close
+Alt+Tab = next_window

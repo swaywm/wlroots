@@ -21,7 +21,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
-		wl_output_send_geometry(resource, 0, 0, // TODO: get position from layout?
+		wl_output_send_geometry(resource, output->lx, output->ly,
 			output->phys_width, output->phys_height, output->subpixel,
 			output->make, output->model, output->transform);
 	}
@@ -122,6 +122,20 @@ void wlr_output_transform(struct wlr_output *output,
 	wlr_output_update_matrix(output);
 }
 
+void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly) {
+	if (lx == output->lx && ly == output->ly) {
+		return;
+	}
+
+	output->lx = lx;
+	output->ly = ly;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wl_output_send_to_resource(resource);
+	}
+}
+
 static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
 		int32_t hotspot_y) {
@@ -139,8 +153,7 @@ static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
 	output->cursor.height = height;
 
 	if (!output->cursor.renderer) {
-		/* NULL egl is okay given that we are only using pixel buffers */
-		output->cursor.renderer = wlr_gles2_renderer_create(NULL);
+		output->cursor.renderer = wlr_gles2_renderer_create(output->backend);
 		if (!output->cursor.renderer) {
 			return false;
 		}
@@ -293,8 +306,9 @@ bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
 	return output->impl->move_cursor(output, x, y);
 }
 
-void wlr_output_init(struct wlr_output *output,
+void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
+	output->backend = backend;
 	output->impl = impl;
 	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;

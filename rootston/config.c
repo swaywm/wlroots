@@ -16,12 +16,13 @@
 
 static void usage(const char *name, int ret) {
 	fprintf(stderr,
-		"usage: %s [-C <FILE>]\n"
+		"usage: %s [-C <FILE>] [-E <COMMAND>]\n"
 		"\n"
 		" -C <FILE>      Path to the configuration file\n"
 		"                (default: rootston.ini).\n"
 		"                See `rootston.ini.example` for config\n"
-		"                file documentation.\n", name);
+		"                file documentation.\n"
+		" -E <COMMAND>   Command that will be ran at startup.\n" , name);
 
 	exit(ret);
 }
@@ -273,10 +274,13 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	wl_list_init(&config->bindings);
 
 	int c;
-	while ((c = getopt(argc, argv, "C:h")) != -1) {
+	while ((c = getopt(argc, argv, "C:E:h")) != -1) {
 		switch (c) {
 		case 'C':
 			config->config_path = strdup(optarg);
+			break;
+		case 'E':
+			config->startup_cmd = strdup(optarg);
 			break;
 		case 'h':
 		case '?':
@@ -302,7 +306,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using sensible defaults.");
 		config->keyboard.meta_key = WLR_MODIFIER_LOGO;
-		add_binding_config(&config->bindings, "Logo+Shift+e", "exit");
+		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
 	} else if (result == -2) {

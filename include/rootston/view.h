@@ -8,13 +8,12 @@
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;
+
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener ping_timeout;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
-	struct wl_listener request_set_fullscreen;
-	struct wl_listener request_set_maximized;
 
 	struct wl_listener surface_commit;
 };
@@ -25,15 +24,13 @@ struct roots_xdg_surface_v6 {
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener commit;
 	struct wl_listener destroy;
-	struct wl_listener ping_timeout;
-	struct wl_listener request_minimize;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
-	struct wl_listener request_show_window_menu;
 };
 
 struct roots_xwayland_surface {
 	struct roots_view *view;
+
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener request_configure;
