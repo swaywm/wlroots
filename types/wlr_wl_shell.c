@@ -580,12 +580,7 @@ static void shell_bind(struct wl_client *wl_client, void *_wl_shell,
 		uint32_t version, uint32_t id) {
 	struct wlr_wl_shell *wl_shell = _wl_shell;
 	assert(wl_client && wl_shell);
-	if (version > 1) {
-		wlr_log(L_ERROR,
-			"Client requested unsupported wl_shell version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_shell_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &shell_impl, wl_shell,

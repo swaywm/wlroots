@@ -175,12 +175,7 @@ static void wl_seat_bind(struct wl_client *wl_client, void *_wlr_seat,
 		uint32_t version, uint32_t id) {
 	struct wlr_seat *wlr_seat = _wlr_seat;
 	assert(wl_client && wlr_seat);
-	if (version > 6) {
-		wlr_log(L_ERROR,
-			"Client requested unsupported wl_seat version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wlr_seat_handle *handle = calloc(1, sizeof(struct wlr_seat_handle));
 	handle->wl_resource = wl_resource_create(
 			wl_client, &wl_seat_interface, version, id);

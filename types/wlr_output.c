@@ -75,11 +75,7 @@ static void wl_output_bind(struct wl_client *wl_client, void *_wlr_output,
 		uint32_t version, uint32_t id) {
 	struct wlr_output *wlr_output = _wlr_output;
 	assert(wl_client && wlr_output);
-	if (version > 3) {
-		wlr_log(L_ERROR, "Client requested unsupported wl_output version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(
 			wl_client, &wl_output_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &wl_output_impl,

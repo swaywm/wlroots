@@ -1201,12 +1201,7 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 		uint32_t version, uint32_t id) {
 	struct wlr_xdg_shell_v6 *xdg_shell = _xdg_shell;
 	assert(wl_client && xdg_shell);
-	if (version > 1) {
-		wlr_log(L_ERROR,
-			"Client requested unsupported xdg_shell_v6 version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wlr_xdg_client_v6 *client =
 		calloc(1, sizeof(struct wlr_xdg_client_v6));
 	if (client == NULL) {
