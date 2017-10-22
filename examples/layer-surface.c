@@ -18,42 +18,49 @@
 
 struct wl_display *display = NULL;
 struct wl_compositor *compositor = NULL;
-struct wl_output *output = NULL;
 struct surface_layers *layers = NULL;
 
-struct wl_surface *surface;
-struct layer_surface *layer;
-struct wl_egl_window *egl_window;
-struct wl_region *region;
-struct wl_callback *callback;
+struct wl_output *output = NULL;
+uint32_t output_id;
 
-struct wl_seat *seat;
-struct wl_pointer *pointer;
-struct wl_keyboard *keyboard;
+struct wl_surface *surface = NULL;
+struct layer_surface *layer = NULL;
+struct wl_egl_window *egl_window = NULL;
 
-uint32_t width = 300, height = 200;
-float color[4] = {1.0, 0.0, 0.0, 1.0};
+struct wl_seat *seat = NULL;
+struct wl_pointer *pointer = NULL;
+struct wl_keyboard *keyboard = NULL;
 
 EGLDisplay egl_display;
 EGLConfig egl_conf;
 EGLSurface egl_surface;
 EGLContext egl_context;
 
+enum surface_layers_layer layer_index = SURFACE_LAYERS_LAYER_OVERLAY;
+uint32_t anchor = LAYER_SURFACE_ANCHOR_NONE;
+uint32_t input_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
+uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
+int32_t margin_horizontal = 0, margin_vertical = 0;
+uint32_t width = 300, height = 200;
+float color[4] = {1.0, 0.0, 0.0, 1.0};
+
 static void draw() {
-	if (eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
-		fprintf(stderr, "Made current\n");
-	} else {
-		fprintf(stderr, "Made current failed\n");
+	int ok = eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
+	if (!ok) {
+		fprintf(stderr, "Make current failed\n");
+		return;
 	}
 
 	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	if (eglSwapBuffers(egl_display, egl_surface)) {
-		fprintf(stderr, "Swapped buffers\n");
-	} else {
+	ok = eglSwapBuffers(egl_display, egl_surface);
+	if (!ok) {
 		fprintf(stderr, "Swapped buffers failed\n");
+		return;
 	}
+
+	printf("Rendered surface %p\n", surface);
 }
 
 static void pointer_handle_enter(void *data, struct wl_pointer *pointer,
@@ -83,7 +90,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
-	printf("Pointer handle axis\n");
+	printf("Pointer axis: axis=%d value=%d\n", axis, value);
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {}
@@ -162,15 +169,15 @@ static const struct wl_seat_listener seat_listener = {
 
 void registry_handle_global_add(void *data, struct wl_registry *registry,
 		uint32_t id, const char *interface, uint32_t version) {
-	printf("Got a registry event for %s id %d\n", interface, id);
 	if (strcmp(interface, "wl_compositor") == 0) {
 		compositor =
 			wl_registry_bind(registry, id, &wl_compositor_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		seat = wl_registry_bind(registry, id, &wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
-	} else if (strcmp(interface, "wl_output") == 0) {
+	} else if (strcmp(interface, "wl_output") == 0 && output == NULL) {
 		output = wl_registry_bind(registry, id, &wl_output_interface, 1);
+		output_id = id;
 	} else if (strcmp(interface, "surface_layers") == 0) {
 		layers = wl_registry_bind(registry, id, &surface_layers_interface, 1);
 	}
@@ -178,31 +185,15 @@ void registry_handle_global_add(void *data, struct wl_registry *registry,
 
 static void registry_handle_global_remove(void *data,
 		struct wl_registry *registry, uint32_t id) {
-	printf("Got a registry losing event for %d\n", id);
+	if (output_id == id) {
+		wl_output_destroy(output);
+		output = NULL;
+	}
 }
 
 static const struct wl_registry_listener registry_listener = {
 	.global = registry_handle_global_add,
 	.global_remove = registry_handle_global_remove,
-};
-
-static void redraw(void *data, struct wl_callback *callback, uint32_t time) {
-	printf("Redrawing\n");
-}
-
-//static const struct wl_callback_listener frame_listener = {
-//	.done = redraw
-//};
-
-static void configure_callback(void *data, struct wl_callback *callback,
-		uint32_t time) {
-	if (callback == NULL) {
-		redraw(data, NULL, time);
-	}
-}
-
-static struct wl_callback_listener configure_callback_listener = {
-	.done = configure_callback,
 };
 
 static void layer_surface_handle_configure(void *data,
@@ -287,17 +278,61 @@ static void create_window() {
 	if (egl_window == EGL_NO_SURFACE) {
 		fprintf(stderr, "Can't create egl window\n");
 		exit(EXIT_FAILURE);
-	} else {
-		fprintf(stderr, "Created egl window\n");
 	}
+	fprintf(stderr, "Created egl window\n");
 
 	egl_surface = eglCreateWindowSurface(egl_display, egl_conf,
 		(EGLNativeWindowType)egl_window, NULL);
 
 	draw();
+}
 
-	wl_display_dispatch(display);
-	wl_display_roundtrip(display);
+static void destroy_window() {
+	eglDestroySurface(egl_display, egl_surface);
+	wl_egl_window_destroy(egl_window);
+	eglDestroyContext(egl_display, egl_context);
+
+	fprintf(stderr, "Destroyed egl window\n");
+}
+
+void create_surface() {
+	surface = wl_compositor_create_surface(compositor);
+	if (surface == NULL) {
+		fprintf(stderr, "Can't create surface\n");
+		exit(EXIT_FAILURE);
+	} else {
+		fprintf(stderr, "Created surface %p\n", surface);
+	}
+
+	layer = surface_layers_get_layer_surface(layers, surface, output,
+		layer_index);
+	if (!layer) {
+		fprintf(stderr, "Can't create surface_layer\n");
+		exit(EXIT_FAILURE);
+	}
+
+	layer_surface_add_listener(layer, &layer_listener, NULL);
+
+	layer_surface_set_anchor(layer, anchor);
+	layer_surface_set_interactivity(layer, input_types, exclusive_types);
+	layer_surface_set_margin(layer, margin_horizontal, margin_vertical);
+	// TODO: layer_surface_set_exclusive_zone
+	// create_window will commit the layer surface state
+
+	init_egl();
+	create_window();
+}
+
+void destroy_surface() {
+	if (surface == NULL) {
+		return;
+	}
+
+	destroy_window();
+
+	layer_surface_destroy(layer);
+	wl_surface_destroy(surface);
+	surface = NULL;
 }
 
 enum surface_layers_layer parse_layer(const char *s) {
@@ -361,11 +396,6 @@ int parse_pair(const char *s, int32_t *x, int32_t *y) {
 }
 
 int main(int argc, char **argv) {
-	enum surface_layers_layer layer_index = SURFACE_LAYERS_LAYER_OVERLAY;
-	uint32_t anchor = LAYER_SURFACE_ANCHOR_NONE;
-	uint32_t input_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
-	uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
-	int32_t margin_horizontal = 0, margin_vertical = 0;
 	while (1) {
 		int opt = getopt(argc, argv, "l:a:i:e:m:s:h");
 		if (opt == -1) {
@@ -419,7 +449,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Can't connect to display\n");
 		exit(EXIT_FAILURE);
 	}
-	printf("connected to display\n");
+	printf("Connected to display\n");
 
 	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
@@ -431,48 +461,24 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Can't find compositor\n");
 		exit(EXIT_FAILURE);
 	}
-	if (output == NULL) {
-		fprintf(stderr, "Can't find output\n");
-		exit(EXIT_FAILURE);
-	}
 	if (layers == NULL) {
 		fprintf(stderr, "Can't find surface_layers\n");
 		exit(EXIT_FAILURE);
 	}
 
-	surface = wl_compositor_create_surface(compositor);
-	if (surface == NULL) {
-		fprintf(stderr, "Can't create surface\n");
-		exit(EXIT_FAILURE);
-	} else {
-		fprintf(stderr, "Created surface %p\n", surface);
-	}
+	do {
+		if (output != NULL && surface == NULL) {
+			create_surface();
+		}
+		if (output == NULL && surface != NULL) {
+			destroy_surface();
+		}
+	} while (wl_display_dispatch(display) != -1);
 
-	layer = surface_layers_get_layer_surface(layers, surface, output,
-		layer_index);
-	if (!layer) {
-		fprintf(stderr, "Can't create surface_layer\n");
-		exit(EXIT_FAILURE);
-	}
-
-	layer_surface_add_listener(layer, &layer_listener, NULL);
-
-	layer_surface_set_anchor(layer, anchor);
-	layer_surface_set_interactivity(layer, input_types, exclusive_types);
-	layer_surface_set_margin(layer, margin_horizontal, margin_vertical);
-	// TODO: layer_surface_set_exclusive_zone
-	// create_window will commit the layer surface state
-
-	init_egl();
-	create_window();
-
-	callback = wl_display_sync(display);
-	wl_callback_add_listener(callback, &configure_callback_listener, NULL);
-
-	while (wl_display_dispatch(display) != -1) {}
+	destroy_surface();
 
 	wl_display_disconnect(display);
-	printf("disconnected from display\n");
+	printf("Disconnected from display\n");
 
 	exit(EXIT_SUCCESS);
 }

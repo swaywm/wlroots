@@ -17,6 +17,10 @@ bool layer_surface_is_at(struct wlr_layer_surface *layer_surface,
 		double *sx, double *sy) {
 	struct wlr_box *output_box = wlr_output_layout_get_box(layout,
 		layer_surface->output);
+	if (output_box == NULL) {
+		return false;
+	}
+
 	struct wlr_box surface_box;
 	wlr_layer_surface_get_box(layer_surface, &surface_box);
 	double layer_sx = lx - output_box->x - surface_box.x;
