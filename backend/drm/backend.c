@@ -62,10 +62,13 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 	if (session->active) {
 		wlr_log(L_INFO, "DRM fd resumed");
+		wlr_drm_scan_connectors(drm);
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link){
-			wlr_drm_connector_start_renderer(conn);
+			if (conn->output.current_mode) {
+				wlr_output_set_mode(&conn->output, conn->output.current_mode);
+			}
 
 			if (!conn->crtc) {
 				continue;
