@@ -6,3 +6,7 @@ eglCreatePlatformWindowSurfaceEXT
 -eglBindWaylandDisplayWL
 -eglUnbindWaylandDisplayWL
 -glEGLImageTargetTexture2DOES
+glDebugMessageCallbackKHR
+glDebugMessageControlKHR
+glPopDebugGroupKHR
+glPushDebugGroupKHR
