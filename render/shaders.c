@@ -4,12 +4,13 @@
 const GLchar quad_vert_src[] =
 "uniform mat3 proj;\n"
 "uniform vec4 color;\n"
-"attribute vec2 pos;\n"
+"attribute vec3 pos;\n"
 "attribute vec2 texcoord;\n"
 "varying vec4 v_color;\n"
 "varying vec2 v_texcoord;\n"
 "void main() {\n"
-"	gl_Position = vec4(proj * vec3(pos, 0.0), 1.0);\n"
+"	vec2 xy = (proj * vec3(pos.xy, 1.0)).xy;\n"
+"	gl_Position = vec4(xy, pos.z, 1.0);\n"
 "	v_color = color;\n"
 "	v_texcoord = texcoord;\n"
 "}\n";
@@ -36,12 +37,12 @@ const GLchar ellipse_frag_src[] =
 // Textured quads
 const GLchar tex_vert_src[] =
 "uniform mat3 proj;\n"
-"attribute vec2 pos;\n"
+"attribute vec3 pos;\n"
 "attribute vec2 texcoord;\n"
 "varying vec2 v_texcoord;\n"
 "void main() {\n"
-"	vec3 new_pos = proj * vec3(pos, 1.0);\n"
-"	gl_Position = vec4(new_pos.xy, 0.0, 1.0);\n"
+"	vec2 xy = (proj * vec3(pos.xy, 1.0)).xy;\n"
+"	gl_Position = vec4(xy, pos.z, 1.0);\n"
 "	v_texcoord = texcoord;\n"
 "}\n";
 

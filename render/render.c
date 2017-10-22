@@ -110,10 +110,10 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
 
 	GLfloat verts[] = {
-		pos_x1, pos_y1,
-		pos_x2, pos_y1,
-		pos_x1, pos_y2,
-		pos_x2, pos_y2,
+		pos_x1, pos_y1, pos_z,
+		pos_x2, pos_y1, pos_z,
+		pos_x1, pos_y2, pos_z,
+		pos_x2, pos_y2, pos_z,
 	};
 
 	GLfloat tw = tex->width;
@@ -131,7 +131,7 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 		tx2, ty2,
 	};
 
-	glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
 	glVertexAttribPointer(texcoord_loc, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
 
 	glEnable(GL_BLEND);
