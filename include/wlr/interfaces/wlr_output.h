@@ -18,8 +18,8 @@ struct wlr_output_impl {
 	void (*make_current)(struct wlr_output *output);
 	void (*swap_buffers)(struct wlr_output *output);
 	void (*set_gamma)(struct wlr_output *output,
-		uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b);
-	uint16_t (*get_gamma_size)(struct wlr_output *output);
+		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
+	uint32_t (*get_gamma_size)(struct wlr_output *output);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,

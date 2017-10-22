@@ -211,13 +211,13 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 }
 
 static void wlr_drm_connector_set_gamma(struct wlr_output *output,
-		uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
+		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	drmModeCrtcSetGamma(drm->fd, conn->crtc->id, size, r, g, b);
 }
 
-static uint16_t wlr_drm_connector_get_gamma_size(struct wlr_output *output) {
+static uint32_t wlr_drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	drmModeCrtc *crtc = conn->old_crtc;
 	return crtc ? crtc->gamma_size : 0;
