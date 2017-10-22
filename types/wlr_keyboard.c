@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/util/log.h>
 
@@ -45,7 +46,7 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
-void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
+void wlr_keyboard_send_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group) {
 	if (!keyboard->xkb_state) {
@@ -56,7 +57,7 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 	keyboard_modifier_update(keyboard);
 }
 
-void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
+void wlr_keyboard_send_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	if (!keyboard->xkb_state) {
 		return;

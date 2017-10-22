@@ -70,9 +70,13 @@ struct wlr_event_keyboard_key {
 	enum wlr_key_state state;
 };
 
+struct wlr_input_device;
+
+struct wlr_keyboard *wlr_keyboard_create(struct wlr_input_device *dev);
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	struct xkb_keymap *keymap);
 void wlr_keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds);
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *keyboard);
+void wlr_keyboard_destroy(struct wlr_keyboard *kb);
 
 #endif
