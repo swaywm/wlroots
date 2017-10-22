@@ -1,6 +1,8 @@
 #ifndef RENDER_RENDER_H
 #define RENDER_RENDER_H
 
+#include <stdbool.h>
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -30,15 +32,16 @@ struct wlr_tex {
 
 	EGLImageKHR image;
 	GLuint image_tex;
-	enum wl_shm_format fmt;
 	uint32_t width;
 	uint32_t height;
 
 	enum {
 		WLR_TEX_GLTEX,
+		WLR_TEX_WLDRM,
 	} type;
 	union {
 		GLuint gl_tex;
+		struct wl_resource *wl_drm;
 	};
 };
 
@@ -57,6 +60,14 @@ void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
 
 struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data);
+struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data);
+
+bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
+	enum wl_shm_format fmt, uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+	const void *data);
+
+void wlr_tex_destroy(struct wlr_tex *tex);
 
 void push_marker(const char *file, const char *func);
 void pop_marker(void);

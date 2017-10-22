@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <EGL/egl.h>
@@ -11,34 +12,77 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
+bool wl_to_gl(enum wl_shm_format fmt, GLuint *gl_fmt, GLuint *gl_type) {
+	switch (fmt) {
+	case WL_SHM_FORMAT_ARGB8888:
+		*gl_fmt = GL_BGRA_EXT;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_XRGB8888:
+		*gl_fmt = GL_BGRA_EXT;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_ABGR8888:
+		*gl_fmt = GL_RGBA;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_XBGR8888:
+		*gl_fmt = GL_RGBA;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	default:
+		return false;
+	};
+
+	return true;
+}
+
+bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
+		enum wl_shm_format fmt, uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		const void *data) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+
+	if (tex->type == WLR_TEX_WLDRM) {
+		return false;
+	}
+
+	GLuint gl_format;
+	GLuint gl_type;
+	if (!wl_to_gl(fmt, &gl_format, &gl_type)) {
+		wlr_log(L_ERROR, "Unsupported pixel format");
+		return false;
+	}
+
+	DEBUG_PUSH;
+
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, src_x);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, src_y);
+
+	glTexSubImage2D(GL_TEXTURE_2D, 0, dst_x, dst_y, width, height,
+		gl_format, gl_type, data);
+
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
+
+	DEBUG_POP;
+	return true;
+}
+
 struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 
 	GLuint gl_format;
 	GLuint gl_type;
-
-	switch (fmt) {
-	case WL_SHM_FORMAT_ARGB8888:
-		gl_format = GL_BGRA_EXT;
-		gl_type = GL_UNSIGNED_BYTE;
-		break;
-	case WL_SHM_FORMAT_XRGB8888:
-		gl_format = GL_BGRA_EXT;
-		gl_type = GL_UNSIGNED_BYTE;
-		break;
-	case WL_SHM_FORMAT_ABGR8888:
-		gl_format = GL_RGBA;
-		gl_type = GL_UNSIGNED_BYTE;
-		break;
-	case WL_SHM_FORMAT_XBGR8888:
-		gl_format = GL_RGBA;
-		gl_type = GL_UNSIGNED_BYTE;
-		break;
-	default:
+	if (!wl_to_gl(fmt, &gl_format, &gl_type)) {
 		wlr_log(L_ERROR, "Unsupported pixel format");
 		return NULL;
-	};
+	}
 
 	struct wlr_tex *tex = calloc(1, sizeof(*tex));
 	if (!tex) {
@@ -49,7 +93,6 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	DEBUG_PUSH;
 
 	tex->rend = rend;
-	tex->fmt = fmt;
 	tex->width = width;
 	tex->height = height;
 	tex->type = WLR_TEX_GLTEX;
@@ -77,4 +120,75 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 
 	DEBUG_POP;
 	return tex;
+}
+
+struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data) {
+	EGLint fmt;
+	if (!eglQueryWaylandBufferWL(rend->egl->display, data, EGL_TEXTURE_FORMAT, &fmt)) {
+		wlr_log(L_ERROR, "Failed to get wayland DRM format: %s", egl_error());
+		return NULL;
+	}
+
+	EGLint width;
+	EGLint height;
+	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_WIDTH, &width);
+	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_HEIGHT, &height);
+
+	struct wlr_tex *tex = calloc(1, sizeof(*tex));
+	if (!tex) {
+		wlr_log(L_ERROR, "Allocation failed");
+		return NULL;
+	}
+
+	tex->rend = rend;
+	tex->width = width;
+	tex->height = height;
+	tex->type = WLR_TEX_WLDRM;
+	tex->wl_drm = data;
+
+	EGLint attribs[] = {
+		EGL_WAYLAND_PLANE_WL, 0,
+		EGL_NONE,
+	};
+
+	tex->image = eglCreateImageKHR(rend->egl->display, rend->egl->context,
+		EGL_WAYLAND_BUFFER_WL, data, attribs);
+	if (!tex->image) {
+		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
+		free(tex);
+		return NULL;
+	}
+
+	DEBUG_PUSH;
+
+	glGenTextures(1, &tex->image_tex);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image);
+
+	DEBUG_POP;
+	return tex;
+}
+
+void wlr_tex_destroy(struct wlr_tex *tex) {
+	if (!tex) {
+		return;
+	}
+
+	struct wlr_render *rend = tex->rend;
+
+	eglMakeCurrent(rend->egl->display, EGL_NO_SURFACE,
+		EGL_NO_SURFACE, rend->egl->context);
+
+	DEBUG_PUSH;
+
+	glDeleteTextures(1, &tex->image_tex);
+	eglDestroyImageKHR(rend->egl->display, tex->image);
+
+	if (tex->type == WLR_TEX_GLTEX) {
+		glDeleteTextures(1, &tex->gl_tex);
+	}
+
+	free(tex);
+
+	DEBUG_POP;
 }
