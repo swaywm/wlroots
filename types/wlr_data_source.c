@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-server.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_data_source.h>
 #include <wlr/types/wlr_data_device_manager.h>

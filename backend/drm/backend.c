@@ -9,7 +9,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <wlr/egl.h>
 #include "backend/drm/drm.h"

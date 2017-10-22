@@ -8,7 +8,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>

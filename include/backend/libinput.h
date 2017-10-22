@@ -5,7 +5,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/util/list.h>
+#include <wlr/types/wlr_list.h>
 
 struct wlr_libinput_backend {
 	struct wlr_backend backend;
@@ -18,7 +18,7 @@ struct wlr_libinput_backend {
 
 	struct wl_listener session_signal;
 
-	list_t *wlr_device_lists;
+	struct wlr_list *wlr_device_lists;
 };
 
 struct wlr_libinput_input_device {
