@@ -86,8 +86,8 @@ void wlr_layer_surface_move_state(struct wlr_layer_surface_state *next,
 	next->invalid = 0;
 }
 
-void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
-		double *x, double *y) {
+void wlr_layer_surface_get_box(struct wlr_layer_surface *layer_surface,
+		struct wlr_box *box) {
 	int width = layer_surface->surface->current->width;
 	int height = layer_surface->surface->current->height;
 	struct wlr_layer_surface_state *state = layer_surface->current;
@@ -97,23 +97,40 @@ void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
 		&output_height);
 
 	if (state->anchor & LAYER_SURFACE_ANCHOR_LEFT) {
-		*x = state->margin_horizontal;
+		box->x = state->margin_horizontal;
 	} else if (state->anchor & LAYER_SURFACE_ANCHOR_RIGHT) {
-		*x = output_width - width - state->margin_horizontal;
+		box->x = output_width - width - state->margin_horizontal;
 	} else {
-		*x = (double)(output_width - width) / 2;
+		box->x = (double)(output_width - width) / 2;
 	}
 	if (state->anchor & LAYER_SURFACE_ANCHOR_TOP) {
-		*y = state->margin_vertical;
+		box->y = state->margin_vertical;
 	} else if (state->anchor & LAYER_SURFACE_ANCHOR_BOTTOM) {
-		*y = output_height - height - state->margin_vertical;
+		box->y = output_height - height - state->margin_vertical;
 	} else {
-		*y = (double)(output_height - height) / 2;
+		box->y = (double)(output_height - height) / 2;
+	}
+
+	if (state->anchor &
+			(LAYER_SURFACE_ANCHOR_LEFT | LAYER_SURFACE_ANCHOR_RIGHT)) {
+		box->width = output_width - 2*state->margin_horizontal;
+	} else {
+		box->width = width;
+	}
+	if (state->anchor &
+			(LAYER_SURFACE_ANCHOR_TOP | LAYER_SURFACE_ANCHOR_BOTTOM)) {
+		box->height = output_height - 2*state->margin_vertical;
+	} else {
+		box->height = height;
 	}
 }
 
 void wlr_layer_surface_configure(struct wlr_layer_surface *layer_surface,
 		int32_t width, int32_t height) {
+	if (layer_surface->surface->current->width == width &&
+			layer_surface->surface->current->height == height) {
+		return;
+	}
 	layer_surface_send_configure(layer_surface->resource, width, height);
 }
 

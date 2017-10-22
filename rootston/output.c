@@ -148,10 +148,10 @@ struct wl_list *render_layer_surfaces(struct wl_list *layer_surfaces,
 			continue;
 		}
 
-		double x, y;
-		wlr_layer_surface_get_position(layer_surface, &x, &y);
-		render_surface(layer_surface->surface, desktop, wlr_output, when, x, y,
-			0);
+		struct wlr_box box;
+		wlr_layer_surface_get_box(layer_surface, &box);
+		render_surface(layer_surface->surface, desktop, wlr_output, when,
+			box.x, box.y, 0);
 	}
 
 	return NULL;

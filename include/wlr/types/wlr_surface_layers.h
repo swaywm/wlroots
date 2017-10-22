@@ -2,6 +2,7 @@
 #define _WLR_SURFACE_LAYERS_H
 
 #include <wayland-server.h>
+#include <wlr/types/wlr_box.h>
 
 struct wlr_surface_layers {
 	struct wl_global *wl_global;
@@ -61,8 +62,8 @@ void wlr_surface_layers_destroy(struct wlr_surface_layers *surface_layers);
 /**
  * Computes the position of the layer surface relative to its output.
  */
-void wlr_layer_surface_get_position(struct wlr_layer_surface *layer_surface,
-	double *x, double *y);
+void wlr_layer_surface_get_box(struct wlr_layer_surface *layer_surface,
+	struct wlr_box *box);
 
 /**
  * Sends a configure event to the layer surface.

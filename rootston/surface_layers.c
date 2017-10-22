@@ -17,10 +17,10 @@ bool layer_surface_is_at(struct wlr_layer_surface *layer_surface,
 		double *sx, double *sy) {
 	struct wlr_box *output_box = wlr_output_layout_get_box(layout,
 		layer_surface->output);
-	double x, y;
-	wlr_layer_surface_get_position(layer_surface, &x, &y);
-	double layer_sx = lx - output_box->x - x;
-	double layer_sy = ly - output_box->y - y;
+	struct wlr_box surface_box;
+	wlr_layer_surface_get_box(layer_surface, &surface_box);
+	double layer_sx = lx - output_box->x - surface_box.x;
+	double layer_sy = ly - output_box->y - surface_box.y;
 
 	struct wlr_box box = {
 		.x = 0,
@@ -41,10 +41,16 @@ bool layer_surface_is_at(struct wlr_layer_surface *layer_surface,
 	}
 }
 
+static void layer_surface_configure(struct wlr_layer_surface *layer_surface) {
+	struct wlr_box box;
+	wlr_layer_surface_get_box(layer_surface, &box);
+	wlr_layer_surface_configure(layer_surface, box.width, box.height);
+}
+
 static void handle_commit(struct wl_listener *listener, void *data) {
-	//struct roots_layer_surface *roots_surface =
-	//	wl_container_of(listener, roots_surface, commit);
-	// TODO: is there anything to do here?
+	struct roots_layer_surface *roots_surface =
+		wl_container_of(listener, roots_surface, commit);
+	layer_surface_configure(roots_surface->layer_surface);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -86,4 +92,6 @@ void handle_surface_layers_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	roots_surface->commit.notify = handle_commit;
 	wl_signal_add(&surface->events.commit, &roots_surface->commit);
+
+	layer_surface_configure(roots_surface->layer_surface);
 }
