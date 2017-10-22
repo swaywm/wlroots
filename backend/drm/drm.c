@@ -748,7 +748,6 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			free(edid);
 
 			wl_list_insert(&drm->outputs, &wlr_conn->link);
-			wlr_output_create_global(&wlr_conn->output, drm->display);
 			wlr_log(L_INFO, "Found display '%s'", wlr_conn->output.name);
 		} else {
 			seen[index] = true;
@@ -756,7 +755,6 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
-
 			wlr_log(L_INFO, "'%s' connected", wlr_conn->output.name);
 			wlr_log(L_INFO, "Detected modes:");
 
@@ -778,14 +776,17 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
+			wlr_output_create_global(&wlr_conn->output, drm->display);
+
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'",
 				wlr_conn->output.name);
 			wl_signal_emit(&drm->backend.events.output_add, &wlr_conn->output);
 		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
-
 			wlr_log(L_INFO, "'%s' disconnected", wlr_conn->output.name);
+
+			wlr_output_destroy_global(&wlr_conn->output);
 			wlr_drm_connector_cleanup(wlr_conn);
 		}
 
