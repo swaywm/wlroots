@@ -319,9 +319,10 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector 
 
 	memset(possible_crtc, 0, sizeof(possible_crtc));
 
-	ssize_t index = -1, i = 0;
+	ssize_t index = -1, i = -1;
 	struct wlr_drm_connector *c;
 	wl_list_for_each(c, &drm->outputs, link) {
+		i++;
 		if (c == conn) {
 			index = i;
 		}
@@ -332,7 +333,6 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, struct wlr_drm_connector 
 
 		possible_crtc[i] = c->possible_crtc;
 		crtc[c->crtc - drm->crtcs] = i;
-		i++;
 	}
 	assert(index != -1);
 
@@ -686,7 +686,8 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 	}
 
 	size_t seen_len = wl_list_length(&drm->outputs);
-	// +1 so it can never be 0
+	// +1 so length can never be 0, which is undefined behaviour.
+	// Last element isn't used.
 	bool seen[seen_len + 1];
 	memset(seen, 0, sizeof(seen));
 
@@ -697,7 +698,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_log_errno(L_ERROR, "Failed to get DRM connector");
 			continue;
 		}
-		int index = 0;
+		int index = -1;
 		struct wlr_drm_connector *c, *wlr_conn = NULL;
 		wl_list_for_each(c, &drm->outputs, link) {
 			index++;
@@ -794,13 +795,12 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 	drmModeFreeResources(res);
 
 	struct wlr_drm_connector *conn, *tmp_conn;
-	size_t index = seen_len - 1;
+	size_t index = wl_list_length(&drm->outputs);
 	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
-		if (seen[index]) {
-			index--;
+		index--;
+		if (index >= seen_len || seen[index]) {
 			continue;
 		}
-		index--;
 
 		wlr_log(L_INFO, "'%s' disappeared", conn->output.name);
 		wlr_drm_connector_cleanup(conn);
