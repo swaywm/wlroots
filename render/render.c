@@ -13,11 +13,70 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
+static const float transforms[][4] = {
+	[WL_OUTPUT_TRANSFORM_NORMAL] = {
+		1.0f, 0.0f,
+		0.0f, -1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_90] = {
+		0.0f, -1.0f,
+		-1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_180] = {
+		-1.0f, 0.0f,
+		0.0f, 1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_270] = {
+		0.0f, 1.0f,
+		1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
+		-1.0f, 0.0f,
+		0.0f, -1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
+		0.0f, 1.0f,
+		-1.0f, 0.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
+		1.0f, 0.0f,
+		0.0f, 1.0f,
+	},
+	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
+		0.0f, -1.0f,
+		1.0f, 0.0f,
+	},
+};
+
+// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
+static void matrix(float mat[static 9], int32_t width, int32_t height,
+		enum wl_output_transform transform) {
+	memset(mat, 0, sizeof(*mat) * 9);
+
+	const float *t = transforms[transform];
+	float x = 2.0f / width;
+	float y = 2.0f / height;
+
+	// Rotation + relection
+	mat[0] = x * t[0];
+	mat[1] = x * t[1];
+	mat[3] = y * t[2];
+	mat[4] = y * t[3];
+
+	// Translation
+	mat[2] = -copysign(1.0f, mat[0] + mat[1]);
+	mat[5] = -copysign(1.0f, mat[3] + mat[4]);
+
+	// Identity
+	mat[8] = 1.0f;
+}
+
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
 	glViewport(0, 0, output->width, output->height);
+	matrix(rend->proj, output->width, output->height, output->transform);
 
 	DEBUG_POP;
 }
@@ -30,6 +89,65 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	DEBUG_POP;
+}
+
+void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
+		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
+		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+	DEBUG_PUSH;
+
+	GLuint prog = rend->shaders.extn;
+
+	GLuint proj_loc = glGetUniformLocation(prog, "proj");
+	GLuint pos_loc = glGetAttribLocation(prog, "pos");
+	GLuint texcoord_loc = glGetAttribLocation(prog, "texcoord");
+
+	glUseProgram(rend->shaders.extn);
+	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, rend->proj);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+
+	GLfloat verts[] = {
+		pos_x1, pos_y1,
+		pos_x2, pos_y1,
+		pos_x1, pos_y2,
+		pos_x2, pos_y2,
+	};
+
+	GLfloat tw = tex->width;
+	GLfloat th = tex->height;
+	// Transform to OpenGL [0,1] texture coordinate space
+	GLfloat tx1 = tex_x1 / tw;
+	GLfloat tx2 = tex_x2 / tw;
+	GLfloat ty1 = tex_y1 / th;
+	GLfloat ty2 = tex_y2 / th;
+
+	GLfloat texcoord[] = {
+		tx1, ty1,
+		tx2, ty1,
+		tx1, ty2,
+		tx2, ty2,
+	};
+
+	glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(texcoord_loc, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnableVertexAttribArray(pos_loc);
+	glEnableVertexAttribArray(texcoord_loc);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	DEBUG_POP;
+}
+
+void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2, z);
 }
 
 void push_marker(const char *file, const char *func) {

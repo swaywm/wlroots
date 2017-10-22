@@ -63,11 +63,16 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
 	tex->image = eglCreateImageKHR(rend->egl->display, rend->egl->context,
-		EGL_GL_TEXTURE_2D_KHR, &tex->gl_tex, NULL);
+		EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)(uintptr_t)tex->gl_tex, NULL);
 	if (tex->image == EGL_NO_IMAGE_KHR) {
+		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
 		glDeleteTextures(1, &tex->gl_tex);
 		free(tex);
 		tex = NULL;
+	} else {
+		glGenTextures(1, &tex->image_tex);
+		glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image);
 	}
 
 	DEBUG_POP;
