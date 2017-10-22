@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -337,16 +338,18 @@ enum layer_surface_input_device parse_input_device(const char *s) {
 	exit(EXIT_FAILURE);
 }
 
-int parse_pair(const char *s, uint32_t *x, uint32_t *y) {
+int parse_pair(const char *s, int32_t *x, int32_t *y) {
+	errno = 0;
+
 	char *sep;
 	long lx = strtol(s, &sep, 10);
-	if (s == sep || *sep != ',' || lx < 0 || lx > INT_MAX) {
+	if (s == sep || *sep != ',' || errno == EINVAL || errno == ERANGE) {
 		return 1;
 	}
 
 	char *end;
 	long ly = strtol(sep + 1, &end, 10);
-	if (sep + 1 == end || *end != '\0'|| ly < 0 || ly > INT_MAX) {
+	if (sep + 1 == end || *end != '\0' || errno == EINVAL || errno == ERANGE) {
 		return 1;
 	}
 
@@ -360,7 +363,7 @@ int main(int argc, char **argv) {
 	uint32_t anchor = LAYER_SURFACE_ANCHOR_NONE;
 	uint32_t input_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
 	uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
-	uint32_t margin_horizontal = 0, margin_vertical = 0;
+	int32_t margin_horizontal = 0, margin_vertical = 0;
 	while (1) {
 		int opt = getopt(argc, argv, "l:a:i:e:m:s:h");
 		if (opt == -1) {
@@ -389,7 +392,7 @@ int main(int argc, char **argv) {
 			}
 			break;
 		case 's':
-			err = parse_pair(optarg, &width, &height);
+			err = parse_pair(optarg, (int32_t *)&width, (int32_t *)&height);
 			if (err) {
 				fprintf(stderr, "Invalid size: %s\n", optarg);
 				exit(EXIT_FAILURE);

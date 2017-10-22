@@ -17,10 +17,10 @@ struct wlr_surface_layers {
 };
 
 enum wlr_layer_surface_invalid {
-	WLR_LAYER_SURFACE_INVALID_INTERACTIVITY = 1,
-	WLR_LAYER_SURFACE_INVALID_ANCHOR = 2,
-	WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE = 4,
-	WLR_LAYER_SURFACE_INVALID_MARGIN = 8,
+	WLR_LAYER_SURFACE_INVALID_INTERACTIVITY = 1 << 0,
+	WLR_LAYER_SURFACE_INVALID_ANCHOR = 1 << 1,
+	WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE = 1 << 2,
+	WLR_LAYER_SURFACE_INVALID_MARGIN = 1 << 3,
 };
 
 struct wlr_layer_surface_state {
@@ -37,12 +37,14 @@ struct wlr_layer_surface {
 	struct wlr_surface *surface;
 	struct wlr_output *output;
 	uint32_t layer; // surface_layers_layer
+	bool configured;
 	struct wl_list link; // wlr_surface_layers.surfaces
 
 	struct wlr_layer_surface_state *current, *pending;
 
 	struct wl_listener surface_destroy_listener;
 	struct wl_listener surface_commit_listener;
+	struct wl_listener output_destroy_listener;
 
 	struct {
 		struct wl_signal destroy;

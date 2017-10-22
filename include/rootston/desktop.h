@@ -69,8 +69,8 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 	struct wlr_surface **surface, double *sx, double *sy);
 void view_activate(struct roots_view *view, bool activate);
 
-bool layer_surface_is_at(struct roots_desktop *desktop,
-	struct wlr_layer_surface *layer_surface, double lx, double ly,
+bool layer_surface_is_at(struct wlr_layer_surface *layer_surface,
+	struct wlr_output_layout *layout, double lx, double ly,
 	double *sx, double *sy);
 
 void output_add_notify(struct wl_listener *listener, void *data);

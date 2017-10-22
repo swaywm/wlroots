@@ -144,7 +144,7 @@ struct wl_list *render_layer_surfaces(struct wl_list *layer_surfaces,
 		if (layer_surface->layer > until_layer) {
 			return layer_surface->link.prev;
 		}
-		if (layer_surface->output != wlr_output) {
+		if (!layer_surface->configured || layer_surface->output != wlr_output) {
 			continue;
 		}
 

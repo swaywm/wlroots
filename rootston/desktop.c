@@ -201,35 +201,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 	return NULL;
 }
 
-bool layer_surface_is_at(struct roots_desktop *desktop,
-		struct wlr_layer_surface *layer_surface, double lx, double ly,
-		double *sx, double *sy) {
-	struct wlr_box *output_box = wlr_output_layout_get_box(desktop->layout,
-		layer_surface->output);
-	double x, y;
-	wlr_layer_surface_get_position(layer_surface, &x, &y);
-	double layer_sx = lx - output_box->x - x;
-	double layer_sy = ly - output_box->y - y;
-
-	struct wlr_box box = {
-		.x = 0,
-		.y = 0,
-		.width = layer_surface->surface->current->buffer_width,
-		.height = layer_surface->surface->current->buffer_height,
-	};
-
-	if (wlr_box_contains_point(&box, layer_sx, layer_sy) &&
-			pixman_region32_contains_point(
-				&layer_surface->surface->current->input,
-				layer_sx, layer_sy, NULL)) {
-		*sx = layer_sx;
-		*sy = layer_sy;
-		return true;
-	} else {
-		return false;
-	}
-}
-
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");

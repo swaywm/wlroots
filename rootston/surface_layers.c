@@ -12,6 +12,35 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
+bool layer_surface_is_at(struct wlr_layer_surface *layer_surface,
+		struct wlr_output_layout *layout, double lx, double ly,
+		double *sx, double *sy) {
+	struct wlr_box *output_box = wlr_output_layout_get_box(layout,
+		layer_surface->output);
+	double x, y;
+	wlr_layer_surface_get_position(layer_surface, &x, &y);
+	double layer_sx = lx - output_box->x - x;
+	double layer_sy = ly - output_box->y - y;
+
+	struct wlr_box box = {
+		.x = 0,
+		.y = 0,
+		.width = layer_surface->surface->current->width,
+		.height = layer_surface->surface->current->height,
+	};
+
+	if (wlr_box_contains_point(&box, layer_sx, layer_sy) &&
+			pixman_region32_contains_point(
+				&layer_surface->surface->current->input,
+				layer_sx, layer_sy, NULL)) {
+		*sx = layer_sx;
+		*sy = layer_sy;
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static void handle_commit(struct wl_listener *listener, void *data) {
 	//struct roots_layer_surface *roots_surface =
 	//	wl_container_of(listener, roots_surface, commit);

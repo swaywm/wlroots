@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_surface_layers.h>
+#include <wlr/render.h>
 #include <wlr/util/log.h>
 #include "surface-layers-protocol.h"
 
@@ -118,6 +119,9 @@ void wlr_layer_surface_configure(struct wlr_layer_surface *layer_surface,
 
 static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
+	wl_list_remove(&surface->surface_destroy_listener.link);
+	wl_list_remove(&surface->surface_commit_listener.link);
+	wl_list_remove(&surface->output_destroy_listener.link);
 	wl_list_remove(&surface->link);
 	wl_resource_set_user_data(surface->resource, NULL);
 	free(surface->current);
@@ -143,14 +147,46 @@ static void handle_layer_surface_commit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_layer_surface *surface =
 		wl_container_of(listener, surface, surface_commit_listener);
-	wlr_layer_surface_move_state(surface->pending, surface->current);
+	struct wlr_layer_surface_state *state = surface->current;
+	struct wlr_layer_surface_state *next = surface->pending;
+
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_INTERACTIVITY) {
+		state->input_types = next->input_types;
+		state->exclusive_types = next->exclusive_types;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_ANCHOR) {
+		state->anchor = next->anchor;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_EXCLUSIVE_ZONE) {
+		state->exclusive_zone = next->exclusive_zone;
+	}
+	if (next->invalid & WLR_LAYER_SURFACE_INVALID_MARGIN) {
+		state->margin_horizontal = next->margin_horizontal;
+		state->margin_vertical = next->margin_vertical;
+	}
+
+	state->invalid |= next->invalid;
+	next->invalid = 0;
+
 	wl_signal_emit(&surface->events.commit, surface);
+
+	if (!surface->configured && surface->surface->texture->valid) {
+		surface->configured = true;
+		wl_signal_emit(&surface->surface_layers->events.new_surface, surface);
+	}
 }
 
 static void handle_layer_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_layer_surface *surface =
 		wl_container_of(listener, surface, surface_destroy_listener);
+	layer_surface_destroy(surface);
+}
+
+static void handle_layer_surface_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_layer_surface *surface =
+		wl_container_of(listener, surface, output_destroy_listener);
 	layer_surface_destroy(surface);
 }
 
@@ -217,6 +253,10 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 		&layer_surface->surface_commit_listener);
 	layer_surface->surface_commit_listener.notify =
 		handle_layer_surface_commit;
+	wl_signal_add(&layer_surface->output->events.destroy,
+		&layer_surface->output_destroy_listener);
+	layer_surface->output_destroy_listener.notify =
+		handle_layer_surface_output_destroy;
 
 	bool inserted = false;
 	struct wlr_layer_surface *ls;
@@ -230,8 +270,6 @@ static void surface_layers_get_layer_surface(struct wl_client *client,
 	if (!inserted) {
 		wl_list_insert(&surface_layers->surfaces, &layer_surface->link);
 	}
-
-	wl_signal_emit(&surface_layers->events.new_surface, layer_surface);
 }
 
 static const struct surface_layers_interface surface_layers_impl = {
@@ -240,14 +278,9 @@ static const struct surface_layers_interface surface_layers_impl = {
 
 static void surface_layers_bind(struct wl_client *wl_client,
 		void *_surface_layers, uint32_t version, uint32_t id) {
-	struct wlr_screenshooter *surface_layers = _surface_layers;
+	struct wlr_surface_layers *surface_layers = _surface_layers;
 	assert(wl_client && surface_layers);
-	if (version > 1) {
-		wlr_log(L_ERROR, "Client requested unsupported surface_layers version,"
-			"disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&surface_layers_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &surface_layers_impl,
@@ -280,6 +313,10 @@ struct wlr_surface_layers *wlr_surface_layers_create(
 void wlr_surface_layers_destroy(struct wlr_surface_layers *surface_layers) {
 	if (!surface_layers) {
 		return;
+	}
+	struct wlr_layer_surface *layer_surface, *tmp;
+	wl_list_for_each_safe(layer_surface, tmp, &surface_layers->surfaces, link) {
+		layer_surface_destroy(layer_surface);
 	}
 	// TODO: this segfault (wl_display->registry_resource_list is not init)
 	// wl_global_destroy(surface_layers->wl_global);

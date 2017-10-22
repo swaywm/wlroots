@@ -89,7 +89,8 @@ static struct wl_list *surface_layers_update_position(
 		if (layer_surface->layer < until_layer) {
 			return layer_surface->link.next;
 		}
-		if (!(layer_surface->current->input_types &
+		if (!layer_surface->configured ||
+				!(layer_surface->current->input_types &
 				LAYER_SURFACE_INPUT_DEVICE_POINTER)) {
 			continue;
 		}
@@ -108,8 +109,8 @@ static struct wl_list *surface_layers_update_position(
 			wlr_seat_handle_for_client(input->wl_seat, client);
 
 		double sx, sy;
-		bool ok = layer_surface_is_at(input->server->desktop, layer_surface,
-			x, y, &sx, &sy);
+		bool ok = layer_surface_is_at(layer_surface,
+			input->server->desktop->layout, x, y, &sx, &sy);
 		if (!ok) {
 			if (focused_layer_surface != NULL &&
 					focused_layer_surface->layer_surface == layer_surface) {
