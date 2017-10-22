@@ -16,12 +16,18 @@
 #include <linux/input-event-codes.h>
 #include "surface-layers-client-protocol.h"
 
+struct layer_output {
+	struct wl_output *output;
+	uint32_t id;
+	struct wl_list link;
+};
+
 struct wl_display *display = NULL;
 struct wl_compositor *compositor = NULL;
 struct surface_layers *layers = NULL;
+struct wl_list outputs;
 
-struct wl_output *output = NULL;
-uint32_t output_id;
+struct layer_output *output = NULL;
 
 struct wl_surface *surface = NULL;
 struct layer_surface *layer = NULL;
@@ -43,6 +49,18 @@ uint32_t exclusive_types = LAYER_SURFACE_INPUT_DEVICE_NONE;
 int32_t margin_horizontal = 0, margin_vertical = 0;
 uint32_t width = 300, height = 200;
 float color[4] = {1.0, 0.0, 0.0, 1.0};
+
+void destroy_output(struct layer_output *o) {
+	if (o == NULL) {
+		return;
+	}
+	if (o == output) {
+		output = NULL;
+	}
+	wl_list_remove(&o->link);
+	wl_output_destroy(o->output);
+	free(o);
+}
 
 static void draw() {
 	int ok = eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
@@ -175,9 +193,15 @@ void registry_handle_global_add(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		seat = wl_registry_bind(registry, id, &wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
-	} else if (strcmp(interface, "wl_output") == 0 && output == NULL) {
-		output = wl_registry_bind(registry, id, &wl_output_interface, 1);
-		output_id = id;
+	} else if (strcmp(interface, "wl_output") == 0) {
+		struct layer_output *output = calloc(1, sizeof(struct layer_output));
+		if (output == NULL) {
+			return;
+		}
+		output->output =
+			wl_registry_bind(registry, id, &wl_output_interface, 1);
+		output->id = id;
+		wl_list_insert(&outputs, &output->link);
 	} else if (strcmp(interface, "surface_layers") == 0) {
 		layers = wl_registry_bind(registry, id, &surface_layers_interface, 1);
 	}
@@ -185,9 +209,12 @@ void registry_handle_global_add(void *data, struct wl_registry *registry,
 
 static void registry_handle_global_remove(void *data,
 		struct wl_registry *registry, uint32_t id) {
-	if (output_id == id) {
-		wl_output_destroy(output);
-		output = NULL;
+	struct layer_output *o, *tmp;
+	wl_list_for_each_safe(o, tmp, &outputs, link) {
+		if (o->id == id) {
+			destroy_output(o);
+			break;
+		}
 	}
 }
 
@@ -304,7 +331,7 @@ void create_surface() {
 		fprintf(stderr, "Created surface %p\n", surface);
 	}
 
-	layer = surface_layers_get_layer_surface(layers, surface, output,
+	layer = surface_layers_get_layer_surface(layers, surface, output->output,
 		layer_index);
 	if (!layer) {
 		fprintf(stderr, "Can't create surface_layer\n");
@@ -444,6 +471,8 @@ int main(int argc, char **argv) {
 	color[1] = (float)rand() / RAND_MAX;
 	color[2] = (float)rand() / RAND_MAX;
 
+	wl_list_init(&outputs);
+
 	display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "Can't connect to display\n");
@@ -467,15 +496,24 @@ int main(int argc, char **argv) {
 	}
 
 	do {
-		if (output != NULL && surface == NULL) {
-			create_surface();
-		}
 		if (output == NULL && surface != NULL) {
 			destroy_surface();
+		}
+		if (output == NULL && !wl_list_empty(&outputs)) {
+			// Choose first output
+			output = wl_container_of(outputs.prev, output, link);
+		}
+		if (output != NULL && surface == NULL) {
+			create_surface();
 		}
 	} while (wl_display_dispatch(display) != -1);
 
 	destroy_surface();
+
+	struct layer_output *o, *tmp;
+	wl_list_for_each_safe(o, tmp, &outputs, link) {
+		destroy_output(o);
+	}
 
 	wl_display_disconnect(display);
 	printf("Disconnected from display\n");

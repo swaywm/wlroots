@@ -13,6 +13,11 @@ static const char *surface_layers_role = "layer_surface";
 
 #define WLR_LAYER_SURFACE_INPUT_DEVICE_COUNT 3
 
+#define WLR_LAYER_SURFACE_ANCHOR_LEFT_RIGHT \
+	(LAYER_SURFACE_ANCHOR_LEFT | LAYER_SURFACE_ANCHOR_RIGHT)
+#define WLR_LAYER_SURFACE_ANCHOR_TOP_BOTTOM \
+	(LAYER_SURFACE_ANCHOR_TOP | LAYER_SURFACE_ANCHOR_BOTTOM)
+
 static void layer_surface_set_interactivity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t input_types,
 		uint32_t exclusive_types) {
@@ -111,14 +116,14 @@ void wlr_layer_surface_get_box(struct wlr_layer_surface *layer_surface,
 		box->y = (double)(output_height - height) / 2;
 	}
 
-	if (state->anchor &
-			(LAYER_SURFACE_ANCHOR_LEFT | LAYER_SURFACE_ANCHOR_RIGHT)) {
+	if ((state->anchor & WLR_LAYER_SURFACE_ANCHOR_LEFT_RIGHT) ==
+			WLR_LAYER_SURFACE_ANCHOR_LEFT_RIGHT) {
 		box->width = output_width - 2*state->margin_horizontal;
 	} else {
 		box->width = width;
 	}
-	if (state->anchor &
-			(LAYER_SURFACE_ANCHOR_TOP | LAYER_SURFACE_ANCHOR_BOTTOM)) {
+	if ((state->anchor & WLR_LAYER_SURFACE_ANCHOR_TOP_BOTTOM) ==
+			WLR_LAYER_SURFACE_ANCHOR_TOP_BOTTOM) {
 		box->height = output_height - 2*state->margin_vertical;
 	} else {
 		box->height = height;
