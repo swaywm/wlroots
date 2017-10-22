@@ -11,6 +11,9 @@ lib_wlr_render = static_library(
 	files(
 		'egl.c',
 		'matrix.c',
+		'render.c',
+		'shaders.c',
+		'tex.c',
 		'gles2/pixel_format.c',
 		'gles2/renderer.c',
 		'gles2/shaders.c',
