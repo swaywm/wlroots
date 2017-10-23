@@ -33,8 +33,8 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 			if (output->current_mode == mode) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
-			wl_output_send_mode(resource, flags,
-				mode->width, mode->height, mode->refresh);
+			wl_output_send_mode(resource, flags, mode->width, mode->height,
+				mode->refresh);
 		}
 
 		if (wl_list_length(&output->modes) == 0) {
@@ -48,6 +48,25 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
+	}
+}
+
+static void wlr_output_send_current_mode_to_resource(
+		struct wl_resource *resource) {
+	struct wlr_output *output = wl_resource_get_user_data(resource);
+	assert(output);
+	const uint32_t version = wl_resource_get_version(resource);
+	if (version < WL_OUTPUT_MODE_SINCE_VERSION) {
+		return;
+	}
+	if (output->current_mode != NULL) {
+		struct wlr_output_mode *mode = output->current_mode;
+		wl_output_send_mode(resource, mode->flags | WL_OUTPUT_MODE_CURRENT,
+			mode->width, mode->height, mode->refresh);
+	} else {
+		// Output has no mode, send the current width/height
+		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
+			output->height, 0);
 	}
 }
 
@@ -110,23 +129,42 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	wlr_output->wl_global = NULL;
 }
 
-void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_texture(output->transform_matrix, output->width, output->height, output->transform);
+static void wlr_output_update_matrix(struct wlr_output *output) {
+	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
+		output->transform);
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	output->impl->enable(output, enable);
 }
 
-bool wlr_output_set_mode(struct wlr_output *output, struct wlr_output_mode *mode) {
+bool wlr_output_set_mode(struct wlr_output *output,
+		struct wlr_output_mode *mode) {
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
 	bool result = output->impl->set_mode(output, mode);
 	if (result) {
 		wlr_output_update_matrix(output);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &output->wl_resources) {
+			wlr_output_send_current_mode_to_resource(resource);
+		}
 	}
 	return result;
+}
+
+void wlr_output_update_size(struct wlr_output *output, int32_t width,
+		int32_t height) {
+	output->width = width;
+	output->height = height;
+	wlr_output_update_matrix(output);
+	if (output->wl_global != NULL) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &output->wl_resources) {
+			wlr_output_send_current_mode_to_resource(resource);
+		}
+	}
 }
 
 void wlr_output_transform(struct wlr_output *output,
@@ -135,7 +173,8 @@ void wlr_output_transform(struct wlr_output *output,
 	wlr_output_update_matrix(output);
 }
 
-void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly) {
+void wlr_output_set_position(struct wlr_output *output, int32_t lx,
+		int32_t ly) {
 	if (lx == output->lx && ly == output->ly) {
 		return;
 	}

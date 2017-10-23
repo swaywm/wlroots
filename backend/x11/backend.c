@@ -121,9 +121,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_CONFIGURE_NOTIFY: {
 		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
-		output->wlr_output.width = ev->width;
-		output->wlr_output.height = ev->height;
-		wlr_output_update_matrix(&output->wlr_output);
+		wlr_output_update_size(&output->wlr_output, ev->width, ev->height);
 		wl_signal_emit(&output->wlr_output.events.resolution, output);
 
 		// Move the pointer to its new location
