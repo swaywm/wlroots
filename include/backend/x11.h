@@ -8,6 +8,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#include "render/render.h"
 
 struct wlr_x11_backend;
 
@@ -41,6 +42,7 @@ struct wlr_x11_backend {
 	struct wlr_input_device pointer_dev;
 
 	struct wlr_egl egl;
+	struct wlr_render *rend;
 	struct wl_event_source *event_source;
 	struct wl_event_source *frame_timer;
 

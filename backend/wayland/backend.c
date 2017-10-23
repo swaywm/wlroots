@@ -87,15 +87,21 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
-	return &backend->egl;
+static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
+	return &wl->egl;
+}
+
+static struct wlr_render *wlr_wl_backend_get_render(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
+	return wl->rend;
 }
 
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_wl_backend_start,
 	.destroy = wlr_wl_backend_destroy,
-	.get_egl = wlr_wl_backend_get_egl
+	.get_egl = wlr_wl_backend_get_egl,
+	.get_render = wlr_wl_backend_get_render,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -141,6 +147,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 
 	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, WL_SHM_FORMAT_ARGB8888, backend->remote_display);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
+
+	backend->rend = wlr_render_create(&backend->backend);
+	if (!backend->rend) {
+		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
+	}
 
 	return &backend->backend;
 }

@@ -46,10 +46,19 @@ static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *backend) {
 	return &drm->renderer.egl;
 }
 
+static struct wlr_render *wlr_drm_backend_get_render(struct wlr_backend *backend) {
+	/*
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	return &drm->renderer.rend;
+	*/
+	return NULL;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_drm_backend_start,
 	.destroy = wlr_drm_backend_destroy,
-	.get_egl = wlr_drm_backend_get_egl
+	.get_egl = wlr_drm_backend_get_egl,
+	.get_render = wlr_drm_backend_get_render,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
