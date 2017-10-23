@@ -226,9 +226,9 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
 
 /**
- * Notify the seat of a pointer enter event to the given surface and request it to be the
- * focused surface for the pointer. Pass surface-local coordinates where the
- * enter occurred.
+ * Notify the seat of a pointer enter event to the given surface and request it
+ * to be the focused surface for the pointer. Pass surface-local coordinates
+ * where the enter occurred.
  */
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
@@ -254,18 +254,9 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
 
 /**
- * Attaches this keyboard to the seat. Key events from this keyboard will be
- * propegated to the focused client.
+ * Attaches this keyboard to the seat.
  */
-void wlr_seat_attach_keyboard(struct wlr_seat *seat,
-		struct wlr_input_device *dev);
-
-/**
- * Detaches this keyboard from the seat. This is done automatically when the
- * keyboard is destroyed; you only need to use this if you want to remove it for
- * some other reason.
- */
-void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
+void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
 
 /**
  * Start a grab of the keyboard of this seat. The grabber is responsible for
@@ -281,17 +272,15 @@ void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
 
 /**
- * Send the keyboard key to focused keyboard resources. Compositors should use
- * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ * Notify the seat of a keyboard key.
  */
-void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 		uint32_t key, uint32_t state);
 
 /**
- * Send the modifier state to focused keyboard resources. Compositors should use
- * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ * Notify the seat of keyboard modifiers.
  */
-void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group);
 
