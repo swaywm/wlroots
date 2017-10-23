@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-util.h>
+#include "render/render.h"
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;
@@ -20,6 +21,7 @@ struct wlr_wl_backend {
 	struct wl_list devices;
 	struct wl_list outputs;
 	struct wlr_egl egl;
+	struct wlr_render *rend;
 	size_t requested_outputs;
 	/* remote state */
 	struct wl_display *remote_display;
