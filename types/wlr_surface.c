@@ -406,7 +406,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		surface->texture->valid = false;
+		wlr_texture_destroy(surface->texture);
+		surface->texture = NULL;
 	}
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
