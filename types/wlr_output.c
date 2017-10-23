@@ -14,7 +14,7 @@
 #include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include "render/render.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
@@ -254,11 +254,10 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor) {
-	struct wlr_texture *texture = cursor->texture;
-	struct wlr_renderer *renderer = cursor->renderer;
+	struct wlr_tex *tex = cursor->tex;
+	struct wlr_render *rend = wlr_backend_get_cursor(cursor->output->backend);
 	if (cursor->surface != NULL) {
-		texture = cursor->surface->texture;
-		renderer = cursor->surface->renderer;
+		texture = cursor->surface->tex;
 	}
 
 	if (texture == NULL || renderer == NULL) {
@@ -279,9 +278,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		return;
 	}
 
-	glViewport(0, 0, cursor->output->width, cursor->output->height);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	wlr_render_bind(rend, cursor->output);
 
 	int x = cursor->x - cursor->hotspot_x;
 	int y = cursor->y - cursor->hotspot_y;
@@ -290,10 +287,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		y += cursor->surface->current->sy;
 	}
 
-	float matrix[16];
-	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
-		x, y);
-	wlr_render_with_matrix(renderer, texture, &matrix);
+	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height, INT32_MAX);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
@@ -364,22 +358,13 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	if (cursor->renderer == NULL) {
-		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
-		if (cursor->renderer == NULL) {
-			return false;
-		}
-	}
+	wlr_tex_destroy(cursor->tex);
 
-	if (cursor->texture == NULL) {
-		cursor->texture = wlr_render_texture_create(cursor->renderer);
-		if (cursor->texture == NULL) {
-			return false;
-		}
-	}
-
-	return wlr_texture_upload_pixels(cursor->texture, WL_SHM_FORMAT_ARGB8888,
+	struct wlr_render *rend = wlr_backend_get_render(cursor->output->backend);
+	cursor->tex = wlr_tex_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, pixels);
+
+	return cursor->tex;
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
@@ -514,12 +499,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
-	if (cursor->texture != NULL) {
-		wlr_texture_destroy(cursor->texture);
-	}
-	if (cursor->renderer != NULL) {
-		wlr_renderer_destroy(cursor->renderer);
-	}
+	wlr_tex_destroy(cursor->tex);
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }

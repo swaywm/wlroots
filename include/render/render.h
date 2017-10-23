@@ -46,6 +46,8 @@ struct wlr_tex {
 	};
 };
 
+struct wlr_output;
+
 struct wlr_render *wlr_render_create(struct wlr_backend *backend);
 void wlr_render_destroy(struct wlr_render *rend);
 
