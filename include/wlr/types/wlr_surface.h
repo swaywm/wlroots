@@ -110,6 +110,14 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		struct wl_resource *error_resource, uint32_t error_code);
 
 /**
+ * Whether or not this surface currently has an attached buffer. A surface has
+ * an attached buffer when it commits with a non-null buffer in its pending
+ * state. A surface will not have a buffer if it has never committed one, has
+ * committed a null buffer, or something went wrong with uploading the buffer.
+ */
+bool wlr_surface_has_buffer(struct wlr_surface *surface);
+
+/**
  * Create the subsurface implementation for this surface.
  */
 void wlr_surface_make_subsurface(struct wlr_surface *surface,

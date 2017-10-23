@@ -9,7 +9,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
-#include <wlr/render/interface.h>
 #include "xdg-shell-unstable-v6-protocol.h"
 
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
@@ -1018,7 +1017,8 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
-	if (!surface->surface->texture->valid && !surface->toplevel_state->added) {
+	if (!wlr_surface_has_buffer(surface->surface)
+			&& !surface->toplevel_state->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
 		wlr_xdg_surface_v6_schedule_configure(surface);
@@ -1026,7 +1026,7 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		return;
 	}
 
-	if (!surface->surface->texture->valid) {
+	if (!wlr_surface_has_buffer(surface->surface)) {
 		return;
 	}
 
@@ -1048,7 +1048,7 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	struct wlr_xdg_surface_v6 *surface =
 		wl_container_of(listener, surface, surface_commit_listener);
 
-	if (surface->surface->texture->valid && !surface->configured) {
+	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
 			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
 			"xdg_surface has never been configured");
@@ -1117,7 +1117,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(client_resource),
 		id);
 
-	if (surface->surface->texture->valid) {
+	if (wlr_surface_has_buffer(surface->surface)) {
 		wl_resource_post_error(surface->resource,
 			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
 			"xdg_surface must not have a buffer at creation");

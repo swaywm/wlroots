@@ -655,6 +655,10 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
+bool wlr_surface_has_buffer(struct wlr_surface *surface) {
+	return surface->texture && surface->texture->valid;
+}
+
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		struct wl_resource *error_resource, uint32_t error_code) {
 	assert(role);
