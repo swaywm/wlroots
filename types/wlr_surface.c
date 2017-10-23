@@ -406,7 +406,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		surface->texture->valid = false;
+		wlr_texture_destroy(surface->texture);
+		surface->texture = NULL;
 	}
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
@@ -653,6 +654,10 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	wlr_matrix_scale(&scale, width, height, 1);
 	wlr_matrix_mul(matrix, &scale, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
+}
+
+bool wlr_surface_has_buffer(struct wlr_surface *surface) {
+	return surface->texture && surface->texture->valid;
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
