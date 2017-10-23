@@ -53,7 +53,13 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	}
 }
 
-static void keyboard_keysym_press(struct roots_keyboard *keyboard,
+/**
+ * Process a keypress from the keyboard.
+ *
+ * Returns true if the keysym was handled by a binding and false if the event
+ * should be propagated to clients.
+ */
+static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
 	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
 	if (i < 0) {
@@ -74,7 +80,7 @@ static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 				wlr_session_change_vt(session, vt);
 			}
 		}
-		return;
+		return true;
 	}
 
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
@@ -96,8 +102,11 @@ static void keyboard_keysym_press(struct roots_keyboard *keyboard,
 
 		if (ok) {
 			keyboard_binding_execute(keyboard, bc->command);
+			return true;
 		}
 	}
+
+	return false;
 }
 
 static void keyboard_keysym_release(struct roots_keyboard *keyboard,
@@ -116,13 +125,36 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	const xkb_keysym_t *syms;
 	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
 		keycode, &syms);
+
+	bool handled = false;
 	for (int i = 0; i < syms_len; i++) {
 		if (event->state == WLR_KEY_PRESSED) {
-			keyboard_keysym_press(keyboard, syms[i]);
+			bool keysym_handled = keyboard_keysym_press(keyboard, syms[i]);
+			handled = handled || keysym_handled;
 		} else { // WLR_KEY_RELEASED
 			keyboard_keysym_release(keyboard, syms[i]);
 		}
 	}
+
+	if (!handled) {
+		wlr_seat_set_keyboard(keyboard->input->wl_seat, keyboard->device);
+		wlr_seat_keyboard_notify_key(keyboard->input->wl_seat,
+			(uint32_t)(event->time_usec / 1000), event->keycode, event->state);
+	}
+}
+
+static void keyboard_modifiers_notify(struct wl_listener *listener, void *data) {
+	struct roots_keyboard *r_keyboard =
+		wl_container_of(listener, r_keyboard, modifiers);
+	struct wlr_seat *seat = r_keyboard->input->wl_seat;
+	struct wlr_keyboard *keyboard = r_keyboard->device->keyboard;
+	wlr_seat_set_keyboard(seat, r_keyboard->device);
+	wlr_seat_keyboard_notify_modifiers(seat,
+		keyboard->modifiers.depressed,
+		keyboard->modifiers.latched,
+		keyboard->modifiers.locked,
+		keyboard->modifiers.group);
+
 }
 
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
@@ -133,8 +165,13 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	device->data = keyboard;
 	keyboard->device = device;
 	keyboard->input = input;
+
 	keyboard->key.notify = keyboard_key_notify;
 	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
+
+	keyboard->modifiers.notify = keyboard_modifiers_notify;
+	wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
+
 	wl_list_insert(&input->keyboards, &keyboard->link);
 
 	struct xkb_rule_names rules;
@@ -152,14 +189,12 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
 		&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
-
-	wlr_seat_attach_keyboard(input->wl_seat, device);
 }
 
 void keyboard_remove(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = device->data;
-	wlr_seat_detach_keyboard(input->wl_seat, device->keyboard);
 	wl_list_remove(&keyboard->key.link);
+	wl_list_remove(&keyboard->modifiers.link);
 	wl_list_remove(&keyboard->link);
 	free(keyboard);
 }

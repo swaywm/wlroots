@@ -14,7 +14,6 @@
 struct wlr_seat_handle {
 	struct wl_resource *wl_resource;
 	struct wlr_seat *wlr_seat;
-	struct wlr_seat_keyboard *seat_keyboard;
 
 	struct wl_resource *pointer;
 	struct wl_resource *keyboard;
@@ -82,20 +81,15 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat_pointer_grab *default_grab;
 };
 
-struct wlr_seat_keyboard {
-	struct wlr_seat *seat;
-	struct wlr_keyboard *keyboard;
-	struct wl_listener key;
-	struct wl_listener modifiers;
-	struct wl_listener keymap;
-	struct wl_listener destroy;
-	struct wl_list link;
-};
-
 struct wlr_seat_keyboard_state {
 	struct wlr_seat *wlr_seat;
+	struct wlr_keyboard *keyboard;
+
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
+
+	struct wl_listener keyboard_destroy;
+	struct wl_listener keyboard_keymap;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
@@ -108,7 +102,6 @@ struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
 	struct wl_list handles;
-	struct wl_list keyboards;
 	char *name;
 	uint32_t capabilities;
 	struct wlr_data_device *data_device;
@@ -254,18 +247,9 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
 
 /**
- * Attaches this keyboard to the seat. Key events from this keyboard will be
- * propegated to the focused client.
+ * Set this keyboard as the active keyboard for the seat.
  */
-void wlr_seat_attach_keyboard(struct wlr_seat *seat,
-		struct wlr_input_device *dev);
-
-/**
- * Detaches this keyboard from the seat. This is done automatically when the
- * keyboard is destroyed; you only need to use this if you want to remove it for
- * some other reason.
- */
-void wlr_seat_detach_keyboard(struct wlr_seat *seat, struct wlr_keyboard *kb);
+void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_input_device *dev);
 
 /**
  * Start a grab of the keyboard of this seat. The grabber is responsible for
@@ -282,16 +266,31 @@ void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
 
 /**
  * Send the keyboard key to focused keyboard resources. Compositors should use
- * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ * `wlr_seat_notify_key()` to respect keyboard grabs.
  */
 void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time,
 		uint32_t key, uint32_t state);
 
 /**
+ * Notify the seat that a key has been pressed on the keyboard. Defers to any
+ * keyboard grabs.
+ */
+void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
+		uint32_t key, uint32_t state);
+
+/**
  * Send the modifier state to focused keyboard resources. Compositors should use
- * `wlr_seat_attach_keyboard()` to automatically handle keyboard events.
+ * `wlr_seat_keyboard_notify_modifiers()` to respect any keyboard grabs.
  */
 void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group);
+
+/**
+ * Notify the seat that the modifiers for the keyboard have changed. Defers to
+ * any keyboard grabs.
+ */
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group);
 
