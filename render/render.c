@@ -13,6 +13,31 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
+bool wl_to_gl(enum wl_shm_format fmt, GLuint *gl_fmt, GLuint *gl_type) {
+	switch (fmt) {
+	case WL_SHM_FORMAT_ARGB8888:
+		*gl_fmt = GL_BGRA_EXT;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_XRGB8888:
+		*gl_fmt = GL_BGRA_EXT;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_ABGR8888:
+		*gl_fmt = GL_RGBA;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	case WL_SHM_FORMAT_XBGR8888:
+		*gl_fmt = GL_RGBA;
+		*gl_type = GL_UNSIGNED_BYTE;
+		break;
+	default:
+		return false;
+	};
+
+	return true;
+}
+
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
 		1.0f, 0.0f,
@@ -71,14 +96,19 @@ static void matrix(float mat[static 9], int32_t width, int32_t height,
 	mat[8] = 1.0f;
 }
 
-void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
+void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+		enum wl_output_transform transform) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
-	glViewport(0, 0, output->width, output->height);
-	matrix(rend->proj, output->width, output->height, output->transform);
+	glViewport(0, 0, width, height);
+	matrix(rend->proj, width, height, transform);
 
 	DEBUG_POP;
+}
+
+void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
+	wlr_render_bind_raw(rend, output->width, output->height, output->transform);
 }
 
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a) {
@@ -143,6 +173,37 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	DEBUG_POP;
+}
+
+bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format fmt,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		void *data) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+
+	GLuint gl_format;
+	GLuint gl_type;
+	if (!wl_to_gl(fmt, &gl_format, &gl_type)) {
+		wlr_log(L_ERROR, "Unsupported pixel format");
+		return false;
+	}
+
+	DEBUG_PUSH;
+
+	// Make sure any pending drawing is finished before we try to read it
+	glFinish();
+
+	// Unfortunately GLES2 doesn't support GL_PACK_*, so we have to read
+	// the lines out row by row
+
+	unsigned char *p = data + dst_y * stride;
+	for (size_t i = src_y; i < src_y + height; ++i) {
+		glReadPixels(src_x, src_y + height - i - 1, width, 1, gl_format, gl_type,
+			p + i * stride + dst_x * 4);
+	}
+
+	DEBUG_POP;
+	return true;
 }
 
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,

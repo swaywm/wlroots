@@ -39,10 +39,12 @@ struct wlr_tex {
 	enum {
 		WLR_TEX_GLTEX,
 		WLR_TEX_WLDRM,
+		WLR_TEX_DMABUF,
 	} type;
 	union {
 		GLuint gl_tex;
 		struct wl_resource *wl_drm;
+		int dmabuf;
 	};
 };
 
@@ -52,6 +54,8 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend);
 void wlr_render_destroy(struct wlr_render *rend);
 
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output);
+void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+		enum wl_output_transform transform);
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a);
 
 void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
@@ -61,9 +65,18 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
 	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
 
+bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format fmt,
+	uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+	void *data);
+
 struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format fmt,
-		uint32_t stride, uint32_t width, uint32_t height, const void *data);
+	uint32_t stride, uint32_t width, uint32_t height, const void *data);
+
 struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data);
+
+struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt,
+	uint32_t width, uint32_t height, int fd0, uint32_t offset0, uint32_t stride0);
 
 bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 	enum wl_shm_format fmt, uint32_t stride, uint32_t width, uint32_t height,
@@ -71,6 +84,8 @@ bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 	const void *data);
 
 void wlr_tex_destroy(struct wlr_tex *tex);
+
+bool wl_to_gl(enum wl_shm_format fmt, GLuint *gl_fmt, GLuint *gl_type);
 
 void push_marker(const char *file, const char *func);
 #define DEBUG_PUSH push_marker(_strip_path(__FILE__), __func__)
