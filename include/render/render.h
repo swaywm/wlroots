@@ -12,7 +12,6 @@
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
 #include <wlr/types/wlr_output.h>
-#include "render/glapi.h"
 
 struct wlr_render {
 	struct wlr_egl *egl;
