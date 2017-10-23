@@ -649,14 +649,14 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 		float (*matrix)[16],
 		const float (*projection)[16],
 		const float (*transform)[16]) {
-	int width = surface->texture->width / surface->current->scale;
-	int height = surface->texture->height / surface->current->scale;
+	int width = surface->texture->width;
+	int height = surface->texture->height;
 	float scale[16];
 	wlr_matrix_identity(matrix);
 	if (transform) {
 		wlr_matrix_mul(matrix, transform, matrix);
 	}
-	wlr_matrix_scale(&scale, width, height, 1);
+	wlr_matrix_scale(&scale, width, height, surface->current->scale);
 	wlr_matrix_mul(matrix, &scale, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
 }
@@ -893,4 +893,17 @@ struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 	}
 
 	return NULL;
+}
+
+void wlr_surface_send_enter(struct wlr_surface *surface,
+		struct wlr_output *output) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		if (client == wl_resource_get_client(resource)) {
+			wlr_log(L_DEBUG, "sending output enter");
+			wl_surface_send_enter(surface->resource, resource);
+			break;
+		}
+	}
 }

@@ -48,6 +48,7 @@ enum roots_view_type {
 
 struct roots_view {
 	struct roots_desktop *desktop;
+	struct roots_output *output;
 	double x, y;
 	float rotation;
 	// TODO: Something for roots-enforced width/height

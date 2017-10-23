@@ -29,8 +29,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		struct wlr_output_mode *mode;
 		wl_list_for_each(mode, &output->modes, link) {
-			// TODO: mode->flags should just be preferred
-			uint32_t flags = mode->flags;
+			uint32_t flags = mode->flags & ~WL_OUTPUT_MODE_PREFERRED;
 			if (output->current_mode == mode) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
@@ -45,6 +44,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
+		wlr_log(L_DEBUG, "Sending scale");
 		wl_output_send_scale(resource, output->scale);
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {

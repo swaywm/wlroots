@@ -220,6 +220,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			oc = calloc(1, sizeof(struct output_config));
 			oc->name = strdup(output_name);
 			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+			oc->scale = 1;
 			wl_list_insert(&config->outputs, &oc->link);
 		}
 
@@ -227,6 +228,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			oc->x = strtol(value, NULL, 10);
 		} else if (strcmp(name, "y") == 0) {
 			oc->y = strtol(value, NULL, 10);
+		} else if (strcmp(name, "scale") == 0) {
+			oc->scale = strtol(value, NULL, 10);
+			assert(oc->scale >= 1);
 		} else if (strcmp(name, "rotate") == 0) {
 			if (strcmp(value, "90") == 0) {
 				oc->transform = WL_OUTPUT_TRANSFORM_90;

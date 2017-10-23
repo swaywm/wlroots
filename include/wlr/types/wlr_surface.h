@@ -1,10 +1,10 @@
 #ifndef WLR_TYPES_WLR_SURFACE_H
 #define WLR_TYPES_WLR_SURFACE_H
-
 #include <wayland-server.h>
 #include <pixman.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_frame_callback {
 	struct wl_resource *resource;
@@ -135,4 +135,8 @@ struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
  */
 struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y);
+
+void wlr_surface_send_enter(struct wlr_surface *surface,
+		struct wlr_output *output);
+
 #endif
