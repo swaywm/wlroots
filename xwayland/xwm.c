@@ -16,8 +16,8 @@
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
 	"WM_DELETE_WINDOW",
-	"WM_HINTS",
 	"WM_PROTOCOLS",
+	"WM_HINTS",
 	"WM_NORMAL_HINTS",
 	"WM_SIZE_HINTS",
 	"_MOTIF_WM_HINTS",
