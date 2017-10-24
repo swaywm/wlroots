@@ -750,9 +750,9 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 		if (reply && !error) {
 			xwm->atoms[i] = reply->atom;
 		}
-		if (reply) {
-			free(reply);
-		}
+
+		free(reply);
+
 		if (error) {
 			wlr_log(L_ERROR, "could not resolve atom %s, x11 error code %d",
 				atom_map[i], error->error_code);
@@ -789,6 +789,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	wl_event_source_check(xwm->event_source);
 
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
+
 	xwm_get_resources(xwm);
 
 	xcb_screen_iterator_t screen_iterator =
