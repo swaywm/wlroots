@@ -75,11 +75,16 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat_handle *focused_handle;
 	struct wlr_surface *focused_surface;
 
-	struct wl_listener surface_destroy;
-	struct wl_listener resource_destroy;
-
 	struct wlr_seat_pointer_grab *grab;
 	struct wlr_seat_pointer_grab *default_grab;
+
+	uint32_t button_count;
+	uint32_t grab_button;
+	uint32_t grab_serial;
+	uint32_t grab_time;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
 };
 
 struct wlr_seat_keyboard {
@@ -111,10 +116,15 @@ struct wlr_seat {
 	struct wl_list keyboards;
 	char *name;
 	uint32_t capabilities;
-	struct wlr_data_device *data_device;
+
+	struct wlr_data_device *data_device; // TODO needed?
+	struct wlr_data_source *selection_source;
+	uint32_t selection_serial;
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
+
+	struct wl_listener selection_data_source_destroy;
 
 	struct {
 		struct wl_signal client_bound;
@@ -127,6 +137,8 @@ struct wlr_seat {
 		struct wl_signal keyboard_grab_end;
 
 		struct wl_signal request_set_cursor;
+
+		struct wl_signal selection;
 	} events;
 
 	void *data;

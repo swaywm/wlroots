@@ -64,6 +64,17 @@ struct roots_input_event {
 	struct wlr_input_device *device;
 };
 
+struct roots_drag_icon {
+	struct wlr_surface *surface;
+	struct wl_list link; // roots_input::drag_icons
+
+	int32_t sx;
+	int32_t sy;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+};
+
 struct roots_touch_point {
 	struct roots_touch *device;
 	int32_t slot;
@@ -80,6 +91,7 @@ struct roots_input {
 	struct wlr_xcursor_theme *theme;
 	struct wlr_xcursor *xcursor;
 	struct wlr_seat *wl_seat;
+	struct wl_list drag_icons;
 	struct wl_client *cursor_client;
 
 	enum roots_cursor_mode mode;
@@ -113,6 +125,7 @@ struct roots_input {
 	struct wl_listener cursor_tool_axis;
 	struct wl_listener cursor_tool_tip;
 
+	struct wl_listener pointer_grab_begin;
 	struct wl_list touch_points;
 
 	struct wl_listener pointer_grab_end;

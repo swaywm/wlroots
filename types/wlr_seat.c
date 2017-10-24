@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_data_device.h>
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -140,6 +141,8 @@ static void wl_seat_get_touch(struct wl_client *client,
 
 static void wlr_seat_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_seat_handle *handle = wl_resource_get_user_data(resource);
+	wl_signal_emit(&handle->wlr_seat->events.client_unbound, handle);
+
 	if (handle == handle->wlr_seat->pointer_state.focused_handle) {
 		handle->wlr_seat->pointer_state.focused_handle = NULL;
 	}
@@ -159,7 +162,6 @@ static void wlr_seat_handle_resource_destroy(struct wl_resource *resource) {
 	if (handle->data_device) {
 		wl_resource_destroy(handle->data_device);
 	}
-	wl_signal_emit(&handle->wlr_seat->events.client_unbound, handle);
 	wl_list_remove(&handle->link);
 	free(handle);
 }
@@ -302,7 +304,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
+
 	wl_signal_init(&wlr_seat->events.request_set_cursor);
+	wl_signal_init(&wlr_seat->events.selection);
 
 	wl_signal_init(&wlr_seat->events.pointer_grab_begin);
 	wl_signal_init(&wlr_seat->events.pointer_grab_end);
@@ -529,8 +533,24 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		uint32_t time, uint32_t button, uint32_t state) {
+	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		if (wlr_seat->pointer_state.button_count == 0) {
+			wlr_seat->pointer_state.grab_button = button;
+			wlr_seat->pointer_state.grab_time = time;
+		}
+		wlr_seat->pointer_state.button_count++;
+	} else {
+		wlr_seat->pointer_state.button_count--;
+	}
+
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
-	return grab->interface->button(grab, time, button, state);
+	uint32_t serial = grab->interface->button(grab, time, button, state);
+
+	if (wlr_seat->pointer_state.button_count == 1) {
+		wlr_seat->pointer_state.grab_serial = serial;
+	}
+
+	return serial;
 }
 
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
@@ -667,9 +687,11 @@ void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_keyboard_grab *grab = wlr_seat->keyboard_state.grab;
-	wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
 
-	wl_signal_emit(&wlr_seat->events.keyboard_grab_end, grab);
+	if (grab != wlr_seat->keyboard_state.default_grab) {
+		wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
+		wl_signal_emit(&wlr_seat->events.keyboard_grab_end, grab);
+	}
 }
 
 static void keyboard_surface_destroy_notify(struct wl_listener *listener,
@@ -741,6 +763,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_keyboard_send_enter(handle->keyboard, serial,
 			surface->resource, &keys);
+		wlr_seat_handle_send_selection(handle);
 	}
 
 	// reinitialize the focus destroy events
