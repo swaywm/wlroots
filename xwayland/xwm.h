@@ -20,6 +20,8 @@ enum atom_name {
 	NET_WM_STATE,
 	NET_WM_WINDOW_TYPE,
 	WM_TAKE_FOCUS,
+	WINDOW,
+	_NET_ACTIVE_WINDOW,
 	ATOM_LAST,
 };
 
@@ -40,6 +42,8 @@ struct wlr_xwm {
 	xcb_connection_t *xcb_conn;
 	xcb_screen_t *screen;
 	xcb_window_t window;
+
+	struct wlr_xwayland_surface *focus_surface;
 
 	struct wl_list new_surfaces;
 	struct wl_list unpaired_surfaces;
