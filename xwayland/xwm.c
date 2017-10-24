@@ -30,6 +30,8 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE",
 	"_NET_WM_WINDOW_TYPE",
 	"WM_TAKE_FOCUS",
+	"WINDOW",
+	"_NET_ACTIVE_WINDOW",
 };
 
 /* General helpers */
