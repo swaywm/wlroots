@@ -104,7 +104,6 @@ static void seat_handle_send_keymap(struct wlr_seat_handle *handle,
 
 	if (wl_resource_get_version(handle->keyboard) >=
 			WL_KEYBOARD_REPEAT_INFO_SINCE_VERSION) {
-		// TODO: Make this better
 		wl_keyboard_send_repeat_info(handle->keyboard, 25, 600);
 	}
 }
@@ -590,6 +589,9 @@ static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 
 void wlr_seat_set_keyboard(struct wlr_seat *seat,
 		struct wlr_input_device *device) {
+	// TODO call this on device key event before the event reaches the
+	// compositor and set a pending keyboard and then send the new keyboard
+	// state on the next keyboard notify event.
 	if (seat->keyboard_state.keyboard == device->keyboard) {
 		return;
 	}
@@ -697,7 +699,8 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 
 	// enter the current surface
 	if (handle && handle->keyboard) {
-		// TODO: handle keys properly
+		// TODO: read the currently pressed keys out of the active keyboard and
+		// put them in this array
 		struct wl_array keys;
 		wl_array_init(&keys);
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
