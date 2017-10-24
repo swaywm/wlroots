@@ -535,6 +535,21 @@ static void handle_configure_request(struct wlr_xwm *xwm,
 	}
 }
 
+static void handle_configure_notify(struct wlr_xwm *xwm,
+		xcb_configure_notify_event_t *ev) {
+	struct wlr_xwayland_surface *xsurface =
+		lookup_surface_any(xwm, ev->window);
+
+	if (!xsurface) {
+		return;
+	}
+
+	xsurface->x = ev->x;
+	xsurface->y = ev->y;
+	xsurface->width = ev->width;
+	xsurface->height = ev->height;
+}
+
 static void handle_map_request(struct wlr_xwm *xwm,
 		xcb_map_request_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_MAP_REQUEST (%u)", ev->window);
@@ -629,6 +644,9 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			break;
 		case XCB_CONFIGURE_REQUEST:
 			handle_configure_request(xwm, (xcb_configure_request_event_t *)event);
+			break;
+		case XCB_CONFIGURE_NOTIFY:
+			handle_configure_notify(xwm, (xcb_configure_notify_event_t *)event);
 			break;
 		case XCB_MAP_REQUEST:
 			handle_map_request(xwm, (xcb_map_request_event_t *)event);
