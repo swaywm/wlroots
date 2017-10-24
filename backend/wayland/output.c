@@ -210,9 +210,7 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	}
 	// loop over states for maximized etc?
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
-	output->wlr_output.width = width;
-	output->wlr_output.height = height;
-	wlr_output_update_matrix(&output->wlr_output);
+	wlr_output_update_size(&output->wlr_output, width, height);
 	wl_signal_emit(&output->wlr_output.events.resolution, output);
 }
 
@@ -241,16 +239,14 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_wl_backend_output");
 		return NULL;
 	}
-	wlr_output_init(&output->wlr_output, &output_impl);
+	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	wlr_output->width = 640;
-	wlr_output->height = 480;
+	wlr_output_update_size(wlr_output, 640, 480);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
-			backend->outputs->length + 1);
-	wlr_output_update_matrix(wlr_output);
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d",
+		wl_list_length(&backend->outputs) + 1);
 
 	output->backend = backend;
 
@@ -306,10 +302,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		goto error;
 	}
 
-	if (list_add(backend->outputs, wlr_output) == -1) {
-		wlr_log(L_ERROR, "Allocation failed");
-		goto error;
-	}
+	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_create_global(wlr_output, backend->local_display);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;

@@ -72,7 +72,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->height = height;
 	surface->override_redirect = override_redirect;
 	wl_list_insert(&xwm->new_surfaces, &surface->link);
-	surface->state = list_create();
+	surface->state = wlr_list_create();
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
 	wl_signal_init(&surface->events.set_class);
@@ -93,7 +93,7 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	free(surface->title);
 	free(surface->class);
 	free(surface->instance);
-	list_free(surface->state);
+	wlr_list_free(surface->state);
 	free(surface->window_type);
 	free(surface->protocols);
 	free(surface->hints);
@@ -200,7 +200,7 @@ static void handle_surface_state(struct wlr_xwm *xwm,
 				if (action == NET_WM_STATE_REMOVE ||
 						action == NET_WM_STATE_TOGGLE) {
 					free(surface->state->items[j]);
-					list_del(surface->state, j);
+					wlr_list_del(surface->state, j);
 				}
 				break;
 			}
@@ -210,7 +210,7 @@ static void handle_surface_state(struct wlr_xwm *xwm,
 				action == NET_WM_STATE_TOGGLE)) {
 			xcb_atom_t *atom_ptr = malloc(sizeof(xcb_atom_t));
 			*atom_ptr = atom;
-			list_add(surface->state, atom_ptr);
+			wlr_list_add(surface->state, atom_ptr);
 		}
 	}
 

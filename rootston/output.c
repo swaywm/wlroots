@@ -175,9 +175,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm",
 			wlr_output->make, wlr_output->model,
 			wlr_output->phys_width, wlr_output->phys_height);
-	if (wlr_output->modes->length > 0) {
-		wlr_output_set_mode(wlr_output, wlr_output->modes->items[0]);
-	}
+        if (wl_list_length(&wlr_output->modes) > 0) {
+                struct wlr_output_mode *mode = NULL;
+                mode = wl_container_of((&wlr_output->modes)->prev, mode, link);
+                wlr_output_set_mode(wlr_output, mode);
+        }
 
 	struct roots_output *output = calloc(1, sizeof(struct roots_output));
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);

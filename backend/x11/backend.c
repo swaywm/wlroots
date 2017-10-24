@@ -15,7 +15,7 @@
 #endif
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -121,9 +121,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_CONFIGURE_NOTIFY: {
 		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
-		output->wlr_output.width = ev->width;
-		output->wlr_output.height = ev->height;
-		wlr_output_update_matrix(&output->wlr_output);
+		wlr_output_update_size(&output->wlr_output, ev->width, ev->height);
 		wl_signal_emit(&output->wlr_output.events.resolution, output);
 
 		// Move the pointer to its new location
@@ -264,7 +262,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	output->x11 = x11;
 
-	wlr_output_init(&output->wlr_output, &output_impl);
+	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl);
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
 
 	output->win = xcb_generate_id(x11->xcb_conn);

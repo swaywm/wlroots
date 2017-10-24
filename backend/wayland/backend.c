@@ -4,7 +4,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-server.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -64,16 +64,16 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 		return;
 	}
 
-	for (size_t i = 0; i < backend->outputs->length; ++i) {
-		wlr_output_destroy(backend->outputs->items[i]);
+	struct wlr_wl_backend_output *output, *tmp_output;
+	wl_list_for_each_safe(output, tmp_output, &backend->outputs, link) {
+		wlr_output_destroy(&output->wlr_output);
 	}
 
-	for (size_t i = 0; i < backend->devices->length; ++i) {
-		wlr_input_device_destroy(backend->devices->items[i]);
+	struct wlr_input_device *input_device, *tmp_input_device;
+	wl_list_for_each_safe(input_device, tmp_input_device, &backend->devices, link) {
+		wlr_input_device_destroy(input_device);
 	}
 
-	list_free(backend->devices);
-	list_free(backend->outputs);
 	free(backend->seat_name);
 
 	wl_event_source_remove(backend->remote_display_src);
@@ -104,8 +104,8 @@ bool wlr_backend_is_wl(struct wlr_backend *b) {
 
 struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface) {
-	for (size_t i = 0; i < backend->outputs->length; ++i) {
-		struct wlr_wl_backend_output *output = backend->outputs->items[i];
+	struct wlr_wl_backend_output *output;
+	wl_list_for_each(output, &backend->outputs, link) {
 		if (output->surface == surface) {
 			return output;
 		}
@@ -123,15 +123,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
 
-	if (!(backend->devices = list_create())) {
-		wlr_log(L_ERROR, "Could not allocate devices list");
-		goto error;
-	}
-
-	if (!(backend->outputs = list_create())) {
-		wlr_log(L_ERROR, "Could not allocate outputs list");
-		goto error;
-	}
+	wl_list_init(&backend->devices);
+	wl_list_init(&backend->outputs);
 
 	backend->local_display = display;
 
@@ -150,12 +143,4 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
 	return &backend->backend;
-
-error:
-	if (backend) {
-		list_free(backend->devices);
-		list_free(backend->outputs);
-	}
-	free(backend);
-	return NULL;
 }

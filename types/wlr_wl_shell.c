@@ -8,7 +8,6 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
-#include <wlr/render/interface.h>
 
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
 
@@ -482,7 +481,7 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 	struct wlr_wl_shell_surface *surface =
 		wl_container_of(listener, surface, surface_commit_listener);
 	if (!surface->configured &&
-			surface->surface->texture->valid &&
+			wlr_surface_has_buffer(surface->surface) &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		surface->configured = true;
 		wl_signal_emit(&surface->shell->events.new_surface, surface);
@@ -490,7 +489,7 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 
 	if (surface->popup_mapped &&
 			surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP &&
-			!surface->surface->texture->valid) {
+			!wlr_surface_has_buffer(surface->surface)) {
 		surface->popup_mapped = false;
 		struct wlr_wl_shell_popup_grab *grab =
 			shell_popup_grab_from_seat(surface->shell,
@@ -580,12 +579,7 @@ static void shell_bind(struct wl_client *wl_client, void *_wl_shell,
 		uint32_t version, uint32_t id) {
 	struct wlr_wl_shell *wl_shell = _wl_shell;
 	assert(wl_client && wl_shell);
-	if (version > 1) {
-		wlr_log(L_ERROR,
-			"Client requested unsupported wl_shell version, disconnecting");
-		wl_client_destroy(wl_client);
-		return;
-	}
+
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_shell_interface, version, id);
 	wl_resource_set_implementation(wl_resource, &shell_impl, wl_shell,

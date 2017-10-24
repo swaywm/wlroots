@@ -21,6 +21,7 @@
 #include <wlr/xcursor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
+#include <wlr/types/wlr_list.h>
 #include "shared.h"
 #include "config.h"
 #include "cat.h"
@@ -45,7 +46,7 @@ struct sample_state {
 	struct wl_listener touch_up;
 	struct wl_listener touch_down;
 	struct wl_listener touch_cancel;
-	list_t *touch_points;
+	struct wlr_list *touch_points;
 
 	struct wl_listener tablet_tool_axis;
 	struct wl_listener tablet_tool_proxmity;
@@ -212,7 +213,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
 		if (point->slot == event->slot) {
-			list_del(sample->touch_points, i);
+			wlr_list_del(sample->touch_points, i);
 			break;
 		}
 	}
@@ -227,7 +228,7 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	point->slot = event->slot;
 	point->x = event->x_mm / event->width_mm;
 	point->y = event->y_mm / event->height_mm;
-	if (list_add(sample->touch_points, point) == -1) {
+	if (wlr_list_add(sample->touch_points, point) == -1) {
 		free(point);
 	}
 
@@ -269,7 +270,7 @@ int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
-		.touch_points = list_create(),
+		.touch_points = wlr_list_create(),
 	};
 
 	state.config = parse_args(argc, argv);

@@ -306,7 +306,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using sensible defaults.");
 		config->keyboard.meta_key = WLR_MODIFIER_LOGO;
-		add_binding_config(&config->bindings, "Logo+Shift+e", "exit");
+		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
 	} else if (result == -2) {

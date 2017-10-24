@@ -5,11 +5,11 @@
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wayland-egl.h>
-#include <wlr/egl.h>
+#include <wlr/render/egl.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/util/list.h>
+#include <wayland-util.h>
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;
@@ -17,8 +17,8 @@ struct wlr_wl_backend {
 	/* local state */
 	bool started;
 	struct wl_display *local_display;
-	list_t *devices;
-	list_t *outputs;
+	struct wl_list devices;
+	struct wl_list outputs;
 	struct wlr_egl egl;
 	size_t requested_outputs;
 	/* remote state */
@@ -51,6 +51,7 @@ struct wlr_wl_backend_output {
 	uint32_t enter_serial;
 
 	void *egl_surface;
+	struct wl_list link;
 };
 
 struct wlr_wl_input_device {

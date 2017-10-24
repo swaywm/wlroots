@@ -1,20 +1,22 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
+#include <wayland-util.h>
 #include <wayland-server.h>
-#include <wlr/util/list.h>
 #include <stdbool.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz
+	struct wl_list link;
 };
 
 struct wlr_output_impl;
 
 struct wlr_output {
 	const struct wlr_output_impl *impl;
+	struct wlr_backend *backend;
 
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
@@ -32,7 +34,7 @@ struct wlr_output {
 	float transform_matrix[16];
 
 	/* Note: some backends may have zero modes */
-	list_t *modes;
+	struct wl_list modes;
 	struct wlr_output_mode *current_mode;
 
 	struct {
@@ -82,7 +84,7 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 void wlr_output_make_current(struct wlr_output *output);
 void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
-	uint16_t size, uint16_t *r, uint16_t *g, uint16_t *b);
-uint16_t wlr_output_get_gamma_size(struct wlr_output *output);
+	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
+uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
 
 #endif

@@ -29,7 +29,7 @@ void view_destroy(struct roots_view *view) {
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
 		if (view == _view) {
-			list_del(desktop->views, i);
+			wlr_list_del(desktop->views, i);
 			break;
 		}
 	}
@@ -209,7 +209,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		return NULL;
 	}
 
-	desktop->views = list_create();
+	desktop->views = wlr_list_create();
 	if (desktop->views == NULL) {
 		free(desktop);
 		return NULL;

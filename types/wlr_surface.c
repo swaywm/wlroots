@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
-#include <wlr/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/matrix.h>
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
@@ -408,7 +408,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		surface->texture->valid = false;
+		wlr_texture_destroy(surface->texture);
+		surface->texture = NULL;
 	}
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
@@ -655,6 +656,10 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	wlr_matrix_scale(&scale, width, height, 1);
 	wlr_matrix_mul(matrix, &scale, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
+}
+
+bool wlr_surface_has_buffer(struct wlr_surface *surface) {
+	return surface->texture && surface->texture->valid;
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,

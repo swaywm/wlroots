@@ -185,8 +185,8 @@ void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
 	}
 	view_activate(view, true);
 	// TODO: list_swap
-	list_del(desktop->views, index);
-	list_add(desktop->views, view);
+	wlr_list_del(desktop->views, index);
+	wlr_list_add(desktop->views, view);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {

@@ -13,14 +13,15 @@ struct subbackend_state {
 	struct wl_listener input_remove;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
+	struct wl_list link;
 };
 
 static bool multi_backend_start(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	for (size_t i = 0; i < backend->backends->length; ++i) {
-		struct subbackend_state *sub = backend->backends->items[i];
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
 		if (!wlr_backend_start(sub->backend)) {
-			wlr_log(L_ERROR, "Failed to initialize backend %zd", i);
+			wlr_log(L_ERROR, "Failed to initialize backend.");
 			return false;
 		}
 	}
@@ -29,20 +30,19 @@ static bool multi_backend_start(struct wlr_backend *_backend) {
 
 static void multi_backend_destroy(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	for (size_t i = 0; i < backend->backends->length; ++i) {
-		struct subbackend_state *sub = backend->backends->items[i];
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
 		wlr_backend_destroy(sub->backend);
 		free(sub);
 	}
-	list_free(backend->backends);
 	wlr_session_destroy(backend->session);
 	free(backend);
 }
 
 static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	for (size_t i = 0; i < backend->backends->length; ++i) {
-		struct subbackend_state *sub = backend->backends->items[i];
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
 		struct wlr_egl *egl = wlr_backend_get_egl(sub->backend);
 		if (egl) {
 			return egl;
@@ -65,13 +65,7 @@ struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session) {
 		return NULL;
 	}
 
-	backend->backends = list_create();
-	if (!backend->backends) {
-		free(backend);
-		wlr_log(L_ERROR, "Backend allocation failed");
-		return NULL;
-	}
-
+	wl_list_init(&backend->backends);
 	wlr_backend_init(&backend->backend, &backend_impl);
 
 	backend->session = session;
@@ -116,11 +110,7 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 		wlr_log(L_ERROR, "Could not add backend: allocation failed");
 		return;
 	}
-	if (list_add(multi->backends, sub) == -1) {
-		wlr_log(L_ERROR, "Could not add backend: allocation failed");
-		free(sub);
-		return;
-	}
+	wl_list_insert(&multi->backends, &sub->link);
 
 	sub->backend = backend;
 	sub->container = &multi->backend;

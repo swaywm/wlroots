@@ -5,9 +5,9 @@
 #include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
-#include <wlr/egl.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
@@ -246,9 +246,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
-	if (backend) {
-		struct wlr_egl *egl = wlr_backend_get_egl(backend);
-		renderer->egl = egl;
-	}
+
+	renderer->egl = wlr_backend_get_egl(backend);
+
 	return &renderer->wlr_renderer;
 }

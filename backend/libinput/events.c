@@ -3,19 +3,19 @@
 #include <libinput.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/util/list.h>
 #include <wlr/util/log.h>
+#include <wayland-util.h>
 #include "backend/libinput.h"
 
 struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,
 		struct libinput_device *libinput_dev) {
-	list_t *wlr_devices = libinput_device_get_user_data(libinput_dev);
+	struct wl_list *wlr_devices = libinput_device_get_user_data(libinput_dev);
 	if (!wlr_devices) {
 		return NULL;
 	}
-	for (size_t i = 0; i < wlr_devices->length; ++i) {
-		struct wlr_input_device *dev = wlr_devices->items[i];
+	struct wlr_input_device *dev;
+	wl_list_for_each(dev, wlr_devices, link) {
 		if (dev->type == desired_type) {
 			return dev;
 		}
@@ -35,7 +35,7 @@ static struct wlr_input_device_impl input_device_impl = {
 
 static struct wlr_input_device *allocate_device(
 		struct wlr_libinput_backend *backend, struct libinput_device *libinput_dev,
-		list_t *wlr_devices, enum wlr_input_device_type type) {
+		struct wl_list *wlr_devices, enum wlr_input_device_type type) {
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
@@ -44,10 +44,7 @@ static struct wlr_input_device *allocate_device(
 		return NULL;
 	}
 	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
-	if (list_add(wlr_devices, wlr_dev) == -1) {
-		free(wlr_libinput_dev);
-		return NULL;
-	}
+	wl_list_insert(wlr_devices, &wlr_dev->link);
 	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	wlr_input_device_init(wlr_dev, type, &input_device_impl,
@@ -67,7 +64,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
-	list_t *wlr_devices = list_create();
+	struct wl_list *wlr_devices = calloc(1, sizeof(struct wl_list));
+	wl_list_init(wlr_devices);
 	if (!wlr_devices) {
 		goto fail;
 	}
@@ -145,23 +143,26 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		// TODO
 	}
 
-	if (wlr_devices->length > 0) {
+	if (wl_list_length(wlr_devices) > 0) {
 		libinput_device_set_user_data(libinput_dev, wlr_devices);
-		list_add(backend->wlr_device_lists, wlr_devices);
+		wlr_list_add(backend->wlr_device_lists, wlr_devices);
 	} else {
-		list_free(wlr_devices);
+		free(wlr_devices);
 	}
 	return;
 
 fail:
 	wlr_log(L_ERROR, "Could not allocate new device");
-	list_foreach(wlr_devices, free);
-	list_free(wlr_devices);
+	struct wlr_input_device *dev, *tmp_dev;
+	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
+		free(dev);
+	}
+	free(wlr_devices);
 }
 
 static void handle_device_removed(struct wlr_libinput_backend *backend,
 		struct libinput_device *libinput_dev) {
-	list_t *wlr_devices = libinput_device_get_user_data(libinput_dev);
+	struct wl_list *wlr_devices = libinput_device_get_user_data(libinput_dev);
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
@@ -169,18 +170,18 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	if (!wlr_devices) {
 		return;
 	}
-	for (size_t i = 0; i < wlr_devices->length; i++) {
-		struct wlr_input_device *wlr_dev = wlr_devices->items[i];
-		wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
-		wlr_input_device_destroy(wlr_dev);
+	struct wlr_input_device *dev, *tmp_dev;
+	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
+		wl_signal_emit(&backend->backend.events.input_remove, dev);
+		wlr_input_device_destroy(dev);
 	}
 	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
 		if (backend->wlr_device_lists->items[i] == wlr_devices) {
-			list_del(backend->wlr_device_lists, i);
+			wlr_list_del(backend->wlr_device_lists, i);
 			break;
 		}
 	}
-	list_free(wlr_devices);
+	free(wlr_devices);
 }
 
 void wlr_libinput_event(struct wlr_libinput_backend *backend,
