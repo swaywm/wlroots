@@ -47,17 +47,6 @@ static struct wlr_xwayland_surface *lookup_surface(struct wlr_xwm *xwm,
 	return NULL;
 }
 
-static struct wlr_xwayland_surface *lookup_unpaired_surface(struct wlr_xwm *xwm,
-		xcb_window_t window_id) {
-	struct wlr_xwayland_surface *surface;
-	wl_list_for_each(surface, &xwm->unpaired_surfaces, unpaired_link) {
-		if (surface->window_id == window_id) {
-			return surface;
-		}
-	}
-	return NULL;
-}
-
 static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		struct wlr_xwm *xwm, xcb_window_t window_id, int16_t x, int16_t y,
 		uint16_t width, uint16_t height, bool override_redirect) {
@@ -707,6 +696,8 @@ static void handle_compositor_surface_create(struct wl_listener *listener, void 
 	wl_list_for_each(xwayland_surface, &xwm->unpaired_surfaces, unpaired_link) {
 		if (xwayland_surface->surface_id == surface_id) {
 			map_shell_surface(xwm, xwayland_surface, surface);
+			xwayland_surface->surface_id = 0;
+			wl_list_remove(&xwayland_surface->unpaired_link);
 			xcb_flush(xwm->xcb_conn);
 			return;
 		}
