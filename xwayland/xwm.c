@@ -638,70 +638,6 @@ static void create_surface_handler(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void xcb_get_resources(struct wlr_xwm *xwm) {
-	size_t i;
-	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
-
-	for (i = 0; i < ATOM_LAST; i++) {
-		cookies[i] = xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
-	}
-	for (i = 0; i < ATOM_LAST; i++) {
-		xcb_intern_atom_reply_t *reply;
-		xcb_generic_error_t *error;
-
-		reply = xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
-
-		if (reply && !error) {
-			xwm->atoms[i] = reply->atom;
-		}
-		if (reply) {
-			free(reply);
-		}
-		if (error) {
-			wlr_log(L_ERROR, "could not resolve atom %s, x11 error code %d",
-				atom_map[i], error->error_code);
-			free(error);
-			return;
-		}
-	}
-}
-
-static void xcb_init_wm(struct wlr_xwm *xwm) {
-	xcb_screen_iterator_t screen_iterator =
-		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
-	xwm->screen = screen_iterator.data;
-
-	xwm->window = xcb_generate_id(xwm->xcb_conn);
-
-	uint32_t values[] = {
-		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
-			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
-			XCB_EVENT_MASK_PROPERTY_CHANGE,
-		/* xwm->cursor, */
-	};
-	XCB_CALL(xwm, xcb_change_window_attributes_checked(xwm->xcb_conn,
-		xwm->screen->root, XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */, values));
-	XCB_CALL(xwm, xcb_composite_redirect_subwindows_checked(xwm->xcb_conn,
-		xwm->screen->root, XCB_COMPOSITE_REDIRECT_MANUAL));
-
-	XCB_CALL(xwm, xcb_create_window_checked(xwm->xcb_conn, XCB_COPY_FROM_PARENT,
-		xwm->window, xwm->screen->root, 0, 0, 1, 1, 0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT, xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, (uint32_t[]){XCB_EVENT_MASK_PROPERTY_CHANGE}));
-	xcb_atom_t supported[] = {
-		xwm->atoms[NET_WM_STATE],
-	};
-	XCB_CALL(xwm, xcb_change_property_checked(xwm->xcb_conn,
-		XCB_PROP_MODE_REPLACE, xwm->screen->root, xwm->atoms[NET_SUPPORTED],
-		XCB_ATOM_ATOM, 32, sizeof(supported)/sizeof(*supported), supported));
-
-	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
-		xwm->atoms[WM_S0], XCB_CURRENT_TIME));
-	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
-		xwm->atoms[NET_WM_S0], XCB_CURRENT_TIME));
-	xcb_flush(xwm->xcb_conn);
-}
-
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 		struct wlr_xwayland_surface *surface) {
 	struct wlr_xwm *xwm = wlr_xwayland->xwm;
@@ -797,6 +733,35 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	free(xwm);
 }
 
+static void xwm_get_resources(struct wlr_xwm *xwm) {
+	size_t i;
+	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
+
+	for (i = 0; i < ATOM_LAST; i++) {
+		cookies[i] = xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
+	}
+	for (i = 0; i < ATOM_LAST; i++) {
+		xcb_intern_atom_reply_t *reply;
+		xcb_generic_error_t *error;
+
+		reply = xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
+
+		if (reply && !error) {
+			xwm->atoms[i] = reply->atom;
+		}
+		if (reply) {
+			free(reply);
+		}
+		if (error) {
+			wlr_log(L_ERROR, "could not resolve atom %s, x11 error code %d",
+				atom_map[i], error->error_code);
+			free(error);
+			return;
+		}
+	}
+}
+
+
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
 	if (xwm == NULL) {
@@ -820,13 +785,44 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		wlr_xwayland->wl_display);
 	xwm->event_source = wl_event_loop_add_fd(event_loop, wlr_xwayland->wm_fd[0],
 		WL_EVENT_READABLE, x11_event_handler, xwm);
-	// probably not needed
-	// wl_event_source_check(xwm->event_source);
+	wl_event_source_check(xwm->event_source);
 
-	// TODO more xcb init
-	// xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
-	xcb_get_resources(xwm);
-	xcb_init_wm(xwm);
+	xwm_get_resources(xwm);
+
+	xcb_screen_iterator_t screen_iterator =
+		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
+	xwm->screen = screen_iterator.data;
+
+	xwm->window = xcb_generate_id(xwm->xcb_conn);
+
+	uint32_t values[] = {
+		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+			XCB_EVENT_MASK_PROPERTY_CHANGE,
+		/* xwm->cursor, */
+	};
+	XCB_CALL(xwm, xcb_change_window_attributes_checked(xwm->xcb_conn,
+		xwm->screen->root, XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */, values));
+	XCB_CALL(xwm, xcb_composite_redirect_subwindows_checked(xwm->xcb_conn,
+		xwm->screen->root, XCB_COMPOSITE_REDIRECT_MANUAL));
+
+	XCB_CALL(xwm, xcb_create_window_checked(xwm->xcb_conn, XCB_COPY_FROM_PARENT,
+		xwm->window, xwm->screen->root, 0, 0, 1, 1, 0,
+		XCB_WINDOW_CLASS_INPUT_OUTPUT, xwm->screen->root_visual,
+		XCB_CW_EVENT_MASK, (uint32_t[]){XCB_EVENT_MASK_PROPERTY_CHANGE}));
+	xcb_atom_t supported[] = {
+		xwm->atoms[NET_WM_STATE],
+	};
+
+	XCB_CALL(xwm, xcb_change_property_checked(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE, xwm->screen->root, xwm->atoms[NET_SUPPORTED],
+		XCB_ATOM_ATOM, 32, sizeof(supported)/sizeof(*supported), supported));
+
+	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
+		xwm->atoms[WM_S0], XCB_CURRENT_TIME));
+	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
+		xwm->atoms[NET_WM_S0], XCB_CURRENT_TIME));
+	xcb_flush(xwm->xcb_conn);
 
 	xwm->surface_create_listener.notify = create_surface_handler;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
