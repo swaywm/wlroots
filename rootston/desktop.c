@@ -99,10 +99,10 @@ bool view_center(struct roots_view *view) {
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	view->x = (double)(width - size.width) / 2
-		+ l_output->x;
-	view->y = (double)(height - size.height) / 2
-		+ l_output->y;
+	double view_x = (double)(width - size.width) / 2 + l_output->x;
+	double view_y = (double)(height - size.height) / 2 + l_output->y;
+
+	view_set_position(view, view_x, view_y);
 
 	return true;
 }

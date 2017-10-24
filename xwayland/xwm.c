@@ -67,6 +67,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		wlr_log(L_ERROR, "Could not allocate wlr xwayland surface");
 		return NULL;
 	}
+	surface->xwm = xwm;
 	surface->window_id = window_id;
 	surface->x = x;
 	surface->y = y;
@@ -92,6 +93,12 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	for (size_t i = 0; i < surface->state->length; i++) {
 		free(surface->state->items[i]);
 	}
+
+	if (surface->surface) {
+		wl_list_remove(&surface->surface_destroy.link);
+		wl_list_remove(&surface->surface_commit.link);
+	}
+
 	free(surface->title);
 	free(surface->class);
 	free(surface->instance);
@@ -412,11 +419,30 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	free(reply);
 }
 
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct wlr_xwayland_surface *xsurface =
+		wl_container_of(listener, xsurface, surface_commit);
+
+	if (!xsurface->added &&
+			wlr_surface_has_buffer(xsurface->surface) &&
+			xsurface->mapped) {
+		wl_signal_emit(&xsurface->xwm->xwayland->events.new_surface, xsurface);
+		xsurface->added = true;
+	}
+}
+
+static void handle_surface_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xwayland_surface *xsurface =
+		wl_container_of(listener, xsurface, surface_destroy);
+
+	// TODO destroy xwayland surface?
+}
+
 static void map_shell_surface(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *xwayland_surface,
+		struct wlr_xwayland_surface *xsurface,
 		struct wlr_surface *surface) {
 	// get xcb geometry for depth = alpha channel
-	xwayland_surface->surface = surface;
+	xsurface->surface = surface;
 
 	// read all surface properties
 	const xcb_atom_t props[] = {
@@ -433,13 +459,20 @@ static void map_shell_surface(struct wlr_xwm *xwm,
 		xwm->atoms[NET_WM_PID],
 	};
 	for (size_t i = 0; i < sizeof(props)/sizeof(xcb_atom_t); i++) {
-		read_surface_property(xwm, xwayland_surface, props[i]);
+		read_surface_property(xwm, xsurface, props[i]);
 	}
 
-	wl_list_remove(&xwayland_surface->link);
+	wl_list_remove(&xsurface->link);
 	wl_list_insert(&xwm->xwayland->displayable_surfaces,
-		&xwayland_surface->link);
-	wl_signal_emit(&xwm->xwayland->events.new_surface, xwayland_surface);
+		&xsurface->link);
+
+	xsurface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&surface->events.commit, &xsurface->surface_commit);
+
+	xsurface->surface_destroy.notify = handle_surface_destroy;
+	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
+
+	xsurface->mapped = true;
 }
 
 /* xcb event handlers */
@@ -620,10 +653,10 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	return count;
 }
 
-static void create_surface_handler(struct wl_listener *listener, void *data) {
+static void handle_compositor_surface_create(struct wl_listener *listener, void *data) {
 	struct wlr_surface *surface = data;
 	struct wlr_xwm *xwm =
-		wl_container_of(listener, xwm, surface_create_listener);
+		wl_container_of(listener, xwm, compositor_surface_create);
 	if (wl_resource_get_client(surface->resource) != xwm->xwayland->client) {
 		return;
 	}
@@ -757,7 +790,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	wl_list_for_each_safe(surface, tmp, &xwm->unpaired_surfaces, link) {
 		wlr_xwayland_surface_destroy(surface);
 	}
-	wl_list_remove(&xwm->surface_create_listener.link);
+	wl_list_remove(&xwm->compositor_surface_create.link);
 	xcb_disconnect(xwm->xcb_conn);
 
 	free(xwm);
@@ -875,9 +908,9 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	free(xfixes_reply);
 
-	xwm->surface_create_listener.notify = create_surface_handler;
+	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
-		&xwm->surface_create_listener);
+		&xwm->compositor_surface_create);
 
 	return xwm;
 }

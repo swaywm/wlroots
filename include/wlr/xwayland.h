@@ -66,14 +66,16 @@ struct wlr_xwayland_surface_size_hints {
 
 struct wlr_xwayland_surface {
 	xcb_window_t window_id;
+	struct wlr_xwm *xwm;
 	uint32_t surface_id;
 	struct wl_list link;
 
 	struct wlr_surface *surface;
-	struct wl_listener surface_destroy_listener;
 	int16_t x, y;
 	uint16_t width, height;
 	bool override_redirect;
+	bool mapped;
+	bool added;
 
 	char *title;
 	char *class;
@@ -95,9 +97,7 @@ struct wlr_xwayland_surface {
 
 	struct {
 		struct wl_signal destroy;
-
 		struct wl_signal request_configure;
-
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 		struct wl_signal set_parent;
@@ -105,6 +105,9 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
 	} events;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 
 	void *data;
 };

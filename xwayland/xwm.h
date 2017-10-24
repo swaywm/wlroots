@@ -36,7 +36,6 @@ enum net_wm_state_action {
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
-	struct wl_listener surface_create_listener;
 
 	xcb_atom_t atoms[ATOM_LAST];
 	xcb_connection_t *xcb_conn;
@@ -49,6 +48,8 @@ struct wlr_xwm {
 	struct wl_list unpaired_surfaces;
 
 	const xcb_query_extension_reply_t *xfixes;
+
+	struct wl_listener compositor_surface_create;
 };
 
 void xwm_destroy(struct wlr_xwm *xwm);
