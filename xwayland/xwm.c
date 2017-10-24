@@ -67,6 +67,14 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		wlr_log(L_ERROR, "Could not allocate wlr xwayland surface");
 		return NULL;
 	}
+
+	uint32_t values[1];
+	values[0] =
+		XCB_EVENT_MASK_FOCUS_CHANGE |
+		XCB_EVENT_MASK_PROPERTY_CHANGE;
+	xcb_change_window_attributes(xwm->xcb_conn, window_id,
+		XCB_CW_EVENT_MASK, &values);
+
 	surface->xwm = xwm;
 	surface->window_id = window_id;
 	surface->x = x;
@@ -530,11 +538,7 @@ static void handle_configure_request(struct wlr_xwm *xwm,
 static void handle_map_request(struct wlr_xwm *xwm,
 		xcb_map_request_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_MAP_REQUEST (%u)", ev->window);
-	const uint32_t value_list = XCB_EVENT_MASK_FOCUS_CHANGE |
-		XCB_EVENT_MASK_PROPERTY_CHANGE;
-	XCB_CALL(xwm, xcb_change_window_attributes_checked(xwm->xcb_conn,
-		ev->window, XCB_CW_EVENT_MASK, &value_list));
-	XCB_CALL(xwm, xcb_map_window_checked(xwm->xcb_conn, ev->window));
+	xcb_map_window(xwm->xcb_conn, ev->window);
 }
 
 static void handle_map_notify(struct wlr_xwm *xwm, xcb_map_notify_event_t *ev) {
