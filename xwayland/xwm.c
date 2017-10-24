@@ -154,7 +154,8 @@ static void read_surface_class(struct wlr_xwm *xwm,
 		surface->class = NULL;
 	}
 
-	wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance, surface->class);
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance,
+		surface->class);
 	wl_signal_emit(&surface->events.set_class, surface);
 }
 
@@ -602,7 +603,8 @@ static void handle_client_message(struct wlr_xwm *xwm,
 	if (ev->type == xwm->atoms[WL_SURFACE_ID]) {
 		struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
 		if (surface == NULL) {
-			wlr_log(L_DEBUG, "client message WL_SURFACE_ID but no new window %u ?",
+			wlr_log(L_DEBUG,
+				"client message WL_SURFACE_ID but no new window %u ?",
 				ev->window);
 			return;
 		}
@@ -649,7 +651,8 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			handle_destroy_notify(xwm, (xcb_destroy_notify_event_t *)event);
 			break;
 		case XCB_CONFIGURE_REQUEST:
-			handle_configure_request(xwm, (xcb_configure_request_event_t *)event);
+			handle_configure_request(xwm,
+				(xcb_configure_request_event_t *)event);
 			break;
 		case XCB_CONFIGURE_NOTIFY:
 			handle_configure_notify(xwm, (xcb_configure_notify_event_t *)event);
@@ -681,7 +684,8 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	return count;
 }
 
-static void handle_compositor_surface_create(struct wl_listener *listener, void *data) {
+static void handle_compositor_surface_create(struct wl_listener *listener,
+		void *data) {
 	struct wlr_surface *surface = data;
 	struct wlr_xwm *xwm =
 		wl_container_of(listener, xwm, compositor_surface_create);
@@ -824,7 +828,8 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
 
 	for (i = 0; i < ATOM_LAST; i++) {
-		cookies[i] = xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
+		cookies[i] =
+			xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
 	}
 	for (i = 0; i < ATOM_LAST; i++) {
 		xcb_intern_atom_reply_t *reply;
