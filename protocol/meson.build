@@ -24,12 +24,14 @@ protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	'gamma-control.xml',
 	'screenshooter.xml',
+	'server-decoration.xml',
 ]
 
 client_protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	'gamma-control.xml',
 	'screenshooter.xml',
+	'server-decoration.xml',
 ]
 
 wl_protos_src = []
