@@ -3,7 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_data_device_manager.h>
+#include <wlr/types/wlr_data_device.h>
 #include <wlr/render.h>
 #ifdef HAS_XWAYLAND
 #include <wlr/xwayland.h>

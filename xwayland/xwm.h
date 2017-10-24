@@ -85,6 +85,8 @@ struct wlr_xwm {
 
 	struct wl_list new_surfaces;
 	struct wl_list unpaired_surfaces;
+
+	const xcb_query_extension_reply_t *xfixes;
 };
 
 void xwm_destroy(struct wlr_xwm *xwm);

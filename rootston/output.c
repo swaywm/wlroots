@@ -150,6 +150,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		render_view(view, desktop, wlr_output, &now);
 	}
 
+	struct roots_drag_icon *drag_icon = NULL;
+	wl_list_for_each(drag_icon, &server->input->drag_icons, link) {
+		struct wlr_surface *icon = drag_icon->surface;
+		struct wlr_cursor *cursor = server->input->cursor;
+		double icon_x = cursor->x + drag_icon->sx;
+		double icon_y = cursor->y + drag_icon->sy;
+		render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+	}
+
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);
 

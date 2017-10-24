@@ -3,6 +3,7 @@
 #endif
 #include <stdlib.h>
 #include <xcb/composite.h>
+#include <xcb/xfixes.h>
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
@@ -825,8 +826,29 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	// TODO more xcb init
 	// xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
+
 	xcb_get_resources(xwm);
 	xcb_init_wm(xwm);
+
+	xwm->xfixes = xcb_get_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
+
+	if (!xwm->xfixes || !xwm->xfixes->present) {
+		wlr_log(L_DEBUG, "xfixes not available");
+	}
+
+	xcb_xfixes_query_version_cookie_t xfixes_cookie;
+	xcb_xfixes_query_version_reply_t *xfixes_reply;
+	xfixes_cookie =
+		xcb_xfixes_query_version(xwm->xcb_conn, XCB_XFIXES_MAJOR_VERSION,
+			XCB_XFIXES_MINOR_VERSION);
+	xfixes_reply =
+		xcb_xfixes_query_version_reply(xwm->xcb_conn, xfixes_cookie, NULL);
+
+	wlr_log(L_DEBUG, "xfixes version: %d.%d",
+		xfixes_reply->major_version, xfixes_reply->minor_version);
+
+	free(xfixes_reply);
 
 	xwm->surface_create_listener.notify = create_surface_handler;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
