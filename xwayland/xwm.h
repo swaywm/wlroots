@@ -44,7 +44,7 @@ struct wlr_xwm {
 
 	struct wlr_xwayland_surface *focus_surface;
 
-	struct wl_list new_surfaces; // wlr_xwayland_surface::new_link
+	struct wl_list surfaces; // wlr_xwayland_surface::link
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
 
 	const xcb_query_extension_reply_t *xfixes;

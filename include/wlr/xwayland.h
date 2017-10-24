@@ -25,7 +25,6 @@ struct wlr_xwayland {
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener destroy_listener;
 	struct wlr_xwm *xwm;
-	struct wl_list displayable_surfaces; // wlr_xwayland_surface::displayable_link
 
 	struct {
 		struct wl_signal new_surface;
@@ -69,13 +68,8 @@ struct wlr_xwayland_surface {
 	struct wlr_xwm *xwm;
 	uint32_t surface_id;
 
-	struct wl_list displayable_link;
-	// XXX: I think this is just a list of all the surfaces
-	struct wl_list new_link;
+	struct wl_list link;
 	struct wl_list unpaired_link;
-	bool displayable;
-	bool unpaired;
-
 
 	struct wlr_surface *surface;
 	int16_t x, y;
