@@ -578,8 +578,10 @@ static void handle_unmap_notify(struct wlr_xwm *xwm,
 	}
 	xsurface->surface = NULL;
 
-	xsurface->mapped = false;
-	wl_signal_emit(&xsurface->events.unmap_notify, xsurface);
+	if (xsurface->mapped) {
+		xsurface->mapped = false;
+		wl_signal_emit(&xsurface->events.unmap_notify, xsurface);
+	}
 }
 
 static void handle_property_notify(struct wlr_xwm *xwm,
