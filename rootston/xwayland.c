@@ -44,6 +44,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
 	wl_list_remove(&roots_surface->destroy.link);
+	wl_list_remove(&roots_surface->map_notify.link);
+	wl_list_remove(&roots_surface->unmap_notify.link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
 }
@@ -62,6 +64,34 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 		xwayland_surface, event->x, event->y, event->width, event->height);
 }
 
+static void handle_map_notify(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, map_notify);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_xwayland_surface *xsurface = view->xwayland_surface;
+	struct roots_desktop *desktop = view->desktop;
+
+	view->wlr_surface = xsurface->surface;
+	view->x = (double)xsurface->x;
+	view->y = (double)xsurface->y;
+
+	wlr_list_push(desktop->views, roots_surface->view);
+}
+
+static void handle_unmap_notify(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, unmap_notify);
+	struct roots_desktop *desktop = roots_surface->view->desktop;
+	roots_surface->view->wlr_surface = NULL;
+
+	for (size_t i = 0; i < desktop->views->length; i++) {
+		if (desktop->views->items[i] == roots_surface->view) {
+			wlr_list_del(desktop->views, i);
+			break;
+		}
+	}
+}
+
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, xwayland_surface);
@@ -77,9 +107,16 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	}
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
+
 	roots_surface->request_configure.notify = handle_request_configure;
 	wl_signal_add(&surface->events.request_configure,
 		&roots_surface->request_configure);
+
+	roots_surface->map_notify.notify = handle_map_notify;
+	wl_signal_add(&surface->events.map_notify, &roots_surface->map_notify);
+
+	roots_surface->unmap_notify.notify = handle_unmap_notify;
+	wl_signal_add(&surface->events.unmap_notify, &roots_surface->unmap_notify);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (view == NULL) {

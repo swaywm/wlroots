@@ -75,6 +75,8 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->state = wlr_list_create();
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
+	wl_signal_init(&surface->events.map_notify);
+	wl_signal_init(&surface->events.unmap_notify);
 	wl_signal_init(&surface->events.set_class);
 	wl_signal_init(&surface->events.set_title);
 	wl_signal_init(&surface->events.set_parent);
@@ -474,6 +476,7 @@ static void map_shell_surface(struct wlr_xwm *xwm,
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
 
 	xsurface->mapped = true;
+	wl_signal_emit(&xsurface->events.map_notify, xsurface);
 }
 
 /* xcb event handlers */
@@ -551,13 +554,6 @@ static void handle_map_request(struct wlr_xwm *xwm,
 
 static void handle_map_notify(struct wlr_xwm *xwm, xcb_map_notify_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_MAP_NOTIFY (%u)", ev->window);
-	struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
-	if (surface != NULL) {
-		surface->override_redirect = ev->override_redirect;
-	} else {
-		wlr_xwayland_surface_create(xwm, ev->window, 0, 0, 1, 1,
-			ev->override_redirect);
-	}
 }
 
 static void handle_unmap_notify(struct wlr_xwm *xwm,
@@ -579,10 +575,11 @@ static void handle_unmap_notify(struct wlr_xwm *xwm,
 	if (xsurface->surface) {
 		wl_list_remove(&xsurface->surface_commit.link);
 		wl_list_remove(&xsurface->surface_destroy.link);
-		xsurface->surface = NULL;
 	}
+	xsurface->surface = NULL;
 
-	wlr_xwayland_surface_destroy(xsurface);
+	xsurface->mapped = false;
+	wl_signal_emit(&xsurface->events.unmap_notify, xsurface);
 }
 
 static void handle_property_notify(struct wlr_xwm *xwm,
@@ -696,12 +693,12 @@ static void handle_compositor_surface_create(struct wl_listener *listener,
 	wlr_log(L_DEBUG, "New xwayland surface: %p", surface);
 
 	uint32_t surface_id = wl_resource_get_id(surface->resource);
-	struct wlr_xwayland_surface *xwayland_surface;
-	wl_list_for_each(xwayland_surface, &xwm->unpaired_surfaces, unpaired_link) {
-		if (xwayland_surface->surface_id == surface_id) {
-			map_shell_surface(xwm, xwayland_surface, surface);
-			xwayland_surface->surface_id = 0;
-			wl_list_remove(&xwayland_surface->unpaired_link);
+	struct wlr_xwayland_surface *xsurface;
+	wl_list_for_each(xsurface, &xwm->unpaired_surfaces, unpaired_link) {
+		if (xsurface->surface_id == surface_id) {
+			map_shell_surface(xwm, xsurface, surface);
+			xsurface->surface_id = 0;
+			wl_list_remove(&xsurface->unpaired_link);
 			xcb_flush(xwm->xcb_conn);
 			return;
 		}

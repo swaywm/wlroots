@@ -34,6 +34,8 @@ struct roots_xwayland_surface {
 	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener request_configure;
+	struct wl_listener map_notify;
+	struct wl_listener unmap_notify;
 };
 
 enum roots_view_type {
