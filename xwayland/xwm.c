@@ -739,7 +739,10 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 		free(event);
 	}
 
-	xcb_flush(xwm->xcb_conn);
+	if (count) {
+		xcb_flush(xwm->xcb_conn);
+	}
+
 	return count;
 }
 
