@@ -43,6 +43,7 @@ static void close(struct roots_view *view) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
+	view_teardown(roots_surface->view);
 	wl_list_remove(&roots_surface->destroy.link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
@@ -101,6 +102,6 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wlr_list_add(desktop->views, view);
 
 	if (!surface->override_redirect) {
-		view_initialize(view);
+		view_setup(view);
 	}
 }
