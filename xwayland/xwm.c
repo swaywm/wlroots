@@ -957,5 +957,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
 		&xwm->compositor_surface_create);
 
+	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+
 	return xwm;
 }
