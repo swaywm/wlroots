@@ -86,8 +86,68 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	return surface;
 }
 
+static void xwm_set_net_active_window(struct wlr_xwm *xwm,
+		xcb_window_t window) {
+	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
+			xwm->screen->root, xwm->atoms[_NET_ACTIVE_WINDOW],
+			xwm->atoms[WINDOW], 32, 1, &window);
+}
+
+static void xwm_send_focus_window(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *surface) {
+	if (surface) {
+		xcb_client_message_event_t client_message;
+		client_message.response_type = XCB_CLIENT_MESSAGE;
+		client_message.format = 32;
+		client_message.window = surface->window_id;
+		client_message.type = xwm->atoms[WM_PROTOCOLS];
+		client_message.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
+		client_message.data.data32[1] = XCB_TIME_CURRENT_TIME;
+
+		xcb_send_event(xwm->xcb_conn, 0, surface->window_id,
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&client_message);
+
+		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			surface->window_id, XCB_CURRENT_TIME);
+
+		uint32_t values[1];
+		values[0] = XCB_STACK_MODE_ABOVE;
+		xcb_configure_window_checked(xwm->xcb_conn, surface->window_id,
+			XCB_CONFIG_WINDOW_STACK_MODE, values);
+	} else {
+		xcb_set_input_focus_checked(xwm->xcb_conn,
+			XCB_INPUT_FOCUS_POINTER_ROOT,
+			XCB_NONE, XCB_CURRENT_TIME);
+	}
+}
+
+
+void xwm_surface_activate(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface) {
+	if (xwm->focus_surface == xsurface) {
+		return;
+	}
+
+	if (xsurface) {
+		xwm_set_net_active_window(xwm, xsurface->window_id);
+	} else {
+		xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+	}
+
+	xwm_send_focus_window(xwm, xsurface);
+
+	xwm->focus_surface = xsurface;
+
+	xcb_flush(xwm->xcb_conn);
+}
+
+
 static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
+
+	if (surface == surface->xwm->focus_surface) {
+		xwm_surface_activate(surface->xwm, NULL);
+	}
 
 	wl_list_remove(&surface->link);
 
@@ -707,56 +767,14 @@ static void handle_compositor_surface_create(struct wl_listener *listener,
 	}
 }
 
-static void xwm_set_net_active_window(struct wlr_xwm *xwm,
-		xcb_window_t window) {
-	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
-			xwm->screen->root, xwm->atoms[_NET_ACTIVE_WINDOW],
-			xwm->atoms[WINDOW], 32, 1, &window);
-}
-
-static void xwm_send_focus_window(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *surface) {
-	if (surface) {
-		xcb_client_message_event_t client_message;
-		client_message.response_type = XCB_CLIENT_MESSAGE;
-		client_message.format = 32;
-		client_message.window = surface->window_id;
-		client_message.type = xwm->atoms[WM_PROTOCOLS];
-		client_message.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
-		client_message.data.data32[1] = XCB_TIME_CURRENT_TIME;
-
-		xcb_send_event(xwm->xcb_conn, 0, surface->window_id,
-			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&client_message);
-
-		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			surface->window_id, XCB_CURRENT_TIME);
-
-		uint32_t values[1];
-		values[0] = XCB_STACK_MODE_ABOVE;
-		xcb_configure_window_checked(xwm->xcb_conn, surface->window_id,
-			XCB_CONFIG_WINDOW_STACK_MODE, values);
-	} else {
-		xcb_set_input_focus_checked(xwm->xcb_conn,
-			XCB_INPUT_FOCUS_POINTER_ROOT,
-			XCB_NONE, XCB_CURRENT_TIME);
-	}
-}
-
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *surface) {
-	struct wlr_xwm *xwm = wlr_xwayland->xwm;
-
-	if (surface) {
-		xwm_set_net_active_window(xwm, surface->window_id);
-	} else {
-		xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+		struct wlr_xwayland_surface *surface, bool activated) {
+	struct wlr_xwayland_surface *focused = wlr_xwayland->xwm->focus_surface;
+	if (activated) {
+		xwm_surface_activate(wlr_xwayland->xwm, surface);
+	} else if (focused == surface) {
+		xwm_surface_activate(wlr_xwayland->xwm, NULL);
 	}
-
-	xwm_send_focus_window(xwm, surface);
-
-	xwm->focus_surface = surface;
-
-	xcb_flush(xwm->xcb_conn);
 }
 
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,

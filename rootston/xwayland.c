@@ -11,12 +11,8 @@
 
 static void activate(struct roots_view *view, bool active) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	if (active) {
-		wlr_xwayland_surface_activate(view->desktop->xwayland,
-			view->xwayland_surface);
-	} else {
-		wlr_xwayland_surface_activate(view->desktop->xwayland, NULL);
-	}
+	struct wlr_xwayland *xwayland = view->desktop->xwayland;
+	wlr_xwayland_surface_activate(xwayland, view->xwayland_surface, active);
 }
 
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {

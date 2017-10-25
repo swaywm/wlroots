@@ -125,7 +125,7 @@ void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor);
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface);
+	struct wlr_xwayland_surface *surface, bool activated);
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface, int16_t x, int16_t y,
 	uint16_t width, uint16_t height);
