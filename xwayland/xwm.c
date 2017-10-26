@@ -615,9 +615,36 @@ static void handle_configure_notify(struct wlr_xwm *xwm,
 	xsurface->height = ev->height;
 }
 
+#define ICCCM_WITHDRAWN_STATE	0
+#define ICCCM_NORMAL_STATE	1
+#define ICCCM_ICONIC_STATE	3
+
+static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
+		int32_t state) {
+	struct wlr_xwm *xwm = xsurface->xwm;
+	uint32_t property[2];
+
+	property[0] = state;
+	property[1] = XCB_WINDOW_NONE;
+
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xsurface->window_id,
+		xwm->atoms[NET_WM_STATE],
+		xwm->atoms[NET_WM_STATE],
+		32, // format
+		2, property);
+}
+
 static void handle_map_request(struct wlr_xwm *xwm,
 		xcb_map_request_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_MAP_REQUEST (%u)", ev->window);
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
+	if (!xsurface) {
+		return;
+	}
+
+	xsurface_set_wm_state(xsurface, ICCCM_NORMAL_STATE);
 	xcb_map_window(xwm->xcb_conn, ev->window);
 }
 
@@ -651,6 +678,8 @@ static void handle_unmap_notify(struct wlr_xwm *xwm,
 		xsurface->mapped = false;
 		wl_signal_emit(&xsurface->events.unmap_notify, xsurface);
 	}
+
+	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
 }
 
 static void handle_property_notify(struct wlr_xwm *xwm,
