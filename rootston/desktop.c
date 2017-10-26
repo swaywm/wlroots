@@ -61,11 +61,9 @@ static void view_update_output(const struct roots_view *view,
 				desktop->layout, output->wlr_output,
 				view->x, view->y, view->x + box.width, view->y + box.height);
 		if (intersected && !intersects) {
-			wlr_log(L_DEBUG, "Leaving output %s", output->wlr_output->name);
 			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
 		}
 		if (!intersected && intersects) {
-			wlr_log(L_DEBUG, "Entering output %s", output->wlr_output->name);
 			wlr_surface_send_enter(view->wlr_surface, output->wlr_output);
 		}
 	}
@@ -167,14 +165,15 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			continue;
 		}
 
-		double view_sx = lx - view->x;
-		double view_sy = ly - view->y;
+		int scale = view->wlr_surface->current->scale;
+		double view_sx = (lx - view->x) / (double)scale;
+		double view_sy = (ly - view->y) / (double)scale;
 
 		struct wlr_box box = {
 			.x = 0,
 			.y = 0,
-			.width = view->wlr_surface->current->buffer_width,
-			.height = view->wlr_surface->current->buffer_height,
+			.width = view->wlr_surface->current->buffer_width * scale,
+			.height = view->wlr_surface->current->buffer_height * scale,
 		};
 		if (view->rotation != 0.0) {
 			// Coordinates relative to the center of the view
