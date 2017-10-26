@@ -20,29 +20,35 @@ static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
 	if (surface->texture->valid) {
-		int width = surface->current->buffer_width;
-		int height = surface->current->buffer_height;
+		float scale_factor = (float)wlr_output->scale / surface->current->scale;
+		int width = surface->current->buffer_width * scale_factor;
+		int height = surface->current->buffer_height * scale_factor;
 		double ox = lx, oy = ly;
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
 				lx, ly, lx + width, ly + height)) {
-			// TODO: accomodate for mismatched scale, which can happen, for
-			// example, when a view is rendered over two outputs
 			float matrix[16];
 
 			float translate_origin[16];
 			wlr_matrix_translate(&translate_origin,
 				(int)ox + width / 2, (int)oy + height / 2, 0);
+
 			float rotate[16];
 			wlr_matrix_rotate(&rotate, rotation);
+
 			float translate_center[16];
 			wlr_matrix_translate(&translate_center, -width / 2, -height / 2, 0);
+
+			float scale[16];
+			wlr_matrix_scale(&scale, width, height, 1);
+
 			float transform[16];
 			wlr_matrix_mul(&translate_origin, &rotate, &transform);
 			wlr_matrix_mul(&transform, &translate_center, &transform);
-			wlr_surface_get_matrix(surface, &matrix,
-					&wlr_output->transform_matrix, &transform);
+			wlr_matrix_mul(&transform, &scale, &transform);
+			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
+
 			wlr_render_with_matrix(desktop->server->renderer,
 					surface->texture, &matrix);
 
