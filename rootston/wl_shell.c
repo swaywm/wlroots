@@ -56,6 +56,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
+	view_teardown(roots_surface->view);
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
@@ -111,7 +112,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->desktop = desktop;
 	roots_surface->view = view;
 	wlr_list_add(desktop->views, view);
-	view_initialize(view);
+	view_setup(view);
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
 		// we need to map it relative to the parent
