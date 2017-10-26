@@ -429,8 +429,17 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		// with a NULL buffer to hide it
 		if (renderer && texture && texture->valid) {
 			float matrix[16];
-			wlr_texture_get_matrix(texture, &matrix, &output->transform_matrix,
-				output->cursor.x, output->cursor.y);
+			if (output->cursor.surface) {
+				float translation[16];
+				wlr_matrix_translate(&translation,
+						output->cursor.x, output->cursor.y, 0);
+				wlr_surface_get_matrix(output->cursor.surface,
+						&matrix, &output->transform_matrix, &translation);
+			} else {
+				wlr_texture_get_matrix(texture,
+						&matrix, &output->transform_matrix,
+						output->cursor.x, output->cursor.y);
+			}
 			wlr_render_with_matrix(renderer, texture, &matrix);
 		}
 	}

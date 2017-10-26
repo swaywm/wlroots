@@ -656,7 +656,7 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	if (transform) {
 		wlr_matrix_mul(matrix, transform, matrix);
 	}
-	wlr_matrix_scale(&scale, width, height, surface->current->scale);
+	wlr_matrix_scale(&scale, width, height, 1);
 	wlr_matrix_mul(matrix, &scale, matrix);
 	wlr_matrix_mul(projection, matrix, matrix);
 }
