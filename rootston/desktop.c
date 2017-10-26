@@ -112,7 +112,6 @@ void view_initialize(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
 
 	set_view_focus(input, view->desktop, view);
-	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,

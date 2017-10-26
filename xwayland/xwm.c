@@ -96,6 +96,10 @@ static void xwm_set_net_active_window(struct wlr_xwm *xwm,
 static void xwm_send_focus_window(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *surface) {
 	if (surface) {
+		if (surface->override_redirect) {
+			return;
+		}
+
 		xcb_client_message_event_t client_message;
 		client_message.response_type = XCB_CLIENT_MESSAGE;
 		client_message.format = 32;
@@ -124,7 +128,8 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 
 void xwm_surface_activate(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface) {
-	if (xwm->focus_surface == xsurface) {
+	if (xwm->focus_surface == xsurface ||
+			(xsurface && xsurface->override_redirect)) {
 		return;
 	}
 

@@ -36,8 +36,6 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		if (server->desktop->views->length > 0) {
 			struct roots_view *view = server->desktop->views->items[0];
 			set_view_focus(keyboard->input, server->desktop, view);
-			wlr_seat_keyboard_notify_enter(keyboard->input->wl_seat,
-				view->wlr_surface);
 		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);

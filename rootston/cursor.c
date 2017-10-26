@@ -172,6 +172,10 @@ void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
 	if (!view) {
 		return;
 	}
+	if (view->type == ROOTS_XWAYLAND_VIEW &&
+			view->xwayland_surface->override_redirect) {
+		return;
+	}
 	input->last_active_view = view;
 
 	size_t index = 0;
@@ -187,6 +191,7 @@ void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
 	// TODO: list_swap
 	wlr_list_del(desktop->views, index);
 	wlr_list_add(desktop->views, view);
+	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
@@ -275,9 +280,6 @@ static void do_cursor_button_press(struct roots_input *input,
 		input->input_events_idx = (i + 1)
 			% (sizeof(input->input_events) / sizeof(input->input_events[0]));
 		set_view_focus(input, desktop, view);
-		if (view) {
-			wlr_seat_keyboard_notify_enter(input->wl_seat, surface);
-		}
 		break;
 	}
 }
