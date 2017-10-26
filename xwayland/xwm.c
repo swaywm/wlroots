@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include <stdlib.h>
+#include <unistd.h>
 #include <xcb/composite.h>
 #include <xcb/xfixes.h>
 #include "wlr/util/log.h"
@@ -33,6 +34,8 @@ const char *atom_map[ATOM_LAST] = {
 	"WINDOW",
 	"_NET_ACTIVE_WINDOW",
 	"_NET_WM_MOVERESIZE",
+	"_NET_WM_NAME",
+	"_NET_SUPPORTING_WM_CHECK",
 };
 
 /* General helpers */
@@ -867,6 +870,9 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 }
 
 static void xwm_get_resources(struct wlr_xwm *xwm) {
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
+
 	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
 
@@ -893,73 +899,6 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 			return;
 		}
 	}
-}
-
-
-struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
-	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
-	if (xwm == NULL) {
-		return NULL;
-	}
-
-	xwm->xwayland = wlr_xwayland;
-	wl_list_init(&xwm->surfaces);
-	wl_list_init(&xwm->unpaired_surfaces);
-
-	xwm->xcb_conn = xcb_connect_to_fd(wlr_xwayland->wm_fd[0], NULL);
-
-	int rc = xcb_connection_has_error(xwm->xcb_conn);
-	if (rc) {
-		wlr_log(L_ERROR, "xcb connect failed: %d", rc);
-		free(xwm);
-		return NULL;
-	}
-
-	struct wl_event_loop *event_loop = wl_display_get_event_loop(
-		wlr_xwayland->wl_display);
-	xwm->event_source = wl_event_loop_add_fd(event_loop, wlr_xwayland->wm_fd[0],
-		WL_EVENT_READABLE, x11_event_handler, xwm);
-	wl_event_source_check(xwm->event_source);
-
-	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
-
-	xwm_get_resources(xwm);
-
-	xcb_screen_iterator_t screen_iterator =
-		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
-	xwm->screen = screen_iterator.data;
-
-	xwm->window = xcb_generate_id(xwm->xcb_conn);
-
-	uint32_t values[] = {
-		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
-			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
-			XCB_EVENT_MASK_PROPERTY_CHANGE,
-		/* xwm->cursor, */
-	};
-	XCB_CALL(xwm, xcb_change_window_attributes_checked(xwm->xcb_conn,
-		xwm->screen->root, XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */, values));
-	XCB_CALL(xwm, xcb_composite_redirect_subwindows_checked(xwm->xcb_conn,
-		xwm->screen->root, XCB_COMPOSITE_REDIRECT_MANUAL));
-
-	XCB_CALL(xwm, xcb_create_window_checked(xwm->xcb_conn, XCB_COPY_FROM_PARENT,
-		xwm->window, xwm->screen->root, 0, 0, 1, 1, 0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT, xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, (uint32_t[]){XCB_EVENT_MASK_PROPERTY_CHANGE}));
-	xcb_atom_t supported[] = {
-		xwm->atoms[NET_WM_STATE],
-		xwm->atoms[_NET_ACTIVE_WINDOW],
-	};
-
-	XCB_CALL(xwm, xcb_change_property_checked(xwm->xcb_conn,
-		XCB_PROP_MODE_REPLACE, xwm->screen->root, xwm->atoms[NET_SUPPORTED],
-		XCB_ATOM_ATOM, 32, sizeof(supported)/sizeof(*supported), supported));
-
-	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
-		xwm->atoms[WM_S0], XCB_CURRENT_TIME));
-	XCB_CALL(xwm, xcb_set_selection_owner_checked(xwm->xcb_conn, xwm->window,
-		xwm->atoms[NET_WM_S0], XCB_CURRENT_TIME));
-	xcb_flush(xwm->xcb_conn);
 
 	xwm->xfixes = xcb_get_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 
@@ -980,11 +919,124 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	free(xfixes_reply);
 
+}
+
+static void xwm_create_wm_window(struct wlr_xwm *xwm) {
+	static const char name[] = "wlroots wm";
+
+	xwm->window = xcb_generate_id(xwm->xcb_conn);
+
+	xcb_create_window(xwm->xcb_conn,
+		XCB_COPY_FROM_PARENT,
+		xwm->window,
+		xwm->screen->root,
+		0, 0,
+		10, 10,
+		0,
+		XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		xwm->screen->root_visual,
+		0, NULL);
+
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xwm->window,
+		xwm->atoms[_NET_WM_NAME],
+		xwm->atoms[UTF8_STRING],
+		8, // format
+		strlen(name), name);
+
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xwm->screen->root,
+		xwm->atoms[_NET_SUPPORTING_WM_CHECK],
+		XCB_ATOM_WINDOW,
+		32, // format
+		1, &xwm->window);
+
+	xcb_set_selection_owner(xwm->xcb_conn,
+		xwm->window,
+		xwm->atoms[WM_S0],
+		XCB_CURRENT_TIME);
+
+	xcb_set_selection_owner(xwm->xcb_conn,
+		xwm->window,
+		xwm->atoms[NET_WM_S0],
+		XCB_CURRENT_TIME);
+}
+
+struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
+	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
+	if (xwm == NULL) {
+		return NULL;
+	}
+
+	xwm->xwayland = wlr_xwayland;
+	wl_list_init(&xwm->surfaces);
+	wl_list_init(&xwm->unpaired_surfaces);
+
+	xwm->xcb_conn = xcb_connect_to_fd(wlr_xwayland->wm_fd[0], NULL);
+
+	int rc = xcb_connection_has_error(xwm->xcb_conn);
+	if (rc) {
+		wlr_log(L_ERROR, "xcb connect failed: %d", rc);
+		close(wlr_xwayland->wm_fd[0]);
+		free(xwm);
+		return NULL;
+	}
+
+	xcb_screen_iterator_t screen_iterator =
+		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
+	xwm->screen = screen_iterator.data;
+
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(
+		wlr_xwayland->wl_display);
+	xwm->event_source =
+		wl_event_loop_add_fd(event_loop,
+			wlr_xwayland->wm_fd[0],
+			WL_EVENT_READABLE,
+			x11_event_handler,
+			xwm);
+	wl_event_source_check(xwm->event_source);
+
+	xwm_get_resources(xwm);
+
+	uint32_t values[1];
+	values[0] =
+		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+		XCB_EVENT_MASK_PROPERTY_CHANGE;
+
+	xcb_change_window_attributes(xwm->xcb_conn,
+		xwm->screen->root,
+		XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */,
+		values);
+
+	xcb_composite_redirect_subwindows_checked(xwm->xcb_conn, xwm->screen->root,
+		XCB_COMPOSITE_REDIRECT_MANUAL);
+
+	xcb_atom_t supported[] = {
+		xwm->atoms[NET_WM_STATE],
+		xwm->atoms[_NET_ACTIVE_WINDOW],
+		xwm->atoms[_NET_WM_MOVERESIZE],
+	};
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xwm->screen->root,
+		xwm->atoms[NET_SUPPORTED],
+		XCB_ATOM_ATOM,
+		32,
+		sizeof(supported)/sizeof(*supported),
+		supported);
+
+	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+
 	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
 		&xwm->compositor_surface_create);
 
-	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+	xwm_create_wm_window(xwm);
+
+	xcb_flush(xwm->xcb_conn);
 
 	return xwm;
 }
