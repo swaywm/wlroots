@@ -14,17 +14,13 @@ static void server_decoration_handle_request_mode(struct wl_client *client,
 		struct wl_resource *resource, uint32_t mode) {
 	struct wlr_server_decoration *decoration =
 		wl_resource_get_user_data(resource);
-	decoration->requested_mode = mode;
-	wl_signal_emit(&decoration->events.request_mode, decoration);
-}
-
-void wlr_server_decoration_send_mode(struct wlr_server_decoration *decoration,
-		uint32_t mode) {
-	if (decoration->sent_mode == mode) {
+	if (decoration->mode == mode) {
 		return;
 	}
-	org_kde_kwin_server_decoration_send_mode(decoration->resource, mode);
-	decoration->sent_mode = mode;
+	decoration->mode = mode;
+	wl_signal_emit(&decoration->events.mode, decoration);
+	org_kde_kwin_server_decoration_send_mode(decoration->resource,
+		decoration->mode);
 }
 
 static void server_decoration_destroy(
@@ -71,8 +67,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 		return;
 	}
 	decoration->surface = surface;
-	decoration->requested_mode =
-		ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_NONE;
+	decoration->mode = manager->default_mode;
 
 	int version = wl_resource_get_version(manager_resource);
 	decoration->resource = wl_resource_create(client,
@@ -90,7 +85,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 		decoration->resource);
 
 	wl_signal_init(&decoration->events.destroy);
-	wl_signal_init(&decoration->events.request_mode);
+	wl_signal_init(&decoration->events.mode);
 
 	wl_signal_add(&surface->events.destroy,
 		&decoration->surface_destroy_listener);
@@ -100,8 +95,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 	wl_list_insert(&manager->decorations, &decoration->link);
 
 	org_kde_kwin_server_decoration_send_mode(decoration->resource,
-		manager->default_mode);
-	decoration->sent_mode = manager->default_mode;
+		decoration->mode);
 
 	wl_signal_emit(&manager->events.new_decoration, decoration);
 }

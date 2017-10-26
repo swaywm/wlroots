@@ -22,13 +22,11 @@ struct wlr_server_decoration {
 	struct wlr_surface *surface;
 	struct wl_list link;
 
-	// enum org_kde_kwin_server_decoration_manager_mode
-	uint32_t requested_mode;
-	uint32_t sent_mode;
+	uint32_t mode; // enum org_kde_kwin_server_decoration_manager_mode
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal request_mode;
+		struct wl_signal mode;
 	} events;
 
 	struct wl_listener surface_destroy_listener;
@@ -42,8 +40,5 @@ void wlr_server_decoration_manager_set_default_mode(
 	struct wlr_server_decoration_manager *manager, uint32_t default_mode);
 void wlr_server_decoration_manager_destroy(
 	struct wlr_server_decoration_manager *manager);
-
-void wlr_server_decoration_send_mode(struct wlr_server_decoration *decoration,
-	uint32_t mode);
 
 #endif
