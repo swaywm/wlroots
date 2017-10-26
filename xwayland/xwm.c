@@ -746,6 +746,21 @@ static void handle_client_message(struct wlr_xwm *xwm,
 	}
 }
 
+static void handle_focus_in(struct wlr_xwm *xwm,
+		xcb_focus_in_event_t *ev) {
+	// Do not interfere with grabs
+	if (ev->mode == XCB_NOTIFY_MODE_GRAB ||
+			ev->mode == XCB_NOTIFY_MODE_UNGRAB) {
+		return;
+	}
+
+	// Do not let X clients change the focus behind the compositor's
+	// back. Reset the focus to the old one if it changed.
+	if (!xwm->focus_surface || ev->event != xwm->focus_surface->window_id) {
+		xwm_send_focus_window(xwm, xwm->focus_surface);
+	}
+}
+
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
  * others redefine anyway is meh
  */
@@ -785,6 +800,9 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			break;
 		case XCB_CLIENT_MESSAGE:
 			handle_client_message(xwm, (xcb_client_message_event_t *)event);
+			break;
+		case XCB_FOCUS_IN:
+			handle_focus_in(xwm, (xcb_focus_in_event_t *)event);
 			break;
 		default:
 			wlr_log(L_DEBUG, "X11 event: %d",
