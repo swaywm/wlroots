@@ -26,6 +26,17 @@ struct binding_config {
 	struct wl_list link;
 };
 
+struct keyboard_config {
+	char *name;
+	uint32_t meta_key;
+	char *rules;
+	char *model;
+	char *layout;
+	char *variant;
+	char *options;
+	struct wl_list link;
+};
+
 struct roots_config {
 	bool xwayland;
 	// TODO: Multiple cursors, multiseat
@@ -34,13 +45,10 @@ struct roots_config {
 		struct wlr_box *mapped_box;
 	} cursor;
 
-	struct {
-		uint32_t meta_key;
-	} keyboard;
-
 	struct wl_list outputs;
 	struct wl_list devices;
 	struct wl_list bindings;
+	struct wl_list keyboards;
 	char *config_path;
 	char *startup_cmd;
 };
@@ -54,13 +62,20 @@ void roots_config_destroy(struct roots_config *config);
  * NULL.
  */
 struct output_config *config_get_output(struct roots_config *config,
-		struct wlr_output *output);
+	struct wlr_output *output);
 
 /**
  * Get configuration for the device. If the device is not configured, returns
  * NULL.
  */
 struct device_config *config_get_device(struct roots_config *config,
-		struct wlr_input_device *device);
+	struct wlr_input_device *device);
+
+/**
+ * Get configuration for the keyboard. If the keyboard is not configured,
+ * returns NULL. A NULL device returns the default config for keyboards.
+ */
+struct keyboard_config *config_get_keyboard(struct roots_config *config,
+	struct wlr_input_device *device);
 
 #endif

@@ -125,6 +125,28 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void keyboard_config_merge(struct keyboard_config *config,
+		struct keyboard_config *fallback) {
+	if (fallback == NULL) {
+		return;
+	}
+	if (config->rules == NULL) {
+		config->rules = fallback->rules;
+	}
+	if (config->model == NULL) {
+		config->model = fallback->model;
+	}
+	if (config->layout == NULL) {
+		config->layout = fallback->layout;
+	}
+	if (config->variant == NULL) {
+		config->variant = fallback->variant;
+	}
+	if (config->options == NULL) {
+		config->options = fallback->options;
+	}
+}
+
 void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = calloc(sizeof(struct roots_keyboard), 1);
 	if (keyboard == NULL) {
@@ -137,13 +159,27 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
 	wl_list_insert(&input->keyboards, &keyboard->link);
 
+	struct keyboard_config config;
+	memset(&config, 0, sizeof(config));
+	keyboard_config_merge(&config, config_get_keyboard(input->config, device));
+	keyboard_config_merge(&config, config_get_keyboard(input->config, NULL));
+
+	struct keyboard_config env_config = {
+		.rules = getenv("XKB_DEFAULT_RULES"),
+		.model = getenv("XKB_DEFAULT_MODEL"),
+		.layout = getenv("XKB_DEFAULT_LAYOUT"),
+		.variant = getenv("XKB_DEFAULT_VARIANT"),
+		.options = getenv("XKB_DEFAULT_OPTIONS"),
+	};
+	keyboard_config_merge(&config, &env_config);
+
 	struct xkb_rule_names rules;
 	memset(&rules, 0, sizeof(rules));
-	rules.rules = getenv("XKB_DEFAULT_RULES");
-	rules.model = getenv("XKB_DEFAULT_MODEL");
-	rules.layout = getenv("XKB_DEFAULT_LAYOUT");
-	rules.variant = getenv("XKB_DEFAULT_VARIANT");
-	rules.options = getenv("XKB_DEFAULT_OPTIONS");
+	rules.rules = config.rules;
+	rules.model = config.model;
+	rules.layout = config.layout;
+	rules.variant = config.variant;
+	rules.options = config.options;
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (context == NULL) {
 		wlr_log(L_ERROR, "Cannot create XKB context");
