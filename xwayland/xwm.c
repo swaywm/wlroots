@@ -32,6 +32,7 @@ const char *atom_map[ATOM_LAST] = {
 	"WM_TAKE_FOCUS",
 	"WINDOW",
 	"_NET_ACTIVE_WINDOW",
+	"_NET_WM_MOVERESIZE",
 };
 
 /* General helpers */
@@ -660,37 +661,54 @@ static void handle_property_notify(struct wlr_xwm *xwm,
 	read_surface_property(xwm, surface, ev->atom);
 }
 
+static void handle_surface_id_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
+	if (xsurface == NULL) {
+		wlr_log(L_DEBUG,
+			"client message WL_SURFACE_ID but no new window %u ?",
+			ev->window);
+		return;
+	}
+	/* Check if we got notified after wayland surface create event */
+	uint32_t id = ev->data.data32[0];
+	struct wl_resource *resource =
+		wl_client_get_object(xwm->xwayland->client, id);
+	if (resource) {
+		struct wlr_surface *surface = wl_resource_get_user_data(resource);
+		xsurface->surface_id = 0;
+		map_shell_surface(xwm, xsurface, surface);
+	} else {
+		xsurface->surface_id = id;
+		wl_list_insert(&xwm->unpaired_surfaces, &xsurface->unpaired_link);
+	}
+}
+
+static void handle_net_wm_state_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
+	if (xsurface == NULL) {
+		return;
+	}
+	handle_surface_state(xwm, xsurface, &ev->data.data32[1], 2,
+		ev->data.data32[0]);
+}
+
+static void handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	wlr_log(L_DEBUG, "TODO: handle moveresize");
+}
+
 static void handle_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_CLIENT_MESSAGE (%u)", ev->window);
 
 	if (ev->type == xwm->atoms[WL_SURFACE_ID]) {
-		struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
-		if (surface == NULL) {
-			wlr_log(L_DEBUG,
-				"client message WL_SURFACE_ID but no new window %u ?",
-				ev->window);
-			return;
-		}
-		/* Check if we got notified after wayland surface create event */
-		uint32_t id = ev->data.data32[0];
-		struct wl_resource *resource =
-			wl_client_get_object(xwm->xwayland->client, id);
-		if (resource) {
-			surface->surface_id = 0;
-			map_shell_surface(xwm,
-				surface, wl_resource_get_user_data(resource));
-		} else {
-			surface->surface_id = id;
-			wl_list_insert(&xwm->unpaired_surfaces, &surface->unpaired_link);
-		}
+		handle_surface_id_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[NET_WM_STATE]) {
-		struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
-		if (surface == NULL) {
-			return;
-		}
-		handle_surface_state(xwm, surface, &ev->data.data32[1], 2,
-			ev->data.data32[0]);
+		handle_net_wm_state_message(xwm, ev);
+	} else if (ev->type == xwm->atoms[_NET_WM_MOVERESIZE]) {
+		handle_net_wm_moveresize_message(xwm, ev);
 	} else {
 		wlr_log(L_DEBUG, "unhandled x11 client message %u", ev->type);
 	}

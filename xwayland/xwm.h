@@ -22,6 +22,7 @@ enum atom_name {
 	WM_TAKE_FOCUS,
 	WINDOW,
 	_NET_ACTIVE_WINDOW,
+	_NET_WM_MOVERESIZE,
 	ATOM_LAST,
 };
 
