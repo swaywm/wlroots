@@ -147,6 +147,43 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
+static void config_handle_keyboard(struct roots_config *config,
+		const char *device_name, const char *name, const char *value) {
+	struct keyboard_config *kc;
+	bool found = false;
+	wl_list_for_each(kc, &config->keyboards, link) {
+		if (strcmp(kc->name, device_name) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		kc = calloc(1, sizeof(struct keyboard_config));
+		kc->name = strdup(device_name);
+		wl_list_insert(&config->keyboards, &kc->link);
+	}
+
+	if (strcmp(name, "meta-key") == 0) {
+		kc->meta_key = parse_modifier(value);
+		if (kc->meta_key == 0) {
+			wlr_log(L_ERROR, "got unknown meta key: %s", name);
+		}
+	} else if (strcmp(name, "rules") == 0) {
+		kc->rules = strdup(value);
+	} else if (strcmp(name, "model") == 0) {
+		kc->model = strdup(value);
+	} else if (strcmp(name, "layout") == 0) {
+		kc->layout = strdup(value);
+	} else if (strcmp(name, "variant") == 0) {
+		kc->variant = strdup(value);
+	} else if (strcmp(name, "options") == 0) {
+		kc->options = strdup(value);
+	} else {
+		wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
+	}
+}
+
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 static const char *keyboard_prefix = "keyboard:";
@@ -245,42 +282,11 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
+	} else if (strcmp(section, "keyboard") == 0) {
+		config_handle_keyboard(config, "", name, value);
 	} else if (strncmp(keyboard_prefix, section, strlen(keyboard_prefix)) == 0) {
 		const char *device_name = section + strlen(keyboard_prefix);
-
-		struct keyboard_config *kc;
-		bool found = false;
-		wl_list_for_each(kc, &config->keyboards, link) {
-			if (strcmp(kc->name, device_name) == 0) {
-				found = true;
-				break;
-			}
-		}
-
-		if (!found) {
-			kc = calloc(1, sizeof(struct keyboard_config));
-			kc->name = strdup(device_name);
-			wl_list_insert(&config->keyboards, &kc->link);
-		}
-
-		if (strcmp(name, "meta-key") == 0) {
-			kc->meta_key = parse_modifier(value);
-			if (kc->meta_key == 0) {
-				wlr_log(L_ERROR, "got unknown meta key: %s", name);
-			}
-		} else if (strcmp(name, "rules") == 0) {
-			kc->rules = strdup(value);
-		} else if (strcmp(name, "model") == 0) {
-			kc->model = strdup(value);
-		} else if (strcmp(name, "layout") == 0) {
-			kc->layout = strdup(value);
-		} else if (strcmp(name, "variant") == 0) {
-			kc->variant = strdup(value);
-		} else if (strcmp(name, "options") == 0) {
-			kc->options = strdup(value);
-		} else {
-			wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
-		}
+		config_handle_keyboard(config, device_name, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
 		add_binding_config(&config->bindings, name, value);
 	} else {
@@ -419,7 +425,7 @@ struct keyboard_config *config_get_keyboard(struct roots_config *config,
 	struct keyboard_config *kc;
 	wl_list_for_each(kc, &config->keyboards, link) {
 		if ((device != NULL && strcmp(kc->name, device->name) == 0) ||
-				(device == NULL && strcmp(kc->name, "*") == 0)) {
+				(device == NULL && strcmp(kc->name, "") == 0)) {
 			return kc;
 		}
 	}
