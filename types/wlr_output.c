@@ -28,7 +28,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		struct wlr_output_mode *mode;
 		wl_list_for_each(mode, &output->modes, link) {
-			uint32_t flags = mode->flags & ~WL_OUTPUT_MODE_PREFERRED;
+			uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
 			if (output->current_mode == mode) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
