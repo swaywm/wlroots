@@ -217,10 +217,12 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 
 static bool is_meta_pressed(struct roots_input *input,
 		struct wlr_input_device *device) {
-	struct keyboard_config *config = config_get_keyboard(input->server->config,
-		device);
 	uint32_t meta_key = 0;
-	if (config != NULL) {
+	struct keyboard_config *config;
+	if ((config = config_get_keyboard(input->server->config, device))) {
+		meta_key = config->meta_key;
+	} else if (!meta_key && (config = config_get_keyboard(input->server->config,
+			NULL))) {
 		meta_key = config->meta_key;
 	}
 	if (meta_key == 0) {

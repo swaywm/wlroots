@@ -417,14 +417,12 @@ struct device_config *config_get_device(struct roots_config *config,
 struct keyboard_config *config_get_keyboard(struct roots_config *config,
 		struct wlr_input_device *device) {
 	struct keyboard_config *kc;
-	struct keyboard_config *default_kc = NULL;
 	wl_list_for_each(kc, &config->keyboards, link) {
-		if (strcmp(kc->name, "*") == 0) {
-			default_kc = kc;
-		} else if (strcmp(kc->name, device->name) == 0) {
+		if ((device != NULL && strcmp(kc->name, device->name) == 0) ||
+				(device == NULL && strcmp(kc->name, "*") == 0)) {
 			return kc;
 		}
 	}
 
-	return default_kc;
+	return NULL;
 }

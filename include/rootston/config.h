@@ -73,7 +73,7 @@ struct device_config *config_get_device(struct roots_config *config,
 
 /**
  * Get configuration for the keyboard. If the keyboard is not configured,
- * returns NULL.
+ * returns NULL. A NULL device returns the default config for keyboards.
  */
 struct keyboard_config *config_get_keyboard(struct roots_config *config,
 	struct wlr_input_device *device);
