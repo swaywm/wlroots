@@ -29,7 +29,7 @@ map-to-output = VGA-1
 # Restrict cursor movements for this mouse to concrete rectangle
 geometry = 2500x800
 
-[keyboard]
+[keyboard:*]
 meta-key = Logo
 
 # Keybindings

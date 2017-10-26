@@ -215,8 +215,14 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 		event->orientation, event->delta);
 }
 
-static bool is_meta_pressed(struct roots_input *input) {
-	uint32_t meta_key = input->server->config->keyboard.meta_key;
+static bool is_meta_pressed(struct roots_input *input,
+		struct wlr_input_device *device) {
+	struct keyboard_config *config = config_get_keyboard(input->server->config,
+		device);
+	uint32_t meta_key = 0;
+	if (config != NULL) {
+		meta_key = config->meta_key;
+	}
 	if (meta_key == 0) {
 		return false;
 	}
@@ -241,7 +247,7 @@ static void do_cursor_button_press(struct roots_input *input,
 	struct roots_view *view = view_at(desktop,
 		input->cursor->x, input->cursor->y, &surface, &sx, &sy);
 
-	if (state == WLR_BUTTON_PRESSED && view && is_meta_pressed(input)) {
+	if (state == WLR_BUTTON_PRESSED && view && is_meta_pressed(input, device)) {
 		set_view_focus(input, desktop, view);
 
 		switch (button) {

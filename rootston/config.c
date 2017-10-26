@@ -149,6 +149,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
+static const char *keyboard_prefix = "keyboard:";
 
 static int config_ini_handler(void *user, const char *section, const char *name,
 		const char *value) {
@@ -219,9 +220,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 	} else if (strncmp(device_prefix, section, strlen(device_prefix)) == 0) {
 		const char *device_name = section + strlen(device_prefix);
+
 		struct device_config *dc;
 		bool found = false;
-
 		wl_list_for_each(dc, &config->devices, link) {
 			if (strcmp(dc->name, device_name) == 0) {
 				found = true;
@@ -244,12 +245,39 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
-	} else if (strcmp(section, "keyboard") == 0) {
+	} else if (strncmp(keyboard_prefix, section, strlen(keyboard_prefix)) == 0) {
+		const char *device_name = section + strlen(keyboard_prefix);
+
+		struct keyboard_config *kc;
+		bool found = false;
+		wl_list_for_each(kc, &config->keyboards, link) {
+			if (strcmp(kc->name, device_name) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			kc = calloc(1, sizeof(struct keyboard_config));
+			kc->name = strdup(device_name);
+			wl_list_insert(&config->keyboards, &kc->link);
+		}
+
 		if (strcmp(name, "meta-key") == 0) {
-			config->keyboard.meta_key = parse_modifier(value);
-			if (config->keyboard.meta_key == 0) {
+			kc->meta_key = parse_modifier(value);
+			if (kc->meta_key == 0) {
 				wlr_log(L_ERROR, "got unknown meta key: %s", name);
 			}
+		} else if (strcmp(name, "rules") == 0) {
+			kc->rules = strdup(value);
+		} else if (strcmp(name, "model") == 0) {
+			kc->model = strdup(value);
+		} else if (strcmp(name, "layout") == 0) {
+			kc->layout = strdup(value);
+		} else if (strcmp(name, "variant") == 0) {
+			kc->variant = strdup(value);
+		} else if (strcmp(name, "options") == 0) {
+			kc->options = strdup(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
 		}
@@ -271,6 +299,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	config->xwayland = true;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
+	wl_list_init(&config->keyboards);
 	wl_list_init(&config->bindings);
 
 	int c;
@@ -305,10 +334,12 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 
 	if (result == -1) {
 		wlr_log(L_DEBUG, "No config file found. Using sensible defaults.");
-		config->keyboard.meta_key = WLR_MODIFIER_LOGO;
 		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
+		struct keyboard_config *kc = calloc(1, sizeof(struct keyboard_config));
+		kc->meta_key = WLR_MODIFIER_LOGO;
+		wl_list_insert(&config->keyboards, &kc->link);
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
 		exit(1);
@@ -333,6 +364,17 @@ void roots_config_destroy(struct roots_config *config) {
 		free(dc->mapped_output);
 		free(dc->mapped_box);
 		free(dc);
+	}
+
+	struct keyboard_config *kc, *ktmp = NULL;
+	wl_list_for_each_safe(kc, ktmp, &config->bindings, link) {
+		free(kc->name);
+		free(kc->rules);
+		free(kc->model);
+		free(kc->layout);
+		free(kc->variant);
+		free(kc->options);
+		free(kc);
 	}
 
 	struct binding_config *bc, *btmp = NULL;
@@ -370,4 +412,19 @@ struct device_config *config_get_device(struct roots_config *config,
 	}
 
 	return NULL;
+}
+
+struct keyboard_config *config_get_keyboard(struct roots_config *config,
+		struct wlr_input_device *device) {
+	struct keyboard_config *kc;
+	struct keyboard_config *default_kc = NULL;
+	wl_list_for_each(kc, &config->keyboards, link) {
+		if (strcmp(kc->name, "*") == 0) {
+			default_kc = kc;
+		} else if (strcmp(kc->name, device->name) == 0) {
+			return kc;
+		}
+	}
+
+	return default_kc;
 }

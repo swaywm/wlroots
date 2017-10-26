@@ -137,13 +137,33 @@ void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
 	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
 	wl_list_insert(&input->keyboards, &keyboard->link);
 
+	struct keyboard_config *config = config_get_keyboard(input->config,
+		device);
+
 	struct xkb_rule_names rules;
 	memset(&rules, 0, sizeof(rules));
-	rules.rules = getenv("XKB_DEFAULT_RULES");
-	rules.model = getenv("XKB_DEFAULT_MODEL");
-	rules.layout = getenv("XKB_DEFAULT_LAYOUT");
-	rules.variant = getenv("XKB_DEFAULT_VARIANT");
-	rules.options = getenv("XKB_DEFAULT_OPTIONS");
+	if (config != NULL) {
+		rules.rules = config->rules;
+		rules.model = config->model;
+		rules.layout = config->layout;
+		rules.variant = config->variant;
+		rules.options = config->options;
+	}
+	if (rules.rules == NULL) {
+		rules.rules = getenv("XKB_DEFAULT_RULES");
+	}
+	if (rules.model == NULL) {
+		rules.model = getenv("XKB_DEFAULT_MODEL");
+	}
+	if (rules.layout == NULL) {
+		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+	}
+	if (rules.variant == NULL) {
+		rules.variant = getenv("XKB_DEFAULT_VARIANT");
+	}
+	if (rules.options == NULL) {
+		rules.options = getenv("XKB_DEFAULT_OPTIONS");
+	}
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (context == NULL) {
 		wlr_log(L_ERROR, "Cannot create XKB context");
