@@ -139,4 +139,7 @@ struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 void wlr_surface_send_enter(struct wlr_surface *surface,
 		struct wlr_output *output);
 
+void wlr_surface_send_leave(struct wlr_surface *surface,
+		struct wlr_output *output);
+
 #endif

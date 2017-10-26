@@ -10,7 +10,7 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
-static void get_size(struct roots_view *view, struct wlr_box *box) {
+static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
 	// TODO: surf->geometry can be NULL

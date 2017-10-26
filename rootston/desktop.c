@@ -35,45 +35,52 @@ void view_destroy(struct roots_view *view) {
 	free(view);
 }
 
-void view_get_size(struct roots_view *view, struct wlr_box *box) {
+void view_get_size(const struct roots_view *view, struct wlr_box *box) {
 	if (view->get_size) {
 		view->get_size(view, box);
-		return;
+	} else {
+		box->width = view->wlr_surface->current->width;
+		box->height = view->wlr_surface->current->height;
 	}
-	box->x = box->y = 0;
-	box->width = view->wlr_surface->current->width;
-	box->height = view->wlr_surface->current->height;
+	box->x = view->x;
+	box->y = view->y;
 }
 
-static void view_update_output(struct roots_view *view) {
+static void view_update_output(const struct roots_view *view,
+		const struct wlr_box *before) {
 	struct roots_desktop *desktop = view->desktop;
-	struct roots_output *output = NULL, *_output;
+	struct roots_output *output;
 	struct wlr_box box;
 	view_get_size(view, &box);
-	wl_list_for_each(_output, &desktop->outputs, link) {
-		if (!wlr_output_layout_intersects(desktop->layout, _output->wlr_output,
-			view->x, view->y, view->x + box.width, view->x + box.height)) {
-			continue;
+	wl_list_for_each(output, &desktop->outputs, link) {
+		bool intersected = before->x != -1 && wlr_output_layout_intersects(
+				desktop->layout, output->wlr_output,
+				before->x, before->y, before->x + before->width,
+				before->y + before->height);
+		bool intersects = wlr_output_layout_intersects(
+				desktop->layout, output->wlr_output,
+				view->x, view->y, view->x + box.width, view->y + box.height);
+		if (intersected && !intersects) {
+			wlr_log(L_DEBUG, "Leaving output %s", output->wlr_output->name);
+			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
 		}
-		if (output == NULL
-				|| output->wlr_output->scale < _output->wlr_output->scale) {
-			output = _output;
+		if (!intersected && intersects) {
+			wlr_log(L_DEBUG, "Entering output %s", output->wlr_output->name);
+			wlr_surface_send_enter(view->wlr_surface, output->wlr_output);
 		}
-	}
-	if (output && output != view->output) {
-		view->output = output;
-		wlr_surface_send_enter(view->wlr_surface, output->wlr_output);
 	}
 }
 
 void view_set_position(struct roots_view *view, double x, double y) {
+	struct wlr_box before;
+	view_get_size(view, &before);
 	if (view->set_position) {
 		view->set_position(view, x, y);
 	} else {
 		view->x = x;
 		view->y = y;
 	}
-	view_update_output(view);
+	view_update_output(view, &before);
 }
 
 void view_activate(struct roots_view *view, bool activate) {
@@ -83,10 +90,12 @@ void view_activate(struct roots_view *view, bool activate) {
 }
 
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
+	struct wlr_box before;
+	view_get_size(view, &before);
 	if (view->resize) {
 		view->resize(view, width, height);
 	}
-	view_update_output(view);
+	view_update_output(view, &before);
 }
 
 void view_close(struct roots_view *view) {
@@ -96,8 +105,8 @@ void view_close(struct roots_view *view) {
 }
 
 bool view_center(struct roots_view *view) {
-	struct wlr_box size;
-	view_get_size(view, &size);
+	struct wlr_box box;
+	view_get_size(view, &box);
 
 	struct roots_desktop *desktop = view->desktop;
 	struct wlr_cursor *cursor = desktop->server->input->cursor;
@@ -122,16 +131,14 @@ bool view_center(struct roots_view *view) {
 
 	double view_x = (double)(width - size.width) / 2 + l_output->x;
 	double view_y = (double)(height - size.height) / 2 + l_output->y;
-
 	view_set_position(view, view_x, view_y);
 
 	return true;
 }
 
-void view_setup(struct roots_view *view) {
-	view_center(view);
-
+void view_initialize(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
+	view_center(view);
 	set_view_focus(input, view->desktop, view);
 	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 	view_update_output(view);

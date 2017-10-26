@@ -43,7 +43,6 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
-		wlr_log(L_DEBUG, "Sending scale");
 		wl_output_send_scale(resource, output->scale);
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
