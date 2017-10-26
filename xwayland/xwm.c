@@ -36,6 +36,9 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_MOVERESIZE",
 	"_NET_WM_NAME",
 	"_NET_SUPPORTING_WM_CHECK",
+	"_NET_WM_STATE_FULLSCREEN",
+	"_NET_WM_STATE_MAXIMIZED_VERT",
+	"_NET_WM_STATE_MAXIMIZED_HORZ",
 };
 
 /* General helpers */
@@ -150,6 +153,30 @@ void xwm_surface_activate(struct wlr_xwm *xwm,
 	xcb_flush(xwm->xcb_conn);
 }
 
+static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
+	struct wlr_xwm *xwm = xsurface->xwm;
+	uint32_t property[3];
+	int i;
+
+	i = 0;
+	if (xsurface->fullscreen) {
+		property[i++] = xwm->atoms[_NET_WM_STATE_FULLSCREEN];
+	}
+	if (xsurface->maximized_vert) {
+		property[i++] = xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT];
+	}
+	if (xsurface->maximized_horz) {
+		property[i++] = xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ];
+	}
+
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xsurface->window_id,
+		xwm->atoms[NET_WM_STATE],
+		XCB_ATOM_ATOM,
+		32, // format
+		i, property);
+}
 
 static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 	wl_signal_emit(&surface->events.destroy, surface);
@@ -269,44 +296,6 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
 	wl_signal_emit(&surface->events.set_parent, surface);
-}
-
-static void handle_surface_state(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *surface, xcb_atom_t *state,
-		size_t state_len, enum net_wm_state_action action) {
-	for (size_t i = 0; i < state_len; i++) {
-		xcb_atom_t atom = state[i];
-		bool found = false;
-		for (size_t j = 0; j < surface->state->length; j++) {
-			xcb_atom_t *cur = surface->state->items[j];
-			if (atom == *cur) {
-				found = true;
-				if (action == NET_WM_STATE_REMOVE ||
-						action == NET_WM_STATE_TOGGLE) {
-					free(surface->state->items[j]);
-					wlr_list_del(surface->state, j);
-				}
-				break;
-			}
-		}
-
-		if (!found && (action == NET_WM_STATE_ADD ||
-				action == NET_WM_STATE_TOGGLE)) {
-			xcb_atom_t *atom_ptr = malloc(sizeof(xcb_atom_t));
-			*atom_ptr = atom;
-			wlr_list_add(surface->state, atom_ptr);
-		}
-	}
-
-	wlr_log(L_DEBUG, "NET_WM_STATE (%zu)", state_len);
-	wl_signal_emit(&surface->events.set_state, surface);
-}
-
-static void read_surface_state(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *surface, xcb_get_property_reply_t *reply) {
-	// reply->type == XCB_ATOM_ANY
-	handle_surface_state(xwm, surface, xcb_get_property_value(reply),
-		reply->value_len, NET_WM_STATE_ADD);
 }
 
 static void read_surface_pid(struct wlr_xwm *xwm,
@@ -480,7 +469,7 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	} else if (property == xwm->atoms[WM_PROTOCOLS]) {
 		read_surface_protocols(xwm, surface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
-		read_surface_state(xwm, surface, reply);
+		wlr_log(L_DEBUG, "TODO: read _NET_WM_STATE property");
 	} else if (property == xwm->atoms[WM_HINTS]) {
 		read_surface_hints(xwm, surface, reply);
 	} else if (property == xwm->atoms[WM_NORMAL_HINTS]) {
@@ -645,6 +634,7 @@ static void handle_map_request(struct wlr_xwm *xwm,
 	}
 
 	xsurface_set_wm_state(xsurface, ICCCM_NORMAL_STATE);
+	xsurface_set_net_wm_state(xsurface);
 	xcb_map_window(xwm->xcb_conn, ev->window);
 }
 
@@ -716,16 +706,6 @@ static void handle_surface_id_message(struct wlr_xwm *xwm,
 	}
 }
 
-static void handle_net_wm_state_message(struct wlr_xwm *xwm,
-		xcb_client_message_event_t *ev) {
-	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
-	if (xsurface == NULL) {
-		return;
-	}
-	handle_surface_state(xwm, xsurface, &ev->data.data32[1], 2,
-		ev->data.data32[0]);
-}
-
 static void handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	wlr_log(L_DEBUG, "TODO: handle moveresize");
@@ -738,7 +718,7 @@ static void handle_client_message(struct wlr_xwm *xwm,
 	if (ev->type == xwm->atoms[WL_SURFACE_ID]) {
 		handle_surface_id_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[NET_WM_STATE]) {
-		handle_net_wm_state_message(xwm, ev);
+		wlr_log(L_DEBUG, "TODO: handle _NET_WM_STATE client message");
 	} else if (ev->type == xwm->atoms[_NET_WM_MOVERESIZE]) {
 		handle_net_wm_moveresize_message(xwm, ev);
 	} else {
@@ -1074,6 +1054,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		32,
 		sizeof(supported)/sizeof(*supported),
 		supported);
+
+	xcb_flush(xwm->xcb_conn);
 
 	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
 

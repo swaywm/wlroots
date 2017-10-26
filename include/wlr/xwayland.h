@@ -96,6 +96,11 @@ struct wlr_xwayland_surface {
 	uint32_t hints_urgency;
 	struct wlr_xwayland_surface_size_hints *size_hints;
 
+	// _NET_WM_STATE
+	bool fullscreen;
+	bool maximized_vert;
+	bool maximized_horz;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal request_configure;
