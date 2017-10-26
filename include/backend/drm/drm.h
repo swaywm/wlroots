@@ -33,6 +33,7 @@ struct wlr_drm_plane {
 	float matrix[16];
 	struct wlr_texture *wlr_tex;
 	struct gbm_bo *cursor_bo;
+	bool cursor_enabled;
 
 	union wlr_drm_plane_props props;
 };

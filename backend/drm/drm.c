@@ -505,8 +505,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	if (!buf && update_pixels) {
 		// Hide the cursor
+		plane->cursor_enabled = false;
 		return drm->iface->crtc_set_cursor(drm, crtc, NULL);
 	}
+	plane->cursor_enabled = true;
 
 	// We don't have a real cursor plane, so we make a fake one
 	if (!plane) {
