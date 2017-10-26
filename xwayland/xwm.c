@@ -930,6 +930,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		XCB_CW_EVENT_MASK, (uint32_t[]){XCB_EVENT_MASK_PROPERTY_CHANGE}));
 	xcb_atom_t supported[] = {
 		xwm->atoms[NET_WM_STATE],
+		xwm->atoms[_NET_ACTIVE_WINDOW],
 	};
 
 	XCB_CALL(xwm, xcb_change_property_checked(xwm->xcb_conn,
