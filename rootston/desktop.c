@@ -7,11 +7,13 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
-#include "rootston/desktop.h"
+#include <server-decoration-protocol.h>
+#include "rootston/server.h"
 #include "rootston/server.h"
 
 void view_destroy(struct roots_view *view) {
@@ -264,6 +266,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		server->wl_display);
 	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
 		server->renderer);
+	desktop->server_decoration_manager =
+		wlr_server_decoration_manager_create(server->wl_display);
+	wlr_server_decoration_manager_set_default_mode(
+		desktop->server_decoration_manager,
+		ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 
 	return desktop;
 }
