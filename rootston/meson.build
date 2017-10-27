@@ -10,6 +10,7 @@ sources = [
 	'pointer.c',
 	'tablet_tool.c',
 	'touch.c',
+	'xcursor.c',
 	'xdg_shell_v6.c',
 	'wl_shell.c',
 ]
@@ -17,5 +18,5 @@ if get_option('enable_xwayland')
 	sources += ['xwayland.c']
 endif
 executable(
-	'rootston', sources, dependencies: wlroots
+	'rootston', sources, dependencies: [wlroots, wlr_protos]
 )

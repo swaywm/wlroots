@@ -88,14 +88,13 @@ struct roots_input {
 
 	// TODO: multiseat, multicursor
 	struct wlr_cursor *cursor;
-	struct wlr_xcursor_theme *theme;
-	struct wlr_xcursor *xcursor;
+	struct wlr_xcursor_theme *xcursor_theme;
 	struct wlr_seat *wl_seat;
 	struct wl_list drag_icons;
 	struct wl_client *cursor_client;
 
 	enum roots_cursor_mode mode;
-	struct roots_view *active_view, *last_active_view;
+	struct roots_view *active_view;
 	int offs_x, offs_y;
 	int view_x, view_y, view_width, view_height;
 	float view_rotation;
@@ -157,6 +156,12 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view);
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view, uint32_t edges);
+
+struct wlr_xcursor *get_default_xcursor(struct wlr_xcursor_theme *theme);
+struct wlr_xcursor *get_move_xcursor(struct wlr_xcursor_theme *theme);
+struct wlr_xcursor *get_resize_xcursor(struct wlr_xcursor_theme *theme,
+	uint32_t edges);
+struct wlr_xcursor *get_rotate_xcursor(struct wlr_xcursor_theme *theme);
 
 void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
 	struct roots_view *view);

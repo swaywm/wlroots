@@ -7,11 +7,13 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
-#include "rootston/desktop.h"
+#include <server-decoration-protocol.h>
+#include "rootston/server.h"
 #include "rootston/server.h"
 
 void view_destroy(struct roots_view *view) {
@@ -21,9 +23,6 @@ void view_destroy(struct roots_view *view) {
 	if (input->active_view == view) {
 		input->active_view = NULL;
 		input->mode = ROOTS_CURSOR_PASSTHROUGH;
-	}
-	if (input->last_active_view == view) {
-		input->last_active_view = NULL;
 	}
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
@@ -107,11 +106,23 @@ bool view_center(struct roots_view *view) {
 	return true;
 }
 
-void view_initialize(struct roots_view *view) {
+void view_setup(struct roots_view *view) {
 	view_center(view);
-	struct roots_input *input = view->desktop->server->input;
 
+	struct roots_input *input = view->desktop->server->input;
 	set_view_focus(input, view->desktop, view);
+}
+
+void view_teardown(struct roots_view *view) {
+	struct wlr_list *views = view->desktop->views;
+	if (views->length < 2 || views->items[views->length-1] != view) {
+		return;
+	}
+
+	struct roots_view *prev_view = views->items[views->length-2];
+	struct roots_input *input = prev_view->desktop->server->input;
+	set_view_focus(input, prev_view->desktop, prev_view);
+	wlr_seat_keyboard_notify_enter(input->wl_seat, prev_view->wlr_surface);
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
@@ -251,6 +262,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		server->wl_display);
 	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
 		server->renderer);
+	desktop->server_decoration_manager =
+		wlr_server_decoration_manager_create(server->wl_display);
+	wlr_server_decoration_manager_set_default_mode(
+		desktop->server_decoration_manager,
+		ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 
 	return desktop;
 }
