@@ -82,6 +82,8 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->state = wlr_list_create();
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
+	wl_signal_init(&surface->events.request_move);
+	wl_signal_init(&surface->events.request_resize);
 	wl_signal_init(&surface->events.map_notify);
 	wl_signal_init(&surface->events.unmap_notify);
 	wl_signal_init(&surface->events.set_class);
@@ -706,9 +708,58 @@ static void handle_surface_id_message(struct wlr_xwm *xwm,
 	}
 }
 
+#define _NET_WM_MOVERESIZE_SIZE_TOPLEFT      0
+#define _NET_WM_MOVERESIZE_SIZE_TOP          1
+#define _NET_WM_MOVERESIZE_SIZE_TOPRIGHT     2
+#define _NET_WM_MOVERESIZE_SIZE_RIGHT        3
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT  4
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOM       5
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT   6
+#define _NET_WM_MOVERESIZE_SIZE_LEFT         7
+#define _NET_WM_MOVERESIZE_MOVE              8  // movement only
+#define _NET_WM_MOVERESIZE_SIZE_KEYBOARD     9  // size via keyboard
+#define _NET_WM_MOVERESIZE_MOVE_KEYBOARD    10  // move via keyboard
+#define _NET_WM_MOVERESIZE_CANCEL           11  // cancel operation
+
 static void handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
-	wlr_log(L_DEBUG, "TODO: handle moveresize");
+	// same as xdg-toplevel-v6
+	// TODO need a common enum for this
+	static const int map[] = {
+		5, 1, 9, 8, 10, 2, 6, 4
+	};
+
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
+	if (!xsurface) {
+		return;
+	}
+
+	// TODO: we should probably add input or seat info to this but we would just
+	// be guessing
+	struct wlr_xwayland_resize_event resize_event;
+	struct wlr_xwayland_move_event move_event;
+
+	int detail = ev->data.data32[2];
+	switch (detail) {
+	case _NET_WM_MOVERESIZE_MOVE:
+		move_event.surface = xsurface;
+		wl_signal_emit(&xsurface->events.request_move, &move_event);
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
+	case _NET_WM_MOVERESIZE_SIZE_TOP:
+	case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
+	case _NET_WM_MOVERESIZE_SIZE_RIGHT:
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+	case _NET_WM_MOVERESIZE_SIZE_LEFT:
+		resize_event.surface = xsurface;
+		resize_event.edges = map[detail];
+		wl_signal_emit(&xsurface->events.request_resize, &resize_event);
+		break;
+	case _NET_WM_MOVERESIZE_CANCEL:
+		break;
+	}
 }
 
 static void handle_client_message(struct wlr_xwm *xwm,
@@ -975,6 +1026,14 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
 		xwm->screen->root,
+		xwm->atoms[_NET_SUPPORTING_WM_CHECK],
+		XCB_ATOM_WINDOW,
+		32, // format
+		1, &xwm->window);
+
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xwm->window,
 		xwm->atoms[_NET_SUPPORTING_WM_CHECK],
 		XCB_ATOM_WINDOW,
 		32, // format
