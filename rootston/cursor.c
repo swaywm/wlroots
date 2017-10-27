@@ -31,6 +31,28 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 	return NULL;
 }
 
+static void cursor_set_xcursor_image(struct roots_input *input,
+		struct wlr_xcursor_image *image) {
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
+				image->width, image->width, image->height,
+				image->hotspot_x, image->hotspot_y)) {
+			wlr_log(L_DEBUG, "Failed to set hardware cursor");
+			return;
+		}
+	}
+}
+
+static void cursor_set_surface(struct roots_input *input,
+		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	struct roots_output *output;
+	wl_list_for_each(output, &input->server->desktop->outputs, link) {
+		wlr_output_set_cursor_surface(output->wlr_output, surface,
+			hotspot_x, hotspot_y);
+	}
+}
+
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 		struct roots_view *view) {
 	input->mode = ROOTS_CURSOR_MOVE;
@@ -39,6 +61,11 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 	input->view_x = view->x;
 	input->view_y = view->y;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
+
+	struct wlr_xcursor *xcursor = get_move_xcursor(input->xcursor_theme);
+	if (xcursor != NULL) {
+		cursor_set_xcursor_image(input, xcursor->images[0]);
+	}
 }
 
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
@@ -54,6 +81,11 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 	input->view_height = size.height;
 	input->resize_edges = edges;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
+
+	struct wlr_xcursor *xcursor = get_resize_xcursor(input->xcursor_theme, edges);
+	if (xcursor != NULL) {
+		cursor_set_xcursor_image(input, xcursor->images[0]);
+	}
 }
 
 void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
@@ -63,18 +95,10 @@ void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
 	input->offs_y = cursor->y;
 	input->view_rotation = view->rotation;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
-}
 
-static void cursor_set_xcursor_image(struct roots_input *input,
-		struct wlr_xcursor_image *image) {
-	struct roots_output *output;
-	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
-				image->width, image->width, image->height,
-				image->hotspot_x, image->hotspot_y)) {
-			wlr_log(L_DEBUG, "Failed to set hardware cursor");
-			return;
-		}
+	struct wlr_xcursor *xcursor = get_rotate_xcursor(input->xcursor_theme);
+	if (xcursor != NULL) {
+		cursor_set_xcursor_image(input, xcursor->images[0]);
 	}
 }
 
@@ -94,8 +118,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			set_compositor_cursor = view_client != input->cursor_client;
 		}
 		if (set_compositor_cursor) {
-			wlr_log(L_DEBUG, "Switching to compositor cursor");
-			cursor_set_xcursor_image(input, input->xcursor->images[0]);
+			struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
+			cursor_set_xcursor_image(input, xcursor->images[0]);
 			input->cursor_client = NULL;
 		}
 		if (view) {
@@ -273,6 +297,7 @@ static void do_cursor_button_press(struct roots_input *input,
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
 		set_view_focus(input, desktop, NULL);
+		cursor_update_position(input, time);
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = input->input_events_idx;
@@ -436,19 +461,13 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 			wl_resource_get_client(focused_surface->resource);
 		ok = event->client == focused_client;
 	}
-	if (!ok) {
+	if (!ok || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		wlr_log(L_DEBUG, "Denying request to set cursor from unfocused client");
 		return;
 	}
 
 	wlr_log(L_DEBUG, "Setting client cursor");
-
-	struct roots_output *output;
-	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		wlr_output_set_cursor_surface(output->wlr_output, event->surface,
-			event->hotspot_x, event->hotspot_y);
-	}
-
+	cursor_set_surface(input, event->surface, event->hotspot_x, event->hotspot_y);
 	input->cursor_client = event->client;
 }
 

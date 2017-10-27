@@ -200,7 +200,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	cursor_load_config(config, input->cursor, input, desktop);
 
-	struct wlr_xcursor_image *image = input->xcursor->images[0];
+	struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
+	struct wlr_xcursor_image *image = xcursor->images[0];
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
 	if (!wlr_output_set_cursor(wlr_output, image->buffer,
