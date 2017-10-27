@@ -95,7 +95,7 @@ struct roots_input {
 	struct wl_client *cursor_client;
 
 	enum roots_cursor_mode mode;
-	struct roots_view *active_view, *last_active_view;
+	struct roots_view *active_view;
 	int offs_x, offs_y;
 	int view_x, view_y, view_width, view_height;
 	float view_rotation;
