@@ -275,17 +275,28 @@ static void do_cursor_button_press(struct roots_input *input,
 	if (state == WLR_BUTTON_PRESSED && view && is_meta_pressed(input, device)) {
 		set_view_focus(input, desktop, view);
 
+		uint32_t edges;
 		switch (button) {
 		case BTN_LEFT:
 			view_begin_move(input, cursor, view);
 			break;
 		case BTN_RIGHT:
-			view_begin_resize(input, cursor, view,
-				ROOTS_CURSOR_RESIZE_EDGE_RIGHT |
-				ROOTS_CURSOR_RESIZE_EDGE_BOTTOM);
+			edges = 0;
+			if (sx < view->wlr_surface->current->width/2) {
+				edges |= ROOTS_CURSOR_RESIZE_EDGE_LEFT;
+			} else {
+				edges |= ROOTS_CURSOR_RESIZE_EDGE_RIGHT;
+			}
+			if (sy < view->wlr_surface->current->height/2) {
+				edges |= ROOTS_CURSOR_RESIZE_EDGE_TOP;
+			} else {
+				edges |= ROOTS_CURSOR_RESIZE_EDGE_BOTTOM;
+			}
+			view_begin_resize(input, cursor, view, edges);
 			break;
 		case BTN_MIDDLE:
 			view_begin_rotate(input, cursor, view);
+			break;
 		}
 		return;
 	}
