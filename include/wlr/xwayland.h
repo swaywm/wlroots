@@ -74,6 +74,7 @@ struct wlr_xwayland_surface {
 	struct wlr_surface *surface;
 	int16_t x, y;
 	uint16_t width, height;
+	uint16_t saved_width, saved_height;
 	bool override_redirect;
 	bool mapped;
 	bool added;
@@ -106,12 +107,14 @@ struct wlr_xwayland_surface {
 		struct wl_signal request_configure;
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
+
 		struct wl_signal map_notify;
 		struct wl_signal unmap_notify;
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 		struct wl_signal set_parent;
-		struct wl_signal set_state;
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
 	} events;
@@ -138,15 +141,25 @@ struct wlr_xwayland_resize_event {
 	uint32_t edges;
 };
 
-void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor);
+
+void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
+
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface, bool activated);
+
 void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface, int16_t x, int16_t y,
 	uint16_t width, uint16_t height);
+
 void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface);
+
+void wlr_xwayland_surface_set_maximized(struct wlr_xwayland *wlr_xwayland,
+	struct wlr_xwayland_surface *surface, bool maximized);
+
+void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland *wlr_xwayland,
+	struct wlr_xwayland_surface *surface, bool fullscreen);
 
 #endif
