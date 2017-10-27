@@ -460,7 +460,6 @@ static void read_surface_net_wm_state(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface, xcb_get_property_reply_t *reply) {
 	xsurface->fullscreen = 0;
 	xcb_atom_t *atom = xcb_get_property_value(reply);
-	atom = xcb_get_property_value(reply);
 	for (uint32_t i = 0; i < reply->value_len; i++) {
 		if (atom[i] == xwm->atoms[_NET_WM_STATE_FULLSCREEN])
 			xsurface->fullscreen = true;
