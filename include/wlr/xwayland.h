@@ -102,6 +102,8 @@ struct wlr_xwayland_surface {
 	bool maximized_vert;
 	bool maximized_horz;
 
+	bool has_alpha;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal request_configure;

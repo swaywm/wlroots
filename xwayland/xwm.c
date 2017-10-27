@@ -64,6 +64,9 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		return NULL;
 	}
 
+	xcb_get_geometry_cookie_t geometry_cookie =
+		xcb_get_geometry(xwm->xcb_conn, window_id);
+
 	uint32_t values[1];
 	values[0] =
 		XCB_EVENT_MASK_FOCUS_CHANGE |
@@ -92,6 +95,16 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	wl_signal_init(&surface->events.set_parent);
 	wl_signal_init(&surface->events.set_pid);
 	wl_signal_init(&surface->events.set_window_type);
+
+	xcb_get_geometry_reply_t *geometry_reply =
+		xcb_get_geometry_reply(xwm->xcb_conn, geometry_cookie, NULL);
+
+	if (geometry_reply != NULL) {
+		surface->has_alpha = geometry_reply->depth == 32;
+	}
+
+	free(geometry_reply);
+
 	return surface;
 }
 
@@ -191,10 +204,6 @@ static void wlr_xwayland_surface_destroy(struct wlr_xwayland_surface *surface) {
 
 	if (surface->surface_id) {
 		wl_list_remove(&surface->unpaired_link);
-	}
-
-	for (size_t i = 0; i < surface->state->length; i++) {
-		free(surface->state->items[i]);
 	}
 
 	if (surface->surface) {
@@ -1140,6 +1149,35 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 		XCB_CURRENT_TIME);
 }
 
+// TODO use me to support 32 bit color somehow
+static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
+	xcb_depth_iterator_t d_iter;
+	xcb_visualtype_iterator_t vt_iter;
+	xcb_visualtype_t *visualtype;
+
+	d_iter = xcb_screen_allowed_depths_iterator(xwm->screen);
+	visualtype = NULL;
+	while (d_iter.rem > 0) {
+		if (d_iter.data->depth == 32) {
+			vt_iter = xcb_depth_visuals_iterator(d_iter.data);
+			visualtype = vt_iter.data;
+			break;
+		}
+
+		xcb_depth_next(&d_iter);
+	}
+
+	if (visualtype == NULL) {
+		wlr_log(L_DEBUG, "no 32 bit visualtype\n");
+		return;
+	}
+
+	xwm->visual_id = visualtype->visual_id;
+	xwm->colormap = xcb_generate_id(xwm->xcb_conn);
+	xcb_create_colormap_checked(xwm->xcb_conn, XCB_COLORMAP_ALLOC_NONE,
+		xwm->colormap, xwm->screen->root, xwm->visual_id);
+}
+
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
 	if (xwm == NULL) {
@@ -1175,6 +1213,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	wl_event_source_check(xwm->event_source);
 
 	xwm_get_resources(xwm);
+	xwm_get_visual_and_colormap(xwm);
 
 	uint32_t values[1];
 	values[0] =

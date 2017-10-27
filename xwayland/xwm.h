@@ -47,6 +47,8 @@ struct wlr_xwm {
 	xcb_connection_t *xcb_conn;
 	xcb_screen_t *screen;
 	xcb_window_t window;
+	xcb_visualid_t visual_id;
+	xcb_colormap_t colormap;
 
 	struct wlr_xwayland_surface *focus_surface;
 
