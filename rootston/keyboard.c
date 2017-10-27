@@ -29,8 +29,10 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(server->wl_display);
 	} else if (strcmp(command, "close") == 0) {
-		if (keyboard->input->last_active_view != NULL) {
-			view_close(keyboard->input->last_active_view);
+		if (server->desktop->views->length > 0) {
+			struct roots_view *view =
+				server->desktop->views->items[server->desktop->views->length-1];
+			view_close(view);
 		}
 	} else if (strcmp(command, "next_window") == 0) {
 		if (server->desktop->views->length > 0) {

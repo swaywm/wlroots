@@ -24,9 +24,6 @@ void view_destroy(struct roots_view *view) {
 		input->active_view = NULL;
 		input->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
-	if (input->last_active_view == view) {
-		input->last_active_view = NULL;
-	}
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
 		struct roots_view *_view = desktop->views->items[i];
