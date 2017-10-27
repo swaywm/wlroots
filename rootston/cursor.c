@@ -62,34 +62,10 @@ void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
 	input->view_y = view->y;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 
-	struct wlr_xcursor *xcursor = wlr_xcursor_theme_get_cursor(input->theme,
-		"grabbing");
+	struct wlr_xcursor *xcursor = get_move_xcursor(input->xcursor_theme);
 	if (xcursor != NULL) {
 		cursor_set_xcursor_image(input, xcursor->images[0]);
 	}
-}
-
-static const char *get_resize_cursor_name(uint32_t edges) {
-	if (edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
-		if (edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
-			return "ne-resize";
-		} else if (edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-			return "nw-resize";
-		}
-		return "n-resize";
-	} else if (edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
-		if (edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
-			return "se-resize";
-		} else if (edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-			return "sw-resize";
-		}
-		return "s-resize";
-	} else if (edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
-		return "e-resize";
-	} else if (edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-		return "w-resize";
-	}
-	return "se-resize"; // fallback
 }
 
 void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
@@ -106,8 +82,7 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 	input->resize_edges = edges;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 
-	struct wlr_xcursor *xcursor = wlr_xcursor_theme_get_cursor(input->theme,
-		get_resize_cursor_name(edges));
+	struct wlr_xcursor *xcursor = get_resize_xcursor(input->xcursor_theme, edges);
 	if (xcursor != NULL) {
 		cursor_set_xcursor_image(input, xcursor->images[0]);
 	}
@@ -121,8 +96,7 @@ void view_begin_rotate(struct roots_input *input, struct wlr_cursor *cursor,
 	input->view_rotation = view->rotation;
 	wlr_seat_pointer_clear_focus(input->wl_seat);
 
-	struct wlr_xcursor *xcursor = wlr_xcursor_theme_get_cursor(input->theme,
-		"grabbing");
+	struct wlr_xcursor *xcursor = get_rotate_xcursor(input->xcursor_theme);
 	if (xcursor != NULL) {
 		cursor_set_xcursor_image(input, xcursor->images[0]);
 	}
@@ -144,7 +118,8 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 			set_compositor_cursor = view_client != input->cursor_client;
 		}
 		if (set_compositor_cursor) {
-			cursor_set_xcursor_image(input, input->xcursor->images[0]);
+			struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
+			cursor_set_xcursor_image(input, xcursor->images[0]);
 			input->cursor_client = NULL;
 		}
 		if (view) {
