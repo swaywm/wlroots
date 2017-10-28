@@ -18,21 +18,25 @@ static const struct format formats[] = {
 		.wl_fmt = WL_SHM_FORMAT_ARGB8888,
 		.gl_fmt = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
 	},
 	{
 		.wl_fmt = WL_SHM_FORMAT_XRGB8888,
 		.gl_fmt = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
 	},
 	{
 		.wl_fmt = WL_SHM_FORMAT_ABGR8888,
 		.gl_fmt = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
 	},
 	{
 		.wl_fmt = WL_SHM_FORMAT_XBGR8888,
 		.gl_fmt = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
 	},
 };
 

@@ -51,6 +51,7 @@ struct format {
 	enum wl_shm_format wl_fmt;
 	GLuint gl_fmt;
 	GLuint gl_type;
+	uint32_t bpp;
 };
 
 const struct format *wl_to_gl(enum wl_shm_format fmt);
@@ -79,7 +80,7 @@ bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 	void *data);
 
-struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format  wl_fmt,
+struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 	uint32_t stride, uint32_t width, uint32_t height, const void *data);
 
 struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data);

@@ -31,9 +31,9 @@ bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 
 	DEBUG_PUSH;
 
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+	glBindTexture(GL_TEXTURE_2D, tex->gl_tex);
 
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (fmt->bpp / 8));
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, src_x);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, src_y);
 
@@ -74,7 +74,7 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	glGenTextures(1, &tex->gl_tex);
 	glBindTexture(GL_TEXTURE_2D, tex->gl_tex);
 
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (fmt->bpp / 8));
 	glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_fmt, width, height, 0,
 		fmt->gl_fmt, fmt->gl_type, data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);

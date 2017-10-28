@@ -247,7 +247,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->config = config;
 	desktop->layout = wlr_output_layout_create();
 	desktop->compositor = wlr_compositor_create(server->wl_display,
-		server->renderer);
+		server->render);
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,

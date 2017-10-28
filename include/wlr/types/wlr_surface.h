@@ -5,6 +5,7 @@
 #include <pixman.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "render/render.h"
 
 struct wlr_frame_callback {
 	struct wl_resource *resource;
@@ -59,8 +60,8 @@ struct wlr_subsurface {
 
 struct wlr_surface {
 	struct wl_resource *resource;
-	struct wlr_renderer *renderer;
-	struct wlr_texture *texture;
+	struct wlr_render *rend;
+	struct wlr_tex *tex;
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
@@ -85,9 +86,10 @@ struct wlr_surface {
 	void *data;
 };
 
-struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-		struct wlr_renderer *renderer);
+	struct wlr_render *rend);
+
+#if 0
 /**
  * Gets a matrix you can pass into wlr_render_with_matrix to display this
  * surface. `matrix` is the output matrix, `projection` is the wlr_output
@@ -100,14 +102,14 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 		float (*matrix)[16],
 		const float (*projection)[16],
 		const float (*transform)[16]);
-
+#endif
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the
  * role cannot be set.
  */
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
-		struct wl_resource *error_resource, uint32_t error_code);
+	struct wl_resource *error_resource, uint32_t error_code);
 
 /**
  * Whether or not this surface currently has an attached buffer. A surface has
@@ -121,7 +123,7 @@ bool wlr_surface_has_buffer(struct wlr_surface *surface);
  * Create the subsurface implementation for this surface.
  */
 void wlr_surface_make_subsurface(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t id);
+	struct wlr_surface *parent, uint32_t id);
 
 /**
  * Get the top of the subsurface tree for this surface.
@@ -134,5 +136,5 @@ struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
  * or NULL if no subsurface is found at that location.
  */
 struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
-		double sx, double sy, double *sub_x, double *sub_y);
+	double sx, double sy, double *sub_x, double *sub_y);
 #endif

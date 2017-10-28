@@ -41,6 +41,9 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 	EGLint attrib, EGLint *value);
 
+bool wlr_egl_query_wl_drm_size(struct wlr_egl *egl, struct wl_resource *buf,
+	int32_t *width, int32_t *height);
+
 /**
  * Returns a surface for the given native window
  * The window must match the remote display the wlr_egl was created with.

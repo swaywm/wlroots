@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
 	assert(server.backend = wlr_backend_autocreate(server.wl_display));
 
-	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
+	assert(server.render = wlr_render_create(server.backend));
 	server.data_device_manager =
 		wlr_data_device_manager_create(server.wl_display);
 	wl_display_init_shm(server.wl_display);
