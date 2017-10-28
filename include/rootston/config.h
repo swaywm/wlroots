@@ -9,6 +9,10 @@ struct output_config {
 	enum wl_output_transform transform;
 	int x, y;
 	struct wl_list link;
+	struct {
+		int width, height;
+		float refresh_rate;
+	} mode;
 };
 
 struct device_config {
