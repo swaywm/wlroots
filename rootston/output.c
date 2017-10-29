@@ -186,20 +186,20 @@ static void set_mode(struct wlr_output *output, struct output_config *oc) {
 }
 
 void output_add_notify(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(listener, desktop,
+		output_add);
 	struct wlr_output *wlr_output = data;
-	struct roots_desktop *desktop = wl_container_of(listener, desktop, output_add);
 	struct roots_input *input = desktop->server->input;
 	struct roots_config *config = desktop->config;
 
 	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
-	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm",
-			wlr_output->make, wlr_output->model,
-			wlr_output->phys_width, wlr_output->phys_height);
-        if (wl_list_length(&wlr_output->modes) > 0) {
-                struct wlr_output_mode *mode = NULL;
-                mode = wl_container_of((&wlr_output->modes)->prev, mode, link);
-                wlr_output_set_mode(wlr_output, mode);
-        }
+	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm", wlr_output->make,
+		wlr_output->model, wlr_output->phys_width, wlr_output->phys_height);
+	if (wl_list_length(&wlr_output->modes) > 0) {
+		struct wlr_output_mode *mode = NULL;
+		mode = wl_container_of((&wlr_output->modes)->prev, mode, link);
+		wlr_output_set_mode(wlr_output, mode);
+	}
 
 	struct roots_output *output = calloc(1, sizeof(struct roots_output));
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);
@@ -223,16 +223,12 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	cursor_load_config(config, input->cursor, input, desktop);
 
-	struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
-	struct wlr_xcursor_image *image = xcursor->images[0];
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
-	if (!wlr_output_set_cursor(wlr_output, image->buffer,
-			image->width, image->width, image->height,
-			image->hotspot_x, image->hotspot_y)) {
-		wlr_log(L_DEBUG, "Failed to set hardware cursor");
-		return;
-	}
+	struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
+	struct wlr_xcursor_image *image = xcursor->images[0];
+	wlr_cursor_set_image(input->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
 
 	wlr_cursor_warp(input->cursor, NULL, input->cursor->x, input->cursor->y);
 }

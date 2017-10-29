@@ -33,24 +33,8 @@ const struct roots_input_event *get_input_event(struct roots_input *input,
 
 static void cursor_set_xcursor_image(struct roots_input *input,
 		struct wlr_xcursor_image *image) {
-	struct roots_output *output;
-	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		if (!wlr_output_set_cursor(output->wlr_output, image->buffer,
-				image->width, image->width, image->height,
-				image->hotspot_x, image->hotspot_y)) {
-			wlr_log(L_DEBUG, "Failed to set hardware cursor");
-			return;
-		}
-	}
-}
-
-static void cursor_set_surface(struct roots_input *input,
-		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	struct roots_output *output;
-	wl_list_for_each(output, &input->server->desktop->outputs, link) {
-		wlr_output_set_cursor_surface(output->wlr_output, surface,
-			hotspot_x, hotspot_y);
-	}
+	wlr_cursor_set_image(input->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
 }
 
 void view_begin_move(struct roots_input *input, struct wlr_cursor *cursor,
@@ -487,7 +471,8 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	}
 
 	wlr_log(L_DEBUG, "Setting client cursor");
-	cursor_set_surface(input, event->surface, event->hotspot_x, event->hotspot_y);
+	wlr_cursor_set_surface(input->cursor, event->surface, event->hotspot_x,
+		event->hotspot_y);
 	input->cursor_client = event->seat_client->client;
 }
 

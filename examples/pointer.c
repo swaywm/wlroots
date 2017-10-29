@@ -93,8 +93,6 @@ static void handle_output_frame(struct output_state *output,
 
 static void handle_output_add(struct output_state *ostate) {
 	struct sample_state *sample = ostate->compositor->data;
-	struct wlr_output *wlr_output = ostate->output;
-	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 
 	struct output_config *o_config =
 		example_config_get_output(sample->config, ostate->output);
@@ -112,12 +110,9 @@ static void handle_output_add(struct output_state *ostate) {
 
 	// TODO the cursor must be set depending on which surface it is displayed
 	// over which should happen in the compositor.
-	if (!wlr_output_set_cursor(wlr_output, image->buffer,
-			image->width, image->width, image->height,
-			image->hotspot_x, image->hotspot_y)) {
-		wlr_log(L_DEBUG, "Failed to set hardware cursor");
-		return;
-	}
+	struct wlr_xcursor_image *image = sample->xcursor->images[0];
+	wlr_cursor_set_image(sample->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
 
 	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
 }
@@ -162,13 +157,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	sample->cur_y = event->y_mm;
 
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
-
-	struct output_state *output;
-	wl_list_for_each(output, &sample->compositor->outputs, link) {
-		wlr_output_move_cursor(output->output,
-				sample->cur_x - image->hotspot_x,
-				sample->cur_y - image->hotspot_y);
-	}
+	wlr_cursor_warp_absolute(sample->cursor, event->device,
+		sample->cur_x - image->hotspot_x, sample->cur_y - image->hotspot_y);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
