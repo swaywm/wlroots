@@ -34,13 +34,13 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 		if (width < state->min_width) {
 			width = state->min_width;
 		} else if (state->max_width > 0 &&
-				width < state->max_width) {
+				width > state->max_width) {
 			width = state->max_width;
 		}
 		if (height < state->min_height) {
 			height = state->min_height;
 		} else if (state->max_height > 0 &&
-				height < state->max_height) {
+				height > state->max_height) {
 			height = state->max_height;
 		}
 
