@@ -15,6 +15,7 @@ struct wlr_output_mode {
 struct wlr_output_cursor {
 	struct wlr_output *output;
 	int32_t x, y;
+	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
 	struct wl_list link;
 

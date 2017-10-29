@@ -150,9 +150,8 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 		double output_y = y;
 		wlr_output_layout_output_coords(cur->state->layout,
 			output_cursor->output_cursor->output, &output_x, &output_y);
-		wlr_output_cursor_move(output_cursor->output_cursor,
-			output_x - output_cursor->output_cursor->hotspot_x,
-			output_y - output_cursor->output_cursor->hotspot_y);
+		wlr_output_cursor_move(output_cursor->output_cursor, output_x,
+			output_y);
 	}
 
 	cur->x = x;

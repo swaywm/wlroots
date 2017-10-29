@@ -55,25 +55,27 @@ static void wlr_wl_output_transform(struct wlr_output *_output,
 static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
-	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	struct wlr_wl_backend_output *output =
+		(struct wlr_wl_backend_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
+
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
 
 	if (!update_pixels) {
 		// Update hotspot without changing cursor image
-		wlr_wl_output_update_cursor(output, output->enter_serial, hotspot_x,
-			hotspot_y);
+		wlr_wl_output_update_cursor(output);
 		return true;
 	}
 	if (!buf) {
 		// Hide cursor
-		if (output->cursor_surface) {
-			wl_surface_destroy(output->cursor_surface);
-			munmap(output->cursor_data, output->cursor_buf_size);
-			output->cursor_surface = NULL;
-			output->cursor_buf_size = 0;
+		if (output->cursor.surface) {
+			wl_surface_destroy(output->cursor.surface);
+			munmap(output->cursor.data, output->cursor.buf_size);
+			output->cursor.surface = NULL;
+			output->cursor.buf_size = 0;
 		}
-		wlr_wl_output_update_cursor(output, output->enter_serial, hotspot_x,
-			hotspot_y);
+		wlr_wl_output_update_cursor(output);
 		return true;
 	}
 
@@ -84,73 +86,77 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		return false;
 	}
 
-	if (!output->cursor_surface) {
-		output->cursor_surface = wl_compositor_create_surface(output->backend->compositor);
+	if (!output->cursor.surface) {
+		output->cursor.surface =
+			wl_compositor_create_surface(output->backend->compositor);
 	}
 
 	uint32_t size = stride * height;
-	if (output->cursor_buf_size != size) {
-		if (output->cursor_buffer) {
-			wl_buffer_destroy(output->cursor_buffer);
+	if (output->cursor.buf_size != size) {
+		if (output->cursor.buffer) {
+			wl_buffer_destroy(output->cursor.buffer);
 		}
 
-		if (size > output->cursor_buf_size) {
-			if (output->cursor_pool) {
-				wl_shm_pool_destroy(output->cursor_pool);
-				output->cursor_pool = NULL;
-				munmap(output->cursor_data, output->cursor_buf_size);
+		if (size > output->cursor.buf_size) {
+			if (output->cursor.pool) {
+				wl_shm_pool_destroy(output->cursor.pool);
+				output->cursor.pool = NULL;
+				munmap(output->cursor.data, output->cursor.buf_size);
 			}
 		}
 
-		if (!output->cursor_pool) {
+		if (!output->cursor.pool) {
 			int fd = os_create_anonymous_file(size);
 			if (fd < 0) {
-				wlr_log_errno(L_INFO, "creating anonymous file for cursor buffer failed");
+				wlr_log_errno(L_INFO,
+					"creating anonymous file for cursor buffer failed");
 				return false;
 			}
 
-			output->cursor_data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-			if (output->cursor_data == MAP_FAILED) {
+			output->cursor.data = mmap(NULL, size, PROT_READ | PROT_WRITE,
+				MAP_SHARED, fd, 0);
+			if (output->cursor.data == MAP_FAILED) {
 				close(fd);
 				wlr_log_errno(L_INFO, "mmap failed");
 				return false;
 			}
 
-			output->cursor_pool = wl_shm_create_pool(backend->shm, fd, size);
+			output->cursor.pool = wl_shm_create_pool(backend->shm, fd, size);
 			close(fd);
 		}
 
-		output->cursor_buffer = wl_shm_pool_create_buffer(output->cursor_pool,
+		output->cursor.buffer = wl_shm_pool_create_buffer(output->cursor.pool,
 			0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
-		output->cursor_buf_size = size;
+		output->cursor.buf_size = size;
 	}
 
-	memcpy(output->cursor_data, buf, size);
-	wl_surface_attach(output->cursor_surface, output->cursor_buffer, 0, 0);
-	wl_surface_damage(output->cursor_surface, 0, 0, width, height);
-	wl_surface_commit(output->cursor_surface);
+	memcpy(output->cursor.data, buf, size);
+	wl_surface_attach(output->cursor.surface, output->cursor.buffer, 0, 0);
+	wl_surface_damage(output->cursor.surface, 0, 0, width, height);
+	wl_surface_commit(output->cursor.surface);
 
-	wlr_wl_output_update_cursor(output, output->enter_serial,
-		hotspot_x, hotspot_y);
+	wlr_wl_output_update_cursor(output);
 	return true;
 }
 
 static void wlr_wl_output_destroy(struct wlr_output *_output) {
-	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
-	wl_signal_emit(&output->backend->backend.events.output_remove, &output->wlr_output);
+	struct wlr_wl_backend_output *output =
+		(struct wlr_wl_backend_output *)_output;
+	wl_signal_emit(&output->backend->backend.events.output_remove,
+		&output->wlr_output);
 
-	if (output->cursor_buf_size != 0) {
-		assert(output->cursor_data);
-		assert(output->cursor_buffer);
-		assert(output->cursor_pool);
+	if (output->cursor.buf_size != 0) {
+		assert(output->cursor.data);
+		assert(output->cursor.buffer);
+		assert(output->cursor.pool);
 
-		wl_buffer_destroy(output->cursor_buffer);
-		munmap(output->cursor_data, output->cursor_buf_size);
-		wl_shm_pool_destroy(output->cursor_pool);
+		wl_buffer_destroy(output->cursor.buffer);
+		munmap(output->cursor.data, output->cursor.buf_size);
+		wl_shm_pool_destroy(output->cursor.pool);
 	}
 
-	if (output->cursor_surface) {
-		wl_surface_destroy(output->cursor_surface);
+	if (output->cursor.surface) {
+		wl_surface_destroy(output->cursor.surface);
 	}
 
 	if (output->frame_callback) {
@@ -164,11 +170,11 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	free(output);
 }
 
-void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output,
-			uint32_t serial, int32_t hotspot_x, int32_t hotspot_y) {
-	if (output->backend->pointer && serial) {
-		wl_pointer_set_cursor(output->backend->pointer, serial,
-			output->cursor_surface, hotspot_x, hotspot_y);
+void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output) {
+	if (output->backend->pointer && output->enter_serial) {
+		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
+			output->cursor.surface, output->cursor.hotspot_x,
+			output->cursor.hotspot_y);
 	}
 }
 
