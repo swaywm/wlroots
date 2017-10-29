@@ -117,34 +117,33 @@ static void xwm_set_net_active_window(struct wlr_xwm *xwm,
 
 static void xwm_send_focus_window(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface) {
-	if (xsurface) {
-		if (xsurface->override_redirect) {
-			return;
-		}
-
-		xcb_client_message_event_t client_message;
-		client_message.response_type = XCB_CLIENT_MESSAGE;
-		client_message.format = 32;
-		client_message.window = xsurface->window_id;
-		client_message.type = xwm->atoms[WM_PROTOCOLS];
-		client_message.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
-		client_message.data.data32[1] = XCB_TIME_CURRENT_TIME;
-
-		xcb_send_event(xwm->xcb_conn, 0, xsurface->window_id,
-			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&client_message);
-
-		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			xsurface->window_id, XCB_CURRENT_TIME);
-
-		uint32_t values[1];
-		values[0] = XCB_STACK_MODE_ABOVE;
-		xcb_configure_window(xwm->xcb_conn, xsurface->window_id,
-			XCB_CONFIG_WINDOW_STACK_MODE, values);
-	} else {
-		xcb_set_input_focus(xwm->xcb_conn,
+	if (!xsurface) {
+		xcb_set_input_focus_checked(xwm->xcb_conn,
 			XCB_INPUT_FOCUS_POINTER_ROOT,
 			XCB_NONE, XCB_CURRENT_TIME);
+		return;
+	} else if (xsurface->override_redirect) {
+		return;
 	}
+
+	xcb_client_message_event_t client_message;
+	client_message.response_type = XCB_CLIENT_MESSAGE;
+	client_message.format = 32;
+	client_message.window = xsurface->window_id;
+	client_message.type = xwm->atoms[WM_PROTOCOLS];
+	client_message.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
+	client_message.data.data32[1] = XCB_TIME_CURRENT_TIME;
+
+	xcb_send_event(xwm->xcb_conn, 0, xsurface->window_id,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&client_message);
+
+	xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+		xsurface->window_id, XCB_CURRENT_TIME);
+
+	uint32_t values[1];
+	values[0] = XCB_STACK_MODE_ABOVE;
+	xcb_configure_window(xwm->xcb_conn, xsurface->window_id,
+		XCB_CONFIG_WINDOW_STACK_MODE, values);
 }
 
 
