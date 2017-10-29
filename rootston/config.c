@@ -1,6 +1,7 @@
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
+#include <assert.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <getopt.h>
@@ -244,6 +245,21 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			} else {
 				wlr_log(L_ERROR, "got unknown transform value: %s", value);
 			}
+		} else if (strcmp(name, "mode") == 0) {
+			char *end;
+			oc->mode.width = strtol(value, &end, 10);
+			assert(*end == 'x');
+			++end;
+			oc->mode.height = strtol(end, &end, 10);
+			if (*end) {
+				assert(*end == '@');
+				++end;
+				oc->mode.refresh_rate = strtof(end, &end);
+				assert(strcmp("Hz", end) == 0);
+			}
+			wlr_log(L_DEBUG, "Configured output %s with mode %dx%d@%f",
+					oc->name, oc->mode.width, oc->mode.height,
+					oc->mode.refresh_rate);
 		}
 	} else if (strcmp(section, "cursor") == 0) {
 		if (strcmp(name, "map-to-output") == 0) {

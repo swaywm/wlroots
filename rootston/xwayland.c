@@ -18,6 +18,24 @@ static void activate(struct roots_view *view, bool active) {
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+
+	struct wlr_xwayland_surface_size_hints *size_hints =
+		xwayland_surface->size_hints;
+	if (size_hints != NULL) {
+		if (width < (uint32_t)size_hints->min_width) {
+			width = size_hints->min_width;
+		} else if (size_hints->max_width > 0 &&
+				width > (uint32_t)size_hints->max_width) {
+			width = size_hints->max_width;
+		}
+		if (height < (uint32_t)size_hints->min_height) {
+			height = size_hints->min_height;
+		} else if (size_hints->max_height > 0 &&
+				height > (uint32_t)size_hints->max_height) {
+			height = size_hints->max_height;
+		}
+	}
+
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
 		xwayland_surface->x, xwayland_surface->y, width, height);
 }

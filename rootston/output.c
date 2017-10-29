@@ -165,6 +165,26 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	output->last_frame = desktop->last_frame = now;
 }
 
+static void set_mode(struct wlr_output *output, struct output_config *oc) {
+	struct wlr_output_mode *mode, *best = NULL;
+	int mhz = (int)(oc->mode.refresh_rate * 1000);
+	wl_list_for_each(mode, &output->modes, link) {
+		if (mode->width == oc->mode.width && mode->height == oc->mode.height) {
+			if (mode->refresh == mhz) {
+				best = mode;
+				break;
+			}
+			best = mode;
+		}
+	}
+	if (!best) {
+		wlr_log(L_ERROR, "Configured mode for %s not available", output->name);
+	} else {
+		wlr_log(L_DEBUG, "Assigning configured mode to %s", output->name);
+		wlr_output_set_mode(output, best);
+	}
+}
+
 void output_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
 	struct roots_desktop *desktop = wl_container_of(listener, desktop, output_add);
@@ -191,6 +211,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	struct output_config *output_config = config_get_output(config, wlr_output);
 	if (output_config) {
+		if (output_config->mode.width) {
+			set_mode(wlr_output, output_config);
+		}
 		wlr_output_transform(wlr_output, output_config->transform);
 		wlr_output_layout_add(desktop->layout,
 				wlr_output, output_config->x, output_config->y);

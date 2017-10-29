@@ -160,6 +160,13 @@ void cursor_update_position(struct roots_input *input, uint32_t time) {
 				width += dx;
 			}
 
+			if (width < 0) {
+				width = 0;
+			}
+			if (height < 0) {
+				height = 0;
+			}
+
 			// TODO we might need one configure event for this
 			if (active_x != input->active_view->x ||
 					active_y != input->active_view->y) {

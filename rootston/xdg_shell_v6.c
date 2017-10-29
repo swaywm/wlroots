@@ -29,6 +29,21 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
 	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		struct wlr_xdg_toplevel_v6_state *state =
+			&surf->toplevel_state->current;
+		if (width < state->min_width) {
+			width = state->min_width;
+		} else if (state->max_width > 0 &&
+				width < state->max_width) {
+			width = state->max_width;
+		}
+		if (height < state->min_height) {
+			height = state->min_height;
+		} else if (state->max_height > 0 &&
+				height < state->max_height) {
+			height = state->max_height;
+		}
+
 		wlr_xdg_toplevel_v6_set_size(surf, width, height);
 	}
 }
