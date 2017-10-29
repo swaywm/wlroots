@@ -138,10 +138,10 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 
 		uint32_t values[1];
 		values[0] = XCB_STACK_MODE_ABOVE;
-		xcb_configure_window_checked(xwm->xcb_conn, xsurface->window_id,
+		xcb_configure_window(xwm->xcb_conn, xsurface->window_id,
 			XCB_CONFIG_WINDOW_STACK_MODE, values);
 	} else {
-		xcb_set_input_focus_checked(xwm->xcb_conn,
+		xcb_set_input_focus(xwm->xcb_conn,
 			XCB_INPUT_FOCUS_POINTER_ROOT,
 			XCB_NONE, XCB_CURRENT_TIME);
 	}
@@ -221,21 +221,6 @@ static void wlr_xwayland_surface_destroy(
 	free(xsurface->hints);
 	free(xsurface->size_hints);
 	free(xsurface);
-}
-
-/* xcb helpers */
-#define XCB_CALL(xwm, x) xcb_call(xwm, __func__, __LINE__, x)
-static bool xcb_call(struct wlr_xwm *xwm, const char *func, uint32_t line,
-		xcb_void_cookie_t cookie) {
-	xcb_generic_error_t *error;
-	if (!(error = xcb_request_check(xwm->xcb_conn, cookie))) {
-		return true;
-	}
-
-	wlr_log(L_ERROR, "xcb call failed in %s:%u, x11 error code %d",
-		func, line, error->error_code);
-	free(error);
-	return false;
 }
 
 static void read_surface_class(struct wlr_xwm *xwm,
@@ -1036,11 +1021,12 @@ void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
 		ev.type = xwm->atoms[WM_PROTOCOLS];
 		ev.data.data32[0] = xwm->atoms[WM_DELETE_WINDOW];
 		ev.data.data32[1] = XCB_CURRENT_TIME;
-		XCB_CALL(xwm, xcb_send_event_checked(xwm->xcb_conn, 0,
-			xsurface->window_id, XCB_EVENT_MASK_NO_EVENT, (char *)&ev));
+		xcb_send_event(xwm->xcb_conn, 0,
+			xsurface->window_id,
+			XCB_EVENT_MASK_NO_EVENT,
+			(char *)&ev);
 	} else {
-		XCB_CALL(xwm, xcb_kill_client_checked(xwm->xcb_conn,
-			xsurface->window_id));
+		xcb_kill_client(xwm->xcb_conn, xsurface->window_id);
 	}
 }
 
@@ -1189,8 +1175,11 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 
 	xwm->visual_id = visualtype->visual_id;
 	xwm->colormap = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_colormap_checked(xwm->xcb_conn, XCB_COLORMAP_ALLOC_NONE,
-		xwm->colormap, xwm->screen->root, xwm->visual_id);
+	xcb_create_colormap(xwm->xcb_conn,
+		XCB_COLORMAP_ALLOC_NONE,
+		xwm->colormap,
+		xwm->screen->root,
+		xwm->visual_id);
 }
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
@@ -1241,7 +1230,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */,
 		values);
 
-	xcb_composite_redirect_subwindows_checked(xwm->xcb_conn, xwm->screen->root,
+	xcb_composite_redirect_subwindows(xwm->xcb_conn,
+		xwm->screen->root,
 		XCB_COMPOSITE_REDIRECT_MANUAL);
 
 	xcb_atom_t supported[] = {
