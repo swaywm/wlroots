@@ -33,9 +33,16 @@ struct wlr_cursor_device {
 	struct wl_listener destroy;
 };
 
+struct wlr_cursor_output_cursor {
+	struct wlr_cursor *cursor;
+	struct wlr_output_cursor *output_cursor;
+	struct wl_list link;
+};
+
 struct wlr_cursor_state {
 	struct wlr_cursor *cursor;
-	struct wl_list devices;
+	struct wl_list devices; // wlr_cursor_device::link
+	struct wl_list output_cursors; // wlr_cursor_output_cursor::link
 	struct wlr_output_layout *layout;
 	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
@@ -132,16 +139,15 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 		double x, double y) {
 	assert(cur->state->layout);
 
-	struct wlr_output_layout_output *l_output;
-	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
+	struct wlr_cursor_output_cursor *output_cursor;
+	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
 		double output_x = x;
 		double output_y = y;
-
 		wlr_output_layout_output_coords(cur->state->layout,
-			l_output->output, &output_x, &output_y);
-		wlr_output_move_cursor(l_output->output,
-			output_x - l_output->output->cursor.hotspot_x,
-			output_y - l_output->output->cursor.hotspot_y);
+			output_cursor->output_cursor->output, &output_x, &output_y);
+		wlr_output_cursor_move(output_cursor->output_cursor,
+			output_x - output_cursor->output_cursor->hotspot_x,
+			output_y - output_cursor->output_cursor->hotspot_y);
 	}
 
 	cur->x = x;
@@ -252,6 +258,17 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	}
 
 	wlr_cursor_warp_unchecked(cur, x, y);
+}
+
+void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
+		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
+		int32_t hotspot_y) {
+	// TODO
+}
+
+void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	// TODO
 }
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {

@@ -188,176 +188,6 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	}
 }
 
-static bool set_cursor(struct wlr_output *output, const uint8_t *buf,
-		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
-		int32_t hotspot_y) {
-	if (output->impl->set_cursor
-			&& output->impl->set_cursor(output, buf, stride, width, height,
-				hotspot_x, hotspot_y, true)) {
-		output->cursor.is_sw = false;
-		return true;
-	}
-
-	wlr_log(L_INFO, "Falling back to software cursor");
-
-	output->cursor.is_sw = true;
-	output->cursor.width = width;
-	output->cursor.height = height;
-
-	if (!output->cursor.renderer) {
-		output->cursor.renderer = wlr_gles2_renderer_create(output->backend);
-		if (!output->cursor.renderer) {
-			return false;
-		}
-	}
-
-	if (!output->cursor.texture) {
-		output->cursor.texture =
-			wlr_render_texture_create(output->cursor.renderer);
-		if (!output->cursor.texture) {
-			return false;
-		}
-	}
-
-	return wlr_texture_upload_pixels(output->cursor.texture,
-		WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
-}
-
-bool wlr_output_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y) {
-	if (output->cursor.surface) {
-		wl_list_remove(&output->cursor.surface_commit.link);
-		wl_list_remove(&output->cursor.surface_destroy.link);
-		output->cursor.surface = NULL;
-	}
-
-	output->cursor.hotspot_x = hotspot_x;
-	output->cursor.hotspot_y = hotspot_y;
-
-	return set_cursor(output, buf, stride, width, height, hotspot_x, hotspot_y);
-}
-
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
-}
-
-static void commit_cursor_surface(struct wlr_output *output,
-		struct wlr_surface *surface) {
-	if (output->cursor.is_sw) {
-		return;
-	}
-
-	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
-	if (buffer == NULL) {
-		return;
-	}
-
-	uint32_t format = wl_shm_buffer_get_format(buffer);
-	if (format != WL_SHM_FORMAT_ARGB8888) {
-		return;
-	}
-
-	void *buffer_data = wl_shm_buffer_get_data(buffer);
-	int32_t width = wl_shm_buffer_get_width(buffer);
-	int32_t height = wl_shm_buffer_get_height(buffer);
-	int32_t stride = wl_shm_buffer_get_stride(buffer);
-	wl_shm_buffer_begin_access(buffer);
-	wlr_output_set_cursor(output, buffer_data, stride/4, width, height,
-		output->cursor.hotspot_x - surface->current->sx,
-		output->cursor.hotspot_y - surface->current->sy);
-	wl_shm_buffer_end_access(buffer);
-}
-
-static void handle_cursor_surface_commit(struct wl_listener *listener,
-		void *data) {
-	struct wlr_output *output = wl_container_of(listener, output,
-		cursor.surface_commit);
-	struct wlr_surface *surface = data;
-
-	commit_cursor_surface(output, surface);
-
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	struct wlr_frame_callback *cb, *cnext;
-	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
-			link) {
-		wl_callback_send_done(cb->resource, timespec_to_msec(&now));
-		wl_resource_destroy(cb->resource);
-	}
-}
-
-static void handle_cursor_surface_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_output *output = wl_container_of(listener, output,
-		cursor.surface_destroy);
-
-	wl_list_remove(&output->cursor.surface_commit.link);
-	wl_list_remove(&output->cursor.surface_destroy.link);
-	output->cursor.surface = NULL;
-}
-
-void wlr_output_set_cursor_surface(struct wlr_output *output,
-		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
-		return;
-	}
-
-	output->cursor.hotspot_x = hotspot_x;
-	output->cursor.hotspot_y = hotspot_y;
-
-	if (surface && surface == output->cursor.surface) {
-		if (output->impl->set_cursor && !output->cursor.is_sw) {
-			// Only update the hotspot
-			output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x,
-				hotspot_y, false);
-		}
-		return;
-	}
-
-	if (output->cursor.surface) {
-		wl_list_remove(&output->cursor.surface_commit.link);
-		wl_list_remove(&output->cursor.surface_destroy.link);
-		output->cursor.surface = NULL;
-	}
-
-	// Disable hardware cursor
-	// TODO: support hardware cursors
-	output->cursor.is_sw = true;
-	if (output->impl->set_cursor) {
-		output->impl->set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y,
-			true);
-	}
-
-	//output->cursor.is_sw = output->impl->set_cursor == NULL;
-	output->cursor.surface = surface;
-
-	if (surface != NULL) {
-		wl_signal_add(&surface->events.commit, &output->cursor.surface_commit);
-		wl_signal_add(&surface->events.destroy,
-			&output->cursor.surface_destroy);
-		commit_cursor_surface(output, surface);
-	} else {
-		set_cursor(output, NULL, 0, 0, 0, hotspot_x, hotspot_y);
-	}
-}
-
-bool wlr_output_move_cursor(struct wlr_output *output, int x, int y) {
-	output->cursor.x = x;
-	output->cursor.y = y;
-
-	if (output->cursor.is_sw) {
-		return true;
-	}
-
-	if (!output->impl->move_cursor) {
-		return false;
-	}
-
-	return output->impl->move_cursor(output, x, y);
-}
-
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
 	output->backend = backend;
@@ -365,15 +195,11 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
+	wl_list_init(&output->cursors);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
 	wl_signal_init(&output->events.destroy);
-
-	wl_list_init(&output->cursor.surface_commit.link);
-	output->cursor.surface_commit.notify = handle_cursor_surface_commit;
-	wl_list_init(&output->cursor.surface_destroy.link);
-	output->cursor.surface_destroy.notify = handle_cursor_surface_destroy;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -382,9 +208,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 
 	wl_signal_emit(&output->events.destroy, output);
-
-	wlr_texture_destroy(output->cursor.texture);
-	wlr_renderer_destroy(output->cursor.renderer);
 
 	struct wlr_output_mode *mode, *tmp_mode;
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
@@ -414,27 +237,35 @@ void wlr_output_make_current(struct wlr_output *output) {
 	output->impl->make_current(output);
 }
 
-void wlr_output_swap_buffers(struct wlr_output *output) {
-	if (output->cursor.is_sw) {
-		glViewport(0, 0, output->width, output->height);
+static void output_cursor_render(struct wlr_output_cursor *cursor) {
+	struct wlr_texture *texture = cursor->texture;
+	struct wlr_renderer *renderer = cursor->renderer;
+	if (cursor->surface != NULL) {
+		texture = cursor->surface->texture;
+		renderer = cursor->surface->renderer;
+	}
+
+	// We check texture->valid because some clients set a cursor surface
+	// with a NULL buffer to hide it
+	if (renderer && texture && texture->valid) {
+		glViewport(0, 0, cursor->output->width, cursor->output->height);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		struct wlr_texture *texture = output->cursor.texture;
-		struct wlr_renderer *renderer = output->cursor.renderer;
-		if (output->cursor.surface) {
-			texture = output->cursor.surface->texture;
-			renderer = output->cursor.surface->renderer;
-		}
+		float matrix[16];
+		wlr_texture_get_matrix(texture, &matrix,
+			&cursor->output->transform_matrix, cursor->x, cursor->y);
+		wlr_render_with_matrix(renderer, texture, &matrix);
+	}
+}
 
-		// We check texture->valid because some clients set a cursor surface
-		// with a NULL buffer to hide it
-		if (renderer && texture && texture->valid) {
-			float matrix[16];
-			wlr_texture_get_matrix(texture, &matrix, &output->transform_matrix,
-				output->cursor.x, output->cursor.y);
-			wlr_render_with_matrix(renderer, texture, &matrix);
+void wlr_output_swap_buffers(struct wlr_output *output) {
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->cursors, link) {
+		if (output->hardware_cursor == cursor) {
+			continue;
 		}
+		output_cursor_render(cursor);
 	}
 
 	wl_signal_emit(&output->events.swap_buffers, &output);
@@ -454,4 +285,171 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 		return 0;
 	}
 	return output->impl->get_gamma_size(output);
+}
+
+static void wlr_output_cursor_reset(struct wlr_output_cursor *cursor) {
+	if (cursor->surface != NULL) {
+		wl_list_remove(&cursor->surface_commit.link);
+		wl_list_remove(&cursor->surface_destroy.link);
+		cursor->surface = NULL;
+	}
+}
+
+bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
+		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	wlr_output_cursor_reset(cursor);
+	cursor->hotspot_x = hotspot_x;
+	cursor->hotspot_y = hotspot_y;
+
+	if (cursor->output->hardware_cursor == NULL &&
+			cursor->output->impl->set_cursor &&
+			cursor->output->impl->set_cursor(cursor->output, pixels, stride,
+				width, height, hotspot_x, hotspot_y, true)) {
+		cursor->output->hardware_cursor = cursor;
+		return true;
+	}
+
+	wlr_log(L_INFO, "Falling back to software cursor");
+
+	if (cursor->renderer == NULL) {
+		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
+		if (cursor->renderer == NULL) {
+			return false;
+		}
+	}
+
+	if (cursor->texture == NULL) {
+		cursor->texture = wlr_render_texture_create(cursor->renderer);
+		if (cursor->texture == NULL) {
+			return false;
+		}
+	}
+
+	return wlr_texture_upload_pixels(cursor->texture, WL_SHM_FORMAT_ARGB8888,
+		stride, width, height, pixels);
+}
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+static void output_cursor_handle_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output_cursor *cursor = wl_container_of(listener, cursor,
+		surface_commit);
+	struct wlr_surface *surface = data;
+
+	// TODO: if hardware cursor, upload pixels
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	struct wlr_frame_callback *cb, *cnext;
+	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
+			link) {
+		wl_callback_send_done(cb->resource, timespec_to_msec(&now));
+		wl_resource_destroy(cb->resource);
+	}
+}
+
+static void output_cursor_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output_cursor *cursor = wl_container_of(listener, cursor,
+		surface_destroy);
+	wlr_output_cursor_reset(cursor);
+}
+
+void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
+		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
+	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
+		return;
+	}
+
+	cursor->hotspot_x = hotspot_x;
+	cursor->hotspot_y = hotspot_y;
+
+	if (surface && surface == cursor->surface) {
+		if (cursor->output->hardware_cursor == cursor &&
+				cursor->output->impl->set_cursor) {
+			// If the surface hasn't changed and it's an hardware cursor, only
+			// update the hotspot
+			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
+				hotspot_x, hotspot_y, false);
+		}
+		return;
+	}
+
+	wlr_output_cursor_reset(cursor);
+
+	// Disable hardware cursor for surfaces
+	// TODO: support hardware cursors
+	if (cursor->output->hardware_cursor == cursor &&
+			cursor->output->impl->set_cursor) {
+		cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
+			hotspot_x, hotspot_y, true);
+		cursor->output->hardware_cursor = NULL;
+	}
+
+	cursor->surface = surface;
+
+	if (surface != NULL) {
+		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
+		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
+		// TODO: if hardware cursor, upload pixels
+	} else {
+		// TODO: if hardware cursor, disable cursor
+	}
+}
+
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
+	cursor->x = x;
+	cursor->y = y;
+
+	if (cursor->output->hardware_cursor != cursor) {
+		return true;
+	}
+
+	if (!cursor->output->impl->move_cursor) {
+		return false;
+	}
+	return cursor->output->impl->move_cursor(cursor->output, x, y);
+}
+
+struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
+	struct wlr_output_cursor *cursor =
+		calloc(1, sizeof(struct wlr_output_cursor));
+	if (cursor == NULL) {
+		return NULL;
+	}
+	cursor->output = output;
+	wl_list_init(&cursor->surface_commit.link);
+	cursor->surface_commit.notify = output_cursor_handle_commit;
+	wl_list_init(&cursor->surface_destroy.link);
+	cursor->surface_destroy.notify = output_cursor_handle_destroy;
+	wl_list_insert(&output->cursors, &cursor->link);
+	return cursor;
+}
+
+void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
+	if (cursor == NULL) {
+		return;
+	}
+	wlr_output_cursor_reset(cursor);
+	if (cursor->output->hardware_cursor == cursor) {
+		// If this cursor was the hardware cursor, disable it
+		if (cursor->output->impl->set_cursor) {
+			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0, 0,
+				0, true);
+		}
+		cursor->output->hardware_cursor = NULL;
+	}
+	if (cursor->texture != NULL) {
+		wlr_texture_destroy(cursor->texture);
+	}
+	if (cursor->renderer != NULL) {
+		wlr_renderer_destroy(cursor->renderer);
+	}
+	wl_list_remove(&cursor->link);
+	free(cursor);
 }
