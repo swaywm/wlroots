@@ -237,44 +237,6 @@ void wlr_output_make_current(struct wlr_output *output) {
 	output->impl->make_current(output);
 }
 
-static void output_cursor_get_effective_hotspot(
-		struct wlr_output_cursor *cursor, int32_t *hotspot_x,
-		int32_t *hotspot_y) {
-	switch (cursor->output->transform) {
-	case WL_OUTPUT_TRANSFORM_90:
-		*hotspot_x = cursor->hotspot_x;
-		*hotspot_y = -cursor->height + cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_180:
-		*hotspot_x = cursor->width - cursor->hotspot_x;
-		*hotspot_y = cursor->height - cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-		*hotspot_x = -cursor->height + cursor->hotspot_x;
-		*hotspot_y = cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		*hotspot_x = cursor->width - cursor->hotspot_x;
-		*hotspot_y = cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		*hotspot_x = cursor->hotspot_x;
-		*hotspot_y = -cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		*hotspot_x = cursor->hotspot_x;
-		*hotspot_y = cursor->height - cursor->hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		*hotspot_x = -cursor->height + cursor->hotspot_x;
-		*hotspot_y = cursor->width - cursor->hotspot_y;
-		break;
-	default: // WL_OUTPUT_TRANSFORM_NORMAL
-		*hotspot_x = cursor->hotspot_x;
-		*hotspot_y = cursor->hotspot_y;
-	}
-}
-
 static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
@@ -290,13 +252,10 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		int32_t hotspot_x, hotspot_y;
-		output_cursor_get_effective_hotspot(cursor, &hotspot_x, &hotspot_y);
-
 		float matrix[16];
 		wlr_texture_get_matrix(texture, &matrix,
-			&cursor->output->transform_matrix, cursor->x - hotspot_x,
-			cursor->y - hotspot_y);
+			&cursor->output->transform_matrix, cursor->x - cursor->hotspot_x,
+			cursor->y - cursor->hotspot_y);
 		wlr_render_with_matrix(renderer, texture, &matrix);
 	}
 }
@@ -349,14 +308,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
-		int32_t hotspot_eff_x, hotspot_eff_y;
-		output_cursor_get_effective_hotspot(cursor, &hotspot_eff_x,
-			&hotspot_eff_y);
-
-		// TODO: also transform pixels with output->transform before calling
-		// set_cursor
 		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-			stride, width, height, hotspot_eff_x, hotspot_eff_y, true);
+			stride, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
 			cursor->output->hardware_cursor = cursor;
 			return true;
@@ -438,11 +391,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 				cursor->output->impl->set_cursor) {
 			// If the surface hasn't changed and it's an hardware cursor, only
 			// update the hotspot
-			int32_t hotspot_eff_x, hotspot_eff_y;
-			output_cursor_get_effective_hotspot(cursor, &hotspot_eff_x,
-				&hotspot_eff_y);
 			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
-				hotspot_eff_x, hotspot_eff_y, false);
+				hotspot_x, hotspot_y, false);
 		}
 		return;
 	}
