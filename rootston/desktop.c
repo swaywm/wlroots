@@ -98,10 +98,10 @@ bool view_center(struct roots_view *view) {
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	view->x = (double)(width - size.width) / 2
-		+ l_output->x;
-	view->y = (double)(height - size.height) / 2
-		+ l_output->y;
+	double view_x = (double)(width - size.width) / 2 + l_output->x;
+	double view_y = (double)(height - size.height) / 2 + l_output->y;
+
+	view_set_position(view, view_x, view_y);
 
 	return true;
 }
@@ -111,7 +111,6 @@ void view_setup(struct roots_view *view) {
 
 	struct roots_input *input = view->desktop->server->input;
 	set_view_focus(input, view->desktop, view);
-	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 }
 
 void view_teardown(struct roots_view *view) {
