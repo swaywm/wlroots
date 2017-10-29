@@ -287,7 +287,7 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
-static void wlr_output_cursor_reset(struct wlr_output_cursor *cursor) {
+static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	if (cursor->surface != NULL) {
 		wl_list_remove(&cursor->surface_commit.link);
 		wl_list_remove(&cursor->surface_destroy.link);
@@ -295,17 +295,53 @@ static void wlr_output_cursor_reset(struct wlr_output_cursor *cursor) {
 	}
 }
 
+static void output_cursor_set_hotspot(struct wlr_output_cursor *cursor,
+		int32_t hotspot_x, int32_t hotspot_y, uint32_t width, uint32_t height) {
+	switch (cursor->output->transform) {
+	case WL_OUTPUT_TRANSFORM_90:
+		cursor->hotspot_x = hotspot_x;
+		cursor->hotspot_y = -height + hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		cursor->hotspot_x = width - hotspot_x;
+		cursor->hotspot_y = height - hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		cursor->hotspot_x = -height + hotspot_x;
+		cursor->hotspot_y = hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		cursor->hotspot_x = width - hotspot_x;
+		cursor->hotspot_y = hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		cursor->hotspot_x = hotspot_x;
+		cursor->hotspot_y = -hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		cursor->hotspot_x = hotspot_x;
+		cursor->hotspot_y = height - hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		cursor->hotspot_x = -height + hotspot_x;
+		cursor->hotspot_y = width - hotspot_y;
+		break;
+	default: // WL_OUTPUT_TRANSFORM_NORMAL
+		cursor->hotspot_x = hotspot_x;
+		cursor->hotspot_y = hotspot_y;
+	}
+}
+
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
-	wlr_output_cursor_reset(cursor);
-	cursor->hotspot_x = hotspot_x;
-	cursor->hotspot_y = hotspot_y;
+	output_cursor_reset(cursor);
+	output_cursor_set_hotspot(cursor, hotspot_x, hotspot_y, width, height);
 
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor &&
 			cursor->output->impl->set_cursor(cursor->output, pixels, stride,
-				width, height, hotspot_x, hotspot_y, true)) {
+				width, height, cursor->hotspot_x, cursor->hotspot_y, true)) {
 		cursor->output->hardware_cursor = cursor;
 		return true;
 	}
@@ -357,7 +393,7 @@ static void output_cursor_handle_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_cursor *cursor = wl_container_of(listener, cursor,
 		surface_destroy);
-	wlr_output_cursor_reset(cursor);
+	output_cursor_reset(cursor);
 }
 
 void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
@@ -366,8 +402,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	cursor->hotspot_x = hotspot_x;
-	cursor->hotspot_y = hotspot_y;
+	output_cursor_set_hotspot(cursor, hotspot_x, hotspot_y,
+		surface->current->width, surface->current->height);
 
 	if (surface && surface == cursor->surface) {
 		if (cursor->output->hardware_cursor == cursor &&
@@ -375,19 +411,19 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 			// If the surface hasn't changed and it's an hardware cursor, only
 			// update the hotspot
 			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
-				hotspot_x, hotspot_y, false);
+				cursor->hotspot_x, cursor->hotspot_y, false);
 		}
 		return;
 	}
 
-	wlr_output_cursor_reset(cursor);
+	output_cursor_reset(cursor);
 
 	// Disable hardware cursor for surfaces
 	// TODO: support hardware cursors
 	if (cursor->output->hardware_cursor == cursor &&
 			cursor->output->impl->set_cursor) {
-		cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
-			hotspot_x, hotspot_y, true);
+		cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0, 0, 0,
+			true);
 		cursor->output->hardware_cursor = NULL;
 	}
 
@@ -435,7 +471,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	if (cursor == NULL) {
 		return;
 	}
-	wlr_output_cursor_reset(cursor);
+	output_cursor_reset(cursor);
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
 		if (cursor->output->impl->set_cursor) {
