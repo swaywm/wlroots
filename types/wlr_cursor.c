@@ -46,7 +46,6 @@ struct wlr_cursor_state {
 	struct wl_list devices; // wlr_cursor_device::link
 	struct wl_list output_cursors; // wlr_cursor_output_cursor::link
 	struct wlr_output_layout *layout;
-	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
 	struct wlr_box *mapped_box;
 
@@ -121,10 +120,6 @@ void wlr_cursor_destroy(struct wlr_cursor *cur) {
 	}
 
 	free(cur);
-}
-
-void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur) {
-	cur->state->xcursor = xcur;
 }
 
 static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,

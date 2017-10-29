@@ -36,8 +36,6 @@ struct wlr_cursor *wlr_cursor_create();
 
 void wlr_cursor_destroy(struct wlr_cursor *cur);
 
-void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur);
-
 /**
  * Warp the cursor to the given x and y in layout coordinates. If x and y are
  * out of the layout boundaries or constraints, no warp will happen.

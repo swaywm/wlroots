@@ -321,7 +321,9 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	wlr_cursor_set_xcursor(state.cursor, state.xcursor);
+	struct wlr_xcursor_image *image = state.xcursor->images[0];
+	wlr_cursor_set_image(state.cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
 
 	compositor_init(&compositor);
 	if (!wlr_backend_start(compositor.backend)) {
