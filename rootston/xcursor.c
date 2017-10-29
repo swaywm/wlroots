@@ -2,7 +2,7 @@
 #include "rootston/input.h"
 
 struct wlr_xcursor *get_default_xcursor(struct wlr_xcursor_theme *theme) {
-	return wlr_xcursor_theme_get_cursor(theme, "grabbing");
+	return wlr_xcursor_theme_get_cursor(theme, "left_ptr");
 }
 
 struct wlr_xcursor *get_move_xcursor(struct wlr_xcursor_theme *theme) {
