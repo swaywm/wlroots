@@ -35,6 +35,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 	}
 	wl_list_init(&layout->outputs);
 
+	wl_signal_init(&layout->events.add);
 	wl_signal_init(&layout->events.change);
 	wl_signal_init(&layout->events.destroy);
 
@@ -43,6 +44,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
+	wl_signal_emit(&l_output->events.destroy, l_output);
 	wl_list_remove(&l_output->state->resolution.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
@@ -155,13 +157,15 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 	l_output->state->l_output = l_output;
 	l_output->state->layout = layout;
 	l_output->output = output;
-
+	wl_signal_init(&l_output->events.destroy);
 	wl_list_insert(&layout->outputs, &l_output->link);
 
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
 	l_output->state->resolution.notify = handle_output_resolution;
 	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
 	l_output->state->output_destroy.notify = handle_output_destroy;
+
+	wl_signal_emit(&layout->events.add, l_output);
 
 	return l_output;
 }

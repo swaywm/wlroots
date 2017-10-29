@@ -156,9 +156,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	sample->cur_x = event->x_mm;
 	sample->cur_y = event->y_mm;
 
-	struct wlr_xcursor_image *image = sample->xcursor->images[0];
-	wlr_cursor_warp_absolute(sample->cursor, event->device,
-		sample->cur_x - image->hotspot_x, sample->cur_y - image->hotspot_y);
+	wlr_cursor_warp_absolute(sample->cursor, event->device, sample->cur_x,
+		sample->cur_y);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {

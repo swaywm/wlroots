@@ -12,6 +12,7 @@ struct wlr_output_layout {
 	struct wlr_output_layout_state *state;
 
 	struct {
+		struct wl_signal add;
 		struct wl_signal change;
 		struct wl_signal destroy;
 	} events;
@@ -24,6 +25,10 @@ struct wlr_output_layout_output {
 	int x, y;
 	struct wl_list link;
 	struct wlr_output_layout_output_state *state;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 struct wlr_output_layout *wlr_output_layout_create();
