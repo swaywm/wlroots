@@ -129,13 +129,36 @@ static void wlr_cursor_detach_output_layout(struct wlr_cursor *cur) {
 	cur->state->layout = NULL;
 }
 
+static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
+	struct wlr_input_device *dev = c_device->device;
+	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
+		wl_list_remove(&c_device->motion.link);
+		wl_list_remove(&c_device->motion_absolute.link);
+		wl_list_remove(&c_device->button.link);
+		wl_list_remove(&c_device->axis.link);
+	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
+		wl_list_remove(&c_device->touch_down.link);
+		wl_list_remove(&c_device->touch_up.link);
+		wl_list_remove(&c_device->touch_motion.link);
+		wl_list_remove(&c_device->touch_cancel.link);
+	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		wl_list_remove(&c_device->tablet_tool_axis.link);
+		wl_list_remove(&c_device->tablet_tool_proximity.link);
+		wl_list_remove(&c_device->tablet_tool_tip.link);
+		wl_list_remove(&c_device->tablet_tool_button.link);
+	}
+
+	wl_list_remove(&c_device->link);
+	wl_list_remove(&c_device->destroy.link);
+	free(c_device);
+}
+
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
 	wlr_cursor_detach_output_layout(cur);
 
 	struct wlr_cursor_device *device, *device_tmp = NULL;
 	wl_list_for_each_safe(device, device_tmp, &cur->state->devices, link) {
-		wl_list_remove(&device->link);
-		free(device);
+		wlr_cursor_device_destroy(device);
 	}
 
 	free(cur);
@@ -472,30 +495,6 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	}
 
 	wlr_cursor_device_create(cur, dev);
-}
-
-static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
-	struct wlr_input_device *dev = c_device->device;
-	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
-		wl_list_remove(&c_device->motion.link);
-		wl_list_remove(&c_device->motion_absolute.link);
-		wl_list_remove(&c_device->button.link);
-		wl_list_remove(&c_device->axis.link);
-	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
-		wl_list_remove(&c_device->touch_down.link);
-		wl_list_remove(&c_device->touch_up.link);
-		wl_list_remove(&c_device->touch_motion.link);
-		wl_list_remove(&c_device->touch_cancel.link);
-	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wl_list_remove(&c_device->tablet_tool_axis.link);
-		wl_list_remove(&c_device->tablet_tool_proximity.link);
-		wl_list_remove(&c_device->tablet_tool_tip.link);
-		wl_list_remove(&c_device->tablet_tool_button.link);
-	}
-
-	wl_list_remove(&c_device->link);
-	wl_list_remove(&c_device->destroy.link);
-	free(c_device);
 }
 
 void wlr_cursor_detach_input_device(struct wlr_cursor *cur,

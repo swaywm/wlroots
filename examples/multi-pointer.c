@@ -134,6 +134,7 @@ static void handle_input_add(struct compositor_state *state,
 
 	struct sample_cursor *cursor = calloc(1, sizeof(struct sample_cursor));
 	cursor->state = sample;
+	cursor->device = device;
 
 	cursor->cursor = wlr_cursor_create();
 	wlr_cursor_attach_output_layout(cursor->cursor, sample->layout);
@@ -156,6 +157,22 @@ static void handle_input_add(struct compositor_state *state,
 	wl_list_insert(&sample->cursors, &cursor->link);
 }
 
+static void handle_input_remove(struct compositor_state *state,
+		struct wlr_input_device *device) {
+	struct sample_state *sample = state->data;
+	struct sample_cursor *cursor;
+	wl_list_for_each(cursor, &sample->cursors, link) {
+		if (cursor->device == device) {
+			wl_list_remove(&cursor->link);
+			wl_list_remove(&cursor->cursor_motion.link);
+			wl_list_remove(&cursor->cursor_motion_absolute.link);
+			wlr_cursor_destroy(cursor->cursor);
+			free(cursor);
+			break;
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
@@ -173,6 +190,7 @@ int main(int argc, char *argv[]) {
 	compositor.output_remove_cb = handle_output_remove;
 	compositor.output_frame_cb = handle_output_frame;
 	compositor.input_add_cb = handle_input_add;
+	compositor.input_remove_cb = handle_input_remove;
 
 	state.compositor = &compositor;
 
