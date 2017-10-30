@@ -14,7 +14,7 @@
 struct wlr_seat_client {
 	struct wl_resource *wl_resource;
 	struct wl_client *client;
-	struct wlr_seat *wlr_seat;
+	struct wlr_seat *seat;
 
 	struct wl_resource *pointer;
 	struct wl_resource *keyboard;
@@ -72,7 +72,7 @@ struct wlr_seat_pointer_grab {
 };
 
 struct wlr_seat_pointer_state {
-	struct wlr_seat *wlr_seat;
+	struct wlr_seat *seat;
 	struct wlr_seat_client *focused_client;
 	struct wlr_surface *focused_surface;
 
@@ -89,7 +89,7 @@ struct wlr_seat_pointer_state {
 };
 
 struct wlr_seat_keyboard_state {
-	struct wlr_seat *wlr_seat;
+	struct wlr_seat *seat;
 	struct wlr_keyboard *keyboard;
 
 	struct wlr_seat_client *focused_client;

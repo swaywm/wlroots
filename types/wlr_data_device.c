@@ -263,18 +263,18 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 }
 
 
-void wlr_seat_client_send_selection(struct wlr_seat_client *client) {
-	if (!client->data_device) {
+void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
+	if (!seat_client->data_device) {
 		return;
 	}
 
-	if (client->wlr_seat->selection_source) {
+	if (seat_client->seat->selection_source) {
 		struct wlr_data_offer *offer =
-			wlr_data_source_send_offer(client->wlr_seat->selection_source,
-				client->data_device);
-		wl_data_device_send_selection(client->data_device, offer->resource);
+			wlr_data_source_send_offer(seat_client->seat->selection_source,
+				seat_client->data_device);
+		wl_data_device_send_selection(seat_client->data_device, offer->resource);
 	} else {
-		wl_data_device_send_selection(client->data_device, NULL);
+		wl_data_device_send_selection(seat_client->data_device, NULL);
 	}
 }
 
@@ -340,7 +340,7 @@ static void data_device_set_selection(struct wl_client *client,
 		wl_resource_get_user_data(dd_resource);
 
 	// TODO: store serial and check against incoming serial here
-	wlr_seat_set_selection(seat_client->wlr_seat, source, serial);
+	wlr_seat_set_selection(seat_client->seat, source, serial);
 }
 
 static void data_device_release(struct wl_client *client,
@@ -390,7 +390,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 	}
 
 	struct wlr_seat_client *focus_client =
-		wlr_seat_client_for_wl_client(drag->seat_client->wlr_seat,
+		wlr_seat_client_for_wl_client(drag->seat_client->seat,
 			wl_resource_get_client(surface->resource));
 
 	if (!focus_client || !focus_client->data_device) {
@@ -418,7 +418,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 	}
 
 	uint32_t serial =
-		wl_display_next_serial(drag->seat_client->wlr_seat->display);
+		wl_display_next_serial(drag->seat_client->seat->display);
 
 	wl_data_device_send_enter(focus_client->data_device, serial,
 		surface->resource, wl_fixed_from_double(sx),
@@ -427,7 +427,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 	drag->focus = surface;
 	drag->focus_client = focus_client;
 	drag->seat_client_unbound.notify = drag_client_seat_unbound;
-	wl_signal_add(&focus_client->wlr_seat->events.client_unbound,
+	wl_signal_add(&focus_client->seat->events.client_unbound,
 		&drag->seat_client_unbound);
 }
 
@@ -561,7 +561,7 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		return false;
 	}
 
-	struct wlr_seat *seat = client->wlr_seat;
+	struct wlr_seat *seat = client->seat;
 
 	if (icon) {
 		drag->icon = icon;
@@ -599,7 +599,7 @@ static void data_device_start_drag(struct wl_client *client,
 		struct wl_resource *origin_resource, struct wl_resource *icon_resource,
 		uint32_t serial) {
 	struct wlr_seat_client *seat_client = wl_resource_get_user_data(device_resource);
-	struct wlr_seat *seat = seat_client->wlr_seat;
+	struct wlr_seat *seat = seat_client->seat;
 	struct wlr_surface *origin = wl_resource_get_user_data(origin_resource);
 	struct wlr_data_source *source = NULL;
 	struct wlr_surface *icon = NULL;

@@ -368,7 +368,7 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 
 	struct wlr_xdg_popup_grab_v6 *popup_grab =
 		xdg_shell_popup_grab_from_seat(surface->client->shell,
-			seat_client->wlr_seat);
+			seat_client->seat);
 
 	struct wlr_xdg_surface_v6 *topmost = xdg_popup_grab_get_topmost(popup_grab);
 	bool parent_is_toplevel =
@@ -383,13 +383,13 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 	}
 
 	popup_grab->client = surface->client->client;
-	surface->popup_state->seat = seat_client->wlr_seat;
+	surface->popup_state->seat = seat_client->seat;
 
 	wl_list_insert(&popup_grab->popups, &surface->popup_state->grab_link);
 
-	wlr_seat_pointer_start_grab(seat_client->wlr_seat,
+	wlr_seat_pointer_start_grab(seat_client->seat,
 		&popup_grab->pointer_grab);
-	wlr_seat_keyboard_start_grab(seat_client->wlr_seat,
+	wlr_seat_keyboard_start_grab(seat_client->seat,
 		&popup_grab->keyboard_grab);
 }
 

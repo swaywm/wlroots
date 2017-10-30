@@ -320,7 +320,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 	struct wlr_surface *parent =
 		wl_resource_get_user_data(parent_resource);
 	struct wlr_wl_shell_popup_grab *grab =
-		shell_popup_grab_from_seat(surface->shell, seat_client->wlr_seat);
+		shell_popup_grab_from_seat(surface->shell, seat_client->seat);
 	if (!grab) {
 		wl_client_post_no_memory(client);
 		return;
@@ -335,7 +335,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 		shell_surface_popup_set_parent(surface, wl_parent);
 		grab->client = surface->client;
 		surface->popup_mapped = true;
-		wlr_seat_pointer_start_grab(seat_client->wlr_seat, &grab->pointer_grab);
+		wlr_seat_pointer_start_grab(seat_client->seat, &grab->pointer_grab);
 		return;
 	}
 
@@ -356,7 +356,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	popup_state->seat = seat_client->wlr_seat;
+	popup_state->seat = seat_client->seat;
 	popup_state->serial = serial;
 
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_POPUP,
@@ -366,7 +366,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 	grab->client = surface->client;
 	wl_list_insert(&grab->popups, &surface->grab_link);
 	surface->popup_mapped = true;
-	wlr_seat_pointer_start_grab(seat_client->wlr_seat, &grab->pointer_grab);
+	wlr_seat_pointer_start_grab(seat_client->seat, &grab->pointer_grab);
 }
 
 static void shell_surface_protocol_set_maximized(struct wl_client *client,

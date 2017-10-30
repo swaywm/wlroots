@@ -475,7 +475,7 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
 
 	struct wlr_surface *focused_surface =
-		event->seat_client->wlr_seat->pointer_state.focused_surface;
+		event->seat_client->seat->pointer_state.focused_surface;
 	bool ok = focused_surface != NULL && focused_surface->resource != NULL;
 	if (ok) {
 		struct wl_client *focused_client =
