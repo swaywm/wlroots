@@ -22,14 +22,14 @@ struct wlr_pointer {
 
 struct wlr_event_pointer_motion {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	double delta_x, delta_y;
 };
 
 struct wlr_event_pointer_motion_absolute {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	double x_mm, y_mm;
 	double width_mm, height_mm;
@@ -37,7 +37,7 @@ struct wlr_event_pointer_motion_absolute {
 
 struct wlr_event_pointer_button {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	uint32_t button;
 	enum wlr_button_state state;
@@ -57,7 +57,7 @@ enum wlr_axis_orientation {
 
 struct wlr_event_pointer_axis {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	enum wlr_axis_source source;
 	enum wlr_axis_orientation orientation;

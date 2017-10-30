@@ -21,7 +21,7 @@ struct wlr_touch {
 
 struct wlr_event_touch_down {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	int32_t slot;
 	double x_mm, y_mm;
@@ -30,14 +30,14 @@ struct wlr_event_touch_down {
 
 struct wlr_event_touch_up {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	int32_t slot;
 };
 
 struct wlr_event_touch_motion {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	int32_t slot;
 	double x_mm, y_mm;
@@ -46,7 +46,7 @@ struct wlr_event_touch_motion {
 
 struct wlr_event_touch_cancel {
 	struct wlr_input_device *device;
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	int32_t slot;
 };

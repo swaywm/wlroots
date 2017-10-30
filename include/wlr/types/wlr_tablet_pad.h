@@ -26,7 +26,7 @@ struct wlr_tablet_pad {
 };
 
 struct wlr_event_tablet_pad_button {
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	uint32_t button;
 	enum wlr_button_state state;
@@ -38,7 +38,7 @@ enum wlr_tablet_pad_ring_source {
 };
 
 struct wlr_event_tablet_pad_ring {
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	enum wlr_tablet_pad_ring_source source;
 	uint32_t ring;
@@ -51,7 +51,7 @@ enum wlr_tablet_pad_strip_source {
 };
 
 struct wlr_event_tablet_pad_strip {
-	uint32_t time_sec;
+	uint32_t time_msec;
 	uint64_t time_usec;
 	enum wlr_tablet_pad_strip_source source;
 	uint32_t strip;
