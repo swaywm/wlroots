@@ -11,9 +11,10 @@
  * to issue input events to that client. The lifetime of these objects is
  * managed by wlr_seat; some may be NULL.
  */
-struct wlr_seat_handle {
+struct wlr_seat_client {
 	struct wl_resource *wl_resource;
-	struct wlr_seat *wlr_seat;
+	struct wl_client *client;
+	struct wlr_seat *seat;
 
 	struct wl_resource *pointer;
 	struct wl_resource *keyboard;
@@ -40,7 +41,8 @@ struct wlr_pointer_grab_interface {
 struct wlr_seat_keyboard_grab;
 
 struct wlr_keyboard_grab_interface {
-	void (*enter)(struct wlr_seat_keyboard_grab *grab, struct wlr_surface *surface);
+	void (*enter)(struct wlr_seat_keyboard_grab *grab,
+			struct wlr_surface *surface);
 	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time,
 			uint32_t key, uint32_t state);
 	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
@@ -70,8 +72,8 @@ struct wlr_seat_pointer_grab {
 };
 
 struct wlr_seat_pointer_state {
-	struct wlr_seat *wlr_seat;
-	struct wlr_seat_handle *focused_handle;
+	struct wlr_seat *seat;
+	struct wlr_seat_client *focused_client;
 	struct wlr_surface *focused_surface;
 
 	struct wlr_seat_pointer_grab *grab;
@@ -87,10 +89,10 @@ struct wlr_seat_pointer_state {
 };
 
 struct wlr_seat_keyboard_state {
-	struct wlr_seat *wlr_seat;
+	struct wlr_seat *seat;
 	struct wlr_keyboard *keyboard;
 
-	struct wlr_seat_handle *focused_handle;
+	struct wlr_seat_client *focused_client;
 	struct wlr_surface *focused_surface;
 
 	struct wl_listener keyboard_destroy;
@@ -106,7 +108,7 @@ struct wlr_seat_keyboard_state {
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
-	struct wl_list handles;
+	struct wl_list clients;
 	char *name;
 	uint32_t capabilities;
 
@@ -138,8 +140,7 @@ struct wlr_seat {
 };
 
 struct wlr_seat_pointer_request_set_cursor_event {
-	struct wl_client *client;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat_client;
 	struct wlr_surface *surface;
 	int32_t hotspot_x, hotspot_y;
 };
@@ -153,11 +154,11 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name);
  */
 void wlr_seat_destroy(struct wlr_seat *wlr_seat);
 /**
- * Gets a wlr_seat_handle for the specified client, or returns NULL if no
- * handle is bound for that client.
+ * Gets a wlr_seat_client for the specified client, or returns NULL if no
+ * client is bound for that client.
  */
-struct wlr_seat_handle *wlr_seat_handle_for_client(struct wlr_seat *wlr_seat,
-		struct wl_client *client);
+struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,
+		struct wl_client *wl_client);
 /**
  * Updates the capabilities available on this seat.
  * Will automatically send them to all clients.
@@ -231,9 +232,9 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
 
 /**
- * Notify the seat of a pointer enter event to the given surface and request it to be the
- * focused surface for the pointer. Pass surface-local coordinates where the
- * enter occurred.
+ * Notify the seat of a pointer enter event to the given surface and request it
+ * to be the focused surface for the pointer. Pass surface-local coordinates
+ * where the enter occurred.
  */
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
