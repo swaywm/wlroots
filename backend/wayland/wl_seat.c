@@ -52,8 +52,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		&width, &height);
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;
-	wlr_event.time_sec = time / 1000;
-	wlr_event.time_usec = time * 1000;
+	wlr_event.time_msec = time;
 	wlr_event.width_mm = width;
 	wlr_event.height_mm = height;
 	wlr_event.x_mm = wl_fixed_to_double(surface_x);
@@ -70,8 +69,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.device = dev;
 	wlr_event.button = button;
 	wlr_event.state = state;
-	wlr_event.time_sec = time / 1000;
-	wlr_event.time_usec = time * 1000;
+	wlr_event.time_msec = time;
 	wl_signal_emit(&dev->pointer->events.button, &wlr_event);
 }
 
@@ -85,8 +83,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.device = dev;
 	wlr_event.delta = value;
 	wlr_event.orientation = axis;
-	wlr_event.time_sec = time / 1000;
-	wlr_event.time_usec = time * 1000;
+	wlr_event.time_msec = time;
 	wlr_event.source = wlr_wl_pointer->axis_source;
 	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
 }
@@ -147,8 +144,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	struct wlr_event_keyboard_key wlr_event;
 	wlr_event.keycode = key;
 	wlr_event.state = state;
-	wlr_event.time_sec = time / 1000;
-	wlr_event.time_usec = time * 1000;
+	wlr_event.time_msec = time;
 	wlr_keyboard_notify_key(dev->keyboard, &wlr_event);
 }
 

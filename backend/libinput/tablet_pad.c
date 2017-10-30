@@ -30,8 +30,8 @@ void handle_tablet_pad_button(struct libinput_event *event,
 	struct libinput_event_tablet_pad *pevent =
 		libinput_event_get_tablet_pad_event(event);
 	struct wlr_event_tablet_pad_button wlr_event = { 0 };
-	wlr_event.time_sec = libinput_event_tablet_pad_get_time(pevent);
-	wlr_event.time_usec = libinput_event_tablet_pad_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_pad_get_time_usec(pevent));
 	wlr_event.button = libinput_event_tablet_pad_get_button_number(pevent);
 	switch (libinput_event_tablet_pad_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
@@ -55,8 +55,8 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 	struct libinput_event_tablet_pad *pevent =
 		libinput_event_get_tablet_pad_event(event);
 	struct wlr_event_tablet_pad_ring wlr_event = { 0 };
-	wlr_event.time_sec = libinput_event_tablet_pad_get_time(pevent);
-	wlr_event.time_usec = libinput_event_tablet_pad_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_pad_get_time_usec(pevent));
 	wlr_event.ring = libinput_event_tablet_pad_get_ring_number(pevent);
 	wlr_event.position = libinput_event_tablet_pad_get_ring_position(pevent);
 	switch (libinput_event_tablet_pad_get_ring_source(pevent)) {
@@ -81,8 +81,8 @@ void handle_tablet_pad_strip(struct libinput_event *event,
 	struct libinput_event_tablet_pad *pevent =
 		libinput_event_get_tablet_pad_event(event);
 	struct wlr_event_tablet_pad_strip wlr_event = { 0 };
-	wlr_event.time_sec = libinput_event_tablet_pad_get_time(pevent);
-	wlr_event.time_usec = libinput_event_tablet_pad_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_pad_get_time_usec(pevent));
 	wlr_event.strip = libinput_event_tablet_pad_get_strip_number(pevent);
 	wlr_event.position = libinput_event_tablet_pad_get_strip_position(pevent);
 	switch (libinput_event_tablet_pad_get_strip_source(pevent)) {

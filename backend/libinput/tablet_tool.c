@@ -31,8 +31,8 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_axis wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
-	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
 	if (libinput_event_tablet_tool_x_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_X;
@@ -85,8 +85,8 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_proximity wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
-	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	switch (libinput_event_tablet_tool_get_proximity_state(tevent)) {
 	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT:
 		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_OUT;
@@ -112,8 +112,8 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_tip wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
-	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	switch (libinput_event_tablet_tool_get_tip_state(tevent)) {
 	case LIBINPUT_TABLET_TOOL_TIP_UP:
 		wlr_event.state = WLR_TABLET_TOOL_TIP_UP;
@@ -138,8 +138,8 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		libinput_event_get_tablet_tool_event(event);
 	struct wlr_event_tablet_tool_button wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_tablet_tool_get_time(tevent);
-	wlr_event.time_usec = libinput_event_tablet_tool_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	wlr_event.button = libinput_event_tablet_tool_get_button(tevent);
 	switch (libinput_event_tablet_tool_get_button_state(tevent)) {
 	case LIBINPUT_BUTTON_STATE_RELEASED:

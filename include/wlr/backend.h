@@ -23,4 +23,6 @@ bool wlr_backend_start(struct wlr_backend *backend);
 void wlr_backend_destroy(struct wlr_backend *backend);
 struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend);
 
+uint32_t usec_to_msec(uint64_t usec);
+
 #endif

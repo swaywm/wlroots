@@ -230,7 +230,7 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
 	wlr_cursor_move(input->cursor, event->device,
 			event->delta_x, event->delta_y);
-	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+	cursor_update_position(input, event->time_msec);
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener,
@@ -240,14 +240,14 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	struct wlr_event_pointer_motion_absolute *event = data;
 	wlr_cursor_warp_absolute(input->cursor, event->device,
 		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+	cursor_update_position(input, event->time_msec);
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, cursor_axis);
 	struct wlr_event_pointer_axis *event = data;
-	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_sec,
+	wlr_seat_pointer_notify_axis(input->wl_seat, event->time_msec,
 		event->orientation, event->delta);
 }
 
@@ -339,7 +339,7 @@ static void handle_cursor_button(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_button);
 	struct wlr_event_pointer_button *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)(event->time_usec / 1000), event->button, event->state);
+			event->time_msec, event->button, event->state);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
@@ -353,10 +353,10 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	point->x = event->x_mm / event->width_mm;
 	point->y = event->y_mm / event->height_mm;
 	wlr_cursor_warp_absolute(input->cursor, event->device, point->x, point->y);
-	cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+	cursor_update_position(input, event->time_msec);
 	wl_list_insert(&input->touch_points, &point->link);
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 1);
+		event->time_msec, BTN_LEFT, 1);
 }
 
 static void handle_touch_up(struct wl_listener *listener, void *data) {
@@ -371,7 +371,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
 		}
 	}
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)(event->time_usec / 1000), BTN_LEFT, 0);
+		event->time_msec, BTN_LEFT, 0);
 }
 
 static void handle_touch_motion(struct wl_listener *listener, void *data) {
@@ -385,8 +385,7 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 			point->y = event->y_mm / event->height_mm;
 			wlr_cursor_warp_absolute(input->cursor, event->device,
 					point->x, point->y);
-			cursor_update_position(input,
-					(uint32_t)(event->time_usec / 1000));
+			cursor_update_position(input, event->time_msec);
 			break;
 		}
 	}
@@ -399,7 +398,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(input->cursor, event->device,
 			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
-		cursor_update_position(input, (uint32_t)(event->time_usec / 1000));
+		cursor_update_position(input, event->time_msec);
 	}
 }
 
@@ -407,7 +406,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_tip);
 	struct wlr_event_tablet_tool_tip *event = data;
 	do_cursor_button_press(input, input->cursor, event->device,
-			(uint32_t)(event->time_usec / 1000), BTN_LEFT, event->state);
+		event->time_msec, BTN_LEFT, event->state);
 }
 
 static void handle_drag_icon_destroy(struct wl_listener *listener, void *data) {

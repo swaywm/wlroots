@@ -136,3 +136,7 @@ error_session:
 	wlr_session_destroy(session);
 	return NULL;
 }
+
+uint32_t usec_to_msec(uint64_t usec) {
+	return (uint32_t)(usec / 1000);
+}

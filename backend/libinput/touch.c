@@ -31,8 +31,8 @@ void handle_touch_down(struct libinput_event *event,
 		libinput_event_get_touch_event(event);
 	struct wlr_event_touch_down wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_touch_get_time(tevent);
-	wlr_event.time_usec = libinput_event_touch_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.slot = libinput_event_touch_get_slot(tevent);
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
@@ -52,8 +52,8 @@ void handle_touch_up(struct libinput_event *event,
 		libinput_event_get_touch_event(event);
 	struct wlr_event_touch_up wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_touch_get_time(tevent);
-	wlr_event.time_usec = libinput_event_touch_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.slot = libinput_event_touch_get_slot(tevent);
 	wl_signal_emit(&wlr_dev->touch->events.up, &wlr_event);
 }
@@ -70,8 +70,8 @@ void handle_touch_motion(struct libinput_event *event,
 		libinput_event_get_touch_event(event);
 	struct wlr_event_touch_motion wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_touch_get_time(tevent);
-	wlr_event.time_usec = libinput_event_touch_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.slot = libinput_event_touch_get_slot(tevent);
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
@@ -91,8 +91,8 @@ void handle_touch_cancel(struct libinput_event *event,
 		libinput_event_get_touch_event(event);
 	struct wlr_event_touch_cancel wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_touch_get_time(tevent);
-	wlr_event.time_usec = libinput_event_touch_get_time_usec(tevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.slot = libinput_event_touch_get_slot(tevent);
 	wl_signal_emit(&wlr_dev->touch->events.cancel, &wlr_event);
 }

@@ -138,8 +138,8 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 	if (!handled) {
 		wlr_seat_set_keyboard(keyboard->input->wl_seat, keyboard->device);
-		wlr_seat_keyboard_notify_key(keyboard->input->wl_seat,
-			(uint32_t)(event->time_usec / 1000), event->keycode, event->state);
+		wlr_seat_keyboard_notify_key(keyboard->input->wl_seat, event->time_msec,
+			event->keycode, event->state);
 	}
 }
 

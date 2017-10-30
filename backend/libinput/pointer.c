@@ -31,8 +31,8 @@ void handle_pointer_motion(struct libinput_event *event,
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_motion wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
-	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	wlr_event.delta_x = libinput_event_pointer_get_dx(pevent);
 	wlr_event.delta_y = libinput_event_pointer_get_dy(pevent);
 	wl_signal_emit(&wlr_dev->pointer->events.motion, &wlr_event);
@@ -50,8 +50,8 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_motion_absolute wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
-	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	wlr_event.x_mm = libinput_event_pointer_get_absolute_x(pevent);
 	wlr_event.y_mm = libinput_event_pointer_get_absolute_y(pevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
@@ -70,8 +70,8 @@ void handle_pointer_button(struct libinput_event *event,
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_button wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
-	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	wlr_event.button = libinput_event_pointer_get_button(pevent);
 	switch (libinput_event_pointer_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
@@ -96,8 +96,8 @@ void handle_pointer_axis(struct libinput_event *event,
 		libinput_event_get_pointer_event(event);
 	struct wlr_event_pointer_axis wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
-	wlr_event.time_sec = libinput_event_pointer_get_time(pevent);
-	wlr_event.time_usec = libinput_event_pointer_get_time_usec(pevent);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	switch (libinput_event_pointer_get_axis_source(pevent)) {
 	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
 		wlr_event.source = WLR_AXIS_SOURCE_WHEEL;
