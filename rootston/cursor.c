@@ -475,12 +475,12 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
 
 	struct wlr_surface *focused_surface =
-		event->seat_handle->wlr_seat->pointer_state.focused_surface;
+		event->seat_client->wlr_seat->pointer_state.focused_surface;
 	bool ok = focused_surface != NULL && focused_surface->resource != NULL;
 	if (ok) {
 		struct wl_client *focused_client =
 			wl_resource_get_client(focused_surface->resource);
-		ok = event->client == focused_client;
+		ok = event->seat_client->client == focused_client;
 	}
 	if (!ok || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		wlr_log(L_DEBUG, "Denying request to set cursor from unfocused client");
@@ -489,7 +489,7 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 
 	wlr_log(L_DEBUG, "Setting client cursor");
 	cursor_set_surface(input, event->surface, event->hotspot_x, event->hotspot_y);
-	input->cursor_client = event->client;
+	input->cursor_client = event->seat_client->client;
 }
 
 void cursor_initialize(struct roots_input *input) {

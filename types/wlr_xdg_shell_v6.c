@@ -357,7 +357,7 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *handle = wl_resource_get_user_data(seat_resource);
+	struct wlr_seat_client *seat_client = wl_resource_get_user_data(seat_resource);
 
 	if (surface->popup_state->committed) {
 		wl_resource_post_error(surface->popup_state->resource,
@@ -368,7 +368,7 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 
 	struct wlr_xdg_popup_grab_v6 *popup_grab =
 		xdg_shell_popup_grab_from_seat(surface->client->shell,
-			handle->wlr_seat);
+			seat_client->wlr_seat);
 
 	struct wlr_xdg_surface_v6 *topmost = xdg_popup_grab_get_topmost(popup_grab);
 	bool parent_is_toplevel =
@@ -383,12 +383,14 @@ static void xdg_popup_protocol_grab(struct wl_client *client,
 	}
 
 	popup_grab->client = surface->client->client;
-	surface->popup_state->seat = handle->wlr_seat;
+	surface->popup_state->seat = seat_client->wlr_seat;
 
 	wl_list_insert(&popup_grab->popups, &surface->popup_state->grab_link);
 
-	wlr_seat_pointer_start_grab(handle->wlr_seat, &popup_grab->pointer_grab);
-	wlr_seat_keyboard_start_grab(handle->wlr_seat, &popup_grab->keyboard_grab);
+	wlr_seat_pointer_start_grab(seat_client->wlr_seat,
+		&popup_grab->pointer_grab);
+	wlr_seat_keyboard_start_grab(seat_client->wlr_seat,
+		&popup_grab->keyboard_grab);
 }
 
 static const struct zxdg_popup_v6_interface zxdg_popup_v6_implementation = {
