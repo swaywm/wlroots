@@ -54,8 +54,8 @@ void handle_keyboard_key(struct libinput_event *event,
 	struct libinput_event_keyboard *kbevent =
 		libinput_event_get_keyboard_event(event);
 	struct wlr_event_keyboard_key wlr_event = { 0 };
-	wlr_event.time_usec = libinput_event_keyboard_get_time_usec(kbevent);
-	wlr_event.time_msec = (uint32_t)(wlr_event.time_usec / 1000);
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_keyboard_get_time_usec(kbevent));
 	wlr_event.keycode = libinput_event_keyboard_get_key(kbevent);
 	enum libinput_key_state state = 
 		libinput_event_keyboard_get_key_state(kbevent);

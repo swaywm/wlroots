@@ -38,7 +38,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		}
 		if (kbstate->compositor->keyboard_key_cb) {
 			kbstate->compositor->keyboard_key_cb(kbstate, event->keycode, sym,
-				key_state, event->time_usec);
+				key_state, event->time_msec * 1000);
 		}
 		if (sym == XKB_KEY_Escape) {
 			wl_display_terminate(kbstate->compositor->display);
