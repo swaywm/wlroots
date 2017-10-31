@@ -100,9 +100,9 @@ struct wlr_cursor *wlr_cursor_create() {
 
 static void output_cursor_remove(
 		struct wlr_cursor_output_cursor *output_cursor) {
+	wl_list_remove(&output_cursor->layout_output_destroy.link);
 	wl_list_remove(&output_cursor->link);
 	wlr_output_cursor_destroy(output_cursor->output_cursor);
-	wl_list_remove(&output_cursor->layout_output_destroy.link);
 	free(output_cursor);
 }
 
