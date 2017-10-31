@@ -169,8 +169,10 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	output->impl->transform(output, transform);
-	wlr_output_update_matrix(output);
+	if (output->impl->transform) {
+		output->impl->transform(output, transform);
+		wlr_output_update_matrix(output);
+	}
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,

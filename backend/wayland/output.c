@@ -46,12 +46,6 @@ static void wlr_wl_output_swap_buffers(struct wlr_output *_output) {
 	}
 }
 
-static void wlr_wl_output_transform(struct wlr_output *_output,
-		enum wl_output_transform transform) {
-	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
-	output->wlr_output.transform = transform;
-}
-
 static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
@@ -178,7 +172,6 @@ bool wlr_wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
 }
 
 static struct wlr_output_impl output_impl = {
-	.transform = wlr_wl_output_transform,
 	.destroy = wlr_wl_output_destroy,
 	.make_current = wlr_wl_output_make_current,
 	.swap_buffers = wlr_wl_output_swap_buffers,
