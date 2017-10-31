@@ -98,7 +98,7 @@ struct wlr_cursor *wlr_cursor_create() {
 	return cur;
 }
 
-static void output_cursor_remove(
+static void output_cursor_destroy(
 		struct wlr_cursor_output_cursor *output_cursor) {
 	wl_list_remove(&output_cursor->layout_output_destroy.link);
 	wl_list_remove(&output_cursor->link);
@@ -111,15 +111,10 @@ static void wlr_cursor_detach_output_layout(struct wlr_cursor *cur) {
 		return;
 	}
 
-	struct wlr_output_layout_output *l_output;
-	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
-		struct wlr_cursor_output_cursor *output_cursor, *tmp;
-		wl_list_for_each_safe(output_cursor, tmp, &cur->state->output_cursors,
-				link) {
-			if (output_cursor->output_cursor->output == l_output->output) {
-				output_cursor_remove(output_cursor);
-			}
-		}
+	struct wlr_cursor_output_cursor *output_cursor, *tmp;
+	wl_list_for_each_safe(output_cursor, tmp, &cur->state->output_cursors,
+			link) {
+		output_cursor_destroy(output_cursor);
 	}
 
 	wl_list_remove(&cur->state->layout_destroy.link);
@@ -161,6 +156,7 @@ void wlr_cursor_destroy(struct wlr_cursor *cur) {
 		wlr_cursor_device_destroy(device);
 	}
 
+	free(cur->state);
 	free(cur);
 }
 
@@ -518,7 +514,7 @@ static void handle_layout_output_destroy(struct wl_listener *listener,
 	struct wlr_cursor_output_cursor *output_cursor =
 		wl_container_of(listener, output_cursor, layout_output_destroy);
 	//struct wlr_output_layout_output *l_output = data;
-	output_cursor_remove(output_cursor);
+	output_cursor_destroy(output_cursor);
 }
 
 static void layout_add(struct wlr_cursor_state *state,
@@ -542,7 +538,7 @@ static void layout_add(struct wlr_cursor_state *state,
 	wl_signal_add(&l_output->events.destroy,
 		&output_cursor->layout_output_destroy);
 
-	wl_list_insert(&state->cursor->state->output_cursors, &output_cursor->link);
+	wl_list_insert(&state->output_cursors, &output_cursor->link);
 }
 
 static void handle_layout_add(struct wl_listener *listener, void *data) {

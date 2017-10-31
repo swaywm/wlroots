@@ -212,6 +212,11 @@ int main(int argc, char *argv[]) {
 	wl_display_run(compositor.display);
 	compositor_fini(&compositor);
 
+	struct sample_cursor *cursor;
+	wl_list_for_each(cursor, &state.cursors, link) {
+		// TODO
+	}
+
 	wlr_xcursor_theme_destroy(theme);
 	example_config_destroy(state.config);
 	wlr_output_layout_destroy(state.layout);
