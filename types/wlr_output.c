@@ -500,3 +500,57 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }
+
+void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
+		struct wlr_box *box, struct wlr_box *dest) {
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+	case WL_OUTPUT_TRANSFORM_180:
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dest->width = box->width;
+		dest->height = box->height;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+	case WL_OUTPUT_TRANSFORM_270:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dest->width = box->height;
+		dest->height = box->width;
+		break;
+	}
+
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		dest->x = box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		dest->x = box->y;
+		dest->y = box->width - box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		dest->x = box->width - box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		dest->x = box->height - box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		dest->x = box->width - box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		dest->x = box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dest->x = box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dest->x = box->height - box->y;
+		dest->y = box->width - box->x;
+	}
+}

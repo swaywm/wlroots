@@ -42,21 +42,30 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->pointer);
-	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
+	struct wlr_wl_pointer *wlr_wl_pointer =
+		(struct wlr_wl_pointer *)dev->pointer;
 	if (!wlr_wl_pointer->current_output) {
 		wlr_log(L_ERROR, "pointer motion event without current output");
 		return;
 	}
-	int width, height;
+
+	struct wlr_box box;
 	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
-		&width, &height);
+		&box.width, &box.height);
+	box.x = wl_fixed_to_int(surface_x);
+	box.y = wl_fixed_to_int(surface_y);
+	struct wlr_box transformed;
+	wlr_output_transform_apply_to_box(
+		wlr_wl_pointer->current_output->wlr_output.transform, &box,
+		&transformed);
+
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;
 	wlr_event.time_msec = time;
-	wlr_event.width_mm = width;
-	wlr_event.height_mm = height;
-	wlr_event.x_mm = wl_fixed_to_double(surface_x);
-	wlr_event.y_mm = wl_fixed_to_double(surface_y);
+	wlr_event.width_mm = transformed.width;
+	wlr_event.height_mm = transformed.height;
+	wlr_event.x_mm = transformed.x;
+	wlr_event.y_mm = transformed.y;
 	wl_signal_emit(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 

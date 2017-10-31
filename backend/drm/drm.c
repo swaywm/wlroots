@@ -558,39 +558,17 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
-	switch (output->transform) {
-	case WL_OUTPUT_TRANSFORM_90:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = -plane->surf.height + hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_180:
-		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = -hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.width - hotspot_y;
-		break;
-	default: // WL_OUTPUT_TRANSFORM_NORMAL
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-	}
+	struct wlr_box hotspot_box = {
+		.width = plane->surf.width,
+		.height = plane->surf.height,
+		.x = hotspot_x,
+		.y = hotspot_y,
+	};
+	struct wlr_box transformed_hotspot_box;
+	wlr_output_transform_apply_to_box(output->transform,
+		&hotspot_box, &transformed_hotspot_box);
+	plane->cursor_hotspot_x = transformed_hotspot_box.x;
+	plane->cursor_hotspot_y = transformed_hotspot_box.y;
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
