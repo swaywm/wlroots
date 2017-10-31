@@ -241,13 +241,15 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
+		// Some clients commit a cursor surface with a NULL buffer to hide it.
+		if (!wlr_surface_has_buffer(cursor->surface)) {
+			return;
+		}
 		texture = cursor->surface->texture;
 		renderer = cursor->surface->renderer;
 	}
 
-	// We check texture->valid because some clients set a cursor surface
-	// with a NULL buffer to hide it
-	if (renderer && texture && texture->valid) {
+	if (texture != NULL && renderer != NULL) {
 		glViewport(0, 0, cursor->output->width, cursor->output->height);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

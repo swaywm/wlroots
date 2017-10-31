@@ -108,8 +108,6 @@ static void handle_output_add(struct output_state *ostate) {
 	example_config_configure_cursor(sample->config, sample->cursor,
 		sample->compositor);
 
-	// TODO the cursor must be set depending on which surface it is displayed
-	// over which should happen in the compositor.
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 	wlr_cursor_set_image(sample->cursor, image->buffer, image->width,
 		image->width, image->height, image->hotspot_x, image->hotspot_y);
