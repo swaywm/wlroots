@@ -331,6 +331,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	eglDestroySurface(x11->egl.display, output->surf);
 	xcb_destroy_window(x11->xcb_conn, output->win);
+	free(wlr_output);
 }
 
 static void output_make_current(struct wlr_output *wlr_output) {
