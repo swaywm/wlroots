@@ -8,14 +8,14 @@
 #include <assert.h>
 
 struct wlr_output_layout_state {
-	struct wlr_box box;
+	struct wlr_box _box; // should never be read directly, use the getter
 };
 
 struct wlr_output_layout_output_state {
 	struct wlr_output_layout *layout;
 	struct wlr_output_layout_output *l_output;
 
-	struct wlr_box box;
+	struct wlr_box _box; // should never be read directly, use the getter
 	bool auto_configured;
 
 	struct wl_listener resolution;
@@ -57,9 +57,9 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 	wl_signal_emit(&layout->events.destroy, layout);
 
-	struct wlr_output_layout_output *output, *temp = NULL;
-	wl_list_for_each_safe(output, temp, &layout->outputs, link) {
-		wlr_output_layout_output_destroy(output);
+	struct wlr_output_layout_output *l_output, *temp = NULL;
+	wl_list_for_each_safe(l_output, temp, &layout->outputs, link) {
+		wlr_output_layout_output_destroy(l_output);
 	}
 
 	free(layout->state);
@@ -68,13 +68,13 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 static struct wlr_box *wlr_output_layout_output_get_box(
 		struct wlr_output_layout_output *l_output) {
-	l_output->state->box.x = l_output->x;
-	l_output->state->box.y = l_output->y;
+	l_output->state->_box.x = l_output->x;
+	l_output->state->_box.y = l_output->y;
 	int width, height;
 	wlr_output_effective_resolution(l_output->output, &width, &height);
-	l_output->state->box.width = width;
-	l_output->state->box.height = height;
-	return &l_output->state->box;
+	l_output->state->_box.width = width;
+	l_output->state->_box.height = height;
+	return &l_output->state->_box;
 }
 
 /**
@@ -338,12 +338,12 @@ struct wlr_box *wlr_output_layout_get_box(
 			}
 		}
 
-		layout->state->box.x = min_x;
-		layout->state->box.y = min_y;
-		layout->state->box.width = max_x - min_x;
-		layout->state->box.height = max_y - min_y;
+		layout->state->_box.x = min_x;
+		layout->state->_box.y = min_y;
+		layout->state->_box.width = max_x - min_x;
+		layout->state->_box.height = max_y - min_y;
 
-		return &layout->state->box;
+		return &layout->state->_box;
 	}
 
 	// not reached
