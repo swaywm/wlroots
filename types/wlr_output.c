@@ -136,7 +136,9 @@ static void wlr_output_update_matrix(struct wlr_output *output) {
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
-	output->impl->enable(output, enable);
+	if (output->impl->enable) {
+		output->impl->enable(output, enable);
+	}
 }
 
 bool wlr_output_set_mode(struct wlr_output *output,
@@ -191,8 +193,7 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
-	assert(impl->enable && impl->make_current && impl->swap_buffers &&
-		impl->transform);
+	assert(impl->make_current && impl->swap_buffers && impl->transform);
 	output->backend = backend;
 	output->impl = impl;
 	wl_list_init(&output->modes);
@@ -337,12 +338,12 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
-		// int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-		// 	stride, width, height, hotspot_x, hotspot_y, true);
-		// if (ok) {
-		// 	cursor->output->hardware_cursor = cursor;
-		// 	return true;
-		// }
+		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
+			stride, width, height, hotspot_x, hotspot_y, true);
+		if (ok) {
+			cursor->output->hardware_cursor = cursor;
+			return true;
+		}
 	}
 
 	wlr_log(L_INFO, "Falling back to software cursor");

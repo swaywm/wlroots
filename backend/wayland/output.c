@@ -189,7 +189,7 @@ static struct wlr_output_impl output_impl = {
 	.make_current = wlr_wl_output_make_current,
 	.swap_buffers = wlr_wl_output_swap_buffers,
 	.set_cursor = wlr_wl_output_set_cursor,
-	.move_cursor = wlr_wl_output_move_cursor
+	.move_cursor = wlr_wl_output_move_cursor,
 };
 
 static void xdg_surface_handle_configure(void *data, struct zxdg_surface_v6 *xdg_surface,
