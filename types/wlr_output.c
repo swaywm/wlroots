@@ -5,6 +5,7 @@
 #include <tgmath.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -237,6 +238,14 @@ void wlr_output_make_current(struct wlr_output *output) {
 	output->impl->make_current(output);
 }
 
+static void output_cursor_get_box(struct wlr_output_cursor *cursor,
+		struct wlr_box *box) {
+	box->x = cursor->x - cursor->hotspot_x;
+	box->y = cursor->y - cursor->hotspot_y;
+	box->width = cursor->width;
+	box->height = cursor->height;
+}
+
 static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
@@ -249,17 +258,33 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		renderer = cursor->surface->renderer;
 	}
 
-	if (texture != NULL && renderer != NULL) {
-		glViewport(0, 0, cursor->output->width, cursor->output->height);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-		float matrix[16];
-		wlr_texture_get_matrix(texture, &matrix,
-			&cursor->output->transform_matrix, cursor->x - cursor->hotspot_x,
-			cursor->y - cursor->hotspot_y);
-		wlr_render_with_matrix(renderer, texture, &matrix);
+	if (texture == NULL || renderer == NULL) {
+		return;
 	}
+
+	struct wlr_box output_box;
+	memset(&output_box, 0, sizeof(output_box));
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	struct wlr_box intersection;
+	struct wlr_box *intersection_ptr = &intersection;
+	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr)) {
+		return;
+	}
+
+	glViewport(0, 0, cursor->output->width, cursor->output->height);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	float matrix[16];
+	wlr_texture_get_matrix(texture, &matrix,
+		&cursor->output->transform_matrix, cursor->x - cursor->hotspot_x,
+		cursor->y - cursor->hotspot_y);
+	wlr_render_with_matrix(renderer, texture, &matrix);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
