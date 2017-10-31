@@ -83,6 +83,11 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 		return true;
 	}
 
+	if (keysym == XKB_KEY_Escape) {
+		wlr_seat_pointer_end_grab(keyboard->input->wl_seat);
+		wlr_seat_keyboard_end_grab(keyboard->input->wl_seat);
+	}
+
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
 	struct binding_config *bc;
