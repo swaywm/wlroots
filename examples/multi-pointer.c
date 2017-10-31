@@ -155,17 +155,21 @@ static void handle_input_add(struct compositor_state *state,
 	wl_list_insert(&sample->cursors, &cursor->link);
 }
 
+static void cursor_destroy(struct sample_cursor *cursor) {
+	wl_list_remove(&cursor->link);
+	wl_list_remove(&cursor->cursor_motion.link);
+	wl_list_remove(&cursor->cursor_motion_absolute.link);
+	wlr_cursor_destroy(cursor->cursor);
+	free(cursor);
+}
+
 static void handle_input_remove(struct compositor_state *state,
 		struct wlr_input_device *device) {
 	struct sample_state *sample = state->data;
 	struct sample_cursor *cursor;
 	wl_list_for_each(cursor, &sample->cursors, link) {
 		if (cursor->device == device) {
-			wl_list_remove(&cursor->link);
-			wl_list_remove(&cursor->cursor_motion.link);
-			wl_list_remove(&cursor->cursor_motion_absolute.link);
-			wlr_cursor_destroy(cursor->cursor);
-			free(cursor);
+			cursor_destroy(cursor);
 			break;
 		}
 	}
@@ -212,9 +216,9 @@ int main(int argc, char *argv[]) {
 	wl_display_run(compositor.display);
 	compositor_fini(&compositor);
 
-	struct sample_cursor *cursor;
-	wl_list_for_each(cursor, &state.cursors, link) {
-		// TODO
+	struct sample_cursor *cursor, *tmp_cursor;
+	wl_list_for_each_safe(cursor, tmp_cursor, &state.cursors, link) {
+		cursor_destroy(cursor);
 	}
 
 	wlr_xcursor_theme_destroy(theme);
