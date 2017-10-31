@@ -78,17 +78,17 @@ static void destroy_frame_callback(struct wl_resource *resource) {
 
 static void surface_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
-	struct wlr_frame_callback *cb;
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
 
-	cb = malloc(sizeof(struct wlr_frame_callback));
+	struct wlr_frame_callback *cb =
+		calloc(1, sizeof(struct wlr_frame_callback));
 	if (cb == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
-	cb->resource = wl_resource_create(client,
-			&wl_callback_interface, 1, callback);
+	cb->resource = wl_resource_create(client, &wl_callback_interface, 1,
+		callback);
 	if (cb->resource == NULL) {
 		free(cb);
 		wl_resource_post_no_memory(resource);
@@ -555,7 +555,11 @@ const struct wl_surface_interface surface_interface = {
 };
 
 static struct wlr_surface_state *wlr_surface_state_create() {
-	struct wlr_surface_state *state = calloc(1, sizeof(struct wlr_surface_state));
+	struct wlr_surface_state *state =
+		calloc(1, sizeof(struct wlr_surface_state));
+	if (state == NULL) {
+		return NULL;
+	}
 	state->scale = 1;
 	state->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 
@@ -619,8 +623,8 @@ static void destroy_surface(struct wl_resource *resource) {
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
-	struct wlr_surface *surface;
-	if (!(surface = calloc(1, sizeof(struct wlr_surface)))) {
+	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
+	if (!surface) {
 		wl_resource_post_no_memory(res);
 		return NULL;
 	}

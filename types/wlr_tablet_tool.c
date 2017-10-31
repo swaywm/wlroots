@@ -14,7 +14,9 @@ void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
 }
 
 void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
-	if (!tool) return;
+	if (!tool) {
+		return;
+	}
 	if (tool->impl && tool->impl->destroy) {
 		tool->impl->destroy(tool);
 	} else {

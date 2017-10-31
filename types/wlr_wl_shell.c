@@ -22,7 +22,6 @@ static void shell_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
 		}
 	}
 
-
 	if (grab->seat->pointer_state.grab == grab) {
 		wlr_seat_pointer_end_grab(grab->seat);
 	}
