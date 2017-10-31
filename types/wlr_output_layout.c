@@ -8,14 +8,14 @@
 #include <assert.h>
 
 struct wlr_output_layout_state {
-	struct wlr_box *_box;
+	struct wlr_box _box; // should never be read directly, use the getter
 };
 
 struct wlr_output_layout_output_state {
 	struct wlr_output_layout *layout;
 	struct wlr_output_layout_output *l_output;
 
-	struct wlr_box *_box;
+	struct wlr_box _box; // should never be read directly, use the getter
 	bool auto_configured;
 
 	struct wl_listener resolution;
@@ -25,8 +25,14 @@ struct wlr_output_layout_output_state {
 struct wlr_output_layout *wlr_output_layout_create() {
 	struct wlr_output_layout *layout =
 		calloc(1, sizeof(struct wlr_output_layout));
+	if (layout == NULL) {
+		return NULL;
+	}
 	layout->state = calloc(1, sizeof(struct wlr_output_layout_state));
-	layout->state->_box = calloc(1, sizeof(struct wlr_box));
+	if (layout->state == NULL) {
+		free(layout);
+		return NULL;
+	}
 	wl_list_init(&layout->outputs);
 
 	wl_signal_init(&layout->events.change);
@@ -40,7 +46,6 @@ static void wlr_output_layout_output_destroy(
 	wl_list_remove(&l_output->state->resolution.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
-	free(l_output->state->_box);
 	free(l_output->state);
 	free(l_output);
 }
@@ -52,25 +57,24 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 	wl_signal_emit(&layout->events.destroy, layout);
 
-	struct wlr_output_layout_output *_output, *temp = NULL;
-	wl_list_for_each_safe(_output, temp, &layout->outputs, link) {
-		wlr_output_layout_output_destroy(_output);
+	struct wlr_output_layout_output *l_output, *temp = NULL;
+	wl_list_for_each_safe(l_output, temp, &layout->outputs, link) {
+		wlr_output_layout_output_destroy(l_output);
 	}
 
-	free(layout->state->_box);
 	free(layout->state);
 	free(layout);
 }
 
 static struct wlr_box *wlr_output_layout_output_get_box(
 		struct wlr_output_layout_output *l_output) {
-	l_output->state->_box->x = l_output->x;
-	l_output->state->_box->y = l_output->y;
+	l_output->state->_box.x = l_output->x;
+	l_output->state->_box.y = l_output->y;
 	int width, height;
 	wlr_output_effective_resolution(l_output->output, &width, &height);
-	l_output->state->_box->width = width;
-	l_output->state->_box->height = height;
-	return l_output->state->_box;
+	l_output->state->_box.width = width;
+	l_output->state->_box.height = height;
+	return &l_output->state->_box;
 }
 
 /**
@@ -138,18 +142,24 @@ static void handle_output_destroy(struct wl_listener *listener, void *data) {
 
 static struct wlr_output_layout_output *wlr_output_layout_output_create(
 		struct wlr_output_layout *layout, struct wlr_output *output) {
-	struct wlr_output_layout_output *l_output;
-	l_output= calloc(1, sizeof(struct wlr_output_layout_output));
+	struct wlr_output_layout_output *l_output =
+		calloc(1, sizeof(struct wlr_output_layout_output));
+	if (l_output == NULL) {
+		return NULL;
+	}
 	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
+	if (l_output->state == NULL) {
+		free(l_output);
+		return NULL;
+	}
 	l_output->state->l_output = l_output;
-	l_output->state->_box = calloc(1, sizeof(struct wlr_box));
 	l_output->state->layout = layout;
 	l_output->output = output;
+
 	wl_list_insert(&layout->outputs, &l_output->link);
 
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
 	l_output->state->resolution.notify = handle_output_resolution;
-
 	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
 	l_output->state->output_destroy.notify = handle_output_destroy;
 
@@ -162,6 +172,10 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 		wlr_output_layout_get(layout, output);
 	if (!l_output) {
 		l_output = wlr_output_layout_output_create(layout, output);
+		if (!l_output) {
+			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
+			return;
+		}
 	}
 	l_output->x = x;
 	l_output->y = y;
@@ -238,8 +252,8 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 
 void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
-	struct wlr_output_layout_output *l_output;
-	l_output= wlr_output_layout_get(layout, output);
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
 	if (l_output) {
 		wlr_output_layout_output_destroy(l_output);
 		wlr_output_layout_reconfigure(layout);
@@ -324,12 +338,12 @@ struct wlr_box *wlr_output_layout_get_box(
 			}
 		}
 
-		layout->state->_box->x = min_x;
-		layout->state->_box->y = min_y;
-		layout->state->_box->width = max_x - min_x;
-		layout->state->_box->height = max_y - min_y;
+		layout->state->_box.x = min_x;
+		layout->state->_box.y = min_y;
+		layout->state->_box.width = max_x - min_x;
+		layout->state->_box.height = max_y - min_y;
 
-		return layout->state->_box;
+		return &layout->state->_box;
 	}
 
 	// not reached
@@ -339,9 +353,12 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
-
 	if (!l_output) {
 		l_output = wlr_output_layout_output_create(layout, output);
+		if (!l_output) {
+			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
+			return;
+		}
 	}
 
 	l_output->state->auto_configured = true;
