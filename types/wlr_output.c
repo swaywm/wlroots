@@ -191,6 +191,8 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
+	assert(impl->enable && impl->make_current && impl->swap_buffers &&
+		impl->transform);
 	output->backend = backend;
 	output->impl = impl;
 	wl_list_init(&output->modes);
