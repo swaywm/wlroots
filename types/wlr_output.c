@@ -263,9 +263,9 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	}
 
 	struct wlr_box output_box;
-	memset(&output_box, 0, sizeof(output_box));
-	wlr_output_effective_resolution(cursor->output, &output_box.width,
-		&output_box.height);
+	output_box.x = output_box.y = 0;
+	output_box.width = cursor->output->width;
+	output_box.height = cursor->output->height;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -335,12 +335,12 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
-		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-			stride, width, height, hotspot_x, hotspot_y, true);
-		if (ok) {
-			cursor->output->hardware_cursor = cursor;
-			return true;
-		}
+		// int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
+		// 	stride, width, height, hotspot_x, hotspot_y, true);
+		// if (ok) {
+		// 	cursor->output->hardware_cursor = cursor;
+		// 	return true;
+		// }
 	}
 
 	wlr_log(L_INFO, "Falling back to software cursor");
