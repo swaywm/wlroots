@@ -206,6 +206,10 @@ static void wl_seat_bind(struct wl_client *client, void *_wlr_seat,
 
 	struct wlr_seat_client *seat_client =
 		calloc(1, sizeof(struct wlr_seat_client));
+	if (seat_client == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 	seat_client->wl_resource =
 		wl_resource_create(client, &wl_seat_interface, version, id);
 	seat_client->client = client;
