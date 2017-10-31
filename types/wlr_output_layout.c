@@ -35,6 +35,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 	}
 	wl_list_init(&layout->outputs);
 
+	wl_signal_init(&layout->events.add);
 	wl_signal_init(&layout->events.change);
 	wl_signal_init(&layout->events.destroy);
 
@@ -43,6 +44,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
+	wl_signal_emit(&l_output->events.destroy, l_output);
 	wl_list_remove(&l_output->state->resolution.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
@@ -155,7 +157,7 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 	l_output->state->l_output = l_output;
 	l_output->state->layout = layout;
 	l_output->output = output;
-
+	wl_signal_init(&l_output->events.destroy);
 	wl_list_insert(&layout->outputs, &l_output->link);
 
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
@@ -181,6 +183,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->y = y;
 	l_output->state->auto_configured = false;
 	wlr_output_layout_reconfigure(layout);
+	wl_signal_emit(&layout->events.add, l_output);
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
@@ -363,6 +366,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 
 	l_output->state->auto_configured = true;
 	wlr_output_layout_reconfigure(layout);
+	wl_signal_emit(&layout->events.add, l_output);
 }
 
 struct wlr_output *wlr_output_layout_get_center_output(

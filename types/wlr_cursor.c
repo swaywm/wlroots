@@ -33,14 +33,23 @@ struct wlr_cursor_device {
 	struct wl_listener destroy;
 };
 
+struct wlr_cursor_output_cursor {
+	struct wlr_cursor *cursor;
+	struct wlr_output_cursor *output_cursor;
+	struct wl_list link;
+
+	struct wl_listener layout_output_destroy;
+};
+
 struct wlr_cursor_state {
 	struct wlr_cursor *cursor;
-	struct wl_list devices;
+	struct wl_list devices; // wlr_cursor_device::link
+	struct wl_list output_cursors; // wlr_cursor_output_cursor::link
 	struct wlr_output_layout *layout;
-	struct wlr_xcursor *xcursor;
 	struct wlr_output *mapped_output;
 	struct wlr_box *mapped_box;
 
+	struct wl_listener layout_add;
 	struct wl_listener layout_change;
 	struct wl_listener layout_destroy;
 };
@@ -63,6 +72,7 @@ struct wlr_cursor *wlr_cursor_create() {
 	cur->state->mapped_output = NULL;
 
 	wl_list_init(&cur->state->devices);
+	wl_list_init(&cur->state->output_cursors);
 
 	// pointer signals
 	wl_signal_init(&cur->events.motion);
@@ -88,15 +98,54 @@ struct wlr_cursor *wlr_cursor_create() {
 	return cur;
 }
 
+static void output_cursor_destroy(
+		struct wlr_cursor_output_cursor *output_cursor) {
+	wl_list_remove(&output_cursor->layout_output_destroy.link);
+	wl_list_remove(&output_cursor->link);
+	wlr_output_cursor_destroy(output_cursor->output_cursor);
+	free(output_cursor);
+}
+
 static void wlr_cursor_detach_output_layout(struct wlr_cursor *cur) {
 	if (!cur->state->layout) {
 		return;
 	}
 
+	struct wlr_cursor_output_cursor *output_cursor, *tmp;
+	wl_list_for_each_safe(output_cursor, tmp, &cur->state->output_cursors,
+			link) {
+		output_cursor_destroy(output_cursor);
+	}
+
 	wl_list_remove(&cur->state->layout_destroy.link);
 	wl_list_remove(&cur->state->layout_change.link);
+	wl_list_remove(&cur->state->layout_add.link);
 
 	cur->state->layout = NULL;
+}
+
+static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
+	struct wlr_input_device *dev = c_device->device;
+	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
+		wl_list_remove(&c_device->motion.link);
+		wl_list_remove(&c_device->motion_absolute.link);
+		wl_list_remove(&c_device->button.link);
+		wl_list_remove(&c_device->axis.link);
+	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
+		wl_list_remove(&c_device->touch_down.link);
+		wl_list_remove(&c_device->touch_up.link);
+		wl_list_remove(&c_device->touch_motion.link);
+		wl_list_remove(&c_device->touch_cancel.link);
+	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		wl_list_remove(&c_device->tablet_tool_axis.link);
+		wl_list_remove(&c_device->tablet_tool_proximity.link);
+		wl_list_remove(&c_device->tablet_tool_tip.link);
+		wl_list_remove(&c_device->tablet_tool_button.link);
+	}
+
+	wl_list_remove(&c_device->link);
+	wl_list_remove(&c_device->destroy.link);
+	free(c_device);
 }
 
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
@@ -104,15 +153,11 @@ void wlr_cursor_destroy(struct wlr_cursor *cur) {
 
 	struct wlr_cursor_device *device, *device_tmp = NULL;
 	wl_list_for_each_safe(device, device_tmp, &cur->state->devices, link) {
-		wl_list_remove(&device->link);
-		free(device);
+		wlr_cursor_device_destroy(device);
 	}
 
+	free(cur->state);
 	free(cur);
-}
-
-void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur) {
-	cur->state->xcursor = xcur;
 }
 
 static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
@@ -132,16 +177,14 @@ static void wlr_cursor_warp_unchecked(struct wlr_cursor *cur,
 		double x, double y) {
 	assert(cur->state->layout);
 
-	struct wlr_output_layout_output *l_output;
-	wl_list_for_each(l_output, &cur->state->layout->outputs, link) {
+	struct wlr_cursor_output_cursor *output_cursor;
+	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
 		double output_x = x;
 		double output_y = y;
-
 		wlr_output_layout_output_coords(cur->state->layout,
-			l_output->output, &output_x, &output_y);
-		wlr_output_move_cursor(l_output->output,
-			output_x - l_output->output->cursor.hotspot_x,
-			output_y - l_output->output->cursor.hotspot_y);
+			output_cursor->output_cursor->output, &output_x, &output_y);
+		wlr_output_cursor_move(output_cursor->output_cursor, output_x,
+			output_y);
 	}
 
 	cur->x = x;
@@ -252,6 +295,25 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	}
 
 	wlr_cursor_warp_unchecked(cur, x, y);
+}
+
+void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
+		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
+		int32_t hotspot_y) {
+	struct wlr_cursor_output_cursor *output_cursor;
+	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
+		wlr_output_cursor_set_image(output_cursor->output_cursor, pixels,
+			stride, width, height, hotspot_x, hotspot_y);
+	}
+}
+
+void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	struct wlr_cursor_output_cursor *output_cursor;
+	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
+		wlr_output_cursor_set_surface(output_cursor->output_cursor, surface,
+			hotspot_x, hotspot_y);
+	}
 }
 
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
@@ -431,31 +493,6 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	wlr_cursor_device_create(cur, dev);
 }
 
-static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
-	struct wlr_input_device *dev = c_device->device;
-	if (dev->type == WLR_INPUT_DEVICE_POINTER) {
-		wl_list_remove(&c_device->motion.link);
-		wl_list_remove(&c_device->motion_absolute.link);
-		wl_list_remove(&c_device->button.link);
-		wl_list_remove(&c_device->axis.link);
-	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
-		wl_list_remove(&c_device->touch_down.link);
-		wl_list_remove(&c_device->touch_up.link);
-		wl_list_remove(&c_device->touch_motion.link);
-		wl_list_remove(&c_device->touch_cancel.link);
-	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wl_list_remove(&c_device->tablet_tool_axis.link);
-		wl_list_remove(&c_device->tablet_tool_proximity.link);
-		wl_list_remove(&c_device->tablet_tool_tip.link);
-		wl_list_remove(&c_device->tablet_tool_button.link);
-	}
-
-	wl_list_remove(&c_device->link);
-	wl_list_remove(&c_device->destroy.link);
-	free(c_device);
-
-}
-
 void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	struct wlr_cursor_device *c_device, *tmp = NULL;
@@ -472,10 +509,50 @@ static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 	wlr_cursor_detach_output_layout(state->cursor);
 }
 
+static void handle_layout_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_cursor_output_cursor *output_cursor =
+		wl_container_of(listener, output_cursor, layout_output_destroy);
+	//struct wlr_output_layout_output *l_output = data;
+	output_cursor_destroy(output_cursor);
+}
+
+static void layout_add(struct wlr_cursor_state *state,
+		struct wlr_output_layout_output *l_output) {
+	struct wlr_cursor_output_cursor *output_cursor =
+		calloc(1, sizeof(struct wlr_cursor_output_cursor));
+	if (output_cursor == NULL) {
+		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_output_cursor");
+		return;
+	}
+	output_cursor->cursor = state->cursor;
+
+	output_cursor->output_cursor = wlr_output_cursor_create(l_output->output);
+	if (output_cursor->output_cursor == NULL) {
+		wlr_log(L_ERROR, "Failed to create wlr_output_cursor");
+		free(output_cursor);
+		return;
+	}
+
+	output_cursor->layout_output_destroy.notify = handle_layout_output_destroy;
+	wl_signal_add(&l_output->events.destroy,
+		&output_cursor->layout_output_destroy);
+
+	wl_list_insert(&state->output_cursors, &output_cursor->link);
+}
+
+static void handle_layout_add(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_state *state =
+		wl_container_of(listener, state, layout_add);
+	struct wlr_output_layout_output *l_output = data;
+	layout_add(state, l_output);
+}
+
 static void handle_layout_change(struct wl_listener *listener, void *data) {
 	struct wlr_cursor_state *state =
 		wl_container_of(listener, state, layout_change);
 	struct wlr_output_layout *layout = data;
+
 	if (!wlr_output_layout_contains_point(layout, NULL, state->cursor->x,
 			state->cursor->y)) {
 		// the output we were on has gone away so go to the closest boundary
@@ -496,13 +573,19 @@ void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
 		return;
 	}
 
+	wl_signal_add(&l->events.add, &cur->state->layout_add);
+	cur->state->layout_add.notify = handle_layout_add;
 	wl_signal_add(&l->events.change, &cur->state->layout_change);
 	cur->state->layout_change.notify = handle_layout_change;
-
 	wl_signal_add(&l->events.destroy, &cur->state->layout_destroy);
 	cur->state->layout_destroy.notify = handle_layout_destroy;
 
 	cur->state->layout = l;
+
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &l->outputs, link) {
+		layout_add(cur->state, l_output);
+	}
 }
 
 void wlr_cursor_map_to_output(struct wlr_cursor *cur,

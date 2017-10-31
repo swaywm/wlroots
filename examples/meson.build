@@ -8,6 +8,8 @@ executable('simple', 'simple.c', dependencies: wlroots, link_with: lib_shared)
 executable('pointer', 'pointer.c', dependencies: wlroots, link_with: lib_shared)
 executable('touch', 'touch.c', dependencies: wlroots, link_with: lib_shared)
 executable('tablet', 'tablet.c', dependencies: wlroots, link_with: lib_shared)
+executable('multi-pointer', 'multi-pointer.c', dependencies: wlroots,
+	link_with: lib_shared)
 
 executable(
 	'rotation',

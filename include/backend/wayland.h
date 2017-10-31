@@ -43,11 +43,15 @@ struct wlr_wl_backend_output {
 	struct wl_egl_window *egl_window;
 	struct wl_callback *frame_callback;
 
-	struct wl_shm_pool *cursor_pool;
-	void *cursor_buffer; // actually a (client-side) struct wl_buffer*
-	uint8_t *cursor_data;
-	struct wl_surface *cursor_surface;
-	uint32_t cursor_buf_size;
+	struct {
+		struct wl_shm_pool *pool;
+		void *buffer; // actually a (client-side) struct wl_buffer*
+		uint32_t buf_size;
+		uint8_t *data;
+		struct wl_surface *surface;
+		int32_t hotspot_x, hotspot_y;
+	} cursor;
+
 	uint32_t enter_serial;
 
 	void *egl_surface;
@@ -68,8 +72,7 @@ struct wlr_wl_pointer {
 };
 
 void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
-void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output,
-		uint32_t serial, int32_t hotspot_x, int32_t hotspot_y);
+void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output);
 struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface);
 

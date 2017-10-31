@@ -36,8 +36,6 @@ struct wlr_cursor *wlr_cursor_create();
 
 void wlr_cursor_destroy(struct wlr_cursor *cur);
 
-void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur);
-
 /**
  * Warp the cursor to the given x and y in layout coordinates. If x and y are
  * out of the layout boundaries or constraints, no warp will happen.
@@ -48,10 +46,10 @@ void wlr_cursor_set_xcursor(struct wlr_cursor *cur, struct wlr_xcursor *xcur);
  * Returns true when the mouse warp was successful.
  */
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
-		double x, double y);
+	double x, double y);
 
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
-		struct wlr_input_device *dev, double x_mm, double y_mm);
+	struct wlr_input_device *dev, double x_mm, double y_mm);
 
 /**
  * Move the cursor in the direction of the given x and y coordinates.
@@ -60,7 +58,13 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
  * device mapping constraints will be ignored.
  */
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
-		double delta_x, double delta_y);
+	double delta_x, double delta_y);
+
+void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
+	int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
+	int32_t hotspot_y);
+void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
+	int32_t hotspot_x, int32_t hotspot_y);
 
 /**
  * Attaches this input device to this cursor. The input device must be one of:
@@ -80,7 +84,7 @@ void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
  * direction and do not support absolute input events.
  */
 void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
-		struct wlr_output_layout *l);
+	struct wlr_output_layout *l);
 
 /**
  * Attaches this cursor to the given output, which must be among the outputs in
@@ -88,7 +92,7 @@ void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
  * without an associated output layout.
  */
 void wlr_cursor_map_to_output(struct wlr_cursor *cur,
-		struct wlr_output *output);
+	struct wlr_output *output);
 
 /**
  * Maps all input from a specific input device to a given output. The input
@@ -96,7 +100,7 @@ void wlr_cursor_map_to_output(struct wlr_cursor *cur,
  * outputs in the attached output layout.
  */
 void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
-		struct wlr_input_device *dev, struct wlr_output *output);
+	struct wlr_input_device *dev, struct wlr_output *output);
 
 /**
  * Maps this cursor to an arbitrary region on the associated wlr_output_layout.
@@ -108,6 +112,6 @@ void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_box *box);
  * wlr_output_layout.
  */
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
-		struct wlr_input_device *dev, struct wlr_box *box);
+	struct wlr_input_device *dev, struct wlr_box *box);
 
 #endif

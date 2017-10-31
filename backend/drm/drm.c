@@ -560,33 +560,36 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	switch (output->transform) {
 	case WL_OUTPUT_TRANSFORM_90:
-		output->cursor.hotspot_x = hotspot_x;
-		output->cursor.hotspot_y = -plane->surf.height + hotspot_y;
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = -plane->surf.height + hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_180:
-		output->cursor.hotspot_x = plane->surf.width - hotspot_x;
-		output->cursor.hotspot_y = plane->surf.height - hotspot_y;
+		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
+		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_270:
-		output->cursor.hotspot_x = -plane->surf.height + hotspot_x;
-		output->cursor.hotspot_y = hotspot_y;
+		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		output->cursor.hotspot_x = plane->surf.width - hotspot_x;
-		output->cursor.hotspot_y = hotspot_y;
+		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		output->cursor.hotspot_x = hotspot_x;
-		output->cursor.hotspot_y = -hotspot_y;
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = -hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		output->cursor.hotspot_x = hotspot_x;
-		output->cursor.hotspot_y = plane->surf.height - hotspot_y;
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		output->cursor.hotspot_x = -plane->surf.height + hotspot_x;
-		output->cursor.hotspot_y = plane->surf.width - hotspot_y;
+		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
+		plane->cursor_hotspot_y = plane->surf.width - hotspot_y;
 		break;
+	default: // WL_OUTPUT_TRANSFORM_NORMAL
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
 	}
 
 	if (!update_pixels) {
@@ -635,6 +638,10 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+
+	struct wlr_drm_plane *plane = conn->crtc->cursor;
+	x -= plane->cursor_hotspot_x;
+	y -= plane->cursor_hotspot_y;
 
 	int width, height, tmp;
 	wlr_output_effective_resolution(output, &width, &height);

@@ -12,6 +12,22 @@ struct wlr_output_mode {
 	struct wl_list link;
 };
 
+struct wlr_output_cursor {
+	struct wlr_output *output;
+	int32_t x, y;
+	uint32_t width, height;
+	int32_t hotspot_x, hotspot_y;
+	struct wl_list link;
+
+	struct wlr_renderer *renderer;
+	struct wlr_texture *texture;
+
+	// only when using a cursor surface
+	struct wlr_surface *surface;
+	struct wl_listener surface_commit;
+	struct wl_listener surface_destroy;
+};
+
 struct wlr_output_impl;
 
 struct wlr_output {
@@ -44,19 +60,8 @@ struct wlr_output {
 		struct wl_signal destroy;
 	} events;
 
-	struct {
-		bool is_sw;
-		int32_t x, y;
-		uint32_t width, height;
-		int32_t hotspot_x, hotspot_y;
-		struct wlr_renderer *renderer;
-		struct wlr_texture *texture;
-
-		// only when using a cursor surface
-		struct wlr_surface *surface;
-		struct wl_listener surface_commit;
-		struct wl_listener surface_destroy;
-	} cursor;
+	struct wl_list cursors; // wlr_output_cursor::link
+	struct wlr_output_cursor *hardware_cursor;
 
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
@@ -72,12 +77,6 @@ bool wlr_output_set_mode(struct wlr_output *output,
 void wlr_output_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
-bool wlr_output_set_cursor(struct wlr_output *output,
-	const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-	int32_t hotspot_x, int32_t hotspot_y);
-void wlr_output_set_cursor_surface(struct wlr_output *output,
-	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
-bool wlr_output_move_cursor(struct wlr_output *output, int x, int y);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
@@ -86,5 +85,14 @@ void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
+
+struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
+bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
+	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
+	int32_t hotspot_x, int32_t hotspot_y);
+void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
+	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y);
+void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
 
 #endif

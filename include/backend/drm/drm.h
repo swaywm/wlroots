@@ -34,6 +34,7 @@ struct wlr_drm_plane {
 	struct wlr_texture *wlr_tex;
 	struct gbm_bo *cursor_bo;
 	bool cursor_enabled;
+	int32_t cursor_hotspot_x, cursor_hotspot_y;
 
 	union wlr_drm_plane_props props;
 };

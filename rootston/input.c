@@ -118,7 +118,10 @@ struct roots_input *input_create(struct roots_server *server,
 
 	input->cursor = wlr_cursor_create();
 	cursor_initialize(input);
-	wlr_cursor_set_xcursor(input->cursor, xcursor);
+
+	struct wlr_xcursor_image *image = xcursor->images[0];
+	wlr_cursor_set_image(input->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
 
 	wlr_cursor_attach_output_layout(input->cursor, server->desktop->layout);
 	wlr_cursor_map_to_region(input->cursor, config->cursor.mapped_box);
