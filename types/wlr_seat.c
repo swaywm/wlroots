@@ -43,6 +43,7 @@ static void wl_pointer_set_cursor(struct wl_client *client,
 	}
 	event->seat_client = seat_client;
 	event->surface = surface;
+	event->serial = serial;
 	event->hotspot_x = hotspot_x;
 	event->hotspot_y = hotspot_y;
 
