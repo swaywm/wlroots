@@ -30,8 +30,8 @@ static bool multi_backend_start(struct wlr_backend *_backend) {
 
 static void multi_backend_destroy(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	struct subbackend_state *sub;
-	wl_list_for_each(sub, &backend->backends, link) {
+	struct subbackend_state *sub, *next;
+	wl_list_for_each_safe(sub, next, &backend->backends, link) {
 		wlr_backend_destroy(sub->backend);
 		free(sub);
 	}
