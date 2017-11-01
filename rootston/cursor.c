@@ -405,9 +405,6 @@ static void handle_drag_icon_destroy(struct wl_listener *listener, void *data) {
 static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
 	struct roots_drag_icon *drag_icon =
 		wl_container_of(listener, drag_icon, surface_commit);
-	// TODO the spec hints at rules that can determine whether the drag icon is
-	// mapped here, but it is not completely clear so we need to test more
-	// toolkits to see how we should interpret the surface state here.
 	drag_icon->sx += drag_icon->surface->current->sx;
 	drag_icon->sy += drag_icon->surface->current->sy;
 }
@@ -431,6 +428,7 @@ static void handle_pointer_grab_begin(struct wl_listener *listener,
 
 			struct roots_drag_icon *drag_icon =
 				calloc(1, sizeof(struct roots_drag_icon));
+			drag_icon->mapped = true;
 			drag_icon->surface = drag->icon;
 			wl_list_insert(&input->drag_icons, &drag_icon->link);
 
@@ -448,6 +446,18 @@ static void handle_pointer_grab_begin(struct wl_listener *listener,
 static void handle_pointer_grab_end(struct wl_listener *listener, void *data) {
 	struct roots_input *input =
 		wl_container_of(listener, input, pointer_grab_end);
+	struct wlr_seat_pointer_grab *grab = data;
+
+	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
+		struct wlr_drag *drag = grab->data;
+		struct roots_drag_icon *icon;
+		wl_list_for_each(icon, &input->drag_icons, link) {
+			if (icon->surface == drag->icon) {
+				icon->mapped = false;
+			}
+		}
+	}
+
 	cursor_update_position(input, 0);
 }
 

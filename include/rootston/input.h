@@ -68,6 +68,7 @@ struct roots_input_event {
 struct roots_drag_icon {
 	struct wlr_surface *surface;
 	struct wl_list link; // roots_input::drag_icons
+	bool mapped;
 
 	int32_t sx;
 	int32_t sy;

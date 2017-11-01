@@ -152,6 +152,9 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	struct roots_drag_icon *drag_icon = NULL;
 	wl_list_for_each(drag_icon, &server->input->drag_icons, link) {
+		if (!drag_icon->mapped) {
+			continue;
+		}
 		struct wlr_surface *icon = drag_icon->surface;
 		struct wlr_cursor *cursor = server->input->cursor;
 		double icon_x = cursor->x + drag_icon->sx;
