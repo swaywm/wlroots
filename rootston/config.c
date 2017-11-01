@@ -361,6 +361,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
 		struct keyboard_config *kc = calloc(1, sizeof(struct keyboard_config));
 		kc->meta_key = WLR_MODIFIER_LOGO;
+		kc->name = strdup("");
 		wl_list_insert(&config->keyboards, &kc->link);
 	} else if (result == -2) {
 		wlr_log(L_ERROR, "Could not allocate memory to parse config file");
