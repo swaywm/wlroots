@@ -408,7 +408,6 @@ static void pointer_surface_destroy_notify(struct wl_listener *listener,
 			listener, state, surface_destroy);
 	wl_list_remove(&state->surface_destroy.link);
 	wl_list_init(&state->surface_destroy.link);
-	state->focused_surface = NULL;
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
@@ -418,7 +417,6 @@ static void pointer_resource_destroy_notify(struct wl_listener *listener,
 			listener, state, resource_destroy);
 	wl_list_remove(&state->resource_destroy.link);
 	wl_list_init(&state->resource_destroy.link);
-	state->focused_surface = NULL;
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
@@ -674,7 +672,6 @@ static void keyboard_surface_destroy_notify(struct wl_listener *listener,
 			listener, state, surface_destroy);
 	wl_list_remove(&state->surface_destroy.link);
 	wl_list_init(&state->surface_destroy.link);
-	state->focused_surface = NULL;
 	wlr_seat_keyboard_clear_focus(state->seat);
 }
 
@@ -684,7 +681,6 @@ static void keyboard_resource_destroy_notify(struct wl_listener *listener,
 			listener, state, resource_destroy);
 	wl_list_remove(&state->resource_destroy.link);
 	wl_list_init(&state->resource_destroy.link);
-	state->focused_surface = NULL;
 	wlr_seat_keyboard_clear_focus(state->seat);
 }
 
