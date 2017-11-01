@@ -16,6 +16,7 @@ arch:
     - libinput
     - pixman
     - libxkbcommon
+    - xcb-util-image
     - libcap
   script:
     - "meson build"
