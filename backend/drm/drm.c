@@ -533,13 +533,14 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		if (!wlr_drm_surface_init(&plane->surf, renderer, w, h, GBM_FORMAT_ARGB8888, 0)) {
+		if (!wlr_drm_surface_init(&plane->surf, renderer, w, h,
+				GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
 
-		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h, GBM_FORMAT_ARGB8888,
-			GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h,
+			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
 		if (!plane->cursor_bo) {
 			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
 			return false;
@@ -552,45 +553,26 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 		// TODO the image needs to be rotated depending on the output rotation
 
-		plane->wlr_tex = wlr_render_texture_create(plane->surf.renderer->wlr_rend);
+		plane->wlr_tex =
+			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
 		if (!plane->wlr_tex) {
 			return false;
 		}
 	}
 
-	switch (output->transform) {
-	case WL_OUTPUT_TRANSFORM_90:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = -plane->surf.height + hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_180:
-		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		plane->cursor_hotspot_x = plane->surf.width - hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = -hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.height - hotspot_y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		plane->cursor_hotspot_x = -plane->surf.height + hotspot_x;
-		plane->cursor_hotspot_y = plane->surf.width - hotspot_y;
-		break;
-	default: // WL_OUTPUT_TRANSFORM_NORMAL
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
-	}
+	struct wlr_box hotspot = {
+		.width = plane->surf.width,
+		.height = plane->surf.height,
+		.x = hotspot_x,
+		.y = hotspot_y,
+	};
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
+	struct wlr_box transformed_hotspot;
+	wlr_output_transform_apply_to_box(transform, &hotspot,
+		&transformed_hotspot);
+	plane->cursor_hotspot_x = transformed_hotspot.x;
+	plane->cursor_hotspot_y = transformed_hotspot.y;
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
@@ -620,11 +602,13 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	float matrix[16];
 	wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-	wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex, &matrix);
+	wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
+		&matrix);
 
 	glFinish();
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bo_data);
+	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
+		GL_UNSIGNED_BYTE, bo_data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
 	wlr_drm_surface_swap_buffers(&plane->surf);
@@ -638,35 +622,23 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
-	x -= plane->cursor_hotspot_x;
-	y -= plane->cursor_hotspot_y;
 
-	int width, height, tmp;
-	wlr_output_effective_resolution(output, &width, &height);
+	struct wlr_box box;
+	box.x = x;
+	box.y = y;
+	wlr_output_effective_resolution(output, &box.width, &box.height);
 
-	switch (output->transform) {
-	case WL_OUTPUT_TRANSFORM_NORMAL:
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		// nothing to do
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		tmp = x;
-		x = y;
-		y = -(tmp - width);
-		break;
-	case WL_OUTPUT_TRANSFORM_90:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		tmp = x;
-		x = -(y - height);
-		y = tmp;
-		break;
-	}
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
+	struct wlr_box transformed_box;
+	wlr_output_transform_apply_to_box(transform, &box, &transformed_box);
 
-	return drm->iface->crtc_move_cursor(drm, conn->crtc, x, y);
+	transformed_box.x -= plane->cursor_hotspot_x;
+	transformed_box.y -= plane->cursor_hotspot_y;
+
+	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
+		transformed_box.y);
 }
 
 static void wlr_drm_connector_destroy(struct wlr_output *output) {
