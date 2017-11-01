@@ -21,9 +21,9 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <math.h>
-#include "shared.h"
-#include "config.h"
-#include "cat.h"
+#include "support/shared.h"
+#include "support/config.h"
+#include "support/cat.h"
 
 struct sample_state {
 	struct example_config *config;

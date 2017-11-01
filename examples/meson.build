@@ -1,7 +1,8 @@
 lib_shared = static_library(
 	'shared',
-	['shared.c', 'cat.c', 'ini.c', 'config.c'],
+	['support/shared.c', 'support/cat.c', 'support/ini.c', 'support/config.c'],
 	dependencies: wlroots,
+	include_directories: include_directories('support')
 )
 
 executable('simple', 'simple.c', dependencies: wlroots, link_with: lib_shared)

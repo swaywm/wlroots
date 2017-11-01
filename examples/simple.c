@@ -11,7 +11,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
-#include "shared.h"
+#include "support/shared.h"
 
 struct sample_state {
 	float color[3];

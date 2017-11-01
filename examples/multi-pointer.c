@@ -22,9 +22,9 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_list.h>
-#include "shared.h"
-#include "config.h"
-#include "cat.h"
+#include "support/shared.h"
+#include "support/config.h"
+#include "support/cat.h"
 
 struct sample_state;
 
