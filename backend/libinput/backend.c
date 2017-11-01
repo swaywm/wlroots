@@ -105,6 +105,7 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
 			wlr_input_device_destroy(wlr_dev);
 		}
+		free(wlr_devices);
 	}
 	wlr_list_free(backend->wlr_device_lists);
 	wl_event_source_remove(backend->input_event);
