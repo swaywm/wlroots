@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <xcb/composite.h>
 #include <xcb/xfixes.h>
+#include <xcb/xcb_image.h>
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
@@ -1220,15 +1221,40 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm_get_resources(xwm);
 	xwm_get_visual_and_colormap(xwm);
 
-	uint32_t values[1];
-	values[0] =
+	xcb_cursor_t cursor = xcb_generate_id(xwm->xcb_conn);
+
+	{
+		// Create root cursor
+
+		uint8_t data[] = {
+			0x00, 0x00, 0xfe, 0x07, 0xfe, 0x03, 0xfe, 0x01, 0xfe, 0x01, 0xfe, 0x03,
+			0xfe, 0x07, 0xfe, 0x0f, 0xfe, 0x1f, 0xe6, 0x0f, 0xc2, 0x07, 0x80, 0x03,
+			0x00, 0x01, 0x00, 0x00
+		};
+
+		uint8_t mask[] = {
+			0xff, 0x3f, 0xff, 0x1f, 0xff, 0x07, 0xff, 0x03, 0xff, 0x03, 0xff, 0x07,
+			0xff, 0x0f, 0xff, 0x1f, 0xff, 0x3f, 0xff, 0x1f, 0xe7, 0x0f, 0xc3, 0x07,
+			0x83, 0x03, 0x01, 0x01
+		};
+
+		xcb_pixmap_t cp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, data, 14, 14, 1, 0, 0, 0);
+		xcb_pixmap_t mp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, mask, 14, 14, 1, 0, 0, 0);
+		xcb_create_cursor(xwm->xcb_conn, cursor, cp, mp, 0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF, 0, 0);
+		xcb_free_pixmap(xwm->xcb_conn, cp);
+		xcb_free_pixmap(xwm->xcb_conn, mp);
+	}
+
+	uint32_t values[] = {
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
-		XCB_EVENT_MASK_PROPERTY_CHANGE;
+			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+			XCB_EVENT_MASK_PROPERTY_CHANGE,
+		cursor,
+	};
 
 	xcb_change_window_attributes(xwm->xcb_conn,
 		xwm->screen->root,
-		XCB_CW_EVENT_MASK /* | XCB_CW_CURSOR */,
+		XCB_CW_EVENT_MASK | XCB_CW_CURSOR,
 		values);
 
 	xcb_composite_redirect_subwindows(xwm->xcb_conn,
