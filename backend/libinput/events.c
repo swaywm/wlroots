@@ -26,6 +26,7 @@ struct wlr_input_device *get_appropriate_device(
 static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
 	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
 	libinput_device_unref(dev->handle);
+	wl_list_remove(&dev->wlr_input_device.link);
 	free(dev);
 }
 
