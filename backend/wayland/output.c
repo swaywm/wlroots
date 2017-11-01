@@ -59,6 +59,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		(struct wlr_wl_backend_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
 
+	// TODO: use output->wlr_output.transform to transform pixels and hotpot
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 

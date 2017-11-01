@@ -558,17 +558,28 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
-	struct wlr_box hotspot_box = {
-		.width = plane->surf.width,
-		.height = plane->surf.height,
-		.x = hotspot_x,
-		.y = hotspot_y,
-	};
-	struct wlr_box transformed_hotspot_box;
-	wlr_output_transform_apply_to_box(output->transform,
-		&hotspot_box, &transformed_hotspot_box);
-	plane->cursor_hotspot_x = transformed_hotspot_box.x;
-	plane->cursor_hotspot_y = transformed_hotspot_box.y;
+	switch (output->transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = -plane->surf.height + hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		plane->cursor_hotspot_x = -plane->surf.width + hotspot_x;
+		plane->cursor_hotspot_y = -plane->surf.height + hotspot_y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+	case WL_OUTPUT_TRANSFORM_270:
+		plane->cursor_hotspot_x = -plane->surf.width + hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
+		break;
+	}
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
@@ -621,30 +632,18 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	x -= plane->cursor_hotspot_x;
 	y -= plane->cursor_hotspot_y;
 
-	int width, height, tmp;
-	wlr_output_effective_resolution(output, &width, &height);
+	struct wlr_box box;
+	box.x = x;
+	box.y = y;
+	wlr_output_effective_resolution(output, &box.width, &box.height);
 
-	switch (output->transform) {
-	case WL_OUTPUT_TRANSFORM_NORMAL:
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		// nothing to do
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		tmp = x;
-		x = y;
-		y = -(tmp - width);
-		break;
-	case WL_OUTPUT_TRANSFORM_90:
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		tmp = x;
-		x = -(y - height);
-		y = tmp;
-		break;
-	}
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
+	struct wlr_box transformed_box;
+	wlr_output_transform_apply_to_box(transform, &box, &transformed_box);
 
-	return drm->iface->crtc_move_cursor(drm, conn->crtc, x, y);
+	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
+		transformed_box.y);
 }
 
 static void wlr_drm_connector_destroy(struct wlr_output *output) {

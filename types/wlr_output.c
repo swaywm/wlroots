@@ -267,8 +267,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 
 	struct wlr_box output_box;
 	output_box.x = output_box.y = 0;
-	output_box.width = cursor->output->width;
-	output_box.height = cursor->output->height;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -294,7 +294,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
 		if (output->hardware_cursor == cursor) {
-			continue;
+			//continue; // TODO
 		}
 		output_cursor_render(cursor);
 	}
@@ -342,7 +342,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 			stride, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
 			cursor->output->hardware_cursor = cursor;
-			return true;
+			//return true; // TODO
 		}
 	}
 
@@ -545,4 +545,13 @@ void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
 		dest->y = box->width - box->x;
 		break;
 	}
+}
+
+enum wl_output_transform wlr_output_transform_invert(
+		enum wl_output_transform transform) {
+	if ((transform & WL_OUTPUT_TRANSFORM_90) &&
+			!(transform & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		transform ^= WL_OUTPUT_TRANSFORM_180;
+	}
+	return transform;
 }

@@ -228,7 +228,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "y") == 0) {
 			oc->y = strtol(value, NULL, 10);
 		} else if (strcmp(name, "rotate") == 0) {
-			if (strcmp(value, "90") == 0) {
+			if (strcmp(value, "normal") == 0) {
+				oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+			} else if (strcmp(value, "90") == 0) {
 				oc->transform = WL_OUTPUT_TRANSFORM_90;
 			} else if (strcmp(value, "180") == 0) {
 				oc->transform = WL_OUTPUT_TRANSFORM_180;
