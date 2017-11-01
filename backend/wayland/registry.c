@@ -9,11 +9,11 @@
 
 static void xdg_shell_handle_ping(void *data, struct zxdg_shell_v6 *shell,
 		uint32_t serial) {
-        zxdg_shell_v6_pong(shell, serial);
+	zxdg_shell_v6_pong(shell, serial);
 }
 
 static const struct zxdg_shell_v6_listener xdg_shell_listener = {
-        xdg_shell_handle_ping,
+	xdg_shell_handle_ping,
 };
 
 

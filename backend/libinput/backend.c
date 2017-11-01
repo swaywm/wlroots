@@ -101,7 +101,7 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
 		struct wl_list *wlr_devices = backend->wlr_device_lists->items[i];
 		struct wlr_input_device *wlr_dev, *next;
-	        wl_list_for_each_safe(wlr_dev, next, wlr_devices, link) {
+		wl_list_for_each_safe(wlr_dev, next, wlr_devices, link) {
 			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
 			wlr_input_device_destroy(wlr_dev);
 		}
