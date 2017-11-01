@@ -61,6 +61,8 @@ struct wlr_drag {
 	struct wlr_surface *focus;
 	struct wlr_data_source *source;
 
+	bool cancelling;
+
 	struct wl_listener icon_destroy;
 	struct wl_listener source_destroy;
 	struct wl_listener seat_client_unbound;

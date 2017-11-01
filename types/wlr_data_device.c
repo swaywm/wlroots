@@ -432,18 +432,23 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 }
 
 static void wlr_drag_end(struct wlr_drag *drag) {
-	if (drag->icon) {
-		wl_list_remove(&drag->icon_destroy.link);
-	}
+	if (!drag->cancelling) {
+		drag->cancelling = true;
+		wlr_seat_pointer_end_grab(drag->pointer_grab.seat);
+		wlr_seat_keyboard_end_grab(drag->keyboard_grab.seat);
 
-	if (drag->source) {
-		wl_list_remove(&drag->source_destroy.link);
-	}
+		if (drag->source) {
+			wl_list_remove(&drag->source_destroy.link);
+		}
 
-	wlr_drag_set_focus(drag, NULL, 0, 0);
-	wlr_seat_pointer_end_grab(drag->pointer_grab.seat);
-	wlr_seat_keyboard_end_grab(drag->keyboard_grab.seat);
-	free(drag);
+		wlr_drag_set_focus(drag, NULL, 0, 0);
+
+		if (drag->icon) {
+			wl_list_remove(&drag->icon_destroy.link);
+		}
+
+		free(drag);
+	}
 }
 
 static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
@@ -587,8 +592,6 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	wlr_seat_keyboard_start_grab(seat, &drag->keyboard_grab);
 	wlr_seat_pointer_start_grab(seat, &drag->pointer_grab);
-
-	// TODO keyboard grab
 
 	return true;
 }
