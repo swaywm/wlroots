@@ -291,6 +291,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
+	wl_signal_emit(&output->events.swap_buffers, &output);
+
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
 		if (output->hardware_cursor == cursor) {
@@ -299,9 +301,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		output_cursor_render(cursor);
 	}
 
-	wl_signal_emit(&output->events.swap_buffers, &output);
-
 	output->impl->swap_buffers(output);
+	output->needs_swap = false;
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,
@@ -319,6 +320,9 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
+	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
+	}
 	if (cursor->surface != NULL) {
 		wl_list_remove(&cursor->surface_commit.link);
 		wl_list_remove(&cursor->surface_destroy.link);
@@ -347,6 +351,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	}
 
 	wlr_log(L_INFO, "Falling back to software cursor");
+	cursor->output->needs_swap = true;
 
 	if (cursor->renderer == NULL) {
 		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
@@ -370,7 +375,11 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	cursor->width = cursor->surface->current->width;
 	cursor->height = cursor->surface->current->height;
 
-	// TODO: if hardware cursor, upload pixels
+	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
+	} else {
+		// TODO: upload pixels
+	}
 }
 
 static inline int64_t timespec_to_msec(const struct timespec *a) {

@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
+#include <stdbool.h>
 #include <wayland-util.h>
 #include <wayland-server.h>
-#include <stdbool.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -44,8 +44,9 @@ struct wlr_output {
 	uint32_t scale;
 	int32_t width, height;
 	int32_t phys_width, phys_height; // mm
-	int32_t subpixel; // enum wl_output_subpixel
-	int32_t transform; // enum wl_output_transform
+	enum wl_output_subpixel subpixel;
+	enum wl_output_transform transform;
+	bool needs_swap;
 
 	float transform_matrix[16];
 
