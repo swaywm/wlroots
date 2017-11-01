@@ -645,6 +645,7 @@ static void wlr_drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	wlr_drm_connector_cleanup(conn);
 	wl_event_source_remove(conn->retry_pageflip);
+	wl_list_remove(&conn->link);
 	free(conn);
 }
 
@@ -823,6 +824,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 
 		drmModeFreeCrtc(conn->old_crtc);
 		wl_event_source_remove(conn->retry_pageflip);
+		wl_list_remove(&conn->link);
 		free(conn);
 	}
 }
