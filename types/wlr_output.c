@@ -294,7 +294,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
 		if (output->hardware_cursor == cursor) {
-			//continue; // TODO
+			continue;
 		}
 		output_cursor_render(cursor);
 	}
@@ -342,7 +342,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 			stride, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
 			cursor->output->hardware_cursor = cursor;
-			//return true; // TODO
+			return true;
 		}
 	}
 
