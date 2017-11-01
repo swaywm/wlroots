@@ -1027,6 +1027,8 @@ void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
 	} else {
 		xcb_kill_client(xwm->xcb_conn, xsurface->window_id);
 	}
+
+	xcb_flush(xwm->xcb_conn);
 }
 
 void xwm_destroy(struct wlr_xwm *xwm) {
