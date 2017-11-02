@@ -15,10 +15,12 @@ struct wlr_output_mode {
 struct wlr_output_cursor {
 	struct wlr_output *output;
 	int32_t x, y;
+	bool enabled;
 	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
 	struct wl_list link;
 
+	// only when using a software cursor without a surface
 	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
 
