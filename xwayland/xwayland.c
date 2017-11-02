@@ -29,6 +29,15 @@ static inline int clearenv(void) {
 }
 #endif
 
+struct wlr_xwayland_cursor {
+	uint8_t *pixels;
+	uint32_t stride;
+	uint32_t width;
+	uint32_t height;
+	int32_t hotspot_x;
+	int32_t hotspot_y;
+};
+
 static void safe_close(int fd) {
 	if (fd >= 0) {
 		close(fd);
@@ -190,6 +199,14 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	wl_event_source_remove(wlr_xwayland->sigusr1_source);
 	wlr_xwayland->sigusr1_source = NULL;
 
+	if (wlr_xwayland->cursor != NULL) {
+		struct wlr_xwayland_cursor *cur = wlr_xwayland->cursor;
+		xwm_set_cursor(wlr_xwayland->xwm, cur->pixels, cur->stride, cur->width,
+			cur->height, cur->hotspot_x, cur->hotspot_y);
+		free(cur);
+		wlr_xwayland->cursor = NULL;
+	}
+
 	char display_name[16];
 	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
 	setenv("DISPLAY", display_name, true);
@@ -297,4 +314,27 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	}
 	free(wlr_xwayland);
 	return NULL;
+}
+
+void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
+		uint8_t *pixels, uint32_t stride, uint32_t width, uint32_t height,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	if (wlr_xwayland->xwm != NULL) {
+		xwm_set_cursor(wlr_xwayland->xwm, pixels, stride, width, height,
+			hotspot_x, hotspot_y);
+		return;
+	}
+
+	free(wlr_xwayland->cursor);
+
+	wlr_xwayland->cursor = calloc(1, sizeof(struct wlr_xwayland_cursor));
+	if (wlr_xwayland->cursor == NULL) {
+		return;
+	}
+	wlr_xwayland->cursor->pixels = pixels;
+	wlr_xwayland->cursor->stride = stride;
+	wlr_xwayland->cursor->width = width;
+	wlr_xwayland->cursor->height = height;
+	wlr_xwayland->cursor->hotspot_x = hotspot_x;
+	wlr_xwayland->cursor->hotspot_y = hotspot_y;
 }
