@@ -343,8 +343,8 @@ static void xdg_shell_create_positioner(struct wl_client *wl_client,
 		wl_resource_get_version(resource),
 		id);
 	if (positioner->resource == NULL) {
-		wl_client_post_no_memory(wl_client);
 		free(positioner);
+		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
@@ -480,13 +480,13 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	}
 
 	if (wlr_surface_set_role(surface->surface, wlr_desktop_xdg_popup_role,
-				resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
+			resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
 		return;
 	}
 
 	surface->popup_state = calloc(1, sizeof(struct wlr_xdg_popup_v6));
 	if (!surface->popup_state) {
-		wl_client_post_no_memory(client);
+		wl_resource_post_no_memory(resource);
 		return;
 	}
 
@@ -495,6 +495,7 @@ static void xdg_surface_get_popup(struct wl_client *client,
 			wl_resource_get_version(resource), id);
 	if (surface->popup_state->resource == NULL) {
 		free(surface->popup_state);
+		wl_resource_post_no_memory(resource);
 		return;
 	}
 
@@ -735,7 +736,7 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 
 	surface->toplevel_state = calloc(1, sizeof(struct wlr_xdg_toplevel_v6));
 	if (surface->toplevel_state == NULL) {
-		wl_client_post_no_memory(client);
+		wl_resource_post_no_memory(resource);
 		return;
 	}
 
@@ -744,6 +745,11 @@ static void xdg_surface_get_toplevel(struct wl_client *client,
 
 	struct wl_resource *toplevel_resource = wl_resource_create(client,
 		&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
+	if (toplevel_resource == NULL) {
+		free(surface->toplevel_state);
+		wl_resource_post_no_memory(resource);
+		return;
+	}
 
 	surface->toplevel_state->resource = toplevel_resource;
 
@@ -1118,9 +1124,20 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	surface->resource = wl_resource_create(wl_client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(client_resource),
 		id);
+	if (surface->resource == NULL) {
+		free(surface->next_geometry);
+		free(surface->geometry);
+		free(surface);
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 
 	if (wlr_surface_has_buffer(surface->surface)) {
-		wl_resource_post_error(surface->resource,
+		wl_resource_destroy(surface->resource);
+		free(surface->next_geometry);
+		free(surface->geometry);
+		free(surface);
+		wl_resource_post_error(surface_resource,
 			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
 			"xdg_surface must not have a buffer at creation");
 		return;
@@ -1199,9 +1216,9 @@ static int wlr_xdg_client_v6_ping_timeout(void *user_data) {
 	return 1;
 }
 
-static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
+static void xdg_shell_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_xdg_shell_v6 *xdg_shell = _xdg_shell;
+	struct wlr_xdg_shell_v6 *xdg_shell = data;
 	assert(wl_client && xdg_shell);
 
 	struct wlr_xdg_client_v6 *client =
@@ -1215,6 +1232,11 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *_xdg_shell,
 
 	client->resource =
 		wl_resource_create(wl_client, &zxdg_shell_v6_interface, version, id);
+	if (client->resource == NULL) {
+		free(client);
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 	client->client = wl_client;
 	client->shell = xdg_shell;
 

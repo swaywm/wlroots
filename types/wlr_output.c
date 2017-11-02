@@ -91,13 +91,17 @@ static struct wl_output_interface wl_output_impl = {
 	.release = wl_output_release
 };
 
-static void wl_output_bind(struct wl_client *wl_client, void *_wlr_output,
+static void wl_output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_output *wlr_output = _wlr_output;
+	struct wlr_output *wlr_output = data;
 	assert(wl_client && wlr_output);
 
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
+	if (wl_resource == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 	wl_resource_set_implementation(wl_resource, &wl_output_impl, wlr_output,
 		wl_output_destroy);
 	wl_list_insert(&wlr_output->wl_resources,
