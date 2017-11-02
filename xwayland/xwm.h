@@ -1,5 +1,7 @@
 #ifndef XWAYLAND_INTERNALS_H
 #define XWAYLAND_INTERNALS_H
+
+#include <xcb/render.h>
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
 
@@ -49,6 +51,7 @@ struct wlr_xwm {
 	xcb_window_t window;
 	xcb_visualid_t visual_id;
 	xcb_colormap_t colormap;
+	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
 	struct wlr_xwayland_surface *focus_surface;

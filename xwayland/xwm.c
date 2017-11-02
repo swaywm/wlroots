@@ -1175,7 +1175,7 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 	}
 
 	if (visualtype == NULL) {
-		wlr_log(L_DEBUG, "no 32 bit visualtype\n");
+		wlr_log(L_DEBUG, "No 32 bit visualtype\n");
 		return;
 	}
 
@@ -1188,8 +1188,36 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 		xwm->visual_id);
 }
 
+static void xwm_get_render_format(struct wlr_xwm *xwm) {
+	xcb_render_query_pict_formats_cookie_t cookie =
+		xcb_render_query_pict_formats(xwm->xcb_conn);
+	xcb_render_query_pict_formats_reply_t *reply =
+		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, NULL);
+	xcb_render_pictforminfo_t *formats =
+		xcb_render_query_pict_formats_formats(reply);
+	int len = xcb_render_query_pict_formats_formats_length(reply);
+	xcb_render_pictforminfo_t *format = NULL;
+	for (int i = 0; i < len; ++i) {
+		if (formats[i].depth == 32) {
+			format = &formats[i];
+			break;
+		}
+		// TODO: segfaults when not found
+	}
+	if (format == NULL) {
+		wlr_log(L_DEBUG, "No 32 bit render format");
+		return;
+	}
+
+	xwm->render_format_id = format->id;
+}
+
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 		uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y) {
+	if (!xwm->render_format_id) {
+		wlr_log(L_ERROR, "Cannot set xwm cursor: no render format available");
+		return;
+	}
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
@@ -1201,29 +1229,9 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	xcb_create_pixmap(xwm->xcb_conn, depth, pix, xwm->screen->root, width,
 		height);
 
-	xcb_render_query_pict_formats_cookie_t cookie =
-		xcb_render_query_pict_formats(xwm->xcb_conn);
-	xcb_generic_error_t *err = NULL;
-	xcb_render_query_pict_formats_reply_t *reply =
-		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, &err);
-	xcb_render_pictforminfo_t *formats =
-		xcb_render_query_pict_formats_formats(reply);
-	int len = xcb_render_query_pict_formats_formats_length(reply);
-	xcb_render_pictforminfo_t *format = NULL;
-	for (int i = 0; i < len; ++i) {
-		if (formats[i].depth == depth) {
-			format = &formats[i];
-			break;
-		}
-		// TODO: segfaults when not found
-	}
-	if (format == NULL) {
-		wlr_log(L_ERROR, "Cannot find %d-bit depth render format", depth);
-		return;
-	}
-
 	xcb_render_picture_t pic = xcb_generate_id(xwm->xcb_conn);
-	xcb_render_create_picture(xwm->xcb_conn, pic, pix, format->id, 0, 0);
+	xcb_render_create_picture(xwm->xcb_conn, pic, pix, xwm->render_format_id,
+		0, 0);
 
 	xcb_gcontext_t gc = xcb_generate_id(xwm->xcb_conn);
 	xcb_create_gc(xwm->xcb_conn, gc, pix, 0, NULL);
@@ -1280,6 +1288,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	xwm_get_resources(xwm);
 	xwm_get_visual_and_colormap(xwm);
+	xwm_get_render_format(xwm);
 
 	uint32_t values[] = {
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
