@@ -1036,6 +1036,9 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
+	if (xwm->cursor) {
+		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
+	}
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
@@ -1098,7 +1101,6 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 		xfixes_reply->major_version, xfixes_reply->minor_version);
 
 	free(xfixes_reply);
-
 }
 
 static void xwm_create_wm_window(struct wlr_xwm *xwm) {
@@ -1221,8 +1223,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm_get_resources(xwm);
 	xwm_get_visual_and_colormap(xwm);
 
-	xcb_cursor_t cursor = xcb_generate_id(xwm->xcb_conn);
-
+	xwm->cursor = xcb_generate_id(xwm->xcb_conn);
 	{
 		// Create root cursor
 
@@ -1240,7 +1241,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 		xcb_pixmap_t cp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, data, 14, 14, 1, 0, 0, 0);
 		xcb_pixmap_t mp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, mask, 14, 14, 1, 0, 0, 0);
-		xcb_create_cursor(xwm->xcb_conn, cursor, cp, mp, 0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF, 0, 0);
+		xcb_create_cursor(xwm->xcb_conn, xwm->cursor, cp, mp, 0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF, 0, 0);
 		xcb_free_pixmap(xwm->xcb_conn, cp);
 		xcb_free_pixmap(xwm->xcb_conn, mp);
 	}
@@ -1249,7 +1250,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
 			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 			XCB_EVENT_MASK_PROPERTY_CHANGE,
-		cursor,
+		xwm->cursor,
 	};
 
 	xcb_change_window_attributes(xwm->xcb_conn,
