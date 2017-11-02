@@ -279,10 +279,16 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	int x = cursor->x - cursor->hotspot_x;
+	int y = cursor->y - cursor->hotspot_y;
+	if (cursor->surface != NULL) {
+		x += cursor->surface->current->sx;
+		y += cursor->surface->current->sy;
+	}
+
 	float matrix[16];
-	wlr_texture_get_matrix(texture, &matrix,
-		&cursor->output->transform_matrix, cursor->x - cursor->hotspot_x,
-		cursor->y - cursor->hotspot_y);
+	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
+		x, y);
 	wlr_render_with_matrix(renderer, texture, &matrix);
 }
 
