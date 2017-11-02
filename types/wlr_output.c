@@ -253,10 +253,6 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
-		// Some clients commit a cursor surface with a NULL buffer to hide it.
-		if (!wlr_surface_has_buffer(cursor->surface)) {
-			return;
-		}
 		texture = cursor->surface->texture;
 		renderer = cursor->surface->renderer;
 	}
@@ -295,7 +291,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
-		if (output->hardware_cursor == cursor) {
+		if (!cursor->enabled || output->hardware_cursor == cursor) {
 			continue;
 		}
 		output_cursor_render(cursor);
@@ -353,6 +349,11 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	wlr_log(L_INFO, "Falling back to software cursor");
 	cursor->output->needs_swap = true;
 
+	cursor->enabled = pixels != NULL;
+	if (!cursor->enabled) {
+		return true;
+	}
+
 	if (cursor->renderer == NULL) {
 		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
 		if (cursor->renderer == NULL) {
@@ -372,6 +373,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
+	// Some clients commit a cursor surface with a NULL buffer to hide it.
+	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
 	cursor->width = cursor->surface->current->width;
 	cursor->height = cursor->surface->current->height;
 
@@ -418,10 +421,6 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	if (surface) {
-		cursor->width = surface->current->width;
-		cursor->height = surface->current->height;
-	}
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
 
@@ -454,6 +453,10 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
 		output_cursor_commit(cursor);
 	} else {
+		cursor->enabled = false;
+		cursor->width = 0;
+		cursor->height = 0;
+
 		// TODO: if hardware cursor, disable cursor
 	}
 }
@@ -463,6 +466,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
 	cursor->y = y;
 
 	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
 		return true;
 	}
 
@@ -499,12 +503,6 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 				0, true);
 		}
 		cursor->output->hardware_cursor = NULL;
-	}
-	if (cursor->texture != NULL) {
-		wlr_texture_destroy(cursor->texture);
-	}
-	if (cursor->renderer != NULL) {
-		wlr_renderer_destroy(cursor->renderer);
 	}
 	wl_list_remove(&cursor->link);
 	free(cursor);
