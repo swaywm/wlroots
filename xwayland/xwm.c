@@ -6,9 +6,11 @@
 #include <xcb/composite.h>
 #include <xcb/xfixes.h>
 #include <xcb/xcb_image.h>
+#include <xcb/render.h>
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
+#include "wlr/xcursor.h"
 #include "xwm.h"
 
 #ifdef HAS_XCB_ICCCM
@@ -1186,6 +1188,60 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 		xwm->visual_id);
 }
 
+void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
+		uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y) {
+	if (xwm->cursor) {
+		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
+	}
+
+	int depth = 32;
+
+	xcb_pixmap_t pix = xcb_generate_id(xwm->xcb_conn);
+	xcb_create_pixmap(xwm->xcb_conn, depth, pix, xwm->screen->root, width,
+		height);
+
+	xcb_render_query_pict_formats_cookie_t cookie =
+		xcb_render_query_pict_formats(xwm->xcb_conn);
+	xcb_generic_error_t *err = NULL;
+	xcb_render_query_pict_formats_reply_t *reply =
+		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, &err);
+	xcb_render_pictforminfo_t *formats =
+		xcb_render_query_pict_formats_formats(reply);
+	int len = xcb_render_query_pict_formats_formats_length(reply);
+	xcb_render_pictforminfo_t *format = NULL;
+	for (int i = 0; i < len; ++i) {
+		if (formats[i].depth == depth) {
+			format = &formats[i];
+			break;
+		}
+		// TODO: segfaults when not found
+	}
+	if (format == NULL) {
+		wlr_log(L_ERROR, "Cannot find %d-bit depth render format", depth);
+		return;
+	}
+
+	xcb_render_picture_t pic = xcb_generate_id(xwm->xcb_conn);
+	xcb_render_create_picture(xwm->xcb_conn, pic, pix, format->id, 0, 0);
+
+	xcb_gcontext_t gc = xcb_generate_id(xwm->xcb_conn);
+	xcb_create_gc(xwm->xcb_conn, gc, pix, 0, NULL);
+
+	xcb_put_image(xwm->xcb_conn, XCB_IMAGE_FORMAT_Z_PIXMAP, pix, gc,
+		width, height, 0, 0, 0, depth, stride * height * sizeof(uint8_t),
+		pixels);
+	xcb_free_gc(xwm->xcb_conn, gc);
+
+	xwm->cursor = xcb_generate_id(xwm->xcb_conn);
+	xcb_render_create_cursor(xwm->xcb_conn, xwm->cursor, pic, hotspot_x,
+		hotspot_y);
+	xcb_free_pixmap(xwm->xcb_conn, pix);
+
+	uint32_t values[] = {xwm->cursor};
+	xcb_change_window_attributes(xwm->xcb_conn, xwm->screen->root,
+		XCB_CW_CURSOR, values);
+}
+
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
 	if (xwm == NULL) {
@@ -1223,39 +1279,24 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm_get_resources(xwm);
 	xwm_get_visual_and_colormap(xwm);
 
-	xwm->cursor = xcb_generate_id(xwm->xcb_conn);
-	{
-		// Create root cursor
-
-		uint8_t data[] = {
-			0x00, 0x00, 0xfe, 0x07, 0xfe, 0x03, 0xfe, 0x01, 0xfe, 0x01, 0xfe, 0x03,
-			0xfe, 0x07, 0xfe, 0x0f, 0xfe, 0x1f, 0xe6, 0x0f, 0xc2, 0x07, 0x80, 0x03,
-			0x00, 0x01, 0x00, 0x00
-		};
-
-		uint8_t mask[] = {
-			0xff, 0x3f, 0xff, 0x1f, 0xff, 0x07, 0xff, 0x03, 0xff, 0x03, 0xff, 0x07,
-			0xff, 0x0f, 0xff, 0x1f, 0xff, 0x3f, 0xff, 0x1f, 0xe7, 0x0f, 0xc3, 0x07,
-			0x83, 0x03, 0x01, 0x01
-		};
-
-		xcb_pixmap_t cp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, data, 14, 14, 1, 0, 0, 0);
-		xcb_pixmap_t mp = xcb_create_pixmap_from_bitmap_data(xwm->xcb_conn, xwm->screen->root, mask, 14, 14, 1, 0, 0, 0);
-		xcb_create_cursor(xwm->xcb_conn, xwm->cursor, cp, mp, 0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF, 0, 0);
-		xcb_free_pixmap(xwm->xcb_conn, cp);
-		xcb_free_pixmap(xwm->xcb_conn, mp);
-	}
+	// TODO
+	struct wlr_xcursor_theme *xcursor_theme =
+		wlr_xcursor_theme_load("default", 16);
+	struct wlr_xcursor *xcursor =
+		wlr_xcursor_theme_get_cursor(xcursor_theme, "left_ptr");
+	struct wlr_xcursor_image *xcursor_image = xcursor->images[0];
+	xwm_set_cursor(xwm, xcursor_image->buffer, 4 * xcursor_image->width,
+		xcursor_image->width, xcursor_image->height, xcursor_image->hotspot_x,
+		xcursor_image->hotspot_y);
 
 	uint32_t values[] = {
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
 			XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 			XCB_EVENT_MASK_PROPERTY_CHANGE,
-		xwm->cursor,
 	};
-
 	xcb_change_window_attributes(xwm->xcb_conn,
 		xwm->screen->root,
-		XCB_CW_EVENT_MASK | XCB_CW_CURSOR,
+		XCB_CW_EVENT_MASK,
 		values);
 
 	xcb_composite_redirect_subwindows(xwm->xcb_conn,

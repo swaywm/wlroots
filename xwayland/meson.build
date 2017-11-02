@@ -12,6 +12,7 @@ lib_wlr_xwayland = static_library(
 		xcb_composite,
 		xcb_xfixes,
 		xcb_image,
+		xcb_render,
 		xcb_icccm,
 		pixman,
 	],
