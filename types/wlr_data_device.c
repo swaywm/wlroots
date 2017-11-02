@@ -233,6 +233,9 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 		struct wlr_data_source *source,
 		struct wl_resource *target) {
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
+	if (offer == NULL) {
+		return NULL;
+	}
 
 	offer->resource =
 		wl_resource_create(wl_resource_get_client(target),
@@ -781,18 +784,16 @@ data_device_manager_impl = {
 
 static void data_device_manager_bind(struct wl_client *client,
 		void *data, uint32_t version, uint32_t id) {
-	struct wl_resource *resource;
-
-	resource = wl_resource_create(client,
-			&wl_data_device_manager_interface,
-			version, id);
+	struct wl_resource *resource = wl_resource_create(client,
+		&wl_data_device_manager_interface,
+		version, id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
-	wl_resource_set_implementation(resource,
-			&data_device_manager_impl, NULL, NULL);
+	wl_resource_set_implementation(resource, &data_device_manager_impl,
+		NULL, NULL);
 }
 
 struct wlr_data_device_manager *wlr_data_device_manager_create(
@@ -807,7 +808,6 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 	manager->global =
 		wl_global_create(display, &wl_data_device_manager_interface,
 			3, NULL, data_device_manager_bind);
-
 	if (!manager->global) {
 		wlr_log(L_ERROR, "could not create data device manager wl global");
 		free(manager);

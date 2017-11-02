@@ -83,8 +83,8 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 	gamma_control->resource = wl_resource_create(client,
 		&gamma_control_interface, version, id);
 	if (gamma_control->resource == NULL) {
-		wl_client_post_no_memory(client);
 		free(gamma_control);
+		wl_client_post_no_memory(client);
 		return;
 	}
 	wlr_log(L_DEBUG, "new gamma_control %p (res %p)", gamma_control,
@@ -109,10 +109,9 @@ static struct gamma_control_manager_interface gamma_control_manager_impl = {
 	.get_gamma_control = gamma_control_manager_get_gamma_control,
 };
 
-static void gamma_control_manager_bind(struct wl_client *client,
-		void *_gamma_control_manager, uint32_t version, uint32_t id) {
-	struct wlr_gamma_control_manager *gamma_control_manager =
-		_gamma_control_manager;
+static void gamma_control_manager_bind(struct wl_client *client, void *data,
+		uint32_t version, uint32_t id) {
+	struct wlr_gamma_control_manager *gamma_control_manager = data;
 	assert(client && gamma_control_manager);
 
 	struct wl_resource *resource = wl_resource_create(client,

@@ -73,8 +73,8 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 	decoration->resource = wl_resource_create(client,
 		&org_kde_kwin_server_decoration_interface, version, id);
 	if (decoration->resource == NULL) {
-		wl_client_post_no_memory(client);
 		free(decoration);
+		wl_client_post_no_memory(client);
 		return;
 	}
 	wl_resource_set_implementation(decoration->resource,
@@ -120,9 +120,9 @@ void server_decoration_manager_destroy_resource(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void server_decoration_manager_bind(struct wl_client *client,
-		void *_manager, uint32_t version, uint32_t id) {
-	struct wlr_server_decoration_manager *manager = _manager;
+static void server_decoration_manager_bind(struct wl_client *client, void *data,
+		uint32_t version, uint32_t id) {
+	struct wlr_server_decoration_manager *manager = data;
 	assert(client && manager);
 
 	struct wl_resource *resource = wl_resource_create(client,
