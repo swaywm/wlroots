@@ -1193,17 +1193,18 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 		xcb_render_query_pict_formats(xwm->xcb_conn);
 	xcb_render_query_pict_formats_reply_t *reply =
 		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, NULL);
-	xcb_render_pictforminfo_t *formats =
-		xcb_render_query_pict_formats_formats(reply);
-	int len = xcb_render_query_pict_formats_formats_length(reply);
+	xcb_render_pictforminfo_iterator_t iter =
+		xcb_render_query_pict_formats_formats_iterator(reply);
 	xcb_render_pictforminfo_t *format = NULL;
-	for (int i = 0; i < len; ++i) {
-		if (formats[i].depth == 32) {
-			format = &formats[i];
+	while (iter.rem > 0) {
+		if (iter.data->depth == 32) {
+			format = iter.data;
 			break;
 		}
-		// TODO: segfaults when not found
+
+		xcb_render_pictforminfo_next(&iter);
 	}
+
 	if (format == NULL) {
 		wlr_log(L_DEBUG, "No 32 bit render format");
 		return;
