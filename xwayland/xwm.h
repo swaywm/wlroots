@@ -61,8 +61,11 @@ struct wlr_xwm {
 	struct wl_listener compositor_surface_create;
 };
 
+struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
+
 void xwm_destroy(struct wlr_xwm *xwm);
 
-struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
+void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
+	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
 
 #endif

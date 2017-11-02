@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
+#include <wlr/xwayland.h>
 #include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
@@ -94,6 +95,14 @@ struct roots_input *input_create(struct roots_server *server,
 		wlr_xcursor_theme_destroy(input->xcursor_theme);
 		free(input);
 		return NULL;
+	}
+
+	if (server->desktop->xwayland != NULL) {
+		struct wlr_xcursor_image *xcursor_image = xcursor->images[0];
+		wlr_xwayland_set_cursor(server->desktop->xwayland,
+			xcursor_image->buffer, xcursor_image->width, xcursor_image->width,
+			xcursor_image->height, xcursor_image->hotspot_x,
+			xcursor_image->hotspot_y);
 	}
 
 	input->wl_seat = wlr_seat_create(server->wl_display, "seat0");

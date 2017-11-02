@@ -1194,6 +1194,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
 
+	stride *= 4;
 	int depth = 32;
 
 	xcb_pixmap_t pix = xcb_generate_id(xwm->xcb_conn);
@@ -1240,6 +1241,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	uint32_t values[] = {xwm->cursor};
 	xcb_change_window_attributes(xwm->xcb_conn, xwm->screen->root,
 		XCB_CW_CURSOR, values);
+	xcb_flush(xwm->xcb_conn);
 }
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
@@ -1278,16 +1280,6 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	xwm_get_resources(xwm);
 	xwm_get_visual_and_colormap(xwm);
-
-	// TODO
-	struct wlr_xcursor_theme *xcursor_theme =
-		wlr_xcursor_theme_load("default", 16);
-	struct wlr_xcursor *xcursor =
-		wlr_xcursor_theme_get_cursor(xcursor_theme, "left_ptr");
-	struct wlr_xcursor_image *xcursor_image = xcursor->images[0];
-	xwm_set_cursor(xwm, xcursor_image->buffer, 4 * xcursor_image->width,
-		xcursor_image->width, xcursor_image->height, xcursor_image->hotspot_x,
-		xcursor_image->hotspot_y);
 
 	uint32_t values[] = {
 		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
