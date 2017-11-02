@@ -504,6 +504,12 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
+	if (cursor->texture != NULL) {
+		wlr_texture_destroy(cursor->texture);
+	}
+	if (cursor->renderer != NULL) {
+		wlr_renderer_destroy(cursor->renderer);
+	}
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }
