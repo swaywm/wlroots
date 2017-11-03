@@ -36,7 +36,7 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 			device->vendor, device->product, device_type(device->type));
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		keyboard_add(device, input);
+		roots_keyboard_create(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_add(device, input);
@@ -57,7 +57,7 @@ static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, input_remove);
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
-		keyboard_remove(device, input);
+		roots_keyboard_destroy(device, input);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_remove(device, input);

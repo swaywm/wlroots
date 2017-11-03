@@ -16,7 +16,13 @@ struct roots_keyboard {
 	xkb_keysym_t pressed_keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 };
 
-void keyboard_add(struct wlr_input_device *device, struct roots_input *input);
-void keyboard_remove(struct wlr_input_device *device, struct roots_input *input);
+struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
+		struct roots_input *input);
+void roots_keyboard_destroy(struct wlr_input_device *device, struct roots_input *input);
+
+void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
+		struct wlr_event_keyboard_key *event);
+
+void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard);
 
 #endif
