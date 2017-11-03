@@ -126,6 +126,8 @@ bool view_center(struct roots_view *view) {
 
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
+	width /= output->scale;
+	height /= output->scale;
 
 	double view_x = (double)(width - box.width) / 2 + l_output->x;
 	double view_y = (double)(height - box.height) / 2 + l_output->y;
