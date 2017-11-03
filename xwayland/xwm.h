@@ -1,5 +1,7 @@
 #ifndef XWAYLAND_INTERNALS_H
 #define XWAYLAND_INTERNALS_H
+
+#include <xcb/render.h>
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
 
@@ -49,6 +51,8 @@ struct wlr_xwm {
 	xcb_window_t window;
 	xcb_visualid_t visual_id;
 	xcb_colormap_t colormap;
+	xcb_render_pictformat_t render_format_id;
+	xcb_cursor_t cursor;
 
 	struct wlr_xwayland_surface *focus_surface;
 
@@ -60,8 +64,11 @@ struct wlr_xwm {
 	struct wl_listener compositor_surface_create;
 };
 
+struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
+
 void xwm_destroy(struct wlr_xwm *xwm);
 
-struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
+void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
+	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
 
 #endif

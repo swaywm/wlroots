@@ -12,6 +12,7 @@
 #endif
 
 struct wlr_xwm;
+struct wlr_xwayland_cursor;
 
 struct wlr_xwayland {
 	pid_t pid;
@@ -25,6 +26,7 @@ struct wlr_xwayland {
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener destroy_listener;
 	struct wlr_xwm *xwm;
+	struct wlr_xwayland_cursor *cursor;
 
 	struct {
 		struct wl_signal new_surface;
@@ -147,6 +149,10 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor);
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
+
+void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
+	uint8_t *pixels, uint32_t stride, uint32_t width, uint32_t height,
+	int32_t hotspot_x, int32_t hotspot_y);
 
 void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface, bool activated);

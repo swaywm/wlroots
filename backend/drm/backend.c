@@ -29,8 +29,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 
 	wlr_drm_restore_outputs(drm);
 
-	struct wlr_drm_connector *conn;
-	wl_list_for_each(conn, &drm->outputs, link) {
+	struct wlr_drm_connector *conn, *next;
+	wl_list_for_each_safe(conn, next, &drm->outputs, link) {
 		wlr_output_destroy(&conn->output);
 	}
 

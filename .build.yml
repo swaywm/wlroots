@@ -6,6 +6,7 @@ packages:
   - mesa
   - libinput
   - libxkbcommon
+  - xcb-util-image
   - libcap
   - pixman
   - clang

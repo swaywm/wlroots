@@ -19,8 +19,8 @@
 #include <wlr/types/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
 #include <math.h>
-#include "shared.h"
-#include "cat.h"
+#include "support/shared.h"
+#include "support/cat.h"
 
 struct sample_state {
 	struct wlr_renderer *renderer;

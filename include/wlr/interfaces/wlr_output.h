@@ -2,6 +2,7 @@
 #define WLR_INTERFACES_WLR_OUTPUT_H
 
 #include <stdbool.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/backend.h>
 
@@ -30,5 +31,9 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 	struct wl_display *display);
 void wlr_output_destroy_global(struct wlr_output *wlr_output);
+
+void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
+	struct wlr_box *box, struct wlr_box *dest);
+enum wl_output_transform wlr_output_transform_invert(enum wl_output_transform);
 
 #endif

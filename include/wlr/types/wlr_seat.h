@@ -142,6 +142,7 @@ struct wlr_seat {
 struct wlr_seat_pointer_request_set_cursor_event {
 	struct wlr_seat_client *seat_client;
 	struct wlr_surface *surface;
+	uint32_t serial;
 	int32_t hotspot_x, hotspot_y;
 };
 

@@ -13,10 +13,21 @@ static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 static void wl_compositor_create_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_compositor *compositor = wl_resource_get_user_data(resource);
+
 	struct wl_resource *surface_resource = wl_resource_create(client,
-			&wl_surface_interface, wl_resource_get_version(resource), id);
+		&wl_surface_interface, wl_resource_get_version(resource), id);
+	if (surface_resource == NULL) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
 	struct wlr_surface *surface = wlr_surface_create(surface_resource,
-			compositor->renderer);
+		compositor->renderer);
+	if (surface == NULL) {
+		wl_resource_destroy(surface_resource);
+		wl_resource_post_no_memory(resource);
+		return;
+	}
 	surface->compositor_data = compositor;
 	surface->compositor_listener.notify = &destroy_surface_listener;
 	wl_resource_add_destroy_listener(surface_resource,
@@ -49,13 +60,17 @@ static void wl_compositor_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void wl_compositor_bind(struct wl_client *wl_client, void *_compositor,
+static void wl_compositor_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_compositor *compositor = _compositor;
+	struct wlr_compositor *compositor = data;
 	assert(wl_client && compositor);
 
 	struct wl_resource *wl_resource =
 		wl_resource_create(wl_client, &wl_compositor_interface, version, id);
+	if (wl_resource == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 	wl_resource_set_implementation(wl_resource, &wl_compositor_impl,
 		compositor, wl_compositor_destroy);
 	wl_list_insert(&compositor->wl_resources,

@@ -59,6 +59,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		(struct wlr_wl_backend_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
 
+	// TODO: use output->wlr_output.transform to transform pixels and hotpot
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
@@ -222,7 +223,7 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 
 static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_toplevel) {
 	struct wlr_wl_backend_output *output = data;
-        assert(output && output->xdg_toplevel == xdg_toplevel);
+	assert(output && output->xdg_toplevel == xdg_toplevel);
 
 	wl_display_terminate(output->backend->local_display);
 }

@@ -99,13 +99,13 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 	}
 	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
 	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
-		struct wlr_list *wlr_devices = backend->wlr_device_lists->items[i];
-		for (size_t j = 0; j < wlr_devices->length; j++) {
-			struct wlr_input_device *wlr_dev = wlr_devices->items[j];
+		struct wl_list *wlr_devices = backend->wlr_device_lists->items[i];
+		struct wlr_input_device *wlr_dev, *next;
+		wl_list_for_each_safe(wlr_dev, next, wlr_devices, link) {
 			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
 			wlr_input_device_destroy(wlr_dev);
 		}
-		wlr_list_free(wlr_devices);
+		free(wlr_devices);
 	}
 	wlr_list_free(backend->wlr_device_lists);
 	wl_event_source_remove(backend->input_event);

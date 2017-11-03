@@ -91,13 +91,17 @@ static struct wl_output_interface wl_output_impl = {
 	.release = wl_output_release
 };
 
-static void wl_output_bind(struct wl_client *wl_client, void *_wlr_output,
+static void wl_output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_output *wlr_output = _wlr_output;
+	struct wlr_output *wlr_output = data;
 	assert(wl_client && wlr_output);
 
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
+	if (wl_resource == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 	wl_resource_set_implementation(wl_resource, &wl_output_impl, wlr_output,
 		wl_output_destroy);
 	wl_list_insert(&wlr_output->wl_resources,
@@ -254,10 +258,6 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
-		// Some clients commit a cursor surface with a NULL buffer to hide it.
-		if (!wlr_surface_has_buffer(cursor->surface)) {
-			return;
-		}
 		texture = cursor->surface->texture;
 		renderer = cursor->surface->renderer;
 	}
@@ -268,8 +268,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 
 	struct wlr_box output_box;
 	output_box.x = output_box.y = 0;
-	output_box.width = cursor->output->width;
-	output_box.height = cursor->output->height;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -284,25 +284,32 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	int x = cursor->x - cursor->hotspot_x;
+	int y = cursor->y - cursor->hotspot_y;
+	if (cursor->surface != NULL) {
+		x += cursor->surface->current->sx;
+		y += cursor->surface->current->sy;
+	}
+
 	float matrix[16];
-	wlr_texture_get_matrix(texture, &matrix,
-		&cursor->output->transform_matrix, cursor->x - cursor->hotspot_x,
-		cursor->y - cursor->hotspot_y);
+	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
+		x, y);
 	wlr_render_with_matrix(renderer, texture, &matrix);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
+	wl_signal_emit(&output->events.swap_buffers, &output);
+
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
-		if (output->hardware_cursor == cursor) {
+		if (!cursor->enabled || output->hardware_cursor == cursor) {
 			continue;
 		}
 		output_cursor_render(cursor);
 	}
 
-	wl_signal_emit(&output->events.swap_buffers, &output);
-
 	output->impl->swap_buffers(output);
+	output->needs_swap = false;
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,
@@ -320,6 +327,9 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
+	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
+	}
 	if (cursor->surface != NULL) {
 		wl_list_remove(&cursor->surface_commit.link);
 		wl_list_remove(&cursor->surface_destroy.link);
@@ -348,6 +358,12 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	}
 
 	wlr_log(L_INFO, "Falling back to software cursor");
+	cursor->output->needs_swap = true;
+
+	cursor->enabled = pixels != NULL;
+	if (!cursor->enabled) {
+		return true;
+	}
 
 	if (cursor->renderer == NULL) {
 		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
@@ -368,10 +384,16 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
+	// Some clients commit a cursor surface with a NULL buffer to hide it.
+	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
 	cursor->width = cursor->surface->current->width;
 	cursor->height = cursor->surface->current->height;
 
-	// TODO: if hardware cursor, upload pixels
+	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
+	} else {
+		// TODO: upload pixels
+	}
 }
 
 static inline int64_t timespec_to_msec(const struct timespec *a) {
@@ -410,10 +432,6 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	if (surface) {
-		cursor->width = surface->current->width;
-		cursor->height = surface->current->height;
-	}
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
 
@@ -446,6 +464,10 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
 		output_cursor_commit(cursor);
 	} else {
+		cursor->enabled = false;
+		cursor->width = 0;
+		cursor->height = 0;
+
 		// TODO: if hardware cursor, disable cursor
 	}
 }
@@ -457,6 +479,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
 	cursor->y = y;
 
 	if (cursor->output->hardware_cursor != cursor) {
+		cursor->output->needs_swap = true;
 		return true;
 	}
 
@@ -502,4 +525,59 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	}
 	wl_list_remove(&cursor->link);
 	free(cursor);
+}
+
+void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
+		struct wlr_box *box, struct wlr_box *dest) {
+	if (transform % 2 == 0) {
+		dest->width = box->width;
+		dest->height = box->height;
+	} else {
+		dest->width = box->height;
+		dest->height = box->width;
+	}
+
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		dest->x = box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		dest->x = box->y;
+		dest->y = box->width - box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		dest->x = box->width - box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		dest->x = box->height - box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		dest->x = box->width - box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		dest->x = box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dest->x = box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dest->x = box->height - box->y;
+		dest->y = box->width - box->x;
+		break;
+	}
+}
+
+enum wl_output_transform wlr_output_transform_invert(
+		enum wl_output_transform transform) {
+	if ((transform & WL_OUTPUT_TRANSFORM_90) &&
+			!(transform & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		transform ^= WL_OUTPUT_TRANSFORM_180;
+	}
+	return transform;
 }
