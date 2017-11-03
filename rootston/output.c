@@ -25,6 +25,8 @@ static void render_surface(struct wlr_surface *surface,
 		int height = surface->current->buffer_height * scale_factor;
 		double ox = lx, oy = ly;
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
+		ox *= wlr_output->scale;
+		oy *= wlr_output->scale;
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
 				lx, ly, lx + width, ly + height)) {

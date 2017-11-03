@@ -167,15 +167,14 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 			continue;
 		}
 
-		int scale = view->wlr_surface->current->scale;
-		double view_sx = (lx - view->x) / (double)scale;
-		double view_sy = (ly - view->y) / (double)scale;
+		double view_sx = lx - view->x;
+		double view_sy = ly - view->y;
 
 		struct wlr_box box = {
 			.x = 0,
 			.y = 0,
-			.width = view->wlr_surface->current->buffer_width * scale,
-			.height = view->wlr_surface->current->buffer_height * scale,
+			.width = view->wlr_surface->current->buffer_width,
+			.height = view->wlr_surface->current->buffer_height,
 		};
 		if (view->rotation != 0.0) {
 			// Coordinates relative to the center of the view

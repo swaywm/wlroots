@@ -227,7 +227,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height) {
-	// TODO: Scale factor
 	if (output->transform % 2 == 1) {
 		*width = output->height;
 		*height = output->width;
@@ -235,6 +234,8 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 		*width = output->width;
 		*height = output->height;
 	}
+	*width /= output->scale;
+	*height /= output->scale;
 }
 
 void wlr_output_make_current(struct wlr_output *output) {
@@ -450,6 +451,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 }
 
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
+	x *= cursor->output->scale;
+	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
 
