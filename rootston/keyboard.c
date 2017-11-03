@@ -10,6 +10,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
+#include "rootston/seat.h"
 #include "rootston/keyboard.h"
 
 static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
@@ -85,8 +86,8 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 	}
 
 	if (keysym == XKB_KEY_Escape) {
-		wlr_seat_pointer_end_grab(keyboard->input->wl_seat);
-		wlr_seat_keyboard_end_grab(keyboard->input->wl_seat);
+		wlr_seat_pointer_end_grab(keyboard->seat->seat);
+		wlr_seat_keyboard_end_grab(keyboard->seat->seat);
 	}
 
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
@@ -141,20 +142,15 @@ void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 	}
 
 	if (!handled) {
-		wlr_seat_set_keyboard(keyboard->input->wl_seat, keyboard->device);
-		wlr_seat_keyboard_notify_key(keyboard->input->wl_seat, event->time_msec,
+		wlr_seat_set_keyboard(keyboard->seat->seat, keyboard->device);
+		wlr_seat_keyboard_notify_key(keyboard->seat->seat, event->time_msec,
 			event->keycode, event->state);
 	}
 }
 
-static void handle_keyboard_key(struct wl_listener *listener, void *data) {
-	struct roots_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-	struct wlr_event_keyboard_key *event = data;
-	roots_keyboard_handle_key(keyboard, event);
-}
-
-void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
-	struct wlr_seat *seat = r_keyboard->input->wl_seat;
+void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard,
+		struct wlr_event_keyboard_modifiers *event) {
+	struct wlr_seat *seat = r_keyboard->seat->seat;
 	struct wlr_keyboard *keyboard = r_keyboard->device->keyboard;
 	wlr_seat_set_keyboard(seat, r_keyboard->device);
 	wlr_seat_keyboard_notify_modifiers(seat,
@@ -162,12 +158,6 @@ void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
 		keyboard->modifiers.latched,
 		keyboard->modifiers.locked,
 		keyboard->modifiers.group);
-}
-
-static void handle_keyboard_modifiers(struct wl_listener *listener, void *data) {
-	struct roots_keyboard *r_keyboard =
-		wl_container_of(listener, r_keyboard, modifiers);
-	roots_keyboard_handle_modifiers(r_keyboard);
 }
 
 static void keyboard_config_merge(struct keyboard_config *config,
@@ -192,7 +182,8 @@ static void keyboard_config_merge(struct keyboard_config *config,
 	}
 }
 
-struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device, struct roots_input *input) {
+struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
+		struct roots_input *input) {
 	struct roots_keyboard *keyboard = calloc(sizeof(struct roots_keyboard), 1);
 	if (keyboard == NULL) {
 		return NULL;
@@ -201,12 +192,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device, st
 	keyboard->device = device;
 	keyboard->input = input;
 
-	keyboard->key.notify = handle_keyboard_key;
-	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
-
-	keyboard->modifiers.notify = handle_keyboard_modifiers;
-	wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
-
+	// XXX temporary
 	wl_list_insert(&input->keyboards, &keyboard->link);
 
 	struct keyboard_config config;
@@ -244,8 +230,6 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device, st
 
 void roots_keyboard_destroy(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = device->data;
-	wl_list_remove(&keyboard->key.link);
-	wl_list_remove(&keyboard->modifiers.link);
 	wl_list_remove(&keyboard->link);
 	free(keyboard);
 }

@@ -12,6 +12,7 @@
 #include "rootston/keyboard.h"
 #include "rootston/pointer.h"
 #include "rootston/touch.h"
+#include "rootston/seat.h"
 
 static const char *device_type(enum wlr_input_device_type type) {
 	switch (type) {
@@ -29,15 +30,42 @@ static const char *device_type(enum wlr_input_device_type type) {
 	return NULL;
 }
 
+static struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
+	struct roots_seat *seat = NULL;
+	wl_list_for_each(seat, &input->seats, link) {
+		if (strcmp(seat->seat->name, name) == 0) {
+			return seat;
+		}
+	}
+
+	seat = roots_seat_create(input, name);
+	return seat;
+}
+
 static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct roots_input *input = wl_container_of(listener, input, input_add);
+
+	char *seat_name = "seat0";
+	struct device_config *dc = config_get_device(input->config, device);
+	if (dc) {
+		seat_name = dc->seat;
+	}
+
+	struct roots_seat *seat = input_get_seat(input, seat_name);
+	if (!seat) {
+		wlr_log(L_ERROR, "could not create roots seat");
+		return;
+	}
+
 	wlr_log(L_DEBUG, "New input device: %s (%d:%d) %s", device->name,
 			device->vendor, device->product, device_type(device->type));
 	switch (device->type) {
-	case WLR_INPUT_DEVICE_KEYBOARD:
-		roots_keyboard_create(device, input);
+	case WLR_INPUT_DEVICE_KEYBOARD: {
+		struct roots_keyboard *keyboard = roots_keyboard_create(device, input);
+		roots_seat_add_keyboard(seat, keyboard);
 		break;
+	}
 	case WLR_INPUT_DEVICE_POINTER:
 		pointer_add(device, input);
 		break;
@@ -123,6 +151,7 @@ struct roots_input *input_create(struct roots_server *server,
 	wl_list_init(&input->pointers);
 	wl_list_init(&input->touch);
 	wl_list_init(&input->tablet_tools);
+	wl_list_init(&input->seats);
 
 	input->input_add.notify = input_add_notify;
 	wl_signal_add(&server->backend->events.input_add, &input->input_add);

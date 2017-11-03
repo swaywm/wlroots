@@ -67,6 +67,7 @@ struct roots_input {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+	struct wl_list seats;
 
 	struct wl_listener input_add;
 	struct wl_listener input_remove;

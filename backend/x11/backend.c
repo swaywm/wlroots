@@ -50,6 +50,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_KEY_RELEASE: {
 		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
 		struct wlr_event_keyboard_key key = {
+			.device = &x11->keyboard_dev,
 			.time_msec = ev->time,
 			.keycode = ev->detail - 8,
 			.state = event->response_type == XCB_KEY_PRESS ?

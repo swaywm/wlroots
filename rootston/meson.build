@@ -8,6 +8,7 @@ sources = [
 	'main.c',
 	'output.c',
 	'pointer.c',
+	'seat.c',
 	'tablet_tool.c',
 	'touch.c',
 	'xcursor.c',
