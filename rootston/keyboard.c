@@ -10,6 +10,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
+#include "rootston/keyboard.h"
 
 static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {

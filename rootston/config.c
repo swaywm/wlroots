@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
+#include "rootston/keyboard.h"
 #include "rootston/ini.h"
 
 static void usage(const char *name, int ret) {

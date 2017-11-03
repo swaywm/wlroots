@@ -3,6 +3,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer.h>
 #include "rootston/input.h"
+#include "rootston/pointer.h"
 
 void pointer_add(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_pointer *pointer = calloc(sizeof(struct roots_pointer), 1);

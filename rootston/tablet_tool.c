@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "rootston/input.h"
+#include "rootston/tablet_tool.h"
 
 void tablet_tool_add(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_tablet_tool *tool = calloc(sizeof(struct roots_tablet_tool), 1);

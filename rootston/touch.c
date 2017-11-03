@@ -3,6 +3,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer.h>
 #include "rootston/input.h"
+#include "rootston/touch.h"
 
 // TODO: we'll likely want touch events to both control the cursor *and* be
 // submitted directly to the seat.

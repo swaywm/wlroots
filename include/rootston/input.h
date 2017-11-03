@@ -1,6 +1,5 @@
 #ifndef _ROOTSTON_INPUT_H
 #define _ROOTSTON_INPUT_H
-#include <xkbcommon/xkbcommon.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_cursor.h>
@@ -9,41 +8,6 @@
 #include "rootston/config.h"
 #include "rootston/view.h"
 #include "rootston/server.h"
-
-#define ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP 32
-
-struct roots_keyboard {
-	struct roots_input *input;
-	struct wlr_input_device *device;
-	struct wl_listener key;
-	struct wl_listener modifiers;
-	struct wl_list link;
-
-	xkb_keysym_t pressed_keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
-};
-
-struct roots_pointer {
-	struct roots_input *input;
-	struct wlr_input_device *device;
-	struct wl_list link;
-};
-
-struct roots_touch {
-	struct roots_input *input;
-	struct wlr_input_device *device;
-	struct wl_list link;
-};
-
-// TODO: tablet pad
-struct roots_tablet_tool {
-	struct roots_input *input;
-	struct wlr_input_device *device;
-	struct wl_listener axis;
-	struct wl_listener proximity;
-	struct wl_listener tip;
-	struct wl_listener button;
-	struct wl_list link;
-};
 
 enum roots_cursor_mode {
 	ROOTS_CURSOR_PASSTHROUGH = 0,
@@ -75,13 +39,6 @@ struct roots_drag_icon {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
-};
-
-struct roots_touch_point {
-	struct roots_touch *device;
-	int32_t slot;
-	double x, y;
-	struct wl_list link;
 };
 
 struct roots_input {
@@ -137,15 +94,6 @@ struct roots_input {
 struct roots_input *input_create(struct roots_server *server,
 		struct roots_config *config);
 void input_destroy(struct roots_input *input);
-
-void pointer_add(struct wlr_input_device *device, struct roots_input *input);
-void pointer_remove(struct wlr_input_device *device, struct roots_input *input);
-void keyboard_add(struct wlr_input_device *device, struct roots_input *input);
-void keyboard_remove(struct wlr_input_device *device, struct roots_input *input);
-void touch_add(struct wlr_input_device *device, struct roots_input *input);
-void touch_remove(struct wlr_input_device *device, struct roots_input *input);
-void tablet_tool_add(struct wlr_input_device *device, struct roots_input *input);
-void tablet_tool_remove(struct wlr_input_device *device, struct roots_input *input);
 
 void cursor_initialize(struct roots_input *input);
 void cursor_load_config(struct roots_config *config,

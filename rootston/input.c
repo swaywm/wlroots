@@ -8,6 +8,10 @@
 #include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
+#include "rootston/tablet_tool.h"
+#include "rootston/keyboard.h"
+#include "rootston/pointer.h"
+#include "rootston/touch.h"
 
 static const char *device_type(enum wlr_input_device_type type) {
 	switch (type) {
