@@ -45,9 +45,15 @@ void view_get_size(struct roots_view *view, struct wlr_box *box) {
 	box->height = view->wlr_surface->current->height;
 }
 
-void view_set_position(struct roots_view *view, double x, double y) {
-	if (view->set_position) {
-		view->set_position(view, x, y);
+void view_activate(struct roots_view *view, bool activate) {
+	if (view->activate) {
+		view->activate(view, activate);
+	}
+}
+
+void view_move(struct roots_view *view, double x, double y) {
+	if (view->move) {
+		view->move(view, x, y);
 		return;
 	}
 
@@ -55,16 +61,21 @@ void view_set_position(struct roots_view *view, double x, double y) {
 	view->y = y;
 }
 
-void view_activate(struct roots_view *view, bool activate) {
-	if (view->activate) {
-		view->activate(view, activate);
-	}
-}
-
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	if (view->resize) {
 		view->resize(view, width, height);
 	}
+}
+
+void view_move_resize(struct roots_view *view, double x, double y,
+		uint32_t width, uint32_t height) {
+	if (view->move_resize) {
+		view->move_resize(view, x, y, width, height);
+		return;
+	}
+
+	view_move(view, x, y);
+	view_resize(view, width, height);
 }
 
 void view_close(struct roots_view *view) {
@@ -101,7 +112,7 @@ bool view_center(struct roots_view *view) {
 	double view_x = (double)(width - size.width) / 2 + l_output->x;
 	double view_y = (double)(height - size.height) / 2 + l_output->y;
 
-	view_set_position(view, view_x, view_y);
+	view_move(view, view_x, view_y);
 
 	return true;
 }

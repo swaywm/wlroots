@@ -120,7 +120,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 			surface->parent);
 		if (i != -1) {
 			struct roots_view *parent = desktop->views->items[i];
-			view_set_position(view,
+			view_move(view,
 				parent->x + surface->transient_state->x,
 				parent->y + surface->transient_state->y);
 		}
