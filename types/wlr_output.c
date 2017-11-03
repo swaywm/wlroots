@@ -255,12 +255,12 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 
 static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	struct wlr_tex *tex = cursor->tex;
-	struct wlr_render *rend = wlr_backend_get_cursor(cursor->output->backend);
-	if (cursor->surface != NULL) {
-		texture = cursor->surface->tex;
+	struct wlr_render *rend = wlr_backend_get_render(cursor->output->backend);
+	if (cursor->surface) {
+		tex = cursor->surface->tex;
 	}
 
-	if (texture == NULL || renderer == NULL) {
+	if (!tex) {
 		return;
 	}
 
@@ -343,7 +343,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
 		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-			stride, width, height, hotspot_x, hotspot_y, true);
+			stride * 4, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
 			cursor->output->hardware_cursor = cursor;
 			return true;

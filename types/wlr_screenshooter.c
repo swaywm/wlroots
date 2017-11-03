@@ -68,12 +68,6 @@ static void screenshooter_shoot(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_screenshot *screenshot =
-		calloc(1, sizeof(struct wlr_screenshot));
-	if (!screenshot) {
-		wl_resource_post_no_memory(screenshooter_resource);
-		return;
-	}
 	screenshot->output_resource = output_resource;
 	screenshot->output = output;
 	screenshot->screenshooter = screenshooter;
