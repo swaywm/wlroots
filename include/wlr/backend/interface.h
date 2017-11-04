@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
-#include "render/render.h"
+#include <wlr/render/render.h>
 
 struct wlr_backend_impl {
 	bool (*start)(struct wlr_backend *backend);

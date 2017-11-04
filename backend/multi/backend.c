@@ -3,9 +3,10 @@
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/render.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
-#include "render/render.h"
 
 struct subbackend_state {
 	struct wlr_backend *backend;

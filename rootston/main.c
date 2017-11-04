@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
-#include "render/render.h"
 #include <wlr/backend.h>
+#include <wlr/render/render.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"

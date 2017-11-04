@@ -11,6 +11,7 @@
 
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_render {
@@ -53,50 +54,11 @@ struct format {
 
 const struct format *wl_to_gl(enum wl_shm_format fmt);
 
-bool wlr_render_format_supported(enum wl_shm_format);
-
-struct wlr_output;
-
 struct wlr_render *wlr_render_create(struct wlr_backend *backend);
 void wlr_render_destroy(struct wlr_render *rend);
 
-void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output);
 void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
 		enum wl_output_transform transform);
-void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a);
-
-void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
-	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-	int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z);
-
-void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
-
-void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
-
-void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
-
-bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
-	uint32_t stride, uint32_t width, uint32_t height,
-	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
-	void *data);
-
-struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
-	uint32_t stride, uint32_t width, uint32_t height, const void *data);
-
-struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data);
-
-struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt,
-	uint32_t width, uint32_t height, int fd0, uint32_t offset0, uint32_t stride0);
-
-bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
-	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
-	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
-	const void *data);
-
-void wlr_tex_destroy(struct wlr_tex *tex);
 
 void push_marker(const char *file, const char *func);
 void pop_marker(void);

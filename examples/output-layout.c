@@ -11,13 +11,13 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES2/gl2.h>
-#include "render/render.h"
-#include <wlr/util/log.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_output.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/util/log.h>
 #include <math.h>
 #include "support/shared.h"
 #include "support/config.h"
@@ -115,8 +115,8 @@ static void handle_output_frame(struct output_state *output,
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		int32_t width = sample->cat_tex->width;
-		int32_t height = sample->cat_tex->height;
+		int32_t width = wlr_tex_get_width(sample->cat_tex);
+		int32_t height = wlr_tex_get_height(sample->cat_tex);
 
 		wlr_render_texture(sample->rend, sample->cat_tex, local_x, local_y,
 			local_x + width, local_y + height, 0);

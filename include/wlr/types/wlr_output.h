@@ -5,7 +5,7 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wlr/backend.h>
-#include "render/render.h"
+#include <wlr/render/render.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode

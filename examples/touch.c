@@ -10,10 +10,9 @@
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include "render/render.h"
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include "support/shared.h"
@@ -46,8 +45,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		struct touch_point *p = sample->touch_points->items[i];
 		int32_t x = p->x * width;
 		int32_t y = p->x * width;
-		int32_t w = sample->cat_tex->width / 2;
-		int32_t h = sample->cat_tex->height / 2;
+		int32_t w = wlr_tex_get_width(sample->cat_tex) / 2;
+		int32_t h = wlr_tex_get_height(sample->cat_tex) / 2;
 		wlr_render_texture(sample->rend, sample->cat_tex,
 			x - w, y - h, x + w, y + h, 0);
 	}

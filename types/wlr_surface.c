@@ -4,6 +4,7 @@
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/egl.h>
+#include "render/render.h"
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {

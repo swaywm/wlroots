@@ -183,6 +183,15 @@ struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt
 	return tex;
 }
 
+int32_t wlr_tex_get_width(struct wlr_tex *tex) {
+	assert(tex);
+	return tex->width;
+}
+
+int32_t wlr_tex_get_height(struct wlr_tex *tex) {
+	assert(tex);
+	return tex->height;
+}
 
 void wlr_tex_destroy(struct wlr_tex *tex) {
 	if (!tex) {

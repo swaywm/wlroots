@@ -10,6 +10,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "render/render.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
 

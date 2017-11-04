@@ -11,6 +11,7 @@
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
 #include "backend/drm/drm.h"
+#include "render/render.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {

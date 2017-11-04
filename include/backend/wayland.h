@@ -6,11 +6,11 @@
 #include <wayland-server.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/render.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-util.h>
-#include "render/render.h"
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;

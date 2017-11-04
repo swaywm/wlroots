@@ -5,13 +5,12 @@
 #include <tgmath.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/interfaces/wlr_output.h>
-#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
-#include <GLES2/gl2.h>
 #include "render/render.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {

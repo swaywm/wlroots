@@ -22,6 +22,7 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
+#include "render/render.h"
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;

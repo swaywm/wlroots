@@ -20,6 +20,7 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/render.h"
 
 bool wlr_drm_check_features(struct wlr_drm_backend *drm) {
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {

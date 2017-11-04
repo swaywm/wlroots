@@ -1,21 +1,20 @@
 #define _POSIX_C_SOURCE 199309L
 #define _XOPEN_SOURCE 500
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include "render/render.h"
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
-#include <math.h>
 #include "support/shared.h"
 #include "support/config.h"
 #include "support/cat.h"
@@ -44,8 +43,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_render_bind(sample->rend, wlr_output);
 	wlr_render_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
 
-	int32_t tex_w = sample->cat_tex->width;
-	int32_t tex_h = sample->cat_tex->height;
+	int32_t tex_w = wlr_tex_get_width(sample->cat_tex);
+	int32_t tex_h = wlr_tex_get_height(sample->cat_tex);
 
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
