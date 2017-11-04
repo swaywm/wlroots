@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE // Exposes M_PI
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,13 +145,13 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
-	GLuint prog = rend->shaders.extn;
+	GLuint prog = rend->shaders.tex;
 
 	GLuint proj_loc = glGetUniformLocation(prog, "proj");
 	GLuint pos_loc = glGetAttribLocation(prog, "pos");
 	GLuint texcoord_loc = glGetAttribLocation(prog, "texcoord");
 
-	glUseProgram(rend->shaders.extn);
+	glUseProgram(prog);
 	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, rend->proj);
 
 	glActiveTexture(GL_TEXTURE0);
@@ -191,6 +193,89 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	DEBUG_POP;
 }
 
+void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2, z);
+}
+
+void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+	DEBUG_PUSH;
+
+	GLuint prog = rend->shaders.poly;
+
+	GLuint proj_loc = glGetUniformLocation(prog, "proj");
+	GLuint pos_loc = glGetAttribLocation(prog, "pos");
+	GLuint color_loc = glGetUniformLocation(prog, "color");
+
+	glUseProgram(prog);
+	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, rend->proj);
+	glUniform4f(color_loc, r, g, b, a);
+
+	GLfloat verts[] = {
+		x1, y1, z,
+		x2, y1, z,
+		x1, y2, z,
+		x2, y2, z,
+	};
+
+	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnableVertexAttribArray(pos_loc);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	DEBUG_POP;
+}
+
+void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+	DEBUG_PUSH;
+
+	GLuint prog = rend->shaders.poly;
+
+	GLuint proj_loc = glGetUniformLocation(prog, "proj");
+	GLuint pos_loc = glGetAttribLocation(prog, "pos");
+	GLuint color_loc = glGetUniformLocation(prog, "color");
+
+	glUseProgram(prog);
+	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, rend->proj);
+	glUniform4f(color_loc, r, g, b, a);
+
+	float x = (x1 + x2) / 2.0f;
+	float y = (y1 + y2) / 2.0f;
+	float rw = fabs(x1 - x2) / 2.0f;
+	float rh = fabs(y1 - y2) / 2.0f;
+
+	GLfloat verts[18 * 3] = {
+		x, y, z,
+	};
+
+	for (int i = 0; i < 17; ++i) {
+		float angle = M_PI / 8.0f * i;
+		int base = (i + 1) * 3;
+		verts[base + 0] = x + sin(angle) * rw;
+		verts[base + 1] = y + cos(angle) * rh;
+		verts[base + 2] = z;
+	}
+
+	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnableVertexAttribArray(pos_loc);
+
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 18);
+
+	DEBUG_POP;
+}
+
 bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
@@ -219,11 +304,6 @@ bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 
 	DEBUG_POP;
 	return true;
-}
-
-void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
-	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2, z);
 }
 
 void push_marker(const char *file, const char *func) {
@@ -308,13 +388,10 @@ error:
 	return prog;
 }
 
-extern const GLchar quad_vert_src[];
-extern const GLchar quad_frag_src[];
-extern const GLchar ellipse_frag_src[];
+extern const GLchar poly_vert_src[];
+extern const GLchar poly_frag_src[];
 extern const GLchar tex_vert_src[];
-extern const GLchar rgba_frag_src[];
-extern const GLchar rgbx_frag_src[];
-extern const GLchar extn_frag_src[];
+extern const GLchar tex_frag_src[];
 
 struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 	struct wlr_render *rend = calloc(1, sizeof(*rend));
@@ -338,24 +415,12 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 
 	DEBUG_PUSH;
 
-	rend->shaders.quad = link_program(quad_vert_src, quad_frag_src);
-	if (!rend->shaders.quad) {
+	rend->shaders.poly = link_program(poly_vert_src, poly_frag_src);
+	if (!rend->shaders.poly) {
 		goto error;
 	}
-	rend->shaders.ellipse = link_program(quad_vert_src, ellipse_frag_src);
-	if (!rend->shaders.ellipse) {
-		goto error;
-	}
-	rend->shaders.rgba = link_program(tex_vert_src, rgba_frag_src);
-	if (!rend->shaders.rgba) {
-		goto error;
-	}
-	rend->shaders.rgbx = link_program(tex_vert_src, rgbx_frag_src);
-	if (!rend->shaders.rgbx) {
-		goto error;
-	}
-	rend->shaders.extn = link_program(tex_vert_src, extn_frag_src);
-	if (!rend->shaders.extn) {
+	rend->shaders.tex = link_program(tex_vert_src, tex_frag_src);
+	if (!rend->shaders.tex) {
 		goto error;
 	}
 
@@ -363,11 +428,8 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 	return rend;
 
 error:
-	glDeleteProgram(rend->shaders.quad);
-	glDeleteProgram(rend->shaders.ellipse);
-	glDeleteProgram(rend->shaders.rgba);
-	glDeleteProgram(rend->shaders.rgbx);
-	glDeleteProgram(rend->shaders.extn);
+	glDeleteProgram(rend->shaders.poly);
+	glDeleteProgram(rend->shaders.tex);
 
 	DEBUG_POP;
 	glDisable(GL_DEBUG_OUTPUT_KHR);

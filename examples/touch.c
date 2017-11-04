@@ -13,7 +13,7 @@
 #include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include "wlr/render.h"
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_list.h>
@@ -22,8 +22,8 @@
 #include "support/cat.h"
 
 struct sample_state {
-	struct wlr_renderer *renderer;
-	struct wlr_texture *cat_texture;
+	struct wlr_render *rend;
+	struct wlr_tex *cat_tex;
 	struct wlr_list *touch_points;
 };
 
@@ -41,20 +41,19 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output);
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_render_bind(sample->rend, wlr_output);
+	wlr_render_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
 
-	float matrix[16];
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *p = sample->touch_points->items[i];
-		wlr_texture_get_matrix(sample->cat_texture, &matrix,
-			&wlr_output->transform_matrix,
-			(int)(p->x * width) - sample->cat_texture->width / 2,
-			(int)(p->y * height) - sample->cat_texture->height / 2);
-		wlr_render_with_matrix(sample->renderer,
-				sample->cat_texture, &matrix);
+		int32_t x = p->x * width;
+		int32_t y = p->x * width;
+		int32_t w = sample->cat_tex->width / 2;
+		int32_t h = sample->cat_tex->height / 2;
+		wlr_render_texture(sample->rend, sample->cat_tex,
+			x - w, y - h, x + w, y + h, 0);
 	}
 
-	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
 }
 
@@ -107,18 +106,14 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
-	if (!state.renderer) {
+	state.rend = wlr_backend_get_render(compositor.backend);
+
+	state.cat_tex = wlr_tex_from_pixels(state.rend, WL_SHM_FORMAT_ARGB8888,
+		cat_tex.width * 4, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
+	if (!state.cat_tex) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_create(state.renderer);
-	if (!state.cat_texture) {
-		wlr_log(L_ERROR, "Could not start compositor, OOM");
-		exit(EXIT_FAILURE);
-	}
-	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
-		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");
@@ -127,7 +122,6 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(compositor.display);
 
-	wlr_texture_destroy(state.cat_texture);
-	wlr_renderer_destroy(state.renderer);
+	wlr_tex_destroy(state.cat_tex);
 	compositor_fini(&compositor);
 }

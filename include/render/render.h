@@ -19,11 +19,8 @@ struct wlr_render {
 	float proj[9];
 
 	struct {
-		GLuint quad;
-		GLuint ellipse;
-		GLuint rgba;
-		GLuint rgbx;
-		GLuint extn;
+		GLuint poly;
+		GLuint tex;
 	} shaders;
 };
 
@@ -73,6 +70,12 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z);
 
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
+	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+
+void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
+	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+
+void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
 	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
 
 bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
