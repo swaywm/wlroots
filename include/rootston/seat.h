@@ -9,7 +9,53 @@
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
+	struct wlr_cursor *cursor;
+	struct wl_list link;
+
 	struct wl_list keyboards;
+	struct wl_list pointers;
+	struct wl_list touch;
+	struct wl_list tablet_tools;
+
+	struct wl_listener cursor_motion;
+	struct wl_listener cursor_motion_absolute;
+	struct wl_listener cursor_button;
+	struct wl_listener cursor_axis;
+
+	struct wl_listener cursor_touch_down;
+	struct wl_listener cursor_touch_up;
+	struct wl_listener cursor_touch_motion;
+
+	struct wl_listener cursor_tool_axis;
+	struct wl_listener cursor_tool_tip;
+};
+
+struct roots_pointer {
+	struct roots_seat *seat;
+	struct wlr_input_device *device;
+	struct wl_list link;
+};
+
+struct roots_touch {
+	struct roots_seat *seat;
+	struct wlr_input_device *device;
+	struct wl_list link;
+};
+
+struct roots_touch_point {
+	struct roots_touch *device;
+	int32_t slot;
+	double x, y;
+	struct wl_list link;
+};
+
+struct roots_tablet_tool {
+	struct roots_seat *seat;
+	struct wlr_input_device *device;
+	struct wl_listener axis;
+	struct wl_listener proximity;
+	struct wl_listener tip;
+	struct wl_listener button;
 	struct wl_list link;
 };
 
@@ -17,10 +63,10 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name);
 
 void roots_seat_destroy(struct roots_seat *seat);
 
-void roots_seat_add_keyboard(struct roots_seat *seat,
-		struct roots_keyboard *keyboard);
+void roots_seat_add_device(struct roots_seat *seat,
+		struct wlr_input_device *device);
 
-void roots_seat_remove_keyboard(struct roots_seat *seat,
-		struct roots_keyboard *keyboard);
+void roots_seat_remove_device(struct roots_seat *seat,
+		struct wlr_input_device *device);
 
 #endif

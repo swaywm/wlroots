@@ -8,10 +8,7 @@
 #include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
-#include "rootston/tablet_tool.h"
 #include "rootston/keyboard.h"
-#include "rootston/pointer.h"
-#include "rootston/touch.h"
 #include "rootston/seat.h"
 
 static const char *device_type(enum wlr_input_device_type type) {
@@ -60,44 +57,17 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 
 	wlr_log(L_DEBUG, "New input device: %s (%d:%d) %s", device->name,
 			device->vendor, device->product, device_type(device->type));
-	switch (device->type) {
-	case WLR_INPUT_DEVICE_KEYBOARD: {
-		struct roots_keyboard *keyboard = roots_keyboard_create(device, input);
-		roots_seat_add_keyboard(seat, keyboard);
-		break;
-	}
-	case WLR_INPUT_DEVICE_POINTER:
-		pointer_add(device, input);
-		break;
-	case WLR_INPUT_DEVICE_TOUCH:
-		touch_add(device, input);
-		break;
-	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		tablet_tool_add(device, input);
-		break;
-	default:
-		break;
-	}
+
+	roots_seat_add_device(seat, device);
 }
 
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
-	struct roots_input *input = wl_container_of(listener, input, input_remove);
-	switch (device->type) {
-	case WLR_INPUT_DEVICE_KEYBOARD:
-		roots_keyboard_destroy(device, input);
-		break;
-	case WLR_INPUT_DEVICE_POINTER:
-		pointer_remove(device, input);
-		break;
-	case WLR_INPUT_DEVICE_TOUCH:
-		touch_remove(device, input);
-		break;
-	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		tablet_tool_remove(device, input);
-		break;
-	default:
-		break;
+	struct roots_input *input = wl_container_of(listener, input, input_add);
+
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		roots_seat_remove_device(seat, device);
 	}
 }
 

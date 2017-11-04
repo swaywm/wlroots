@@ -19,9 +19,7 @@
 #include "rootston/desktop.h"
 #include "rootston/view.h"
 #include "rootston/keyboard.h"
-#include "rootston/pointer.h"
-#include "rootston/tablet_tool.h"
-#include "rootston/touch.h"
+#include "rootston/seat.h"
 
 const struct roots_input_event *get_input_event(struct roots_input *input,
 		uint32_t serial) {
