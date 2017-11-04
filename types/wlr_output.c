@@ -270,6 +270,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	output_box.x = output_box.y = 0;
 	wlr_output_effective_resolution(cursor->output, &output_box.width,
 		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -476,7 +478,6 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		double x, double y) {
 	x *= cursor->output->scale;
 	y *= cursor->output->scale;
-	wlr_log(L_DEBUG, "Moving cursor to %f,%f", x, y);
 	cursor->x = x;
 	cursor->y = y;
 
