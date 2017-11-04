@@ -38,9 +38,6 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 /**
  * Refer to the eglQueryWaylandBufferWL extension function.
  */
-bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
-	EGLint attrib, EGLint *value);
-
 bool wlr_egl_query_wl_drm_size(struct wlr_egl *egl, struct wl_resource *buf,
 	int32_t *width, int32_t *height);
 
@@ -49,17 +46,6 @@ bool wlr_egl_query_wl_drm_size(struct wlr_egl *egl, struct wl_resource *buf,
  * The window must match the remote display the wlr_egl was created with.
  */
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
-
-/**
- * Creates an egl image from the given client buffer and attributes.
- */
-EGLImageKHR wlr_egl_create_image(struct wlr_egl *egl,
-		EGLenum target, EGLClientBuffer buffer, const EGLint *attribs);
-
-/**
- * Destroys an egl image created with the given wlr_egl.
- */
-bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
 /**
  * Returns a string for the last error ocurred with egl.
