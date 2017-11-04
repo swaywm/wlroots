@@ -7,7 +7,7 @@ eglBindWaylandDisplayWL
 eglUnbindWaylandDisplayWL
 -eglDebugMessageControlKHR
 glEGLImageTargetTexture2DOES
-glDebugMessageCallbackKHR
-glDebugMessageControlKHR
-glPopDebugGroupKHR
-glPushDebugGroupKHR
+-glDebugMessageCallbackKHR
+-glDebugMessageControlKHR
+-glPopDebugGroupKHR
+-glPushDebugGroupKHR

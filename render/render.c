@@ -307,10 +307,20 @@ bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 }
 
 void push_marker(const char *file, const char *func) {
+	if (!glPushDebugGroupKHR) {
+		return;
+	}
+
 	int len = snprintf(NULL, 0, "%s:%s", file, func) + 1;
 	char str[len];
 	snprintf(str, len, "%s:%s", file, func);
 	glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
+}
+
+void pop_marker(void) {
+	if (glPopDebugGroupKHR) {
+		glPopDebugGroupKHR();
+	}
 }
 
 static log_importance_t gl_to_wlr(GLenum type) {
@@ -403,15 +413,17 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 	eglMakeCurrent(rend->egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 		rend->egl->context);
 
-	glEnable(GL_DEBUG_OUTPUT_KHR);
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
-	glDebugMessageCallbackKHR(gl_log, NULL);
+	if (glDebugMessageCallbackKHR && glDebugMessageControlKHR) {
+		glEnable(GL_DEBUG_OUTPUT_KHR);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
+		glDebugMessageCallbackKHR(gl_log, NULL);
 
-	// Silence unwanted message types
-	glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP_KHR,
-		GL_DONT_CARE, 0, NULL, GL_FALSE);
-	glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP_KHR,
-		GL_DONT_CARE, 0, NULL, GL_FALSE);
+		// Silence unwanted message types
+		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP_KHR,
+			GL_DONT_CARE, 0, NULL, GL_FALSE);
+		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP_KHR,
+			GL_DONT_CARE, 0, NULL, GL_FALSE);
+	}
 
 	DEBUG_PUSH;
 
@@ -432,8 +444,10 @@ error:
 	glDeleteProgram(rend->shaders.tex);
 
 	DEBUG_POP;
-	glDisable(GL_DEBUG_OUTPUT_KHR);
-	glDebugMessageCallbackKHR(NULL, NULL);
+	if (glDebugMessageCallbackKHR) {
+		glDisable(GL_DEBUG_OUTPUT_KHR);
+		glDebugMessageCallbackKHR(NULL, NULL);
+	}
 
 	free(rend);
 	return NULL;

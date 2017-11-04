@@ -99,7 +99,8 @@ bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 void wlr_tex_destroy(struct wlr_tex *tex);
 
 void push_marker(const char *file, const char *func);
+void pop_marker(void);
 #define DEBUG_PUSH push_marker(_strip_path(__FILE__), __func__)
-#define DEBUG_POP glPopDebugGroupKHR()
+#define DEBUG_POP pop_marker()
 
 #endif
