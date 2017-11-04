@@ -136,10 +136,6 @@ void wlr_egl_free(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!eglBindWaylandDisplayWL) {
-		return false;
-	}
-
 	if (eglBindWaylandDisplayWL(egl->display, local_display)) {
 		egl->wl_display = local_display;
 		return true;
