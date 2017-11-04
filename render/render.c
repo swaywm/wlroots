@@ -249,8 +249,8 @@ void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, floa
 
 	float x = (x1 + x2) / 2.0f;
 	float y = (y1 + y2) / 2.0f;
-	float rw = fabs(x1 - x2) / 2.0f;
-	float rh = fabs(y1 - y2) / 2.0f;
+	float rw = abs(x1 - x2) / 2.0f;
+	float rh = abs(y1 - y2) / 2.0f;
 
 	GLfloat verts[18 * 3] = {
 		x, y, z,
