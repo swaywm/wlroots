@@ -472,9 +472,11 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	}
 }
 
-bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
+		double x, double y) {
 	x *= cursor->output->scale;
 	y *= cursor->output->scale;
+	wlr_log(L_DEBUG, "Moving cursor to %f,%f", x, y);
 	cursor->x = x;
 	cursor->y = y;
 
@@ -486,7 +488,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
 	if (!cursor->output->impl->move_cursor) {
 		return false;
 	}
-	return cursor->output->impl->move_cursor(cursor->output, x, y);
+	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
 }
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {

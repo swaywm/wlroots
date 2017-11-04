@@ -378,10 +378,19 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, cursor_tool_axis);
 	struct wlr_event_tablet_tool_axis *event = data;
+
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(input->cursor, event->device,
 			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+		cursor_update_position(input, event->time_msec);
+	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)) {
+		wlr_cursor_warp_absolute(input->cursor, event->device,
+			event->x_mm / event->width_mm, -1);
+		cursor_update_position(input, event->time_msec);
+	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
+		wlr_cursor_warp_absolute(input->cursor, event->device,
+			-1, event->y_mm / event->height_mm);
 		cursor_update_position(input, event->time_msec);
 	}
 }
