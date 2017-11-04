@@ -15,6 +15,11 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
+/*
+ * The wayland formats are little endian while the GL formats are big endian,
+ * so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
+ */
+
 static const struct format formats[] = {
 	{
 		.wl_fmt = WL_SHM_FORMAT_ARGB8888,
