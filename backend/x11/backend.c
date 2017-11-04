@@ -352,18 +352,14 @@ static void output_make_current(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+	eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context);
 }
 
 static void output_swap_buffers(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-	}
+	eglSwapBuffers(x11->egl.display, output->surf);
 }
 
 static struct wlr_output_impl output_impl = {

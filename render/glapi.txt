@@ -5,6 +5,7 @@ eglDestroyImageKHR
 eglQueryWaylandBufferWL
 eglBindWaylandDisplayWL
 eglUnbindWaylandDisplayWL
+-eglDebugMessageControlKHR
 glEGLImageTargetTexture2DOES
 glDebugMessageCallbackKHR
 glDebugMessageControlKHR

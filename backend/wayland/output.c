@@ -30,20 +30,16 @@ static struct wl_callback_listener frame_listener = {
 
 static void wlr_wl_output_make_current(struct wlr_output *_output) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
-	if (!eglMakeCurrent(output->backend->egl.display,
+	eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+		output->backend->egl.context);
 }
 
 static void wlr_wl_output_swap_buffers(struct wlr_output *_output) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
-	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-	}
+	eglSwapBuffers(output->backend->egl.display, output->egl_surface);
 }
 
 static void wlr_wl_output_transform(struct wlr_output *_output,
@@ -291,9 +287,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	// start rendering loop per callbacks by rendering first frame
 	if (!eglMakeCurrent(output->backend->egl.display,
-		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+			output->egl_surface, output->egl_surface,
+			output->backend->egl.context)) {
 		goto error;
 	}
 
@@ -305,7 +300,6 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
 		goto error;
 	}
 
