@@ -52,8 +52,6 @@ struct wlr_output {
 	enum wl_output_transform transform;
 	bool needs_swap;
 
-	float transform_matrix[16];
-
 	/* Note: some backends may have zero modes */
 	struct wl_list modes;
 	struct wlr_output_mode *current_mode;

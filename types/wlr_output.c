@@ -12,8 +12,6 @@
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
 #include "render/render.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
@@ -134,11 +132,6 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	wlr_output->wl_global = NULL;
 }
 
-static void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
-		output->transform);
-}
-
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->impl->enable) {
 		output->impl->enable(output, enable);
@@ -152,7 +145,6 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	}
 	bool result = output->impl->set_mode(output, mode);
 	if (result) {
-		wlr_output_update_matrix(output);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &output->wl_resources) {
 			wlr_output_send_current_mode_to_resource(resource);
@@ -165,7 +157,6 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 		int32_t height) {
 	output->width = width;
 	output->height = height;
-	wlr_output_update_matrix(output);
 	if (output->wl_global != NULL) {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &output->wl_resources) {
@@ -177,7 +168,6 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
-	wlr_output_update_matrix(output);
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,

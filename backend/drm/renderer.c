@@ -3,7 +3,6 @@
 #include <unistd.h>
 
 #include <gbm.h>
-#include <GLES2/gl2.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-server.h>
@@ -11,11 +10,7 @@
 
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
 #include "backend/drm/drm.h"
-#include "render/glapi.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
@@ -94,9 +89,6 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 		return;
 	}
 
-	eglMakeCurrent(surf->renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-		EGL_NO_CONTEXT);
-
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
@@ -137,9 +129,9 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	}
 
 	wlr_drm_surface_make_current(surf);
-	glViewport(0, 0, surf->width, surf->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_render_bind_raw(surf->renderer->rend, surf->width, surf->height,
+		WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_render_clear(surf->renderer->rend, 0.0, 0.0, 0.0, 1.0);
 	return wlr_drm_surface_swap_buffers(surf);
 }
 
