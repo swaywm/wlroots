@@ -751,13 +751,26 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 
 	// enter the current surface
 	if (client && client->keyboard) {
-		// TODO: read the currently pressed keys out of the active keyboard and
-		// put them in this array
+		struct wlr_keyboard *keyboard = wlr_seat->keyboard_state.keyboard;
+
 		struct wl_array keys;
 		wl_array_init(&keys);
+		size_t n = 0;
+		for (size_t i = 0; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
+			if (keyboard->keycodes[i] != 0) {
+				wl_array_add(&keys, sizeof(uint32_t));
+				((uint32_t *)keys.data)[n] = keyboard->keycodes[i];
+				n++;
+			}
+		}
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		wl_keyboard_send_enter(client->keyboard, serial,
 			surface->resource, &keys);
+		wl_array_release(&keys);
+
+		wlr_seat_keyboard_send_modifiers(wlr_seat,
+			keyboard->modifiers.depressed, keyboard->modifiers.latched,
+			keyboard->modifiers.locked, keyboard->modifiers.group);
 		wlr_seat_client_send_selection(client);
 	}
 
