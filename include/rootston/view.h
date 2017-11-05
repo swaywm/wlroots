@@ -26,6 +26,12 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener destroy;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
+
+	struct {
+		bool needs_move;
+		double x, y;
+		uint32_t width, height;
+	} move_resize;
 };
 
 struct roots_xwayland_surface {

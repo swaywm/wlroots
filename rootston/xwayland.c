@@ -52,13 +52,13 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(xwayland_surface, width, height, &contrained_width,
-		&contrained_height);
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
+		&constrained_height);
 
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		xwayland_surface->x, xwayland_surface->y, contrained_width,
-		contrained_height);
+		xwayland_surface->x, xwayland_surface->y, constrained_width,
+		constrained_height);
 }
 
 static void move_resize(struct roots_view *view, double x, double y,
@@ -66,18 +66,18 @@ static void move_resize(struct roots_view *view, double x, double y,
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(xwayland_surface, width, height, &contrained_width,
-		&contrained_height);
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
+		&constrained_height);
 
-	x = x + width - contrained_width;
-	y = y + height - contrained_height;
+	x = x + width - constrained_width;
+	y = y + height - constrained_height;
 
 	view->x = x;
 	view->y = y;
 
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		x, y, contrained_width, contrained_height);
+		x, y, constrained_width, constrained_height);
 }
 
 static void close(struct roots_view *view) {

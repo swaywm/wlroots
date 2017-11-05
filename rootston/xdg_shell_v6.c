@@ -12,27 +12,26 @@
 
 static void get_size(struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
-	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	// TODO: surf->geometry can be NULL
-	memcpy(box, surf->geometry, sizeof(struct wlr_box));
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	// TODO: surface->geometry can be NULL
+	memcpy(box, surface->geometry, sizeof(struct wlr_box));
 }
 
 static void activate(struct roots_view *view, bool active) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
-	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wlr_xdg_toplevel_v6_set_activated(surf, active);
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_toplevel_v6_set_activated(surface, active);
 	}
 }
 
-static void apply_size_constraints(struct wlr_xdg_surface_v6 *surf,
+static void apply_size_constraints(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height, uint32_t *dest_width,
 		uint32_t *dest_height) {
 	*dest_width = width;
 	*dest_height = height;
 
-	struct wlr_xdg_toplevel_v6_state *state =
-		&surf->toplevel_state->current;
+	struct wlr_xdg_toplevel_v6_state *state = &surface->toplevel_state->current;
 	if (width < state->min_width) {
 		*dest_width = state->min_width;
 	} else if (state->max_width > 0 &&
@@ -49,46 +48,50 @@ static void apply_size_constraints(struct wlr_xdg_surface_v6 *surf,
 
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
-	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	if (surf->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		return;
 	}
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(surf, width, height, &contrained_width,
-		&contrained_height);
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(surface, width, height, &constrained_width,
+		&constrained_height);
 
-	wlr_xdg_toplevel_v6_set_size(surf, contrained_width, contrained_height);
+	wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
+		constrained_height);
 }
 
 static void move_resize(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
-	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	if (surf->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	struct roots_xdg_surface_v6 *roots_surface = view->roots_xdg_surface_v6;
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		return;
 	}
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(surf, width, height, &contrained_width,
-		&contrained_height);
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(surface, width, height, &constrained_width,
+		&constrained_height);
 
-	x = x + width - contrained_width;
-	y = y + height - contrained_height;
+	x = x + width - constrained_width;
+	y = y + height - constrained_height;
 
-	// TODO: we should wait for an ack_configure event before updating the
-	// position
-	view->x = x;
-	view->y = y;
+	roots_surface->move_resize.needs_move = true;
+	roots_surface->move_resize.x = x;
+	roots_surface->move_resize.y = y;
+	roots_surface->move_resize.width = constrained_width;
+	roots_surface->move_resize.height = constrained_height;
 
-	wlr_xdg_toplevel_v6_set_size(surf, contrained_width, contrained_height);
+	wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
+		constrained_height);
 }
 
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
-	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wlr_xdg_toplevel_v6_send_close(surf);
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		wlr_xdg_toplevel_v6_send_close(surface);
 	}
 }
 
@@ -119,7 +122,18 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 }
 
 static void handle_commit(struct wl_listener *listener, void *data) {
-	// TODO is there anything we need to do here?
+	struct roots_xdg_surface_v6 *roots_surface =
+		wl_container_of(listener, roots_surface, commit);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+
+	if (roots_surface->move_resize.needs_move) {
+		view->x = roots_surface->move_resize.x +
+			roots_surface->move_resize.width - surface->geometry->width;
+		view->y = roots_surface->move_resize.y +
+			roots_surface->move_resize.height - surface->geometry->height;
+		roots_surface->move_resize.needs_move = false;
+	}
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
