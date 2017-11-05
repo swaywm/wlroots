@@ -48,8 +48,17 @@ enum roots_view_type {
 
 struct roots_view {
 	struct roots_desktop *desktop;
+
 	double x, y;
 	float rotation;
+
+	bool maximized;
+	struct {
+		double x, y;
+		uint32_t width, height;
+		float rotation;
+	} saved;
+
 	// TODO: Something for roots-enforced width/height
 	enum roots_view_type type;
 	union {
@@ -67,6 +76,7 @@ struct roots_view {
 #endif
 	};
 	struct wlr_surface *wlr_surface;
+
 	// TODO: This would probably be better as a field that's updated on a
 	// configure event from the xdg_shell
 	// If not then this should follow the typical type/impl pattern we use
@@ -77,6 +87,7 @@ struct roots_view {
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
 	void (*move_resize)(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height);
+	void (*maximize)(struct roots_view *view, bool maximized);
 	void (*close)(struct roots_view *view);
 };
 
@@ -86,6 +97,7 @@ void view_move(struct roots_view *view, double x, double y);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
 void view_move_resize(struct roots_view *view, double x, double y,
 	uint32_t width, uint32_t height);
+void view_maximize(struct roots_view *view, bool maximized);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);

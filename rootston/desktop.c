@@ -78,6 +78,50 @@ void view_move_resize(struct roots_view *view, double x, double y,
 	view_resize(view, width, height);
 }
 
+void view_maximize(struct roots_view *view, bool maximized) {
+	if (view->maximized == maximized) {
+		return;
+	}
+
+	if (view->maximize) {
+		view->maximize(view, maximized);
+	}
+
+	if (!view->maximized && maximized) {
+		struct wlr_box view_box;
+		view_get_size(view, &view_box);
+
+		view->maximized = true;
+		view->saved.x = view->x;
+		view->saved.y = view->y;
+		view->saved.rotation = view->rotation;
+		view->saved.width = view_box.width;
+		view->saved.height = view_box.height;
+
+		double output_x, output_y;
+		wlr_output_layout_closest_point(view->desktop->layout, NULL,
+			view->x + (double)view_box.width/2,
+			view->y + (double)view_box.height/2,
+			&output_x, &output_y);
+		struct wlr_output *output = wlr_output_layout_output_at(
+			view->desktop->layout, output_x, output_y);
+		struct wlr_box *output_box =
+			wlr_output_layout_get_box(view->desktop->layout, output);
+
+		view_move_resize(view, output_box->x, output_box->y, output_box->width,
+			output_box->height);
+		view->rotation = 0;
+	}
+
+	if (view->maximized && !maximized) {
+		view->maximized = false;
+
+		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
+			view->saved.height);
+		view->rotation = view->saved.rotation;
+	}
+}
+
 void view_close(struct roots_view *view) {
 	if (view->close) {
 		view->close(view);
