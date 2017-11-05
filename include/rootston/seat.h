@@ -9,25 +9,13 @@
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
-	struct wlr_cursor *cursor;
+	struct roots_cursor *cursor;
 	struct wl_list link;
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
-
-	struct wl_listener cursor_motion;
-	struct wl_listener cursor_motion_absolute;
-	struct wl_listener cursor_button;
-	struct wl_listener cursor_axis;
-
-	struct wl_listener cursor_touch_down;
-	struct wl_listener cursor_touch_up;
-	struct wl_listener cursor_touch_motion;
-
-	struct wl_listener cursor_tool_axis;
-	struct wl_listener cursor_tool_tip;
 };
 
 struct roots_pointer {

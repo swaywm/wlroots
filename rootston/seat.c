@@ -7,6 +7,7 @@
 #include "rootston/input.h"
 #include "rootston/seat.h"
 #include "rootston/keyboard.h"
+#include "rootston/cursor.h"
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
@@ -24,43 +25,70 @@ static void handle_keyboard_modifiers(struct wl_listener *listener,
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, motion);
+	struct wlr_event_pointer_motion *event = data;
+	roots_cursor_handle_motion(cursor, event);
 }
 
 static void handle_cursor_motion_absolute(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, motion_absolute);
+	struct wlr_event_pointer_motion_absolute *event = data;
+	roots_cursor_handle_motion_absolute(cursor, event);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, button);
+	struct wlr_event_pointer_button *event = data;
+	roots_cursor_handle_button(cursor, event);
 }
 
 static void handle_cursor_axis(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, axis);
+	struct wlr_event_pointer_axis *event = data;
+	roots_cursor_handle_axis(cursor, event);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, touch_down);
+	struct wlr_event_touch_down *event = data;
+	roots_cursor_handle_touch_down(cursor, event);
 }
 
 static void handle_touch_up(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, touch_up);
+	struct wlr_event_touch_up *event = data;
+	roots_cursor_handle_touch_up(cursor, event);
 }
 
 static void handle_touch_motion(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, touch_motion);
+	struct wlr_event_touch_motion *event = data;
+	roots_cursor_handle_touch_motion(cursor, event);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_axis);
+	struct wlr_event_tablet_tool_axis *event = data;
+	roots_cursor_handle_tool_axis(cursor, event);
 }
 
 static void handle_tool_tip(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_tip);
+	struct wlr_event_tablet_tool_tip *event = data;
+	roots_cursor_handle_tool_tip(cursor, event);
 }
 
 static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input_device *device) {
-	struct wlr_cursor *cursor = seat->cursor;
+	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
 
 	wlr_cursor_map_input_to_output(cursor, device, NULL);
@@ -72,7 +100,7 @@ static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input
 
 static void seat_set_device_output_mappings(struct roots_seat *seat,
 		struct wlr_input_device *device, struct wlr_output *output) {
-	struct wlr_cursor *cursor = seat->cursor;
+	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
 	struct device_config *dconfig;
 	dconfig = config_get_device(config, device);
@@ -85,7 +113,7 @@ static void seat_set_device_output_mappings(struct roots_seat *seat,
 static void roots_seat_configure_cursor(struct roots_seat *seat) {
 	struct roots_config *config = seat->input->config;
 	struct roots_desktop *desktop = seat->input->server->desktop;
-	struct wlr_cursor *cursor = seat->cursor;
+	struct wlr_cursor *cursor = seat->cursor->cursor;
 
 	struct roots_pointer *pointer;
 	struct roots_touch *touch;
@@ -124,46 +152,42 @@ static void roots_seat_configure_cursor(struct roots_seat *seat) {
 }
 
 static void roots_seat_init_cursor(struct roots_seat *seat) {
-	struct wlr_cursor *cursor = wlr_cursor_create();
-	if (!cursor) {
+	seat->cursor = roots_cursor_create(seat);
+	if (!seat->cursor) {
 		return;
 	}
-	seat->cursor = cursor;
-
-	// add output layout and configure
+	struct wlr_cursor *wlr_cursor = seat->cursor->cursor;
 	struct roots_desktop *desktop = seat->input->server->desktop;
-	wlr_cursor_attach_output_layout(cursor, desktop->layout);
-	roots_seat_configure_cursor(seat);
-	// TODO configure cursor by seat
+	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
 
 	// add input signals
-	wl_signal_add(&cursor->events.motion, &seat->cursor_motion);
-	seat->cursor_motion.notify = handle_cursor_motion;
+	wl_signal_add(&wlr_cursor->events.motion, &seat->cursor->motion);
+	seat->cursor->motion.notify = handle_cursor_motion;
 
-	wl_signal_add(&cursor->events.motion_absolute,
-		&seat->cursor_motion_absolute);
-	seat->cursor_motion_absolute.notify = handle_cursor_motion_absolute;
+	wl_signal_add(&wlr_cursor->events.motion_absolute,
+		&seat->cursor->motion_absolute);
+	seat->cursor->motion_absolute.notify = handle_cursor_motion_absolute;
 
-	wl_signal_add(&cursor->events.button, &seat->cursor_button);
-	seat->cursor_button.notify = handle_cursor_button;
+	wl_signal_add(&wlr_cursor->events.button, &seat->cursor->button);
+	seat->cursor->button.notify = handle_cursor_button;
 
-	wl_signal_add(&cursor->events.axis, &seat->cursor_axis);
-	seat->cursor_axis.notify = handle_cursor_axis;
+	wl_signal_add(&wlr_cursor->events.axis, &seat->cursor->axis);
+	seat->cursor->axis.notify = handle_cursor_axis;
 
-	wl_signal_add(&cursor->events.touch_down, &seat->cursor_touch_down);
-	seat->cursor_touch_down.notify = handle_touch_down;
+	wl_signal_add(&wlr_cursor->events.touch_down, &seat->cursor->touch_down);
+	seat->cursor->touch_down.notify = handle_touch_down;
 
-	wl_signal_add(&cursor->events.touch_up, &seat->cursor_touch_up);
-	seat->cursor_touch_up.notify = handle_touch_up;
+	wl_signal_add(&wlr_cursor->events.touch_up, &seat->cursor->touch_up);
+	seat->cursor->touch_up.notify = handle_touch_up;
 
-	wl_signal_add(&cursor->events.touch_motion, &seat->cursor_touch_motion);
-	seat->cursor_touch_motion.notify = handle_touch_motion;
+	wl_signal_add(&wlr_cursor->events.touch_motion, &seat->cursor->touch_motion);
+	seat->cursor->touch_motion.notify = handle_touch_motion;
 
-	wl_signal_add(&cursor->events.tablet_tool_axis, &seat->cursor_tool_axis);
-	seat->cursor_tool_axis.notify = handle_tool_axis;
+	wl_signal_add(&wlr_cursor->events.tablet_tool_axis, &seat->cursor->tool_axis);
+	seat->cursor->tool_axis.notify = handle_tool_axis;
 
-	wl_signal_add(&cursor->events.tablet_tool_tip, &seat->cursor_tool_tip);
-	seat->cursor_tool_tip.notify = handle_tool_tip;
+	wl_signal_add(&wlr_cursor->events.tablet_tool_tip, &seat->cursor->tool_tip);
+	seat->cursor->tool_tip.notify = handle_tool_tip;
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
@@ -171,6 +195,8 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	if (!seat) {
 		return NULL;
 	}
+
+	seat->input = input;
 
 	roots_seat_init_cursor(seat);
 	if (!seat->cursor) {
@@ -181,7 +207,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	seat->seat = wlr_seat_create(input->server->wl_display, name);
 	if (!seat->seat) {
 		free(seat);
-		wlr_cursor_destroy(seat->cursor);
+		roots_cursor_destroy(seat->cursor);
 		return NULL;
 	}
 
@@ -190,10 +216,12 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		WL_SEAT_CAPABILITY_POINTER |
 		WL_SEAT_CAPABILITY_TOUCH);
 
-	seat->input = input;
-
 	wl_list_insert(&input->seats, &seat->link);
+
 	wl_list_init(&seat->keyboards);
+	wl_list_init(&seat->pointers);
+	wl_list_init(&seat->touch);
+	wl_list_init(&seat->tablet_tools);
 
 	return seat;
 }
@@ -228,7 +256,7 @@ static void seat_add_pointer(struct roots_seat *seat, struct wlr_input_device *d
 	pointer->device = device;
 	pointer->seat = seat;
 	wl_list_insert(&seat->pointers, &pointer->link);
-	wlr_cursor_attach_input_device(seat->cursor, device);
+	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
 }
 
@@ -243,7 +271,7 @@ static void seat_add_touch(struct roots_seat *seat, struct wlr_input_device *dev
 	touch->device = device;
 	touch->seat = seat;
 	wl_list_insert(&seat->touch, &touch->link);
-	wlr_cursor_attach_input_device(seat->cursor, device);
+	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
 }
 
@@ -262,7 +290,7 @@ static void seat_add_tablet_tool(struct roots_seat *seat, struct wlr_input_devic
 	tablet_tool->device = device;
 	tablet_tool->seat = seat;
 	wl_list_insert(&seat->tablet_tools, &tablet_tool->link);
-	wlr_cursor_attach_input_device(seat->cursor, device);
+	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
 }
 
