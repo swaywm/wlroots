@@ -65,9 +65,9 @@ static void wl_pointer_destroy(struct wl_resource *resource) {
 }
 
 static void wl_seat_get_pointer(struct wl_client *client,
-		struct wl_resource *pointer_resource, uint32_t id) {
+		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(pointer_resource);
+		wl_resource_get_user_data(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_POINTER)) {
 		return;
 	}
@@ -78,7 +78,11 @@ static void wl_seat_get_pointer(struct wl_client *client,
 		wl_resource_destroy(seat_client->pointer);
 	}
 	seat_client->pointer = wl_resource_create(client, &wl_pointer_interface,
-		wl_resource_get_version(pointer_resource), id);
+		wl_resource_get_version(seat_resource), id);
+	if (seat_client->pointer == NULL) {
+		wl_resource_post_no_memory(seat_resource);
+		return;
+	}
 	wl_resource_set_implementation(seat_client->pointer, &wl_pointer_impl,
 		seat_client, &wl_pointer_destroy);
 }
@@ -126,6 +130,10 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 	}
 	seat_client->keyboard = wl_resource_create(client, &wl_keyboard_interface,
 		wl_resource_get_version(seat_resource), id);
+	if (seat_client->keyboard == NULL) {
+		wl_resource_post_no_memory(seat_resource);
+		return;
+	}
 	wl_resource_set_implementation(seat_client->keyboard, &wl_keyboard_impl,
 		seat_client, &wl_keyboard_destroy);
 
@@ -162,6 +170,10 @@ static void wl_seat_get_touch(struct wl_client *client,
 	}
 	seat_client->touch = wl_resource_create(client, &wl_touch_interface,
 		wl_resource_get_version(seat_resource), id);
+	if (seat_client->touch == NULL) {
+		wl_resource_post_no_memory(seat_resource);
+		return;
+	}
 	wl_resource_set_implementation(seat_client->touch, &wl_touch_impl,
 		seat_client, &wl_touch_destroy);
 }
@@ -213,6 +225,11 @@ static void wl_seat_bind(struct wl_client *client, void *_wlr_seat,
 	}
 	seat_client->wl_resource =
 		wl_resource_create(client, &wl_seat_interface, version, id);
+	if (seat_client->wl_resource == NULL) {
+		free(seat_client);
+		wl_client_post_no_memory(client);
+		return;
+	}
 	seat_client->client = client;
 	seat_client->seat = wlr_seat;
 	wl_resource_set_implementation(seat_client->wl_resource, &wl_seat_impl,

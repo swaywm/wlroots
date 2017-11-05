@@ -90,7 +90,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 
 	struct wlr_event_pointer_axis wlr_event;
 	wlr_event.device = dev;
-	wlr_event.delta = value;
+	wlr_event.delta = wl_fixed_to_double(value);
 	wlr_event.orientation = axis;
 	wlr_event.time_msec = time;
 	wlr_event.source = wlr_wl_pointer->axis_source;

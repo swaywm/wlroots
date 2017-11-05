@@ -506,19 +506,19 @@ static int shell_surface_ping_timeout(void *user_data) {
 }
 
 static void shell_protocol_get_shell_surface(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id,
+		struct wl_resource *shell_resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
 	if (wlr_surface_set_role(surface, wlr_wl_shell_surface_role,
-			resource, WL_SHELL_ERROR_ROLE)) {
+			shell_resource, WL_SHELL_ERROR_ROLE)) {
 		return;
 	}
 
-	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(resource);
+	struct wlr_wl_shell *wl_shell = wl_resource_get_user_data(shell_resource);
 	struct wlr_wl_shell_surface *wl_surface =
 		calloc(1, sizeof(struct wlr_wl_shell_surface));
 	if (wl_surface == NULL) {
-		wl_client_post_no_memory(client);
+		wl_resource_post_no_memory(shell_resource);
 		return;
 	}
 	wl_list_init(&wl_surface->grab_link);
@@ -530,12 +530,19 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 	wl_surface->surface = surface;
 
 	wl_surface->resource = wl_resource_create(client,
-		&wl_shell_surface_interface, wl_resource_get_version(resource), id);
-	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface,
-		wl_surface->resource);
+		&wl_shell_surface_interface, wl_resource_get_version(shell_resource),
+		id);
+	if (wl_surface->resource == NULL) {
+		free(wl_surface);
+		wl_resource_post_no_memory(shell_resource);
+		return;
+	}
 	wl_resource_set_implementation(wl_surface->resource,
 		&shell_surface_impl, wl_surface,
 		shell_surface_resource_destroy);
+
+	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface,
+		wl_surface->resource);
 
 	wl_signal_init(&wl_surface->events.destroy);
 	wl_signal_init(&wl_surface->events.ping_timeout);
@@ -574,13 +581,17 @@ static void shell_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void shell_bind(struct wl_client *wl_client, void *_wl_shell,
+static void shell_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_wl_shell *wl_shell = _wl_shell;
+	struct wlr_wl_shell *wl_shell = data;
 	assert(wl_client && wl_shell);
 
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_shell_interface, version, id);
+	if (wl_resource == NULL) {
+		wl_client_post_no_memory(wl_client);
+		return;
+	}
 	wl_resource_set_implementation(wl_resource, &shell_impl, wl_shell,
 		shell_destroy);
 	wl_list_insert(&wl_shell->wl_resources, wl_resource_get_link(wl_resource));
