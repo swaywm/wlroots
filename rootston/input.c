@@ -55,8 +55,8 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	wlr_log(L_DEBUG, "New input device: %s (%d:%d) %s", device->name,
-			device->vendor, device->product, device_type(device->type));
+	wlr_log(L_DEBUG, "New input device: %s (%d:%d) %s seat:%s", device->name,
+			device->vendor, device->product, device_type(device->type), seat_name);
 
 	roots_seat_add_device(seat, device);
 }
