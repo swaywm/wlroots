@@ -352,9 +352,50 @@ void roots_seat_add_device(struct roots_seat *seat,
 	}
 }
 
-void roots_seat_remove_device(struct roots_seat *seat,
+static void seat_remove_keyboard(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	// TODO
+}
+
+static void seat_remove_pointer(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	// TODO
+}
+
+static void seat_remove_touch(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	// TODO
+}
+
+static void seat_remove_tablet_pad(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	// TODO
+}
+
+static void seat_remove_tablet_tool(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	// TODO
+}
+
+void roots_seat_remove_device(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	switch (device->type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:
+		seat_remove_keyboard(seat, device);
+		break;
+	case WLR_INPUT_DEVICE_POINTER:
+		seat_remove_pointer(seat, device);
+		break;
+	case WLR_INPUT_DEVICE_TOUCH:
+		seat_remove_touch(seat, device);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		seat_remove_tablet_pad(seat, device);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		seat_remove_tablet_tool(seat, device);
+		break;
+	}
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {

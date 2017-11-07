@@ -63,7 +63,7 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 
 static void input_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
-	struct roots_input *input = wl_container_of(listener, input, input_add);
+	struct roots_input *input = wl_container_of(listener, input, input_remove);
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
