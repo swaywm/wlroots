@@ -114,22 +114,8 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 // seat based on seat pointer focus, but interactive moving and resizing is not
 // yet seat aware. Even then, we can only guess because X11 events don't give us
 // enough wayland info to know for sure.
-static struct wlr_cursor *guess_cursor_for_view(struct roots_view *view) {
-	struct roots_input *input = view->desktop->server->input;
-	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
-	for (size_t i = 0; i < len; i++) {
-		struct wlr_cursor *cursor = input->input_events[i].cursor;
-		if (cursor) {
-			int width = view->xwayland_surface->surface->current->width;
-			int height = view->xwayland_surface->surface->current->height;
-			if (cursor->x > view->x && cursor->y > view->y &&
-					cursor->x < view->x + width &&
-					cursor->y < view->y + height) {
-				return cursor;
-			}
-		}
-	}
-
+static struct roots_seat *guess_seat_for_view(struct roots_view *view) {
+	// TODO
 	return NULL;
 }
 
@@ -137,28 +123,26 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
 	struct roots_view *view = roots_surface->view;
-	struct roots_input *input = view->desktop->server->input;
-	struct wlr_cursor *cursor = guess_cursor_for_view(view);
+	struct roots_seat *seat = guess_seat_for_view(view);
 
-	if (!cursor || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
 
-	view_begin_move(input, cursor, view);
+	roots_seat_begin_move(seat, view);
 }
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_resize);
 	struct roots_view *view = roots_surface->view;
-	struct roots_input *input = view->desktop->server->input;
-	struct wlr_cursor *cursor = guess_cursor_for_view(view);
+	struct roots_seat *seat = guess_seat_for_view(view);
 	struct wlr_xwayland_resize_event *e = data;
 
-	if (!cursor || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, cursor, view, e->edges);
+	roots_seat_begin_resize(seat, view, e->edges);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {

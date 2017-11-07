@@ -3,9 +3,44 @@
 
 #include "rootston/seat.h"
 
+enum roots_cursor_mode {
+	ROOTS_CURSOR_PASSTHROUGH = 0,
+	ROOTS_CURSOR_MOVE = 1,
+	ROOTS_CURSOR_RESIZE = 2,
+	ROOTS_CURSOR_ROTATE = 3,
+};
+
+enum roots_cursor_resize_edge {
+	ROOTS_CURSOR_RESIZE_EDGE_TOP = 1,
+	ROOTS_CURSOR_RESIZE_EDGE_BOTTOM = 2,
+	ROOTS_CURSOR_RESIZE_EDGE_LEFT = 4,
+	ROOTS_CURSOR_RESIZE_EDGE_RIGHT = 8,
+};
+
+struct roots_input_event {
+	uint32_t serial;
+	struct wlr_cursor *cursor;
+	struct wlr_input_device *device;
+};
+
 struct roots_cursor {
 	struct roots_seat *seat;
 	struct wlr_cursor *cursor;
+
+	enum roots_cursor_mode mode;
+
+	// state from input (review if this is necessary)
+	struct wlr_xcursor_theme *xcursor_theme;
+	struct wlr_seat *wl_seat;
+	struct wl_client *cursor_client;
+	int offs_x, offs_y;
+	int view_x, view_y, view_width, view_height;
+	float view_rotation;
+	uint32_t resize_edges;
+	// Ring buffer of input events that could trigger move/resize/rotate
+	int input_events_idx;
+	struct wl_list touch_points;
+	struct roots_input_event input_events[16];
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;

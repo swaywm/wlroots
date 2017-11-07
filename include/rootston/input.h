@@ -5,63 +5,14 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/xcursor.h>
+#include "rootston/cursor.h"
 #include "rootston/config.h"
 #include "rootston/view.h"
 #include "rootston/server.h"
 
-enum roots_cursor_mode {
-	ROOTS_CURSOR_PASSTHROUGH = 0,
-	ROOTS_CURSOR_MOVE = 1,
-	ROOTS_CURSOR_RESIZE = 2,
-	ROOTS_CURSOR_ROTATE = 3,
-};
-
-enum roots_cursor_resize_edge {
-	ROOTS_CURSOR_RESIZE_EDGE_TOP = 1,
-	ROOTS_CURSOR_RESIZE_EDGE_BOTTOM = 2,
-	ROOTS_CURSOR_RESIZE_EDGE_LEFT = 4,
-	ROOTS_CURSOR_RESIZE_EDGE_RIGHT = 8,
-};
-
-struct roots_input_event {
-	uint32_t serial;
-	struct wlr_cursor *cursor;
-	struct wlr_input_device *device;
-};
-
-struct roots_drag_icon {
-	struct wlr_surface *surface;
-	struct wl_list link; // roots_input::drag_icons
-	bool mapped;
-
-	int32_t sx;
-	int32_t sy;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
-};
-
 struct roots_input {
 	struct roots_config *config;
 	struct roots_server *server;
-
-	// TODO: multiseat, multicursor
-	struct wlr_cursor *cursor;
-	struct wlr_xcursor_theme *xcursor_theme;
-	struct wlr_seat *wl_seat;
-	struct wl_list drag_icons;
-	struct wl_client *cursor_client;
-
-	enum roots_cursor_mode mode;
-	struct roots_view *active_view;
-	int offs_x, offs_y;
-	int view_x, view_y, view_width, view_height;
-	float view_rotation;
-	uint32_t resize_edges;
-
-	// Ring buffer of input events that could trigger move/resize/rotate
-	int input_events_idx;
-	struct roots_input_event input_events[16];
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
@@ -116,5 +67,8 @@ struct wlr_xcursor *get_rotate_xcursor(struct wlr_xcursor_theme *theme);
 
 void set_view_focus(struct roots_input *input, struct roots_desktop *desktop,
 	struct roots_view *view);
+
+struct roots_seat *input_seat_from_wlr_seat(struct roots_input *input,
+		struct wlr_seat *seat);
 
 #endif

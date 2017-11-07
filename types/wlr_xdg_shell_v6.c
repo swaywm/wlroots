@@ -557,7 +557,7 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, int32_t x, int32_t y) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -576,7 +576,7 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 	event->x = x;
 	event->y = y;
@@ -590,7 +590,7 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -609,7 +609,7 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 
 	wl_signal_emit(&surface->events.request_move, event);
@@ -621,7 +621,7 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, uint32_t edges) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -640,7 +640,7 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 	event->edges = edges;
 

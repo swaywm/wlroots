@@ -93,14 +93,14 @@ struct wlr_wl_shell_surface {
 struct wlr_wl_shell_surface_move_event {
 	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_wl_shell_surface_resize_event {
 	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	enum wl_shell_surface_resize edges;
 };

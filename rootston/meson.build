@@ -1,6 +1,6 @@
 sources = [
 	'config.c',
-	'cursor.c',
+	#'cursor.c',
 	'roots_cursor.c',
 	'desktop.c',
 	'ini.c',

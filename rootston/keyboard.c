@@ -39,7 +39,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	} else if (strcmp(command, "next_window") == 0) {
 		if (server->desktop->views->length > 0) {
 			struct roots_view *view = server->desktop->views->items[0];
-			set_view_focus(keyboard->input, server->desktop, view);
+			roots_seat_focus_view(keyboard->seat, view);
 		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
@@ -192,13 +192,9 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	keyboard->device = device;
 	keyboard->input = input;
 
-	// XXX temporary
-	wl_list_insert(&input->keyboards, &keyboard->link);
-
-	struct keyboard_config config;
-	memset(&config, 0, sizeof(config));
-	keyboard_config_merge(&config, config_get_keyboard(input->config, device));
-	keyboard_config_merge(&config, config_get_keyboard(input->config, NULL));
+	struct keyboard_config *config = calloc(1, sizeof(struct keyboard_config));
+	keyboard_config_merge(config, config_get_keyboard(input->config, device));
+	keyboard_config_merge(config, config_get_keyboard(input->config, NULL));
 
 	struct keyboard_config env_config = {
 		.rules = getenv("XKB_DEFAULT_RULES"),
@@ -207,15 +203,16 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 		.variant = getenv("XKB_DEFAULT_VARIANT"),
 		.options = getenv("XKB_DEFAULT_OPTIONS"),
 	};
-	keyboard_config_merge(&config, &env_config);
+	keyboard_config_merge(config, &env_config);
+	keyboard->config = config;
 
 	struct xkb_rule_names rules;
 	memset(&rules, 0, sizeof(rules));
-	rules.rules = config.rules;
-	rules.model = config.model;
-	rules.layout = config.layout;
-	rules.variant = config.variant;
-	rules.options = config.options;
+	rules.rules = config->rules;
+	rules.model = config->model;
+	rules.layout = config->layout;
+	rules.variant = config->variant;
+	rules.options = config->options;
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (context == NULL) {
 		wlr_log(L_ERROR, "Cannot create XKB context");
@@ -231,5 +228,6 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 void roots_keyboard_destroy(struct wlr_input_device *device, struct roots_input *input) {
 	struct roots_keyboard *keyboard = device->data;
 	wl_list_remove(&keyboard->link);
+	free(keyboard->config);
 	free(keyboard);
 }

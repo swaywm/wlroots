@@ -6,11 +6,26 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 
+struct roots_drag_icon {
+	struct wlr_surface *surface;
+	struct wl_list link; // roots_seat::drag_icons
+	bool mapped;
+
+	int32_t sx;
+	int32_t sy;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+};
+
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
 	struct roots_cursor *cursor;
 	struct wl_list link;
+	struct wl_list drag_icons;
+
+	struct roots_view *focus;
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
@@ -56,5 +71,20 @@ void roots_seat_add_device(struct roots_seat *seat,
 
 void roots_seat_remove_device(struct roots_seat *seat,
 		struct wlr_input_device *device);
+
+void roots_seat_configure_cursor(struct roots_seat *seat);
+
+void roots_seat_configure_xcursor(struct roots_seat *seat);
+
+bool roots_seat_has_meta_pressed(struct roots_seat *seat);
+
+void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
+		uint32_t edges);
+
+void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view);
 
 #endif

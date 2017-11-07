@@ -1,6 +1,7 @@
 #include <wayland-server.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include <wlr/util/log.h>
 
@@ -110,7 +111,7 @@ static void seat_set_device_output_mappings(struct roots_seat *seat,
 	}
 }
 
-static void roots_seat_configure_cursor(struct roots_seat *seat) {
+void roots_seat_configure_cursor(struct roots_seat *seat) {
 	struct roots_config *config = seat->input->config;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	struct wlr_cursor *cursor = seat->cursor->cursor;
@@ -156,9 +157,43 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	if (!seat->cursor) {
 		return;
 	}
+	seat->cursor->seat = seat;
 	struct wlr_cursor *wlr_cursor = seat->cursor->cursor;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
+
+	seat->cursor->xcursor_theme = wlr_xcursor_theme_load("default", 16);
+	if (seat->cursor->xcursor_theme == NULL) {
+		wlr_log(L_ERROR, "Cannot load xcursor theme");
+		roots_cursor_destroy(seat->cursor);
+		seat->cursor = NULL;
+		return;
+	}
+
+	struct wlr_xcursor *xcursor = get_default_xcursor(seat->cursor->xcursor_theme);
+	if (xcursor == NULL) {
+		wlr_log(L_ERROR, "Cannot load xcursor from theme");
+		wlr_xcursor_theme_destroy(seat->cursor->xcursor_theme);
+		roots_cursor_destroy(seat->cursor);
+		seat->cursor = NULL;
+		return;
+	}
+
+	struct wlr_xcursor_image *image = xcursor->images[0];
+	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
+
+	// XXX: xwayland will always have the theme of the last created seat
+	if (seat->input->server->desktop->xwayland != NULL) {
+		wlr_xwayland_set_cursor(seat->input->server->desktop->xwayland,
+			image->buffer, image->width, image->width,
+			image->height, image->hotspot_x,
+			image->hotspot_y);
+	}
+
+	wl_list_init(&seat->cursor->touch_points);
+
+	roots_seat_configure_cursor(seat);
 
 	// add input signals
 	wl_signal_add(&wlr_cursor->events.motion, &seat->cursor->motion);
@@ -196,6 +231,12 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		return NULL;
 	}
 
+	wl_list_init(&seat->keyboards);
+	wl_list_init(&seat->pointers);
+	wl_list_init(&seat->touch);
+	wl_list_init(&seat->tablet_tools);
+	wl_list_init(&seat->drag_icons);
+
 	seat->input = input;
 
 	roots_seat_init_cursor(seat);
@@ -218,11 +259,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
-	wl_list_init(&seat->keyboards);
-	wl_list_init(&seat->pointers);
-	wl_list_init(&seat->touch);
-	wl_list_init(&seat->tablet_tools);
-
 	return seat;
 }
 
@@ -231,6 +267,7 @@ void roots_seat_destroy(struct roots_seat *seat) {
 }
 
 static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *device) {
+	assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
 	struct roots_keyboard *keyboard = roots_keyboard_create(device, seat->input);
 	keyboard->seat = seat;
 
@@ -317,5 +354,90 @@ void roots_seat_add_device(struct roots_seat *seat,
 
 void roots_seat_remove_device(struct roots_seat *seat,
 		struct wlr_input_device *device) {
+	// TODO
+}
+
+void roots_seat_configure_xcursor(struct roots_seat *seat) {
+	struct wlr_xcursor *xcursor = get_default_xcursor(seat->cursor->xcursor_theme);
+	struct wlr_xcursor_image *image = xcursor->images[0];
+	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
+
+	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
+		seat->cursor->cursor->y);
+}
+
+bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
+	struct roots_keyboard *keyboard;
+	wl_list_for_each(keyboard, &seat->keyboards, seat_link) {
+		if (!keyboard->config->meta_key) {
+			continue;
+		}
+
+		uint32_t modifiers =
+			wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+		if ((modifiers ^ keyboard->config->meta_key) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	if (seat->focus == view) {
+		return;
+	}
+	seat->focus = view;
+	seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+	if (!view) {
+		return;
+	}
+
+	if (view->type == ROOTS_XWAYLAND_VIEW &&
+			view->xwayland_surface->override_redirect) {
+		return;
+	}
+
+	size_t index = 0;
+	for (size_t i = 0; i < desktop->views->length; ++i) {
+		struct roots_view *_view = desktop->views->items[i];
+		if (_view != view) {
+			view_activate(_view, false);
+		} else {
+			index = i;
+		}
+	}
+	view_activate(view, true);
+	// TODO: list_swap
+	wlr_list_del(desktop->views, index);
+	wlr_list_add(desktop->views, view);
+	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+}
+
+void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
+	struct roots_cursor *cursor = seat->cursor;
+	cursor->mode = ROOTS_CURSOR_MOVE;
+	cursor->offs_x = cursor->cursor->x;
+	cursor->offs_y = cursor->cursor->y;
+	cursor->view_x = view->x;
+	cursor->view_y = view->y;
+	wlr_seat_pointer_clear_focus(seat->seat);
+
+	struct wlr_xcursor *xcursor = get_move_xcursor(seat->cursor->xcursor_theme);
+	if (xcursor != NULL) {
+		struct wlr_xcursor_image *image = xcursor->images[0];
+		wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
+			image->width, image->height, image->hotspot_x, image->hotspot_y);
+	}
+}
+
+void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
+		uint32_t edges) {
+	// TODO
+}
+
+void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	// TODO
 }

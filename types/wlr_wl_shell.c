@@ -110,7 +110,7 @@ static void shell_surface_protocol_move(struct wl_client *client,
 		uint32_t serial) {
 	wlr_log(L_DEBUG, "got shell surface move");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	struct wlr_wl_shell_surface_move_event *event =
@@ -121,7 +121,7 @@ static void shell_surface_protocol_move(struct wl_client *client,
 	}
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 
 	wl_signal_emit(&surface->events.request_move, event);
@@ -177,7 +177,7 @@ static void shell_surface_protocol_resize(struct wl_client *client,
 		uint32_t serial, enum wl_shell_surface_resize edges) {
 	wlr_log(L_DEBUG, "got shell surface resize");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	struct wlr_wl_shell_surface_resize_event *event =
@@ -188,7 +188,7 @@ static void shell_surface_protocol_resize(struct wl_client *client,
 	}
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 	event->edges = edges;
 

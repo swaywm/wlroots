@@ -138,14 +138,14 @@ struct wlr_xdg_surface_v6 {
 struct wlr_xdg_toplevel_v6_move_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_xdg_toplevel_v6_resize_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	uint32_t edges;
 };
@@ -153,7 +153,7 @@ struct wlr_xdg_toplevel_v6_resize_event {
 struct wlr_xdg_toplevel_v6_show_window_menu_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	uint32_t x;
 	uint32_t y;
