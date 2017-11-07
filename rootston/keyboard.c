@@ -121,7 +121,7 @@ static void keyboard_keysym_release(struct roots_keyboard *keyboard,
 	}
 }
 
-/**
+/*
  * Process keypresses from the keyboard as if modifiers didn't change keysyms.
  *
  * This avoids the xkb keysym translation based on modifiers considered pressed
@@ -130,8 +130,7 @@ static void keyboard_keysym_release(struct roots_keyboard *keyboard,
  * This will trigger the keybind: [Alt]+[Shift]+2
  */
 static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
-		uint32_t keycode, enum wlr_key_state state)
-{
+		uint32_t keycode, enum wlr_key_state state) {
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	const xkb_keysym_t *syms;
 	xkb_layout_index_t layout_index = xkb_state_key_get_layout(
@@ -153,7 +152,7 @@ static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
 	return handled;
 }
 
-/**
+/*
  * Process keypresses from the keyboard as xkb sees them.
  *
  * This uses the xkb keysyms translation based on pressed modifiers and clears
@@ -163,8 +162,7 @@ static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
  * (On US layout) this will trigger: [Alt]+[at]
  */
 static bool keyboard_keysyms_xkb(struct roots_keyboard *keyboard,
-		uint32_t keycode, enum wlr_key_state state)
-{
+		uint32_t keycode, enum wlr_key_state state) {
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	const xkb_keysym_t *syms;
 	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
@@ -196,8 +194,10 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 	bool handled = keyboard_keysyms_xkb(keyboard, keycode, event->state);
 
-	if (!handled)
-		handled |= keyboard_keysyms_simple(keyboard, keycode, event->state);
+	if (!handled) {
+		bool key_handled = keyboard_keysyms_simple(keyboard, keycode, event->state);
+		handled = handled || key_handled;
+	}
 
 	if (!handled) {
 		wlr_seat_set_keyboard(keyboard->input->wl_seat, keyboard->device);
