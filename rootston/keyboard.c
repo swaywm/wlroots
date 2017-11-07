@@ -121,14 +121,21 @@ static void keyboard_keysym_release(struct roots_keyboard *keyboard,
 	}
 }
 
+/**
+ * Process keypresses from the keyboard as if modifiers didn't change keysyms.
+ *
+ * This avoids the xkb keysym translation based on modifiers considered pressed
+ * in the state and uses the list of modifiers saved on the rootston side.
+ *
+ * This will trigger the keybind: [Alt]+[Shift]+2
+ */
 static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
 		uint32_t keycode, enum wlr_key_state state)
 {
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	const xkb_keysym_t *syms;
 	xkb_layout_index_t layout_index = xkb_state_key_get_layout(
-		keyboard->device->keyboard->xkb_state,
-		keycode);
+		keyboard->device->keyboard->xkb_state, keycode);
 	int syms_len = xkb_keymap_key_get_syms_by_level(keyboard->device->keyboard->keymap,
 		keycode, layout_index, 0, &syms);
 
@@ -146,6 +153,15 @@ static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
 	return handled;
 }
 
+/**
+ * Process keypresses from the keyboard as xkb sees them.
+ *
+ * This uses the xkb keysyms translation based on pressed modifiers and clears
+ * the consumed modifiers from the list of modifiers passed to keybind
+ * detection.
+ *
+ * (On US layout) this will trigger: [Alt]+[at]
+ */
 static bool keyboard_keysyms_xkb(struct roots_keyboard *keyboard,
 		uint32_t keycode, enum wlr_key_state state)
 {
@@ -154,9 +170,7 @@ static bool keyboard_keysyms_xkb(struct roots_keyboard *keyboard,
 	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
 		keycode, &syms);
 	uint32_t consumed = xkb_state_key_get_consumed_mods2(
-		keyboard->device->keyboard->xkb_state,
-		keycode,
-		XKB_CONSUMED_MODE_XKB);
+		keyboard->device->keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
 
 	modifiers = modifiers & ~consumed;
 
