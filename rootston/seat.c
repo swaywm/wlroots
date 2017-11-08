@@ -5,6 +5,7 @@
 
 #include <wlr/util/log.h>
 
+#include "rootston/xcursor.h"
 #include "rootston/input.h"
 #include "rootston/seat.h"
 #include "rootston/keyboard.h"

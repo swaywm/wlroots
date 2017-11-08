@@ -7,6 +7,7 @@
 #include <dev/evdev/input-event-codes.h>
 #endif
 #include <wlr/util/log.h>
+#include "rootston/xcursor.h"
 #include "rootston/cursor.h"
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
@@ -141,13 +142,11 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		cursor->cursor->x, cursor->cursor->y, &surface, &sx, &sy);
 
 	if (state == WLR_BUTTON_PRESSED && view && roots_seat_has_meta_pressed(seat)) {
-		// TODO
 		roots_seat_focus_view(seat, view);
 
 		uint32_t edges;
 		switch (button) {
 		case BTN_LEFT:
-			// TODO
 			roots_seat_begin_move(seat, view);
 			break;
 		case BTN_RIGHT:
@@ -171,7 +170,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		return;
 	}
 
-	// TODO
 	uint32_t serial =
 		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 
@@ -182,7 +180,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		roots_cursor_update_position(cursor, time);
 		break;
 	case WLR_BUTTON_PRESSED:
-		// TODO
 		i = cursor->input_events_idx;
 		cursor->input_events[i].serial = serial;
 		cursor->input_events[i].cursor = cursor->cursor;
