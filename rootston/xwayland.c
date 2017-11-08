@@ -110,12 +110,16 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 		xwayland_surface, event->x, event->y, event->width, event->height);
 }
 
-// XXX Needs deep refactoring to get this better. We need to select the correct
-// seat based on seat pointer focus, but interactive moving and resizing is not
-// yet seat aware. Even then, we can only guess because X11 events don't give us
-// enough wayland info to know for sure.
 static struct roots_seat *guess_seat_for_view(struct roots_view *view) {
-	// TODO
+	// the best we can do is to pick the first seat that has the surface focused
+	// for the pointer
+	struct roots_input *input = view->desktop->server->input;
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		if (seat->seat->pointer_state.focused_surface == view->wlr_surface) {
+			return seat;
+		}
+	}
 	return NULL;
 }
 
