@@ -135,8 +135,8 @@ static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
 	const xkb_keysym_t *syms;
 	xkb_layout_index_t layout_index = xkb_state_key_get_layout(
 		keyboard->device->keyboard->xkb_state, keycode);
-	int syms_len = xkb_keymap_key_get_syms_by_level(keyboard->device->keyboard->keymap,
-		keycode, layout_index, 0, &syms);
+	int syms_len = xkb_keymap_key_get_syms_by_level(
+		keyboard->device->keyboard->keymap, keycode, layout_index, 0, &syms);
 
 	bool handled = false;
 	for (int i = 0; i < syms_len; i++) {
@@ -195,7 +195,8 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	bool handled = keyboard_keysyms_xkb(keyboard, keycode, event->state);
 
 	if (!handled) {
-		bool key_handled = keyboard_keysyms_simple(keyboard, keycode, event->state);
+		bool key_handled = keyboard_keysyms_simple(keyboard, keycode,
+			event->state);
 		handled = handled || key_handled;
 	}
 
@@ -207,17 +208,11 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 }
 
 static void keyboard_modifiers_notify(struct wl_listener *listener, void *data) {
-	struct roots_keyboard *r_keyboard =
-		wl_container_of(listener, r_keyboard, modifiers);
-	struct wlr_seat *seat = r_keyboard->input->wl_seat;
-	struct wlr_keyboard *keyboard = r_keyboard->device->keyboard;
-	wlr_seat_set_keyboard(seat, r_keyboard->device);
-	wlr_seat_keyboard_notify_modifiers(seat,
-		keyboard->modifiers.depressed,
-		keyboard->modifiers.latched,
-		keyboard->modifiers.locked,
-		keyboard->modifiers.group);
-
+	struct roots_keyboard *keyboard =
+		wl_container_of(listener, keyboard, modifiers);
+	struct wlr_seat *seat = keyboard->input->wl_seat;
+	wlr_seat_set_keyboard(seat, keyboard->device);
+	wlr_seat_keyboard_notify_modifiers(seat);
 }
 
 static void keyboard_config_merge(struct keyboard_config *config,
