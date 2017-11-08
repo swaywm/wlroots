@@ -531,9 +531,8 @@ static void keyboard_drag_key(struct wlr_seat_keyboard_grab *grab,
 	// no keyboard input during drags
 }
 
-static void keyboard_drag_modifiers(struct wlr_seat_keyboard_grab *grab,
-		uint32_t mods_depressed, uint32_t mods_latched,
-		uint32_t mods_locked, uint32_t group) {
+static void keyboard_drag_modifiers(struct wlr_seat_keyboard_grab *grab) {
+	//struct wlr_keyboard *keyboard = grab->seat->keyboard_state.keyboard;
 	// TODO change the dnd action based on what modifier is pressed on the
 	// keyboard
 }

@@ -133,7 +133,6 @@ void view_teardown(struct roots_view *view) {
 	struct roots_view *prev_view = views->items[views->length-2];
 	struct roots_input *input = prev_view->desktop->server->input;
 	set_view_focus(input, prev_view->desktop, prev_view);
-	wlr_seat_keyboard_notify_enter(input->wl_seat, prev_view->wlr_surface);
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,

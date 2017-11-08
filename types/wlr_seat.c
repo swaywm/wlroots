@@ -284,11 +284,8 @@ static void default_keyboard_key(struct wlr_seat_keyboard_grab *grab,
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
-static void default_keyboard_modifiers(struct wlr_seat_keyboard_grab *grab,
-		uint32_t mods_depressed, uint32_t mods_latched,
-		uint32_t mods_locked, uint32_t group) {
-	wlr_seat_keyboard_send_modifiers(grab->seat, mods_depressed,
-		mods_latched, mods_locked, group);
+static void default_keyboard_modifiers(struct wlr_seat_keyboard_grab *grab) {
+	wlr_seat_keyboard_send_modifiers(grab->seat);
 }
 
 static void default_keyboard_cancel(struct wlr_seat_keyboard_grab *grab) {
@@ -708,24 +705,26 @@ static void keyboard_resource_destroy_notify(struct wl_listener *listener,
 	wlr_seat_keyboard_clear_focus(state->seat);
 }
 
-void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
-	uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
-	uint32_t group) {
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat) {
 	struct wlr_seat_client *client = seat->keyboard_state.focused_client;
 	if (!client || !client->keyboard) {
 		return;
 	}
 
-	uint32_t serial = wl_display_next_serial(seat->display);
+	struct wlr_keyboard *keyboard = seat->keyboard_state.keyboard;
+	if (!keyboard) {
+		return;
+	}
 
+	uint32_t serial = wl_display_next_serial(seat->display);
 	wl_keyboard_send_modifiers(client->keyboard, serial,
-		mods_depressed, mods_latched,
-		mods_locked, group);
+		keyboard->modifiers.depressed, keyboard->modifiers.latched,
+		keyboard->modifiers.locked, keyboard->modifiers.group);
 }
 
-void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
+void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface) {
-	if (wlr_seat->keyboard_state.focused_surface == surface) {
+	if (seat->keyboard_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
 	}
@@ -734,24 +733,24 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 
 	if (surface) {
 		struct wl_client *wl_client = wl_resource_get_client(surface->resource);
-		client = wlr_seat_client_for_wl_client(wlr_seat, wl_client);
+		client = wlr_seat_client_for_wl_client(seat, wl_client);
 	}
 
 	struct wlr_seat_client *focused_client =
-		wlr_seat->keyboard_state.focused_client;
+		seat->keyboard_state.focused_client;
 	struct wlr_surface *focused_surface =
-		wlr_seat->keyboard_state.focused_surface;
+		seat->keyboard_state.focused_surface;
 
 	// leave the previously entered surface
 	if (focused_client && focused_client->keyboard && focused_surface) {
-		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		uint32_t serial = wl_display_next_serial(seat->display);
 		wl_keyboard_send_leave(focused_client->keyboard, serial,
 			focused_surface->resource);
 	}
 
 	// enter the current surface
-	if (client && client->keyboard) {
-		struct wlr_keyboard *keyboard = wlr_seat->keyboard_state.keyboard;
+	if (client && client->keyboard && seat->keyboard_state.keyboard) {
+		struct wlr_keyboard *keyboard = seat->keyboard_state.keyboard;
 
 		struct wl_array keys;
 		wl_array_init(&keys);
@@ -763,55 +762,50 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 				n++;
 			}
 		}
-		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		uint32_t serial = wl_display_next_serial(seat->display);
 		wl_keyboard_send_enter(client->keyboard, serial,
 			surface->resource, &keys);
 		wl_array_release(&keys);
 
-		wlr_seat_keyboard_send_modifiers(wlr_seat,
-			keyboard->modifiers.depressed, keyboard->modifiers.latched,
-			keyboard->modifiers.locked, keyboard->modifiers.group);
+		wlr_seat_keyboard_send_modifiers(seat);
 		wlr_seat_client_send_selection(client);
 	}
 
 	// reinitialize the focus destroy events
-	wl_list_remove(&wlr_seat->keyboard_state.surface_destroy.link);
-	wl_list_init(&wlr_seat->keyboard_state.surface_destroy.link);
-	wl_list_remove(&wlr_seat->keyboard_state.resource_destroy.link);
-	wl_list_init(&wlr_seat->keyboard_state.resource_destroy.link);
+	wl_list_remove(&seat->keyboard_state.surface_destroy.link);
+	wl_list_init(&seat->keyboard_state.surface_destroy.link);
+	wl_list_remove(&seat->keyboard_state.resource_destroy.link);
+	wl_list_init(&seat->keyboard_state.resource_destroy.link);
 	if (surface) {
 		wl_signal_add(&surface->events.destroy,
-			&wlr_seat->keyboard_state.surface_destroy);
+			&seat->keyboard_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
-			&wlr_seat->keyboard_state.resource_destroy);
-		wlr_seat->keyboard_state.resource_destroy.notify =
+			&seat->keyboard_state.resource_destroy);
+		seat->keyboard_state.resource_destroy.notify =
 			keyboard_resource_destroy_notify;
-		wlr_seat->keyboard_state.surface_destroy.notify =
+		seat->keyboard_state.surface_destroy.notify =
 			keyboard_surface_destroy_notify;
 	}
 
-	wlr_seat->keyboard_state.focused_client = client;
-	wlr_seat->keyboard_state.focused_surface = surface;
+	seat->keyboard_state.focused_client = client;
+	seat->keyboard_state.focused_surface = surface;
 }
 
-void wlr_seat_keyboard_notify_enter(struct wlr_seat *wlr_seat, struct
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat, struct
 		wlr_surface *surface) {
-	struct wlr_seat_keyboard_grab *grab = wlr_seat->keyboard_state.grab;
+	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->enter(grab, surface);
 }
 
-void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat) {
+void wlr_seat_keyboard_clear_focus(struct wlr_seat *seat) {
 	struct wl_array keys;
 	wl_array_init(&keys);
-	wlr_seat_keyboard_enter(wlr_seat, NULL);
+	wlr_seat_keyboard_enter(seat, NULL);
 }
 
-void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
-		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
-		uint32_t group) {
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat) {
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
-	grab->interface->modifiers(grab,
-		mods_depressed, mods_latched, mods_locked, group);
+	grab->interface->modifiers(grab);
 }
 
 void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
