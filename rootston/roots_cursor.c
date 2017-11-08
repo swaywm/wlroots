@@ -281,3 +281,24 @@ void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 	roots_cursor_press_button(cursor, event->device,
 		event->time_msec, BTN_LEFT, event->state);
 }
+
+void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
+		struct wlr_seat_pointer_request_set_cursor_event *event) {
+	struct wlr_surface *focused_surface =
+		event->seat_client->seat->pointer_state.focused_surface;
+	bool has_focused = focused_surface != NULL && focused_surface->resource != NULL;
+	struct wl_client *focused_client = NULL;
+	if (has_focused) {
+		focused_client = wl_resource_get_client(focused_surface->resource);
+	}
+	if (event->seat_client->client != focused_client ||
+			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		wlr_log(L_DEBUG, "Denying request to set cursor from unfocused client");
+		return;
+	}
+
+	wlr_log(L_DEBUG, "Setting client cursor");
+	wlr_cursor_set_surface(cursor->cursor, event->surface, event->hotspot_x,
+		event->hotspot_y);
+	cursor->cursor_client = event->seat_client->client;
+}

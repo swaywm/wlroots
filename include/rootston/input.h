@@ -17,11 +17,6 @@ struct roots_input {
 	struct wl_listener input_remove;
 
 	struct wl_list seats;
-
-	struct wl_listener pointer_grab_begin;
-	struct wl_listener pointer_grab_end;
-
-	struct wl_listener request_set_cursor;
 };
 
 struct roots_input *input_create(struct roots_server *server,

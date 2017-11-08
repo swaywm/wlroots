@@ -89,6 +89,14 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_tool_tip(cursor, event);
 }
 
+static void handle_request_set_cursor(struct wl_listener *listener,
+		void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, request_set_cursor);
+	struct wlr_seat_pointer_request_set_cursor_event *event = data;
+	roots_cursor_handle_request_set_cursor(cursor, event);
+}
+
 static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
@@ -224,6 +232,10 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.tablet_tool_tip, &seat->cursor->tool_tip);
 	seat->cursor->tool_tip.notify = handle_tool_tip;
+
+	wl_signal_add(&seat->seat->events.request_set_cursor,
+			&seat->cursor->request_set_cursor);
+	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
@@ -240,16 +252,17 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	seat->input = input;
 
-	roots_seat_init_cursor(seat);
-	if (!seat->cursor) {
-		free(seat);
-		return NULL;
-	}
-
 	seat->seat = wlr_seat_create(input->server->wl_display, name);
 	if (!seat->seat) {
 		free(seat);
 		roots_cursor_destroy(seat->cursor);
+		return NULL;
+	}
+
+	roots_seat_init_cursor(seat);
+	if (!seat->cursor) {
+		wlr_seat_destroy(seat->seat);
+		free(seat);
 		return NULL;
 	}
 

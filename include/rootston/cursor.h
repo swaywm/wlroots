@@ -53,6 +53,11 @@ struct roots_cursor {
 
 	struct wl_listener tool_axis;
 	struct wl_listener tool_tip;
+
+	struct wl_listener pointer_grab_begin;
+	struct wl_listener pointer_grab_end;
+
+	struct wl_listener request_set_cursor;
 };
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat);
@@ -85,5 +90,8 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 
 void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 		struct wlr_event_tablet_tool_tip *event);
+
+void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
+		struct wlr_seat_pointer_request_set_cursor_event *event);
 
 #endif
