@@ -114,6 +114,7 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_toplevel_v6_resize_event *e = data;
 	// TODO verify event serial
 	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	assert(seat);
 	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}

@@ -480,6 +480,12 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
 }
 
+static void seat_set_xcursor_image(struct roots_seat *seat, struct
+		wlr_xcursor_image *image) {
+	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y);
+}
+
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	struct roots_cursor *cursor = seat->cursor;
 	cursor->mode = ROOTS_CURSOR_MOVE;
@@ -492,16 +498,42 @@ void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	struct wlr_xcursor *xcursor = get_move_xcursor(seat->cursor->xcursor_theme);
 	if (xcursor != NULL) {
 		struct wlr_xcursor_image *image = xcursor->images[0];
-		wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
-			image->width, image->height, image->hotspot_x, image->hotspot_y);
+		seat_set_xcursor_image(seat, image);
 	}
 }
 
 void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 		uint32_t edges) {
-	// TODO
+	struct roots_cursor *cursor = seat->cursor;
+	cursor->mode = ROOTS_CURSOR_RESIZE;
+	cursor->offs_x = cursor->cursor->x;
+	cursor->offs_y = cursor->cursor->y;
+	cursor->view_x = view->x;
+	cursor->view_y = view->y;
+	struct wlr_box size;
+	view_get_size(view, &size);
+	cursor->view_width = size.width;
+	cursor->view_height = size.height;
+	cursor->resize_edges = edges;
+	wlr_seat_pointer_clear_focus(seat->seat);
+
+	struct wlr_xcursor *xcursor = get_resize_xcursor(cursor->xcursor_theme, edges);
+	if (xcursor != NULL) {
+		seat_set_xcursor_image(seat, xcursor->images[0]);
+	}
+
 }
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
-	// TODO
+	struct roots_cursor *cursor = seat->cursor;
+	cursor->mode = ROOTS_CURSOR_ROTATE;
+	cursor->offs_x = cursor->cursor->x;
+	cursor->offs_y = cursor->cursor->y;
+	cursor->view_rotation = view->rotation;
+	wlr_seat_pointer_clear_focus(seat->seat);
+
+	struct wlr_xcursor *xcursor = get_rotate_xcursor(cursor->xcursor_theme);
+	if (xcursor != NULL) {
+		seat_set_xcursor_image(seat, xcursor->images[0]);
+	}
 }
