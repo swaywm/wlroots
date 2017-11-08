@@ -225,8 +225,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	return keyboard;
 }
 
-void roots_keyboard_destroy(struct wlr_input_device *device, struct roots_input *input) {
-	struct roots_keyboard *keyboard = device->data;
+void roots_keyboard_destroy(struct roots_keyboard *keyboard) {
 	wl_list_remove(&keyboard->link);
 	free(keyboard->config);
 	free(keyboard);

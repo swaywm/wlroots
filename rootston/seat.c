@@ -271,7 +271,7 @@ static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *
 	struct roots_keyboard *keyboard = roots_keyboard_create(device, seat->input);
 	keyboard->seat = seat;
 
-	wl_list_insert(&seat->keyboards, &keyboard->seat_link);
+	wl_list_insert(&seat->keyboards, &keyboard->link);
 
 	keyboard->keyboard_key.notify = handle_keyboard_key;
 	wl_signal_add(&keyboard->device->keyboard->events.key,
@@ -354,17 +354,39 @@ void roots_seat_add_device(struct roots_seat *seat,
 
 static void seat_remove_keyboard(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	// TODO
+	struct roots_keyboard *keyboard;
+	wl_list_for_each(keyboard, &seat->keyboards, link) {
+		if (keyboard->device == device) {
+			roots_keyboard_destroy(keyboard);
+			return;
+		}
+	}
 }
 
 static void seat_remove_pointer(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	// TODO
+	struct roots_pointer *pointer;
+	wl_list_for_each(pointer, &seat->pointers, link) {
+		if (pointer->device == device) {
+			wl_list_remove(&pointer->link);
+			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
+			free(pointer);
+			return;
+		}
+	}
 }
 
 static void seat_remove_touch(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	// TODO
+	struct roots_touch *touch;
+	wl_list_for_each(touch, &seat->touch, link) {
+		if (touch->device == device) {
+			wl_list_remove(&touch->link);
+			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
+			free(touch);
+			return;
+		}
+	}
 }
 
 static void seat_remove_tablet_pad(struct roots_seat *seat,
@@ -374,7 +396,15 @@ static void seat_remove_tablet_pad(struct roots_seat *seat,
 
 static void seat_remove_tablet_tool(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	// TODO
+	struct roots_tablet_tool *tablet_tool;
+	wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
+		if (tablet_tool->device == device) {
+			wl_list_remove(&tablet_tool->link);
+			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
+			free(tablet_tool);
+			return;
+		}
+	}
 }
 
 void roots_seat_remove_device(struct roots_seat *seat,
@@ -410,7 +440,7 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 
 bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
 	struct roots_keyboard *keyboard;
-	wl_list_for_each(keyboard, &seat->keyboards, seat_link) {
+	wl_list_for_each(keyboard, &seat->keyboards, link) {
 		if (!keyboard->config->meta_key) {
 			continue;
 		}
