@@ -302,3 +302,65 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		event->hotspot_y);
 	cursor->cursor_client = event->seat_client->client;
 }
+
+static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
+	struct roots_drag_icon *drag_icon =
+		wl_container_of(listener, drag_icon, surface_commit);
+	drag_icon->sx += drag_icon->surface->current->sx;
+	drag_icon->sy += drag_icon->surface->current->sy;
+}
+
+static void handle_drag_icon_destroy(struct wl_listener *listener, void *data) {
+	struct roots_drag_icon *drag_icon =
+		wl_container_of(listener, drag_icon, surface_destroy);
+	wl_list_remove(&drag_icon->link);
+	wl_list_remove(&drag_icon->surface_destroy.link);
+	wl_list_remove(&drag_icon->surface_commit.link);
+	free(drag_icon);
+}
+
+void roots_cursor_handle_pointer_grab_begin(struct roots_cursor *cursor,
+		struct wlr_seat_pointer_grab *grab) {
+	struct roots_seat *seat = cursor->seat;
+	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
+		struct wlr_drag *drag = grab->data;
+		if (drag->icon) {
+			struct roots_drag_icon *iter_icon;
+			wl_list_for_each(iter_icon, &seat->drag_icons, link) {
+				if (iter_icon->surface == drag->icon) {
+					// already in the list
+					return;
+				}
+			}
+
+			struct roots_drag_icon *drag_icon =
+				calloc(1, sizeof(struct roots_drag_icon));
+			drag_icon->mapped = true;
+			drag_icon->surface = drag->icon;
+			wl_list_insert(&seat->drag_icons, &drag_icon->link);
+
+			wl_signal_add(&drag->icon->events.destroy,
+				&drag_icon->surface_destroy);
+			drag_icon->surface_destroy.notify = handle_drag_icon_destroy;
+
+			wl_signal_add(&drag->icon->events.commit,
+				&drag_icon->surface_commit);
+			drag_icon->surface_commit.notify = handle_drag_icon_commit;
+		}
+	}
+}
+
+void roots_cursor_handle_pointer_grab_end(struct roots_cursor *cursor,
+		struct wlr_seat_pointer_grab *grab) {
+	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
+		struct wlr_drag *drag = grab->data;
+		struct roots_drag_icon *icon;
+		wl_list_for_each(icon, &cursor->seat->drag_icons, link) {
+			if (icon->surface == drag->icon) {
+				icon->mapped = false;
+			}
+		}
+	}
+
+	roots_cursor_update_position(cursor, 0);
+}

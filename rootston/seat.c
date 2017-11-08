@@ -97,6 +97,22 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	roots_cursor_handle_request_set_cursor(cursor, event);
 }
 
+static void handle_pointer_grab_begin(struct wl_listener *listener,
+		void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, pointer_grab_begin);
+	struct wlr_seat_pointer_grab *grab = data;
+	roots_cursor_handle_pointer_grab_begin(cursor, grab);
+}
+
+static void handle_pointer_grab_end(struct wl_listener *listener,
+		void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, pointer_grab_end);
+	struct wlr_seat_pointer_grab *grab = data;
+	roots_cursor_handle_pointer_grab_end(cursor, grab);
+}
+
 static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
@@ -236,6 +252,14 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 			&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
+
+	wl_signal_add(&seat->seat->events.pointer_grab_begin,
+			&seat->cursor->pointer_grab_begin);
+	seat->cursor->pointer_grab_begin.notify = handle_pointer_grab_begin;
+
+	wl_signal_add(&seat->seat->events.pointer_grab_end,
+			&seat->cursor->pointer_grab_end);
+	seat->cursor->pointer_grab_end.notify = handle_pointer_grab_end;
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
