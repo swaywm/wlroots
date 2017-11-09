@@ -150,7 +150,6 @@ void view_setup(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
 	view_center(view);
 	set_view_focus(input, view->desktop, view);
-	wlr_seat_keyboard_notify_enter(input->wl_seat, view->wlr_surface);
 	struct wlr_box before;
 	view_get_size(view, &before);
 	view_update_output(view, &before);
