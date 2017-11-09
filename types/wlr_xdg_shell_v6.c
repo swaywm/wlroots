@@ -111,11 +111,8 @@ static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab, uint32_t 
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
-static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab,
-		uint32_t mods_depressed, uint32_t mods_latched,
-		uint32_t mods_locked, uint32_t group) {
-	wlr_seat_keyboard_send_modifiers(grab->seat, mods_depressed, mods_latched,
-		mods_locked, group);
+static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab) {
+	wlr_seat_keyboard_send_modifiers(grab->seat);
 }
 
 static void xdg_keyboard_grab_cancel(struct wlr_seat_keyboard_grab *grab) {

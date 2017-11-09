@@ -128,6 +128,16 @@ void view_setup(struct roots_view *view) {
 
 void view_teardown(struct roots_view *view) {
 	// TODO replace me with a signal
+	/*
+	struct wlr_list *views = view->desktop->views;
+	if (views->length < 2 || views->items[views->length-1] != view) {
+		return;
+	}
+
+	struct roots_view *prev_view = views->items[views->length-2];
+	struct roots_input *input = prev_view->desktop->server->input;
+	set_view_focus(input, prev_view->desktop, prev_view);
+	*/
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
