@@ -25,27 +25,63 @@ static void activate(struct roots_view *view, bool active) {
 	}
 }
 
+static void apply_size_constraints(struct wlr_xdg_surface_v6 *surf,
+		uint32_t width, uint32_t height, uint32_t *dest_width,
+		uint32_t *dest_height) {
+	*dest_width = width;
+	*dest_height = height;
+
+	struct wlr_xdg_toplevel_v6_state *state =
+		&surf->toplevel_state->current;
+	if (width < state->min_width) {
+		*dest_width = state->min_width;
+	} else if (state->max_width > 0 &&
+			width > state->max_width) {
+		*dest_width = state->max_width;
+	}
+	if (height < state->min_height) {
+		*dest_height = state->min_height;
+	} else if (state->max_height > 0 &&
+			height > state->max_height) {
+		*dest_height = state->max_height;
+	}
+}
+
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	if (surf->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		struct wlr_xdg_toplevel_v6_state *state =
-			&surf->toplevel_state->current;
-		if (width < state->min_width) {
-			width = state->min_width;
-		} else if (state->max_width > 0 &&
-				width > state->max_width) {
-			width = state->max_width;
-		}
-		if (height < state->min_height) {
-			height = state->min_height;
-		} else if (state->max_height > 0 &&
-				height > state->max_height) {
-			height = state->max_height;
-		}
-
-		wlr_xdg_toplevel_v6_set_size(surf, width, height);
+	if (surf->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
 	}
+
+	uint32_t contrained_width, contrained_height;
+	apply_size_constraints(surf, width, height, &contrained_width,
+		&contrained_height);
+
+	wlr_xdg_toplevel_v6_set_size(surf, contrained_width, contrained_height);
+}
+
+static void move_resize(struct roots_view *view, double x, double y,
+		uint32_t width, uint32_t height) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
+	if (surf->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
+	}
+
+	uint32_t contrained_width, contrained_height;
+	apply_size_constraints(surf, width, height, &contrained_width,
+		&contrained_height);
+
+	x = x + width - contrained_width;
+	y = y + height - contrained_height;
+
+	// TODO: we should wait for an ack_configure event before updating the
+	// position
+	view->x = x;
+	view->y = y;
+
+	wlr_xdg_toplevel_v6_set_size(surf, contrained_width, contrained_height);
 }
 
 static void close(struct roots_view *view) {
@@ -130,6 +166,10 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 		&roots_surface->request_resize);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (!view) {
+		free(roots_surface);
+		return;
+	}
 	view->type = ROOTS_XDG_SHELL_V6_VIEW;
 	view->xdg_surface_v6 = surface;
 	view->roots_xdg_surface_v6 = roots_surface;
@@ -137,6 +177,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->get_size = get_size;
 	view->activate = activate;
 	view->resize = resize;
+	view->move_resize = move_resize;
 	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;
