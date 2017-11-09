@@ -230,6 +230,12 @@ static void keyboard_config_merge(struct keyboard_config *config,
 	if (config->options == NULL) {
 		config->options = fallback->options;
 	}
+	if (config->meta_key == 0) {
+		config->meta_key = fallback->meta_key;
+	}
+	if (config->name == NULL) {
+		config->name = fallback->name;
+	}
 }
 
 struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
