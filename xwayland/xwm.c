@@ -839,11 +839,9 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 			xsurface_set_net_wm_state(xsurface);
 		} else if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT] &&
 				update_state(action, &xsurface->maximized_vert)) {
-			wlr_log(L_DEBUG, "cc sava");
 			xsurface_set_net_wm_state(xsurface);
 		} else if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ] &&
 				update_state(action, &xsurface->maximized_horz)) {
-			wlr_log(L_DEBUG, "mwa sava");
 			xsurface_set_net_wm_state(xsurface);
 		}
 	}
