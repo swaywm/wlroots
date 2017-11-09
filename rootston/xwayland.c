@@ -170,7 +170,7 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 
 static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, request_resize);
+		wl_container_of(listener, roots_surface, request_maximize);
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
