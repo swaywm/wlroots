@@ -249,6 +249,10 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	keyboard->input = input;
 
 	struct keyboard_config *config = calloc(1, sizeof(struct keyboard_config));
+	if (config == NULL) {
+		free(keyboard);
+		return NULL;
+	}
 	keyboard_config_merge(config, config_get_keyboard(input->config, device));
 	keyboard_config_merge(config, config_get_keyboard(input->config, NULL));
 

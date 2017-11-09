@@ -306,6 +306,11 @@ void roots_seat_destroy(struct roots_seat *seat) {
 static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *device) {
 	assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
 	struct roots_keyboard *keyboard = roots_keyboard_create(device, seat->input);
+	if (keyboard == NULL) {
+		wlr_log(L_ERROR, "could not allocate keyboard for seat");
+		return;
+	}
+
 	keyboard->seat = seat;
 
 	wl_list_insert(&seat->keyboards, &keyboard->link);
