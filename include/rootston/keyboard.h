@@ -27,7 +27,6 @@ void roots_keyboard_destroy(struct roots_keyboard *keyboard);
 void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event);
 
-void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard,
-		struct wlr_event_keyboard_modifiers *event);
+void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard);
 
 #endif

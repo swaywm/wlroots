@@ -41,6 +41,8 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	keyboard->modifiers.latched = latched;
 	keyboard->modifiers.locked = locked;
 	keyboard->modifiers.group = group;
+
+	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
 static void keyboard_key_update(struct wlr_keyboard *keyboard,
@@ -68,15 +70,14 @@ static void keyboard_key_update(struct wlr_keyboard *keyboard,
 }
 
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
-		struct wlr_event_keyboard_modifiers *event) {
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
+		uint32_t group) {
 	if (!keyboard->xkb_state) {
 		return;
 	}
-	xkb_state_update_mask(keyboard->xkb_state, event->mods_depressed,
-		event->mods_latched, event->mods_locked, 0, 0, event->group);
+	xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
+		mods_locked, 0, 0, group);
 	keyboard_modifier_update(keyboard);
-
-	wl_signal_emit(&keyboard->events.modifiers, event);
 }
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,

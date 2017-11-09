@@ -22,8 +22,7 @@ static void handle_keyboard_modifiers(struct wl_listener *listener,
 		void *data) {
 	struct roots_keyboard *keyboard =
 		wl_container_of(listener, keyboard, keyboard_modifiers);
-	struct wlr_event_keyboard_modifiers *event = data;
-	roots_keyboard_handle_modifiers(keyboard, event);
+	roots_keyboard_handle_modifiers(keyboard);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {

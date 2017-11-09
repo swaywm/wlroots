@@ -204,8 +204,7 @@ void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 	}
 }
 
-void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard,
-		struct wlr_event_keyboard_modifiers *event) {
+void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
 	struct wlr_seat *seat = r_keyboard->seat->seat;
 	wlr_seat_set_keyboard(seat, r_keyboard->device);
 	wlr_seat_keyboard_notify_modifiers(seat);

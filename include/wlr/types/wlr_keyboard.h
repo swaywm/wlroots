@@ -66,21 +66,10 @@ enum wlr_key_state {
 };
 
 struct wlr_event_keyboard_key {
-	struct wlr_input_device *device;
-	struct wlr_keyboard *keyboard;
 	uint32_t time_msec;
 	uint32_t keycode;
 	bool update_state;
 	enum wlr_key_state state;
-};
-
-struct wlr_event_keyboard_modifiers {
-	struct wlr_input_device *device;
-	struct wlr_keyboard *keyboard;
-	uint32_t mods_depressed;
-	uint32_t mods_latched;
-	uint32_t mods_locked;
-	uint32_t group;
 };
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
