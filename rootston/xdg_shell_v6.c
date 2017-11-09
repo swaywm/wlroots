@@ -128,9 +128,9 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	view_begin_resize(input, event->cursor, view, e->edges);
 }
 
-static void handle_commit(struct wl_listener *listener, void *data) {
+static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
-		wl_container_of(listener, roots_xdg_surface, commit);
+		wl_container_of(listener, roots_xdg_surface, request_maximize);
 	struct roots_view *view = roots_xdg_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
@@ -138,9 +138,15 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	if (view->maximized != surface->toplevel_state->current.maximized) {
-		view_maximize(view, surface->toplevel_state->current.maximized);
-	}
+	view_maximize(view, surface->toplevel_state->next.maximized);
+}
+
+static void handle_commit(struct wl_listener *listener, void *data) {
+	//struct roots_xdg_surface_v6 *roots_xdg_surface =
+	//	wl_container_of(listener, roots_xdg_surface, commit);
+	//struct roots_view *view = roots_xdg_surface->view;
+	//struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	// TODO
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -185,6 +191,9 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
+	roots_surface->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&surface->events.request_maximize,
+		&roots_surface->request_maximize);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {
