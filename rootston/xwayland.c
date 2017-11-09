@@ -97,6 +97,10 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_surface, destroy);
 	view_teardown(roots_surface->view);
 	wl_list_remove(&roots_surface->destroy.link);
+	wl_list_remove(&roots_surface->request_configure.link);
+	wl_list_remove(&roots_surface->request_move.link);
+	wl_list_remove(&roots_surface->request_resize.link);
+	wl_list_remove(&roots_surface->request_maximize.link);
 	wl_list_remove(&roots_surface->map_notify.link);
 	wl_list_remove(&roots_surface->unmap_notify.link);
 	view_destroy(roots_surface->view);
