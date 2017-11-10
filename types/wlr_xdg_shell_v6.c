@@ -664,24 +664,28 @@ static void xdg_toplevel_protocol_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = true;
+	wl_signal_emit(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = false;
+	wl_signal_emit(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.fullscreen = true;
+	wl_signal_emit(&surface->events.request_fullscreen, surface);
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.fullscreen = false;
+	wl_signal_emit(&surface->events.request_fullscreen, surface);
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,
@@ -1143,6 +1147,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_list_init(&surface->configure_list);
 	wl_list_init(&surface->popups);
 
+	wl_signal_init(&surface->events.request_maximize);
+	wl_signal_init(&surface->events.request_fullscreen);
 	wl_signal_init(&surface->events.request_minimize);
 	wl_signal_init(&surface->events.request_move);
 	wl_signal_init(&surface->events.request_resize);

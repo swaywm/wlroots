@@ -84,6 +84,16 @@ static void move_resize(struct roots_view *view, double x, double y,
 	wlr_xdg_toplevel_v6_set_size(surf, contrained_width, contrained_height);
 }
 
+static void maximize(struct roots_view *view, bool maximized) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
+	}
+
+	wlr_xdg_toplevel_v6_set_maximized(surface, maximized);
+}
+
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
@@ -118,8 +128,25 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	view_begin_resize(input, event->cursor, view, e->edges);
 }
 
+static void handle_request_maximize(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, request_maximize);
+	struct roots_view *view = roots_xdg_surface->view;
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
+	}
+
+	view_maximize(view, surface->toplevel_state->next.maximized);
+}
+
 static void handle_commit(struct wl_listener *listener, void *data) {
-	// TODO is there anything we need to do here?
+	//struct roots_xdg_surface_v6 *roots_xdg_surface =
+	//	wl_container_of(listener, roots_xdg_surface, commit);
+	//struct roots_view *view = roots_xdg_surface->view;
+	//struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	// TODO
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -164,6 +191,9 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
+	roots_surface->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&surface->events.request_maximize,
+		&roots_surface->request_maximize);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {
@@ -178,6 +208,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->activate = activate;
 	view->resize = resize;
 	view->move_resize = move_resize;
+	view->maximize = maximize;
 	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;

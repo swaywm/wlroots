@@ -126,6 +126,8 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal ack_configure;
 		struct wl_signal ping_timeout;
 
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
 		struct wl_signal request_minimize;
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
