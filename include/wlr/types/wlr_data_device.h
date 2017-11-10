@@ -75,6 +75,11 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		struct wl_display *display);
 
 /**
+ * Destroys a wlr_data_device_manager and removes its wl_data_device_manager global.
+ */
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager);
+
+/**
  * Creates a new wl_data_offer if there is a wl_data_source currently set as
  * the seat selection and sends it to the seat client, followed by the
  * wl_data_device.selection() event.  If there is no current selection, the
