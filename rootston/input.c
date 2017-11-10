@@ -108,3 +108,17 @@ struct roots_seat *input_seat_from_wlr_seat(struct roots_input *input,
 	}
 	return seat;
 }
+
+bool input_view_has_focus(struct roots_input *input, struct roots_view *view) {
+	if (!view) {
+		return false;
+	}
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		if (seat->focus == view) {
+			return true;
+		}
+	}
+
+	return false;
+}

@@ -26,4 +26,6 @@ void input_destroy(struct roots_input *input);
 struct roots_seat *input_seat_from_wlr_seat(struct roots_input *input,
 		struct wlr_seat *seat);
 
+bool input_view_has_focus(struct roots_input *input, struct roots_view *view);
+
 #endif

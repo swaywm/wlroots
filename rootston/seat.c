@@ -503,36 +503,21 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	// unfocus the old view if it is not focused by some other seat
-	// TODO probably should be an input function
-	if (seat->focus) {
-		bool has_other_focus = false;
-		struct roots_seat *iter_seat;
-		wl_list_for_each(iter_seat, &seat->input->seats, link) {
-			if (iter_seat == seat) {
-				continue;
-			}
-			if (iter_seat->focus == seat->focus) {
-				has_other_focus = true;
-				break;
-			}
-		}
-
-		if (!has_other_focus) {
-			view_activate(seat->focus, false);
-		}
-	}
-
-	if (!view) {
-		seat->focus = NULL;
-		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
+			view->xwayland_surface->override_redirect) {
 		return;
 	}
 
+	struct roots_view *prev_focus = seat->focus;
 	seat->focus = view;
 
-	if (view->type == ROOTS_XWAYLAND_VIEW &&
-			view->xwayland_surface->override_redirect) {
+	// unfocus the old view if it is not focused by some other seat
+	if (prev_focus && !input_view_has_focus(seat->input, prev_focus)) {
+		view_activate(prev_focus, false);
+	}
+
+	if (!seat->focus) {
+		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		return;
 	}
 
