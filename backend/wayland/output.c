@@ -249,7 +249,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	wlr_output_update_size(wlr_output, 640, 480);
+	wlr_output_update_size(wlr_output, 1280, 720);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d",
