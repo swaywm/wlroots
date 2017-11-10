@@ -257,7 +257,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
  * If it's not found, it returns the first valid GPU it finds.
  */
 size_t wlr_session_find_gpus(struct wlr_session *session,
-		size_t ret_len, int ret[static ret_len]) {
+		size_t ret_len, int *ret) {
 	const char *explicit = getenv("WLR_DRM_DEVICES");
 	if (explicit) {
 		return explicit_find_gpus(session, ret_len, ret, explicit);
