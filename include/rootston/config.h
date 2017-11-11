@@ -58,8 +58,16 @@ struct roots_config {
 	char *startup_cmd;
 };
 
+/**
+ * Create a roots config from the given command line arguments. Command line
+ * arguments can specify the location of the config file. If it is not
+ * specified, the default location will be used.
+ */
 struct roots_config *parse_args(int argc, char *argv[]);
 
+/**
+ * Destroy the config and free its resources.
+ */
 void roots_config_destroy(struct roots_config *config);
 
 /**
