@@ -117,8 +117,8 @@ static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input
 	struct roots_config *config = seat->input->config;
 
 	wlr_cursor_map_input_to_output(cursor, device, NULL);
-	struct device_config *dconfig;
-	if ((dconfig = config_get_device(config, device))) {
+	struct roots_device_config *dconfig;
+	if ((dconfig = roots_config_get_device(config, device))) {
 		wlr_cursor_map_input_to_region(cursor, device, dconfig->mapped_box);
 	}
 }
@@ -127,8 +127,8 @@ static void seat_set_device_output_mappings(struct roots_seat *seat,
 		struct wlr_input_device *device, struct wlr_output *output) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
-	struct device_config *dconfig;
-	dconfig = config_get_device(config, device);
+	struct roots_device_config *dconfig;
+	dconfig = roots_config_get_device(config, device);
 	if (dconfig && dconfig->mapped_output &&
 			strcmp(dconfig->mapped_output, output->name) == 0) {
 		wlr_cursor_map_input_to_output(cursor, device, output);

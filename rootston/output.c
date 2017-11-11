@@ -181,7 +181,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	output->last_frame = desktop->last_frame = now;
 }
 
-static void set_mode(struct wlr_output *output, struct output_config *oc) {
+static void set_mode(struct wlr_output *output,
+		struct roots_output_config *oc) {
 	struct wlr_output_mode *mode, *best = NULL;
 	int mhz = (int)(oc->mode.refresh_rate * 1000);
 	wl_list_for_each(mode, &output->modes, link) {
@@ -225,7 +226,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
 	wl_list_insert(&desktop->outputs, &output->link);
 
-	struct output_config *output_config = config_get_output(config, wlr_output);
+	struct roots_output_config *output_config =
+		roots_config_get_output(config, wlr_output);
 	if (output_config) {
 		if (output_config->mode.width) {
 			set_mode(wlr_output, output_config);

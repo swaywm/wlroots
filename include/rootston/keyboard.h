@@ -10,7 +10,7 @@ struct roots_keyboard {
 	struct roots_input *input;
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
-	struct keyboard_config *config;
+	struct roots_keyboard_config *config;
 	struct wl_list link;
 
 	struct wl_listener keyboard_key;
