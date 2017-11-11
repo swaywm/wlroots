@@ -3,7 +3,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
 
-struct output_config {
+struct roots_output_config {
 	char *name;
 	enum wl_output_transform transform;
 	int x, y;
@@ -15,7 +15,7 @@ struct output_config {
 	} mode;
 };
 
-struct device_config {
+struct roots_device_config {
 	char *name;
 	char *mapped_output;
 	struct wlr_box *mapped_box;
@@ -23,7 +23,7 @@ struct device_config {
 	struct wl_list link;
 };
 
-struct binding_config {
+struct roots_binding_config {
 	uint32_t modifiers;
 	xkb_keysym_t *keysyms;
 	size_t keysyms_len;
@@ -31,7 +31,7 @@ struct binding_config {
 	struct wl_list link;
 };
 
-struct keyboard_config {
+struct roots_keyboard_config {
 	char *name;
 	uint32_t meta_key;
 	char *rules;
@@ -63,7 +63,7 @@ struct roots_config {
  * arguments can specify the location of the config file. If it is not
  * specified, the default location will be used.
  */
-struct roots_config *parse_args(int argc, char *argv[]);
+struct roots_config *roots_config_create_from_args(int argc, char *argv[]);
 
 /**
  * Destroy the config and free its resources.
@@ -74,21 +74,21 @@ void roots_config_destroy(struct roots_config *config);
  * Get configuration for the output. If the output is not configured, returns
  * NULL.
  */
-struct output_config *config_get_output(struct roots_config *config,
+struct roots_output_config *roots_config_get_output(struct roots_config *config,
 	struct wlr_output *output);
 
 /**
  * Get configuration for the device. If the device is not configured, returns
  * NULL.
  */
-struct device_config *config_get_device(struct roots_config *config,
+struct roots_device_config *roots_config_get_device(struct roots_config *config,
 	struct wlr_input_device *device);
 
 /**
  * Get configuration for the keyboard. If the keyboard is not configured,
  * returns NULL. A NULL device returns the default config for keyboards.
  */
-struct keyboard_config *config_get_keyboard(struct roots_config *config,
-	struct wlr_input_device *device);
+struct roots_keyboard_config *roots_config_get_keyboard(
+		struct roots_config *config, struct wlr_input_device *device);
 
 #endif

@@ -115,7 +115,8 @@ static uint32_t parse_modifier(const char *symname) {
 
 void add_binding_config(struct wl_list *bindings, const char* combination,
 		const char* command) {
-	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+	struct roots_binding_config *bc =
+		calloc(1, sizeof(struct roots_binding_config));
 
 	xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 	char *symnames = strdup(combination);
@@ -151,7 +152,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 
 static void config_handle_keyboard(struct roots_config *config,
 		const char *device_name, const char *name, const char *value) {
-	struct keyboard_config *kc;
+	struct roots_keyboard_config *kc;
 	bool found = false;
 	wl_list_for_each(kc, &config->keyboards, link) {
 		if (strcmp(kc->name, device_name) == 0) {
@@ -161,7 +162,7 @@ static void config_handle_keyboard(struct roots_config *config,
 	}
 
 	if (!found) {
-		kc = calloc(1, sizeof(struct keyboard_config));
+		kc = calloc(1, sizeof(struct roots_keyboard_config));
 		kc->name = strdup(device_name);
 		wl_list_insert(&config->keyboards, &kc->link);
 	}
@@ -207,7 +208,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 	} else if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
 		const char *output_name = section + strlen(output_prefix);
-		struct output_config *oc;
+		struct roots_output_config *oc;
 		bool found = false;
 
 		wl_list_for_each(oc, &config->outputs, link) {
@@ -218,7 +219,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 
 		if (!found) {
-			oc = calloc(1, sizeof(struct output_config));
+			oc = calloc(1, sizeof(struct roots_output_config));
 			oc->name = strdup(output_name);
 			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 			oc->scale = 1;
@@ -281,7 +282,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 	} else if (strncmp(device_prefix, section, strlen(device_prefix)) == 0) {
 		const char *device_name = section + strlen(device_prefix);
 
-		struct device_config *dc;
+		struct roots_device_config *dc;
 		bool found = false;
 		wl_list_for_each(dc, &config->devices, link) {
 			if (strcmp(dc->name, device_name) == 0) {
@@ -291,7 +292,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 
 		if (!found) {
-			dc = calloc(1, sizeof(struct device_config));
+			dc = calloc(1, sizeof(struct roots_device_config));
 			dc->name = strdup(device_name);
 			dc->seat = strdup("seat0");
 			wl_list_insert(&config->devices, &dc->link);
@@ -323,7 +324,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 	return 1;
 }
 
-struct roots_config *parse_args(int argc, char *argv[]) {
+struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
 	if (config == NULL) {
 		return NULL;
@@ -370,7 +371,8 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
-		struct keyboard_config *kc = calloc(1, sizeof(struct keyboard_config));
+		struct roots_keyboard_config *kc =
+			calloc(1, sizeof(struct roots_keyboard_config));
 		kc->meta_key = WLR_MODIFIER_LOGO;
 		kc->name = strdup("");
 		wl_list_insert(&config->keyboards, &kc->link);
@@ -386,13 +388,13 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 }
 
 void roots_config_destroy(struct roots_config *config) {
-	struct output_config *oc, *otmp = NULL;
+	struct roots_output_config *oc, *otmp = NULL;
 	wl_list_for_each_safe(oc, otmp, &config->outputs, link) {
 		free(oc->name);
 		free(oc);
 	}
 
-	struct device_config *dc, *dtmp = NULL;
+	struct roots_device_config *dc, *dtmp = NULL;
 	wl_list_for_each_safe(dc, dtmp, &config->devices, link) {
 		free(dc->name);
 		free(dc->seat);
@@ -401,7 +403,7 @@ void roots_config_destroy(struct roots_config *config) {
 		free(dc);
 	}
 
-	struct keyboard_config *kc, *ktmp = NULL;
+	struct roots_keyboard_config *kc, *ktmp = NULL;
 	wl_list_for_each_safe(kc, ktmp, &config->bindings, link) {
 		free(kc->name);
 		free(kc->rules);
@@ -412,7 +414,7 @@ void roots_config_destroy(struct roots_config *config) {
 		free(kc);
 	}
 
-	struct binding_config *bc, *btmp = NULL;
+	struct roots_binding_config *bc, *btmp = NULL;
 	wl_list_for_each_safe(bc, btmp, &config->bindings, link) {
 		free(bc->keysyms);
 		free(bc->command);
@@ -425,9 +427,9 @@ void roots_config_destroy(struct roots_config *config) {
 	free(config);
 }
 
-struct output_config *config_get_output(struct roots_config *config,
+struct roots_output_config *roots_config_get_output(struct roots_config *config,
 		struct wlr_output *output) {
-	struct output_config *o_config;
+	struct roots_output_config *o_config;
 	wl_list_for_each(o_config, &config->outputs, link) {
 		if (strcmp(o_config->name, output->name) == 0) {
 			return o_config;
@@ -437,9 +439,9 @@ struct output_config *config_get_output(struct roots_config *config,
 	return NULL;
 }
 
-struct device_config *config_get_device(struct roots_config *config,
+struct roots_device_config *roots_config_get_device(struct roots_config *config,
 		struct wlr_input_device *device) {
-	struct device_config *d_config;
+	struct roots_device_config *d_config;
 	wl_list_for_each(d_config, &config->devices, link) {
 		if (strcmp(d_config->name, device->name) == 0) {
 			return d_config;
@@ -449,9 +451,9 @@ struct device_config *config_get_device(struct roots_config *config,
 	return NULL;
 }
 
-struct keyboard_config *config_get_keyboard(struct roots_config *config,
-		struct wlr_input_device *device) {
-	struct keyboard_config *kc;
+struct roots_keyboard_config *roots_config_get_keyboard(
+		struct roots_config *config, struct wlr_input_device *device) {
+	struct roots_keyboard_config *kc;
 	wl_list_for_each(kc, &config->keyboards, link) {
 		if ((device != NULL && strcmp(kc->name, device->name) == 0) ||
 				(device == NULL && strcmp(kc->name, "") == 0)) {

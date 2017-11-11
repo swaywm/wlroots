@@ -92,7 +92,7 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
-	struct binding_config *bc;
+	struct roots_binding_config *bc;
 	wl_list_for_each(bc, bindings, link) {
 		if (modifiers ^ bc->modifiers) {
 			continue;
@@ -210,8 +210,8 @@ void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
 	wlr_seat_keyboard_notify_modifiers(seat);
 }
 
-static void keyboard_config_merge(struct keyboard_config *config,
-		struct keyboard_config *fallback) {
+static void keyboard_config_merge(struct roots_keyboard_config *config,
+		struct roots_keyboard_config *fallback) {
 	if (fallback == NULL) {
 		return;
 	}
@@ -248,15 +248,16 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	keyboard->device = device;
 	keyboard->input = input;
 
-	struct keyboard_config *config = calloc(1, sizeof(struct keyboard_config));
+	struct roots_keyboard_config *config =
+		calloc(1, sizeof(struct roots_keyboard_config));
 	if (config == NULL) {
 		free(keyboard);
 		return NULL;
 	}
-	keyboard_config_merge(config, config_get_keyboard(input->config, device));
-	keyboard_config_merge(config, config_get_keyboard(input->config, NULL));
+	keyboard_config_merge(config, roots_config_get_keyboard(input->config, device));
+	keyboard_config_merge(config, roots_config_get_keyboard(input->config, NULL));
 
-	struct keyboard_config env_config = {
+	struct roots_keyboard_config env_config = {
 		.rules = getenv("XKB_DEFAULT_RULES"),
 		.model = getenv("XKB_DEFAULT_MODEL"),
 		.layout = getenv("XKB_DEFAULT_LAYOUT"),

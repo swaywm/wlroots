@@ -13,7 +13,7 @@
 struct roots_server server = { 0 };
 
 int main(int argc, char **argv) {
-	assert(server.config = parse_args(argc, argv));
+	assert(server.config = roots_config_create_from_args(argc, argv));
 	assert(server.wl_display = wl_display_create());
 	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
 

@@ -44,7 +44,8 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_input *input = wl_container_of(listener, input, input_add);
 
 	char *seat_name = "seat0";
-	struct device_config *dc = config_get_device(input->config, device);
+	struct roots_device_config *dc =
+		roots_config_get_device(input->config, device);
 	if (dc) {
 		seat_name = dc->seat;
 	}
