@@ -312,7 +312,8 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 	} else if (strcmp(section, "keyboard") == 0) {
 		config_handle_keyboard(config, "", name, value);
-	} else if (strncmp(keyboard_prefix, section, strlen(keyboard_prefix)) == 0) {
+	} else if (strncmp(keyboard_prefix,
+				section, strlen(keyboard_prefix)) == 0) {
 		const char *device_name = section + strlen(keyboard_prefix);
 		config_handle_keyboard(config, device_name, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
