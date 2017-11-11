@@ -2,7 +2,6 @@
 #define _ROOTSTON_CONFIG_H
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_cursor.h>
 
 struct output_config {
 	char *name;
@@ -45,7 +44,7 @@ struct keyboard_config {
 
 struct roots_config {
 	bool xwayland;
-	// TODO: Multiple cursors, multiseat
+
 	struct {
 		char *mapped_output;
 		struct wlr_box *mapped_box;
