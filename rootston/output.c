@@ -210,8 +210,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_config *config = desktop->config;
 
 	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
-	wlr_log(L_DEBUG, "%s %s %"PRId32"mm x %"PRId32"mm", wlr_output->make,
-		wlr_output->model, wlr_output->phys_width, wlr_output->phys_height);
+	wlr_log(L_DEBUG, "%s %s %s %"PRId32"mm x %"PRId32"mm", wlr_output->make,
+		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
+		wlr_output->phys_height);
 	if (wl_list_length(&wlr_output->modes) > 0) {
 		struct wlr_output_mode *mode = NULL;
 		mode = wl_container_of((&wlr_output->modes)->prev, mode, link);

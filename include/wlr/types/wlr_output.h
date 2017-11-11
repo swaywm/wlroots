@@ -43,6 +43,7 @@ struct wlr_output {
 	char name[16];
 	char make[48];
 	char model[16];
+	char serial[16];
 	uint32_t scale;
 	int32_t width, height;
 	int32_t phys_width, phys_height; // mm
