@@ -72,10 +72,10 @@ void view_begin_resize(struct roots_input *input, struct wlr_cursor *cursor,
 	} else {
 		input->view_x = view->x;
 		input->view_y = view->y;
-		struct wlr_box size;
-		view_get_size(view, &size);
-		input->view_width = size.width;
-		input->view_height = size.height;
+		struct wlr_box box;
+		view_get_box(view, &box);
+		input->view_width = box.width;
+		input->view_height = box.height;
 	}
 	input->resize_edges = edges;
 
