@@ -161,15 +161,18 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	}
 
 	struct roots_drag_icon *drag_icon = NULL;
-	wl_list_for_each(drag_icon, &server->input->drag_icons, link) {
-		if (!drag_icon->mapped) {
-			continue;
+	struct roots_seat *seat = NULL;
+	wl_list_for_each(seat, &server->input->seats, link) {
+		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+			if (!drag_icon->mapped) {
+				continue;
+			}
+			struct wlr_surface *icon = drag_icon->surface;
+			struct wlr_cursor *cursor = seat->cursor->cursor;
+			double icon_x = cursor->x + drag_icon->sx;
+			double icon_y = cursor->y + drag_icon->sy;
+			render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
 		}
-		struct wlr_surface *icon = drag_icon->surface;
-		struct wlr_cursor *cursor = server->input->cursor;
-		double icon_x = cursor->x + drag_icon->sx;
-		double icon_y = cursor->y + drag_icon->sy;
-		render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
 	}
 
 	wlr_renderer_end(server->renderer);
@@ -235,14 +238,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
 
-	cursor_load_config(config, input->cursor, input, desktop);
-
-	struct wlr_xcursor *xcursor = get_default_xcursor(input->xcursor_theme);
-	struct wlr_xcursor_image *image = xcursor->images[0];
-	wlr_cursor_set_image(input->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
-
-	wlr_cursor_warp(input->cursor, NULL, input->cursor->x, input->cursor->y);
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		roots_seat_configure_cursor(seat);
+		roots_seat_configure_xcursor(seat);
+	}
 }
 
 void output_remove_notify(struct wl_listener *listener, void *data) {

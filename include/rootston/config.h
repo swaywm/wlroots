@@ -20,6 +20,7 @@ struct device_config {
 	char *name;
 	char *mapped_output;
 	struct wlr_box *mapped_box;
+	char *seat;
 	struct wl_list link;
 };
 

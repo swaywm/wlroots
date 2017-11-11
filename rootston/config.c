@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
+#include "rootston/keyboard.h"
 #include "rootston/ini.h"
 
 static void usage(const char *name, int ret) {
@@ -292,6 +293,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		if (!found) {
 			dc = calloc(1, sizeof(struct device_config));
 			dc->name = strdup(device_name);
+			dc->seat = strdup("seat0");
 			wl_list_insert(&config->devices, &dc->link);
 		}
 
@@ -301,6 +303,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "geometry") == 0) {
 			free(dc->mapped_box);
 			dc->mapped_box = parse_geometry(value);
+		} else if (strcmp(name, "seat") == 0) {
+			free(dc->seat);
+			dc->seat = strdup(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
@@ -390,6 +395,7 @@ void roots_config_destroy(struct roots_config *config) {
 	struct device_config *dc, *dtmp = NULL;
 	wl_list_for_each_safe(dc, dtmp, &config->devices, link) {
 		free(dc->name);
+		free(dc->seat);
 		free(dc->mapped_output);
 		free(dc->mapped_box);
 		free(dc);

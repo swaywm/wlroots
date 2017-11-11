@@ -14,15 +14,19 @@
 #include <wlr/util/log.h>
 #include <server-decoration-protocol.h>
 #include "rootston/server.h"
-#include "rootston/server.h"
+#include "rootston/seat.h"
 
+// TODO replace me with a signal
 void view_destroy(struct roots_view *view) {
 	struct roots_desktop *desktop = view->desktop;
 
 	struct roots_input *input = desktop->server->input;
-	if (input->active_view == view) {
-		input->active_view = NULL;
-		input->mode = ROOTS_CURSOR_PASSTHROUGH;
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		if (seat->focus == view) {
+			seat->focus = NULL;
+			seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		}
 	}
 
 	for (size_t i = 0; i < desktop->views->length; ++i) {
@@ -161,15 +165,9 @@ bool view_center(struct roots_view *view) {
 	view_get_box(view, &box);
 
 	struct roots_desktop *desktop = view->desktop;
-	struct wlr_cursor *cursor = desktop->server->input->cursor;
 
 	struct wlr_output *output =
-		wlr_output_layout_output_at(desktop->layout, cursor->x, cursor->y);
-
-	if (!output) {
-		output = wlr_output_layout_get_center_output(desktop->layout);
-	}
-
+		wlr_output_layout_get_center_output(desktop->layout);
 	if (!output) {
 		// empty layout
 		return false;
@@ -190,14 +188,21 @@ bool view_center(struct roots_view *view) {
 
 void view_setup(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
+	// TODO what seat gets focus? the one with the last input event?
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		roots_seat_focus_view(seat, view);
+	}
+
 	view_center(view);
-	set_view_focus(input, view->desktop, view);
 	struct wlr_box before;
 	view_get_box(view, &before);
 	view_update_output(view, &before);
 }
 
 void view_teardown(struct roots_view *view) {
+	// TODO replace me with a signal
+	/*
 	struct wlr_list *views = view->desktop->views;
 	if (views->length < 2 || views->items[views->length-1] != view) {
 		return;
@@ -206,6 +211,7 @@ void view_teardown(struct roots_view *view) {
 	struct roots_view *prev_view = views->items[views->length-2];
 	struct roots_input *input = prev_view->desktop->server->input;
 	set_view_focus(input, prev_view->desktop, prev_view);
+	*/
 }
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,

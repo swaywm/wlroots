@@ -114,11 +114,12 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_xdg_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_xdg_toplevel_v6_move_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	// TODO verify event serial
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_move(input, event->cursor, view);
+	roots_seat_begin_move(seat, view);
 }
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
@@ -127,11 +128,13 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_xdg_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_xdg_toplevel_v6_resize_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	// TODO verify event serial
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	assert(seat);
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, event->cursor, view, e->edges);
+	roots_seat_begin_resize(seat, view, e->edges);
 }
 
 static void handle_request_maximize(struct wl_listener *listener, void *data) {
