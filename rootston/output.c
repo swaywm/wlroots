@@ -241,13 +241,14 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
 
-	if (roots_xcursor_theme_load(desktop->xcursor_theme, wlr_output->scale)) {
-		wlr_log(L_ERROR, "Cannot load xcursor theme with scale %d",
-			wlr_output->scale);
-	}
-
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
+		if (roots_xcursor_theme_load(seat->cursor->xcursor_theme,
+				wlr_output->scale)) {
+			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
+				"with scale %d", wlr_output->name, wlr_output->scale);
+		}
+
 		roots_seat_configure_cursor(seat);
 		roots_seat_configure_xcursor(seat);
 	}

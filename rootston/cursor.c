@@ -44,7 +44,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 			set_compositor_cursor = view_client != cursor->cursor_client;
 		}
 		if (set_compositor_cursor) {
-			roots_xcursor_theme_set_default(desktop->xcursor_theme,
+			roots_xcursor_theme_set_default(cursor->xcursor_theme,
 				cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
