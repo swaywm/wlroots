@@ -13,8 +13,14 @@
 static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surf = view->xdg_surface_v6;
-	// TODO: surf->geometry can be NULL
-	memcpy(box, surf->geometry, sizeof(struct wlr_box));
+
+	if (surf->geometry->width > 0 && surf->geometry->height > 0) {
+		box->width = surf->geometry->width;
+		box->height = surf->geometry->height;
+	} else {
+		box->width = view->wlr_surface->current->width;
+		box->height = view->wlr_surface->current->height;
+	}
 }
 
 static void activate(struct roots_view *view, bool active) {

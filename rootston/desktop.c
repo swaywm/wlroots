@@ -35,15 +35,15 @@ void view_destroy(struct roots_view *view) {
 	free(view);
 }
 
-void view_get_size(const struct roots_view *view, struct wlr_box *box) {
+void view_get_box(const struct roots_view *view, struct wlr_box *box) {
+	box->x = view->x;
+	box->y = view->y;
 	if (view->get_size) {
 		view->get_size(view, box);
 	} else {
 		box->width = view->wlr_surface->current->width;
 		box->height = view->wlr_surface->current->height;
 	}
-	box->x = view->x;
-	box->y = view->y;
 }
 
 static void view_update_output(const struct roots_view *view,
@@ -51,7 +51,7 @@ static void view_update_output(const struct roots_view *view,
 	struct roots_desktop *desktop = view->desktop;
 	struct roots_output *output;
 	struct wlr_box box;
-	view_get_size(view, &box);
+	view_get_box(view, &box);
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before->x != -1 && wlr_output_layout_intersects(
 				desktop->layout, output->wlr_output,
@@ -71,7 +71,7 @@ static void view_update_output(const struct roots_view *view,
 
 void view_move(struct roots_view *view, double x, double y) {
 	struct wlr_box before;
-	view_get_size(view, &before);
+	view_get_box(view, &before);
 	if (view->move) {
 		view->move(view, x, y);
 	} else {
@@ -88,7 +88,7 @@ void view_activate(struct roots_view *view, bool activate) {
 
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	struct wlr_box before;
-	view_get_size(view, &before);
+	view_get_box(view, &before);
 	if (view->resize) {
 		view->resize(view, width, height);
 	}
@@ -117,7 +117,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 	if (!view->maximized && maximized) {
 		struct wlr_box view_box;
-		view_get_size(view, &view_box);
+		view_get_box(view, &view_box);
 
 		view->maximized = true;
 		view->saved.x = view->x;
@@ -158,7 +158,7 @@ void view_close(struct roots_view *view) {
 
 bool view_center(struct roots_view *view) {
 	struct wlr_box box;
-	view_get_size(view, &box);
+	view_get_box(view, &box);
 
 	struct roots_desktop *desktop = view->desktop;
 	struct wlr_cursor *cursor = desktop->server->input->cursor;
@@ -193,7 +193,7 @@ void view_setup(struct roots_view *view) {
 	view_center(view);
 	set_view_focus(input, view->desktop, view);
 	struct wlr_box before;
-	view_get_size(view, &before);
+	view_get_box(view, &before);
 	view_update_output(view, &before);
 }
 
