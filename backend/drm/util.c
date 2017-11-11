@@ -106,8 +106,15 @@ void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *d
 			if (nl) {
 				*nl = '\0';
 			}
+		} else if (flag == 0 && data[i + 3] == 0xFF) {
+			sprintf(output->serial, "%.13s", &data[i + 5]);
 
-			break;
+			// Monitor serial numbers are terminated by newline if they're too
+			// short
+			char *nl = strchr(output->serial, '\n');
+			if (nl) {
+				*nl = '\0';
+			}
 		}
 	}
 }
