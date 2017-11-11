@@ -231,7 +231,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height) {
-	// TODO: Scale factor
 	if (output->transform % 2 == 1) {
 		*width = output->height;
 		*height = output->width;
@@ -239,6 +238,8 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 		*width = output->width;
 		*height = output->height;
 	}
+	*width /= output->scale;
+	*height /= output->scale;
 }
 
 void wlr_output_make_current(struct wlr_output *output) {
@@ -269,6 +270,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	output_box.x = output_box.y = 0;
 	wlr_output_effective_resolution(cursor->output, &output_box.width,
 		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -471,7 +474,10 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	}
 }
 
-bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
+		double x, double y) {
+	x *= cursor->output->scale;
+	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
 
@@ -483,7 +489,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
 	if (!cursor->output->impl->move_cursor) {
 		return false;
 	}
-	return cursor->output->impl->move_cursor(cursor->output, x, y);
+	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
 }
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {

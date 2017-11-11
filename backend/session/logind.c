@@ -123,7 +123,7 @@ static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	return ret >= 0;
 }
 
-static bool find_sesion_path(struct logind_session *session) {
+static bool find_session_path(struct logind_session *session) {
 	int ret;
 	sd_bus_message *msg = NULL;
 	sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -303,7 +303,7 @@ static bool add_signal_matches(struct logind_session *session) {
 		"member='%s',"
 		"path='%s'";
 
-	snprintf(str, sizeof(str), fmt, "Manager", "SesssionRemoved", "/org/freedesktop/login1");
+	snprintf(str, sizeof(str), fmt, "Manager", "SessionRemoved", "/org/freedesktop/login1");
 	ret = sd_bus_add_match(session->bus, NULL, str, session_removed, session);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
@@ -368,7 +368,7 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		goto error;
 	}
 
-	if (!find_sesion_path(session)) {
+	if (!find_session_path(session)) {
 		sd_bus_unref(session->bus);
 		goto error;
 	}

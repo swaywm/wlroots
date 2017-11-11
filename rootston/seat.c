@@ -548,8 +548,14 @@ void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	cursor->mode = ROOTS_CURSOR_MOVE;
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
-	cursor->view_x = view->x;
-	cursor->view_y = view->y;
+	if (view->maximized) {
+		cursor->view_x = view->saved.x;
+		cursor->view_y = view->saved.y;
+	} else {
+		cursor->view_x = view->x;
+		cursor->view_y = view->y;
+	}
+	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
 	struct wlr_xcursor *xcursor = get_move_xcursor(seat->cursor->xcursor_theme);
@@ -565,13 +571,21 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 	cursor->mode = ROOTS_CURSOR_RESIZE;
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
-	cursor->view_x = view->x;
-	cursor->view_y = view->y;
-	struct wlr_box size;
-	view_get_size(view, &size);
-	cursor->view_width = size.width;
-	cursor->view_height = size.height;
+	if (view->maximized) {
+		cursor->view_x = view->saved.x;
+		cursor->view_y = view->saved.y;
+		cursor->view_width = view->saved.width;
+		cursor->view_height = view->saved.height;
+	} else {
+		cursor->view_x = view->x;
+		cursor->view_y = view->y;
+		struct wlr_box box;
+		view_get_box(view, &box);
+		cursor->view_width = box.width;
+		cursor->view_height = box.height;
+	}
 	cursor->resize_edges = edges;
+	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
 	struct wlr_xcursor *xcursor = get_resize_xcursor(cursor->xcursor_theme, edges);
@@ -587,6 +601,7 @@ void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
 	cursor->view_rotation = view->rotation;
+	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
 	struct wlr_xcursor *xcursor = get_rotate_xcursor(cursor->xcursor_theme);

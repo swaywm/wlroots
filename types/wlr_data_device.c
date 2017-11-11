@@ -815,3 +815,11 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 
 	return manager;
 }
+
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
+  if (!manager) {
+    return;
+  }
+  wl_global_destroy(manager->global);
+  free(manager);
+}

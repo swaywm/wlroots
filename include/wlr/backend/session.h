@@ -79,6 +79,6 @@ void wlr_session_signal_add(struct wlr_session *session, int fd,
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 
 size_t wlr_session_find_gpus(struct wlr_session *session,
-	size_t ret_len, int ret[static ret_len]);
+	size_t ret_len, int *ret);
 
 #endif
