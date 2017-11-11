@@ -11,6 +11,7 @@
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
+#include "rootston/xcursor.h"
 
 static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
@@ -238,6 +239,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 				wlr_output, output_config->x, output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
+	}
+
+	if (roots_xcursor_theme_load(desktop->xcursor_theme, wlr_output->scale)) {
+		wlr_log(L_ERROR, "Cannot load xcursor theme with scale %d",
+			wlr_output->scale);
 	}
 
 	struct roots_seat *seat;

@@ -323,6 +323,14 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->server = server;
 	desktop->config = config;
+
+	desktop->xcursor_theme = roots_xcursor_theme_create("default");
+	if (desktop->xcursor_theme == NULL) {
+		wlr_list_free(desktop->views);
+		free(desktop);
+		return NULL;
+	}
+
 	desktop->layout = wlr_output_layout_create();
 	desktop->compositor = wlr_compositor_create(server->wl_display,
 		server->renderer);
@@ -344,6 +352,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wl_signal_add(&desktop->xwayland->events.new_surface,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
+
+		if (roots_xcursor_theme_load(desktop->xcursor_theme, 1)) {
+			wlr_log(L_ERROR, "Cannot load xwayland xcursor theme");
+		}
+		roots_xcursor_theme_xwayland_set_default(desktop->xcursor_theme,
+			desktop->xwayland);
 	}
 #endif
 

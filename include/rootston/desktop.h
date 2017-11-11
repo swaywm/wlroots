@@ -12,6 +12,7 @@
 #include <wlr/types/wlr_list.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
+#include "rootston/xcursor.h"
 
 struct roots_output {
 	struct roots_desktop *desktop;
@@ -29,6 +30,7 @@ struct roots_desktop {
 
 	struct roots_server *server;
 	struct roots_config *config;
+	struct roots_xcursor_theme *xcursor_theme;
 
 	struct wlr_output_layout *layout;
 
