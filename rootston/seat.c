@@ -176,6 +176,12 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 	}
 }
 
+static void seat_set_xcursor_image(struct roots_seat *seat, struct
+		wlr_xcursor_image *image) {
+	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
+		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
+}
+
 static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor = roots_cursor_create(seat);
 	if (!seat->cursor) {
@@ -204,8 +210,7 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	}
 
 	struct wlr_xcursor_image *image = xcursor->images[0];
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+	seat_set_xcursor_image(seat, image);
 
 	// XXX: xwayland will always have the theme of the last created seat
 	if (seat->input->server->desktop->xwayland != NULL) {
@@ -471,10 +476,10 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
-	struct wlr_xcursor *xcursor = get_default_xcursor(seat->cursor->xcursor_theme);
+	struct wlr_xcursor *xcursor =
+		get_default_xcursor(seat->cursor->xcursor_theme);
 	struct wlr_xcursor_image *image = xcursor->images[0];
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+	seat_set_xcursor_image(seat, image);
 
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
@@ -535,12 +540,6 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 	wlr_list_del(desktop->views, index);
 	wlr_list_add(desktop->views, view);
 	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
-}
-
-static void seat_set_xcursor_image(struct roots_seat *seat, struct
-		wlr_xcursor_image *image) {
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {

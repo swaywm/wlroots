@@ -30,7 +30,7 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 static void cursor_set_xcursor_image(struct roots_cursor *cursor,
 		struct wlr_xcursor_image *image) {
 	wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 }
 
 static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t time) {
