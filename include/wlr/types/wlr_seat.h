@@ -109,6 +109,7 @@ struct wlr_seat_pointer_state {
 	struct wl_listener resource_destroy;
 };
 
+// TODO: May be useful to be able to simulate keyboard input events
 struct wlr_seat_keyboard_state {
 	struct wlr_seat *seat;
 	struct wlr_keyboard *keyboard;
@@ -370,28 +371,62 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
  */
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
 
-// TODO: May be useful to be able to simulate keyboard input events
-
+/**
+ * Get the active touch point with the given `touch_id`. If the touch point does
+ * not exist or is no longer active, returns NULL.
+ */
 struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
 		int32_t touch_id);
 
+/**
+ * Notify the seat of a touch down on the given surface. Defers to any grab of
+ * the touch device.
+ */
 void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy);
 
+/**
+ * Notify the seat that the touch point given by `touch_id` is up. Defers to any
+ * grab of the touch device.
+ */
 void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id);
 
+/**
+ * Notify the seat that the touch point given by `touch_id` has moved. Defers to
+ * any grab of the touch device.
+ */
 void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy);
 
+/**
+ * Send a touch down event to the client of the given surface. All future touch
+ * events for this point will go to this surface. If the touch down is valid,
+ * this will add a new touch point with the given `touch_id`. The touch down may
+ * not be valid if the surface seat client does not accept touch input.
+ * Coordinates are surface-local. Compositors should use
+ * `wlr_seat_touch_notify_down()` to respect any grabs of the touch device.
+ */
 void wlr_seat_touch_send_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy);
 
+/**
+ * Send a touch up event for the touch point given by the `touch_id`. The event
+ * will go to the client for the surface given in the cooresponding touch down
+ * event. This will remove the touch point. Compositors should use
+ * `wlr_seat_touch_notify_up()` to respect any grabs of the touch device.
+ */
 void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id);
 
+/**
+ * Send a touch motion event for the touch point given by the `touch_id`. The
+ * event will go to the cleint for the surface given in the corresponding touch
+ * down event. Compositors should use `wlr_seat_touch_notify_motion()` to
+ * respect any grabs of the touch device.
+ */
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy);
 
