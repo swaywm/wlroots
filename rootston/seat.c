@@ -1,10 +1,8 @@
-#include <wayland-server.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-
+#include <wayland-server.h>
 #include <wlr/util/log.h>
-
 #include "rootston/xcursor.h"
 #include "rootston/input.h"
 #include "rootston/seat.h"

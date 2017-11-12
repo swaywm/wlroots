@@ -1,8 +1,6 @@
 #ifndef _ROOTSTON_SEAT_H
 #define _ROOTSTON_SEAT_H
-
 #include <wayland-server.h>
-
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 

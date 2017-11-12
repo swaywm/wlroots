@@ -165,9 +165,22 @@ bool view_center(struct roots_view *view) {
 	view_get_box(view, &box);
 
 	struct roots_desktop *desktop = view->desktop;
+	struct roots_input *input = desktop->server->input;
+	struct roots_seat *seat = NULL, *_seat;
+	wl_list_for_each(_seat, &input->seats, link) {
+		if (!seat || (seat->seat->last_event.tv_sec > _seat->seat->last_event.tv_sec &&
+				seat->seat->last_event.tv_nsec > _seat->seat->last_event.tv_nsec)) {
+			seat = _seat;
+		}
+	}
+	if (!seat) {
+		return false;
+	}
 
 	struct wlr_output *output =
-		wlr_output_layout_get_center_output(desktop->layout);
+		wlr_output_layout_output_at(desktop->layout,
+				seat->cursor->cursor->x,
+				seat->cursor->cursor->y);
 	if (!output) {
 		// empty layout
 		return false;
