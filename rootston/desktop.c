@@ -16,6 +16,7 @@
 #include <server-decoration-protocol.h>
 #include "rootston/server.h"
 #include "rootston/seat.h"
+#include "rootston/xcursor.h"
 
 // TODO replace me with a signal
 void view_destroy(struct roots_view *view) {

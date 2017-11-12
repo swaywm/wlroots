@@ -7,12 +7,12 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_list.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
-#include "rootston/xcursor.h"
 
 struct roots_output {
 	struct roots_desktop *desktop;
