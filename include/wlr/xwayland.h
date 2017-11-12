@@ -29,6 +29,7 @@ struct wlr_xwayland {
 	struct wlr_xwayland_cursor *cursor;
 
 	struct {
+		struct wl_signal ready;
 		struct wl_signal new_surface;
 	} events;
 
