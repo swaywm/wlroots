@@ -247,7 +247,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		}
 
 		if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-			// TODO: test if this works with rotated views
 			double popup_sx, popup_sy;
 			struct wlr_xdg_surface_v6 *popup =
 				wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
@@ -262,7 +261,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		}
 
 		if (view->type == ROOTS_WL_SHELL_VIEW) {
-			// TODO: test if this works with rotated views
 			double popup_sx, popup_sy;
 			struct wlr_wl_shell_surface *popup =
 				wlr_wl_shell_surface_popup_at(view->wl_shell_surface,

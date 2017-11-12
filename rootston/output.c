@@ -20,30 +20,33 @@ static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
 	if (surface->texture->valid) {
-		float scale_factor = (float)wlr_output->scale / surface->current->scale;
-		int width = surface->current->buffer_width * scale_factor;
-		int height = surface->current->buffer_height * scale_factor;
+		double surface_scale = surface->current->scale;
+		double width = (double)surface->current->buffer_width / surface_scale;
+		double height = (double)surface->current->buffer_height / surface_scale;
+		int render_width = width * wlr_output->scale;
+		int render_height = height * wlr_output->scale;
 		double ox = lx, oy = ly;
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 		ox *= wlr_output->scale;
 		oy *= wlr_output->scale;
 
 		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-				lx, ly, lx + width, ly + height)) {
+				lx, ly, lx + render_width, ly + render_height)) {
 			float matrix[16];
 
 			float translate_origin[16];
 			wlr_matrix_translate(&translate_origin,
-				(int)ox + width / 2, (int)oy + height / 2, 0);
+				(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
 
 			float rotate[16];
 			wlr_matrix_rotate(&rotate, rotation);
 
 			float translate_center[16];
-			wlr_matrix_translate(&translate_center, -width / 2, -height / 2, 0);
+			wlr_matrix_translate(&translate_center, -render_width / 2,
+				-render_height / 2, 0);
 
 			float scale[16];
-			wlr_matrix_scale(&scale, width, height, 1);
+			wlr_matrix_scale(&scale, render_width, render_height, 1);
 
 			float transform[16];
 			wlr_matrix_mul(&translate_origin, &rotate, &transform);
@@ -51,12 +54,12 @@ static void render_surface(struct wlr_surface *surface,
 			wlr_matrix_mul(&transform, &scale, &transform);
 			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
 
-			wlr_render_with_matrix(desktop->server->renderer,
-					surface->texture, &matrix);
+			wlr_render_with_matrix(desktop->server->renderer, surface->texture,
+				&matrix);
 
 			struct wlr_frame_callback *cb, *cnext;
 			wl_list_for_each_safe(cb, cnext,
-				&surface->current->frame_callback_list, link) {
+					&surface->current->frame_callback_list, link) {
 				wl_callback_send_done(cb->resource, timespec_to_msec(when));
 				wl_resource_destroy(cb->resource);
 			}
@@ -64,19 +67,20 @@ static void render_surface(struct wlr_surface *surface,
 
 		struct wlr_subsurface *subsurface;
 		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-			double sx = subsurface->surface->current->subsurface_position.x,
-				sy = subsurface->surface->current->subsurface_position.y;
-			double sw = subsurface->surface->current->buffer_width,
-				sh = subsurface->surface->current->buffer_height;
+			struct wlr_surface_state *state = subsurface->surface->current;
+			double sx = state->subsurface_position.x;
+			double sy = state->subsurface_position.y;
+			double sw = state->buffer_width / state->scale;
+			double sh = state->buffer_height / state->scale;
 			if (rotation != 0.0) {
 				// Coordinates relative to the center of the subsurface
-				double ox = sx - (double)width/2 + sw/2,
-					oy = sy - (double)height/2 + sh/2;
+				double ox = sx - width/2 + sw/2,
+					oy = sy - height/2 + sh/2;
 				// Rotated coordinates
 				double rx = cos(-rotation)*ox - sin(-rotation)*oy,
 					ry = cos(-rotation)*oy + sin(-rotation)*ox;
-				sx = rx + (double)width/2 - sw/2;
-				sy = ry + (double)height/2 - sh/2;
+				sx = rx + width/2 - sw/2;
+				sy = ry + height/2 - sh/2;
 			}
 
 			render_surface(subsurface->surface, desktop, wlr_output, when,
@@ -103,7 +107,8 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 			popup->popup_state->geometry.y - popup->geometry->y;
 		render_surface(popup->surface, desktop, wlr_output, when, popup_x,
 			popup_y, rotation);
-		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y, rotation);
+		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y,
+			rotation);
 	}
 }
 
