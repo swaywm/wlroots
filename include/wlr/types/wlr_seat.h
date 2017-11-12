@@ -103,6 +103,23 @@ struct wlr_seat_keyboard_state {
 	struct wlr_seat_keyboard_grab *default_grab;
 };
 
+struct wlr_touch_point {
+	int32_t touch_id;
+	struct wlr_surface *surface;
+	struct wlr_seat_client *client;
+	double sx, sy;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
+
+	struct wl_list link;
+};
+
+struct wlr_seat_touch_state {
+	struct wlr_seat *seat;
+	struct wl_list touch_points; // wlr_touch_point::link
+};
+
 struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
@@ -117,6 +134,7 @@ struct wlr_seat {
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
+	struct wlr_seat_touch_state touch_state;
 
 	struct wl_listener selection_data_source_destroy;
 
@@ -327,5 +345,18 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
 
 // TODO: May be useful to be able to simulate keyboard input events
+
+struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
+		int32_t touch_id);
+
+void wlr_seat_touch_notify_down(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy);
+
+void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id);
+
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id, double sx, double sy);
 
 #endif

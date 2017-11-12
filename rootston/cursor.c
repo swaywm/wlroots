@@ -214,50 +214,57 @@ void roots_cursor_handle_axis(struct roots_cursor *cursor,
 
 void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 		struct wlr_event_touch_down *event) {
-	struct roots_touch_point *point =
-		calloc(1, sizeof(struct roots_touch_point));
-	if (!point) {
-		wlr_log(L_ERROR, "could not allocate memory for touch point");
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	struct wlr_surface *surface = NULL;
+	double lx, ly;
+	bool result =
+		wlr_cursor_absolute_to_layout_coords(cursor->cursor,
+			event->device, event->x_mm, event->y_mm, event->width_mm,
+			event->height_mm, &lx, &ly);
+	if (!result) {
 		return;
 	}
+	double sx, sy;
+	view_at(desktop, lx, ly, &surface, &sx, &sy);
 
-	point->device = event->device->data;
-	point->slot = event->slot;
-	point->x = event->x_mm / event->width_mm;
-	point->y = event->y_mm / event->height_mm;
-	wlr_cursor_warp_absolute(cursor->cursor, event->device, point->x, point->y);
-	roots_cursor_update_position(cursor, event->time_msec);
-	wl_list_insert(&cursor->touch_points, &point->link);
-	roots_cursor_press_button(cursor,  event->device,
-		event->time_msec, BTN_LEFT, 1);
+	if (surface) {
+		wlr_seat_touch_notify_down(cursor->seat->seat, surface,
+			event->time_msec, event->slot, sx, sy);
+	}
 }
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 		struct wlr_event_touch_up *event) {
-	struct roots_touch_point *point;
-	wl_list_for_each(point, &cursor->touch_points, link) {
-		if (point->slot == event->slot) {
-			wl_list_remove(&point->link);
-			free(point);
-			break;
-		}
-	}
-	roots_cursor_press_button(cursor, event->device,
-		event->time_msec, BTN_LEFT, 0);
+	// TODO
+	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->slot);
+	//roots_cursor_press_button(cursor, event->device, event->time_msec, BTN_LEFT, 0);
 }
 
 void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 		struct wlr_event_touch_motion *event) {
-	struct roots_touch_point *point;
-	wl_list_for_each(point, &cursor->touch_points, link) {
-		if (point->slot == event->slot) {
-			point->x = event->x_mm / event->width_mm;
-			point->y = event->y_mm / event->height_mm;
-			wlr_cursor_warp_absolute(cursor->cursor, event->device,
-					point->x, point->y);
-			roots_cursor_update_position(cursor, event->time_msec);
-			break;
-		}
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	struct wlr_touch_point *point =
+		wlr_seat_touch_get_point(cursor->seat->seat, event->slot);
+	if (!point) {
+		return;
+	}
+
+	struct wlr_surface *surface = NULL;
+	double lx, ly;
+	bool result =
+		wlr_cursor_absolute_to_layout_coords(cursor->cursor,
+			event->device, event->x_mm, event->y_mm, event->width_mm,
+			event->height_mm, &lx, &ly);
+	if (!result) {
+		return;
+	}
+
+	double sx, sy;
+	view_at(desktop, lx, ly, &surface, &sx, &sy);
+
+	if (surface == point->surface) {
+		wlr_seat_touch_notify_motion(cursor->seat->seat, event->time_msec,
+			event->slot, sx, sy);
 	}
 }
 

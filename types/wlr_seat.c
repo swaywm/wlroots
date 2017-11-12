@@ -338,6 +338,10 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_list_init(
 		&wlr_seat->keyboard_state.surface_destroy.link);
 
+	// touch state
+	wlr_seat->touch_state.seat = wlr_seat;
+	wl_list_init(&wlr_seat->touch_state.touch_points);
+
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_seat_interface, 6, wlr_seat, wl_seat_bind);
 	if (!wl_global) {
@@ -818,4 +822,121 @@ void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->key(grab, time, key, state);
+}
+
+static void touch_point_destroy(struct wlr_touch_point *point) {
+	wl_list_remove(&point->surface_destroy.link);
+	wl_list_remove(&point->resource_destroy.link);
+	wl_list_remove(&point->link);
+	free(point);
+}
+
+static void handle_touch_point_resource_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_touch_point *point =
+		wl_container_of(listener, point, resource_destroy);
+	touch_point_destroy(point);
+}
+
+static void handle_touch_point_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_touch_point *point =
+		wl_container_of(listener, point, surface_destroy);
+	touch_point_destroy(point);
+}
+
+static struct wlr_touch_point *touch_point_create(
+		struct wlr_seat *seat, int32_t touch_id,
+		struct wlr_surface *surface, double sx, double sy) {
+	struct wl_client *wl_client = wl_resource_get_client(surface->resource);
+	struct wlr_seat_client *client = wlr_seat_client_for_wl_client(seat, wl_client);
+
+	if (!client || !client->touch) {
+		// touch points are not valid without a connected client with touch
+		return NULL;
+	}
+
+	struct wlr_touch_point *point = calloc(1, sizeof(struct wlr_touch_point));
+	if (!point) {
+		return NULL;
+	}
+
+	point->touch_id = touch_id;
+	point->surface = surface;
+	point->client = client;
+
+	point->sx = sx;
+	point->sy = sy;
+
+	wl_signal_add(&surface->events.destroy, &point->surface_destroy);
+	point->surface_destroy.notify = handle_touch_point_surface_destroy;
+	wl_resource_add_destroy_listener(surface->resource,
+		&point->resource_destroy);
+	point->resource_destroy.notify = handle_touch_point_resource_destroy;
+
+	wl_list_insert(&seat->touch_state.touch_points, &point->link);
+
+	return point;
+}
+
+struct wlr_touch_point *wlr_seat_touch_get_point(
+		struct wlr_seat *seat, int32_t touch_id) {
+	struct wlr_touch_point *point = NULL;
+	wl_list_for_each(point, &seat->touch_state.touch_points, link) {
+		if (point->touch_id == touch_id) {
+			return point;
+		}
+	}
+
+	return NULL;
+}
+
+void wlr_seat_touch_notify_down(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy) {
+	if (wlr_seat_touch_get_point(seat, touch_id)) {
+		wlr_log(L_ERROR, "got touch down for a touch point that's already down");
+		return;
+	}
+
+	struct wlr_touch_point *point =
+		touch_point_create(seat, touch_id, surface, sx, sy);
+	if (!point) {
+		wlr_log(L_ERROR, "could not create touch point");
+		return;
+	}
+
+	uint32_t serial = wl_display_next_serial(seat->display);
+	wl_touch_send_down(point->client->touch, serial, time, surface->resource,
+		touch_id, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	wl_touch_send_frame(point->client->touch);
+}
+
+void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
+	if (!point) {
+		wlr_log(L_ERROR, "got touch notify up for unknown touch point");
+		return;
+	}
+
+	uint32_t serial = wl_display_next_serial(seat->display);
+	wl_touch_send_up(point->client->touch, serial, time, touch_id);
+	wl_touch_send_frame(point->client->touch);
+	touch_point_destroy(point);
+}
+
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time, int32_t touch_id,
+		double sx, double sy) {
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
+	if (!point) {
+		wlr_log(L_ERROR, "got touch motion notify for unknown touch point");
+		return;
+	}
+
+	point->sx = sx;
+	point->sy = sy;
+
+	wl_touch_send_motion(point->client->touch, time, touch_id,
+		wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	wl_touch_send_frame(point->client->touch);
 }

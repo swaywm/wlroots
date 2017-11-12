@@ -39,7 +39,6 @@ struct roots_cursor {
 	uint32_t resize_edges;
 	// Ring buffer of input events that could trigger move/resize/rotate
 	int input_events_idx;
-	struct wl_list touch_points;
 	struct roots_input_event input_events[16];
 
 	struct wl_listener motion;

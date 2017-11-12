@@ -43,13 +43,6 @@ struct roots_touch {
 	struct wl_list link;
 };
 
-struct roots_touch_point {
-	struct roots_touch *device;
-	int32_t slot;
-	double x, y;
-	struct wl_list link;
-};
-
 struct roots_tablet_tool {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;

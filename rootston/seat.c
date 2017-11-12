@@ -188,8 +188,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	// TODO: be able to configure per-seat cursor themes
 	seat->cursor->xcursor_manager = desktop->xcursor_manager;
 
-	wl_list_init(&seat->cursor->touch_points);
-
 	roots_seat_configure_cursor(seat);
 	roots_seat_configure_xcursor(seat);
 
