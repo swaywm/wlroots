@@ -175,6 +175,9 @@ struct wlr_seat {
 		struct wl_signal keyboard_grab_begin;
 		struct wl_signal keyboard_grab_end;
 
+		struct wl_signal touch_grab_begin;
+		struct wl_signal touch_grab_end;
+
 		struct wl_signal request_set_cursor;
 
 		struct wl_signal selection;
@@ -370,6 +373,19 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
  * Clear the focused surface for the keyboard and leave all entered surfaces.
  */
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
+
+/**
+ * Start a grab of the touch device of this seat. The grabber is responsible for
+ * handling all touch events until the grab ends.
+ */
+void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_touch_grab *grab);
+
+/**
+ * End the grab of the touch device of this seat. This reverts the grab back to
+ * the default grab for the touch device.
+ */
+void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat);
 
 /**
  * Get the active touch point with the given `touch_id`. If the touch point does

@@ -407,6 +407,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_signal_init(&wlr_seat->events.keyboard_grab_begin);
 	wl_signal_init(&wlr_seat->events.keyboard_grab_end);
 
+	wl_signal_init(&wlr_seat->events.touch_grab_begin);
+	wl_signal_init(&wlr_seat->events.touch_grab_end);
+
 	return wlr_seat;
 }
 
@@ -865,6 +868,26 @@ void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->key(grab, time, key, state);
+}
+
+void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_touch_grab *grab) {
+	grab->seat = wlr_seat;
+	wlr_seat->touch_state.grab = grab;
+
+	wl_signal_emit(&wlr_seat->events.touch_grab_begin, grab);
+}
+
+void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
+	struct wlr_seat_touch_grab *grab = wlr_seat->touch_state.grab;
+
+	if (grab != wlr_seat->touch_state.default_grab) {
+		wlr_seat->touch_state.grab = wlr_seat->touch_state.default_grab;
+		wl_signal_emit(&wlr_seat->events.touch_grab_end, grab);
+		if (grab->interface->cancel) {
+			grab->interface->cancel(grab);
+		}
+	}
 }
 
 static void touch_point_destroy(struct wlr_touch_point *point) {
