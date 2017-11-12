@@ -320,6 +320,8 @@ static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *
 	keyboard->keyboard_modifiers.notify = handle_keyboard_modifiers;
 	wl_signal_add(&keyboard->device->keyboard->events.modifiers,
 		&keyboard->keyboard_modifiers);
+
+	wlr_seat_set_keyboard(seat->seat, device);
 }
 
 static void seat_add_pointer(struct roots_seat *seat, struct wlr_input_device *device) {
