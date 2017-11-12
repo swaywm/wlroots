@@ -189,12 +189,11 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	// TODO: be able to configure per-seat cursor themes
 	seat->cursor->xcursor_manager = desktop->xcursor_manager;
-	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
-		ROOTS_XCURSOR_DEFAULT, wlr_cursor);
 
 	wl_list_init(&seat->cursor->touch_points);
 
 	roots_seat_configure_cursor(seat);
+	roots_seat_configure_xcursor(seat);
 
 	// add input signals
 	wl_signal_add(&wlr_cursor->events.motion, &seat->cursor->motion);
@@ -448,6 +447,16 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
+	struct roots_output *output;
+	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
+				output->wlr_output->scale)) {
+			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
+				"with scale %d", output->wlr_output->name,
+				output->wlr_output->scale);
+		}
+	}
+
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
 		ROOTS_XCURSOR_DEFAULT, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
