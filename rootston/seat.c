@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/xcursor.h"
 #include "rootston/input.h"
@@ -184,38 +185,13 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
 
-	seat->cursor->xcursor_theme = wlr_xcursor_theme_load("default", 16);
-	if (seat->cursor->xcursor_theme == NULL) {
-		wlr_log(L_ERROR, "Cannot load xcursor theme");
-		roots_cursor_destroy(seat->cursor);
-		seat->cursor = NULL;
-		return;
-	}
-
-	struct wlr_xcursor *xcursor = get_default_xcursor(seat->cursor->xcursor_theme);
-	if (xcursor == NULL) {
-		wlr_log(L_ERROR, "Cannot load xcursor from theme");
-		wlr_xcursor_theme_destroy(seat->cursor->xcursor_theme);
-		roots_cursor_destroy(seat->cursor);
-		seat->cursor = NULL;
-		return;
-	}
-
-	struct wlr_xcursor_image *image = xcursor->images[0];
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
-
-	// XXX: xwayland will always have the theme of the last created seat
-	if (seat->input->server->desktop->xwayland != NULL) {
-		wlr_xwayland_set_cursor(seat->input->server->desktop->xwayland,
-			image->buffer, image->width, image->width,
-			image->height, image->hotspot_x,
-			image->hotspot_y);
-	}
+	// TODO: be able to configure per-seat cursor themes
+	seat->cursor->xcursor_manager = desktop->xcursor_manager;
 
 	wl_list_init(&seat->cursor->touch_points);
 
 	roots_seat_configure_cursor(seat);
+	roots_seat_configure_xcursor(seat);
 
 	// add input signals
 	wl_signal_add(&wlr_cursor->events.motion, &seat->cursor->motion);
@@ -471,11 +447,18 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
-	struct wlr_xcursor *xcursor = get_default_xcursor(seat->cursor->xcursor_theme);
-	struct wlr_xcursor_image *image = xcursor->images[0];
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+	struct roots_output *output;
+	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
+				output->wlr_output->scale)) {
+			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
+				"with scale %d", output->wlr_output->name,
+				output->wlr_output->scale);
+		}
+	}
 
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_DEFAULT, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
 }
@@ -537,12 +520,6 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
 }
 
-static void seat_set_xcursor_image(struct roots_seat *seat, struct
-		wlr_xcursor_image *image) {
-	wlr_cursor_set_image(seat->cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
-}
-
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	struct roots_cursor *cursor = seat->cursor;
 	cursor->mode = ROOTS_CURSOR_MOVE;
@@ -558,11 +535,8 @@ void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	struct wlr_xcursor *xcursor = get_move_xcursor(seat->cursor->xcursor_theme);
-	if (xcursor != NULL) {
-		struct wlr_xcursor_image *image = xcursor->images[0];
-		seat_set_xcursor_image(seat, image);
-	}
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_MOVE, seat->cursor->cursor);
 }
 
 void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
@@ -588,11 +562,8 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	struct wlr_xcursor *xcursor = get_resize_xcursor(cursor->xcursor_theme, edges);
-	if (xcursor != NULL) {
-		seat_set_xcursor_image(seat, xcursor->images[0]);
-	}
-
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		roots_xcursor_get_resize_name(edges), seat->cursor->cursor);
 }
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
@@ -604,8 +575,6 @@ void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	struct wlr_xcursor *xcursor = get_rotate_xcursor(cursor->xcursor_theme);
-	if (xcursor != NULL) {
-		seat_set_xcursor_image(seat, xcursor->images[0]);
-	}
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_ROTATE, seat->cursor->cursor);
 }

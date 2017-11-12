@@ -6,6 +6,7 @@
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/xcursor.h"
 #include "rootston/cursor.h"
@@ -27,12 +28,6 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 	// TODO
 }
 
-static void cursor_set_xcursor_image(struct roots_cursor *cursor,
-		struct wlr_xcursor_image *image) {
-	wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
-}
-
 static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t time) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct roots_seat *seat = cursor->seat;
@@ -50,8 +45,8 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 			set_compositor_cursor = view_client != cursor->cursor_client;
 		}
 		if (set_compositor_cursor) {
-			struct wlr_xcursor *xcursor = get_default_xcursor(cursor->xcursor_theme);
-			cursor_set_xcursor_image(cursor, xcursor->images[0]);
+			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+				ROOTS_XCURSOR_DEFAULT, cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
 		if (view) {

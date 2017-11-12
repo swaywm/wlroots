@@ -30,7 +30,7 @@ struct roots_cursor {
 	enum roots_cursor_mode mode;
 
 	// state from input (review if this is necessary)
-	struct wlr_xcursor_theme *xcursor_theme;
+	struct wlr_xcursor_manager *xcursor_manager;
 	struct wlr_seat *wl_seat;
 	struct wl_client *cursor_client;
 	int offs_x, offs_y;

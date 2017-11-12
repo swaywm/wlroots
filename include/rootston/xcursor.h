@@ -1,15 +1,14 @@
 #ifndef _ROOTSTON_XCURSOR_H
 #define _ROOTSTON_XCURSOR_H
 
-#include <wlr/xcursor.h>
+#include <stdint.h>
 
-struct wlr_xcursor *get_default_xcursor(struct wlr_xcursor_theme *theme);
+#define ROOTS_XCURSOR_SIZE 16
 
-struct wlr_xcursor *get_move_xcursor(struct wlr_xcursor_theme *theme);
+#define ROOTS_XCURSOR_DEFAULT "left_ptr"
+#define ROOTS_XCURSOR_MOVE "grabbing"
+#define ROOTS_XCURSOR_ROTATE "grabbing"
 
-struct wlr_xcursor *get_resize_xcursor(struct wlr_xcursor_theme *theme,
-	uint32_t edges);
-
-struct wlr_xcursor *get_rotate_xcursor(struct wlr_xcursor_theme *theme);
+const char *roots_xcursor_get_resize_name(uint32_t edges);
 
 #endif

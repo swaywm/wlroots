@@ -1,7 +1,10 @@
-#include <wlr/types/wlr_cursor.h>
+#define _POSIX_C_SOURCE 200809L
+#include <stdlib.h>
+#include <string.h>
+#include "rootston/xcursor.h"
 #include "rootston/input.h"
 
-static const char *get_resize_xcursor_name(uint32_t edges) {
+const char *roots_xcursor_get_resize_name(uint32_t edges) {
 	if (edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
 		if (edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
 			return "ne-resize";
@@ -22,21 +25,4 @@ static const char *get_resize_xcursor_name(uint32_t edges) {
 		return "w-resize";
 	}
 	return "se-resize"; // fallback
-}
-
-struct wlr_xcursor *get_default_xcursor(struct wlr_xcursor_theme *theme) {
-	return wlr_xcursor_theme_get_cursor(theme, "left_ptr");
-}
-
-struct wlr_xcursor *get_move_xcursor(struct wlr_xcursor_theme *theme) {
-	return wlr_xcursor_theme_get_cursor(theme, "grabbing");
-}
-
-struct wlr_xcursor *get_resize_xcursor(struct wlr_xcursor_theme *theme,
-	uint32_t edges) {
-	return wlr_xcursor_theme_get_cursor(theme, get_resize_xcursor_name(edges));
-}
-
-struct wlr_xcursor *get_rotate_xcursor(struct wlr_xcursor_theme *theme) {
-	return wlr_xcursor_theme_get_cursor(theme, "grabbing");
 }

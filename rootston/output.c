@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
@@ -248,6 +249,12 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
+				wlr_output->scale)) {
+			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
+				"with scale %d", wlr_output->name, wlr_output->scale);
+		}
+
 		roots_seat_configure_cursor(seat);
 		roots_seat_configure_xcursor(seat);
 	}
