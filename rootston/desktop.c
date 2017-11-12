@@ -229,7 +229,7 @@ void view_teardown(struct roots_view *view) {
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	for (int i = desktop->views->length - 1; i >= 0; --i) {
+	for (ssize_t i = desktop->views->length - 1; i >= 0; --i) {
 		struct roots_view *view = desktop->views->items[i];
 
 		if (view->type == ROOTS_WL_SHELL_VIEW &&
@@ -241,11 +241,12 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		double view_sx = lx - view->x;
 		double view_sy = ly - view->y;
 
+		struct wlr_surface_state *state = view->wlr_surface->current;
 		struct wlr_box box = {
 			.x = 0,
 			.y = 0,
-			.width = view->wlr_surface->current->buffer_width,
-			.height = view->wlr_surface->current->buffer_height,
+			.width = state->buffer_width / state->scale,
+			.height = state->buffer_height / state->scale,
 		};
 		if (view->rotation != 0.0) {
 			// Coordinates relative to the center of the view
@@ -259,7 +260,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		}
 
 		if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-			// TODO: test if this works with rotated views
 			double popup_sx, popup_sy;
 			struct wlr_xdg_surface_v6 *popup =
 				wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
@@ -274,7 +274,6 @@ struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		}
 
 		if (view->type == ROOTS_WL_SHELL_VIEW) {
-			// TODO: test if this works with rotated views
 			double popup_sx, popup_sy;
 			struct wlr_wl_shell_surface *popup =
 				wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
