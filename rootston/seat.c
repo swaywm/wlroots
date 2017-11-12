@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 
 #include "rootston/xcursor.h"
@@ -187,8 +188,9 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
 
 	// TODO: be able to configure per-seat cursor themes
-	seat->cursor->xcursor_theme = desktop->xcursor_theme;
-	roots_xcursor_theme_set_default(seat->cursor->xcursor_theme, wlr_cursor);
+	seat->cursor->xcursor_manager = desktop->xcursor_manager;
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_DEFAULT, wlr_cursor);
 
 	wl_list_init(&seat->cursor->touch_points);
 
@@ -446,8 +448,8 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
-	roots_xcursor_theme_set_default(seat->cursor->xcursor_theme,
-		seat->cursor->cursor);
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_DEFAULT, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
 }
@@ -524,8 +526,8 @@ void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	roots_xcursor_theme_set_move(seat->cursor->xcursor_theme,
-		seat->cursor->cursor);
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_MOVE, seat->cursor->cursor);
 }
 
 void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
@@ -551,8 +553,8 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	roots_xcursor_theme_set_resize(seat->cursor->xcursor_theme,
-		seat->cursor->cursor, edges);
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		roots_xcursor_get_resize_name(edges), seat->cursor->cursor);
 }
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
@@ -564,6 +566,6 @@ void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	roots_xcursor_theme_set_rotate(seat->cursor->xcursor_theme,
-		seat->cursor->cursor);
+	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+		ROOTS_XCURSOR_ROTATE, seat->cursor->cursor);
 }

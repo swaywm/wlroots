@@ -5,13 +5,13 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
-#include "rootston/xcursor.h"
 
 static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
@@ -243,7 +243,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		if (roots_xcursor_theme_load(seat->cursor->xcursor_theme,
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
 				wlr_output->scale)) {
 			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
 				"with scale %d", wlr_output->name, wlr_output->scale);

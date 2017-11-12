@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
 #include <server-decoration-protocol.h>
@@ -324,8 +325,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->server = server;
 	desktop->config = config;
 
-	desktop->xcursor_theme = roots_xcursor_theme_create("default");
-	if (desktop->xcursor_theme == NULL) {
+	desktop->xcursor_manager = wlr_xcursor_manager_create(NULL,
+		ROOTS_XCURSOR_SIZE);
+	if (desktop->xcursor_manager == NULL) {
+		wlr_log(L_ERROR, "Cannot create XCursor manager");
 		wlr_list_free(desktop->views);
 		free(desktop);
 		return NULL;
@@ -353,11 +356,17 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
 
-		if (roots_xcursor_theme_load(desktop->xcursor_theme, 1)) {
-			wlr_log(L_ERROR, "Cannot load xwayland xcursor theme");
+		if (wlr_xcursor_manager_load(desktop->xcursor_manager, 1)) {
+			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
 		}
-		roots_xcursor_theme_xwayland_set_default(desktop->xcursor_theme,
-			desktop->xwayland);
+		struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
+			desktop->xcursor_manager, ROOTS_XCURSOR_DEFAULT, 1);
+		if (xcursor != NULL) {
+			struct wlr_xcursor_image *image = xcursor->images[0];
+			wlr_xwayland_set_cursor(desktop->xwayland, image->buffer,
+				image->width, image->width, image->height, image->hotspot_x,
+				image->hotspot_y);
+		}
 	}
 #endif
 

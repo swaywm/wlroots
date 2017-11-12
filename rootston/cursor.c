@@ -6,6 +6,7 @@
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/xcursor.h"
 #include "rootston/cursor.h"
@@ -44,8 +45,8 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 			set_compositor_cursor = view_client != cursor->cursor_client;
 		}
 		if (set_compositor_cursor) {
-			roots_xcursor_theme_set_default(cursor->xcursor_theme,
-				cursor->cursor);
+			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+				ROOTS_XCURSOR_DEFAULT, cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
 		if (view) {

@@ -30,9 +30,9 @@ struct roots_desktop {
 
 	struct roots_server *server;
 	struct roots_config *config;
-	struct roots_xcursor_theme *xcursor_theme;
 
 	struct wlr_output_layout *layout;
+	struct wlr_xcursor_manager *xcursor_manager;
 
 	struct wlr_compositor *compositor;
 	struct wlr_wl_shell *wl_shell;

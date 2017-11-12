@@ -6,7 +6,6 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/xcursor.h>
 
 struct wlr_cursor_state;
 
