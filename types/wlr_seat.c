@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_input_device.h>
@@ -574,12 +575,14 @@ void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 
 void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->motion(grab, time, sx, sy);
 }
 
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		uint32_t time, uint32_t button, uint32_t state) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
 		if (wlr_seat->pointer_state.button_count == 0) {
 			wlr_seat->pointer_state.grab_button = button;
@@ -602,6 +605,7 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->axis(grab, time, orientation, value);
 }
@@ -804,12 +808,14 @@ void wlr_seat_keyboard_clear_focus(struct wlr_seat *seat) {
 }
 
 void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat) {
+	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->modifiers(grab);
 }
 
 void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 		uint32_t key, uint32_t state) {
+	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->key(grab, time, key, state);
 }

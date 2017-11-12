@@ -1,6 +1,6 @@
 #ifndef WLR_TYPES_WLR_SEAT_H
 #define WLR_TYPES_WLR_SEAT_H
-
+#include <time.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -109,6 +109,7 @@ struct wlr_seat {
 	struct wl_list clients;
 	char *name;
 	uint32_t capabilities;
+	struct timespec last_event;
 
 	struct wlr_data_device *data_device; // TODO needed?
 	struct wlr_data_source *selection_source;

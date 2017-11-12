@@ -1,11 +1,9 @@
-#include <wayland-server.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-
+#include <wayland-server.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
-
 #include "rootston/xcursor.h"
 #include "rootston/input.h"
 #include "rootston/seat.h"
@@ -298,6 +296,8 @@ static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *
 	keyboard->keyboard_modifiers.notify = handle_keyboard_modifiers;
 	wl_signal_add(&keyboard->device->keyboard->events.modifiers,
 		&keyboard->keyboard_modifiers);
+
+	wlr_seat_set_keyboard(seat->seat, device);
 }
 
 static void seat_add_pointer(struct roots_seat *seat, struct wlr_input_device *device) {
