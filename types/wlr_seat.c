@@ -300,12 +300,41 @@ static const struct wlr_keyboard_grab_interface default_keyboard_grab_impl = {
 	.cancel = default_keyboard_cancel,
 };
 
+static void default_touch_down(struct wlr_seat_touch_grab *grab,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy) {
+	wlr_seat_touch_send_down(grab->seat, surface, time, touch_id, sx, sy);
+}
+
+static void default_touch_up(struct wlr_seat_touch_grab *grab, uint32_t time,
+		int32_t touch_id) {
+	wlr_seat_touch_send_up(grab->seat, time, touch_id);
+}
+
+static void default_touch_motion(struct wlr_seat_touch_grab *grab,
+		uint32_t time, int32_t touch_id, double sx, double sy) {
+	wlr_seat_touch_send_motion(grab->seat, time, touch_id, sx, sy);
+}
+
+static void default_touch_cancel(struct wlr_seat_touch_grab *grab) {
+	// cannot be cancelled
+}
+
+static const struct wlr_touch_grab_interface default_touch_grab_impl = {
+	.down = default_touch_down,
+	.up = default_touch_up,
+	.motion = default_touch_motion,
+	.cancel = default_touch_cancel,
+};
+
+
 struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	struct wlr_seat *wlr_seat = calloc(1, sizeof(struct wlr_seat));
 	if (!wlr_seat) {
 		return NULL;
 	}
 
+	// pointer state
 	wlr_seat->pointer_state.seat = wlr_seat;
 	wl_list_init(&wlr_seat->pointer_state.surface_destroy.link);
 	wl_list_init(&wlr_seat->pointer_state.resource_destroy.link);
@@ -321,6 +350,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wlr_seat->pointer_state.default_grab = pointer_grab;
 	wlr_seat->pointer_state.grab = pointer_grab;
 
+	// keyboard state
 	struct wlr_seat_keyboard_grab *keyboard_grab =
 		calloc(1, sizeof(struct wlr_seat_keyboard_grab));
 	if (!keyboard_grab) {
@@ -339,6 +369,18 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 		&wlr_seat->keyboard_state.surface_destroy.link);
 
 	// touch state
+	struct wlr_seat_touch_grab *touch_grab =
+		calloc(1, sizeof(struct wlr_seat_touch_grab));
+	if (!touch_grab) {
+		free(pointer_grab);
+		free(keyboard_grab);
+		free(wlr_seat);
+		return NULL;
+	}
+	touch_grab->interface = &default_touch_grab_impl;
+	wlr_seat->touch_state.default_grab = touch_grab;
+	wlr_seat->touch_state.grab = touch_grab;
+
 	wlr_seat->touch_state.seat = wlr_seat;
 	wl_list_init(&wlr_seat->touch_state.touch_points);
 
@@ -382,6 +424,7 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 	wl_global_destroy(wlr_seat->wl_global);
 	free(wlr_seat->pointer_state.default_grab);
 	free(wlr_seat->keyboard_state.default_grab);
+	free(wlr_seat->touch_state.default_grab);
 	free(wlr_seat->data_device);
 	free(wlr_seat->name);
 	free(wlr_seat);
@@ -830,7 +873,6 @@ static void touch_point_destroy(struct wlr_touch_point *point) {
 	wl_list_remove(&point->link);
 	free(point);
 }
-
 static void handle_touch_point_resource_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_touch_point *point =
@@ -894,6 +936,25 @@ struct wlr_touch_point *wlr_seat_touch_get_point(
 void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
+	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
+	grab->interface->down(grab, surface, time, touch_id, sx, sy);
+}
+
+void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id) {
+	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
+	grab->interface->up(grab, time, touch_id);
+}
+
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id, double sx, double sy) {
+	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
+	grab->interface->motion(grab, time, touch_id, sx, sy);
+}
+
+void wlr_seat_touch_send_down(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy) {
 	if (wlr_seat_touch_get_point(seat, touch_id)) {
 		wlr_log(L_ERROR, "got touch down for a touch point that's already down");
 		return;
@@ -912,10 +973,10 @@ void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 	wl_touch_send_frame(point->client->touch);
 }
 
-void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {
+void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch notify up for unknown touch point");
+		wlr_log(L_ERROR, "got touch up for unknown touch point");
 		return;
 	}
 
@@ -925,11 +986,11 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time, int32_t touc
 	touch_point_destroy(point);
 }
 
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time, int32_t touch_id,
+void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t touch_id,
 		double sx, double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch motion notify for unknown touch point");
+		wlr_log(L_ERROR, "got touch motion for unknown touch point");
 		return;
 	}
 

@@ -49,6 +49,29 @@ struct wlr_keyboard_grab_interface {
 	void (*cancel)(struct wlr_seat_keyboard_grab *grab);
 };
 
+struct wlr_seat_touch_grab;
+
+struct wlr_touch_grab_interface {
+	void (*down)(struct wlr_seat_touch_grab *grab, struct wlr_surface *surface,
+			uint32_t time, int32_t touch_id, double sx, double sy);
+	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t touch_id);
+	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t
+			touch_id, double sx, double sy);
+	// XXX this will conflict with the actual touch cancel which is different so
+	// we need to rename this
+	void (*cancel)(struct wlr_seat_touch_grab *grab);
+};
+
+/**
+ * Passed to `wlr_seat_touch_start_grab()` to start a grab of the touch device.
+ * The grabber is responsible for handling touch events for the seat.
+ */
+struct wlr_seat_touch_grab {
+	const struct wlr_touch_grab_interface *interface;
+	struct wlr_seat *seat;
+	void *data;
+};
+
 /**
  * Passed to `wlr_seat_keyboard_start_grab()` to start a grab of the keyboard.
  * The grabber is responsible for handling keyboard events for the seat.
@@ -118,6 +141,9 @@ struct wlr_touch_point {
 struct wlr_seat_touch_state {
 	struct wlr_seat *seat;
 	struct wl_list touch_points; // wlr_touch_point::link
+
+	struct wlr_seat_touch_grab *grab;
+	struct wlr_seat_touch_grab *default_grab;
 };
 
 struct wlr_seat {
@@ -357,6 +383,16 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id);
 
 void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id, double sx, double sy);
+
+void wlr_seat_touch_send_down(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy);
+
+void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id);
+
+void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy);
 
 #endif

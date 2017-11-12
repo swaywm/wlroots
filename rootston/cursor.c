@@ -235,7 +235,6 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 		struct wlr_event_touch_up *event) {
-	// TODO
 	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->slot);
 	//roots_cursor_press_button(cursor, event->device, event->time_msec, BTN_LEFT, 0);
 }
