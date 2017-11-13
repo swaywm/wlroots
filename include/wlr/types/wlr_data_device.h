@@ -53,6 +53,7 @@ struct wlr_data_source {
 struct wlr_drag {
 	struct wlr_seat_pointer_grab pointer_grab;
 	struct wlr_seat_keyboard_grab keyboard_grab;
+	struct wlr_seat_touch_grab touch_grab;
 
 	struct wlr_seat_client *seat_client;
 	struct wlr_seat_client *focus_client;

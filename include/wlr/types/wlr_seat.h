@@ -143,6 +143,8 @@ struct wlr_seat_touch_state {
 	struct wlr_seat *seat;
 	struct wl_list touch_points; // wlr_touch_point::link
 
+	uint32_t grab_serial;
+
 	struct wlr_seat_touch_grab *grab;
 	struct wlr_seat_touch_grab *default_grab;
 };

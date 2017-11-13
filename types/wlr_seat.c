@@ -961,6 +961,9 @@ void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		double sy) {
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
 	grab->interface->down(grab, surface, time, touch_id, sx, sy);
+	if (wl_list_length(&seat->touch_state.touch_points) == 1) {
+		seat->touch_state.grab_serial = wl_display_get_serial(seat->display);
+	}
 }
 
 void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
