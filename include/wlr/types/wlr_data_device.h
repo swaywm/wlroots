@@ -10,6 +10,9 @@ wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
 extern const struct
 wlr_keyboard_grab_interface wlr_data_device_keyboard_drag_interface;
 
+extern const struct
+wlr_touch_grab_interface wlr_data_device_touch_drag_interface;
+
 struct wlr_data_device_manager {
 	struct wl_global *global;
 };
@@ -55,14 +58,18 @@ struct wlr_drag {
 	struct wlr_seat_keyboard_grab keyboard_grab;
 	struct wlr_seat_touch_grab touch_grab;
 
+	struct wlr_seat *seat;
 	struct wlr_seat_client *seat_client;
 	struct wlr_seat_client *focus_client;
+
+	bool is_pointer_grab;
 
 	struct wlr_surface *icon;
 	struct wlr_surface *focus;
 	struct wlr_data_source *source;
 
 	bool cancelling;
+	int32_t grab_touch_id;
 
 	struct wl_listener icon_destroy;
 	struct wl_listener source_destroy;

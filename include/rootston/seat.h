@@ -9,6 +9,9 @@ struct roots_drag_icon {
 	struct wl_list link; // roots_seat::drag_icons
 	bool mapped;
 
+	bool is_pointer;
+	bool touch_id;
+
 	int32_t sx;
 	int32_t sy;
 
