@@ -275,7 +275,8 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 		struct wlr_data_offer *offer =
 			wlr_data_source_send_offer(seat_client->seat->selection_source,
 				seat_client->data_device);
-		wl_data_device_send_selection(seat_client->data_device, offer->resource);
+		wl_data_device_send_selection(seat_client->data_device,
+			offer->resource);
 	} else {
 		wl_data_device_send_selection(seat_client->data_device, NULL);
 	}
@@ -525,12 +526,14 @@ wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface = {
 	.cancel = pointer_drag_cancel,
 };
 
-static void touch_drag_down(struct wlr_seat_touch_grab *grab, struct wlr_surface *surface,
+static void touch_drag_down(struct wlr_seat_touch_grab *grab,
+		struct wlr_surface *surface,
 			uint32_t time, int32_t touch_id, double sx, double sy) {
 	// eat the event
 }
 
-static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t touch_id) {
+static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
+		int32_t touch_id) {
 	struct wlr_drag *drag = grab->data;
 	if (drag->grab_touch_id != touch_id) {
 		return;
@@ -543,8 +546,8 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time, int32
 	wlr_drag_end(drag);
 }
 
-static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t
-			touch_id, double sx, double sy) {
+static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time,
+		int32_t touch_id, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
 	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
 		wl_data_device_send_motion(drag->focus_client->data_device, time,
@@ -680,7 +683,8 @@ static void data_device_start_drag(struct wl_client *client,
 		struct wl_resource *source_resource,
 		struct wl_resource *origin_resource, struct wl_resource *icon_resource,
 		uint32_t serial) {
-	struct wlr_seat_client *seat_client = wl_resource_get_user_data(device_resource);
+	struct wlr_seat_client *seat_client =
+		wl_resource_get_user_data(device_resource);
 	struct wlr_surface *origin = wl_resource_get_user_data(origin_resource);
 	struct wlr_data_source *source = NULL;
 	struct wlr_surface *icon = NULL;
@@ -717,7 +721,8 @@ static const struct wl_data_device_interface data_device_impl = {
 void data_device_manager_get_data_device(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *seat_resource) {
-	struct wlr_seat_client *seat_client = wl_resource_get_user_data(seat_resource);
+	struct wlr_seat_client *seat_client =
+		wl_resource_get_user_data(seat_resource);
 
 	struct wl_resource *resource =
 		wl_resource_create(client,
@@ -884,9 +889,9 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 }
 
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-  if (!manager) {
-    return;
-  }
-  wl_global_destroy(manager->global);
-  free(manager);
+	if (!manager) {
+		return;
+	}
+	wl_global_destroy(manager->global);
+	free(manager);
 }
