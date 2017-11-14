@@ -17,13 +17,40 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
+/**
+ * Computes the surface size homogeneous to the global compositor coordinates.
+ */
+static void get_surface_size(struct wlr_surface *surface, double *width,
+		double *height) {
+	double surface_scale = surface->current->scale;
+	*width = (double)surface->current->buffer_width / surface_scale;
+	*height = (double)surface->current->buffer_height / surface_scale;
+}
+
+/**
+ * Rotate a child's position relative to a parent. The parent size is (pw, ph),
+ * the child position is (*sx, *sy) and its size is (sw, sh).
+ */
+static void rotate_child_position(double *sx, double *sy, double sw, double sh,
+		double pw, double ph, float rotation) {
+	if (rotation != 0.0) {
+		// Coordinates relative to the center of the subsurface
+		double ox = *sx - pw/2 + sw/2,
+			oy = *sy - ph/2 + sh/2;
+		// Rotated coordinates
+		double rx = cos(-rotation)*ox - sin(-rotation)*oy,
+			ry = cos(-rotation)*oy + sin(-rotation)*ox;
+		*sx = rx + pw/2 - sw/2;
+		*sy = ry + ph/2 - sh/2;
+	}
+}
+
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
 	if (surface->texture->valid) {
-		double surface_scale = surface->current->scale;
-		double width = (double)surface->current->buffer_width / surface_scale;
-		double height = (double)surface->current->buffer_height / surface_scale;
+		double width, height;
+		get_surface_size(surface, &width, &height);
 		int render_width = width * wlr_output->scale;
 		int render_height = height * wlr_output->scale;
 		double ox = lx, oy = ly;
@@ -73,16 +100,7 @@ static void render_surface(struct wlr_surface *surface,
 			double sy = state->subsurface_position.y;
 			double sw = state->buffer_width / state->scale;
 			double sh = state->buffer_height / state->scale;
-			if (rotation != 0.0) {
-				// Coordinates relative to the center of the subsurface
-				double ox = sx - width/2 + sw/2,
-					oy = sy - height/2 + sh/2;
-				// Rotated coordinates
-				double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-					ry = cos(-rotation)*oy + sin(-rotation)*ox;
-				sx = rx + width/2 - sw/2;
-				sy = ry + height/2 - sh/2;
-			}
+			rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
 
 			render_surface(subsurface->surface, desktop, wlr_output, when,
 				lx + sx,
@@ -95,36 +113,55 @@ static void render_surface(struct wlr_surface *surface,
 static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double base_x, double base_y, float rotation) {
-	// TODO: make sure this works with view rotation
+	double width, height;
+	get_surface_size(surface->surface, &width, &height);
+
 	struct wlr_xdg_surface_v6 *popup;
 	wl_list_for_each(popup, &surface->popups, popup_link) {
 		if (!popup->configured) {
 			continue;
 		}
 
-		double popup_x = base_x + surface->geometry->x +
-			popup->popup_state->geometry.x - popup->geometry->x;
-		double popup_y = base_y + surface->geometry->y +
-			popup->popup_state->geometry.y - popup->geometry->y;
-		render_surface(popup->surface, desktop, wlr_output, when, popup_x,
-			popup_y, rotation);
-		render_xdg_v6_popups(popup, desktop, wlr_output, when, popup_x, popup_y,
+		double sw, sh;
+		get_surface_size(popup->surface, &sw, &sh);
+
+		double popup_x = surface->geometry->x + popup->popup_state->geometry.x -
+			popup->geometry->x;
+		double popup_y = surface->geometry->y + popup->popup_state->geometry.y -
+			popup->geometry->y;
+		rotate_child_position(&popup_x, &popup_y, sw, sh, width, height,
 			rotation);
+
+		render_surface(popup->surface, desktop, wlr_output, when,
+			base_x + popup_x, base_y + popup_y, rotation);
+		render_xdg_v6_popups(popup, desktop, wlr_output, when, base_x + popup_x,
+			base_y + popup_y, rotation);
 	}
 }
 
-static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface, struct roots_desktop *desktop,
-		struct wlr_output *wlr_output, struct timespec *when, double lx,
-		double ly, float rotation, bool is_child) {
+static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
+		struct roots_desktop *desktop, struct wlr_output *wlr_output,
+		struct timespec *when, double lx, double ly, float rotation,
+		bool is_child) {
 	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
 		render_surface(surface->surface, desktop, wlr_output, when,
 			lx, ly, rotation);
+
+		double width, height;
+		get_surface_size(surface->surface, &width, &height);
+
 		struct wlr_wl_shell_surface *popup;
 		wl_list_for_each(popup, &surface->popups, popup_link) {
+			double sw, sh;
+			get_surface_size(popup->surface, &sw, &sh);
+
+			double popup_x = popup->transient_state->x;
+			double popup_y = popup->transient_state->y;
+			rotate_child_position(&popup_x, &popup_y, sw, sh, width, height,
+				rotation);
+
 			render_wl_shell_surface(popup, desktop, wlr_output, when,
-				lx + popup->transient_state->x,
-				ly + popup->transient_state->y,
-				rotation, true);
+				lx + popup_x, ly + popup_y, rotation, true);
 		}
 	}
 }
