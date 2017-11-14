@@ -39,9 +39,8 @@ static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
 	if (surface->texture->valid) {
-		double surface_scale = surface->current->scale;
-		double width = (double)surface->current->buffer_width / surface_scale;
-		double height = (double)surface->current->buffer_height / surface_scale;
+		int width = surface->current->width;
+		int height = surface->current->height;
 		int render_width = width * wlr_output->scale;
 		int render_height = height * wlr_output->scale;
 		double ox = lx, oy = ly;
