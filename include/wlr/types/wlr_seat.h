@@ -24,6 +24,22 @@ struct wlr_seat_client {
 	struct wl_list link;
 };
 
+struct wlr_touch_point {
+	int32_t touch_id;
+	struct wlr_surface *surface;
+	struct wlr_seat_client *client;
+	double sx, sy;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener resource_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	struct wl_list link;
+};
+
 struct wlr_seat_pointer_grab;
 
 struct wlr_pointer_grab_interface {
@@ -52,11 +68,12 @@ struct wlr_keyboard_grab_interface {
 struct wlr_seat_touch_grab;
 
 struct wlr_touch_grab_interface {
-	void (*down)(struct wlr_seat_touch_grab *grab, struct wlr_surface *surface,
-			uint32_t time, int32_t touch_id, double sx, double sy);
-	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t touch_id);
-	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time, int32_t
-			touch_id, double sx, double sy);
+	void (*down)(struct wlr_seat_touch_grab *grab, uint32_t time,
+			struct wlr_touch_point *point);
+	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time,
+			struct wlr_touch_point *point);
+	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time,
+			struct wlr_touch_point *point);
 	// XXX this will conflict with the actual touch cancel which is different so
 	// we need to rename this
 	void (*cancel)(struct wlr_seat_touch_grab *grab);
@@ -125,18 +142,6 @@ struct wlr_seat_keyboard_state {
 
 	struct wlr_seat_keyboard_grab *grab;
 	struct wlr_seat_keyboard_grab *default_grab;
-};
-
-struct wlr_touch_point {
-	int32_t touch_id;
-	struct wlr_surface *surface;
-	struct wlr_seat_client *client;
-	double sx, sy;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener resource_destroy;
-
-	struct wl_list link;
 };
 
 struct wlr_seat_touch_state {
@@ -414,10 +419,13 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 
 /**
  * Notify the seat that the touch point given by `touch_id` has moved. Defers to
- * any grab of the touch device.
+ * any grab of the touch device. The seat should be notified of touch motion
+ * even if the surface is not the owner of the touch point for processing by
+ * grabs.
  */
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
-		int32_t touch_id, double sx, double sy);
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy);
 
 /**
  * Send a touch down event to the client of the given surface. All future touch
@@ -442,7 +450,7 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
 
 /**
  * Send a touch motion event for the touch point given by the `touch_id`. The
- * event will go to the cleint for the surface given in the corresponding touch
+ * event will go to the client for the surface given in the corresponding touch
  * down event. Compositors should use `wlr_seat_touch_notify_motion()` to
  * respect any grabs of the touch device.
  */

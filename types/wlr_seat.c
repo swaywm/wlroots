@@ -300,20 +300,21 @@ static const struct wlr_keyboard_grab_interface default_keyboard_grab_impl = {
 	.cancel = default_keyboard_cancel,
 };
 
-static void default_touch_down(struct wlr_seat_touch_grab *grab,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
-		double sy) {
-	wlr_seat_touch_send_down(grab->seat, surface, time, touch_id, sx, sy);
+static void default_touch_down(struct wlr_seat_touch_grab *grab, uint32_t time,
+		struct wlr_touch_point *point) {
+	wlr_seat_touch_send_down(grab->seat, point->surface, time, point->touch_id,
+		point->sx, point->sy);
 }
 
 static void default_touch_up(struct wlr_seat_touch_grab *grab, uint32_t time,
-		int32_t touch_id) {
-	wlr_seat_touch_send_up(grab->seat, time, touch_id);
+		struct wlr_touch_point *point) {
+	wlr_seat_touch_send_up(grab->seat, time, point->touch_id);
 }
 
 static void default_touch_motion(struct wlr_seat_touch_grab *grab,
-		uint32_t time, int32_t touch_id, double sx, double sy) {
-	wlr_seat_touch_send_motion(grab->seat, time, touch_id, sx, sy);
+		uint32_t time, struct wlr_touch_point *point) {
+	wlr_seat_touch_send_motion(grab->seat, time, point->touch_id, point->sx,
+		point->sy);
 }
 
 static void default_touch_cancel(struct wlr_seat_touch_grab *grab) {
@@ -894,6 +895,7 @@ void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
 }
 
 static void touch_point_destroy(struct wlr_touch_point *point) {
+	wl_signal_emit(&point->events.destroy, point);
 	wl_list_remove(&point->surface_destroy.link);
 	wl_list_remove(&point->resource_destroy.link);
 	wl_list_remove(&point->link);
@@ -936,6 +938,8 @@ static struct wlr_touch_point *touch_point_create(
 	point->sx = sx;
 	point->sy = sy;
 
+	wl_signal_init(&point->events.destroy);
+
 	wl_signal_add(&surface->events.destroy, &point->surface_destroy);
 	point->surface_destroy.notify = handle_touch_point_surface_destroy;
 	wl_resource_add_destroy_listener(surface->resource,
@@ -971,7 +975,8 @@ void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		return;
 	}
 
-	grab->interface->down(grab, surface, time, touch_id, sx, sy);
+	grab->interface->down(grab, time, point);
+
 	if (wl_list_length(&seat->touch_state.touch_points) == 1) {
 		seat->touch_state.grab_serial = wl_display_get_serial(seat->display);
 		seat->touch_state.grab_id = touch_id;
@@ -988,12 +993,14 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 		return;
 	}
 
-	grab->interface->up(grab, time, touch_id);
+	grab->interface->up(grab, time, point);
+
 	touch_point_destroy(point);
 }
 
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
-		int32_t touch_id, double sx, double sy) {
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
@@ -1005,7 +1012,7 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 	point->sx = sx;
 	point->sy = sy;
 
-	grab->interface->motion(grab, time, touch_id, sx, sy);
+	grab->interface->motion(grab, time, point);
 }
 
 void wlr_seat_touch_send_down(struct wlr_seat *seat,

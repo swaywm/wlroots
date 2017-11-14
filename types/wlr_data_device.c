@@ -527,15 +527,14 @@ wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface = {
 };
 
 static void touch_drag_down(struct wlr_seat_touch_grab *grab,
-		struct wlr_surface *surface,
-			uint32_t time, int32_t touch_id, double sx, double sy) {
+		uint32_t time, struct wlr_touch_point *point) {
 	// eat the event
 }
 
 static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
-		int32_t touch_id) {
+		struct wlr_touch_point *point) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->grab_touch_id != touch_id) {
+	if (drag->grab_touch_id != point->touch_id) {
 		return;
 	}
 
@@ -547,11 +546,11 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 }
 
 static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time,
-		int32_t touch_id, double sx, double sy) {
+		struct wlr_touch_point *point) {
 	struct wlr_drag *drag = grab->data;
 	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
 		wl_data_device_send_motion(drag->focus_client->data_device, time,
-			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+			wl_fixed_from_double(point->sx), wl_fixed_from_double(point->sy));
 	}
 }
 

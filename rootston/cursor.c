@@ -261,8 +261,8 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 	double sx, sy;
 	view_at(desktop, lx, ly, &surface, &sx, &sy);
 
-	if (surface == point->surface) {
-		wlr_seat_touch_notify_motion(cursor->seat->seat, event->time_msec,
+	if (surface) {
+		wlr_seat_touch_notify_motion(cursor->seat->seat, surface, event->time_msec,
 			event->slot, sx, sy);
 	}
 }
