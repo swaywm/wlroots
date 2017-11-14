@@ -28,9 +28,13 @@ struct wlr_touch_point {
 	int32_t touch_id;
 	struct wlr_surface *surface;
 	struct wlr_seat_client *client;
+
+	struct wlr_surface *focus_surface;
+	struct wlr_seat_client *focus_client;
 	double sx, sy;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener focus_surface_destroy;
 	struct wl_listener resource_destroy;
 
 	struct {
@@ -73,6 +77,8 @@ struct wlr_touch_grab_interface {
 	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time,
 			struct wlr_touch_point *point);
 	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time,
+			struct wlr_touch_point *point);
+	void (*enter)(struct wlr_seat_touch_grab *grab, uint32_t time,
 			struct wlr_touch_point *point);
 	// XXX this will conflict with the actual touch cancel which is different so
 	// we need to rename this
@@ -423,9 +429,23 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
  * even if the surface is not the owner of the touch point for processing by
  * grabs.
  */
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat,
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id, double sx, double sy);
+
+/**
+ * Notify the seat that the touch point given by `touch_id` has entered a new
+ * surface. The surface is required. To clear focus, use
+ * `wlr_seat_touch_point_clear_focus()`.
+ */
+void wlr_seat_touch_point_focus(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy);
+
+/**
+ * Clear the focused surface for the touch point given by `touch_id`.
+ */
+void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id);
 
 /**
  * Send a touch down event to the client of the given surface. All future touch

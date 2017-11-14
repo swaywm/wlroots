@@ -313,8 +313,15 @@ static void default_touch_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 
 static void default_touch_motion(struct wlr_seat_touch_grab *grab,
 		uint32_t time, struct wlr_touch_point *point) {
-	wlr_seat_touch_send_motion(grab->seat, time, point->touch_id, point->sx,
-		point->sy);
+	if (!point->focus_surface || point->focus_surface == point->surface) {
+		wlr_seat_touch_send_motion(grab->seat, time, point->touch_id, point->sx,
+			point->sy);
+	}
+}
+
+static void default_touch_enter(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
+	// not handled by default
 }
 
 static void default_touch_cancel(struct wlr_seat_touch_grab *grab) {
@@ -325,6 +332,7 @@ static const struct wlr_touch_grab_interface default_touch_grab_impl = {
 	.down = default_touch_down,
 	.up = default_touch_up,
 	.motion = default_touch_motion,
+	.enter = default_touch_enter,
 	.cancel = default_touch_cancel,
 };
 
@@ -998,9 +1006,8 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 	touch_point_destroy(point);
 }
 
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
-		double sy) {
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id, double sx, double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
@@ -1013,6 +1020,74 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat,
 	point->sy = sy;
 
 	grab->interface->motion(grab, time, point);
+}
+
+static void touch_point_clear_focus(struct wlr_touch_point *point) {
+	if (point->focus_surface) {
+		wl_list_remove(&point->focus_surface_destroy.link);
+		point->focus_client = NULL;
+		point->focus_surface = NULL;
+	}
+}
+
+static void handle_point_focus_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_touch_point *point =
+		wl_container_of(listener, point, focus_surface_destroy);
+	touch_point_clear_focus(point);
+}
+
+static void touch_point_set_focus(struct wlr_touch_point *point,
+		struct wlr_surface *surface, double sx, double sy) {
+	if (point->focus_surface == surface) {
+		return;
+	}
+
+	touch_point_clear_focus(point);
+
+	if (surface && surface->resource) {
+		struct wlr_seat_client *client =
+			wlr_seat_client_for_wl_client(point->client->seat,
+				wl_resource_get_client(surface->resource));
+
+		if (client && client->touch) {
+			wl_signal_add(&surface->events.destroy, &point->focus_surface_destroy);
+			point->focus_surface_destroy.notify = handle_point_focus_destroy;
+			point->focus_surface = surface;
+			point->focus_client = client;
+			point->sx = sx;
+			point->sy = sy;
+		}
+	}
+}
+
+void wlr_seat_touch_point_focus(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		double sy) {
+	assert(surface);
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
+	if (!point) {
+		wlr_log(L_ERROR, "got touch point focus for unknown touch point");
+		return;
+	}
+	struct wlr_surface *focus = point->focus_surface;
+	touch_point_set_focus(point, surface, sx, sy);
+
+	if (focus != point->focus_surface) {
+		struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
+		grab->interface->enter(grab, time, point);
+	}
+}
+
+void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
+		int32_t touch_id) {
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
+	if (!point) {
+		wlr_log(L_ERROR, "got touch point focus for unknown touch point");
+		return;
+	}
+
+	touch_point_set_focus(point, NULL, 0, 0);
 }
 
 void wlr_seat_touch_send_down(struct wlr_seat *seat,

@@ -554,6 +554,12 @@ static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time,
 	}
 }
 
+static void touch_drag_enter(struct wlr_seat_touch_grab *grab, uint32_t time,
+		struct wlr_touch_point *point) {
+	struct wlr_drag *drag = grab->data;
+	wlr_drag_set_focus(drag, point->focus_surface, point->sx, point->sy);
+}
+
 static void touch_drag_cancel(struct wlr_seat_touch_grab *grab) {
 	struct wlr_drag *drag = grab->data;
 	wlr_drag_end(drag);
@@ -563,6 +569,7 @@ const struct wlr_touch_grab_interface wlr_data_device_touch_drag_interface = {
 	.down = touch_drag_down,
 	.up = touch_drag_up,
 	.motion = touch_drag_motion,
+	.enter = touch_drag_enter,
 	.cancel = touch_drag_cancel,
 };
 

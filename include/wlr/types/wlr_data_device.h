@@ -71,6 +71,7 @@ struct wlr_drag {
 	bool cancelling;
 	int32_t grab_touch_id;
 
+	struct wl_listener point_destroy;
 	struct wl_listener icon_destroy;
 	struct wl_listener source_destroy;
 	struct wl_listener seat_client_unbound;
