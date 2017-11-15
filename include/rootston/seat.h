@@ -10,7 +10,7 @@ struct roots_drag_icon {
 	bool mapped;
 
 	bool is_pointer;
-	bool touch_id;
+	int32_t touch_id;
 
 	int32_t sx;
 	int32_t sy;
@@ -26,8 +26,9 @@ struct roots_seat {
 	struct wl_list link;
 	struct wl_list drag_icons;
 
-	// coordinates of the touch grab if one exists
-	double touch_grab_x, touch_grab_y;
+	// coordinates of the first touch point if it exists
+	int32_t touch_id;
+	double touch_x, touch_y;
 
 	struct roots_view *focus;
 

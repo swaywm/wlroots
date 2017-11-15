@@ -488,6 +488,11 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy);
 
 /**
+ * How many touch points are currently down for the seat.
+ */
+int wlr_seat_touch_num_points(struct wlr_seat *seat);
+
+/**
  * Whether or not the seat has a touch grab other than the default grab.
  */
 bool wlr_seat_touch_has_grab(struct wlr_seat *seat);

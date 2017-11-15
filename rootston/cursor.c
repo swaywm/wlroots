@@ -128,13 +128,14 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 
 static void roots_cursor_press_button(struct roots_cursor *cursor,
 		struct wlr_input_device *device, uint32_t time, uint32_t button,
-		uint32_t state) {
+		uint32_t state, double lx, double ly) {
 	struct roots_seat *seat = cursor->seat;
 	struct roots_desktop *desktop = seat->input->server->desktop;
+	bool is_touch = device->type == WLR_INPUT_DEVICE_TOUCH;
+
 	struct wlr_surface *surface;
 	double sx, sy;
-	struct roots_view *view = view_at(desktop,
-		cursor->cursor->x, cursor->cursor->y, &surface, &sx, &sy);
+	struct roots_view *view = view_at(desktop, lx, ly, &surface, &sx, &sy);
 
 	if (state == WLR_BUTTON_PRESSED && view && roots_seat_has_meta_pressed(seat)) {
 		roots_seat_focus_view(seat, view);
@@ -165,14 +166,20 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		return;
 	}
 
-	uint32_t serial =
-		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	uint32_t serial;
+	if (is_touch) {
+		serial = wl_display_get_serial(desktop->server->wl_display);
+	} else {
+		serial = wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	}
 
 	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-		roots_cursor_update_position(cursor, time);
+		if (!is_touch) {
+			roots_cursor_update_position(cursor, time);
+		}
 		break;
 	case WLR_BUTTON_PRESSED:
 		i = cursor->input_events_idx;
@@ -203,7 +210,7 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 void roots_cursor_handle_button(struct roots_cursor *cursor,
 		struct wlr_event_pointer_button *event) {
 	roots_cursor_press_button(cursor, event->device, event->time_msec,
-		event->button, event->state);
+		event->button, event->state, cursor->cursor->x, cursor->cursor->y);
 }
 
 void roots_cursor_handle_axis(struct roots_cursor *cursor,
@@ -231,12 +238,29 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 		wlr_seat_touch_notify_down(cursor->seat->seat, surface,
 			event->time_msec, event->slot, sx, sy);
 	}
+
+	if (wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
+		cursor->seat->touch_id = event->slot;
+		cursor->seat->touch_x = lx;
+		cursor->seat->touch_y = ly;
+		roots_cursor_press_button(cursor, event->device, event->time_msec,
+			BTN_LEFT, 1, lx, ly);
+	}
 }
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 		struct wlr_event_touch_up *event) {
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(cursor->seat->seat, event->slot);
+	if (!point) {
+		return;
+	}
+
+	if (wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
+		roots_cursor_press_button(cursor, event->device, event->time_msec,
+			BTN_LEFT, 0, cursor->seat->touch_x, cursor->seat->touch_y);
+	}
+
 	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->slot);
-	//roots_cursor_press_button(cursor, event->device, event->time_msec, BTN_LEFT, 0);
 }
 
 void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
@@ -271,9 +295,9 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 			event->slot);
 	}
 
-	if (wlr_seat_touch_has_grab(cursor->seat->seat)) {
-		cursor->seat->touch_grab_x = lx;
-		cursor->seat->touch_grab_y = ly;
+	if (event->slot == cursor->seat->touch_id) {
+		cursor->seat->touch_x = lx;
+		cursor->seat->touch_y = ly;
 	}
 }
 
@@ -298,7 +322,8 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 		struct wlr_event_tablet_tool_tip *event) {
 	roots_cursor_press_button(cursor, event->device,
-		event->time_msec, BTN_LEFT, event->state);
+		event->time_msec, BTN_LEFT, event->state, cursor->cursor->x,
+		cursor->cursor->y);
 }
 
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,

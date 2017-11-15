@@ -1138,6 +1138,10 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 	wl_touch_send_frame(point->client->touch);
 }
 
+int wlr_seat_touch_num_points(struct wlr_seat *seat) {
+	return wl_list_length(&seat->touch_state.touch_points);
+}
+
 bool wlr_seat_touch_has_grab(struct wlr_seat *seat) {
 	return seat->touch_state.grab->interface != &default_touch_grab_impl;
 }

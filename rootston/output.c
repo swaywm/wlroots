@@ -209,8 +209,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 				struct wlr_touch_point *point =
 					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
 				if (point) {
-					icon_x = seat->touch_grab_x + drag_icon->sx;
-					icon_y = seat->touch_grab_y + drag_icon->sy;
+					icon_x = seat->touch_x + drag_icon->sx;
+					icon_y = seat->touch_y + drag_icon->sy;
 					render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
 				}
 			}
