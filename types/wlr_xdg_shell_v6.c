@@ -1350,6 +1350,16 @@ void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
 }
 
+void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
+		double *popup_sx, double *popup_sy) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
+	struct wlr_xdg_surface_v6 *parent = surface->popup_state->parent;
+	*popup_sx = parent->geometry->x + surface->popup_state->geometry.x -
+		surface->geometry->x;
+	*popup_sy = parent->geometry->y + surface->popup_state->geometry.y -
+		surface->geometry->y;
+}
+
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy) {

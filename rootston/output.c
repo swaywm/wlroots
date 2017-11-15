@@ -115,17 +115,15 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		double popup_width = popup->surface->current->width;
 		double popup_height = popup->surface->current->height;
 
-		double popup_x = surface->geometry->x + popup->popup_state->geometry.x -
-			popup->geometry->x;
-		double popup_y = surface->geometry->y + popup->popup_state->geometry.y -
-			popup->geometry->y;
-		rotate_child_position(&popup_x, &popup_y, popup_width, popup_height,
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_v6_popup_get_position(popup, &popup_sx, &popup_sy);
+		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
 			width, height, rotation);
 
 		render_surface(popup->surface, desktop, wlr_output, when,
-			base_x + popup_x, base_y + popup_y, rotation);
-		render_xdg_v6_popups(popup, desktop, wlr_output, when, base_x + popup_x,
-			base_y + popup_y, rotation);
+			base_x + popup_sx, base_y + popup_sy, rotation);
+		render_xdg_v6_popups(popup, desktop, wlr_output, when,
+			base_x + popup_sx, base_y + popup_sy, rotation);
 	}
 }
 
