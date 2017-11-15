@@ -29,8 +29,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		struct wlr_output_mode *mode;
 		wl_list_for_each(mode, &output->modes, link) {
-			// TODO: mode->flags should just be preferred
-			uint32_t flags = mode->flags;
+			uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
 			if (output->current_mode == mode) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
@@ -62,12 +61,16 @@ static void wlr_output_send_current_mode_to_resource(
 	}
 	if (output->current_mode != NULL) {
 		struct wlr_output_mode *mode = output->current_mode;
-		wl_output_send_mode(resource, mode->flags | WL_OUTPUT_MODE_CURRENT,
+		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
+		wl_output_send_mode(resource, flags | WL_OUTPUT_MODE_CURRENT,
 			mode->width, mode->height, mode->refresh);
 	} else {
 		// Output has no mode, send the current width/height
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
 			output->height, 0);
+	}
+	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
+		wl_output_send_done(resource);
 	}
 }
 
@@ -163,6 +166,9 @@ bool wlr_output_set_mode(struct wlr_output *output,
 
 void wlr_output_update_size(struct wlr_output *output, int32_t width,
 		int32_t height) {
+	if (output->width == width && output->height == height) {
+		return;
+	}
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
