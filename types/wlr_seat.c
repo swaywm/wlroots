@@ -672,6 +672,10 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 	grab->interface->axis(grab, time, orientation, value);
 }
 
+bool wlr_seat_pointer_has_grab(struct wlr_seat *seat) {
+	return seat->pointer_state.grab->interface != &default_pointer_grab_impl;
+}
+
 void wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t key, uint32_t state) {
 	struct wlr_seat_client *client = wlr_seat->keyboard_state.focused_client;
@@ -867,6 +871,10 @@ void wlr_seat_keyboard_clear_focus(struct wlr_seat *seat) {
 	struct wl_array keys;
 	wl_array_init(&keys);
 	wlr_seat_keyboard_enter(seat, NULL);
+}
+
+bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat) {
+	return seat->keyboard_state.grab->interface != &default_keyboard_grab_impl;
 }
 
 void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat) {
@@ -1128,4 +1136,8 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 	wl_touch_send_motion(point->client->touch, time, touch_id,
 		wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 	wl_touch_send_frame(point->client->touch);
+}
+
+bool wlr_seat_touch_has_grab(struct wlr_seat *seat) {
+	return seat->touch_state.grab->interface != &default_touch_grab_impl;
 }

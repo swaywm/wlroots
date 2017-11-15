@@ -322,6 +322,11 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value);
 
 /**
+ * Whether or not the pointer has a grab other than the default grab.
+ */
+bool wlr_seat_pointer_has_grab(struct wlr_seat *seat);
+
+/**
  * Set this keyboard as the active keyboard for the seat.
  */
 void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_input_device *dev);
@@ -387,6 +392,11 @@ void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
  * Clear the focused surface for the keyboard and leave all entered surfaces.
  */
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
+
+/**
+ * Whether or not the keyboard has a grab other than the default grab
+ */
+bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat);
 
 /**
  * Start a grab of the touch device of this seat. The grabber is responsible for
@@ -476,5 +486,10 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
  */
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy);
+
+/**
+ * Whether or not the seat has a touch grab other than the default grab.
+ */
+bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
 
 #endif

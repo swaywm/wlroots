@@ -270,6 +270,11 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 		wlr_seat_touch_point_clear_focus(cursor->seat->seat, event->time_msec,
 			event->slot);
 	}
+
+	if (wlr_seat_touch_has_grab(cursor->seat->seat)) {
+		cursor->seat->touch_grab_x = lx;
+		cursor->seat->touch_grab_y = ly;
+	}
 }
 
 void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
