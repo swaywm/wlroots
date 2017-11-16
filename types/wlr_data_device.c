@@ -526,9 +526,10 @@ wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface = {
 	.cancel = pointer_drag_cancel,
 };
 
-static void touch_drag_down(struct wlr_seat_touch_grab *grab,
+uint32_t touch_drag_down(struct wlr_seat_touch_grab *grab,
 		uint32_t time, struct wlr_touch_point *point) {
 	// eat the event
+	return 0;
 }
 
 static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,

@@ -72,7 +72,7 @@ struct wlr_keyboard_grab_interface {
 struct wlr_seat_touch_grab;
 
 struct wlr_touch_grab_interface {
-	void (*down)(struct wlr_seat_touch_grab *grab, uint32_t time,
+	uint32_t (*down)(struct wlr_seat_touch_grab *grab, uint32_t time,
 			struct wlr_touch_point *point);
 	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time,
 			struct wlr_touch_point *point);
@@ -422,7 +422,7 @@ struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
  * Notify the seat of a touch down on the given surface. Defers to any grab of
  * the touch device.
  */
-void wlr_seat_touch_notify_down(struct wlr_seat *seat,
+uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy);
 
@@ -465,7 +465,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
  * Coordinates are surface-local. Compositors should use
  * `wlr_seat_touch_notify_down()` to respect any grabs of the touch device.
  */
-void wlr_seat_touch_send_down(struct wlr_seat *seat,
+uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy);
 

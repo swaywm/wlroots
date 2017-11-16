@@ -300,10 +300,10 @@ static const struct wlr_keyboard_grab_interface default_keyboard_grab_impl = {
 	.cancel = default_keyboard_cancel,
 };
 
-static void default_touch_down(struct wlr_seat_touch_grab *grab, uint32_t time,
+static uint32_t default_touch_down(struct wlr_seat_touch_grab *grab, uint32_t time,
 		struct wlr_touch_point *point) {
-	wlr_seat_touch_send_down(grab->seat, point->surface, time, point->touch_id,
-		point->sx, point->sy);
+	return wlr_seat_touch_send_down(grab->seat, point->surface, time,
+			point->touch_id, point->sx, point->sy);
 }
 
 static void default_touch_up(struct wlr_seat_touch_grab *grab, uint32_t time,
@@ -658,7 +658,7 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	uint32_t serial = grab->interface->button(grab, time, button, state);
 
-	if (wlr_seat->pointer_state.button_count == 1) {
+	if (serial && wlr_seat->pointer_state.button_count == 1) {
 		wlr_seat->pointer_state.grab_serial = serial;
 	}
 
@@ -989,7 +989,7 @@ struct wlr_touch_point *wlr_seat_touch_get_point(
 	return NULL;
 }
 
-void wlr_seat_touch_notify_down(struct wlr_seat *seat,
+uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
@@ -998,15 +998,17 @@ void wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		touch_point_create(seat, touch_id, surface, sx, sy);
 	if (!point) {
 		wlr_log(L_ERROR, "could not create touch point");
-		return;
+		return 0;
 	}
 
-	grab->interface->down(grab, time, point);
+	uint32_t serial = grab->interface->down(grab, time, point);
 
-	if (wl_list_length(&seat->touch_state.touch_points) == 1) {
-		seat->touch_state.grab_serial = wl_display_get_serial(seat->display);
+	if (serial && wlr_seat_touch_num_points(seat) == 1) {
+		seat->touch_state.grab_serial = serial;
 		seat->touch_state.grab_id = touch_id;
 	}
+
+	return serial;
 }
 
 void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
@@ -1100,19 +1102,21 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 	touch_point_clear_focus(point);
 }
 
-void wlr_seat_touch_send_down(struct wlr_seat *seat,
+uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
 		wlr_log(L_ERROR, "got touch down for unknown touch point");
-		return;
+		return 0;
 	}
 
 	uint32_t serial = wl_display_next_serial(seat->display);
 	wl_touch_send_down(point->client->touch, serial, time, surface->resource,
 		touch_id, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 	wl_touch_send_frame(point->client->touch);
+
+	return serial;
 }
 
 void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {

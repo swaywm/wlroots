@@ -234,12 +234,13 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 	double sx, sy;
 	view_at(desktop, lx, ly, &surface, &sx, &sy);
 
+	uint32_t serial = 0;
 	if (surface) {
-		wlr_seat_touch_notify_down(cursor->seat->seat, surface,
+		serial = wlr_seat_touch_notify_down(cursor->seat->seat, surface,
 			event->time_msec, event->slot, sx, sy);
 	}
 
-	if (wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
+	if (serial && wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
 		cursor->seat->touch_id = event->slot;
 		cursor->seat->touch_x = lx;
 		cursor->seat->touch_y = ly;
