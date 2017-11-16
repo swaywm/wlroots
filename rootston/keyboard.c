@@ -13,14 +13,33 @@
 #include "rootston/seat.h"
 #include "rootston/keyboard.h"
 
-static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
+static ssize_t pressed_keysyms_index(xkb_keysym_t *pressed_keysyms,
 		xkb_keysym_t keysym) {
-	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; i++) {
-		if (keyboard->pressed_keysyms[i] == keysym) {
+	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; ++i) {
+		if (pressed_keysyms[i] == keysym) {
 			return i;
 		}
 	}
 	return -1;
+}
+
+static void pressed_keysyms_add(xkb_keysym_t *pressed_keysyms,
+		xkb_keysym_t keysym) {
+	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
+	if (i < 0) {
+		i = pressed_keysyms_index(pressed_keysyms, XKB_KEY_NoSymbol);
+		if (i >= 0) {
+			pressed_keysyms[i] = keysym;
+		}
+	}
+}
+
+static void pressed_keysyms_remove(xkb_keysym_t *pressed_keysyms,
+		xkb_keysym_t keysym) {
+	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
+	if (i >= 0) {
+		pressed_keysyms[i] = XKB_KEY_NoSymbol;
+	}
 }
 
 static const char *exec_prefix = "exec ";
@@ -56,21 +75,13 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 }
 
 /**
- * Process a keypress from the keyboard.
+ * Execute a built-in, hardcoded compositor action when a keysym is pressed.
  *
  * Returns true if the keysym was handled by a binding and false if the event
  * should be propagated to clients.
  */
-static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
+static bool keyboard_press_keysym(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
-	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
-	if (i < 0) {
-		i = keyboard_pressed_keysym_index(keyboard, XKB_KEY_NoSymbol);
-		if (i >= 0) {
-			keyboard->pressed_keysyms[i] = keysym;
-		}
-	}
-
 	if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
 			keysym <= XKB_KEY_XF86Switch_VT_12) {
 		struct roots_server *server = keyboard->input->server;
@@ -90,7 +101,35 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 		wlr_seat_keyboard_end_grab(keyboard->seat->seat);
 	}
 
-	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+	return false;
+}
+
+/**
+ * Press or release keysyms.
+ *
+ * Returns true if the keysym was handled by a binding and false if the event
+ * should be propagated to clients.
+ */
+static bool keyboard_handle_keysyms(struct roots_keyboard *keyboard,
+		xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
+		const xkb_keysym_t *keysyms, size_t keysyms_len,
+		enum wlr_key_state state) {
+	bool handled = false;
+	for (size_t i = 0; i < keysyms_len; ++i) {
+		if (state == WLR_KEY_PRESSED) {
+			pressed_keysyms_add(pressed_keysyms, keysyms[i]);
+			handled |= keyboard_press_keysym(keyboard, keysyms[i]);
+		} else { // WLR_KEY_RELEASED
+			pressed_keysyms_remove(pressed_keysyms, keysyms[i]);
+		}
+	}
+	if (handled) {
+		return true;
+	}
+	if (state != WLR_KEY_PRESSED) {
+		return false;
+	}
+
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
 	struct roots_binding_config *bc;
 	wl_list_for_each(bc, bindings, link) {
@@ -100,7 +139,7 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 
 		bool ok = true;
 		for (size_t i = 0; i < bc->keysyms_len; i++) {
-			ssize_t j = keyboard_pressed_keysym_index(keyboard, bc->keysyms[i]);
+			ssize_t j = pressed_keysyms_index(pressed_keysyms, bc->keysyms[i]);
 			if (j < 0) {
 				ok = false;
 				break;
@@ -116,86 +155,64 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 	return false;
 }
 
-static void keyboard_keysym_release(struct roots_keyboard *keyboard,
-		xkb_keysym_t keysym) {
-	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
-	if (i >= 0) {
-		keyboard->pressed_keysyms[i] = XKB_KEY_NoSymbol;
-	}
-}
 /*
- * Process keypresses from the keyboard as xkb sees them.
+ * Get keysyms and modifiers from the keyboard as xkb sees them.
  *
  * This uses the xkb keysyms translation based on pressed modifiers and clears
  * the consumed modifiers from the list of modifiers passed to keybind
  * detection.
  *
- * (On US layout) this will trigger: [Alt]+[at]
+ * On US layout, this will trigger: Alt + @
  */
-static bool keyboard_keysyms_xkb(struct roots_keyboard *keyboard,
-		uint32_t keycode, enum wlr_key_state state) {
-	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-	const xkb_keysym_t *syms;
-	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
-		keycode, &syms);
-	uint32_t consumed = xkb_state_key_get_consumed_mods2(
+static size_t keyboard_keysyms_translated(struct roots_keyboard *keyboard,
+		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
+		uint32_t *modifiers) {
+	*modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+	xkb_mod_mask_t consumed = xkb_state_key_get_consumed_mods2(
 		keyboard->device->keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
+	*modifiers = *modifiers & ~consumed;
 
-	// TODO: actually use this value
-	modifiers = modifiers & ~consumed;
-
-	bool handled = false;
-	for (int i = 0; i < syms_len; i++) {
-		if (state) {
-			bool keysym_handled =
-				keyboard_keysym_press(keyboard, syms[i]);
-			handled = handled || keysym_handled;
-		} else { // WLR_KEY_RELEASED
-			keyboard_keysym_release(keyboard, syms[i]);
-		}
-	}
-
-	return handled;
+	return xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
+		keycode, keysyms);
 }
+
 /*
- * Process keypresses from the keyboard as if modifiers didn't change keysyms.
+ * Get keysyms and modifiers from the keyboard as if modifiers didn't change
+ * keysyms.
  *
  * This avoids the xkb keysym translation based on modifiers considered pressed
- * in the state and uses the list of modifiers saved on the rootston side.
+ * in the state.
  *
- * This will trigger the keybind: [Alt]+[Shift]+2
+ * This will trigger the keybind: Alt + Shift + 2
  */
-static bool keyboard_keysyms_simple(struct roots_keyboard *keyboard,
-		uint32_t keycode, enum wlr_key_state state) {
-	const xkb_keysym_t *syms;
+static size_t keyboard_keysyms_raw(struct roots_keyboard *keyboard,
+		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
+		uint32_t *modifiers) {
+	*modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+
 	xkb_layout_index_t layout_index = xkb_state_key_get_layout(
 		keyboard->device->keyboard->xkb_state, keycode);
-	int syms_len = xkb_keymap_key_get_syms_by_level(
-		keyboard->device->keyboard->keymap, keycode, layout_index, 0, &syms);
-
-	bool handled = false;
-	for (int i = 0; i < syms_len; i++) {
-		if (state) {
-			bool keysym_handled = keyboard_keysym_press(keyboard, syms[i]);
-			handled = handled || keysym_handled;
-		} else { // WLR_KEY_RELEASED
-			keyboard_keysym_release(keyboard, syms[i]);
-		}
-	}
-
-	return handled;
+	return xkb_keymap_key_get_syms_by_level(keyboard->device->keyboard->keymap,
+		keycode, layout_index, 0, keysyms);
 }
 
 void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
-	uint32_t keycode = event->keycode + 8;
+	xkb_keycode_t keycode = event->keycode + 8;
 
-	bool handled = keyboard_keysyms_xkb(keyboard, keycode, event->state);
-
+	uint32_t modifiers;
+	const xkb_keysym_t *keysyms;
+	size_t keysyms_len = keyboard_keysyms_translated(keyboard, keycode,
+		&keysyms, &modifiers);
+	bool handled = keyboard_handle_keysyms(keyboard,
+		keyboard->pressed_keysyms_translated, modifiers, keysyms, keysyms_len,
+		event->state);
 	if (!handled) {
-		bool key_handled = keyboard_keysyms_simple(keyboard, keycode,
+		keysyms_len = keyboard_keysyms_raw(keyboard, keycode, &keysyms,
+			&modifiers);
+		handled = keyboard_handle_keysyms(keyboard,
+			keyboard->pressed_keysyms_raw, modifiers, keysyms, keysyms_len,
 			event->state);
-		handled = handled || key_handled;
 	}
 
 	if (!handled) {
