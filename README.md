@@ -33,3 +33,17 @@ Run these commands:
     ninja -C build
 
 (On FreeBSD, you need to pass an extra flag to prevent a linking error: `meson build -D b_lundef=false`)
+
+## Running the Reference Compositor
+
+wlroots comes with a reference compositor called rootston that demonstrates the
+features of the library.
+
+After building, run rootston from a terminal or VT with:
+
+    ./build/rootston/rootston
+
+Now you can run windows in the compositor from the command line or by
+configuring bindings in your
+[`rootston.ini`](https://github.com/swaywm/wlroots/blob/master/rootston/rootston.ini.example)
+file. 
