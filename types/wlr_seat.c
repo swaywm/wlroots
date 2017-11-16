@@ -910,8 +910,18 @@ void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
 	}
 }
 
+static void touch_point_clear_focus(struct wlr_touch_point *point) {
+	if (point->focus_surface) {
+		wl_list_remove(&point->focus_surface_destroy.link);
+		point->focus_client = NULL;
+		point->focus_surface = NULL;
+	}
+}
+
 static void touch_point_destroy(struct wlr_touch_point *point) {
 	wl_signal_emit(&point->events.destroy, point);
+
+	touch_point_clear_focus(point);
 	wl_list_remove(&point->surface_destroy.link);
 	wl_list_remove(&point->resource_destroy.link);
 	wl_list_remove(&point->link);
@@ -1030,14 +1040,6 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 	grab->interface->motion(grab, time, point);
 }
 
-static void touch_point_clear_focus(struct wlr_touch_point *point) {
-	if (point->focus_surface) {
-		wl_list_remove(&point->focus_surface_destroy.link);
-		point->focus_client = NULL;
-		point->focus_surface = NULL;
-	}
-}
-
 static void handle_point_focus_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_touch_point *point =
@@ -1095,7 +1097,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 		return;
 	}
 
-	touch_point_set_focus(point, NULL, 0, 0);
+	touch_point_clear_focus(point);
 }
 
 void wlr_seat_touch_send_down(struct wlr_seat *seat,
