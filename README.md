@@ -33,3 +33,25 @@ Run these commands:
     ninja -C build
 
 (On FreeBSD, you need to pass an extra flag to prevent a linking error: `meson build -D b_lundef=false`)
+
+## Running the Reference Compositor
+
+wlroots comes with a reference compositor called rootston that demonstrates the
+features of the library.
+
+After building, run rootston from a terminal or VT with:
+
+    ./build/rootston/rootston
+
+Run windows on the compositor with the display variable set:
+
+```bash
+# run gtk apps like this
+gnome-calculator --display=wayland-0
+
+# run QT apps like this
+qgit -platform wayland
+
+# run X11 apps like this
+DISPLAY=:1 firefox
+```
