@@ -274,7 +274,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	seat->seat = wlr_seat_create(input->server->wl_display, name);
 	if (!seat->seat) {
 		free(seat);
-		roots_cursor_destroy(seat->cursor);
 		return NULL;
 	}
 

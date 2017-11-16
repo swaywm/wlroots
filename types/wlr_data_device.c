@@ -713,7 +713,10 @@ static void data_device_start_drag(struct wl_client *client,
 
 	if (!seat_client_start_drag(seat_client, source, icon, origin, serial)) {
 		wl_resource_post_no_memory(device_resource);
-	} else {
+		return;
+	}
+
+	if (source) {
 		source->seat_client = seat_client;
 	}
 }

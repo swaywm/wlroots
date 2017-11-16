@@ -18,9 +18,9 @@ struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
 	}
 	cursor->cursor = wlr_cursor_create();
 	if (!cursor->cursor) {
+		free(cursor);
 		return NULL;
 	}
-
 	return cursor;
 }
 

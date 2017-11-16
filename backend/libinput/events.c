@@ -66,10 +66,11 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
 	struct wl_list *wlr_devices = calloc(1, sizeof(struct wl_list));
-	wl_list_init(wlr_devices);
 	if (!wlr_devices) {
-		goto fail;
+		wlr_log(L_ERROR, "Allocation failed");
+		return;
 	}
+	wl_list_init(wlr_devices);
 	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
