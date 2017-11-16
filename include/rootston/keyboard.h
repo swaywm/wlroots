@@ -16,7 +16,8 @@ struct roots_keyboard {
 	struct wl_listener keyboard_key;
 	struct wl_listener keyboard_modifiers;
 
-	xkb_keysym_t pressed_keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
+	xkb_keysym_t pressed_keysyms_translated[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
+	xkb_keysym_t pressed_keysyms_raw[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 };
 
 struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
