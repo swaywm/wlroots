@@ -43,15 +43,7 @@ After building, run rootston from a terminal or VT with:
 
     ./build/rootston/rootston
 
-Run windows on the compositor with the display variable set:
-
-```bash
-# run gtk apps like this
-gnome-calculator --display=wayland-0
-
-# run QT apps like this
-qgit -platform wayland
-
-# run X11 apps like this
-DISPLAY=:1 firefox
-```
+Now you can run windows in the compositor from the command line or by
+configuring bindings in your
+[`rootston.ini`](https://github.com/swaywm/wlroots/blob/master/rootston/rootston.ini.example)
+file. 
