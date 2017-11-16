@@ -23,6 +23,16 @@ static ssize_t pressed_keysyms_index(xkb_keysym_t *pressed_keysyms,
 	return -1;
 }
 
+static size_t pressed_keysyms_length(xkb_keysym_t *pressed_keysyms) {
+	size_t n = 0;
+	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; ++i) {
+		if (pressed_keysyms[i] != XKB_KEY_NoSymbol) {
+			++n;
+		}
+	}
+	return n;
+}
+
 static void pressed_keysyms_add(xkb_keysym_t *pressed_keysyms,
 		xkb_keysym_t keysym) {
 	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
@@ -39,6 +49,37 @@ static void pressed_keysyms_remove(xkb_keysym_t *pressed_keysyms,
 	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
 	if (i >= 0) {
 		pressed_keysyms[i] = XKB_KEY_NoSymbol;
+	}
+}
+
+static bool keysym_is_modifier(xkb_keysym_t keysym) {
+	switch (keysym) {
+	case XKB_KEY_Shift_L: case XKB_KEY_Shift_R:
+	case XKB_KEY_Control_L: case XKB_KEY_Control_R:
+	case XKB_KEY_Caps_Lock:
+	case XKB_KEY_Shift_Lock:
+	case XKB_KEY_Meta_L: case XKB_KEY_Meta_R:
+	case XKB_KEY_Alt_L: case XKB_KEY_Alt_R:
+	case XKB_KEY_Super_L: case XKB_KEY_Super_R:
+	case XKB_KEY_Hyper_L: case XKB_KEY_Hyper_R:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void pressed_keysyms_update(xkb_keysym_t *pressed_keysyms,
+		const xkb_keysym_t *keysyms, size_t keysyms_len,
+		enum wlr_key_state state) {
+	for (size_t i = 0; i < keysyms_len; ++i) {
+		if (keysym_is_modifier(keysyms[i])) {
+			continue;
+		}
+		if (state == WLR_KEY_PRESSED) {
+			pressed_keysyms_add(pressed_keysyms, keysyms[i]);
+		} else { // WLR_KEY_RELEASED
+			pressed_keysyms_remove(pressed_keysyms, keysyms[i]);
+		}
 	}
 }
 
@@ -75,12 +116,13 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 }
 
 /**
- * Execute a built-in, hardcoded compositor action when a keysym is pressed.
+ * Execute a built-in, hardcoded compositor binding. These are triggered from a
+ * single keysym.
  *
  * Returns true if the keysym was handled by a binding and false if the event
  * should be propagated to clients.
  */
-static bool keyboard_press_keysym(struct roots_keyboard *keyboard,
+static bool keyboard_execute_compositor_binding(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
 	if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
 			keysym <= XKB_KEY_XF86Switch_VT_12) {
@@ -105,35 +147,27 @@ static bool keyboard_press_keysym(struct roots_keyboard *keyboard,
 }
 
 /**
- * Press or release keysyms.
+ * Execute keyboard bindings. These include compositor bindings and user-defined
+ * bindings.
  *
  * Returns true if the keysym was handled by a binding and false if the event
  * should be propagated to clients.
  */
-static bool keyboard_handle_keysyms(struct roots_keyboard *keyboard,
+static bool keyboard_execute_binding(struct roots_keyboard *keyboard,
 		xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
-		const xkb_keysym_t *keysyms, size_t keysyms_len,
-		enum wlr_key_state state) {
-	bool handled = false;
+		const xkb_keysym_t *keysyms, size_t keysyms_len) {
 	for (size_t i = 0; i < keysyms_len; ++i) {
-		if (state == WLR_KEY_PRESSED) {
-			pressed_keysyms_add(pressed_keysyms, keysyms[i]);
-			handled |= keyboard_press_keysym(keyboard, keysyms[i]);
-		} else { // WLR_KEY_RELEASED
-			pressed_keysyms_remove(pressed_keysyms, keysyms[i]);
+		if (keyboard_execute_compositor_binding(keyboard, keysyms[i])) {
+			return true;
 		}
 	}
-	if (handled) {
-		return true;
-	}
-	if (state != WLR_KEY_PRESSED) {
-		return false;
-	}
 
+	// User-defined bindings
+	size_t n = pressed_keysyms_length(pressed_keysyms);
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
 	struct roots_binding_config *bc;
 	wl_list_for_each(bc, bindings, link) {
-		if (modifiers ^ bc->modifiers) {
+		if (modifiers ^ bc->modifiers || n != bc->keysyms_len) {
 			continue;
 		}
 
@@ -162,7 +196,7 @@ static bool keyboard_handle_keysyms(struct roots_keyboard *keyboard,
  * the consumed modifiers from the list of modifiers passed to keybind
  * detection.
  *
- * On US layout, this will trigger: Alt + @
+ * On US layout, pressing Alt+Shift+2 will trigger Alt+@.
  */
 static size_t keyboard_keysyms_translated(struct roots_keyboard *keyboard,
 		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
@@ -183,7 +217,7 @@ static size_t keyboard_keysyms_translated(struct roots_keyboard *keyboard,
  * This avoids the xkb keysym translation based on modifiers considered pressed
  * in the state.
  *
- * This will trigger the keybind: Alt + Shift + 2
+ * This will trigger keybinds such as Alt+Shift+2.
  */
 static size_t keyboard_keysyms_raw(struct roots_keyboard *keyboard,
 		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
@@ -200,19 +234,30 @@ void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	xkb_keycode_t keycode = event->keycode + 8;
 
+	bool handled = false;
 	uint32_t modifiers;
 	const xkb_keysym_t *keysyms;
-	size_t keysyms_len = keyboard_keysyms_translated(keyboard, keycode,
-		&keysyms, &modifiers);
-	bool handled = keyboard_handle_keysyms(keyboard,
-		keyboard->pressed_keysyms_translated, modifiers, keysyms, keysyms_len,
+	size_t keysyms_len;
+
+	// Handle translated keysyms
+
+	keysyms_len = keyboard_keysyms_translated(keyboard, keycode, &keysyms,
+		&modifiers);
+	pressed_keysyms_update(keyboard->pressed_keysyms_translated, keysyms,
+		keysyms_len, event->state);
+	if (event->state == WLR_KEY_PRESSED) {
+		handled = keyboard_execute_binding(keyboard,
+			keyboard->pressed_keysyms_translated, modifiers, keysyms,
+			keysyms_len);
+	}
+
+	// Handle raw keysyms
+	keysyms_len = keyboard_keysyms_raw(keyboard, keycode, &keysyms, &modifiers);
+	pressed_keysyms_update(keyboard->pressed_keysyms_raw, keysyms, keysyms_len,
 		event->state);
-	if (!handled) {
-		keysyms_len = keyboard_keysyms_raw(keyboard, keycode, &keysyms,
-			&modifiers);
-		handled = keyboard_handle_keysyms(keyboard,
-			keyboard->pressed_keysyms_raw, modifiers, keysyms, keysyms_len,
-			event->state);
+	if (event->state == WLR_KEY_PRESSED && !handled) {
+		handled = keyboard_execute_binding(keyboard,
+			keyboard->pressed_keysyms_raw, modifiers, keysyms, keysyms_len);
 	}
 
 	if (!handled) {
