@@ -12,10 +12,15 @@
 #include "backend/wayland.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
-
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *backend = data;
 	int count = 0;
+
+	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
+		wl_display_terminate(backend->local_display);
+		return 0;
+	}
+
 	if (mask & WL_EVENT_READABLE) {
 		count = wl_display_dispatch(backend->remote_display);
 	}
@@ -36,7 +41,7 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	wlr_log(L_INFO, "Initializating wayland backend");
 
 	wlr_wl_registry_poll(backend);
-	if (!(backend->compositor) || (!(backend->shell))) {
+	if (!backend->compositor || !backend->shell) {
 		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
 		return false;
 	}
@@ -49,10 +54,9 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(backend->local_display);
 	int fd = wl_display_get_fd(backend->remote_display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR |
-		WL_EVENT_HANGUP;
+	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
 	backend->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
-			dispatch_events, backend);
+		dispatch_events, backend);
 	wl_event_source_check(backend->remote_display_src);
 
 	return true;
