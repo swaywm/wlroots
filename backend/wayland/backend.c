@@ -12,10 +12,15 @@
 #include "backend/wayland.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
-
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *backend = data;
 	int count = 0;
+
+	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
+		wl_display_terminate(backend->local_display);
+		return 0;
+	}
+
 	if (mask & WL_EVENT_READABLE) {
 		count = wl_display_dispatch(backend->remote_display);
 	}
