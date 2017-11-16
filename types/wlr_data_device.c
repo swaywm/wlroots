@@ -630,15 +630,15 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		client->seat->pointer_state.focused_surface == origin;
 
 	bool is_touch_grab = client->touch &&
-		wl_list_length(&client->seat->touch_state.touch_points) == 1 &&
+		wlr_seat_touch_num_points(client->seat) == 1 &&
 		client->seat->touch_state.grab_serial == serial;
 
+	// set in the iteration
 	struct wlr_touch_point *point = NULL;
+
 	if (is_touch_grab) {
 		wl_list_for_each(point, &client->seat->touch_state.touch_points, link) {
-			if (point->surface && point->surface == origin) {
-				is_touch_grab = true;
-			}
+			is_touch_grab = point->surface && point->surface == origin;
 			break;
 		}
 	}
@@ -677,6 +677,7 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		wlr_seat_pointer_clear_focus(drag->seat);
 		wlr_seat_pointer_start_grab(drag->seat, &drag->pointer_grab);
 	} else {
+		assert(point);
 		wlr_seat_touch_start_grab(drag->seat, &drag->touch_grab);
 		wlr_drag_set_focus(drag, point->surface, point->sx, point->sy);
 	}
