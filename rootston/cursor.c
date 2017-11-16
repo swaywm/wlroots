@@ -237,11 +237,11 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 	uint32_t serial = 0;
 	if (surface) {
 		serial = wlr_seat_touch_notify_down(cursor->seat->seat, surface,
-			event->time_msec, event->slot, sx, sy);
+			event->time_msec, event->touch_id, sx, sy);
 	}
 
 	if (serial && wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
-		cursor->seat->touch_id = event->slot;
+		cursor->seat->touch_id = event->touch_id;
 		cursor->seat->touch_x = lx;
 		cursor->seat->touch_y = ly;
 		roots_cursor_press_button(cursor, event->device, event->time_msec,
@@ -251,7 +251,7 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 		struct wlr_event_touch_up *event) {
-	struct wlr_touch_point *point = wlr_seat_touch_get_point(cursor->seat->seat, event->slot);
+	struct wlr_touch_point *point = wlr_seat_touch_get_point(cursor->seat->seat, event->touch_id);
 	if (!point) {
 		return;
 	}
@@ -261,14 +261,14 @@ void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 			BTN_LEFT, 0, cursor->seat->touch_x, cursor->seat->touch_y);
 	}
 
-	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->slot);
+	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->touch_id);
 }
 
 void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 		struct wlr_event_touch_motion *event) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct wlr_touch_point *point =
-		wlr_seat_touch_get_point(cursor->seat->seat, event->slot);
+		wlr_seat_touch_get_point(cursor->seat->seat, event->touch_id);
 	if (!point) {
 		return;
 	}
@@ -288,15 +288,15 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 
 	if (surface) {
 		wlr_seat_touch_point_focus(cursor->seat->seat, surface,
-			event->time_msec, event->slot, sx, sy);
+			event->time_msec, event->touch_id, sx, sy);
 		wlr_seat_touch_notify_motion(cursor->seat->seat, event->time_msec,
-			event->slot, sx, sy);
+			event->touch_id, sx, sy);
 	} else {
 		wlr_seat_touch_point_clear_focus(cursor->seat->seat, event->time_msec,
-			event->slot);
+			event->touch_id);
 	}
 
-	if (event->slot == cursor->seat->touch_id) {
+	if (event->touch_id == cursor->seat->touch_id) {
 		cursor->seat->touch_x = lx;
 		cursor->seat->touch_y = ly;
 	}
