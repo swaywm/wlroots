@@ -347,7 +347,7 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 	transient_state->flags = flags;
 
 	struct wlr_wl_shell_surface_popup_state *popup_state =
-		calloc(1, sizeof(struct wlr_wl_shell_surface_transient_state));
+		calloc(1, sizeof(struct wlr_wl_shell_surface_popup_state));
 	if (popup_state == NULL) {
 		free(transient_state);
 		wl_client_post_no_memory(client);

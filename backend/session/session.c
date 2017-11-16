@@ -249,7 +249,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 		}
 	} while ((ptr = strtok_r(NULL, ":", &save)));
 
-	free(ptr);
+	free(gpus);
 	return i;
 }
 

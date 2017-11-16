@@ -141,6 +141,7 @@ static bool keyboard_keysyms_xkb(struct roots_keyboard *keyboard,
 	uint32_t consumed = xkb_state_key_get_consumed_mods2(
 		keyboard->device->keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
 
+	// TODO: actually use this value
 	modifiers = modifiers & ~consumed;
 
 	bool handled = false;

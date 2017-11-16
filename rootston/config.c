@@ -405,7 +405,7 @@ void roots_config_destroy(struct roots_config *config) {
 	}
 
 	struct roots_keyboard_config *kc, *ktmp = NULL;
-	wl_list_for_each_safe(kc, ktmp, &config->bindings, link) {
+	wl_list_for_each_safe(kc, ktmp, &config->keyboards, link) {
 		free(kc->name);
 		free(kc->rules);
 		free(kc->model);
