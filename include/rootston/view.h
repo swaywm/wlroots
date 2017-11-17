@@ -30,7 +30,7 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_maximize;
 
 	struct {
-		bool needs_move;
+		uint32_t configure_serial;
 		double x, y;
 		uint32_t width, height;
 	} move_resize;

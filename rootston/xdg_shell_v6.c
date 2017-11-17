@@ -83,14 +83,13 @@ static void move_resize(struct roots_view *view, double x, double y,
 	x = x + width - constrained_width;
 	y = y + height - constrained_height;
 
-	roots_surface->move_resize.needs_move = true;
 	roots_surface->move_resize.x = x;
 	roots_surface->move_resize.y = y;
 	roots_surface->move_resize.width = constrained_width;
 	roots_surface->move_resize.height = constrained_height;
 
-	wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
-		constrained_height);
+	roots_surface->move_resize.configure_serial = wlr_xdg_toplevel_v6_set_size(
+		surface, constrained_width, constrained_height);
 }
 
 static void maximize(struct roots_view *view, bool maximized) {
@@ -159,12 +158,13 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
-	if (roots_surface->move_resize.needs_move) {
+	if (roots_surface->move_resize.configure_serial ==
+			surface->configure_serial) {
 		view->x = roots_surface->move_resize.x +
 			roots_surface->move_resize.width - surface->geometry->width;
 		view->y = roots_surface->move_resize.y +
 			roots_surface->move_resize.height - surface->geometry->height;
-		roots_surface->move_resize.needs_move = false;
+		roots_surface->move_resize.configure_serial = 0;
 	}
 }
 

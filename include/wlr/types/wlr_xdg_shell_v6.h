@@ -107,7 +107,9 @@ struct wlr_xdg_surface_v6 {
 
 	bool configured;
 	bool added;
+	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
+	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
 	char *title;
@@ -171,37 +173,38 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell);
 void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface);
 
 /**
- * Request that this toplevel surface be the given size.
+ * Request that this toplevel surface be the given size. Returns the associated
+ * configure serial.
  */
-void wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height);
 
 /**
  * Request that this toplevel surface show itself in an activated or deactivated
- * state.
+ * state. Returns the associated configure serial.
  */
-void wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 		bool activated);
 
 /**
  * Request that this toplevel surface consider itself maximized or not
- * maximized.
+ * maximized. Returns the associated configure serial.
  */
-void wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 		bool maximized);
 
 /**
  * Request that this toplevel surface consider itself fullscreen or not
- * fullscreen.
+ * fullscreen. Returns the associated configure serial.
  */
-void wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 		bool fullscreen);
 
 /**
  * Request that this toplevel surface consider itself to be resizing or not
- * resizing.
+ * resizing. Returns the associated configure serial.
  */
-void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing);
 
 /**
@@ -223,4 +226,5 @@ void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
+
 #endif
