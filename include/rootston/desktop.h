@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_list.h>
@@ -31,6 +32,7 @@ struct roots_desktop {
 	struct roots_config *config;
 
 	struct wlr_output_layout *layout;
+	struct wlr_xcursor_manager *xcursor_manager;
 
 	struct wlr_compositor *compositor;
 	struct wlr_wl_shell *wl_shell;

@@ -61,7 +61,7 @@ struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size);
 void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme);
 
 struct wlr_xcursor *wlr_xcursor_theme_get_cursor(
-		struct wlr_xcursor_theme *theme, const char *name);
+	struct wlr_xcursor_theme *theme, const char *name);
 
 int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
 

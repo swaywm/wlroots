@@ -10,15 +10,77 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
+#include "rootston/seat.h"
+#include "rootston/keyboard.h"
 
-static ssize_t keyboard_pressed_keysym_index(struct roots_keyboard *keyboard,
+static ssize_t pressed_keysyms_index(xkb_keysym_t *pressed_keysyms,
 		xkb_keysym_t keysym) {
-	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; i++) {
-		if (keyboard->pressed_keysyms[i] == keysym) {
+	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; ++i) {
+		if (pressed_keysyms[i] == keysym) {
 			return i;
 		}
 	}
 	return -1;
+}
+
+static size_t pressed_keysyms_length(xkb_keysym_t *pressed_keysyms) {
+	size_t n = 0;
+	for (size_t i = 0; i < ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP; ++i) {
+		if (pressed_keysyms[i] != XKB_KEY_NoSymbol) {
+			++n;
+		}
+	}
+	return n;
+}
+
+static void pressed_keysyms_add(xkb_keysym_t *pressed_keysyms,
+		xkb_keysym_t keysym) {
+	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
+	if (i < 0) {
+		i = pressed_keysyms_index(pressed_keysyms, XKB_KEY_NoSymbol);
+		if (i >= 0) {
+			pressed_keysyms[i] = keysym;
+		}
+	}
+}
+
+static void pressed_keysyms_remove(xkb_keysym_t *pressed_keysyms,
+		xkb_keysym_t keysym) {
+	ssize_t i = pressed_keysyms_index(pressed_keysyms, keysym);
+	if (i >= 0) {
+		pressed_keysyms[i] = XKB_KEY_NoSymbol;
+	}
+}
+
+static bool keysym_is_modifier(xkb_keysym_t keysym) {
+	switch (keysym) {
+	case XKB_KEY_Shift_L: case XKB_KEY_Shift_R:
+	case XKB_KEY_Control_L: case XKB_KEY_Control_R:
+	case XKB_KEY_Caps_Lock:
+	case XKB_KEY_Shift_Lock:
+	case XKB_KEY_Meta_L: case XKB_KEY_Meta_R:
+	case XKB_KEY_Alt_L: case XKB_KEY_Alt_R:
+	case XKB_KEY_Super_L: case XKB_KEY_Super_R:
+	case XKB_KEY_Hyper_L: case XKB_KEY_Hyper_R:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void pressed_keysyms_update(xkb_keysym_t *pressed_keysyms,
+		const xkb_keysym_t *keysyms, size_t keysyms_len,
+		enum wlr_key_state state) {
+	for (size_t i = 0; i < keysyms_len; ++i) {
+		if (keysym_is_modifier(keysyms[i])) {
+			continue;
+		}
+		if (state == WLR_KEY_PRESSED) {
+			pressed_keysyms_add(pressed_keysyms, keysyms[i]);
+		} else { // WLR_KEY_RELEASED
+			pressed_keysyms_remove(pressed_keysyms, keysyms[i]);
+		}
+	}
 }
 
 static const char *exec_prefix = "exec ";
@@ -37,7 +99,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	} else if (strcmp(command, "next_window") == 0) {
 		if (server->desktop->views->length > 0) {
 			struct roots_view *view = server->desktop->views->items[0];
-			set_view_focus(keyboard->input, server->desktop, view);
+			roots_seat_focus_view(keyboard->seat, view);
 		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
@@ -54,21 +116,14 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 }
 
 /**
- * Process a keypress from the keyboard.
+ * Execute a built-in, hardcoded compositor binding. These are triggered from a
+ * single keysym.
  *
  * Returns true if the keysym was handled by a binding and false if the event
  * should be propagated to clients.
  */
-static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
+static bool keyboard_execute_compositor_binding(struct roots_keyboard *keyboard,
 		xkb_keysym_t keysym) {
-	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
-	if (i < 0) {
-		i = keyboard_pressed_keysym_index(keyboard, XKB_KEY_NoSymbol);
-		if (i >= 0) {
-			keyboard->pressed_keysyms[i] = keysym;
-		}
-	}
-
 	if (keysym >= XKB_KEY_XF86Switch_VT_1 &&
 			keysym <= XKB_KEY_XF86Switch_VT_12) {
 		struct roots_server *server = keyboard->input->server;
@@ -84,21 +139,41 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 	}
 
 	if (keysym == XKB_KEY_Escape) {
-		wlr_seat_pointer_end_grab(keyboard->input->wl_seat);
-		wlr_seat_keyboard_end_grab(keyboard->input->wl_seat);
+		wlr_seat_pointer_end_grab(keyboard->seat->seat);
+		wlr_seat_keyboard_end_grab(keyboard->seat->seat);
 	}
 
-	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+	return false;
+}
+
+/**
+ * Execute keyboard bindings. These include compositor bindings and user-defined
+ * bindings.
+ *
+ * Returns true if the keysym was handled by a binding and false if the event
+ * should be propagated to clients.
+ */
+static bool keyboard_execute_binding(struct roots_keyboard *keyboard,
+		xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
+		const xkb_keysym_t *keysyms, size_t keysyms_len) {
+	for (size_t i = 0; i < keysyms_len; ++i) {
+		if (keyboard_execute_compositor_binding(keyboard, keysyms[i])) {
+			return true;
+		}
+	}
+
+	// User-defined bindings
+	size_t n = pressed_keysyms_length(pressed_keysyms);
 	struct wl_list *bindings = &keyboard->input->server->config->bindings;
-	struct binding_config *bc;
+	struct roots_binding_config *bc;
 	wl_list_for_each(bc, bindings, link) {
-		if (modifiers ^ bc->modifiers) {
+		if (modifiers ^ bc->modifiers || n != bc->keysyms_len) {
 			continue;
 		}
 
 		bool ok = true;
 		for (size_t i = 0; i < bc->keysyms_len; i++) {
-			ssize_t j = keyboard_pressed_keysym_index(keyboard, bc->keysyms[i]);
+			ssize_t j = pressed_keysyms_index(pressed_keysyms, bc->keysyms[i]);
 			if (j < 0) {
 				ok = false;
 				break;
@@ -114,56 +189,92 @@ static bool keyboard_keysym_press(struct roots_keyboard *keyboard,
 	return false;
 }
 
-static void keyboard_keysym_release(struct roots_keyboard *keyboard,
-		xkb_keysym_t keysym) {
-	ssize_t i = keyboard_pressed_keysym_index(keyboard, keysym);
-	if (i >= 0) {
-		keyboard->pressed_keysyms[i] = XKB_KEY_NoSymbol;
-	}
+/*
+ * Get keysyms and modifiers from the keyboard as xkb sees them.
+ *
+ * This uses the xkb keysyms translation based on pressed modifiers and clears
+ * the consumed modifiers from the list of modifiers passed to keybind
+ * detection.
+ *
+ * On US layout, pressing Alt+Shift+2 will trigger Alt+@.
+ */
+static size_t keyboard_keysyms_translated(struct roots_keyboard *keyboard,
+		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
+		uint32_t *modifiers) {
+	*modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+	xkb_mod_mask_t consumed = xkb_state_key_get_consumed_mods2(
+		keyboard->device->keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
+	*modifiers = *modifiers & ~consumed;
+
+	return xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
+		keycode, keysyms);
 }
 
-static void keyboard_key_notify(struct wl_listener *listener, void *data) {
-	struct wlr_event_keyboard_key *event = data;
-	struct roots_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+/*
+ * Get keysyms and modifiers from the keyboard as if modifiers didn't change
+ * keysyms.
+ *
+ * This avoids the xkb keysym translation based on modifiers considered pressed
+ * in the state.
+ *
+ * This will trigger keybinds such as Alt+Shift+2.
+ */
+static size_t keyboard_keysyms_raw(struct roots_keyboard *keyboard,
+		xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
+		uint32_t *modifiers) {
+	*modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
 
-	uint32_t keycode = event->keycode + 8;
-	const xkb_keysym_t *syms;
-	int syms_len = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
-		keycode, &syms);
+	xkb_layout_index_t layout_index = xkb_state_key_get_layout(
+		keyboard->device->keyboard->xkb_state, keycode);
+	return xkb_keymap_key_get_syms_by_level(keyboard->device->keyboard->keymap,
+		keycode, layout_index, 0, keysyms);
+}
+
+void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
+		struct wlr_event_keyboard_key *event) {
+	xkb_keycode_t keycode = event->keycode + 8;
 
 	bool handled = false;
-	for (int i = 0; i < syms_len; i++) {
-		if (event->state == WLR_KEY_PRESSED) {
-			bool keysym_handled = keyboard_keysym_press(keyboard, syms[i]);
-			handled = handled || keysym_handled;
-		} else { // WLR_KEY_RELEASED
-			keyboard_keysym_release(keyboard, syms[i]);
-		}
+	uint32_t modifiers;
+	const xkb_keysym_t *keysyms;
+	size_t keysyms_len;
+
+	// Handle translated keysyms
+
+	keysyms_len = keyboard_keysyms_translated(keyboard, keycode, &keysyms,
+		&modifiers);
+	pressed_keysyms_update(keyboard->pressed_keysyms_translated, keysyms,
+		keysyms_len, event->state);
+	if (event->state == WLR_KEY_PRESSED) {
+		handled = keyboard_execute_binding(keyboard,
+			keyboard->pressed_keysyms_translated, modifiers, keysyms,
+			keysyms_len);
+	}
+
+	// Handle raw keysyms
+	keysyms_len = keyboard_keysyms_raw(keyboard, keycode, &keysyms, &modifiers);
+	pressed_keysyms_update(keyboard->pressed_keysyms_raw, keysyms, keysyms_len,
+		event->state);
+	if (event->state == WLR_KEY_PRESSED && !handled) {
+		handled = keyboard_execute_binding(keyboard,
+			keyboard->pressed_keysyms_raw, modifiers, keysyms, keysyms_len);
 	}
 
 	if (!handled) {
-		wlr_seat_set_keyboard(keyboard->input->wl_seat, keyboard->device);
-		wlr_seat_keyboard_notify_key(keyboard->input->wl_seat, event->time_msec,
+		wlr_seat_set_keyboard(keyboard->seat->seat, keyboard->device);
+		wlr_seat_keyboard_notify_key(keyboard->seat->seat, event->time_msec,
 			event->keycode, event->state);
 	}
 }
 
-static void keyboard_modifiers_notify(struct wl_listener *listener, void *data) {
-	struct roots_keyboard *r_keyboard =
-		wl_container_of(listener, r_keyboard, modifiers);
-	struct wlr_seat *seat = r_keyboard->input->wl_seat;
-	struct wlr_keyboard *keyboard = r_keyboard->device->keyboard;
+void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
+	struct wlr_seat *seat = r_keyboard->seat->seat;
 	wlr_seat_set_keyboard(seat, r_keyboard->device);
-	wlr_seat_keyboard_notify_modifiers(seat,
-		keyboard->modifiers.depressed,
-		keyboard->modifiers.latched,
-		keyboard->modifiers.locked,
-		keyboard->modifiers.group);
-
+	wlr_seat_keyboard_notify_modifiers(seat);
 }
 
-static void keyboard_config_merge(struct keyboard_config *config,
-		struct keyboard_config *fallback) {
+static void keyboard_config_merge(struct roots_keyboard_config *config,
+		struct roots_keyboard_config *fallback) {
 	if (fallback == NULL) {
 		return;
 	}
@@ -182,60 +293,64 @@ static void keyboard_config_merge(struct keyboard_config *config,
 	if (config->options == NULL) {
 		config->options = fallback->options;
 	}
+	if (config->meta_key == 0) {
+		config->meta_key = fallback->meta_key;
+	}
+	if (config->name == NULL) {
+		config->name = fallback->name;
+	}
 }
 
-void keyboard_add(struct wlr_input_device *device, struct roots_input *input) {
+struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
+		struct roots_input *input) {
 	struct roots_keyboard *keyboard = calloc(sizeof(struct roots_keyboard), 1);
 	if (keyboard == NULL) {
-		return;
+		return NULL;
 	}
 	device->data = keyboard;
 	keyboard->device = device;
 	keyboard->input = input;
 
-	keyboard->key.notify = keyboard_key_notify;
-	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
+	struct roots_keyboard_config *config =
+		calloc(1, sizeof(struct roots_keyboard_config));
+	if (config == NULL) {
+		free(keyboard);
+		return NULL;
+	}
+	keyboard_config_merge(config, roots_config_get_keyboard(input->config, device));
+	keyboard_config_merge(config, roots_config_get_keyboard(input->config, NULL));
 
-	keyboard->modifiers.notify = keyboard_modifiers_notify;
-	wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
-
-	wl_list_insert(&input->keyboards, &keyboard->link);
-
-	struct keyboard_config config;
-	memset(&config, 0, sizeof(config));
-	keyboard_config_merge(&config, config_get_keyboard(input->config, device));
-	keyboard_config_merge(&config, config_get_keyboard(input->config, NULL));
-
-	struct keyboard_config env_config = {
+	struct roots_keyboard_config env_config = {
 		.rules = getenv("XKB_DEFAULT_RULES"),
 		.model = getenv("XKB_DEFAULT_MODEL"),
 		.layout = getenv("XKB_DEFAULT_LAYOUT"),
 		.variant = getenv("XKB_DEFAULT_VARIANT"),
 		.options = getenv("XKB_DEFAULT_OPTIONS"),
 	};
-	keyboard_config_merge(&config, &env_config);
+	keyboard_config_merge(config, &env_config);
+	keyboard->config = config;
 
 	struct xkb_rule_names rules;
 	memset(&rules, 0, sizeof(rules));
-	rules.rules = config.rules;
-	rules.model = config.model;
-	rules.layout = config.layout;
-	rules.variant = config.variant;
-	rules.options = config.options;
+	rules.rules = config->rules;
+	rules.model = config->model;
+	rules.layout = config->layout;
+	rules.variant = config->variant;
+	rules.options = config->options;
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (context == NULL) {
 		wlr_log(L_ERROR, "Cannot create XKB context");
-		return;
+		return NULL;
 	}
 	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
 		&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 	xkb_context_unref(context);
+
+	return keyboard;
 }
 
-void keyboard_remove(struct wlr_input_device *device, struct roots_input *input) {
-	struct roots_keyboard *keyboard = device->data;
-	wl_list_remove(&keyboard->key.link);
-	wl_list_remove(&keyboard->modifiers.link);
+void roots_keyboard_destroy(struct roots_keyboard *keyboard) {
 	wl_list_remove(&keyboard->link);
+	free(keyboard->config);
 	free(keyboard);
 }

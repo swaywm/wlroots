@@ -187,7 +187,10 @@ static void write_image(const char *filename, int width, int height) {
 	sprintf(size, "%dx%d+0", width, height);
 
 	int fd[2];
-	pipe(fd);
+	if (pipe(fd) != 0) {
+		fprintf(stderr, "cannot create pipe: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 
 	pid_t child = fork();
 	if (child < 0) {
@@ -195,7 +198,10 @@ static void write_image(const char *filename, int width, int height) {
 		exit(EXIT_FAILURE);
 	} else if (child != 0) {
 		close(fd[0]);
-		write(fd[1], data, buffer_stride * height);
+		if (write(fd[1], data, buffer_stride * height) < 0) {
+			fprintf(stderr, "write() failed: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		close(fd[1]);
 		free(data);
 		waitpid(child, NULL, 0);

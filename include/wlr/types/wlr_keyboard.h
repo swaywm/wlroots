@@ -28,6 +28,8 @@ enum wlr_keyboard_modifier {
 	WLR_MODIFIER_MOD5 = 128,
 };
 
+#define WLR_KEYBOARD_KEYS_CAP 32
+
 struct wlr_keyboard_impl;
 
 struct wlr_keyboard {
@@ -41,6 +43,7 @@ struct wlr_keyboard {
 	xkb_led_index_t led_indexes[WLR_LED_COUNT];
 	xkb_mod_index_t mod_indexes[WLR_MODIFIER_COUNT];
 
+	uint32_t keycodes[WLR_KEYBOARD_KEYS_CAP];
 	struct {
 		xkb_mod_mask_t depressed;
 		xkb_mod_mask_t latched;

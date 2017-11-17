@@ -531,9 +531,8 @@ static void keyboard_drag_key(struct wlr_seat_keyboard_grab *grab,
 	// no keyboard input during drags
 }
 
-static void keyboard_drag_modifiers(struct wlr_seat_keyboard_grab *grab,
-		uint32_t mods_depressed, uint32_t mods_latched,
-		uint32_t mods_locked, uint32_t group) {
+static void keyboard_drag_modifiers(struct wlr_seat_keyboard_grab *grab) {
+	//struct wlr_keyboard *keyboard = grab->seat->keyboard_state.keyboard;
 	// TODO change the dnd action based on what modifier is pressed on the
 	// keyboard
 }
@@ -637,7 +636,10 @@ static void data_device_start_drag(struct wl_client *client,
 
 	if (!seat_client_start_drag(seat_client, source, icon)) {
 		wl_resource_post_no_memory(device_resource);
-	} else {
+		return;
+	}
+
+	if (source) {
 		source->seat_client = seat_client;
 	}
 }
@@ -815,4 +817,12 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 	}
 
 	return manager;
+}
+
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
+  if (!manager) {
+    return;
+  }
+  wl_global_destroy(manager->global);
+  free(manager);
 }

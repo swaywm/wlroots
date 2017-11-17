@@ -126,6 +126,8 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal ack_configure;
 		struct wl_signal ping_timeout;
 
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
 		struct wl_signal request_minimize;
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
@@ -138,14 +140,14 @@ struct wlr_xdg_surface_v6 {
 struct wlr_xdg_toplevel_v6_move_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_xdg_toplevel_v6_resize_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	uint32_t edges;
 };
@@ -153,7 +155,7 @@ struct wlr_xdg_toplevel_v6_resize_event {
 struct wlr_xdg_toplevel_v6_show_window_menu_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	uint32_t x;
 	uint32_t y;
@@ -206,6 +208,12 @@ void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
  * Request that this toplevel surface closes.
  */
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface);
+
+/**
+ * Compute the popup position in surface-local coordinates.
+ */
+void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
+		double *popup_sx, double *popup_sy);
 
 /**
  * Find a popup within this surface at the surface-local coordinates. Returns

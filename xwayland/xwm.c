@@ -823,41 +823,47 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 	if (!xsurface) {
 		return;
 	}
+	if (client_message->format != 32) {
+		return;
+	}
 
-	int maximized = xsurface_is_maximized(xsurface);
+	bool fullscreen = xsurface->fullscreen;
+	bool maximized = xsurface_is_maximized(xsurface);
 
 	uint32_t action = client_message->data.data32[0];
-	uint32_t property = client_message->data.data32[1];
+	for (size_t i = 0; i < 2; ++i) {
+		uint32_t property = client_message->data.data32[1 + i];
 
-	if (property == xwm->atoms[_NET_WM_STATE_FULLSCREEN] &&
-			update_state(action, &xsurface->fullscreen)) {
-		xsurface_set_net_wm_state(xsurface);
+		if (property == xwm->atoms[_NET_WM_STATE_FULLSCREEN] &&
+				update_state(action, &xsurface->fullscreen)) {
+			xsurface_set_net_wm_state(xsurface);
+		} else if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT] &&
+				update_state(action, &xsurface->maximized_vert)) {
+			xsurface_set_net_wm_state(xsurface);
+		} else if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ] &&
+				update_state(action, &xsurface->maximized_horz)) {
+			xsurface_set_net_wm_state(xsurface);
+		}
+	}
+	// client_message->data.data32[3] is the source indication
+	// all other values are set to 0
 
+	if (fullscreen != xsurface->fullscreen) {
 		if (xsurface->fullscreen) {
 			xsurface->saved_width = xsurface->width;
 			xsurface->saved_height = xsurface->height;
 		}
 
 		wl_signal_emit(&xsurface->events.request_fullscreen, xsurface);
-	} else {
-		if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT] &&
-				update_state(action, &xsurface->maximized_vert)) {
-			xsurface_set_net_wm_state(xsurface);
+	}
+
+	if (maximized != xsurface_is_maximized(xsurface)) {
+		if (xsurface_is_maximized(xsurface)) {
+			xsurface->saved_width = xsurface->width;
+			xsurface->saved_height = xsurface->height;
 		}
 
-		if (property == xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ] &&
-				update_state(action, &xsurface->maximized_horz)) {
-			xsurface_set_net_wm_state(xsurface);
-		}
-
-		if (maximized != xsurface_is_maximized(xsurface)) {
-			if (xsurface_is_maximized(xsurface)) {
-				xsurface->saved_width = xsurface->width;
-				xsurface->saved_height = xsurface->height;
-			}
-
-			wl_signal_emit(&xsurface->events.request_maximize, xsurface);
-		}
+		wl_signal_emit(&xsurface->events.request_maximize, xsurface);
 	}
 }
 
@@ -1310,8 +1316,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		xwm->atoms[_NET_ACTIVE_WINDOW],
 		xwm->atoms[_NET_WM_MOVERESIZE],
 		xwm->atoms[_NET_WM_STATE_FULLSCREEN],
-		xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ],
 		xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT],
+		xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ],
 	};
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,

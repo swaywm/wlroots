@@ -10,11 +10,17 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
-static void get_size(struct roots_view *view, struct wlr_box *box) {
+static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
-	// TODO: surface->geometry can be NULL
-	memcpy(box, surface->geometry, sizeof(struct wlr_box));
+
+	if (surface->geometry->width > 0 && surface->geometry->height > 0) {
+		box->width = surface->geometry->width;
+		box->height = surface->geometry->height;
+	} else {
+		box->width = view->wlr_surface->current->width;
+		box->height = view->wlr_surface->current->height;
+	}
 }
 
 static void activate(struct roots_view *view, bool active) {
@@ -87,6 +93,16 @@ static void move_resize(struct roots_view *view, double x, double y,
 		constrained_height);
 }
 
+static void maximize(struct roots_view *view, bool maximized) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
+	}
+
+	wlr_xdg_toplevel_v6_set_maximized(surface, maximized);
+}
+
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
@@ -101,11 +117,12 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_xdg_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_xdg_toplevel_v6_move_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	// TODO verify event serial
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_move(input, event->cursor, view);
+	roots_seat_begin_move(seat, view);
 }
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
@@ -114,11 +131,26 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_xdg_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_xdg_toplevel_v6_resize_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	// TODO verify event serial
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	assert(seat);
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, event->cursor, view, e->edges);
+	roots_seat_begin_resize(seat, view, e->edges);
+}
+
+static void handle_request_maximize(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, request_maximize);
+	struct roots_view *view = roots_xdg_surface->view;
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+
+	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return;
+	}
+
+	view_maximize(view, surface->toplevel_state->next.maximized);
 }
 
 static void handle_commit(struct wl_listener *listener, void *data) {
@@ -178,6 +210,9 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
+	roots_surface->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&surface->events.request_maximize,
+		&roots_surface->request_maximize);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {
@@ -192,6 +227,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->activate = activate;
 	view->resize = resize;
 	view->move_resize = move_resize;
+	view->maximize = maximize;
 	view->close = close;
 	view->desktop = desktop;
 	roots_surface->view = view;

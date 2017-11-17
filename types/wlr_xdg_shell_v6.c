@@ -111,11 +111,8 @@ static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab, uint32_t 
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
-static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab,
-		uint32_t mods_depressed, uint32_t mods_latched,
-		uint32_t mods_locked, uint32_t group) {
-	wlr_seat_keyboard_send_modifiers(grab->seat, mods_depressed, mods_latched,
-		mods_locked, group);
+static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab) {
+	wlr_seat_keyboard_send_modifiers(grab->seat);
 }
 
 static void xdg_keyboard_grab_cancel(struct wlr_seat_keyboard_grab *grab) {
@@ -557,7 +554,7 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, int32_t x, int32_t y) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -576,7 +573,7 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 	event->x = x;
 	event->y = y;
@@ -590,7 +587,7 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -609,7 +606,7 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 
 	wl_signal_emit(&surface->events.request_move, event);
@@ -621,7 +618,7 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, uint32_t edges) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	struct wlr_seat_handle *seat_handle =
+	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
 	if (!surface->configured) {
@@ -640,7 +637,7 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 
 	event->client = client;
 	event->surface = surface;
-	event->seat_handle = seat_handle;
+	event->seat = seat;
 	event->serial = serial;
 	event->edges = edges;
 
@@ -667,24 +664,28 @@ static void xdg_toplevel_protocol_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = true;
+	wl_signal_emit(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = false;
+	wl_signal_emit(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.fullscreen = true;
+	wl_signal_emit(&surface->events.request_fullscreen, surface);
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.fullscreen = false;
+	wl_signal_emit(&surface->events.request_fullscreen, surface);
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,
@@ -1146,6 +1147,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_list_init(&surface->configure_list);
 	wl_list_init(&surface->popups);
 
+	wl_signal_init(&surface->events.request_maximize);
+	wl_signal_init(&surface->events.request_fullscreen);
 	wl_signal_init(&surface->events.request_minimize);
 	wl_signal_init(&surface->events.request_move);
 	wl_signal_init(&surface->events.request_resize);
@@ -1345,6 +1348,16 @@ void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
+}
+
+void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
+		double *popup_sx, double *popup_sy) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
+	struct wlr_xdg_surface_v6 *parent = surface->popup_state->parent;
+	*popup_sx = parent->geometry->x + surface->popup_state->geometry.x -
+		surface->geometry->x;
+	*popup_sy = parent->geometry->y + surface->popup_state->geometry.y -
+		surface->geometry->y;
 }
 
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(

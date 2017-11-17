@@ -14,7 +14,7 @@ struct wlr_output_mode {
 
 struct wlr_output_cursor {
 	struct wlr_output *output;
-	int32_t x, y;
+	double x, y;
 	bool enabled;
 	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
@@ -43,6 +43,7 @@ struct wlr_output {
 	char name[16];
 	char make[48];
 	char model[16];
+	char serial[16];
 	uint32_t scale;
 	int32_t width, height;
 	int32_t phys_width, phys_height; // mm
@@ -95,7 +96,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	int32_t hotspot_x, int32_t hotspot_y);
 void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
-bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y);
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
+	double x, double y);
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
 
 #endif

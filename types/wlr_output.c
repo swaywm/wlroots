@@ -29,8 +29,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
 		struct wlr_output_mode *mode;
 		wl_list_for_each(mode, &output->modes, link) {
-			// TODO: mode->flags should just be preferred
-			uint32_t flags = mode->flags;
+			uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
 			if (output->current_mode == mode) {
 				flags |= WL_OUTPUT_MODE_CURRENT;
 			}
@@ -62,12 +61,16 @@ static void wlr_output_send_current_mode_to_resource(
 	}
 	if (output->current_mode != NULL) {
 		struct wlr_output_mode *mode = output->current_mode;
-		wl_output_send_mode(resource, mode->flags | WL_OUTPUT_MODE_CURRENT,
+		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
+		wl_output_send_mode(resource, flags | WL_OUTPUT_MODE_CURRENT,
 			mode->width, mode->height, mode->refresh);
 	} else {
 		// Output has no mode, send the current width/height
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
 			output->height, 0);
+	}
+	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
+		wl_output_send_done(resource);
 	}
 }
 
@@ -163,6 +166,9 @@ bool wlr_output_set_mode(struct wlr_output *output,
 
 void wlr_output_update_size(struct wlr_output *output, int32_t width,
 		int32_t height) {
+	if (output->width == width && output->height == height) {
+		return;
+	}
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
@@ -231,7 +237,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height) {
-	// TODO: Scale factor
 	if (output->transform % 2 == 1) {
 		*width = output->height;
 		*height = output->width;
@@ -239,6 +244,8 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 		*width = output->width;
 		*height = output->height;
 	}
+	*width /= output->scale;
+	*height /= output->scale;
 }
 
 void wlr_output_make_current(struct wlr_output *output) {
@@ -269,6 +276,8 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	output_box.x = output_box.y = 0;
 	wlr_output_effective_resolution(cursor->output, &output_box.width,
 		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
@@ -471,7 +480,10 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	}
 }
 
-bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
+bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
+		double x, double y) {
+	x *= cursor->output->scale;
+	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
 
@@ -483,7 +495,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor, int x, int y) {
 	if (!cursor->output->impl->move_cursor) {
 		return false;
 	}
-	return cursor->output->impl->move_cursor(cursor->output, x, y);
+	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
 }
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {

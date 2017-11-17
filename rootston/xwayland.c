@@ -85,11 +85,22 @@ static void close(struct roots_view *view) {
 	wlr_xwayland_surface_close(view->desktop->xwayland, view->xwayland_surface);
 }
 
+static void maximize(struct roots_view *view, bool maximized) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+
+	wlr_xwayland_surface_set_maximized(view->desktop->xwayland,
+		view->xwayland_surface, maximized);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
 	view_teardown(roots_surface->view);
 	wl_list_remove(&roots_surface->destroy.link);
+	wl_list_remove(&roots_surface->request_configure.link);
+	wl_list_remove(&roots_surface->request_move.link);
+	wl_list_remove(&roots_surface->request_resize.link);
+	wl_list_remove(&roots_surface->request_maximize.link);
 	wl_list_remove(&roots_surface->map_notify.link);
 	wl_list_remove(&roots_surface->unmap_notify.link);
 	view_destroy(roots_surface->view);
@@ -110,26 +121,16 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 		xwayland_surface, event->x, event->y, event->width, event->height);
 }
 
-// XXX Needs deep refactoring to get this better. We need to select the correct
-// seat based on seat pointer focus, but interactive moving and resizing is not
-// yet seat aware. Even then, we can only guess because X11 events don't give us
-// enough wayland info to know for sure.
-static struct wlr_cursor *guess_cursor_for_view(struct roots_view *view) {
+static struct roots_seat *guess_seat_for_view(struct roots_view *view) {
+	// the best we can do is to pick the first seat that has the surface focused
+	// for the pointer
 	struct roots_input *input = view->desktop->server->input;
-	size_t len = sizeof(input->input_events) / sizeof(*input->input_events);
-	for (size_t i = 0; i < len; i++) {
-		struct wlr_cursor *cursor = input->input_events[i].cursor;
-		if (cursor) {
-			int width = view->xwayland_surface->surface->current->width;
-			int height = view->xwayland_surface->surface->current->height;
-			if (cursor->x > view->x && cursor->y > view->y &&
-					cursor->x < view->x + width &&
-					cursor->y < view->y + height) {
-				return cursor;
-			}
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		if (seat->seat->pointer_state.focused_surface == view->wlr_surface) {
+			return seat;
 		}
 	}
-
 	return NULL;
 }
 
@@ -137,28 +138,37 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
 	struct roots_view *view = roots_surface->view;
-	struct roots_input *input = view->desktop->server->input;
-	struct wlr_cursor *cursor = guess_cursor_for_view(view);
+	struct roots_seat *seat = guess_seat_for_view(view);
 
-	if (!cursor || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
 
-	view_begin_move(input, cursor, view);
+	roots_seat_begin_move(seat, view);
 }
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_resize);
 	struct roots_view *view = roots_surface->view;
-	struct roots_input *input = view->desktop->server->input;
-	struct wlr_cursor *cursor = guess_cursor_for_view(view);
+	struct roots_seat *seat = guess_seat_for_view(view);
 	struct wlr_xwayland_resize_event *e = data;
 
-	if (!cursor || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, cursor, view, e->edges);
+	roots_seat_begin_resize(seat, view, e->edges);
+}
+
+static void handle_request_maximize(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_maximize);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+
+	bool maximized = xwayland_surface->maximized_vert &&
+		xwayland_surface->maximized_horz;
+	view_maximize(view, maximized);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {
@@ -202,24 +212,24 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	if (roots_surface == NULL) {
 		return;
 	}
+
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
-
 	roots_surface->request_configure.notify = handle_request_configure;
 	wl_signal_add(&surface->events.request_configure,
 		&roots_surface->request_configure);
-
 	roots_surface->map_notify.notify = handle_map_notify;
 	wl_signal_add(&surface->events.map_notify, &roots_surface->map_notify);
-
 	roots_surface->unmap_notify.notify = handle_unmap_notify;
 	wl_signal_add(&surface->events.unmap_notify, &roots_surface->unmap_notify);
-
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
-
 	roots_surface->request_resize.notify = handle_request_resize;
-	wl_signal_add(&surface->events.request_resize, &roots_surface->request_resize);
+	wl_signal_add(&surface->events.request_resize,
+		&roots_surface->request_resize);
+	roots_surface->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&surface->events.request_maximize,
+		&roots_surface->request_maximize);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (view == NULL) {
@@ -237,6 +247,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->resize = resize;
 	view->move = move;
 	view->move_resize = move_resize;
+	view->maximize = maximize;
 	view->close = close;
 	roots_surface->view = view;
 	wlr_list_add(desktop->views, view);

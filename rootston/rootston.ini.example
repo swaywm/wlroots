@@ -40,6 +40,6 @@ meta-key = Logo
 # - "close" to close the current view
 # - "next_window" to cycle through windows
 [bindings]
-Logo+Shift+E = exit
+Logo+Shift+e = exit
 Logo+q = close
 Alt+Tab = next_window

@@ -86,7 +86,7 @@ static void handle_output_add(struct output_state *ostate) {
 
 		struct wlr_xcursor_image *image = sample->xcursor->images[0];
 		wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
-			image->width, image->height, image->hotspot_x, image->hotspot_y);
+			image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 		wlr_cursor_warp(cursor->cursor, NULL, cursor->cursor->x,
 			cursor->cursor->y);
@@ -150,7 +150,7 @@ static void handle_input_add(struct compositor_state *state,
 
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 	wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	wl_list_insert(&sample->cursors, &cursor->link);
 }

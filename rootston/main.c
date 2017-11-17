@@ -12,8 +12,20 @@
 
 struct roots_server server = { 0 };
 
+static void ready(struct wl_listener *listener, void *data) {
+	if (server.config->startup_cmd != NULL) {
+		const char *cmd = server.config->startup_cmd;
+		pid_t pid = fork();
+		if (pid < 0) {
+			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
+		} else if (pid == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
+		}
+	}
+}
+
 int main(int argc, char **argv) {
-	assert(server.config = parse_args(argc, argv));
+	assert(server.config = roots_config_create_from_args(argc, argv));
 	assert(server.wl_display = wl_display_create());
 	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
 
@@ -43,17 +55,16 @@ int main(int argc, char **argv) {
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
-
-	if (server.config->startup_cmd != NULL) {
-		const char *cmd = server.config->startup_cmd;
-		pid_t pid = fork();
-		if (pid < 0) {
-			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
-			return 1;
-		} else if (pid == 0) {
-			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
-		}
+#ifndef HAS_XWAYLAND
+	ready(NULL, NULL);
+#else
+	if (server.desktop->xwayland != NULL) {
+		struct wl_listener xwayland_ready = { .notify = ready };
+		wl_signal_add(&server.desktop->xwayland->events.ready, &xwayland_ready);
+	} else {
+		ready(NULL, NULL);
 	}
+#endif
 
 	wl_display_run(server.wl_display);
 	wlr_backend_destroy(server.backend);

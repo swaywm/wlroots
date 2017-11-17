@@ -155,9 +155,14 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 
 static int x11_event(int fd, uint32_t mask, void *data) {
 	struct wlr_x11_backend *x11 = data;
+
+	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
+		wl_display_terminate(x11->wl_display);
+		return 0;
+	}
+
 	xcb_generic_event_t *e;
 	bool quit = false;
-
 	while (!quit && (e = xcb_poll_for_event(x11->xcb_conn))) {
 		quit = handle_x11_event(x11, e);
 		free(e);
@@ -205,7 +210,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	int fd = xcb_get_file_descriptor(x11->xcb_conn);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
-	x11->event_source = wl_event_loop_add_fd(ev, fd, WL_EVENT_READABLE, x11_event, x11);
+	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
+	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
 	if (!x11->event_source) {
 		wlr_log(L_ERROR, "Could not create event source");
 		goto error_x11;

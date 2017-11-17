@@ -29,11 +29,11 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_wl_shell_surface_move_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_move(input, event->cursor, view);
+	roots_seat_begin_move(seat, view);
 }
 
 static void handle_request_resize(struct wl_listener *listener, void *data) {
@@ -42,11 +42,32 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_wl_shell_surface_resize_event *e = data;
-	const struct roots_input_event *event = get_input_event(input, e->serial);
-	if (!event || input->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
+	// TODO verify input event
+	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}
-	view_begin_resize(input, event->cursor, view, e->edges);
+	roots_seat_begin_resize(seat, view, e->edges);
+}
+
+static void handle_request_set_maximized(struct wl_listener *listener,
+		void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_set_maximized);
+	struct roots_view *view = roots_surface->view;
+	//struct wlr_wl_shell_surface_set_maximized_event *e = data;
+	view_maximize(view, true);
+}
+
+static void handle_set_state(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, set_state);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_wl_shell_surface *surface = view->wl_shell_surface;
+	if (view->maximized &&
+			surface->state != WLR_WL_SHELL_SURFACE_STATE_MAXIMIZED) {
+		view_maximize(view, false);
+	}
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
@@ -60,6 +81,9 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
+	wl_list_remove(&roots_surface->request_set_maximized.link);
+	wl_list_remove(&roots_surface->set_state.link);
+	wl_list_remove(&roots_surface->surface_commit.link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
 }
@@ -93,6 +117,11 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
+	roots_surface->request_set_maximized.notify = handle_request_set_maximized;
+	wl_signal_add(&surface->events.request_set_maximized,
+		&roots_surface->request_set_maximized);
+	roots_surface->set_state.notify = handle_set_state;
+	wl_signal_add(&surface->events.set_state, &roots_surface->set_state);
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit,
 		&roots_surface->surface_commit);
