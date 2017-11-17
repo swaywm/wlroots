@@ -9,8 +9,7 @@ struct roots_drag_icon {
 	struct wl_list link; // roots_seat::drag_icons
 	bool mapped;
 
-	int32_t sx;
-	int32_t sy;
+	int32_t sx, sy;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
@@ -20,15 +19,24 @@ struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
 	struct roots_cursor *cursor;
-	struct wl_list link;
 	struct wl_list drag_icons;
+	struct wl_list link;
 
-	struct roots_view *focus;
+	struct wl_list views; // roots_seat_view::link
+	struct roots_seat_view *focus;
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+};
+
+struct roots_seat_view {
+	struct roots_seat *seat;
+	struct roots_view *view;
+	struct wl_list link; // roots_seat::views
+
+	struct wl_listener destroy;
 };
 
 struct roots_pointer {
@@ -69,6 +77,10 @@ void roots_seat_add_device(struct roots_seat *seat,
 
 void roots_seat_remove_device(struct roots_seat *seat,
 		struct wlr_input_device *device);
+
+void roots_seat_add_view(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_remove_view(struct roots_seat *seat, struct roots_view *view);
 
 void roots_seat_configure_cursor(struct roots_seat *seat);
 

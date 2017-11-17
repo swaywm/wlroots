@@ -186,8 +186,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	for (size_t i = 0; i < desktop->views->length; ++i) {
-		struct roots_view *view = desktop->views->items[i];
+	struct roots_view *view;
+	wl_list_for_each_reverse(view, &desktop->views, link) {
 		render_view(view, desktop, wlr_output, &now);
 	}
 

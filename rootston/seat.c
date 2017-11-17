@@ -246,6 +246,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
 	wl_list_init(&seat->drag_icons);
+	wl_list_init(&seat->views);
 
 	seat->input = input;
 
@@ -480,8 +481,7 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
 }
 
 void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
-	struct roots_desktop *desktop = seat->input->server->desktop;
-	if (seat->focus == view) {
+	if (seat->focus != NULL && seat->focus->view == view) {
 		return;
 	}
 
@@ -490,12 +490,24 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	struct roots_view *prev_focus = seat->focus;
-	seat->focus = view;
+	bool found = false;
+	struct roots_seat_view *seat_view;
+	wl_list_for_each(seat_view, &seat->views, link) {
+		if (seat_view->view == view) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		return;
+	}
+
+	struct roots_seat_view *prev_focus = seat->focus;
+	seat->focus = seat_view;
 
 	// unfocus the old view if it is not focused by some other seat
-	if (prev_focus && !input_view_has_focus(seat->input, prev_focus)) {
-		view_activate(prev_focus, false);
+	if (prev_focus && !input_view_has_focus(seat->input, prev_focus->view)) {
+		view_activate(prev_focus->view, false);
 	}
 
 	if (!seat->focus) {
@@ -503,20 +515,65 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	size_t index = 0;
-	for (size_t i = 0; i < desktop->views->length; ++i) {
-		struct roots_view *_view = desktop->views->items[i];
-		if (_view == view) {
-			index = i;
+	view_activate(view, true);
+	wl_list_remove(&seat_view->view->link);
+	wl_list_insert(&seat->input->server->desktop->views,
+		&seat_view->view->link);
+
+	wl_list_remove(&seat_view->link);
+	wl_list_insert(&seat->views, &seat_view->link);
+	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+}
+
+static void seat_view_destroy(struct roots_seat_view *seat_view) {
+	struct roots_seat *seat = seat_view->seat;
+
+	if (seat->focus == seat_view) {
+		seat->focus = NULL;
+		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+	}
+
+	wl_list_remove(&seat_view->destroy.link);
+	wl_list_remove(&seat_view->link);
+	free(seat_view);
+
+	// Focus first view
+	if (!wl_list_empty(&seat->views)) {
+		struct roots_seat_view *first_seat_view = wl_container_of(
+			seat->views.next, first_seat_view, link);
+		roots_seat_focus_view(seat, first_seat_view->view);
+	}
+}
+
+static void seat_view_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_seat_view *seat_view =
+		wl_container_of(listener, seat_view, destroy);
+	seat_view_destroy(seat_view);
+}
+
+void roots_seat_add_view(struct roots_seat *seat, struct roots_view *view) {
+	struct roots_seat_view *seat_view =
+		calloc(1, sizeof(struct roots_seat_view));
+	if (seat_view == NULL) {
+		return;
+	}
+	seat_view->seat = seat;
+	seat_view->view = view;
+
+	wl_list_insert(&seat->views, &seat_view->link);
+
+	seat_view->destroy.notify = seat_view_handle_destroy;
+	wl_signal_add(&view->events.destroy, &seat_view->destroy);
+}
+
+void roots_seat_remove_view(struct roots_seat *seat, struct roots_view *view) {
+	struct roots_seat_view *seat_view;
+	wl_list_for_each(seat_view, &seat->views, link) {
+		if (seat_view->view == view) {
+			seat_view_destroy(seat_view);
 			break;
 		}
 	}
-
-	view_activate(view, true);
-	// TODO: list_swap
-	wlr_list_del(desktop->views, index);
-	wlr_list_add(desktop->views, view);
-	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {

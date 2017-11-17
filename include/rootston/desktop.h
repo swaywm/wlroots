@@ -23,7 +23,7 @@ struct roots_output {
 };
 
 struct roots_desktop {
-	struct wlr_list *views;
+	struct wl_list views; // roots_view::link
 
 	struct wl_list outputs;
 	struct timespec last_frame;
@@ -59,6 +59,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
 
+void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy);

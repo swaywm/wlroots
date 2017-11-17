@@ -60,7 +60,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 		if (seat->focus) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			view_move(seat->focus, cursor->view_x + dx,
+			view_move(seat->focus->view, cursor->view_x + dx,
 				cursor->view_y + dy);
 		}
 		break;
@@ -68,8 +68,8 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 		if (seat->focus) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			double active_x = seat->focus->x;
-			double active_y = seat->focus->y;
+			double active_x = seat->focus->view->x;
+			double active_y = seat->focus->view->y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
@@ -98,18 +98,18 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 				height = 0;
 			}
 
-			if (active_x != seat->focus->x ||
-					active_y != seat->focus->y) {
-				view_move_resize(seat->focus, active_x, active_y,
+			if (active_x != seat->focus->view->x ||
+					active_y != seat->focus->view->y) {
+				view_move_resize(seat->focus->view, active_x, active_y,
 					width, height);
 			} else {
-				view_resize(seat->focus, width, height);
+				view_resize(seat->focus->view, width, height);
 			}
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
 		if (seat->focus) {
-			struct roots_view *view = seat->focus;
+			struct roots_view *view = seat->focus->view;
 			int ox = view->x + view->wlr_surface->current->width/2,
 				oy = view->y + view->wlr_surface->current->height/2;
 			int ux = cursor->offs_x - ox,
