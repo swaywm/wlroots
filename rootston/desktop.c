@@ -213,7 +213,6 @@ void view_setup(struct roots_view *view) {
 
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	// TODO: use the seat
 	struct roots_view *view;
 	wl_list_for_each(view, &desktop->views, link) {
 		if (view->type == ROOTS_WL_SHELL_VIEW &&
