@@ -645,6 +645,7 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 	}
 
 	if (!drag->is_pointer_grab && !is_touch_grab) {
+		free(drag);
 		return true;
 	}
 
