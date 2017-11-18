@@ -276,6 +276,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "geometry") == 0) {
 			free(config->cursor.mapped_box);
 			config->cursor.mapped_box = parse_geometry(value);
+		} else if (strcmp(name, "theme") == 0) {
+			free(config->cursor.theme);
+			config->cursor.theme = strdup(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
 		}

@@ -46,7 +46,7 @@ int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 		return 1;
 	}
 	theme->scale = scale;
-	theme->theme = wlr_xcursor_theme_load(NULL, manager->size * scale);
+	theme->theme = wlr_xcursor_theme_load(manager->name, manager->size * scale);
 	if (theme->theme == NULL) {
 		free(theme);
 		return 1;

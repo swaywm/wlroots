@@ -21,6 +21,8 @@ rotate = 90
 map-to-output = VGA-1
 # Restrict cursor movements to concrete rectangle
 geometry = 2500x800
+# Load a custom XCursor theme
+theme = default
 
 # Single device configuration. String after semicolon must match device's name.
 [device:PixArt Dell MS116 USB Optical Mouse]

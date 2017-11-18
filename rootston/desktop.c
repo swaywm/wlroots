@@ -338,10 +338,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->server = server;
 	desktop->config = config;
 
-	desktop->xcursor_manager = wlr_xcursor_manager_create(NULL,
+	desktop->xcursor_manager = wlr_xcursor_manager_create(config->cursor.theme,
 		ROOTS_XCURSOR_SIZE);
 	if (desktop->xcursor_manager == NULL) {
-		wlr_log(L_ERROR, "Cannot create XCursor manager");
+		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+			config->cursor.theme);
 		wlr_list_free(desktop->views);
 		free(desktop);
 		return NULL;

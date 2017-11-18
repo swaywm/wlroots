@@ -48,6 +48,7 @@ struct roots_config {
 	struct {
 		char *mapped_output;
 		struct wlr_box *mapped_box;
+		char *theme;
 	} cursor;
 
 	struct wl_list outputs;
