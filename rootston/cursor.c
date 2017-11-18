@@ -98,13 +98,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t t
 				height = 0;
 			}
 
-			if (active_x != seat->focus->x ||
-					active_y != seat->focus->y) {
-				view_move_resize(seat->focus, active_x, active_y,
-					width, height);
-			} else {
-				view_resize(seat->focus, width, height);
-			}
+			view_move_resize(seat->focus, active_x, active_y, width, height);
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:

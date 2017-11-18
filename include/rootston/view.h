@@ -32,6 +32,7 @@ struct roots_xdg_surface_v6 {
 	struct {
 		uint32_t configure_serial;
 		double x, y;
+		bool update_x, update_y;
 		uint32_t width, height;
 	} move_resize;
 };

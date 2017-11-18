@@ -103,6 +103,11 @@ void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 
 void view_move_resize(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height) {
+	if (x == view->x == x && y == view->y) {
+		view_resize(view, width, height);
+		return;
+	}
+
 	if (view->move_resize) {
 		view->move_resize(view, x, y, width, height);
 		return;

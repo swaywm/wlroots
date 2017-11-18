@@ -76,15 +76,24 @@ static void move_resize(struct roots_view *view, double x, double y,
 		return;
 	}
 
+	bool update_x = x != view->x;
+	bool update_y = y != view->y;
+
 	uint32_t constrained_width, constrained_height;
 	apply_size_constraints(surface, width, height, &constrained_width,
 		&constrained_height);
 
-	x = x + width - constrained_width;
-	y = y + height - constrained_height;
+	if (update_x) {
+		x = x + width - constrained_width;
+	}
+	if (update_y) {
+		y = y + height - constrained_height;
+	}
 
 	roots_surface->move_resize.x = x;
 	roots_surface->move_resize.y = y;
+	roots_surface->move_resize.update_x = update_x;
+	roots_surface->move_resize.update_y = update_y;
 	roots_surface->move_resize.width = constrained_width;
 	roots_surface->move_resize.height = constrained_height;
 
@@ -158,12 +167,20 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
-	if (roots_surface->move_resize.configure_serial ==
+	if (roots_surface->move_resize.configure_serial > 0 &&
+			roots_surface->move_resize.configure_serial ==
 			surface->configure_serial) {
-		view->x = roots_surface->move_resize.x +
-			roots_surface->move_resize.width - surface->geometry->width;
-		view->y = roots_surface->move_resize.y +
-			roots_surface->move_resize.height - surface->geometry->height;
+		struct wlr_box size;
+		get_size(view, &size);
+
+		if (roots_surface->move_resize.update_x) {
+			view->x = roots_surface->move_resize.x +
+				roots_surface->move_resize.width - size.width;
+		}
+		if (roots_surface->move_resize.update_y) {
+			view->y = roots_surface->move_resize.y +
+				roots_surface->move_resize.height - size.height;
+		}
 		roots_surface->move_resize.configure_serial = 0;
 	}
 }
