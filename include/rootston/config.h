@@ -3,6 +3,8 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
 
+#define ROOTS_CONFIG_DEFAULT_SEAT_NAME "seat0"
+
 struct roots_output_config {
 	char *name;
 	enum wl_output_transform transform;
@@ -17,9 +19,9 @@ struct roots_output_config {
 
 struct roots_device_config {
 	char *name;
+	char *seat;
 	char *mapped_output;
 	struct wlr_box *mapped_box;
-	char *seat;
 	struct wl_list link;
 };
 
@@ -33,6 +35,7 @@ struct roots_binding_config {
 
 struct roots_keyboard_config {
 	char *name;
+	char *seat;
 	uint32_t meta_key;
 	char *rules;
 	char *model;
@@ -42,18 +45,22 @@ struct roots_keyboard_config {
 	struct wl_list link;
 };
 
+struct roots_cursor_config {
+	char *seat;
+	char *mapped_output;
+	struct wlr_box *mapped_box;
+	char *theme;
+	struct wl_list link;
+};
+
 struct roots_config {
 	bool xwayland;
-
-	struct {
-		char *mapped_output;
-		struct wlr_box *mapped_box;
-	} cursor;
 
 	struct wl_list outputs;
 	struct wl_list devices;
 	struct wl_list bindings;
 	struct wl_list keyboards;
+	struct wl_list cursors;
 	char *config_path;
 	char *startup_cmd;
 };
@@ -89,6 +96,13 @@ struct roots_device_config *roots_config_get_device(struct roots_config *config,
  * returns NULL. A NULL device returns the default config for keyboards.
  */
 struct roots_keyboard_config *roots_config_get_keyboard(
-		struct roots_config *config, struct wlr_input_device *device);
+	struct roots_config *config, struct wlr_input_device *device);
+
+/**
+ * Get configuration for the cursor. If the cursor is not configured, returns
+ * NULL. A NULL seat_name returns the default config for cursors.
+ */
+struct roots_cursor_config *roots_config_get_cursor(struct roots_config *config,
+	const char *seat_name);
 
 #endif

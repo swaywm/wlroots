@@ -157,20 +157,29 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 	}
 
 	// configure device to output mappings
-	const char *mapped_output = config->cursor.mapped_output;
+	const char *mapped_output = NULL;
+	struct roots_cursor_config *cc =
+		roots_config_get_cursor(config, seat->seat->name);
+	if (cc != NULL) {
+		mapped_output = cc->mapped_output;
+	}
 	wl_list_for_each(output, &desktop->outputs, link) {
-		if (mapped_output && strcmp(mapped_output, output->wlr_output->name) == 0) {
+		if (mapped_output &&
+				strcmp(mapped_output, output->wlr_output->name) == 0) {
 			wlr_cursor_map_to_output(cursor, output->wlr_output);
 		}
 
 		wl_list_for_each(pointer, &seat->pointers, link) {
-			seat_set_device_output_mappings(seat, pointer->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, pointer->device,
+				output->wlr_output);
 		}
 		wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
-			seat_set_device_output_mappings(seat, tablet_tool->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, tablet_tool->device,
+				output->wlr_output);
 		}
 		wl_list_for_each(touch, &seat->touch, link) {
-			seat_set_device_output_mappings(seat, touch->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, touch->device,
+				output->wlr_output);
 		}
 	}
 }
@@ -184,9 +193,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	struct wlr_cursor *wlr_cursor = seat->cursor->cursor;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
-
-	// TODO: be able to configure per-seat cursor themes
-	seat->cursor->xcursor_manager = desktop->xcursor_manager;
 
 	wl_list_init(&seat->cursor->touch_points);
 
@@ -446,6 +452,21 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
+	const char *cursor_theme = NULL;
+	struct roots_cursor_config *cc =
+		roots_config_get_cursor(seat->input->config, seat->seat->name);
+	if (cc != NULL) {
+		cursor_theme = cc->theme;
+	}
+
+	seat->cursor->xcursor_manager =
+		wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
+	if (seat->cursor->xcursor_manager == NULL) {
+		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+			cursor_theme);
+		return;
+	}
+
 	struct roots_output *output;
 	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
 		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
