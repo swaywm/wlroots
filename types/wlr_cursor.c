@@ -637,3 +637,21 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 
 	c_device->mapped_box = box;
 }
+
+bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
+		struct wlr_input_device *device, double x_mm, double y_mm,
+		double width_mm, double height_mm, double *lx, double *ly) {
+	if (width_mm <= 0 || height_mm <= 0) {
+		return false;
+	}
+
+	struct wlr_box *mapping = get_mapping(cur, device);
+	if (!mapping) {
+		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
+	}
+
+	*lx = x_mm > 0 ? mapping->width * (x_mm / width_mm) + mapping->x : cur->x;
+	*ly = y_mm > 0 ? mapping->height * (y_mm / height_mm) + mapping->y : cur->y;
+
+	return true;
+}

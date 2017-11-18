@@ -200,9 +200,20 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 			}
 			struct wlr_surface *icon = drag_icon->surface;
 			struct wlr_cursor *cursor = seat->cursor->cursor;
-			double icon_x = cursor->x + drag_icon->sx;
-			double icon_y = cursor->y + drag_icon->sy;
-			render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+			double icon_x = 0, icon_y = 0;
+			if (drag_icon->is_pointer) {
+				icon_x = cursor->x + drag_icon->sx;
+				icon_y = cursor->y + drag_icon->sy;
+				render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+			} else {
+				struct wlr_touch_point *point =
+					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
+				if (point) {
+					icon_x = seat->touch_x + drag_icon->sx;
+					icon_y = seat->touch_y + drag_icon->sy;
+					render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+				}
+			}
 		}
 	}
 
