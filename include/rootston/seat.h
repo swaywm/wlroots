@@ -9,6 +9,9 @@ struct roots_drag_icon {
 	struct wl_list link; // roots_seat::drag_icons
 	bool mapped;
 
+	bool is_pointer;
+	int32_t touch_id;
+
 	int32_t sx;
 	int32_t sy;
 
@@ -22,6 +25,10 @@ struct roots_seat {
 	struct roots_cursor *cursor;
 	struct wl_list link;
 	struct wl_list drag_icons;
+
+	// coordinates of the first touch point if it exists
+	int32_t touch_id;
+	double touch_x, touch_y;
 
 	struct roots_view *focus;
 
@@ -40,13 +47,6 @@ struct roots_pointer {
 struct roots_touch {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
-	struct wl_list link;
-};
-
-struct roots_touch_point {
-	struct roots_touch *device;
-	int32_t slot;
-	double x, y;
 	struct wl_list link;
 };
 

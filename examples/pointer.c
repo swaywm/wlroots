@@ -55,7 +55,7 @@ struct sample_state {
 };
 
 struct touch_point {
-	int32_t slot;
+	int32_t touch_id;
 	double x, y;
 };
 
@@ -199,7 +199,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == event->slot) {
+		if (point->touch_id == event->touch_id) {
 			wlr_list_del(sample->touch_points, i);
 			break;
 		}
@@ -212,7 +212,7 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, touch_down);
 	struct wlr_event_touch_down *event = data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
-	point->slot = event->slot;
+	point->touch_id = event->touch_id;
 	point->x = event->x_mm / event->width_mm;
 	point->y = event->y_mm / event->height_mm;
 	if (wlr_list_add(sample->touch_points, point) == -1) {
@@ -228,7 +228,7 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_motion *event = data;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == event->slot) {
+		if (point->touch_id == event->touch_id) {
 			point->x = event->x_mm / event->width_mm;
 			point->y = event->y_mm / event->height_mm;
 			break;

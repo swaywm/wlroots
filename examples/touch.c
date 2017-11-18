@@ -28,7 +28,7 @@ struct sample_state {
 };
 
 struct touch_point {
-	int32_t slot;
+	int32_t touch_id;
 	double x, y;
 };
 
@@ -58,11 +58,11 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_swap_buffers(wlr_output);
 }
 
-static void handle_touch_down(struct touch_state *tstate, int32_t slot,
+static void handle_touch_down(struct touch_state *tstate, int32_t touch_id,
 		double x, double y, double width, double height) {
 	struct sample_state *sample = tstate->compositor->data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
-	point->slot = slot;
+	point->touch_id = touch_id;
 	point->x = x / width;
 	point->y = y / height;
 	if (wlr_list_add(sample->touch_points, point) == -1) {
@@ -70,23 +70,23 @@ static void handle_touch_down(struct touch_state *tstate, int32_t slot,
 	}
 }
 
-static void handle_touch_up(struct touch_state *tstate, int32_t slot) {
+static void handle_touch_up(struct touch_state *tstate, int32_t touch_id) {
 	struct sample_state *sample = tstate->compositor->data;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == slot) {
+		if (point->touch_id == touch_id) {
 			wlr_list_del(sample->touch_points, i);
 			break;
 		}
 	}
 }
 
-static void handle_touch_motion(struct touch_state *tstate, int32_t slot,
+static void handle_touch_motion(struct touch_state *tstate, int32_t touch_id,
 		double x, double y, double width, double height) {
 	struct sample_state *sample = tstate->compositor->data;
 	for (size_t i = 0; i < sample->touch_points->length; ++i) {
 		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == slot) {
+		if (point->touch_id == touch_id) {
 			point->x = x / width;
 			point->y = y / height;
 			break;
