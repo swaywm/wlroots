@@ -28,7 +28,8 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 	// TODO
 }
 
-static void roots_cursor_update_position(struct roots_cursor *cursor, uint32_t time) {
+static void roots_cursor_update_position(struct roots_cursor *cursor,
+		uint32_t time) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct roots_seat *seat = cursor->seat;
 	struct roots_view *view;
@@ -137,7 +138,9 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	double sx, sy;
 	struct roots_view *view = view_at(desktop, lx, ly, &surface, &sx, &sy);
 
-	if (state == WLR_BUTTON_PRESSED && view && roots_seat_has_meta_pressed(seat)) {
+	if (state == WLR_BUTTON_PRESSED &&
+			view &&
+			roots_seat_has_meta_pressed(seat)) {
 		roots_seat_focus_view(seat, view);
 
 		uint32_t edges;
@@ -170,7 +173,8 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	if (is_touch) {
 		serial = wl_display_get_serial(desktop->server->wl_display);
 	} else {
-		serial = wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		serial =
+			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 	}
 
 	int i;
@@ -251,7 +255,8 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 		struct wlr_event_touch_up *event) {
-	struct wlr_touch_point *point = wlr_seat_touch_get_point(cursor->seat->seat, event->touch_id);
+	struct wlr_touch_point *point =
+		wlr_seat_touch_get_point(cursor->seat->seat, event->touch_id);
 	if (!point) {
 		return;
 	}
@@ -261,7 +266,8 @@ void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 			BTN_LEFT, 0, cursor->seat->touch_x, cursor->seat->touch_y);
 	}
 
-	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec, event->touch_id);
+	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec,
+		event->touch_id);
 }
 
 void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
@@ -331,7 +337,8 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_request_set_cursor_event *event) {
 	struct wlr_surface *focused_surface =
 		event->seat_client->seat->pointer_state.focused_surface;
-	bool has_focused = focused_surface != NULL && focused_surface->resource != NULL;
+	bool has_focused =
+		focused_surface != NULL && focused_surface->resource != NULL;
 	struct wl_client *focused_client = NULL;
 	if (has_focused) {
 		focused_client = wl_resource_get_client(focused_surface->resource);
