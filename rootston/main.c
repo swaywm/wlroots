@@ -58,8 +58,12 @@ int main(int argc, char **argv) {
 #ifndef HAS_XWAYLAND
 	ready(NULL, NULL);
 #else
-	struct wl_listener xwayland_ready = { .notify = ready };
-	wl_signal_add(&server.desktop->xwayland->events.ready, &xwayland_ready);
+	if (server.desktop->xwayland != NULL) {
+		struct wl_listener xwayland_ready = { .notify = ready };
+		wl_signal_add(&server.desktop->xwayland->events.ready, &xwayland_ready);
+	} else {
+		ready(NULL, NULL);
+	}
 #endif
 
 	wl_display_run(server.wl_display);
