@@ -14,7 +14,6 @@
 #include <wlr/backend/drm.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/render/egl.h>
-#include <wlr/types/wlr_list.h>
 
 #include "iface.h"
 #include "properties.h"
