@@ -97,8 +97,14 @@ static void move_resize(struct roots_view *view, double x, double y,
 	roots_surface->move_resize.width = constrained_width;
 	roots_surface->move_resize.height = constrained_height;
 
-	roots_surface->move_resize.configure_serial = wlr_xdg_toplevel_v6_set_size(
-		surface, constrained_width, constrained_height);
+	uint32_t serial = wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
+		constrained_height);
+	if (serial > 0) {
+		roots_surface->move_resize.configure_serial = serial;
+	} else {
+		view->x = x;
+		view->y = y;
+	}
 }
 
 static void maximize(struct roots_view *view, bool maximized) {
