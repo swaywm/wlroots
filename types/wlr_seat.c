@@ -404,6 +404,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wlr_seat->display = display;
 	wlr_seat->name = strdup(name);
 	wl_list_init(&wlr_seat->clients);
+	wl_list_init(&wlr_seat->drag_icons);
 
 	wl_signal_init(&wlr_seat->events.client_bound);
 	wl_signal_init(&wlr_seat->events.client_unbound);
