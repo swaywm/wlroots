@@ -354,19 +354,3 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		event->hotspot_y);
 	cursor->cursor_client = event->seat_client->client;
 }
-
-void roots_cursor_handle_pointer_grab_begin(struct roots_cursor *cursor,
-		struct wlr_seat_pointer_grab *grab) {
-}
-
-void roots_cursor_handle_pointer_grab_end(struct roots_cursor *cursor,
-		struct wlr_seat_pointer_grab *grab) {
-}
-
-void roots_cursor_handle_touch_grab_begin(struct roots_cursor *cursor,
-		struct wlr_seat_touch_grab *grab) {
-}
-
-void roots_cursor_handle_touch_grab_end(struct roots_cursor *cursor,
-		struct wlr_seat_touch_grab *grab) {
-}
