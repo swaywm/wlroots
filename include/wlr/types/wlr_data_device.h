@@ -71,7 +71,7 @@ struct wlr_drag_icon {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
-	struct wl_listener seat_client_unbound;
+	struct wl_listener seat_client_destroy;
 };
 
 struct wlr_drag {
@@ -94,7 +94,7 @@ struct wlr_drag {
 
 	struct wl_listener point_destroy;
 	struct wl_listener source_destroy;
-	struct wl_listener seat_client_unbound;
+	struct wl_listener seat_client_destroy;
 	struct wl_listener icon_destroy;
 };
 

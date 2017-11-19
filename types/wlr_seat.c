@@ -181,7 +181,7 @@ static void wl_seat_get_touch(struct wl_client *client,
 
 static void wlr_seat_client_resource_destroy(struct wl_resource *resource) {
 	struct wlr_seat_client *client = wl_resource_get_user_data(resource);
-	wl_signal_emit(&client->seat->events.client_unbound, client);
+	wl_signal_emit(&client->events.destroy, client);
 
 	if (client == client->seat->pointer_state.focused_client) {
 		client->seat->pointer_state.focused_client = NULL;
@@ -240,7 +240,7 @@ static void wl_seat_bind(struct wl_client *client, void *_wlr_seat,
 		wl_seat_send_name(seat_client->wl_resource, wlr_seat->name);
 	}
 	wl_seat_send_capabilities(seat_client->wl_resource, wlr_seat->capabilities);
-	wl_signal_emit(&wlr_seat->events.client_bound, seat_client);
+	wl_signal_init(&seat_client->events.destroy);
 }
 
 static void default_pointer_enter(struct wlr_seat_pointer_grab *grab,
@@ -405,9 +405,6 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wlr_seat->name = strdup(name);
 	wl_list_init(&wlr_seat->clients);
 	wl_list_init(&wlr_seat->drag_icons);
-
-	wl_signal_init(&wlr_seat->events.client_bound);
-	wl_signal_init(&wlr_seat->events.client_unbound);
 
 	wl_signal_init(&wlr_seat->events.request_set_cursor);
 	wl_signal_init(&wlr_seat->events.selection);
