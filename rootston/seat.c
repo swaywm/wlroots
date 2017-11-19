@@ -598,9 +598,25 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 	if (wl_list_empty(&seat->views)) {
 		return;
 	}
-	struct roots_seat_view *last_seat_view = wl_container_of(
-		seat->views.prev, last_seat_view, link);
-	roots_seat_set_focus(seat, last_seat_view->view);
+
+	struct roots_seat_view *first_seat_view = wl_container_of(
+		seat->views.next, first_seat_view, link);
+	if (!seat->has_focus) {
+		roots_seat_set_focus(seat, first_seat_view->view);
+		return;
+	}
+	if (wl_list_length(&seat->views) < 2) {
+		return;
+	}
+
+	// Focus the next view
+	struct roots_seat_view *next_seat_view = wl_container_of(
+		first_seat_view->link.next, next_seat_view, link);
+	roots_seat_set_focus(seat, next_seat_view->view);
+
+	// Move the first view to the end of the list
+	wl_list_remove(&first_seat_view->link);
+	wl_list_insert(seat->views.prev, &first_seat_view->link);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
