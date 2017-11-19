@@ -190,11 +190,6 @@ void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	wl_signal_init(&view->events.destroy);
 
 	wl_list_insert(&desktop->views, &view->link);
-
-	struct roots_seat *seat;
-	wl_list_for_each(seat, &desktop->server->input->seats, link) {
-		roots_seat_add_view(seat, view);
-	}
 }
 
 void view_setup(struct roots_view *view) {

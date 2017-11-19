@@ -485,56 +485,20 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
 	return false;
 }
 
-void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
-	if (seat->focus != NULL && seat->focus->view == view) {
-		return;
+struct roots_view *roots_seat_get_focused_view(struct roots_seat *seat) {
+	if (!seat->has_focus || wl_list_empty(&seat->views)) {
+		return NULL;
 	}
-
-	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
-			view->xwayland_surface->override_redirect) {
-		return;
-	}
-
-	bool found = false;
-	struct roots_seat_view *seat_view;
-	wl_list_for_each(seat_view, &seat->views, link) {
-		if (seat_view->view == view) {
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		return;
-	}
-
-	struct roots_seat_view *prev_focus = seat->focus;
-	seat->focus = seat_view;
-
-	// unfocus the old view if it is not focused by some other seat
-	if (prev_focus && !input_view_has_focus(seat->input, prev_focus->view)) {
-		view_activate(prev_focus->view, false);
-	}
-
-	if (!seat->focus) {
-		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-		return;
-	}
-
-	view_activate(view, true);
-	wl_list_remove(&seat_view->view->link);
-	wl_list_insert(&seat->input->server->desktop->views,
-		&seat_view->view->link);
-
-	wl_list_remove(&seat_view->link);
-	wl_list_insert(&seat->views, &seat_view->link);
-	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+	struct roots_seat_view *seat_view =
+		wl_container_of(seat->views.next, seat_view, link);
+	return seat_view->view;
 }
 
 static void seat_view_destroy(struct roots_seat_view *seat_view) {
 	struct roots_seat *seat = seat_view->seat;
 
-	if (seat->focus == seat_view) {
-		seat->focus = NULL;
+	if (seat_view->view == roots_seat_get_focused_view(seat)) {
+		seat->has_focus = false;
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
 
@@ -556,11 +520,12 @@ static void seat_view_handle_destroy(struct wl_listener *listener, void *data) {
 	seat_view_destroy(seat_view);
 }
 
-void roots_seat_add_view(struct roots_seat *seat, struct roots_view *view) {
+static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
+		struct roots_view *view) {
 	struct roots_seat_view *seat_view =
 		calloc(1, sizeof(struct roots_seat_view));
 	if (seat_view == NULL) {
-		return;
+		return NULL;
 	}
 	seat_view->seat = seat;
 	seat_view->view = view;
@@ -569,16 +534,60 @@ void roots_seat_add_view(struct roots_seat *seat, struct roots_view *view) {
 
 	seat_view->destroy.notify = seat_view_handle_destroy;
 	wl_signal_add(&view->events.destroy, &seat_view->destroy);
+
+	return seat_view;
 }
 
-void roots_seat_remove_view(struct roots_seat *seat, struct roots_view *view) {
-	struct roots_seat_view *seat_view;
-	wl_list_for_each(seat_view, &seat->views, link) {
-		if (seat_view->view == view) {
-			seat_view_destroy(seat_view);
-			break;
+void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
+	struct roots_view *prev_focus = roots_seat_get_focused_view(seat);
+	if (view == prev_focus) {
+		return;
+	}
+
+	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
+			view->xwayland_surface->override_redirect) {
+		return;
+	}
+
+	struct roots_seat_view *seat_view = NULL;
+	if (view != NULL) {
+		bool found = false;
+		wl_list_for_each(seat_view, &seat->views, link) {
+			if (seat_view->view == view) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			seat_view = seat_add_view(seat, view);
+			if (seat_view == NULL) {
+				wlr_log(L_ERROR, "Allocation failed");
+				return;
+			}
 		}
 	}
+
+	seat->has_focus = false;
+
+	// unfocus the old view if it is not focused by some other seat
+	if (prev_focus != NULL && !input_view_has_focus(seat->input, prev_focus)) {
+		view_activate(prev_focus, false);
+	}
+
+	if (view == NULL) {
+		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		return;
+	}
+
+	view_activate(view, true);
+	wl_list_remove(&seat_view->view->link);
+	wl_list_insert(&seat->input->server->desktop->views,
+		&seat_view->view->link);
+
+	seat->has_focus = true;
+	wl_list_remove(&seat_view->link);
+	wl_list_insert(&seat->views, &seat_view->link);
+	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {

@@ -58,19 +58,21 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		break;
 	case ROOTS_CURSOR_MOVE:
-		if (seat->focus) {
+		view = roots_seat_get_focused_view(seat);
+		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			view_move(seat->focus->view, cursor->view_x + dx,
+			view_move(view, cursor->view_x + dx,
 				cursor->view_y + dy);
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
-		if (seat->focus) {
+		view = roots_seat_get_focused_view(seat);
+		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			double active_x = seat->focus->view->x;
-			double active_y = seat->focus->view->y;
+			double active_x = view->x;
+			double active_y = view->y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
@@ -99,18 +101,18 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 				height = 0;
 			}
 
-			if (active_x != seat->focus->view->x ||
-					active_y != seat->focus->view->y) {
-				view_move_resize(seat->focus->view, active_x, active_y,
+			if (active_x != view->x ||
+					active_y != view->y) {
+				view_move_resize(view, active_x, active_y,
 					width, height);
 			} else {
-				view_resize(seat->focus->view, width, height);
+				view_resize(view, width, height);
 			}
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
-		if (seat->focus) {
-			struct roots_view *view = seat->focus->view;
+		view = roots_seat_get_focused_view(seat);
+		if (view != NULL) {
 			int ox = view->x + view->wlr_surface->current->width/2,
 				oy = view->y + view->wlr_surface->current->height/2;
 			int ux = cursor->offs_x - ox,
@@ -124,7 +126,6 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		break;
 	}
-
 }
 
 static void roots_cursor_press_button(struct roots_cursor *cursor,
