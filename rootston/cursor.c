@@ -142,7 +142,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	if (state == WLR_BUTTON_PRESSED &&
 			view &&
 			roots_seat_has_meta_pressed(seat)) {
-		roots_seat_focus_view(seat, view);
+		roots_seat_set_focus(seat, view);
 
 		uint32_t edges;
 		switch (button) {
@@ -193,7 +193,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		cursor->input_events[i].device = device;
 		cursor->input_events_idx = (i + 1)
 			% (sizeof(cursor->input_events) / sizeof(cursor->input_events[0]));
-		roots_seat_focus_view(seat, view);
+		roots_seat_set_focus(seat, view);
 		break;
 	}
 }

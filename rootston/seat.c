@@ -510,7 +510,7 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 	if (!wl_list_empty(&seat->views)) {
 		struct roots_seat_view *first_seat_view = wl_container_of(
 			seat->views.next, first_seat_view, link);
-		roots_seat_focus_view(seat, first_seat_view->view);
+		roots_seat_set_focus(seat, first_seat_view->view);
 	}
 }
 
@@ -538,7 +538,7 @@ static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
 	return seat_view;
 }
 
-void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
+void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	struct roots_view *prev_focus = roots_seat_get_focus(seat);
 	if (view == prev_focus) {
 		return;
@@ -588,6 +588,15 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
 	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+}
+
+void roots_seat_cycle_focus(struct roots_seat *seat) {
+	if (wl_list_empty(&seat->views)) {
+		return;
+	}
+	struct roots_seat_view *last_seat_view = wl_container_of(
+		seat->views.prev, last_seat_view, link);
+	roots_seat_set_focus(seat, last_seat_view->view);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {

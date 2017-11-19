@@ -96,11 +96,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 			view_close(focus);
 		}
 	} else if (strcmp(command, "next_window") == 0) {
-		if (!wl_list_empty(&seat->views)) {
-			struct roots_seat_view *last_seat_view = wl_container_of(
-				seat->views.prev, last_seat_view, link);
-			roots_seat_focus_view(seat, last_seat_view->view);
-		}
+		roots_seat_cycle_focus(seat);
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();

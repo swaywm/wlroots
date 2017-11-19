@@ -197,7 +197,7 @@ void view_setup(struct roots_view *view) {
 	// TODO what seat gets focus? the one with the last input event?
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		roots_seat_focus_view(seat, view);
+		roots_seat_set_focus(seat, view);
 	}
 
 	view_center(view);

@@ -71,7 +71,9 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat);
 
 struct roots_view *roots_seat_get_focus(struct roots_seat *seat);
 
-void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view);
+void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_cycle_focus(struct roots_seat *seat);
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view);
 
