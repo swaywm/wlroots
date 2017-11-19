@@ -136,7 +136,7 @@ static void touch_down_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, down);
 	if (tstate->compositor->touch_down_cb) {
-		tstate->compositor->touch_down_cb(tstate, event->slot,
+		tstate->compositor->touch_down_cb(tstate, event->touch_id,
 			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
 	}
 }
@@ -145,7 +145,7 @@ static void touch_motion_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_motion *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, motion);
 	if (tstate->compositor->touch_motion_cb) {
-		tstate->compositor->touch_motion_cb(tstate, event->slot,
+		tstate->compositor->touch_motion_cb(tstate, event->touch_id,
 			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
 	}
 }
@@ -154,7 +154,7 @@ static void touch_up_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, up);
 	if (tstate->compositor->touch_up_cb) {
-		tstate->compositor->touch_up_cb(tstate, event->slot);
+		tstate->compositor->touch_up_cb(tstate, event->touch_id);
 	}
 }
 
@@ -162,7 +162,7 @@ static void touch_cancel_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_cancel *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, cancel);
 	if (tstate->compositor->touch_cancel_cb) {
-		tstate->compositor->touch_cancel_cb(tstate, event->slot);
+		tstate->compositor->touch_cancel_cb(tstate, event->touch_id);
 	}
 }
 

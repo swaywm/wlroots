@@ -33,7 +33,7 @@ void handle_touch_down(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.slot = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
@@ -54,7 +54,7 @@ void handle_touch_up(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.slot = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
 	wl_signal_emit(&wlr_dev->touch->events.up, &wlr_event);
 }
 
@@ -72,7 +72,7 @@ void handle_touch_motion(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.slot = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
@@ -93,6 +93,6 @@ void handle_touch_cancel(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.slot = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
 	wl_signal_emit(&wlr_dev->touch->events.cancel, &wlr_event);
 }

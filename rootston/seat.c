@@ -31,7 +31,8 @@ static void handle_cursor_motion(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_motion(cursor, event);
 }
 
-static void handle_cursor_motion_absolute(struct wl_listener *listener, void *data) {
+static void handle_cursor_motion_absolute(struct wl_listener *listener,
+		void *data) {
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
@@ -95,23 +96,8 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	roots_cursor_handle_request_set_cursor(cursor, event);
 }
 
-static void handle_pointer_grab_begin(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, pointer_grab_begin);
-	struct wlr_seat_pointer_grab *grab = data;
-	roots_cursor_handle_pointer_grab_begin(cursor, grab);
-}
-
-static void handle_pointer_grab_end(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, pointer_grab_end);
-	struct wlr_seat_pointer_grab *grab = data;
-	roots_cursor_handle_pointer_grab_end(cursor, grab);
-}
-
-static void seat_reset_device_mappings(struct roots_seat *seat, struct wlr_input_device *device) {
+static void seat_reset_device_mappings(struct roots_seat *seat,
+		struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
 	struct roots_config *config = seat->input->config;
 
@@ -157,20 +143,29 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 	}
 
 	// configure device to output mappings
-	const char *mapped_output = config->cursor.mapped_output;
+	const char *mapped_output = NULL;
+	struct roots_cursor_config *cc =
+		roots_config_get_cursor(config, seat->seat->name);
+	if (cc != NULL) {
+		mapped_output = cc->mapped_output;
+	}
 	wl_list_for_each(output, &desktop->outputs, link) {
-		if (mapped_output && strcmp(mapped_output, output->wlr_output->name) == 0) {
+		if (mapped_output &&
+				strcmp(mapped_output, output->wlr_output->name) == 0) {
 			wlr_cursor_map_to_output(cursor, output->wlr_output);
 		}
 
 		wl_list_for_each(pointer, &seat->pointers, link) {
-			seat_set_device_output_mappings(seat, pointer->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, pointer->device,
+				output->wlr_output);
 		}
 		wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
-			seat_set_device_output_mappings(seat, tablet_tool->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, tablet_tool->device,
+				output->wlr_output);
 		}
 		wl_list_for_each(touch, &seat->touch, link) {
-			seat_set_device_output_mappings(seat, touch->device, output->wlr_output);
+			seat_set_device_output_mappings(seat, touch->device,
+				output->wlr_output);
 		}
 	}
 }
@@ -184,11 +179,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	struct wlr_cursor *wlr_cursor = seat->cursor->cursor;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
-
-	// TODO: be able to configure per-seat cursor themes
-	seat->cursor->xcursor_manager = desktop->xcursor_manager;
-
-	wl_list_init(&seat->cursor->touch_points);
 
 	roots_seat_configure_cursor(seat);
 	roots_seat_configure_xcursor(seat);
@@ -213,10 +203,12 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wl_signal_add(&wlr_cursor->events.touch_up, &seat->cursor->touch_up);
 	seat->cursor->touch_up.notify = handle_touch_up;
 
-	wl_signal_add(&wlr_cursor->events.touch_motion, &seat->cursor->touch_motion);
+	wl_signal_add(&wlr_cursor->events.touch_motion,
+		&seat->cursor->touch_motion);
 	seat->cursor->touch_motion.notify = handle_touch_motion;
 
-	wl_signal_add(&wlr_cursor->events.tablet_tool_axis, &seat->cursor->tool_axis);
+	wl_signal_add(&wlr_cursor->events.tablet_tool_axis,
+		&seat->cursor->tool_axis);
 	seat->cursor->tool_axis.notify = handle_tool_axis;
 
 	wl_signal_add(&wlr_cursor->events.tablet_tool_tip, &seat->cursor->tool_tip);
@@ -225,14 +217,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 			&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
-
-	wl_signal_add(&seat->seat->events.pointer_grab_begin,
-			&seat->cursor->pointer_grab_begin);
-	seat->cursor->pointer_grab_begin.notify = handle_pointer_grab_begin;
-
-	wl_signal_add(&seat->seat->events.pointer_grab_end,
-			&seat->cursor->pointer_grab_end);
-	seat->cursor->pointer_grab_end.notify = handle_pointer_grab_end;
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
@@ -245,7 +229,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->pointers);
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
-	wl_list_init(&seat->drag_icons);
 
 	seat->input = input;
 
@@ -276,9 +259,11 @@ void roots_seat_destroy(struct roots_seat *seat) {
 	// TODO
 }
 
-static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *device) {
+static void seat_add_keyboard(struct roots_seat *seat,
+		struct wlr_input_device *device) {
 	assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
-	struct roots_keyboard *keyboard = roots_keyboard_create(device, seat->input);
+	struct roots_keyboard *keyboard =
+		roots_keyboard_create(device, seat->input);
 	if (keyboard == NULL) {
 		wlr_log(L_ERROR, "could not allocate keyboard for seat");
 		return;
@@ -299,7 +284,8 @@ static void seat_add_keyboard(struct roots_seat *seat, struct wlr_input_device *
 	wlr_seat_set_keyboard(seat->seat, device);
 }
 
-static void seat_add_pointer(struct roots_seat *seat, struct wlr_input_device *device) {
+static void seat_add_pointer(struct roots_seat *seat,
+		struct wlr_input_device *device) {
 	struct roots_pointer *pointer = calloc(sizeof(struct roots_pointer), 1);
 	if (!pointer) {
 		wlr_log(L_ERROR, "could not allocate pointer for seat");
@@ -314,7 +300,8 @@ static void seat_add_pointer(struct roots_seat *seat, struct wlr_input_device *d
 	roots_seat_configure_cursor(seat);
 }
 
-static void seat_add_touch(struct roots_seat *seat, struct wlr_input_device *device) {
+static void seat_add_touch(struct roots_seat *seat,
+		struct wlr_input_device *device) {
 	struct roots_touch *touch = calloc(sizeof(struct roots_touch), 1);
 	if (!touch) {
 		wlr_log(L_ERROR, "could not allocate touch for seat");
@@ -329,12 +316,15 @@ static void seat_add_touch(struct roots_seat *seat, struct wlr_input_device *dev
 	roots_seat_configure_cursor(seat);
 }
 
-static void seat_add_tablet_pad(struct roots_seat *seat, struct wlr_input_device *device) {
+static void seat_add_tablet_pad(struct roots_seat *seat,
+		struct wlr_input_device *device) {
 	// TODO
 }
 
-static void seat_add_tablet_tool(struct roots_seat *seat, struct wlr_input_device *device) {
-	struct roots_tablet_tool *tablet_tool = calloc(sizeof(struct roots_tablet_tool), 1);
+static void seat_add_tablet_tool(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	struct roots_tablet_tool *tablet_tool =
+		calloc(sizeof(struct roots_tablet_tool), 1);
 	if (!tablet_tool) {
 		wlr_log(L_ERROR, "could not allocate tablet_tool for seat");
 		return;
@@ -446,6 +436,21 @@ void roots_seat_remove_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
+	const char *cursor_theme = NULL;
+	struct roots_cursor_config *cc =
+		roots_config_get_cursor(seat->input->config, seat->seat->name);
+	if (cc != NULL) {
+		cursor_theme = cc->theme;
+	}
+
+	seat->cursor->xcursor_manager =
+		wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
+	if (seat->cursor->xcursor_manager == NULL) {
+		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+			cursor_theme);
+		return;
+	}
+
 	struct roots_output *output;
 	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
 		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,

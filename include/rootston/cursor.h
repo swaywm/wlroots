@@ -39,7 +39,6 @@ struct roots_cursor {
 	uint32_t resize_edges;
 	// Ring buffer of input events that could trigger move/resize/rotate
 	int input_events_idx;
-	struct wl_list touch_points;
 	struct roots_input_event input_events[16];
 
 	struct wl_listener motion;
@@ -53,9 +52,6 @@ struct roots_cursor {
 
 	struct wl_listener tool_axis;
 	struct wl_listener tool_tip;
-
-	struct wl_listener pointer_grab_begin;
-	struct wl_listener pointer_grab_end;
 
 	struct wl_listener request_set_cursor;
 };
@@ -93,11 +89,5 @@ void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_request_set_cursor_event *event);
-
-void roots_cursor_handle_pointer_grab_begin(struct roots_cursor *cursor,
-		struct wlr_seat_pointer_grab *grab);
-
-void roots_cursor_handle_pointer_grab_end(struct roots_cursor *cursor,
-		struct wlr_seat_pointer_grab *grab);
 
 #endif
