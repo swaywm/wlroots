@@ -165,6 +165,8 @@ struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
 	struct wl_list clients;
+	struct wl_list drag_icons; // wlr_drag_icon::link
+
 	char *name;
 	uint32_t capabilities;
 	struct timespec last_event;

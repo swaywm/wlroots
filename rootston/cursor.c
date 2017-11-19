@@ -355,104 +355,18 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 	cursor->cursor_client = event->seat_client->client;
 }
 
-static void handle_drag_icon_commit(struct wl_listener *listener, void *data) {
-	struct roots_drag_icon *drag_icon =
-		wl_container_of(listener, drag_icon, surface_commit);
-	drag_icon->sx += drag_icon->surface->current->sx;
-	drag_icon->sy += drag_icon->surface->current->sy;
-}
-
-static void handle_drag_icon_destroy(struct wl_listener *listener, void *data) {
-	struct roots_drag_icon *drag_icon =
-		wl_container_of(listener, drag_icon, surface_destroy);
-	wl_list_remove(&drag_icon->link);
-	wl_list_remove(&drag_icon->surface_destroy.link);
-	wl_list_remove(&drag_icon->surface_commit.link);
-	free(drag_icon);
-}
-
-static struct roots_drag_icon *seat_add_drag_icon(struct roots_seat *seat,
-		struct wlr_surface *icon_surface) {
-	if (!icon_surface) {
-		return NULL;
-	}
-
-	struct roots_drag_icon *iter_icon;
-	wl_list_for_each(iter_icon, &seat->drag_icons, link) {
-		if (iter_icon->surface == icon_surface) {
-			// already in the list
-			return iter_icon;
-		}
-	}
-
-	struct roots_drag_icon *drag_icon =
-		calloc(1, sizeof(struct roots_drag_icon));
-	drag_icon->mapped = true;
-	drag_icon->surface = icon_surface;
-	wl_list_insert(&seat->drag_icons, &drag_icon->link);
-
-	wl_signal_add(&icon_surface->events.destroy,
-			&drag_icon->surface_destroy);
-	drag_icon->surface_destroy.notify = handle_drag_icon_destroy;
-
-	wl_signal_add(&icon_surface->events.commit,
-			&drag_icon->surface_commit);
-	drag_icon->surface_commit.notify = handle_drag_icon_commit;
-
-	return drag_icon;
-}
-
-static void seat_unmap_drag_icon(struct roots_seat *seat,
-		struct wlr_surface *icon_surface) {
-	if (!icon_surface) {
-		return;
-	}
-
-	struct roots_drag_icon *icon;
-	wl_list_for_each(icon, &seat->drag_icons, link) {
-		if (icon->surface == icon_surface) {
-			icon->mapped = false;
-		}
-	}
-}
-
 void roots_cursor_handle_pointer_grab_begin(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_grab *grab) {
-	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
-		struct wlr_drag *drag = grab->data;
-		struct roots_drag_icon *icon =
-			seat_add_drag_icon(cursor->seat, drag->icon);
-		if (icon) {
-			icon->is_pointer = true;
-		}
-	}
 }
 
 void roots_cursor_handle_pointer_grab_end(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_grab *grab) {
-	if (grab->interface == &wlr_data_device_pointer_drag_interface) {
-		struct wlr_drag *drag = grab->data;
-		seat_unmap_drag_icon(cursor->seat, drag->icon);
-	}
 }
 
 void roots_cursor_handle_touch_grab_begin(struct roots_cursor *cursor,
 		struct wlr_seat_touch_grab *grab) {
-	if (grab->interface == &wlr_data_device_touch_drag_interface) {
-		struct wlr_drag *drag = grab->data;
-		struct roots_drag_icon *icon =
-			seat_add_drag_icon(cursor->seat, drag->icon);
-		if (icon) {
-			icon->is_pointer = false;
-			icon->touch_id = drag->grab_touch_id;
-		}
-	}
 }
 
 void roots_cursor_handle_touch_grab_end(struct roots_cursor *cursor,
 		struct wlr_seat_touch_grab *grab) {
-	if (grab->interface == &wlr_data_device_touch_drag_interface) {
-		struct wlr_drag *drag = grab->data;
-		seat_unmap_drag_icon(cursor->seat, drag->icon);
-	}
 }

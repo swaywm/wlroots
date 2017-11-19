@@ -4,27 +4,11 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 
-struct roots_drag_icon {
-	struct wlr_surface *surface;
-	struct wl_list link; // roots_seat::drag_icons
-	bool mapped;
-
-	bool is_pointer;
-	int32_t touch_id;
-
-	int32_t sx;
-	int32_t sy;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
-};
-
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
 	struct roots_cursor *cursor;
 	struct wl_list link;
-	struct wl_list drag_icons;
 
 	// coordinates of the first touch point if it exists
 	int32_t touch_id;

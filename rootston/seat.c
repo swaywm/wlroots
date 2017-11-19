@@ -277,7 +277,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->pointers);
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
-	wl_list_init(&seat->drag_icons);
 
 	seat->input = input;
 
