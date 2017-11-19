@@ -58,7 +58,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		break;
 	case ROOTS_CURSOR_MOVE:
-		view = roots_seat_get_focused_view(seat);
+		view = roots_seat_get_focus(seat);
 		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
@@ -67,7 +67,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		break;
 	case ROOTS_CURSOR_RESIZE:
-		view = roots_seat_get_focused_view(seat);
+		view = roots_seat_get_focus(seat);
 		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
@@ -111,7 +111,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
-		view = roots_seat_get_focused_view(seat);
+		view = roots_seat_get_focus(seat);
 		if (view != NULL) {
 			int ox = view->x + view->wlr_surface->current->width/2,
 				oy = view->y + view->wlr_surface->current->height/2;

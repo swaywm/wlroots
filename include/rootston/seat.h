@@ -28,7 +28,7 @@ struct roots_seat_view {
 	struct roots_view *view;
 	struct wl_list link; // roots_seat::views
 
-	struct wl_listener destroy;
+	struct wl_listener view_destroy;
 };
 
 struct roots_pointer {
@@ -69,7 +69,7 @@ void roots_seat_configure_xcursor(struct roots_seat *seat);
 
 bool roots_seat_has_meta_pressed(struct roots_seat *seat);
 
-struct roots_view *roots_seat_get_focused_view(struct roots_seat *seat);
+struct roots_view *roots_seat_get_focus(struct roots_seat *seat);
 
 void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view);
 

@@ -485,7 +485,7 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
 	return false;
 }
 
-struct roots_view *roots_seat_get_focused_view(struct roots_seat *seat) {
+struct roots_view *roots_seat_get_focus(struct roots_seat *seat) {
 	if (!seat->has_focus || wl_list_empty(&seat->views)) {
 		return NULL;
 	}
@@ -497,12 +497,12 @@ struct roots_view *roots_seat_get_focused_view(struct roots_seat *seat) {
 static void seat_view_destroy(struct roots_seat_view *seat_view) {
 	struct roots_seat *seat = seat_view->seat;
 
-	if (seat_view->view == roots_seat_get_focused_view(seat)) {
+	if (seat_view->view == roots_seat_get_focus(seat)) {
 		seat->has_focus = false;
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
 
-	wl_list_remove(&seat_view->destroy.link);
+	wl_list_remove(&seat_view->view_destroy.link);
 	wl_list_remove(&seat_view->link);
 	free(seat_view);
 
@@ -516,7 +516,7 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 
 static void seat_view_handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_seat_view *seat_view =
-		wl_container_of(listener, seat_view, destroy);
+		wl_container_of(listener, seat_view, view_destroy);
 	seat_view_destroy(seat_view);
 }
 
@@ -532,14 +532,14 @@ static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
 
 	wl_list_insert(&seat->views, &seat_view->link);
 
-	seat_view->destroy.notify = seat_view_handle_destroy;
-	wl_signal_add(&view->events.destroy, &seat_view->destroy);
+	seat_view->view_destroy.notify = seat_view_handle_destroy;
+	wl_signal_add(&view->events.destroy, &seat_view->view_destroy);
 
 	return seat_view;
 }
 
 void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
-	struct roots_view *prev_focus = roots_seat_get_focused_view(seat);
+	struct roots_view *prev_focus = roots_seat_get_focus(seat);
 	if (view == prev_focus) {
 		return;
 	}
@@ -569,7 +569,7 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 
 	seat->has_focus = false;
 
-	// unfocus the old view if it is not focused by some other seat
+	// deactivate the old view if it is not focused by some other seat
 	if (prev_focus != NULL && !input_view_has_focus(seat->input, prev_focus)) {
 		view_activate(prev_focus, false);
 	}

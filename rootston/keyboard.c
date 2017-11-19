@@ -91,10 +91,9 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 	if (strcmp(command, "exit") == 0) {
 		wl_display_terminate(keyboard->input->server->wl_display);
 	} else if (strcmp(command, "close") == 0) {
-		if (!wl_list_empty(&seat->views)) {
-			struct roots_seat_view *first_seat_view = wl_container_of(
-				seat->views.next, first_seat_view, link);
-			view_close(first_seat_view->view);
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL) {
+			view_close(focus);
 		}
 	} else if (strcmp(command, "next_window") == 0) {
 		if (!wl_list_empty(&seat->views)) {
