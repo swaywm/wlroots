@@ -665,6 +665,7 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 	icon->client = client;
 	icon->is_pointer = is_pointer;
 	icon->touch_id = touch_id;
+	icon->mapped = true;
 	wl_list_insert(&client->seat->drag_icons, &icon->link);
 
 	wl_signal_init(&icon->events.destroy);
