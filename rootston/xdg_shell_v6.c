@@ -174,7 +174,7 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
 	if (roots_surface->move_resize.configure_serial > 0 &&
-			roots_surface->move_resize.configure_serial ==
+			roots_surface->move_resize.configure_serial >=
 			surface->configure_serial) {
 		struct wlr_box size;
 		get_size(view, &size);
@@ -187,7 +187,11 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 			view->y = roots_surface->move_resize.y +
 				roots_surface->move_resize.height - size.height;
 		}
-		roots_surface->move_resize.configure_serial = 0;
+
+		if (roots_surface->move_resize.configure_serial ==
+				surface->configure_serial) {
+			roots_surface->move_resize.configure_serial = 0;
+		}
 	}
 }
 
