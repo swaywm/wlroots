@@ -539,6 +539,13 @@ static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
 }
 
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
+	// Make sure the view will be rendered on top of others, even if it's
+	// already focused in this seat
+	if (view != NULL) {
+		wl_list_remove(&view->link);
+		wl_list_insert(&seat->input->server->desktop->views, &view->link);
+	}
+
 	struct roots_view *prev_focus = roots_seat_get_focus(seat);
 	if (view == prev_focus) {
 		return;
@@ -569,7 +576,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 	seat->has_focus = false;
 
-	// deactivate the old view if it is not focused by some other seat
+	// Deactivate the old view if it is not focused by some other seat
 	if (prev_focus != NULL && !input_view_has_focus(seat->input, prev_focus)) {
 		view_activate(prev_focus, false);
 	}
@@ -580,9 +587,6 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	}
 
 	view_activate(view, true);
-	wl_list_remove(&seat_view->view->link);
-	wl_list_insert(&seat->input->server->desktop->views,
-		&seat_view->view->link);
 
 	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
