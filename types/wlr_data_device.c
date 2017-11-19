@@ -352,15 +352,13 @@ static void data_device_release(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static void drag_client_seat_unbound(struct wl_listener *listener, void *data) {
+static void handle_drag_seat_client_destroy(struct wl_listener *listener,
+		void *data) {
 	struct wlr_drag *drag =
-		wl_container_of(listener, drag, seat_client_unbound);
-	struct wlr_seat_client *unbound_client = data;
+		wl_container_of(listener, drag, seat_client_destroy);
 
-	if (drag->focus_client == unbound_client) {
-		drag->focus_client = NULL;
-		wl_list_remove(&drag->seat_client_unbound.link);
-	}
+	drag->focus_client = NULL;
+	wl_list_remove(&drag->seat_client_destroy.link);
 }
 
 static void wlr_drag_set_focus(struct wlr_drag *drag,
@@ -370,7 +368,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 	}
 
 	if (drag->focus_client && drag->focus_client->data_device) {
-		wl_list_remove(&drag->seat_client_unbound.link);
+		wl_list_remove(&drag->seat_client_destroy.link);
 		wl_data_device_send_leave(drag->focus_client->data_device);
 		drag->focus_client = NULL;
 		drag->focus = NULL;
@@ -430,9 +428,9 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 
 	drag->focus = surface;
 	drag->focus_client = focus_client;
-	drag->seat_client_unbound.notify = drag_client_seat_unbound;
-	wl_signal_add(&focus_client->seat->events.client_unbound,
-		&drag->seat_client_unbound);
+	drag->seat_client_destroy.notify = handle_drag_seat_client_destroy;
+	wl_signal_add(&focus_client->events.destroy,
+		&drag->seat_client_destroy);
 }
 
 static void wlr_drag_end(struct wlr_drag *drag) {
@@ -452,6 +450,7 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 		wlr_drag_set_focus(drag, NULL, 0, 0);
 
 		if (drag->icon) {
+			drag->icon->mapped = false;
 			wl_list_remove(&drag->icon_destroy.link);
 		}
 
@@ -614,8 +613,72 @@ static void drag_handle_drag_source_destroy(struct wl_listener *listener,
 	wlr_drag_end(drag);
 }
 
+static void wlr_drag_icon_destroy(struct wlr_drag_icon *icon) {
+	if (!icon) {
+		return;
+	}
+	wl_signal_emit(&icon->events.destroy, icon);
+	wl_list_remove(&icon->surface_commit.link);
+	wl_list_remove(&icon->surface_destroy.link);
+	wl_list_remove(&icon->seat_client_destroy.link);
+	wl_list_remove(&icon->link);
+	free(icon);
+}
+
+static void handle_drag_icon_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drag_icon *icon =
+		wl_container_of(listener, icon, surface_destroy);
+	wlr_drag_icon_destroy(icon);
+}
+
+static void handle_drag_icon_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drag_icon *icon =
+		wl_container_of(listener, icon, surface_commit);
+	icon->sx += icon->surface->current->sx;
+	icon->sy += icon->surface->current->sy;
+}
+
+static void handle_drag_icon_seat_client_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drag_icon *icon =
+		wl_container_of(listener, icon, seat_client_destroy);
+
+	wlr_drag_icon_destroy(icon);
+}
+
+static struct wlr_drag_icon *wlr_drag_icon_create(
+		struct wlr_surface *icon_surface, struct wlr_seat_client *client,
+		bool is_pointer, int32_t touch_id) {
+	struct wlr_drag_icon *icon = calloc(1, sizeof(struct wlr_drag_icon));
+	if (!icon) {
+		return NULL;
+	}
+
+	icon->surface = icon_surface;
+	icon->client = client;
+	icon->is_pointer = is_pointer;
+	icon->touch_id = touch_id;
+	icon->mapped = true;
+	wl_list_insert(&client->seat->drag_icons, &icon->link);
+
+	wl_signal_init(&icon->events.destroy);
+
+	wl_signal_add(&icon->surface->events.destroy, &icon->surface_destroy);
+	icon->surface_destroy.notify = handle_drag_icon_surface_destroy;
+
+	wl_signal_add(&icon->surface->events.commit, &icon->surface_commit);
+	icon->surface_commit.notify = handle_drag_icon_surface_commit;
+
+	wl_signal_add(&client->events.destroy, &icon->seat_client_destroy);
+	icon->seat_client_destroy.notify = handle_drag_icon_seat_client_destroy;
+
+	return icon;
+}
+
 static bool seat_client_start_drag(struct wlr_seat_client *client,
-		struct wlr_data_source *source, struct wlr_surface *icon,
+		struct wlr_data_source *source, struct wlr_surface *icon_surface,
 		struct wlr_surface *origin, uint32_t serial) {
 	struct wlr_drag *drag = calloc(1, sizeof(struct wlr_drag));
 	if (drag == NULL) {
@@ -649,11 +712,20 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		return true;
 	}
 
-	if (icon) {
+	if (icon_surface) {
+		int32_t touch_id = (point ? point->touch_id : 0);
+		struct wlr_drag_icon *icon =
+			wlr_drag_icon_create(icon_surface, client, drag->is_pointer_grab,
+				touch_id);
+
+		if (!icon) {
+			free(drag);
+			return false;
+		}
+
 		drag->icon = icon;
 		drag->icon_destroy.notify = drag_handle_icon_destroy;
 		wl_signal_add(&icon->events.destroy, &drag->icon_destroy);
-		drag->icon = icon;
 	}
 
 	if (source) {
@@ -711,8 +783,6 @@ static void data_device_start_drag(struct wl_client *client,
 			return;
 		}
 	}
-
-	// TODO touch grab
 
 	if (!seat_client_start_drag(seat_client, source, icon, origin, serial)) {
 		wl_resource_post_no_memory(device_resource);

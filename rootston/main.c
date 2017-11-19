@@ -59,8 +59,9 @@ int main(int argc, char **argv) {
 	ready(NULL, NULL);
 #else
 	if (server.desktop->xwayland != NULL) {
-		struct wl_listener xwayland_ready = { .notify = ready };
-		wl_signal_add(&server.desktop->xwayland->events.ready, &xwayland_ready);
+		wl_signal_add(&server.desktop->xwayland->events.ready,
+			&server.desktop->xwayland_ready);
+		server.desktop->xwayland_ready.notify = ready;
 	} else {
 		ready(NULL, NULL);
 	}

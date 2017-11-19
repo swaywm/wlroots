@@ -191,10 +191,10 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		render_view(view, desktop, wlr_output, &now);
 	}
 
-	struct roots_drag_icon *drag_icon = NULL;
+	struct wlr_drag_icon *drag_icon = NULL;
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &server->input->seats, link) {
-		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+		wl_list_for_each(drag_icon, &seat->seat->drag_icons, link) {
 			if (!drag_icon->mapped) {
 				continue;
 			}

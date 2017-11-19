@@ -21,6 +21,10 @@ struct wlr_seat_client {
 	struct wl_resource *touch;
 	struct wl_resource *data_device;
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	struct wl_list link;
 };
 
@@ -165,6 +169,8 @@ struct wlr_seat {
 	struct wl_global *wl_global;
 	struct wl_display *display;
 	struct wl_list clients;
+	struct wl_list drag_icons; // wlr_drag_icon::link
+
 	char *name;
 	uint32_t capabilities;
 	struct timespec last_event;
@@ -180,9 +186,6 @@ struct wlr_seat {
 	struct wl_listener selection_data_source_destroy;
 
 	struct {
-		struct wl_signal client_bound;
-		struct wl_signal client_unbound;
-
 		struct wl_signal pointer_grab_begin;
 		struct wl_signal pointer_grab_end;
 
