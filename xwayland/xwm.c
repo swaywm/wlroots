@@ -218,7 +218,6 @@ static void wlr_xwayland_surface_destroy(
 	free(xsurface->title);
 	free(xsurface->class);
 	free(xsurface->instance);
-	wlr_list_free(xsurface->state);
 	free(xsurface->window_type);
 	free(xsurface->protocols);
 	free(xsurface->hints);

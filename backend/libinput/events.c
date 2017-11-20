@@ -147,7 +147,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 
 	if (wl_list_length(wlr_devices) > 0) {
 		libinput_device_set_user_data(libinput_dev, wlr_devices);
-		wlr_list_add(backend->wlr_device_lists, wlr_devices);
+		wlr_list_push(&backend->wlr_device_lists, wlr_devices);
 	} else {
 		free(wlr_devices);
 	}
@@ -177,9 +177,9 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 		wl_signal_emit(&backend->backend.events.input_remove, dev);
 		wlr_input_device_destroy(dev);
 	}
-	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
-		if (backend->wlr_device_lists->items[i] == wlr_devices) {
-			wlr_list_del(backend->wlr_device_lists, i);
+	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
+		if (backend->wlr_device_lists.items[i] == wlr_devices) {
+			wlr_list_del(&backend->wlr_device_lists, i);
 			break;
 		}
 	}
