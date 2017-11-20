@@ -382,6 +382,10 @@ static void output_fullscreen_surface_handle_destroy(
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
 	// TODO: hardware fullscreen
+	if (output->fullscreen_surface == surface) {
+		return;
+	}
+
 	output_fullscreen_surface_reset(output);
 
 	output->fullscreen_surface = surface;
