@@ -178,6 +178,7 @@ static bool has_standalone_surface(struct roots_view *view) {
 	case ROOTS_XWAYLAND_VIEW:
 		return true;
 	}
+	return true;
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
