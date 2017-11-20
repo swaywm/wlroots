@@ -69,37 +69,37 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		if (seat->focus) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			double active_x = seat->focus->x;
-			double active_y = seat->focus->y;
+			double x = seat->focus->x;
+			double y = seat->focus->y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
-				active_y = cursor->view_y + dy;
+				y = cursor->view_y + dy;
 				height -= dy;
-				if (height < 0) {
-					active_y += height;
+				if (height < 1) {
+					y += height;
 				}
 			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
 				height += dy;
 			}
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-				active_x = cursor->view_x + dx;
+				x = cursor->view_x + dx;
 				width -= dx;
-				if (width < 0) {
-					active_x += width;
+				if (width < 1) {
+					x += width;
 				}
 			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
 				width += dx;
 			}
 
-			if (width < 0) {
-				width = 0;
+			if (width < 1) {
+				width = 1;
 			}
-			if (height < 0) {
-				height = 0;
+			if (height < 1) {
+				height = 1;
 			}
 
-			view_move_resize(seat->focus, active_x, active_y, width, height);
+			view_move_resize(seat->focus, x, y, width, height);
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:
