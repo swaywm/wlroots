@@ -38,7 +38,7 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
-	if (surface->texture->valid) {
+	if (wlr_surface_has_buffer(surface)) {
 		int width = surface->current->width;
 		int height = surface->current->height;
 		int render_width = width * wlr_output->scale;
