@@ -43,6 +43,9 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE_MAXIMIZED_VERT",
 	"_NET_WM_STATE_MAXIMIZED_HORZ",
 	"WM_STATE",
+	"CLIPBOARD",
+	"_WL_SELECTION",
+	"CLIPBOARD_MANAGER",
 };
 
 /* General helpers */
@@ -1338,6 +1341,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xcb_flush(xwm->xcb_conn);
 
 	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+
+	xwm_selection_init(xwm);
 
 	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,

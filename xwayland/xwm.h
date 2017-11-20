@@ -31,6 +31,9 @@ enum atom_name {
 	_NET_WM_STATE_MAXIMIZED_VERT,
 	_NET_WM_STATE_MAXIMIZED_HORZ,
 	WM_STATE,
+	CLIPBOARD,
+	CLIPBOARD_MANAGER,
+	WL_SELECTION,
 	ATOM_LAST,
 };
 
@@ -55,6 +58,11 @@ struct wlr_xwm {
 	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
+	// selection properties
+	xcb_window_t selection_window;
+	xcb_selection_request_event_t selection_request;
+	int incr;
+
 	struct wlr_xwayland_surface *focus_surface;
 
 	struct wl_list surfaces; // wlr_xwayland_surface::link
@@ -73,5 +81,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
+
+void xwm_selection_init(struct wlr_xwm *xwm);
 
 #endif
