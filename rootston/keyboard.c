@@ -87,20 +87,16 @@ static const char *exec_prefix = "exec ";
 
 static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		const char *command) {
-	struct roots_server *server = keyboard->input->server;
+	struct roots_seat *seat = keyboard->seat;
 	if (strcmp(command, "exit") == 0) {
-		wl_display_terminate(server->wl_display);
+		wl_display_terminate(keyboard->input->server->wl_display);
 	} else if (strcmp(command, "close") == 0) {
-		if (server->desktop->views->length > 0) {
-			struct roots_view *view =
-				server->desktop->views->items[server->desktop->views->length-1];
-			view_close(view);
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL) {
+			view_close(focus);
 		}
 	} else if (strcmp(command, "next_window") == 0) {
-		if (server->desktop->views->length > 0) {
-			struct roots_view *view = server->desktop->views->items[0];
-			roots_seat_focus_view(keyboard->seat, view);
-		}
+		roots_seat_cycle_focus(seat);
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();

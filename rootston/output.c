@@ -38,7 +38,7 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
-	if (surface->texture->valid) {
+	if (wlr_surface_has_buffer(surface)) {
 		int width = surface->current->width;
 		int height = surface->current->height;
 		int render_width = width * wlr_output->scale;
@@ -186,8 +186,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	for (size_t i = 0; i < desktop->views->length; ++i) {
-		struct roots_view *view = desktop->views->items[i];
+	struct roots_view *view;
+	wl_list_for_each_reverse(view, &desktop->views, link) {
 		render_view(view, desktop, wlr_output, &now);
 	}
 

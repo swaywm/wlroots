@@ -9,7 +9,6 @@
 struct roots_wl_shell_surface {
 	struct roots_view *view;
 
-	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
@@ -22,7 +21,6 @@ struct roots_wl_shell_surface {
 struct roots_xdg_surface_v6 {
 	struct roots_view *view;
 
-	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener commit;
 	struct wl_listener destroy;
 	struct wl_listener request_move;
@@ -35,7 +33,6 @@ struct roots_xdg_surface_v6 {
 struct roots_xwayland_surface {
 	struct roots_view *view;
 
-	// TODO: Maybe destroy listener should go in roots_view
 	struct wl_listener destroy;
 	struct wl_listener request_configure;
 	struct wl_listener request_move;
@@ -55,6 +52,7 @@ enum roots_view_type {
 
 struct roots_view {
 	struct roots_desktop *desktop;
+	struct wl_list link; // roots_desktop::views
 
 	double x, y;
 	float rotation;
@@ -89,6 +87,10 @@ struct roots_view {
 #endif
 	};
 	struct wlr_surface *wlr_surface;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 
 	// TODO: This would probably be better as a field that's updated on a
 	// configure event from the xdg_shell

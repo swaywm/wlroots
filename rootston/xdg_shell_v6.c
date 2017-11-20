@@ -197,7 +197,6 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, destroy);
-	view_teardown(roots_xdg_surface->view);
 	wl_list_remove(&roots_xdg_surface->commit.link);
 	wl_list_remove(&roots_xdg_surface->destroy.link);
 	wl_list_remove(&roots_xdg_surface->request_move.link);
@@ -255,9 +254,8 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->move_resize = move_resize;
 	view->maximize = maximize;
 	view->close = close;
-	view->desktop = desktop;
 	roots_surface->view = view;
-	wlr_list_add(desktop->views, view);
+	view_init(view, desktop);
 
 	view_setup(view);
 }
