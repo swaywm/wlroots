@@ -14,12 +14,21 @@ struct roots_seat {
 	int32_t touch_id;
 	double touch_x, touch_y;
 
-	struct roots_view *focus;
+	struct wl_list views; // roots_seat_view::link
+	bool has_focus;
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+};
+
+struct roots_seat_view {
+	struct roots_seat *seat;
+	struct roots_view *view;
+	struct wl_list link; // roots_seat::views
+
+	struct wl_listener view_destroy;
 };
 
 struct roots_pointer {
@@ -60,7 +69,11 @@ void roots_seat_configure_xcursor(struct roots_seat *seat);
 
 bool roots_seat_has_meta_pressed(struct roots_seat *seat);
 
-void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view);
+struct roots_view *roots_seat_get_focus(struct roots_seat *seat);
+
+void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_cycle_focus(struct roots_seat *seat);
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view);
 
