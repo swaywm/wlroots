@@ -90,17 +90,17 @@ static void move_resize(struct roots_view *view, double x, double y,
 		y = y + height - constrained_height;
 	}
 
-	roots_surface->move_resize.x = x;
-	roots_surface->move_resize.y = y;
-	roots_surface->move_resize.update_x = update_x;
-	roots_surface->move_resize.update_y = update_y;
-	roots_surface->move_resize.width = constrained_width;
-	roots_surface->move_resize.height = constrained_height;
+	view->pending_move_resize.update_x = update_x;
+	view->pending_move_resize.update_y = update_y;
+	view->pending_move_resize.x = x;
+	view->pending_move_resize.y = y;
+	view->pending_move_resize.width = constrained_width;
+	view->pending_move_resize.height = constrained_height;
 
 	uint32_t serial = wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
 		constrained_height);
 	if (serial > 0) {
-		roots_surface->move_resize.configure_serial = serial;
+		roots_surface->pending_move_resize_configure_serial = serial;
 	} else {
 		view->x = x;
 		view->y = y;
@@ -173,24 +173,23 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
-	if (roots_surface->move_resize.configure_serial > 0 &&
-			roots_surface->move_resize.configure_serial >=
-			surface->configure_serial) {
+	uint32_t pending_serial =
+		roots_surface->pending_move_resize_configure_serial;
+	if (pending_serial > 0 && pending_serial >= surface->configure_serial) {
 		struct wlr_box size;
 		get_size(view, &size);
 
-		if (roots_surface->move_resize.update_x) {
-			view->x = roots_surface->move_resize.x +
-				roots_surface->move_resize.width - size.width;
+		if (view->pending_move_resize.update_x) {
+			view->x = view->pending_move_resize.x +
+				view->pending_move_resize.width - size.width;
 		}
-		if (roots_surface->move_resize.update_y) {
-			view->y = roots_surface->move_resize.y +
-				roots_surface->move_resize.height - size.height;
+		if (view->pending_move_resize.update_y) {
+			view->y = view->pending_move_resize.y +
+				view->pending_move_resize.height - size.height;
 		}
 
-		if (roots_surface->move_resize.configure_serial ==
-				surface->configure_serial) {
-			roots_surface->move_resize.configure_serial = 0;
+		if (pending_serial == surface->configure_serial) {
+			roots_surface->pending_move_resize_configure_serial = 0;
 		}
 	}
 }

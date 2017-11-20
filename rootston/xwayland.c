@@ -66,15 +66,26 @@ static void move_resize(struct roots_view *view, double x, double y,
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
+	bool update_x = x != view->x;
+	bool update_y = y != view->y;
+
 	uint32_t constrained_width, constrained_height;
 	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
 		&constrained_height);
 
-	x = x + width - constrained_width;
-	y = y + height - constrained_height;
+	if (update_x) {
+		x = x + width - constrained_width;
+	}
+	if (update_y) {
+		y = y + height - constrained_height;
+	}
 
-	view->x = x;
-	view->y = y;
+	view->pending_move_resize.update_x = update_x;
+	view->pending_move_resize.update_y = update_y;
+	view->pending_move_resize.x = x;
+	view->pending_move_resize.y = y;
+	view->pending_move_resize.width = constrained_width;
+	view->pending_move_resize.height = constrained_height;
 
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
 		x, y, constrained_width, constrained_height);
@@ -171,6 +182,27 @@ static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	view_maximize(view, maximized);
 }
 
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, surface_commit);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+
+	int width = xwayland_surface->surface->current->width;
+	int height = xwayland_surface->surface->current->height;
+
+	if (view->pending_move_resize.update_x) {
+		view->x = view->pending_move_resize.x +
+			view->pending_move_resize.width - width;
+		view->pending_move_resize.update_x = false;
+	}
+	if (view->pending_move_resize.update_y) {
+		view->y = view->pending_move_resize.y +
+			view->pending_move_resize.height - height;
+		view->pending_move_resize.update_y = false;
+	}
+}
+
 static void handle_map_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, map_notify);
@@ -182,6 +214,10 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->x = (double)xsurface->x;
 	view->y = (double)xsurface->y;
 
+	roots_surface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&xsurface->surface->events.commit,
+		&roots_surface->surface_commit);
+
 	wlr_list_push(desktop->views, roots_surface->view);
 }
 
@@ -190,6 +226,8 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_surface, unmap_notify);
 	struct roots_desktop *desktop = roots_surface->view->desktop;
 	roots_surface->view->wlr_surface = NULL;
+
+	wl_list_remove(&roots_surface->surface_commit.link);
 
 	for (size_t i = 0; i < desktop->views->length; i++) {
 		if (desktop->views->items[i] == roots_surface->view) {
@@ -230,6 +268,10 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_maximize.notify = handle_request_maximize;
 	wl_signal_add(&surface->events.request_maximize,
 		&roots_surface->request_maximize);
+
+	roots_surface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&surface->surface->events.commit,
+		&roots_surface->surface_commit);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (view == NULL) {

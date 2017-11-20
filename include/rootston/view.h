@@ -29,12 +29,7 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
 
-	struct {
-		uint32_t configure_serial;
-		double x, y;
-		bool update_x, update_y;
-		uint32_t width, height;
-	} move_resize;
+	uint32_t pending_move_resize_configure_serial;
 };
 
 struct roots_xwayland_surface {
@@ -48,6 +43,8 @@ struct roots_xwayland_surface {
 	struct wl_listener request_maximize;
 	struct wl_listener map_notify;
 	struct wl_listener unmap_notify;
+
+	struct wl_listener surface_commit;
 };
 
 enum roots_view_type {
@@ -68,6 +65,12 @@ struct roots_view {
 		uint32_t width, height;
 		float rotation;
 	} saved;
+
+	struct {
+		bool update_x, update_y;
+		double x, y;
+		uint32_t width, height;
+	} pending_move_resize;
 
 	// TODO: Something for roots-enforced width/height
 	enum roots_view_type type;
