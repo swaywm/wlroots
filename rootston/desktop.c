@@ -246,15 +246,12 @@ void view_destroy(struct roots_view *view) {
 		view->fullscreen_output->fullscreen_view = NULL;
 	}
 
-	wl_list_remove(&view->link);
 	free(view);
 }
 
 void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	view->desktop = desktop;
 	wl_signal_init(&view->events.destroy);
-
-	wl_list_insert(&desktop->views, &view->link);
 }
 
 void view_setup(struct roots_view *view) {

@@ -190,6 +190,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_xdg_surface->destroy.link);
 	wl_list_remove(&roots_xdg_surface->request_move.link);
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
+	wl_list_remove(&roots_xdg_surface->view->link);
 	view_destroy(roots_xdg_surface->view);
 	free(roots_xdg_surface);
 }
@@ -249,6 +250,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	roots_surface->view = view;
 	view_init(view, desktop);
+	wl_list_insert(&desktop->views, &view->link);
 
 	view_setup(view);
 }

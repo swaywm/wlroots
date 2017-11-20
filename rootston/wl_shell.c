@@ -99,6 +99,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->request_set_fullscreen.link);
 	wl_list_remove(&roots_surface->set_state.link);
 	wl_list_remove(&roots_surface->surface_commit.link);
+	wl_list_remove(&roots_surface->view->link);
 	view_destroy(roots_surface->view);
 	free(roots_surface);
 }
@@ -151,6 +152,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	roots_surface->view = view;
 	view_init(view, desktop);
+	wl_list_insert(&desktop->views, &view->link);
 
 	view_setup(view);
 
