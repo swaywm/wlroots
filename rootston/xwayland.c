@@ -186,10 +186,10 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, surface_commit);
 	struct roots_view *view = roots_surface->view;
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct wlr_surface *wlr_surface = view->wlr_surface;
 
-	int width = xwayland_surface->surface->current->width;
-	int height = xwayland_surface->surface->current->height;
+	int width = wlr_surface->current->width;
+	int height = wlr_surface->current->height;
 
 	if (view->pending_move_resize.update_x) {
 		view->x = view->pending_move_resize.x +
