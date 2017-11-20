@@ -259,6 +259,7 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 
 	glViewport(0, 0, output->width, output->height);
 	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
