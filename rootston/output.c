@@ -13,10 +13,6 @@
 #include "rootston/desktop.h"
 #include "rootston/config.h"
 
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
-}
-
 /**
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
  * the child position is (*sx, *sy) and its size is (sw, sh).
@@ -75,12 +71,7 @@ static void render_surface(struct wlr_surface *surface,
 			wlr_render_with_matrix(desktop->server->renderer, surface->texture,
 				&matrix);
 
-			struct wlr_frame_callback *cb, *cnext;
-			wl_list_for_each_safe(cb, cnext,
-					&surface->current->frame_callback_list, link) {
-				wl_callback_send_done(cb->resource, timespec_to_msec(when));
-				wl_resource_destroy(cb->resource);
-			}
+			wlr_surface_send_frame_done(surface, when);
 		}
 
 		struct wlr_subsurface *subsurface;
@@ -176,7 +167,6 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 
 static bool has_standalone_surface(struct roots_view *view) {
 	if (!wl_list_empty(&view->wlr_surface->subsurface_list)) {
-		wlr_log(L_DEBUG, "has subsurfaces");
 		return false;
 	}
 

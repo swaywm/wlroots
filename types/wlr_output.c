@@ -253,7 +253,7 @@ void wlr_output_make_current(struct wlr_output *output) {
 }
 
 static void output_fullscreen_surface_render(struct wlr_output *output,
-		struct wlr_surface *surface) {
+		struct wlr_surface *surface, const struct timespec *when) {
 	int x = (output->width - surface->current->width) / 2;
 	int y = (output->height - surface->current->height) / 2;
 
@@ -268,6 +268,8 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	wlr_texture_get_matrix(surface->texture, &matrix, &output->transform_matrix,
 		x, y);
 	wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+
+	wlr_surface_send_frame_done(surface, when);
 }
 
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
@@ -278,7 +280,8 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->height = cursor->height;
 }
 
-static void output_cursor_render(struct wlr_output_cursor *cursor) {
+static void output_cursor_render(struct wlr_output_cursor *cursor,
+		const struct timespec *when) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
@@ -321,13 +324,21 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
 		x, y);
 	wlr_render_with_matrix(renderer, texture, &matrix);
+
+	if (cursor->surface != NULL) {
+		wlr_surface_send_frame_done(cursor->surface, when);
+	}
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
 	wl_signal_emit(&output->events.swap_buffers, &output);
 
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
 	if (output->fullscreen_surface != NULL) {
-		output_fullscreen_surface_render(output, output->fullscreen_surface);
+		output_fullscreen_surface_render(output, output->fullscreen_surface,
+			&now);
 	}
 
 	struct wlr_output_cursor *cursor;
@@ -335,7 +346,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 		if (!cursor->enabled || output->hardware_cursor == cursor) {
 			continue;
 		}
-		output_cursor_render(cursor);
+		output_cursor_render(cursor, &now);
 	}
 
 	output->impl->swap_buffers(output);
@@ -472,30 +483,18 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 		cursor->output->needs_swap = true;
 	} else {
 		// TODO: upload pixels
-	}
-}
 
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		wlr_surface_send_frame_done(cursor->surface, &now);
+	}
 }
 
 static void output_cursor_handle_commit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_cursor *cursor = wl_container_of(listener, cursor,
 		surface_commit);
-	struct wlr_surface *surface = data;
-
 	output_cursor_commit(cursor);
-
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	struct wlr_frame_callback *cb, *cnext;
-	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
-			link) {
-		wl_callback_send_done(cb->resource, timespec_to_msec(&now));
-		wl_resource_destroy(cb->resource);
-	}
 }
 
 static void output_cursor_handle_destroy(struct wl_listener *listener,
