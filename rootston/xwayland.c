@@ -175,22 +175,21 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_surface, map_notify);
 	struct wlr_xwayland_surface *xsurface = data;
 	struct roots_view *view = roots_surface->view;
-	//struct roots_desktop *desktop = view->desktop;
+	struct roots_desktop *desktop = view->desktop;
 
 	view->wlr_surface = xsurface->surface;
 	view->x = (double)xsurface->x;
 	view->y = (double)xsurface->y;
 
-	// TODO: add view to desktop
+	wl_list_insert(&desktop->views, &view->link);
 }
 
 static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
-	//struct roots_desktop *desktop = roots_surface->view->desktop;
 	roots_surface->view->wlr_surface = NULL;
 
-	// TODO: remove view from desktop
+	wl_list_remove(&roots_surface->view->link);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
