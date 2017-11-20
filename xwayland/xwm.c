@@ -42,6 +42,7 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE_FULLSCREEN",
 	"_NET_WM_STATE_MAXIMIZED_VERT",
 	"_NET_WM_STATE_MAXIMIZED_HORZ",
+	"WM_STATE",
 };
 
 /* General helpers */
@@ -640,8 +641,8 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
 		xsurface->window_id,
-		xwm->atoms[NET_WM_STATE],
-		xwm->atoms[NET_WM_STATE],
+		xwm->atoms[WM_STATE],
+		xwm->atoms[WM_STATE],
 		32, // format
 		2, property);
 }

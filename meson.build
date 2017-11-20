@@ -131,7 +131,6 @@ wlr_deps = [
 
 lib_wlr = library(
 	'wlroots',
-	files('dummy.c'),
 	link_whole: wlr_parts,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,

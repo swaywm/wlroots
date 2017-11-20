@@ -53,6 +53,27 @@ struct wlr_data_source {
 	} events;
 };
 
+struct wlr_drag_icon {
+	struct wlr_surface *surface;
+	struct wlr_seat_client *client;
+	struct wl_list link; // wlr_seat::drag_icons
+	bool mapped;
+
+	bool is_pointer;
+	int32_t touch_id;
+
+	int32_t sx;
+	int32_t sy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+	struct wl_listener seat_client_destroy;
+};
+
 struct wlr_drag {
 	struct wlr_seat_pointer_grab pointer_grab;
 	struct wlr_seat_keyboard_grab keyboard_grab;
@@ -64,7 +85,7 @@ struct wlr_drag {
 
 	bool is_pointer_grab;
 
-	struct wlr_surface *icon;
+	struct wlr_drag_icon *icon;
 	struct wlr_surface *focus;
 	struct wlr_data_source *source;
 
@@ -72,9 +93,9 @@ struct wlr_drag {
 	int32_t grab_touch_id;
 
 	struct wl_listener point_destroy;
-	struct wl_listener icon_destroy;
 	struct wl_listener source_destroy;
-	struct wl_listener seat_client_unbound;
+	struct wl_listener seat_client_destroy;
+	struct wl_listener icon_destroy;
 };
 
 /**

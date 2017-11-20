@@ -18,29 +18,6 @@
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
 
-// TODO replace me with a signal
-void view_destroy(struct roots_view *view) {
-	struct roots_desktop *desktop = view->desktop;
-
-	struct roots_input *input = desktop->server->input;
-	struct roots_seat *seat;
-	wl_list_for_each(seat, &input->seats, link) {
-		if (seat->focus == view) {
-			seat->focus = NULL;
-			seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-		}
-	}
-
-	for (size_t i = 0; i < desktop->views->length; ++i) {
-		struct roots_view *_view = desktop->views->items[i];
-		if (view == _view) {
-			wlr_list_del(desktop->views, i);
-			break;
-		}
-	}
-	free(view);
-}
-
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
 	box->y = view->y;
@@ -201,12 +178,23 @@ bool view_center(struct roots_view *view) {
 	return true;
 }
 
+void view_destroy(struct roots_view *view) {
+	wl_signal_emit(&view->events.destroy, view);
+
+	free(view);
+}
+
+void view_init(struct roots_view *view, struct roots_desktop *desktop) {
+	view->desktop = desktop;
+	wl_signal_init(&view->events.destroy);
+}
+
 void view_setup(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
 	// TODO what seat gets focus? the one with the last input event?
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		roots_seat_focus_view(seat, view);
+		roots_seat_set_focus(seat, view);
 	}
 
 	view_center(view);
@@ -215,25 +203,10 @@ void view_setup(struct roots_view *view) {
 	view_update_output(view, &before);
 }
 
-void view_teardown(struct roots_view *view) {
-	// TODO replace me with a signal
-	/*
-	struct wlr_list *views = view->desktop->views;
-	if (views->length < 2 || views->items[views->length-1] != view) {
-		return;
-	}
-
-	struct roots_view *prev_view = views->items[views->length-2];
-	struct roots_input *input = prev_view->desktop->server->input;
-	set_view_focus(input, prev_view->desktop, prev_view);
-	*/
-}
-
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	for (ssize_t i = desktop->views->length - 1; i >= 0; --i) {
-		struct roots_view *view = desktop->views->items[i];
-
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
 		if (view->type == ROOTS_WL_SHELL_VIEW &&
 				view->wl_shell_surface->state ==
 				WLR_WL_SHELL_SURFACE_STATE_POPUP) {
@@ -322,11 +295,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		return NULL;
 	}
 
-	desktop->views = wlr_list_create();
-	if (desktop->views == NULL) {
-		free(desktop);
-		return NULL;
-	}
+	wl_list_init(&desktop->views);
 	wl_list_init(&desktop->outputs);
 
 	desktop->output_add.notify = output_add_notify;
@@ -350,7 +319,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	if (desktop->xcursor_manager == NULL) {
 		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
 			cursor_theme);
-		wlr_list_free(desktop->views);
 		free(desktop);
 		return NULL;
 	}

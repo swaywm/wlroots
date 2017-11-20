@@ -116,7 +116,7 @@ bool input_view_has_focus(struct roots_input *input, struct roots_view *view) {
 	}
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		if (seat->focus == view) {
+		if (view == roots_seat_get_focus(seat)) {
 			return true;
 		}
 	}

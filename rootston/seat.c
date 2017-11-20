@@ -96,38 +96,6 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	roots_cursor_handle_request_set_cursor(cursor, event);
 }
 
-static void handle_pointer_grab_begin(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, pointer_grab_begin);
-	struct wlr_seat_pointer_grab *grab = data;
-	roots_cursor_handle_pointer_grab_begin(cursor, grab);
-}
-
-static void handle_pointer_grab_end(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, pointer_grab_end);
-	struct wlr_seat_pointer_grab *grab = data;
-	roots_cursor_handle_pointer_grab_end(cursor, grab);
-}
-
-static void handle_touch_grab_begin(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, touch_grab_begin);
-	struct wlr_seat_touch_grab *grab = data;
-	roots_cursor_handle_touch_grab_begin(cursor, grab);
-}
-
-static void handle_touch_grab_end(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, touch_grab_end);
-	struct wlr_seat_touch_grab *grab = data;
-	roots_cursor_handle_touch_grab_end(cursor, grab);
-}
-
 static void seat_reset_device_mappings(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
@@ -249,22 +217,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 			&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
-
-	wl_signal_add(&seat->seat->events.pointer_grab_begin,
-			&seat->cursor->pointer_grab_begin);
-	seat->cursor->pointer_grab_begin.notify = handle_pointer_grab_begin;
-
-	wl_signal_add(&seat->seat->events.pointer_grab_end,
-			&seat->cursor->pointer_grab_end);
-	seat->cursor->pointer_grab_end.notify = handle_pointer_grab_end;
-
-	wl_signal_add(&seat->seat->events.touch_grab_begin,
-			&seat->cursor->touch_grab_begin);
-	seat->cursor->touch_grab_begin.notify = handle_touch_grab_begin;
-
-	wl_signal_add(&seat->seat->events.touch_grab_end,
-			&seat->cursor->touch_grab_end);
-	seat->cursor->touch_grab_end.notify = handle_touch_grab_end;
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
@@ -277,7 +229,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->pointers);
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
-	wl_list_init(&seat->drag_icons);
+	wl_list_init(&seat->views);
 
 	seat->input = input;
 
@@ -533,9 +485,69 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat) {
 	return false;
 }
 
-void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
-	struct roots_desktop *desktop = seat->input->server->desktop;
-	if (seat->focus == view) {
+struct roots_view *roots_seat_get_focus(struct roots_seat *seat) {
+	if (!seat->has_focus || wl_list_empty(&seat->views)) {
+		return NULL;
+	}
+	struct roots_seat_view *seat_view =
+		wl_container_of(seat->views.next, seat_view, link);
+	return seat_view->view;
+}
+
+static void seat_view_destroy(struct roots_seat_view *seat_view) {
+	struct roots_seat *seat = seat_view->seat;
+
+	if (seat_view->view == roots_seat_get_focus(seat)) {
+		seat->has_focus = false;
+		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+	}
+
+	wl_list_remove(&seat_view->view_destroy.link);
+	wl_list_remove(&seat_view->link);
+	free(seat_view);
+
+	// Focus first view
+	if (!wl_list_empty(&seat->views)) {
+		struct roots_seat_view *first_seat_view = wl_container_of(
+			seat->views.next, first_seat_view, link);
+		roots_seat_set_focus(seat, first_seat_view->view);
+	}
+}
+
+static void seat_view_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_seat_view *seat_view =
+		wl_container_of(listener, seat_view, view_destroy);
+	seat_view_destroy(seat_view);
+}
+
+static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
+		struct roots_view *view) {
+	struct roots_seat_view *seat_view =
+		calloc(1, sizeof(struct roots_seat_view));
+	if (seat_view == NULL) {
+		return NULL;
+	}
+	seat_view->seat = seat;
+	seat_view->view = view;
+
+	wl_list_insert(&seat->views, &seat_view->link);
+
+	seat_view->view_destroy.notify = seat_view_handle_destroy;
+	wl_signal_add(&view->events.destroy, &seat_view->view_destroy);
+
+	return seat_view;
+}
+
+void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
+	// Make sure the view will be rendered on top of others, even if it's
+	// already focused in this seat
+	if (view != NULL) {
+		wl_list_remove(&view->link);
+		wl_list_insert(&seat->input->server->desktop->views, &view->link);
+	}
+
+	struct roots_view *prev_focus = roots_seat_get_focus(seat);
+	if (view == prev_focus) {
 		return;
 	}
 
@@ -544,33 +556,67 @@ void roots_seat_focus_view(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	struct roots_view *prev_focus = seat->focus;
-	seat->focus = view;
+	struct roots_seat_view *seat_view = NULL;
+	if (view != NULL) {
+		bool found = false;
+		wl_list_for_each(seat_view, &seat->views, link) {
+			if (seat_view->view == view) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			seat_view = seat_add_view(seat, view);
+			if (seat_view == NULL) {
+				wlr_log(L_ERROR, "Allocation failed");
+				return;
+			}
+		}
+	}
 
-	// unfocus the old view if it is not focused by some other seat
-	if (prev_focus && !input_view_has_focus(seat->input, prev_focus)) {
+	seat->has_focus = false;
+
+	// Deactivate the old view if it is not focused by some other seat
+	if (prev_focus != NULL && !input_view_has_focus(seat->input, prev_focus)) {
 		view_activate(prev_focus, false);
 	}
 
-	if (!seat->focus) {
+	if (view == NULL) {
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		return;
 	}
 
-	size_t index = 0;
-	for (size_t i = 0; i < desktop->views->length; ++i) {
-		struct roots_view *_view = desktop->views->items[i];
-		if (_view == view) {
-			index = i;
-			break;
-		}
+	view_activate(view, true);
+
+	seat->has_focus = true;
+	wl_list_remove(&seat_view->link);
+	wl_list_insert(&seat->views, &seat_view->link);
+	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+}
+
+void roots_seat_cycle_focus(struct roots_seat *seat) {
+	if (wl_list_empty(&seat->views)) {
+		return;
 	}
 
-	view_activate(view, true);
-	// TODO: list_swap
-	wlr_list_del(desktop->views, index);
-	wlr_list_add(desktop->views, view);
-	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+	struct roots_seat_view *first_seat_view = wl_container_of(
+		seat->views.next, first_seat_view, link);
+	if (!seat->has_focus) {
+		roots_seat_set_focus(seat, first_seat_view->view);
+		return;
+	}
+	if (wl_list_length(&seat->views) < 2) {
+		return;
+	}
+
+	// Focus the next view
+	struct roots_seat_view *next_seat_view = wl_container_of(
+		first_seat_view->link.next, next_seat_view, link);
+	roots_seat_set_focus(seat, next_seat_view->view);
+
+	// Move the first view to the end of the list
+	wl_list_remove(&first_seat_view->link);
+	wl_list_insert(seat->views.prev, &first_seat_view->link);
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
