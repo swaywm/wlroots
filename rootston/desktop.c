@@ -174,8 +174,14 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			output_box->height);
 		view->rotation = 0;
 
-		wlr_output_set_fullscreen_surface(output, view->wlr_surface);
-		view->fullscreen_output = output;
+		struct roots_output *roots_output;
+		wl_list_for_each(roots_output, &view->desktop->outputs, link) {
+			if (roots_output->wlr_output == output) {
+				roots_output->fullscreen_view = view;
+				view->fullscreen_output = roots_output;
+				break;
+			}
+		}
 	}
 
 	if (was_fullscreen && !fullscreen) {
@@ -183,7 +189,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			view->saved.height);
 		view->rotation = view->saved.rotation;
 
-		wlr_output_set_fullscreen_surface(view->fullscreen_output, NULL);
+		view->fullscreen_output->fullscreen_view = NULL;
 		view->fullscreen_output = NULL;
 	}
 }
@@ -235,6 +241,10 @@ bool view_center(struct roots_view *view) {
 
 void view_destroy(struct roots_view *view) {
 	wl_signal_emit(&view->events.destroy, view);
+
+	if (view->fullscreen_output) {
+		view->fullscreen_output->fullscreen_view = NULL;
+	}
 
 	wl_list_remove(&view->link);
 	free(view);

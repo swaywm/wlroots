@@ -174,6 +174,22 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 	}
 }
 
+static bool has_standalone_surface(struct roots_view *view) {
+	if (!wl_list_empty(&view->wlr_surface->subsurface_list)) {
+		wlr_log(L_DEBUG, "has subsurfaces");
+		return false;
+	}
+
+	switch (view->type) {
+	case ROOTS_XDG_SHELL_V6_VIEW:
+		return wl_list_empty(&view->xdg_surface_v6->popups);
+	case ROOTS_WL_SHELL_VIEW:
+		return wl_list_empty(&view->wl_shell_surface->popups);
+	case ROOTS_XWAYLAND_VIEW:
+		return true;
+	}
+}
+
 static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
 	struct roots_output *output = wl_container_of(listener, output, frame);
@@ -186,11 +202,20 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
-	if (wlr_output->fullscreen_surface != NULL) {
+	if (output->fullscreen_view != NULL) {
+		if (has_standalone_surface(output->fullscreen_view)) {
+			wlr_output_set_fullscreen_surface(wlr_output,
+				output->fullscreen_view->wlr_surface);
+		} else {
+			wlr_output_set_fullscreen_surface(wlr_output, NULL);
+			render_view(output->fullscreen_view, desktop, wlr_output, &now);
+		}
 		wlr_renderer_end(server->renderer);
 		wlr_output_swap_buffers(wlr_output);
 		output->last_frame = desktop->last_frame = now;
 		return;
+	} else {
+		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
 
 	struct roots_view *view;

@@ -19,13 +19,14 @@ struct roots_output {
 	struct wlr_output *wlr_output;
 	struct wl_listener frame;
 	struct timespec last_frame;
-	struct wl_list link;
+	struct wl_list link; // roots_desktop:outputs
+	struct roots_view *fullscreen_view;
 };
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
 
-	struct wl_list outputs;
+	struct wl_list outputs; // roots_output::link
 	struct timespec last_frame;
 
 	struct roots_server *server;

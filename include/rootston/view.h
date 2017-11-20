@@ -57,7 +57,7 @@ struct roots_view {
 	float rotation;
 
 	bool maximized;
-	struct wlr_output *fullscreen_output;
+	struct roots_output *fullscreen_output;
 	struct {
 		double x, y;
 		uint32_t width, height;
