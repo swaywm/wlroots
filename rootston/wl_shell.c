@@ -59,6 +59,17 @@ static void handle_request_set_maximized(struct wl_listener *listener,
 	view_maximize(view, true);
 }
 
+static void handle_request_set_fullscreen(struct wl_listener *listener,
+		void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_set_fullscreen);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_wl_shell_surface_set_fullscreen_event *e = data;
+
+	// TODO: support e->method, e->framerate
+	view_set_fullscreen(view, true, e->output);
+}
+
 static void handle_set_state(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, set_state);
@@ -67,6 +78,10 @@ static void handle_set_state(struct wl_listener *listener, void *data) {
 	if (view->maximized &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_MAXIMIZED) {
 		view_maximize(view, false);
+	}
+	if (view->fullscreen_output != NULL &&
+			surface->state != WLR_WL_SHELL_SURFACE_STATE_FULLSCREEN) {
+		view_set_fullscreen(view, false, NULL);
 	}
 }
 
@@ -81,6 +96,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
 	wl_list_remove(&roots_surface->request_set_maximized.link);
+	wl_list_remove(&roots_surface->request_set_fullscreen.link);
 	wl_list_remove(&roots_surface->set_state.link);
 	wl_list_remove(&roots_surface->surface_commit.link);
 	view_destroy(roots_surface->view);
@@ -111,6 +127,10 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_set_maximized.notify = handle_request_set_maximized;
 	wl_signal_add(&surface->events.request_set_maximized,
 		&roots_surface->request_set_maximized);
+	roots_surface->request_set_fullscreen.notify =
+		handle_request_set_fullscreen;
+	wl_signal_add(&surface->events.request_set_fullscreen,
+		&roots_surface->request_set_fullscreen);
 	roots_surface->set_state.notify = handle_set_state;
 	wl_signal_add(&surface->events.set_state, &roots_surface->set_state);
 	roots_surface->surface_commit.notify = handle_surface_commit;

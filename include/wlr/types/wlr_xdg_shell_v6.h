@@ -152,6 +152,13 @@ struct wlr_xdg_toplevel_v6_resize_event {
 	uint32_t edges;
 };
 
+struct wlr_xdg_toplevel_v6_set_fullscreen_event {
+	struct wl_client *client;
+	struct wlr_xdg_surface_v6 *surface;
+	bool fullscreen;
+	struct wlr_output *output;
+};
+
 struct wlr_xdg_toplevel_v6_show_window_menu_event {
 	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;

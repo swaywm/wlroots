@@ -252,6 +252,24 @@ void wlr_output_make_current(struct wlr_output *output) {
 	output->impl->make_current(output);
 }
 
+static void output_fullscreen_surface_render(struct wlr_output *output,
+		struct wlr_surface *surface) {
+	int x = (output->width - surface->current->width) / 2;
+	int y = (output->height - surface->current->height) / 2;
+
+	glViewport(0, 0, output->width, output->height);
+	glClearColor(0, 0, 0, 0);
+
+	if (!wlr_surface_has_buffer(surface)) {
+		return;
+	}
+
+	float matrix[16];
+	wlr_texture_get_matrix(surface->texture, &matrix, &output->transform_matrix,
+		x, y);
+	wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+}
+
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 		struct wlr_box *box) {
 	box->x = cursor->x - cursor->hotspot_x;
@@ -308,6 +326,10 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 void wlr_output_swap_buffers(struct wlr_output *output) {
 	wl_signal_emit(&output->events.swap_buffers, &output);
 
+	if (output->fullscreen_surface != NULL) {
+		output_fullscreen_surface_render(output, output->fullscreen_surface);
+	}
+
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
 		if (!cursor->enabled || output->hardware_cursor == cursor) {
@@ -333,6 +355,51 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	}
 	return output->impl->get_gamma_size(output);
 }
+
+static void output_fullscreen_surface_reset(struct wlr_output *output) {
+	if (output->fullscreen_surface != NULL) {
+		wl_list_remove(&output->fullscreen_surface_commit.link);
+		wl_list_remove(&output->fullscreen_surface_destroy.link);
+		output->fullscreen_surface = NULL;
+		output->needs_swap = true;
+	}
+}
+
+static void output_fullscreen_surface_handle_commit(
+		struct wl_listener *listener, void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		fullscreen_surface_destroy);
+	output->needs_swap = true;
+}
+
+static void output_fullscreen_surface_handle_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_output *output = wl_container_of(listener, output,
+		fullscreen_surface_destroy);
+	output_fullscreen_surface_reset(output);
+}
+
+void wlr_output_set_fullscreen_surface(struct wlr_output *output,
+		struct wlr_surface *surface) {
+	// TODO: hardware fullscreen
+	output_fullscreen_surface_reset(output);
+
+	output->fullscreen_surface = surface;
+	output->needs_swap = true;
+
+	if (surface == NULL) {
+		return;
+	}
+
+	output->fullscreen_surface_commit.notify =
+		output_fullscreen_surface_handle_commit;
+	wl_signal_add(&surface->events.commit, &output->fullscreen_surface_commit);
+	output->fullscreen_surface_destroy.notify =
+		output_fullscreen_surface_handle_destroy;
+	wl_signal_add(&surface->events.destroy,
+		&output->fullscreen_surface_destroy);
+}
+
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	if (cursor->output->hardware_cursor != cursor) {

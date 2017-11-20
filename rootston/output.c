@@ -186,6 +186,13 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 
+	if (wlr_output->fullscreen_surface != NULL) {
+		wlr_renderer_end(server->renderer);
+		wlr_output_swap_buffers(wlr_output);
+		output->last_frame = desktop->last_frame = now;
+		return;
+	}
+
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
 		render_view(view, desktop, wlr_output, &now);
