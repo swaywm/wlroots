@@ -85,12 +85,25 @@ void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 
 void view_move_resize(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height) {
+	bool update_x = x != view->x;
+	bool update_y = y != view->y;
+	if (!update_x && !update_y) {
+		view_resize(view, width, height);
+		return;
+	}
+
 	if (view->move_resize) {
 		view->move_resize(view, x, y, width, height);
 		return;
 	}
 
-	view_move(view, x, y);
+	view->pending_move_resize.update_x = update_x;
+	view->pending_move_resize.update_y = update_y;
+	view->pending_move_resize.x = x;
+	view->pending_move_resize.y = y;
+	view->pending_move_resize.width = width;
+	view->pending_move_resize.height = height;
+
 	view_resize(view, width, height);
 }
 

@@ -71,43 +71,37 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			double active_x = view->x;
-			double active_y = view->y;
+			double x = view->x;
+			double y = view->y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
-				active_y = cursor->view_y + dy;
+				y = cursor->view_y + dy;
 				height -= dy;
-				if (height < 0) {
-					active_y += height;
+				if (height < 1) {
+					y += height;
 				}
 			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
 				height += dy;
 			}
 			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
-				active_x = cursor->view_x + dx;
+				x = cursor->view_x + dx;
 				width -= dx;
-				if (width < 0) {
-					active_x += width;
+				if (width < 1) {
+					x += width;
 				}
 			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
 				width += dx;
 			}
 
-			if (width < 0) {
-				width = 0;
+			if (width < 1) {
+				width = 1;
 			}
-			if (height < 0) {
-				height = 0;
+			if (height < 1) {
+				height = 1;
 			}
 
-			if (active_x != view->x ||
-					active_y != view->y) {
-				view_move_resize(view, active_x, active_y,
-					width, height);
-			} else {
-				view_resize(view, width, height);
-			}
+			view_move_resize(view, x, y, width, height);
 		}
 		break;
 	case ROOTS_CURSOR_ROTATE:

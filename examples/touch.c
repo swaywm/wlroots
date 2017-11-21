@@ -24,12 +24,13 @@
 struct sample_state {
 	struct wlr_renderer *renderer;
 	struct wlr_texture *cat_texture;
-	struct wlr_list *touch_points;
+	struct wl_list touch_points;
 };
 
 struct touch_point {
 	int32_t touch_id;
 	double x, y;
+	struct wl_list link;
 };
 
 static void handle_output_frame(struct output_state *output, struct timespec *ts) {
@@ -44,14 +45,14 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	float matrix[16];
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *p = sample->touch_points->items[i];
+	struct touch_point *p;
+	wl_list_for_each(p, &sample->touch_points, link) {
 		wlr_texture_get_matrix(sample->cat_texture, &matrix,
 			&wlr_output->transform_matrix,
 			(int)(p->x * width) - sample->cat_texture->width / 2,
 			(int)(p->y * height) - sample->cat_texture->height / 2);
 		wlr_render_with_matrix(sample->renderer,
-				sample->cat_texture, &matrix);
+			sample->cat_texture, &matrix);
 	}
 
 	wlr_renderer_end(sample->renderer);
@@ -65,17 +66,15 @@ static void handle_touch_down(struct touch_state *tstate, int32_t touch_id,
 	point->touch_id = touch_id;
 	point->x = x / width;
 	point->y = y / height;
-	if (wlr_list_add(sample->touch_points, point) == -1) {
-		free(point);
-	}
+	wl_list_insert(&sample->touch_points, &point->link);
 }
 
 static void handle_touch_up(struct touch_state *tstate, int32_t touch_id) {
 	struct sample_state *sample = tstate->compositor->data;
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *point = sample->touch_points->items[i];
+	struct touch_point *point, *tmp;
+	wl_list_for_each_safe(point, tmp, &sample->touch_points, link) {
 		if (point->touch_id == touch_id) {
-			wlr_list_del(sample->touch_points, i);
+			wl_list_remove(&point->link);
 			break;
 		}
 	}
@@ -84,8 +83,8 @@ static void handle_touch_up(struct touch_state *tstate, int32_t touch_id) {
 static void handle_touch_motion(struct touch_state *tstate, int32_t touch_id,
 		double x, double y, double width, double height) {
 	struct sample_state *sample = tstate->compositor->data;
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *point = sample->touch_points->items[i];
+	struct touch_point *point;
+	wl_list_for_each(point, &sample->touch_points, link) {
 		if (point->touch_id == touch_id) {
 			point->x = x / width;
 			point->y = y / height;
@@ -95,9 +94,9 @@ static void handle_touch_motion(struct touch_state *tstate, int32_t touch_id,
 }
 
 int main(int argc, char *argv[]) {
-	struct sample_state state = {
-		.touch_points = wlr_list_create()
-	};
+	struct sample_state state;
+	wl_list_init(&state.touch_points);
+
 	struct compositor_state compositor = { 0,
 		.data = &state,
 		.output_frame_cb = handle_output_frame,

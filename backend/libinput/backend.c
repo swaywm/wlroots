@@ -69,9 +69,9 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 			no_devs = NULL;
 		}
 	}
-	if (!no_devs && backend->wlr_device_lists->length == 0) {
+	if (!no_devs && backend->wlr_device_lists.length == 0) {
 		wlr_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
-		if (backend->wlr_device_lists->length == 0) {
+		if (backend->wlr_device_lists.length == 0) {
 			wlr_log(L_ERROR, "libinput initialization failed, no input devices");
 			wlr_log(L_ERROR, "Set WLR_LIBINPUT_NO_DEVICES=1 to suppress this check");
 			return false;
@@ -97,9 +97,10 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 	if (!_backend) {
 		return;
 	}
-	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
-	for (size_t i = 0; i < backend->wlr_device_lists->length; i++) {
-		struct wl_list *wlr_devices = backend->wlr_device_lists->items[i];
+	struct wlr_libinput_backend *backend =
+		(struct wlr_libinput_backend *)_backend;
+	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
+		struct wl_list *wlr_devices = backend->wlr_device_lists.items[i];
 		struct wlr_input_device *wlr_dev, *next;
 		wl_list_for_each_safe(wlr_dev, next, wlr_devices, link) {
 			wl_signal_emit(&backend->backend.events.input_remove, wlr_dev);
@@ -107,7 +108,7 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 		}
 		free(wlr_devices);
 	}
-	wlr_list_free(backend->wlr_device_lists);
+	wlr_list_finish(&backend->wlr_device_lists);
 	wl_event_source_remove(backend->input_event);
 	libinput_unref(backend->libinput_context);
 	free(backend);
@@ -148,7 +149,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
 
-	if (!(backend->wlr_device_lists = wlr_list_create())) {
+	if (!wlr_list_init(&backend->wlr_device_lists)) {
 		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
 		goto error_backend;
 	}
