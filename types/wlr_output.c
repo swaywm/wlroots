@@ -253,8 +253,16 @@ void wlr_output_make_current(struct wlr_output *output) {
 
 static void output_fullscreen_surface_render(struct wlr_output *output,
 		struct wlr_surface *surface, const struct timespec *when) {
-	int x = (output->width - surface->current->buffer_width) / 2;
-	int y = (output->height - surface->current->buffer_height) / 2;
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+
+	int x = (width - surface->current->width) / 2;
+	int y = (height - surface->current->height) / 2;
+
+	int render_x = x * output->scale;
+	int render_y = y * output->scale;
+	int render_width = surface->current->width * output->scale;
+	int render_height = surface->current->height * output->scale;
 
 	glViewport(0, 0, output->width, output->height);
 	glClearColor(0, 0, 0, 0);
@@ -264,9 +272,16 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 		return;
 	}
 
+	float translate[16];
+	wlr_matrix_translate(&translate, render_x, render_y, 0);
+
+	float scale[16];
+	wlr_matrix_scale(&scale, render_width, render_height, 1);
+
 	float matrix[16];
-	wlr_texture_get_matrix(surface->texture, &matrix, &output->transform_matrix,
-		x, y);
+	wlr_matrix_mul(&translate, &scale, &matrix);
+	wlr_matrix_mul(&output->transform_matrix, &matrix, &matrix);
+
 	wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
 
 	wlr_surface_send_frame_done(surface, when);
