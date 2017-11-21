@@ -138,14 +138,12 @@ struct wlr_xdg_surface_v6 {
 };
 
 struct wlr_xdg_toplevel_v6_move_event {
-	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
 	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_xdg_toplevel_v6_resize_event {
-	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
 	struct wlr_seat_client *seat;
 	uint32_t serial;
@@ -153,19 +151,16 @@ struct wlr_xdg_toplevel_v6_resize_event {
 };
 
 struct wlr_xdg_toplevel_v6_set_fullscreen_event {
-	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
 	bool fullscreen;
 	struct wlr_output *output;
 };
 
 struct wlr_xdg_toplevel_v6_show_window_menu_event {
-	struct wl_client *client;
 	struct wlr_xdg_surface_v6 *surface;
 	struct wlr_seat_client *seat;
 	uint32_t serial;
-	uint32_t x;
-	uint32_t y;
+	uint32_t x, y;
 };
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
