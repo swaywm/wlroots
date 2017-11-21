@@ -45,6 +45,7 @@ const char *atom_map[ATOM_LAST] = {
 	"WM_STATE",
 	"CLIPBOARD",
 	"_WL_SELECTION",
+	"TARGETS",
 	"CLIPBOARD_MANAGER",
 };
 

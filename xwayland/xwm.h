@@ -34,6 +34,7 @@ enum atom_name {
 	CLIPBOARD,
 	CLIPBOARD_MANAGER,
 	WL_SELECTION,
+	TARGETS,
 	ATOM_LAST,
 };
 
@@ -61,6 +62,8 @@ struct wlr_xwm {
 	// selection properties
 	xcb_window_t selection_window;
 	xcb_selection_request_event_t selection_request;
+	xcb_window_t selection_owner;
+	xcb_timestamp_t selection_timestamp;
 	int incr;
 
 	struct wlr_xwayland_surface *focus_surface;
