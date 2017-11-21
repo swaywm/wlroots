@@ -1,5 +1,7 @@
 #include <xcb/xfixes.h>
+#include <fcntl.h>
 #include "wlr/util/log.h"
+#include "wlr/types/wlr_data_device.h"
 #include "xwm.h"
 
 static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
@@ -30,12 +32,46 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	return;
 }
 
-static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
-	wlr_log(L_DEBUG, "TODO: GET SELECTION TARGETS");
-}
-
 static void xwm_get_selection_data(struct wlr_xwm *xwm) {
 	wlr_log(L_DEBUG, "TODO: GET SELECTION DATA");
+}
+
+struct x11_data_source {
+	struct wlr_data_source base;
+	struct wlr_xwm *xwm;
+};
+
+static void data_source_accept(struct wlr_data_source *source, uint32_t time,
+		const char *mime_type) {
+}
+
+static void data_source_send(struct wlr_data_source *base,
+		const char *mime_type, int32_t fd) {
+	struct x11_data_source *source = (struct x11_data_source *)base;
+	struct wlr_xwm *xwm = source->xwm;
+
+	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
+		// Get data for the utf8_string target
+		xcb_convert_selection(xwm->xcb_conn,
+				xwm->selection_window,
+				xwm->atoms[CLIPBOARD],
+				xwm->atoms[UTF8_STRING],
+				xwm->atoms[WL_SELECTION],
+				XCB_TIME_CURRENT_TIME);
+
+		xcb_flush(xwm->xcb_conn);
+
+		fcntl(fd, F_SETFL, O_WRONLY | O_NONBLOCK);
+		xwm->data_source_fd = fd;
+	}
+}
+
+static void data_source_cancel(struct wlr_data_source *source) {
+}
+
+static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
+	// set the wayland clipboard selection to the copied selection
+	wlr_log(L_DEBUG, "TODO: GET SELECTION TARGETS");
 }
 
 static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
@@ -44,7 +80,7 @@ static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 		(xcb_selection_notify_event_t *) event;
 
 	if (selection_notify->property == XCB_ATOM_NONE) {
-		wlr_log(L_DEBUG, "TODO: convert selection failed");
+		wlr_log(L_ERROR, "convert selection failed");
 	} else if (selection_notify->target == xwm->atoms[TARGETS]) {
 		xwm_get_selection_targets(xwm);
 	} else {

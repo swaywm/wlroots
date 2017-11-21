@@ -65,6 +65,7 @@ struct wlr_xwm {
 	xcb_window_t selection_owner;
 	xcb_timestamp_t selection_timestamp;
 	int incr;
+	int data_source_fd;
 
 	struct wlr_xwayland_surface *focus_surface;
 
