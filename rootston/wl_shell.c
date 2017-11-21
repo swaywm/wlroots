@@ -71,7 +71,24 @@ static void handle_set_state(struct wl_listener *listener, void *data) {
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
-	// TODO do we need to do anything here?
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, surface_commit);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_surface *wlr_surface = view->wlr_surface;
+
+	int width = wlr_surface->current->width;
+	int height = wlr_surface->current->height;
+
+	if (view->pending_move_resize.update_x) {
+		view->x = view->pending_move_resize.x +
+			view->pending_move_resize.width - width;
+		view->pending_move_resize.update_x = false;
+	}
+	if (view->pending_move_resize.update_y) {
+		view->y = view->pending_move_resize.y +
+			view->pending_move_resize.height - height;
+		view->pending_move_resize.update_y = false;
+	}
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

@@ -52,13 +52,13 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(xwayland_surface, width, height, &contrained_width,
-		&contrained_height);
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
+		&constrained_height);
 
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		xwayland_surface->x, xwayland_surface->y, contrained_width,
-		contrained_height);
+		xwayland_surface->x, xwayland_surface->y, constrained_width,
+		constrained_height);
 }
 
 static void move_resize(struct roots_view *view, double x, double y,
@@ -66,18 +66,29 @@ static void move_resize(struct roots_view *view, double x, double y,
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
-	uint32_t contrained_width, contrained_height;
-	apply_size_constraints(xwayland_surface, width, height, &contrained_width,
-		&contrained_height);
+	bool update_x = x != view->x;
+	bool update_y = y != view->y;
 
-	x = x + width - contrained_width;
-	y = y + height - contrained_height;
+	uint32_t constrained_width, constrained_height;
+	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
+		&constrained_height);
 
-	view->x = x;
-	view->y = y;
+	if (update_x) {
+		x = x + width - constrained_width;
+	}
+	if (update_y) {
+		y = y + height - constrained_height;
+	}
+
+	view->pending_move_resize.update_x = update_x;
+	view->pending_move_resize.update_y = update_y;
+	view->pending_move_resize.x = x;
+	view->pending_move_resize.y = y;
+	view->pending_move_resize.width = constrained_width;
+	view->pending_move_resize.height = constrained_height;
 
 	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		x, y, contrained_width, contrained_height);
+		x, y, constrained_width, constrained_height);
 }
 
 static void close(struct roots_view *view) {
@@ -175,6 +186,27 @@ static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	view_maximize(view, maximized);
 }
 
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, surface_commit);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_surface *wlr_surface = view->wlr_surface;
+
+	int width = wlr_surface->current->width;
+	int height = wlr_surface->current->height;
+
+	if (view->pending_move_resize.update_x) {
+		view->x = view->pending_move_resize.x +
+			view->pending_move_resize.width - width;
+		view->pending_move_resize.update_x = false;
+	}
+	if (view->pending_move_resize.update_y) {
+		view->y = view->pending_move_resize.y +
+			view->pending_move_resize.height - height;
+		view->pending_move_resize.update_y = false;
+	}
+}
+
 static void handle_map_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, map_notify);
@@ -186,6 +218,10 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->x = (double)xsurface->x;
 	view->y = (double)xsurface->y;
 
+	roots_surface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&xsurface->surface->events.commit,
+		&roots_surface->surface_commit);
+
 	wl_list_insert(&desktop->views, &view->link);
 }
 
@@ -193,6 +229,8 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
 	roots_surface->view->wlr_surface = NULL;
+
+	wl_list_remove(&roots_surface->surface_commit.link);
 
 	wl_list_remove(&roots_surface->view->link);
 }
@@ -228,6 +266,10 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_maximize.notify = handle_request_maximize;
 	wl_signal_add(&surface->events.request_maximize,
 		&roots_surface->request_maximize);
+
+	roots_surface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&surface->surface->events.commit,
+		&roots_surface->surface_commit);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (view == NULL) {
