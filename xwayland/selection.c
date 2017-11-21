@@ -24,21 +24,36 @@ static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
 	return 0;
 }
 
-static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
-		xcb_generic_event_t *event) {
-	wlr_log(L_DEBUG, "TODO: SELECTION NOTIFY");
-}
-
 static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
 	wlr_log(L_DEBUG, "TODO: SELECTION REQUEST");
 	return;
 }
 
-static int weston_wm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
-		xcb_generic_event_t *event) {
-	wlr_log(L_DEBUG, "TODO: XFIXES SELECTION NOTIFY");
+static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
+	wlr_log(L_DEBUG, "TODO: GET SELECTION TARGETS");
+}
 
+static void xwm_get_selection_data(struct wlr_xwm *xwm) {
+	wlr_log(L_DEBUG, "TODO: GET SELECTION DATA");
+}
+
+static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
+		xcb_generic_event_t *event) {
+	xcb_selection_notify_event_t *selection_notify =
+		(xcb_selection_notify_event_t *) event;
+
+	if (selection_notify->property == XCB_ATOM_NONE) {
+		wlr_log(L_DEBUG, "TODO: convert selection failed");
+	} else if (selection_notify->target == xwm->atoms[TARGETS]) {
+		xwm_get_selection_targets(xwm);
+	} else {
+		xwm_get_selection_data(xwm);
+	}
+}
+
+static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
+		xcb_generic_event_t *event) {
 	xcb_xfixes_selection_notify_event_t *xfixes_selection_notify =
 		(xcb_xfixes_selection_notify_event_t *) event;
 
@@ -60,6 +75,7 @@ static int weston_wm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	// answer TIMESTAMP conversion requests correctly.
 	if (xfixes_selection_notify->owner == xwm->selection_window) {
 		xwm->selection_timestamp = xfixes_selection_notify->timestamp;
+		wlr_log(L_DEBUG, "TODO: our window");
 		return 1;
 	}
 
@@ -95,7 +111,7 @@ int xwm_handle_selection_event(struct wlr_xwm *xwm,
 	switch (event->response_type - xwm->xfixes->first_event) {
 	case XCB_XFIXES_SELECTION_NOTIFY:
 		// an X11 window has copied something to the clipboard
-		return weston_wm_handle_xfixes_selection_notify(xwm, event);
+		return xwm_handle_xfixes_selection_notify(xwm, event);
 	}
 
 	return 0;
