@@ -2,6 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <GLES2/gl2.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -194,11 +195,26 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_renderer_begin(server->renderer, wlr_output);
 
 	if (output->fullscreen_view != NULL) {
+		// Make sure the view is centered on screen
+		const struct wlr_box *output_box =
+			wlr_output_layout_get_box(desktop->layout, wlr_output);
+		struct wlr_box view_box;
+		view_get_box(output->fullscreen_view, &view_box);
+		double view_x = (double)(output_box->width - view_box.width) / 2 +
+			output_box->x;
+		double view_y = (double)(output_box->height - view_box.height) / 2 +
+			output_box->y;
+		view_move(output->fullscreen_view, view_x, view_y);
+
 		if (has_standalone_surface(output->fullscreen_view)) {
 			wlr_output_set_fullscreen_surface(wlr_output,
 				output->fullscreen_view->wlr_surface);
 		} else {
 			wlr_output_set_fullscreen_surface(wlr_output, NULL);
+
+			glClearColor(0, 0, 0, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+
 			render_view(output->fullscreen_view, desktop, wlr_output, &now);
 		}
 		wlr_renderer_end(server->renderer);

@@ -53,6 +53,10 @@ static void view_update_output(const struct roots_view *view,
 }
 
 void view_move(struct roots_view *view, double x, double y) {
+	if (view->x == x && view->y == y) {
+		return;
+	}
+
 	struct wlr_box before;
 	view_get_box(view, &before);
 	if (view->move) {
@@ -61,6 +65,7 @@ void view_move(struct roots_view *view, double x, double y) {
 		view->x = x;
 		view->y = y;
 	}
+	view_update_output(view, &before);
 }
 
 void view_activate(struct roots_view *view, bool activate) {
