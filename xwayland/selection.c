@@ -1,3 +1,6 @@
+#define _XOPEN_SOURCE 700
+#include <stdlib.h>
+#include <string.h>
 #include <xcb/xfixes.h>
 #include <fcntl.h>
 #include "wlr/util/log.h"
@@ -53,11 +56,11 @@ static void data_source_send(struct wlr_data_source *base,
 	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
 		// Get data for the utf8_string target
 		xcb_convert_selection(xwm->xcb_conn,
-				xwm->selection_window,
-				xwm->atoms[CLIPBOARD],
-				xwm->atoms[UTF8_STRING],
-				xwm->atoms[WL_SELECTION],
-				XCB_TIME_CURRENT_TIME);
+			xwm->selection_window,
+			xwm->atoms[CLIPBOARD],
+			xwm->atoms[UTF8_STRING],
+			xwm->atoms[WL_SELECTION],
+			XCB_TIME_CURRENT_TIME);
 
 		xcb_flush(xwm->xcb_conn);
 
@@ -71,7 +74,54 @@ static void data_source_cancel(struct wlr_data_source *source) {
 
 static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
 	// set the wayland clipboard selection to the copied selection
-	wlr_log(L_DEBUG, "TODO: GET SELECTION TARGETS");
+
+	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
+		1, // delete
+		xwm->selection_window,
+		xwm->atoms[WL_SELECTION],
+		XCB_GET_PROPERTY_TYPE_ANY,
+		0, // offset
+		4096 //length
+		);
+
+	xcb_get_property_reply_t *reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+	if (reply == NULL)
+		return;
+
+	if (reply->type != XCB_ATOM_ATOM) {
+		free(reply);
+		return;
+	}
+
+	struct x11_data_source *source = calloc(1, sizeof(struct x11_data_source));
+	if (source == NULL) {
+		free(reply);
+		return;
+	}
+
+	wl_signal_init(&source->base.events.destroy);
+	source->base.accept = data_source_accept;
+	source->base.send = data_source_send;
+	source->base.cancel = data_source_cancel;
+	source->xwm = xwm;
+
+	wl_array_init(&source->base.mime_types);
+	xcb_atom_t *value = xcb_get_property_value(reply);
+	for (uint32_t i = 0; i < reply->value_len; i++) {
+		if (value[i] == xwm->atoms[UTF8_STRING]) {
+			char **p = wl_array_add(&source->base.mime_types, sizeof *p);
+			if (p) {
+				*p = strdup("text/plain;charset=utf-8");
+			}
+		}
+	}
+
+	wlr_seat_set_selection(xwm->xwayland->seat, &source->base,
+		wl_display_next_serial(xwm->xwayland->wl_display));
+
+	free(reply);
+
 }
 
 static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
@@ -133,6 +183,12 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
+	if (!xwm->xwayland->seat) {
+		wlr_log(L_DEBUG, "not handling selection events:"
+			"no seat assigned to xwayland");
+		return 0;
+	}
+
 	switch (event->response_type & ~0x80) {
 	case XCB_SELECTION_NOTIFY:
 		xwm_handle_selection_notify(xwm, event);

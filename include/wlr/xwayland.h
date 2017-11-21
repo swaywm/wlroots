@@ -16,6 +16,7 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland {
 	pid_t pid;
 	int display;
+	struct wlr_seat *seat;
 	int x_fd[2], wl_fd[2], wm_fd[2];
 	struct wl_client *client;
 	struct wl_display *wl_display;

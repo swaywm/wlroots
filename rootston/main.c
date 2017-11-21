@@ -38,6 +38,12 @@ int main(int argc, char **argv) {
 	server.desktop = desktop_create(&server, server.config);
 	server.input = input_create(&server, server.config);
 
+	struct roots_seat *default_seat =
+		roots_seat_create(server.input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
+	if (server.desktop->xwayland) {
+		server.desktop->xwayland->seat = default_seat->seat;
+	}
+
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
 	if (!socket) {
 		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
