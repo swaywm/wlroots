@@ -36,7 +36,7 @@ static void view_update_output(const struct roots_view *view,
 	struct wlr_box box;
 	view_get_box(view, &box);
 	wl_list_for_each(output, &desktop->outputs, link) {
-		bool intersected = before->x != -1 && wlr_output_layout_intersects(
+		bool intersected = before != NULL && wlr_output_layout_intersects(
 				desktop->layout, output->wlr_output,
 				before->x, before->y, before->x + before->width,
 				before->y + before->height);
@@ -280,9 +280,7 @@ void view_setup(struct roots_view *view) {
 	}
 
 	view_center(view);
-	struct wlr_box before;
-	view_get_box(view, &before);
-	view_update_output(view, &before);
+	view_update_output(view, NULL);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,

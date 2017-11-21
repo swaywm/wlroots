@@ -253,8 +253,8 @@ void wlr_output_make_current(struct wlr_output *output) {
 
 static void output_fullscreen_surface_render(struct wlr_output *output,
 		struct wlr_surface *surface, const struct timespec *when) {
-	int x = (output->width - surface->current->width) / 2;
-	int y = (output->height - surface->current->height) / 2;
+	int x = (output->width - surface->current->buffer_width) / 2;
+	int y = (output->height - surface->current->buffer_height) / 2;
 
 	glViewport(0, 0, output->width, output->height);
 	glClearColor(0, 0, 0, 0);
