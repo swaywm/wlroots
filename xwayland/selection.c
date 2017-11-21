@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE 700
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <xcb/xfixes.h>
 #include <fcntl.h>
@@ -35,8 +36,95 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	return;
 }
 
+static int writable_callback(int fd, uint32_t mask, void *data) {
+	struct wlr_xwm *xwm = data;
+
+	unsigned char *property = xcb_get_property_value(xwm->property_reply);
+	int remainder = xcb_get_property_value_length(xwm->property_reply) -
+		xwm->property_start;
+
+	int len = write(fd, property + xwm->property_start, remainder);
+	if (len == -1) {
+		free(xwm->property_reply);
+		xwm->property_reply = NULL;
+		if (xwm->property_source) {
+			wl_event_source_remove(xwm->property_source);
+		}
+		xwm->property_source = NULL;
+		close(fd);
+		wlr_log(L_ERROR, "write error to target fd: %m\n");
+		return 1;
+	}
+
+	wlr_log(L_DEBUG, "wrote %d (chunk size %d) of %d bytes\n",
+		xwm->property_start + len,
+		len, xcb_get_property_value_length(xwm->property_reply));
+
+	xwm->property_start += len;
+	if (len == remainder) {
+		free(xwm->property_reply);
+		xwm->property_reply = NULL;
+		if (xwm->property_source) {
+			wl_event_source_remove(xwm->property_source);
+		}
+		xwm->property_source = NULL;
+
+		if (xwm->incr) {
+			xcb_delete_property(xwm->xcb_conn,
+				xwm->selection_window,
+				xwm->atoms[WL_SELECTION]);
+		} else {
+			wlr_log(L_DEBUG, "transfer complete\n");
+			close(fd);
+		}
+	}
+
+	return 1;
+}
+
+static void xwm_write_property(struct wlr_xwm *xwm,
+		xcb_get_property_reply_t *reply) {
+	xwm->property_start = 0;
+	xwm->property_reply = reply;
+	writable_callback(xwm->data_source_fd, WL_EVENT_WRITABLE, xwm);
+
+	if (xwm->property_reply) {
+		struct wl_event_loop *loop =
+			wl_display_get_event_loop(xwm->xwayland->wl_display);
+		xwm->property_source =
+			wl_event_loop_add_fd(loop,
+				xwm->data_source_fd,
+				WL_EVENT_WRITABLE,
+				writable_callback, xwm);
+	}
+}
+
 static void xwm_get_selection_data(struct wlr_xwm *xwm) {
-	wlr_log(L_DEBUG, "TODO: GET SELECTION DATA");
+	xcb_get_property_cookie_t cookie =
+		xcb_get_property(xwm->xcb_conn,
+			1, // delete
+			xwm->selection_window,
+			xwm->atoms[WL_SELECTION],
+			XCB_GET_PROPERTY_TYPE_ANY,
+			0, // offset
+			0x1fffffff // length
+			);
+
+	xcb_get_property_reply_t *reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+
+	if (reply == NULL) {
+		return;
+	} else if (reply->type == xwm->atoms[INCR]) {
+		xwm->incr = 1;
+		free(reply);
+	} else {
+		xwm->incr = 0;
+		// reply's ownership is transferred to wm, which is responsible
+		// for freeing it
+		xwm_write_property(xwm, reply);
+	}
+
 }
 
 struct x11_data_source {

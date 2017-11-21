@@ -47,6 +47,7 @@ const char *atom_map[ATOM_LAST] = {
 	"_WL_SELECTION",
 	"TARGETS",
 	"CLIPBOARD_MANAGER",
+	"INCR",
 };
 
 /* General helpers */

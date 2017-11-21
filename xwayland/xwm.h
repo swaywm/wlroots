@@ -35,6 +35,7 @@ enum atom_name {
 	WL_SELECTION,
 	TARGETS,
 	CLIPBOARD_MANAGER,
+	INCR,
 	ATOM_LAST,
 };
 
@@ -66,6 +67,9 @@ struct wlr_xwm {
 	xcb_timestamp_t selection_timestamp;
 	int incr;
 	int data_source_fd;
+	int property_start;
+	xcb_get_property_reply_t *property_reply;
+	struct wl_event_source *property_source;
 
 	struct wlr_xwayland_surface *focus_surface;
 
