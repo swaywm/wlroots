@@ -379,7 +379,7 @@ static void output_fullscreen_surface_reset(struct wlr_output *output) {
 static void output_fullscreen_surface_handle_commit(
 		struct wl_listener *listener, void *data) {
 	struct wlr_output *output = wl_container_of(listener, output,
-		fullscreen_surface_destroy);
+		fullscreen_surface_commit);
 	output->needs_swap = true;
 }
 
@@ -393,6 +393,7 @@ static void output_fullscreen_surface_handle_destroy(
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
 	// TODO: hardware fullscreen
+
 	if (output->fullscreen_surface == surface) {
 		return;
 	}
