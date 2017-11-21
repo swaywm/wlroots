@@ -18,7 +18,7 @@ struct wlr_libinput_backend {
 
 	struct wl_listener session_signal;
 
-	struct wlr_list *wlr_device_lists;
+	struct wlr_list wlr_device_lists; // list of struct wl_list
 };
 
 struct wlr_libinput_input_device {

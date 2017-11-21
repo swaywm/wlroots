@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <wlr/types/wlr_compositor.h>
 #include <xcb/xcb.h>
-#include <wlr/types/wlr_list.h>
 
 #ifdef HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
@@ -86,7 +85,6 @@ struct wlr_xwayland_surface {
 	char *class;
 	char *instance;
 	struct wlr_xwayland_surface *parent;
-	struct wlr_list *state; // list of xcb_atom_t
 	pid_t pid;
 
 	xcb_atom_t *window_type;
