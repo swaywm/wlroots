@@ -60,11 +60,13 @@ struct roots_server;
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
+struct roots_output *desktop_output_from_wlr_output(
+	struct roots_desktop *desktop, struct wlr_output *output);
+struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
+	double ly, struct wlr_surface **surface, double *sx, double *sy);
 
 void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
-struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
-		struct wlr_surface **surface, double *sx, double *sy);
 void view_activate(struct roots_view *view, bool activate);
 
 void output_add_notify(struct wl_listener *listener, void *data);

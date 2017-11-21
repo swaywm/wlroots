@@ -37,7 +37,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 	double sx, sy;
 	switch (cursor->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		view = view_at(desktop, cursor->cursor->x, cursor->cursor->y,
+		view = desktop_view_at(desktop, cursor->cursor->x, cursor->cursor->y,
 			&surface, &sx, &sy);
 		bool set_compositor_cursor = !view && cursor->cursor_client;
 		if (view) {
@@ -137,7 +137,8 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 
 	struct wlr_surface *surface;
 	double sx, sy;
-	struct roots_view *view = view_at(desktop, lx, ly, &surface, &sx, &sy);
+	struct roots_view *view =
+		desktop_view_at(desktop, lx, ly, &surface, &sx, &sy);
 
 	if (state == WLR_BUTTON_PRESSED &&
 			view &&
@@ -237,7 +238,7 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 		return;
 	}
 	double sx, sy;
-	view_at(desktop, lx, ly, &surface, &sx, &sy);
+	desktop_view_at(desktop, lx, ly, &surface, &sx, &sy);
 
 	uint32_t serial = 0;
 	if (surface) {
@@ -291,7 +292,7 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 	}
 
 	double sx, sy;
-	view_at(desktop, lx, ly, &surface, &sx, &sy);
+	desktop_view_at(desktop, lx, ly, &surface, &sx, &sy);
 
 	if (surface) {
 		wlr_seat_touch_point_focus(cursor->seat->seat, surface,

@@ -95,6 +95,12 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		if (focus != NULL) {
 			view_close(focus);
 		}
+	} else if (strcmp(command, "fullscreen") == 0) {
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL) {
+			bool is_fullscreen = focus->fullscreen_output != NULL;
+			view_set_fullscreen(focus, !is_fullscreen, NULL);
+		}
 	} else if (strcmp(command, "next_window") == 0) {
 		roots_seat_cycle_focus(seat);
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
