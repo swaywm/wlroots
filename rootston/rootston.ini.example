@@ -44,4 +44,5 @@ meta-key = Logo
 [bindings]
 Logo+Shift+e = exit
 Logo+q = close
+Logo+m = maximize
 Alt+Tab = next_window

@@ -106,6 +106,11 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		} else if (pid == 0) {
 			execl("/bin/sh", "/bin/sh", "-c", shell_cmd, (void *)NULL);
 		}
+	} else if (strcmp(command, "maximize") == 0) {
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL) {
+			view_maximize(focus, !focus->maximized);
+		}
 	} else {
 		wlr_log(L_ERROR, "unknown binding command: %s", command);
 	}
