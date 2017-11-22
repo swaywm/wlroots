@@ -21,7 +21,9 @@
 static const char *lock_fmt = "/tmp/.X%d-lock";
 static const char *socket_dir = "/tmp/.X11-unix";
 static const char *socket_fmt = "/tmp/.X11-unix/X%d";
+#ifndef __linux__
 static const char *socket_fmt2 = "/tmp/.X11-unix/X%d_";
+#endif
 
 static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	int fd, rc;
