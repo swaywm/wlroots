@@ -7,15 +7,16 @@
 # to fail if it can't load the function. You'll need to check if that function
 # is NULL before using it.
 
-if [ $# -ne 2 ]; then
+if [ $# -ne 3 ]; then
 	exit 1
 fi
 
 SPEC=$1
-OUT=$2
+OUT_C=$2
+OUT_H=$3
 
 BASE=$(basename "$SPEC" .txt)
-INCLUDE_GUARD=$(printf %s "$SPEC" | tr -c [:alnum:] _ | tr [:lower:] [:upper:])
+INCLUDE_GUARD=$(printf %s "$OUT_H" | tr -c [:alnum:] _ | tr [:lower:] [:upper:])
 
 DECL=""
 DEFN=""
@@ -57,46 +58,37 @@ while read -r COMMAND; do
 	fi
 done < $SPEC
 
+cat > $OUT_H << EOF
+#ifndef $INCLUDE_GUARD
+#define $INCLUDE_GUARD
 
-case $OUT in
-*.h)
-	cat > $OUT << EOF
-	#ifndef $INCLUDE_GUARD
-	#define $INCLUDE_GUARD
+#include <stdbool.h>
 
-	#include <stdbool.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <EGL/eglmesaext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
-	#include <EGL/egl.h>
-	#include <EGL/eglext.h>
-	#include <EGL/eglmesaext.h>
-	#include <GLES2/gl2.h>
-	#include <GLES2/gl2ext.h>
+bool load_$BASE(void);
+$DECL
 
-	bool load_$BASE(void);
-	$DECL
-
-	#endif
+#endif
 EOF
-	;;
-*.c)
-	cat > $OUT << EOF
-	#include <wlr/util/log.h>
-	#include "$BASE.h"
-	$DEFN
 
-	bool load_$BASE(void) {
-		static bool done = false;
-		if (done) {
-			return true;
-		}
-	$LOADER
+cat > $OUT_C << EOF
+#include <wlr/util/log.h>
+#include "$OUT_H"
+$DEFN
 
-		done = true;
-		return true;
-	}
+bool load_$BASE(void) {
+    static bool done = false;
+    if (done) {
+        return true;
+    }
+$LOADER
+
+    done = true;
+    return true;
+}
 EOF
-	;;
-*)
-	exit 1
-	;;
-esac
