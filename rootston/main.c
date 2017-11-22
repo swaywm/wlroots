@@ -13,6 +13,19 @@
 struct roots_server server = { 0 };
 
 static void ready(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, xwayland_ready);
+
+#ifdef HAS_XWAYLAND
+	struct wlr_xwayland *xwayland = data;
+	if (xwayland) {
+		struct roots_seat *seat =
+			input_get_seat(desktop->server->input,
+				ROOTS_CONFIG_DEFAULT_SEAT_NAME);
+		wlr_xwayland_set_seat(xwayland, seat->seat);
+	}
+#endif
+
 	if (server.config->startup_cmd != NULL) {
 		const char *cmd = server.config->startup_cmd;
 		pid_t pid = fork();
@@ -37,12 +50,6 @@ int main(int argc, char **argv) {
 	wl_display_init_shm(server.wl_display);
 	server.desktop = desktop_create(&server, server.config);
 	server.input = input_create(&server, server.config);
-
-	struct roots_seat *default_seat =
-		roots_seat_create(server.input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
-	if (server.desktop->xwayland) {
-		server.desktop->xwayland->seat = default_seat->seat;
-	}
 
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
 	if (!socket) {

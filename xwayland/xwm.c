@@ -48,6 +48,8 @@ const char *atom_map[ATOM_LAST] = {
 	"TARGETS",
 	"CLIPBOARD_MANAGER",
 	"INCR",
+	"TEXT",
+	"TIMESTAMP",
 };
 
 /* General helpers */

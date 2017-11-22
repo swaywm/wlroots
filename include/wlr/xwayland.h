@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
 #include <xcb/xcb.h>
 
 #ifdef HAS_XCB_ICCCM
@@ -16,7 +17,6 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland {
 	pid_t pid;
 	int display;
-	struct wlr_seat *seat;
 	int x_fd[2], wl_fd[2], wm_fd[2];
 	struct wl_client *client;
 	struct wl_display *wl_display;
@@ -169,5 +169,8 @@ void wlr_xwayland_surface_set_maximized(struct wlr_xwayland *wlr_xwayland,
 
 void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland *wlr_xwayland,
 	struct wlr_xwayland_surface *surface, bool fullscreen);
+
+void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
+		struct wlr_seat *seat);
 
 #endif

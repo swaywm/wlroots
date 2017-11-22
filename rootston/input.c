@@ -27,7 +27,7 @@ static const char *device_type(enum wlr_input_device_type type) {
 	return NULL;
 }
 
-static struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
+struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &input->seats, link) {
 		if (strcmp(seat->seat->name, name) == 0) {
@@ -86,6 +86,7 @@ struct roots_input *input_create(struct roots_server *server,
 	input->server = server;
 
 	wl_list_init(&input->seats);
+	roots_seat_create(input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 
 	input->input_add.notify = input_add_notify;
 	wl_signal_add(&server->backend->events.input_add, &input->input_add);

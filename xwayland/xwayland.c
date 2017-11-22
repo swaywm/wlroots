@@ -341,3 +341,8 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->cursor->hotspot_x = hotspot_x;
 	wlr_xwayland->cursor->hotspot_y = hotspot_y;
 }
+
+void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
+		struct wlr_seat *seat) {
+	xwm_set_seat(xwayland->xwm, seat);
+}
