@@ -21,6 +21,7 @@ struct wlr_xwayland {
 	struct wl_client *client;
 	struct wl_display *wl_display;
 	struct wlr_compositor *compositor;
+	struct wlr_seat *seat;
 	time_t server_start;
 
 	struct wl_event_source *sigusr1_source;

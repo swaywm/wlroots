@@ -86,7 +86,6 @@ struct roots_input *input_create(struct roots_server *server,
 	input->server = server;
 
 	wl_list_init(&input->seats);
-	roots_seat_create(input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 
 	input->input_add.notify = input_add_notify;
 	wl_signal_add(&server->backend->events.input_add, &input->input_add);
