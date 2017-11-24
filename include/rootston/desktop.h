@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_list.h>
@@ -22,7 +23,7 @@ struct roots_output {
 };
 
 struct roots_desktop {
-	struct wlr_list *views;
+	struct wl_list views; // roots_view::link
 
 	struct wl_list outputs;
 	struct timespec last_frame;
@@ -31,6 +32,7 @@ struct roots_desktop {
 	struct roots_config *config;
 
 	struct wlr_output_layout *layout;
+	struct wlr_xcursor_manager *xcursor_manager;
 
 	struct wlr_compositor *compositor;
 	struct wlr_wl_shell *wl_shell;
@@ -48,6 +50,7 @@ struct roots_desktop {
 #ifdef HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
 	struct wl_listener xwayland_surface;
+	struct wl_listener xwayland_ready;
 #endif
 };
 
@@ -57,6 +60,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
 
+void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy);

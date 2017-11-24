@@ -2,6 +2,7 @@ project(
 	'wlroots',
 	'c',
 	license: 'MIT',
+	meson_version: '>=0.43.0',
 	default_options: [
 		'c_std=c11',
 		'warning_level=2',
@@ -131,7 +132,6 @@ wlr_deps = [
 
 lib_wlr = library(
 	'wlroots',
-	files('dummy.c'),
 	link_whole: wlr_parts,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,

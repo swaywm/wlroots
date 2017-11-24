@@ -261,8 +261,8 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
 	}
 
-	double x = mapping->width * x_mm + mapping->x;
-	double y = mapping->height * y_mm + mapping->y;
+	double x = x_mm > 0 ? mapping->width * x_mm + mapping->x : cur->x;
+	double y = y_mm > 0 ? mapping->height * y_mm + mapping->y : cur->y;
 
 	wlr_cursor_warp_unchecked(cur, x, y);
 }
@@ -299,9 +299,14 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 
 void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
 		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
-		int32_t hotspot_y) {
+		int32_t hotspot_y, uint32_t scale) {
 	struct wlr_cursor_output_cursor *output_cursor;
 	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
+		if (scale != 0 &&
+				output_cursor->output_cursor->output->scale != scale) {
+			continue;
+		}
+
 		wlr_output_cursor_set_image(output_cursor->output_cursor, pixels,
 			stride, width, height, hotspot_x, hotspot_y);
 	}
@@ -631,4 +636,22 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 	}
 
 	c_device->mapped_box = box;
+}
+
+bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
+		struct wlr_input_device *device, double x_mm, double y_mm,
+		double width_mm, double height_mm, double *lx, double *ly) {
+	if (width_mm <= 0 || height_mm <= 0) {
+		return false;
+	}
+
+	struct wlr_box *mapping = get_mapping(cur, device);
+	if (!mapping) {
+		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
+	}
+
+	*lx = x_mm > 0 ? mapping->width * (x_mm / width_mm) + mapping->x : cur->x;
+	*ly = y_mm > 0 ? mapping->height * (y_mm / height_mm) + mapping->y : cur->y;
+
+	return true;
 }

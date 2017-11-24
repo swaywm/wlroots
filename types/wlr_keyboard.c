@@ -45,6 +45,30 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
+static void keyboard_key_update(struct wlr_keyboard *keyboard,
+		struct wlr_event_keyboard_key *event) {
+	bool found = false;
+	size_t i = 0;
+	for (; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
+		if (keyboard->keycodes[i] == event->keycode) {
+			found = true;
+			break;
+		}
+	}
+
+	if (event->state == WLR_KEY_PRESSED && !found) {
+		for (size_t i = 0; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
+			if (keyboard->keycodes[i] == 0) {
+				keyboard->keycodes[i] = event->keycode;
+				break;
+			}
+		}
+	}
+	if (event->state == WLR_KEY_RELEASED && found) {
+		keyboard->keycodes[i] = 0;
+	}
+}
+
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group) {
@@ -68,6 +92,7 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 	}
 	keyboard_led_update(keyboard);
 	keyboard_modifier_update(keyboard);
+	keyboard_key_update(keyboard, event);
 	wl_signal_emit(&keyboard->events.key, event);
 }
 
@@ -80,7 +105,10 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
-	if (kb && kb->impl && kb->impl->destroy) {
+	if (kb == NULL) {
+		return;
+	}
+	if (kb->impl && kb->impl->destroy) {
 		kb->impl->destroy(kb);
 	} else {
 		wl_list_remove(&kb->events.key.listener_list);

@@ -43,7 +43,7 @@ struct sample_state {
 	struct wl_listener touch_up;
 	struct wl_listener touch_down;
 	struct wl_listener touch_cancel;
-	struct wlr_list *touch_points;
+	struct wl_list touch_points;
 
 	struct wl_listener tablet_tool_axis;
 	struct wl_listener tablet_tool_proxmity;
@@ -52,24 +52,27 @@ struct sample_state {
 };
 
 struct touch_point {
-	int32_t slot;
+	int32_t touch_id;
 	double x, y;
+	struct wl_list link;
 };
 
 static void warp_to_touch(struct sample_state *sample,
 		struct wlr_input_device *dev) {
-	if (sample->touch_points->length == 0) {
+	if (wl_list_empty(&sample->touch_points)) {
 		return;
 	}
 
 	double x = 0, y = 0;
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *point = sample->touch_points->items[i];
+	size_t n = 0;
+	struct touch_point *point;
+	wl_list_for_each(point, &sample->touch_points, link) {
 		x += point->x;
 		y += point->y;
+		n++;
 	}
-	x /= sample->touch_points->length;
-	y /= sample->touch_points->length;
+	x /= n;
+	y /= n;
 	wlr_cursor_warp_absolute(sample->cursor, dev, x, y);
 }
 
@@ -107,7 +110,7 @@ static void handle_output_add(struct output_state *ostate) {
 
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
 	wlr_cursor_set_image(sample->cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
 }
@@ -194,10 +197,11 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, touch_up);
 	struct wlr_event_touch_up *event = data;
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == event->slot) {
-			wlr_list_del(sample->touch_points, i);
+
+	struct touch_point *point, *tmp;
+	wl_list_for_each_safe(point, tmp, &sample->touch_points, link) {
+		if (point->touch_id == event->touch_id) {
+			wl_list_remove(&point->link);
 			break;
 		}
 	}
@@ -209,12 +213,10 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = wl_container_of(listener, sample, touch_down);
 	struct wlr_event_touch_down *event = data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
-	point->slot = event->slot;
+	point->touch_id = event->touch_id;
 	point->x = event->x_mm / event->width_mm;
 	point->y = event->y_mm / event->height_mm;
-	if (wlr_list_add(sample->touch_points, point) == -1) {
-		free(point);
-	}
+	wl_list_insert(&sample->touch_points, &point->link);
 
 	warp_to_touch(sample, event->device);
 }
@@ -223,9 +225,10 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct sample_state *sample =
 		wl_container_of(listener, sample, touch_motion);
 	struct wlr_event_touch_motion *event = data;
-	for (size_t i = 0; i < sample->touch_points->length; ++i) {
-		struct touch_point *point = sample->touch_points->items[i];
-		if (point->slot == event->slot) {
+
+	struct touch_point *point;
+	wl_list_for_each(point, &sample->touch_points, link) {
+		if (point->touch_id == event->touch_id) {
 			point->x = event->x_mm / event->width_mm;
 			point->y = event->y_mm / event->height_mm;
 			break;
@@ -254,7 +257,6 @@ int main(int argc, char *argv[]) {
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
-		.touch_points = wlr_list_create(),
 	};
 
 	state.config = parse_args(argc, argv);
@@ -263,6 +265,7 @@ int main(int argc, char *argv[]) {
 	wlr_cursor_attach_output_layout(state.cursor, state.layout);
 	wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
 	wl_list_init(&state.devices);
+	wl_list_init(&state.touch_points);
 
 	// pointer events
 	wl_signal_add(&state.cursor->events.motion, &state.cursor_motion);
@@ -318,7 +321,7 @@ int main(int argc, char *argv[]) {
 
 	struct wlr_xcursor_image *image = state.xcursor->images[0];
 	wlr_cursor_set_image(state.cursor, image->buffer, image->width,
-		image->width, image->height, image->hotspot_x, image->hotspot_y);
+		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	compositor_init(&compositor);
 	if (!wlr_backend_start(compositor.backend)) {

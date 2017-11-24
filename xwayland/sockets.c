@@ -21,6 +21,9 @@
 static const char *lock_fmt = "/tmp/.X%d-lock";
 static const char *socket_dir = "/tmp/.X11-unix";
 static const char *socket_fmt = "/tmp/.X11-unix/X%d";
+#ifndef __linux__
+static const char *socket_fmt2 = "/tmp/.X11-unix/X%d_";
+#endif
 
 static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	int fd, rc;
@@ -73,7 +76,7 @@ static bool open_sockets(int socks[2], int display) {
 	addr.sun_path[0] = 0;
 	path_size = snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1, socket_fmt, display);
 #else
-	path_size = snprintf(addr.sun_path, sizeof(addr.sun_path), socket_fmt, display);
+	path_size = snprintf(addr.sun_path, sizeof(addr.sun_path), socket_fmt2, display);
 #endif
 	socks[0] = open_socket(&addr, path_size);
 	if (socks[0] < 0) {
@@ -96,6 +99,11 @@ void unlink_display_sockets(int display) {
 
 	snprintf(sun_path, sizeof(sun_path), socket_fmt, display);
 	unlink(sun_path);
+
+#ifndef __linux__
+	snprintf(sun_path, sizeof(sun_path), socket_fmt2, display);
+	unlink(sun_path);
+#endif
 
 	snprintf(sun_path, sizeof(sun_path), lock_fmt, display);
 	unlink(sun_path);

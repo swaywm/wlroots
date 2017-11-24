@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
 #include "rootston/input.h"
+#include "rootston/keyboard.h"
 #include "rootston/ini.h"
 
 static void usage(const char *name, int ret) {
@@ -114,7 +115,8 @@ static uint32_t parse_modifier(const char *symname) {
 
 void add_binding_config(struct wl_list *bindings, const char* combination,
 		const char* command) {
-	struct binding_config *bc = calloc(1, sizeof(struct binding_config));
+	struct roots_binding_config *bc =
+		calloc(1, sizeof(struct roots_binding_config));
 
 	xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 	char *symnames = strdup(combination);
@@ -148,9 +150,40 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
+static void config_handle_cursor(struct roots_config *config,
+		const char *seat_name, const char *name, const char *value) {
+	struct roots_cursor_config *cc;
+	bool found = false;
+	wl_list_for_each(cc, &config->cursors, link) {
+		if (strcmp(cc->seat, seat_name) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		cc = calloc(1, sizeof(struct roots_cursor_config));
+		cc->seat = strdup(seat_name);
+		wl_list_insert(&config->cursors, &cc->link);
+	}
+
+	if (strcmp(name, "map-to-output") == 0) {
+		free(cc->mapped_output);
+		cc->mapped_output = strdup(value);
+	} else if (strcmp(name, "geometry") == 0) {
+		free(cc->mapped_box);
+		cc->mapped_box = parse_geometry(value);
+	} else if (strcmp(name, "theme") == 0) {
+		free(cc->theme);
+		cc->theme = strdup(value);
+	} else {
+		wlr_log(L_ERROR, "got unknown cursor config: %s", name);
+	}
+}
+
 static void config_handle_keyboard(struct roots_config *config,
 		const char *device_name, const char *name, const char *value) {
-	struct keyboard_config *kc;
+	struct roots_keyboard_config *kc;
 	bool found = false;
 	wl_list_for_each(kc, &config->keyboards, link) {
 		if (strcmp(kc->name, device_name) == 0) {
@@ -160,7 +193,7 @@ static void config_handle_keyboard(struct roots_config *config,
 	}
 
 	if (!found) {
-		kc = calloc(1, sizeof(struct keyboard_config));
+		kc = calloc(1, sizeof(struct roots_keyboard_config));
 		kc->name = strdup(device_name);
 		wl_list_insert(&config->keyboards, &kc->link);
 	}
@@ -188,25 +221,26 @@ static void config_handle_keyboard(struct roots_config *config,
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 static const char *keyboard_prefix = "keyboard:";
+static const char *cursor_prefix = "cursor:";
 
 static int config_ini_handler(void *user, const char *section, const char *name,
 		const char *value) {
 	struct roots_config *config = user;
 	if (strcmp(section, "core") == 0) {
-		   if (strcmp(name, "xwayland") == 0) {
-			   if (strcasecmp(value, "true") == 0) {
-					config->xwayland = true;
-			   } else if (strcasecmp(value, "false") == 0) {
-					config->xwayland = false;
-			   } else {
-					wlr_log(L_ERROR, "got unknown xwayland value: %s", value);
-			   }
-		   } else {
-			   wlr_log(L_ERROR, "got unknown core config: %s", name);
-		   }
+		if (strcmp(name, "xwayland") == 0) {
+			if (strcasecmp(value, "true") == 0) {
+				config->xwayland = true;
+			} else if (strcasecmp(value, "false") == 0) {
+				config->xwayland = false;
+			} else {
+				wlr_log(L_ERROR, "got unknown xwayland value: %s", value);
+			}
+		} else {
+			wlr_log(L_ERROR, "got unknown core config: %s", name);
+		}
 	} else if (strncmp(output_prefix, section, strlen(output_prefix)) == 0) {
 		const char *output_name = section + strlen(output_prefix);
-		struct output_config *oc;
+		struct roots_output_config *oc;
 		bool found = false;
 
 		wl_list_for_each(oc, &config->outputs, link) {
@@ -217,9 +251,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 
 		if (!found) {
-			oc = calloc(1, sizeof(struct output_config));
+			oc = calloc(1, sizeof(struct roots_output_config));
 			oc->name = strdup(output_name);
 			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+			oc->scale = 1;
 			wl_list_insert(&config->outputs, &oc->link);
 		}
 
@@ -227,6 +262,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			oc->x = strtol(value, NULL, 10);
 		} else if (strcmp(name, "y") == 0) {
 			oc->y = strtol(value, NULL, 10);
+		} else if (strcmp(name, "scale") == 0) {
+			oc->scale = strtol(value, NULL, 10);
+			assert(oc->scale >= 1);
 		} else if (strcmp(name, "rotate") == 0) {
 			if (strcmp(value, "normal") == 0) {
 				oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
@@ -263,20 +301,16 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 					oc->name, oc->mode.width, oc->mode.height,
 					oc->mode.refresh_rate);
 		}
+	} else if (strncmp(cursor_prefix, section, strlen(cursor_prefix)) == 0) {
+		const char *seat_name = section + strlen(cursor_prefix);
+		config_handle_cursor(config, seat_name, name, value);
 	} else if (strcmp(section, "cursor") == 0) {
-		if (strcmp(name, "map-to-output") == 0) {
-			free(config->cursor.mapped_output);
-			config->cursor.mapped_output = strdup(value);
-		} else if (strcmp(name, "geometry") == 0) {
-			free(config->cursor.mapped_box);
-			config->cursor.mapped_box = parse_geometry(value);
-		} else {
-			wlr_log(L_ERROR, "got unknown cursor config: %s", name);
-		}
+		config_handle_cursor(config, ROOTS_CONFIG_DEFAULT_SEAT_NAME, name,
+			value);
 	} else if (strncmp(device_prefix, section, strlen(device_prefix)) == 0) {
 		const char *device_name = section + strlen(device_prefix);
 
-		struct device_config *dc;
+		struct roots_device_config *dc;
 		bool found = false;
 		wl_list_for_each(dc, &config->devices, link) {
 			if (strcmp(dc->name, device_name) == 0) {
@@ -286,8 +320,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		}
 
 		if (!found) {
-			dc = calloc(1, sizeof(struct device_config));
+			dc = calloc(1, sizeof(struct roots_device_config));
 			dc->name = strdup(device_name);
+			dc->seat = strdup(ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 			wl_list_insert(&config->devices, &dc->link);
 		}
 
@@ -297,12 +332,16 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "geometry") == 0) {
 			free(dc->mapped_box);
 			dc->mapped_box = parse_geometry(value);
+		} else if (strcmp(name, "seat") == 0) {
+			free(dc->seat);
+			dc->seat = strdup(value);
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}
 	} else if (strcmp(section, "keyboard") == 0) {
 		config_handle_keyboard(config, "", name, value);
-	} else if (strncmp(keyboard_prefix, section, strlen(keyboard_prefix)) == 0) {
+	} else if (strncmp(keyboard_prefix,
+				section, strlen(keyboard_prefix)) == 0) {
 		const char *device_name = section + strlen(keyboard_prefix);
 		config_handle_keyboard(config, device_name, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
@@ -314,7 +353,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 	return 1;
 }
 
-struct roots_config *parse_args(int argc, char *argv[]) {
+struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	struct roots_config *config = calloc(1, sizeof(struct roots_config));
 	if (config == NULL) {
 		return NULL;
@@ -324,6 +363,7 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
 	wl_list_init(&config->keyboards);
+	wl_list_init(&config->cursors);
 	wl_list_init(&config->bindings);
 
 	int c;
@@ -361,7 +401,8 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
-		struct keyboard_config *kc = calloc(1, sizeof(struct keyboard_config));
+		struct roots_keyboard_config *kc =
+			calloc(1, sizeof(struct roots_keyboard_config));
 		kc->meta_key = WLR_MODIFIER_LOGO;
 		kc->name = strdup("");
 		wl_list_insert(&config->keyboards, &kc->link);
@@ -377,22 +418,23 @@ struct roots_config *parse_args(int argc, char *argv[]) {
 }
 
 void roots_config_destroy(struct roots_config *config) {
-	struct output_config *oc, *otmp = NULL;
+	struct roots_output_config *oc, *otmp = NULL;
 	wl_list_for_each_safe(oc, otmp, &config->outputs, link) {
 		free(oc->name);
 		free(oc);
 	}
 
-	struct device_config *dc, *dtmp = NULL;
+	struct roots_device_config *dc, *dtmp = NULL;
 	wl_list_for_each_safe(dc, dtmp, &config->devices, link) {
 		free(dc->name);
+		free(dc->seat);
 		free(dc->mapped_output);
 		free(dc->mapped_box);
 		free(dc);
 	}
 
-	struct keyboard_config *kc, *ktmp = NULL;
-	wl_list_for_each_safe(kc, ktmp, &config->bindings, link) {
+	struct roots_keyboard_config *kc, *ktmp = NULL;
+	wl_list_for_each_safe(kc, ktmp, &config->keyboards, link) {
 		free(kc->name);
 		free(kc->rules);
 		free(kc->model);
@@ -402,7 +444,16 @@ void roots_config_destroy(struct roots_config *config) {
 		free(kc);
 	}
 
-	struct binding_config *bc, *btmp = NULL;
+	struct roots_cursor_config *cc, *ctmp = NULL;
+	wl_list_for_each_safe(cc, ctmp, &config->cursors, link) {
+		free(cc->seat);
+		free(cc->mapped_output);
+		free(cc->mapped_box);
+		free(cc->theme);
+		free(cc);
+	}
+
+	struct roots_binding_config *bc, *btmp = NULL;
 	wl_list_for_each_safe(bc, btmp, &config->bindings, link) {
 		free(bc->keysyms);
 		free(bc->command);
@@ -410,14 +461,12 @@ void roots_config_destroy(struct roots_config *config) {
 	}
 
 	free(config->config_path);
-	free(config->cursor.mapped_output);
-	free(config->cursor.mapped_box);
 	free(config);
 }
 
-struct output_config *config_get_output(struct roots_config *config,
+struct roots_output_config *roots_config_get_output(struct roots_config *config,
 		struct wlr_output *output) {
-	struct output_config *o_config;
+	struct roots_output_config *o_config;
 	wl_list_for_each(o_config, &config->outputs, link) {
 		if (strcmp(o_config->name, output->name) == 0) {
 			return o_config;
@@ -427,9 +476,9 @@ struct output_config *config_get_output(struct roots_config *config,
 	return NULL;
 }
 
-struct device_config *config_get_device(struct roots_config *config,
+struct roots_device_config *roots_config_get_device(struct roots_config *config,
 		struct wlr_input_device *device) {
-	struct device_config *d_config;
+	struct roots_device_config *d_config;
 	wl_list_for_each(d_config, &config->devices, link) {
 		if (strcmp(d_config->name, device->name) == 0) {
 			return d_config;
@@ -439,13 +488,33 @@ struct device_config *config_get_device(struct roots_config *config,
 	return NULL;
 }
 
-struct keyboard_config *config_get_keyboard(struct roots_config *config,
-		struct wlr_input_device *device) {
-	struct keyboard_config *kc;
+struct roots_keyboard_config *roots_config_get_keyboard(
+		struct roots_config *config, struct wlr_input_device *device) {
+	const char *device_name = "";
+	if (device != NULL) {
+		device_name = device->name;
+	}
+
+	struct roots_keyboard_config *kc;
 	wl_list_for_each(kc, &config->keyboards, link) {
-		if ((device != NULL && strcmp(kc->name, device->name) == 0) ||
-				(device == NULL && strcmp(kc->name, "") == 0)) {
+		if (strcmp(kc->name, device_name) == 0) {
 			return kc;
+		}
+	}
+
+	return NULL;
+}
+
+struct roots_cursor_config *roots_config_get_cursor(struct roots_config *config,
+		const char *seat_name) {
+	if (seat_name == NULL) {
+		seat_name = ROOTS_CONFIG_DEFAULT_SEAT_NAME;
+	}
+
+	struct roots_cursor_config *cc;
+	wl_list_for_each(cc, &config->cursors, link) {
+		if (strcmp(cc->seat, seat_name) == 0) {
+			return cc;
 		}
 	}
 

@@ -42,6 +42,8 @@ struct wlr_wl_shell_popup_grab {
 enum wlr_wl_shell_surface_state {
 	WLR_WL_SHELL_SURFACE_STATE_NONE,
 	WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL,
+	WLR_WL_SHELL_SURFACE_STATE_MAXIMIZED,
+	WLR_WL_SHELL_SURFACE_STATE_FULLSCREEN,
 	WLR_WL_SHELL_SURFACE_STATE_TRANSIENT,
 	WLR_WL_SHELL_SURFACE_STATE_POPUP,
 };
@@ -93,14 +95,14 @@ struct wlr_wl_shell_surface {
 struct wlr_wl_shell_surface_move_event {
 	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_wl_shell_surface_resize_event {
 	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
-	struct wlr_seat_handle *seat_handle;
+	struct wlr_seat_client *seat;
 	uint32_t serial;
 	enum wl_shell_surface_resize edges;
 };
