@@ -813,8 +813,9 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 
 	surface->configured = true;
 	surface->configure_serial = serial;
-
 	free(configure);
+
+	wl_signal_emit(&surface->events.ack_configure, surface);
 }
 
 static void xdg_surface_set_window_geometry(struct wl_client *client,
@@ -1154,6 +1155,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
+	wl_signal_init(&surface->events.ack_configure);
 
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
