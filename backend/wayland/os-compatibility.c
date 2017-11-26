@@ -23,18 +23,26 @@
  * SOFTWARE.
  */
 
-#define _XOPEN_SOURCE 700
+#ifdef __FreeBSD__
+#include <sys/mman.h>
+#define UNUSED_ON_FBSD __attribute__((__unused__))
+#else
+#define UNUSED_ON_FBSD
+#endif
+#ifdef HAS_MEMFD
+#define _GNU_SOURCE
+#include <sys/syscall.h>
+#include <linux/memfd.h>
+#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef __linux__
-#include <sys/epoll.h>
-#endif
 #include <string.h>
 #include <stdlib.h>
 
+#if !defined(HAS_MEMFD) && !defined(__FreeBSD__) && !defined(HAVE_MKOSTEMP)
 int
 os_fd_set_cloexec(int fd)
 {
@@ -62,13 +70,18 @@ set_cloexec_or_close(int fd)
 	}
 	return fd;
 }
+#endif
 
 static int
-create_tmpfile_cloexec(char *tmpname)
+create_tmpfile_cloexec(char * UNUSED_ON_FBSD tmpname)
 {
 	int fd;
 
-#ifdef HAVE_MKOSTEMP
+#ifdef HAS_MEMFD
+	fd = syscall(SYS_memfd_create, tmpname, MFD_CLOEXEC);
+#elif __FreeBSD__
+	fd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600); // shm_open is always CLOEXEC
+#elif HAVE_MKOSTEMP
 	fd = mkostemp(tmpname, O_CLOEXEC);
 	if (fd >= 0)
 		unlink(tmpname);
@@ -90,7 +103,8 @@ create_tmpfile_cloexec(char *tmpname)
  * the given size at offset zero.
  *
  * The file should not have a permanent backing store like a disk,
- * but may have if XDG_RUNTIME_DIR is not properly implemented in OS.
+ * but may have if XDG_RUNTIME_DIR is not properly implemented in OS,
+ * and facilities like memfd and SHM_ANON are not available.
  *
  * The file name is deleted from the file system.
  *

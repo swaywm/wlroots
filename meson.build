@@ -81,6 +81,9 @@ endif
 exclude_files = []
 wlr_parts = []
 conf_data = configuration_data()
+if cc.has_header('linux/memfd.h')
+	add_project_arguments('-DHAS_MEMFD', language: 'c')
+endif
 if get_option('enable_xwayland')
 	add_project_arguments('-DHAS_XWAYLAND', language: 'c')
 	subdir('xwayland')
