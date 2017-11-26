@@ -16,8 +16,10 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
-static void matrix_multiply(float res[static restrict 9],
+static void matrix_multiply(float out[static 9],
 		const float a[static 9], const float b[static 9]) {
+	float res[9];
+
 	res[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
 	res[1] = a[0]*b[1] + a[1]*b[4] + a[2]*b[7];
 	res[2] = a[0]*b[2] + a[1]*b[5] + a[2]*b[8];
@@ -29,6 +31,15 @@ static void matrix_multiply(float res[static restrict 9],
 	res[6] = a[6]*b[0] + a[7]*b[3] + a[8]*b[6];
 	res[7] = a[6]*b[1] + a[7]*b[4] + a[8]*b[7];
 	res[8] = a[6]*b[2] + a[7]*b[5] + a[8]*b[8];
+
+	memcpy(out, res, sizeof(res));
+}
+
+static void matrix_scale_row(float res[static 3], float val)
+{
+	res[0] *= val;
+	res[1] *= val;
+	res[2] *= val;
 }
 
 /**
@@ -56,6 +67,8 @@ static void render_surface(struct wlr_surface *surface,
 		return;
 	}
 
+	struct wlr_render *rend = desktop->server->render;
+
 	double sw = surface->current->width * wlr_output->scale;
 	double sh = surface->current->height * wlr_output->scale;
 	double ox = lx, oy = ly;
@@ -68,22 +81,41 @@ static void render_surface(struct wlr_surface *surface,
 		int ow, oh;
 		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
-		double c = cos(rotation);
-		double s = sin(rotation);
-
-		// Odd transforms are rotations
-		double r = wlr_output->transform % 2 == 0 ? 1 : -1;
-
 		float mat[9] = {
-			+r * (sw * c)/ow, +r * (sh * -s)/ow, r * ((+2.0f * ox + sw) / ow - 1.0f),
-			-r * (sw * s)/oh, -r * (sh * +c)/oh, r * ((-2.0f * oy - sh) / oh + 1.0f),
+			cos(rotation), -sin(rotation), 0.0f,
+			sin(rotation), +cos(rotation), 0.0f,
 			0.0f, 0.0f, 1.0f,
 		};
-		float res[9];
-		matrix_multiply(res, wlr_render_get_transform(desktop->server->render), mat);
 
-		wlr_render_texture_with_matrix(desktop->server->render,
-			surface->tex, res, 1);
+		// Scale matrix to window size
+		float scale[9] = {
+			sw,   0.0f, 0.0f,
+			0.0f, sh,   0.0f,
+			0.0f, 0.0f, 1.0f,
+		};
+		matrix_multiply(mat, mat, scale);
+		matrix_scale_row(&mat[0], 1.0f / ow);
+		matrix_scale_row(&mat[3], 1.0f / oh);
+
+		// subtract to upper left corner + add x/y position
+		float tran[9] = {
+			1.0f, 0.0f, -1.0f + sw/ow + (2.0f/ow) * ox,
+			0.0f, 1.0f, -1.0f + sh/oh + (2.0f/oh) * oy,
+			0.0f, 0.0f, 1.0f,
+		};
+
+		matrix_multiply(mat, tran, mat);
+
+		// This is needed to make output rotations work properly
+		if (wlr_output->transform % 2 == 0) {
+			matrix_scale_row(&mat[3], -1);
+		} else {
+			matrix_scale_row(&mat[0], -1);
+		}
+
+		matrix_multiply(mat, wlr_render_get_transform(rend), mat);
+
+		wlr_render_texture_with_matrix(rend, surface->tex, mat, 1);
 
 		struct wlr_frame_callback *cb, *cnext;
 		wl_list_for_each_safe(cb, cnext,

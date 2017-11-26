@@ -95,7 +95,7 @@ bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
 
 /*
  * Create a new texture from raw pixel data.
- * stride in in bytes.
+ * stride is in bytes.
  * The returned texture is mutable.
  */
 struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
