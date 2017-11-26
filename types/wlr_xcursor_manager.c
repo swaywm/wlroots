@@ -77,7 +77,7 @@ void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
 		}
 
 		struct wlr_xcursor_image *image = xcursor->images[0];
-		wlr_cursor_set_image(cursor, image->buffer, image->width,
+		wlr_cursor_set_image(cursor, image->buffer, image->width * 4,
 			image->width, image->height, image->hotspot_x, image->hotspot_y,
 			theme->scale);
 	}

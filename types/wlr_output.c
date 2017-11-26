@@ -286,7 +286,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		y += cursor->surface->current->sy;
 	}
 
-	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height, INT32_MAX);
+	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height, 1);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {
@@ -342,7 +342,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
 		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-			stride * 4, width, height, hotspot_x, hotspot_y, true);
+			stride, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
 			cursor->output->hardware_cursor = cursor;
 			return true;
