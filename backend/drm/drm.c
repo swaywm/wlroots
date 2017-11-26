@@ -586,7 +586,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	wlr_render_bind_raw(rend, plane->surf.width, plane->surf.height, conn->output.transform);
 	wlr_render_clear(rend, 0.0, 0.0, 0.0, 0.0);
-	wlr_render_texture(rend, tex, 0, 0, width, height, 0);
+	wlr_render_texture(rend, tex, 0, 0, width, height);
 	wlr_render_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride, bo_width, bo_height,
 		0, 0, 0, 0, bo_data);
 

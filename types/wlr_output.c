@@ -286,7 +286,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor) {
 		y += cursor->surface->current->sy;
 	}
 
-	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height, 1);
+	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height);
 }
 
 void wlr_output_swap_buffers(struct wlr_output *output) {

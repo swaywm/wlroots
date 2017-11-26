@@ -115,7 +115,7 @@ static void render_surface(struct wlr_surface *surface,
 
 		matrix_multiply(mat, wlr_render_get_transform(rend), mat);
 
-		wlr_render_texture_with_matrix(rend, surface->tex, mat, 1);
+		wlr_render_texture_with_matrix(rend, surface->tex, mat);
 
 		struct wlr_frame_callback *cb, *cnext;
 		wl_list_for_each_safe(cb, cnext,

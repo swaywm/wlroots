@@ -39,13 +39,13 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
  */
 void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-	int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z);
+	int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2);
 
 /*
  * Render tex onto the surface.
  */
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+	int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 
 
 /*
@@ -55,7 +55,7 @@ void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
 
 void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
 	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-	float matrix[static 9], int32_t pos_z);
+	float matrix[static 9]);
 
 /*
  * Renders tex onto the surface using a matrix.
@@ -70,19 +70,19 @@ void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *
  */
 
 void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
-	float matrix[static 9], int32_t pos_z);
+	float matrix[static 9]);
 
 /*
  * Render a colored rectangle onto the surface.
  */
 void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+	int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 
 /*
  * Render a colored ellipse onto the surface.
  */
 void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+	int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 
 /*
  * Read out of pixels of the currently bound surface into data.

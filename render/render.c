@@ -187,7 +187,7 @@ static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 		tx2, ty2,
 	};
 
-	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, 0, verts);
 	glVertexAttribPointer(texcoord_loc, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
 
 	glEnable(GL_BLEND);
@@ -201,15 +201,15 @@ static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 
 void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z) {
+		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
 	float verts[] = {
-		pos_x1, pos_y1, pos_z,
-		pos_x2, pos_y1, pos_z,
-		pos_x1, pos_y2, pos_z,
-		pos_x2, pos_y2, pos_z,
+		pos_x1, pos_y1,
+		pos_x2, pos_y1,
+		pos_x1, pos_y2,
+		pos_x2, pos_y2,
 	};
 
 	render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, rend->proj);
@@ -218,21 +218,21 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 }
 
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
-	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2, z);
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2);
 }
 
 void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-		float matrix[static 9], int32_t pos_z) {
+		float matrix[static 9]) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
 	float verts[] = {
-		-1.0f, -1.0f, pos_z,
-		+1.0f, -1.0f, pos_z,
-		-1.0f, +1.0f, pos_z,
-		+1.0f, +1.0f, pos_z,
+		-1.0f, -1.0f,
+		+1.0f, -1.0f,
+		-1.0f, +1.0f,
+		+1.0f, +1.0f,
 	};
 
 	render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, matrix);
@@ -241,12 +241,12 @@ void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *
 }
 
 void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
-		float matrix[static 9], int32_t pos_z) {
-	wlr_render_subtexture_with_matrix(rend, tex, 0, 0, tex->width, tex->height, matrix, pos_z);
+		float matrix[static 9]) {
+	wlr_render_subtexture_with_matrix(rend, tex, 0, 0, tex->width, tex->height, matrix);
 }
 
 void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -261,10 +261,10 @@ void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a
 	glUniform4f(color_loc, r, g, b, a);
 
 	GLfloat verts[] = {
-		x1, y1, z,
-		x2, y1, z,
-		x1, y2, z,
-		x2, y2, z,
+		x1, y1,
+		x2, y1,
+		x1, y2,
+		x2, y2,
 	};
 
 	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
@@ -280,7 +280,7 @@ void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a
 }
 
 void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -299,16 +299,15 @@ void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, floa
 	float rw = abs(x1 - x2) / 2.0f;
 	float rh = abs(y1 - y2) / 2.0f;
 
-	GLfloat verts[18 * 3] = {
-		x, y, z,
+	GLfloat verts[18 * 2] = {
+		x, y,
 	};
 
 	for (int i = 0; i < 17; ++i) {
 		float angle = M_PI / 8.0f * i;
-		int base = (i + 1) * 3;
+		int base = (i + 1) * 2;
 		verts[base + 0] = x + sin(angle) * rw;
 		verts[base + 1] = y + cos(angle) * rh;
-		verts[base + 2] = z;
 	}
 
 	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);

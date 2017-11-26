@@ -119,7 +119,7 @@ static void handle_output_frame(struct output_state *output,
 		int32_t height = wlr_tex_get_height(sample->cat_tex);
 
 		wlr_render_texture(sample->rend, sample->cat_tex, local_x, local_y,
-			local_x + width, local_y + height, 0);
+			local_x + width, local_y + height);
 
 	}
 

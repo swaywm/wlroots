@@ -58,7 +58,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	float *pad = sample->pad_color;
 
 	wlr_render_rect(rend, pad[0], pad[1], pad[2], pad[3],
-		pad_x, pad_y, pad_x + pad_width, pad_y + pad_height, 0);
+		pad_x, pad_y, pad_x + pad_width, pad_y + pad_height);
 
 	if (sample->proximity) {
 		float x = sample->x_mm * scale - 8 * (sample->pressure + 1) + pad_x;
@@ -67,7 +67,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 		wlr_render_ellipse(rend,
 			tool[0], tool[1], tool[2], tool[3],
-			x, y, x + cir, y + cir, 0
+			x, y, x + cir, y + cir
 		);
 	}
 
