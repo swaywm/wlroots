@@ -159,7 +159,7 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
 
 static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-		const float verts[static 9], const float mat[static 9]) {
+		const float verts[static 8], const float mat[static 9]) {
 	GLuint prog = rend->shaders.tex;
 
 	GLuint proj_loc = glGetUniformLocation(prog, "proj");
