@@ -23,6 +23,12 @@
 
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 199309L
+// for os-compatibility.c:
+#ifdef __FreeBSD__
+#define __BSD_VISIBLE 1
+#elif HAS_MEMFD
+#define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
