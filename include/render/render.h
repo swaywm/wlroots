@@ -18,6 +18,7 @@ struct wlr_render {
 	struct wlr_egl *egl;
 
 	float proj[9];
+	const float *matrix;
 
 	struct {
 		GLuint poly;

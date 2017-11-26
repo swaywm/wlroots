@@ -16,6 +16,21 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
+static void matrix_multiply(float res[static restrict 9],
+		const float a[static 9], const float b[static 9]) {
+	res[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
+	res[1] = a[0]*b[1] + a[1]*b[4] + a[2]*b[7];
+	res[2] = a[0]*b[2] + a[1]*b[5] + a[2]*b[8];
+
+	res[3] = a[3]*b[0] + a[4]*b[3] + a[5]*b[6];
+	res[4] = a[3]*b[1] + a[4]*b[4] + a[5]*b[7];
+	res[5] = a[3]*b[2] + a[4]*b[5] + a[5]*b[8];
+
+	res[6] = a[6]*b[0] + a[7]*b[3] + a[8]*b[6];
+	res[7] = a[6]*b[1] + a[7]*b[4] + a[8]*b[7];
+	res[8] = a[6]*b[2] + a[7]*b[5] + a[8]*b[8];
+}
+
 /**
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
  * the child position is (*sx, *sy) and its size is (sw, sh).
@@ -27,8 +42,8 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 		double ox = *sx - pw/2 + sw/2,
 			oy = *sy - ph/2 + sh/2;
 		// Rotated coordinates
-		double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-			ry = cos(-rotation)*oy + sin(-rotation)*ox;
+		double rx = cos(-rotation)*ox - sin(-rotation)*oy;
+		double ry = cos(-rotation)*oy + sin(-rotation)*ox;
 		*sx = rx + pw/2 - sw/2;
 		*sy = ry + ph/2 - sh/2;
 	}
@@ -37,76 +52,56 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
-	if (wlr_surface_has_buffer(surface)) {
-		int width = surface->current->width;
-		int height = surface->current->height;
-		int render_width = width * wlr_output->scale;
-		int render_height = height * wlr_output->scale;
-		double ox = lx, oy = ly;
-		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
-		ox *= wlr_output->scale;
-		oy *= wlr_output->scale;
+	if (!wlr_surface_has_buffer(surface)) {
+		return;
+	}
 
-		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-				lx, ly, lx + render_width, ly + render_height)) {
-			float matrix[16];
+	double sw = surface->current->width * wlr_output->scale;
+	double sh = surface->current->height * wlr_output->scale;
+	double ox = lx, oy = ly;
+	wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
+	ox *= wlr_output->scale;
+	oy *= wlr_output->scale;
 
-			float translate_origin[16];
-			wlr_matrix_translate(&translate_origin,
-				(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
+	if (wlr_output_layout_intersects(desktop->layout, wlr_output,
+			lx, ly, lx + sw, ly + sh)) {
+		int ow, oh;
+		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
-			float rotate[16];
-			wlr_matrix_rotate(&rotate, rotation);
+		double c = cos(rotation);
+		double s = sin(rotation);
 
-			float translate_center[16];
-			wlr_matrix_translate(&translate_center, -render_width / 2,
-				-render_height / 2, 0);
+		// Odd transforms are rotations
+		double r = wlr_output->transform % 2 == 0 ? 1 : -1;
 
-			float scale[16];
-			wlr_matrix_scale(&scale, render_width, render_height, 1);
+		float mat[9] = {
+			+r * (sw * c)/ow, +r * (sh * -s)/ow, r * ((+2.0f * ox + sw) / ow - 1.0f),
+			-r * (sw * s)/oh, -r * (sh * +c)/oh, r * ((-2.0f * oy - sh) / oh + 1.0f),
+			0.0f, 0.0f, 1.0f,
+		};
+		float res[9];
+		matrix_multiply(res, wlr_render_get_transform(desktop->server->render), mat);
 
-			float transform[16];
-			wlr_matrix_mul(&translate_origin, &rotate, &transform);
-			wlr_matrix_mul(&transform, &translate_center, &transform);
-			wlr_matrix_mul(&transform, &scale, &transform);
-			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
+		wlr_render_texture_with_matrix(desktop->server->render,
+			surface->tex, res, 1);
 
-			wlr_render_with_matrix(desktop->server->renderer, surface->texture,
-				&matrix);
-
-			struct wlr_frame_callback *cb, *cnext;
-			wl_list_for_each_safe(cb, cnext,
-					&surface->current->frame_callback_list, link) {
-				wl_callback_send_done(cb->resource, timespec_to_msec(when));
-				wl_resource_destroy(cb->resource);
-			}
+		struct wlr_frame_callback *cb, *cnext;
+		wl_list_for_each_safe(cb, cnext,
+				&surface->current->frame_callback_list, link) {
+			wl_callback_send_done(cb->resource, timespec_to_msec(when));
+			wl_resource_destroy(cb->resource);
 		}
-
-		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-			struct wlr_surface_state *state = subsurface->surface->current;
-			double sx = state->subsurface_position.x;
-			double sy = state->subsurface_position.y;
-			double sw = state->buffer_width / state->scale;
-			double sh = state->buffer_height / state->scale;
-			rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
+	}
 
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-		double sx = subsurface->surface->current->subsurface_position.x,
-			sy = subsurface->surface->current->subsurface_position.y;
-		double sw = subsurface->surface->current->buffer_width,
-			sh = subsurface->surface->current->buffer_height;
-		if (rotation != 0.0) {
-			// Coordinates relative to the center of the subsurface
-			double ox = sx - (double)width/2 + sw/2,
-				oy = sy - (double)height/2 + sh/2;
-			// Rotated coordinates
-			double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-				ry = cos(-rotation)*oy + sin(-rotation)*ox;
-			sx = rx + (double)width/2 - sw/2;
-			sy = ry + (double)height/2 - sh/2;
-		}
+		struct wlr_surface_state *state = subsurface->surface->current;
+		double sx = state->subsurface_position.x;
+		double sy = state->subsurface_position.y;
+		double sw = state->buffer_width / state->scale;
+		double sh = state->buffer_height / state->scale;
+		rotate_child_position(&sx, &sy, sw, sh,
+			surface->current->width, surface->current->height, rotation);
 
 		render_surface(subsurface->surface, desktop, wlr_output, when,
 			lx + sx,

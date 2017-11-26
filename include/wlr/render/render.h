@@ -24,6 +24,12 @@ bool wlr_render_format_supported(enum wl_shm_format fmt);
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output);
 
 /*
+ * Returns the currently bound 3x3 transform matrix.
+ * The returned matrix will have 9 elements and is in row-major order.
+ */
+const float *wlr_render_get_transform(struct wlr_render *rend);
+
+/*
  * Clear the renderer surface to the color.
  */
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a);
@@ -40,6 +46,31 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
  */
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
 	int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z);
+
+
+/*
+ * Renders tex onto the surface using a matrix.
+ * See wlr_render_texture_with_matrix.
+ */
+
+void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
+	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
+	float matrix[static 9], int32_t pos_z);
+
+/*
+ * Renders tex onto the surface using a matrix.
+ *
+ * This happens in the OpenGL coordinate system (right handed).
+ * The verticies are at (-1,-1), (-1, 1), (1, -1) and (1,1).
+ *
+ * The matrix should be row-major order.
+ *
+ * The currently bound transformation will NOT be applied as part of this render.
+ * You should use wlr_render_get_transform, and multiply it into your own matrix.
+ */
+
+void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
+	float matrix[static 9], int32_t pos_z);
 
 /*
  * Render a colored rectangle onto the surface.

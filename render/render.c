@@ -61,38 +61,46 @@ bool wlr_render_format_supported(enum wl_shm_format wl_fmt) {
 	return wl_to_gl(wl_fmt);
 }
 
-static const float transforms[][4] = {
+static const float transforms[][9] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f,
-		0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f,
-		-1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f,
-		0.0f, 1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f,
-		1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f,
-		0.0f, -1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, 1.0f,
-		-1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f,
-		0.0f, 1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, -1.0f,
-		1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 };
 
@@ -108,8 +116,8 @@ static void matrix(float mat[static 9], int32_t width, int32_t height,
 	// Rotation + relection
 	mat[0] = x * t[0];
 	mat[1] = x * t[1];
-	mat[3] = y * t[2];
-	mat[4] = y * t[3];
+	mat[3] = y * -t[3];
+	mat[4] = y * -t[4];
 
 	// Translation
 	mat[2] = -copysign(1.0f, mat[0] + mat[1]);
@@ -126,12 +134,17 @@ void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t heigh
 
 	glViewport(0, 0, width, height);
 	matrix(rend->proj, width, height, transform);
+	rend->matrix = transforms[transform];
 
 	DEBUG_POP;
 }
 
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
 	wlr_render_bind_raw(rend, output->width, output->height, output->transform);
+}
+
+const float *wlr_render_get_transform(struct wlr_render *rend) {
+	return rend->matrix;
 }
 
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a) {
@@ -144,12 +157,9 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
 	DEBUG_POP;
 }
 
-void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
+static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z) {
-	assert(eglGetCurrentContext() == rend->egl->context);
-	DEBUG_PUSH;
-
+		const float verts[static 9], const float mat[static 9]) {
 	GLuint prog = rend->shaders.tex;
 
 	GLuint proj_loc = glGetUniformLocation(prog, "proj");
@@ -157,17 +167,10 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	GLuint texcoord_loc = glGetAttribLocation(prog, "texcoord");
 
 	glUseProgram(prog);
-	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, rend->proj);
+	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, mat);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
-
-	GLfloat verts[] = {
-		pos_x1, pos_y1, pos_z,
-		pos_x2, pos_y1, pos_z,
-		pos_x1, pos_y2, pos_z,
-		pos_x2, pos_y2, pos_z,
-	};
 
 	GLfloat tw = tex->width;
 	GLfloat th = tex->height;
@@ -194,6 +197,22 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	glEnableVertexAttribArray(texcoord_loc);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
+		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
+		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2, int32_t pos_z) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+	DEBUG_PUSH;
+
+	float verts[] = {
+		pos_x1, pos_y1, pos_z,
+		pos_x2, pos_y1, pos_z,
+		pos_x1, pos_y2, pos_z,
+		pos_x2, pos_y2, pos_z,
+	};
+
+	render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, rend->proj);
 
 	DEBUG_POP;
 }
@@ -201,6 +220,29 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t z) {
 	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2, z);
+}
+
+void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
+		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
+		float matrix[static 9], int32_t pos_z) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+	DEBUG_PUSH;
+
+	float verts[] = {
+		-1.0f, -1.0f, pos_z,
+		+1.0f, -1.0f, pos_z,
+		-1.0f, +1.0f, pos_z,
+		+1.0f, +1.0f, pos_z,
+	};
+
+	render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, matrix);
+
+	DEBUG_POP;
+}
+
+void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
+		float matrix[static 9], int32_t pos_z) {
+	wlr_render_subtexture_with_matrix(rend, tex, 0, 0, tex->width, tex->height, matrix, pos_z);
 }
 
 void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,

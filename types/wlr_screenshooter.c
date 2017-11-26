@@ -63,7 +63,6 @@ static void screenshooter_shoot(struct wl_client *client,
 
 	struct wlr_screenshot *screenshot = calloc(1, sizeof(*screenshot));
 	if (!screenshot) {
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
@@ -76,7 +75,6 @@ static void screenshooter_shoot(struct wl_client *client,
 		wl_resource_get_version(screenshooter_resource), id);
 	if (screenshot->resource == NULL) {
 		free(screenshot);
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
@@ -90,7 +88,6 @@ static void screenshooter_shoot(struct wl_client *client,
 	if (!state) {
 		wl_resource_destroy(screenshot->resource);
 		free(screenshot);
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
