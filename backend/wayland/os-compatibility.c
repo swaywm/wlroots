@@ -29,9 +29,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef __linux__
-#include <sys/epoll.h>
-#endif
 #include <string.h>
 #include <stdlib.h>
 

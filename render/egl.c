@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
-#include "render/glapi.h"
+#include "glapi.h"
 
 static log_importance_t egl_to_wlr(EGLint type) {
 	switch (type) {
