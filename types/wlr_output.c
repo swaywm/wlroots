@@ -356,6 +356,10 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	if (cursor->output->hardware_cursor == NULL &&
 			cursor->output->impl->set_cursor) {
+		if (cursor->output->impl->move_cursor) {
+			cursor->output->impl->move_cursor(cursor->output,
+				(int)cursor->x, (int)cursor->y);
+		}
 		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
 			stride, width, height, hotspot_x, hotspot_y, true);
 		if (ok) {
