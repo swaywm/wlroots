@@ -14,7 +14,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include "backend/drm/drm.h"
-#include "render/glapi.h"
+#include "glapi.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
