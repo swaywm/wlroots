@@ -29,5 +29,6 @@ executable(
 executable(
 	'screenshot',
 	'screenshot.c',
-	dependencies: [wayland_client, wlr_protos],
+	dependencies: [wayland_client, wlr_protos, wlroots],
+	link_with: lib_shared,
 )
