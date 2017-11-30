@@ -50,13 +50,22 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	roots_seat_begin_resize(seat, view, e->edges);
 }
 
-static void handle_request_set_maximized(struct wl_listener *listener,
+static void handle_request_maximize(struct wl_listener *listener,
 		void *data) {
 	struct roots_wl_shell_surface *roots_surface =
-		wl_container_of(listener, roots_surface, request_set_maximized);
+		wl_container_of(listener, roots_surface, request_maximize);
 	struct roots_view *view = roots_surface->view;
-	//struct wlr_wl_shell_surface_set_maximized_event *e = data;
+	//struct wlr_wl_shell_surface_maximize_event *e = data;
 	view_maximize(view, true);
+}
+
+static void handle_request_fullscreen(struct wl_listener *listener,
+		void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_fullscreen);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_wl_shell_surface_set_fullscreen_event *e = data;
+	view_set_fullscreen(view, true, e->output);
 }
 
 static void handle_set_state(struct wl_listener *listener, void *data) {
@@ -67,6 +76,10 @@ static void handle_set_state(struct wl_listener *listener, void *data) {
 	if (view->maximized &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_MAXIMIZED) {
 		view_maximize(view, false);
+	}
+	if (view->fullscreen_output != NULL &&
+			surface->state != WLR_WL_SHELL_SURFACE_STATE_FULLSCREEN) {
+		view_set_fullscreen(view, false, NULL);
 	}
 }
 
@@ -97,7 +110,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
-	wl_list_remove(&roots_surface->request_set_maximized.link);
+	wl_list_remove(&roots_surface->request_maximize.link);
+	wl_list_remove(&roots_surface->request_fullscreen.link);
 	wl_list_remove(&roots_surface->set_state.link);
 	wl_list_remove(&roots_surface->surface_commit.link);
 	wl_list_remove(&roots_surface->view->link);
@@ -126,9 +140,13 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_resize.notify = handle_request_resize;
 	wl_signal_add(&surface->events.request_resize,
 		&roots_surface->request_resize);
-	roots_surface->request_set_maximized.notify = handle_request_set_maximized;
-	wl_signal_add(&surface->events.request_set_maximized,
-		&roots_surface->request_set_maximized);
+	roots_surface->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&surface->events.request_maximize,
+		&roots_surface->request_maximize);
+	roots_surface->request_fullscreen.notify =
+		handle_request_fullscreen;
+	wl_signal_add(&surface->events.request_fullscreen,
+		&roots_surface->request_fullscreen);
 	roots_surface->set_state.notify = handle_set_state;
 	wl_signal_add(&surface->events.set_state, &roots_surface->set_state);
 	roots_surface->surface_commit.notify = handle_surface_commit;

@@ -929,3 +929,17 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 		}
 	}
 }
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+void wlr_surface_send_frame_done(struct wlr_surface *surface,
+		const struct timespec *when) {
+	struct wlr_frame_callback *cb, *cnext;
+	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
+			link) {
+		wl_callback_send_done(cb->resource, timespec_to_msec(when));
+		wl_resource_destroy(cb->resource);
+	}
+}

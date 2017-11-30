@@ -81,8 +81,8 @@ struct wlr_wl_shell_surface {
 
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
-		struct wl_signal request_set_fullscreen;
-		struct wl_signal request_set_maximized;
+		struct wl_signal request_fullscreen;
+		struct wl_signal request_maximize;
 
 		struct wl_signal set_state;
 		struct wl_signal set_title;
@@ -93,14 +93,12 @@ struct wlr_wl_shell_surface {
 };
 
 struct wlr_wl_shell_surface_move_event {
-	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
 	struct wlr_seat_client *seat;
 	uint32_t serial;
 };
 
 struct wlr_wl_shell_surface_resize_event {
-	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
 	struct wlr_seat_client *seat;
 	uint32_t serial;
@@ -108,15 +106,13 @@ struct wlr_wl_shell_surface_resize_event {
 };
 
 struct wlr_wl_shell_surface_set_fullscreen_event {
-	struct wl_client *client;
 	struct wlr_wl_shell_surface *surface;
 	enum wl_shell_surface_fullscreen_method method;
 	uint32_t framerate;
 	struct wlr_output *output;
 };
 
-struct wlr_wl_shell_surface_set_maximized_event {
-	struct wl_client *client;
+struct wlr_wl_shell_surface_maximize_event {
 	struct wlr_wl_shell_surface *surface;
 	struct wlr_output *output;
 };

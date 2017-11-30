@@ -564,23 +564,15 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_show_window_menu_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_show_window_menu_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_show_window_menu_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+		.x = x,
+		.y = y,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-	event->x = x;
-	event->y = y;
-
-	wl_signal_emit(&surface->events.request_show_window_menu, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_show_window_menu, &event);
 }
 
 static void xdg_toplevel_protocol_move(struct wl_client *client,
@@ -597,21 +589,13 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_move_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_move_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_move_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-
-	wl_signal_emit(&surface->events.request_move, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_move, &event);
 }
 
 static void xdg_toplevel_protocol_resize(struct wl_client *client,
@@ -628,22 +612,14 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_resize_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_resize_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_resize_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+		.edges = edges,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-	event->edges = edges;
-
-	wl_signal_emit(&surface->events.request_resize, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_resize, &event);
 }
 
 static void xdg_toplevel_protocol_set_max_size(struct wl_client *client,
@@ -677,15 +653,36 @@ static void xdg_toplevel_protocol_unset_maximized(struct wl_client *client,
 static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+
+	struct wlr_output *output = NULL;
+	if (output_resource != NULL) {
+		output = wl_resource_get_user_data(output_resource);
+	}
+
 	surface->toplevel_state->next.fullscreen = true;
-	wl_signal_emit(&surface->events.request_fullscreen, surface);
+
+	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
+		.surface = surface,
+		.fullscreen = true,
+		.output = output,
+	};
+
+	wl_signal_emit(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+
 	surface->toplevel_state->next.fullscreen = false;
-	wl_signal_emit(&surface->events.request_fullscreen, surface);
+
+	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
+		.surface = surface,
+		.fullscreen = false,
+		.output = NULL,
+	};
+
+	wl_signal_emit(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,

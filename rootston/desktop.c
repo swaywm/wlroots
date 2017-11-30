@@ -36,7 +36,7 @@ static void view_update_output(const struct roots_view *view,
 	struct wlr_box box;
 	view_get_box(view, &box);
 	wl_list_for_each(output, &desktop->outputs, link) {
-		bool intersected = before->x != -1 && wlr_output_layout_intersects(
+		bool intersected = before != NULL && wlr_output_layout_intersects(
 				desktop->layout, output->wlr_output,
 				before->x, before->y, before->x + before->width,
 				before->y + before->height);
@@ -53,6 +53,10 @@ static void view_update_output(const struct roots_view *view,
 }
 
 void view_move(struct roots_view *view, double x, double y) {
+	if (view->x == x && view->y == y) {
+		return;
+	}
+
 	struct wlr_box before;
 	view_get_box(view, &before);
 	if (view->move) {
@@ -61,6 +65,7 @@ void view_move(struct roots_view *view, double x, double y) {
 		view->x = x;
 		view->y = y;
 	}
+	view_update_output(view, &before);
 }
 
 void view_activate(struct roots_view *view, bool activate) {
@@ -102,6 +107,19 @@ void view_move_resize(struct roots_view *view, double x, double y,
 	view_resize(view, width, height);
 }
 
+static struct wlr_output *view_get_output(struct roots_view *view) {
+	struct wlr_box view_box;
+	view_get_box(view, &view_box);
+
+	double output_x, output_y;
+	wlr_output_layout_closest_point(view->desktop->layout, NULL,
+		view->x + (double)view_box.width/2,
+		view->y + (double)view_box.height/2,
+		&output_x, &output_y);
+	return wlr_output_layout_output_at(view->desktop->layout, output_x,
+		output_y);
+}
+
 void view_maximize(struct roots_view *view, bool maximized) {
 	if (view->maximized == maximized) {
 		return;
@@ -122,13 +140,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 		view->saved.width = view_box.width;
 		view->saved.height = view_box.height;
 
-		double output_x, output_y;
-		wlr_output_layout_closest_point(view->desktop->layout, NULL,
-			view->x + (double)view_box.width/2,
-			view->y + (double)view_box.height/2,
-			&output_x, &output_y);
-		struct wlr_output *output = wlr_output_layout_output_at(
-			view->desktop->layout, output_x, output_y);
+		struct wlr_output *output = view_get_output(view);
 		struct wlr_box *output_box =
 			wlr_output_layout_get_box(view->desktop->layout, output);
 
@@ -143,6 +155,59 @@ void view_maximize(struct roots_view *view, bool maximized) {
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
 		view->rotation = view->saved.rotation;
+	}
+}
+
+void view_set_fullscreen(struct roots_view *view, bool fullscreen,
+		struct wlr_output *output) {
+	bool was_fullscreen = view->fullscreen_output != NULL;
+	if (was_fullscreen == fullscreen) {
+		// TODO: support changing the output?
+		return;
+	}
+
+	// TODO: check if client is focused?
+
+	if (view->set_fullscreen) {
+		view->set_fullscreen(view, fullscreen);
+	}
+
+	if (!was_fullscreen && fullscreen) {
+		if (output == NULL) {
+			output = view_get_output(view);
+		}
+		struct roots_output *roots_output =
+			desktop_output_from_wlr_output(view->desktop, output);
+		if (roots_output == NULL) {
+			return;
+		}
+
+		struct wlr_box view_box;
+		view_get_box(view, &view_box);
+
+		view->saved.x = view->x;
+		view->saved.y = view->y;
+		view->saved.rotation = view->rotation;
+		view->saved.width = view_box.width;
+		view->saved.height = view_box.height;
+
+		struct wlr_box *output_box =
+			wlr_output_layout_get_box(view->desktop->layout, output);
+		view_move_resize(view, output_box->x, output_box->y, output_box->width,
+			output_box->height);
+		view->rotation = 0;
+
+		roots_output->fullscreen_view = view;
+		view->fullscreen_output = roots_output;
+	}
+
+	if (was_fullscreen && !fullscreen) {
+		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
+			view->saved.height);
+		view->rotation = view->saved.rotation;
+
+		view->fullscreen_output->fullscreen_view = NULL;
+		view->fullscreen_output = NULL;
 	}
 }
 
@@ -194,6 +259,10 @@ bool view_center(struct roots_view *view) {
 void view_destroy(struct roots_view *view) {
 	wl_signal_emit(&view->events.destroy, view);
 
+	if (view->fullscreen_output) {
+		view->fullscreen_output->fullscreen_view = NULL;
+	}
+
 	free(view);
 }
 
@@ -211,88 +280,107 @@ void view_setup(struct roots_view *view) {
 	}
 
 	view_center(view);
-	struct wlr_box before;
-	view_get_box(view, &before);
-	view_update_output(view, &before);
+	view_update_output(view, NULL);
 }
 
-struct roots_view *view_at(struct roots_desktop *desktop, double lx, double ly,
+static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
+	if (view->type == ROOTS_WL_SHELL_VIEW &&
+			view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+		return false;
+	}
+
+	double view_sx = lx - view->x;
+	double view_sy = ly - view->y;
+
+	struct wlr_surface_state *state = view->wlr_surface->current;
+	struct wlr_box box = {
+		.x = 0,
+		.y = 0,
+		.width = state->buffer_width / state->scale,
+		.height = state->buffer_height / state->scale,
+	};
+	if (view->rotation != 0.0) {
+		// Coordinates relative to the center of the view
+		double ox = view_sx - (double)box.width/2,
+			oy = view_sy - (double)box.height/2;
+		// Rotated coordinates
+		double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
+			ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
+		view_sx = rx + (double)box.width/2;
+		view_sy = ry + (double)box.height/2;
+	}
+
+	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
+		double popup_sx, popup_sy;
+		struct wlr_xdg_surface_v6 *popup =
+			wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
+				view_sx, view_sy, &popup_sx, &popup_sy);
+
+		if (popup) {
+			*sx = view_sx - popup_sx;
+			*sy = view_sy - popup_sy;
+			*surface = popup->surface;
+			return true;
+		}
+	}
+
+	if (view->type == ROOTS_WL_SHELL_VIEW) {
+		double popup_sx, popup_sy;
+		struct wlr_wl_shell_surface *popup =
+			wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
+				view_sx, view_sy, &popup_sx, &popup_sy);
+
+		if (popup) {
+			*sx = view_sx - popup_sx;
+			*sy = view_sy - popup_sy;
+			*surface = popup->surface;
+			return true;
+		}
+	}
+
+	double sub_x, sub_y;
+	struct wlr_subsurface *subsurface =
+		wlr_surface_subsurface_at(view->wlr_surface,
+			view_sx, view_sy, &sub_x, &sub_y);
+	if (subsurface) {
+		*sx = view_sx - sub_x;
+		*sy = view_sy - sub_y;
+		*surface = subsurface->surface;
+		return true;
+	}
+
+	if (wlr_box_contains_point(&box, view_sx, view_sy) &&
+			pixman_region32_contains_point(&view->wlr_surface->current->input,
+				view_sx, view_sy, NULL)) {
+		*sx = view_sx;
+		*sy = view_sy;
+		*surface = view->wlr_surface;
+		return true;
+	}
+
+	return false;
+}
+
+struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
+		double ly, struct wlr_surface **surface, double *sx, double *sy) {
+	struct wlr_output *wlr_output =
+		wlr_output_layout_output_at(desktop->layout, lx, ly);
+	if (wlr_output != NULL) {
+		struct roots_output *output =
+			desktop_output_from_wlr_output(desktop, wlr_output);
+		if (output != NULL && output->fullscreen_view != NULL) {
+			if (view_at(output->fullscreen_view, lx, ly, surface, sx, sy)) {
+				return output->fullscreen_view;
+			} else {
+				return NULL;
+			}
+		}
+	}
+
 	struct roots_view *view;
 	wl_list_for_each(view, &desktop->views, link) {
-		if (view->type == ROOTS_WL_SHELL_VIEW &&
-				view->wl_shell_surface->state ==
-				WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-			continue;
-		}
-
-		double view_sx = lx - view->x;
-		double view_sy = ly - view->y;
-
-		struct wlr_surface_state *state = view->wlr_surface->current;
-		struct wlr_box box = {
-			.x = 0,
-			.y = 0,
-			.width = state->buffer_width / state->scale,
-			.height = state->buffer_height / state->scale,
-		};
-		if (view->rotation != 0.0) {
-			// Coordinates relative to the center of the view
-			double ox = view_sx - (double)box.width/2,
-				oy = view_sy - (double)box.height/2;
-			// Rotated coordinates
-			double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
-				ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
-			view_sx = rx + (double)box.width/2;
-			view_sy = ry + (double)box.height/2;
-		}
-
-		if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-			double popup_sx, popup_sy;
-			struct wlr_xdg_surface_v6 *popup =
-				wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
-					view_sx, view_sy, &popup_sx, &popup_sy);
-
-			if (popup) {
-				*sx = view_sx - popup_sx;
-				*sy = view_sy - popup_sy;
-				*surface = popup->surface;
-				return view;
-			}
-		}
-
-		if (view->type == ROOTS_WL_SHELL_VIEW) {
-			double popup_sx, popup_sy;
-			struct wlr_wl_shell_surface *popup =
-				wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
-					view_sx, view_sy, &popup_sx, &popup_sy);
-
-			if (popup) {
-				*sx = view_sx - popup_sx;
-				*sy = view_sy - popup_sy;
-				*surface = popup->surface;
-				return view;
-			}
-		}
-
-		double sub_x, sub_y;
-		struct wlr_subsurface *subsurface =
-			wlr_surface_subsurface_at(view->wlr_surface,
-				view_sx, view_sy, &sub_x, &sub_y);
-		if (subsurface) {
-			*sx = view_sx - sub_x;
-			*sy = view_sy - sub_y;
-			*surface = subsurface->surface;
-			return view;
-		}
-
-		if (wlr_box_contains_point(&box, view_sx, view_sy) &&
-				pixman_region32_contains_point(
-					&view->wlr_surface->current->input,
-					view_sx, view_sy, NULL)) {
-			*sx = view_sx;
-			*sy = view_sy;
-			*surface = view->wlr_surface;
+		if (view_at(view, lx, ly, surface, sx, sy)) {
 			return view;
 		}
 	}
@@ -387,4 +475,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 void desktop_destroy(struct roots_desktop *desktop) {
 	// TODO
+}
+
+struct roots_output *desktop_output_from_wlr_output(
+		struct roots_desktop *desktop, struct wlr_output *output) {
+	struct roots_output *roots_output;
+	wl_list_for_each(roots_output, &desktop->outputs, link) {
+		if (roots_output->wlr_output == output) {
+			return roots_output;
+		}
+	}
+	return NULL;
 }

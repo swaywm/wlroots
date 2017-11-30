@@ -103,6 +103,13 @@ static void maximize(struct roots_view *view, bool maximized) {
 		view->xwayland_surface, maximized);
 }
 
+static void set_fullscreen(struct roots_view *view, bool fullscreen) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+
+	wlr_xwayland_surface_set_fullscreen(view->desktop->xwayland,
+		view->xwayland_surface, fullscreen);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -186,6 +193,16 @@ static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	view_maximize(view, maximized);
 }
 
+static void handle_request_fullscreen(struct wl_listener *listener,
+		void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, request_fullscreen);
+	struct roots_view *view = roots_surface->view;
+	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+
+	view_set_fullscreen(view, xwayland_surface->fullscreen, NULL);
+}
+
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, surface_commit);
@@ -266,6 +283,9 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_maximize.notify = handle_request_maximize;
 	wl_signal_add(&surface->events.request_maximize,
 		&roots_surface->request_maximize);
+	roots_surface->request_fullscreen.notify = handle_request_fullscreen;
+	wl_signal_add(&surface->events.request_fullscreen,
+		&roots_surface->request_fullscreen);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit,
@@ -287,6 +307,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->move = move;
 	view->move_resize = move_resize;
 	view->maximize = maximize;
+	view->set_fullscreen = set_fullscreen;
 	view->close = close;
 	roots_surface->view = view;
 	view_init(view, desktop);

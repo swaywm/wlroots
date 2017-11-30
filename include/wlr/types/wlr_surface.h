@@ -1,9 +1,10 @@
 #ifndef WLR_TYPES_WLR_SURFACE_H
 #define WLR_TYPES_WLR_SURFACE_H
-#include <wayland-server.h>
-#include <pixman.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
+#include <pixman.h>
+#include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_frame_callback {
@@ -141,5 +142,8 @@ void wlr_surface_send_enter(struct wlr_surface *surface,
 
 void wlr_surface_send_leave(struct wlr_surface *surface,
 		struct wlr_output *output);
+
+void wlr_surface_send_frame_done(struct wlr_surface *surface,
+		const struct timespec *when);
 
 #endif

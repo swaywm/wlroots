@@ -12,7 +12,8 @@ struct roots_wl_shell_surface {
 	struct wl_listener destroy;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
-	struct wl_listener request_set_maximized;
+	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
 	struct wl_listener set_state;
 
 	struct wl_listener surface_commit;
@@ -26,6 +27,7 @@ struct roots_xdg_surface_v6 {
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
 
 	uint32_t pending_move_resize_configure_serial;
 };
@@ -38,6 +40,7 @@ struct roots_xwayland_surface {
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
 	struct wl_listener map_notify;
 	struct wl_listener unmap_notify;
 
@@ -58,6 +61,7 @@ struct roots_view {
 	float rotation;
 
 	bool maximized;
+	struct roots_output *fullscreen_output;
 	struct {
 		double x, y;
 		uint32_t width, height;
@@ -103,6 +107,7 @@ struct roots_view {
 	void (*move_resize)(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height);
 	void (*maximize)(struct roots_view *view, bool maximized);
+	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
 	void (*close)(struct roots_view *view);
 };
 
@@ -113,6 +118,8 @@ void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
 void view_move_resize(struct roots_view *view, double x, double y,
 	uint32_t width, uint32_t height);
 void view_maximize(struct roots_view *view, bool maximized);
+void view_set_fullscreen(struct roots_view *view, bool fullscreen,
+	struct wlr_output *output);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);

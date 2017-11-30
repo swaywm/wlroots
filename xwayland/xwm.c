@@ -1344,18 +1344,16 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 }
 
 void wlr_xwayland_surface_set_maximized(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, bool maximized) {
-	if (xsurface_is_maximized(surface) != maximized) {
-		surface->maximized_horz = maximized;
-		surface->maximized_vert = maximized;
-		xsurface_set_net_wm_state(surface);
-	}
+		struct wlr_xwayland_surface *surface, bool maximized) {
+	surface->maximized_horz = maximized;
+	surface->maximized_vert = maximized;
+	xsurface_set_net_wm_state(surface);
+	xcb_flush(surface->xwm->xcb_conn);
 }
 
 void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, bool fullscreen) {
-	if (surface->fullscreen != fullscreen) {
-		surface->fullscreen = fullscreen;
-		xsurface_set_net_wm_state(surface);
-	}
+		struct wlr_xwayland_surface *surface, bool fullscreen) {
+	surface->fullscreen = fullscreen;
+	xsurface_set_net_wm_state(surface);
+	xcb_flush(surface->xwm->xcb_conn);
 }
