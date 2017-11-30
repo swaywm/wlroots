@@ -63,10 +63,25 @@ static void render_surface(struct wlr_surface *surface,
 			float scale[16];
 			wlr_matrix_scale(&scale, render_width, render_height, 1);
 
+			float translate_mdr[16];
+			wlr_matrix_translate(&translate_mdr, 0.5, 0.5, 0);
+
+			float surface_transform[16];
+			wlr_matrix_transform(surface_transform,
+				wlr_output_transform_invert(surface->current->transform)); // TODO
+
+			float translate_mdr2[16];
+			wlr_matrix_translate(&translate_mdr2, -0.5, -0.5, 0);
+
 			float transform[16];
 			wlr_matrix_mul(&translate_origin, &rotate, &transform);
 			wlr_matrix_mul(&transform, &translate_center, &transform);
 			wlr_matrix_mul(&transform, &scale, &transform);
+
+			wlr_matrix_mul(&transform, &translate_mdr, &transform);
+			wlr_matrix_mul(&transform, &surface_transform, &transform);
+			wlr_matrix_mul(&transform, &translate_mdr2, &transform);
+
 			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
 
 			wlr_render_with_matrix(desktop->server->renderer, surface->texture,

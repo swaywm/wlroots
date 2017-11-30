@@ -118,6 +118,23 @@ static const float transforms[][4] = {
 	},
 };
 
+void wlr_matrix_transform(float mat[static 16],
+		enum wl_output_transform transform) {
+	memset(mat, 0, sizeof(*mat) * 16);
+
+	const float *t = transforms[transform];
+
+	// Rotation + relection
+	mat[0] = t[0];
+	mat[1] = t[1];
+	mat[4] = -t[2];
+	mat[5] = -t[3];
+
+	// Identity
+	mat[10] = 1.0f;
+	mat[15] = 1.0f;
+}
+
 // Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
 void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 		enum wl_output_transform transform) {
