@@ -49,38 +49,38 @@ static void render_surface(struct wlr_surface *surface,
 				lx, ly, lx + render_width, ly + render_height)) {
 			float matrix[16];
 
-			float translate_origin[16];
-			wlr_matrix_translate(&translate_origin,
+			float translate_center[16];
+			wlr_matrix_translate(&translate_center,
 				(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
 
 			float rotate[16];
 			wlr_matrix_rotate(&rotate, rotation);
 
-			float translate_center[16];
-			wlr_matrix_translate(&translate_center, -render_width / 2,
+			float translate_origin[16];
+			wlr_matrix_translate(&translate_origin, -render_width / 2,
 				-render_height / 2, 0);
 
 			float scale[16];
 			wlr_matrix_scale(&scale, render_width, render_height, 1);
 
-			float translate_mdr[16];
-			wlr_matrix_translate(&translate_mdr, 0.5, 0.5, 0);
+			float surface_translate_center[16];
+			wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
 
 			float surface_transform[16];
 			wlr_matrix_transform(surface_transform,
-				wlr_output_transform_invert(surface->current->transform)); // TODO
+				wlr_output_transform_invert(surface->current->transform));
 
-			float translate_mdr2[16];
-			wlr_matrix_translate(&translate_mdr2, -0.5, -0.5, 0);
+			float surface_translate_origin[16];
+			wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
 
 			float transform[16];
-			wlr_matrix_mul(&translate_origin, &rotate, &transform);
-			wlr_matrix_mul(&transform, &translate_center, &transform);
+			wlr_matrix_mul(&translate_center, &rotate, &transform);
+			wlr_matrix_mul(&transform, &translate_origin, &transform);
 			wlr_matrix_mul(&transform, &scale, &transform);
 
-			wlr_matrix_mul(&transform, &translate_mdr, &transform);
+			wlr_matrix_mul(&transform, &surface_translate_center, &transform);
 			wlr_matrix_mul(&transform, &surface_transform, &transform);
-			wlr_matrix_mul(&transform, &translate_mdr2, &transform);
+			wlr_matrix_mul(&transform, &surface_translate_origin, &transform);
 
 			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
 
