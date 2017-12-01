@@ -99,16 +99,16 @@ void wlr_box_transform(struct wlr_box *box,
 		dest->y = box->y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		dest->x = box->y;
-		dest->y = box->x;
+		dest->x = box->height - box->y;
+		dest->y = box->width - box->x;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
 		dest->x = box->x;
 		dest->y = box->height - box->y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		dest->x = box->height - box->y;
-		dest->y = box->width - box->x;
+		dest->x = box->y;
+		dest->y = box->x;
 		break;
 	}
 }
