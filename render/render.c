@@ -12,6 +12,7 @@
 #include <wlr/backend.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/render/matrix.h>
 #include "render/render.h"
 #include "render/glapi.h"
 
@@ -61,90 +62,24 @@ bool wlr_render_format_supported(enum wl_shm_format wl_fmt) {
 	return wl_to_gl(wl_fmt);
 }
 
-static const float transforms[][9] = {
-	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f, 0.0f,
-		1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f, 0.0f,
-		-1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, -1.0f, 0.0f,
-		-1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, 1.0f, 0.0f,
-		1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	},
-};
-
-// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-static void matrix(float mat[static 9], int32_t width, int32_t height,
-		enum wl_output_transform transform) {
-	memset(mat, 0, sizeof(*mat) * 9);
-
-	const float *t = transforms[transform];
-	float x = 2.0f / width;
-	float y = 2.0f / height;
-
-	// Rotation + relection
-	mat[0] = x * t[0];
-	mat[1] = x * t[1];
-	mat[3] = y * -t[3];
-	mat[4] = y * -t[4];
-
-	// Translation
-	mat[2] = -copysign(1.0f, mat[0] + mat[1]);
-	mat[5] = -copysign(1.0f, mat[3] + mat[4]);
-
-	// Identity
-	mat[8] = 1.0f;
-}
-
 void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
 		enum wl_output_transform transform) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
 	glViewport(0, 0, width, height);
-	matrix(rend->proj, width, height, transform);
-	rend->matrix = transforms[transform];
+	wlr_matrix_identity(rend->proj);
+	wlr_matrix_transform(rend->proj, transform);
+	wlr_matrix_scale_row(rend->proj, 0, 2.0f / width);
+	wlr_matrix_scale_row(rend->proj, 1, 2.0f / height);
+	wlr_matrix_translate(rend->proj, width / -2.0f, height / -2.0f);
+	wlr_matrix_scale_row(rend->proj, transform % 2 ? 0 : 1, -1);
 
 	DEBUG_POP;
 }
 
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
 	wlr_render_bind_raw(rend, output->width, output->height, output->transform);
-}
-
-const float *wlr_render_get_transform(struct wlr_render *rend) {
-	return rend->matrix;
 }
 
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a) {
@@ -170,7 +105,11 @@ static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, mat);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+	if (tex->type == WLR_TEX_GLTEX) {
+		glBindTexture(GL_TEXTURE_2D, tex->gl_tex);
+	} else {
+		glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+	}
 
 	GLfloat tw = tex->width;
 	GLfloat th = tex->height;

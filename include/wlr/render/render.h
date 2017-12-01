@@ -24,12 +24,6 @@ bool wlr_render_format_supported(enum wl_shm_format fmt);
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output);
 
 /*
- * Returns the currently bound 3x3 transform matrix.
- * The returned matrix will have 9 elements and is in row-major order.
- */
-const float *wlr_render_get_transform(struct wlr_render *rend);
-
-/*
  * Clear the renderer surface to the color.
  */
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a);
@@ -66,7 +60,6 @@ void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *
  * The matrix should be row-major order.
  *
  * The currently bound transformation will NOT be applied as part of this render.
- * You should use wlr_render_get_transform, and multiply it into your own matrix.
  */
 
 void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,

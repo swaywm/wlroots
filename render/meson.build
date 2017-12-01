@@ -10,6 +10,7 @@ lib_wlr_render = static_library(
 	'wlr_render',
 	files(
 		'egl.c',
+		'matrix.c',
 		'render.c',
 		'shaders.c',
 		'tex.c',
