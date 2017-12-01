@@ -295,10 +295,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 
 	struct wlr_surface_state *state = view->wlr_surface->current;
 	struct wlr_box box = {
-		.x = 0,
-		.y = 0,
-		.width = state->buffer_width / state->scale,
-		.height = state->buffer_height / state->scale,
+		.x = 0, .y = 0,
+		.width = state->width, .height = state->height,
 	};
 	if (view->rotation != 0.0) {
 		// Coordinates relative to the center of the view
