@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <wayland-server-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/util/log.h>
 
@@ -63,5 +64,51 @@ bool wlr_box_contains_point(struct wlr_box *box, double x, double y) {
 	} else {
 		return x >= box->x && x <= box->x + box->width &&
 			y >= box->y && y <= box->y + box->height;
+	}
+}
+
+void wlr_box_transform(struct wlr_box *box,
+		enum wl_output_transform transform, struct wlr_box *dest) {
+	if (transform % 2 == 0) {
+		dest->width = box->width;
+		dest->height = box->height;
+	} else {
+		dest->width = box->height;
+		dest->height = box->width;
+	}
+
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		dest->x = box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		dest->x = box->y;
+		dest->y = box->width - box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		dest->x = box->width - box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		dest->x = box->height - box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		dest->x = box->width - box->x;
+		dest->y = box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		dest->x = box->y;
+		dest->y = box->x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dest->x = box->x;
+		dest->y = box->height - box->y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dest->x = box->height - box->y;
+		dest->y = box->width - box->x;
+		break;
 	}
 }

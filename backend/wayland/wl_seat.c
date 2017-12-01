@@ -55,9 +55,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	box.x = wl_fixed_to_int(surface_x);
 	box.y = wl_fixed_to_int(surface_y);
 	struct wlr_box transformed;
-	wlr_output_transform_apply_to_box(
-		wlr_wl_pointer->current_output->wlr_output.transform, &box,
-		&transformed);
+	wlr_box_transform(&box,
+		wlr_wl_pointer->current_output->wlr_output.transform, &transformed);
 
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;

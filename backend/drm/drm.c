@@ -569,8 +569,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_hotspot;
-	wlr_output_transform_apply_to_box(transform, &hotspot,
-		&transformed_hotspot);
+	wlr_box_transform(&hotspot, transform, &transformed_hotspot);
 	plane->cursor_hotspot_x = transformed_hotspot.x;
 	plane->cursor_hotspot_y = transformed_hotspot.y;
 
@@ -632,7 +631,7 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_box;
-	wlr_output_transform_apply_to_box(transform, &box, &transformed_box);
+	wlr_box_transform(&box, transform, &transformed_box);
 
 	transformed_box.x -= plane->cursor_hotspot_x;
 	transformed_box.y -= plane->cursor_hotspot_y;

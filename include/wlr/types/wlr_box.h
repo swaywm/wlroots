@@ -18,4 +18,8 @@ bool wlr_box_contains_point(struct wlr_box *box, double x, double y);
 
 bool wlr_box_empty(struct wlr_box *box);
 
+enum wl_output_transform;
+void wlr_box_transform(struct wlr_box *box, enum wl_output_transform transform,
+		struct wlr_box *dest);
+
 #endif
