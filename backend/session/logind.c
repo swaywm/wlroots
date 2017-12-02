@@ -353,10 +353,9 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		wlr_log(L_ERROR, "Failed to get seat id: %s", strerror(-ret));
 		goto error;
 	}
-
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
-	if (seat == "seat0")
-	{
+
+	if (strcmp(seat, "seat0") == 0) {
 		ret = sd_session_get_vt(session->id, &session->base.vtnr);
 		if (ret < 0) {
 			wlr_log(L_ERROR, "Session not running in virtual terminal");
