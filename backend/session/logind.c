@@ -347,19 +347,22 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		goto error;
 	}
 
-	ret = sd_session_get_vt(session->id, &session->base.vtnr);
-	if (ret < 0) {
-		wlr_log(L_ERROR, "Session not running in virtual terminal");
-		goto error;
-	}
-
 	char *seat;
 	ret = sd_session_get_seat(session->id, &seat);
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to get seat id: %s", strerror(-ret));
 		goto error;
 	}
+
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
+	if (seat == "seat0")
+	{
+		ret = sd_session_get_vt(session->id, &session->base.vtnr);
+		if (ret < 0) {
+			wlr_log(L_ERROR, "Session not running in virtual terminal");
+			goto error;
+		}
+	}
 	free(seat);
 
 	ret = sd_bus_default_system(&session->bus);
