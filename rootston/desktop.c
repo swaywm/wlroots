@@ -13,7 +13,6 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
-#include <server-decoration-protocol.h>
 #include "rootston/server.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
@@ -468,7 +467,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(
 		desktop->server_decoration_manager,
-		ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_CLIENT);
+		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 
 	return desktop;
 }
