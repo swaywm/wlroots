@@ -206,7 +206,7 @@ void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a
 		x2, y2,
 	};
 
-	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, 0, verts);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -249,7 +249,7 @@ void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, floa
 		verts[base + 1] = y + cos(angle) * rh;
 	}
 
-	glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(pos_loc, 2, GL_FLOAT, GL_FALSE, 0, verts);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
