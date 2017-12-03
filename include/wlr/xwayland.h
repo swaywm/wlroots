@@ -106,6 +106,7 @@ struct wlr_xwayland_surface {
 	bool has_alpha;
 
 	struct {
+		struct wl_signal commit;
 		struct wl_signal destroy;
 		struct wl_signal request_configure;
 		struct wl_signal request_move;

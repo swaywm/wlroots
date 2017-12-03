@@ -232,8 +232,7 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->y = (double)xsurface->y;
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
-	wl_signal_add(&xsurface->surface->events.commit,
-		&roots_surface->surface_commit);
+	wl_signal_add(&xsurface->events.commit, &roots_surface->surface_commit);
 
 	wl_list_insert(&desktop->views, &view->link);
 }
