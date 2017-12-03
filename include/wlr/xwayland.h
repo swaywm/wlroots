@@ -153,20 +153,18 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	uint8_t *pixels, uint32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);
 
-void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, bool activated);
+void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *surface,
+		bool activated);
 
-void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, int16_t x, int16_t y,
-	uint16_t width, uint16_t height);
+void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *surface,
+		int16_t x, int16_t y, uint16_t width, uint16_t height);
 
-void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface);
+void wlr_xwayland_surface_close(struct wlr_xwayland_surface *surface);
 
-void wlr_xwayland_surface_set_maximized(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, bool maximized);
+void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
+		bool maximized);
 
-void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland *wlr_xwayland,
-	struct wlr_xwayland_surface *surface, bool fullscreen);
+void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
+		bool fullscreen);
 
 #endif
