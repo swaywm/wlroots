@@ -502,15 +502,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *plane = crtc->cursor;
-
-	// We don't have a real cursor plane, so we make a fake one
 	if (!plane) {
-		plane = calloc(1, sizeof(*plane));
-		if (!plane) {
-			wlr_log_errno(L_ERROR, "Allocation failed");
-			return false;
-		}
-		crtc->cursor = plane;
+		return false;
 	}
 
 	if (!buf && update_pixels) {
@@ -623,6 +616,10 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
+
+	if (!plane) {
+		return false;
+	}
 
 	struct wlr_box box;
 	box.x = x;
