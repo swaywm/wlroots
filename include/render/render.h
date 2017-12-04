@@ -22,6 +22,7 @@ struct wlr_render {
 	struct {
 		GLuint poly;
 		GLuint tex;
+		GLuint ext;
 	} shaders;
 };
 
@@ -35,7 +36,8 @@ struct wlr_tex {
 
 	enum {
 		WLR_TEX_GLTEX,
-		WLR_TEX_WLDRM,
+		WLR_TEX_WLDRM_GL,
+		WLR_TEX_WLDRM_EXT,
 		WLR_TEX_DMABUF,
 	} type;
 	union {

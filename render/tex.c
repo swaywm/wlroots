@@ -88,8 +88,8 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 		tex = NULL;
 	} else {
 		glGenTextures(1, &tex->image_tex);
-		glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
-		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image);
+		glBindTexture(GL_TEXTURE_2D, tex->image_tex);
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, tex->image);
 	}
 
 	DEBUG_POP;
@@ -105,8 +105,10 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 
 	EGLint width;
 	EGLint height;
+	EGLint format;
 	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_WIDTH, &width);
 	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_HEIGHT, &height);
+	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_TEXTURE_FORMAT, &format);
 
 	struct wlr_tex *tex = calloc(1, sizeof(*tex));
 	if (!tex) {
@@ -117,8 +119,16 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 	tex->rend = rend;
 	tex->width = width;
 	tex->height = height;
-	tex->type = WLR_TEX_WLDRM;
 	tex->wl_drm = data;
+
+	GLenum target;
+	if (format == EGL_TEXTURE_EXTERNAL_WL) {
+		target = GL_TEXTURE_EXTERNAL_OES;
+		tex->type = WLR_TEX_WLDRM_EXT;
+	} else {
+		target = GL_TEXTURE_2D;
+		tex->type = WLR_TEX_WLDRM_GL;
+	}
 
 	EGLint attribs[] = {
 		EGL_WAYLAND_PLANE_WL, 0,
@@ -136,8 +146,8 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 	DEBUG_PUSH;
 
 	glGenTextures(1, &tex->image_tex);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
-	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image);
+	glBindTexture(target, tex->image_tex);
+	glEGLImageTargetTexture2DOES(target, tex->image);
 
 	DEBUG_POP;
 	return tex;

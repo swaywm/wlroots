@@ -27,10 +27,18 @@ const GLchar tex_vert_src[] =
 "}\n";
 
 const GLchar tex_frag_src[] =
+"precision mediump float;\n"
+"varying vec2 v_texcoord;\n"
+"uniform sampler2D tex;\n"
+"void main() {\n"
+"	gl_FragColor = texture2D(tex, v_texcoord);\n"
+"}\n";
+
+const GLchar ext_frag_src[] =
 "#extension GL_OES_EGL_image_external : require\n"
 "precision mediump float;\n"
 "varying vec2 v_texcoord;\n"
-"uniform samplerExternalOES texture0;\n"
+"uniform samplerExternalOES tex;\n"
 "void main() {\n"
-"	gl_FragColor = texture2D(texture0, v_texcoord);\n"
+"	gl_FragColor = texture2D(tex, v_texcoord);\n"
 "}\n";
