@@ -64,6 +64,10 @@ struct wlr_output {
 		struct wl_signal destroy;
 	} events;
 
+	struct wlr_surface *fullscreen_surface;
+	struct wl_listener fullscreen_surface_commit;
+	struct wl_listener fullscreen_surface_destroy;
+
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
 
@@ -89,6 +93,8 @@ void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
+void wlr_output_set_fullscreen_surface(struct wlr_output *output,
+	struct wlr_surface *surface);
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,

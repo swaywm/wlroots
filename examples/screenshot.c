@@ -35,7 +35,7 @@
 #include <limits.h>
 #include <sys/param.h>
 #include <screenshooter-client-protocol.h>
-#include "../backend/wayland/os-compatibility.c"
+#include "util/os-compatibility.h"
 
 static struct wl_shm *shm = NULL;
 static struct orbital_screenshooter *screenshooter = NULL;
