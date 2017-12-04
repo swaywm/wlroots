@@ -95,21 +95,30 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
 static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
 		const float verts[static 8], const float mat[static 9]) {
-	GLuint prog = rend->shaders.tex;
+	GLuint prog;
+	GLenum target;
+	if (tex->type == WLR_TEX_GLTEX || tex->type == WLR_TEX_WLDRM_GL) {
+		prog = rend->shaders.tex;
+		target = GL_TEXTURE_2D;
+	} else {
+		prog = rend->shaders.ext;
+		target = GL_TEXTURE_EXTERNAL_OES;
+	}
 
 	GLuint proj_loc = glGetUniformLocation(prog, "proj");
+	GLuint tex_loc = glGetUniformLocation(prog, "tex");
 	GLuint pos_loc = glGetAttribLocation(prog, "pos");
 	GLuint texcoord_loc = glGetAttribLocation(prog, "texcoord");
 
 	glUseProgram(prog);
 	glUniformMatrix3fv(proj_loc, 1, GL_TRUE, mat);
+	glUniform1i(tex_loc, 0);
 
 	glActiveTexture(GL_TEXTURE0);
-	if (tex->type == WLR_TEX_GLTEX) {
-		glBindTexture(GL_TEXTURE_2D, tex->gl_tex);
-	} else {
-		glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
-	}
+	glBindTexture(target, tex->type == WLR_TEX_GLTEX ? tex->gl_tex : tex->image_tex);
+
+	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	GLfloat tw = tex->width;
 	GLfloat th = tex->height;
@@ -387,6 +396,7 @@ extern const GLchar poly_vert_src[];
 extern const GLchar poly_frag_src[];
 extern const GLchar tex_vert_src[];
 extern const GLchar tex_frag_src[];
+extern const GLchar ext_frag_src[];
 
 struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 	struct wlr_render *rend = calloc(1, sizeof(*rend));
@@ -420,6 +430,10 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 	if (!rend->shaders.tex) {
 		goto error;
 	}
+	rend->shaders.ext = link_program(tex_vert_src, ext_frag_src);
+	if (!rend->shaders.ext) {
+		goto error;
+	}
 
 	DEBUG_POP;
 	return rend;
@@ -427,6 +441,7 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
 error:
 	glDeleteProgram(rend->shaders.poly);
 	glDeleteProgram(rend->shaders.tex);
+	glDeleteProgram(rend->shaders.ext);
 
 	DEBUG_POP;
 	if (glDebugMessageCallbackKHR) {
