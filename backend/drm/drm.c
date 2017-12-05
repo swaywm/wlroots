@@ -634,8 +634,10 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	struct wlr_box transformed_box;
 	wlr_output_transform_apply_to_box(transform, &box, &transformed_box);
 
-	transformed_box.x -= plane->cursor_hotspot_x;
-	transformed_box.y -= plane->cursor_hotspot_y;
+	if (plane != NULL) {
+		transformed_box.x -= plane->cursor_hotspot_x;
+		transformed_box.y -= plane->cursor_hotspot_y;
+	}
 
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
 		transformed_box.y);
