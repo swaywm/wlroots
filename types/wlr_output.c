@@ -52,6 +52,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 
 static void wlr_output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
+	assert(resource);
 	struct wlr_output *output = wl_resource_get_user_data(resource);
 	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
@@ -119,7 +120,6 @@ struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_output_interface, 3, wlr_output, wl_output_bind);
 	wlr_output->wl_global = wl_global;
-	wl_list_init(&wlr_output->wl_resources);
 	return wl_global;
 }
 
@@ -155,6 +155,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	bool result = output->impl->set_mode(output, mode);
 	if (result) {
 		wlr_output_update_matrix(output);
+
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &output->wl_resources) {
 			wlr_output_send_current_mode_to_resource(resource);
@@ -168,14 +169,14 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 	if (output->width == width && output->height == height) {
 		return;
 	}
+
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
-	if (output->wl_global != NULL) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->wl_resources) {
-			wlr_output_send_current_mode_to_resource(resource);
-		}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wlr_output_send_current_mode_to_resource(resource);
 	}
 }
 
@@ -194,6 +195,21 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	output->lx = lx;
 	output->ly = ly;
 
+	// TODO: only send geometry and done
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wl_output_send_to_resource(resource);
+	}
+}
+
+void wlr_output_set_scale(struct wlr_output *output, uint32_t scale) {
+	if (output->scale == scale) {
+		return;
+	}
+
+	output->scale = scale;
+
+	// TODO: only send mode and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
 		wl_output_send_to_resource(resource);
@@ -209,6 +225,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_list_init(&output->cursors);
+	wl_list_init(&output->wl_resources);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);

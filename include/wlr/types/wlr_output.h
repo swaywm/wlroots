@@ -85,6 +85,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 void wlr_output_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
+void wlr_output_set_scale(struct wlr_output *output, uint32_t scale);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);

@@ -314,10 +314,10 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		if (output_config->mode.width) {
 			set_mode(wlr_output, output_config);
 		}
-		wlr_output->scale = output_config->scale;
+		wlr_output_set_scale(wlr_output, output_config->scale);
 		wlr_output_transform(wlr_output, output_config->transform);
-		wlr_output_layout_add(desktop->layout,
-				wlr_output, output_config->x, output_config->y);
+		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
+			output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
