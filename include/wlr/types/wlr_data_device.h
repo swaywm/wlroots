@@ -15,6 +15,8 @@ wlr_touch_grab_interface wlr_data_device_touch_drag_interface;
 
 struct wlr_data_device_manager {
 	struct wl_global *global;
+
+	struct wl_listener display_destroy;
 };
 
 struct wlr_data_offer {

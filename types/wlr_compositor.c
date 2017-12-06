@@ -78,6 +78,9 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *data,
 }
 
 void wlr_compositor_destroy(struct wlr_compositor *compositor) {
+	if (compositor == NULL) {
+		return;
+	}
 	wl_list_remove(&compositor->display_destroy.link);
 	wl_global_destroy(compositor->wl_global);
 	free(compositor);
