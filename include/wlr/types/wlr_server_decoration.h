@@ -33,6 +33,8 @@ struct wlr_server_decoration_manager {
 
 	uint32_t default_mode; // enum wlr_server_decoration_manager_mode
 
+	struct wl_listener display_destroy;
+
 	struct {
 		struct wl_signal new_decoration;
 	} events;

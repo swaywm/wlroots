@@ -28,6 +28,7 @@ struct screenshot_state {
 
 static void screenshot_destroy(struct wlr_screenshot *screenshot) {
 	wl_list_remove(&screenshot->link);
+	wl_resource_set_user_data(screenshot->resource, NULL);
 	free(screenshot);
 }
 
@@ -35,7 +36,9 @@ static void handle_screenshot_resource_destroy(
 		struct wl_resource *screenshot_resource) {
 	struct wlr_screenshot *screenshot =
 		wl_resource_get_user_data(screenshot_resource);
-	screenshot_destroy(screenshot);
+	if (screenshot != NULL) {
+		screenshot_destroy(screenshot);
+	}
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *_data) {
