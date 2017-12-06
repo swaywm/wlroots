@@ -184,6 +184,12 @@ void wlr_output_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
 	wlr_output_update_matrix(output);
+
+	// TODO: only send geometry and done
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wl_output_send_to_resource(resource);
+	}
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,
