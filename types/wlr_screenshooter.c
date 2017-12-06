@@ -165,6 +165,7 @@ void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
 		return;
 	}
 	wl_signal_emit(&screenshooter->events.destroy, screenshooter);
+	wl_list_remove(&screenshooter->display_destroy.link);
 	struct wlr_screenshot *screenshot, *tmp;
 	wl_list_for_each_safe(screenshot, tmp, &screenshooter->screenshots, link) {
 		screenshot_destroy(screenshot);
