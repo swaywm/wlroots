@@ -29,8 +29,6 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface mgpu_surf;
 
 	// Only used by cursor
-	float matrix[16];
-	struct wlr_texture *wlr_tex;
 	struct gbm_bo *cursor_bo;
 	bool cursor_enabled;
 	int32_t cursor_hotspot_x, cursor_hotspot_y;

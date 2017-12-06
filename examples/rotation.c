@@ -1,31 +1,28 @@
 #define _POSIX_C_SOURCE 199309L
 #define _XOPEN_SOURCE 500
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
-#include <math.h>
 #include "support/shared.h"
 #include "support/config.h"
 #include "support/cat.h"
 
 struct sample_state {
 	struct example_config *config;
-	struct wlr_renderer *renderer;
-	struct wlr_texture *cat_texture;
+	struct wlr_render *rend;
+	struct wlr_tex *cat_tex;
 };
 
 struct output_data {
@@ -43,19 +40,19 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output);
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_render_bind(sample->rend, wlr_output);
+	wlr_render_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
 
-	float matrix[16];
+	int32_t tex_w = wlr_tex_get_width(sample->cat_tex);
+	int32_t tex_h = wlr_tex_get_height(sample->cat_tex);
+
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
-			wlr_texture_get_matrix(sample->cat_texture, &matrix,
-				&wlr_output->transform_matrix, x, y);
-			wlr_render_with_matrix(sample->renderer,
-					sample->cat_texture, &matrix);
+			wlr_render_texture(sample->rend, sample->cat_tex,
+				x, y, x + tex_w, y + tex_h);
 		}
 	}
 
-	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
 
 	long ms = (ts->tv_sec - output->last_frame.tv_sec) * 1000 +
@@ -126,26 +123,26 @@ int main(int argc, char *argv[]) {
 	struct sample_state state = {0};
 	state.config = parse_args(argc, argv);
 
-	struct compositor_state compositor = { 0 };
-	compositor.data = &state;
-	compositor.output_add_cb = handle_output_add;
-	compositor.output_remove_cb = handle_output_remove;
-	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
+	struct compositor_state compositor = {
+		.data = &state,
+		.output_add_cb = handle_output_add,
+		.output_remove_cb = handle_output_remove,
+		.output_frame_cb = handle_output_frame,
+		.keyboard_key_cb = handle_keyboard_key,
+	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
-	if (!state.renderer) {
+	state.rend = wlr_backend_get_render(compositor.backend);
+	if (!state.rend) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_create(state.renderer);
-	if (!state.cat_texture) {
+	state.cat_tex = wlr_tex_from_pixels(state.rend, WL_SHM_FORMAT_ABGR8888,
+		cat_tex.width * 4, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
+	if (!state.cat_tex) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
-		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");
@@ -154,8 +151,7 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(compositor.display);
 
-	wlr_texture_destroy(state.cat_texture);
-	wlr_renderer_destroy(state.renderer);
+	wlr_tex_destroy(state.cat_tex);
 	compositor_fini(&compositor);
 
 	example_config_destroy(state.config);

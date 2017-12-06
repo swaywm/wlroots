@@ -6,45 +6,19 @@
 #include <wlr/render/egl.h>
 #include "glapi.h"
 
-// Extension documentation
-// https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
-// https://cgit.freedesktop.org/mesa/mesa/tree/docs/specs/WL_bind_wayland_display.spec
-
-const char *egl_error(void) {
-	switch (eglGetError()) {
-	case EGL_SUCCESS:
-		return "Success";
-	case EGL_NOT_INITIALIZED:
-		return "Not initialized";
-	case EGL_BAD_ACCESS:
-		return "Bad access";
-	case EGL_BAD_ALLOC:
-		return "Bad alloc";
-	case EGL_BAD_ATTRIBUTE:
-		return "Bad attribute";
-	case EGL_BAD_CONTEXT:
-		return "Bad Context";
-	case EGL_BAD_CONFIG:
-		return "Bad Config";
-	case EGL_BAD_CURRENT_SURFACE:
-		return "Bad current surface";
-	case EGL_BAD_DISPLAY:
-		return "Bad display";
-	case EGL_BAD_SURFACE:
-		return "Bad surface";
-	case EGL_BAD_MATCH:
-		return "Bad match";
-	case EGL_BAD_PARAMETER:
-		return "Bad parameter";
-	case EGL_BAD_NATIVE_PIXMAP:
-		return "Bad native pixmap";
-	case EGL_BAD_NATIVE_WINDOW:
-		return "Bad native window";
-	case EGL_CONTEXT_LOST:
-		return "Context lost";
-	default:
-		return "Unknown";
+static log_importance_t egl_to_wlr(EGLint type) {
+	switch (type) {
+	case EGL_DEBUG_MSG_CRITICAL_KHR: return L_ERROR;
+	case EGL_DEBUG_MSG_ERROR_KHR:    return L_ERROR;
+	case EGL_DEBUG_MSG_WARN_KHR:     return L_ERROR;
+	case EGL_DEBUG_MSG_INFO_KHR:     return L_INFO;
+	default:                         return L_INFO;
 	}
+}
+
+static void egl_log(EGLenum error, const char *command, EGLint msg_type,
+		EGLLabelKHR thread, EGLLabelKHR obj, const char *msg) {
+	_wlr_log(egl_to_wlr(msg_type), "[EGL] %s: %s", command, msg);
 }
 
 static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
@@ -87,20 +61,29 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
 		return false;
 	}
 
+	if (eglDebugMessageControlKHR) {
+		static const EGLAttrib debug_attribs[] = {
+			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_ERROR_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_WARN_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_INFO_KHR, EGL_TRUE,
+			EGL_NONE,
+		};
+
+		eglDebugMessageControlKHR(egl_log, debug_attribs);
+	}
+
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API: %s", egl_error());
 		goto error;
 	}
 
 	egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
 	if (egl->display == EGL_NO_DISPLAY) {
-		wlr_log(L_ERROR, "Failed to create EGL display: %s", egl_error());
 		goto error;
 	}
 
 	EGLint major, minor;
 	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to initialize EGL: %s", egl_error());
 		goto error;
 	}
 
@@ -115,35 +98,35 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
 		EGL_NO_CONTEXT, attribs);
 
 	if (egl->context == EGL_NO_CONTEXT) {
-		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
 		goto error;
 	}
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl->context);
-	egl->egl_exts = eglQueryString(egl->display, EGL_EXTENSIONS);
-	if (strstr(egl->egl_exts, "EGL_WL_bind_wayland_display") == NULL ||
-			strstr(egl->egl_exts, "EGL_KHR_image_base") == NULL) {
-		wlr_log(L_ERROR, "Required egl extensions not supported");
-		goto error;
-	}
 
-	egl->gl_exts = (const char*) glGetString(GL_EXTENSIONS);
 	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
-	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->egl_exts);
+	wlr_log(L_INFO, "Supported EGL extensions: %s",
+		eglQueryString(egl->display, EGL_EXTENSIONS));
 	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
-	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", egl->gl_exts);
+	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s",
+		glGetString(GL_EXTENSIONS));
 	return true;
 
 error:
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	eglTerminate(egl->display);
+	if (egl->display) {
+		eglTerminate(egl->display);
+	}
 	eglReleaseThread();
 	return false;
 }
 
 void wlr_egl_free(struct wlr_egl *egl) {
+	if (!egl) {
+		return;
+	}
+
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
+	if (egl->wl_display) {
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
@@ -153,10 +136,6 @@ void wlr_egl_free(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!eglBindWaylandDisplayWL) {
-		return false;
-	}
-
 	if (eglBindWaylandDisplayWL(egl->display, local_display)) {
 		egl->wl_display = local_display;
 		return true;
@@ -165,39 +144,22 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 	return false;
 }
 
-bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
-		int attrib, int *value) {
-	if (!eglQueryWaylandBufferWL) {
+bool wlr_egl_query_wl_drm_size(struct wlr_egl *egl, struct wl_resource *buf,
+		int32_t *width, int32_t *height) {
+	EGLint w, h;
+	if (!eglQueryWaylandBufferWL(egl->display, buf, EGL_WIDTH, &w)) {
 		return false;
 	}
-	return eglQueryWaylandBufferWL(egl->display, buf, attrib, value);
-}
-
-EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
-		EGLClientBuffer buffer, const EGLint *attribs) {
-	if (!eglCreateImageKHR) {
+	if (!eglQueryWaylandBufferWL(egl->display, buf, EGL_HEIGHT, &h)) {
 		return false;
 	}
 
-	return eglCreateImageKHR(egl->display, egl->context, target,
-		buffer, attribs);
-}
-
-bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
-	if (!eglDestroyImageKHR) {
-		return false;
-	}
-
-	eglDestroyImageKHR(egl->display, image);
+	*width = w;
+	*height = h;
 	return true;
 }
 
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
-	EGLSurface surf = eglCreatePlatformWindowSurfaceEXT(egl->display, egl->config,
-		window, NULL);
-	if (surf == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
-		return EGL_NO_SURFACE;
-	}
-	return surf;
+	return eglCreatePlatformWindowSurfaceEXT(
+		egl->display, egl->config, window, NULL);
 }

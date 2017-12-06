@@ -2,8 +2,10 @@
 #define WLR_TYPES_WLR_OUTPUT_H
 
 #include <stdbool.h>
-#include <wayland-util.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
+#include <wlr/backend.h>
+#include <wlr/render/render.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -21,8 +23,7 @@ struct wlr_output_cursor {
 	struct wl_list link;
 
 	// only when using a software cursor without a surface
-	struct wlr_renderer *renderer;
-	struct wlr_texture *texture;
+	struct wlr_tex *tex;
 
 	// only when using a cursor surface
 	struct wlr_surface *surface;
@@ -31,6 +32,7 @@ struct wlr_output_cursor {
 };
 
 struct wlr_output_impl;
+struct wlr_tex;
 
 struct wlr_output {
 	const struct wlr_output_impl *impl;
@@ -50,8 +52,6 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	bool needs_swap;
-
-	float transform_matrix[16];
 
 	/* Note: some backends may have zero modes */
 	struct wl_list modes;

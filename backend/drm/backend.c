@@ -46,10 +46,16 @@ static struct wlr_egl *wlr_drm_backend_get_egl(struct wlr_backend *backend) {
 	return &drm->renderer.egl;
 }
 
+static struct wlr_render *wlr_drm_backend_get_render(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	return drm->renderer.rend;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_drm_backend_start,
 	.destroy = wlr_drm_backend_destroy,
-	.get_egl = wlr_drm_backend_get_egl
+	.get_egl = wlr_drm_backend_get_egl,
+	.get_render = wlr_drm_backend_get_render,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
@@ -104,7 +110,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	free(name);
 	drmFreeVersion(version);
 
-	struct wlr_drm_backend *drm = calloc(1, sizeof(struct wlr_drm_backend));
+	struct wlr_drm_backend *drm = calloc(1, sizeof(*drm));
 	if (!drm) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return NULL;
@@ -146,9 +152,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	if (!wlr_egl_bind_display(&drm->renderer.egl, display)) {
-		wlr_log(L_INFO, "Failed to bind egl/wl display: %s", egl_error());
-	}
+	wlr_egl_bind_display(&drm->renderer.egl, display);
 
 	return &drm->backend;
 

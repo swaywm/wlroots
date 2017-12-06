@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/render.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 
@@ -39,10 +41,10 @@ static void multi_backend_destroy(struct wlr_backend *_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *_backend) {
-	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
 	struct subbackend_state *sub;
-	wl_list_for_each(sub, &backend->backends, link) {
+	wl_list_for_each(sub, &multi->backends, link) {
 		struct wlr_egl *egl = wlr_backend_get_egl(sub->backend);
 		if (egl) {
 			return egl;
@@ -51,10 +53,23 @@ static struct wlr_egl *multi_backend_get_egl(struct wlr_backend *_backend) {
 	return NULL;
 }
 
+static struct wlr_render *multi_backend_get_render(struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &multi->backends, link) {
+		struct wlr_render *rend = wlr_backend_get_render(sub->backend);
+		if (rend) {
+			return rend;
+		}
+	}
+	return NULL;
+}
+
 struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
-	.get_egl = multi_backend_get_egl
+	.get_egl = multi_backend_get_egl,
+	.get_render = multi_backend_get_render,
 };
 
 struct wlr_backend *wlr_multi_backend_create(struct wlr_session *session) {

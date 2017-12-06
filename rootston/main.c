@@ -4,8 +4,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend.h>
-#include <wlr/render.h>
-#include <wlr/render/gles2.h>
+#include <wlr/render/render.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"
@@ -31,7 +30,7 @@ int main(int argc, char **argv) {
 
 	assert(server.backend = wlr_backend_autocreate(server.wl_display));
 
-	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
+	assert(server.render = wlr_backend_get_render(server.backend));
 	server.data_device_manager =
 		wlr_data_device_manager_create(server.wl_display);
 	wl_display_init_shm(server.wl_display);

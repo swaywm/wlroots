@@ -425,7 +425,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->layout = wlr_output_layout_create();
 	desktop->compositor = wlr_compositor_create(server->wl_display,
-		server->renderer);
+		server->render);
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
@@ -461,8 +461,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 		server->wl_display);
-	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
-		server->renderer);
+	desktop->screenshooter = wlr_screenshooter_create(server->wl_display);
 	desktop->server_decoration_manager =
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(

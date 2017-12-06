@@ -1,143 +1,115 @@
 #include <string.h>
-#include <math.h>
-#include <wayland-server-protocol.h>
+#include <tgmath.h>
+#include <wayland-server.h>
 #include <wlr/render/matrix.h>
 
-/* Obtains the index for the given row/column */
-static inline int mind(int row, int col) {
-	return (row - 1) * 4 + col - 1;
+extern inline float *wlr_matrix_multiply(float *mat, const float *a, const float *b) {
+	float res[9];
+
+	res[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
+	res[1] = a[0]*b[1] + a[1]*b[4] + a[2]*b[7];
+	res[2] = a[0]*b[2] + a[1]*b[5] + a[2]*b[8];
+
+	res[3] = a[3]*b[0] + a[4]*b[3] + a[5]*b[6];
+	res[4] = a[3]*b[1] + a[4]*b[4] + a[5]*b[7];
+	res[5] = a[3]*b[2] + a[4]*b[5] + a[5]*b[8];
+
+	res[6] = a[6]*b[0] + a[7]*b[3] + a[8]*b[6];
+	res[7] = a[6]*b[1] + a[7]*b[4] + a[8]*b[7];
+	res[8] = a[6]*b[2] + a[7]*b[5] + a[8]*b[8];
+
+	memcpy(mat, res, sizeof(res));
+	return mat;
 }
 
-void wlr_matrix_identity(float (*output)[16]) {
-	static const float identity[16] = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
+float *wlr_matrix_identity(float *mat) {
+	static const float identity[9] = {
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	};
-	memcpy(*output, identity, sizeof(identity));
+	memcpy(mat, identity, sizeof(identity));
+	return mat;
 }
 
-void wlr_matrix_translate(float (*output)[16], float x, float y, float z) {
-	wlr_matrix_identity(output);
-	(*output)[mind(1, 4)] = x;
-	(*output)[mind(2, 4)] = y;
-	(*output)[mind(3, 4)] = z;
-}
-
-void wlr_matrix_scale(float (*output)[16], float x, float y, float z) {
-	wlr_matrix_identity(output);
-	(*output)[mind(1, 1)] = x;
-	(*output)[mind(2, 2)] = y;
-	(*output)[mind(3, 3)] = z;
-}
-
-void wlr_matrix_rotate(float (*output)[16], float radians) {
-	wlr_matrix_identity(output);
-	float _cos = cosf(radians);
-	float _sin = sinf(radians);
-	(*output)[mind(1, 1)] = _cos;
-	(*output)[mind(1, 2)] = _sin;
-	(*output)[mind(2, 1)] = -_sin;
-	(*output)[mind(2, 2)] = _cos;
-}
-
-void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]) {
-	float _product[16] = {
-		(*x)[mind(1, 1)] * (*y)[mind(1, 1)] + (*x)[mind(1, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 1)] + (*x)[mind(1, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 2)] + (*x)[mind(1, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 2)] + (*x)[mind(1, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 3)] + (*x)[mind(1, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 3)] + (*x)[mind(1, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 4)] + (*x)[mind(1, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(1, 4)] * (*y)[mind(3, 4)] + (*x)[mind(1, 4)] * (*y)[mind(4, 4)],
-
-		(*x)[mind(2, 1)] * (*y)[mind(1, 1)] + (*x)[mind(2, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 1)] + (*x)[mind(2, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 2)] + (*x)[mind(2, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 2)] + (*x)[mind(2, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 3)] + (*x)[mind(2, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 3)] + (*x)[mind(2, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 4)] + (*x)[mind(2, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(2, 4)] * (*y)[mind(3, 4)] + (*x)[mind(2, 4)] * (*y)[mind(4, 4)],
-
-		(*x)[mind(3, 1)] * (*y)[mind(1, 1)] + (*x)[mind(3, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 1)] + (*x)[mind(3, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 2)] + (*x)[mind(3, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 2)] + (*x)[mind(3, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 3)] + (*x)[mind(3, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 3)] + (*x)[mind(3, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 4)] + (*x)[mind(3, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(3, 4)] * (*y)[mind(3, 4)] + (*x)[mind(3, 4)] * (*y)[mind(4, 4)],
-
-		(*x)[mind(4, 1)] * (*y)[mind(1, 1)] + (*x)[mind(4, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 1)] + (*x)[mind(4, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 2)] + (*x)[mind(4, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 2)] + (*x)[mind(4, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 3)] + (*x)[mind(4, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 3)] + (*x)[mind(4, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 4)] + (*x)[mind(4, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(4, 4)] * (*y)[mind(3, 4)] + (*x)[mind(4, 4)] * (*y)[mind(4, 4)],
+float *wlr_matrix_scale(float *mat, float x, float y) {
+	float scale[9] = {
+		x,    0.0f, 0.0f,
+		0.0f, y,    0.0f,
+		0.0f, 0.0f, 1.0f,
 	};
-	memcpy(*product, _product, sizeof(_product));
+	return wlr_matrix_multiply(mat, mat, scale);
 }
 
-static const float transforms[][4] = {
+float *wlr_matrix_scale_row(float *mat, size_t row, float scale) {
+	row *= 3;
+	mat[row + 0] *= scale;
+	mat[row + 1] *= scale;
+	mat[row + 2] *= scale;
+	return mat;
+}
+
+float *wlr_matrix_rotate(float *mat, float rad) {
+	float rotate[9] = {
+		cos(rad), -sin(rad), 0.0f,
+		sin(rad),  cos(rad), 0.0f,
+		0.0f,      0.0f,     1.0f,
+	};
+	return wlr_matrix_multiply(mat, mat, rotate);
+}
+
+float *wlr_matrix_translate(float *mat, float x, float y) {
+	float translate[9] = {
+		1.0f, 0.0f, x,
+		0.0f, 1.0f, y,
+		0.0f, 0.0f, 1.0f,
+	};
+	return wlr_matrix_multiply(mat, mat, translate);
+}
+
+static const float transforms[][9] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f,
-		0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f,
-		-1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f,
-		0.0f, 1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f,
-		1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f,
-		0.0f, -1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, 1.0f,
-		-1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f,
-		0.0f, 1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, -1.0f,
-		1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 };
 
-// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
-		enum wl_output_transform transform) {
-	memset(mat, 0, sizeof(*mat) * 16);
-
-	const float *t = transforms[transform];
-	float x = 2.0f / width;
-	float y = 2.0f / height;
-
-	// Rotation + relection
-	mat[0] = x * t[0];
-	mat[1] = x * t[1];
-	mat[4] = y * t[2];
-	mat[5] = y * t[3];
-
-	// Translation
-	mat[3] = -copysign(1.0f, mat[0] + mat[1]);
-	mat[7] = -copysign(1.0f, mat[4] + mat[5]);
-
-	// Identity
-	mat[10] = 1.0f;
-	mat[15] = 1.0f;
+float *wlr_matrix_transform(float *mat, enum wl_output_transform transform) {
+	return wlr_matrix_multiply(mat, mat, transforms[transform]);
 }
