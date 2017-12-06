@@ -87,6 +87,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->override_redirect = override_redirect;
 	wl_list_insert(&xwm->surfaces, &surface->link);
 	wl_signal_init(&surface->events.destroy);
+	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.request_configure);
 	wl_signal_init(&surface->events.request_move);
 	wl_signal_init(&surface->events.request_resize);
@@ -517,6 +518,8 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 		wl_signal_emit(&xsurface->xwm->xwayland->events.new_surface, xsurface);
 		xsurface->added = true;
 	}
+
+	wl_signal_emit(&xsurface->events.commit, xsurface);
 }
 
 static void handle_surface_destroy(struct wl_listener *listener, void *data) {
