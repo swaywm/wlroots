@@ -93,6 +93,12 @@ void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *d
 	uint16_t id = (data[8] << 8) | data[9];
 	snprintf(output->make, sizeof(output->make), "%s", get_manufacturer(id));
 
+	uint16_t model = data[10] | (data[11] << 8);
+	snprintf(output->model, sizeof(output->model), "0x%04X", model);
+
+	uint32_t serial = data[12] | (data[13] << 8) | (data[14] << 8) | (data[15] << 8);
+	snprintf(output->serial, sizeof(output->serial), "0x%08X", serial);
+
 	output->phys_width = ((data[68] & 0xf0) << 4) | data[66];
 	output->phys_height = ((data[68] & 0x0f) << 8) | data[67];
 

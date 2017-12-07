@@ -120,7 +120,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 
 	xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 	char *symnames = strdup(combination);
-	char* symname = strtok(symnames, "+");
+	char *symname = strtok(symnames, "+");
 	while (symname) {
 		uint32_t modifier = parse_modifier(symname);
 		if (modifier != 0) {
@@ -466,10 +466,15 @@ void roots_config_destroy(struct roots_config *config) {
 
 struct roots_output_config *roots_config_get_output(struct roots_config *config,
 		struct wlr_output *output) {
-	struct roots_output_config *o_config;
-	wl_list_for_each(o_config, &config->outputs, link) {
-		if (strcmp(o_config->name, output->name) == 0) {
-			return o_config;
+	char name[83];
+	snprintf(name, sizeof(name), "%s %s %s", output->make, output->model,
+		output->serial);
+
+	struct roots_output_config *oc;
+	wl_list_for_each(oc, &config->outputs, link) {
+		if (strcmp(oc->name, output->name) == 0 ||
+				strcmp(oc->name, name) == 0) {
+			return oc;
 		}
 	}
 
