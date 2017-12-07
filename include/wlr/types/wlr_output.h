@@ -74,6 +74,8 @@ struct wlr_output {
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
 
+	struct wl_listener display_destroy;
+
 	void *data;
 };
 
