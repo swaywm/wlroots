@@ -184,69 +184,6 @@ static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
 	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
-struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
-		const char *x11_display) {
-	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
-	if (!x11) {
-		return NULL;
-	}
-
-	wlr_backend_init(&x11->backend, &backend_impl);
-	x11->wl_display = display;
-
-	x11->xlib_conn = XOpenDisplay(x11_display);
-	if (!x11->xlib_conn) {
-		wlr_log(L_ERROR, "Failed to open X connection");
-		return NULL;
-	}
-
-	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
-	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
-		wlr_log(L_ERROR, "Failed to open xcb connection");
-		goto error_x11;
-	}
-
-	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
-
-	int fd = xcb_get_file_descriptor(x11->xcb_conn);
-	struct wl_event_loop *ev = wl_display_get_event_loop(display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
-	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
-	if (!x11->event_source) {
-		wlr_log(L_ERROR, "Could not create event source");
-		goto error_x11;
-	}
-
-	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
-
-	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
-
-	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR,
-			x11->screen->root_visual, x11->xlib_conn)) {
-		goto error_event;
-	}
-
-	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
-		NULL, "X11 keyboard", 0, 0);
-	wlr_keyboard_init(&x11->keyboard, NULL);
-	x11->keyboard_dev.keyboard = &x11->keyboard;
-
-	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
-		NULL, "X11 pointer", 0, 0);
-	wlr_pointer_init(&x11->pointer, NULL);
-	x11->pointer_dev.pointer = &x11->pointer;
-
-	return &x11->backend;
-
-error_event:
-	wl_event_source_remove(x11->event_source);
-error_x11:
-	xcb_disconnect(x11->xcb_conn);
-	XCloseDisplay(x11->xlib_conn);
-	free(x11);
-	return NULL;
-}
-
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	struct wlr_x11_output *output = &x11->output;
@@ -307,6 +244,8 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	struct wlr_x11_output *output = &x11->output;
 	wlr_output_destroy(&output->wlr_output);
 
+	wl_list_remove(&x11->display_destroy.link);
+
 	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_free(&x11->egl);
 
@@ -328,6 +267,78 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
 };
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_x11_backend *x11 =
+		wl_container_of(listener, x11, display_destroy);
+	wlr_x11_backend_destroy(&x11->backend);
+}
+
+struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
+		const char *x11_display) {
+	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
+	if (!x11) {
+		return NULL;
+	}
+
+	wlr_backend_init(&x11->backend, &backend_impl);
+	x11->wl_display = display;
+
+	x11->xlib_conn = XOpenDisplay(x11_display);
+	if (!x11->xlib_conn) {
+		wlr_log(L_ERROR, "Failed to open X connection");
+		return NULL;
+	}
+
+	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
+	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
+		wlr_log(L_ERROR, "Failed to open xcb connection");
+		goto error_x11;
+	}
+
+	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
+
+	int fd = xcb_get_file_descriptor(x11->xcb_conn);
+	struct wl_event_loop *ev = wl_display_get_event_loop(display);
+	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
+	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
+	if (!x11->event_source) {
+		wlr_log(L_ERROR, "Could not create event source");
+		goto error_x11;
+	}
+
+	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
+
+	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
+
+	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR,
+			x11->screen->root_visual, x11->xlib_conn)) {
+		goto error_event;
+	}
+
+	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
+		NULL, "X11 keyboard", 0, 0);
+	wlr_keyboard_init(&x11->keyboard, NULL);
+	x11->keyboard_dev.keyboard = &x11->keyboard;
+
+	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
+		NULL, "X11 pointer", 0, 0);
+	wlr_pointer_init(&x11->pointer, NULL);
+	x11->pointer_dev.pointer = &x11->pointer;
+
+	x11->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &x11->display_destroy);
+
+	return &x11->backend;
+
+error_event:
+	wl_event_source_remove(x11->event_source);
+error_x11:
+	xcb_disconnect(x11->xcb_conn);
+	XCloseDisplay(x11->xlib_conn);
+	free(x11);
+	return NULL;
+}
 
 static void output_transform(struct wlr_output *wlr_output, enum wl_output_transform transform) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;

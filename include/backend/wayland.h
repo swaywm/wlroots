@@ -21,6 +21,7 @@ struct wlr_wl_backend {
 	struct wl_list outputs;
 	struct wlr_egl egl;
 	size_t requested_outputs;
+	struct wl_listener local_display_destroy;
 	/* remote state */
 	struct wl_display *remote_display;
 	struct wl_event_source *remote_display_src;
