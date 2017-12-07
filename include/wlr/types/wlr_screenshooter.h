@@ -9,10 +9,6 @@ struct wlr_screenshooter {
 
 	struct wl_listener display_destroy;
 
-	struct {
-		struct wl_signal destroy;
-	} events;
-
 	void *data;
 };
 
