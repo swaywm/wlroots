@@ -601,8 +601,8 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	wl_list_remove(&wlr_wl_shell->display_destroy.link);
 	struct wl_resource *resource = NULL, *temp = NULL;
 	wl_resource_for_each_safe(resource, temp, &wlr_wl_shell->wl_resources) {
-		struct wl_list *link = wl_resource_get_link(resource);
-		wl_list_remove(link);
+		// shell_destroy will remove the resource from the list
+		wl_resource_destroy(resource);
 	}
 	// TODO: destroy surfaces
 	wl_global_destroy(wlr_wl_shell->wl_global);

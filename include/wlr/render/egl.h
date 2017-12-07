@@ -4,6 +4,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdbool.h>
+#include <wayland-server.h>
 
 struct wlr_egl {
 	EGLDisplay display;
@@ -27,7 +28,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id, void 
  * Frees all related egl resources, makes the context not-current and
  * unbinds a bound wayland display.
  */
-void wlr_egl_free(struct wlr_egl *egl);
+void wlr_egl_finish(struct wlr_egl *egl);
 
 /**
  * Binds the given display to the egl instance.

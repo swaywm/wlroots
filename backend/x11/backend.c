@@ -247,7 +247,7 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wl_event_source_remove(x11->frame_timer);
-	wlr_egl_free(&x11->egl);
+	wlr_egl_finish(&x11->egl);
 
 	xcb_disconnect(x11->xcb_conn);
 	free(x11);

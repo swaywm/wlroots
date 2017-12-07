@@ -24,6 +24,7 @@ struct wlr_xwayland {
 
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener destroy_listener;
+	struct wl_listener display_destroy;
 	struct wlr_xwm *xwm;
 	struct wlr_xwayland_cursor *cursor;
 
