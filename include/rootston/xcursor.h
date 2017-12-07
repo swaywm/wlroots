@@ -9,6 +9,4 @@
 #define ROOTS_XCURSOR_MOVE "grabbing"
 #define ROOTS_XCURSOR_ROTATE "grabbing"
 
-const char *roots_xcursor_get_resize_name(uint32_t edges);
-
 #endif

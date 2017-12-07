@@ -10,13 +10,6 @@ enum roots_cursor_mode {
 	ROOTS_CURSOR_ROTATE = 3,
 };
 
-enum roots_cursor_resize_edge {
-	ROOTS_CURSOR_RESIZE_EDGE_TOP = 1,
-	ROOTS_CURSOR_RESIZE_EDGE_BOTTOM = 2,
-	ROOTS_CURSOR_RESIZE_EDGE_LEFT = 4,
-	ROOTS_CURSOR_RESIZE_EDGE_RIGHT = 8,
-};
-
 struct roots_input_event {
 	uint32_t serial;
 	struct wlr_cursor *cursor;

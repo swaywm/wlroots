@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/xcursor.h>
+#include <wlr/util/edges.h>
 
 /**
  * A scaled XCursor theme.
@@ -49,5 +50,11 @@ struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
  */
 void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
 	const char *name, struct wlr_cursor *cursor);
+
+/**
+ * Get the name of the cursor image for the given edges.
+ */
+const char *wlr_xcursor_manager_get_resize_name(enum wlr_edges edges);
+
 
 #endif
