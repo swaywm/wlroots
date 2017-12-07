@@ -8,6 +8,7 @@
 #include <xcb/xcb_image.h>
 #include <xcb/render.h>
 #include "wlr/util/log.h"
+#include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
 #include "wlr/xcursor.h"
@@ -742,14 +743,43 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 #define _NET_WM_MOVERESIZE_MOVE_KEYBOARD    10  // move via keyboard
 #define _NET_WM_MOVERESIZE_CANCEL           11  // cancel operation
 
+static enum wlr_edges net_wm_edges_to_wlr(uint32_t net_wm_edges) {
+	enum wlr_edges edges = WLR_EDGE_NONE;
+
+	switch(net_wm_edges) {
+		case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOP:
+			edges = WLR_EDGE_TOP;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_RIGHT:
+			edges = WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
+			edges = WLR_EDGE_BOTTOM;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_LEFT:
+			edges = WLR_EDGE_LEFT;
+			break;
+		default:
+			break;
+	}
+
+	return edges;
+}
+
 static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
-	// same as xdg-toplevel-v6
-	// TODO need a common enum for this
-	static const int map[] = {
-		5, 1, 9, 8, 10, 2, 6, 4
-	};
-
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
@@ -775,7 +805,7 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
 	case _NET_WM_MOVERESIZE_SIZE_LEFT:
 		resize_event.surface = xsurface;
-		resize_event.edges = map[detail];
+		resize_event.edges = net_wm_edges_to_wlr(detail);
 		wl_signal_emit(&xsurface->events.request_resize, &resize_event);
 		break;
 	case _NET_WM_MOVERESIZE_CANCEL:
