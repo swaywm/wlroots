@@ -316,6 +316,11 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->y = cursor->y - cursor->hotspot_y;
 	box->width = cursor->width;
 	box->height = cursor->height;
+
+	if (cursor->surface != NULL) {
+		box->x += cursor->surface->current->sx;
+		box->y += cursor->surface->current->sy;
+	}
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
@@ -331,36 +336,29 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	struct wlr_box output_box;
-	output_box.x = output_box.y = 0;
-	wlr_output_effective_resolution(cursor->output, &output_box.width,
-		&output_box.height);
-	output_box.width *= cursor->output->scale;
-	output_box.height *= cursor->output->scale;
-
-	struct wlr_box cursor_box;
-	output_cursor_get_box(cursor, &cursor_box);
-
-	struct wlr_box intersection;
-	struct wlr_box *intersection_ptr = &intersection;
-	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr)) {
-		return;
-	}
-
 	glViewport(0, 0, cursor->output->width, cursor->output->height);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	int x = cursor->x - cursor->hotspot_x;
-	int y = cursor->y - cursor->hotspot_y;
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	float translate[16];
+	wlr_matrix_translate(&translate, cursor_box.x, cursor_box.y, 0);
+
+	// Assume cursors without a surface are already scaled for the output
 	if (cursor->surface != NULL) {
-		x += cursor->surface->current->sx;
-		y += cursor->surface->current->sy;
+		cursor_box.width *= cursor->output->scale;
+		cursor_box.height *= cursor->output->scale;
 	}
 
+	float scale[16];
+	wlr_matrix_scale(&scale, cursor_box.width, cursor_box.height, 1);
+
 	float matrix[16];
-	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
-		x, y);
+	wlr_matrix_mul(&translate, &scale, &matrix);
+	wlr_matrix_mul(&cursor->output->transform_matrix, &matrix, &matrix);
+
 	wlr_render_with_matrix(renderer, texture, &matrix);
 
 	if (cursor->surface != NULL) {
@@ -381,7 +379,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
-		if (!cursor->enabled || output->hardware_cursor == cursor) {
+		if (!cursor->enabled || !cursor->visible ||
+				output->hardware_cursor == cursor) {
 			continue;
 		}
 		output_cursor_render(cursor, &now);
@@ -516,6 +515,34 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		stride, width, height, pixels);
 }
 
+static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
+	struct wlr_box output_box;
+	output_box.x = output_box.y = 0;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
+
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	struct wlr_box intersection;
+	struct wlr_box *intersection_ptr = &intersection;
+	bool visible =
+		wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr);
+
+	if (cursor->surface != NULL) {
+		if (cursor->visible && !visible) {
+			wlr_surface_send_leave(cursor->surface, cursor->output);
+		}
+		if (!cursor->visible && visible) {
+			wlr_surface_send_enter(cursor->surface, cursor->output);
+		}
+	}
+
+	cursor->visible = visible;
+}
+
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
@@ -584,6 +611,9 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
 		output_cursor_commit(cursor);
+
+		cursor->visible = false;
+		output_cursor_update_visible(cursor);
 	} else {
 		cursor->enabled = false;
 		cursor->width = 0;
@@ -599,6 +629,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
+	output_cursor_update_visible(cursor);
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;

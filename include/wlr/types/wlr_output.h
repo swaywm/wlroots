@@ -16,6 +16,7 @@ struct wlr_output_cursor {
 	struct wlr_output *output;
 	double x, y;
 	bool enabled;
+	bool visible;
 	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
 	struct wl_list link;
@@ -98,6 +99,9 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
+/**
+ * Sets the cursor image. The image must be already scaled for the output.
+ */
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);
