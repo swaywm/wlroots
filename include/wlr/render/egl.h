@@ -10,13 +10,9 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *egl_exts;
-	const char *gl_exts;
-
 	struct wl_display *wl_display;
 };
 
-// TODO: Allocate and return a wlr_egl
 /**
  *  Initializes an egl context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
@@ -40,6 +36,9 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
  */
 bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 	EGLint attrib, EGLint *value);
+
+bool wlr_egl_query_wl_drm_size(struct wlr_egl *egl, struct wl_resource *buf,
+	int32_t *width, int32_t *height);
 
 /**
  * Returns a surface for the given native window
