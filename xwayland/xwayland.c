@@ -138,8 +138,7 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 
 	if (wlr_xwayland->client) {
 		wl_list_remove(&wlr_xwayland->client_destroy.link);
-		// TODO: this segfaults in /usr/lib/libEGL_mesa.so.0
-		//wl_client_destroy(wlr_xwayland->client);
+		wl_client_destroy(wlr_xwayland->client);
 	}
 	if (wlr_xwayland->sigusr1_source) {
 		wl_event_source_remove(wlr_xwayland->sigusr1_source);
@@ -170,12 +169,14 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *wlr_xwayland =
 		wl_container_of(listener, wlr_xwayland, client_destroy);
 
-	/* don't call client destroy */
+	// Don't call client destroy: it's being destroyed already
 	wlr_xwayland->client = NULL;
 	wl_list_remove(&wlr_xwayland->client_destroy.link);
+
 	wlr_xwayland_finish(wlr_xwayland);
 
 	if (time(NULL) - wlr_xwayland->server_start > 5) {
+		wlr_log(L_INFO, "Restarting Xwayland");
 		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display,
 			wlr_xwayland->compositor);
 	}
@@ -184,6 +185,13 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *wlr_xwayland =
 		wl_container_of(listener, wlr_xwayland, display_destroy);
+
+	// Don't call client destroy: the display is being destroyed, it's too late
+	if (wlr_xwayland->client) {
+		wlr_xwayland->client = NULL;
+		wl_list_remove(&wlr_xwayland->client_destroy.link);
+	}
+
 	wlr_xwayland_destroy(wlr_xwayland);
 }
 
