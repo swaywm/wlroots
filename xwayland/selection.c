@@ -434,13 +434,16 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		if (xwm->selection_owner != xwm->selection_window) {
 			// A real X client selection went away, not our
 			// proxy selection
-			// TODO: Clear the wayland selection (or not)?
+			wlr_seat_set_selection(xwm->seat, NULL,
+				wl_display_next_serial(xwm->xwayland->wl_display));
 		}
 
 		xwm->selection_owner = XCB_WINDOW_NONE;
 
 		return 1;
 	}
+
+	xwm->selection_owner = xfixes_selection_notify->owner;
 
 	// We have to use XCB_TIME_CURRENT_TIME when we claim the
 	// selection, so grab the actual timestamp here so we can
@@ -450,8 +453,6 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		wlr_log(L_DEBUG, "TODO: our window");
 		return 1;
 	}
-
-	xwm->selection_owner = xfixes_selection_notify->owner;
 
 	xwm->incr = 0;
 	// doing this will give a selection notify where we actually handle the sync
@@ -542,8 +543,9 @@ static void handle_seat_set_selection(struct wl_listener *listener,
 		return;
 	}
 
-	if (source->send == data_source_send)
+	if (source->send == data_source_send) {
 		return;
+	}
 
 	xcb_set_selection_owner(xwm->xcb_conn,
 		xwm->selection_window,
