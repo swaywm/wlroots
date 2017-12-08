@@ -310,6 +310,9 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	wlr_surface_send_frame_done(surface, when);
 }
 
+/**
+ * Returns the cursor box, scaled for its output.
+ */
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 		struct wlr_box *box) {
 	box->x = cursor->x - cursor->hotspot_x;
@@ -318,8 +321,8 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->height = cursor->height;
 
 	if (cursor->surface != NULL) {
-		box->x += cursor->surface->current->sx;
-		box->y += cursor->surface->current->sy;
+		box->x += cursor->surface->current->sx * cursor->output->scale;
+		box->y += cursor->surface->current->sy * cursor->output->scale;
 	}
 }
 
