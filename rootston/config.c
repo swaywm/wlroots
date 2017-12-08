@@ -213,6 +213,10 @@ static void config_handle_keyboard(struct roots_config *config,
 		kc->variant = strdup(value);
 	} else if (strcmp(name, "options") == 0) {
 		kc->options = strdup(value);
+	} else if (strcmp(name, "repeat-rate") == 0) {
+		kc->repeat_rate = strtol(value, NULL, 10);
+	} else if (strcmp(name, "repeat-delay") == 0) {
+		kc->repeat_delay = strtol(value, NULL, 10);
 	} else {
 		wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
 	}

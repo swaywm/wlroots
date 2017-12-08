@@ -102,6 +102,11 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.key);
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
+	wl_signal_init(&kb->events.repeat_info);
+
+	// Sane defaults
+	kb->repeat_info.rate = 25;
+	kb->repeat_info.delay = 600;
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
@@ -165,6 +170,16 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	free(keymap_str);
 
 	wl_signal_emit(&kb->events.keymap, kb);
+}
+
+void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
+		int32_t delay) {
+	if (kb->repeat_info.rate == rate && kb->repeat_info.delay == delay) {
+		return;
+	}
+	kb->repeat_info.rate = rate;
+	kb->repeat_info.delay = delay;
+	wl_signal_emit(&kb->events.repeat_info, kb);
 }
 
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {
