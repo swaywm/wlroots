@@ -16,6 +16,7 @@ struct wlr_output_cursor {
 	struct wlr_output *output;
 	double x, y;
 	bool enabled;
+	bool visible;
 	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
 	struct wl_list link;
@@ -64,6 +65,10 @@ struct wlr_output {
 		struct wl_signal destroy;
 	} events;
 
+	struct wlr_surface *fullscreen_surface;
+	struct wl_listener fullscreen_surface_commit;
+	struct wl_listener fullscreen_surface_destroy;
+
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
 
@@ -81,6 +86,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 void wlr_output_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
+void wlr_output_set_scale(struct wlr_output *output, uint32_t scale);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
@@ -89,8 +95,13 @@ void wlr_output_swap_buffers(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
+void wlr_output_set_fullscreen_surface(struct wlr_output *output,
+	struct wlr_surface *surface);
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
+/**
+ * Sets the cursor image. The image must be already scaled for the output.
+ */
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);

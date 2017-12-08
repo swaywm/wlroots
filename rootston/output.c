@@ -2,6 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <GLES2/gl2.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -12,10 +13,6 @@
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
-
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
-}
 
 /**
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
@@ -75,12 +72,7 @@ static void render_surface(struct wlr_surface *surface,
 			wlr_render_with_matrix(desktop->server->renderer, surface->texture,
 				&matrix);
 
-			struct wlr_frame_callback *cb, *cnext;
-			wl_list_for_each_safe(cb, cnext,
-					&surface->current->frame_callback_list, link) {
-				wl_callback_send_done(cb->resource, timespec_to_msec(when));
-				wl_resource_destroy(cb->resource);
-			}
+			wlr_surface_send_frame_done(surface, when);
 		}
 
 		struct wlr_subsurface *subsurface;
@@ -174,6 +166,22 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 	}
 }
 
+static bool has_standalone_surface(struct roots_view *view) {
+	if (!wl_list_empty(&view->wlr_surface->subsurface_list)) {
+		return false;
+	}
+
+	switch (view->type) {
+	case ROOTS_XDG_SHELL_V6_VIEW:
+		return wl_list_empty(&view->xdg_surface_v6->popups);
+	case ROOTS_WL_SHELL_VIEW:
+		return wl_list_empty(&view->wl_shell_surface->popups);
+	case ROOTS_XWAYLAND_VIEW:
+		return true;
+	}
+	return true;
+}
+
 static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
 	struct roots_output *output = wl_container_of(listener, output, frame);
@@ -185,6 +193,37 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
+
+	if (output->fullscreen_view != NULL) {
+		// Make sure the view is centered on screen
+		const struct wlr_box *output_box =
+			wlr_output_layout_get_box(desktop->layout, wlr_output);
+		struct wlr_box view_box;
+		view_get_box(output->fullscreen_view, &view_box);
+		double view_x = (double)(output_box->width - view_box.width) / 2 +
+			output_box->x;
+		double view_y = (double)(output_box->height - view_box.height) / 2 +
+			output_box->y;
+		view_move(output->fullscreen_view, view_x, view_y);
+
+		if (has_standalone_surface(output->fullscreen_view)) {
+			wlr_output_set_fullscreen_surface(wlr_output,
+				output->fullscreen_view->wlr_surface);
+		} else {
+			wlr_output_set_fullscreen_surface(wlr_output, NULL);
+
+			glClearColor(0, 0, 0, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			render_view(output->fullscreen_view, desktop, wlr_output, &now);
+		}
+		wlr_renderer_end(server->renderer);
+		wlr_output_swap_buffers(wlr_output);
+		output->last_frame = desktop->last_frame = now;
+		return;
+	} else {
+		wlr_output_set_fullscreen_surface(wlr_output, NULL);
+	}
 
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
@@ -252,7 +291,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_config *config = desktop->config;
 
 	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
-	wlr_log(L_DEBUG, "%s %s %s %"PRId32"mm x %"PRId32"mm", wlr_output->make,
+	wlr_log(L_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
 	if (wl_list_length(&wlr_output->modes) > 0) {
@@ -275,10 +314,10 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		if (output_config->mode.width) {
 			set_mode(wlr_output, output_config);
 		}
-		wlr_output->scale = output_config->scale;
+		wlr_output_set_scale(wlr_output, output_config->scale);
 		wlr_output_transform(wlr_output, output_config->transform);
-		wlr_output_layout_add(desktop->layout,
-				wlr_output, output_config->x, output_config->y);
+		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
+			output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}

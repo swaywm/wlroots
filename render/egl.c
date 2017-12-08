@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
-#include "render/glapi.h"
+#include "glapi.h"
 
 // Extension documentation
 // https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.

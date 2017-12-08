@@ -148,8 +148,8 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 
 	struct vt_mode mode = {
 		.mode = VT_PROCESS,
-		.relsig = SIGUSR1,
-		.acqsig = SIGUSR1,
+		.relsig = SIGUSR2,
+		.acqsig = SIGUSR2,
 		.frsig = SIGIO, // has to be set
 	};
 
@@ -159,7 +159,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
-	session->vt_source = wl_event_loop_add_signal(loop, SIGUSR1,
+	session->vt_source = wl_event_loop_add_signal(loop, SIGUSR2,
 		vt_handler, session);
 	if (!session->vt_source) {
 		goto error;

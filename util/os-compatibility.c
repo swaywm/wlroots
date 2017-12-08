@@ -29,15 +29,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef __linux__
-#include <sys/epoll.h>
-#endif
 #include <string.h>
 #include <stdlib.h>
+#include "util/os-compatibility.h"
 
-int
-os_fd_set_cloexec(int fd)
-{
+int os_fd_set_cloexec(int fd) {
 	long flags;
 
 	if (fd == -1)
@@ -53,9 +49,7 @@ os_fd_set_cloexec(int fd)
 	return 0;
 }
 
-static int
-set_cloexec_or_close(int fd)
-{
+int set_cloexec_or_close(int fd) {
 	if (os_fd_set_cloexec(fd) != 0) {
 		close(fd);
 		return -1;
@@ -63,8 +57,7 @@ set_cloexec_or_close(int fd)
 	return fd;
 }
 
-static int
-create_tmpfile_cloexec(char *tmpname)
+int create_tmpfile_cloexec(char *tmpname)
 {
 	int fd;
 
@@ -104,9 +97,7 @@ create_tmpfile_cloexec(char *tmpname)
  * If posix_fallocate() is not supported, program may receive
  * SIGBUS on accessing mmap()'ed file contents instead.
  */
-int
-os_create_anonymous_file(off_t size)
-{
+int os_create_anonymous_file(off_t size) {
 	static const char template[] = "/wlroots-shared-XXXXXX";
 	const char *path;
 	char *name;

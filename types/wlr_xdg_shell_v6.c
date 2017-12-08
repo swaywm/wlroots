@@ -564,23 +564,15 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_show_window_menu_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_show_window_menu_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_show_window_menu_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+		.x = x,
+		.y = y,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-	event->x = x;
-	event->y = y;
-
-	wl_signal_emit(&surface->events.request_show_window_menu, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_show_window_menu, &event);
 }
 
 static void xdg_toplevel_protocol_move(struct wl_client *client,
@@ -597,21 +589,13 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_move_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_move_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_move_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-
-	wl_signal_emit(&surface->events.request_move, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_move, &event);
 }
 
 static void xdg_toplevel_protocol_resize(struct wl_client *client,
@@ -628,22 +612,14 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_xdg_toplevel_v6_resize_event *event =
-		calloc(1, sizeof(struct wlr_xdg_toplevel_v6_resize_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
+	struct wlr_xdg_toplevel_v6_resize_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+		.edges = edges,
+	};
 
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-	event->edges = edges;
-
-	wl_signal_emit(&surface->events.request_resize, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_resize, &event);
 }
 
 static void xdg_toplevel_protocol_set_max_size(struct wl_client *client,
@@ -677,15 +653,36 @@ static void xdg_toplevel_protocol_unset_maximized(struct wl_client *client,
 static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+
+	struct wlr_output *output = NULL;
+	if (output_resource != NULL) {
+		output = wl_resource_get_user_data(output_resource);
+	}
+
 	surface->toplevel_state->next.fullscreen = true;
-	wl_signal_emit(&surface->events.request_fullscreen, surface);
+
+	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
+		.surface = surface,
+		.fullscreen = true,
+		.output = output,
+	};
+
+	wl_signal_emit(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
+
 	surface->toplevel_state->next.fullscreen = false;
-	wl_signal_emit(&surface->events.request_fullscreen, surface);
+
+	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
+		.surface = surface,
+		.fullscreen = false,
+		.output = NULL,
+	};
+
+	wl_signal_emit(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,
@@ -812,8 +809,7 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 	}
 
 	surface->configured = true;
-
-	wl_signal_emit(&surface->events.ack_configure, surface);
+	surface->configure_serial = serial;
 
 	free(configure);
 }
@@ -941,7 +937,6 @@ static void wlr_xdg_toplevel_v6_send_configure(
 
 static void wlr_xdg_surface_send_configure(void *user_data) {
 	struct wlr_xdg_surface_v6 *surface = user_data;
-	struct wl_display *display = wl_client_get_display(surface->client->client);
 
 	surface->configure_idle = NULL;
 
@@ -953,7 +948,7 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	}
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
-	configure->serial = wl_display_next_serial(display);
+	configure->serial = surface->configure_next_serial;
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_V6_ROLE_NONE:
@@ -974,7 +969,7 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	zxdg_surface_v6_send_configure(surface->resource, configure->serial);
 }
 
-static void wlr_xdg_surface_v6_schedule_configure(
+static uint32_t wlr_xdg_surface_v6_schedule_configure(
 		struct wlr_xdg_surface_v6 *surface) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
@@ -995,23 +990,23 @@ static void wlr_xdg_surface_v6_schedule_configure(
 	if (surface->configure_idle != NULL) {
 		if (!pending_same) {
 			// configure request already scheduled
-			return;
+			return surface->configure_next_serial;
 		}
 
 		// configure request not necessary anymore
 		wl_event_source_remove(surface->configure_idle);
 		surface->configure_idle = NULL;
+		return 0;
 	} else {
 		if (pending_same) {
 			// configure request not necessary
-			return;
+			return 0;
 		}
 
-		surface->configure_idle =
-			wl_event_loop_add_idle(
-				loop,
-				wlr_xdg_surface_send_configure,
-				surface);
+		surface->configure_next_serial = wl_display_next_serial(display);
+		surface->configure_idle = wl_event_loop_add_idle(loop,
+			wlr_xdg_surface_send_configure, surface);
+		return surface->configure_next_serial;
 	}
 }
 
@@ -1155,7 +1150,6 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.request_show_window_menu);
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
-	wl_signal_init(&surface->events.ack_configure);
 	wl_signal_init(&surface->events.ping_timeout);
 
 	wl_signal_add(&surface->surface->events.destroy,
@@ -1304,45 +1298,45 @@ void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
 		surface->client->ping_serial);
 }
 
-void wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.width = width;
 	surface->toplevel_state->pending.height = height;
 
-	wlr_xdg_surface_v6_schedule_configure(surface);
+	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
-void wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 		bool activated) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.activated = activated;
 
-	wlr_xdg_surface_v6_schedule_configure(surface);
+	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
-void wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 		bool maximized) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.maximized = maximized;
 
-	wlr_xdg_surface_v6_schedule_configure(surface);
+	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
-void wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 		bool fullscreen) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.fullscreen = fullscreen;
 
-	wlr_xdg_surface_v6_schedule_configure(surface);
+	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
-void wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
+uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.resizing = resizing;
 
-	wlr_xdg_surface_v6_schedule_configure(surface);
+	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {

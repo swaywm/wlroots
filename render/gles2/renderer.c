@@ -12,7 +12,7 @@
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
-#include "render/glapi.h"
+#include "glapi.h"
 
 struct shaders shaders;
 

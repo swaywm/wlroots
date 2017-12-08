@@ -108,25 +108,17 @@ static void shell_surface_protocol_pong(struct wl_client *client,
 static void shell_surface_protocol_move(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
-	wlr_log(L_DEBUG, "got shell surface move");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
-	struct wlr_wl_shell_surface_move_event *event =
-		calloc(1, sizeof(struct wlr_wl_shell_surface_move_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
+	struct wlr_wl_shell_surface_move_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+	};
 
-	wl_signal_emit(&surface->events.request_move, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_move, &event);
 }
 
 static struct wlr_wl_shell_popup_grab *shell_popup_grab_from_seat(
@@ -174,26 +166,18 @@ static void shell_surface_destroy_popup_state(
 static void shell_surface_protocol_resize(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial, enum wl_shell_surface_resize edges) {
-	wlr_log(L_DEBUG, "got shell surface resize");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
-	struct wlr_wl_shell_surface_resize_event *event =
-		calloc(1, sizeof(struct wlr_wl_shell_surface_resize_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	event->client = client;
-	event->surface = surface;
-	event->seat = seat;
-	event->serial = serial;
-	event->edges = edges;
+	struct wlr_wl_shell_surface_resize_event event = {
+		.surface = surface,
+		.seat = seat,
+		.serial = serial,
+		.edges = edges,
+	};
 
-	wl_signal_emit(&surface->events.request_resize, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_resize, &event);
 }
 
 static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
@@ -279,7 +263,6 @@ static void shell_surface_protocol_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource,
 		enum wl_shell_surface_fullscreen_method method, uint32_t framerate,
 		struct wl_resource *output_resource) {
-	wlr_log(L_DEBUG, "got shell surface fullscreen");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_output *output = NULL;
 	if (output_resource != NULL) {
@@ -289,23 +272,15 @@ static void shell_surface_protocol_set_fullscreen(struct wl_client *client,
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_FULLSCREEN,
 		NULL, NULL);
 
-	struct wlr_wl_shell_surface_set_fullscreen_event *event =
-		calloc(1, sizeof(struct wlr_wl_shell_surface_set_fullscreen_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	event->client = client;
-	event->surface = surface;
-	event->method = method;
-	event->framerate = framerate;
-	event->output = output;
+	struct wlr_wl_shell_surface_set_fullscreen_event event = {
+		.surface = surface,
+		.method = method,
+		.framerate = framerate,
+		.output = output,
+	};
 
-	wl_signal_emit(&surface->events.request_set_fullscreen, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_fullscreen, &event);
 }
-
 
 static void shell_surface_protocol_set_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
@@ -368,7 +343,6 @@ static void shell_surface_protocol_set_popup(struct wl_client *client,
 
 static void shell_surface_protocol_set_maximized(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
-	wlr_log(L_DEBUG, "got shell surface maximized");
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_output *output = NULL;
 	if (output_resource != NULL) {
@@ -378,19 +352,12 @@ static void shell_surface_protocol_set_maximized(struct wl_client *client,
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_MAXIMIZED,
 		NULL, NULL);
 
-	struct wlr_wl_shell_surface_set_maximized_event *event =
-		calloc(1, sizeof(struct wlr_wl_shell_surface_set_maximized_event));
-	if (event == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	event->client = client;
-	event->surface = surface;
-	event->output = output;
+	struct wlr_wl_shell_surface_maximize_event event = {
+		.surface = surface,
+		.output = output,
+	};
 
-	wl_signal_emit(&surface->events.request_set_maximized, event);
-
-	free(event);
+	wl_signal_emit(&surface->events.request_maximize, &event);
 }
 
 static void shell_surface_protocol_set_title(struct wl_client *client,
@@ -492,6 +459,8 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 				surface->popup_state->seat);
 		shell_pointer_grab_maybe_end(&grab->pointer_grab);
 	}
+
+	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static int shell_surface_ping_timeout(void *user_data) {
@@ -542,11 +511,12 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		wl_surface->resource);
 
 	wl_signal_init(&wl_surface->events.destroy);
+	wl_signal_init(&wl_surface->events.commit);
 	wl_signal_init(&wl_surface->events.ping_timeout);
 	wl_signal_init(&wl_surface->events.request_move);
 	wl_signal_init(&wl_surface->events.request_resize);
-	wl_signal_init(&wl_surface->events.request_set_fullscreen);
-	wl_signal_init(&wl_surface->events.request_set_maximized);
+	wl_signal_init(&wl_surface->events.request_fullscreen);
+	wl_signal_init(&wl_surface->events.request_maximize);
 	wl_signal_init(&wl_surface->events.set_state);
 	wl_signal_init(&wl_surface->events.set_title);
 	wl_signal_init(&wl_surface->events.set_class);

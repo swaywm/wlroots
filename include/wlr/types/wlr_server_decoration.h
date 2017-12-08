@@ -3,12 +3,35 @@
 
 #include <wayland-server.h>
 
+/**
+ * Possible values to use in request_mode and the event mode. Same as
+ * org_kde_kwin_server_decoration_manager_mode.
+ */
+enum wlr_server_decoration_manager_mode {
+	/**
+	 * Undecorated: The surface is not decorated at all, neither server nor
+	 * client-side. An example is a popup surface which should not be
+	 * decorated.
+	 */
+	WLR_SERVER_DECORATION_MANAGER_MODE_NONE = 0,
+	/**
+	 * Client-side decoration: The decoration is part of the surface and the
+	 * client.
+	 */
+	WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT = 1,
+	/**
+	 * Server-side decoration: The server embeds the surface into a decoration
+	 * frame.
+	 */
+	WLR_SERVER_DECORATION_MANAGER_MODE_SERVER = 2,
+};
+
 struct wlr_server_decoration_manager {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wl_list decorations; // wlr_server_decoration::link
 
-	uint32_t default_mode; // enum org_kde_kwin_server_decoration_manager_mode
+	uint32_t default_mode; // enum wlr_server_decoration_manager_mode
 
 	struct {
 		struct wl_signal new_decoration;
@@ -22,7 +45,7 @@ struct wlr_server_decoration {
 	struct wlr_surface *surface;
 	struct wl_list link;
 
-	uint32_t mode; // enum org_kde_kwin_server_decoration_manager_mode
+	uint32_t mode; // enum wlr_server_decoration_manager_mode
 
 	struct {
 		struct wl_signal destroy;
