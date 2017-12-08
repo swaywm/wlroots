@@ -13,6 +13,52 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
+/*
+ * The wayland formats are little endian while the GL formats are big endian,
+ * so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
+ */
+
+static const struct format formats[] = {
+	{
+		.wl_fmt = WL_SHM_FORMAT_ARGB8888,
+		.gl_fmt = GL_BGRA_EXT,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
+	},
+	{
+		.wl_fmt = WL_SHM_FORMAT_XRGB8888,
+		.gl_fmt = GL_BGRA_EXT,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
+	},
+	{
+		.wl_fmt = WL_SHM_FORMAT_ABGR8888,
+		.gl_fmt = GL_RGBA,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
+	},
+	{
+		.wl_fmt = WL_SHM_FORMAT_XBGR8888,
+		.gl_fmt = GL_RGBA,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.bpp = 32,
+	},
+};
+
+const struct format *wl_to_gl(enum wl_shm_format fmt) {
+	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); ++i) {
+		if (formats[i].wl_fmt == fmt) {
+			return &formats[i];
+		}
+	}
+
+	return NULL;
+}
+
+bool wlr_render_format_supported(enum wl_shm_format wl_fmt) {
+	return wl_to_gl(wl_fmt);
+}
+
 static const float transforms[][4] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
 		1.0f, 0.0f,
@@ -143,6 +189,36 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	DEBUG_POP;
+}
+
+bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		void *data) {
+	assert(eglGetCurrentContext() == rend->egl->context);
+
+	const struct format *fmt = wl_to_gl(wl_fmt);
+	if (!fmt) {
+		wlr_log(L_ERROR, "Unsupported pixel format");
+		return false;
+	}
+
+	DEBUG_PUSH;
+
+	// Make sure any pending drawing is finished before we try to read it
+	glFinish();
+
+	// Unfortunately GLES2 doesn't support GL_PACK_*, so we have to read
+	// the lines out row by row
+
+	unsigned char *p = data + dst_y * stride;
+	for (size_t i = src_y; i < src_y + height; ++i) {
+		glReadPixels(src_x, src_y + height - i - 1, width, 1, fmt->gl_fmt,
+			fmt->gl_type, p + i * stride + dst_x * 4);
+	}
+
+	DEBUG_POP;
+	return true;
 }
 
 void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
