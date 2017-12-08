@@ -5,10 +5,10 @@
 #include <time.h>
 #include <inttypes.h>
 #include <wayland-server.h>
-#include <GLES2/gl2.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/render/render.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "support/shared.h"
@@ -37,8 +37,8 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 
 	wlr_output_make_current(output->output);
 
-	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	struct wlr_render *rend = wlr_backend_get_render(output->output->backend);
+	wlr_render_clear(rend, sample->color[0], sample->color[1], sample->color[2], 1.0f);
 
 	wlr_output_swap_buffers(output->output);
 }

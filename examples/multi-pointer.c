@@ -10,10 +10,7 @@
 #include <wayland-server.h>
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -58,9 +55,9 @@ static void handle_output_frame(struct output_state *output,
 
 	wlr_output_make_current(wlr_output);
 
-	glClearColor(sample->clear_color[0], sample->clear_color[1],
+	struct wlr_render *rend = wlr_backend_get_render(wlr_output->backend);
+	wlr_render_clear(rend, sample->clear_color[0], sample->clear_color[1],
 		sample->clear_color[2], sample->clear_color[3]);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	wlr_output_swap_buffers(wlr_output);
 }
