@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define ROOTS_XCURSOR_SIZE 16
+#define ROOTS_XCURSOR_SIZE 24
 
 #define ROOTS_XCURSOR_DEFAULT "left_ptr"
 #define ROOTS_XCURSOR_MOVE "grabbing"
