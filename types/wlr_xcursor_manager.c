@@ -82,26 +82,3 @@ void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
 			theme->scale);
 	}
 }
-
-const char *wlr_xcursor_manager_get_resize_name(enum wlr_edges edges) {
-	if (edges & WLR_EDGE_TOP) {
-		if (edges & WLR_EDGE_RIGHT) {
-			return "ne-resize";
-		} else if (edges & WLR_EDGE_LEFT) {
-			return "nw-resize";
-		}
-		return "n-resize";
-	} else if (edges & WLR_EDGE_BOTTOM) {
-		if (edges & WLR_EDGE_RIGHT) {
-			return "se-resize";
-		} else if (edges & WLR_EDGE_LEFT) {
-			return "sw-resize";
-		}
-		return "s-resize";
-	} else if (edges & WLR_EDGE_RIGHT) {
-		return "e-resize";
-	} else if (edges & WLR_EDGE_LEFT) {
-		return "w-resize";
-	}
-	return "se-resize"; // fallback
-}

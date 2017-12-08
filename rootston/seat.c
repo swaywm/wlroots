@@ -661,7 +661,7 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
-	const char *resize_name = wlr_xcursor_manager_get_resize_name(edges);
+	const char *resize_name = wlr_xcursor_get_resize_name(edges);
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
 		resize_name, seat->cursor->cursor);
 }
