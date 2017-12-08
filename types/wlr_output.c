@@ -346,12 +346,6 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	float translate[16];
 	wlr_matrix_translate(&translate, cursor_box.x, cursor_box.y, 0);
 
-	// Assume cursors without a surface are already scaled for the output
-	if (cursor->surface != NULL) {
-		cursor_box.width *= cursor->output->scale;
-		cursor_box.height *= cursor->output->scale;
-	}
-
 	float scale[16];
 	wlr_matrix_scale(&scale, cursor_box.width, cursor_box.height, 1);
 
@@ -546,8 +540,8 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
-	cursor->width = cursor->surface->current->width;
-	cursor->height = cursor->surface->current->height;
+	cursor->width = cursor->surface->current->width * cursor->output->scale;
+	cursor->height = cursor->surface->current->height * cursor->output->scale;
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;
@@ -580,8 +574,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	cursor->hotspot_x = hotspot_x;
-	cursor->hotspot_y = hotspot_y;
+	cursor->hotspot_x = hotspot_x * cursor->output->scale;
+	cursor->hotspot_y = hotspot_y * cursor->output->scale;
 
 	if (surface && surface == cursor->surface) {
 		if (cursor->output->hardware_cursor == cursor &&
