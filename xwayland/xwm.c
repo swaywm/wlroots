@@ -175,7 +175,6 @@ void xwm_surface_activate(struct wlr_xwm *xwm,
 	xwm_send_focus_window(xwm, xsurface);
 
 	xwm->focus_surface = xsurface;
-	xwm_set_selection_owner(xwm);
 
 	xcb_flush(xwm->xcb_conn);
 }

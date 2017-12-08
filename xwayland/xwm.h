@@ -98,8 +98,6 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 
-void xwm_set_selection_owner(struct wlr_xwm *xwm);
-
 void xwm_selection_init(struct wlr_xwm *xwm);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);

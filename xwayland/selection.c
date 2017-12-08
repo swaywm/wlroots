@@ -466,6 +466,7 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	return 1;
 }
 
+
 int xwm_handle_selection_event(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
 	if (!xwm->seat) {
@@ -541,25 +542,13 @@ static void handle_seat_set_selection(struct wl_listener *listener,
 		return;
 	}
 
-	if (source->send == data_source_send) {
+	if (source->send == data_source_send)
 		return;
-	}
 
-	xwm_set_selection_owner(xwm);
-}
-
-void xwm_set_selection_owner(struct wlr_xwm *xwm) {
-	if (xwm->focus_surface && xwm->seat->selection_source) {
-		xcb_set_selection_owner(xwm->xcb_conn,
-			xwm->selection_window,
-			xwm->atoms[CLIPBOARD],
-			XCB_TIME_CURRENT_TIME);
-	} else {
-		xcb_set_selection_owner(xwm->xcb_conn,
-			XCB_ATOM_NONE,
-			xwm->atoms[CLIPBOARD],
-			xwm->selection_timestamp);
-	}
+	xcb_set_selection_owner(xwm->xcb_conn,
+		xwm->selection_window,
+		xwm->atoms[CLIPBOARD],
+		XCB_TIME_CURRENT_TIME);
 }
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
