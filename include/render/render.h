@@ -37,10 +37,12 @@ struct wlr_tex {
 	enum {
 		WLR_TEX_GLTEX,
 		WLR_TEX_WLDRM,
+		WLR_TEX_DMABUF,
 	} type;
 	union {
 		GLuint gl_tex;
 		struct wl_resource *wl_drm;
+		int dmabuf;
 	};
 };
 
@@ -81,6 +83,9 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	uint32_t stride, uint32_t width, uint32_t height, const void *data);
 
 struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data);
+
+struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt,
+	uint32_t width, uint32_t height, int fd0, uint32_t offset0, uint32_t stride0);
 
 bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,

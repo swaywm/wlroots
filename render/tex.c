@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -18,7 +19,7 @@ bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 		const void *data) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 
-	if (tex->type == WLR_TEX_WLDRM) {
+	if (tex->type != WLR_TEX_GLTEX) {
 		return false;
 	}
 
@@ -142,6 +143,51 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 	return tex;
 }
 
+// TODO: Modify to allow multi-planar formats
+struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt,
+		uint32_t width, uint32_t height, int fd0, uint32_t offset0, uint32_t stride0) {
+	struct wlr_tex *tex = calloc(1, sizeof(*tex));
+	if (!tex) {
+		wlr_log_errno(L_ERROR, "Allocation failed");
+		return false;
+	}
+
+	tex->rend = rend;
+	tex->width = width;
+	tex->height = height;
+	tex->type = WLR_TEX_DMABUF;
+	tex->dmabuf = fd0;
+
+	EGLint attribs[] = {
+		EGL_WIDTH, width,
+		EGL_HEIGHT, height,
+		EGL_LINUX_DRM_FOURCC_EXT, fourcc_fmt,
+		EGL_DMA_BUF_PLANE0_FD_EXT, fd0,
+		EGL_DMA_BUF_PLANE0_OFFSET_EXT, offset0,
+		EGL_DMA_BUF_PLANE0_PITCH_EXT, stride0,
+		EGL_IMAGE_PRESERVED_KHR, EGL_FALSE,
+		EGL_NONE,
+	};
+
+	tex->image = eglCreateImageKHR(rend->egl->display, EGL_NO_CONTEXT,
+		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+	if (!tex->image) {
+		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
+		free(tex);
+		return NULL;
+	}
+
+	DEBUG_PUSH;
+
+	glGenTextures(1, &tex->image_tex);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->image_tex);
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, tex->image);
+
+	DEBUG_POP;
+	return tex;
+}
+
+
 void wlr_tex_destroy(struct wlr_tex *tex) {
 	if (!tex) {
 		return;
@@ -157,8 +203,15 @@ void wlr_tex_destroy(struct wlr_tex *tex) {
 	glDeleteTextures(1, &tex->image_tex);
 	eglDestroyImageKHR(rend->egl->display, tex->image);
 
-	if (tex->type == WLR_TEX_GLTEX) {
+	switch (tex->type) {
+	case WLR_TEX_GLTEX:
 		glDeleteTextures(1, &tex->gl_tex);
+		break;
+	case WLR_TEX_DMABUF:
+		close(tex->dmabuf);
+		break;
+	default:
+		break;
 	}
 
 	free(tex);
