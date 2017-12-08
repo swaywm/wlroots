@@ -10,13 +10,9 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *egl_exts;
-	const char *gl_exts;
-
 	struct wl_display *wl_display;
 };
 
-// TODO: Allocate and return a wlr_egl
 /**
  *  Initializes an egl context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.

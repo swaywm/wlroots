@@ -82,7 +82,6 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	tex->image = eglCreateImageKHR(rend->egl->display, rend->egl->context,
 		EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)(uintptr_t)tex->gl_tex, NULL);
 	if (tex->image == EGL_NO_IMAGE_KHR) {
-		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
 		glDeleteTextures(1, &tex->gl_tex);
 		free(tex);
 		tex = NULL;
@@ -99,7 +98,6 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data) {
 	EGLint fmt;
 	if (!eglQueryWaylandBufferWL(rend->egl->display, data, EGL_TEXTURE_FORMAT, &fmt)) {
-		wlr_log(L_ERROR, "Failed to get wayland DRM format: %s", egl_error());
 		return NULL;
 	}
 
@@ -138,7 +136,6 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 	tex->image = eglCreateImageKHR(rend->egl->display, rend->egl->context,
 		EGL_WAYLAND_BUFFER_WL, data, attribs);
 	if (!tex->image) {
-		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
 		free(tex);
 		return NULL;
 	}
@@ -182,7 +179,6 @@ struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt
 	tex->image = eglCreateImageKHR(rend->egl->display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 	if (!tex->image) {
-		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
 		free(tex);
 		return NULL;
 	}
