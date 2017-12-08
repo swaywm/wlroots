@@ -61,6 +61,8 @@ struct wlr_render *wlr_render_create(struct wlr_backend *backend);
 void wlr_render_destroy(struct wlr_render *rend);
 
 void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output);
+void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+		enum wl_output_transform transform);
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a);
 
 void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,

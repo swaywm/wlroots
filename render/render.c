@@ -117,14 +117,19 @@ static void matrix(float mat[static 9], int32_t width, int32_t height,
 	mat[8] = 1.0f;
 }
 
-void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
+void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+		enum wl_output_transform transform) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
-	glViewport(0, 0, output->width, output->height);
-	matrix(rend->proj, output->width, output->height, output->transform);
+	glViewport(0, 0, width, height);
+	matrix(rend->proj, width, height, transform);
 
 	DEBUG_POP;
+}
+
+void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
+	wlr_render_bind_raw(rend, output->width, output->height, output->transform);
 }
 
 void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a) {
