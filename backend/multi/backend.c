@@ -35,7 +35,6 @@ static void multi_backend_destroy(struct wlr_backend *_backend) {
 		wlr_backend_destroy(sub->backend);
 		free(sub);
 	}
-	wlr_session_destroy(backend->session);
 	free(backend);
 }
 
