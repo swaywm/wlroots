@@ -80,6 +80,10 @@ struct wlr_event_keyboard_key {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	struct xkb_keymap *keymap);
+/**
+ * Sets the keyboard repeat info. `rate` is in key repeats/second and delay is
+ * in milliseconds.
+ */
 void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
 	int32_t delay);
 void wlr_keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds);
