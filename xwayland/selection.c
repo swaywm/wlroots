@@ -450,7 +450,7 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	// answer TIMESTAMP conversion requests correctly.
 	if (xfixes_selection_notify->owner == xwm->selection_window) {
 		xwm->selection_timestamp = xfixes_selection_notify->timestamp;
-		wlr_log(L_DEBUG, "TODO: our window");
+		wlr_log(L_DEBUG, "our window, skipping");
 		return 1;
 	}
 
