@@ -444,12 +444,14 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 		cursor_theme = cc->theme;
 	}
 
-	seat->cursor->xcursor_manager =
-		wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
-	if (seat->cursor->xcursor_manager == NULL) {
-		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
-			cursor_theme);
-		return;
+	if (!seat->cursor->xcursor_manager) {
+		seat->cursor->xcursor_manager =
+			wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
+		if (seat->cursor->xcursor_manager == NULL) {
+			wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+					cursor_theme);
+			return;
+		}
 	}
 
 	struct roots_output *output;
