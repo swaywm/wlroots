@@ -860,7 +860,6 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 			surface->resource, &keys);
 		wl_array_release(&keys);
 
-		wlr_seat_keyboard_send_modifiers(seat);
 		wlr_seat_client_send_selection(client);
 	}
 
@@ -882,6 +881,12 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 	seat->keyboard_state.focused_client = client;
 	seat->keyboard_state.focused_surface = surface;
+
+	if (client && client->keyboard && seat->keyboard_state.keyboard) {
+		// tell new client about any modifier change last,
+		// as it targets seat->keyboard_state.focused_client
+		wlr_seat_keyboard_send_modifiers(seat);
+	}
 }
 
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat, struct
