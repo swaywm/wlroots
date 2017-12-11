@@ -263,8 +263,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 static void set_mode(struct wlr_output *output,
 		struct roots_output_config *oc) {
-	struct wlr_output_mode *mode, *best = NULL;
 	int mhz = (int)(oc->mode.refresh_rate * 1000);
+
+	if (wl_list_empty(&output->modes)) {
+		// Output has no mode, try setting a custom one
+		wlr_output_set_custom_mode(output, oc->mode.width, oc->mode.height, mhz);
+		return;
+	}
+
+	struct wlr_output_mode *mode, *best = NULL;
 	wl_list_for_each(mode, &output->modes, link) {
 		if (mode->width == oc->mode.width && mode->height == oc->mode.height) {
 			if (mode->refresh == mhz) {
