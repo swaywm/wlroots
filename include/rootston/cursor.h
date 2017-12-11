@@ -20,6 +20,8 @@ struct roots_cursor {
 	struct roots_seat *seat;
 	struct wlr_cursor *cursor;
 
+	const char *default_xcursor;
+
 	enum roots_cursor_mode mode;
 
 	// state from input (review if this is necessary)

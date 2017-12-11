@@ -442,6 +442,9 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 		roots_config_get_cursor(seat->input->config, seat->seat->name);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
+		if (cc->default_image != NULL) {
+			seat->cursor->default_xcursor = cc->default_image;
+		}
 	}
 
 	if (!seat->cursor->xcursor_manager) {
@@ -465,7 +468,7 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 	}
 
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
-		ROOTS_XCURSOR_DEFAULT, seat->cursor->cursor);
+		seat->cursor->default_xcursor, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
 }

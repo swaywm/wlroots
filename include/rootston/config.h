@@ -51,6 +51,7 @@ struct roots_cursor_config {
 	char *mapped_output;
 	struct wlr_box *mapped_box;
 	char *theme;
+	char *default_image;
 	struct wl_list link;
 };
 

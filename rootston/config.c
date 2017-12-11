@@ -176,6 +176,9 @@ static void config_handle_cursor(struct roots_config *config,
 	} else if (strcmp(name, "theme") == 0) {
 		free(cc->theme);
 		cc->theme = strdup(value);
+	} else if (strcmp(name, "default-image") == 0) {
+		free(cc->default_image);
+		cc->default_image = strdup(value);
 	} else {
 		wlr_log(L_ERROR, "got unknown cursor config: %s", name);
 	}
@@ -454,6 +457,7 @@ void roots_config_destroy(struct roots_config *config) {
 		free(cc->mapped_output);
 		free(cc->mapped_box);
 		free(cc->theme);
+		free(cc->default_image);
 		free(cc);
 	}
 
