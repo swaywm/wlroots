@@ -175,6 +175,23 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	return result;
 }
 
+bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh) {
+	if (!output->impl || !output->impl->set_custom_mode) {
+		return false;
+	}
+	bool result = output->impl->set_custom_mode(output, width, height, refresh);
+	if (result) {
+		wlr_output_update_matrix(output);
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &output->wl_resources) {
+			wlr_output_send_current_mode_to_resource(resource);
+		}
+	}
+	return result;
+}
+
 void wlr_output_update_size(struct wlr_output *output, int32_t width,
 		int32_t height) {
 	if (output->width == width && output->height == height) {
@@ -321,12 +338,20 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	wlr_surface_send_frame_done(surface, when);
 }
 
+/**
+ * Returns the cursor box, scaled for its output.
+ */
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 		struct wlr_box *box) {
 	box->x = cursor->x - cursor->hotspot_x;
 	box->y = cursor->y - cursor->hotspot_y;
 	box->width = cursor->width;
 	box->height = cursor->height;
+
+	if (cursor->surface != NULL) {
+		box->x += cursor->surface->current->sx * cursor->output->scale;
+		box->y += cursor->surface->current->sy * cursor->output->scale;
+	}
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
@@ -342,36 +367,23 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	struct wlr_box output_box;
-	output_box.x = output_box.y = 0;
-	wlr_output_effective_resolution(cursor->output, &output_box.width,
-		&output_box.height);
-	output_box.width *= cursor->output->scale;
-	output_box.height *= cursor->output->scale;
-
-	struct wlr_box cursor_box;
-	output_cursor_get_box(cursor, &cursor_box);
-
-	struct wlr_box intersection;
-	struct wlr_box *intersection_ptr = &intersection;
-	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr)) {
-		return;
-	}
-
 	glViewport(0, 0, cursor->output->width, cursor->output->height);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	int x = cursor->x - cursor->hotspot_x;
-	int y = cursor->y - cursor->hotspot_y;
-	if (cursor->surface != NULL) {
-		x += cursor->surface->current->sx;
-		y += cursor->surface->current->sy;
-	}
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	float translate[16];
+	wlr_matrix_translate(&translate, cursor_box.x, cursor_box.y, 0);
+
+	float scale[16];
+	wlr_matrix_scale(&scale, cursor_box.width, cursor_box.height, 1);
 
 	float matrix[16];
-	wlr_texture_get_matrix(texture, &matrix, &cursor->output->transform_matrix,
-		x, y);
+	wlr_matrix_mul(&translate, &scale, &matrix);
+	wlr_matrix_mul(&cursor->output->transform_matrix, &matrix, &matrix);
+
 	wlr_render_with_matrix(renderer, texture, &matrix);
 
 	if (cursor->surface != NULL) {
@@ -392,7 +404,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
-		if (!cursor->enabled || output->hardware_cursor == cursor) {
+		if (!cursor->enabled || !cursor->visible ||
+				output->hardware_cursor == cursor) {
 			continue;
 		}
 		output_cursor_render(cursor, &now);
@@ -527,11 +540,39 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		stride, width, height, pixels);
 }
 
+static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
+	struct wlr_box output_box;
+	output_box.x = output_box.y = 0;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
+
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	struct wlr_box intersection;
+	struct wlr_box *intersection_ptr = &intersection;
+	bool visible =
+		wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr);
+
+	if (cursor->surface != NULL) {
+		if (cursor->visible && !visible) {
+			wlr_surface_send_leave(cursor->surface, cursor->output);
+		}
+		if (!cursor->visible && visible) {
+			wlr_surface_send_enter(cursor->surface, cursor->output);
+		}
+	}
+
+	cursor->visible = visible;
+}
+
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
-	cursor->width = cursor->surface->current->width;
-	cursor->height = cursor->surface->current->height;
+	cursor->width = cursor->surface->current->width * cursor->output->scale;
+	cursor->height = cursor->surface->current->height * cursor->output->scale;
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;
@@ -564,8 +605,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	cursor->hotspot_x = hotspot_x;
-	cursor->hotspot_y = hotspot_y;
+	cursor->hotspot_x = hotspot_x * cursor->output->scale;
+	cursor->hotspot_y = hotspot_y * cursor->output->scale;
 
 	if (surface && surface == cursor->surface) {
 		if (cursor->output->hardware_cursor == cursor &&
@@ -595,6 +636,9 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
 		output_cursor_commit(cursor);
+
+		cursor->visible = false;
+		output_cursor_update_visible(cursor);
 	} else {
 		cursor->enabled = false;
 		cursor->width = 0;
@@ -610,6 +654,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
+	output_cursor_update_visible(cursor);
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;

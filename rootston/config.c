@@ -120,7 +120,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 
 	xkb_keysym_t keysyms[ROOTS_KEYBOARD_PRESSED_KEYSYMS_CAP];
 	char *symnames = strdup(combination);
-	char* symname = strtok(symnames, "+");
+	char *symname = strtok(symnames, "+");
 	while (symname) {
 		uint32_t modifier = parse_modifier(symname);
 		if (modifier != 0) {
@@ -176,6 +176,9 @@ static void config_handle_cursor(struct roots_config *config,
 	} else if (strcmp(name, "theme") == 0) {
 		free(cc->theme);
 		cc->theme = strdup(value);
+	} else if (strcmp(name, "default-image") == 0) {
+		free(cc->default_image);
+		cc->default_image = strdup(value);
 	} else {
 		wlr_log(L_ERROR, "got unknown cursor config: %s", name);
 	}
@@ -213,6 +216,10 @@ static void config_handle_keyboard(struct roots_config *config,
 		kc->variant = strdup(value);
 	} else if (strcmp(name, "options") == 0) {
 		kc->options = strdup(value);
+	} else if (strcmp(name, "repeat-rate") == 0) {
+		kc->repeat_rate = strtol(value, NULL, 10);
+	} else if (strcmp(name, "repeat-delay") == 0) {
+		kc->repeat_delay = strtol(value, NULL, 10);
 	} else {
 		wlr_log(L_ERROR, "got unknown keyboard config: %s", name);
 	}
@@ -450,6 +457,7 @@ void roots_config_destroy(struct roots_config *config) {
 		free(cc->mapped_output);
 		free(cc->mapped_box);
 		free(cc->theme);
+		free(cc->default_image);
 		free(cc);
 	}
 
@@ -466,10 +474,15 @@ void roots_config_destroy(struct roots_config *config) {
 
 struct roots_output_config *roots_config_get_output(struct roots_config *config,
 		struct wlr_output *output) {
-	struct roots_output_config *o_config;
-	wl_list_for_each(o_config, &config->outputs, link) {
-		if (strcmp(o_config->name, output->name) == 0) {
-			return o_config;
+	char name[83];
+	snprintf(name, sizeof(name), "%s %s %s", output->make, output->model,
+		output->serial);
+
+	struct roots_output_config *oc;
+	wl_list_for_each(oc, &config->outputs, link) {
+		if (strcmp(oc->name, output->name) == 0 ||
+				strcmp(oc->name, name) == 0) {
+			return oc;
 		}
 	}
 

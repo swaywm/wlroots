@@ -146,6 +146,7 @@ struct wlr_seat_keyboard_state {
 
 	struct wl_listener keyboard_destroy;
 	struct wl_listener keyboard_keymap;
+	struct wl_listener keyboard_repeat_info;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
