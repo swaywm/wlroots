@@ -9,6 +9,8 @@
 struct wlr_output_impl {
 	void (*enable)(struct wlr_output *output, bool enable);
 	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
+	bool (*set_custom_mode)(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh);
 	void (*transform)(struct wlr_output *output,
 		enum wl_output_transform transform);
 	bool (*set_cursor)(struct wlr_output *output, const uint8_t *buf,

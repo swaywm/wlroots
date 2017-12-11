@@ -28,6 +28,15 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
+static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
+		int32_t width, int32_t height, int32_t refresh) {
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+	wlr_output_update_size(&output->wlr_output, width, height);
+	wl_signal_emit(&output->wlr_output.events.resolution, output);
+	return true;
+}
+
 static void wlr_wl_output_make_current(struct wlr_output *_output) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	if (!eglMakeCurrent(output->backend->egl.display,
@@ -185,6 +194,7 @@ bool wlr_wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
 }
 
 static struct wlr_output_impl output_impl = {
+	.set_custom_mode = wlr_wl_output_set_custom_mode,
 	.transform = wlr_wl_output_transform,
 	.destroy = wlr_wl_output_destroy,
 	.make_current = wlr_wl_output_make_current,
