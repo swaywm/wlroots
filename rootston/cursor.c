@@ -22,6 +22,7 @@ struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
 		free(cursor);
 		return NULL;
 	}
+	cursor->default_xcursor = ROOTS_XCURSOR_DEFAULT;
 	return cursor;
 }
 
@@ -48,7 +49,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		if (set_compositor_cursor) {
 			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
-				ROOTS_XCURSOR_DEFAULT, cursor->cursor);
+				cursor->default_xcursor, cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
 		if (view) {
