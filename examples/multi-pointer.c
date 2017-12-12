@@ -72,7 +72,7 @@ static void handle_output_add(struct output_state *ostate) {
 		example_config_get_output(sample->config, ostate->output);
 
 	if (o_config) {
-		wlr_output_transform(ostate->output, o_config->transform);
+		wlr_output_set_transform(ostate->output, o_config->transform);
 		wlr_output_layout_add(sample->layout, ostate->output, o_config->x,
 			o_config->y);
 	} else {

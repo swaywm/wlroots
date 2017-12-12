@@ -62,6 +62,8 @@ struct wlr_output {
 		struct wl_signal frame;
 		struct wl_signal swap_buffers;
 		struct wl_signal resolution;
+		struct wl_signal scale;
+		struct wl_signal transform;
 		struct wl_signal destroy;
 	} events;
 
@@ -85,7 +87,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
-void wlr_output_transform(struct wlr_output *output,
+void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
 void wlr_output_set_scale(struct wlr_output *output, uint32_t scale);

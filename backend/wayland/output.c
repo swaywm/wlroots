@@ -33,7 +33,6 @@ static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
 	wlr_output_update_size(&output->wlr_output, width, height);
-	wl_signal_emit(&output->wlr_output.events.resolution, output);
 	return true;
 }
 
@@ -228,7 +227,6 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	// loop over states for maximized etc?
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
 	wlr_output_update_size(&output->wlr_output, width, height);
-	wl_signal_emit(&output->wlr_output.events.resolution, output);
 }
 
 static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_toplevel) {
