@@ -321,7 +321,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 			set_mode(wlr_output, output_config);
 		}
 		wlr_output_set_scale(wlr_output, output_config->scale);
-		wlr_output_transform(wlr_output, output_config->transform);
+		wlr_output_set_transform(wlr_output, output_config->transform);
 		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
 			output_config->y);
 	} else {

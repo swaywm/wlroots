@@ -78,7 +78,7 @@ static void handle_output_add(struct output_state *output) {
 	struct output_config *conf;
 	wl_list_for_each(conf, &state->config->outputs, link) {
 		if (strcmp(conf->name, output->output->name) == 0) {
-			wlr_output_transform(output->output, conf->transform);
+			wlr_output_set_transform(output->output, conf->transform);
 			break;
 		}
 	}
