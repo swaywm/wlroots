@@ -27,7 +27,7 @@ static const char *device_type(enum wlr_input_device_type type) {
 	return NULL;
 }
 
-static struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
+struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &input->seats, link) {
 		if (strcmp(seat->seat->name, name) == 0) {
