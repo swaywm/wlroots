@@ -272,9 +272,9 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	struct wlr_output_mode *mode, *tmp_mode;
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
+		wl_list_remove(&mode->link);
 		free(mode);
 	}
-	wl_list_remove(&output->modes);
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {

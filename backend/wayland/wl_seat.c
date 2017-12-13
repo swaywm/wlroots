@@ -21,7 +21,10 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 	struct wlr_wl_backend_output *output =
 		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
-	assert(output);
+	if (!output) {
+		// GNOME sends a pointer enter when the surface is being destroyed
+		return;
+	}
 	wlr_wl_pointer->current_output = output;
 	output->enter_serial = serial;
 	wlr_wl_output_update_cursor(output);
