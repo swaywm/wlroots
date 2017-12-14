@@ -346,6 +346,34 @@ static const struct wlr_touch_grab_interface default_touch_grab_impl = {
 };
 
 
+void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
+	if (!wlr_seat) {
+		return;
+	}
+
+	wl_list_remove(&wlr_seat->display_destroy.link);
+
+	struct wlr_seat_client *client, *tmp;
+	wl_list_for_each_safe(client, tmp, &wlr_seat->clients, link) {
+		// will destroy other resources as well
+		wl_resource_destroy(client->wl_resource);
+	}
+
+	wl_global_destroy(wlr_seat->wl_global);
+	free(wlr_seat->pointer_state.default_grab);
+	free(wlr_seat->keyboard_state.default_grab);
+	free(wlr_seat->touch_state.default_grab);
+	free(wlr_seat->data_device);
+	free(wlr_seat->name);
+	free(wlr_seat);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_seat *seat =
+		wl_container_of(listener, seat, display_destroy);
+	wlr_seat_destroy(seat);
+}
+
 struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	struct wlr_seat *wlr_seat = calloc(1, sizeof(struct wlr_seat));
 	if (!wlr_seat) {
@@ -427,27 +455,10 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_signal_init(&wlr_seat->events.touch_grab_begin);
 	wl_signal_init(&wlr_seat->events.touch_grab_end);
 
+	wlr_seat->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &wlr_seat->display_destroy);
+
 	return wlr_seat;
-}
-
-void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
-	if (!wlr_seat) {
-		return;
-	}
-
-	struct wlr_seat_client *client, *tmp;
-	wl_list_for_each_safe(client, tmp, &wlr_seat->clients, link) {
-		// will destroy other resources as well
-		wl_resource_destroy(client->wl_resource);
-	}
-
-	wl_global_destroy(wlr_seat->wl_global);
-	free(wlr_seat->pointer_state.default_grab);
-	free(wlr_seat->keyboard_state.default_grab);
-	free(wlr_seat->touch_state.default_grab);
-	free(wlr_seat->data_device);
-	free(wlr_seat->name);
-	free(wlr_seat);
 }
 
 struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,

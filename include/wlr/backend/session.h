@@ -33,6 +33,8 @@ struct wlr_session {
 	struct wl_event_source *udev_event;
 
 	struct wl_list devices;
+
+	struct wl_listener display_destroy;
 };
 
 /*

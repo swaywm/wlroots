@@ -79,10 +79,12 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 		wlr_input_device_destroy(input_device);
 	}
 
+	wl_list_remove(&backend->local_display_destroy.link);
+
 	free(backend->seat_name);
 
 	wl_event_source_remove(backend->remote_display_src);
-	wlr_egl_free(&backend->egl);
+	wlr_egl_finish(&backend->egl);
 	if (backend->seat) wl_seat_destroy(backend->seat);
 	if (backend->shm) wl_shm_destroy(backend->shm);
 	if (backend->shell) zxdg_shell_v6_destroy(backend->shell);
@@ -150,6 +152,12 @@ void wlr_wl_output_layout_get_box(struct wlr_wl_backend *backend,
 	box->height = max_y - min_y;
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_wl_backend *backend =
+		wl_container_of(listener, backend, local_display_destroy);
+	wlr_wl_backend_destroy(&backend->backend);
+}
+
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
@@ -176,8 +184,12 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 		return false;
 	}
 
-	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT, WL_SHM_FORMAT_ARGB8888, backend->remote_display);
+	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
+		WL_SHM_FORMAT_ARGB8888, backend->remote_display);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
+
+	backend->local_display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &backend->local_display_destroy);
 
 	return &backend->backend;
 }

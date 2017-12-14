@@ -43,10 +43,12 @@ static void wlr_libinput_log(struct libinput *libinput_context,
 }
 
 static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
-	struct wlr_libinput_backend *backend = (struct wlr_libinput_backend *)_backend;
+	struct wlr_libinput_backend *backend =
+		(struct wlr_libinput_backend *)_backend;
 	wlr_log(L_DEBUG, "Initializing libinput");
-	backend->libinput_context = libinput_udev_create_context(&libinput_impl, backend,
-			backend->session->udev);
+
+	backend->libinput_context = libinput_udev_create_context(&libinput_impl,
+		backend, backend->session->udev);
 	if (!backend->libinput_context) {
 		wlr_log(L_ERROR, "Failed to create libinput context");
 		return false;
@@ -99,6 +101,7 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 	}
 	struct wlr_libinput_backend *backend =
 		(struct wlr_libinput_backend *)_backend;
+
 	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
 		struct wl_list *wlr_devices = backend->wlr_device_lists.items[i];
 		struct wlr_input_device *wlr_dev, *next;
@@ -108,6 +111,10 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 		}
 		free(wlr_devices);
 	}
+
+	wl_list_remove(&backend->display_destroy.link);
+	wl_list_remove(&backend->session_signal.link);
+
 	wlr_list_finish(&backend->wlr_device_lists);
 	wl_event_source_remove(backend->input_event);
 	libinput_unref(backend->libinput_context);
@@ -124,7 +131,8 @@ bool wlr_backend_is_libinput(struct wlr_backend *b) {
 }
 
 static void session_signal(struct wl_listener *listener, void *data) {
-	struct wlr_libinput_backend *backend = wl_container_of(listener, backend, session_signal);
+	struct wlr_libinput_backend *backend =
+		wl_container_of(listener, backend, session_signal);
 	struct wlr_session *session = data;
 
 	if (!backend->libinput_context) {
@@ -136,6 +144,12 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	} else {
 		libinput_suspend(backend->libinput_context);
 	}
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_libinput_backend *backend =
+		wl_container_of(listener, backend, display_destroy);
+	wlr_libinput_backend_destroy(&backend->backend);
 }
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
@@ -159,6 +173,9 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 
 	backend->session_signal.notify = session_signal;
 	wl_signal_add(&session->session_signal, &backend->session_signal);
+
+	backend->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
 error_backend:

@@ -5,7 +5,9 @@
 
 struct wlr_gamma_control_manager {
 	struct wl_global *wl_global;
-	struct wl_list controls; // list of wlr_gamma_control
+	struct wl_list controls; // wlr_gamma_control::link
+
+	struct wl_listener display_destroy;
 
 	void *data;
 };

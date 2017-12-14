@@ -140,6 +140,31 @@ static void server_decoration_manager_bind(struct wl_client *client, void *data,
 		manager->default_mode);
 }
 
+void wlr_server_decoration_manager_destroy(
+		struct wlr_server_decoration_manager *manager) {
+	if (manager == NULL) {
+		return;
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	struct wlr_server_decoration *decoration, *tmp_decoration;
+	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
+			link) {
+		server_decoration_destroy(decoration);
+	}
+	struct wl_resource *resource, *tmp_resource;
+	wl_resource_for_each_safe(resource, tmp_resource, &manager->wl_resources) {
+		server_decoration_manager_destroy_resource(resource);
+	}
+	wl_global_destroy(manager->wl_global);
+	free(manager);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_server_decoration_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	wlr_server_decoration_manager_destroy(manager);
+}
+
 struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 		struct wl_display *display) {
 	struct wlr_server_decoration_manager *manager =
@@ -158,23 +183,9 @@ struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 	wl_list_init(&manager->wl_resources);
 	wl_list_init(&manager->decorations);
 	wl_signal_init(&manager->events.new_decoration);
-	return manager;
-}
 
-void wlr_server_decoration_manager_destroy(
-		struct wlr_server_decoration_manager *manager) {
-	if (manager == NULL) {
-		return;
-	}
-	struct wlr_server_decoration *decoration, *tmp_decoration;
-	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
-			link) {
-		server_decoration_destroy(decoration);
-	}
-	struct wl_resource *resource, *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->wl_resources) {
-		server_decoration_manager_destroy_resource(resource);
-	}
-	wl_global_destroy(manager->wl_global);
-	free(manager);
+	manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &manager->display_destroy);
+
+	return manager;
 }

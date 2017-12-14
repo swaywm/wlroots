@@ -39,7 +39,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 	return true;
 
 error_egl:
-	wlr_egl_free(&renderer->egl);
+	wlr_egl_finish(&renderer->egl);
 error_gbm:
 	gbm_device_destroy(renderer->gbm);
 	return false;
@@ -51,7 +51,7 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 	}
 
 	wlr_renderer_destroy(renderer->wlr_rend);
-	wlr_egl_free(&renderer->egl);
+	wlr_egl_finish(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 

@@ -12,6 +12,9 @@ static void resource_destroy(struct wl_client *client,
 }
 
 static void gamma_control_destroy(struct wlr_gamma_control *gamma_control) {
+	if (gamma_control == NULL) {
+		return;
+	}
 	wl_signal_emit(&gamma_control->events.destroy, gamma_control);
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
 	wl_resource_set_user_data(gamma_control->resource, NULL);
@@ -67,7 +70,7 @@ static const struct gamma_control_interface gamma_control_impl = {
 static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 		struct wl_resource *gamma_control_manager_resource, uint32_t id,
 		struct wl_resource *output_resource) {
-	struct wlr_gamma_control_manager *gamma_control_manager =
+	struct wlr_gamma_control_manager *manager =
 		wl_resource_get_user_data(gamma_control_manager_resource);
 	struct wlr_output *output = wl_resource_get_user_data(output_resource);
 
@@ -99,7 +102,7 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 	gamma_control->output_destroy_listener.notify =
 		gamma_control_handle_output_destroy;
 
-	wl_list_insert(&gamma_control_manager->controls, &gamma_control->link);
+	wl_list_insert(&manager->controls, &gamma_control->link);
 
 	gamma_control_send_gamma_size(gamma_control->resource,
 		wlr_output_get_gamma_size(output));
@@ -111,8 +114,8 @@ static struct gamma_control_manager_interface gamma_control_manager_impl = {
 
 static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_gamma_control_manager *gamma_control_manager = data;
-	assert(client && gamma_control_manager);
+	struct wlr_gamma_control_manager *manager = data;
+	assert(client && manager);
 
 	struct wl_resource *resource = wl_resource_create(client,
 		&gamma_control_manager_interface, version, id);
@@ -121,41 +124,49 @@ static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &gamma_control_manager_impl,
-		gamma_control_manager, NULL);
+		manager, NULL);
+}
+
+void wlr_gamma_control_manager_destroy(
+		struct wlr_gamma_control_manager *manager) {
+	if (!manager) {
+		return;
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	struct wlr_gamma_control *gamma_control, *tmp;
+	wl_list_for_each_safe(gamma_control, tmp, &manager->controls, link) {
+		gamma_control_destroy(gamma_control);
+	}
+	wl_global_destroy(manager->wl_global);
+	free(manager);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_gamma_control_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	wlr_gamma_control_manager_destroy(manager);
 }
 
 struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(
 		struct wl_display *display) {
-	struct wlr_gamma_control_manager *gamma_control_manager =
+	struct wlr_gamma_control_manager *manager =
 		calloc(1, sizeof(struct wlr_gamma_control_manager));
-	if (!gamma_control_manager) {
+	if (!manager) {
 		return NULL;
 	}
 	struct wl_global *wl_global = wl_global_create(display,
-		&gamma_control_manager_interface, 1, gamma_control_manager,
+		&gamma_control_manager_interface, 1, manager,
 		gamma_control_manager_bind);
 	if (!wl_global) {
-		free(gamma_control_manager);
+		free(manager);
 		return NULL;
 	}
-	gamma_control_manager->wl_global = wl_global;
+	manager->wl_global = wl_global;
 
-	wl_list_init(&gamma_control_manager->controls);
+	wl_list_init(&manager->controls);
 
-	return gamma_control_manager;
-}
+	manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
-void wlr_gamma_control_manager_destroy(
-		struct wlr_gamma_control_manager *gamma_control_manager) {
-	if (!gamma_control_manager) {
-		return;
-	}
-	struct wlr_gamma_control *gamma_control, *tmp;
-	wl_list_for_each_safe(gamma_control, tmp, &gamma_control_manager->controls,
-			link) {
-		gamma_control_destroy(gamma_control);
-	}
-	// TODO: this segfault (wl_display->registry_resource_list is not init)
-	// wl_global_destroy(gamma_control_manager->wl_global);
-	free(gamma_control_manager);
+	return manager;
 }

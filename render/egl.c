@@ -141,7 +141,7 @@ error:
 	return false;
 }
 
-void wlr_egl_free(struct wlr_egl *egl) {
+void wlr_egl_finish(struct wlr_egl *egl) {
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
