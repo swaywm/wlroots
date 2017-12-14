@@ -21,7 +21,10 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 	struct wlr_wl_backend_output *output =
 		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
-	assert(output);
+	if (!output) {
+		// GNOME sends a pointer enter when the surface is being destroyed
+		return;
+	}
 	wlr_wl_pointer->current_output = output;
 	output->enter_serial = serial;
 	wlr_wl_output_update_cursor(output);
@@ -49,23 +52,28 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	struct wlr_output *wlr_output = &wlr_wl_pointer->current_output->wlr_output;
+
 	struct wlr_box box;
 	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
 		&box.width, &box.height);
 	box.x = wl_fixed_to_int(surface_x);
 	box.y = wl_fixed_to_int(surface_y);
 	struct wlr_box transformed;
-	wlr_output_transform_apply_to_box(
-		wlr_wl_pointer->current_output->wlr_output.transform, &box,
-		&transformed);
+	wlr_output_transform_apply_to_box(wlr_output->transform, &box, &transformed);
+	box.x /= wlr_output->scale;
+	box.y /= wlr_output->scale;
+
+	struct wlr_box layout_box;
+	wlr_wl_output_layout_get_box(wlr_wl_pointer->current_output->backend, &layout_box);
 
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;
 	wlr_event.time_msec = time;
-	wlr_event.width_mm = transformed.width;
-	wlr_event.height_mm = transformed.height;
-	wlr_event.x_mm = transformed.x;
-	wlr_event.y_mm = transformed.y;
+	wlr_event.width_mm = layout_box.width;
+	wlr_event.height_mm = layout_box.height;
+	wlr_event.x_mm = transformed.x + wlr_output->lx + layout_box.x;
+	wlr_event.y_mm = transformed.y + wlr_output->ly + layout_box.y;
 	wl_signal_emit(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 

@@ -154,6 +154,8 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	wl_signal_emit(&output->backend->backend.events.output_remove,
 		&output->wlr_output);
 
+	wl_list_remove(&output->link);
+
 	if (output->cursor.buf_size != 0) {
 		assert(output->cursor.data);
 		assert(output->cursor.buffer);
@@ -171,6 +173,7 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
 	}
+
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
 	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
@@ -233,7 +236,7 @@ static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_t
 	struct wlr_wl_backend_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
-	wl_display_terminate(output->backend->local_display);
+	wlr_output_destroy((struct wlr_output *)output);
 }
 
 static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
