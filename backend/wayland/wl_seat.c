@@ -60,7 +60,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	box.x = wl_fixed_to_int(surface_x);
 	box.y = wl_fixed_to_int(surface_y);
 	struct wlr_box transformed;
-	wlr_output_transform_apply_to_box(wlr_output->transform, &box, &transformed);
+
+	wlr_box_transform(&box, wlr_output->transform, &transformed);
 	box.x /= wlr_output->scale;
 	box.y /= wlr_output->scale;
 
