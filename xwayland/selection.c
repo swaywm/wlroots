@@ -238,6 +238,7 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		(xcb_selection_request_event_t *) event;
 
 	if (selection_request->selection != xwm->atoms[CLIPBOARD]) {
+		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
 		return;
 	}
 
@@ -255,8 +256,16 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	}
 
 	if (xwm->seat->selection_source == NULL) {
-		wlr_log(L_DEBUG, "not handling selection request:"
+		wlr_log(L_DEBUG, "not handling selection request: "
 			"no selection source assigned to xwayland seat");
+		return;
+	}
+
+	// No xwayland surface focused, deny access to clipboard
+	if (xwm->focus_surface == NULL) {
+		wlr_log(L_DEBUG, "denying read access to clipboard: "
+			"no xwayland surface focused");
+		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
 		return;
 	}
 
@@ -528,6 +537,13 @@ static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 		(xcb_selection_notify_event_t *) event;
 
 	if (selection_notify->selection != xwm->atoms[CLIPBOARD]) {
+		return;
+	}
+
+	// No xwayland surface focused, deny access to clipboard
+	if (xwm->focus_surface == NULL) {
+		wlr_log(L_DEBUG, "denying write access to clipboard: "
+			"no xwayland surface focused");
 		return;
 	}
 
