@@ -237,6 +237,10 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	xcb_selection_request_event_t *selection_request =
 		(xcb_selection_request_event_t *) event;
 
+	if (selection_request->selection != xwm->atoms[CLIPBOARD]) {
+		return;
+	}
+
 	xwm->selection_request = *selection_request;
 	xwm->incr = 0;
 	xwm->flush_property_on_delete = 0;
@@ -523,6 +527,10 @@ static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 	xcb_selection_notify_event_t *selection_notify =
 		(xcb_selection_notify_event_t *) event;
 
+	if (selection_notify->selection != xwm->atoms[CLIPBOARD]) {
+		return;
+	}
+
 	if (selection_notify->property == XCB_ATOM_NONE) {
 		wlr_log(L_ERROR, "convert selection failed");
 	} else if (selection_notify->target == xwm->atoms[TARGETS]) {
@@ -536,6 +544,10 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
 	xcb_xfixes_selection_notify_event_t *xfixes_selection_notify =
 		(xcb_xfixes_selection_notify_event_t *) event;
+
+	if (xfixes_selection_notify->selection != xwm->atoms[CLIPBOARD]) {
+		return 0;
+	}
 
 	if (xfixes_selection_notify->owner == XCB_WINDOW_NONE) {
 		if (xwm->selection_owner != xwm->selection_window) {
@@ -563,7 +575,7 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	xwm->incr = 0;
 	// doing this will give a selection notify where we actually handle the sync
 	xcb_convert_selection(xwm->xcb_conn, xwm->selection_window,
-		xwm->atoms[CLIPBOARD],
+		xfixes_selection_notify->selection,
 		xwm->atoms[TARGETS],
 		xwm->atoms[WL_SELECTION],
 		xfixes_selection_notify->timestamp);
