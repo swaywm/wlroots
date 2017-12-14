@@ -459,6 +459,8 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 				surface->popup_state->seat);
 		shell_pointer_grab_maybe_end(&grab->pointer_grab);
 	}
+
+	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static int shell_surface_ping_timeout(void *user_data) {
@@ -509,6 +511,7 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		wl_surface->resource);
 
 	wl_signal_init(&wl_surface->events.destroy);
+	wl_signal_init(&wl_surface->events.commit);
 	wl_signal_init(&wl_surface->events.ping_timeout);
 	wl_signal_init(&wl_surface->events.request_move);
 	wl_signal_init(&wl_surface->events.request_resize);

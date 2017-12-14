@@ -8,10 +8,11 @@
 #include <xcb/xcb_image.h>
 #include <xcb/render.h>
 #include "wlr/util/log.h"
+#include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
 #include "wlr/xcursor.h"
-#include "xwm.h"
+#include "wlr/xwm.h"
 
 #ifdef HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
@@ -590,7 +591,7 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 	if (xsurface->surface == NULL) {
 		// Surface has not been mapped yet
-		wlr_xwayland_surface_configure(xwm->xwayland, xsurface, ev->x, ev->y,
+		wlr_xwayland_surface_configure(xsurface, ev->x, ev->y,
 			ev->width, ev->height);
 	} else {
 		struct wlr_xwayland_surface_configure_event *wlr_event =
@@ -742,14 +743,43 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 #define _NET_WM_MOVERESIZE_MOVE_KEYBOARD    10  // move via keyboard
 #define _NET_WM_MOVERESIZE_CANCEL           11  // cancel operation
 
+static enum wlr_edges net_wm_edges_to_wlr(uint32_t net_wm_edges) {
+	enum wlr_edges edges = WLR_EDGE_NONE;
+
+	switch(net_wm_edges) {
+		case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOP:
+			edges = WLR_EDGE_TOP;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_RIGHT:
+			edges = WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
+			edges = WLR_EDGE_BOTTOM;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_LEFT:
+			edges = WLR_EDGE_LEFT;
+			break;
+		default:
+			break;
+	}
+
+	return edges;
+}
+
 static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
-	// same as xdg-toplevel-v6
-	// TODO need a common enum for this
-	static const int map[] = {
-		5, 1, 9, 8, 10, 2, 6, 4
-	};
-
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
@@ -775,7 +805,7 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
 	case _NET_WM_MOVERESIZE_SIZE_LEFT:
 		resize_event.surface = xsurface;
-		resize_event.edges = map[detail];
+		resize_event.edges = net_wm_edges_to_wlr(detail);
 		wl_signal_emit(&xsurface->events.request_resize, &resize_event);
 		break;
 	case _NET_WM_MOVERESIZE_CANCEL:
@@ -908,6 +938,12 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
+
+		if (xwm->xwayland->user_event_handler &&
+				xwm->xwayland->user_event_handler(xwm, event)) {
+			break;
+		}
+
 		switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 		case XCB_CREATE_NOTIFY:
 			xwm_handle_create_notify(xwm, (xcb_create_notify_event_t *)event);
@@ -981,25 +1017,24 @@ static void handle_compositor_surface_create(struct wl_listener *listener,
 	}
 }
 
-void wlr_xwayland_surface_activate(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *xsurface, bool activated) {
-	struct wlr_xwayland_surface *focused = wlr_xwayland->xwm->focus_surface;
+void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
+		bool activated) {
+	struct wlr_xwayland_surface *focused = xsurface->xwm->focus_surface;
 	if (activated) {
-		xwm_surface_activate(wlr_xwayland->xwm, xsurface);
+		xwm_surface_activate(xsurface->xwm, xsurface);
 	} else if (focused == xsurface) {
-		xwm_surface_activate(wlr_xwayland->xwm, NULL);
+		xwm_surface_activate(xsurface->xwm, NULL);
 	}
 }
 
-void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *xsurface, int16_t x, int16_t y,
-		uint16_t width, uint16_t height) {
+void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	xsurface->x = x;
 	xsurface->y = y;
 	xsurface->width = width;
 	xsurface->height = height;
 
-	struct wlr_xwm *xwm = wlr_xwayland->xwm;
+	struct wlr_xwm *xwm = xsurface->xwm;
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
@@ -1008,9 +1043,8 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland *wlr_xwayland,
 	xcb_flush(xwm->xcb_conn);
 }
 
-void wlr_xwayland_surface_close(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *xsurface) {
-	struct wlr_xwm *xwm = wlr_xwayland->xwm;
+void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
+	struct wlr_xwm *xwm = xsurface->xwm;
 
 	bool supports_delete = false;
 	for (size_t i = 0; i < xsurface->protocols_len; i++) {
@@ -1343,16 +1377,16 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	return xwm;
 }
 
-void wlr_xwayland_surface_set_maximized(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *surface, bool maximized) {
+void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
+		bool maximized) {
 	surface->maximized_horz = maximized;
 	surface->maximized_vert = maximized;
 	xsurface_set_net_wm_state(surface);
 	xcb_flush(surface->xwm->xcb_conn);
 }
 
-void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland *wlr_xwayland,
-		struct wlr_xwayland_surface *surface, bool fullscreen) {
+void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
+		bool fullscreen) {
 	surface->fullscreen = fullscreen;
 	xsurface_set_net_wm_state(surface);
 	xcb_flush(surface->xwm->xcb_conn);

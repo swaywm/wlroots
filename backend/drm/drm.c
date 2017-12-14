@@ -453,11 +453,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	conn->output.current_mode = mode;
-	if (conn->output.width != mode->width || conn->output.height != mode->height) {
-		conn->output.width = mode->width;
-		conn->output.height = mode->height;
-		wl_signal_emit(&conn->output.events.resolution, &conn->output);
-	}
+	wlr_output_update_size(&conn->output, mode->width, mode->height);
 
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
 	// we actually need to reinitalise any than has changed
@@ -633,8 +629,10 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	struct wlr_box transformed_box;
 	wlr_box_transform(&box, transform, &transformed_box);
 
-	transformed_box.x -= plane->cursor_hotspot_x;
-	transformed_box.y -= plane->cursor_hotspot_y;
+	if (plane != NULL) {
+		transformed_box.x -= plane->cursor_hotspot_x;
+		transformed_box.y -= plane->cursor_hotspot_y;
+	}
 
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
 		transformed_box.y);

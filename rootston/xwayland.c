@@ -11,8 +11,7 @@
 
 static void activate(struct roots_view *view, bool active) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct wlr_xwayland *xwayland = view->desktop->xwayland;
-	wlr_xwayland_surface_activate(xwayland, view->xwayland_surface, active);
+	wlr_xwayland_surface_activate(view->xwayland_surface, active);
 }
 
 static void move(struct roots_view *view, double x, double y) {
@@ -20,8 +19,8 @@ static void move(struct roots_view *view, double x, double y) {
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 	view->x = x;
 	view->y = y;
-	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		x, y, xwayland_surface->width, xwayland_surface->height);
+	wlr_xwayland_surface_configure(xwayland_surface, x, y,
+		xwayland_surface->width, xwayland_surface->height);
 }
 
 static void apply_size_constraints(
@@ -56,9 +55,8 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
 		&constrained_height);
 
-	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		xwayland_surface->x, xwayland_surface->y, constrained_width,
-		constrained_height);
+	wlr_xwayland_surface_configure(xwayland_surface, xwayland_surface->x,
+			xwayland_surface->y, constrained_width, constrained_height);
 }
 
 static void move_resize(struct roots_view *view, double x, double y,
@@ -87,27 +85,25 @@ static void move_resize(struct roots_view *view, double x, double y,
 	view->pending_move_resize.width = constrained_width;
 	view->pending_move_resize.height = constrained_height;
 
-	wlr_xwayland_surface_configure(view->desktop->xwayland, xwayland_surface,
-		x, y, constrained_width, constrained_height);
+	wlr_xwayland_surface_configure(xwayland_surface, x, y, constrained_width,
+		constrained_height);
 }
 
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	wlr_xwayland_surface_close(view->desktop->xwayland, view->xwayland_surface);
+	wlr_xwayland_surface_close(view->xwayland_surface);
 }
 
 static void maximize(struct roots_view *view, bool maximized) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 
-	wlr_xwayland_surface_set_maximized(view->desktop->xwayland,
-		view->xwayland_surface, maximized);
+	wlr_xwayland_surface_set_maximized(view->xwayland_surface, maximized);
 }
 
 static void set_fullscreen(struct roots_view *view, bool fullscreen) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 
-	wlr_xwayland_surface_set_fullscreen(view->desktop->xwayland,
-		view->xwayland_surface, fullscreen);
+	wlr_xwayland_surface_set_fullscreen(view->xwayland_surface, fullscreen);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -139,8 +135,8 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 	roots_surface->view->x = (double)event->x;
 	roots_surface->view->y = (double)event->y;
 
-	wlr_xwayland_surface_configure(roots_surface->view->desktop->xwayland,
-		xwayland_surface, event->x, event->y, event->width, event->height);
+	wlr_xwayland_surface_configure(xwayland_surface, event->x, event->y,
+		event->width, event->height);
 }
 
 static struct roots_seat *guess_seat_for_view(struct roots_view *view) {

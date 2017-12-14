@@ -13,7 +13,6 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
-#include <server-decoration-protocol.h>
 #include "rootston/server.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
@@ -407,10 +406,14 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->config = config;
 
 	const char *cursor_theme = NULL;
+	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =
 		roots_config_get_cursor(config, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
+		if (cc->default_image != NULL) {
+			cursor_default = cc->default_image;
+		}
 	}
 
 	desktop->xcursor_manager = wlr_xcursor_manager_create(cursor_theme,
@@ -448,7 +451,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
 		}
 		struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
-			desktop->xcursor_manager, ROOTS_XCURSOR_DEFAULT, 1);
+			desktop->xcursor_manager, cursor_default, 1);
 		if (xcursor != NULL) {
 			struct wlr_xcursor_image *image = xcursor->images[0];
 			wlr_xwayland_set_cursor(desktop->xwayland, image->buffer,
@@ -466,7 +469,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(
 		desktop->server_decoration_manager,
-		ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_CLIENT);
+		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 
 	return desktop;
 }
