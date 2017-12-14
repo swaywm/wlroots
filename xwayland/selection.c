@@ -328,6 +328,7 @@ static void xwm_get_selection_data(struct wlr_xwm *xwm) {
 struct x11_data_source {
 	struct wlr_data_source base;
 	struct wlr_xwm *xwm;
+	struct wl_array mime_types_atoms;
 };
 
 static void data_source_accept(struct wlr_data_source *source, uint32_t time,
@@ -335,24 +336,40 @@ static void data_source_accept(struct wlr_data_source *source, uint32_t time,
 }
 
 static void data_source_send(struct wlr_data_source *base,
-		const char *mime_type, int32_t fd) {
+		const char *requested_mime_type, int32_t fd) {
 	struct x11_data_source *source = (struct x11_data_source *)base;
 	struct wlr_xwm *xwm = source->xwm;
 
-	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
-		// Get data for the utf8_string target
-		xcb_convert_selection(xwm->xcb_conn,
-			xwm->selection_window,
-			xwm->atoms[CLIPBOARD],
-			xwm->atoms[UTF8_STRING],
-			xwm->atoms[WL_SELECTION],
-			XCB_TIME_CURRENT_TIME);
-
-		xcb_flush(xwm->xcb_conn);
-
-		fcntl(fd, F_SETFL, O_WRONLY | O_NONBLOCK);
-		xwm->data_source_fd = fd;
+	bool found = false;
+	xcb_atom_t mime_type_atom;
+	char **mime_type_ptr;
+	size_t i = 0;
+	wl_array_for_each(mime_type_ptr, &source->base.mime_types) {
+		char *mime_type = *mime_type_ptr;
+		if (strcmp(mime_type, requested_mime_type) == 0) {
+			found = true;
+			xcb_atom_t *atoms = source->mime_types_atoms.data;
+			mime_type_atom = atoms[i];
+			break;
+		}
+		++i;
 	}
+	if (!found) {
+		return;
+	}
+
+	// Get data for the utf8_string target
+	xcb_convert_selection(xwm->xcb_conn,
+		xwm->selection_window,
+		xwm->atoms[CLIPBOARD],
+		mime_type_atom,
+		xwm->atoms[WL_SELECTION],
+		XCB_TIME_CURRENT_TIME);
+
+	xcb_flush(xwm->xcb_conn);
+
+	fcntl(fd, F_SETFL, O_WRONLY | O_NONBLOCK);
+	xwm->data_source_fd = fd;
 }
 
 static void data_source_cancel(struct wlr_data_source *source) {
@@ -393,13 +410,45 @@ static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
 	source->xwm = xwm;
 
 	wl_array_init(&source->base.mime_types);
+	wl_array_init(&source->mime_types_atoms);
 	xcb_atom_t *value = xcb_get_property_value(reply);
 	for (uint32_t i = 0; i < reply->value_len; i++) {
+		char *mime_type = NULL;
+
 		if (value[i] == xwm->atoms[UTF8_STRING]) {
-			char **p = wl_array_add(&source->base.mime_types, sizeof *p);
-			if (p) {
-				*p = strdup("text/plain;charset=utf-8");
+			mime_type = strdup("text/plain;charset=utf-8");
+		} else if (value[i] == xwm->atoms[TEXT]) {
+			mime_type = strdup("text/plain");
+		} else if (value[i] != xwm->atoms[TARGETS] &&
+				value[i] != xwm->atoms[TIMESTAMP]) {
+			xcb_get_atom_name_cookie_t name_cookie =
+				xcb_get_atom_name(xwm->xcb_conn, value[i]);
+			xcb_get_atom_name_reply_t *name_reply =
+				xcb_get_atom_name_reply(xwm->xcb_conn, name_cookie, NULL);
+			if (name_reply == NULL) {
+				continue;
 			}
+			char *name = xcb_get_atom_name_name(name_reply);
+			if (strchr(name, '/') != NULL) {
+				mime_type = strdup(name);
+			}
+			free(name_reply);
+		}
+
+		if (mime_type != NULL) {
+			char **mime_type_ptr =
+				wl_array_add(&source->base.mime_types, sizeof(*mime_type_ptr));
+			if (mime_type_ptr == NULL) {
+				break;
+			}
+			*mime_type_ptr = mime_type;
+
+			xcb_atom_t *atom_ptr =
+				wl_array_add(&source->mime_types_atoms, sizeof(*atom_ptr));
+			if (atom_ptr == NULL) {
+				break;
+			}
+			*atom_ptr = value[i];
 		}
 	}
 
@@ -407,7 +456,6 @@ static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
 		wl_display_next_serial(xwm->xwayland->wl_display));
 
 	free(reply);
-
 }
 
 static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
