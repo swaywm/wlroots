@@ -118,7 +118,6 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
 		wlr_output_update_size(&output->wlr_output, ev->width, ev->height);
-		wl_signal_emit(&output->wlr_output.events.resolution, output);
 
 		// Move the pointer to its new location
 		xcb_query_pointer_cookie_t cookie =
@@ -267,8 +266,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
 
 	output->win = xcb_generate_id(x11->xcb_conn);
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win, x11->screen->root,
-		0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
+		x11->screen->root, 0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		x11->screen->root_visual, mask, values);
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
@@ -329,6 +328,17 @@ static struct wlr_backend_impl backend_impl = {
 	.get_egl = wlr_x11_backend_get_egl,
 };
 
+static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
+		int32_t height, int32_t refresh) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	const uint32_t values[] = { width, height };
+	xcb_configure_window(x11->xcb_conn, output->win,
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
+	return true;
+}
+
 static void output_transform(struct wlr_output *wlr_output, enum wl_output_transform transform) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	output->wlr_output.transform = transform;
@@ -362,6 +372,7 @@ static void output_swap_buffers(struct wlr_output *wlr_output) {
 }
 
 static struct wlr_output_impl output_impl = {
+	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
 	.make_current = output_make_current,

@@ -109,10 +109,18 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 	wl_keyboard_send_keymap(client->keyboard,
 		WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, keyboard->keymap_fd,
 		keyboard->keymap_size);
+}
+
+static void seat_client_send_repeat_info(struct wlr_seat_client *client,
+		struct wlr_keyboard *keyboard) {
+	if (!keyboard || !client->keyboard) {
+		return;
+	}
 
 	if (wl_resource_get_version(client->keyboard) >=
 			WL_KEYBOARD_REPEAT_INFO_SINCE_VERSION) {
-		wl_keyboard_send_repeat_info(client->keyboard, 25, 600);
+		wl_keyboard_send_repeat_info(client->keyboard,
+			keyboard->repeat_info.rate, keyboard->repeat_info.delay);
 	}
 }
 
@@ -138,8 +146,9 @@ static void wl_seat_get_keyboard(struct wl_client *client,
 	wl_resource_set_implementation(seat_client->keyboard, &wl_keyboard_impl,
 		seat_client, &wl_keyboard_destroy);
 
-	seat_client_send_keymap(seat_client,
-		seat_client->seat->keyboard_state.keyboard);
+	struct wlr_keyboard *keyboard = seat_client->seat->keyboard_state.keyboard;
+	seat_client_send_keymap(seat_client, keyboard);
+	seat_client_send_repeat_info(seat_client, keyboard);
 
 	// TODO possibly handle the case where this keyboard needs an enter
 	// right away
@@ -695,6 +704,16 @@ static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_keyboard_repeat_info(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_keyboard_state *state =
+		wl_container_of(listener, state, keyboard_repeat_info);
+	struct wlr_seat_client *client;
+	wl_list_for_each(client, &state->seat->clients, link) {
+		seat_client_send_repeat_info(client, state->keyboard);
+	}
+}
+
 static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_seat_keyboard_state *state =
 		wl_container_of(listener, state, keyboard_destroy);
@@ -713,22 +732,28 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 	if (seat->keyboard_state.keyboard) {
 		wl_list_remove(&seat->keyboard_state.keyboard_destroy.link);
 		wl_list_remove(&seat->keyboard_state.keyboard_keymap.link);
+		wl_list_remove(&seat->keyboard_state.keyboard_repeat_info.link);
 		seat->keyboard_state.keyboard = NULL;
 	}
 
 	if (device) {
 		assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
+
 		wl_signal_add(&device->events.destroy,
 			&seat->keyboard_state.keyboard_destroy);
 		seat->keyboard_state.keyboard_destroy.notify = handle_keyboard_destroy;
-
 		wl_signal_add(&device->keyboard->events.keymap,
 			&seat->keyboard_state.keyboard_keymap);
 		seat->keyboard_state.keyboard_keymap.notify = handle_keyboard_keymap;
+		wl_signal_add(&device->keyboard->events.repeat_info,
+			&seat->keyboard_state.keyboard_repeat_info);
+		seat->keyboard_state.keyboard_repeat_info.notify =
+			handle_keyboard_repeat_info;
 
 		struct wlr_seat_client *client;
 		wl_list_for_each(client, &seat->clients, link) {
 			seat_client_send_keymap(client, device->keyboard);
+			seat_client_send_repeat_info(client, device->keyboard);
 		}
 
 		seat->keyboard_state.keyboard = device->keyboard;
@@ -835,7 +860,6 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 			surface->resource, &keys);
 		wl_array_release(&keys);
 
-		wlr_seat_keyboard_send_modifiers(seat);
 		wlr_seat_client_send_selection(client);
 	}
 
@@ -857,6 +881,12 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 	seat->keyboard_state.focused_client = client;
 	seat->keyboard_state.focused_surface = surface;
+
+	if (client && client->keyboard && seat->keyboard_state.keyboard) {
+		// tell new client about any modifier change last,
+		// as it targets seat->keyboard_state.focused_client
+		wlr_seat_keyboard_send_modifiers(seat);
+	}
 }
 
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat, struct

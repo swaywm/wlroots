@@ -12,7 +12,7 @@
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
 #include "wlr/xcursor.h"
-#include "xwm.h"
+#include "wlr/xwm.h"
 
 #ifdef HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
@@ -945,6 +945,11 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
+
+		if (xwm->xwayland->user_event_handler &&
+				xwm->xwayland->user_event_handler(xwm, event)) {
+			break;
+		}
 
 		if (xwm_handle_selection_event(xwm, event)) {
 			free(event);

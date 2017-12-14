@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include "wlr/util/log.h"
 #include "wlr/types/wlr_data_device.h"
-#include "xwm.h"
+#include "wlr/xwm.h"
 
 static const size_t incr_chunk_size = 64 * 1024;
 

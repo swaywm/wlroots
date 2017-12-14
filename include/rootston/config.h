@@ -42,6 +42,7 @@ struct roots_keyboard_config {
 	char *layout;
 	char *variant;
 	char *options;
+	int repeat_rate, repeat_delay;
 	struct wl_list link;
 };
 
@@ -50,6 +51,7 @@ struct roots_cursor_config {
 	char *mapped_output;
 	struct wlr_box *mapped_box;
 	char *theme;
+	char *default_image;
 	struct wl_list link;
 };
 

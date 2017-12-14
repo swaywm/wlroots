@@ -19,7 +19,7 @@
 #include "wlr/util/log.h"
 #include "wlr/xwayland.h"
 #include "sockets.h"
-#include "xwm.h"
+#include "wlr/xwm.h"
 
 #ifdef __FreeBSD__
 static inline int clearenv(void) {

@@ -6,7 +6,6 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
-#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
@@ -264,8 +263,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 static void set_mode(struct wlr_output *output,
 		struct roots_output_config *oc) {
-	struct wlr_output_mode *mode, *best = NULL;
 	int mhz = (int)(oc->mode.refresh_rate * 1000);
+
+	if (wl_list_empty(&output->modes)) {
+		// Output has no mode, try setting a custom one
+		wlr_output_set_custom_mode(output, oc->mode.width, oc->mode.height, mhz);
+		return;
+	}
+
+	struct wlr_output_mode *mode, *best = NULL;
 	wl_list_for_each(mode, &output->modes, link) {
 		if (mode->width == oc->mode.width && mode->height == oc->mode.height) {
 			if (mode->refresh == mhz) {
@@ -315,7 +321,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 			set_mode(wlr_output, output_config);
 		}
 		wlr_output_set_scale(wlr_output, output_config->scale);
-		wlr_output_transform(wlr_output, output_config->transform);
+		wlr_output_set_transform(wlr_output, output_config->transform);
 		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
 			output_config->y);
 	} else {
@@ -324,12 +330,6 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
-				wlr_output->scale)) {
-			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
-				"with scale %d", wlr_output->name, wlr_output->scale);
-		}
-
 		roots_seat_configure_cursor(seat);
 		roots_seat_configure_xcursor(seat);
 	}

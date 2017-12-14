@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include <limits.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-server.h>
@@ -115,6 +116,38 @@ struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		}
 	}
 	return NULL;
+}
+
+void wlr_wl_output_layout_get_box(struct wlr_wl_backend *backend,
+		struct wlr_box *box) {
+	int min_x = INT_MAX, min_y = INT_MAX;
+	int max_x = INT_MIN, max_y = INT_MIN;
+
+	struct wlr_wl_backend_output *output;
+	wl_list_for_each(output, &backend->outputs, link) {
+		struct wlr_output *wlr_output = &output->wlr_output;
+
+		int width, height;
+		wlr_output_effective_resolution(wlr_output, &width, &height);
+
+		if (wlr_output->lx < min_x) {
+			min_x = wlr_output->lx;
+		}
+		if (wlr_output->ly < min_y) {
+			min_y = wlr_output->ly;
+		}
+		if (wlr_output->lx + width > max_x) {
+			max_x = wlr_output->lx + width;
+		}
+		if (wlr_output->ly + height > max_y) {
+			max_y = wlr_output->ly + height;
+		}
+	}
+
+	box->x = min_x;
+	box->y = min_y;
+	box->width = max_x - min_x;
+	box->height = max_y - min_y;
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
