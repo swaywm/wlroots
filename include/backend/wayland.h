@@ -7,6 +7,7 @@
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
 #include <wlr/backend/wayland.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-util.h>
@@ -76,6 +77,8 @@ void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
 void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output);
 struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface);
+void wlr_wl_output_layout_get_box(struct wlr_wl_backend *backend,
+		struct wlr_box *box);
 
 extern const struct wl_seat_listener seat_listener;
 

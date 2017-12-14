@@ -33,6 +33,13 @@ struct wlr_xwayland {
 		struct wl_signal new_surface;
 	} events;
 
+	/**
+	 * Add a custom event handler to xwayland. Return 1 if the event was
+	 * handled or 0 to use the default wlr-xwayland handler. wlr-xwayland will
+	 * free the event.
+	 */
+	int (*user_event_handler)(struct wlr_xwm *xwm, xcb_generic_event_t *event);
+
 	void *data;
 };
 

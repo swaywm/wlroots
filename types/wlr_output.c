@@ -206,9 +206,11 @@ void wlr_output_update_size(struct wlr_output *output, int32_t width,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		wlr_output_send_current_mode_to_resource(resource);
 	}
+
+	wl_signal_emit(&output->events.resolution, output);
 }
 
-void wlr_output_transform(struct wlr_output *output,
+void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
 	wlr_output_update_matrix(output);
@@ -218,6 +220,8 @@ void wlr_output_transform(struct wlr_output *output,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		wl_output_send_to_resource(resource);
 	}
+
+	wl_signal_emit(&output->events.transform, output);
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,
@@ -248,6 +252,8 @@ void wlr_output_set_scale(struct wlr_output *output, uint32_t scale) {
 	wl_resource_for_each(resource, &output->wl_resources) {
 		wl_output_send_to_resource(resource);
 	}
+
+	wl_signal_emit(&output->events.scale, output);
 }
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
@@ -263,6 +269,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.scale);
+	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
 }
 
@@ -275,9 +283,9 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	struct wlr_output_mode *mode, *tmp_mode;
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
+		wl_list_remove(&mode->link);
 		free(mode);
 	}
-	wl_list_remove(&output->modes);
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {

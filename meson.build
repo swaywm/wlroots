@@ -87,7 +87,7 @@ if get_option('enable_xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)
 else
-	exclude_files += ['xwayland.h']
+	exclude_files += ['xwayland.h', 'xwm.h']
 endif
 configure_file(output: 'config.h', install_dir: 'include/wlr', configuration: conf_data)
 install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_files)
