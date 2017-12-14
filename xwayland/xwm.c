@@ -1090,6 +1090,9 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
+	if (xwm->selection_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
+	}
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
