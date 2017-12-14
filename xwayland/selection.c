@@ -61,7 +61,7 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 
 	int len = read(fd, p, available);
 	if (len == -1) {
-		wlr_log(L_ERROR, "read error from data source: %m\n");
+		wlr_log(L_ERROR, "read error from data source: %m");
 		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
 		wl_event_source_remove(xwm->property_source);
 		xwm->property_source = NULL;
@@ -69,13 +69,13 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 		wl_array_release(&xwm->source_data);
 	}
 
-	wlr_log(L_DEBUG, "read %d (available %d, mask 0x%x) bytes: \"%.*s\"\n",
+	wlr_log(L_DEBUG, "read %d (available %d, mask 0x%x) bytes: \"%.*s\"",
 			len, available, mask, len, (char *) p);
 
 	xwm->source_data.size = current + len;
 	if (xwm->source_data.size >= incr_chunk_size) {
 		if (!xwm->incr) {
-			wlr_log(L_DEBUG, "got %zu bytes, starting incr\n",
+			wlr_log(L_DEBUG, "got %zu bytes, starting incr",
 					xwm->source_data.size);
 			xwm->incr = 1;
 			xcb_change_property(xwm->xcb_conn,
@@ -92,19 +92,19 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 			xwm_send_selection_notify(xwm, xwm->selection_request.property);
 		} else if (xwm->selection_property_set) {
 			wlr_log(L_DEBUG, "got %zu bytes, waiting for "
-				"property delete\n", xwm->source_data.size);
+				"property delete", xwm->source_data.size);
 
 			xwm->flush_property_on_delete = 1;
 			wl_event_source_remove(xwm->property_source);
 			xwm->property_source = NULL;
 		} else {
 			wlr_log(L_DEBUG, "got %zu bytes, "
-				"property deleted, setting new property\n",
+				"property deleted, setting new property",
 				xwm->source_data.size);
 			xwm_flush_source_data(xwm);
 		}
 	} else if (len == 0 && !xwm->incr) {
-		wlr_log(L_DEBUG, "non-incr transfer complete\n");
+		wlr_log(L_DEBUG, "non-incr transfer complete");
 		/* Non-incr transfer all done. */
 		xwm_flush_source_data(xwm);
 		xwm_send_selection_notify(xwm, xwm->selection_request.property);
@@ -115,15 +115,15 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 		wl_array_release(&xwm->source_data);
 		xwm->selection_request.requestor = XCB_NONE;
 	} else if (len == 0 && xwm->incr) {
-		wlr_log(L_DEBUG, "incr transfer complete\n");
+		wlr_log(L_DEBUG, "incr transfer complete");
 
 		xwm->flush_property_on_delete = 1;
 		if (xwm->selection_property_set) {
 			wlr_log(L_DEBUG, "got %zu bytes, waiting for "
-					"property delete\n", xwm->source_data.size);
+					"property delete", xwm->source_data.size);
 		} else {
 			wlr_log(L_DEBUG, "got %zu bytes, "
-					"property deleted, setting new property\n",
+					"property deleted, setting new property",
 					xwm->source_data.size);
 			xwm_flush_source_data(xwm);
 		}
@@ -134,7 +134,7 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 		xwm->data_source_fd = -1;
 		close(fd);
 	} else {
-		wlr_log(L_DEBUG, "nothing happened, buffered the bytes\n");
+		wlr_log(L_DEBUG, "nothing happened, buffered the bytes");
 	}
 
 	return 1;
@@ -146,7 +146,7 @@ static void xwm_send_data(struct wlr_xwm *xwm, xcb_atom_t target,
 	int p[2];
 
 	if (pipe(p) == -1) {
-		wlr_log(L_ERROR, "pipe failed: %m\n");
+		wlr_log(L_ERROR, "pipe failed: %m");
 		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
 		return;
 	}
@@ -185,12 +185,39 @@ static void xwm_send_timestamp(struct wlr_xwm *xwm) {
 }
 
 static void xwm_send_targets(struct wlr_xwm *xwm) {
-	xcb_atom_t targets[] = {
-		xwm->atoms[TIMESTAMP],
-		xwm->atoms[TARGETS],
-		xwm->atoms[UTF8_STRING],
-		xwm->atoms[TEXT],
-	};
+	struct wlr_data_source *source = xwm->seat->selection_source;
+	size_t n = 2 + source->mime_types.size / sizeof(char *);
+	xcb_atom_t *targets = malloc(n * sizeof(xcb_atom_t));
+	if (targets == NULL) {
+		return;
+	}
+	targets[0] = xwm->atoms[TIMESTAMP];
+	targets[1] = xwm->atoms[TARGETS];
+
+	size_t i = 2;
+	char **mime_type_ptr;
+	wl_array_for_each(mime_type_ptr, &source->mime_types) {
+		char *mime_type = *mime_type_ptr;
+		xcb_atom_t atom;
+		if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
+			atom = xwm->atoms[UTF8_STRING];
+		} else if (strcmp(mime_type, "text/plain") == 0) {
+			atom = xwm->atoms[TEXT];
+		} else {
+			xcb_intern_atom_cookie_t cookie =
+				xcb_intern_atom(xwm->xcb_conn, 0, strlen(mime_type), mime_type);
+			xcb_intern_atom_reply_t *reply =
+				xcb_intern_atom_reply(xwm->xcb_conn, cookie, NULL);
+			if (reply == NULL) {
+				--n;
+				continue;
+			}
+			atom = reply->atom;
+			free(reply);
+		}
+		targets[i] = atom;
+		++i;
+	}
 
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
@@ -198,9 +225,11 @@ static void xwm_send_targets(struct wlr_xwm *xwm) {
 		xwm->selection_request.property,
 		XCB_ATOM_ATOM,
 		32, // format
-		sizeof(targets) / sizeof(targets[0]), targets);
+		n, targets);
 
 	xwm_send_selection_notify(xwm, xwm->selection_request.property);
+
+	free(targets);
 }
 
 static void xwm_handle_selection_request(struct wlr_xwm *xwm,
@@ -221,16 +250,41 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		return;
 	}
 
+	if (xwm->seat->selection_source == NULL) {
+		wlr_log(L_DEBUG, "not handling selection request:"
+			"no selection source assigned to xwayland seat");
+		return;
+	}
+
 	if (selection_request->target == xwm->atoms[TARGETS]) {
 		xwm_send_targets(xwm);
 	} else if (selection_request->target == xwm->atoms[TIMESTAMP]) {
 		xwm_send_timestamp(xwm);
-	} else if (selection_request->target == xwm->atoms[UTF8_STRING] ||
-			selection_request->target == xwm->atoms[TEXT]) {
-		xwm_send_data(xwm, xwm->atoms[UTF8_STRING], "text/plain;charset=utf-8");
+	} else if (selection_request->target == xwm->atoms[UTF8_STRING]) {
+		xwm_send_data(xwm, selection_request->target, "text/plain;charset=utf-8");
+	} else if (selection_request->target == xwm->atoms[TEXT]) {
+		xwm_send_data(xwm, selection_request->target, "text/plain");
 	} else {
-		wlr_log(L_DEBUG, "can only handle UTF8_STRING targets\n");
-		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
+		xcb_get_atom_name_cookie_t name_cookie =
+			xcb_get_atom_name(xwm->xcb_conn, selection_request->target);
+		xcb_get_atom_name_reply_t *name_reply =
+			xcb_get_atom_name_reply(xwm->xcb_conn, name_cookie, NULL);
+		if (name_reply == NULL) {
+			wlr_log(L_DEBUG, "not handling selection request: unknown atom");
+			xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
+			return;
+		}
+		size_t len = xcb_get_atom_name_name_length(name_reply);
+		char *mime_type = malloc((len + 1) * sizeof(char));
+		if (mime_type == NULL) {
+			free(name_reply);
+			return;
+		}
+		memcpy(mime_type, xcb_get_atom_name_name(name_reply), len);
+		mime_type[len] = '\0';
+		xwm_send_data(xwm, selection_request->target, mime_type);
+		free(mime_type);
+		free(name_reply);
 	}
 }
 
@@ -250,11 +304,11 @@ static int writable_callback(int fd, uint32_t mask, void *data) {
 		}
 		xwm->property_source = NULL;
 		close(fd);
-		wlr_log(L_ERROR, "write error to target fd: %m\n");
+		wlr_log(L_ERROR, "write error to target fd: %m");
 		return 1;
 	}
 
-	wlr_log(L_DEBUG, "wrote %d (chunk size %d) of %d bytes\n",
+	wlr_log(L_DEBUG, "wrote %d (chunk size %d) of %d bytes",
 		xwm->property_start + len,
 		len, xcb_get_property_value_length(xwm->property_reply));
 
@@ -272,7 +326,7 @@ static int writable_callback(int fd, uint32_t mask, void *data) {
 				xwm->selection_window,
 				xwm->atoms[WL_SELECTION]);
 		} else {
-			wlr_log(L_DEBUG, "transfer complete\n");
+			wlr_log(L_DEBUG, "transfer complete");
 			close(fd);
 		}
 	}
@@ -322,7 +376,6 @@ static void xwm_get_selection_data(struct wlr_xwm *xwm) {
 		// for freeing it
 		xwm_write_property(xwm, reply);
 	}
-
 }
 
 struct x11_data_source {
@@ -358,7 +411,6 @@ static void data_source_send(struct wlr_data_source *base,
 		return;
 	}
 
-	// Get data for the utf8_string target
 	xcb_convert_selection(xwm->xcb_conn,
 		xwm->selection_window,
 		xwm->atoms[CLIPBOARD],
@@ -384,13 +436,14 @@ static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
 		xwm->atoms[WL_SELECTION],
 		XCB_GET_PROPERTY_TYPE_ANY,
 		0, // offset
-		4096 //length
+		4096 // length
 		);
 
 	xcb_get_property_reply_t *reply =
 		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
-	if (reply == NULL)
+	if (reply == NULL) {
 		return;
+	}
 
 	if (reply->type != XCB_ATOM_ATOM) {
 		free(reply);
@@ -428,9 +481,16 @@ static void xwm_get_selection_targets(struct wlr_xwm *xwm) {
 			if (name_reply == NULL) {
 				continue;
 			}
-			char *name = xcb_get_atom_name_name(name_reply);
-			if (strchr(name, '/') != NULL) {
-				mime_type = strdup(name);
+			size_t len = xcb_get_atom_name_name_length(name_reply);
+			char *name = xcb_get_atom_name_name(name_reply); // not a C string
+			if (memchr(name, '/', len) != NULL) {
+				mime_type = malloc((len + 1) * sizeof(char));
+				if (mime_type == NULL) {
+					free(name_reply);
+					continue;
+				}
+				memcpy(mime_type, name, len);
+				mime_type[len] = '\0';
 			}
 			free(name_reply);
 		}
@@ -477,7 +537,6 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	xcb_xfixes_selection_notify_event_t *xfixes_selection_notify =
 		(xcb_xfixes_selection_notify_event_t *) event;
 
-
 	if (xfixes_selection_notify->owner == XCB_WINDOW_NONE) {
 		if (xwm->selection_owner != xwm->selection_window) {
 			// A real X client selection went away, not our
@@ -487,7 +546,6 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		}
 
 		xwm->selection_owner = XCB_WINDOW_NONE;
-
 		return 1;
 	}
 
@@ -515,10 +573,9 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	return 1;
 }
 
-
 int xwm_handle_selection_event(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
-	if (!xwm->seat) {
+	if (xwm->seat == NULL) {
 		wlr_log(L_DEBUG, "not handling selection events:"
 			"no seat assigned to xwayland");
 		return 0;

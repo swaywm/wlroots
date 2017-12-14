@@ -1118,15 +1118,12 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 			xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
 	}
 	for (i = 0; i < ATOM_LAST; i++) {
-		xcb_intern_atom_reply_t *reply;
 		xcb_generic_error_t *error;
-
-		reply = xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
-
+		xcb_intern_atom_reply_t *reply =
+			xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
 		if (reply && !error) {
 			xwm->atoms[i] = reply->atom;
 		}
-
 		free(reply);
 
 		if (error) {
