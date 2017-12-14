@@ -112,6 +112,12 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 	wl_output_send_to_resource(wl_resource);
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_output *output =
+		wl_container_of(listener, output, display_destroy);
+	wlr_output_destroy_global(output);
+}
+
 struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 		struct wl_display *display) {
 	if (wlr_output->wl_global != NULL) {
@@ -120,6 +126,10 @@ struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_output_interface, 3, wlr_output, wl_output_bind);
 	wlr_output->wl_global = wl_global;
+
+	wlr_output->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &wlr_output->display_destroy);
+
 	return wl_global;
 }
 
@@ -127,6 +137,7 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	if (wlr_output->wl_global == NULL) {
 		return;
 	}
+	wl_list_remove(&wlr_output->display_destroy.link);
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &wlr_output->wl_resources) {
 		struct wl_list *link = wl_resource_get_link(resource);
@@ -700,52 +711,6 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	}
 	wl_list_remove(&cursor->link);
 	free(cursor);
-}
-
-void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
-		struct wlr_box *box, struct wlr_box *dest) {
-	if (transform % 2 == 0) {
-		dest->width = box->width;
-		dest->height = box->height;
-	} else {
-		dest->width = box->height;
-		dest->height = box->width;
-	}
-
-	switch (transform) {
-	case WL_OUTPUT_TRANSFORM_NORMAL:
-		dest->x = box->x;
-		dest->y = box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_90:
-		dest->x = box->y;
-		dest->y = box->width - box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_180:
-		dest->x = box->width - box->x;
-		dest->y = box->height - box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-		dest->x = box->height - box->y;
-		dest->y = box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		dest->x = box->width - box->x;
-		dest->y = box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		dest->x = box->y;
-		dest->y = box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		dest->x = box->x;
-		dest->y = box->height - box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		dest->x = box->height - box->y;
-		dest->y = box->width - box->x;
-		break;
-	}
 }
 
 enum wl_output_transform wlr_output_transform_invert(

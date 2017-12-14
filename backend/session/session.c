@@ -58,6 +58,12 @@ out:
 	return 1;
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_session *session =
+		wl_container_of(listener, session, display_destroy);
+	wlr_session_destroy(session);
+}
+
 struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	struct wlr_session *session = NULL;
 	const struct session_impl **iter;
@@ -100,6 +106,9 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 		goto error_mon;
 	}
 
+	session->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(disp, &session->display_destroy);
+
 	return session;
 
 error_mon:
@@ -107,7 +116,7 @@ error_mon:
 error_udev:
 	udev_unref(session->udev);
 error_session:
-	wlr_session_destroy(session);
+	session->impl->destroy(session);
 	return NULL;
 }
 
@@ -115,6 +124,8 @@ void wlr_session_destroy(struct wlr_session *session) {
 	if (!session) {
 		return;
 	}
+
+	wl_list_remove(&session->display_destroy.link);
 
 	wl_event_source_remove(session->udev_event);
 	udev_monitor_unref(session->mon);

@@ -77,6 +77,8 @@ struct wlr_output {
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
 
+	struct wl_listener display_destroy;
+
 	void *data;
 };
 
@@ -114,5 +116,7 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	double x, double y);
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
+
+enum wl_output_transform wlr_output_transform_invert(enum wl_output_transform);
 
 #endif

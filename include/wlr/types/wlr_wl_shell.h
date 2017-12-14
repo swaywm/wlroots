@@ -12,6 +12,8 @@ struct wlr_wl_shell {
 	struct wl_list popup_grabs;
 	uint32_t ping_timeout;
 
+	struct wl_listener display_destroy;
+
 	struct {
 		struct wl_signal new_surface;
 	} events;

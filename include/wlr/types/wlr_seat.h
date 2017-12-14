@@ -184,6 +184,7 @@ struct wlr_seat {
 	struct wlr_seat_keyboard_state keyboard_state;
 	struct wlr_seat_touch_state touch_state;
 
+	struct wl_listener display_destroy;
 	struct wl_listener selection_data_source_destroy;
 
 	struct {

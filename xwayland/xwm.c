@@ -1093,11 +1093,20 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
+	if (xwm->colormap) {
+		xcb_free_colormap(xwm->xcb_conn, xwm->colormap);
+	}
+	if (xwm->window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->window);
+	}
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
 	struct wlr_xwayland_surface *xsurface, *tmp;
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
+		wlr_xwayland_surface_destroy(xsurface);
+	}
+	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
 	}
 	wl_list_remove(&xwm->compositor_surface_create.link);

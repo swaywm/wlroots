@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
 	if (!wlr_backend_start(server.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");
 		wlr_backend_destroy(server.backend);
+		wl_display_destroy(server.wl_display);
 		return 1;
 	}
 
@@ -72,5 +73,6 @@ int main(int argc, char **argv) {
 
 	wl_display_run(server.wl_display);
 	wlr_backend_destroy(server.backend);
+	wl_display_destroy(server.wl_display);
 	return 0;
 }

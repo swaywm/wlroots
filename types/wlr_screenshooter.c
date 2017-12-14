@@ -26,6 +26,21 @@ struct screenshot_state {
 	struct wl_listener frame_listener;
 };
 
+static void screenshot_destroy(struct wlr_screenshot *screenshot) {
+	wl_list_remove(&screenshot->link);
+	wl_resource_set_user_data(screenshot->resource, NULL);
+	free(screenshot);
+}
+
+static void handle_screenshot_resource_destroy(
+		struct wl_resource *screenshot_resource) {
+	struct wlr_screenshot *screenshot =
+		wl_resource_get_user_data(screenshot_resource);
+	if (screenshot != NULL) {
+		screenshot_destroy(screenshot);
+	}
+}
+
 static void output_frame_notify(struct wl_listener *listener, void *_data) {
 	struct screenshot_state *state = wl_container_of(listener, state,
 		frame_listener);
@@ -102,7 +117,8 @@ static void screenshooter_shoot(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(screenshot->resource, NULL, screenshot,
-		NULL);
+		handle_screenshot_resource_destroy);
+	wl_list_insert(&screenshooter->screenshots, &screenshot->link);
 
 	wlr_log(L_DEBUG, "new screenshot %p (res %p)", screenshot,
 		screenshot->resource);
@@ -144,6 +160,25 @@ static void screenshooter_bind(struct wl_client *wl_client, void *data,
 		screenshooter, NULL);
 }
 
+void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
+	if (!screenshooter) {
+		return;
+	}
+	wl_list_remove(&screenshooter->display_destroy.link);
+	struct wlr_screenshot *screenshot, *tmp;
+	wl_list_for_each_safe(screenshot, tmp, &screenshooter->screenshots, link) {
+		screenshot_destroy(screenshot);
+	}
+	wl_global_destroy(screenshooter->wl_global);
+	free(screenshooter);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_screenshooter *screenshooter =
+		wl_container_of(listener, screenshooter, display_destroy);
+	wlr_screenshooter_destroy(screenshooter);
+}
+
 struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
 	struct wlr_screenshooter *screenshooter =
@@ -153,6 +188,11 @@ struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
 	}
 	screenshooter->renderer = renderer;
 
+	wl_list_init(&screenshooter->screenshots);
+
+	screenshooter->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &screenshooter->display_destroy);
+
 	screenshooter->wl_global = wl_global_create(display,
 		&orbital_screenshooter_interface, 1, screenshooter, screenshooter_bind);
 	if (screenshooter->wl_global == NULL) {
@@ -161,13 +201,4 @@ struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
 	}
 
 	return screenshooter;
-}
-
-void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
-	if (!screenshooter) {
-		return;
-	}
-	// TODO: this segfault (wl_display->registry_resource_list is not init)
-	// wl_global_destroy(screenshooter->wl_global);
-	free(screenshooter);
 }

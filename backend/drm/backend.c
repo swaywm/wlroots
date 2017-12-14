@@ -34,6 +34,10 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&conn->output);
 	}
 
+	wl_list_remove(&drm->display_destroy.link);
+	wl_list_remove(&drm->session_signal.link);
+	wl_list_remove(&drm->drm_invalidated.link);
+
 	wlr_drm_resources_free(drm);
 	wlr_drm_renderer_finish(&drm->renderer);
 	wlr_session_close_file(drm->session, drm->fd);
@@ -57,7 +61,8 @@ bool wlr_backend_is_drm(struct wlr_backend *b) {
 }
 
 static void session_signal(struct wl_listener *listener, void *data) {
-	struct wlr_drm_backend *drm = wl_container_of(listener, drm, session_signal);
+	struct wlr_drm_backend *drm =
+		wl_container_of(listener, drm, session_signal);
 	struct wlr_session *session = data;
 
 	if (session->active) {
@@ -84,13 +89,20 @@ static void session_signal(struct wl_listener *listener, void *data) {
 }
 
 static void drm_invalidated(struct wl_listener *listener, void *data) {
-	struct wlr_drm_backend *drm = wl_container_of(listener, drm, drm_invalidated);
+	struct wlr_drm_backend *drm =
+		wl_container_of(listener, drm, drm_invalidated);
 
 	char *name = drmGetDeviceNameFromFd2(drm->fd);
 	wlr_log(L_DEBUG, "%s invalidated", name);
 	free(name);
 
 	wlr_drm_scan_connectors(drm);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drm_backend *drm =
+		wl_container_of(listener, drm, display_destroy);
+	wlr_drm_backend_destroy(&drm->backend);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
@@ -149,6 +161,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	if (!wlr_egl_bind_display(&drm->renderer.egl, display)) {
 		wlr_log(L_INFO, "Failed to bind egl/wl display: %s", egl_error());
 	}
+
+	drm->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &drm->display_destroy);
 
 	return &drm->backend;
 

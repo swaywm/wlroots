@@ -949,6 +949,21 @@ static void data_device_manager_bind(struct wl_client *client,
 		NULL, NULL);
 }
 
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
+	if (!manager) {
+		return;
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_data_device_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	wlr_data_device_manager_destroy(manager);
+}
+
 struct wlr_data_device_manager *wlr_data_device_manager_create(
 		struct wl_display *display) {
 	struct wlr_data_device_manager *manager =
@@ -967,13 +982,8 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		return NULL;
 	}
 
-	return manager;
-}
+	manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
-void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-	if (!manager) {
-		return;
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
+	return manager;
 }

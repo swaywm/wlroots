@@ -51,6 +51,8 @@ struct wlr_x11_backend {
 
 	// The time we last received an event
 	xcb_timestamp_t time;
+
+	struct wl_listener display_destroy;
 };
 
 #endif
