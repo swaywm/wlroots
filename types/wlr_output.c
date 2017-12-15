@@ -256,10 +256,6 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	wl_signal_emit(&output->events.scale, output);
 }
 
-uint32_t wlr_output_integral_scale(struct wlr_output *output) {
-	return ceil(output->scale);
-}
-
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl) {
 	assert(impl->make_current && impl->swap_buffers && impl->transform);
