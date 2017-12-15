@@ -43,7 +43,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
-		wl_output_send_scale(resource, output->scale);
+		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
@@ -240,7 +240,7 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	}
 }
 
-void wlr_output_set_scale(struct wlr_output *output, uint32_t scale) {
+void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	if (output->scale == scale) {
 		return;
 	}
@@ -254,6 +254,10 @@ void wlr_output_set_scale(struct wlr_output *output, uint32_t scale) {
 	}
 
 	wl_signal_emit(&output->events.scale, output);
+}
+
+uint32_t wlr_output_integral_scale(struct wlr_output *output) {
+	return ceil(output->scale);
 }
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,

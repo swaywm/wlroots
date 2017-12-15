@@ -459,11 +459,10 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 
 	struct roots_output *output;
 	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
-		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
-				output->wlr_output->scale)) {
+		float scale = output->wlr_output->scale;
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager, scale)) {
 			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
-				"with scale %d", output->wlr_output->name,
-				output->wlr_output->scale);
+				"with scale %f", output->wlr_output->name, scale);
 		}
 	}
 

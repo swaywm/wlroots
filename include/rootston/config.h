@@ -9,7 +9,7 @@ struct roots_output_config {
 	char *name;
 	enum wl_output_transform transform;
 	int x, y;
-	int scale;
+	float scale;
 	struct wl_list link;
 	struct {
 		int width, height;

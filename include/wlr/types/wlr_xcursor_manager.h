@@ -9,7 +9,7 @@
  * A scaled XCursor theme.
  */
 struct wlr_xcursor_manager_theme {
-	uint32_t scale;
+	float scale;
 	struct wlr_xcursor_theme *theme;
 	struct wl_list link;
 };
@@ -38,10 +38,10 @@ struct wlr_xcursor_manager *wlr_xcursor_manager_create(const char *name,
 void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager);
 
 int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
-	uint32_t scale);
+	float scale);
 
 struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
-	struct wlr_xcursor_manager *manager, const char *name, uint32_t scale);
+	struct wlr_xcursor_manager *manager, const char *name, float scale);
 
 /**
  * Set a `wlr_cursor` image. The manager uses all currently loaded scaled
