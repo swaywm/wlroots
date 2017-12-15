@@ -66,7 +66,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	box.y /= wlr_output->scale;
 
 	struct wlr_box layout_box;
-	wlr_wl_output_layout_get_box(wlr_wl_pointer->current_output->backend, &layout_box);
+	wlr_wl_output_layout_get_box(wlr_wl_pointer->current_output->backend,
+		&layout_box);
 
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;

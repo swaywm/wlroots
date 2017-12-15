@@ -45,7 +45,7 @@ struct wlr_output {
 	char make[48];
 	char model[16];
 	char serial[16];
-	uint32_t scale;
+	float scale;
 	int32_t width, height;
 	int32_t phys_width, phys_height; // mm
 	enum wl_output_subpixel subpixel;
@@ -92,7 +92,7 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
-void wlr_output_set_scale(struct wlr_output *output, uint32_t scale);
+void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);

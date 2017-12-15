@@ -270,7 +270,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "y") == 0) {
 			oc->y = strtol(value, NULL, 10);
 		} else if (strcmp(name, "scale") == 0) {
-			oc->scale = strtol(value, NULL, 10);
+			oc->scale = strtof(value, NULL);
 			assert(oc->scale >= 1);
 		} else if (strcmp(name, "rotate") == 0) {
 			if (strcmp(value, "normal") == 0) {
