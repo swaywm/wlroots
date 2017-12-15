@@ -258,6 +258,7 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	if (xwm->seat->selection_source == NULL) {
 		wlr_log(L_DEBUG, "not handling selection request: "
 			"no selection source assigned to xwayland seat");
+		xwm_send_selection_notify(xwm, XCB_ATOM_NONE);
 		return;
 	}
 
