@@ -687,13 +687,13 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	drag->seat = client->seat;
 
-	drag->is_pointer_grab = client->pointer != NULL &&
+	drag->is_pointer_grab = !wl_list_empty(&client->pointers) &&
 		client->seat->pointer_state.button_count == 1 &&
 		client->seat->pointer_state.grab_serial == serial &&
 		client->seat->pointer_state.focused_surface &&
 		client->seat->pointer_state.focused_surface == origin;
 
-	bool is_touch_grab = client->touch &&
+	bool is_touch_grab = !wl_list_empty(&client->touches) &&
 		wlr_seat_touch_num_points(client->seat) == 1 &&
 		client->seat->touch_state.grab_serial == serial;
 
