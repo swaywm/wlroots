@@ -728,7 +728,6 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	// set in the iteration
 	struct wlr_touch_point *point = NULL;
-
 	if (is_touch_grab) {
 		wl_list_for_each(point, &client->seat->touch_state.touch_points, link) {
 			is_touch_grab = point->surface && point->surface == origin;
@@ -746,7 +745,6 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		struct wlr_drag_icon *icon =
 			wlr_drag_icon_create(icon_surface, client, drag->is_pointer_grab,
 				touch_id);
-
 		if (!icon) {
 			free(drag);
 			return false;

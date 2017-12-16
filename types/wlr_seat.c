@@ -506,11 +506,6 @@ static void pointer_resource_destroy_notify(struct wl_listener *listener,
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
-static bool wlr_seat_pointer_has_focus_resource(struct wlr_seat *wlr_seat) {
-	return wlr_seat->pointer_state.focused_client &&
-		!wl_list_empty(&wlr_seat->pointer_state.focused_client->pointers);
-}
-
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	assert(wlr_seat);
@@ -521,7 +516,6 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	}
 
 	struct wlr_seat_client *client = NULL;
-
 	if (surface) {
 		struct wl_client *wl_client = wl_resource_get_client(surface->resource);
 		client = wlr_seat_client_for_wl_client(wlr_seat, wl_client);
@@ -543,7 +537,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	}
 
 	// enter the current surface
-	if (client != NULL) {
+	if (client != NULL && surface != NULL) {
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->pointers) {
@@ -558,7 +552,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	wl_list_init(&wlr_seat->pointer_state.surface_destroy.link);
 	wl_list_remove(&wlr_seat->pointer_state.resource_destroy.link);
 	wl_list_init(&wlr_seat->pointer_state.resource_destroy.link);
-	if (surface) {
+	if (surface != NULL) {
 		wl_signal_add(&surface->events.destroy,
 			&wlr_seat->pointer_state.surface_destroy);
 		wl_resource_add_destroy_listener(surface->resource,
@@ -581,13 +575,13 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
 
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy) {
-	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
 		return;
 	}
 
 	struct wl_resource *resource;
-	wl_resource_for_each(resource,
-			&wlr_seat->pointer_state.focused_client->pointers) {
+	wl_resource_for_each(resource, &client->pointers) {
 		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
 		pointer_send_frame(resource);
@@ -596,14 +590,14 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state) {
-	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
 		return 0;
 	}
 
 	uint32_t serial = wl_display_next_serial(wlr_seat->display);
 	struct wl_resource *resource;
-	wl_resource_for_each(resource,
-			&wlr_seat->pointer_state.focused_client->pointers) {
+	wl_resource_for_each(resource, &client->pointers) {
 		wl_pointer_send_button(resource, serial, time, button, state);
 		pointer_send_frame(resource);
 	}
@@ -612,13 +606,13 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value) {
-	if (!wlr_seat_pointer_has_focus_resource(wlr_seat)) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
 		return;
 	}
 
 	struct wl_resource *resource;
-	wl_resource_for_each(resource,
-			&wlr_seat->pointer_state.focused_client->pointers) {
+	wl_resource_for_each(resource, &client->pointers) {
 		if (value) {
 			wl_pointer_send_axis(resource, time, orientation,
 				wl_fixed_from_double(value));
