@@ -232,8 +232,12 @@ static void handle_offer_source_destroyed(struct wl_listener *listener,
 static struct wlr_data_offer *wlr_data_source_send_offer(
 		struct wlr_data_source *source,
 		struct wlr_seat_client *target) {
+	if (wl_list_empty(&target->data_devices)) {
+		return NULL;
+	}
+
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
-	if (offer == NULL || wl_list_empty(&target->data_devices)) {
+	if (offer == NULL) {
 		return NULL;
 	}
 
