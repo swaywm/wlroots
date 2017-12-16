@@ -522,7 +522,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		}
 	}
 
-	wlr_log(L_INFO, "Falling back to software cursor");
+	wlr_log(L_DEBUG, "Falling back to software cursor");
 	cursor->output->needs_swap = true;
 
 	cursor->enabled = pixels != NULL;
