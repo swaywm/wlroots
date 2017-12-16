@@ -269,9 +269,16 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 }
 
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
+	if (wl_list_empty(&seat_client->data_devices)) {
+		return;
+	}
+
 	if (seat_client->seat->selection_source) {
 		struct wlr_data_offer *offer = wlr_data_source_send_offer(
 			seat_client->seat->selection_source, seat_client);
+		if (offer == NULL) {
+			return;
+		}
 
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &seat_client->data_devices) {
