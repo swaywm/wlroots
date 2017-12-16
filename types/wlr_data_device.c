@@ -231,28 +231,35 @@ static void handle_offer_source_destroyed(struct wl_listener *listener,
 
 static struct wlr_data_offer *wlr_data_source_send_offer(
 		struct wlr_data_source *source,
-		struct wl_resource *target) {
+		struct wlr_seat_client *target) {
+	if (wl_list_empty(&target->data_devices)) {
+		return NULL;
+	}
+
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
 	if (offer == NULL) {
 		return NULL;
 	}
 
-	offer->resource =
-		wl_resource_create(wl_resource_get_client(target),
-			&wl_data_offer_interface,
-			wl_resource_get_version(target), 0);
+	uint32_t version = wl_resource_get_version(
+		wl_resource_from_link(target->data_devices.next));
+	offer->resource = wl_resource_create(target->client,
+		&wl_data_offer_interface, version, 0);
 	if (offer->resource == NULL) {
 		free(offer);
 		return NULL;
 	}
-
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
 		data_offer_resource_destroy);
 
 	offer->source_destroy.notify = handle_offer_source_destroyed;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
 
-	wl_data_device_send_data_offer(target, offer->resource);
+	struct wl_resource *target_resource;
+	wl_resource_for_each(target_resource, &target->data_devices) {
+		wl_data_device_send_data_offer(target_resource, offer->resource);
+	}
+
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
 		wl_data_offer_send_offer(offer->resource, *p);
@@ -265,20 +272,27 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 	return offer;
 }
 
-
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
-	if (!seat_client->data_device) {
+	if (wl_list_empty(&seat_client->data_devices)) {
 		return;
 	}
 
 	if (seat_client->seat->selection_source) {
-		struct wlr_data_offer *offer =
-			wlr_data_source_send_offer(seat_client->seat->selection_source,
-				seat_client->data_device);
-		wl_data_device_send_selection(seat_client->data_device,
-			offer->resource);
+		struct wlr_data_offer *offer = wlr_data_source_send_offer(
+			seat_client->seat->selection_source, seat_client);
+		if (offer == NULL) {
+			return;
+		}
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, offer->resource);
+		}
 	} else {
-		wl_data_device_send_selection(seat_client->data_device, NULL);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, NULL);
+		}
 	}
 }
 
@@ -286,12 +300,13 @@ static void seat_client_selection_data_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_data_source_destroy);
+	struct wlr_seat_client *seat_client = seat->keyboard_state.focused_client;
 
-	if (seat->keyboard_state.focused_client &&
-			seat->keyboard_state.focused_surface &&
-			seat->keyboard_state.focused_client->data_device) {
-		wl_data_device_send_selection(
-			seat->keyboard_state.focused_client->data_device, NULL);
+	if (seat_client && seat->keyboard_state.focused_surface) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, NULL);
+		}
 	}
 
 	seat->selection_source = NULL;
@@ -367,9 +382,14 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		return;
 	}
 
-	if (drag->focus_client && drag->focus_client->data_device) {
+	if (drag->focus_client) {
 		wl_list_remove(&drag->seat_client_destroy.link);
-		wl_data_device_send_leave(drag->focus_client->data_device);
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_leave(resource);
+		}
+
 		drag->focus_client = NULL;
 		drag->focus = NULL;
 	}
@@ -395,15 +415,15 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		wlr_seat_client_for_wl_client(drag->seat_client->seat,
 			wl_resource_get_client(surface->resource));
 
-	if (!focus_client || !focus_client->data_device) {
+	if (!focus_client || wl_list_empty(&focus_client->data_devices)) {
 		return;
 	}
 
 	struct wl_resource *offer_resource = NULL;
 	if (drag->source) {
 		drag->source->accepted = false;
-		struct wlr_data_offer *offer =
-			wlr_data_source_send_offer(drag->source, focus_client->data_device);
+		struct wlr_data_offer *offer = wlr_data_source_send_offer(drag->source,
+			focus_client);
 		if (offer == NULL) {
 			return;
 		}
@@ -421,10 +441,11 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 
 	uint32_t serial =
 		wl_display_next_serial(drag->seat_client->seat->display);
-
-	wl_data_device_send_enter(focus_client->data_device, serial,
-		surface->resource, wl_fixed_from_double(sx),
-		wl_fixed_from_double(sy), offer_resource);
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &focus_client->data_devices) {
+		wl_data_device_send_enter(resource, serial, surface->resource,
+			wl_fixed_from_double(sx), wl_fixed_from_double(sy), offer_resource);
+	}
 
 	drag->focus = surface;
 	drag->focus_client = focus_client;
@@ -467,9 +488,12 @@ static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
 static void pointer_drag_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_motion(drag->focus_client->data_device, time,
-			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	if (drag->focus  != NULL&& drag->focus_client != NULL) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_motion(resource, time, wl_fixed_from_double(sx),
+				wl_fixed_from_double(sy));
+		}
 	}
 }
 
@@ -480,14 +504,16 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 	if (drag->source &&
 			grab->seat->pointer_state.grab_button == button &&
 			state == WL_POINTER_BUTTON_STATE_RELEASED) {
-		if (drag->focus_client && drag->focus_client->data_device &&
-				drag->source->current_dnd_action &&
+		if (drag->focus_client && drag->source->current_dnd_action &&
 				drag->source->accepted) {
-			wl_data_device_send_drop(drag->focus_client->data_device);
+			struct wl_resource *resource;
+			wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+				wl_data_device_send_drop(resource);
+			}
 			if (wl_resource_get_version(drag->source->resource) >=
 					WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
 				wl_data_source_send_dnd_drop_performed(
-						drag->source->resource);
+					drag->source->resource);
 			}
 
 			drag->source->offer->in_ask =
@@ -538,8 +564,11 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 		return;
 	}
 
-	if (drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_drop(drag->focus_client->data_device);
+	if (drag->focus_client) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_drop(resource);
+		}
 	}
 
 	wlr_drag_end(drag);
@@ -548,9 +577,13 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time,
 		struct wlr_touch_point *point) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_motion(drag->focus_client->data_device, time,
-			wl_fixed_from_double(point->sx), wl_fixed_from_double(point->sy));
+	if (drag->focus && drag->focus_client) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_motion(resource, time,
+				wl_fixed_from_double(point->sx),
+				wl_fixed_from_double(point->sy));
+		}
 	}
 }
 
@@ -687,19 +720,18 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	drag->seat = client->seat;
 
-	drag->is_pointer_grab = client->pointer != NULL &&
+	drag->is_pointer_grab = !wl_list_empty(&client->pointers) &&
 		client->seat->pointer_state.button_count == 1 &&
 		client->seat->pointer_state.grab_serial == serial &&
 		client->seat->pointer_state.focused_surface &&
 		client->seat->pointer_state.focused_surface == origin;
 
-	bool is_touch_grab = client->touch &&
+	bool is_touch_grab = !wl_list_empty(&client->touches) &&
 		wlr_seat_touch_num_points(client->seat) == 1 &&
 		client->seat->touch_state.grab_serial == serial;
 
 	// set in the iteration
 	struct wlr_touch_point *point = NULL;
-
 	if (is_touch_grab) {
 		wl_list_for_each(point, &client->seat->touch_state.touch_points, link) {
 			is_touch_grab = point->surface && point->surface == origin;
@@ -717,7 +749,6 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		struct wlr_drag_icon *icon =
 			wlr_drag_icon_create(icon_surface, client, drag->is_pointer_grab,
 				touch_id);
-
 		if (!icon) {
 			free(drag);
 			return false;
@@ -800,31 +831,26 @@ static const struct wl_data_device_interface data_device_impl = {
 	.release = data_device_release,
 };
 
+static void data_device_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
 void data_device_manager_get_data_device(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *seat_resource) {
 	struct wlr_seat_client *seat_client =
 		wl_resource_get_user_data(seat_resource);
 
-	struct wl_resource *resource =
-		wl_resource_create(client,
-			&wl_data_device_interface,
-			wl_resource_get_version(manager_resource), id);
+	struct wl_resource *resource = wl_resource_create(client,
+		&wl_data_device_interface, wl_resource_get_version(manager_resource),
+		id);
 	if (resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
 	}
-
-	if (seat_client->data_device != NULL) {
-		// XXX this is probably a protocol violation, but it simplfies our code
-		// and it's stupid to create several data devices for the same seat.
-		wl_resource_destroy(seat_client->data_device);
-	}
-
-	seat_client->data_device = resource;
-
-	wl_resource_set_implementation(resource, &data_device_impl,
-		seat_client, NULL);
+	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
+		&data_device_destroy);
+	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
 }
 
 static void data_source_resource_destroy(struct wl_resource *resource) {

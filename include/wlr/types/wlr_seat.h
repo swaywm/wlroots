@@ -16,10 +16,11 @@ struct wlr_seat_client {
 	struct wl_client *client;
 	struct wlr_seat *seat;
 
-	struct wl_resource *pointer;
-	struct wl_resource *keyboard;
-	struct wl_resource *touch;
-	struct wl_resource *data_device;
+	// lists of wl_resource
+	struct wl_list pointers;
+	struct wl_list keyboards;
+	struct wl_list touches;
+	struct wl_list data_devices;
 
 	struct {
 		struct wl_signal destroy;
