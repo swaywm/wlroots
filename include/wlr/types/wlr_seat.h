@@ -20,8 +20,7 @@ struct wlr_seat_client {
 	struct wl_list pointers;
 	struct wl_list keyboards;
 	struct wl_list touches;
-
-	struct wl_resource *data_device;
+	struct wl_list data_devices;
 
 	struct {
 		struct wl_signal destroy;
