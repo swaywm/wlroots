@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
 
 	//assert(server.backend = wlr_backend_autocreate(server.wl_display));
 	assert(server.backend = wlr_headless_backend_create(server.wl_display));
+	wlr_headless_add_output(server.backend, 1280, 720);
 
 	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
 	server.data_device_manager =

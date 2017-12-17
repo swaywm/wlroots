@@ -6,6 +6,41 @@
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 
+static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
+		unsigned int height) {
+	EGLint attribs[] = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
+
+	EGLSurface surf = eglCreatePbufferSurface(egl->display, egl->config, attribs);
+	if (surf == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
+		return EGL_NO_SURFACE;
+	}
+	return surf;
+}
+
+static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
+		int32_t height, int32_t refresh) {
+	struct wlr_headless_backend_output *output =
+		(struct wlr_headless_backend_output *)wlr_output;
+	struct wlr_headless_backend *backend = output->backend;
+
+	if (output->egl_surface) {
+		eglDestroySurface(backend->egl.display, output->egl_surface);
+	}
+
+	output->egl_surface = egl_create_surface(&backend->egl, width, height);
+	if (output->egl_surface == EGL_NO_SURFACE) {
+		wlr_log(L_ERROR, "Failed to recreate EGL surface");
+		wlr_output_destroy(wlr_output);
+		return false;
+	}
+
+	output->frame_delay = 1000000 / refresh;
+
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, refresh);
+	return true;
+}
+
 static void output_transform(struct wlr_output *wlr_output,
 		enum wl_output_transform transform) {
 	struct wlr_headless_backend_output *output =
@@ -40,7 +75,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	//.set_custom_mode = output_set_custom_mode,
+	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
 	.make_current = output_make_current,
@@ -50,20 +85,8 @@ static const struct wlr_output_impl output_impl = {
 static int signal_frame(void *data) {
 	struct wlr_headless_backend_output *output = data;
 	wl_signal_emit(&output->wlr_output.events.frame, &output->wlr_output);
-	wl_event_source_timer_update(output->frame_timer, 16);
+	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	return 0;
-}
-
-static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
-		unsigned int height) {
-	EGLint attribs[] = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
-
-	EGLSurface surf = eglCreatePbufferSurface(egl->display, egl->config, attribs);
-	if (surf == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
-		return EGL_NO_SURFACE;
-	}
-	return surf;
 }
 
 struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
@@ -83,11 +106,15 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 
 	output->egl_surface = egl_create_surface(&backend->egl, width, height);
 	if (output->egl_surface == EGL_NO_SURFACE) {
-		// TODO: cleanup
-		return NULL;
+		wlr_log(L_ERROR, "Failed to create EGL surface");
+		goto error;
 	}
 
-	wlr_output_update_size(wlr_output, width, height);
+	output_set_custom_mode(wlr_output, width, height, 60*1000);
+	strncpy(wlr_output->make, "headless", sizeof(wlr_output->make));
+	strncpy(wlr_output->model, "headless", sizeof(wlr_output->model));
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",
+		wl_list_length(&backend->outputs) + 1);
 
 	if (!eglMakeCurrent(output->backend->egl.display,
 			output->egl_surface, output->egl_surface,
@@ -104,9 +131,13 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);
 
 	wl_list_insert(&backend->outputs, &output->link);
-	wlr_output_create_global(wlr_output, backend->display);
-	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
-	wl_event_source_timer_update(output->frame_timer, 16);
+
+	if (backend->started) {
+		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
+		wlr_output_create_global(wlr_output, backend->display);
+		wl_signal_emit(&backend->backend.events.output_add, wlr_output);
+	}
+
 	return wlr_output;
 
 error:

@@ -117,7 +117,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_CONFIGURE_NOTIFY: {
 		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
-		wlr_output_update_size(&output->wlr_output, ev->width, ev->height);
+		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+			ev->height, 0);
 
 		// Move the pointer to its new location
 		xcb_query_pointer_cookie_t cookie =

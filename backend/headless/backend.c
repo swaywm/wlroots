@@ -2,19 +2,23 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wlr/util/log.h>
+#include <wlr/interfaces/wlr_output.h>
 #include "backend/headless.h"
 #include "glapi.h"
 
 static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
 		(struct wlr_headless_backend *)wlr_backend;
-	wlr_log(L_INFO, "Initializating headless backend");
+	wlr_log(L_INFO, "Starting headless backend");
 
-	// TODO
-	for (size_t i = 0; i < 1; ++i) {
-		wlr_headless_add_output(&backend->backend, 1280, 720);
+	struct wlr_headless_backend_output *output;
+	wl_list_for_each(output, &backend->outputs, link) {
+		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
+		wlr_output_create_global(&output->wlr_output, backend->display);
+		wl_signal_emit(&backend->backend.events.output_add, &output->wlr_output);
 	}
 
+	backend->started = true;
 	return true;
 }
 
@@ -27,7 +31,10 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wl_list_remove(&backend->display_destroy.link);
 
-	// TODO: destroy outputs
+	struct wlr_headless_backend_output *output, *tmp;
+	wl_list_for_each_safe(output, tmp, &backend->outputs, link) {
+		wlr_output_destroy(&output->wlr_output);
+	}
 
 	wlr_egl_finish(&backend->egl);
 	free(backend);
@@ -64,7 +71,6 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
 
 	static const EGLint attribs[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-		EGL_BUFFER_SIZE, 32,
 		EGL_ALPHA_SIZE, 0,
 		EGL_BLUE_SIZE, 8,
 		EGL_GREEN_SIZE, 8,
@@ -163,4 +169,8 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
+}
+
+bool wlr_backend_is_headless(struct wlr_backend *backend) {
+	return backend->impl == &backend_impl;
 }

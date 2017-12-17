@@ -11,6 +11,7 @@ struct wlr_headless_backend {
 	struct wl_display *display;
 	struct wl_list outputs;
 	struct wl_listener display_destroy;
+	bool started;
 };
 
 struct wlr_headless_backend_output {
@@ -21,6 +22,7 @@ struct wlr_headless_backend_output {
 
 	void *egl_surface;
 	struct wl_event_source *frame_timer;
+	int frame_delay; // ms
 };
 
 #endif

@@ -39,7 +39,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 		if (wl_list_length(&output->modes) == 0) {
 			// Output has no mode, send the current width/height
 			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
-				output->width, output->height, 0);
+				output->width, output->height, output->refresh);
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
@@ -65,9 +65,9 @@ static void wlr_output_send_current_mode_to_resource(
 		wl_output_send_mode(resource, flags | WL_OUTPUT_MODE_CURRENT,
 			mode->width, mode->height, mode->refresh);
 	} else {
-		// Output has no mode, send the current width/height
+		// Output has no mode
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
-			output->height, 0);
+			output->height, output->refresh);
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
@@ -192,15 +192,25 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	return result;
 }
 
-void wlr_output_update_size(struct wlr_output *output, int32_t width,
-		int32_t height) {
-	if (output->width == width && output->height == height) {
+void wlr_output_update_mode(struct wlr_output *output,
+		struct wlr_output_mode *mode) {
+	output->current_mode = mode;
+	wlr_output_update_custom_mode(output, mode->width, mode->height,
+		mode->refresh);
+}
+
+void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh) {
+	if (output->width == width && output->height == height &&
+			output->refresh == refresh) {
 		return;
 	}
 
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
+
+	output->refresh = refresh;
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
