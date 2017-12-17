@@ -1,0 +1,91 @@
+#include <stdlib.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_touch.h>
+#include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/interfaces/wlr_tablet_pad.h>
+#include <wlr/util/log.h>
+#include "backend/headless.h"
+
+static void input_device_destroy(struct wlr_input_device *wlr_dev) {
+	struct wlr_headless_input_device *device =
+		(struct wlr_headless_input_device *)wlr_dev;
+	wl_signal_emit(&device->backend->backend.events.input_remove, wlr_dev);
+	free(device);
+}
+
+static struct wlr_input_device_impl input_device_impl = {
+	.destroy = input_device_destroy,
+};
+
+struct wlr_input_device *wlr_headless_add_input_device(
+		struct wlr_backend *wlr_backend, enum wlr_input_device_type type) {
+	struct wlr_headless_backend *backend =
+		(struct wlr_headless_backend *)wlr_backend;
+
+	struct wlr_headless_input_device *device =
+		calloc(1, sizeof(struct wlr_headless_input_device));
+	if (device == NULL) {
+		return NULL;
+	}
+	device->backend = backend;
+
+	int vendor = 0;
+	int product = 0;
+	const char *name = "headless";
+	struct wlr_input_device *wlr_device = &device->wlr_input_device;
+	wlr_input_device_init(wlr_device, type, &input_device_impl, name, vendor,
+		product);
+
+	switch (type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:
+		wlr_device->keyboard = calloc(1, sizeof(struct wlr_keyboard));
+		if (wlr_device->keyboard == NULL) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_keyboard");
+			return NULL;
+		}
+		wlr_keyboard_init(wlr_device->keyboard, NULL);
+		break;
+	case WLR_INPUT_DEVICE_POINTER:
+		wlr_device->pointer = calloc(1, sizeof(struct wlr_pointer));
+		if (wlr_device->pointer == NULL) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_pointer");
+			return NULL;
+		}
+		wlr_pointer_init(wlr_device->pointer, NULL);
+		break;
+	case WLR_INPUT_DEVICE_TOUCH:
+		wlr_device->touch = calloc(1, sizeof(struct wlr_touch));
+		if (wlr_device->touch == NULL) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_touch");
+			return NULL;
+		}
+		wlr_touch_init(wlr_device->touch, NULL);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		wlr_device->tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
+		if (wlr_device->tablet_tool == NULL) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_tablet_tool");
+			return NULL;
+		}
+		wlr_tablet_tool_init(wlr_device->tablet_tool, NULL);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		wlr_device->tablet_pad = calloc(1, sizeof(struct wlr_tablet_pad));
+		if (wlr_device->tablet_pad == NULL) {
+			wlr_log(L_ERROR, "Unable to allocate wlr_tablet_pad");
+			return NULL;
+		}
+		wlr_tablet_pad_init(wlr_device->tablet_pad, NULL);
+		break;
+	}
+
+	wl_list_insert(&backend->input_devices, &wlr_device->link);
+
+	if (backend->started) {
+		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
+	}
+
+	return wlr_device;
+}

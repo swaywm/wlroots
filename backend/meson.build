@@ -11,6 +11,7 @@ backend_files = files(
 	'drm/util.c',
 	'headless/backend.c',
 	'headless/output.c',
+	'headless/input_device.c',
 	'libinput/backend.c',
 	'libinput/events.c',
 	'libinput/keyboard.c',

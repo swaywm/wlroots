@@ -20,8 +20,8 @@ static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		int32_t height, int32_t refresh) {
-	struct wlr_headless_backend_output *output =
-		(struct wlr_headless_backend_output *)wlr_output;
+	struct wlr_headless_output *output =
+		(struct wlr_headless_output *)wlr_output;
 	struct wlr_headless_backend *backend = output->backend;
 
 	if (output->egl_surface) {
@@ -43,14 +43,14 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 
 static void output_transform(struct wlr_output *wlr_output,
 		enum wl_output_transform transform) {
-	struct wlr_headless_backend_output *output =
-		(struct wlr_headless_backend_output *)wlr_output;
+	struct wlr_headless_output *output =
+		(struct wlr_headless_output *)wlr_output;
 	output->wlr_output.transform = transform;
 }
 
 static void output_make_current(struct wlr_output *wlr_output) {
-	struct wlr_headless_backend_output *output =
-		(struct wlr_headless_backend_output *)wlr_output;
+	struct wlr_headless_output *output =
+		(struct wlr_headless_output *)wlr_output;
 	if (!eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
@@ -63,8 +63,8 @@ static void output_swap_buffers(struct wlr_output *wlr_output) {
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {
-	struct wlr_headless_backend_output *output =
-		(struct wlr_headless_backend_output *)wlr_output;
+	struct wlr_headless_output *output =
+		(struct wlr_headless_output *)wlr_output;
 	wl_signal_emit(&output->backend->backend.events.output_remove,
 		&output->wlr_output);
 
@@ -83,7 +83,7 @@ static const struct wlr_output_impl output_impl = {
 };
 
 static int signal_frame(void *data) {
-	struct wlr_headless_backend_output *output = data;
+	struct wlr_headless_output *output = data;
 	wl_signal_emit(&output->wlr_output.events.frame, &output->wlr_output);
 	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	return 0;
@@ -94,10 +94,10 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	struct wlr_headless_backend *backend =
 		(struct wlr_headless_backend *)wlr_backend;
 
-	struct wlr_headless_backend_output *output =
-		calloc(1, sizeof(struct wlr_headless_backend_output));
+	struct wlr_headless_output *output =
+		calloc(1, sizeof(struct wlr_headless_output));
 	if (output == NULL) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_headless_backend_output");
+		wlr_log(L_ERROR, "Failed to allocate wlr_headless_output");
 		return NULL;
 	}
 	output->backend = backend;

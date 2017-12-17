@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
 	//assert(server.backend = wlr_backend_autocreate(server.wl_display));
 	assert(server.backend = wlr_headless_backend_create(server.wl_display));
 	wlr_headless_add_output(server.backend, 1280, 720);
+	wlr_headless_add_input_device(server.backend, WLR_INPUT_DEVICE_KEYBOARD);
+	wlr_headless_add_input_device(server.backend, WLR_INPUT_DEVICE_POINTER);
 
 	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
 	server.data_device_manager =
