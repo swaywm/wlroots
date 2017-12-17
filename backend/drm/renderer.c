@@ -24,8 +24,8 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA,
-			GBM_FORMAT_ARGB8888, renderer->gbm)) {
+	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA, renderer->gbm,
+			NULL, GBM_FORMAT_ARGB8888)) {
 		goto error_gbm;
 	}
 

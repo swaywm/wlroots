@@ -311,8 +311,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
 
-	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR,
-			x11->screen->root_visual, x11->xlib_conn)) {
+	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR, x11->xlib_conn, NULL,
+			x11->screen->root_visual)) {
 		goto error_event;
 	}
 
