@@ -26,6 +26,9 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	wl_list_remove(&backend->display_destroy.link);
+
+	// TODO: destroy outputs
+
 	wlr_egl_finish(&backend->egl);
 	free(backend);
 }
@@ -61,6 +64,12 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out) {
 
 	static const EGLint attribs[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+		EGL_BUFFER_SIZE, 32,
+		EGL_ALPHA_SIZE, 0,
+		EGL_BLUE_SIZE, 8,
+		EGL_GREEN_SIZE, 8,
+		EGL_RED_SIZE, 8,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE,
 	};
 
@@ -146,6 +155,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
 	backend->display = display;
+	wl_list_init(&backend->outputs);
 
 	egl_init(&backend->egl);
 

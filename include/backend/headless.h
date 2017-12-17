@@ -20,6 +20,7 @@ struct wlr_headless_backend_output {
 	struct wl_list link;
 
 	void *egl_surface;
+	struct wl_event_source *frame_timer;
 };
 
 #endif
