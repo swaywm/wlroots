@@ -9,6 +9,8 @@ backend_files = files(
 	'drm/properties.c',
 	'drm/renderer.c',
 	'drm/util.c',
+	'headless/backend.c',
+	'headless/output.c',
 	'libinput/backend.c',
 	'libinput/events.c',
 	'libinput/keyboard.c',
