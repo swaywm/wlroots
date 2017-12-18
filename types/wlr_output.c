@@ -296,13 +296,14 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_list_remove(&mode->link);
 		free(mode);
 	}
+
+	wl_list_remove(&output->display_destroy.link);
+
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {
 		free(output);
 	}
-
-	wl_list_remove(&output->display_destroy.link);
 }
 
 void wlr_output_effective_resolution(struct wlr_output *output,
