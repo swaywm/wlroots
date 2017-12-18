@@ -131,10 +131,17 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
-	kb->xkb_state = xkb_state_new(kb->keymap);
+	if (kb->xkb_state != NULL) {
+		xkb_state_unref(kb->xkb_state);
+	}
+	kb->xkb_state = xkb_state_new(keymap);
+
 	if (kb->xkb_state == NULL) {
 		wlr_log(L_ERROR, "Failed to create XKB state");
 		return;
+	}
+	if (kb->keymap != NULL) {
+		xkb_map_unref(kb->keymap);
 	}
 	kb->keymap = keymap;
 
@@ -160,6 +167,10 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	// TODO: there's also "Ctrl", "Alt"?
 	for (size_t i = 0; i < WLR_MODIFIER_COUNT; ++i) {
 		kb->mod_indexes[i] = xkb_map_mod_get_index(kb->keymap, mod_names[i]);
+	}
+
+	if (kb->keymap_fd) {
+		close(kb->keymap_fd);
 	}
 
 	char *keymap_str = xkb_keymap_get_as_string(kb->keymap,
