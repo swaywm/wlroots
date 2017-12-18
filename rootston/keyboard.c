@@ -354,8 +354,16 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 		wlr_log(L_ERROR, "Cannot create XKB context");
 		return NULL;
 	}
-	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
-		&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+
+	struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+		XKB_KEYMAP_COMPILE_NO_FLAGS);
+	if (keymap == NULL) {
+		xkb_context_unref(context);
+		wlr_log(L_ERROR, "Cannot create XKB keymap");
+		return NULL;
+	}
+
+	wlr_keyboard_set_keymap(device->keyboard, keymap);
 	xkb_context_unref(context);
 
 	int repeat_rate = (config->repeat_rate > 0) ? config->repeat_rate : 25;

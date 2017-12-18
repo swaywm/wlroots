@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -132,9 +131,12 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
-	wlr_log(L_DEBUG, "Keymap set");
+	kb->xkb_state = xkb_state_new(kb->keymap);
+	if (kb->xkb_state == NULL) {
+		wlr_log(L_ERROR, "Failed to create XKB state");
+		return;
+	}
 	kb->keymap = keymap;
-	assert(kb->xkb_state = xkb_state_new(kb->keymap));
 
 	const char *led_names[WLR_LED_COUNT] = {
 		XKB_LED_NAME_NUM,
