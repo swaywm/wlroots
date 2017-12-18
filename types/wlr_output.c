@@ -301,6 +301,8 @@ void wlr_output_destroy(struct wlr_output *output) {
 	} else {
 		free(output);
 	}
+
+	wl_list_remove(&output->display_destroy.link);
 }
 
 void wlr_output_effective_resolution(struct wlr_output *output,

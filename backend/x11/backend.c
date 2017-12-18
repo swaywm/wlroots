@@ -244,6 +244,17 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	struct wlr_x11_output *output = &x11->output;
 	wlr_output_destroy(&output->wlr_output);
 
+	wl_signal_emit(&backend->events.input_remove, &x11->pointer_dev);
+	wl_signal_emit(&backend->events.input_remove, &x11->keyboard_dev);
+	// TODO probably need to use wlr_keyboard_destroy, but the devices need to
+	// be malloced for that to work
+	if (x11->keyboard_dev.keyboard->keymap) {
+		xkb_keymap_unref(x11->keyboard_dev.keyboard->keymap);
+	}
+	if (x11->keyboard_dev.keyboard->xkb_state) {
+		xkb_state_unref(x11->keyboard_dev.keyboard->xkb_state);
+	}
+
 	wl_list_remove(&x11->display_destroy.link);
 
 	wl_event_source_remove(x11->frame_timer);
