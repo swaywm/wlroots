@@ -47,6 +47,7 @@ struct wlr_output {
 	char serial[16];
 	float scale;
 	int32_t width, height;
+	int32_t refresh; // mHz
 	int32_t phys_width, phys_height; // mm
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;

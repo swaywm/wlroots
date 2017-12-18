@@ -452,8 +452,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 		crtc->cursor ? crtc->cursor - drm->cursor_planes : -1);
 
 	conn->state = WLR_DRM_CONN_CONNECTED;
-	conn->output.current_mode = mode;
-	wlr_output_update_size(&conn->output, mode->width, mode->height);
+	wlr_output_update_mode(&conn->output, mode);
 
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
 	// we actually need to reinitalise any than has changed

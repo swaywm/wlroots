@@ -32,7 +32,7 @@ static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
-	wlr_output_update_size(&output->wlr_output, width, height);
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 	return true;
 }
 
@@ -229,7 +229,7 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	}
 	// loop over states for maximized etc?
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
-	wlr_output_update_size(&output->wlr_output, width, height);
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 }
 
 static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_toplevel) {
@@ -260,7 +260,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	wlr_output_update_size(wlr_output, 1280, 720);
+	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d",

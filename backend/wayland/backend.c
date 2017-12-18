@@ -185,7 +185,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	}
 
 	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
-		WL_SHM_FORMAT_ARGB8888, backend->remote_display);
+		backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
 	backend->local_display_destroy.notify = handle_display_destroy;
