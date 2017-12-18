@@ -364,6 +364,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	}
 
 	wlr_keyboard_set_keymap(device->keyboard, keymap);
+	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 
 	int repeat_rate = (config->repeat_rate > 0) ? config->repeat_rate : 25;

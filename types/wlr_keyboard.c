@@ -118,7 +118,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 		wl_list_remove(&kb->events.key.listener_list);
 	}
 	xkb_state_unref(kb->xkb_state);
-	xkb_map_unref(kb->keymap);
+	xkb_keymap_unref(kb->keymap);
 	close(kb->keymap_fd);
 	free(kb);
 }
@@ -136,6 +136,11 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	}
 	xkb_keymap_ref(keymap);
 	kb->keymap = keymap;
+
+	if (kb->xkb_state) {
+		xkb_state_unref(kb->xkb_state);
+	}
+
 	kb->xkb_state = xkb_state_new(kb->keymap);
 	if (kb->xkb_state == NULL) {
 		wlr_log(L_ERROR, "Failed to create XKB state");
