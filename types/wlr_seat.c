@@ -710,8 +710,11 @@ static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
 	struct wlr_seat_keyboard_state *state =
 		wl_container_of(listener, state, keyboard_keymap);
 	struct wlr_seat_client *client;
-	wl_list_for_each(client, &state->seat->clients, link) {
-		seat_client_send_keymap(client, state->keyboard);
+	struct wlr_keyboard *keyboard = data;
+	if (keyboard == state->keyboard) {
+		wl_list_for_each(client, &state->seat->clients, link) {
+			seat_client_send_keymap(client, state->keyboard);
+		}
 	}
 }
 
@@ -736,7 +739,8 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 	// TODO call this on device key event before the event reaches the
 	// compositor and set a pending keyboard and then send the new keyboard
 	// state on the next keyboard notify event.
-	if (seat->keyboard_state.keyboard == device->keyboard) {
+	struct wlr_keyboard *keyboard = (device ? device->keyboard : NULL);
+	if (seat->keyboard_state.keyboard == keyboard) {
 		return;
 	}
 
@@ -747,7 +751,7 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 		seat->keyboard_state.keyboard = NULL;
 	}
 
-	if (device) {
+	if (keyboard) {
 		assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
 
 		wl_signal_add(&device->events.destroy,
@@ -767,8 +771,9 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 			seat_client_send_repeat_info(client, device->keyboard);
 		}
 
-		seat->keyboard_state.keyboard = device->keyboard;
 	}
+
+	seat->keyboard_state.keyboard = keyboard;
 }
 
 void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,

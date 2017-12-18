@@ -133,7 +133,11 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
 	wlr_log(L_DEBUG, "Keymap set");
+	if (kb->keymap) {
+		xkb_keymap_unref(kb->keymap);
+	}
 	kb->keymap = keymap;
+	xkb_keymap_ref(keymap);
 	assert(kb->xkb_state = xkb_state_new(kb->keymap));
 
 	const char *led_names[WLR_LED_COUNT] = {
@@ -163,9 +167,18 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	char *keymap_str = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
 	kb->keymap_size = strlen(keymap_str) + 1;
+	if (kb->keymap_fd) {
+		close(kb->keymap_fd);
+	}
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
+	if (kb->keymap_fd < 0) {
+		wlr_log(L_ERROR, "creating a keymap file for %lu bytes failed", kb->keymap_size);
+	}
 	void *ptr = mmap(NULL, kb->keymap_size,
 		PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);
+	if (ptr == (void*)-1) {
+		wlr_log(L_ERROR, "failed to mmap() %lu bytes", kb->keymap_size);
+	}
 	strcpy(ptr, keymap_str);
 	free(keymap_str);
 
