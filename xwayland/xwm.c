@@ -44,6 +44,13 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE_MAXIMIZED_VERT",
 	"_NET_WM_STATE_MAXIMIZED_HORZ",
 	"WM_STATE",
+	"CLIPBOARD",
+	"_WL_SELECTION",
+	"TARGETS",
+	"CLIPBOARD_MANAGER",
+	"INCR",
+	"TEXT",
+	"TIMESTAMP",
 };
 
 /* General helpers */
@@ -944,6 +951,11 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			break;
 		}
 
+		if (xwm_handle_selection_event(xwm, event)) {
+			free(event);
+			continue;
+		}
+
 		switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 		case XCB_CREATE_NOTIFY:
 			xwm_handle_create_notify(xwm, (xcb_create_notify_event_t *)event);
@@ -1078,6 +1090,9 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
+	if (xwm->selection_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
+	}
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
@@ -1115,15 +1130,12 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 			xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
 	}
 	for (i = 0; i < ATOM_LAST; i++) {
-		xcb_intern_atom_reply_t *reply;
 		xcb_generic_error_t *error;
-
-		reply = xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
-
+		xcb_intern_atom_reply_t *reply =
+			xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
 		if (reply && !error) {
 			xwm->atoms[i] = reply->atom;
 		}
-
 		free(reply);
 
 		if (error) {
@@ -1374,6 +1386,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xcb_flush(xwm->xcb_conn);
 
 	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+
+	xwm_selection_init(xwm);
 
 	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,

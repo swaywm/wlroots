@@ -31,6 +31,13 @@ enum atom_name {
 	_NET_WM_STATE_MAXIMIZED_VERT,
 	_NET_WM_STATE_MAXIMIZED_HORZ,
 	WM_STATE,
+	CLIPBOARD,
+	WL_SELECTION,
+	TARGETS,
+	CLIPBOARD_MANAGER,
+	INCR,
+	TEXT,
+	TIMESTAMP,
 	ATOM_LAST,
 };
 
@@ -45,6 +52,7 @@ enum net_wm_state_action {
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
+	struct wlr_seat *seat;
 
 	xcb_atom_t atoms[ATOM_LAST];
 	xcb_connection_t *xcb_conn;
@@ -55,6 +63,21 @@ struct wlr_xwm {
 	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
+	// selection properties
+	xcb_window_t selection_window;
+	xcb_selection_request_event_t selection_request;
+	xcb_window_t selection_owner;
+	xcb_timestamp_t selection_timestamp;
+	int incr;
+	int data_source_fd;
+	int property_start;
+	xcb_get_property_reply_t *property_reply;
+	struct wl_event_source *property_source;
+	int flush_property_on_delete;
+	struct wl_array source_data;
+	xcb_atom_t selection_target;
+	bool selection_property_set;
+
 	struct wlr_xwayland_surface *focus_surface;
 
 	struct wl_list surfaces; // wlr_xwayland_surface::link
@@ -63,6 +86,7 @@ struct wlr_xwm {
 	const xcb_query_extension_reply_t *xfixes;
 
 	struct wl_listener compositor_surface_create;
+	struct wl_listener seat_selection_change;
 };
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
@@ -71,5 +95,11 @@ void xwm_destroy(struct wlr_xwm *xwm);
 
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
+
+int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
+
+void xwm_selection_init(struct wlr_xwm *xwm);
+
+void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
 #endif

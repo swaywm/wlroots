@@ -218,6 +218,10 @@ static int xserver_handle_ready(int signal_number, void *data) {
 		return 1;
 	}
 
+	if (wlr_xwayland->seat) {
+		xwm_set_seat(wlr_xwayland->xwm, wlr_xwayland->seat);
+	}
+
 	wl_event_source_remove(wlr_xwayland->sigusr1_source);
 	wlr_xwayland->sigusr1_source = NULL;
 
@@ -367,4 +371,13 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->cursor->height = height;
 	wlr_xwayland->cursor->hotspot_x = hotspot_x;
 	wlr_xwayland->cursor->hotspot_y = hotspot_y;
+}
+
+void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
+		struct wlr_seat *seat) {
+	xwayland->seat = seat;
+
+	if (xwayland->xwm) {
+		xwm_set_seat(xwayland->xwm, seat);
+	}
 }

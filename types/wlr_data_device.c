@@ -350,11 +350,11 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *dd_resource, struct wl_resource *source_resource,
 		uint32_t serial) {
-	if (!source_resource) {
-		return;
+	struct wlr_data_source *source = NULL;
+	if (source_resource != NULL) {
+		source = wl_resource_get_user_data(source_resource);
 	}
 
-	struct wlr_data_source *source = wl_resource_get_user_data(source_resource);
 	struct wlr_seat_client *seat_client =
 		wl_resource_get_user_data(dd_resource);
 

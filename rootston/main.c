@@ -60,6 +60,9 @@ int main(int argc, char **argv) {
 	ready(NULL, NULL);
 #else
 	if (server.desktop->xwayland != NULL) {
+		struct roots_seat *xwayland_seat =
+			input_get_seat(server.input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
+		wlr_xwayland_set_seat(server.desktop->xwayland, xwayland_seat->seat);
 		wl_signal_add(&server.desktop->xwayland->events.ready,
 			&server.desktop->xwayland_ready);
 		server.desktop->xwayland_ready.notify = ready;
