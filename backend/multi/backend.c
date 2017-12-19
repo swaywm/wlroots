@@ -118,11 +118,27 @@ static void handle_subbackend_destroy(struct wl_listener *listener,
 	subbackend_state_destroy(state);
 }
 
+static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_backend *multi,
+		struct wlr_backend *backend) {
+	struct subbackend_state *sub = NULL;
+	wl_list_for_each(sub, &multi->backends, link) {
+		if (sub->backend == backend) {
+			return sub;
+		}
+	}
+	return NULL;
+}
+
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
 	assert(wlr_backend_is_multi(_multi));
-
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+
+	if (multi_backend_get_subbackend(multi, backend)) {
+		// already added
+		return;
+	}
+
 	struct subbackend_state *sub;
 	if (!(sub = calloc(1, sizeof(struct subbackend_state)))) {
 		wlr_log(L_ERROR, "Could not add backend: allocation failed");
@@ -147,6 +163,19 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
 	sub->output_remove.notify = output_remove_reemit;
+}
+
+void wlr_multi_backend_remove(struct wlr_backend *_multi,
+		struct wlr_backend *backend) {
+	assert(wlr_backend_is_multi(_multi));
+	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+
+	struct subbackend_state *sub =
+		multi_backend_get_subbackend(multi, backend);
+
+	if (sub) {
+		subbackend_state_destroy(sub);
+	}
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
