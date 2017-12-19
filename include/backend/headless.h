@@ -3,7 +3,6 @@
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/headless.h>
-#include <wlr/types/wlr_output.h>
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
