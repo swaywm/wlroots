@@ -4,6 +4,7 @@
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wlr/backend.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_output.h>
 #include <stdbool.h>
 
@@ -25,6 +26,11 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *backend);
  * True if the given backend is a wlr_wl_backend.
  */
 bool wlr_backend_is_wl(struct wlr_backend *backend);
+
+/**
+ * True if the given input device is a wlr_wl_input_device.
+ */
+bool wlr_input_device_is_wl(struct wlr_input_device *device);
 
 /**
  * True if the given output is a wlr_wl_backend_output.
