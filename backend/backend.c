@@ -93,7 +93,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		return NULL;
 	}
 
-	backend = wlr_multi_backend_create(display, session);
+	backend = wlr_multi_backend_create(display);
 	if (!backend) {
 		goto error_session;
 	}

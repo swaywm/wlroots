@@ -5,6 +5,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
+#include "backend/drm/drm.h"
 
 struct subbackend_state {
 	struct wlr_backend *backend;
@@ -57,14 +58,7 @@ struct wlr_backend_impl backend_impl = {
 	.get_egl = multi_backend_get_egl,
 };
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_multi_backend *backend =
-		wl_container_of(listener, backend, display_destroy);
-	multi_backend_destroy(&backend->backend);
-}
-
-struct wlr_backend *wlr_multi_backend_create(struct wl_display *display,
-		struct wlr_session *session) {
+struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
 	if (!backend) {
@@ -72,12 +66,8 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	backend->session = session;
 	wl_list_init(&backend->backends);
 	wlr_backend_init(&backend->backend, &backend_impl);
-
-	session->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &session->display_destroy);
 
 	return &backend->backend;
 }
@@ -140,5 +130,11 @@ struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_multi(_backend));
 
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	return backend->session;
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
+		if (wlr_backend_is_drm(sub->backend)) {
+			return wlr_drm_backend_get_session(sub->backend);
+		}
+	}
+	return NULL;
 }
