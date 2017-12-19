@@ -73,7 +73,6 @@ int main(int argc, char **argv) {
 #endif
 
 	wl_display_run(server.wl_display);
-	wlr_backend_destroy(server.backend);
 	wl_display_destroy(server.wl_display);
 	return 0;
 }
