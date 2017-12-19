@@ -401,3 +401,7 @@ static struct wlr_output_impl output_impl = {
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
 };
+
+bool wlr_output_is_x11(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
