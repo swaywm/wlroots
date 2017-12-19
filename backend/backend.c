@@ -18,6 +18,7 @@ void wlr_backend_init(struct wlr_backend *backend,
 		const struct wlr_backend_impl *impl) {
 	assert(backend);
 	backend->impl = impl;
+	wl_signal_init(&backend->events.destroy);
 	wl_signal_init(&backend->events.input_add);
 	wl_signal_init(&backend->events.input_remove);
 	wl_signal_init(&backend->events.output_add);
@@ -32,6 +33,7 @@ bool wlr_backend_start(struct wlr_backend *backend) {
 }
 
 void wlr_backend_destroy(struct wlr_backend *backend) {
+	wl_signal_emit(&backend->events.destroy, backend);
 	if (backend->impl && backend->impl->destroy) {
 		backend->impl->destroy(backend);
 	} else {
