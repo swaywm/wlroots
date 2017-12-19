@@ -10,5 +10,6 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *backend,
 struct wlr_input_device *wlr_headless_add_input_device(
 	struct wlr_backend *backend, enum wlr_input_device_type type);
 bool wlr_backend_is_headless(struct wlr_backend *backend);
+bool wlr_input_device_is_headless(struct wlr_input_device *device);
 
 #endif
