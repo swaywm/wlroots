@@ -14,6 +14,7 @@ struct subbackend_state {
 	struct wl_listener input_remove;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
+	struct wl_listener backend_destroy;
 	struct wl_list link;
 };
 
@@ -29,13 +30,23 @@ static bool multi_backend_start(struct wlr_backend *wlr_backend) {
 	return true;
 }
 
+static void subbackend_state_destroy(struct subbackend_state *sub) {
+	wl_list_remove(&sub->input_add.link);
+	wl_list_remove(&sub->input_remove.link);
+	wl_list_remove(&sub->output_add.link);
+	wl_list_remove(&sub->output_remove.link);
+	wl_list_remove(&sub->backend_destroy.link);
+	wl_list_remove(&sub->link);
+	free(sub);
+}
+
 static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
 	wl_list_remove(&backend->display_destroy.link);
 	struct subbackend_state *sub, *next;
 	wl_list_for_each_safe(sub, next, &backend->backends, link) {
+		// XXX do we really want to take ownership over added backends?
 		wlr_backend_destroy(sub->backend);
-		free(sub);
 	}
 	free(backend);
 }
@@ -100,6 +111,13 @@ static void output_remove_reemit(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&state->container->events.output_remove, data);
 }
 
+static void handle_subbackend_destroy(struct wl_listener *listener,
+		void *data) {
+	struct subbackend_state *state = wl_container_of(listener,
+			state, backend_destroy);
+	subbackend_state_destroy(state);
+}
+
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
 	assert(wlr_backend_is_multi(_multi));
@@ -115,15 +133,20 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
-	sub->input_add.notify = input_add_reemit;
-	sub->input_remove.notify = input_remove_reemit;
-	sub->output_add.notify = output_add_reemit;
-	sub->output_remove.notify = output_remove_reemit;
+	wl_signal_add(&backend->events.destroy, &sub->backend_destroy);
+	sub->backend_destroy.notify = handle_subbackend_destroy;
 
 	wl_signal_add(&backend->events.input_add, &sub->input_add);
+	sub->input_add.notify = input_add_reemit;
+
 	wl_signal_add(&backend->events.input_remove, &sub->input_remove);
+	sub->input_remove.notify = input_remove_reemit;
+
 	wl_signal_add(&backend->events.output_add, &sub->output_add);
+	sub->output_add.notify = output_add_reemit;
+
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
+	sub->output_remove.notify = output_remove_reemit;
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
