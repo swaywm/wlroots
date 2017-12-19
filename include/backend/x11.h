@@ -6,8 +6,6 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
 #include <wlr/render/egl.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_input_device.h>
 
 struct wlr_x11_backend;
 

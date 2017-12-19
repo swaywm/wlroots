@@ -82,6 +82,10 @@ static const struct wlr_output_impl output_impl = {
 	.swap_buffers = output_swap_buffers,
 };
 
+bool wlr_output_is_headless(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
+
 static int signal_frame(void *data) {
 	struct wlr_headless_output *output = data;
 	wl_signal_emit(&output->wlr_output.events.frame, &output->wlr_output);

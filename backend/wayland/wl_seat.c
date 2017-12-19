@@ -203,6 +203,10 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy
 };
 
+bool wlr_input_device_is_wl(struct wlr_input_device *dev) {
+	return dev->impl == &input_device_impl;
+}
+
 static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 		enum wlr_input_device_type type) {
 	struct wlr_wl_input_device *wlr_wl_dev;

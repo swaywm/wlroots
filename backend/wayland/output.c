@@ -205,6 +205,10 @@ static struct wlr_output_impl output_impl = {
 	.move_cursor = wlr_wl_output_move_cursor,
 };
 
+bool wlr_output_is_wl(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
+
 static void xdg_surface_handle_configure(void *data, struct zxdg_surface_v6 *xdg_surface,
 		uint32_t serial) {
 	struct wlr_wl_backend_output *output = data;

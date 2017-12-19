@@ -19,6 +19,10 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy,
 };
 
+bool wlr_input_device_is_headless(struct wlr_input_device *wlr_dev) {
+	return wlr_dev->impl == &input_device_impl;
+}
+
 struct wlr_input_device *wlr_headless_add_input_device(
 		struct wlr_backend *wlr_backend, enum wlr_input_device_type type) {
 	struct wlr_headless_backend *backend =

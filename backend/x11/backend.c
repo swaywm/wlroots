@@ -25,6 +25,7 @@
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;
+static struct wlr_input_device_impl input_device_impl = { 0 };
 
 static uint32_t xcb_button_to_wl(uint32_t button) {
 	switch (button) {
@@ -328,12 +329,12 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
-		NULL, "X11 keyboard", 0, 0);
+		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, NULL);
 	x11->keyboard_dev.keyboard = &x11->keyboard;
 
 	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
-		NULL, "X11 pointer", 0, 0);
+		&input_device_impl, "X11 pointer", 0, 0);
 	wlr_pointer_init(&x11->pointer, NULL);
 	x11->pointer_dev.pointer = &x11->pointer;
 
@@ -401,3 +402,11 @@ static struct wlr_output_impl output_impl = {
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
 };
+
+bool wlr_output_is_x11(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
+
+bool wlr_input_device_is_x11(struct wlr_input_device *wlr_dev) {
+	return wlr_dev->impl == &input_device_impl;
+}

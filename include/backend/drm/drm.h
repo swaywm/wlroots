@@ -12,7 +12,6 @@
 
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/render/egl.h>
 
 #include "iface.h"
