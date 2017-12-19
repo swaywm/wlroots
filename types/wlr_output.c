@@ -86,12 +86,13 @@ static void wl_output_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void wl_output_release(struct wl_client *client, struct wl_resource *resource) {
-	wl_output_destroy(resource);
+static void wl_output_release(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
 }
 
 static struct wl_output_interface wl_output_impl = {
-	.release = wl_output_release
+	.release = wl_output_release,
 };
 
 static void wl_output_bind(struct wl_client *wl_client, void *data,
@@ -140,8 +141,7 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	wl_list_remove(&wlr_output->display_destroy.link);
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &wlr_output->wl_resources) {
-		struct wl_list *link = wl_resource_get_link(resource);
-		wl_list_remove(link);
+		wl_resource_destroy(resource);
 	}
 	wl_global_destroy(wlr_output->wl_global);
 	wlr_output->wl_global = NULL;
@@ -289,6 +289,8 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
+	wlr_output_destroy_global(output);
+
 	wl_signal_emit(&output->events.destroy, output);
 
 	struct wlr_output_mode *mode, *tmp_mode;
@@ -296,8 +298,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_list_remove(&mode->link);
 		free(mode);
 	}
-
-	wl_list_remove(&output->display_destroy.link);
 
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
@@ -521,9 +521,9 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
 
-	if (cursor->output->hardware_cursor == NULL &&
-			cursor->output->impl->set_cursor) {
-		if (cursor->output->impl->move_cursor) {
+	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
+	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
+		if (cursor->output->impl->move_cursor && hwcur != cursor) {
 			cursor->output->impl->move_cursor(cursor->output,
 				(int)cursor->x, (int)cursor->y);
 		}
