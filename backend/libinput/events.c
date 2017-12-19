@@ -53,6 +53,10 @@ static struct wlr_input_device *allocate_device(
 	return wlr_dev;
 }
 
+bool wlr_input_device_is_libinput(struct wlr_input_device *wlr_dev) {
+        return wlr_dev->impl == &input_device_impl;
+}
+
 static void handle_device_added(struct wlr_libinput_backend *backend,
 		struct libinput_device *libinput_dev) {
 	assert(backend && libinput_dev);
