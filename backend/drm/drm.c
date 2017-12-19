@@ -658,6 +658,10 @@ static struct wlr_output_impl output_impl = {
 	.get_gamma_size = wlr_drm_connector_get_gamma_size,
 };
 
+bool wlr_output_is_drm(struct wlr_output *output) {
+	return output->impl == &output_impl;
+}
+
 static int retry_pageflip(void *data) {
 	struct wlr_drm_connector *conn = data;
 	wlr_log(L_INFO, "%s: Retrying pageflip", conn->output.name);
