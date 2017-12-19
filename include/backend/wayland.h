@@ -8,7 +8,6 @@
 #include <wlr/render/egl.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-util.h>
 
