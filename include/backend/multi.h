@@ -10,6 +10,11 @@ struct wlr_multi_backend {
 	struct wlr_backend backend;
 
 	struct wl_list backends;
+
+	struct {
+		struct wl_signal backend_add;
+		struct wl_signal backend_remove;
+	} events;
 };
 
 #endif

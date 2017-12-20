@@ -79,6 +79,9 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	wl_list_init(&backend->backends);
 	wlr_backend_init(&backend->backend, &backend_impl);
 
+	wl_signal_init(&backend->events.backend_add);
+	wl_signal_init(&backend->events.backend_remove);
+
 	return &backend->backend;
 }
 
@@ -162,6 +165,8 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
 	sub->output_remove.notify = output_remove_reemit;
+
+	wl_signal_emit(&multi->events.backend_add, backend);
 }
 
 void wlr_multi_backend_remove(struct wlr_backend *_multi,
@@ -173,6 +178,7 @@ void wlr_multi_backend_remove(struct wlr_backend *_multi,
 		multi_backend_get_subbackend(multi, backend);
 
 	if (sub) {
+		wl_signal_emit(&multi->events.backend_remove, backend);
 		subbackend_state_destroy(sub);
 	}
 }
