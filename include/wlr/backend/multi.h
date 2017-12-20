@@ -16,4 +16,6 @@ bool wlr_backend_is_multi(struct wlr_backend *backend);
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *base);
 
+bool wlr_multi_is_empty(struct wlr_backend *backend);
+
 #endif

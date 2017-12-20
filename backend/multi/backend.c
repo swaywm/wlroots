@@ -42,7 +42,6 @@ static void subbackend_state_destroy(struct subbackend_state *sub) {
 
 static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
-	wl_list_remove(&backend->display_destroy.link);
 	struct subbackend_state *sub, *next;
 	wl_list_for_each_safe(sub, next, &backend->backends, link) {
 		// XXX do we really want to take ownership over added backends?
@@ -189,4 +188,10 @@ struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
 		}
 	}
 	return NULL;
+}
+
+bool wlr_multi_is_empty(struct wlr_backend *_backend) {
+	assert(wlr_backend_is_multi(_backend));
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	return wl_list_length(&backend->backends) < 1;
 }
