@@ -44,7 +44,6 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
 	struct subbackend_state *sub, *next;
 	wl_list_for_each_safe(sub, next, &backend->backends, link) {
-		// XXX do we really want to take ownership over added backends?
 		wlr_backend_destroy(sub->backend);
 	}
 	free(backend);
@@ -68,6 +67,12 @@ struct wlr_backend_impl backend_impl = {
 	.get_egl = multi_backend_get_egl,
 };
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_multi_backend *backend =
+		wl_container_of(listener, backend, display_destroy);
+	multi_backend_destroy((struct wlr_backend*)backend);
+}
+
 struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
@@ -81,6 +86,9 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 
 	wl_signal_init(&backend->events.backend_add);
 	wl_signal_init(&backend->events.backend_remove);
+
+	backend->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
 }

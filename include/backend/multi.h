@@ -11,6 +11,8 @@ struct wlr_multi_backend {
 
 	struct wl_list backends;
 
+	struct wl_listener display_destroy;
+
 	struct {
 		struct wl_signal backend_add;
 		struct wl_signal backend_remove;
