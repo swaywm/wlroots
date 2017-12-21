@@ -96,15 +96,13 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_session *session = wlr_session_create(display);
 	if (!session) {
 		wlr_log(L_ERROR, "Failed to start a DRM session");
-		return backend;
+		goto out;
 	}
 
 	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session);
-	if (!libinput) {
-		goto error_multi;
+	if (libinput) {
+		wlr_multi_backend_add(backend, libinput);
 	}
-
-	wlr_multi_backend_add(backend, libinput);
 
 	int gpus[8];
 	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
@@ -128,14 +126,14 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	if (!primary_drm) {
 		wlr_log(L_ERROR, "Failed to open any DRM device");
-		goto error_multi;
 	}
 
-	return backend;
+out:
+	if (wlr_multi_is_empty(backend)) {
+		wlr_backend_destroy(backend);
+		return NULL;
+	}
 
-error_multi:
-	wlr_backend_destroy(backend);
-	wlr_session_destroy(session);
 	return backend;
 }
 
