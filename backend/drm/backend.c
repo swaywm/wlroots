@@ -174,3 +174,8 @@ error_fd:
 	free(drm);
 	return NULL;
 }
+
+struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	return drm->session;
+}

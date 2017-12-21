@@ -5,6 +5,7 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/headless.h>
+#include <wlr/backend/multi.h>
 #include <wlr/render.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
@@ -30,7 +31,13 @@ int main(int argc, char **argv) {
 	assert(server.wl_display = wl_display_create());
 	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
 
-	assert(server.backend = wlr_backend_autocreate(server.wl_display));
+	server.backend = wlr_backend_autocreate(server.wl_display);
+
+	if (server.backend == NULL) {
+		wlr_log(L_ERROR, "could not start backend");
+		wlr_backend_destroy(server.backend);
+		return 1;
+	}
 
 	assert(server.renderer = wlr_gles2_renderer_create(server.backend));
 	server.data_device_manager =

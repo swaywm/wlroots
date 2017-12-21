@@ -5,6 +5,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
+#include "backend/drm/drm.h"
 
 struct subbackend_state {
 	struct wlr_backend *backend;
@@ -13,6 +14,7 @@ struct subbackend_state {
 	struct wl_listener input_remove;
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
+	struct wl_listener backend_destroy;
 	struct wl_list link;
 };
 
@@ -28,13 +30,21 @@ static bool multi_backend_start(struct wlr_backend *wlr_backend) {
 	return true;
 }
 
+static void subbackend_state_destroy(struct subbackend_state *sub) {
+	wl_list_remove(&sub->input_add.link);
+	wl_list_remove(&sub->input_remove.link);
+	wl_list_remove(&sub->output_add.link);
+	wl_list_remove(&sub->output_remove.link);
+	wl_list_remove(&sub->backend_destroy.link);
+	wl_list_remove(&sub->link);
+	free(sub);
+}
+
 static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
-	wl_list_remove(&backend->display_destroy.link);
 	struct subbackend_state *sub, *next;
 	wl_list_for_each_safe(sub, next, &backend->backends, link) {
 		wlr_backend_destroy(sub->backend);
-		free(sub);
 	}
 	free(backend);
 }
@@ -60,11 +70,10 @@ struct wlr_backend_impl backend_impl = {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_multi_backend *backend =
 		wl_container_of(listener, backend, display_destroy);
-	multi_backend_destroy(&backend->backend);
+	multi_backend_destroy((struct wlr_backend*)backend);
 }
 
-struct wlr_backend *wlr_multi_backend_create(struct wl_display *display,
-		struct wlr_session *session) {
+struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
 	if (!backend) {
@@ -72,12 +81,14 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	backend->session = session;
 	wl_list_init(&backend->backends);
 	wlr_backend_init(&backend->backend, &backend_impl);
 
-	session->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &session->display_destroy);
+	wl_signal_init(&backend->events.backend_add);
+	wl_signal_init(&backend->events.backend_remove);
+
+	backend->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
 }
@@ -110,11 +121,34 @@ static void output_remove_reemit(struct wl_listener *listener, void *data) {
 	wl_signal_emit(&state->container->events.output_remove, data);
 }
 
+static void handle_subbackend_destroy(struct wl_listener *listener,
+		void *data) {
+	struct subbackend_state *state = wl_container_of(listener,
+			state, backend_destroy);
+	subbackend_state_destroy(state);
+}
+
+static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_backend *multi,
+		struct wlr_backend *backend) {
+	struct subbackend_state *sub = NULL;
+	wl_list_for_each(sub, &multi->backends, link) {
+		if (sub->backend == backend) {
+			return sub;
+		}
+	}
+	return NULL;
+}
+
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
 	assert(wlr_backend_is_multi(_multi));
-
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+
+	if (multi_backend_get_subbackend(multi, backend)) {
+		// already added
+		return;
+	}
+
 	struct subbackend_state *sub;
 	if (!(sub = calloc(1, sizeof(struct subbackend_state)))) {
 		wlr_log(L_ERROR, "Could not add backend: allocation failed");
@@ -125,20 +159,53 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
-	sub->input_add.notify = input_add_reemit;
-	sub->input_remove.notify = input_remove_reemit;
-	sub->output_add.notify = output_add_reemit;
-	sub->output_remove.notify = output_remove_reemit;
+	wl_signal_add(&backend->events.destroy, &sub->backend_destroy);
+	sub->backend_destroy.notify = handle_subbackend_destroy;
 
 	wl_signal_add(&backend->events.input_add, &sub->input_add);
+	sub->input_add.notify = input_add_reemit;
+
 	wl_signal_add(&backend->events.input_remove, &sub->input_remove);
+	sub->input_remove.notify = input_remove_reemit;
+
 	wl_signal_add(&backend->events.output_add, &sub->output_add);
+	sub->output_add.notify = output_add_reemit;
+
 	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
+	sub->output_remove.notify = output_remove_reemit;
+
+	wl_signal_emit(&multi->events.backend_add, backend);
+}
+
+void wlr_multi_backend_remove(struct wlr_backend *_multi,
+		struct wlr_backend *backend) {
+	assert(wlr_backend_is_multi(_multi));
+	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+
+	struct subbackend_state *sub =
+		multi_backend_get_subbackend(multi, backend);
+
+	if (sub) {
+		wl_signal_emit(&multi->events.backend_remove, backend);
+		subbackend_state_destroy(sub);
+	}
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_multi(_backend));
 
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
-	return backend->session;
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
+		if (wlr_backend_is_drm(sub->backend)) {
+			return wlr_drm_backend_get_session(sub->backend);
+		}
+	}
+	return NULL;
+}
+
+bool wlr_multi_is_empty(struct wlr_backend *_backend) {
+	assert(wlr_backend_is_multi(_backend));
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	return wl_list_length(&backend->backends) < 1;
 }

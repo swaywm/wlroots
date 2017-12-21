@@ -143,4 +143,6 @@ int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
 
+struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend);
+
 #endif
