@@ -166,6 +166,13 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 		return;
 	}
+	if (state == WLR_BUTTON_RELEASED &&
+			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		if (seat->seat->pointer_state.button_count == 0) {
+			return;
+		}
+	}
 
 	uint32_t serial;
 	if (is_touch) {
@@ -178,7 +185,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
-		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		if (!is_touch) {
 			roots_cursor_update_position(cursor, time);
 		}
