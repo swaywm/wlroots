@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_list.h>
 #include "rootston/view.h"
@@ -41,6 +42,7 @@ struct roots_desktop {
 	struct wlr_gamma_control_manager *gamma_control_manager;
 	struct wlr_screenshooter *screenshooter;
 	struct wlr_server_decoration_manager *server_decoration_manager;
+	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 
 	struct wl_listener output_add;
 	struct wl_listener output_remove;

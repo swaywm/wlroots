@@ -21,6 +21,7 @@ struct wlr_seat_client {
 	struct wl_list keyboards;
 	struct wl_list touches;
 	struct wl_list data_devices;
+	struct wl_list primary_selection_devices;
 
 	struct {
 		struct wl_signal destroy;
@@ -181,12 +182,16 @@ struct wlr_seat {
 	struct wlr_data_source *selection_source;
 	uint32_t selection_serial;
 
+	struct wlr_primary_selection_source *primary_selection_source;
+	uint32_t primary_selection_serial;
+
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
 	struct wlr_seat_touch_state touch_state;
 
 	struct wl_listener display_destroy;
 	struct wl_listener selection_data_source_destroy;
+	struct wl_listener primary_selection_source_destroy;
 
 	struct {
 		struct wl_signal pointer_grab_begin;
@@ -201,6 +206,7 @@ struct wlr_seat {
 		struct wl_signal request_set_cursor;
 
 		struct wl_signal selection;
+		struct wl_signal primary_selection;
 	} events;
 
 	void *data;
