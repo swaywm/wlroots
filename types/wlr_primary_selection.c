@@ -7,9 +7,6 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 
-static void client_source_accept(struct wlr_primary_selection_source *source,
-		uint32_t serial, const char *mime_type) {}
-
 static void client_source_send(struct wlr_primary_selection_source *source,
 		const char *mime_type, int32_t fd) {
 	gtk_primary_selection_source_send_send(source->resource, mime_type, fd);
@@ -24,7 +21,14 @@ static void client_source_cancel(
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {
-	// TODO
+	struct wlr_primary_selection_offer *offer =
+		wl_resource_get_user_data(resource);
+
+	if (offer->source && offer == offer->source->offer) {
+		offer->source->send(offer->source, mime_type, fd);
+	} else {
+		close(fd);
+	}
 }
 
 static void offer_handle_destroy(struct wl_client *client,
@@ -52,7 +56,7 @@ static void offer_resource_handle_destroy(struct wl_resource *resource) {
 	}
 
 	if (offer->source->resource) {
-		wl_data_source_send_cancelled(offer->source->resource);
+		gtk_primary_selection_source_send_cancelled(offer->source->resource);
 	}
 
 	offer->source->offer = NULL;
@@ -72,7 +76,7 @@ static void offer_handle_source_destroy(struct wl_listener *listener,
 static struct wlr_primary_selection_offer *source_send_offer(
 		struct wlr_primary_selection_source *source,
 		struct wlr_seat_client *target) {
-	if (wl_list_empty(&target->data_devices)) {
+	if (wl_list_empty(&target->primary_selection_devices)) {
 		return NULL;
 	}
 
@@ -83,9 +87,9 @@ static struct wlr_primary_selection_offer *source_send_offer(
 	}
 
 	uint32_t version = wl_resource_get_version(
-		wl_resource_from_link(target->data_devices.next));
+		wl_resource_from_link(target->primary_selection_devices.next));
 	offer->resource = wl_resource_create(target->client,
-		&wl_data_offer_interface, version, 0);
+		&gtk_primary_selection_offer_interface, version, 0);
 	if (offer->resource == NULL) {
 		free(offer);
 		return NULL;
@@ -97,18 +101,18 @@ static struct wlr_primary_selection_offer *source_send_offer(
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
 
 	struct wl_resource *target_resource;
-	wl_resource_for_each(target_resource, &target->data_devices) {
-		wl_data_device_send_data_offer(target_resource, offer->resource);
+	wl_resource_for_each(target_resource, &target->primary_selection_devices) {
+		gtk_primary_selection_device_send_data_offer(target_resource,
+			offer->resource);
 	}
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
-		wl_data_offer_send_offer(offer->resource, *p);
+		gtk_primary_selection_offer_send_offer(offer->resource, *p);
 	}
 
 	offer->source = source;
 	source->offer = offer;
-	source->accepted = false;
 
 	return offer;
 }
@@ -160,12 +164,12 @@ void wlr_seat_client_send_primary_selection(
 
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &seat_client->primary_selection_devices) {
-			wl_data_device_send_selection(resource, offer->resource);
+			gtk_primary_selection_device_send_selection(resource, offer->resource);
 		}
 	} else {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &seat_client->primary_selection_devices) {
-			wl_data_device_send_selection(resource, NULL);
+			gtk_primary_selection_device_send_selection(resource, NULL);
 		}
 	}
 }
@@ -179,7 +183,7 @@ static void seat_client_primary_selection_source_destroy(
 	if (seat_client && seat->keyboard_state.focused_surface) {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &seat_client->primary_selection_devices) {
-			wl_data_device_send_selection(resource, NULL);
+			gtk_primary_selection_device_send_selection(resource, NULL);
 		}
 	}
 
@@ -270,7 +274,6 @@ static void device_manager_handle_create_source(struct wl_client *client,
 	wl_resource_set_implementation(source->resource, &source_impl, source,
 		source_resource_handle_destroy);
 
-	source->accept = client_source_accept;
 	source->send = client_source_send;
 	source->cancel = client_source_cancel;
 

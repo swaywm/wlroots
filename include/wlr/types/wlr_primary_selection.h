@@ -20,10 +20,7 @@ struct wlr_primary_selection_source {
 	struct wlr_seat_client *seat_client;
 
 	struct wl_array mime_types;
-	bool accepted;
 
-	void (*accept)(struct wlr_primary_selection_source *source, uint32_t serial,
-		const char *mime_type);
 	void (*send)(struct wlr_primary_selection_source *source,
 		const char *mime_type, int32_t fd);
 	void (*cancel)(struct wlr_primary_selection_source *source);
@@ -40,6 +37,8 @@ struct wlr_primary_selection_offer {
 	struct wlr_primary_selection_source *source;
 
 	struct wl_listener source_destroy;
+
+	void *data;
 };
 
 struct wlr_primary_selection_device_manager *
