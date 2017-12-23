@@ -93,6 +93,8 @@ static int signal_frame(void *data) {
 	return 0;
 }
 
+static int current_output_id = 0;
+
 struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		unsigned int width, unsigned int height, char *name) {
 	struct wlr_headless_backend *backend =
@@ -122,7 +124,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		strncpy(wlr_output->name, name, sizeof(wlr_output->name));
 	} else {
 		snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",
-				wl_list_length(&backend->outputs) + 1);
+			current_output_id++);
 	}
 
 	if (!eglMakeCurrent(output->backend->egl.display,
