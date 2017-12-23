@@ -24,7 +24,7 @@ bool wlr_input_device_is_headless(struct wlr_input_device *wlr_dev) {
 }
 
 struct wlr_input_device *wlr_headless_add_input_device(
-		struct wlr_backend *wlr_backend, enum wlr_input_device_type type) {
+		struct wlr_backend *wlr_backend, enum wlr_input_device_type type, char *name) {
 	struct wlr_headless_backend *backend =
 		(struct wlr_headless_backend *)wlr_backend;
 
@@ -37,7 +37,9 @@ struct wlr_input_device *wlr_headless_add_input_device(
 
 	int vendor = 0;
 	int product = 0;
-	const char *name = "headless";
+	if (name == NULL) {
+		name = "headless";
+	}
 	struct wlr_input_device *wlr_device = &device->wlr_input_device;
 	wlr_input_device_init(wlr_device, type, &input_device_impl, name, vendor,
 		product);
