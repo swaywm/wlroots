@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -198,6 +199,9 @@ static void wlr_seat_client_resource_destroy(struct wl_resource *seat_resource) 
 	wl_resource_for_each_safe(resource, tmp, &client->data_devices) {
 		wl_resource_destroy(resource);
 	}
+	wl_resource_for_each_safe(resource, tmp, &client->primary_selection_devices) {
+		wl_resource_destroy(resource);
+	}
 
 	wl_list_remove(&client->link);
 	free(client);
@@ -234,6 +238,7 @@ static void wl_seat_bind(struct wl_client *client, void *_wlr_seat,
 	wl_list_init(&seat_client->keyboards);
 	wl_list_init(&seat_client->touches);
 	wl_list_init(&seat_client->data_devices);
+	wl_list_init(&seat_client->primary_selection_devices);
 	wl_resource_set_implementation(seat_client->wl_resource, &wl_seat_impl,
 		seat_client, wlr_seat_client_resource_destroy);
 	wl_list_insert(&wlr_seat->clients, &seat_client->link);
@@ -437,6 +442,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&wlr_seat->events.request_set_cursor);
 	wl_signal_init(&wlr_seat->events.selection);
+	wl_signal_init(&wlr_seat->events.primary_selection);
 
 	wl_signal_init(&wlr_seat->events.pointer_grab_begin);
 	wl_signal_init(&wlr_seat->events.pointer_grab_end);
@@ -882,6 +888,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		wl_array_release(&keys);
 
 		wlr_seat_client_send_selection(client);
+		wlr_seat_client_send_primary_selection(client);
 	}
 
 	// reinitialize the focus destroy events
