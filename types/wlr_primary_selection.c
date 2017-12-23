@@ -141,10 +141,18 @@ static const struct gtk_primary_selection_source_interface source_impl = {
 	.destroy = source_handle_destroy,
 };
 
-static void source_resource_handle_destroy( struct wl_resource *resource) {
+static void source_resource_handle_destroy(struct wl_resource *resource) {
 	struct wlr_primary_selection_source *source =
 		wl_resource_get_user_data(resource);
+
 	wl_signal_emit(&source->events.destroy, source);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		free(*p);
+	}
+	wl_array_release(&source->mime_types);
+
 	free(source);
 }
 
@@ -360,6 +368,7 @@ void wlr_primary_selection_device_manager_destroy(
 	if (manager == NULL) {
 		return;
 	}
+	wl_list_remove(&manager->display_destroy.link);
 	// TODO: free wl_resources
 	wl_global_destroy(manager->global);
 	free(manager);
