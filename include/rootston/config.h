@@ -21,6 +21,7 @@ struct roots_device_config {
 	char *name;
 	char *seat;
 	char *mapped_output;
+	bool tap_enabled;
 	struct wlr_box *mapped_box;
 	struct wl_list link;
 };
