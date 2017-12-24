@@ -1,5 +1,8 @@
+# Maintainer: Drew DeVault <sir@cmpwn.com>
+# Contributor: chrisaw <home@chrisaw.com>
+
 pkgname=wlroots
-pkgver=r600.d89272d
+pkgver=git
 pkgrel=1
 license=('MIT')
 pkgdesc='Wayland compositor library'
@@ -36,7 +39,7 @@ build() {
 		-Db_lto=True \
 		-Denable-systemd=True \
 		-Denable-elogind=False \
-		-Denable-libcap=False
+		-Denable-libcap=True
 
 	ninja -C build
 }
