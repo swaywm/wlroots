@@ -342,6 +342,16 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		} else if (strcmp(name, "seat") == 0) {
 			free(dc->seat);
 			dc->seat = strdup(value);
+		} else if (strcmp(name, "tap_enabled") == 0) {
+			if (strcasecmp(value, "true") == 0) {
+				dc->tap_enabled = true;
+			} else if (strcasecmp(value, "false") == 0) {
+				dc->tap_enabled = false;
+			} else {
+				wlr_log(L_ERROR,
+					"got unknown tap_enabled value: %s",
+					value);
+			}
 		} else {
 			wlr_log(L_ERROR, "got unknown device config: %s", name);
 		}

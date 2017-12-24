@@ -5,6 +5,7 @@
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <wlr/xwayland.h>
+#include <wlr/backend/libinput.h>
 #include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
@@ -60,6 +61,17 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 			device->vendor, device->product, device_type(device->type), seat_name);
 
 	roots_seat_add_device(seat, device);
+
+	if (dc && wlr_input_device_is_libinput(device)) {
+		struct libinput_device *libinput_dev =
+			wlr_libinput_get_device_handle(device);
+
+		wlr_log(L_DEBUG, "input has config, tap_enabled: %d\n", dc->tap_enabled);
+		if (dc->tap_enabled) {
+			libinput_device_config_tap_set_enabled(libinput_dev,
+					LIBINPUT_CONFIG_TAP_ENABLED);
+		}
+	}
 }
 
 static void input_remove_notify(struct wl_listener *listener, void *data) {
