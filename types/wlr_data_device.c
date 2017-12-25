@@ -927,6 +927,11 @@ static struct wl_data_source_interface data_source_impl = {
 	.set_actions = data_source_set_actions,
 };
 
+void wlr_data_source_init(struct wlr_data_source *source) {
+	wl_array_init(&source->mime_types);
+	wl_signal_init(&source->events.destroy);
+}
+
 static void data_device_manager_create_data_source(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_data_source *source = calloc(1, sizeof(struct wlr_data_source));
@@ -934,25 +939,21 @@ static void data_device_manager_create_data_source(struct wl_client *client,
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+	wlr_data_source_init(source);
 
-	source->resource =
-		wl_resource_create(client, &wl_data_source_interface,
-			wl_resource_get_version(resource), id);
+	source->resource = wl_resource_create(client, &wl_data_source_interface,
+		wl_resource_get_version(resource), id);
 	if (source->resource == NULL) {
 		free(source);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+	wl_resource_set_implementation(source->resource, &data_source_impl,
+		source, data_source_resource_destroy);
 
 	source->accept = client_data_source_accept;
 	source->send = client_data_source_send;
 	source->cancel = client_data_source_cancel;
-
-	wl_array_init(&source->mime_types);
-	wl_signal_init(&source->events.destroy);
-
-	wl_resource_set_implementation(source->resource, &data_source_impl,
-		source, data_source_resource_destroy);
 }
 
 static const struct wl_data_device_manager_interface

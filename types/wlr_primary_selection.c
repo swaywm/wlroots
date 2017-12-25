@@ -262,6 +262,12 @@ static void device_resource_handle_destroy(struct wl_resource *resource) {
 }
 
 
+void wlr_primary_selection_source_init(
+		struct wlr_primary_selection_source *source) {
+	wl_array_init(&source->mime_types);
+	wl_signal_init(&source->events.destroy);
+}
+
 static void device_manager_handle_create_source(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id) {
 	struct wlr_primary_selection_source *source =
@@ -270,6 +276,7 @@ static void device_manager_handle_create_source(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
+	wlr_primary_selection_source_init(source);
 
 	int version = wl_resource_get_version(manager_resource);
 	source->resource = wl_resource_create(client,
@@ -284,9 +291,6 @@ static void device_manager_handle_create_source(struct wl_client *client,
 
 	source->send = client_source_send;
 	source->cancel = client_source_cancel;
-
-	wl_array_init(&source->mime_types);
-	wl_signal_init(&source->events.destroy);
 }
 
 void device_manager_handle_get_device(struct wl_client *client,

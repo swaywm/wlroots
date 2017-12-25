@@ -32,6 +32,7 @@ enum atom_name {
 	_NET_WM_STATE_MAXIMIZED_HORZ,
 	WM_STATE,
 	CLIPBOARD,
+	PRIMARY,
 	WL_SELECTION,
 	TARGETS,
 	CLIPBOARD_MANAGER,
@@ -49,6 +50,24 @@ enum net_wm_state_action {
 	NET_WM_STATE_TOGGLE = 2,
 };
 
+struct wlr_xwm_selection {
+	struct wlr_xwm *xwm;
+	xcb_atom_t atom;
+	xcb_window_t window;
+	xcb_selection_request_event_t request;
+	xcb_window_t owner;
+	xcb_timestamp_t timestamp;
+	int incr;
+	int source_fd;
+	int property_start;
+	xcb_get_property_reply_t *property_reply;
+	struct wl_event_source *property_source;
+	int flush_property_on_delete;
+	struct wl_array source_data;
+	xcb_atom_t target;
+	bool property_set;
+};
+
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
@@ -63,20 +82,9 @@ struct wlr_xwm {
 	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
-	// selection properties
 	xcb_window_t selection_window;
-	xcb_selection_request_event_t selection_request;
-	xcb_window_t selection_owner;
-	xcb_timestamp_t selection_timestamp;
-	int incr;
-	int data_source_fd;
-	int property_start;
-	xcb_get_property_reply_t *property_reply;
-	struct wl_event_source *property_source;
-	int flush_property_on_delete;
-	struct wl_array source_data;
-	xcb_atom_t selection_target;
-	bool selection_property_set;
+	struct wlr_xwm_selection clipboard_selection;
+	struct wlr_xwm_selection primary_selection;
 
 	struct wlr_xwayland_surface *focus_surface;
 
@@ -86,7 +94,8 @@ struct wlr_xwm {
 	const xcb_query_extension_reply_t *xfixes;
 
 	struct wl_listener compositor_surface_create;
-	struct wl_listener seat_selection_change;
+	struct wl_listener seat_selection;
+	struct wl_listener seat_primary_selection;
 };
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
