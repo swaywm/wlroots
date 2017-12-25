@@ -507,7 +507,9 @@ static void data_source_send(struct wlr_data_source *base,
 }
 
 static void data_source_cancel(struct wlr_data_source *base) {
-	// No-op
+	struct x11_data_source *source = (struct x11_data_source *)base;
+	wl_array_release(&source->mime_types_atoms);
+	free(source);
 }
 
 struct x11_primary_selection_source {
@@ -528,8 +530,11 @@ static void primary_selection_source_send(
 }
 
 static void primary_selection_source_cancel(
-		struct wlr_primary_selection_source *source) {
-	// No-op
+		struct wlr_primary_selection_source *base) {
+	struct x11_primary_selection_source *source =
+		(struct x11_primary_selection_source *)base;
+	wl_array_release(&source->mime_types_atoms);
+	free(source);
 }
 
 static bool source_get_targets(struct wlr_xwm_selection *selection,
@@ -631,6 +636,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		if (ok) {
 			wlr_seat_set_selection(xwm->seat, &source->base,
 				wl_display_next_serial(xwm->xwayland->wl_display));
+		} else {
+			source->base.cancel(&source->base);
 		}
 	} else if (selection == &xwm->primary_selection) {
 		struct x11_primary_selection_source *source =
@@ -650,6 +657,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		if (ok) {
 			wlr_seat_set_primary_selection(xwm->seat, &source->base,
 				wl_display_next_serial(xwm->xwayland->wl_display));
+		} else {
+			source->base.cancel(&source->base);
 		}
 	}
 }
