@@ -102,6 +102,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	wl_signal_init(&surface->events.request_fullscreen);
 	wl_signal_init(&surface->events.map_notify);
 	wl_signal_init(&surface->events.unmap_notify);
+	wl_signal_init(&surface->events.configure_notify);
 	wl_signal_init(&surface->events.set_class);
 	wl_signal_init(&surface->events.set_title);
 	wl_signal_init(&surface->events.set_parent);
@@ -632,6 +633,22 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 	xsurface->y = ev->y;
 	xsurface->width = ev->width;
 	xsurface->height = ev->height;
+
+	struct wlr_xwayland_surface_configure_event *wlr_event =
+		calloc(1, sizeof(struct wlr_xwayland_surface_configure_event));
+	if (wlr_event == NULL) {
+		return;
+	}
+
+	wlr_event->surface = xsurface;
+	wlr_event->x = ev->x;
+	wlr_event->y = ev->y;
+	wlr_event->width = ev->width;
+	wlr_event->height = ev->height;
+
+	wl_signal_emit(&xsurface->events.request_configure, wlr_event);
+
+	free(wlr_event);
 }
 
 #define ICCCM_WITHDRAWN_STATE	0
