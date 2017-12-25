@@ -508,6 +508,7 @@ static void data_source_send(struct wlr_data_source *base,
 
 static void data_source_cancel(struct wlr_data_source *base) {
 	struct x11_data_source *source = (struct x11_data_source *)base;
+	wlr_data_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }
@@ -533,6 +534,7 @@ static void primary_selection_source_cancel(
 		struct wlr_primary_selection_source *base) {
 	struct x11_primary_selection_source *source =
 		(struct x11_primary_selection_source *)base;
+	wlr_primary_selection_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }

@@ -856,16 +856,7 @@ void data_device_manager_get_data_device(struct wl_client *client,
 static void data_source_resource_destroy(struct wl_resource *resource) {
 	struct wlr_data_source *source =
 		wl_resource_get_user_data(resource);
-	char **p;
-
-	wl_signal_emit(&source->events.destroy, source);
-
-	wl_array_for_each(p, &source->mime_types) {
-		free(*p);
-	}
-
-	wl_array_release(&source->mime_types);
-
+	wlr_data_source_finish(source);
 	free(source);
 }
 
@@ -930,6 +921,20 @@ static struct wl_data_source_interface data_source_impl = {
 void wlr_data_source_init(struct wlr_data_source *source) {
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
+}
+
+void wlr_data_source_finish(struct wlr_data_source *source) {
+	if (source == NULL) {
+		return;
+	}
+
+	wl_signal_emit(&source->events.destroy, source);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		free(*p);
+	}
+	wl_array_release(&source->mime_types);
 }
 
 static void data_device_manager_create_data_source(struct wl_client *client,

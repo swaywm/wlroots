@@ -52,5 +52,7 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 
 void wlr_primary_selection_source_init(
 	struct wlr_primary_selection_source *source);
+void wlr_primary_selection_source_finish(
+	struct wlr_primary_selection_source *source);
 
 #endif

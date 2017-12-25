@@ -126,4 +126,6 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 
 void wlr_data_source_init(struct wlr_data_source *source);
 
+void wlr_data_source_finish(struct wlr_data_source *source);
+
 #endif

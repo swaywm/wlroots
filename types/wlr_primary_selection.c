@@ -144,15 +144,7 @@ static const struct gtk_primary_selection_source_interface source_impl = {
 static void source_resource_handle_destroy(struct wl_resource *resource) {
 	struct wlr_primary_selection_source *source =
 		wl_resource_get_user_data(resource);
-
-	wl_signal_emit(&source->events.destroy, source);
-
-	char **p;
-	wl_array_for_each(p, &source->mime_types) {
-		free(*p);
-	}
-	wl_array_release(&source->mime_types);
-
+	wlr_primary_selection_source_finish(source);
 	free(source);
 }
 
@@ -266,6 +258,21 @@ void wlr_primary_selection_source_init(
 		struct wlr_primary_selection_source *source) {
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
+}
+
+void wlr_primary_selection_source_finish(
+		struct wlr_primary_selection_source *source) {
+	if (source == NULL) {
+		return;
+	}
+
+	wl_signal_emit(&source->events.destroy, source);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		free(*p);
+	}
+	wl_array_release(&source->mime_types);
 }
 
 static void device_manager_handle_create_source(struct wl_client *client,
