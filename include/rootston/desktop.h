@@ -2,6 +2,7 @@
 #define _ROOTSTON_DESKTOP_H
 #include <time.h>
 #include <wayland-server.h>
+#include "config.h"
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
@@ -50,7 +51,7 @@ struct roots_desktop {
 	struct wl_listener wl_shell_surface;
 	struct wl_listener decoration_new;
 
-#ifdef HAS_XWAYLAND
+#ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
 	struct wl_listener xwayland_surface;
 	struct wl_listener xwayland_ready;

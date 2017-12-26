@@ -9,6 +9,7 @@
 #include <wayland-server.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "config.h"
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
@@ -17,9 +18,9 @@ extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 
 static const struct session_impl *impls[] = {
-#ifdef HAS_SYSTEMD
+#ifdef WLR_HAS_SYSTEMD
 	&session_logind,
-#elif HAS_ELOGIND
+#elif WLR_HAS_ELOGIND
 	&session_logind,
 #endif
 	&session_direct,

@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <wayland-server.h>
+#include "config.h"
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/xwayland.h>
 #include <wlr/util/log.h>
-#include "rootston/desktop.h"
+#include "rootston/server.h"
 #include "rootston/server.h"
 
 static void activate(struct roots_view *view, bool active) {
