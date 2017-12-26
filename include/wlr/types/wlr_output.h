@@ -118,6 +118,9 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	double x, double y);
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
 
-enum wl_output_transform wlr_output_transform_invert(enum wl_output_transform);
+enum wl_output_transform wlr_output_transform_invert(
+	enum wl_output_transform tr);
+enum wl_output_transform wlr_output_transform_compose(
+	enum wl_output_transform tr_a, enum wl_output_transform tr_b);
 
 #endif

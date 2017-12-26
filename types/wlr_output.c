@@ -726,11 +726,22 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	free(cursor);
 }
 
+
 enum wl_output_transform wlr_output_transform_invert(
-		enum wl_output_transform transform) {
-	if ((transform & WL_OUTPUT_TRANSFORM_90) &&
-			!(transform & WL_OUTPUT_TRANSFORM_FLIPPED)) {
-		transform ^= WL_OUTPUT_TRANSFORM_180;
+		enum wl_output_transform tr) {
+	if ((tr & WL_OUTPUT_TRANSFORM_90) && !(tr & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		tr ^= WL_OUTPUT_TRANSFORM_180;
 	}
-	return transform;
+	return tr;
+}
+
+enum wl_output_transform wlr_output_transform_compose(
+		enum wl_output_transform tr_a, enum wl_output_transform tr_b) {
+	uint32_t flipped = (tr_a ^ tr_b) & WL_OUTPUT_TRANSFORM_FLIPPED;
+	uint32_t rotated =
+		(tr_a + tr_b) & (WL_OUTPUT_TRANSFORM_90 | WL_OUTPUT_TRANSFORM_180);
+	if ((tr_a & WL_OUTPUT_TRANSFORM_FLIPPED) && (tr_b & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		rotated = wlr_output_transform_invert(rotated);
+	}
+	return flipped | rotated;
 }

@@ -543,10 +543,11 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 		// OpenGL will read the pixels out upside down,
 		// so we need to flip the image vertically
+		enum wl_output_transform transform = wlr_output_transform_compose(
+			wlr_output_transform_invert(output->transform),
+			WL_OUTPUT_TRANSFORM_FLIPPED_180);
 		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
-			conn->output.transform ^ WL_OUTPUT_TRANSFORM_FLIPPED_180);
-
-		// TODO the image needs to be rotated depending on the output rotation
+			transform);
 
 		plane->wlr_tex =
 			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
