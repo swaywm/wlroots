@@ -622,6 +622,8 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		xcb_configure_notify_event_t *ev) {
+	wlr_log(L_DEBUG, "XCB_CONFIGURE_NOTIFY (%u) [%ux%u+%d,%d]", ev->window,
+		ev->width, ev->height, ev->x, ev->y);
 	struct wlr_xwayland_surface *xsurface =
 		lookup_surface(xwm, ev->window);
 
@@ -634,21 +636,15 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 	xsurface->width = ev->width;
 	xsurface->height = ev->height;
 
-	struct wlr_xwayland_surface_configure_event *wlr_event =
-		calloc(1, sizeof(struct wlr_xwayland_surface_configure_event));
-	if (wlr_event == NULL) {
-		return;
-	}
+	struct wlr_xwayland_surface_configure_event wlr_event;
 
-	wlr_event->surface = xsurface;
-	wlr_event->x = ev->x;
-	wlr_event->y = ev->y;
-	wlr_event->width = ev->width;
-	wlr_event->height = ev->height;
+	wlr_event.surface = xsurface;
+	wlr_event.x = ev->x;
+	wlr_event.y = ev->y;
+	wlr_event.width = ev->width;
+	wlr_event.height = ev->height;
 
-	wl_signal_emit(&xsurface->events.request_configure, wlr_event);
-
-	free(wlr_event);
+	wl_signal_emit(&xsurface->events.configure_notify, &wlr_event);
 }
 
 #define ICCCM_WITHDRAWN_STATE	0
