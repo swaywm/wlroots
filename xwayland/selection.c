@@ -148,14 +148,18 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		struct wlr_data_source *source = selection->xwm->seat->selection_source;
 		if (source != NULL) {
 			source->send(source, mime_type, fd);
+			return;
 		}
 	} else if (selection == &selection->xwm->primary_selection) {
 		struct wlr_primary_selection_source *source =
 			selection->xwm->seat->primary_selection_source;
 		if (source != NULL) {
 			source->send(source, mime_type, fd);
+			return;
 		}
 	}
+
+	wlr_log(L_DEBUG, "not sending selection: no selection source available");
 }
 
 static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
@@ -221,6 +225,9 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection) {
 
 	struct wl_array *mime_types = xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
+		wlr_log(L_DEBUG, "not sending selection targets: "
+			"no selection source available");
+		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
 		return;
 	}
 
@@ -308,13 +315,6 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	selection->request = *selection_request;
 	selection->incr = 0;
 	selection->flush_property_on_delete = 0;
-
-	if (xwm->seat->selection_source == NULL) {
-		wlr_log(L_DEBUG, "not handling selection request: "
-			"no selection source assigned to xwayland seat");
-		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
-		return;
-	}
 
 	// No xwayland surface focused, deny access to clipboard
 	if (xwm->focus_surface == NULL) {
