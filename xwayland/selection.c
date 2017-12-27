@@ -293,6 +293,9 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	xcb_selection_request_event_t *selection_request =
 		(xcb_selection_request_event_t *) event;
 
+	wlr_log(L_DEBUG, "XCB_SELECTION_REQUEST (selection=%u, target=%u)",
+		selection_request->selection, selection_request->target);
+
 	if (selection_request->selection == xwm->atoms[CLIPBOARD_MANAGER]) {
 		// The wlroots clipboard should already have grabbed the first target,
 		// so just send selection notify now. This isn't synchronized with the
@@ -670,6 +673,10 @@ static void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 	xcb_selection_notify_event_t *selection_notify =
 		(xcb_selection_notify_event_t *) event;
 
+	wlr_log(L_DEBUG, "XCB_SELECTION_NOTIFY (selection=%u, property=%u, target=%u)",
+		selection_notify->selection, selection_notify->property,
+		selection_notify->target);
+
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, selection_notify->selection);
 	if (selection == NULL) {
@@ -697,6 +704,9 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
 	xcb_xfixes_selection_notify_event_t *xfixes_selection_notify =
 		(xcb_xfixes_selection_notify_event_t *)event;
+
+	wlr_log(L_DEBUG, "XCB_XFIXES_SELECTION_NOTIFY (selection=%u, owner=%u)",
+		xfixes_selection_notify->selection, xfixes_selection_notify->owner);
 
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, xfixes_selection_notify->selection);
