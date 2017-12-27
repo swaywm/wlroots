@@ -1,2 +1,11 @@
+version_array = meson.project_version().split('.')
+version_data = configuration_data()
+version_data.set_quoted('WLR_VERSION_STR', meson.project_version())
+version_data.set('WLR_VERSION_MAJOR',      version_array[0])
+version_data.set('WLR_VERSION_MINOR',      version_array[1])
+version_data.set('WLR_VERSION_MICRO',      version_array[2])
+version_data.set('WLR_VERSION_NUM',        '(WLR_VERSION_MAJOR << 16) | (WLR_VERSION_MINOR << 8) | WLR_VERSION_MICRO')
+
 header_install_dir = 'include/@0@/wlr'.format(meson.project_name())
-configure_file(output: 'config.h', install_dir: header_install_dir, configuration: conf_data)
+configure_file(output: 'config.h',  install_dir: header_install_dir, configuration: conf_data)
+configure_file(output: 'version.h', install_dir: header_install_dir, configuration: version_data)
