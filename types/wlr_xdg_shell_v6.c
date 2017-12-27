@@ -565,6 +565,11 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		return;
 	}
 
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_show_window_menu_event event = {
 		.surface = surface,
 		.seat = seat,
@@ -590,6 +595,11 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		return;
 	}
 
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_move_event event = {
 		.surface = surface,
 		.seat = seat,
@@ -610,6 +620,11 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		wl_resource_post_error(surface->toplevel_state->resource,
 			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
 			"surface has not been configured yet");
+		return;
+	}
+
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
 		return;
 	}
 

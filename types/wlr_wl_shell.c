@@ -112,6 +112,11 @@ static void shell_surface_protocol_move(struct wl_client *client,
 	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
 
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
+
 	struct wlr_wl_shell_surface_move_event event = {
 		.surface = surface,
 		.seat = seat,
@@ -169,6 +174,11 @@ static void shell_surface_protocol_resize(struct wl_client *client,
 	struct wlr_wl_shell_surface *surface = wl_resource_get_user_data(resource);
 	struct wlr_seat_client *seat =
 		wl_resource_get_user_data(seat_resource);
+
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
 
 	struct wlr_wl_shell_surface_resize_event event = {
 		.surface = surface,
