@@ -2,6 +2,7 @@
 #define _ROOTSTON_VIEW_H
 
 #include <stdbool.h>
+#include "config.h"
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -79,14 +80,14 @@ struct roots_view {
 	union {
 		struct wlr_wl_shell_surface *wl_shell_surface;
 		struct wlr_xdg_surface_v6 *xdg_surface_v6;
-#ifdef HAS_XWAYLAND
+#ifdef WLR_HAS_XWAYLAND
 		struct wlr_xwayland_surface *xwayland_surface;
 #endif
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
 		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
-#ifdef HAS_XWAYLAND
+#ifdef WLR_HAS_XWAYLAND
 		struct roots_xwayland_surface *roots_xwayland_surface;
 #endif
 	};

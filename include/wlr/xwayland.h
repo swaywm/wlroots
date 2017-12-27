@@ -3,11 +3,12 @@
 
 #include <time.h>
 #include <stdbool.h>
+#include "config.h"
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
 #include <xcb/xcb.h>
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
 #endif
 

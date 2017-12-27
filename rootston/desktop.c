@@ -3,6 +3,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <math.h>
+#include "config.h"
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
@@ -440,7 +441,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
-#ifdef HAS_XWAYLAND
+#ifdef WLR_HAS_XWAYLAND
 	if (config->xwayland) {
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);

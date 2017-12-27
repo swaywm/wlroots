@@ -24,6 +24,8 @@ add_project_link_arguments(
 	language: 'c',
 )
 
+conf_data = configuration_data()
+
 wlr_inc = include_directories('include')
 
 cc = meson.get_compiler('c')
@@ -63,26 +65,24 @@ elogind        = dependency('libelogind', required: false)
 math           = cc.find_library('m', required: false)
 
 if xcb_icccm.found()
-	add_project_arguments('-DHAS_XCB_ICCCM', language: 'c')
+	conf_data.set('WLR_HAS_XCB_ICCCM', true)
 endif
 
 if libcap.found() and get_option('enable_libcap')
-	add_project_arguments('-DHAS_LIBCAP', language: 'c')
+	conf_data.set('WLR_HAS_LIBCAP', true)
 endif
 
 if systemd.found() and get_option('enable_systemd')
-	add_project_arguments('-DHAS_SYSTEMD', language: 'c')
+	conf_data.set('WLR_HAS_SYSTEMD', true)
 endif
 
 if elogind.found() and get_option('enable_elogind')
-	add_project_arguments('-DHAS_ELOGIND', language: 'c')
+	conf_data.set('WLR_HAS_ELOGIND', true)
 endif
 
 exclude_files = []
 wlr_parts = []
-conf_data = configuration_data()
 if get_option('enable_xwayland')
-	add_project_arguments('-DHAS_XWAYLAND', language: 'c')
 	subdir('xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)

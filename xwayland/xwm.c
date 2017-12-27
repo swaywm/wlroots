@@ -7,6 +7,7 @@
 #include <xcb/xfixes.h>
 #include <xcb/xcb_image.h>
 #include <xcb/render.h>
+#include "config.h"
 #include "wlr/util/log.h"
 #include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"
@@ -14,7 +15,7 @@
 #include "wlr/xcursor.h"
 #include "wlr/xwm.h"
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
 #endif
 
@@ -365,7 +366,7 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 static void read_surface_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -396,7 +397,7 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 }
 #endif
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {

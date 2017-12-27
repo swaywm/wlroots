@@ -10,13 +10,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <wayland-server.h>
+#include "config.h"
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 
-#ifdef HAS_SYSTEMD
+#ifdef WLR_HAS_SYSTEMD
 	#include <systemd/sd-bus.h>
 	#include <systemd/sd-login.h>
-#elif HAS_ELOGIND
+#elif WLR_HAS_ELOGIND
 	#include <elogind/sd-bus.h>
 	#include <elogind/sd-login.h> 
 #endif

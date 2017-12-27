@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
+#include "config.h"
 #include <wlr/backend.h>
 #include <wlr/backend/headless.h>
 #include <wlr/backend/multi.h>
@@ -64,7 +65,7 @@ int main(int argc, char **argv) {
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
-#ifndef HAS_XWAYLAND
+#ifndef WLR_HAS_XWAYLAND
 	ready(NULL, NULL);
 #else
 	if (server.desktop->xwayland != NULL) {

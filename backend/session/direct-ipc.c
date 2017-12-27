@@ -18,12 +18,13 @@
 #include <linux/major.h>
 #endif
 #include <xf86drm.h>
+#include "config.h"
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };
 
-#ifdef HAS_LIBCAP
+#ifdef WLR_HAS_LIBCAP
 #include <sys/capability.h>
 
 static bool have_permissions(void) {
