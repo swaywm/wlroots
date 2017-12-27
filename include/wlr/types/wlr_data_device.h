@@ -72,7 +72,6 @@ struct wlr_drag_icon {
 	} events;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
 	struct wl_listener seat_client_destroy;
 };
 
