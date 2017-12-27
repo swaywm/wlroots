@@ -854,19 +854,23 @@ static void seat_handle_primary_selection(struct wl_listener *listener,
 }
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
-	assert(xwm);
-	assert(seat);
-	if (xwm->seat) {
+	if (xwm->seat != NULL) {
 		wl_list_remove(&xwm->seat_selection.link);
 		wl_list_remove(&xwm->seat_primary_selection.link);
 		xwm->seat = NULL;
 	}
 
+	if (seat == NULL) {
+		return;
+	}
+
 	xwm->seat = seat;
+
 	wl_signal_add(&seat->events.selection, &xwm->seat_selection);
 	xwm->seat_selection.notify = seat_handle_selection;
 	wl_signal_add(&seat->events.primary_selection, &xwm->seat_primary_selection);
 	xwm->seat_primary_selection.notify = seat_handle_primary_selection;
+
 	seat_handle_selection(&xwm->seat_selection, seat);
 	seat_handle_primary_selection(&xwm->seat_primary_selection, seat);
 }
