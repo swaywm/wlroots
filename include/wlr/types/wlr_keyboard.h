@@ -44,6 +44,7 @@ struct wlr_keyboard {
 	xkb_mod_index_t mod_indexes[WLR_MODIFIER_COUNT];
 
 	uint32_t keycodes[WLR_KEYBOARD_KEYS_CAP];
+	size_t num_keycodes;
 	struct {
 		xkb_mod_mask_t depressed;
 		xkb_mod_mask_t latched;

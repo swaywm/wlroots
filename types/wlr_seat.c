@@ -874,11 +874,9 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 		struct wl_array keys;
 		wl_array_init(&keys);
-		for (size_t i = 0; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
-			if (keyboard->keycodes[i] != 0) {
-				uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
-				*p = keyboard->keycodes[i];
-			}
+		for (size_t i = 0; i < keyboard->num_keycodes; ++i) {
+			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
+			*p = keyboard->keycodes[i];
 		}
 		uint32_t serial = wl_display_next_serial(seat->display);
 		struct wl_resource *resource;
