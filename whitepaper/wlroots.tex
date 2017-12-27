@@ -219,6 +219,44 @@ call to action for other compositors to participate in its development and
 implementation, and an example of the sorts of functionality we're committed to
 providing on Wayland.
 
+\subsection{Security Considerations}
+
+A major concern in implementing many of these features is doing them in a
+secure way. Making these interfaces available to third-party software securely
+is the subject of ongoing research and discussion, but we do not believe that
+the issue is too poorly understood to proceed with implementing these features.
+In wlroots, we have chosen to leave securing these protocols as a matter for the
+compositor to support via wl_display_set_global_filter.
+
+Let's summarize ongoing efforts by compositors in this area. The Sway compositor
+has, as of writing, invested the most effort in making privledged protocols
+available to third parties. This is not without consequences-- Sway's current
+implementation has known flaws. We are comfortable being more liberal in our
+exploration in this area, hoping that we can become more secure over time. Our
+justification for this approach is that, at worst, we begin with a system no
+more secure than X11, but over time we will be able to secure it more as we
+experiment with different approaches.
+
+Sway's approach today is configuration files, owned by root, which contain a
+list of paths to executables and the permissions granted to each. To enforce
+these, we look them up via /proc/[pid]/exe. This has a number of drawbacks we
+are working to address. First, this is not very effective for interpreted
+programs, e.g. /usr/bin/python3. Additionally, it may be possible on some
+platforms and in some conditions to manipulate the value of /proc/[pid]/exe.
+Utilizing procfs is also not portable.
+
+In the future we're exploring the possibility of only permitting secure access
+for clients which were forked from Sway. This approach should solve most of the
+outstanding problems, but other deficiencies remain. Granting permissions to
+previously un-approved clients at runtime (with user content) requires
+additional work (something the Orbital compositor has explored). Offering
+similar permissions to children of those processes when appropriate is also a
+non-trivial problem.
+
+Collaboration with the broader Wayland community in the matter of security is
+highly sought after. We ask you to participate in our discussions on the
+subject; contact information is available at the end of this paper.
+
 \section{Project Status}
 
 Integrations with wlroots are well underway in the Wayland community.\\
