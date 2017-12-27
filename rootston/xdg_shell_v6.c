@@ -253,7 +253,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	roots_surface->commit.notify = handle_commit;
-	wl_signal_add(&surface->events.commit, &roots_surface->commit);
+	wl_signal_add(&surface->surface->events.commit, &roots_surface->commit);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
 	roots_surface->request_move.notify = handle_request_move;

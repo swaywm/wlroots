@@ -122,10 +122,8 @@ struct wlr_xdg_surface_v6 {
 	struct wlr_box *geometry;
 
 	struct wl_listener surface_destroy_listener;
-	struct wl_listener surface_commit_listener;
 
 	struct {
-		struct wl_signal commit;
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
 

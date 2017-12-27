@@ -209,7 +209,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
-	wl_list_remove(&surface->surface_commit_listener.link);
+	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 	free(surface->geometry);
 	free(surface->next_geometry);
 	free(surface->title);
@@ -1047,10 +1047,9 @@ static void wlr_xdg_surface_v6_popup_committed(
 	}
 }
 
-static void handle_wlr_surface_committed(struct wl_listener *listener,
-		void *data) {
-	struct wlr_xdg_surface_v6 *surface =
-		wl_container_of(listener, surface, surface_commit_listener);
+static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+		void *role_data) {
+	struct wlr_xdg_surface_v6 *surface = role_data;
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
@@ -1085,8 +1084,6 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 		surface->added = true;
 		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
 	}
-
-	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
@@ -1148,7 +1145,6 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.request_move);
 	wl_signal_init(&surface->events.request_resize);
 	wl_signal_init(&surface->events.request_show_window_menu);
-	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
 
@@ -1156,9 +1152,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 		&surface->surface_destroy_listener);
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
-	wl_signal_add(&surface->surface->events.commit,
-		&surface->surface_commit_listener);
-	surface->surface_commit_listener.notify = handle_wlr_surface_committed;
+	wlr_surface_set_role_committed(surface->surface,
+		handle_wlr_surface_committed, surface);
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
