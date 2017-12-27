@@ -11,6 +11,11 @@ project(
 	],
 )
 
+# Format of so_version is CURRENT, REVISION, AGE.
+# See: https://autotools.io/libtool/version.html
+# for a reference about clean library versioning.
+so_version = ['0', '0', '0']
+
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 add_project_arguments(
 	'-DWLR_SRC_DIR="@0@"'.format(meson.source_root()),
@@ -137,7 +142,8 @@ wlr_deps = [
 ]
 
 lib_wlr = library(
-	'wlroots',
+	meson.project_name(),
+	version: '.'.join(so_version),
 	link_whole: wlr_parts,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
