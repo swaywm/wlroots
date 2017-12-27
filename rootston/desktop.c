@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <math.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>

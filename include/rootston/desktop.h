@@ -2,7 +2,7 @@
 #define _ROOTSTON_DESKTOP_H
 #include <time.h>
 #include <wayland-server.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>

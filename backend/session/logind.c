@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <wayland-server.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 

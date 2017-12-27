@@ -7,7 +7,7 @@
 #include <xcb/xfixes.h>
 #include <xcb/xcb_image.h>
 #include <xcb/render.h>
-#include "config.h"
+#include <wlr/config.h>
 #include "wlr/util/log.h"
 #include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"

@@ -9,7 +9,7 @@
 #include <wayland-server.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>

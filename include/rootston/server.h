@@ -1,7 +1,7 @@
 #ifndef _ROOTSTON_SERVER_H
 #define _ROOTSTON_SERVER_H
 #include <wayland-server.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_data_device.h>

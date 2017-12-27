@@ -7,9 +7,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_box.h>
+#include "support/config.h"
 #include "shared.h"
 #include "ini.h"
 
