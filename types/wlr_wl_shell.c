@@ -418,7 +418,7 @@ static void shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
-	wl_list_remove(&surface->surface_commit_listener.link);
+	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 	wl_event_source_remove(surface->ping_timer);
 	free(surface->transient_state);
 	free(surface->title);
@@ -439,10 +439,9 @@ static void handle_wlr_surface_destroyed(struct wl_listener *listener,
 		wl_container_of(listener, surface, surface_destroy_listener);
 	shell_surface_destroy(surface);
 }
-static void handle_wlr_surface_committed(struct wl_listener *listener,
-		void *data) {
-	struct wlr_wl_shell_surface *surface =
-		wl_container_of(listener, surface, surface_commit_listener);
+static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+		void *role_data) {
+	struct wlr_wl_shell_surface *surface = role_data;
 	if (!surface->configured &&
 			wlr_surface_has_buffer(surface->surface) &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
@@ -459,8 +458,6 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 				surface->popup_state->seat);
 		shell_pointer_grab_maybe_end(&grab->pointer_grab);
 	}
-
-	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static int shell_surface_ping_timeout(void *user_data) {
@@ -511,7 +508,6 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		wl_surface->resource);
 
 	wl_signal_init(&wl_surface->events.destroy);
-	wl_signal_init(&wl_surface->events.commit);
 	wl_signal_init(&wl_surface->events.ping_timeout);
 	wl_signal_init(&wl_surface->events.request_move);
 	wl_signal_init(&wl_surface->events.request_resize);
@@ -525,9 +521,8 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		&wl_surface->surface_destroy_listener);
 	wl_surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
-	wl_signal_add(&wl_surface->surface->events.commit,
-		&wl_surface->surface_commit_listener);
-	wl_surface->surface_commit_listener.notify = handle_wlr_surface_committed;
+	wlr_surface_set_role_committed(surface, handle_wlr_surface_committed,
+		wl_surface);
 
 	struct wl_display *display = wl_client_get_display(client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);

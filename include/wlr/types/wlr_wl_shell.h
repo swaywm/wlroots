@@ -70,7 +70,6 @@ struct wlr_wl_shell_surface {
 	char *class;
 
 	struct wl_listener surface_destroy_listener;
-	struct wl_listener surface_commit_listener;
 
 	struct wlr_wl_shell_surface *parent;
 	struct wl_list popup_link;
@@ -79,7 +78,6 @@ struct wlr_wl_shell_surface {
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal commit;
 		struct wl_signal ping_timeout;
 
 		struct wl_signal request_move;
