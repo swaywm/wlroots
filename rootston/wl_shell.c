@@ -150,7 +150,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->set_state.notify = handle_set_state;
 	wl_signal_add(&surface->events.set_state, &roots_surface->set_state);
 	roots_surface->surface_commit.notify = handle_surface_commit;
-	wl_signal_add(&surface->events.commit, &roots_surface->surface_commit);
+	wl_signal_add(&surface->surface->events.commit, &roots_surface->surface_commit);
 
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {

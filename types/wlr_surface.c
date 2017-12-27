@@ -428,6 +428,10 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 		}
 	}
 
+	if (surface->role_committed) {
+		surface->role_committed(surface, surface->role_data);
+	}
+
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->events.commit, surface);
 }
@@ -942,4 +946,11 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		wl_callback_send_done(cb->resource, timespec_to_msec(when));
 		wl_resource_destroy(cb->resource);
 	}
+}
+
+void wlr_surface_set_role_committed(struct wlr_surface *surface,
+		void (*role_committed)(struct wlr_surface *surface, void *role_data),
+		void *role_data) {
+	surface->role_committed = role_committed;
+	surface->role_data = role_data;
 }

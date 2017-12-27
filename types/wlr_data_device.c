@@ -651,7 +651,7 @@ static void wlr_drag_icon_destroy(struct wlr_drag_icon *icon) {
 		return;
 	}
 	wl_signal_emit(&icon->events.destroy, icon);
-	wl_list_remove(&icon->surface_commit.link);
+	wlr_surface_set_role_committed(icon->surface, NULL, NULL);
 	wl_list_remove(&icon->surface_destroy.link);
 	wl_list_remove(&icon->seat_client_destroy.link);
 	wl_list_remove(&icon->link);
@@ -665,10 +665,9 @@ static void handle_drag_icon_surface_destroy(struct wl_listener *listener,
 	wlr_drag_icon_destroy(icon);
 }
 
-static void handle_drag_icon_surface_commit(struct wl_listener *listener,
-		void *data) {
-	struct wlr_drag_icon *icon =
-		wl_container_of(listener, icon, surface_commit);
+static void handle_drag_icon_surface_commit(struct wlr_surface *surface,
+		void *role_data) {
+	struct wlr_drag_icon *icon = role_data;
 	icon->sx += icon->surface->current->sx;
 	icon->sy += icon->surface->current->sy;
 }
@@ -701,8 +700,8 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 	wl_signal_add(&icon->surface->events.destroy, &icon->surface_destroy);
 	icon->surface_destroy.notify = handle_drag_icon_surface_destroy;
 
-	wl_signal_add(&icon->surface->events.commit, &icon->surface_commit);
-	icon->surface_commit.notify = handle_drag_icon_surface_commit;
+	wlr_surface_set_role_committed(icon->surface,
+		handle_drag_icon_surface_commit, icon);
 
 	wl_signal_add(&client->events.destroy, &icon->seat_client_destroy);
 	icon->seat_client_destroy.notify = handle_drag_icon_seat_client_destroy;

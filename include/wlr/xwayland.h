@@ -134,7 +134,6 @@ struct wlr_xwayland_surface {
 	} events;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
 
 	void *data;
 };
