@@ -48,6 +48,11 @@ void wlr_primary_selection_device_manager_destroy(
 
 void wlr_seat_client_send_primary_selection(struct wlr_seat_client *seat_client);
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
-		struct wlr_primary_selection_source *source, uint32_t serial);
+	struct wlr_primary_selection_source *source, uint32_t serial);
+
+void wlr_primary_selection_source_init(
+	struct wlr_primary_selection_source *source);
+void wlr_primary_selection_source_finish(
+	struct wlr_primary_selection_source *source);
 
 #endif

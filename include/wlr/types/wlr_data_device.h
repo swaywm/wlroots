@@ -34,6 +34,7 @@ struct wlr_data_source {
 	struct wl_resource *resource;
 	struct wlr_data_offer *offer;
 	struct wlr_seat_client *seat_client;
+
 	struct wl_array mime_types;
 
 	bool accepted;
@@ -122,5 +123,9 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client);
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial);
+
+void wlr_data_source_init(struct wlr_data_source *source);
+
+void wlr_data_source_finish(struct wlr_data_source *source);
 
 #endif
