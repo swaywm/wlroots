@@ -92,8 +92,6 @@ if get_option('enable_xwayland')
 	subdir('xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)
-	exclude_headers += 'xwayland.h'
-	exclude_headers += 'xwm.h'
 else
 	exclude_headers += 'xwayland.h'
 	exclude_headers += 'xwm.h'
