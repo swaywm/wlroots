@@ -18,7 +18,7 @@
 #include <linux/major.h>
 #endif
 #include <xf86drm.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
 

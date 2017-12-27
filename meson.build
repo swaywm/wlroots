@@ -1,6 +1,7 @@
 project(
 	'wlroots',
 	'c',
+	version: '0.0.1',
 	license: 'MIT',
 	meson_version: '>=0.43.0',
 	default_options: [
@@ -9,6 +10,11 @@ project(
 		'werror=true',
 	],
 )
+
+# Format of so_version is CURRENT, REVISION, AGE.
+# See: https://autotools.io/libtool/version.html
+# for a reference about clean library versioning.
+so_version = ['0', '0', '0']
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 add_project_arguments(
@@ -80,19 +86,24 @@ if elogind.found() and get_option('enable_elogind')
 	conf_data.set('WLR_HAS_ELOGIND', true)
 endif
 
-exclude_files = []
+exclude_headers = []
 wlr_parts = []
 if get_option('enable_xwayland')
 	subdir('xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)
+	exclude_headers += 'xwayland.h'
+	exclude_headers += 'xwm.h'
 else
-	exclude_files += ['xwayland.h', 'xwm.h']
+	exclude_headers += 'xwayland.h'
+	exclude_headers += 'xwm.h'
 endif
-configure_file(output: 'config.h', install_dir: 'include/wlr', configuration: conf_data)
-install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_files)
+exclude_headers += 'meson.build'
+header_install_dir = 'include/@0@'.format(meson.project_name())
+install_subdir('include/wlr', install_dir: header_install_dir, exclude_files: exclude_headers)
 
 
+subdir('include')
 subdir('protocol')
 subdir('render')
 subdir('backend')
@@ -131,7 +142,8 @@ wlr_deps = [
 ]
 
 lib_wlr = library(
-	'wlroots',
+	meson.project_name(),
+	version: '.'.join(so_version),
 	link_whole: wlr_parts,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
@@ -150,8 +162,9 @@ subdir('examples')
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
 	libraries: lib_wlr,
-	version: '0.0.1',
-	filebase: 'wlroots',
-	name: 'wlroots',
+	subdirs: '@0@'.format(meson.project_name()),
+	version: meson.project_version(),
+	filebase: meson.project_name(),
+	name: meson.project_name(),
 	description: 'Wayland compositor library',
 )

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_seat.h>

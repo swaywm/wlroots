@@ -3,7 +3,7 @@
 
 #include <time.h>
 #include <stdbool.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
 #include <xcb/xcb.h>

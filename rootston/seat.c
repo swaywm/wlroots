@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/xcursor.h"

@@ -9,7 +9,7 @@
 #include <strings.h>
 #include <unistd.h>
 #include <sys/param.h>
-#include "config.h"
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_box.h>
 #include "rootston/config.h"
