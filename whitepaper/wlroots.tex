@@ -24,13 +24,13 @@ compositor designs.
 
 Wayland is a protocol used to communicate between user applications and a
 \emph{compositor}. The compositor has ownership over input and output
-resources -- typically displays connected over DVI, HDMI, etc, and keyboards,
+resources-- typically displays connected over DVI, HDMI, etc, and keyboards,
 mice, etc.\\
 
 wlroots (stylized in lowercase, or as "wlr") is a subproject of the Sway
 compositor. Originally, Sway was written on top of a similar library called wlc.
-This library offered abstractions on top of DRM, GBM, GLES, libinput, and so on
--- allowing Sway to focus on building the software specific to the compositor.
+This library offered abstractions on top of DRM, GBM, GLES, libinput, and so
+on-- allowing Sway to focus on building the software specific to the compositor.
 However, with time it became clear that wlc's design is too limiting, and many
 of Sway's long-term goals were difficult to achieve based on it.\\
 
@@ -38,7 +38,7 @@ As a result, we built wlroots. We believe it offers a substantially better
 basis for development of Wayland compositors than any competing approach.
 We offer a powerful library that removes most of the heavy lifting from building
 a Wayland compositor while providing compositor authors as much flexibility in
-their design as they might gain by doing it all themselves -- I've jokingly
+their design as they might gain by doing it all themselves-- I've jokingly
 referred to wlroots as
 "about 30,000 lines of code you were going to write anyway." We hope that
 compositors based on wlroots will be written faster, work better, and will
@@ -66,8 +66,8 @@ Another approach is to simply write your compositor entirely in-house. This is
 the approach favored by \textbf{mutter} and \textbf{kwin} of the GNOME and KDE
 projects respectively. The advantage of this approach is the flexibility to
 design your compositor in any way you please. However, lots of work is
-duplicated between projects with this approach, which can lead to compositors
-which are subtly incompatible with each other.
+duplicated between projects with this approach, which can (and does) lead to
+compositors which are subtly incompatible with each other.
 
 The approach taken by \textbf{wlroots} offers reusability and consistency
 between compositors based on it, and offloads lots of work from the compositor
@@ -135,7 +135,7 @@ Each of these protocols, like the shells and everything else, is opt-in. The
 compositor author chooses if our implementations suit their needs, and if not,
 their own implementation is easily used instead and interops correctly with the
 rest of wlroots. For some important protocols (such as wlr_seat), disentangling
-it from the rest of wlroots can be more difficult -- but in these cases we've
+it from the rest of wlroots can be more difficult-- but in these cases we've
 made our implementation extremely flexible to make it less likely that it will
 not suit your needs.
 
@@ -173,11 +173,11 @@ encouraged to copy and adapt any code they find useful for their own
 compositors. Many of the batteries that are "not included" with wlroots can be
 found in Rootston.
 
-\section{Promoting an Interopable Ecosystem}
+\section{Promoting an Interoperable Ecosystem}
 
 We believe that it is tremendously important for more Wayland compositors to be
 extensible by their users and for these tools to work across the entire Wayland
-desktop ecosystem. No one will switch from X11 to Wayland for security alone --
+desktop ecosystem. No one will switch from X11 to Wayland for security alone--
 we must make compositors that offer compelling features and do not ask the user
 to sacrifice the workflows they've grown used to, insecure as they may have been
 on X11.
@@ -189,7 +189,7 @@ selection protocol, and Orbital's screenshot protocol; and in the future we
 intend to implement more. Where protocols do not exist, we are creating new
 ones.
 
-Consider an on-screen keyboard -- getting it right is complicated. There are
+Consider an on-screen keyboard-- getting it right is complicated. There are
 many keyboard layouts to consider, and localization may be difficult. Support
 for typing in pinyin (Chinese) or romaji (Japanese) will be difficult to do
 correctly. Useful features like providing prompts for autocomplete will also
@@ -214,8 +214,8 @@ support numerous use-cases in a single simple protocol:
 \end{itemize}
 
 The details of the protocol or its implementation are out of scope for this
-document, and changing as we develop it in any case. Here it serves as a call to
-action for other compositors to participate in its development and
+document, and in any case are changing as we develop it. Here it serves as a
+call to action for other compositors to participate in its development and
 implementation, and an example of the sorts of functionality we're committed to
 providing on Wayland.
 
@@ -236,11 +236,11 @@ port\footnote{Enumerated here:
 \textbf{Way-Cooler} is also working on porting their compositor from wlc to
 wlroots. In order to do so, they are developing \textbf{wlroots-rs}, a Rust
 wrapper over the wlroots API. They intend to utilize this to implement a large
-subset of the Awesome Window Manager Lua API, providing a compatible alternative
-to AwesomeWM in a similar fashion as Sway does for i3. Their first order of
-business is providing an equivalent of Rootston written in Rust.\\
+subset of the Awesome window manager's Lua API, providing a compatible
+alternative to AwesomeWM in a similar fashion as Sway does for i3. Their first
+order of business is providing an equivalent of Rootston written in Rust.\\
 
-\textbf{waymonad} is a new compositor based on wlroots -- not a port of another
+\textbf{waymonad} is a new compositor based on wlroots-- not a port of another
 compositor. Like Sway fills i3's niche and Way-Cooler fills AwesomeWM's niche,
 waymonad intends to fill Xmonad's niche (though it seems that perfect
 compatibility is not presently a concern). To this end \textbf{hsroots} is
