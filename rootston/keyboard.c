@@ -117,6 +117,8 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		if (focus != NULL) {
 			view_maximize(focus, !focus->maximized);
 		}
+	} else if (strcmp(command, "nop") == 0) {
+		wlr_log(L_DEBUG, "nop command");
 	} else {
 		wlr_log(L_ERROR, "unknown binding command: %s", command);
 	}
