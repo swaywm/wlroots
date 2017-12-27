@@ -77,6 +77,10 @@ struct wlr_surface {
 	struct wl_listener compositor_listener;
 	void *compositor_data;
 
+	// surface commit callback for the role that runs before all others
+	void (*role_committed)(struct wlr_surface *surface, void *role_data);
+	void *role_data;
+
 	// subsurface properties
 	struct wlr_subsurface *subsurface;
 	struct wl_list subsurface_list; // wlr_subsurface::parent_link
@@ -145,5 +149,13 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when);
+
+/**
+ * Set a callback for surface commit that runs before all the other callbacks.
+ * This is intended for use by the surface role.
+ */
+void wlr_surface_set_role_committed(struct wlr_surface *surface,
+		void (*role_committed)(struct wlr_surface *surface, void *role_data),
+		void *role_data);
 
 #endif
