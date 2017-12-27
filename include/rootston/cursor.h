@@ -10,12 +10,6 @@ enum roots_cursor_mode {
 	ROOTS_CURSOR_ROTATE = 3,
 };
 
-struct roots_input_event {
-	uint32_t serial;
-	struct wlr_cursor *cursor;
-	struct wlr_input_device *device;
-};
-
 struct roots_cursor {
 	struct roots_seat *seat;
 	struct wlr_cursor *cursor;
@@ -32,9 +26,6 @@ struct roots_cursor {
 	int view_x, view_y, view_width, view_height;
 	float view_rotation;
 	uint32_t resize_edges;
-	// Ring buffer of input events that could trigger move/resize/rotate
-	int input_events_idx;
-	struct roots_input_event input_events[16];
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;

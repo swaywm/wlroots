@@ -43,7 +43,6 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_input *input = view->desktop->server->input;
 	struct wlr_wl_shell_surface_resize_event *e = data;
 	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
-	// TODO verify input event
 	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		return;
 	}

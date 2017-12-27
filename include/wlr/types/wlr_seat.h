@@ -509,4 +509,10 @@ int wlr_seat_touch_num_points(struct wlr_seat *seat);
  */
 bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
 
+/**
+ * Check whether this serial is valid to start a grab action such as an
+ * interactive move or resize.
+ */
+bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
+
 #endif

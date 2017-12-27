@@ -174,15 +174,10 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 	}
 
-	uint32_t serial;
-	if (is_touch) {
-		serial = wl_display_get_serial(desktop->server->wl_display);
-	} else {
-		serial =
-			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	if (!is_touch) {
+		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 	}
 
-	int i;
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
 		if (!is_touch) {
@@ -190,12 +185,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 		break;
 	case WLR_BUTTON_PRESSED:
-		i = cursor->input_events_idx;
-		cursor->input_events[i].serial = serial;
-		cursor->input_events[i].cursor = cursor->cursor;
-		cursor->input_events[i].device = device;
-		cursor->input_events_idx = (i + 1)
-			% (sizeof(cursor->input_events) / sizeof(cursor->input_events[0]));
 		roots_seat_set_focus(seat, view);
 		break;
 	}
