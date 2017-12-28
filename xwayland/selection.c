@@ -56,13 +56,8 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 	if (selection->source_data.size < incr_chunk_size) {
 		p = wl_array_add(&selection->source_data, incr_chunk_size);
 		if (!p){
-			wlr_log(L_ERROR, "Could not allocate selection source_data to read into, throwing away some input");
-			/* if we just return now, we'll just be called
-			 * again right away - force read something.
-			 * 1K on stack is probably fine? */
-			char junk[1024];
-			read(fd, junk, sizeof(junk));
-			return 1;
+			wlr_log(L_ERROR, "Could not allocate selection source_data");
+			goto error_out;
 		}
 	} else {
 		p = (char *) selection->source_data.data + selection->source_data.size;
@@ -73,11 +68,7 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 	int len = read(fd, p, available);
 	if (len == -1) {
 		wlr_log(L_ERROR, "read error from data source: %m");
-		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
-		wl_event_source_remove(selection->property_source);
-		selection->property_source = NULL;
-		close(fd);
-		wl_array_release(&selection->source_data);
+		goto error_out;
 	}
 
 	wlr_log(L_DEBUG, "read %d (available %d, mask 0x%x) bytes: \"%.*s\"",
@@ -149,6 +140,14 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 	}
 
 	return 1;
+
+error_out:
+	xwm_selection_send_notify(selection, XCB_ATOM_NONE);
+	wl_event_source_remove(selection->property_source);
+	selection->property_source = NULL;
+	close(fd);
+	wl_array_release(&selection->source_data);
+	return 0;
 }
 
 static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
