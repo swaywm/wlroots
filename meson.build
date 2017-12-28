@@ -97,8 +97,7 @@ else
 	exclude_headers += 'xwm.h'
 endif
 exclude_headers += 'meson.build'
-header_install_dir = 'include/@0@'.format('wlr')
-install_subdir('include/wlr', install_dir: header_install_dir, exclude_files: exclude_headers)
+install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_headers)
 
 
 subdir('include')

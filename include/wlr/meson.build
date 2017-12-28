@@ -9,6 +9,5 @@ version_data.set('WLR_VERSION_API_CURRENT',  so_version[0])
 version_data.set('WLR_VERSION_API_REVISION', so_version[1])
 version_data.set('WLR_VERSION_API_AGE',      so_version[2])
 
-header_install_dir = 'include/@0@/wlr'.format(meson.project_name())
-configure_file(output: 'config.h',  install_dir: header_install_dir, configuration: conf_data)
-configure_file(output: 'version.h', install_dir: header_install_dir, configuration: version_data)
+configure_file(output: 'config.h',  install_dir: 'include/wlr', configuration: conf_data)
+configure_file(output: 'version.h', install_dir: 'include/wlr', configuration: version_data)
