@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <assert.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -44,28 +45,46 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
+// https://www.geeksforgeeks.org/move-zeroes-end-array/
+static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
+	size_t count = 0;
+
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
 static void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	bool found = false;
 	size_t i = 0;
-	for (; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
+	for (; i < keyboard->num_keycodes; ++i) {
 		if (keyboard->keycodes[i] == event->keycode) {
 			found = true;
 			break;
 		}
 	}
 
-	if (event->state == WLR_KEY_PRESSED && !found) {
-		for (size_t i = 0; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
-			if (keyboard->keycodes[i] == 0) {
-				keyboard->keycodes[i] = event->keycode;
-				break;
-			}
-		}
+	if (event->state == WLR_KEY_PRESSED && !found &&
+			keyboard->num_keycodes < WLR_KEYBOARD_KEYS_CAP) {
+		keyboard->keycodes[keyboard->num_keycodes++] = event->keycode;
 	}
 	if (event->state == WLR_KEY_RELEASED && found) {
 		keyboard->keycodes[i] = 0;
+		keyboard->num_keycodes = push_zeroes_to_end(keyboard->keycodes, WLR_KEYBOARD_KEYS_CAP);
 	}
+
+	assert(keyboard->num_keycodes <= WLR_KEYBOARD_KEYS_CAP);
 }
 
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
