@@ -901,12 +901,15 @@ static void data_source_offer(struct wl_client *client,
 		wl_resource_get_user_data(resource);
 	char **p;
 
-	p = wl_array_add(&source->mime_types, sizeof *p);
+	p = wl_array_add(&source->mime_types, sizeof(*p));
 
 	if (p) {
 		*p = strdup(mime_type);
 	}
 	if (!p || !*p){
+		if (p) {
+			source->mime_types.size -= sizeof(*p);
+		}
 		wl_resource_post_no_memory(resource);
 	}
 }

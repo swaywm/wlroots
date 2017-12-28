@@ -223,7 +223,7 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		if (score > st->score || (score == st->score && replaced < st->replaced)) {
 			st->score = score;
 			st->replaced = replaced;
-			memcpy(st->best, st->res, sizeof st->best[0] * st->num_res);
+			memcpy(st->best, st->res, sizeof(st->best[0]) * st->num_res);
 
 			if (st->score == st->num_objs && st->replaced == 0) {
 				st->exit_early = true;

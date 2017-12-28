@@ -876,6 +876,11 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		wl_array_init(&keys);
 		for (size_t i = 0; i < keyboard->num_keycodes; ++i) {
 			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
+			if (!p) {
+				wlr_log(L_ERROR, "Cannot allocate memory, skipping keycode: %d\n",
+					keyboard->keycodes[i]);
+				continue;
+			}
 			*p = keyboard->keycodes[i];
 		}
 		uint32_t serial = wl_display_next_serial(seat->display);
