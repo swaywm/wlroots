@@ -32,7 +32,7 @@ compositor. Originally, Sway was written on top of a similar library called wlc.
 This library offered abstractions on top of DRM, GBM, GLES, libinput, and so
 on-- allowing Sway to focus on building the software specific to the compositor.
 However, with time it became clear that wlc's design is too limiting, and many
-of Sway's long-term goals were difficult to achieve based on it.\\
+of Sway's long-term goals were difficult to achieve with it.\\
 
 As a result, we built wlroots. We believe it offers a substantially better
 basis for development of Wayland compositors than any competing approach.
@@ -128,8 +128,8 @@ wl_compositor, wl_surface, and so on, but also includes some third-party
 protocols such as Orbital's screenshooter protocol and GTK's primary selection
 protocol. When appropriate, integrations with wlroots implementations of other
 protocols may be necessary, such as interactions between wlr_seat and
-wlr_data_device_manager, or syncronizing the GTK's Wayland primary selection
-with Xwayland.
+wlr_data_device_manager, or syncronizing GTK's Wayland primary selection with
+Xwayland.
 
 Each of these protocols, like the shells and everything else, is opt-in. The
 compositor author chooses if our implementations suit their needs, and if not,
@@ -160,7 +160,7 @@ that does not require complex shaders or projections.
 \subsection{Rootston}
 
 Bringing all of this together is our reference compositor, Rootston. As Weston
-is to libweston, Rootston is to wlroots. However, Rootston is more conservative -
+is to libweston, Rootston is to wlroots. However, Rootston is more conservative--
 it is a very simple stacking window manager that has only a few convenience
 features on top of demonstrating the capabilities of wlroots. This makes it
 quite unsuitable as a practical end-user compositor. However, in its role of
@@ -182,12 +182,12 @@ we must make compositors that offer compelling features and do not ask the user
 to sacrifice the workflows they've grown used to, insecure as they may have been
 on X11.
 
-We are committed to implementing many Wayland protocol extensions to support
-these features. Where extensions already exist, we are implementing them: we
-provide implementations of KDE's server decoration protocol, GTK's primary
-selection protocol, and Orbital's screenshot protocol; and in the future we
-intend to implement more. Where protocols do not exist, we are creating new
-ones.
+We are committed to implementing the necessary Wayland protocol extensions to
+support these features. Where extensions already exist, we are implementing
+them: we provide implementations of KDE's server decoration protocol, GTK's
+primary selection protocol, and Orbital's screenshot protocol; and in the
+future we intend to implement more. Where protocols do not exist, we are
+creating new ones.
 
 Consider an on-screen keyboard-- getting it right is complicated. There are
 many keyboard layouts to consider, and localization may be difficult. Support
@@ -202,7 +202,7 @@ team is deeply concerned about, and we worry that many compositors are not
 taking this problem seriously. This is why we are implementing the protocols of
 other desktops and toolkits, and building our own when these prove insufficient.
 The first of our new protocols is surface layers. We believe this protocol can
-support numerous use-cases in a single simple protocol:
+support numerous use-cases in a single simple protocol, such as:
 
 \begin{itemize}
     \item desktop shells
@@ -216,8 +216,8 @@ support numerous use-cases in a single simple protocol:
 The details of the protocol or its implementation are out of scope for this
 document, and in any case are changing as we develop it. Here it serves as a
 call to action for other compositors to participate in its development and
-implementation, and an example of the sorts of functionality we're committed to
-providing on Wayland.
+implementation, and as an example of the sorts of functionality we're committed
+to providing on Wayland.
 
 \subsection{Security Considerations}
 
