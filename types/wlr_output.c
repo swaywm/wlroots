@@ -163,16 +163,7 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
-	bool result = output->impl->set_mode(output, mode);
-	if (result) {
-		wlr_output_update_matrix(output);
-
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->wl_resources) {
-			wlr_output_send_current_mode_to_resource(resource);
-		}
-	}
-	return result;
+	return output->impl->set_mode(output, mode);
 }
 
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
@@ -180,16 +171,7 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	if (!output->impl || !output->impl->set_custom_mode) {
 		return false;
 	}
-	bool result = output->impl->set_custom_mode(output, width, height, refresh);
-	if (result) {
-		wlr_output_update_matrix(output);
-
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->wl_resources) {
-			wlr_output_send_current_mode_to_resource(resource);
-		}
-	}
-	return result;
+	return output->impl->set_custom_mode(output, width, height, refresh);
 }
 
 void wlr_output_update_mode(struct wlr_output *output,
