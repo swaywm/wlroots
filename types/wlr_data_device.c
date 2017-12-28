@@ -907,6 +907,9 @@ static void data_source_offer(struct wl_client *client,
 		*p = strdup(mime_type);
 	}
 	if (!p || !*p){
+		if (p) {
+			source->mime_types.size -= sizeof *p;
+		}
 		wl_resource_post_no_memory(resource);
 	}
 }

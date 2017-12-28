@@ -127,6 +127,9 @@ static void source_handle_offer(struct wl_client *client,
 		*p = strdup(mime_type);
 	}
 	if (p == NULL || *p == NULL) {
+		if (p) {
+			source->mime_types.size -= sizeof(*p);
+		}
 		wl_resource_post_no_memory(resource);
 	}
 }

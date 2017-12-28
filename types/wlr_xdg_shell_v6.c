@@ -922,19 +922,35 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	wl_array_init(&states);
 	if (surface->toplevel_state->pending.maximized) {
 		s = wl_array_add(&states, sizeof(uint32_t));
-		*s = ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED;
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
+		} else {
+			*s = ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED;
+		}
 	}
 	if (surface->toplevel_state->pending.fullscreen) {
 		s = wl_array_add(&states, sizeof(uint32_t));
-		*s = ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN;
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
+		} else {
+			*s = ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN;
+		}
 	}
 	if (surface->toplevel_state->pending.resizing) {
 		s = wl_array_add(&states, sizeof(uint32_t));
-		*s = ZXDG_TOPLEVEL_V6_STATE_RESIZING;
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
+		} else {
+			*s = ZXDG_TOPLEVEL_V6_STATE_RESIZING;
+		}
 	}
 	if (surface->toplevel_state->pending.activated) {
 		s = wl_array_add(&states, sizeof(uint32_t));
-		*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
+		} else {
+			*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
+		}
 	}
 
 	uint32_t width = surface->toplevel_state->pending.width;
