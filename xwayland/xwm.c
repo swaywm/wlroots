@@ -1274,10 +1274,12 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 
 	if (format == NULL) {
 		wlr_log(L_DEBUG, "No 32 bit render format");
+		free(reply);
 		return;
 	}
 
 	xwm->render_format_id = format->id;
+	free(reply);
 }
 
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
