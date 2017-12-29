@@ -78,7 +78,6 @@ static void data_offer_update_action(struct wlr_data_offer *offer) {
 struct client_data_source {
 	struct wlr_data_source source;
 	struct wl_resource *resource;
-	bool actions_set;
 };
 
 static void client_data_source_accept(struct wlr_data_source *wlr_source,
@@ -380,7 +379,7 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *dd_resource, struct wl_resource *source_resource,
 		uint32_t serial) {
-	struct wlr_data_source *source = NULL;
+	struct client_data_source *source = NULL;
 	if (source_resource != NULL) {
 		source = wl_resource_get_user_data(source_resource);
 	}
@@ -389,7 +388,8 @@ static void data_device_set_selection(struct wl_client *client,
 		wl_resource_get_user_data(dd_resource);
 
 	// TODO: store serial and check against incoming serial here
-	wlr_seat_set_selection(seat_client->seat, source, serial);
+	struct wlr_data_source *wlr_source = (struct wlr_data_source *)source;
+	wlr_seat_set_selection(seat_client->seat, wlr_source, serial);
 }
 
 static void data_device_release(struct wl_client *client,
@@ -916,15 +916,15 @@ static void data_source_set_actions(struct wl_client *client,
 
 static void data_source_offer(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type) {
-	struct wlr_data_source *source = wl_resource_get_user_data(resource);
+	struct client_data_source *source = wl_resource_get_user_data(resource);
 
-	char **p = wl_array_add(&source->mime_types, sizeof(*p));
+	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
 	if (p) {
 		*p = strdup(mime_type);
 	}
 	if (!p || !*p) {
 		if (p) {
-			source->mime_types.size -= sizeof(*p);
+			source->source.mime_types.size -= sizeof(*p);
 		}
 		wl_resource_post_no_memory(resource);
 	}
