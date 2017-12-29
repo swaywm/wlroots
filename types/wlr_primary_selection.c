@@ -2,22 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <assert.h>
 #include <gtk-primary-selection-protocol.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
-
-static void client_source_send(struct wlr_primary_selection_source *source,
-		const char *mime_type, int32_t fd) {
-	gtk_primary_selection_source_send_send(source->resource, mime_type, fd);
-	close(fd);
-}
-
-static void client_source_cancel(
-		struct wlr_primary_selection_source *source) {
-	gtk_primary_selection_source_send_cancelled(source->resource);
-}
-
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {
@@ -55,8 +44,8 @@ static void offer_resource_handle_destroy(struct wl_resource *resource) {
 		goto out;
 	}
 
-	if (offer->source->resource) {
-		gtk_primary_selection_source_send_cancelled(offer->source->resource);
+	if (offer->source->cancel) {
+		offer->source->cancel(offer->source);
 	}
 
 	offer->source->offer = NULL;
@@ -72,6 +61,24 @@ static void offer_handle_source_destroy(struct wl_listener *listener,
 	offer->source = NULL;
 }
 
+
+struct client_data_source {
+	struct wlr_primary_selection_source source;
+	struct wl_resource *resource;
+};
+
+static void client_source_send(struct wlr_primary_selection_source *wlr_source,
+		const char *mime_type, int32_t fd) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	gtk_primary_selection_source_send_send(source->resource, mime_type, fd);
+	close(fd);
+}
+
+static void client_source_cancel(
+		struct wlr_primary_selection_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	gtk_primary_selection_source_send_cancelled(source->resource);
+}
 
 static struct wlr_primary_selection_offer *source_send_offer(
 		struct wlr_primary_selection_source *source,
@@ -119,16 +126,15 @@ static struct wlr_primary_selection_offer *source_send_offer(
 
 static void source_handle_offer(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type) {
-	struct wlr_primary_selection_source *source =
-		wl_resource_get_user_data(resource);
+	struct client_data_source *source = wl_resource_get_user_data(resource);
 
-	char **p = wl_array_add(&source->mime_types, sizeof(*p));
+	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
 	if (p) {
 		*p = strdup(mime_type);
 	}
 	if (p == NULL || *p == NULL) {
 		if (p) {
-			source->mime_types.size -= sizeof(*p);
+			source->source.mime_types.size -= sizeof(*p);
 		}
 		wl_resource_post_no_memory(resource);
 	}
@@ -145,9 +151,9 @@ static const struct gtk_primary_selection_source_interface source_impl = {
 };
 
 static void source_resource_handle_destroy(struct wl_resource *resource) {
-	struct wlr_primary_selection_source *source =
+	struct client_data_source *source =
 		wl_resource_get_user_data(resource);
-	wlr_primary_selection_source_finish(source);
+	wlr_primary_selection_source_finish(&source->source);
 	free(source);
 }
 
@@ -197,6 +203,11 @@ static void seat_client_primary_selection_source_destroy(
 
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 		struct wlr_primary_selection_source *source, uint32_t serial) {
+	if (source) {
+		assert(source->send);
+		assert(source->cancel);
+	}
+
 	if (seat->primary_selection_source &&
 			seat->primary_selection_serial - serial < UINT32_MAX / 2) {
 		return;
@@ -230,7 +241,7 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 static void device_handle_set_selection(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *source_resource,
 		uint32_t serial) {
-	struct wlr_primary_selection_source *source = NULL;
+	struct client_data_source *source = NULL;
 	if (source_resource != NULL) {
 		source = wl_resource_get_user_data(source_resource);
 	}
@@ -239,7 +250,9 @@ static void device_handle_set_selection(struct wl_client *client,
 		wl_resource_get_user_data(resource);
 
 	// TODO: store serial and check against incoming serial here
-	wlr_seat_set_primary_selection(seat_client->seat, source, serial);
+	struct wlr_primary_selection_source *wlr_source =
+		(struct wlr_primary_selection_source *)source;
+	wlr_seat_set_primary_selection(seat_client->seat, wlr_source, serial);
 }
 
 static void device_handle_destroy(struct wl_client *client,
@@ -280,13 +293,13 @@ void wlr_primary_selection_source_finish(
 
 static void device_manager_handle_create_source(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id) {
-	struct wlr_primary_selection_source *source =
-		calloc(1, sizeof(struct wlr_primary_selection_source));
+	struct client_data_source *source =
+		calloc(1, sizeof(struct client_data_source));
 	if (source == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wlr_primary_selection_source_init(source);
+	wlr_primary_selection_source_init(&source->source);
 
 	int version = wl_resource_get_version(manager_resource);
 	source->resource = wl_resource_create(client,
@@ -299,8 +312,8 @@ static void device_manager_handle_create_source(struct wl_client *client,
 	wl_resource_set_implementation(source->resource, &source_impl, source,
 		source_resource_handle_destroy);
 
-	source->send = client_source_send;
-	source->cancel = client_source_cancel;
+	source->source.send = client_source_send;
+	source->source.cancel = client_source_cancel;
 }
 
 void device_manager_handle_get_device(struct wl_client *client,

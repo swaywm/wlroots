@@ -75,58 +75,6 @@ static void data_offer_update_action(struct wlr_data_offer *offer) {
 	}
 }
 
-struct client_data_source {
-	struct wlr_data_source source;
-	struct wl_resource *resource;
-};
-
-static void client_data_source_accept(struct wlr_data_source *wlr_source,
-		uint32_t serial, const char *mime_type) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	wl_data_source_send_target(source->resource, mime_type);
-}
-
-static void client_data_source_send(struct wlr_data_source *wlr_source,
-		const char *mime_type, int32_t fd) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	wl_data_source_send_send(source->resource, mime_type, fd);
-	close(fd);
-}
-
-static void client_data_source_cancel(struct wlr_data_source *wlr_source) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	wl_data_source_send_cancelled(source->resource);
-}
-
-static void client_data_source_dnd_drop(struct wlr_data_source *wlr_source) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	assert(wl_resource_get_version(source->resource) >=
-		WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION);
-	wl_data_source_send_dnd_drop_performed(source->resource);
-}
-
-static void client_data_source_dnd_finish(struct wlr_data_source *wlr_source) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	assert(wl_resource_get_version(source->resource) >=
-		WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION);
-	wl_data_source_send_dnd_finished(source->resource);
-}
-
-static void client_data_source_dnd_action(struct wlr_data_source *wlr_source,
-		enum wl_data_device_manager_dnd_action action) {
-	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	assert(wl_resource_get_version(source->resource) >=
-		WL_DATA_SOURCE_ACTION_SINCE_VERSION);
-	wl_data_source_send_action(source->resource, action);
-}
-
-static void client_data_source_resource_destroy(struct wl_resource *resource) {
-	struct client_data_source *source = wl_resource_get_user_data(resource);
-	wlr_data_source_finish(&source->source);
-	free(source);
-}
-
-
 static void data_offer_accept(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial, const char *mime_type) {
 	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
@@ -343,8 +291,11 @@ static void seat_client_selection_data_source_destroy(
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
-	assert(source->send);
-	assert(source->cancel);
+	if (source) {
+		assert(source->send);
+		assert(source->cancel);
+	}
+
 	if (seat->selection_source &&
 			seat->selection_serial - serial < UINT32_MAX / 2) {
 		return;
@@ -861,22 +812,50 @@ static void data_device_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-void data_device_manager_get_data_device(struct wl_client *client,
-		struct wl_resource *manager_resource, uint32_t id,
-		struct wl_resource *seat_resource) {
-	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(seat_resource);
 
-	struct wl_resource *resource = wl_resource_create(client,
-		&wl_data_device_interface, wl_resource_get_version(manager_resource),
-		id);
-	if (resource == NULL) {
-		wl_resource_post_no_memory(manager_resource);
-		return;
-	}
-	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
-		&data_device_destroy);
-	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
+struct client_data_source {
+	struct wlr_data_source source;
+	struct wl_resource *resource;
+};
+
+static void client_data_source_accept(struct wlr_data_source *wlr_source,
+		uint32_t serial, const char *mime_type) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_target(source->resource, mime_type);
+}
+
+static void client_data_source_send(struct wlr_data_source *wlr_source,
+		const char *mime_type, int32_t fd) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_send(source->resource, mime_type, fd);
+	close(fd);
+}
+
+static void client_data_source_cancel(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_cancelled(source->resource);
+}
+
+static void client_data_source_dnd_drop(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION);
+	wl_data_source_send_dnd_drop_performed(source->resource);
+}
+
+static void client_data_source_dnd_finish(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION);
+	wl_data_source_send_dnd_finished(source->resource);
+}
+
+static void client_data_source_dnd_action(struct wlr_data_source *wlr_source,
+		enum wl_data_device_manager_dnd_action action) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_ACTION_SINCE_VERSION);
+	wl_data_source_send_action(source->resource, action);
 }
 
 static void data_source_destroy(struct wl_client *client,
@@ -936,6 +915,12 @@ static struct wl_data_source_interface data_source_impl = {
 	.set_actions = data_source_set_actions,
 };
 
+static void data_source_resource_handle_destroy(struct wl_resource *resource) {
+	struct client_data_source *source = wl_resource_get_user_data(resource);
+	wlr_data_source_finish(&source->source);
+	free(source);
+}
+
 void wlr_data_source_init(struct wlr_data_source *source) {
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
@@ -956,6 +941,25 @@ void wlr_data_source_finish(struct wlr_data_source *source) {
 	wl_array_release(&source->mime_types);
 }
 
+
+void data_device_manager_get_data_device(struct wl_client *client,
+		struct wl_resource *manager_resource, uint32_t id,
+		struct wl_resource *seat_resource) {
+	struct wlr_seat_client *seat_client =
+		wl_resource_get_user_data(seat_resource);
+
+	struct wl_resource *resource = wl_resource_create(client,
+		&wl_data_device_interface, wl_resource_get_version(manager_resource),
+		id);
+	if (resource == NULL) {
+		wl_resource_post_no_memory(manager_resource);
+		return;
+	}
+	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
+		&data_device_destroy);
+	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
+}
+
 static void data_device_manager_create_data_source(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct client_data_source *source =
@@ -974,7 +978,7 @@ static void data_device_manager_create_data_source(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(source->resource, &data_source_impl,
-		source, client_data_source_resource_destroy);
+		source, data_source_resource_handle_destroy);
 
 	source->source.accept = client_data_source_accept;
 	source->source.send = client_data_source_send;
@@ -1019,6 +1023,7 @@ void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
 		return;
 	}
 	wl_list_remove(&manager->display_destroy.link);
+	// TODO: free wl_resources
 	wl_global_destroy(manager->global);
 	free(manager);
 }
