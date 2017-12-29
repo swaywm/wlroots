@@ -348,7 +348,7 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 		return;
 	}
 
-	wl_signal_emit(&wlr_seat->events.destroy, NULL);
+	wl_signal_emit(&wlr_seat->events.destroy, wlr_seat);
 
 	wl_list_remove(&wlr_seat->display_destroy.link);
 
