@@ -169,6 +169,14 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *wlr_xwayland =
 		wl_container_of(listener, wlr_xwayland, client_destroy);
 
+	struct wlr_seat *seat = wlr_xwayland->seat;
+	struct wl_list new_surface_signals;
+	struct wl_listener *new_surface_listener, *next;
+	wl_list_init(&new_surface_signals);
+	wl_list_for_each_safe(new_surface_listener, next, &wlr_xwayland->events.new_surface.listener_list, link) {
+		wl_list_remove(&new_surface_listener->link);
+		wl_list_insert(&new_surface_signals, &new_surface_listener->link);
+	}
 	// Don't call client destroy: it's being destroyed already
 	wlr_xwayland->client = NULL;
 	wl_list_remove(&wlr_xwayland->client_destroy.link);
@@ -179,6 +187,13 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 		wlr_log(L_INFO, "Restarting Xwayland");
 		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display,
 			wlr_xwayland->compositor);
+		wl_list_for_each_safe(new_surface_listener, next, &new_surface_signals, link) {
+			wl_list_remove(&new_surface_listener->link);
+			wl_signal_add(&wlr_xwayland->events.new_surface, new_surface_listener);
+		}
+		if (seat) {
+			wlr_xwayland_set_seat(wlr_xwayland, seat);
+		}
 	}
 }
 
