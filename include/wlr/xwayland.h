@@ -22,15 +22,17 @@ struct wlr_xwayland {
 	struct wl_client *client;
 	struct wl_display *wl_display;
 	struct wlr_compositor *compositor;
-	struct wlr_seat *seat;
 	time_t server_start;
 
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener client_destroy;
 	struct wl_listener display_destroy;
-	struct wl_listener seat_destroy;
 	struct wlr_xwm *xwm;
 	struct wlr_xwayland_cursor *cursor;
+
+	/* Anything above seat is reset on Xwayland restart, rest is conserved */
+	struct wlr_seat *seat;
+	struct wl_listener seat_destroy;
 
 	struct {
 		struct wl_signal ready;
