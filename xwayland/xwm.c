@@ -1255,7 +1255,7 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 	xcb_render_query_pict_formats_reply_t *reply =
 		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, NULL);
 	if (!reply) {
-		wlr_log(L_ERROR, "Did not get any reply from xcb_rrender_query_pict_formats");
+		wlr_log(L_ERROR, "Did not get any reply from xcb_render_query_pict_formats");
 		return;
 	}
 	xcb_render_pictforminfo_iterator_t iter =
