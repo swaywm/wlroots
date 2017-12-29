@@ -222,23 +222,23 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 static void seat_view_destroy(struct roots_seat_view *seat_view);
 
-void roots_seat_destroy(struct roots_seat *seat) {
-	struct roots_seat_view *view, *nview;
-
-	// TODO: probably more to be freed here
-
-	wl_list_for_each_safe(view, nview, &seat->views, link) {
-		seat_view_destroy(view);
-	}
-	// Can be called from seat_destroy handler, so don't destroy seat
-}
-
 static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
 		void *data) {
 	struct roots_seat *seat =
 		wl_container_of(listener, seat, seat_destroy);
 
-	roots_seat_destroy(seat);
+	// TODO: probably more to be freed here
+	wl_list_remove(&seat->seat_destroy.link);
+
+	struct roots_seat_view *view, *nview;
+	wl_list_for_each_safe(view, nview, &seat->views, link) {
+		seat_view_destroy(view);
+	}
+}
+
+void roots_seat_destroy(struct roots_seat *seat) {
+	roots_seat_handle_seat_destroy(&seat->seat_destroy, seat->seat);
+	wlr_seat_destroy(seat->seat);
 }
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
