@@ -826,6 +826,30 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
 }
 
+void xwm_selection_finish(struct wlr_xwm *xwm) {
+	if (!xwm) {
+		return;
+	}
+	if (xwm->selection_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
+	}
+	if (xwm->seat) {
+		if (xwm->seat->selection_source &&
+				xwm->seat->selection_source->cancel == data_source_cancel) {
+			wlr_seat_set_selection(xwm->seat, NULL,
+					wl_display_next_serial(xwm->xwayland->wl_display));
+		}
+		if (xwm->seat->primary_selection_source &&
+				xwm->seat->primary_selection_source->cancel == primary_selection_source_cancel) {
+			wlr_seat_set_primary_selection(xwm->seat, NULL,
+					wl_display_next_serial(xwm->xwayland->wl_display));
+		}
+		wl_list_remove(&xwm->seat_selection.link);
+		wl_list_remove(&xwm->seat_primary_selection.link);
+	}
+
+}
+
 static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
 		bool set) {
 	if (set) {

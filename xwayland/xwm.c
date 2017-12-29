@@ -1092,9 +1092,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
-	if (xwm->selection_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
-	}
+	xwm_selection_finish(xwm);
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
@@ -1113,10 +1111,6 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	}
 	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
-	}
-	if (xwm->seat) {
-		wl_list_remove(&xwm->seat_selection.link);
-		wl_list_remove(&xwm->seat_primary_selection.link);
 	}
 	wl_list_remove(&xwm->compositor_surface_create.link);
 	xcb_disconnect(xwm->xcb_conn);
