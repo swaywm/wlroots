@@ -844,8 +844,7 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 			wlr_seat_set_primary_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 		}
-		wl_list_remove(&xwm->seat_selection.link);
-		wl_list_remove(&xwm->seat_primary_selection.link);
+		wlr_xwayland_set_seat(xwm->xwayland, NULL);
 	}
 
 }
