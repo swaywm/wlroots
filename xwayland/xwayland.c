@@ -134,6 +134,7 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 		free(wlr_xwayland->cursor);
 	}
 
+	wlr_xwayland_set_seat(wlr_xwayland, NULL);
 	xwm_destroy(wlr_xwayland->xwm);
 
 	if (wlr_xwayland->client) {
@@ -388,11 +389,30 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->cursor->hotspot_y = hotspot_y;
 }
 
+static void wlr_xwayland_handle_seat_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwayland *xwayland =
+		wl_container_of(listener, xwayland, seat_destroy);
+
+	wlr_xwayland_set_seat(xwayland, NULL);
+}
+
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 		struct wlr_seat *seat) {
+	if (xwayland->seat) {
+		wl_list_remove(&xwayland->seat_destroy.link);
+	}
+
 	xwayland->seat = seat;
 
 	if (xwayland->xwm) {
 		xwm_set_seat(xwayland->xwm, seat);
 	}
+
+	if (seat == NULL) {
+		return;
+	}
+
+	xwayland->seat_destroy.notify = wlr_xwayland_handle_seat_destroy;
+	wl_signal_add(&seat->events.destroy, &xwayland->seat_destroy);
 }
