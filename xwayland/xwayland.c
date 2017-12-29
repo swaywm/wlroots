@@ -162,7 +162,7 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	 */
 }
 
-static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
+static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 	struct wl_display *wl_display, struct wlr_compositor *compositor);
 
 static void handle_client_destroy(struct wl_listener *listener, void *data) {
@@ -177,7 +177,7 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 
 	if (time(NULL) - wlr_xwayland->server_start > 5) {
 		wlr_log(L_INFO, "Restarting Xwayland");
-		wlr_xwayland_init(wlr_xwayland, wlr_xwayland->wl_display,
+		wlr_xwayland_start(wlr_xwayland, wlr_xwayland->wl_display,
 			wlr_xwayland->compositor);
 	}
 }
@@ -238,20 +238,20 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	setenv("DISPLAY", display_name, true);
 
 	wl_signal_emit(&wlr_xwayland->events.ready, wlr_xwayland);
+	/* ready is a one-shot signal, fire and forget */
+	wl_signal_init(&wlr_xwayland->events.ready);
 
 	return 1; /* wayland event loop dispatcher's count */
 }
 
-static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
+static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 		struct wl_display *wl_display, struct wlr_compositor *compositor) {
-	memset(wlr_xwayland, 0, sizeof(struct wlr_xwayland));
+	memset(wlr_xwayland, 0, offsetof(struct wlr_xwayland, seat));
 	wlr_xwayland->wl_display = wl_display;
 	wlr_xwayland->compositor = compositor;
 	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
 	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
 	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
-	wl_signal_init(&wlr_xwayland->events.new_surface);
-	wl_signal_init(&wlr_xwayland->events.ready);
 
 	wlr_xwayland->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(wl_display, &wlr_xwayland->display_destroy);
@@ -336,6 +336,7 @@ static bool wlr_xwayland_init(struct wlr_xwayland *wlr_xwayland,
 }
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
+	wlr_xwayland_set_seat(wlr_xwayland, NULL);
 	wlr_xwayland_finish(wlr_xwayland);
 	free(wlr_xwayland);
 }
@@ -343,7 +344,10 @@ void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 		struct wlr_compositor *compositor) {
 	struct wlr_xwayland *wlr_xwayland = calloc(1, sizeof(struct wlr_xwayland));
-	if (wlr_xwayland_init(wlr_xwayland, wl_display, compositor)) {
+
+	wl_signal_init(&wlr_xwayland->events.new_surface);
+	wl_signal_init(&wlr_xwayland->events.ready);
+	if (wlr_xwayland_start(wlr_xwayland, wl_display, compositor)) {
 		return wlr_xwayland;
 	}
 	free(wlr_xwayland);
@@ -373,11 +377,30 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->cursor->hotspot_y = hotspot_y;
 }
 
+static void wlr_xwayland_handle_seat_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwayland *xwayland =
+		wl_container_of(listener, xwayland, seat_destroy);
+
+	wlr_xwayland_set_seat(xwayland, NULL);
+}
+
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 		struct wlr_seat *seat) {
+	if (xwayland->seat) {
+		wl_list_remove(&xwayland->seat_destroy.link);
+	}
+
 	xwayland->seat = seat;
 
 	if (xwayland->xwm) {
 		xwm_set_seat(xwayland->xwm, seat);
 	}
+
+	if (seat == NULL) {
+		return;
+	}
+
+	xwayland->seat_destroy.notify = wlr_xwayland_handle_seat_destroy;
+	wl_signal_add(&seat->events.destroy, &xwayland->seat_destroy);
 }

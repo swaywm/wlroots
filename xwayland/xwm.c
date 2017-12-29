@@ -1092,9 +1092,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
-	if (xwm->selection_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
-	}
+	xwm_selection_finish(xwm);
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
@@ -1256,6 +1254,10 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 		xcb_render_query_pict_formats(xwm->xcb_conn);
 	xcb_render_query_pict_formats_reply_t *reply =
 		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, NULL);
+	if (!reply) {
+		wlr_log(L_ERROR, "Did not get any reply from xcb_render_query_pict_formats");
+		return;
+	}
 	xcb_render_pictforminfo_iterator_t iter =
 		xcb_render_query_pict_formats_formats_iterator(reply);
 	xcb_render_pictforminfo_t *format = NULL;
@@ -1270,10 +1272,12 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 
 	if (format == NULL) {
 		wlr_log(L_DEBUG, "No 32 bit render format");
+		free(reply);
 		return;
 	}
 
 	xwm->render_format_id = format->id;
+	free(reply);
 }
 
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,

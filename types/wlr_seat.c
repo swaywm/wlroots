@@ -348,6 +348,8 @@ void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
 		return;
 	}
 
+	wl_signal_emit(&wlr_seat->events.destroy, wlr_seat);
+
 	wl_list_remove(&wlr_seat->display_destroy.link);
 
 	struct wlr_seat_client *client, *tmp;
@@ -452,6 +454,8 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&wlr_seat->events.touch_grab_begin);
 	wl_signal_init(&wlr_seat->events.touch_grab_end);
+
+	wl_signal_init(&wlr_seat->events.destroy);
 
 	wlr_seat->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wlr_seat->display_destroy);
