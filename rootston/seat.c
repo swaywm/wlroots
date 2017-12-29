@@ -220,6 +220,27 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
 }
 
+static void seat_view_destroy(struct roots_seat_view *seat_view);
+
+void roots_seat_destroy(struct roots_seat *seat) {
+	struct roots_seat_view *view, *nview;
+
+	// TODO: probably more to be freed here
+
+	wl_list_for_each_safe(view, nview, &seat->views, link) {
+		seat_view_destroy(view);
+	}
+	// Can be called from seat_destroy handler, so don't destroy seat
+}
+
+static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, seat_destroy);
+
+	roots_seat_destroy(seat);
+}
+
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	struct roots_seat *seat = calloc(1, sizeof(struct roots_seat));
 	if (!seat) {
@@ -254,11 +275,10 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
-	return seat;
-}
+	seat->seat_destroy.notify = roots_seat_handle_seat_destroy;
+	wl_signal_add(&seat->seat->events.destroy, &seat->seat_destroy);
 
-void roots_seat_destroy(struct roots_seat *seat) {
-	// TODO
+	return seat;
 }
 
 static void seat_add_keyboard(struct roots_seat *seat,

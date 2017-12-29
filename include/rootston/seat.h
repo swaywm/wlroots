@@ -21,6 +21,8 @@ struct roots_seat {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+
+	struct wl_listener seat_destroy;
 };
 
 struct roots_seat_view {
