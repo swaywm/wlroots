@@ -53,6 +53,7 @@ struct wlr_xdg_popup_grab {
 	struct wlr_seat *seat;
 	struct wl_list popups;
 	struct wl_list link; // wlr_xdg_shell::popup_grabs
+	struct wl_listener seat_destroy;
 };
 
 enum wlr_xdg_surface_role {
