@@ -173,6 +173,8 @@ static void data_offer_resource_destroy(struct wl_resource *resource) {
 		goto out;
 	}
 
+	offer->source->offer = NULL;
+
 	// If the drag destination has version < 3, wl_data_offer.finish
 	// won't be called, so do this here as a safety net, because
 	// we still want the version >= 3 drag source to be happy.
@@ -183,7 +185,6 @@ static void data_offer_resource_destroy(struct wl_resource *resource) {
 		offer->source->cancel(offer->source);
 	}
 
-	offer->source->offer = NULL;
 out:
 	free(offer);
 }

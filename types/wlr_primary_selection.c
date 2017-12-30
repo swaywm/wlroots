@@ -44,11 +44,8 @@ static void offer_resource_handle_destroy(struct wl_resource *resource) {
 		goto out;
 	}
 
-	if (offer->source->cancel) {
-		offer->source->cancel(offer->source);
-	}
-
 	offer->source->offer = NULL;
+
 out:
 	free(offer);
 }
