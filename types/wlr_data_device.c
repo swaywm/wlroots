@@ -253,9 +253,9 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 		return;
 	}
 
-	if (seat_client->seat->selection_source) {
+	if (seat_client->seat->selection_data_source) {
 		struct wlr_data_offer *offer = wlr_data_source_send_offer(
-			seat_client->seat->selection_source, seat_client);
+			seat_client->seat->selection_data_source, seat_client);
 		if (offer == NULL) {
 			return;
 		}
@@ -285,7 +285,7 @@ static void seat_client_selection_data_source_destroy(
 		}
 	}
 
-	seat->selection_source = NULL;
+	seat->selection_data_source = NULL;
 
 	wl_signal_emit(&seat->events.selection, seat);
 }
@@ -297,18 +297,18 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 		assert(source->cancel);
 	}
 
-	if (seat->selection_source &&
+	if (seat->selection_data_source &&
 			seat->selection_serial - serial < UINT32_MAX / 2) {
 		return;
 	}
 
-	if (seat->selection_source) {
-		seat->selection_source->cancel(seat->selection_source);
-		seat->selection_source = NULL;
+	if (seat->selection_data_source) {
+		seat->selection_data_source->cancel(seat->selection_data_source);
+		seat->selection_data_source = NULL;
 		wl_list_remove(&seat->selection_data_source_destroy.link);
 	}
 
-	seat->selection_source = source;
+	seat->selection_data_source = source;
 	seat->selection_serial = serial;
 
 	struct wlr_seat_client *focused_client =

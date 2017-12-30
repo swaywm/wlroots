@@ -178,8 +178,7 @@ struct wlr_seat {
 	uint32_t capabilities;
 	struct timespec last_event;
 
-	struct wlr_data_device *data_device; // TODO needed?
-	struct wlr_data_source *selection_source;
+	struct wlr_data_source *selection_data_source;
 	uint32_t selection_serial;
 
 	struct wlr_primary_selection_source *primary_selection_source;
