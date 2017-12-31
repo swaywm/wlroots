@@ -272,6 +272,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 
 	wlr_output_destroy_global(output);
+	wlr_output_set_fullscreen_surface(output, NULL);
 
 	wl_signal_emit(&output->events.destroy, output);
 
@@ -279,6 +280,11 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
 		wl_list_remove(&mode->link);
 		free(mode);
+	}
+
+	struct wlr_output_cursor *cursor, *tmp_cursor;
+	wl_list_for_each_safe(cursor, tmp_cursor, &output->cursors, link) {
+		wlr_output_cursor_destroy(cursor);
 	}
 
 	if (output->impl && output->impl->destroy) {
