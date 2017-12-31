@@ -47,6 +47,7 @@ struct roots_desktop {
 
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
+	struct wl_listener layout_change;
 	struct wl_listener xdg_shell_v6_surface;
 	struct wl_listener wl_shell_surface;
 	struct wl_listener decoration_new;

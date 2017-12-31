@@ -38,12 +38,9 @@ static void view_update_output(const struct roots_view *view,
 	view_get_box(view, &box);
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before != NULL && wlr_output_layout_intersects(
-				desktop->layout, output->wlr_output,
-				before->x, before->y, before->x + before->width,
-				before->y + before->height);
-		bool intersects = wlr_output_layout_intersects(
-				desktop->layout, output->wlr_output,
-				view->x, view->y, view->x + box.width, view->y + box.height);
+			desktop->layout, output->wlr_output, before);
+		bool intersects = wlr_output_layout_intersects(desktop->layout,
+			output->wlr_output, &box);
 		if (intersected && !intersects) {
 			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
 		}
@@ -386,6 +383,34 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	return NULL;
 }
 
+static void handle_layout_change(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, layout_change);
+
+	struct wlr_output *center_output =
+		wlr_output_layout_get_center_output(desktop->layout);
+	if (center_output == NULL) {
+		return;
+	}
+
+	struct wlr_box *center_output_box =
+		wlr_output_layout_get_box(desktop->layout, center_output);
+	double center_x = center_output_box->x + center_output_box->width/2;
+	double center_y = center_output_box->y + center_output_box->height/2;
+
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
+		struct wlr_box box;
+		view_get_box(view, &box);
+
+		if (wlr_output_layout_intersects(desktop->layout, NULL, &box)) {
+			continue;
+		}
+
+		view_move(view, center_x - box.width/2, center_y - box.height/2);
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -428,6 +453,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	}
 
 	desktop->layout = wlr_output_layout_create();
+	desktop->layout_change.notify = handle_layout_change;
+	wl_signal_add(&desktop->layout->events.change, &desktop->layout_change);
+
 	desktop->compositor = wlr_compositor_create(server->wl_display,
 		server->renderer);
 

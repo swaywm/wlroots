@@ -230,30 +230,38 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 }
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
-	struct wlr_output_layout_output *layout_output =
-		wlr_output_layout_get(layout, reference);
-	if (!layout_output) {
+		struct wlr_output *reference, const struct wlr_box *target_box) {
+	struct wlr_box out_box;
+
+	if (reference == NULL) {
+		struct wlr_output_layout_output *l_output;
+		wl_list_for_each(l_output, &layout->outputs, link) {
+			struct wlr_box *output_box =
+				wlr_output_layout_output_get_box(l_output);
+			if (wlr_box_intersection(output_box, target_box, &out_box)) {
+				return true;
+			}
+		}
 		return false;
+	} else {
+		struct wlr_output_layout_output *l_output =
+			wlr_output_layout_get(layout, reference);
+		if (!l_output) {
+			return false;
+		}
+
+		struct wlr_box *output_box = wlr_output_layout_output_get_box(l_output);
+		return wlr_box_intersection(output_box, target_box, &out_box);
 	}
-
-	struct wlr_box *output_box = wlr_output_layout_output_get_box(layout_output);
-	struct wlr_box target_box = {x1, y1, x2 - x1, y2 - y1};
-
-	struct wlr_box out;
-	struct wlr_box *out_ptr = &out;
-	return wlr_box_intersection(output_box, &target_box, &out_ptr);
 }
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (l_output->output) {
-			struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-			if (wlr_box_contains_point(box, x, y)) {
-				return l_output->output;
-			}
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		if (wlr_box_contains_point(box, x, y)) {
+			return l_output->output;
 		}
 	}
 	return NULL;

@@ -555,9 +555,8 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 	output_cursor_get_box(cursor, &cursor_box);
 
 	struct wlr_box intersection;
-	struct wlr_box *intersection_ptr = &intersection;
 	bool visible =
-		wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr);
+		wlr_box_intersection(&output_box, &cursor_box, &intersection);
 
 	if (cursor->surface != NULL) {
 		if (cursor->visible && !visible) {

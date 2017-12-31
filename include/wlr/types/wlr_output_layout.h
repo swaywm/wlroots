@@ -1,6 +1,7 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_LAYOUT_H
 #define WLR_TYPES_WLR_OUTPUT_LAYOUT_H
 
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wayland-util.h>
 #include <stdbool.h>
@@ -61,7 +62,7 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y);
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int x1, int y1, int x2, int y2);
+		struct wlr_output *reference, const struct wlr_box *target_box);
 
 /**
  * Get the closest point on this layout from the given point from the reference

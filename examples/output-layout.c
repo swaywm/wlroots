@@ -105,11 +105,11 @@ static void handle_output_frame(struct output_state *output,
 
 	animate_cat(sample, output->output);
 
-	bool intersects = wlr_output_layout_intersects(sample->layout,
-		output->output, sample->x_offs, sample->y_offs,
-		sample->x_offs + 128, sample->y_offs + 128);
-
-	if (intersects) {
+	struct wlr_box box = {
+		.x = sample->x_offs, .y = sample->y_offs,
+		.width = 128, .height = 128,
+	};
+	if (wlr_output_layout_intersects(sample->layout, output->output, &box)) {
 		float matrix[16];
 
 		// transform global coordinates to local coordinates
@@ -122,7 +122,6 @@ static void handle_output_frame(struct output_state *output,
 			&wlr_output->transform_matrix, local_x, local_y);
 		wlr_render_with_matrix(sample->renderer,
 			sample->cat_texture, &matrix);
-
 	}
 
 	wlr_renderer_end(sample->renderer);
