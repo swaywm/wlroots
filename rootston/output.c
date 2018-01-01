@@ -34,79 +34,84 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
-	if (wlr_surface_has_buffer(surface)) {
-		int width = surface->current->width;
-		int height = surface->current->height;
-		int render_width = width * wlr_output->scale;
-		int render_height = height * wlr_output->scale;
-		double ox = lx, oy = ly;
-		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
-		ox *= wlr_output->scale;
-		oy *= wlr_output->scale;
+	if (!wlr_surface_has_buffer(surface)) {
+		return;
+	}
 
-		if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-				lx, ly, lx + render_width, ly + render_height)) {
-			float matrix[16];
+	int width = surface->current->width;
+	int height = surface->current->height;
+	int render_width = width * wlr_output->scale;
+	int render_height = height * wlr_output->scale;
+	double ox = lx, oy = ly;
+	wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
+	ox *= wlr_output->scale;
+	oy *= wlr_output->scale;
 
-			float translate_center[16];
-			wlr_matrix_translate(&translate_center,
-				(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
+	struct wlr_box render_box = {
+		.x = lx, .y = ly,
+		.width = render_width, .height = render_height,
+	};
+	if (wlr_output_layout_intersects(desktop->layout, wlr_output, &render_box)) {
+		float matrix[16];
 
-			float rotate[16];
-			wlr_matrix_rotate(&rotate, rotation);
+		float translate_center[16];
+		wlr_matrix_translate(&translate_center,
+			(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
 
-			float translate_origin[16];
-			wlr_matrix_translate(&translate_origin, -render_width / 2,
-				-render_height / 2, 0);
+		float rotate[16];
+		wlr_matrix_rotate(&rotate, rotation);
 
-			float scale[16];
-			wlr_matrix_scale(&scale, render_width, render_height, 1);
+		float translate_origin[16];
+		wlr_matrix_translate(&translate_origin, -render_width / 2,
+			-render_height / 2, 0);
 
-			float transform[16];
-			wlr_matrix_mul(&translate_center, &rotate, &transform);
-			wlr_matrix_mul(&transform, &translate_origin, &transform);
-			wlr_matrix_mul(&transform, &scale, &transform);
+		float scale[16];
+		wlr_matrix_scale(&scale, render_width, render_height, 1);
 
-			if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-				float surface_translate_center[16];
-				wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
+		float transform[16];
+		wlr_matrix_mul(&translate_center, &rotate, &transform);
+		wlr_matrix_mul(&transform, &translate_origin, &transform);
+		wlr_matrix_mul(&transform, &scale, &transform);
 
-				float surface_transform[16];
-				wlr_matrix_transform(surface_transform,
-					wlr_output_transform_invert(surface->current->transform));
+		if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+			float surface_translate_center[16];
+			wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
 
-				float surface_translate_origin[16];
-				wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
+			float surface_transform[16];
+			wlr_matrix_transform(surface_transform,
+				wlr_output_transform_invert(surface->current->transform));
 
-				wlr_matrix_mul(&transform, &surface_translate_center,
-					&transform);
-				wlr_matrix_mul(&transform, &surface_transform, &transform);
-				wlr_matrix_mul(&transform, &surface_translate_origin,
-					&transform);
-			}
+			float surface_translate_origin[16];
+			wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
 
-			wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
-
-			wlr_render_with_matrix(desktop->server->renderer, surface->texture,
-				&matrix);
-
-			wlr_surface_send_frame_done(surface, when);
+			wlr_matrix_mul(&transform, &surface_translate_center,
+				&transform);
+			wlr_matrix_mul(&transform, &surface_transform, &transform);
+			wlr_matrix_mul(&transform, &surface_translate_origin,
+				&transform);
 		}
 
-		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-			struct wlr_surface_state *state = subsurface->surface->current;
-			double sx = state->subsurface_position.x;
-			double sy = state->subsurface_position.y;
-			double sw = state->buffer_width / state->scale;
-			double sh = state->buffer_height / state->scale;
-			rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
+		wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
 
-			render_surface(subsurface->surface, desktop, wlr_output, when,
-				lx + sx,
-				ly + sy,
-				rotation);
-		}
+		wlr_render_with_matrix(desktop->server->renderer, surface->texture,
+			&matrix);
+
+		wlr_surface_send_frame_done(surface, when);
+	}
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		struct wlr_surface_state *state = subsurface->surface->current;
+		double sx = state->subsurface_position.x;
+		double sy = state->subsurface_position.y;
+		double sw = state->buffer_width / state->scale;
+		double sh = state->buffer_height / state->scale;
+		rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
+
+		render_surface(subsurface->surface, desktop, wlr_output, when,
+			lx + sx,
+			ly + sy,
+			rotation);
 	}
 }
 
@@ -356,7 +361,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 void output_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
-	struct roots_desktop *desktop = wl_container_of(listener, desktop, output_remove);
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, output_remove);
+
 	struct roots_output *output = NULL, *_output;
 	wl_list_for_each(_output, &desktop->outputs, link) {
 		if (_output->wlr_output == wlr_output) {
@@ -367,10 +374,13 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	if (!output) {
 		return; // We are unfamiliar with this output
 	}
+
 	wlr_output_layout_remove(desktop->layout, output->wlr_output);
+
 	// TODO: cursor
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
+
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
 	free(output);

@@ -6,7 +6,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/util/log.h>
 
-void wlr_box_closest_point(struct wlr_box *box, double x, double y,
+void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 		double *dest_x, double *dest_y) {
 	// find the closest x point
 	if (x < box->x) {
@@ -27,13 +27,12 @@ void wlr_box_closest_point(struct wlr_box *box, double x, double y,
 	}
 }
 
-bool wlr_box_empty(struct wlr_box *box) {
+bool wlr_box_empty(const struct wlr_box *box) {
 	return box == NULL || box->width <= 0 || box->height <= 0;
 }
 
-bool wlr_box_intersection(struct wlr_box *box_a,
-		struct wlr_box *box_b, struct wlr_box **box_dest) {
-	struct wlr_box *dest = *box_dest;
+bool wlr_box_intersection(const struct wlr_box *box_a,
+		const struct wlr_box *box_b, struct wlr_box *dest) {
 	bool a_empty = wlr_box_empty(box_a);
 	bool b_empty = wlr_box_empty(box_b);
 
@@ -58,7 +57,7 @@ bool wlr_box_intersection(struct wlr_box *box_a,
 	return !wlr_box_empty(dest);
 }
 
-bool wlr_box_contains_point(struct wlr_box *box, double x, double y) {
+bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
 	if (wlr_box_empty(box)) {
 		return false;
 	} else {
@@ -67,7 +66,7 @@ bool wlr_box_contains_point(struct wlr_box *box, double x, double y) {
 	}
 }
 
-void wlr_box_transform(struct wlr_box *box,
+void wlr_box_transform(const struct wlr_box *box,
 		enum wl_output_transform transform, struct wlr_box *dest) {
 	if (transform % 2 == 0) {
 		dest->width = box->width;
