@@ -55,7 +55,7 @@ struct wlr_output {
 
 	float transform_matrix[16];
 
-	/* Note: some backends may have zero modes */
+	// Note: some backends may have zero modes
 	struct wl_list modes;
 	struct wlr_output_mode *current_mode;
 
