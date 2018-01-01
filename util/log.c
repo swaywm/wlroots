@@ -9,6 +9,7 @@
 #include <wlr/util/log.h>
 
 static bool colored = true;
+static log_importance_t log_importance = L_ERROR;
 
 static const char *verbosity_colors[] = {
 	[L_SILENT] = "",
@@ -18,6 +19,9 @@ static const char *verbosity_colors[] = {
 };
 
 void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
+	if (verbosity > log_importance) {
+		return;
+	}
 	// prefix the time to the log message
 	struct tm result;
 	time_t t = time(NULL);
@@ -44,8 +48,13 @@ void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
 
 static log_callback_t log_callback = wlr_log_stderr;
 
-void wlr_log_init(log_callback_t callback) {
-	log_callback = callback;
+void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
+	if (verbosity < L_LAST) {
+		log_importance = verbosity;
+	}
+	if (callback) {
+		log_callback = callback;
+	}
 }
 
 void _wlr_vlog(log_importance_t verbosity, const char *fmt, va_list args) {

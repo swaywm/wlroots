@@ -28,6 +28,7 @@ static void ready(struct wl_listener *listener, void *data) {
 }
 
 int main(int argc, char **argv) {
+	wlr_log_init(L_DEBUG, NULL);
 	assert(server.config = roots_config_create_from_args(argc, argv));
 	assert(server.wl_display = wl_display_create());
 	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
