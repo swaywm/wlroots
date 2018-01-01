@@ -90,12 +90,12 @@ static void move_resize(struct roots_view *view, double x, double y,
 		y = y + height - constrained_height;
 	}
 
-	view->pending_move_resize.update_x = update_x;
-	view->pending_move_resize.update_y = update_y;
-	view->pending_move_resize.x = x;
-	view->pending_move_resize.y = y;
-	view->pending_move_resize.width = constrained_width;
-	view->pending_move_resize.height = constrained_height;
+	view->pending.move_resize.update_x = update_x;
+	view->pending.move_resize.update_y = update_y;
+	view->pending.move_resize.x = x;
+	view->pending.move_resize.y = y;
+	view->pending.move_resize.width = constrained_width;
+	view->pending.move_resize.height = constrained_height;
 
 	uint32_t serial = wlr_xdg_toplevel_v6_set_size(surface, constrained_width,
 		constrained_height);
@@ -204,13 +204,23 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		struct wlr_box size;
 		get_size(view, &size);
 
-		if (view->pending_move_resize.update_x) {
-			view->x = view->pending_move_resize.x +
-				view->pending_move_resize.width - size.width;
+		if (view->pending.move_resize.update_x) {
+			view->x = view->pending.move_resize.x +
+				view->pending.move_resize.width - size.width;
 		}
-		if (view->pending_move_resize.update_y) {
-			view->y = view->pending_move_resize.y +
-				view->pending_move_resize.height - size.height;
+		if (view->pending.move_resize.update_y) {
+			view->y = view->pending.move_resize.y +
+				view->pending.move_resize.height - size.height;
+		}
+
+		view->maximized = view->pending.maximized;
+
+		if (view->fullscreen_output != NULL) {
+			view->fullscreen_output->fullscreen_view = NULL;
+		}
+		view->fullscreen_output = view->pending.fullscreen_output;
+		if (view->fullscreen_output != NULL) {
+			view->fullscreen_output->fullscreen_view = view;
 		}
 
 		if (pending_serial == surface->configure_serial) {

@@ -70,10 +70,14 @@ struct roots_view {
 	} saved;
 
 	struct {
-		bool update_x, update_y;
-		double x, y;
-		uint32_t width, height;
-	} pending_move_resize;
+		struct {
+			bool update_x, update_y;
+			double x, y;
+			uint32_t width, height;
+		} move_resize;
+		bool maximized;
+		struct roots_output *fullscreen_output;
+	} pending;
 
 	// TODO: Something for roots-enforced width/height
 	enum roots_view_type type;
