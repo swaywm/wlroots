@@ -20,7 +20,7 @@ extern const struct session_impl session_direct;
 static const struct session_impl *impls[] = {
 #ifdef WLR_HAS_SYSTEMD
 	&session_logind,
-#elif WLR_HAS_ELOGIND
+#elif defined(WLR_HAS_ELOGIND)
 	&session_logind,
 #endif
 	&session_direct,

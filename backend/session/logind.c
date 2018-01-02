@@ -17,7 +17,7 @@
 #ifdef WLR_HAS_SYSTEMD
 	#include <systemd/sd-bus.h>
 	#include <systemd/sd-login.h>
-#elif WLR_HAS_ELOGIND
+#elif defined(WLR_HAS_ELOGIND)
 	#include <elogind/sd-bus.h>
 	#include <elogind/sd-login.h> 
 #endif
