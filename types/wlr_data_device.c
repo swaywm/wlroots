@@ -339,7 +339,6 @@ static void data_device_set_selection(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wl_resource_get_user_data(dd_resource);
 
-	// TODO: store serial and check against incoming serial here
 	struct wlr_data_source *wlr_source = (struct wlr_data_source *)source;
 	wlr_seat_set_selection(seat_client->seat, wlr_source, serial);
 }

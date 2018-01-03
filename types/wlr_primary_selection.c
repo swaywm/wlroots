@@ -246,7 +246,6 @@ static void device_handle_set_selection(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wl_resource_get_user_data(resource);
 
-	// TODO: store serial and check against incoming serial here
 	struct wlr_primary_selection_source *wlr_source =
 		(struct wlr_primary_selection_source *)source;
 	wlr_seat_set_primary_selection(seat_client->seat, wlr_source, serial);
