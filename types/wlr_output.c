@@ -146,6 +146,8 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	} else {
 		wlr_output_destroy_global(output);
 	}
+
+	wl_signal_emit(&output->events.enable, output);
 }
 
 static void wlr_output_update_matrix(struct wlr_output *output) {
@@ -269,6 +271,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
