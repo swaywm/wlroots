@@ -113,38 +113,39 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 	wl_output_send_to_resource(wl_resource);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_output *output =
-		wl_container_of(listener, output, display_destroy);
-	wlr_output_destroy_global(output);
-}
-
-struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
-		struct wl_display *display) {
-	if (wlr_output->wl_global != NULL) {
-		return wlr_output->wl_global;
-	}
-	struct wl_global *wl_global = wl_global_create(display,
-		&wl_output_interface, 3, wlr_output, wl_output_bind);
-	wlr_output->wl_global = wl_global;
-
-	wlr_output->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &wlr_output->display_destroy);
-
-	return wl_global;
-}
-
-void wlr_output_destroy_global(struct wlr_output *wlr_output) {
-	if (wlr_output->wl_global == NULL) {
+static void wlr_output_create_global(struct wlr_output *output) {
+	if (output->wl_global != NULL) {
 		return;
 	}
-	wl_list_remove(&wlr_output->display_destroy.link);
+	struct wl_global *wl_global = wl_global_create(output->display,
+		&wl_output_interface, 3, output, wl_output_bind);
+	output->wl_global = wl_global;
+}
+
+static void wlr_output_destroy_global(struct wlr_output *output) {
+	if (output->wl_global == NULL) {
+		return;
+	}
 	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &wlr_output->wl_resources) {
+	wl_resource_for_each_safe(resource, tmp, &output->wl_resources) {
 		wl_resource_destroy(resource);
 	}
-	wl_global_destroy(wlr_output->wl_global);
-	wlr_output->wl_global = NULL;
+	wl_global_destroy(output->wl_global);
+	output->wl_global = NULL;
+}
+
+void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
+	if (output->enabled == enabled) {
+		return;
+	}
+
+	output->enabled = enabled;
+
+	if (enabled) {
+		wlr_output_create_global(output);
+	} else {
+		wlr_output_destroy_global(output);
+	}
 }
 
 static void wlr_output_update_matrix(struct wlr_output *output) {
@@ -248,11 +249,18 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	wl_signal_emit(&output->events.scale, output);
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_output *output =
+		wl_container_of(listener, output, display_destroy);
+	wlr_output_destroy_global(output);
+}
+
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
-		const struct wlr_output_impl *impl) {
+		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->make_current && impl->swap_buffers && impl->transform);
 	output->backend = backend;
 	output->impl = impl;
+	output->display = display;
 	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
@@ -264,6 +272,9 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
+
+	output->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &output->display_destroy);
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -271,6 +282,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
+	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	wlr_output_set_fullscreen_surface(output, NULL);
 

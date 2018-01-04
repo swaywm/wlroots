@@ -15,7 +15,7 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_output *output;
 	wl_list_for_each(output, &backend->outputs, link) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-		wlr_output_create_global(&output->wlr_output, backend->display);
+		wlr_output_update_enabled(&output->wlr_output, true);
 		wl_signal_emit(&backend->backend.events.output_add,
 			&output->wlr_output);
 	}

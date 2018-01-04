@@ -36,19 +36,19 @@ struct wlr_output_impl;
 struct wlr_output {
 	const struct wlr_output_impl *impl;
 	struct wlr_backend *backend;
+	struct wl_display *display;
 
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 
-	uint32_t flags;
 	char name[16];
 	char make[48];
 	char model[16];
 	char serial[16];
-	float scale;
-	int32_t width, height;
-	int32_t refresh; // mHz
 	int32_t phys_width, phys_height; // mm
+
+	bool enabled;
+	float scale;
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	bool needs_swap;
@@ -58,6 +58,8 @@ struct wlr_output {
 	// Note: some backends may have zero modes
 	struct wl_list modes;
 	struct wlr_output_mode *current_mode;
+	int32_t width, height;
+	int32_t refresh; // mHz
 
 	struct {
 		struct wl_signal frame;

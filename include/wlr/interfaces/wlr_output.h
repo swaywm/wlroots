@@ -26,14 +26,11 @@ struct wlr_output_impl {
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
-	const struct wlr_output_impl *impl);
-void wlr_output_free(struct wlr_output *output);
+	const struct wlr_output_impl *impl, struct wl_display *display);
 void wlr_output_update_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
-struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
-	struct wl_display *display);
-void wlr_output_destroy_global(struct wlr_output *wlr_output);
+void wlr_output_update_enabled(struct wlr_output *output, bool enabled);
 
 #endif
