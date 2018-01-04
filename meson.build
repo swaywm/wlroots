@@ -159,7 +159,6 @@ subdir('examples')
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
 	libraries: lib_wlr,
-	subdirs: '@0@'.format(meson.project_name()),
 	version: meson.project_version(),
 	filebase: meson.project_name(),
 	name: meson.project_name(),
