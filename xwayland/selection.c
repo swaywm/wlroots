@@ -153,7 +153,8 @@ error_out:
 static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		const char *mime_type, int32_t fd) {
 	if (selection == &selection->xwm->clipboard_selection) {
-		struct wlr_data_source *source = selection->xwm->seat->selection_source;
+		struct wlr_data_source *source =
+			selection->xwm->seat->selection_data_source;
 		if (source != NULL) {
 			source->send(source, mime_type, fd);
 			return;
@@ -214,7 +215,8 @@ static void xwm_selection_send_timestamp(struct wlr_xwm_selection *selection) {
 static struct wl_array *xwm_selection_source_get_mime_types(
 		struct wlr_xwm_selection *selection) {
 	if (selection == &selection->xwm->clipboard_selection) {
-		struct wlr_data_source *source = selection->xwm->seat->selection_source;
+		struct wlr_data_source *source =
+			selection->xwm->seat->selection_data_source;
 		if (source != NULL) {
 			return &source->mime_types;
 		}
@@ -834,8 +836,8 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
 	}
 	if (xwm->seat) {
-		if (xwm->seat->selection_source &&
-				xwm->seat->selection_source->cancel == data_source_cancel) {
+		if (xwm->seat->selection_data_source &&
+				xwm->seat->selection_data_source->cancel == data_source_cancel) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 		}
@@ -871,7 +873,7 @@ static void seat_handle_selection(struct wl_listener *listener,
 	struct wlr_seat *seat = data;
 	struct wlr_xwm *xwm =
 		wl_container_of(listener, xwm, seat_selection);
-	struct wlr_data_source *source = seat->selection_source;
+	struct wlr_data_source *source = seat->selection_data_source;
 
 	if (source != NULL && source->send == data_source_send) {
 		return;

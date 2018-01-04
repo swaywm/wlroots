@@ -15,15 +15,17 @@ struct wlr_primary_selection_device_manager {
 struct wlr_primary_selection_offer;
 
 struct wlr_primary_selection_source {
-	struct wl_resource *resource;
-	struct wlr_primary_selection_offer *offer;
-	struct wlr_seat_client *seat_client;
-
+	// source metadata
 	struct wl_array mime_types;
 
+	// source implementation
 	void (*send)(struct wlr_primary_selection_source *source,
 		const char *mime_type, int32_t fd);
 	void (*cancel)(struct wlr_primary_selection_source *source);
+
+	// source status
+	struct wlr_primary_selection_offer *offer;
+	struct wlr_seat_client *seat_client;
 
 	struct {
 		struct wl_signal destroy;

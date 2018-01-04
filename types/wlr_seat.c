@@ -343,28 +343,38 @@ static const struct wlr_touch_grab_interface default_touch_grab_impl = {
 };
 
 
-void wlr_seat_destroy(struct wlr_seat *wlr_seat) {
-	if (!wlr_seat) {
+void wlr_seat_destroy(struct wlr_seat *seat) {
+	if (!seat) {
 		return;
 	}
 
-	wl_signal_emit(&wlr_seat->events.destroy, wlr_seat);
+	wl_signal_emit(&seat->events.destroy, seat);
 
-	wl_list_remove(&wlr_seat->display_destroy.link);
+	wl_list_remove(&seat->display_destroy.link);
+
+	if (seat->selection_data_source) {
+		seat->selection_data_source->cancel(seat->selection_data_source);
+		seat->selection_data_source = NULL;
+		wl_list_remove(&seat->selection_data_source_destroy.link);
+	}
+	if (seat->primary_selection_source) {
+		seat->primary_selection_source->cancel(seat->primary_selection_source);
+		seat->primary_selection_source = NULL;
+		wl_list_remove(&seat->primary_selection_source_destroy.link);
+	}
 
 	struct wlr_seat_client *client, *tmp;
-	wl_list_for_each_safe(client, tmp, &wlr_seat->clients, link) {
+	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
 		// will destroy other resources as well
 		wl_resource_destroy(client->wl_resource);
 	}
 
-	wl_global_destroy(wlr_seat->wl_global);
-	free(wlr_seat->pointer_state.default_grab);
-	free(wlr_seat->keyboard_state.default_grab);
-	free(wlr_seat->touch_state.default_grab);
-	free(wlr_seat->data_device);
-	free(wlr_seat->name);
-	free(wlr_seat);
+	wl_global_destroy(seat->wl_global);
+	free(seat->pointer_state.default_grab);
+	free(seat->keyboard_state.default_grab);
+	free(seat->touch_state.default_grab);
+	free(seat->name);
+	free(seat);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

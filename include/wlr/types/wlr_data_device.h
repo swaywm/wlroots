@@ -23,33 +23,39 @@ struct wlr_data_offer {
 	struct wl_resource *resource;
 	struct wlr_data_source *source;
 
-	uint32_t dnd_actions;
-	enum wl_data_device_manager_dnd_action preferred_dnd_action;
+	uint32_t actions;
+	enum wl_data_device_manager_dnd_action preferred_action;
 	bool in_ask;
 
 	struct wl_listener source_destroy;
 };
 
 struct wlr_data_source {
-	struct wl_resource *resource;
+	// source metadata
+	struct wl_array mime_types;
+	int32_t actions;
+
+	// source implementation
+	void (*send)(struct wlr_data_source *source, const char *mime_type,
+		int32_t fd);
+	void (*accept)(struct wlr_data_source *source, uint32_t serial,
+		const char *mime_type);
+	void (*cancel)(struct wlr_data_source *source);
+
+	// drag'n'drop implementation
+	void (*dnd_drop)(struct wlr_data_source *source);
+	void (*dnd_finish)(struct wlr_data_source *source);
+	void (*dnd_action)(struct wlr_data_source *source,
+		enum wl_data_device_manager_dnd_action action);
+
+	// source status
+	bool accepted;
 	struct wlr_data_offer *offer;
 	struct wlr_seat_client *seat_client;
 
-	struct wl_array mime_types;
-
-	bool accepted;
-
-	// drag and drop
+	// drag'n'drop status
 	enum wl_data_device_manager_dnd_action current_dnd_action;
-	uint32_t dnd_actions;
 	uint32_t compositor_action;
-	bool actions_set;
-
-	void (*accept)(struct wlr_data_source *source, uint32_t serial,
-			const char *mime_type);
-	void (*send)(struct wlr_data_source *source, const char *mime_type,
-			int32_t fd);
-	void (*cancel)(struct wlr_data_source *source);
 
 	struct {
 		struct wl_signal destroy;
