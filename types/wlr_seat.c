@@ -794,6 +794,7 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 	}
 
 	seat->keyboard_state.keyboard = keyboard;
+	wlr_seat_keyboard_send_modifiers(seat);
 }
 
 void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
