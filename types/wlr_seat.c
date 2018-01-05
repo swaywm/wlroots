@@ -291,8 +291,9 @@ static void default_keyboard_key(struct wlr_seat_keyboard_grab *grab,
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
-static void default_keyboard_modifiers(struct wlr_seat_keyboard_grab *grab) {
-	wlr_seat_keyboard_send_modifiers(grab->seat);
+static void default_keyboard_modifiers(struct wlr_seat_keyboard_grab *grab,
+		struct wlr_keyboard_modifiers *modifiers) {
+	wlr_seat_keyboard_send_modifiers(grab->seat, modifiers);
 }
 
 static void default_keyboard_cancel(struct wlr_seat_keyboard_grab *grab) {
@@ -796,6 +797,10 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 	seat->keyboard_state.keyboard = keyboard;
 }
 
+struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat) {
+	return seat->keyboard_state.keyboard;
+}
+
 void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_keyboard_grab *grab) {
 	grab->seat = wlr_seat;
@@ -834,14 +839,10 @@ static void keyboard_resource_destroy_notify(struct wl_listener *listener,
 	wlr_seat_keyboard_clear_focus(state->seat);
 }
 
-void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat) {
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
+		struct wlr_keyboard_modifiers *modifiers) {
 	struct wlr_seat_client *client = seat->keyboard_state.focused_client;
 	if (client == NULL) {
-		return;
-	}
-
-	struct wlr_keyboard *keyboard = seat->keyboard_state.keyboard;
-	if (keyboard == NULL) {
 		return;
 	}
 
@@ -849,8 +850,8 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat) {
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
 		wl_keyboard_send_modifiers(resource, serial,
-			keyboard->modifiers.depressed, keyboard->modifiers.latched,
-			keyboard->modifiers.locked, keyboard->modifiers.group);
+			modifiers->depressed, modifiers->latched,
+			modifiers->locked, modifiers->group);
 	}
 }
 
@@ -930,7 +931,8 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 	if (client != NULL && seat->keyboard_state.keyboard != NULL) {
 		// tell new client about any modifier change last,
 		// as it targets seat->keyboard_state.focused_client
-		wlr_seat_keyboard_send_modifiers(seat);
+		wlr_seat_keyboard_send_modifiers(seat,
+			seat->keyboard_state.keyboard->modifiers);
 	}
 }
 
@@ -950,10 +952,11 @@ bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat) {
 	return seat->keyboard_state.grab->interface != &default_keyboard_grab_impl;
 }
 
-void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat) {
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
+		struct wlr_keyboard_modifiers *modifiers) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
-	grab->interface->modifiers(grab);
+	grab->interface->modifiers(grab, modifiers);
 }
 
 void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,

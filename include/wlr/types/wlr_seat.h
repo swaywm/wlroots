@@ -71,7 +71,8 @@ struct wlr_keyboard_grab_interface {
 			struct wlr_surface *surface);
 	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time,
 			uint32_t key, uint32_t state);
-	void (*modifiers)(struct wlr_seat_keyboard_grab *grab);
+	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
+			struct wlr_keyboard_modifiers *modifiers);
 	void (*cancel)(struct wlr_seat_keyboard_grab *grab);
 };
 
@@ -345,6 +346,11 @@ bool wlr_seat_pointer_has_grab(struct wlr_seat *seat);
 void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_input_device *dev);
 
 /**
+ * Get the active keyboard for the seat.
+ */
+struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat);
+
+/**
  * Start a grab of the keyboard of this seat. The grabber is responsible for
  * handling all keyboard events until the grab ends.
  */
@@ -375,13 +381,15 @@ void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
  * Send the modifier state to focused keyboard resources. Compositors should use
  * `wlr_seat_keyboard_notify_modifiers()` to respect any keyboard grabs.
  */
-void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat);
+void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
+		struct wlr_keyboard_modifiers *modifiers);
 
 /**
  * Notify the seat that the modifiers for the keyboard have changed. Defers to
  * any keyboard grabs.
  */
-void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat);
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
+		struct wlr_keyboard_modifiers *modifiers);
 
 /**
  * Notify the seat that the keyboard focus has changed and request it to be the

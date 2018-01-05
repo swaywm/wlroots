@@ -30,17 +30,17 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 		XKB_STATE_MODS_LOCKED);
 	xkb_mod_mask_t group = xkb_state_serialize_layout(keyboard->xkb_state,
 		XKB_STATE_LAYOUT_EFFECTIVE);
-	if (depressed == keyboard->modifiers.depressed &&
-			latched == keyboard->modifiers.latched &&
-			locked == keyboard->modifiers.locked &&
-			group == keyboard->modifiers.group) {
+	if (depressed == keyboard->modifiers->depressed &&
+			latched == keyboard->modifiers->latched &&
+			locked == keyboard->modifiers->locked &&
+			group == keyboard->modifiers->group) {
 		return;
 	}
 
-	keyboard->modifiers.depressed = depressed;
-	keyboard->modifiers.latched = latched;
-	keyboard->modifiers.locked = locked;
-	keyboard->modifiers.group = group;
+	keyboard->modifiers->depressed = depressed;
+	keyboard->modifiers->latched = latched;
+	keyboard->modifiers->locked = locked;
+	keyboard->modifiers->group = group;
 
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
@@ -117,6 +117,7 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 void wlr_keyboard_init(struct wlr_keyboard *kb,
 		struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
+	kb->modifiers = calloc(1, sizeof(struct wlr_keyboard_modifiers));
 	wl_signal_init(&kb->events.key);
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
@@ -139,6 +140,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
 	close(kb->keymap_fd);
+	free(kb->modifiers);
 	free(kb);
 }
 
@@ -222,7 +224,7 @@ void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
 }
 
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {
-	xkb_mod_mask_t mask = kb->modifiers.depressed | kb->modifiers.latched;
+	xkb_mod_mask_t mask = kb->modifiers->depressed | kb->modifiers->latched;
 	uint32_t modifiers = 0;
 	for (size_t i = 0; i < WLR_MODIFIER_COUNT; ++i) {
 		if (kb->mod_indexes[i] != XKB_MOD_INVALID &&
