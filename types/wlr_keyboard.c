@@ -11,6 +11,10 @@
 int os_create_anonymous_file(off_t size);
 
 static void keyboard_led_update(struct wlr_keyboard *keyboard) {
+	if (keyboard->xkb_state == NULL) {
+		return;
+	}
+
 	uint32_t leds = 0;
 	for (uint32_t i = 0; i < WLR_LED_COUNT; ++i) {
 		if (xkb_state_led_index_is_active(keyboard->xkb_state,
@@ -22,6 +26,10 @@ static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 }
 
 static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
+	if (keyboard->xkb_state == NULL) {
+		return;
+	}
+
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
 		XKB_STATE_MODS_DEPRESSED);
 	xkb_mod_mask_t latched = xkb_state_serialize_mods(keyboard->xkb_state,
@@ -90,7 +98,7 @@ static void keyboard_key_update(struct wlr_keyboard *keyboard,
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group) {
-	if (!keyboard->xkb_state) {
+	if (keyboard->xkb_state == NULL) {
 		return;
 	}
 	xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
@@ -100,7 +108,7 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
-	if (!keyboard->xkb_state) {
+	if (keyboard->xkb_state == NULL) {
 		return;
 	}
 	if (event->update_state) {
@@ -152,20 +160,16 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
-	if (kb->keymap) {
-		xkb_keymap_unref(kb->keymap);
-	}
-	xkb_keymap_ref(keymap);
-	kb->keymap = keymap;
+	char *keymap_str = NULL;
 
-	if (kb->xkb_state) {
-		xkb_state_unref(kb->xkb_state);
-	}
+	xkb_keymap_unref(kb->keymap);
+	kb->keymap = xkb_keymap_ref(keymap);
 
+	xkb_state_unref(kb->xkb_state);
 	kb->xkb_state = xkb_state_new(kb->keymap);
 	if (kb->xkb_state == NULL) {
 		wlr_log(L_ERROR, "Failed to create XKB state");
-		return;
+		goto err;
 	}
 
 	const char *led_names[WLR_LED_COUNT] = {
@@ -192,7 +196,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		kb->mod_indexes[i] = xkb_map_mod_get_index(kb->keymap, mod_names[i]);
 	}
 
-	char *keymap_str = xkb_keymap_get_as_string(kb->keymap,
+	keymap_str = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
 	kb->keymap_size = strlen(keymap_str) + 1;
 	if (kb->keymap_fd) {
@@ -201,16 +205,29 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
 	if (kb->keymap_fd < 0) {
 		wlr_log(L_ERROR, "creating a keymap file for %lu bytes failed", kb->keymap_size);
+		goto err;
 	}
 	void *ptr = mmap(NULL, kb->keymap_size,
 		PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);
 	if (ptr == (void*)-1) {
 		wlr_log(L_ERROR, "failed to mmap() %lu bytes", kb->keymap_size);
+		goto err;
 	}
 	strcpy(ptr, keymap_str);
 	free(keymap_str);
 
+	// TODO need to update the state with the currently pressed keys
+
 	wl_signal_emit(&kb->events.keymap, kb);
+	return;
+
+err:
+	xkb_state_unref(kb->xkb_state);
+	kb->xkb_state = NULL;
+	xkb_keymap_unref(keymap);
+	kb->keymap = NULL;
+	close(kb->keymap_fd);
+	free(keymap_str);
 }
 
 void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
