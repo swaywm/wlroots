@@ -211,6 +211,10 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
 
+	if (!wlr_output->enabled) {
+		return;
+	}
+
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
