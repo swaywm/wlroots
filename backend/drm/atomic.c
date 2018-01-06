@@ -123,14 +123,22 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		mode);
 }
 
-static void atomic_conn_enable(struct wlr_drm_backend *drm,
+static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	struct atomic atom;
 
+	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.active, enable);
-	atomic_end(drm->fd, &atom);
+	if (enable) {
+		atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
+		atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
+	} else {
+		atomic_add(&atom, conn->id, conn->props.crtc_id, 0);
+		atomic_add(&atom, crtc->id, crtc->props.mode_id, 0);
+	}
+	return atomic_commit(drm->fd, &atom, conn, DRM_MODE_ATOMIC_ALLOW_MODESET,
+		true);
 }
 
 bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,

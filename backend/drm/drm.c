@@ -252,7 +252,10 @@ static void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
 	}
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	drm->iface->conn_enable(drm, conn, enable);
+	bool ok = drm->iface->conn_enable(drm, conn, enable);
+	if (!ok) {
+		return;
+	}
 
 	if (enable) {
 		wlr_drm_connector_start_renderer(conn);

@@ -25,10 +25,11 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static void legacy_conn_enable(struct wlr_drm_backend *drm,
+static bool legacy_conn_enable(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable) {
-	drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
+	int ret = drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
 		enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
+	return ret >= 0;
 }
 
 bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
