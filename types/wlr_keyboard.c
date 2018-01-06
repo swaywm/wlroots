@@ -25,9 +25,13 @@ static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	wlr_keyboard_led_update(keyboard, leds);
 }
 
-static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
+/**
+ * Update the modifier state of the wlr-keyboard. Returns true if the modifier
+ * state changed.
+ */
+static bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	if (keyboard->xkb_state == NULL) {
-		return;
+		return false;
 	}
 
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(keyboard->xkb_state,
@@ -42,7 +46,7 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 			latched == keyboard->modifiers->latched &&
 			locked == keyboard->modifiers->locked &&
 			group == keyboard->modifiers->group) {
-		return;
+		return false;
 	}
 
 	keyboard->modifiers->depressed = depressed;
@@ -50,7 +54,7 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	keyboard->modifiers->locked = locked;
 	keyboard->modifiers->group = group;
 
-	wl_signal_emit(&keyboard->events.modifiers, keyboard);
+	return true;
 }
 
 // https://www.geeksforgeeks.org/move-zeroes-end-array/
@@ -103,7 +107,11 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 	}
 	xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
 		mods_locked, 0, 0, group);
-	keyboard_modifier_update(keyboard);
+
+	bool updated = keyboard_modifier_update(keyboard);
+	if (updated) {
+		wl_signal_emit(&keyboard->events.modifiers, keyboard);
+	}
 }
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
@@ -117,7 +125,12 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 			event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
 	}
 	keyboard_led_update(keyboard);
-	keyboard_modifier_update(keyboard);
+
+	bool updated = keyboard_modifier_update(keyboard);
+	if (updated) {
+		wl_signal_emit(&keyboard->events.modifiers, keyboard);
+	}
+
 	keyboard_key_update(keyboard, event);
 	wl_signal_emit(&keyboard->events.key, event);
 }
@@ -216,7 +229,12 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	strcpy(ptr, keymap_str);
 	free(keymap_str);
 
-	// TODO need to update the state with the currently pressed keys
+	for (size_t i = 0; i < kb->num_keycodes; ++i) {
+		xkb_keycode_t keycode = kb->keycodes[i] + 8;
+		xkb_state_update_key(kb->xkb_state, keycode, XKB_KEY_DOWN);
+	}
+
+	keyboard_modifier_update(kb);
 
 	wl_signal_emit(&kb->events.keymap, kb);
 	return;
