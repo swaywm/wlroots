@@ -202,7 +202,7 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		wlr_output_send_current_mode_to_resource(resource);
 	}
 
-	wl_signal_emit(&output->events.resolution, output);
+	wl_signal_emit(&output->events.mode, output);
 }
 
 void wlr_output_set_transform(struct wlr_output *output,
@@ -270,8 +270,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->wl_resources);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
-	wl_signal_init(&output->events.resolution);
 	wl_signal_init(&output->events.enable);
+	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);

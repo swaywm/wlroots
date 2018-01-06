@@ -65,7 +65,7 @@ struct wlr_output {
 		struct wl_signal frame;
 		struct wl_signal swap_buffers;
 		struct wl_signal enable;
-		struct wl_signal resolution;
+		struct wl_signal mode;
 		struct wl_signal scale;
 		struct wl_signal transform;
 		struct wl_signal destroy;
