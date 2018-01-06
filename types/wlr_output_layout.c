@@ -18,6 +18,7 @@ struct wlr_output_layout_output_state {
 	struct wlr_box _box; // should never be read directly, use the getter
 	bool auto_configured;
 
+	struct wl_listener enable;
 	struct wl_listener resolution;
 	struct wl_listener scale;
 	struct wl_listener transform;
@@ -47,6 +48,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wl_signal_emit(&l_output->events.destroy, l_output);
+	wl_list_remove(&l_output->state->enable.link);
 	wl_list_remove(&l_output->state->resolution.link);
 	wl_list_remove(&l_output->state->scale.link);
 	wl_list_remove(&l_output->state->transform.link);
@@ -74,12 +76,19 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 static struct wlr_box *wlr_output_layout_output_get_box(
 		struct wlr_output_layout_output *l_output) {
-	l_output->state->_box.x = l_output->x;
-	l_output->state->_box.y = l_output->y;
-	int width, height;
-	wlr_output_effective_resolution(l_output->output, &width, &height);
-	l_output->state->_box.width = width;
-	l_output->state->_box.height = height;
+	if (!l_output->output->enabled) {
+		l_output->state->_box.x = 0;
+		l_output->state->_box.y = 0;
+		l_output->state->_box.width = 0;
+		l_output->state->_box.height = 0;
+	} else {
+		l_output->state->_box.x = l_output->x;
+		l_output->state->_box.y = l_output->y;
+		int width, height;
+		wlr_output_effective_resolution(l_output->output, &width, &height);
+		l_output->state->_box.width = width;
+		l_output->state->_box.height = height;
+	}
 	return &l_output->state->_box;
 }
 
@@ -98,7 +107,7 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 	// in the layout
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (l_output->state->auto_configured) {
+		if (l_output->state->auto_configured || !l_output->output->enabled) {
 			continue;
 		}
 
@@ -116,7 +125,7 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 	}
 
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (!l_output->state->auto_configured) {
+		if (!l_output->state->auto_configured || !l_output->output->enabled) {
 			continue;
 		}
 		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
@@ -126,10 +135,19 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 	}
 
 	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (!l_output->output->enabled) {
+			continue;
+		}
 		wlr_output_set_position(l_output->output, l_output->x, l_output->y);
 	}
 
 	wl_signal_emit(&layout->events.change, layout);
+}
+
+static void handle_output_enable(struct wl_listener *listener, void *data) {
+	struct wlr_output_layout_output_state *state =
+		wl_container_of(listener, state, enable);
+	wlr_output_layout_reconfigure(state->layout);
 }
 
 static void handle_output_resolution(struct wl_listener *listener, void *data) {
@@ -176,6 +194,8 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 	wl_signal_init(&l_output->events.destroy);
 	wl_list_insert(&layout->outputs, &l_output->link);
 
+	wl_signal_add(&output->events.enable, &l_output->state->enable);
+	l_output->state->enable.notify = handle_output_enable;
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
 	l_output->state->resolution.notify = handle_output_resolution;
 	wl_signal_add(&output->events.scale, &l_output->state->scale);
