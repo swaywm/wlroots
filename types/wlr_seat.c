@@ -774,6 +774,7 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 
 	if (keyboard) {
 		assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
+		seat->keyboard_state.keyboard = keyboard;
 
 		wl_signal_add(&device->events.destroy,
 			&seat->keyboard_state.keyboard_destroy);
@@ -788,14 +789,14 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 
 		struct wlr_seat_client *client;
 		wl_list_for_each(client, &seat->clients, link) {
-			seat_client_send_keymap(client, device->keyboard);
-			seat_client_send_repeat_info(client, device->keyboard);
+			seat_client_send_keymap(client, keyboard);
+			seat_client_send_repeat_info(client, keyboard);
 		}
 
+		wlr_seat_keyboard_send_modifiers(seat, keyboard->modifiers);
+	} else {
+		seat->keyboard_state.keyboard = NULL;
 	}
-
-	seat->keyboard_state.keyboard = keyboard;
-	wlr_seat_keyboard_send_modifiers(seat);
 }
 
 struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat) {
