@@ -68,7 +68,8 @@ struct wlr_seat_keyboard_grab;
 
 struct wlr_keyboard_grab_interface {
 	void (*enter)(struct wlr_seat_keyboard_grab *grab,
-			struct wlr_surface *surface);
+			struct wlr_surface *surface, uint32_t keycodes[],
+			size_t num_keycodes, struct wlr_keyboard_modifiers *modifiers);
 	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time,
 			uint32_t key, uint32_t state);
 	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
@@ -396,8 +397,9 @@ void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
  * focused surface for this keyboard. Defers to any current grab of the seat's
  * keyboard.
  */
-void wlr_seat_keyboard_notify_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface);
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers);
 
 /**
  * Send a keyboard enter event to the given surface and consider it to be the
@@ -406,8 +408,9 @@ void wlr_seat_keyboard_notify_enter(struct wlr_seat *wlr_seat,
  * `wlr_seat_keyboard_notify_enter()` to change keyboard focus to respect
  * keyboard grabs.
  */
-void wlr_seat_keyboard_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface);
+void wlr_seat_keyboard_enter(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers);
 
 /**
  * Clear the focused surface for the keyboard and leave all entered surfaces.

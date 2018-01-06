@@ -282,8 +282,9 @@ static const struct  wlr_pointer_grab_interface default_pointer_grab_impl = {
 };
 
 static void default_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
-		struct wlr_surface *surface) {
-	wlr_seat_keyboard_enter(grab->seat, surface);
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers) {
+	wlr_seat_keyboard_enter(grab->seat, surface, keycodes, num_keycodes, modifiers);
 }
 
 static void default_keyboard_key(struct wlr_seat_keyboard_grab *grab,
@@ -851,14 +852,19 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 	uint32_t serial = wl_display_next_serial(seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
-		wl_keyboard_send_modifiers(resource, serial,
-			modifiers->depressed, modifiers->latched,
-			modifiers->locked, modifiers->group);
+		if (modifiers == NULL) {
+			wl_keyboard_send_modifiers(resource, serial, 0, 0, 0, 0);
+		} else {
+			wl_keyboard_send_modifiers(resource, serial,
+				modifiers->depressed, modifiers->latched,
+				modifiers->locked, modifiers->group);
+		}
 	}
 }
 
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface) {
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers) {
 	if (seat->keyboard_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
@@ -886,19 +892,17 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 	}
 
 	// enter the current surface
-	if (client != NULL && seat->keyboard_state.keyboard != NULL) {
-		struct wlr_keyboard *keyboard = seat->keyboard_state.keyboard;
-
+	if (client != NULL) {
 		struct wl_array keys;
 		wl_array_init(&keys);
-		for (size_t i = 0; i < keyboard->num_keycodes; ++i) {
+		for (size_t i = 0; i < num_keycodes; ++i) {
 			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
 			if (!p) {
 				wlr_log(L_ERROR, "Cannot allocate memory, skipping keycode: %d\n",
-					keyboard->keycodes[i]);
+					keycodes[i]);
 				continue;
 			}
-			*p = keyboard->keycodes[i];
+			*p = keycodes[i];
 		}
 		uint32_t serial = wl_display_next_serial(seat->display);
 		struct wl_resource *resource;
@@ -930,24 +934,23 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 	seat->keyboard_state.focused_client = client;
 	seat->keyboard_state.focused_surface = surface;
 
-	if (client != NULL && seat->keyboard_state.keyboard != NULL) {
+	if (client != NULL) {
 		// tell new client about any modifier change last,
 		// as it targets seat->keyboard_state.focused_client
-		wlr_seat_keyboard_send_modifiers(seat,
-			seat->keyboard_state.keyboard->modifiers);
+		wlr_seat_keyboard_send_modifiers(seat, modifiers);
 	}
 }
 
-void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat, struct
-		wlr_surface *surface) {
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers) {
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
-	grab->interface->enter(grab, surface);
+	grab->interface->enter(grab, surface, keycodes, num_keycodes, modifiers);
 }
 
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *seat) {
-	struct wl_array keys;
-	wl_array_init(&keys);
-	wlr_seat_keyboard_enter(seat, NULL);
+	// TODO respect grabs here?
+	wlr_seat_keyboard_enter(seat, NULL, NULL, 0, NULL);
 }
 
 bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat) {
