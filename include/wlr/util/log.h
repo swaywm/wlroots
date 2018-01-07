@@ -16,7 +16,9 @@ typedef enum {
 
 typedef void (*log_callback_t)(log_importance_t importance, const char *fmt, va_list args);
 
-void wlr_log_init(log_callback_t callback);
+// Will log all messages less than or equal to `verbosity`
+// If `callback` is NULL, wlr will use its default logger.
+void wlr_log_init(log_importance_t verbosity, log_callback_t callback);
 
 #ifdef __GNUC__
 #define ATTRIB_PRINTF(start, end) __attribute__((format(printf, start, end)))

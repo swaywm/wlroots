@@ -12,7 +12,6 @@
 
 #include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/render/egl.h>
 
 #include "iface.h"
@@ -89,6 +88,7 @@ struct wlr_drm_backend {
 	struct wl_display *display;
 	struct wl_event_source *drm_event;
 
+	struct wl_listener display_destroy;
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 
@@ -140,5 +140,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
 
 void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
+
+struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend);
 
 #endif

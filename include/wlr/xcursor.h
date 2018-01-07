@@ -32,6 +32,7 @@
 #define WLR_XCURSOR_H
 
 #include <stdint.h>
+#include <wlr/util/edges.h>
 
 struct wlr_xcursor_image {
 	uint32_t width;		/* actual width */
@@ -64,5 +65,10 @@ struct wlr_xcursor *wlr_xcursor_theme_get_cursor(
 	struct wlr_xcursor_theme *theme, const char *name);
 
 int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
+
+/**
+ * Get the name of the resize cursor image for the given edges.
+ */
+const char *wlr_xcursor_get_resize_name(enum wlr_edges edges);
 
 #endif

@@ -95,7 +95,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 	static struct screenshooter_output *output;
 
 	if (strcmp(interface, "wl_output") == 0) {
-		output = calloc(1, sizeof *output);
+		output = calloc(1, sizeof(*output));
 		output->output = wl_registry_bind(registry, name, &wl_output_interface,
 			1);
 		wl_list_insert(&output_list, &output->link);
@@ -208,16 +208,10 @@ static void write_image(const char *filename, int width, int height) {
 }
 
 static int set_buffer_size(int *width, int *height) {
-	struct screenshooter_output *output;
 	min_x = min_y = INT_MAX;
 	max_x = max_y = INT_MIN;
-	int position = 0;
 
-	wl_list_for_each_reverse(output, &output_list, link) {
-		output->offset_x = position;
-		position += output->width;
-	}
-
+	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
 		min_x = MIN(min_x, output->offset_x);
 		min_y = MIN(min_y, output->offset_y);

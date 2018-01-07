@@ -8,8 +8,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/render.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_box.h>
 #include <wayland-util.h>
 
 struct wlr_wl_backend {
@@ -23,6 +22,7 @@ struct wlr_wl_backend {
 	struct wlr_egl egl;
 	struct wlr_render *rend;
 	size_t requested_outputs;
+	struct wl_listener local_display_destroy;
 	/* remote state */
 	struct wl_display *remote_display;
 	struct wl_event_source *remote_display_src;
@@ -77,6 +77,8 @@ void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
 void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output);
 struct wlr_wl_backend_output *wlr_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface);
+void wlr_wl_output_layout_get_box(struct wlr_wl_backend *backend,
+		struct wlr_box *box);
 
 extern const struct wl_seat_listener seat_listener;
 

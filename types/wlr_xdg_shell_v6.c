@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_seat.h>
@@ -209,7 +210,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
-	wl_list_remove(&surface->surface_commit_listener.link);
+	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 	free(surface->geometry);
 	free(surface->next_geometry);
 	free(surface->title);
@@ -564,6 +565,11 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		return;
 	}
 
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_show_window_menu_event event = {
 		.surface = surface,
 		.seat = seat,
@@ -589,6 +595,11 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		return;
 	}
 
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_v6_move_event event = {
 		.surface = surface,
 		.seat = seat,
@@ -609,6 +620,11 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		wl_resource_post_error(surface->toplevel_state->resource,
 			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
 			"surface has not been configured yet");
+		return;
+	}
+
+	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
+		wlr_log(L_DEBUG, "invalid serial for grab");
 		return;
 	}
 
@@ -906,18 +922,34 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	wl_array_init(&states);
 	if (surface->toplevel_state->pending.maximized) {
 		s = wl_array_add(&states, sizeof(uint32_t));
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
+			goto error_out;
+		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED;
 	}
 	if (surface->toplevel_state->pending.fullscreen) {
 		s = wl_array_add(&states, sizeof(uint32_t));
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
+			goto error_out;
+		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN;
 	}
 	if (surface->toplevel_state->pending.resizing) {
 		s = wl_array_add(&states, sizeof(uint32_t));
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
+			goto error_out;
+		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_RESIZING;
 	}
 	if (surface->toplevel_state->pending.activated) {
 		s = wl_array_add(&states, sizeof(uint32_t));
+		if (!s) {
+			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
+			goto error_out;
+		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
 	}
 
@@ -933,6 +965,11 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		height, &states);
 
 	wl_array_release(&states);
+	return;
+
+error_out:
+	wl_array_release(&states);
+	wl_resource_post_no_memory(surface->toplevel_state->resource);
 }
 
 static void wlr_xdg_surface_send_configure(void *user_data) {
@@ -1047,10 +1084,9 @@ static void wlr_xdg_surface_v6_popup_committed(
 	}
 }
 
-static void handle_wlr_surface_committed(struct wl_listener *listener,
-		void *data) {
-	struct wlr_xdg_surface_v6 *surface =
-		wl_container_of(listener, surface, surface_commit_listener);
+static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+		void *role_data) {
+	struct wlr_xdg_surface_v6 *surface = role_data;
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
@@ -1085,8 +1121,6 @@ static void handle_wlr_surface_committed(struct wl_listener *listener,
 		surface->added = true;
 		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
 	}
-
-	wl_signal_emit(&surface->events.commit, surface);
 }
 
 static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
@@ -1148,7 +1182,6 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.request_move);
 	wl_signal_init(&surface->events.request_resize);
 	wl_signal_init(&surface->events.request_show_window_menu);
-	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
 
@@ -1156,9 +1189,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 		&surface->surface_destroy_listener);
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 
-	wl_signal_add(&surface->surface->events.commit,
-		&surface->surface_commit_listener);
-	surface->surface_commit_listener.notify = handle_wlr_surface_committed;
+	wlr_surface_set_role_committed(surface->surface,
+		handle_wlr_surface_committed, surface);
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
@@ -1250,6 +1282,12 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *data,
 	}
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_shell_v6 *xdg_shell =
+		wl_container_of(listener, xdg_shell, display_destroy);
+	wlr_xdg_shell_v6_destroy(xdg_shell);
+}
+
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	struct wlr_xdg_shell_v6 *xdg_shell =
 		calloc(1, sizeof(struct wlr_xdg_shell_v6));
@@ -1272,6 +1310,9 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 
 	wl_signal_init(&xdg_shell->events.new_surface);
 
+	xdg_shell->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &xdg_shell->display_destroy);
+
 	return xdg_shell;
 }
 
@@ -1279,8 +1320,8 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 	if (!xdg_shell) {
 		return;
 	}
-	// TODO: this segfault (wl_display->registry_resource_list is not init)
-	// wl_global_destroy(xdg_shell->wl_global);
+	wl_list_remove(&xdg_shell->display_destroy.link);
+	wl_global_destroy(xdg_shell->wl_global);
 	free(xdg_shell);
 }
 

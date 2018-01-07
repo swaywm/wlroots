@@ -4,10 +4,12 @@
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	struct wlr_session *session, int gpu_fd, struct wlr_backend *parent);
 
 bool wlr_backend_is_drm(struct wlr_backend *backend);
+bool wlr_output_is_drm(struct wlr_output *output);
 
 #endif

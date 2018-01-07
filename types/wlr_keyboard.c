@@ -1,8 +1,8 @@
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <assert.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -45,28 +45,46 @@ static void keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	wl_signal_emit(&keyboard->events.modifiers, keyboard);
 }
 
+// https://www.geeksforgeeks.org/move-zeroes-end-array/
+static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
+	size_t count = 0;
+
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
 static void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	bool found = false;
 	size_t i = 0;
-	for (; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
+	for (; i < keyboard->num_keycodes; ++i) {
 		if (keyboard->keycodes[i] == event->keycode) {
 			found = true;
 			break;
 		}
 	}
 
-	if (event->state == WLR_KEY_PRESSED && !found) {
-		for (size_t i = 0; i < WLR_KEYBOARD_KEYS_CAP; ++i) {
-			if (keyboard->keycodes[i] == 0) {
-				keyboard->keycodes[i] = event->keycode;
-				break;
-			}
-		}
+	if (event->state == WLR_KEY_PRESSED && !found &&
+			keyboard->num_keycodes < WLR_KEYBOARD_KEYS_CAP) {
+		keyboard->keycodes[keyboard->num_keycodes++] = event->keycode;
 	}
 	if (event->state == WLR_KEY_RELEASED && found) {
 		keyboard->keycodes[i] = 0;
+		keyboard->num_keycodes = push_zeroes_to_end(keyboard->keycodes, WLR_KEYBOARD_KEYS_CAP);
 	}
+
+	assert(keyboard->num_keycodes <= WLR_KEYBOARD_KEYS_CAP);
 }
 
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
@@ -102,6 +120,11 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.key);
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
+	wl_signal_init(&kb->events.repeat_info);
+
+	// Sane defaults
+	kb->repeat_info.rate = 25;
+	kb->repeat_info.delay = 600;
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
@@ -114,7 +137,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 		wl_list_remove(&kb->events.key.listener_list);
 	}
 	xkb_state_unref(kb->xkb_state);
-	xkb_map_unref(kb->keymap);
+	xkb_keymap_unref(kb->keymap);
 	close(kb->keymap_fd);
 	free(kb);
 }
@@ -127,9 +150,21 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
-	wlr_log(L_DEBUG, "Keymap set");
+	if (kb->keymap) {
+		xkb_keymap_unref(kb->keymap);
+	}
+	xkb_keymap_ref(keymap);
 	kb->keymap = keymap;
-	assert(kb->xkb_state = xkb_state_new(kb->keymap));
+
+	if (kb->xkb_state) {
+		xkb_state_unref(kb->xkb_state);
+	}
+
+	kb->xkb_state = xkb_state_new(kb->keymap);
+	if (kb->xkb_state == NULL) {
+		wlr_log(L_ERROR, "Failed to create XKB state");
+		return;
+	}
 
 	const char *led_names[WLR_LED_COUNT] = {
 		XKB_LED_NAME_NUM,
@@ -158,13 +193,32 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	char *keymap_str = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
 	kb->keymap_size = strlen(keymap_str) + 1;
+	if (kb->keymap_fd) {
+		close(kb->keymap_fd);
+	}
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
+	if (kb->keymap_fd < 0) {
+		wlr_log(L_ERROR, "creating a keymap file for %lu bytes failed", kb->keymap_size);
+	}
 	void *ptr = mmap(NULL, kb->keymap_size,
 		PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);
+	if (ptr == (void*)-1) {
+		wlr_log(L_ERROR, "failed to mmap() %lu bytes", kb->keymap_size);
+	}
 	strcpy(ptr, keymap_str);
 	free(keymap_str);
 
 	wl_signal_emit(&kb->events.keymap, kb);
+}
+
+void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
+		int32_t delay) {
+	if (kb->repeat_info.rate == rate && kb->repeat_info.delay == delay) {
+		return;
+	}
+	kb->repeat_info.rate = rate;
+	kb->repeat_info.delay = delay;
+	wl_signal_emit(&kb->events.repeat_info, kb);
 }
 
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {

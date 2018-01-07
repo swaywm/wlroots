@@ -30,6 +30,7 @@ theme = default
 map-to-output = VGA-1
 # Restrict cursor movements for this mouse to concrete rectangle
 geometry = 2500x800
+# tap_enabled=true
 
 [keyboard]
 meta-key = Logo

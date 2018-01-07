@@ -28,6 +28,14 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
+static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
+		int32_t width, int32_t height, int32_t refresh) {
+	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
+	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
+	return true;
+}
+
 static void wlr_wl_output_make_current(struct wlr_output *_output) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	eglMakeCurrent(output->backend->egl.display,
@@ -142,6 +150,8 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	wl_signal_emit(&output->backend->backend.events.output_remove,
 		&output->wlr_output);
 
+	wl_list_remove(&output->link);
+
 	if (output->cursor.buf_size != 0) {
 		assert(output->cursor.data);
 		assert(output->cursor.buffer);
@@ -159,6 +169,7 @@ static void wlr_wl_output_destroy(struct wlr_output *_output) {
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
 	}
+
 	eglDestroySurface(output->backend->egl.display, output->surface);
 	wl_egl_window_destroy(output->egl_window);
 	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
@@ -181,6 +192,7 @@ bool wlr_wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
 }
 
 static struct wlr_output_impl output_impl = {
+	.set_custom_mode = wlr_wl_output_set_custom_mode,
 	.transform = wlr_wl_output_transform,
 	.destroy = wlr_wl_output_destroy,
 	.make_current = wlr_wl_output_make_current,
@@ -188,6 +200,10 @@ static struct wlr_output_impl output_impl = {
 	.set_cursor = wlr_wl_output_set_cursor,
 	.move_cursor = wlr_wl_output_move_cursor,
 };
+
+bool wlr_output_is_wl(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
 
 static void xdg_surface_handle_configure(void *data, struct zxdg_surface_v6 *xdg_surface,
 		uint32_t serial) {
@@ -213,15 +229,14 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	}
 	// loop over states for maximized etc?
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
-	wlr_output_update_size(&output->wlr_output, width, height);
-	wl_signal_emit(&output->wlr_output.events.resolution, output);
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 }
 
 static void xdg_toplevel_handle_close(void *data, struct zxdg_toplevel_v6 *xdg_toplevel) {
 	struct wlr_wl_backend_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
-	wl_display_terminate(output->backend->local_display);
+	wlr_output_destroy((struct wlr_output *)output);
 }
 
 static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
@@ -245,7 +260,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	wlr_output_update_size(wlr_output, 1280, 720);
+	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%d",

@@ -117,6 +117,8 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		if (focus != NULL) {
 			view_maximize(focus, !focus->maximized);
 		}
+	} else if (strcmp(command, "nop") == 0) {
+		wlr_log(L_DEBUG, "nop command");
 	} else {
 		wlr_log(L_ERROR, "unknown binding command: %s", command);
 	}
@@ -306,6 +308,12 @@ static void keyboard_config_merge(struct roots_keyboard_config *config,
 	if (config->name == NULL) {
 		config->name = fallback->name;
 	}
+	if (config->repeat_rate <= 0) {
+		config->repeat_rate = fallback->repeat_rate;
+	}
+	if (config->repeat_delay <= 0) {
+		config->repeat_delay = fallback->repeat_delay;
+	}
 }
 
 struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
@@ -337,8 +345,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	keyboard_config_merge(config, &env_config);
 	keyboard->config = config;
 
-	struct xkb_rule_names rules;
-	memset(&rules, 0, sizeof(rules));
+	struct xkb_rule_names rules = { 0 };
 	rules.rules = config->rules;
 	rules.model = config->model;
 	rules.layout = config->layout;
@@ -349,9 +356,22 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 		wlr_log(L_ERROR, "Cannot create XKB context");
 		return NULL;
 	}
-	wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
-		&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+
+	struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+		XKB_KEYMAP_COMPILE_NO_FLAGS);
+	if (keymap == NULL) {
+		xkb_context_unref(context);
+		wlr_log(L_ERROR, "Cannot create XKB keymap");
+		return NULL;
+	}
+
+	wlr_keyboard_set_keymap(device->keyboard, keymap);
+	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
+
+	int repeat_rate = (config->repeat_rate > 0) ? config->repeat_rate : 25;
+	int repeat_delay = (config->repeat_delay > 0) ? config->repeat_delay : 600;
+	wlr_keyboard_set_repeat_info(device->keyboard, repeat_rate, repeat_delay);
 
 	return keyboard;
 }

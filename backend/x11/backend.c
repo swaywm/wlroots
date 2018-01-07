@@ -26,6 +26,7 @@
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;
+static struct wlr_input_device_impl input_device_impl = { 0 };
 
 static uint32_t xcb_button_to_wl(uint32_t button) {
 	switch (button) {
@@ -118,8 +119,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 	case XCB_CONFIGURE_NOTIFY: {
 		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
 
-		wlr_output_update_size(&output->wlr_output, ev->width, ev->height);
-		wl_signal_emit(&output->wlr_output.events.resolution, output);
+		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+			ev->height, 0);
 
 		// Move the pointer to its new location
 		xcb_query_pointer_cookie_t cookie =
@@ -185,74 +186,6 @@ static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
 	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
-struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
-		const char *x11_display) {
-	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
-	if (!x11) {
-		return NULL;
-	}
-
-	wlr_backend_init(&x11->backend, &backend_impl);
-	x11->wl_display = display;
-
-	x11->xlib_conn = XOpenDisplay(x11_display);
-	if (!x11->xlib_conn) {
-		wlr_log(L_ERROR, "Failed to open X connection");
-		return NULL;
-	}
-
-	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
-	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
-		wlr_log(L_ERROR, "Failed to open xcb connection");
-		goto error_x11;
-	}
-
-	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
-
-	int fd = xcb_get_file_descriptor(x11->xcb_conn);
-	struct wl_event_loop *ev = wl_display_get_event_loop(display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
-	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
-	if (!x11->event_source) {
-		wlr_log(L_ERROR, "Could not create event source");
-		goto error_x11;
-	}
-
-	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
-
-	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
-
-	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR,
-			x11->screen->root_visual, x11->xlib_conn)) {
-		goto error_event;
-	}
-
-	x11->rend = wlr_render_create(&x11->backend);
-	if (!x11->rend) {
-		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
-	}
-
-	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
-		NULL, "X11 keyboard", 0, 0);
-	wlr_keyboard_init(&x11->keyboard, NULL);
-	x11->keyboard_dev.keyboard = &x11->keyboard;
-
-	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
-		NULL, "X11 pointer", 0, 0);
-	wlr_pointer_init(&x11->pointer, NULL);
-	x11->pointer_dev.pointer = &x11->pointer;
-
-	return &x11->backend;
-
-error_event:
-	wl_event_source_remove(x11->event_source);
-error_x11:
-	xcb_disconnect(x11->xcb_conn);
-	XCloseDisplay(x11->xlib_conn);
-	free(x11);
-	return NULL;
-}
-
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	struct wlr_x11_output *output = &x11->output;
@@ -273,8 +206,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
 
 	output->win = xcb_generate_id(x11->xcb_conn);
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win, x11->screen->root,
-		0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
+		x11->screen->root, 0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		x11->screen->root_visual, mask, values);
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
@@ -313,6 +246,19 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	struct wlr_x11_output *output = &x11->output;
 	wlr_output_destroy(&output->wlr_output);
 
+	wl_signal_emit(&backend->events.input_remove, &x11->pointer_dev);
+	wl_signal_emit(&backend->events.input_remove, &x11->keyboard_dev);
+	// TODO probably need to use wlr_keyboard_destroy, but the devices need to
+	// be malloced for that to work
+	if (x11->keyboard_dev.keyboard->keymap) {
+		xkb_keymap_unref(x11->keyboard_dev.keyboard->keymap);
+	}
+	if (x11->keyboard_dev.keyboard->xkb_state) {
+		xkb_state_unref(x11->keyboard_dev.keyboard->xkb_state);
+	}
+
+	wl_list_remove(&x11->display_destroy.link);
+
 	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_free(&x11->egl);
 
@@ -340,6 +286,94 @@ static struct wlr_backend_impl backend_impl = {
 	.get_egl = wlr_x11_backend_get_egl,
 	.get_render = wlr_x11_backend_get_render,
 };
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_x11_backend *x11 =
+		wl_container_of(listener, x11, display_destroy);
+	wlr_x11_backend_destroy(&x11->backend);
+}
+
+struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
+		const char *x11_display) {
+	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
+	if (!x11) {
+		return NULL;
+	}
+
+	wlr_backend_init(&x11->backend, &backend_impl);
+	x11->wl_display = display;
+
+	x11->xlib_conn = XOpenDisplay(x11_display);
+	if (!x11->xlib_conn) {
+		wlr_log(L_ERROR, "Failed to open X connection");
+		return NULL;
+	}
+
+	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
+	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
+		wlr_log(L_ERROR, "Failed to open xcb connection");
+		goto error_x11;
+	}
+
+	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
+
+	int fd = xcb_get_file_descriptor(x11->xcb_conn);
+	struct wl_event_loop *ev = wl_display_get_event_loop(display);
+	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
+	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
+	if (!x11->event_source) {
+		wlr_log(L_ERROR, "Could not create event source");
+		goto error_x11;
+	}
+
+	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
+
+	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
+
+	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR, x11->xlib_conn, NULL,
+			x11->screen->root_visual)) {
+		goto error_event;
+	}
+
+	x11->rend = wlr_render_create(&x11->backend);
+	if (!x11->rend) {
+		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
+	}
+
+	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
+		&input_device_impl, "X11 keyboard", 0, 0);
+	wlr_keyboard_init(&x11->keyboard, NULL);
+	x11->keyboard_dev.keyboard = &x11->keyboard;
+
+	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
+		&input_device_impl, "X11 pointer", 0, 0);
+	wlr_pointer_init(&x11->pointer, NULL);
+	x11->pointer_dev.pointer = &x11->pointer;
+
+	x11->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &x11->display_destroy);
+
+	return &x11->backend;
+
+error_event:
+	wl_event_source_remove(x11->event_source);
+error_x11:
+	xcb_disconnect(x11->xcb_conn);
+	XCloseDisplay(x11->xlib_conn);
+	free(x11);
+	return NULL;
+}
+
+static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
+		int32_t height, int32_t refresh) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	const uint32_t values[] = { width, height };
+	xcb_configure_window(x11->xcb_conn, output->win,
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
+	return true;
+}
 
 static void output_transform(struct wlr_output *wlr_output, enum wl_output_transform transform) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
@@ -370,8 +404,17 @@ static void output_swap_buffers(struct wlr_output *wlr_output) {
 }
 
 static struct wlr_output_impl output_impl = {
+	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
 };
+
+bool wlr_output_is_x11(struct wlr_output *wlr_output) {
+	return wlr_output->impl == &output_impl;
+}
+
+bool wlr_input_device_is_x11(struct wlr_input_device *wlr_dev) {
+	return wlr_dev->impl == &input_device_impl;
+}

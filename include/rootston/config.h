@@ -9,7 +9,7 @@ struct roots_output_config {
 	char *name;
 	enum wl_output_transform transform;
 	int x, y;
-	int scale;
+	float scale;
 	struct wl_list link;
 	struct {
 		int width, height;
@@ -21,6 +21,7 @@ struct roots_device_config {
 	char *name;
 	char *seat;
 	char *mapped_output;
+	bool tap_enabled;
 	struct wlr_box *mapped_box;
 	struct wl_list link;
 };
@@ -42,6 +43,7 @@ struct roots_keyboard_config {
 	char *layout;
 	char *variant;
 	char *options;
+	int repeat_rate, repeat_delay;
 	struct wl_list link;
 };
 
@@ -50,6 +52,7 @@ struct roots_cursor_config {
 	char *mapped_output;
 	struct wlr_box *mapped_box;
 	char *theme;
+	char *default_image;
 	struct wl_list link;
 };
 

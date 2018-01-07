@@ -14,26 +14,23 @@
 		WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK)
 
 static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
-	uint32_t available_actions, preferred_action = 0;
-	uint32_t source_actions, offer_actions;
-
+	uint32_t offer_actions, preferred_action = 0;
 	if (wl_resource_get_version(offer->resource) >=
 			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-		offer_actions = offer->dnd_actions;
-		preferred_action = offer->preferred_dnd_action;
+		offer_actions = offer->actions;
+		preferred_action = offer->preferred_action;
 	} else {
 		offer_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
 	}
 
-	if (wl_resource_get_version(offer->source->resource) >=
-			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
-		source_actions = offer->source->dnd_actions;
+	uint32_t source_actions;
+	if (offer->source->actions >= 0) {
+		source_actions = offer->source->actions;
 	} else {
 		source_actions = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
 	}
 
-	available_actions = offer_actions & source_actions;
-
+	uint32_t available_actions = offer_actions & source_actions;
 	if (!available_actions) {
 		return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
 	}
@@ -53,14 +50,11 @@ static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
 }
 
 static void data_offer_update_action(struct wlr_data_offer *offer) {
-	uint32_t action;
-
 	if (!offer->source) {
 		return;
 	}
 
-	action = data_offer_choose_action(offer);
-
+	uint32_t action = data_offer_choose_action(offer);
 	if (offer->source->current_dnd_action == action) {
 		return;
 	}
@@ -71,9 +65,8 @@ static void data_offer_update_action(struct wlr_data_offer *offer) {
 		return;
 	}
 
-	if (wl_resource_get_version(offer->source->resource) >=
-			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
-		wl_data_source_send_action(offer->source->resource, action);
+	if (offer->source->dnd_action) {
+		offer->source->dnd_action(offer->source, action);
 	}
 
 	if (wl_resource_get_version(offer->resource) >=
@@ -81,22 +74,6 @@ static void data_offer_update_action(struct wlr_data_offer *offer) {
 		wl_data_offer_send_action(offer->resource, action);
 	}
 }
-
-static void client_data_source_accept(struct wlr_data_source *source,
-		uint32_t serial, const char *mime_type) {
-	wl_data_source_send_target(source->resource, mime_type);
-}
-
-static void client_data_source_send(struct wlr_data_source *source,
-		const char *mime_type, int32_t fd) {
-	wl_data_source_send_send(source->resource, mime_type, fd);
-	close(fd);
-}
-
-static void client_data_source_cancel(struct wlr_data_source *source) {
-	wl_data_source_send_cancelled(source->resource);
-}
-
 
 static void data_offer_accept(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial, const char *mime_type) {
@@ -108,7 +85,9 @@ static void data_offer_accept(struct wl_client *client,
 
 	// TODO check that client is currently focused by the input device
 
-	offer->source->accept(offer->source, serial, mime_type);
+	if (offer->source->accept) {
+		offer->source->accept(offer->source, serial, mime_type);
+	}
 	offer->source->accepted = (mime_type != NULL);
 }
 
@@ -128,19 +107,17 @@ static void data_offer_destroy(struct wl_client *client,
 }
 
 static void data_source_notify_finish(struct wlr_data_source *source) {
-	if (!source->actions_set) {
+	assert(source->offer);
+	if (source->actions < 0) {
 		return;
 	}
 
-	if (source->offer->in_ask && wl_resource_get_version(source->resource) >=
-			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
-		wl_data_source_send_action(source->resource,
-			source->current_dnd_action);
+	if (source->offer->in_ask && source->dnd_action) {
+		source->dnd_action(source, source->current_dnd_action);
 	}
 
-	if (wl_resource_get_version(source->resource) >=
-			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
-		wl_data_source_send_dnd_finished(source->resource);
+	if (source->dnd_finish) {
+		source->dnd_finish(source);
 	}
 
 	source->offer = NULL;
@@ -158,27 +135,27 @@ static void data_offer_finish(struct wl_client *client,
 }
 
 static void data_offer_set_actions(struct wl_client *client,
-		struct wl_resource *resource, uint32_t dnd_actions,
+		struct wl_resource *resource, uint32_t actions,
 		uint32_t preferred_action) {
 	struct wlr_data_offer *offer = wl_resource_get_user_data(resource);
 
-	if (dnd_actions & ~ALL_ACTIONS) {
+	if (actions & ~ALL_ACTIONS) {
 		wl_resource_post_error(offer->resource,
 			WL_DATA_OFFER_ERROR_INVALID_ACTION_MASK,
-			"invalid action mask %x", dnd_actions);
+			"invalid action mask %x", actions);
 		return;
 	}
 
-	if (preferred_action && (!(preferred_action & dnd_actions) ||
-				__builtin_popcount(preferred_action) > 1)) {
+	if (preferred_action && (!(preferred_action & actions) ||
+			__builtin_popcount(preferred_action) > 1)) {
 		wl_resource_post_error(offer->resource,
 			WL_DATA_OFFER_ERROR_INVALID_ACTION,
 			"invalid action %x", preferred_action);
 		return;
 	}
 
-	offer->dnd_actions = dnd_actions;
-	offer->preferred_dnd_action = preferred_action;
+	offer->actions = actions;
+	offer->preferred_action = preferred_action;
 
 	data_offer_update_action(offer);
 }
@@ -196,19 +173,18 @@ static void data_offer_resource_destroy(struct wl_resource *resource) {
 		goto out;
 	}
 
+	offer->source->offer = NULL;
+
 	// If the drag destination has version < 3, wl_data_offer.finish
 	// won't be called, so do this here as a safety net, because
-	// we still want the version >=3 drag source to be happy.
+	// we still want the version >= 3 drag source to be happy.
 	if (wl_resource_get_version(offer->resource) <
 			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
 		data_source_notify_finish(offer->source);
-	} else if (offer->source->resource &&
-			wl_resource_get_version(offer->source->resource) >=
-			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
-		wl_data_source_send_cancelled(offer->source->resource);
+	} else if (offer->source->dnd_finish) {
+		offer->source->cancel(offer->source);
 	}
 
-	offer->source->offer = NULL;
 out:
 	free(offer);
 }
@@ -231,28 +207,35 @@ static void handle_offer_source_destroyed(struct wl_listener *listener,
 
 static struct wlr_data_offer *wlr_data_source_send_offer(
 		struct wlr_data_source *source,
-		struct wl_resource *target) {
+		struct wlr_seat_client *target) {
+	if (wl_list_empty(&target->data_devices)) {
+		return NULL;
+	}
+
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
 	if (offer == NULL) {
 		return NULL;
 	}
 
-	offer->resource =
-		wl_resource_create(wl_resource_get_client(target),
-			&wl_data_offer_interface,
-			wl_resource_get_version(target), 0);
+	uint32_t version = wl_resource_get_version(
+		wl_resource_from_link(target->data_devices.next));
+	offer->resource = wl_resource_create(target->client,
+		&wl_data_offer_interface, version, 0);
 	if (offer->resource == NULL) {
 		free(offer);
 		return NULL;
 	}
-
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
 		data_offer_resource_destroy);
 
 	offer->source_destroy.notify = handle_offer_source_destroyed;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
 
-	wl_data_device_send_data_offer(target, offer->resource);
+	struct wl_resource *target_resource;
+	wl_resource_for_each(target_resource, &target->data_devices) {
+		wl_data_device_send_data_offer(target_resource, offer->resource);
+	}
+
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
 		wl_data_offer_send_offer(offer->resource, *p);
@@ -265,20 +248,27 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 	return offer;
 }
 
-
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
-	if (!seat_client->data_device) {
+	if (wl_list_empty(&seat_client->data_devices)) {
 		return;
 	}
 
-	if (seat_client->seat->selection_source) {
-		struct wlr_data_offer *offer =
-			wlr_data_source_send_offer(seat_client->seat->selection_source,
-				seat_client->data_device);
-		wl_data_device_send_selection(seat_client->data_device,
-			offer->resource);
+	if (seat_client->seat->selection_data_source) {
+		struct wlr_data_offer *offer = wlr_data_source_send_offer(
+			seat_client->seat->selection_data_source, seat_client);
+		if (offer == NULL) {
+			return;
+		}
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, offer->resource);
+		}
 	} else {
-		wl_data_device_send_selection(seat_client->data_device, NULL);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, NULL);
+		}
 	}
 }
 
@@ -286,33 +276,39 @@ static void seat_client_selection_data_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_data_source_destroy);
+	struct wlr_seat_client *seat_client = seat->keyboard_state.focused_client;
 
-	if (seat->keyboard_state.focused_client &&
-			seat->keyboard_state.focused_surface &&
-			seat->keyboard_state.focused_client->data_device) {
-		wl_data_device_send_selection(
-			seat->keyboard_state.focused_client->data_device, NULL);
+	if (seat_client && seat->keyboard_state.focused_surface) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->data_devices) {
+			wl_data_device_send_selection(resource, NULL);
+		}
 	}
 
-	seat->selection_source = NULL;
+	seat->selection_data_source = NULL;
 
 	wl_signal_emit(&seat->events.selection, seat);
 }
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
-	if (seat->selection_source &&
+	if (source) {
+		assert(source->send);
+		assert(source->cancel);
+	}
+
+	if (seat->selection_data_source &&
 			seat->selection_serial - serial < UINT32_MAX / 2) {
 		return;
 	}
 
-	if (seat->selection_source) {
-		seat->selection_source->cancel(seat->selection_source);
-		seat->selection_source = NULL;
+	if (seat->selection_data_source) {
+		seat->selection_data_source->cancel(seat->selection_data_source);
+		seat->selection_data_source = NULL;
 		wl_list_remove(&seat->selection_data_source_destroy.link);
 	}
 
-	seat->selection_source = source;
+	seat->selection_data_source = source;
 	seat->selection_serial = serial;
 
 	struct wlr_seat_client *focused_client =
@@ -335,16 +331,16 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *dd_resource, struct wl_resource *source_resource,
 		uint32_t serial) {
-	if (!source_resource) {
-		return;
+	struct client_data_source *source = NULL;
+	if (source_resource != NULL) {
+		source = wl_resource_get_user_data(source_resource);
 	}
 
-	struct wlr_data_source *source = wl_resource_get_user_data(source_resource);
 	struct wlr_seat_client *seat_client =
 		wl_resource_get_user_data(dd_resource);
 
-	// TODO: store serial and check against incoming serial here
-	wlr_seat_set_selection(seat_client->seat, source, serial);
+	struct wlr_data_source *wlr_source = (struct wlr_data_source *)source;
+	wlr_seat_set_selection(seat_client->seat, wlr_source, serial);
 }
 
 static void data_device_release(struct wl_client *client,
@@ -367,9 +363,14 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		return;
 	}
 
-	if (drag->focus_client && drag->focus_client->data_device) {
+	if (drag->focus_client) {
 		wl_list_remove(&drag->seat_client_destroy.link);
-		wl_data_device_send_leave(drag->focus_client->data_device);
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_leave(resource);
+		}
+
 		drag->focus_client = NULL;
 		drag->focus = NULL;
 	}
@@ -395,15 +396,15 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		wlr_seat_client_for_wl_client(drag->seat_client->seat,
 			wl_resource_get_client(surface->resource));
 
-	if (!focus_client || !focus_client->data_device) {
+	if (!focus_client || wl_list_empty(&focus_client->data_devices)) {
 		return;
 	}
 
 	struct wl_resource *offer_resource = NULL;
 	if (drag->source) {
 		drag->source->accepted = false;
-		struct wlr_data_offer *offer =
-			wlr_data_source_send_offer(drag->source, focus_client->data_device);
+		struct wlr_data_offer *offer = wlr_data_source_send_offer(drag->source,
+			focus_client);
 		if (offer == NULL) {
 			return;
 		}
@@ -413,7 +414,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		if (wl_resource_get_version(offer->resource) >=
 				WL_DATA_OFFER_SOURCE_ACTIONS_SINCE_VERSION) {
 			wl_data_offer_send_source_actions(offer->resource,
-				drag->source->dnd_actions);
+				drag->source->actions);
 		}
 
 		offer_resource = offer->resource;
@@ -421,10 +422,11 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 
 	uint32_t serial =
 		wl_display_next_serial(drag->seat_client->seat->display);
-
-	wl_data_device_send_enter(focus_client->data_device, serial,
-		surface->resource, wl_fixed_from_double(sx),
-		wl_fixed_from_double(sy), offer_resource);
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &focus_client->data_devices) {
+		wl_data_device_send_enter(resource, serial, surface->resource,
+			wl_fixed_from_double(sx), wl_fixed_from_double(sy), offer_resource);
+	}
 
 	drag->focus = surface;
 	drag->focus_client = focus_client;
@@ -467,9 +469,12 @@ static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
 static void pointer_drag_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_motion(drag->focus_client->data_device, time,
-			wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+	if (drag->focus  != NULL&& drag->focus_client != NULL) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_motion(resource, time, wl_fixed_from_double(sx),
+				wl_fixed_from_double(sy));
+		}
 	}
 }
 
@@ -480,22 +485,21 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 	if (drag->source &&
 			grab->seat->pointer_state.grab_button == button &&
 			state == WL_POINTER_BUTTON_STATE_RELEASED) {
-		if (drag->focus_client && drag->focus_client->data_device &&
-				drag->source->current_dnd_action &&
+		if (drag->focus_client && drag->source->current_dnd_action &&
 				drag->source->accepted) {
-			wl_data_device_send_drop(drag->focus_client->data_device);
-			if (wl_resource_get_version(drag->source->resource) >=
-					WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
-				wl_data_source_send_dnd_drop_performed(
-						drag->source->resource);
+			struct wl_resource *resource;
+			wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+				wl_data_device_send_drop(resource);
+			}
+			if (drag->source->dnd_drop) {
+				drag->source->dnd_drop(drag->source);
 			}
 
 			drag->source->offer->in_ask =
 				drag->source->current_dnd_action ==
 				WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
-		} else if (wl_resource_get_version(drag->source->resource) >=
-				WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
-			wl_data_source_send_cancelled(drag->source->resource);
+		} else if (drag->source->dnd_finish) {
+			drag->source->cancel(drag->source);
 		}
 	}
 
@@ -538,8 +542,11 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 		return;
 	}
 
-	if (drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_drop(drag->focus_client->data_device);
+	if (drag->focus_client) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_drop(resource);
+		}
 	}
 
 	wlr_drag_end(drag);
@@ -548,9 +555,13 @@ static void touch_drag_up(struct wlr_seat_touch_grab *grab, uint32_t time,
 static void touch_drag_motion(struct wlr_seat_touch_grab *grab, uint32_t time,
 		struct wlr_touch_point *point) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->focus && drag->focus_client && drag->focus_client->data_device) {
-		wl_data_device_send_motion(drag->focus_client->data_device, time,
-			wl_fixed_from_double(point->sx), wl_fixed_from_double(point->sy));
+	if (drag->focus && drag->focus_client) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+			wl_data_device_send_motion(resource, time,
+				wl_fixed_from_double(point->sx),
+				wl_fixed_from_double(point->sy));
+		}
 	}
 }
 
@@ -618,7 +629,7 @@ static void wlr_drag_icon_destroy(struct wlr_drag_icon *icon) {
 		return;
 	}
 	wl_signal_emit(&icon->events.destroy, icon);
-	wl_list_remove(&icon->surface_commit.link);
+	wlr_surface_set_role_committed(icon->surface, NULL, NULL);
 	wl_list_remove(&icon->surface_destroy.link);
 	wl_list_remove(&icon->seat_client_destroy.link);
 	wl_list_remove(&icon->link);
@@ -632,10 +643,9 @@ static void handle_drag_icon_surface_destroy(struct wl_listener *listener,
 	wlr_drag_icon_destroy(icon);
 }
 
-static void handle_drag_icon_surface_commit(struct wl_listener *listener,
-		void *data) {
-	struct wlr_drag_icon *icon =
-		wl_container_of(listener, icon, surface_commit);
+static void handle_drag_icon_surface_commit(struct wlr_surface *surface,
+		void *role_data) {
+	struct wlr_drag_icon *icon = role_data;
 	icon->sx += icon->surface->current->sx;
 	icon->sy += icon->surface->current->sy;
 }
@@ -668,8 +678,8 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 	wl_signal_add(&icon->surface->events.destroy, &icon->surface_destroy);
 	icon->surface_destroy.notify = handle_drag_icon_surface_destroy;
 
-	wl_signal_add(&icon->surface->events.commit, &icon->surface_commit);
-	icon->surface_commit.notify = handle_drag_icon_surface_commit;
+	wlr_surface_set_role_committed(icon->surface,
+		handle_drag_icon_surface_commit, icon);
 
 	wl_signal_add(&client->events.destroy, &icon->seat_client_destroy);
 	icon->seat_client_destroy.notify = handle_drag_icon_seat_client_destroy;
@@ -687,19 +697,18 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	drag->seat = client->seat;
 
-	drag->is_pointer_grab = client->pointer != NULL &&
+	drag->is_pointer_grab = !wl_list_empty(&client->pointers) &&
 		client->seat->pointer_state.button_count == 1 &&
 		client->seat->pointer_state.grab_serial == serial &&
 		client->seat->pointer_state.focused_surface &&
 		client->seat->pointer_state.focused_surface == origin;
 
-	bool is_touch_grab = client->touch &&
+	bool is_touch_grab = !wl_list_empty(&client->touches) &&
 		wlr_seat_touch_num_points(client->seat) == 1 &&
 		client->seat->touch_state.grab_serial == serial;
 
 	// set in the iteration
 	struct wlr_touch_point *point = NULL;
-
 	if (is_touch_grab) {
 		wl_list_for_each(point, &client->seat->touch_state.touch_points, link) {
 			is_touch_grab = point->surface && point->surface == origin;
@@ -717,7 +726,6 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		struct wlr_drag_icon *icon =
 			wlr_drag_icon_create(icon_surface, client, drag->is_pointer_grab,
 				touch_id);
-
 		if (!icon) {
 			free(drag);
 			return false;
@@ -800,47 +808,54 @@ static const struct wl_data_device_interface data_device_impl = {
 	.release = data_device_release,
 };
 
-void data_device_manager_get_data_device(struct wl_client *client,
-		struct wl_resource *manager_resource, uint32_t id,
-		struct wl_resource *seat_resource) {
-	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(seat_resource);
-
-	struct wl_resource *resource =
-		wl_resource_create(client,
-			&wl_data_device_interface,
-			wl_resource_get_version(manager_resource), id);
-	if (resource == NULL) {
-		wl_resource_post_no_memory(manager_resource);
-		return;
-	}
-
-	if (seat_client->data_device != NULL) {
-		// XXX this is probably a protocol violation, but it simplfies our code
-		// and it's stupid to create several data devices for the same seat.
-		wl_resource_destroy(seat_client->data_device);
-	}
-
-	seat_client->data_device = resource;
-
-	wl_resource_set_implementation(resource, &data_device_impl,
-		seat_client, NULL);
+static void data_device_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void data_source_resource_destroy(struct wl_resource *resource) {
-	struct wlr_data_source *source =
-		wl_resource_get_user_data(resource);
-	char **p;
 
-	wl_signal_emit(&source->events.destroy, source);
+struct client_data_source {
+	struct wlr_data_source source;
+	struct wl_resource *resource;
+};
 
-	wl_array_for_each(p, &source->mime_types) {
-		free(*p);
-	}
+static void client_data_source_accept(struct wlr_data_source *wlr_source,
+		uint32_t serial, const char *mime_type) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_target(source->resource, mime_type);
+}
 
-	wl_array_release(&source->mime_types);
+static void client_data_source_send(struct wlr_data_source *wlr_source,
+		const char *mime_type, int32_t fd) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_send(source->resource, mime_type, fd);
+	close(fd);
+}
 
-	free(source);
+static void client_data_source_cancel(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	wl_data_source_send_cancelled(source->resource);
+}
+
+static void client_data_source_dnd_drop(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION);
+	wl_data_source_send_dnd_drop_performed(source->resource);
+}
+
+static void client_data_source_dnd_finish(struct wlr_data_source *wlr_source) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION);
+	wl_data_source_send_dnd_finished(source->resource);
+}
+
+static void client_data_source_dnd_action(struct wlr_data_source *wlr_source,
+		enum wl_data_device_manager_dnd_action action) {
+	struct client_data_source *source = (struct client_data_source *)wlr_source;
+	assert(wl_resource_get_version(source->resource) >=
+		WL_DATA_SOURCE_ACTION_SINCE_VERSION);
+	wl_data_source_send_action(source->resource, action);
 }
 
 static void data_source_destroy(struct wl_client *client,
@@ -850,10 +865,10 @@ static void data_source_destroy(struct wl_client *client,
 
 static void data_source_set_actions(struct wl_client *client,
 		struct wl_resource *resource, uint32_t dnd_actions) {
-	struct wlr_data_source *source =
+	struct client_data_source *source =
 		wl_resource_get_user_data(resource);
 
-	if (source->actions_set) {
+	if (source->source.actions >= 0) {
 		wl_resource_post_error(source->resource,
 			WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
 			"cannot set actions more than once");
@@ -867,7 +882,7 @@ static void data_source_set_actions(struct wl_client *client,
 		return;
 	}
 
-	if (source->seat_client) {
+	if (source->source.seat_client) {
 		wl_resource_post_error(source->resource,
 			WL_DATA_SOURCE_ERROR_INVALID_ACTION_MASK,
 			"invalid action change after "
@@ -875,22 +890,21 @@ static void data_source_set_actions(struct wl_client *client,
 		return;
 	}
 
-	source->dnd_actions = dnd_actions;
-	source->actions_set = true;
+	source->source.actions = dnd_actions;
 }
 
 static void data_source_offer(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type) {
-	struct wlr_data_source *source =
-		wl_resource_get_user_data(resource);
-	char **p;
+	struct client_data_source *source = wl_resource_get_user_data(resource);
 
-	p = wl_array_add(&source->mime_types, sizeof *p);
-
+	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
 	if (p) {
 		*p = strdup(mime_type);
 	}
-	if (!p || !*p){
+	if (!p || !*p) {
+		if (p) {
+			source->source.mime_types.size -= sizeof(*p);
+		}
 		wl_resource_post_no_memory(resource);
 	}
 }
@@ -901,32 +915,87 @@ static struct wl_data_source_interface data_source_impl = {
 	.set_actions = data_source_set_actions,
 };
 
+static void data_source_resource_handle_destroy(struct wl_resource *resource) {
+	struct client_data_source *source = wl_resource_get_user_data(resource);
+	wlr_data_source_finish(&source->source);
+	free(source);
+}
+
+void wlr_data_source_init(struct wlr_data_source *source) {
+	wl_array_init(&source->mime_types);
+	wl_signal_init(&source->events.destroy);
+	source->actions = -1;
+}
+
+void wlr_data_source_finish(struct wlr_data_source *source) {
+	if (source == NULL) {
+		return;
+	}
+
+	wl_signal_emit(&source->events.destroy, source);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		free(*p);
+	}
+	wl_array_release(&source->mime_types);
+}
+
+
+void data_device_manager_get_data_device(struct wl_client *client,
+		struct wl_resource *manager_resource, uint32_t id,
+		struct wl_resource *seat_resource) {
+	struct wlr_seat_client *seat_client =
+		wl_resource_get_user_data(seat_resource);
+
+	struct wl_resource *resource = wl_resource_create(client,
+		&wl_data_device_interface, wl_resource_get_version(manager_resource),
+		id);
+	if (resource == NULL) {
+		wl_resource_post_no_memory(manager_resource);
+		return;
+	}
+	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
+		&data_device_destroy);
+	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
+}
+
 static void data_device_manager_create_data_source(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	struct wlr_data_source *source = calloc(1, sizeof(struct wlr_data_source));
+	struct client_data_source *source =
+		calloc(1, sizeof(struct client_data_source));
 	if (source == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+	wlr_data_source_init(&source->source);
 
-	source->resource =
-		wl_resource_create(client, &wl_data_source_interface,
-			wl_resource_get_version(resource), id);
+	source->resource = wl_resource_create(client, &wl_data_source_interface,
+		wl_resource_get_version(resource), id);
 	if (source->resource == NULL) {
 		free(source);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
-
-	source->accept = client_data_source_accept;
-	source->send = client_data_source_send;
-	source->cancel = client_data_source_cancel;
-
-	wl_array_init(&source->mime_types);
-	wl_signal_init(&source->events.destroy);
-
 	wl_resource_set_implementation(source->resource, &data_source_impl,
-		source, data_source_resource_destroy);
+		source, data_source_resource_handle_destroy);
+
+	source->source.accept = client_data_source_accept;
+	source->source.send = client_data_source_send;
+	source->source.cancel = client_data_source_cancel;
+
+	if (wl_resource_get_version(source->resource) >=
+			WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {
+		source->source.dnd_drop = client_data_source_dnd_drop;
+	}
+	if (wl_resource_get_version(source->resource) >=
+			WL_DATA_SOURCE_DND_FINISHED_SINCE_VERSION) {
+		source->source.dnd_finish = client_data_source_dnd_finish;
+	}
+	if (wl_resource_get_version(source->resource) >=
+			WL_DATA_SOURCE_ACTION_SINCE_VERSION) {
+		source->source.dnd_action = client_data_source_dnd_action;
+	}
 }
 
 static const struct wl_data_device_manager_interface
@@ -949,6 +1018,22 @@ static void data_device_manager_bind(struct wl_client *client,
 		NULL, NULL);
 }
 
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
+	if (!manager) {
+		return;
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	// TODO: free wl_resources
+	wl_global_destroy(manager->global);
+	free(manager);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_data_device_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	wlr_data_device_manager_destroy(manager);
+}
+
 struct wlr_data_device_manager *wlr_data_device_manager_create(
 		struct wl_display *display) {
 	struct wlr_data_device_manager *manager =
@@ -967,13 +1052,8 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		return NULL;
 	}
 
-	return manager;
-}
+	manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
-void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-	if (!manager) {
-		return;
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
+	return manager;
 }

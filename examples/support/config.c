@@ -7,10 +7,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_box.h>
+#include "support/config.h"
 #include "shared.h"
-#include "config.h"
 #include "ini.h"
 
 static void usage(const char *name, int ret) {

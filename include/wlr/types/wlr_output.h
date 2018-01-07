@@ -18,6 +18,7 @@ struct wlr_output_cursor {
 	struct wlr_output *output;
 	double x, y;
 	bool enabled;
+	bool visible;
 	uint32_t width, height;
 	int32_t hotspot_x, hotspot_y;
 	struct wl_list link;
@@ -46,8 +47,9 @@ struct wlr_output {
 	char make[48];
 	char model[16];
 	char serial[16];
-	uint32_t scale;
+	float scale;
 	int32_t width, height;
+	int32_t refresh; // mHz
 	int32_t phys_width, phys_height; // mm
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
@@ -61,6 +63,8 @@ struct wlr_output {
 		struct wl_signal frame;
 		struct wl_signal swap_buffers;
 		struct wl_signal resolution;
+		struct wl_signal scale;
+		struct wl_signal transform;
 		struct wl_signal destroy;
 	} events;
 
@@ -74,6 +78,8 @@ struct wlr_output {
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
 
+	struct wl_listener display_destroy;
+
 	void *data;
 };
 
@@ -82,9 +88,12 @@ struct wlr_surface;
 void wlr_output_enable(struct wlr_output *output, bool enable);
 bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
-void wlr_output_transform(struct wlr_output *output,
+bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
+	int32_t height, int32_t refresh);
+void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
+void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
@@ -97,6 +106,9 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
+/**
+ * Sets the cursor image. The image must be already scaled for the output.
+ */
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);
@@ -105,5 +117,20 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	double x, double y);
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
+
+
+/**
+ * Returns the transform that, when composed with `tr`, gives
+ * `WL_OUTPUT_TRANSFORM_NORMAL`.
+ */
+enum wl_output_transform wlr_output_transform_invert(
+	enum wl_output_transform tr);
+
+/**
+ * Returns a transform that, when applied, has the same effect as applying
+ * sequentially `tr_a` and `tr_b`.
+ */
+enum wl_output_transform wlr_output_transform_compose(
+	enum wl_output_transform tr_a, enum wl_output_transform tr_b);
 
 #endif

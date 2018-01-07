@@ -9,6 +9,7 @@
 #include <wayland-server.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <wlr/config.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
@@ -17,9 +18,9 @@ extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 
 static const struct session_impl *impls[] = {
-#ifdef HAS_SYSTEMD
+#ifdef WLR_HAS_SYSTEMD
 	&session_logind,
-#elif HAS_ELOGIND
+#elif defined(WLR_HAS_ELOGIND)
 	&session_logind,
 #endif
 	&session_direct,
@@ -56,6 +57,12 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 out:
 	udev_device_unref(udev_dev);
 	return 1;
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_session *session =
+		wl_container_of(listener, session, display_destroy);
+	wlr_session_destroy(session);
 }
 
 struct wlr_session *wlr_session_create(struct wl_display *disp) {
@@ -100,6 +107,9 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 		goto error_mon;
 	}
 
+	session->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(disp, &session->display_destroy);
+
 	return session;
 
 error_mon:
@@ -107,7 +117,7 @@ error_mon:
 error_udev:
 	udev_unref(session->udev);
 error_session:
-	wlr_session_destroy(session);
+	session->impl->destroy(session);
 	return NULL;
 }
 
@@ -115,6 +125,8 @@ void wlr_session_destroy(struct wlr_session *session) {
 	if (!session) {
 		return;
 	}
+
+	wl_list_remove(&session->display_destroy.link);
 
 	wl_event_source_remove(session->udev_event);
 	udev_monitor_unref(session->mon);

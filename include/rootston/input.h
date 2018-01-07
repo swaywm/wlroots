@@ -28,4 +28,6 @@ struct roots_seat *input_seat_from_wlr_seat(struct roots_input *input,
 
 bool input_view_has_focus(struct roots_input *input, struct roots_view *view);
 
+struct roots_seat *input_get_seat(struct roots_input *input, char *name);
+
 #endif

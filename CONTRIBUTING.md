@@ -5,6 +5,9 @@ successful with your contribution if you visit
 [#sway-devel](https://webchat.freenode.net/?channels=sway-devel) on
 irc.freenode.net upfront and discuss your plans.
 
+Note: rules are made to be broken. Adjust or ignore any/all of these as you see
+fit, but be prepared to justify it to your peers.
+
 ## Pull Requests
 
 If you already have your own pull request habits, feel free to use them. If you
@@ -23,6 +26,15 @@ branch. Instead, when you start working on a feature, do this:
 3. Add and commit your changes
 4. `git push -u origin add-so-and-so-feature`
 5. Make a pull request from your feature branch
+
+When you submit your pull request, your commit log should do most of the talking
+when it comes to describing your changes and their motivation. In addition to
+this, your pull request's comments will ideally include a test plan that the
+reviewers can use to (1) demonstrate the problem on master, if applicable and
+(2) verify that the problem no longer exists with your changes applied (or that
+your new features work correctly). Document all of the edge cases you're aware
+of so we can adequately test them - then verify the test plan yourself before
+submitting.
 
 ## Commit Messages
 
@@ -50,7 +62,27 @@ message as well.
 
 See [here](https://chris.beams.io/posts/git-commit/) for more details.
 
-## Coding Style
+## Code Review
+
+When your changes are submitted for review, one or more core committers will
+look over them. Smaller changes might be merged with little fanfare, but larger
+changes will typically see review from several people. Be prepared to receive
+some feedback - you may be asked to make changes to your work. Our code review
+process is:
+
+1. **Triage** the pull request. Do the commit messages make sense? Is a test
+   plan necessary and/or present? Add anyone as reviewers that you think should
+   be there (using the relevant GitHub feature, if you have the permissions, or
+   with an @mention if necessary).
+2. **Review** the code. Look for code style violations, naming convention
+   violations, buffer overflows, memory leaks, logic errors, non-portable code
+   (including GNU-isms), etc. For significant changes to the public API, loop in
+   a couple more people for discussion.
+3. **Execute** the test plan, if present.
+4. **Merge** the pull request when all reviewers approve.
+5. **File** follow-up tickets if appropriate.
+
+## Style Reference
 
 wlroots is written in C with a style similar to the [kernel
 style](https://www.kernel.org/doc/Documentation/process/coding-style.rst), but
@@ -102,7 +134,8 @@ Try to break the line in the place which you think is the most appropriate.
 ### Line Length
 
 Try to keep your lines under 80 columns, but you can go up to 100 if it
-improves readability.
+improves readability. Don't break lines indiscriminately, try to find nice
+breaking points so your code is easy to read.
 
 ### Names
 

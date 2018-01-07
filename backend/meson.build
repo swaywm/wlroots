@@ -9,6 +9,9 @@ backend_files = files(
 	'drm/properties.c',
 	'drm/renderer.c',
 	'drm/util.c',
+	'headless/backend.c',
+	'headless/output.c',
+	'headless/input_device.c',
 	'libinput/backend.c',
 	'libinput/events.c',
 	'libinput/keyboard.c',
@@ -42,5 +45,5 @@ lib_wlr_backend = static_library(
 	'wlr_backend',
 	backend_files,
 	include_directories: wlr_inc,
-	dependencies: [wayland_server, egl, gbm, libinput, systemd, elogind, wlr_render, wlr_protos],
+	dependencies: [wayland_server, egl, gbm, libinput, systemd, elogind, wlr_render, wlr_protos, drm],
 )

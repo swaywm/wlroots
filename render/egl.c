@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -21,7 +22,8 @@ static void egl_log(EGLenum error, const char *command, EGLint msg_type,
 	_wlr_log(egl_to_wlr(msg_type), "[EGL] %s: %s", command, msg);
 }
 
-static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
+static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
+		EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
@@ -32,7 +34,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
 
 	EGLConfig configs[count];
 
-	ret = eglChooseConfig(disp, NULL, configs, count, &matched);
+	ret = eglChooseConfig(disp, attribs, configs, count, &matched);
 	if (ret == EGL_FALSE) {
 		wlr_log(L_ERROR, "eglChooseConfig failed");
 		return false;
@@ -45,7 +47,7 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
 			continue;
 		}
 
-		if (visual == visual_id) {
+		if (!visual_id || visual == visual_id) {
 			*out = configs[i];
 			return true;
 		}
@@ -55,8 +57,8 @@ static bool egl_get_config(EGLDisplay disp, EGLConfig *out, EGLint visual_id) {
 	return false;
 }
 
-bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
-		void *remote_display) {
+bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
+		EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
 		return false;
 	}
@@ -77,7 +79,12 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
 		goto error;
 	}
 
-	egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
+	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
+		assert(remote_display == NULL);
+		egl->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	} else {
+		egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
+	}
 	if (egl->display == EGL_NO_DISPLAY) {
 		goto error;
 	}
@@ -87,7 +94,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, EGLint visual_id,
 		goto error;
 	}
 
-	if (!egl_get_config(egl->display, &egl->config, visual_id)) {
+	if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
 		wlr_log(L_ERROR, "Failed to get EGL config");
 		goto error;
 	}
@@ -124,7 +131,6 @@ void wlr_egl_free(struct wlr_egl *egl) {
 	if (!egl) {
 		return;
 	}
-
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);

@@ -447,12 +447,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 		crtc->cursor ? crtc->cursor - drm->cursor_planes : -1);
 
 	conn->state = WLR_DRM_CONN_CONNECTED;
-	conn->output.current_mode = mode;
-	if (conn->output.width != mode->width || conn->output.height != mode->height) {
-		conn->output.width = mode->width;
-		conn->output.height = mode->height;
-		wl_signal_emit(&conn->output.events.resolution, &conn->output);
-	}
+	wlr_output_update_mode(&conn->output, mode);
 
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
 	// we actually need to reinitalise any than has changed
@@ -551,8 +546,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_hotspot;
-	wlr_output_transform_apply_to_box(transform, &hotspot,
-		&transformed_hotspot);
+	wlr_box_transform(&hotspot, transform, &transformed_hotspot);
 	plane->cursor_hotspot_x = transformed_hotspot.x;
 	plane->cursor_hotspot_y = transformed_hotspot.y;
 
@@ -612,10 +606,12 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_box;
-	wlr_output_transform_apply_to_box(transform, &box, &transformed_box);
+	wlr_box_transform(&box, transform, &transformed_box);
 
-	transformed_box.x -= plane->cursor_hotspot_x;
-	transformed_box.y -= plane->cursor_hotspot_y;
+	if (plane != NULL) {
+		transformed_box.x -= plane->cursor_hotspot_x;
+		transformed_box.y -= plane->cursor_hotspot_y;
+	}
 
 	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
 		transformed_box.y);
@@ -641,6 +637,10 @@ static struct wlr_output_impl output_impl = {
 	.set_gamma = wlr_drm_connector_set_gamma,
 	.get_gamma_size = wlr_drm_connector_get_gamma_size,
 };
+
+bool wlr_output_is_drm(struct wlr_output *output) {
+	return output->impl == &output_impl;
+}
 
 static int retry_pageflip(void *data) {
 	struct wlr_drm_connector *conn = data;

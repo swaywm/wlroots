@@ -9,6 +9,8 @@
 struct wlr_output_impl {
 	void (*enable)(struct wlr_output *output, bool enable);
 	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
+	bool (*set_custom_mode)(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh);
 	void (*transform)(struct wlr_output *output,
 		enum wl_output_transform transform);
 	bool (*set_cursor)(struct wlr_output *output, const uint8_t *buf,
@@ -26,14 +28,12 @@ struct wlr_output_impl {
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	const struct wlr_output_impl *impl);
 void wlr_output_free(struct wlr_output *output);
-void wlr_output_update_size(struct wlr_output *output, int32_t width,
-	int32_t height);
+void wlr_output_update_mode(struct wlr_output *output,
+	struct wlr_output_mode *mode);
+void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
+	int32_t height, int32_t refresh);
 struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 	struct wl_display *display);
 void wlr_output_destroy_global(struct wlr_output *wlr_output);
-
-void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
-	struct wlr_box *box, struct wlr_box *dest);
-enum wl_output_transform wlr_output_transform_invert(enum wl_output_transform);
 
 #endif

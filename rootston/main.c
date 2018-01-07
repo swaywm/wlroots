@@ -3,8 +3,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
+#include <wlr/config.h>
 #include <wlr/backend.h>
 #include <wlr/render/render.h>
+#include <wlr/backend/headless.h>
+#include <wlr/backend/multi.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"
@@ -24,11 +28,18 @@ static void ready(struct wl_listener *listener, void *data) {
 }
 
 int main(int argc, char **argv) {
+	wlr_log_init(L_DEBUG, NULL);
 	assert(server.config = roots_config_create_from_args(argc, argv));
 	assert(server.wl_display = wl_display_create());
 	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
 
-	assert(server.backend = wlr_backend_autocreate(server.wl_display));
+	server.backend = wlr_backend_autocreate(server.wl_display);
+
+	if (server.backend == NULL) {
+		wlr_log(L_ERROR, "could not start backend");
+		wlr_backend_destroy(server.backend);
+		return 1;
+	}
 
 	assert(server.render = wlr_backend_get_render(server.backend));
 	server.data_device_manager =
@@ -50,14 +61,18 @@ int main(int argc, char **argv) {
 	if (!wlr_backend_start(server.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");
 		wlr_backend_destroy(server.backend);
+		wl_display_destroy(server.wl_display);
 		return 1;
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
-#ifndef HAS_XWAYLAND
+#ifndef WLR_HAS_XWAYLAND
 	ready(NULL, NULL);
 #else
 	if (server.desktop->xwayland != NULL) {
+		struct roots_seat *xwayland_seat =
+			input_get_seat(server.input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
+		wlr_xwayland_set_seat(server.desktop->xwayland, xwayland_seat->seat);
 		wl_signal_add(&server.desktop->xwayland->events.ready,
 			&server.desktop->xwayland_ready);
 		server.desktop->xwayland_ready.notify = ready;
@@ -67,6 +82,6 @@ int main(int argc, char **argv) {
 #endif
 
 	wl_display_run(server.wl_display);
-	wlr_backend_destroy(server.backend);
+	wl_display_destroy(server.wl_display);
 	return 0;
 }

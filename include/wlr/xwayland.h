@@ -3,10 +3,12 @@
 
 #include <time.h>
 #include <stdbool.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
 #include <xcb/xcb.h>
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
 #endif
 
@@ -23,14 +25,26 @@ struct wlr_xwayland {
 	time_t server_start;
 
 	struct wl_event_source *sigusr1_source;
-	struct wl_listener destroy_listener;
+	struct wl_listener client_destroy;
+	struct wl_listener display_destroy;
 	struct wlr_xwm *xwm;
 	struct wlr_xwayland_cursor *cursor;
+
+	/* Anything above seat is reset on Xwayland restart, rest is conserved */
+	struct wlr_seat *seat;
+	struct wl_listener seat_destroy;
 
 	struct {
 		struct wl_signal ready;
 		struct wl_signal new_surface;
 	} events;
+
+	/**
+	 * Add a custom event handler to xwayland. Return 1 if the event was
+	 * handled or 0 to use the default wlr-xwayland handler. wlr-xwayland will
+	 * free the event.
+	 */
+	int (*user_event_handler)(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 
 	void *data;
 };
@@ -123,7 +137,6 @@ struct wlr_xwayland_surface {
 	} events;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
 
 	void *data;
 };
@@ -166,5 +179,8 @@ void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
 
 void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 		bool fullscreen);
+
+void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
+		struct wlr_seat *seat);
 
 #endif

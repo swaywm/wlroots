@@ -11,6 +11,7 @@ struct wlr_backend {
 	const struct wlr_backend_impl *impl;
 
 	struct {
+		struct wl_signal destroy;
 		struct wl_signal input_add;
 		struct wl_signal input_remove;
 		struct wl_signal output_add;

@@ -16,10 +16,12 @@ struct wlr_seat_client {
 	struct wl_client *client;
 	struct wlr_seat *seat;
 
-	struct wl_resource *pointer;
-	struct wl_resource *keyboard;
-	struct wl_resource *touch;
-	struct wl_resource *data_device;
+	// lists of wl_resource
+	struct wl_list pointers;
+	struct wl_list keyboards;
+	struct wl_list touches;
+	struct wl_list data_devices;
+	struct wl_list primary_selection_devices;
 
 	struct {
 		struct wl_signal destroy;
@@ -146,6 +148,7 @@ struct wlr_seat_keyboard_state {
 
 	struct wl_listener keyboard_destroy;
 	struct wl_listener keyboard_keymap;
+	struct wl_listener keyboard_repeat_info;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener resource_destroy;
@@ -175,15 +178,19 @@ struct wlr_seat {
 	uint32_t capabilities;
 	struct timespec last_event;
 
-	struct wlr_data_device *data_device; // TODO needed?
-	struct wlr_data_source *selection_source;
+	struct wlr_data_source *selection_data_source;
 	uint32_t selection_serial;
+
+	struct wlr_primary_selection_source *primary_selection_source;
+	uint32_t primary_selection_serial;
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
 	struct wlr_seat_touch_state touch_state;
 
+	struct wl_listener display_destroy;
 	struct wl_listener selection_data_source_destroy;
+	struct wl_listener primary_selection_source_destroy;
 
 	struct {
 		struct wl_signal pointer_grab_begin;
@@ -198,6 +205,9 @@ struct wlr_seat {
 		struct wl_signal request_set_cursor;
 
 		struct wl_signal selection;
+		struct wl_signal primary_selection;
+
+		struct wl_signal destroy;
 	} events;
 
 	void *data;
@@ -499,5 +509,11 @@ int wlr_seat_touch_num_points(struct wlr_seat *seat);
  * Whether or not the seat has a touch grab other than the default grab.
  */
 bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
+
+/**
+ * Check whether this serial is valid to start a grab action such as an
+ * interactive move or resize.
+ */
+bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
 
 #endif

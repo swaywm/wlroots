@@ -1,6 +1,7 @@
 lib_wlr_xwayland = static_library(
 	'wlr_xwayland',
 	files(
+		'selection.c',
 		'sockets.c',
 		'xwayland.c',
 		'xwm.c',

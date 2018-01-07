@@ -7,13 +7,15 @@
 #include <xcb/xfixes.h>
 #include <xcb/xcb_image.h>
 #include <xcb/render.h>
+#include <wlr/config.h>
 #include "wlr/util/log.h"
+#include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"
 #include "wlr/xwayland.h"
 #include "wlr/xcursor.h"
-#include "xwm.h"
+#include "wlr/xwm.h"
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
 #endif
 
@@ -43,6 +45,14 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE_MAXIMIZED_VERT",
 	"_NET_WM_STATE_MAXIMIZED_HORZ",
 	"WM_STATE",
+	"CLIPBOARD",
+	"PRIMARY",
+	"_WL_SELECTION",
+	"TARGETS",
+	"CLIPBOARD_MANAGER",
+	"INCR",
+	"TEXT",
+	"TIMESTAMP",
 };
 
 /* General helpers */
@@ -212,7 +222,7 @@ static void wlr_xwayland_surface_destroy(
 
 	if (xsurface->surface) {
 		wl_list_remove(&xsurface->surface_destroy.link);
-		wl_list_remove(&xsurface->surface_commit.link);
+		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
 	}
 
 	free(xsurface->title);
@@ -357,7 +367,7 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 static void read_surface_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -388,7 +398,7 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 }
 #endif
 
-#ifdef HAS_XCB_ICCCM
+#ifdef WLR_HAS_XCB_ICCCM
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -507,9 +517,9 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	free(reply);
 }
 
-static void handle_surface_commit(struct wl_listener *listener, void *data) {
-	struct wlr_xwayland_surface *xsurface =
-		wl_container_of(listener, xsurface, surface_commit);
+static void handle_surface_commit(struct wlr_surface *wlr_surface,
+		void *role_data) {
+	struct wlr_xwayland_surface *xsurface = role_data;
 
 	if (!xsurface->added &&
 			wlr_surface_has_buffer(xsurface->surface) &&
@@ -550,8 +560,8 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		read_surface_property(xwm, xsurface, props[i]);
 	}
 
-	xsurface->surface_commit.notify = handle_surface_commit;
-	wl_signal_add(&surface->events.commit, &xsurface->surface_commit);
+	wlr_surface_set_role_committed(xsurface->surface, handle_surface_commit,
+		xsurface);
 
 	xsurface->surface_destroy.notify = handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
@@ -682,7 +692,7 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 	}
 
 	if (xsurface->surface) {
-		wl_list_remove(&xsurface->surface_commit.link);
+		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
 		wl_list_remove(&xsurface->surface_destroy.link);
 	}
 	xsurface->surface = NULL;
@@ -742,14 +752,43 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 #define _NET_WM_MOVERESIZE_MOVE_KEYBOARD    10  // move via keyboard
 #define _NET_WM_MOVERESIZE_CANCEL           11  // cancel operation
 
+static enum wlr_edges net_wm_edges_to_wlr(uint32_t net_wm_edges) {
+	enum wlr_edges edges = WLR_EDGE_NONE;
+
+	switch(net_wm_edges) {
+		case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOP:
+			edges = WLR_EDGE_TOP;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
+			edges = WLR_EDGE_TOP | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_RIGHT:
+			edges = WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
+			edges = WLR_EDGE_BOTTOM;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+			edges = WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
+			break;
+		case _NET_WM_MOVERESIZE_SIZE_LEFT:
+			edges = WLR_EDGE_LEFT;
+			break;
+		default:
+			break;
+	}
+
+	return edges;
+}
+
 static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
-	// same as xdg-toplevel-v6
-	// TODO need a common enum for this
-	static const int map[] = {
-		5, 1, 9, 8, 10, 2, 6, 4
-	};
-
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
@@ -775,7 +814,7 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
 	case _NET_WM_MOVERESIZE_SIZE_LEFT:
 		resize_event.surface = xsurface;
-		resize_event.edges = map[detail];
+		resize_event.edges = net_wm_edges_to_wlr(detail);
 		wl_signal_emit(&xsurface->events.request_resize, &resize_event);
 		break;
 	case _NET_WM_MOVERESIZE_CANCEL:
@@ -908,6 +947,17 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
+
+		if (xwm->xwayland->user_event_handler &&
+				xwm->xwayland->user_event_handler(xwm, event)) {
+			break;
+		}
+
+		if (xwm_handle_selection_event(xwm, event)) {
+			free(event);
+			continue;
+		}
+
 		switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 		case XCB_CREATE_NOTIFY:
 			xwm_handle_create_notify(xwm, (xcb_create_notify_event_t *)event);
@@ -1042,14 +1092,24 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
+	xwm_selection_finish(xwm);
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
+	}
+	if (xwm->colormap) {
+		xcb_free_colormap(xwm->xcb_conn, xwm->colormap);
+	}
+	if (xwm->window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->window);
 	}
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
 	struct wlr_xwayland_surface *xsurface, *tmp;
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
+		wlr_xwayland_surface_destroy(xsurface);
+	}
+	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
 	}
 	wl_list_remove(&xwm->compositor_surface_create.link);
@@ -1070,15 +1130,12 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 			xcb_intern_atom(xwm->xcb_conn, 0, strlen(atom_map[i]), atom_map[i]);
 	}
 	for (i = 0; i < ATOM_LAST; i++) {
-		xcb_intern_atom_reply_t *reply;
 		xcb_generic_error_t *error;
-
-		reply = xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
-
+		xcb_intern_atom_reply_t *reply =
+			xcb_intern_atom_reply(xwm->xcb_conn, cookies[i], &error);
 		if (reply && !error) {
 			xwm->atoms[i] = reply->atom;
 		}
-
 		free(reply);
 
 		if (error) {
@@ -1197,6 +1254,10 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 		xcb_render_query_pict_formats(xwm->xcb_conn);
 	xcb_render_query_pict_formats_reply_t *reply =
 		xcb_render_query_pict_formats_reply(xwm->xcb_conn, cookie, NULL);
+	if (!reply) {
+		wlr_log(L_ERROR, "Did not get any reply from xcb_render_query_pict_formats");
+		return;
+	}
 	xcb_render_pictforminfo_iterator_t iter =
 		xcb_render_query_pict_formats_formats_iterator(reply);
 	xcb_render_pictforminfo_t *format = NULL;
@@ -1211,10 +1272,12 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 
 	if (format == NULL) {
 		wlr_log(L_DEBUG, "No 32 bit render format");
+		free(reply);
 		return;
 	}
 
 	xwm->render_format_id = format->id;
+	free(reply);
 }
 
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
@@ -1329,6 +1392,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xcb_flush(xwm->xcb_conn);
 
 	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+
+	xwm_selection_init(xwm);
 
 	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
 	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,

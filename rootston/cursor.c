@@ -8,6 +8,7 @@
 #endif
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
+#include <wlr/util/edges.h>
 #include "rootston/xcursor.h"
 #include "rootston/cursor.h"
 
@@ -21,6 +22,7 @@ struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
 		free(cursor);
 		return NULL;
 	}
+	cursor->default_xcursor = ROOTS_XCURSOR_DEFAULT;
 	return cursor;
 }
 
@@ -47,7 +49,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		}
 		if (set_compositor_cursor) {
 			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
-				ROOTS_XCURSOR_DEFAULT, cursor->cursor);
+				cursor->default_xcursor, cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
 		if (view) {
@@ -75,22 +77,22 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 			double y = view->y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
-			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_TOP) {
+			if (cursor->resize_edges & WLR_EDGE_TOP) {
 				y = cursor->view_y + dy;
 				height -= dy;
 				if (height < 1) {
 					y += height;
 				}
-			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_BOTTOM) {
+			} else if (cursor->resize_edges & WLR_EDGE_BOTTOM) {
 				height += dy;
 			}
-			if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_LEFT) {
+			if (cursor->resize_edges & WLR_EDGE_LEFT) {
 				x = cursor->view_x + dx;
 				width -= dx;
 				if (width < 1) {
 					x += width;
 				}
-			} else if (cursor->resize_edges & ROOTS_CURSOR_RESIZE_EDGE_RIGHT) {
+			} else if (cursor->resize_edges & WLR_EDGE_RIGHT) {
 				width += dx;
 			}
 
@@ -147,14 +149,14 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		case BTN_RIGHT:
 			edges = 0;
 			if (sx < view->wlr_surface->current->width/2) {
-				edges |= ROOTS_CURSOR_RESIZE_EDGE_LEFT;
+				edges |= WLR_EDGE_LEFT;
 			} else {
-				edges |= ROOTS_CURSOR_RESIZE_EDGE_RIGHT;
+				edges |= WLR_EDGE_RIGHT;
 			}
 			if (sy < view->wlr_surface->current->height/2) {
-				edges |= ROOTS_CURSOR_RESIZE_EDGE_TOP;
+				edges |= WLR_EDGE_TOP;
 			} else {
-				edges |= ROOTS_CURSOR_RESIZE_EDGE_BOTTOM;
+				edges |= WLR_EDGE_BOTTOM;
 			}
 			roots_seat_begin_resize(seat, view, edges);
 			break;
@@ -164,30 +166,25 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 		return;
 	}
-
-	uint32_t serial;
-	if (is_touch) {
-		serial = wl_display_get_serial(desktop->server->wl_display);
-	} else {
-		serial =
-			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	if (state == WLR_BUTTON_RELEASED &&
+			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		if (seat->seat->pointer_state.button_count == 0) {
+			return;
+		}
 	}
 
-	int i;
+	if (!is_touch) {
+		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	}
+
 	switch (state) {
 	case WLR_BUTTON_RELEASED:
-		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		if (!is_touch) {
 			roots_cursor_update_position(cursor, time);
 		}
 		break;
 	case WLR_BUTTON_PRESSED:
-		i = cursor->input_events_idx;
-		cursor->input_events[i].serial = serial;
-		cursor->input_events[i].cursor = cursor->cursor;
-		cursor->input_events[i].device = device;
-		cursor->input_events_idx = (i + 1)
-			% (sizeof(cursor->input_events) / sizeof(cursor->input_events[0]));
 		roots_seat_set_focus(seat, view);
 		break;
 	}

@@ -19,6 +19,8 @@ struct wlr_output_layout_output_state {
 	bool auto_configured;
 
 	struct wl_listener resolution;
+	struct wl_listener scale;
+	struct wl_listener transform;
 	struct wl_listener output_destroy;
 };
 
@@ -46,6 +48,8 @@ static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wl_signal_emit(&l_output->events.destroy, l_output);
 	wl_list_remove(&l_output->state->resolution.link);
+	wl_list_remove(&l_output->state->scale.link);
+	wl_list_remove(&l_output->state->transform.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
 	free(l_output->state);
@@ -134,6 +138,18 @@ static void handle_output_resolution(struct wl_listener *listener, void *data) {
 	wlr_output_layout_reconfigure(state->layout);
 }
 
+static void handle_output_scale(struct wl_listener *listener, void *data) {
+	struct wlr_output_layout_output_state *state =
+		wl_container_of(listener, state, scale);
+	wlr_output_layout_reconfigure(state->layout);
+}
+
+static void handle_output_transform(struct wl_listener *listener, void *data) {
+	struct wlr_output_layout_output_state *state =
+		wl_container_of(listener, state, transform);
+	wlr_output_layout_reconfigure(state->layout);
+}
+
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, output_destroy);
@@ -162,6 +178,10 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 
 	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
 	l_output->state->resolution.notify = handle_output_resolution;
+	wl_signal_add(&output->events.scale, &l_output->state->scale);
+	l_output->state->scale.notify = handle_output_scale;
+	wl_signal_add(&output->events.transform, &l_output->state->transform);
+	l_output->state->transform.notify = handle_output_transform;
 	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
 	l_output->state->output_destroy.notify = handle_output_destroy;
 
@@ -210,30 +230,38 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 }
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int x1, int y1, int x2, int y2) {
-	struct wlr_output_layout_output *layout_output =
-		wlr_output_layout_get(layout, reference);
-	if (!layout_output) {
+		struct wlr_output *reference, const struct wlr_box *target_box) {
+	struct wlr_box out_box;
+
+	if (reference == NULL) {
+		struct wlr_output_layout_output *l_output;
+		wl_list_for_each(l_output, &layout->outputs, link) {
+			struct wlr_box *output_box =
+				wlr_output_layout_output_get_box(l_output);
+			if (wlr_box_intersection(output_box, target_box, &out_box)) {
+				return true;
+			}
+		}
 		return false;
+	} else {
+		struct wlr_output_layout_output *l_output =
+			wlr_output_layout_get(layout, reference);
+		if (!l_output) {
+			return false;
+		}
+
+		struct wlr_box *output_box = wlr_output_layout_output_get_box(l_output);
+		return wlr_box_intersection(output_box, target_box, &out_box);
 	}
-
-	struct wlr_box *output_box = wlr_output_layout_output_get_box(layout_output);
-	struct wlr_box target_box = {x1, y1, x2 - x1, y2 - y1};
-
-	struct wlr_box out;
-	struct wlr_box *out_ptr = &out;
-	return wlr_box_intersection(output_box, &target_box, &out_ptr);
 }
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (l_output->output) {
-			struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-			if (wlr_box_contains_point(box, x, y)) {
-				return l_output->output;
-			}
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		if (wlr_box_contains_point(box, x, y)) {
+			return l_output->output;
 		}
 	}
 	return NULL;

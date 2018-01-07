@@ -6,7 +6,6 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
-#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
 #include <wlr/render/render.h>
@@ -42,26 +41,30 @@ static void render_surface(struct wlr_surface *surface,
 
 	struct wlr_render *rend = desktop->server->render;
 
-	double sw = surface->current->width * wlr_output->scale;
-	double sh = surface->current->height * wlr_output->scale;
+	double render_width = surface->current->width * wlr_output->scale;
+	double render_height = surface->current->height * wlr_output->scale;
+
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 	ox *= wlr_output->scale;
 	oy *= wlr_output->scale;
 
-	if (wlr_output_layout_intersects(desktop->layout, wlr_output,
-			lx, ly, lx + sw, ly + sh)) {
+	struct wlr_box render_box = {
+		.x = lx, .y = ly,
+		.width = render_width, .height = render_height,
+	};
+	if (wlr_output_layout_intersects(desktop->layout, wlr_output, &render_box)) {
 		int ow, oh;
 		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
 		if (rotation == 0) {
 			wlr_render_texture(rend, surface->tex,
-				ox, oy, ox + sw, oy + sh);
+				ox, oy, ox + render_width, oy + render_height);
 		} else {
 			float mat1[9];
 			wlr_matrix_identity(mat1);
 			wlr_matrix_rotate(mat1, rotation);
-			wlr_matrix_scale(mat1, sw, sh);
+			wlr_matrix_scale(mat1, render_width, render_height);
 			wlr_matrix_scale_row(mat1, 0, 1.0f / ow);
 			wlr_matrix_scale_row(mat1, 1, 1.0f / oh);
 
@@ -69,8 +72,8 @@ static void render_surface(struct wlr_surface *surface,
 			wlr_matrix_identity(mat2);
 			wlr_matrix_transform(mat2, wlr_output->transform);
 			wlr_matrix_translate(mat2,
-				-1.0f + sw/ow + (2.0f/ow) * ox,
-				-1.0f + sh/oh + (2.0f/oh) * oy
+				-1.0f + render_width/ow + (2.0f/ow) * ox,
+				-1.0f + render_height/oh + (2.0f/oh) * oy
 			);
 			wlr_matrix_multiply(mat2, mat2, mat1);
 			wlr_matrix_scale_row(mat2, wlr_output->transform % 2 ? 0 : 1, -1);
@@ -268,8 +271,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 static void set_mode(struct wlr_output *output,
 		struct roots_output_config *oc) {
-	struct wlr_output_mode *mode, *best = NULL;
 	int mhz = (int)(oc->mode.refresh_rate * 1000);
+
+	if (wl_list_empty(&output->modes)) {
+		// Output has no mode, try setting a custom one
+		wlr_output_set_custom_mode(output, oc->mode.width, oc->mode.height, mhz);
+		return;
+	}
+
+	struct wlr_output_mode *mode, *best = NULL;
 	wl_list_for_each(mode, &output->modes, link) {
 		if (mode->width == oc->mode.width && mode->height == oc->mode.height) {
 			if (mode->refresh == mhz) {
@@ -295,7 +305,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_config *config = desktop->config;
 
 	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
-	wlr_log(L_DEBUG, "%s %s %s %"PRId32"mm x %"PRId32"mm", wlr_output->make,
+	wlr_log(L_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
 	if (wl_list_length(&wlr_output->modes) > 0) {
@@ -318,22 +328,16 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		if (output_config->mode.width) {
 			set_mode(wlr_output, output_config);
 		}
-		wlr_output->scale = output_config->scale;
-		wlr_output_transform(wlr_output, output_config->transform);
-		wlr_output_layout_add(desktop->layout,
-				wlr_output, output_config->x, output_config->y);
+		wlr_output_set_scale(wlr_output, output_config->scale);
+		wlr_output_set_transform(wlr_output, output_config->transform);
+		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
+			output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
-				wlr_output->scale)) {
-			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
-				"with scale %d", wlr_output->name, wlr_output->scale);
-		}
-
 		roots_seat_configure_cursor(seat);
 		roots_seat_configure_xcursor(seat);
 	}
@@ -341,7 +345,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 void output_remove_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
-	struct roots_desktop *desktop = wl_container_of(listener, desktop, output_remove);
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, output_remove);
+
 	struct roots_output *output = NULL, *_output;
 	wl_list_for_each(_output, &desktop->outputs, link) {
 		if (_output->wlr_output == wlr_output) {
@@ -352,10 +358,13 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	if (!output) {
 		return; // We are unfamiliar with this output
 	}
+
 	wlr_output_layout_remove(desktop->layout, output->wlr_output);
+
 	// TODO: cursor
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
+
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
 	free(output);

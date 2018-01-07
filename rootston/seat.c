@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/xcursor.h"
@@ -219,6 +220,27 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
 }
 
+static void seat_view_destroy(struct roots_seat_view *seat_view);
+
+static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, seat_destroy);
+
+	// TODO: probably more to be freed here
+	wl_list_remove(&seat->seat_destroy.link);
+
+	struct roots_seat_view *view, *nview;
+	wl_list_for_each_safe(view, nview, &seat->views, link) {
+		seat_view_destroy(view);
+	}
+}
+
+void roots_seat_destroy(struct roots_seat *seat) {
+	roots_seat_handle_seat_destroy(&seat->seat_destroy, seat->seat);
+	wlr_seat_destroy(seat->seat);
+}
+
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	struct roots_seat *seat = calloc(1, sizeof(struct roots_seat));
 	if (!seat) {
@@ -253,11 +275,10 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
-	return seat;
-}
+	seat->seat_destroy.notify = roots_seat_handle_seat_destroy;
+	wl_signal_add(&seat->seat->events.destroy, &seat->seat_destroy);
 
-void roots_seat_destroy(struct roots_seat *seat) {
-	// TODO
+	return seat;
 }
 
 static void seat_add_keyboard(struct roots_seat *seat,
@@ -442,28 +463,32 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 		roots_config_get_cursor(seat->input->config, seat->seat->name);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
+		if (cc->default_image != NULL) {
+			seat->cursor->default_xcursor = cc->default_image;
+		}
 	}
 
-	seat->cursor->xcursor_manager =
-		wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
-	if (seat->cursor->xcursor_manager == NULL) {
-		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
-			cursor_theme);
-		return;
+	if (!seat->cursor->xcursor_manager) {
+		seat->cursor->xcursor_manager =
+			wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
+		if (seat->cursor->xcursor_manager == NULL) {
+			wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+					cursor_theme);
+			return;
+		}
 	}
 
 	struct roots_output *output;
 	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
-		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager,
-				output->wlr_output->scale)) {
+		float scale = output->wlr_output->scale;
+		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager, scale)) {
 			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
-				"with scale %d", output->wlr_output->name,
-				output->wlr_output->scale);
+				"with scale %f", output->wlr_output->name, scale);
 		}
 	}
 
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
-		ROOTS_XCURSOR_DEFAULT, seat->cursor->cursor);
+		seat->cursor->default_xcursor, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
 }
@@ -661,8 +686,9 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 	view_maximize(view, false);
 	wlr_seat_pointer_clear_focus(seat->seat);
 
+	const char *resize_name = wlr_xcursor_get_resize_name(edges);
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
-		roots_xcursor_get_resize_name(edges), seat->cursor->cursor);
+		resize_name, seat->cursor->cursor);
 }
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {

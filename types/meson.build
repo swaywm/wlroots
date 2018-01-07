@@ -12,6 +12,7 @@ lib_wlr_types = static_library(
 		'wlr_output.c',
 		'wlr_output_layout.c',
 		'wlr_pointer.c',
+		'wlr_primary_selection.c',
 		'wlr_region.c',
 		'wlr_screenshooter.c',
 		'wlr_seat.c',

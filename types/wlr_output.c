@@ -38,11 +38,11 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 		if (wl_list_length(&output->modes) == 0) {
 			// Output has no mode, send the current width/height
 			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
-				output->width, output->height, 0);
+				output->width, output->height, output->refresh);
 		}
 	}
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
-		wl_output_send_scale(resource, output->scale);
+		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
@@ -51,6 +51,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 
 static void wlr_output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
+	assert(resource);
 	struct wlr_output *output = wl_resource_get_user_data(resource);
 	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
@@ -63,9 +64,9 @@ static void wlr_output_send_current_mode_to_resource(
 		wl_output_send_mode(resource, flags | WL_OUTPUT_MODE_CURRENT,
 			mode->width, mode->height, mode->refresh);
 	} else {
-		// Output has no mode, send the current width/height
+		// Output has no mode
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
-			output->height, 0);
+			output->height, output->refresh);
 	}
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
@@ -84,12 +85,13 @@ static void wl_output_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void wl_output_release(struct wl_client *client, struct wl_resource *resource) {
-	wl_output_destroy(resource);
+static void wl_output_release(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
 }
 
 static struct wl_output_interface wl_output_impl = {
-	.release = wl_output_release
+	.release = wl_output_release,
 };
 
 static void wl_output_bind(struct wl_client *wl_client, void *data,
@@ -110,6 +112,12 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 	wl_output_send_to_resource(wl_resource);
 }
 
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_output *output =
+		wl_container_of(listener, output, display_destroy);
+	wlr_output_destroy_global(output);
+}
+
 struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 		struct wl_display *display) {
 	if (wlr_output->wl_global != NULL) {
@@ -118,7 +126,10 @@ struct wl_global *wlr_output_create_global(struct wlr_output *wlr_output,
 	struct wl_global *wl_global = wl_global_create(display,
 		&wl_output_interface, 3, wlr_output, wl_output_bind);
 	wlr_output->wl_global = wl_global;
-	wl_list_init(&wlr_output->wl_resources);
+
+	wlr_output->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &wlr_output->display_destroy);
+
 	return wl_global;
 }
 
@@ -126,10 +137,10 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	if (wlr_output->wl_global == NULL) {
 		return;
 	}
+	wl_list_remove(&wlr_output->display_destroy.link);
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &wlr_output->wl_resources) {
-		struct wl_list *link = wl_resource_get_link(resource);
-		wl_list_remove(link);
+		wl_resource_destroy(resource);
 	}
 	wl_global_destroy(wlr_output->wl_global);
 	wlr_output->wl_global = NULL;
@@ -146,34 +157,55 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
-	bool result = output->impl->set_mode(output, mode);
-	if (result) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->wl_resources) {
-			wlr_output_send_current_mode_to_resource(resource);
-		}
-	}
-	return result;
+	return output->impl->set_mode(output, mode);
 }
 
-void wlr_output_update_size(struct wlr_output *output, int32_t width,
-		int32_t height) {
-	if (output->width == width && output->height == height) {
+bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh) {
+	if (!output->impl || !output->impl->set_custom_mode) {
+		return false;
+	}
+	return output->impl->set_custom_mode(output, width, height, refresh);
+}
+
+void wlr_output_update_mode(struct wlr_output *output,
+		struct wlr_output_mode *mode) {
+	output->current_mode = mode;
+	wlr_output_update_custom_mode(output, mode->width, mode->height,
+		mode->refresh);
+}
+
+void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
+		int32_t height, int32_t refresh) {
+	if (output->width == width && output->height == height &&
+			output->refresh == refresh) {
 		return;
 	}
+
 	output->width = width;
 	output->height = height;
-	if (output->wl_global != NULL) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->wl_resources) {
-			wlr_output_send_current_mode_to_resource(resource);
-		}
+
+	output->refresh = refresh;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wlr_output_send_current_mode_to_resource(resource);
 	}
+
+	wl_signal_emit(&output->events.resolution, output);
 }
 
-void wlr_output_transform(struct wlr_output *output,
+void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
+
+	// TODO: only send geometry and done
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wl_output_send_to_resource(resource);
+	}
+
+	wl_signal_emit(&output->events.transform, output);
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,
@@ -185,10 +217,27 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	output->lx = lx;
 	output->ly = ly;
 
+	// TODO: only send geometry and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
 		wl_output_send_to_resource(resource);
 	}
+}
+
+void wlr_output_set_scale(struct wlr_output *output, float scale) {
+	if (output->scale == scale) {
+		return;
+	}
+
+	output->scale = scale;
+
+	// TODO: only send mode and done
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->wl_resources) {
+		wl_output_send_to_resource(resource);
+	}
+
+	wl_signal_emit(&output->events.scale, output);
 }
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
@@ -200,9 +249,12 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_list_init(&output->cursors);
+	wl_list_init(&output->wl_resources);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.resolution);
+	wl_signal_init(&output->events.scale);
+	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
 }
 
@@ -211,13 +263,22 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
+	wlr_output_destroy_global(output);
+	wlr_output_set_fullscreen_surface(output, NULL);
+
 	wl_signal_emit(&output->events.destroy, output);
 
 	struct wlr_output_mode *mode, *tmp_mode;
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
+		wl_list_remove(&mode->link);
 		free(mode);
 	}
-	wl_list_remove(&output->modes);
+
+	struct wlr_output_cursor *cursor, *tmp_cursor;
+	wl_list_for_each_safe(cursor, tmp_cursor, &output->cursors, link) {
+		wlr_output_cursor_destroy(cursor);
+	}
+
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
 	} else {
@@ -255,12 +316,20 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	wlr_surface_send_frame_done(surface, when);
 }
 
+/**
+ * Returns the cursor box, scaled for its output.
+ */
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 		struct wlr_box *box) {
 	box->x = cursor->x - cursor->hotspot_x;
 	box->y = cursor->y - cursor->hotspot_y;
 	box->width = cursor->width;
 	box->height = cursor->height;
+
+	if (cursor->surface != NULL) {
+		box->x += cursor->surface->current->sx * cursor->output->scale;
+		box->y += cursor->surface->current->sy * cursor->output->scale;
+	}
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
@@ -286,8 +355,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	output_cursor_get_box(cursor, &cursor_box);
 
 	struct wlr_box intersection;
-	struct wlr_box *intersection_ptr = &intersection;
-	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection_ptr)) {
+	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection)) {
 		return;
 	}
 
@@ -320,7 +388,8 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
-		if (!cursor->enabled || output->hardware_cursor == cursor) {
+		if (!cursor->enabled || !cursor->visible ||
+				output->hardware_cursor == cursor) {
 			continue;
 		}
 		output_cursor_render(cursor, &now);
@@ -415,9 +484,9 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
 
-	if (cursor->output->hardware_cursor == NULL &&
-			cursor->output->impl->set_cursor) {
-		if (cursor->output->impl->move_cursor) {
+	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
+	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
+		if (cursor->output->impl->move_cursor && hwcur != cursor) {
 			cursor->output->impl->move_cursor(cursor->output,
 				(int)cursor->x, (int)cursor->y);
 		}
@@ -429,7 +498,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		}
 	}
 
-	wlr_log(L_INFO, "Falling back to software cursor");
+	wlr_log(L_DEBUG, "Falling back to software cursor");
 	cursor->output->needs_swap = true;
 
 	cursor->enabled = pixels != NULL;
@@ -446,11 +515,38 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	return cursor->tex;
 }
 
+static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
+	struct wlr_box output_box;
+	output_box.x = output_box.y = 0;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
+
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	struct wlr_box intersection;
+	bool visible =
+		wlr_box_intersection(&output_box, &cursor_box, &intersection);
+
+	if (cursor->surface != NULL) {
+		if (cursor->visible && !visible) {
+			wlr_surface_send_leave(cursor->surface, cursor->output);
+		}
+		if (!cursor->visible && visible) {
+			wlr_surface_send_enter(cursor->surface, cursor->output);
+		}
+	}
+
+	cursor->visible = visible;
+}
+
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
-	cursor->width = cursor->surface->current->width;
-	cursor->height = cursor->surface->current->height;
+	cursor->width = cursor->surface->current->width * cursor->output->scale;
+	cursor->height = cursor->surface->current->height * cursor->output->scale;
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;
@@ -483,8 +579,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	cursor->hotspot_x = hotspot_x;
-	cursor->hotspot_y = hotspot_y;
+	cursor->hotspot_x = hotspot_x * cursor->output->scale;
+	cursor->hotspot_y = hotspot_y * cursor->output->scale;
 
 	if (surface && surface == cursor->surface) {
 		if (cursor->output->hardware_cursor == cursor &&
@@ -514,6 +610,9 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
 		output_cursor_commit(cursor);
+
+		cursor->visible = false;
+		output_cursor_update_visible(cursor);
 	} else {
 		cursor->enabled = false;
 		cursor->width = 0;
@@ -529,6 +628,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
+	output_cursor_update_visible(cursor);
 
 	if (cursor->output->hardware_cursor != cursor) {
 		cursor->output->needs_swap = true;
@@ -574,57 +674,22 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	free(cursor);
 }
 
-void wlr_output_transform_apply_to_box(enum wl_output_transform transform,
-		struct wlr_box *box, struct wlr_box *dest) {
-	if (transform % 2 == 0) {
-		dest->width = box->width;
-		dest->height = box->height;
-	} else {
-		dest->width = box->height;
-		dest->height = box->width;
-	}
-
-	switch (transform) {
-	case WL_OUTPUT_TRANSFORM_NORMAL:
-		dest->x = box->x;
-		dest->y = box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_90:
-		dest->x = box->y;
-		dest->y = box->width - box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_180:
-		dest->x = box->width - box->x;
-		dest->y = box->height - box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_270:
-		dest->x = box->height - box->y;
-		dest->y = box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED:
-		dest->x = box->width - box->x;
-		dest->y = box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		dest->x = box->y;
-		dest->y = box->x;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-		dest->x = box->x;
-		dest->y = box->height - box->y;
-		break;
-	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		dest->x = box->height - box->y;
-		dest->y = box->width - box->x;
-		break;
-	}
-}
 
 enum wl_output_transform wlr_output_transform_invert(
-		enum wl_output_transform transform) {
-	if ((transform & WL_OUTPUT_TRANSFORM_90) &&
-			!(transform & WL_OUTPUT_TRANSFORM_FLIPPED)) {
-		transform ^= WL_OUTPUT_TRANSFORM_180;
+		enum wl_output_transform tr) {
+	if ((tr & WL_OUTPUT_TRANSFORM_90) && !(tr & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		tr ^= WL_OUTPUT_TRANSFORM_180;
 	}
-	return transform;
+	return tr;
+}
+
+enum wl_output_transform wlr_output_transform_compose(
+		enum wl_output_transform tr_a, enum wl_output_transform tr_b) {
+	uint32_t flipped = (tr_a ^ tr_b) & WL_OUTPUT_TRANSFORM_FLIPPED;
+	uint32_t rotated =
+		(tr_a + tr_b) & (WL_OUTPUT_TRANSFORM_90 | WL_OUTPUT_TRANSFORM_180);
+	if ((tr_a & WL_OUTPUT_TRANSFORM_FLIPPED) && (tr_b & WL_OUTPUT_TRANSFORM_FLIPPED)) {
+		rotated = wlr_output_transform_invert(rotated);
+	}
+	return flipped | rotated;
 }

@@ -5,12 +5,17 @@
 struct wlr_screenshooter {
 	struct wl_global *wl_global;
 
+	struct wl_list screenshots; // wlr_screenshot::link
+
+	struct wl_listener display_destroy;
+
 	void *data;
 };
 
 struct wlr_screenshot {
 	struct wl_resource *resource;
 	struct wl_resource *output_resource;
+	struct wl_list link;
 
 	struct wlr_output *output;
 	struct wlr_screenshooter *screenshooter;

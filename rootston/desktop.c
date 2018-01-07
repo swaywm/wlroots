@@ -3,10 +3,12 @@
 #include <time.h>
 #include <stdlib.h>
 #include <math.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -36,12 +38,9 @@ static void view_update_output(const struct roots_view *view,
 	view_get_box(view, &box);
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before != NULL && wlr_output_layout_intersects(
-				desktop->layout, output->wlr_output,
-				before->x, before->y, before->x + before->width,
-				before->y + before->height);
-		bool intersects = wlr_output_layout_intersects(
-				desktop->layout, output->wlr_output,
-				view->x, view->y, view->x + box.width, view->y + box.height);
+			desktop->layout, output->wlr_output, before);
+		bool intersects = wlr_output_layout_intersects(desktop->layout,
+			output->wlr_output, &box);
 		if (intersected && !intersects) {
 			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
 		}
@@ -294,10 +293,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 
 	struct wlr_surface_state *state = view->wlr_surface->current;
 	struct wlr_box box = {
-		.x = 0,
-		.y = 0,
-		.width = state->buffer_width / state->scale,
-		.height = state->buffer_height / state->scale,
+		.x = 0, .y = 0,
+		.width = state->width, .height = state->height,
 	};
 	if (view->rotation != 0.0) {
 		// Coordinates relative to the center of the view
@@ -386,6 +383,34 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	return NULL;
 }
 
+static void handle_layout_change(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, layout_change);
+
+	struct wlr_output *center_output =
+		wlr_output_layout_get_center_output(desktop->layout);
+	if (center_output == NULL) {
+		return;
+	}
+
+	struct wlr_box *center_output_box =
+		wlr_output_layout_get_box(desktop->layout, center_output);
+	double center_x = center_output_box->x + center_output_box->width/2;
+	double center_y = center_output_box->y + center_output_box->height/2;
+
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
+		struct wlr_box box;
+		view_get_box(view, &box);
+
+		if (wlr_output_layout_intersects(desktop->layout, NULL, &box)) {
+			continue;
+		}
+
+		view_move(view, center_x - box.width/2, center_y - box.height/2);
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -408,10 +433,14 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->config = config;
 
 	const char *cursor_theme = NULL;
+	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =
 		roots_config_get_cursor(config, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
+		if (cc->default_image != NULL) {
+			cursor_default = cc->default_image;
+		}
 	}
 
 	desktop->xcursor_manager = wlr_xcursor_manager_create(cursor_theme,
@@ -424,6 +453,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	}
 
 	desktop->layout = wlr_output_layout_create();
+	desktop->layout_change.notify = handle_layout_change;
+	wl_signal_add(&desktop->layout->events.change, &desktop->layout_change);
+
 	desktop->compositor = wlr_compositor_create(server->wl_display,
 		server->render);
 
@@ -437,7 +469,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
-#ifdef HAS_XWAYLAND
+#ifdef WLR_HAS_XWAYLAND
 	if (config->xwayland) {
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);
@@ -449,7 +481,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
 		}
 		struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
-			desktop->xcursor_manager, ROOTS_XCURSOR_DEFAULT, 1);
+			desktop->xcursor_manager, cursor_default, 1);
 		if (xcursor != NULL) {
 			struct wlr_xcursor_image *image = xcursor->images[0];
 			wlr_xwayland_set_cursor(desktop->xwayland, image->buffer,
@@ -467,6 +499,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wlr_server_decoration_manager_set_default_mode(
 		desktop->server_decoration_manager,
 		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
+	desktop->primary_selection_device_manager =
+		wlr_primary_selection_device_manager_create(server->wl_display);
 
 	return desktop;
 }

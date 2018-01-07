@@ -68,7 +68,7 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
  */
 void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
 	int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
-	int32_t hotspot_y, uint32_t scale);
+	int32_t hotspot_y, float scale);
 
 /**
  * Set the cursor surface. The surface can be committed to update the cursor
