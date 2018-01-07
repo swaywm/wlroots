@@ -6,6 +6,7 @@ lib_wlr_types = static_library(
 		'wlr_compositor.c',
 		'wlr_cursor.c',
 		'wlr_gamma_control.c',
+		'wlr_idle.c',
 		'wlr_input_device.c',
 		'wlr_keyboard.c',
 		'wlr_list.c',
