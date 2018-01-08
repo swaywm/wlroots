@@ -26,7 +26,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	renderer->rend = wlr_render_create(&drm->backend);
+	renderer->rend = wlr_renderer_create(&drm->backend);
 	if (!renderer->rend) {
 		wlr_log(L_ERROR, "Failed to create WLR renderer");
 		goto error_egl;
@@ -47,7 +47,7 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
-	wlr_render_destroy(renderer->rend);
+	wlr_renderer_destroy(renderer->rend);
 	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
@@ -130,9 +130,9 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	}
 
 	wlr_drm_surface_make_current(surf);
-	wlr_render_bind_raw(surf->renderer->rend, surf->width, surf->height,
+	wlr_renderer_bind_raw(surf->renderer->rend, surf->width, surf->height,
 		WL_OUTPUT_TRANSFORM_NORMAL);
-	wlr_render_clear(surf->renderer->rend, 0.0, 0.0, 0.0, 1.0);
+	wlr_renderer_clear(surf->renderer->rend, 0.0, 0.0, 0.0, 1.0);
 	return wlr_drm_surface_swap_buffers(surf);
 }
 
@@ -144,16 +144,16 @@ void wlr_drm_surface_post(struct wlr_drm_surface *surf) {
 }
 
 static void free_tex(struct gbm_bo *bo, void *data) {
-	wlr_tex_destroy(data);
+	wlr_texture_destroy(data);
 }
 
-static struct wlr_tex *get_tex_for_bo(struct wlr_render *rend, struct gbm_bo *bo) {
-	struct wlr_tex *tex = gbm_bo_get_user_data(bo);
+static struct wlr_texture *get_tex_for_bo(struct wlr_renderer *rend, struct gbm_bo *bo) {
+	struct wlr_texture *tex = gbm_bo_get_user_data(bo);
 	if (tex) {
 		return tex;
 	}
 
-	tex = wlr_tex_from_dmabuf(rend, gbm_bo_get_format(bo), gbm_bo_get_width(bo),
+	tex = wlr_texture_from_dmabuf(rend, gbm_bo_get_format(bo), gbm_bo_get_width(bo),
 		gbm_bo_get_height(bo), gbm_bo_get_fd(bo), 0, gbm_bo_get_stride(bo));
 
 	gbm_bo_set_user_data(bo, tex, free_tex);
@@ -164,17 +164,17 @@ static struct wlr_tex *get_tex_for_bo(struct wlr_render *rend, struct gbm_bo *bo
 struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gbm_bo *src) {
 	wlr_drm_surface_make_current(dest);
 
-	struct wlr_render *rend = dest->renderer->rend;
-	struct wlr_tex *tex = get_tex_for_bo(rend, src);
+	struct wlr_renderer *rend = dest->renderer->rend;
+	struct wlr_texture *tex = get_tex_for_bo(rend, src);
 
 	// TODO: Handle this error properly
 	if (!tex) {
 		abort();
 	}
 
-	wlr_render_bind_raw(rend, dest->width, dest->height, WL_OUTPUT_TRANSFORM_NORMAL);
-	wlr_render_clear(rend, 0.0, 0.0, 0.0, 1.0);
-	wlr_render_texture(rend, tex, 0, 0, dest->width, dest->height);
+	wlr_renderer_bind_raw(rend, dest->width, dest->height, WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_renderer_clear(rend, 0.0, 0.0, 0.0, 1.0);
+	wlr_renderer_render_texture(rend, tex, 0, 0, dest->width, dest->height);
 
 	return wlr_drm_surface_swap_buffers(dest);
 }

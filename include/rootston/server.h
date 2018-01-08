@@ -6,7 +6,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/render.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 #ifdef WLR_HAS_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
@@ -26,7 +26,7 @@ struct roots_server {
 
 	/* WLR tools */
 	struct wlr_backend *backend;
-	struct wlr_render *render;
+	struct wlr_renderer *render;
 
 	/* Global resources */
 	struct wlr_data_device_manager *data_device_manager;

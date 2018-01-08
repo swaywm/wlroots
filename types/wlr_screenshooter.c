@@ -33,13 +33,13 @@ static void output_frame_notify(struct wl_listener *listener, void *_data) {
 	struct screenshot_state *state = wl_container_of(listener, state,
 		frame_listener);
 	struct wlr_output *output = state->screenshot->output;
-	struct wlr_render *rend = wlr_backend_get_render(output->backend);
+	struct wlr_renderer *rend = wlr_backend_get_renderer(output->backend);
 	struct wl_shm_buffer *shm = state->shm_buffer;
 
 	wlr_output_make_current(output);
 
 	wl_shm_buffer_begin_access(shm);
-	wlr_render_read_pixels(rend, wl_shm_buffer_get_format(shm), wl_shm_buffer_get_stride(shm),
+	wlr_renderer_read_pixels(rend, wl_shm_buffer_get_format(shm), wl_shm_buffer_get_stride(shm),
 		wl_shm_buffer_get_width(shm), wl_shm_buffer_get_height(shm), 0, 0, 0, 0,
 		wl_shm_buffer_get_data(shm));
 	wl_shm_buffer_end_access(state->shm_buffer);
@@ -71,7 +71,7 @@ static void screenshooter_shoot(struct wl_client *client,
 	}
 
 	uint32_t format = wl_shm_buffer_get_format(shm_buffer);
-	if (!wlr_render_format_supported(format)) {
+	if (!wlr_renderer_format_supported(format)) {
 		wlr_log(L_ERROR, "Invalid buffer: unsupported format");
 		return;
 	}

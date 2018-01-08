@@ -13,7 +13,7 @@
 #include "render/render.h"
 #include "render/glapi.h"
 
-bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
+bool wlr_texture_write_pixels(struct wlr_renderer *rend, struct wlr_texture *tex,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		const void *data) {
@@ -48,7 +48,7 @@ bool wlr_tex_write_pixels(struct wlr_render *rend, struct wlr_tex *tex,
 	return true;
 }
 
-struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
+struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *rend, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 
@@ -58,7 +58,7 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 		return NULL;
 	}
 
-	struct wlr_tex *tex = calloc(1, sizeof(*tex));
+	struct wlr_texture *tex = calloc(1, sizeof(*tex));
 	if (!tex) {
 		wlr_log(L_ERROR, "Allocation failed");
 		return NULL;
@@ -66,7 +66,7 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 
 	DEBUG_PUSH;
 
-	tex->rend = rend;
+	tex->renderer = rend;
 	tex->width = width;
 	tex->height = height;
 	tex->type = WLR_TEX_GLTEX;
@@ -95,7 +95,7 @@ struct wlr_tex *wlr_tex_from_pixels(struct wlr_render *rend, enum wl_shm_format 
 	return tex;
 }
 
-struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource *data) {
+struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *rend, struct wl_resource *data) {
 	EGLint fmt;
 	if (!eglQueryWaylandBufferWL(rend->egl->display, data, EGL_TEXTURE_FORMAT, &fmt)) {
 		return NULL;
@@ -108,13 +108,13 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_HEIGHT, &height);
 	eglQueryWaylandBufferWL(rend->egl->display, data, EGL_TEXTURE_FORMAT, &format);
 
-	struct wlr_tex *tex = calloc(1, sizeof(*tex));
+	struct wlr_texture *tex = calloc(1, sizeof(*tex));
 	if (!tex) {
 		wlr_log(L_ERROR, "Allocation failed");
 		return NULL;
 	}
 
-	tex->rend = rend;
+	tex->renderer = rend;
 	tex->width = width;
 	tex->height = height;
 	tex->wl_drm = data;
@@ -151,15 +151,15 @@ struct wlr_tex *wlr_tex_from_wl_drm(struct wlr_render *rend, struct wl_resource 
 }
 
 // TODO: Modify to allow multi-planar formats
-struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt,
+struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *rend, uint32_t fourcc_fmt,
 		uint32_t width, uint32_t height, int fd0, uint32_t offset0, uint32_t stride0) {
-	struct wlr_tex *tex = calloc(1, sizeof(*tex));
+	struct wlr_texture *tex = calloc(1, sizeof(*tex));
 	if (!tex) {
 		wlr_log_errno(L_ERROR, "Allocation failed");
 		return false;
 	}
 
-	tex->rend = rend;
+	tex->renderer = rend;
 	tex->width = width;
 	tex->height = height;
 	tex->type = WLR_TEX_DMABUF;
@@ -193,22 +193,22 @@ struct wlr_tex *wlr_tex_from_dmabuf(struct wlr_render *rend, uint32_t fourcc_fmt
 	return tex;
 }
 
-int32_t wlr_tex_get_width(struct wlr_tex *tex) {
+int32_t wlr_texture_get_width(struct wlr_texture *tex) {
 	assert(tex);
 	return tex->width;
 }
 
-int32_t wlr_tex_get_height(struct wlr_tex *tex) {
+int32_t wlr_texture_get_height(struct wlr_texture *tex) {
 	assert(tex);
 	return tex->height;
 }
 
-void wlr_tex_destroy(struct wlr_tex *tex) {
+void wlr_texture_destroy(struct wlr_texture *tex) {
 	if (!tex) {
 		return;
 	}
 
-	struct wlr_render *rend = tex->rend;
+	struct wlr_renderer *rend = tex->renderer;
 
 	eglMakeCurrent(rend->egl->display, EGL_NO_SURFACE,
 		EGL_NO_SURFACE, rend->egl->context);

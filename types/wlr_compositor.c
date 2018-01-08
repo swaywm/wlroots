@@ -162,7 +162,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
-		struct wlr_render *render) {
+		struct wlr_renderer *render) {
 	struct wlr_compositor *compositor =
 		calloc(1, sizeof(struct wlr_compositor));
 	if (!compositor) {

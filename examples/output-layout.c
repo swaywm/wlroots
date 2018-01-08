@@ -25,8 +25,8 @@
 
 struct sample_state {
 	struct example_config *config;
-	struct wlr_render *rend;
-	struct wlr_tex *cat_tex;
+	struct wlr_renderer *rend;
+	struct wlr_texture *cat_tex;
 	struct wlr_output_layout *layout;
 	float x_offs, y_offs;
 	float x_vel, y_vel;
@@ -99,8 +99,8 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_output *wlr_output = output->output;
 
 	wlr_output_make_current(wlr_output);
-	wlr_render_bind(sample->rend, wlr_output);
-	wlr_render_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
+	wlr_renderer_bind(sample->rend, wlr_output);
+	wlr_renderer_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
 
 	animate_cat(sample, output->output);
 
@@ -115,10 +115,10 @@ static void handle_output_frame(struct output_state *output,
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		int32_t width = wlr_tex_get_width(sample->cat_tex);
-		int32_t height = wlr_tex_get_height(sample->cat_tex);
+		int32_t width = wlr_texture_get_width(sample->cat_tex);
+		int32_t height = wlr_texture_get_height(sample->cat_tex);
 
-		wlr_render_texture(sample->rend, sample->cat_tex, local_x, local_y,
+		wlr_renderer_render_texture(sample->rend, sample->cat_tex, local_x, local_y,
 			local_x + width, local_y + height);
 
 	}
@@ -196,8 +196,8 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
-	state.rend = wlr_backend_get_render(compositor.backend);
-	state.cat_tex = wlr_tex_from_pixels(state.rend, WL_SHM_FORMAT_ABGR8888,
+	state.rend = wlr_backend_get_renderer(compositor.backend);
+	state.cat_tex = wlr_texture_from_pixels(state.rend, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width * 4, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(compositor.display);
 
-	wlr_tex_destroy(state.cat_tex);
+	wlr_texture_destroy(state.cat_tex);
 	compositor_fini(&compositor);
 
 	wlr_output_layout_destroy(state.layout);

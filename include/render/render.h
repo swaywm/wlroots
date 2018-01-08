@@ -14,7 +14,7 @@
 #include <wlr/render/render.h>
 #include <wlr/types/wlr_output.h>
 
-struct wlr_render {
+struct wlr_renderer {
 	struct wlr_egl *egl;
 
 	float proj[9];
@@ -26,8 +26,8 @@ struct wlr_render {
 	} shaders;
 };
 
-struct wlr_tex {
-	struct wlr_render *rend;
+struct wlr_texture {
+	struct wlr_renderer *renderer;
 
 	EGLImageKHR image;
 	GLuint image_tex;
@@ -56,10 +56,11 @@ struct format {
 
 const struct format *wl_to_gl(enum wl_shm_format fmt);
 
-struct wlr_render *wlr_render_create(struct wlr_backend *backend);
-void wlr_render_destroy(struct wlr_render *rend);
+struct wlr_renderer *wlr_renderer_create(struct wlr_backend *backend);
 
-void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+void wlr_renderer_destroy(struct wlr_renderer *rend);
+
+void wlr_renderer_bind_raw(struct wlr_renderer *rend, uint32_t width, uint32_t height,
 		enum wl_output_transform transform);
 
 void push_marker(const char *file, const char *func);

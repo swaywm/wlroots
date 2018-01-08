@@ -24,7 +24,7 @@ struct wlr_output_cursor {
 	struct wl_list link;
 
 	// only when using a software cursor without a surface
-	struct wlr_tex *tex;
+	struct wlr_texture *tex;
 
 	// only when using a cursor surface
 	struct wlr_surface *surface;
@@ -33,7 +33,7 @@ struct wlr_output_cursor {
 };
 
 struct wlr_output_impl;
-struct wlr_tex;
+struct wlr_texture;
 
 struct wlr_output {
 	const struct wlr_output_impl *impl;

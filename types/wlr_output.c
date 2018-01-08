@@ -308,10 +308,10 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	struct wlr_render *rend = wlr_backend_get_render(output->backend);
+	struct wlr_renderer *rend = wlr_backend_get_renderer(output->backend);
 
-	wlr_render_bind(rend, output);
-	wlr_render_texture(rend, surface->tex, 0, 0, width, height);
+	wlr_renderer_bind(rend, output);
+	wlr_renderer_render_texture(rend, surface->tex, 0, 0, width, height);
 
 	wlr_surface_send_frame_done(surface, when);
 }
@@ -334,8 +334,8 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
 		const struct timespec *when) {
-	struct wlr_tex *tex = cursor->tex;
-	struct wlr_render *rend = wlr_backend_get_render(cursor->output->backend);
+	struct wlr_texture *tex = cursor->tex;
+	struct wlr_renderer *rend = wlr_backend_get_renderer(cursor->output->backend);
 	if (cursor->surface) {
 		tex = cursor->surface->tex;
 	}
@@ -359,7 +359,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	wlr_render_bind(rend, cursor->output);
+	wlr_renderer_bind(rend, cursor->output);
 
 	int x = cursor->x - cursor->hotspot_x;
 	int y = cursor->y - cursor->hotspot_y;
@@ -368,7 +368,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		y += cursor->surface->current->sy;
 	}
 
-	wlr_render_texture(rend, tex, x, y, x + tex->width, y + tex->height);
+	wlr_renderer_render_texture(rend, tex, x, y, x + tex->width, y + tex->height);
 
 	if (cursor->surface != NULL) {
 		wlr_surface_send_frame_done(cursor->surface, when);
@@ -506,10 +506,10 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	wlr_tex_destroy(cursor->tex);
+	wlr_texture_destroy(cursor->tex);
 
-	struct wlr_render *rend = wlr_backend_get_render(cursor->output->backend);
-	cursor->tex = wlr_tex_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
+	struct wlr_renderer *rend = wlr_backend_get_renderer(cursor->output->backend);
+	cursor->tex = wlr_texture_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, pixels);
 
 	return cursor->tex;
@@ -669,7 +669,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
-	wlr_tex_destroy(cursor->tex);
+	wlr_texture_destroy(cursor->tex);
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }

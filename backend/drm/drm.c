@@ -555,7 +555,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		return true;
 	}
 
-	struct wlr_render *rend = plane->surf.renderer->rend;
+	struct wlr_renderer *rend = plane->surf.renderer->rend;
 
 	struct gbm_bo *bo = plane->cursor_bo;
 	uint32_t bo_width = gbm_bo_get_width(bo);
@@ -571,22 +571,22 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	wlr_drm_surface_make_current(&plane->surf);
 
-	struct wlr_tex *tex = wlr_tex_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
+	struct wlr_texture *tex = wlr_texture_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
 	if (!tex) {
 		wlr_log(L_ERROR, "Unable to create WLR texture");
 		return false;
 	}
 
-	wlr_render_bind_raw(rend, plane->surf.width, plane->surf.height, conn->output.transform);
-	wlr_render_clear(rend, 0.0, 0.0, 0.0, 0.0);
-	wlr_render_texture(rend, tex, 0, 0, width, height);
-	wlr_render_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride, bo_width, bo_height,
+	wlr_renderer_bind_raw(rend, plane->surf.width, plane->surf.height, conn->output.transform);
+	wlr_renderer_clear(rend, 0.0, 0.0, 0.0, 0.0);
+	wlr_renderer_render_texture(rend, tex, 0, 0, width, height);
+	wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride, bo_width, bo_height,
 		0, 0, 0, 0, bo_data);
 
 	wlr_drm_surface_swap_buffers(&plane->surf);
 
-	wlr_tex_destroy(tex);
+	wlr_texture_destroy(tex);
 	gbm_bo_unmap(bo, bo_data);
 
 	return drm->iface->crtc_set_cursor(drm, crtc, bo);

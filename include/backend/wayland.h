@@ -20,7 +20,7 @@ struct wlr_wl_backend {
 	struct wl_list devices;
 	struct wl_list outputs;
 	struct wlr_egl egl;
-	struct wlr_render *rend;
+	struct wlr_renderer *rend;
 	size_t requested_outputs;
 	struct wl_listener local_display_destroy;
 	/* remote state */

@@ -7,7 +7,7 @@
 struct wlr_compositor {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
-	struct wlr_render *render;
+	struct wlr_renderer *render;
 	struct wl_list surfaces;
 
 	struct wl_listener display_destroy;
@@ -19,6 +19,6 @@ struct wlr_compositor {
 
 void wlr_compositor_destroy(struct wlr_compositor *wlr_compositor);
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
-		struct wlr_render *render);
+		struct wlr_renderer *render);
 
 #endif

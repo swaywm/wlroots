@@ -52,9 +52,9 @@ struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
 	return NULL;
 }
 
-struct wlr_render *wlr_backend_get_render(struct wlr_backend *backend) {
-	if (backend->impl->get_render) {
-		return backend->impl->get_render(backend);
+struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
+	if (backend->impl->get_renderer) {
+		return backend->impl->get_renderer(backend);
 	}
 	return NULL;
 }

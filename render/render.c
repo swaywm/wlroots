@@ -58,11 +58,11 @@ const struct format *wl_to_gl(enum wl_shm_format fmt) {
 	return NULL;
 }
 
-bool wlr_render_format_supported(enum wl_shm_format wl_fmt) {
+bool wlr_renderer_format_supported(enum wl_shm_format wl_fmt) {
 	return wl_to_gl(wl_fmt);
 }
 
-void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t height,
+void wlr_renderer_bind_raw(struct wlr_renderer *rend, uint32_t width, uint32_t height,
 		enum wl_output_transform transform) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
@@ -78,11 +78,11 @@ void wlr_render_bind_raw(struct wlr_render *rend, uint32_t width, uint32_t heigh
 	DEBUG_POP;
 }
 
-void wlr_render_bind(struct wlr_render *rend, struct wlr_output *output) {
-	wlr_render_bind_raw(rend, output->width, output->height, output->transform);
+void wlr_renderer_bind(struct wlr_renderer *rend, struct wlr_output *output) {
+	wlr_renderer_bind_raw(rend, output->width, output->height, output->transform);
 }
 
-void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float a) {
+void wlr_renderer_clear(struct wlr_renderer *rend, float r, float g, float b, float a) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -92,7 +92,7 @@ void wlr_render_clear(struct wlr_render *rend, float r, float g, float b, float 
 	DEBUG_POP;
 }
 
-static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
+static void render_tex(struct wlr_renderer *rend, struct wlr_texture *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
 		const float verts[static 8], const float mat[static 9]) {
 	GLuint prog;
@@ -147,7 +147,7 @@ static void render_tex(struct wlr_render *rend, struct wlr_tex *tex,
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
+void wlr_renderer_render_subtexture(struct wlr_renderer *rend, struct wlr_texture *tex,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
 		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
@@ -165,14 +165,14 @@ void wlr_render_subtexture(struct wlr_render *rend, struct wlr_tex *tex,
 	DEBUG_POP;
 }
 
-void wlr_render_texture(struct wlr_render *rend, struct wlr_tex *tex,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
-	wlr_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2);
+void wlr_renderer_render_texture(struct wlr_renderer *rend, struct wlr_texture
+		*tex, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+	wlr_renderer_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2);
 }
 
-void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
-		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-		float matrix[static 9]) {
+void wlr_renderer_render_subtexture_with_matrix(struct wlr_renderer *rend,
+		struct wlr_texture *tex, int32_t tex_x1, int32_t tex_y1, int32_t
+		tex_x2, int32_t tex_y2, float matrix[static 9]) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -188,13 +188,14 @@ void wlr_render_subtexture_with_matrix(struct wlr_render *rend, struct wlr_tex *
 	DEBUG_POP;
 }
 
-void wlr_render_texture_with_matrix(struct wlr_render *rend, struct wlr_tex *tex,
-		float matrix[static 9]) {
-	wlr_render_subtexture_with_matrix(rend, tex, 0, 0, tex->width, tex->height, matrix);
+void wlr_renderer_render_texture_with_matrix(struct wlr_renderer *rend, struct
+		wlr_texture *tex, float matrix[static 9]) {
+	wlr_renderer_render_subtexture_with_matrix(rend, tex, 0, 0, tex->width,
+		tex->height, matrix);
 }
 
-void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+void wlr_renderer_render_rect(struct wlr_renderer *rend, float r, float g,
+		float b, float a, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -227,8 +228,8 @@ void wlr_render_rect(struct wlr_render *rend, float r, float g, float b, float a
 	DEBUG_POP;
 }
 
-void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, float a,
-		int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+void wlr_renderer_render_ellipse(struct wlr_renderer *rend, float r, float g,
+		float b, float a, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
@@ -270,7 +271,7 @@ void wlr_render_ellipse(struct wlr_render *rend, float r, float g, float b, floa
 	DEBUG_POP;
 }
 
-bool wlr_render_read_pixels(struct wlr_render *rend, enum wl_shm_format wl_fmt,
+bool wlr_renderer_read_pixels(struct wlr_renderer *rend, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		void *data) {
@@ -398,8 +399,8 @@ extern const GLchar tex_vert_src[];
 extern const GLchar tex_frag_src[];
 extern const GLchar ext_frag_src[];
 
-struct wlr_render *wlr_render_create(struct wlr_backend *backend) {
-	struct wlr_render *rend = calloc(1, sizeof(*rend));
+struct wlr_renderer *wlr_renderer_create(struct wlr_backend *backend) {
+	struct wlr_renderer *rend = calloc(1, sizeof(*rend));
 	if (!rend) {
 		return NULL;
 	}
@@ -453,6 +454,6 @@ error:
 	return NULL;
 }
 
-void wlr_render_destroy(struct wlr_render *rend) {
+void wlr_renderer_destroy(struct wlr_renderer *rend) {
 	free(rend);
 }

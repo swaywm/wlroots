@@ -34,14 +34,14 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
-	struct wlr_render *rend = wlr_backend_get_render(wlr_output->backend);
+	struct wlr_renderer *rend = wlr_backend_get_renderer(wlr_output->backend);
 
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output);
-	wlr_render_bind(rend, wlr_output);
-	wlr_render_clear(rend, 0.25, 0.25, 0.25, 1.0);
+	wlr_renderer_bind(rend, wlr_output);
+	wlr_renderer_clear(rend, 0.25, 0.25, 0.25, 1.0);
 
 	float distance = 0.8f * (1 - sample->distance);
 	float tool[4] = { distance, distance, distance, 1 };
@@ -57,7 +57,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	float *pad = sample->pad_color;
 
-	wlr_render_rect(rend, pad[0], pad[1], pad[2], pad[3],
+	wlr_renderer_render_rect(rend, pad[0], pad[1], pad[2], pad[3],
 		pad_x, pad_y, pad_x + pad_width, pad_y + pad_height);
 
 	if (sample->proximity) {
@@ -65,7 +65,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		float y = sample->y_mm * scale - 8 * (sample->pressure + 1) + pad_y;
 		float cir = 16 * (sample->pressure + 1);
 
-		wlr_render_ellipse(rend,
+		wlr_renderer_render_ellipse(rend,
 			tool[0], tool[1], tool[2], tool[3],
 			x, y, x + cir, y + cir
 		);

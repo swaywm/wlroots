@@ -374,8 +374,8 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface, bool reupload_
 		void *data = wl_shm_buffer_get_data(buf);
 
 		if (!surface->tex || reupload_buffer) {
-			wlr_tex_destroy(surface->tex);
-			surface->tex = wlr_tex_from_pixels(surface->rend, format, stride,
+			wlr_texture_destroy(surface->tex);
+			surface->tex = wlr_texture_from_pixels(surface->rend, format, stride,
 				width, height, data);
 		} else {
 			int n;
@@ -383,7 +383,7 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface, bool reupload_
 				&surface->current->buffer_damage, &n);
 			for (int i = 0; i < n; ++i) {
 				pixman_box32_t *r = &rects[i];
-				wlr_tex_write_pixels(surface->rend, surface->tex,
+				wlr_texture_write_pixels(surface->rend, surface->tex,
 					format, stride, r->x2 - r->x1, r->y2 - r->y1,
 					r->x1, r->y1, r->x1, r->y1, data);
 			}
@@ -391,8 +391,8 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface, bool reupload_
 
 		wl_shm_buffer_end_access(buf);
 	} else if (!surface->tex || reupload_buffer) {
-		wlr_tex_destroy(surface->tex);
-		surface->tex = wlr_tex_from_wl_drm(surface->rend, res);
+		wlr_texture_destroy(surface->tex);
+		surface->tex = wlr_texture_from_wl_drm(surface->rend, res);
 	}
 
 	pixman_region32_clear(&surface->current->surface_damage);
@@ -412,7 +412,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		wlr_tex_destroy(surface->tex);
+		wlr_texture_destroy(surface->tex);
 		surface->tex = NULL;
 	}
 
@@ -623,7 +623,7 @@ static void destroy_surface(struct wl_resource *resource) {
 		wlr_subsurface_destroy(surface->subsurface);
 	}
 
-	wlr_tex_destroy(surface->tex);
+	wlr_texture_destroy(surface->tex);
 	wlr_surface_state_destroy(surface->pending);
 	wlr_surface_state_destroy(surface->current);
 
@@ -631,7 +631,7 @@ static void destroy_surface(struct wl_resource *resource) {
 }
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-		struct wlr_render *rend) {
+		struct wlr_renderer *rend) {
 	struct wlr_surface *surface = calloc(1, sizeof(*surface));
 	if (!surface) {
 		wl_resource_post_no_memory(res);

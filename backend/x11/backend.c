@@ -271,7 +271,7 @@ static struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
 	return &x11->egl;
 }
 
-static struct wlr_render *wlr_x11_backend_get_render(struct wlr_backend *backend) {
+static struct wlr_renderer *wlr_x11_backend_get_renderer(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	return x11->rend;
 }
@@ -284,7 +284,7 @@ static struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
-	.get_render = wlr_x11_backend_get_render,
+	.get_renderer = wlr_x11_backend_get_renderer,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -335,7 +335,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	x11->rend = wlr_render_create(&x11->backend);
+	x11->rend = wlr_renderer_create(&x11->backend);
 	if (!x11->rend) {
 		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
 	}

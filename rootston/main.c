@@ -8,7 +8,6 @@
 #include <wlr/render/render.h>
 #include <wlr/backend/headless.h>
 #include <wlr/backend/multi.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"
@@ -41,7 +40,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	assert(server.render = wlr_backend_get_render(server.backend));
+	assert(server.render = wlr_backend_get_renderer(server.backend));
 	server.data_device_manager =
 		wlr_data_device_manager_create(server.wl_display);
 	wl_display_init_shm(server.wl_display);

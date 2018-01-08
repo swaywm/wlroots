@@ -61,8 +61,8 @@ struct wlr_subsurface {
 
 struct wlr_surface {
 	struct wl_resource *resource;
-	struct wlr_render *rend;
-	struct wlr_tex *tex;
+	struct wlr_renderer *rend;
+	struct wlr_texture *tex;
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
@@ -92,7 +92,7 @@ struct wlr_surface {
 };
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-	struct wlr_render *rend);
+	struct wlr_renderer *rend);
 
 #if 0
 /**

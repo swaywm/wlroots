@@ -21,8 +21,8 @@
 
 struct sample_state {
 	struct example_config *config;
-	struct wlr_render *rend;
-	struct wlr_tex *cat_tex;
+	struct wlr_renderer *rend;
+	struct wlr_texture *cat_tex;
 };
 
 struct output_data {
@@ -40,15 +40,15 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output);
-	wlr_render_bind(sample->rend, wlr_output);
-	wlr_render_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
+	wlr_renderer_bind(sample->rend, wlr_output);
+	wlr_renderer_clear(sample->rend, 0.25, 0.25, 0.25, 1.0);
 
-	int32_t tex_w = wlr_tex_get_width(sample->cat_tex);
-	int32_t tex_h = wlr_tex_get_height(sample->cat_tex);
+	int32_t tex_w = wlr_texture_get_width(sample->cat_tex);
+	int32_t tex_h = wlr_texture_get_height(sample->cat_tex);
 
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
-			wlr_render_texture(sample->rend, sample->cat_tex,
+			wlr_renderer_render_texture(sample->rend, sample->cat_tex,
 				x, y, x + tex_w, y + tex_h);
 		}
 	}
@@ -132,12 +132,12 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.rend = wlr_backend_get_render(compositor.backend);
+	state.rend = wlr_backend_get_renderer(compositor.backend);
 	if (!state.rend) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_tex = wlr_tex_from_pixels(state.rend, WL_SHM_FORMAT_ABGR8888,
+	state.cat_tex = wlr_texture_from_pixels(state.rend, WL_SHM_FORMAT_ABGR8888,
 		cat_tex.width * 4, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 	if (!state.cat_tex) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(compositor.display);
 
-	wlr_tex_destroy(state.cat_tex);
+	wlr_texture_destroy(state.cat_tex);
 	compositor_fini(&compositor);
 
 	example_config_destroy(state.config);

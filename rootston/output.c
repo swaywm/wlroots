@@ -39,7 +39,7 @@ static void render_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	struct wlr_render *rend = desktop->server->render;
+	struct wlr_renderer *rend = desktop->server->render;
 
 	double render_width = surface->current->width * wlr_output->scale;
 	double render_height = surface->current->height * wlr_output->scale;
@@ -58,7 +58,7 @@ static void render_surface(struct wlr_surface *surface,
 		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
 		if (rotation == 0) {
-			wlr_render_texture(rend, surface->tex,
+			wlr_renderer_render_texture(rend, surface->tex,
 				ox, oy, ox + render_width, oy + render_height);
 		} else {
 			float mat1[9];
@@ -78,7 +78,7 @@ static void render_surface(struct wlr_surface *surface,
 			wlr_matrix_multiply(mat2, mat2, mat1);
 			wlr_matrix_scale_row(mat2, wlr_output->transform % 2 ? 0 : 1, -1);
 
-			wlr_render_texture_with_matrix(rend, surface->tex, mat2);
+			wlr_renderer_render_texture_with_matrix(rend, surface->tex, mat2);
 		}
 
 		wlr_surface_send_frame_done(surface, when);
@@ -201,8 +201,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	wlr_output_make_current(wlr_output);
-	wlr_render_bind(server->render, wlr_output);
-	wlr_render_clear(server->render, 0.25, 0.25, 0.25, 1.0);
+	wlr_renderer_bind(server->render, wlr_output);
+	wlr_renderer_clear(server->render, 0.25, 0.25, 0.25, 1.0);
 
 	if (output->fullscreen_view != NULL) {
 		// Make sure the view is centered on screen
@@ -222,7 +222,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		} else {
 			wlr_output_set_fullscreen_surface(wlr_output, NULL);
 
-			wlr_render_clear(server->render, 0.0, 0.0, 0.0, 1.0);
+			wlr_renderer_clear(server->render, 0.0, 0.0, 0.0, 1.0);
 
 			render_view(output->fullscreen_view, desktop, wlr_output, &now);
 		}
