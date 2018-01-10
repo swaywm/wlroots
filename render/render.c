@@ -67,13 +67,20 @@ void wlr_renderer_bind_raw(struct wlr_renderer *rend, uint32_t width, uint32_t h
 	assert(eglGetCurrentContext() == rend->egl->context);
 	DEBUG_PUSH;
 
+	enum wl_output_transform t = wlr_output_transform_invert(transform);
+
 	glViewport(0, 0, width, height);
 	wlr_matrix_identity(rend->proj);
-	wlr_matrix_transform(rend->proj, transform);
+	wlr_matrix_transform(rend->proj, t);
 	wlr_matrix_scale_row(rend->proj, 0, 2.0f / width);
 	wlr_matrix_scale_row(rend->proj, 1, 2.0f / height);
-	wlr_matrix_translate(rend->proj, width / -2.0f, height / -2.0f);
-	wlr_matrix_scale_row(rend->proj, transform % 2 ? 0 : 1, -1);
+	if (transform % 2 == 0) {
+		wlr_matrix_translate(rend->proj, width / -2.0f, height / -2.0f);
+		wlr_matrix_scale_row(rend->proj, 1, -1);
+	} else {
+		wlr_matrix_translate(rend->proj, height / -2.0f, width / -2.0f);
+		wlr_matrix_scale_row(rend->proj, 0, -1);
+	}
 
 	DEBUG_POP;
 }

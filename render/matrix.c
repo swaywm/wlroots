@@ -51,8 +51,8 @@ float *wlr_matrix_scale_row(float *mat, size_t row, float scale) {
 
 float *wlr_matrix_rotate(float *mat, float rad) {
 	float rotate[9] = {
-		cos(rad),  sin(rad), 0.0f,
-		-sin(rad), cos(rad), 0.0f,
+		cos(rad), -sin(rad), 0.0f,
+		sin(rad),  cos(rad), 0.0f,
 		0.0f,      0.0f,     1.0f,
 	};
 	return wlr_matrix_multiply(mat, mat, rotate);
