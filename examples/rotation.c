@@ -48,7 +48,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
-			wlr_renderer_render_texture(sample->rend, sample->cat_tex,
+			wlr_renderer_render_texture(sample->rend, sample->cat_tex, WL_OUTPUT_TRANSFORM_NORMAL,
 				x, y, x + tex_w, y + tex_h);
 		}
 	}

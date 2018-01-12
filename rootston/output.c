@@ -58,7 +58,7 @@ static void render_surface(struct wlr_surface *surface,
 		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
 		if (rotation == 0) {
-			wlr_renderer_render_texture(rend, surface->tex,
+			wlr_renderer_render_texture(rend, surface->tex, surface->current->transform,
 				ox, oy, ox + render_width, oy + render_height);
 		} else {
 			float mat1[9];

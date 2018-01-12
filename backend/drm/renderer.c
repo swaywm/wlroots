@@ -174,7 +174,7 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gb
 
 	wlr_renderer_bind_raw(rend, dest->width, dest->height, WL_OUTPUT_TRANSFORM_NORMAL);
 	wlr_renderer_clear(rend, 0.0, 0.0, 0.0, 1.0);
-	wlr_renderer_render_texture(rend, tex, 0, 0, dest->width, dest->height);
+	wlr_renderer_render_texture(rend, tex, WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, dest->width, dest->height);
 
 	return wlr_drm_surface_swap_buffers(dest);
 }

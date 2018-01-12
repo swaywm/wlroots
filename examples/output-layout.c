@@ -118,7 +118,7 @@ static void handle_output_frame(struct output_state *output,
 		int32_t width = wlr_texture_get_width(sample->cat_tex);
 		int32_t height = wlr_texture_get_height(sample->cat_tex);
 
-		wlr_renderer_render_texture(sample->rend, sample->cat_tex, local_x, local_y,
+		wlr_renderer_render_texture(sample->rend, sample->cat_tex, WL_OUTPUT_TRANSFORM_NORMAL, local_x, local_y,
 			local_x + width, local_y + height);
 
 	}

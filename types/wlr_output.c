@@ -311,7 +311,7 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	struct wlr_renderer *rend = wlr_backend_get_renderer(output->backend);
 
 	wlr_renderer_bind(rend, output);
-	wlr_renderer_render_texture(rend, surface->tex, 0, 0, width, height);
+	wlr_renderer_render_texture(rend, surface->tex, WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, width, height);
 
 	wlr_surface_send_frame_done(surface, when);
 }
@@ -368,7 +368,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		y += cursor->surface->current->sy;
 	}
 
-	wlr_renderer_render_texture(rend, tex, x, y, x + tex->width, y + tex->height);
+	wlr_renderer_render_texture(rend, tex, WL_OUTPUT_TRANSFORM_NORMAL, x, y, x + tex->width, y + tex->height);
 
 	if (cursor->surface != NULL) {
 		wlr_surface_send_frame_done(cursor->surface, when);

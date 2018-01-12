@@ -31,25 +31,26 @@ void wlr_renderer_clear(struct wlr_renderer *rend, float r, float g, float b, fl
 /*
  * Render a sub-region of tex onto the surface.
  */
-void wlr_renderer_render_subtexture(struct wlr_renderer *rend, struct wlr_texture *tex,
-	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-	int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2);
+void wlr_renderer_render_subtexture(struct wlr_renderer *rend,
+		struct wlr_texture *tex, enum wl_output_transform transform,
+		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
+		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2);
 
 /*
  * Render tex onto the surface.
  */
-void wlr_renderer_render_texture(struct wlr_renderer *rend, struct wlr_texture *tex,
-	int32_t x1, int32_t y1, int32_t x2, int32_t y2);
-
+void wlr_renderer_render_texture(struct wlr_renderer *rend,
+		struct wlr_texture *tex, enum wl_output_transform transform,
+		int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 
 /*
  * Renders tex onto the surface using a matrix.
  * See wlr_renderer_texture_with_matrix.
  */
 
-void wlr_renderer_render_subtexture_with_matrix(struct wlr_renderer *rend, struct wlr_texture *tex,
-	int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
-	float matrix[static 9]);
+void wlr_renderer_render_subtexture_with_matrix(struct wlr_renderer *rend,
+		struct wlr_texture *tex, int32_t tex_x1, int32_t tex_y1,
+		int32_t tex_x2, int32_t tex_y2, float matrix[static 9]);
 
 /*
  * Renders tex onto the surface using a matrix.

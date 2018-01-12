@@ -154,7 +154,8 @@ static void render_tex(struct wlr_renderer *rend, struct wlr_texture *tex,
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void wlr_renderer_render_subtexture(struct wlr_renderer *rend, struct wlr_texture *tex,
+void wlr_renderer_render_subtexture(struct wlr_renderer *rend,
+		struct wlr_texture *tex, enum wl_output_transform transform,
 		int32_t tex_x1, int32_t tex_y1, int32_t tex_x2, int32_t tex_y2,
 		int32_t pos_x1, int32_t pos_y1, int32_t pos_x2, int32_t pos_y2) {
 	assert(eglGetCurrentContext() == rend->egl->context);
@@ -167,14 +168,21 @@ void wlr_renderer_render_subtexture(struct wlr_renderer *rend, struct wlr_textur
 		pos_x2, pos_y2,
 	};
 
-	render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, rend->proj);
+	if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		// TODO transform texture
+		render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, rend->proj);
+	} else {
+		render_tex(rend, tex, tex_x1, tex_y1, tex_x2, tex_y2, verts, rend->proj);
+	}
 
 	DEBUG_POP;
 }
 
 void wlr_renderer_render_texture(struct wlr_renderer *rend, struct wlr_texture
-		*tex, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
-	wlr_renderer_render_subtexture(rend, tex, 0, 0, tex->width, tex->height, x1, y1, x2, y2);
+		*tex, enum wl_output_transform transform, int32_t x1, int32_t y1,
+		int32_t x2, int32_t y2) {
+	wlr_renderer_render_subtexture(rend, tex, transform, 0, 0, tex->width,
+		tex->height, x1, y1, x2, y2);
 }
 
 void wlr_renderer_render_subtexture_with_matrix(struct wlr_renderer *rend,

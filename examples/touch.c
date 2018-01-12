@@ -48,7 +48,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		int32_t y = p->x * width;
 		int32_t w = wlr_texture_get_width(sample->cat_tex) / 2;
 		int32_t h = wlr_texture_get_height(sample->cat_tex) / 2;
-		wlr_renderer_render_texture(sample->rend, sample->cat_tex,
+		wlr_renderer_render_texture(sample->rend, sample->cat_tex, WL_OUTPUT_TRANSFORM_NORMAL,
 			x - w, y - h, x + w, y + h);
 	}
 
