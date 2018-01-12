@@ -1,18 +1,53 @@
 #ifndef WLR_RENDER_MATRIX_H
 #define WLR_RENDER_MATRIX_H
 
-#include <stdint.h>
+#include <wayland-server.h>
 
-void wlr_matrix_identity(float (*output)[16]);
-void wlr_matrix_translate(float (*output)[16], float x, float y, float z);
-void wlr_matrix_scale(float (*output)[16], float x, float y, float z);
-void wlr_matrix_rotate(float (*output)[16], float radians);
-void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]);
+/*
+ * All matrix arguments must be pointers to an array of 9 floats
+ */
 
-enum wl_output_transform;
-void wlr_matrix_transform(float mat[static 16],
-		enum wl_output_transform transform);
-void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
-		enum wl_output_transform transform);
+/*
+ * Multiplies a and b together, leaving the result in mat.
+ * It is safe for mat to alias a or b.
+ * Returns mat.
+ */
+float *wlr_matrix_multiply(float *mat, const float *a, const float *b);
+
+/*
+ * Load the identity matrix into mat.
+ * Returns mat.
+ */
+float *wlr_matrix_identity(float *mat);
+
+/*
+ * Scales mat along the x and y axes.
+ * Returns mat.
+ */
+float *wlr_matrix_scale(float *mat, float x, float y);
+
+/*
+ * Scales a row in mat by scale.
+ * Returns mat.
+ */
+float *wlr_matrix_scale_row(float *mat, size_t row, float scale);
+
+/*
+ * Rotates mat by rad radians.
+ * Returns mat.
+ */
+float *wlr_matrix_rotate(float *mat, float rad);
+
+/*
+ * Translates max along the x and y axes.
+ * Returns mat.
+ */
+float *wlr_matrix_translate(float *mat, float x, float y);
+
+/*
+ * Transforms mat according to the wayland transform.
+ * Returns mat.
+ */
+float *wlr_matrix_transform(float *mat, enum wl_output_transform transform);
 
 #endif

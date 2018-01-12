@@ -17,12 +17,10 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/render.h"
 
 bool wlr_drm_check_features(struct wlr_drm_backend *drm) {
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
@@ -173,9 +171,6 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 		struct wlr_drm_plane *plane = &drm->planes[i];
 		if (plane->cursor_bo) {
 			gbm_bo_destroy(plane->cursor_bo);
-		}
-		if (plane->wlr_tex) {
-			wlr_texture_destroy(plane->wlr_tex);
 		}
 	}
 
@@ -540,20 +535,6 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
 			return false;
 		}
-
-		// OpenGL will read the pixels out upside down,
-		// so we need to flip the image vertically
-		enum wl_output_transform transform = wlr_output_transform_compose(
-			wlr_output_transform_invert(output->transform),
-			WL_OUTPUT_TRANSFORM_FLIPPED_180);
-		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
-			transform);
-
-		plane->wlr_tex =
-			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
-		if (!plane->wlr_tex) {
-			return false;
-		}
 	}
 
 	struct wlr_box hotspot = {
@@ -574,6 +555,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		return true;
 	}
 
+	struct wlr_renderer *rend = plane->surf.renderer->rend;
+
 	struct gbm_bo *bo = plane->cursor_bo;
 	uint32_t bo_width = gbm_bo_get_width(bo);
 	uint32_t bo_height = gbm_bo_get_height(bo);
@@ -588,26 +571,22 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	wlr_drm_surface_make_current(&plane->surf);
 
-	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
+	struct wlr_texture *tex = wlr_texture_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
+	if (!tex) {
+		wlr_log(L_ERROR, "Unable to create WLR texture");
+		return false;
+	}
 
-	glViewport(0, 0, plane->surf.width, plane->surf.height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	float matrix[16];
-	wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-	wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
-		&matrix);
-
-	glFinish();
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
-		GL_UNSIGNED_BYTE, bo_data);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+	wlr_renderer_bind_raw(rend, plane->surf.width, plane->surf.height, conn->output.transform);
+	wlr_renderer_clear(rend, 0.0, 0.0, 0.0, 0.0);
+	wlr_renderer_render_texture(rend, tex, WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, width, height);
+	wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride, bo_width, bo_height,
+		0, 0, 0, 0, bo_data);
 
 	wlr_drm_surface_swap_buffers(&plane->surf);
 
+	wlr_texture_destroy(tex);
 	gbm_bo_unmap(bo, bo_data);
 
 	return drm->iface->crtc_set_cursor(drm, crtc, bo);

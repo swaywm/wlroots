@@ -7,7 +7,7 @@
 #include <EGL/egl.h>
 #include <gbm.h>
 
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 
 struct wlr_drm_backend;
 struct wlr_drm_plane;
@@ -17,7 +17,7 @@ struct wlr_drm_renderer {
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 
-	struct wlr_renderer *wlr_rend;
+	struct wlr_renderer *rend;
 };
 
 struct wlr_drm_surface {
@@ -42,7 +42,7 @@ bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
 	uint32_t format, uint32_t flags);
 
 bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_backend *drm,
-		int32_t width, uint32_t height, uint32_t format);
+	int32_t width, uint32_t height, uint32_t format);
 
 void wlr_drm_surface_finish(struct wlr_drm_surface *surf);
 void wlr_drm_surface_make_current(struct wlr_drm_surface *surf);

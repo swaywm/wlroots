@@ -3,18 +3,15 @@
 #include <unistd.h>
 
 #include <gbm.h>
-#include <GLES2/gl2.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <wayland-server.h>
 #include <wayland-util.h>
 
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
 #include "backend/drm/drm.h"
-#include "glapi.h"
+#include "render/render.h"
 
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
@@ -29,8 +26,8 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	renderer->wlr_rend = wlr_gles2_renderer_create(&drm->backend);
-	if (!renderer->wlr_rend) {
+	renderer->rend = wlr_renderer_create(&drm->backend);
+	if (!renderer->rend) {
 		wlr_log(L_ERROR, "Failed to create WLR renderer");
 		goto error_egl;
 	}
@@ -39,7 +36,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 	return true;
 
 error_egl:
-	wlr_egl_finish(&renderer->egl);
+	wlr_egl_free(&renderer->egl);
 error_gbm:
 	gbm_device_destroy(renderer->gbm);
 	return false;
@@ -50,8 +47,8 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
-	wlr_renderer_destroy(renderer->wlr_rend);
-	wlr_egl_finish(&renderer->egl);
+	wlr_renderer_destroy(renderer->rend);
+	wlr_egl_free(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 
@@ -93,9 +90,6 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 		return;
 	}
 
-	eglMakeCurrent(surf->renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-		EGL_NO_CONTEXT);
-
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
@@ -136,9 +130,9 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	}
 
 	wlr_drm_surface_make_current(surf);
-	glViewport(0, 0, surf->width, surf->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_renderer_bind_raw(surf->renderer->rend, surf->width, surf->height,
+		WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_renderer_clear(surf->renderer->rend, 0.0, 0.0, 0.0, 1.0);
 	return wlr_drm_surface_swap_buffers(surf);
 }
 
@@ -149,82 +143,38 @@ void wlr_drm_surface_post(struct wlr_drm_surface *surf) {
 	}
 }
 
-struct tex {
-	struct wlr_egl *egl;
-	EGLImageKHR img;
-	struct wlr_texture *tex;
-};
-
-static void free_eglimage(struct gbm_bo *bo, void *data) {
-	struct tex *tex = data;
-
-	wlr_egl_destroy_image(tex->egl, tex->img);
-	wlr_texture_destroy(tex->tex);
-	free(tex);
+static void free_tex(struct gbm_bo *bo, void *data) {
+	wlr_texture_destroy(data);
 }
 
-static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer, struct gbm_bo *bo) {
-	struct tex *tex = gbm_bo_get_user_data(bo);
+static struct wlr_texture *get_tex_for_bo(struct wlr_renderer *rend, struct gbm_bo *bo) {
+	struct wlr_texture *tex = gbm_bo_get_user_data(bo);
 	if (tex) {
-		return tex->tex;
+		return tex;
 	}
 
-	tex = malloc(sizeof(*tex));
-	if (!tex) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
-		return NULL;
-	}
+	tex = wlr_texture_from_dmabuf(rend, gbm_bo_get_format(bo), gbm_bo_get_width(bo),
+		gbm_bo_get_height(bo), gbm_bo_get_fd(bo), 0, gbm_bo_get_stride(bo));
 
-	tex->egl = &renderer->egl;
+	gbm_bo_set_user_data(bo, tex, free_tex);
 
-	int dmabuf_fd = gbm_bo_get_fd(bo);
-	uint32_t width = gbm_bo_get_width(bo);
-	uint32_t height = gbm_bo_get_height(bo);
-
-	EGLint attribs[] = {
-		EGL_WIDTH, width,
-		EGL_HEIGHT, height,
-		EGL_LINUX_DRM_FOURCC_EXT, gbm_bo_get_format(bo),
-		EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_fd,
-		EGL_DMA_BUF_PLANE0_OFFSET_EXT, gbm_bo_get_offset(bo, 0),
-		EGL_DMA_BUF_PLANE0_PITCH_EXT, gbm_bo_get_stride_for_plane(bo, 0),
-		EGL_IMAGE_PRESERVED_KHR, EGL_FALSE,
-		EGL_NONE,
-	};
-
-	tex->img = eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
-		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
-	if (!tex->img) {
-		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
-		abort();
-	}
-
-	tex->tex = wlr_render_texture_create(renderer->wlr_rend);
-	wlr_texture_upload_eglimage(tex->tex, tex->img, width, height);
-
-	gbm_bo_set_user_data(bo, tex, free_eglimage);
-
-	return tex->tex;
+	return tex;
 }
 
 struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gbm_bo *src) {
 	wlr_drm_surface_make_current(dest);
 
-	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
+	struct wlr_renderer *rend = dest->renderer->rend;
+	struct wlr_texture *tex = get_tex_for_bo(rend, src);
 
-	static const float matrix[16] = {
-		[0] = 2.0f,
-		[3] = -1.0f,
-		[5] = 2.0f,
-		[7] = -1.0f,
-		[10] = 1.0f,
-		[15] = 1.0f,
-	};
+	// TODO: Handle this error properly
+	if (!tex) {
+		abort();
+	}
 
-	glViewport(0, 0, dest->width, dest->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, &matrix);
+	wlr_renderer_bind_raw(rend, dest->width, dest->height, WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_renderer_clear(rend, 0.0, 0.0, 0.0, 1.0);
+	wlr_renderer_render_texture(rend, tex, WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, dest->width, dest->height);
 
 	return wlr_drm_surface_swap_buffers(dest);
 }

@@ -51,7 +51,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 
-	wlr_egl_finish(&backend->egl);
+	wlr_egl_free(&backend->egl);
 	free(backend);
 }
 

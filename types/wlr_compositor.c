@@ -22,7 +22,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	}
 
 	struct wlr_surface *surface = wlr_surface_create(surface_resource,
-		compositor->renderer);
+		compositor->render);
 	if (surface == NULL) {
 		wl_resource_destroy(surface_resource);
 		wl_resource_post_no_memory(resource);
@@ -162,7 +162,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
-		struct wlr_renderer *renderer) {
+		struct wlr_renderer *render) {
 	struct wlr_compositor *compositor =
 		calloc(1, sizeof(struct wlr_compositor));
 	if (!compositor) {
@@ -178,7 +178,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		return NULL;
 	}
 	compositor->wl_global = compositor_global;
-	compositor->renderer = renderer;
+	compositor->render = render;
 
 	wl_global_create(display, &wl_subcompositor_interface, 1, compositor,
 		subcompositor_bind);

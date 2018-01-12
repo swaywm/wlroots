@@ -5,15 +5,14 @@
 #include <tgmath.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include "render/render.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
@@ -147,11 +146,6 @@ void wlr_output_destroy_global(struct wlr_output *wlr_output) {
 	wlr_output->wl_global = NULL;
 }
 
-static void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
-		output->transform);
-}
-
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->impl->enable) {
 		output->impl->enable(output, enable);
@@ -190,7 +184,6 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 	output->width = width;
 	output->height = height;
-	wlr_output_update_matrix(output);
 
 	output->refresh = refresh;
 
@@ -205,7 +198,6 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
-	wlr_output_update_matrix(output);
 
 	// TODO: only send geometry and done
 	struct wl_resource *resource;
@@ -316,33 +308,10 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	int x = (width - surface->current->width) / 2;
-	int y = (height - surface->current->height) / 2;
+	struct wlr_renderer *rend = wlr_backend_get_renderer(output->backend);
 
-	int render_x = x * output->scale;
-	int render_y = y * output->scale;
-	int render_width = surface->current->width * output->scale;
-	int render_height = surface->current->height * output->scale;
-
-	glViewport(0, 0, output->width, output->height);
-	glClearColor(0, 0, 0, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	if (!wlr_surface_has_buffer(surface)) {
-		return;
-	}
-
-	float translate[16];
-	wlr_matrix_translate(&translate, render_x, render_y, 0);
-
-	float scale[16];
-	wlr_matrix_scale(&scale, render_width, render_height, 1);
-
-	float matrix[16];
-	wlr_matrix_mul(&translate, &scale, &matrix);
-	wlr_matrix_mul(&output->transform_matrix, &matrix, &matrix);
-
-	wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+	wlr_renderer_bind(rend, output);
+	wlr_renderer_render_texture(rend, surface->tex, WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, width, height);
 
 	wlr_surface_send_frame_done(surface, when);
 }
@@ -365,35 +334,41 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
 		const struct timespec *when) {
-	struct wlr_texture *texture = cursor->texture;
-	struct wlr_renderer *renderer = cursor->renderer;
-	if (cursor->surface != NULL) {
-		texture = cursor->surface->texture;
-		renderer = cursor->surface->renderer;
+	struct wlr_texture *tex = cursor->tex;
+	struct wlr_renderer *rend = wlr_backend_get_renderer(cursor->output->backend);
+	if (cursor->surface) {
+		tex = cursor->surface->tex;
 	}
 
-	if (texture == NULL || renderer == NULL) {
+	if (!tex) {
 		return;
 	}
 
-	glViewport(0, 0, cursor->output->width, cursor->output->height);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	struct wlr_box output_box;
+	output_box.x = output_box.y = 0;
+	wlr_output_effective_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+	output_box.width *= cursor->output->scale;
+	output_box.height *= cursor->output->scale;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
 
-	float translate[16];
-	wlr_matrix_translate(&translate, cursor_box.x, cursor_box.y, 0);
+	struct wlr_box intersection;
+	if (!wlr_box_intersection(&output_box, &cursor_box, &intersection)) {
+		return;
+	}
 
-	float scale[16];
-	wlr_matrix_scale(&scale, cursor_box.width, cursor_box.height, 1);
+	wlr_renderer_bind(rend, cursor->output);
 
-	float matrix[16];
-	wlr_matrix_mul(&translate, &scale, &matrix);
-	wlr_matrix_mul(&cursor->output->transform_matrix, &matrix, &matrix);
+	int x = cursor->x - cursor->hotspot_x;
+	int y = cursor->y - cursor->hotspot_y;
+	if (cursor->surface != NULL) {
+		x += cursor->surface->current->sx;
+		y += cursor->surface->current->sy;
+	}
 
-	wlr_render_with_matrix(renderer, texture, &matrix);
+	wlr_renderer_render_texture(rend, tex, WL_OUTPUT_TRANSFORM_NORMAL, x, y, x + tex->width, y + tex->height);
 
 	if (cursor->surface != NULL) {
 		wlr_surface_send_frame_done(cursor->surface, when);
@@ -531,22 +506,13 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	if (cursor->renderer == NULL) {
-		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
-		if (cursor->renderer == NULL) {
-			return false;
-		}
-	}
+	wlr_texture_destroy(cursor->tex);
 
-	if (cursor->texture == NULL) {
-		cursor->texture = wlr_render_texture_create(cursor->renderer);
-		if (cursor->texture == NULL) {
-			return false;
-		}
-	}
-
-	return wlr_texture_upload_pixels(cursor->texture, WL_SHM_FORMAT_ARGB8888,
+	struct wlr_renderer *rend = wlr_backend_get_renderer(cursor->output->backend);
+	cursor->tex = wlr_texture_from_pixels(rend, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, pixels);
+
+	return cursor->tex;
 }
 
 static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
@@ -703,12 +669,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
-	if (cursor->texture != NULL) {
-		wlr_texture_destroy(cursor->texture);
-	}
-	if (cursor->renderer != NULL) {
-		wlr_renderer_destroy(cursor->renderer);
-	}
+	wlr_texture_destroy(cursor->tex);
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }

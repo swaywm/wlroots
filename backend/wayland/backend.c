@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "render/render.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
@@ -84,7 +85,7 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	free(backend->seat_name);
 
 	wl_event_source_remove(backend->remote_display_src);
-	wlr_egl_finish(&backend->egl);
+	wlr_egl_free(&backend->egl);
 	if (backend->seat) wl_seat_destroy(backend->seat);
 	if (backend->shm) wl_shm_destroy(backend->shm);
 	if (backend->shell) zxdg_shell_v6_destroy(backend->shell);
@@ -94,15 +95,21 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
-	return &backend->egl;
+static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
+	return &wl->egl;
+}
+
+static struct wlr_renderer *wlr_wl_backend_get_renderer(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
+	return wl->rend;
 }
 
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_wl_backend_start,
 	.destroy = wlr_wl_backend_destroy,
-	.get_egl = wlr_wl_backend_get_egl
+	.get_egl = wlr_wl_backend_get_egl,
+	.get_renderer = wlr_wl_backend_get_renderer,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -187,6 +194,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
 		backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
+
+	backend->rend = wlr_renderer_create(&backend->backend);
+	if (!backend->rend) {
+		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
+	}
 
 	backend->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->local_display_destroy);

@@ -22,6 +22,7 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
+#include "render/render.h"
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;
@@ -259,7 +260,7 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wl_event_source_remove(x11->frame_timer);
-	wlr_egl_finish(&x11->egl);
+	wlr_egl_free(&x11->egl);
 
 	xcb_disconnect(x11->xcb_conn);
 	free(x11);
@@ -270,6 +271,11 @@ static struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
 	return &x11->egl;
 }
 
+static struct wlr_renderer *wlr_x11_backend_get_renderer(struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	return x11->rend;
+}
+
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
 	return backend->impl == &backend_impl;
 }
@@ -278,6 +284,7 @@ static struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
+	.get_renderer = wlr_x11_backend_get_renderer,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -326,6 +333,11 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR, x11->xlib_conn, NULL,
 			x11->screen->root_visual)) {
 		goto error_event;
+	}
+
+	x11->rend = wlr_renderer_create(&x11->backend);
+	if (!x11->rend) {
+		wlr_log(L_ERROR, "Failed to create renderer; cursors may be affected");
 	}
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
@@ -381,18 +393,14 @@ static void output_make_current(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+	eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context);
 }
 
 static void output_swap_buffers(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-	}
+	eglSwapBuffers(x11->egl.display, output->surf);
 }
 
 static struct wlr_output_impl output_impl = {

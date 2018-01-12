@@ -7,8 +7,9 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
+#include <wlr/render/render.h>
+#include <wlr/render/matrix.h>
 #include "rootston/server.h"
 #include "rootston/desktop.h"
 #include "rootston/config.h"
@@ -24,8 +25,8 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 		double ox = *sx - pw/2 + sw/2,
 			oy = *sy - ph/2 + sh/2;
 		// Rotated coordinates
-		double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-			ry = cos(-rotation)*oy + sin(-rotation)*ox;
+		double rx = cos(-rotation)*ox + sin(-rotation)*oy;
+		double ry = cos(-rotation)*oy - sin(-rotation)*ox;
 		*sx = rx + pw/2 - sw/2;
 		*sy = ry + ph/2 - sh/2;
 	}
@@ -38,10 +39,11 @@ static void render_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	int width = surface->current->width;
-	int height = surface->current->height;
-	int render_width = width * wlr_output->scale;
-	int render_height = height * wlr_output->scale;
+	struct wlr_renderer *rend = desktop->server->render;
+
+	double render_width = surface->current->width * wlr_output->scale;
+	double render_height = surface->current->height * wlr_output->scale;
+
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
 	ox *= wlr_output->scale;
@@ -52,49 +54,32 @@ static void render_surface(struct wlr_surface *surface,
 		.width = render_width, .height = render_height,
 	};
 	if (wlr_output_layout_intersects(desktop->layout, wlr_output, &render_box)) {
-		float matrix[16];
+		int ow, oh;
+		wlr_output_effective_resolution(wlr_output, &ow, &oh);
 
-		float translate_center[16];
-		wlr_matrix_translate(&translate_center,
-			(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
+		if (rotation == 0) {
+			wlr_renderer_render_texture(rend, surface->tex, surface->current->transform,
+				ox, oy, ox + render_width, oy + render_height);
+		} else {
+			float mat1[9];
+			wlr_matrix_identity(mat1);
+			wlr_matrix_rotate(mat1, rotation);
+			wlr_matrix_scale(mat1, render_width, render_height);
+			wlr_matrix_scale_row(mat1, 0, 1.0f / ow);
+			wlr_matrix_scale_row(mat1, 1, 1.0f / oh);
 
-		float rotate[16];
-		wlr_matrix_rotate(&rotate, rotation);
+			float mat2[9];
+			wlr_matrix_identity(mat2);
+			wlr_matrix_transform(mat2, wlr_output->transform);
+			wlr_matrix_translate(mat2,
+				-1.0f + render_width/ow + (2.0f/ow) * ox,
+				-1.0f + render_height/oh + (2.0f/oh) * oy
+			);
+			wlr_matrix_multiply(mat2, mat2, mat1);
+			wlr_matrix_scale_row(mat2, wlr_output->transform % 2 ? 0 : 1, -1);
 
-		float translate_origin[16];
-		wlr_matrix_translate(&translate_origin, -render_width / 2,
-			-render_height / 2, 0);
-
-		float scale[16];
-		wlr_matrix_scale(&scale, render_width, render_height, 1);
-
-		float transform[16];
-		wlr_matrix_mul(&translate_center, &rotate, &transform);
-		wlr_matrix_mul(&transform, &translate_origin, &transform);
-		wlr_matrix_mul(&transform, &scale, &transform);
-
-		if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-			float surface_translate_center[16];
-			wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
-
-			float surface_transform[16];
-			wlr_matrix_transform(surface_transform,
-				wlr_output_transform_invert(surface->current->transform));
-
-			float surface_translate_origin[16];
-			wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
-
-			wlr_matrix_mul(&transform, &surface_translate_center,
-				&transform);
-			wlr_matrix_mul(&transform, &surface_transform, &transform);
-			wlr_matrix_mul(&transform, &surface_translate_origin,
-				&transform);
+			wlr_renderer_render_texture_with_matrix(rend, surface->tex, mat2);
 		}
-
-		wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
-
-		wlr_render_with_matrix(desktop->server->renderer, surface->texture,
-			&matrix);
 
 		wlr_surface_send_frame_done(surface, when);
 	}
@@ -106,7 +91,8 @@ static void render_surface(struct wlr_surface *surface,
 		double sy = state->subsurface_position.y;
 		double sw = state->buffer_width / state->scale;
 		double sh = state->buffer_height / state->scale;
-		rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
+		rotate_child_position(&sx, &sy, sw, sh,
+			surface->current->width, surface->current->height, rotation);
 
 		render_surface(subsurface->surface, desktop, wlr_output, when,
 			lx + sx,
@@ -215,7 +201,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	wlr_output_make_current(wlr_output);
-	wlr_renderer_begin(server->renderer, wlr_output);
+	wlr_renderer_bind(server->render, wlr_output);
+	wlr_renderer_clear(server->render, 0.25, 0.25, 0.25, 1.0);
 
 	if (output->fullscreen_view != NULL) {
 		// Make sure the view is centered on screen
@@ -235,12 +222,10 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		} else {
 			wlr_output_set_fullscreen_surface(wlr_output, NULL);
 
-			glClearColor(0, 0, 0, 0);
-			glClear(GL_COLOR_BUFFER_BIT);
+			wlr_renderer_clear(server->render, 0.0, 0.0, 0.0, 1.0);
 
 			render_view(output->fullscreen_view, desktop, wlr_output, &now);
 		}
-		wlr_renderer_end(server->renderer);
 		wlr_output_swap_buffers(wlr_output);
 		output->last_frame = desktop->last_frame = now;
 		return;
@@ -279,7 +264,6 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		}
 	}
 
-	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);
 
 	output->last_frame = desktop->last_frame = now;

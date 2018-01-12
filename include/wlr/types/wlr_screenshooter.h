@@ -1,10 +1,10 @@
-#ifndef _WLR_SCREENSHOOTER_H
-#define _WLR_SCREENSHOOTER_H
+#ifndef WLR_TYPES_WLR_SCREENSHOOTER_H
+#define WLR_TYPES_WLR_SCREENSHOOTER_H
 #include <wayland-server.h>
 
 struct wlr_screenshooter {
 	struct wl_global *wl_global;
-	struct wlr_renderer *renderer;
+
 	struct wl_list screenshots; // wlr_screenshot::link
 
 	struct wl_listener display_destroy;
@@ -20,11 +20,10 @@ struct wlr_screenshot {
 	struct wlr_output *output;
 	struct wlr_screenshooter *screenshooter;
 
-	void* data;
+	void *data;
 };
 
-struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
-	struct wlr_renderer *renderer);
+struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display);
 void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter);
 
 #endif

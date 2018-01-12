@@ -9,9 +9,6 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
@@ -23,7 +20,6 @@
 #include "support/cat.h"
 
 struct sample_state {
-	struct wlr_renderer *renderer;
 	bool proximity, tap, button;
 	double distance;
 	double pressure;
@@ -38,44 +34,43 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	struct compositor_state *state = output->compositor;
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
+	struct wlr_renderer *rend = wlr_backend_get_renderer(wlr_output->backend);
 
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output);
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_bind(rend, wlr_output);
+	wlr_renderer_clear(rend, 0.25, 0.25, 0.25, 1.0);
 
-	float matrix[16], view[16];
 	float distance = 0.8f * (1 - sample->distance);
-	float tool_color[4] = { distance, distance, distance, 1 };
+	float tool[4] = { distance, distance, distance, 1 };
 	for (size_t i = 0; sample->button && i < 4; ++i) {
-		tool_color[i] = sample->tool_color[i];
+		tool[i] = sample->tool_color[i];
 	}
 	float scale = 4;
 
 	float pad_width = sample->width_mm * scale;
 	float pad_height = sample->height_mm * scale;
-	float left = width / 2.0f - pad_width / 2.0f;
-	float top = height / 2.0f - pad_height / 2.0f;
-	wlr_matrix_translate(&matrix, left, top, 0);
-	wlr_matrix_scale(&view, pad_width, pad_height, 1);
-	wlr_matrix_mul(&matrix, &view, &view);
-	wlr_matrix_mul(&wlr_output->transform_matrix, &view, &matrix);
-	wlr_render_colored_quad(sample->renderer, &sample->pad_color, &matrix);
+	float pad_x = width / 2.0f - pad_width / 2.0f;
+	float pad_y = height / 2.0f - pad_height / 2.0f;
+
+	float *pad = sample->pad_color;
+
+	wlr_renderer_render_rect(rend, pad[0], pad[1], pad[2], pad[3],
+		pad_x, pad_y, pad_x + pad_width, pad_y + pad_height);
 
 	if (sample->proximity) {
-		wlr_matrix_translate(&matrix,
-				sample->x_mm * scale - 8 * (sample->pressure + 1) + left,
-				sample->y_mm * scale - 8 * (sample->pressure + 1) + top, 0);
-		wlr_matrix_scale(&view,
-				16 * (sample->pressure + 1),
-				16 * (sample->pressure + 1), 1);
-		wlr_matrix_mul(&matrix, &view, &view);
-		wlr_matrix_mul(&wlr_output->transform_matrix, &view, &matrix);
-		wlr_render_colored_ellipse(sample->renderer, &tool_color, &matrix);
+		float x = sample->x_mm * scale - 8 * (sample->pressure + 1) + pad_x;
+		float y = sample->y_mm * scale - 8 * (sample->pressure + 1) + pad_y;
+		float cir = 16 * (sample->pressure + 1);
+
+		wlr_renderer_render_ellipse(rend,
+			tool[0], tool[1], tool[2], tool[3],
+			x, y, x + cir, y + cir
+		);
 	}
 
-	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output);
 }
 
@@ -143,7 +138,7 @@ int main(int argc, char *argv[]) {
 		.tool_color = { 1, 1, 1, 1 },
 		.pad_color = { 0.75, 0.75, 0.75, 1.0 }
 	};
-	struct compositor_state compositor = { 0,
+	struct compositor_state compositor = {
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
 		.tool_axis_cb = handle_tool_axis,
@@ -153,11 +148,6 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
-	if (!state.renderer) {
-		wlr_log(L_ERROR, "Could not start compositor, OOM");
-		exit(EXIT_FAILURE);
-	}
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");
 		wlr_backend_destroy(compositor.backend);
@@ -165,6 +155,5 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(compositor.display);
 
-	wlr_renderer_destroy(state.renderer);
 	compositor_fini(&compositor);
 }
