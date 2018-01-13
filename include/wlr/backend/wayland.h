@@ -11,6 +11,10 @@
 /**
  * Creates a new wlr_wl_backend. This backend will be created with no outputs;
  * you must use wlr_wl_output_create to add them.
+ *
+ * The `remote` argument is the name of the host compositor wayland socket. Set
+ * to NULL for the default behaviour (WAYLAND_DISPLAY env variable or wayland-0
+ * default)
  */
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote);
 
