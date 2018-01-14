@@ -96,6 +96,8 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	surface->height = height;
 	surface->override_redirect = override_redirect;
 	wl_list_insert(&xwm->surfaces, &surface->link);
+	wl_list_init(&surface->children);
+	wl_list_init(&surface->parent_link);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
 	wl_signal_init(&surface->events.request_move);
@@ -215,6 +217,7 @@ static void wlr_xwayland_surface_destroy(
 	}
 
 	wl_list_remove(&xsurface->link);
+	wl_list_remove(&xsurface->parent_link);
 
 	if (xsurface->surface_id) {
 		wl_list_remove(&xsurface->unpaired_link);
@@ -303,6 +306,13 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 		xsurface->parent = lookup_surface(xwm, *xid);
 	} else {
 		xsurface->parent = NULL;
+	}
+
+	wl_list_remove(&xsurface->parent_link);
+	if (xsurface->parent != NULL) {
+		wl_list_insert(&xsurface->parent->children, &xsurface->parent_link);
+	} else {
+		wl_list_init(&xsurface->parent_link);
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
