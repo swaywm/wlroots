@@ -53,7 +53,7 @@ struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
 }
 
 static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
-	struct wlr_backend *backend = wlr_wl_backend_create(display);
+	struct wlr_backend *backend = wlr_wl_backend_create(display, NULL);
 	if (backend) {
 		int outputs = 1;
 		const char *_outputs = getenv("WLR_WL_OUTPUTS");
