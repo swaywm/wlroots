@@ -167,6 +167,10 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
 
 static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, int x, int y) {
+	if (!crtc || !crtc->cursor) {
+		return true;
+	}
+
 	struct wlr_drm_plane *plane = crtc->cursor;
 	// We can't use atomic operations on fake planes
 	if (plane->id == 0) {
