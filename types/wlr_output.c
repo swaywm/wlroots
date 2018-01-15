@@ -156,6 +156,10 @@ static void wlr_output_update_matrix(struct wlr_output *output) {
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
+	if (output->enabled == enable) {
+		return;
+	}
+
 	if (output->impl->enable) {
 		output->impl->enable(output, enable);
 	}
