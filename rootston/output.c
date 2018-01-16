@@ -224,6 +224,10 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
 
+	if (!wlr_output->enabled) {
+		return;
+	}
+
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -346,9 +350,10 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
+
 	if (wl_list_length(&wlr_output->modes) > 0) {
-		struct wlr_output_mode *mode = NULL;
-		mode = wl_container_of((&wlr_output->modes)->prev, mode, link);
+		struct wlr_output_mode *mode =
+			wl_container_of((&wlr_output->modes)->prev, mode, link);
 		wlr_output_set_mode(wlr_output, mode);
 	}
 
@@ -363,13 +368,17 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
 	if (output_config) {
-		if (output_config->mode.width) {
-			set_mode(wlr_output, output_config);
+		if (output_config->enable) {
+			if (output_config->mode.width) {
+				set_mode(wlr_output, output_config);
+			}
+			wlr_output_set_scale(wlr_output, output_config->scale);
+			wlr_output_set_transform(wlr_output, output_config->transform);
+			wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
+				output_config->y);
+		} else {
+			wlr_output_enable(wlr_output, false);
 		}
-		wlr_output_set_scale(wlr_output, output_config->scale);
-		wlr_output_set_transform(wlr_output, output_config->transform);
-		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
-			output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}

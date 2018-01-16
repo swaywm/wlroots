@@ -252,11 +252,16 @@ static void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
 	}
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	drm->iface->conn_enable(drm, conn, enable);
+	bool ok = drm->iface->conn_enable(drm, conn, enable);
+	if (!ok) {
+		return;
+	}
 
 	if (enable) {
 		wlr_drm_connector_start_renderer(conn);
 	}
+
+	wlr_output_update_enabled(&conn->output, enable);
 }
 
 static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
@@ -722,7 +727,8 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				drmModeFreeConnector(drm_conn);
 				continue;
 			}
-			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl);
+			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
+				drm->display);
 
 			struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
 			wlr_conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,
@@ -792,7 +798,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_output_create_global(&wlr_conn->output, drm->display);
+			wlr_output_update_enabled(&wlr_conn->output, true);
 
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'",
@@ -802,7 +808,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(L_INFO, "'%s' disconnected", wlr_conn->output.name);
 
-			wlr_output_destroy_global(&wlr_conn->output);
+			wlr_output_update_enabled(&wlr_conn->output, false);
 			wlr_drm_connector_cleanup(wlr_conn);
 		}
 

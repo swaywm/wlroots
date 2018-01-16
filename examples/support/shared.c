@@ -425,7 +425,7 @@ static void output_add_notify(struct wl_listener *listener, void *data) {
 	ostate->frame.notify = output_frame_notify;
 	ostate->resolution.notify = output_resolution_notify;
 	wl_signal_add(&output->events.frame, &ostate->frame);
-	wl_signal_add(&output->events.resolution, &ostate->resolution);
+	wl_signal_add(&output->events.mode, &ostate->resolution);
 	wl_list_insert(&state->outputs, &ostate->link);
 	if (state->output_add_cb) {
 		state->output_add_cb(ostate);
