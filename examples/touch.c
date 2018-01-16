@@ -94,6 +94,7 @@ static void handle_touch_motion(struct touch_state *tstate, int32_t touch_id,
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state;
 	wl_list_init(&state.touch_points);
 

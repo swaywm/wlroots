@@ -7,6 +7,7 @@
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
 #include <idle-client-protocol.h>
+#include <wlr/util/log.h>
 
 static struct org_kde_kwin_idle *idle_manager = NULL;
 static struct wl_seat *seat = NULL;
@@ -108,6 +109,7 @@ void *main_loop(void *data) {
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 
 	if (parse_args(argc, argv) != 0) {
 		return -1;

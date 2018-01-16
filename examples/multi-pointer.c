@@ -176,6 +176,7 @@ static void handle_input_remove(struct compositor_state *state,
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
