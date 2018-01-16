@@ -751,3 +751,46 @@ enum wl_output_transform wlr_output_transform_compose(
 	}
 	return flipped | rotated;
 }
+
+void wlr_output_get_box_matrix(struct wlr_output *output, int ox, int oy,
+		int width, int height, enum wl_output_transform transform,
+		float rotation, float (*mat)[16]) {
+		float translate_center[16];
+		wlr_matrix_translate(&translate_center,
+			(int)ox + width / 2, (int)oy + height / 2, 0);
+
+		float rotate[16];
+		wlr_matrix_rotate(&rotate, rotation);
+
+		float translate_origin[16];
+		wlr_matrix_translate(&translate_origin, -width / 2,
+			-height / 2, 0);
+
+		float scale[16];
+		wlr_matrix_scale(&scale, width, height, 1);
+
+		float transform_matrix[16];
+		wlr_matrix_mul(&translate_center, &rotate, &transform_matrix);
+		wlr_matrix_mul(&transform_matrix, &translate_origin, &transform_matrix);
+		wlr_matrix_mul(&transform_matrix, &scale, &transform_matrix);
+
+		if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+			float surface_translate_center[16];
+			wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
+
+			float surface_transform[16];
+			wlr_matrix_transform(surface_transform,
+				wlr_output_transform_invert(transform));
+
+			float surface_translate_origin[16];
+			wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
+
+			wlr_matrix_mul(&transform_matrix, &surface_translate_center,
+				&transform_matrix);
+			wlr_matrix_mul(&transform_matrix, &surface_transform, &transform_matrix);
+			wlr_matrix_mul(&transform_matrix, &surface_translate_origin,
+				&transform_matrix);
+		}
+
+		wlr_matrix_mul(&output->transform_matrix, &transform_matrix, mat);
+}
