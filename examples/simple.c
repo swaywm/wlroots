@@ -44,6 +44,7 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 }
 
 int main() {
+	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {
 		.color = { 1.0, 0.0, 0.0 },
 		.dec = 0,

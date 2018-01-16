@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <screenshooter-client-protocol.h>
 #include "util/os-compatibility.h"
+#include <wlr/util/log.h>
 
 static struct wl_shm *shm = NULL;
 static struct orbital_screenshooter *screenshooter = NULL;
@@ -242,6 +243,7 @@ static int set_buffer_size(int *width, int *height) {
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "failed to create display: %m\n");
