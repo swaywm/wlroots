@@ -313,6 +313,14 @@ static void seat_update_capabilities(struct roots_seat *seat) {
 		caps |= WL_SEAT_CAPABILITY_TOUCH;
 	}
 	wlr_seat_set_capabilities(seat->seat, caps);
+
+	// Hide cursor if seat doesn't have pointer capability
+	if ((caps & WL_SEAT_CAPABILITY_POINTER) == 0) {
+		wlr_cursor_set_image(seat->cursor->cursor, NULL, 0, 0, 0, 0, 0, 0);
+	} else {
+		wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+			seat->cursor->default_xcursor, seat->cursor->cursor);
+	}
 }
 
 static void seat_add_keyboard(struct roots_seat *seat,
