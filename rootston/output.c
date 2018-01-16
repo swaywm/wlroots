@@ -144,8 +144,32 @@ static void render_xwayland_children(struct wlr_xwayland_surface *surface,
 	}
 }
 
+static void render_decorations(struct roots_view *view,
+		struct roots_desktop *desktop, struct wlr_output *output) {
+	if (!view->decorated) {
+		return;
+	}
+	struct wlr_box deco_box;
+	view_get_deco_box(view, &deco_box);
+	double ox = deco_box.x;
+	double oy = deco_box.y;
+	wlr_output_layout_output_coords(desktop->layout, output, &ox, &oy);
+	ox *= output->scale;
+	oy *= output->scale;
+
+	float matrix[16];
+	wlr_output_get_box_matrix(output, ox, oy, deco_box.width,
+		deco_box.height, WL_OUTPUT_TRANSFORM_NORMAL, view->rotation,
+		&matrix);
+
+	float color[4] = { 0.2, 0.2, 0.2, 1 };
+	wlr_render_colored_quad(desktop->server->renderer, &color, &matrix);
+}
+
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
+	render_decorations(view, desktop, wlr_output);
+
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
 		render_surface(view->wlr_surface, desktop, wlr_output, when,

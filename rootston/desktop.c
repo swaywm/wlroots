@@ -31,6 +31,18 @@ void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	}
 }
 
+void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
+	view_get_box(view, box);
+	if (!view->decorated) {
+		return;
+	}
+
+	box->x -= view->border_width;
+	box->y -= (view->border_width + view->titlebar_height);
+	box->width += view->border_width * 2;
+	box->height += (view->border_width * 2 + view->titlebar_height);
+}
+
 static void view_update_output(const struct roots_view *view,
 		const struct wlr_box *before) {
 	struct roots_desktop *desktop = view->desktop;

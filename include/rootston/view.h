@@ -61,6 +61,10 @@ struct roots_view {
 	double x, y;
 	float rotation;
 
+	bool decorated;
+	int border_width;
+	int titlebar_height;
+
 	bool maximized;
 	struct roots_output *fullscreen_output;
 	struct {
@@ -113,6 +117,7 @@ struct roots_view {
 };
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
+void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);

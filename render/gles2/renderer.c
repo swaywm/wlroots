@@ -177,7 +177,7 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 static void wlr_gles2_render_quad(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]) {
 	GL_CALL(glUseProgram(shaders.quad));
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
 	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
 	draw_quad();
 }
