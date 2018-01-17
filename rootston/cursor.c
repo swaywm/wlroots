@@ -30,19 +30,81 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 	// TODO
 }
 
+static void seat_view_deco_motion(struct roots_seat_view *view, double deco_vx, double deco_vy) {
+	struct roots_cursor *cursor = view->seat->cursor;
+
+	double vx = deco_vx;
+	double vy = deco_vy;
+	if (view->has_button_grab) {
+		vx = view->grab_vx;
+		vy = view->grab_vy;
+	}
+
+	bool is_titlebar = vy < 0 && -vy < view->view->titlebar_height;
+	uint32_t edges = 0;
+	if (vx < 0) {
+		edges |= WLR_EDGE_LEFT;
+	} else if (vx > view->view->wlr_surface->current->width) {
+		edges |= WLR_EDGE_RIGHT;
+	} else if (vy > view->view->wlr_surface->current->height) {
+		edges |= WLR_EDGE_BOTTOM;
+	} else if (-vy > view->view->titlebar_height) {
+		edges |= WLR_EDGE_TOP;
+	}
+
+	if (view->has_button_grab) {
+		if (is_titlebar) {
+			roots_seat_begin_move(view->seat, view->view);
+		} else if (edges) {
+			roots_seat_begin_resize(view->seat, view->view, edges);
+		}
+		view->has_button_grab = false;
+	} else {
+		if (is_titlebar) {
+			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+				cursor->default_xcursor, cursor->cursor);
+		} else if (edges) {
+			const char *resize_name = wlr_xcursor_get_resize_name(edges);
+			wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+				resize_name, cursor->cursor);
+		}
+	}
+}
+
+static void seat_view_deco_leave(struct roots_seat_view *view) {
+	view->has_button_grab = false;
+}
+
+static void seat_view_deco_button(struct roots_seat_view *view, double vx,
+		double vy, uint32_t button, uint32_t state) {
+	if (button == BTN_LEFT && state == WLR_BUTTON_PRESSED) {
+		view->has_button_grab = true;
+		view->grab_vx = vx;
+		view->grab_vy = vy;
+	} else {
+		view->has_button_grab = false;
+	}
+}
+
 static void roots_cursor_update_position(struct roots_cursor *cursor,
 		uint32_t time) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct roots_seat *seat = cursor->seat;
 	struct roots_view *view;
-	struct wlr_surface *surface;
+	struct wlr_surface *surface = NULL;
 	double sx, sy;
 	switch (cursor->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		view = desktop_view_at(desktop, cursor->cursor->x, cursor->cursor->y,
 			&surface, &sx, &sy);
+		struct roots_seat_view *seat_view =
+			roots_seat_view_from_view(seat, view);
+		if (cursor->pointer_view && (surface || seat_view != cursor->pointer_view)) {
+			seat_view_deco_leave(cursor->pointer_view);
+			cursor->pointer_view = NULL;
+		}
 		bool set_compositor_cursor = !view && cursor->cursor_client;
-		if (view) {
+		if (view && surface) {
 			struct wl_client *view_client =
 				wl_resource_get_client(view->wlr_surface->resource);
 			set_compositor_cursor = view_client != cursor->cursor_client;
@@ -52,7 +114,15 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 				cursor->default_xcursor, cursor->cursor);
 			cursor->cursor_client = NULL;
 		}
-		if (view) {
+		if (view && !surface) {
+			if (seat_view) {
+				cursor->pointer_view = seat_view;
+				seat_view_deco_motion(seat_view,
+					cursor->cursor->x - seat_view->view->x,
+					cursor->cursor->y - seat_view->view->y);
+			}
+		} if (view && surface) {
+			// motion over a view surface
 			wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
 		} else {
@@ -166,16 +236,30 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 		return;
 	}
+
+	if (view && !surface) {
+		if (cursor->pointer_view) {
+			seat_view_deco_button(cursor->pointer_view,
+					cursor->cursor->x - cursor->pointer_view->view->x,
+					cursor->cursor->y - cursor->pointer_view->view->y,
+					button, state);
+		}
+	}
+
 	if (state == WLR_BUTTON_RELEASED &&
 			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+			cursor->default_xcursor, cursor->cursor);
 		if (seat->seat->pointer_state.button_count == 0) {
 			return;
 		}
 	}
 
-	if (!is_touch) {
-		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+	if (view && surface) {
+		if (!is_touch) {
+			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		}
 	}
 
 	switch (state) {

@@ -9,6 +9,8 @@
 #include "rootston/view.h"
 #include "rootston/server.h"
 
+struct roots_view;
+
 struct roots_input {
 	struct roots_config *config;
 	struct roots_server *server;

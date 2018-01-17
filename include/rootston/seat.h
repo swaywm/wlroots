@@ -28,6 +28,11 @@ struct roots_seat {
 struct roots_seat_view {
 	struct roots_seat *seat;
 	struct roots_view *view;
+
+	bool has_button_grab;
+	double grab_vx;
+	double grab_vy;
+
 	struct wl_list link; // roots_seat::views
 
 	struct wl_listener view_destroy;
@@ -83,5 +88,8 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 		uint32_t edges);
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view);
+
+struct roots_seat_view *roots_seat_view_from_view( struct roots_seat *seat,
+		struct roots_view *view);
 
 #endif

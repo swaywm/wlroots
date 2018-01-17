@@ -6,6 +6,9 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include "rootston/seat.h"
+
+struct roots_seat;
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;

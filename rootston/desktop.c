@@ -392,6 +392,14 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 		if (view_at(view, lx, ly, surface, sx, sy)) {
 			return view;
 		}
+
+		if (view->decorated) {
+			struct wlr_box deco_box;
+			view_get_deco_box(view, &deco_box);
+			if (wlr_box_contains_point(&deco_box, lx, ly)) {
+				return view;
+			}
+		}
 	}
 	return NULL;
 }
