@@ -667,7 +667,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (keyboard != NULL) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			keyboard->keycodes, keyboard->num_keycodes,
-			keyboard->modifiers);
+			&keyboard->modifiers);
 	} else {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			NULL, 0, NULL);

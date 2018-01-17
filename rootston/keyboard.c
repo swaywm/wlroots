@@ -289,7 +289,7 @@ void roots_keyboard_handle_modifiers(struct roots_keyboard *r_keyboard) {
 	struct wlr_seat *seat = r_keyboard->seat->seat;
 	wlr_seat_set_keyboard(seat, r_keyboard->device);
 	wlr_seat_keyboard_notify_modifiers(seat,
-		r_keyboard->device->keyboard->modifiers);
+		&r_keyboard->device->keyboard->modifiers);
 }
 
 static void keyboard_config_merge(struct roots_keyboard_config *config,

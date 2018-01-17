@@ -794,7 +794,7 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 			seat_client_send_repeat_info(client, keyboard);
 		}
 
-		wlr_seat_keyboard_send_modifiers(seat, keyboard->modifiers);
+		wlr_seat_keyboard_send_modifiers(seat, &keyboard->modifiers);
 	} else {
 		seat->keyboard_state.keyboard = NULL;
 	}

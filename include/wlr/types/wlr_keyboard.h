@@ -52,7 +52,7 @@ struct wlr_keyboard {
 
 	uint32_t keycodes[WLR_KEYBOARD_KEYS_CAP];
 	size_t num_keycodes;
-	struct wlr_keyboard_modifiers *modifiers;
+	struct wlr_keyboard_modifiers modifiers;
 
 	struct {
 		int32_t rate;
