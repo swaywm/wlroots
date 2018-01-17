@@ -5,6 +5,8 @@ lib_shared = static_library(
 	include_directories: include_directories('support')
 )
 
+threads = dependency('threads')
+
 executable('simple', 'simple.c', dependencies: wlroots, link_with: lib_shared)
 executable('pointer', 'pointer.c', dependencies: wlroots, link_with: lib_shared)
 executable('touch', 'touch.c', dependencies: wlroots, link_with: lib_shared)
@@ -30,5 +32,12 @@ executable(
 	'screenshot',
 	'screenshot.c',
 	dependencies: [wayland_client, wlr_protos, wlroots],
+	link_with: lib_shared,
+)
+
+executable(
+	'idle',
+	'idle.c',
+	dependencies: [wayland_client, wlr_protos, wlroots, threads],
 	link_with: lib_shared,
 )

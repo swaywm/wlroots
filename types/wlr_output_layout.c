@@ -18,7 +18,7 @@ struct wlr_output_layout_output_state {
 	struct wlr_box _box; // should never be read directly, use the getter
 	bool auto_configured;
 
-	struct wl_listener resolution;
+	struct wl_listener mode;
 	struct wl_listener scale;
 	struct wl_listener transform;
 	struct wl_listener output_destroy;
@@ -47,7 +47,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wl_signal_emit(&l_output->events.destroy, l_output);
-	wl_list_remove(&l_output->state->resolution.link);
+	wl_list_remove(&l_output->state->mode.link);
 	wl_list_remove(&l_output->state->scale.link);
 	wl_list_remove(&l_output->state->transform.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
@@ -132,9 +132,9 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 	wl_signal_emit(&layout->events.change, layout);
 }
 
-static void handle_output_resolution(struct wl_listener *listener, void *data) {
+static void handle_output_mode(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, resolution);
+		wl_container_of(listener, state, mode);
 	wlr_output_layout_reconfigure(state->layout);
 }
 
@@ -176,8 +176,8 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 	wl_signal_init(&l_output->events.destroy);
 	wl_list_insert(&layout->outputs, &l_output->link);
 
-	wl_signal_add(&output->events.resolution, &l_output->state->resolution);
-	l_output->state->resolution.notify = handle_output_resolution;
+	wl_signal_add(&output->events.mode, &l_output->state->mode);
+	l_output->state->mode.notify = handle_output_mode;
 	wl_signal_add(&output->events.scale, &l_output->state->scale);
 	l_output->state->scale.notify = handle_output_scale;
 	wl_signal_add(&output->events.transform, &l_output->state->transform);

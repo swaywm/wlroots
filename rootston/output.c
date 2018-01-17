@@ -169,6 +169,19 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 	}
 }
 
+static void render_xwayland_children(struct wlr_xwayland_surface *surface,
+		struct roots_desktop *desktop, struct wlr_output *wlr_output,
+		struct timespec *when) {
+	struct wlr_xwayland_surface *child;
+	wl_list_for_each(child, &surface->children, parent_link) {
+		if (child->surface != NULL && child->added) {
+			render_surface(child->surface, desktop, wlr_output, when,
+				child->x, child->y, 0);
+		}
+		render_xwayland_children(child, desktop, wlr_output, when);
+	}
+}
+
 static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		struct wlr_output *wlr_output, struct timespec *when) {
 	switch (view->type) {
@@ -200,7 +213,7 @@ static bool has_standalone_surface(struct roots_view *view) {
 	case ROOTS_WL_SHELL_VIEW:
 		return wl_list_empty(&view->wl_shell_surface->popups);
 	case ROOTS_XWAYLAND_VIEW:
-		return true;
+		return wl_list_empty(&view->xwayland_surface->children);
 	}
 	return true;
 }
@@ -211,6 +224,10 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
 
+	if (!wlr_output->enabled) {
+		return;
+	}
+
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -218,27 +235,36 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_renderer_begin(server->renderer, wlr_output);
 
 	if (output->fullscreen_view != NULL) {
+		struct roots_view *view = output->fullscreen_view;
+
 		// Make sure the view is centered on screen
 		const struct wlr_box *output_box =
 			wlr_output_layout_get_box(desktop->layout, wlr_output);
 		struct wlr_box view_box;
-		view_get_box(output->fullscreen_view, &view_box);
+		view_get_box(view, &view_box);
 		double view_x = (double)(output_box->width - view_box.width) / 2 +
 			output_box->x;
 		double view_y = (double)(output_box->height - view_box.height) / 2 +
 			output_box->y;
-		view_move(output->fullscreen_view, view_x, view_y);
+		view_move(view, view_x, view_y);
 
-		if (has_standalone_surface(output->fullscreen_view)) {
-			wlr_output_set_fullscreen_surface(wlr_output,
-				output->fullscreen_view->wlr_surface);
+		if (has_standalone_surface(view)) {
+			wlr_output_set_fullscreen_surface(wlr_output, view->wlr_surface);
 		} else {
 			wlr_output_set_fullscreen_surface(wlr_output, NULL);
 
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			render_view(output->fullscreen_view, desktop, wlr_output, &now);
+			render_view(view, desktop, wlr_output, &now);
+
+			// During normal rendering the xwayland window tree isn't traversed
+			// because all windows are rendered. Here we only want to render
+			// the fullscreen window's children so we have to traverse the tree.
+			if (view->type == ROOTS_XWAYLAND_VIEW) {
+				render_xwayland_children(view->xwayland_surface, desktop,
+					wlr_output, &now);
+			}
 		}
 		wlr_renderer_end(server->renderer);
 		wlr_output_swap_buffers(wlr_output);
@@ -324,9 +350,10 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
+
 	if (wl_list_length(&wlr_output->modes) > 0) {
-		struct wlr_output_mode *mode = NULL;
-		mode = wl_container_of((&wlr_output->modes)->prev, mode, link);
+		struct wlr_output_mode *mode =
+			wl_container_of((&wlr_output->modes)->prev, mode, link);
 		wlr_output_set_mode(wlr_output, mode);
 	}
 
@@ -341,13 +368,17 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
 	if (output_config) {
-		if (output_config->mode.width) {
-			set_mode(wlr_output, output_config);
+		if (output_config->enable) {
+			if (output_config->mode.width) {
+				set_mode(wlr_output, output_config);
+			}
+			wlr_output_set_scale(wlr_output, output_config->scale);
+			wlr_output_set_transform(wlr_output, output_config->transform);
+			wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
+				output_config->y);
+		} else {
+			wlr_output_enable(wlr_output, false);
 		}
-		wlr_output_set_scale(wlr_output, output_config->scale);
-		wlr_output_set_transform(wlr_output, output_config->transform);
-		wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
-			output_config->y);
 	} else {
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}

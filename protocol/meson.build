@@ -26,6 +26,7 @@ protocols = [
 	'gtk-primary-selection.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'idle.xml',
 ]
 
 client_protocols = [
@@ -34,6 +35,7 @@ client_protocols = [
 	'gtk-primary-selection.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'idle.xml',
 ]
 
 wl_protos_src = []

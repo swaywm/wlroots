@@ -181,6 +181,7 @@ static void handle_keyboard_key(struct keyboard_state *kbstate,
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {0};
 
 	state.x_vel = 500;

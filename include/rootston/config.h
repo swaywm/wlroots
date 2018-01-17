@@ -7,6 +7,7 @@
 
 struct roots_output_config {
 	char *name;
+	bool enable;
 	enum wl_output_transform transform;
 	int x, y;
 	float scale;

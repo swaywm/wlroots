@@ -105,7 +105,8 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		return NULL;
 	}
 	output->backend = backend;
-	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
+	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl,
+		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
 	output->egl_surface = egl_create_surface(&backend->egl, width, height);
@@ -138,7 +139,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 
 	if (backend->started) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-		wlr_output_create_global(wlr_output, backend->display);
+		wlr_output_update_enabled(wlr_output, true);
 		wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	}
 

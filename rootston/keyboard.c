@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer.h>
@@ -85,6 +86,8 @@ static void pressed_keysyms_update(xkb_keysym_t *pressed_keysyms,
 
 static const char *exec_prefix = "exec ";
 
+static bool outputs_enabled = true;
+
 static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		const char *command) {
 	struct roots_seat *seat = keyboard->seat;
@@ -119,6 +122,12 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		}
 	} else if (strcmp(command, "nop") == 0) {
 		wlr_log(L_DEBUG, "nop command");
+	} else if (strcmp(command, "toggle_outputs") == 0) {
+		outputs_enabled = !outputs_enabled;
+		struct roots_output *output;
+		wl_list_for_each(output, &keyboard->input->server->desktop->outputs, link) {
+			wlr_output_enable(output->wlr_output, outputs_enabled);
+		}
 	} else {
 		wlr_log(L_ERROR, "unknown binding command: %s", command);
 	}

@@ -139,6 +139,7 @@ static void handle_pad_button(struct tablet_pad_state *pstate,
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {
 		.tool_color = { 1, 1, 1, 1 },
 		.pad_color = { 0.75, 0.75, 0.75, 1.0 }

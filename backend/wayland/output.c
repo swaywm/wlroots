@@ -261,7 +261,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_wl_backend_output");
 		return NULL;
 	}
-	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl);
+	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl,
+		backend->local_display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
 	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
@@ -325,7 +326,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	}
 
 	wl_list_insert(&backend->outputs, &output->link);
-	wlr_output_create_global(wlr_output, backend->local_display);
+	wlr_output_update_enabled(wlr_output, true);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
 

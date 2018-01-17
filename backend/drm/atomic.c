@@ -33,7 +33,6 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 	}
 
 	uint32_t flags = DRM_MODE_ATOMIC_TEST_ONLY | DRM_MODE_ATOMIC_NONBLOCK;
-
 	if (drmModeAtomicCommit(drm_fd, atom->req, flags, NULL)) {
 		wlr_log_errno(L_ERROR, "Atomic test failed");
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
@@ -44,12 +43,10 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 }
 
 static bool atomic_commit(int drm_fd, struct atomic *atom,
-		struct wlr_drm_connector *conn, uint32_t flag, bool modeset) {
+		struct wlr_drm_connector *conn, uint32_t flags, bool modeset) {
 	if (atom->failed) {
 		return false;
 	}
-
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | flag;
 
 	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, conn);
 	if (ret) {
@@ -59,7 +56,8 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 		// Try to commit without new changes
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
 		if (drmModeAtomicCommit(drm_fd, atom->req, flags, conn)) {
-			wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
+			wlr_log_errno(L_ERROR,
+				"%s: Atomic commit without new changes failed (%s)",
 				conn->output.name, modeset ? "modeset" : "pageflip");
 		}
 	}
@@ -100,8 +98,8 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn,
 		struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
-	if (mode) {
-		if (crtc->mode_id) {
+	if (mode != NULL) {
+		if (crtc->mode_id != 0) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
 
@@ -111,26 +109,38 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
-	struct atomic atom;
+	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
+	if (mode != NULL) {
+		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+	} else {
+		flags |= DRM_MODE_ATOMIC_NONBLOCK;
+	}
 
+	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
-	return atomic_commit(drm->fd, &atom, conn,
-		mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : DRM_MODE_ATOMIC_NONBLOCK,
-		mode);
+	return atomic_commit(drm->fd, &atom, conn, flags, mode);
 }
 
-static void atomic_conn_enable(struct wlr_drm_backend *drm,
+static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	struct atomic atom;
 
+	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.active, enable);
-	atomic_end(drm->fd, &atom);
+	if (enable) {
+		atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
+		atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
+	} else {
+		atomic_add(&atom, conn->id, conn->props.crtc_id, 0);
+		atomic_add(&atom, crtc->id, crtc->props.mode_id, 0);
+	}
+	return atomic_commit(drm->fd, &atom, conn, DRM_MODE_ATOMIC_ALLOW_MODESET,
+		true);
 }
 
 bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
@@ -167,6 +177,10 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
 
 static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, int x, int y) {
+	if (!crtc || !crtc->cursor) {
+		return true;
+	}
+
 	struct wlr_drm_plane *plane = crtc->cursor;
 	// We can't use atomic operations on fake planes
 	if (plane->id == 0) {

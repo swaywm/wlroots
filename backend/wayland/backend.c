@@ -158,7 +158,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_wl_backend_destroy(&backend->backend);
 }
 
-struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_wl_backend *backend = calloc(1, sizeof(struct wlr_wl_backend));
@@ -173,7 +173,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display) {
 
 	backend->local_display = display;
 
-	backend->remote_display = wl_display_connect(NULL);
+	backend->remote_display = wl_display_connect(remote);
 	if (!backend->remote_display) {
 		wlr_log_errno(L_ERROR, "Could not connect to remote display");
 		return false;

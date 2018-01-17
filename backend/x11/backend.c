@@ -181,7 +181,8 @@ static int signal_frame(void *data) {
 
 static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
 		uint8_t only_if_exists, const char *name) {
-	atom->cookie = xcb_intern_atom(x11->xcb_conn, only_if_exists, strlen(name), name);
+	atom->cookie = xcb_intern_atom(x11->xcb_conn, only_if_exists, strlen(name),
+		name);
 	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
@@ -201,7 +202,8 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	output->x11 = x11;
 
-	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl);
+	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl,
+		x11->wl_display);
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
 
 	output->win = xcb_generate_id(x11->xcb_conn);
@@ -224,7 +226,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
-	wlr_output_create_global(&output->wlr_output, x11->wl_display);
+	wlr_output_update_enabled(&output->wlr_output, true);
 
 	wl_signal_emit(&x11->backend.events.output_add, output);
 	wl_signal_emit(&x11->backend.events.input_add, &x11->keyboard_dev);

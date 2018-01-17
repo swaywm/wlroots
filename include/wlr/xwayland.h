@@ -98,8 +98,11 @@ struct wlr_xwayland_surface {
 	char *title;
 	char *class;
 	char *instance;
-	struct wlr_xwayland_surface *parent;
 	pid_t pid;
+
+	struct wl_list children; // wlr_xwayland_surface::parent_link
+	struct wlr_xwayland_surface *parent;
+	struct wl_list parent_link; // wlr_xwayland_surface::children
 
 	xcb_atom_t *window_type;
 	size_t window_type_len;

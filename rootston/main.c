@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
 
 	if (server.backend == NULL) {
 		wlr_log(L_ERROR, "could not start backend");
-		wlr_backend_destroy(server.backend);
 		return 1;
 	}
 

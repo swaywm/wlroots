@@ -263,10 +263,19 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			oc->name = strdup(output_name);
 			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 			oc->scale = 1;
+			oc->enable = true;
 			wl_list_insert(&config->outputs, &oc->link);
 		}
 
-		if (strcmp(name, "x") == 0) {
+		if (strcmp(name, "enable") == 0) {
+			if (strcasecmp(value, "true") == 0) {
+				oc->enable = true;
+			} else if (strcasecmp(value, "false") == 0) {
+				oc->enable = false;
+			} else {
+				wlr_log(L_ERROR, "got invalid output enable value: %s", value);
+			}
+		} else if (strcmp(name, "x") == 0) {
 			oc->x = strtol(value, NULL, 10);
 		} else if (strcmp(name, "y") == 0) {
 			oc->y = strtol(value, NULL, 10);

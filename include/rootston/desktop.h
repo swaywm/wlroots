@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_list.h>
+#include <wlr/types/wlr_idle.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
 
@@ -44,6 +45,7 @@ struct roots_desktop {
 	struct wlr_screenshooter *screenshooter;
 	struct wlr_server_decoration_manager *server_decoration_manager;
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
+	struct wlr_idle *idle;
 
 	struct wl_listener output_add;
 	struct wl_listener output_remove;
