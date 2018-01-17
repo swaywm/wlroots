@@ -662,7 +662,16 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
-	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			keyboard->keycodes, keyboard->num_keycodes,
+			&keyboard->modifiers);
+	} else {
+		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			NULL, 0, NULL);
+	}
 }
 
 void roots_seat_cycle_focus(struct roots_seat *seat) {

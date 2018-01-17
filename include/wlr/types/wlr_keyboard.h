@@ -32,6 +32,13 @@ enum wlr_keyboard_modifier {
 
 struct wlr_keyboard_impl;
 
+struct wlr_keyboard_modifiers {
+	xkb_mod_mask_t depressed;
+	xkb_mod_mask_t latched;
+	xkb_mod_mask_t locked;
+	xkb_mod_mask_t group;
+};
+
 struct wlr_keyboard {
 	struct wlr_keyboard_impl *impl;
 	// TODO: Should this store key repeat info too?
@@ -45,12 +52,7 @@ struct wlr_keyboard {
 
 	uint32_t keycodes[WLR_KEYBOARD_KEYS_CAP];
 	size_t num_keycodes;
-	struct {
-		xkb_mod_mask_t depressed;
-		xkb_mod_mask_t latched;
-		xkb_mod_mask_t locked;
-		xkb_mod_mask_t group;
-	} modifiers;
+	struct wlr_keyboard_modifiers modifiers;
 
 	struct {
 		int32_t rate;
