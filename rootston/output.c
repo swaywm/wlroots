@@ -414,7 +414,9 @@ static void output_damage_whole_surface(struct roots_output *output,
 
 void output_damage_whole_view(struct roots_output *output,
 		struct roots_view *view) {
-	output_damage_whole_surface(output, view->wlr_surface, view->x, view->y);
+	if (view->wlr_surface != NULL) {
+		output_damage_whole_surface(output, view->wlr_surface, view->x, view->y);
+	}
 
 	// TODO: subsurfaces, popups, etc
 }
