@@ -237,6 +237,13 @@ static void render_view(struct roots_view *view, struct roots_output *output,
 	}
 }
 
+static void output_damage_whole(struct roots_output *output) {
+	int width, height;
+	wlr_output_effective_resolution(output->wlr_output, &width, &height);
+	pixman_region32_union_rect(&output->damage, &output->damage,
+		0, 0, width, height);
+}
+
 static bool has_standalone_surface(struct roots_view *view) {
 	if (!wl_list_empty(&view->wlr_surface->subsurface_list)) {
 		return false;
@@ -253,8 +260,7 @@ static bool has_standalone_surface(struct roots_view *view) {
 	return true;
 }
 
-static void output_handle_frame(struct wl_listener *listener, void *data) {
-	struct roots_output *output = wl_container_of(listener, output, frame);
+static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
@@ -272,10 +278,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	// TODO: use real wlr_output damage
 	if (wlr_output->needs_swap) {
-		int width, height;
-		wlr_output_effective_resolution(wlr_output, &width, &height);
-		pixman_region32_union_rect(&output->damage, &output->damage,
-			0, 0, width, height);
+		output_damage_whole(output);
 	}
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&output->damage)) {
@@ -384,9 +387,14 @@ damage_finish:
 	pixman_region32_fini(&damage);
 }
 
+static void output_handle_frame(struct wl_listener *listener, void *data) {
+	struct roots_output *output = wl_container_of(listener, output, frame);
+	render_output(output);
+}
+
 static int handle_repaint(void *data) {
 	struct roots_output *output = data;
-	output_handle_frame(&output->frame, output->wlr_output);
+	render_output(output);
 	return 0;
 }
 
@@ -503,6 +511,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 		roots_seat_configure_cursor(seat);
 		roots_seat_configure_xcursor(seat);
 	}
+
+	output_damage_whole(output);
 }
 
 void output_remove_notify(struct wl_listener *listener, void *data) {
