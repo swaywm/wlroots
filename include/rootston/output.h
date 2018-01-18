@@ -16,7 +16,7 @@ struct roots_output {
 
 	struct wl_listener frame;
 	struct timespec last_frame;
-	pixman_region32_t damage;
+	pixman_region32_t damage, previous_damage;
 	struct wl_event_source *repaint_timer;
 };
 

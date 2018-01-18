@@ -50,7 +50,7 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 
 static void render_surface(struct wlr_surface *surface,
 		struct roots_output *output, struct timespec *when,
-		double lx, double ly, float rotation) {
+		pixman_region32_t *damage, double lx, double ly, float rotation) {
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
 	}
@@ -68,8 +68,7 @@ static void render_surface(struct wlr_surface *surface,
 	pixman_region32_init(&surface_damage);
 	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
 		box.width, box.height);
-	pixman_region32_intersect(&surface_damage, &surface_damage,
-		&output->damage);
+	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
 	bool damaged = pixman_region32_not_empty(&surface_damage);
 	if (!damaged) {
 		goto finish_surface_damage;
@@ -145,14 +144,15 @@ render_subsurfaces:;
 		rotate_child_position(&sx, &sy, sw, sh, surface->current->width,
 			surface->current->height, rotation);
 
-		render_surface(subsurface->surface, output, when, lx + sx, ly + sy,
-			rotation);
+		render_surface(subsurface->surface, output, when, damage,
+			lx + sx, ly + sy, rotation);
 	}
 }
 
 static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		struct roots_output *output, struct timespec *when,
-		double base_x, double base_y, float rotation) {
+		pixman_region32_t *damage, double base_x, double base_y,
+		float rotation) {
 	double width = surface->surface->current->width;
 	double height = surface->surface->current->height;
 
@@ -170,18 +170,20 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
 			width, height, rotation);
 
-		render_surface(popup->surface, output, when,
+		render_surface(popup->surface, output, when, damage,
 			base_x + popup_sx, base_y + popup_sy, rotation);
-		render_xdg_v6_popups(popup, output, when,
+		render_xdg_v6_popups(popup, output, when, damage,
 			base_x + popup_sx, base_y + popup_sy, rotation);
 	}
 }
 
 static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 		struct roots_output *output, struct timespec *when,
-		double lx, double ly, float rotation, bool is_child) {
+		pixman_region32_t *damage, double lx, double ly, float rotation,
+		bool is_child) {
 	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-		render_surface(surface->surface, output, when, lx, ly, rotation);
+		render_surface(surface->surface, output, when, damage, lx, ly,
+			rotation);
 
 		double width = surface->surface->current->width;
 		double height = surface->surface->current->height;
@@ -196,40 +198,41 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 			rotate_child_position(&popup_x, &popup_y, popup_width, popup_height,
 				width, height, rotation);
 
-			render_wl_shell_surface(popup, output, when,
+			render_wl_shell_surface(popup, output, when, damage,
 				lx + popup_x, ly + popup_y, rotation, true);
 		}
 	}
 }
 
 static void render_xwayland_children(struct wlr_xwayland_surface *surface,
-		struct roots_output *output, struct timespec *when) {
+		struct roots_output *output, struct timespec *when,
+		pixman_region32_t *damage) {
 	struct wlr_xwayland_surface *child;
 	wl_list_for_each(child, &surface->children, parent_link) {
 		if (child->surface != NULL && child->added) {
-			render_surface(child->surface, output, when,
+			render_surface(child->surface, output, when, damage,
 				child->x, child->y, 0);
 		}
-		render_xwayland_children(child, output, when);
+		render_xwayland_children(child, output, when, damage);
 	}
 }
 
 static void render_view(struct roots_view *view, struct roots_output *output,
-		struct timespec *when) {
+		struct timespec *when, pixman_region32_t *damage) {
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
-		render_surface(view->wlr_surface, output, when, view->x, view->y,
-			view->rotation);
-		render_xdg_v6_popups(view->xdg_surface_v6, output, when,
+		render_surface(view->wlr_surface, output, when, damage,
+			view->x, view->y, view->rotation);
+		render_xdg_v6_popups(view->xdg_surface_v6, output, when, damage,
 			view->x, view->y, view->rotation);
 		break;
 	case ROOTS_WL_SHELL_VIEW:
-		render_wl_shell_surface(view->wl_shell_surface, output, when,
+		render_wl_shell_surface(view->wl_shell_surface, output, when, damage,
 			view->x, view->y, view->rotation, false);
 		break;
 	case ROOTS_XWAYLAND_VIEW:
-		render_surface(view->wlr_surface, output, when, view->x, view->y,
-			view->rotation);
+		render_surface(view->wlr_surface, output, when,  damage,
+			view->x, view->y, view->rotation);
 		break;
 	}
 }
@@ -263,31 +266,36 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_union(&damage, &output->damage, &output->previous_damage);
+
 	// TODO: use real wlr_output damage
 	if (wlr_output->needs_swap) {
 		int width, height;
 		wlr_output_effective_resolution(wlr_output, &width, &height);
-		pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
-			width, height);
+		pixman_region32_union_rect(&output->damage, &output->damage,
+			0, 0, width, height);
 	}
 	// TODO: fullscreen
-	if (!pixman_region32_not_empty(&output->damage) &&
-			!wlr_output->needs_swap) {
+	if (!pixman_region32_not_empty(&output->damage)) {
 		float hz = wlr_output->refresh / 1000.0f;
 		if (hz <= 0) {
 			hz = 60;
 		}
 		wl_event_source_timer_update(output->repaint_timer, 1000.0f / hz);
-		goto clear_damage;
+		pixman_region32_clear(&output->damage);
+		goto damage_finish;
 	}
+
+	wlr_log(L_DEBUG, "render");
 
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 	glEnable(GL_SCISSOR_TEST);
 
 	int nrects;
-	pixman_box32_t *rects =
-		pixman_region32_rectangles(&output->damage, &nrects);
+	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		glScissor(rects[i].x1, wlr_output->height - rects[i].y2,
 			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
@@ -317,13 +325,14 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			render_view(view, output, &now);
+			render_view(view, output, &now, &damage);
 
 			// During normal rendering the xwayland window tree isn't traversed
 			// because all windows are rendered. Here we only want to render
 			// the fullscreen window's children so we have to traverse the tree.
 			if (view->type == ROOTS_XWAYLAND_VIEW) {
-				render_xwayland_children(view->xwayland_surface, output, &now);
+				render_xwayland_children(view->xwayland_surface, output, &now,
+					&damage);
 			}
 		}
 
@@ -334,7 +343,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
-		render_view(view, output, &now);
+		render_view(view, output, &now, &damage);
 	}
 
 	struct wlr_drag_icon *drag_icon = NULL;
@@ -350,14 +359,14 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 			if (drag_icon->is_pointer) {
 				icon_x = cursor->x + drag_icon->sx;
 				icon_y = cursor->y + drag_icon->sy;
-				render_surface(icon, output, &now, icon_x, icon_y, 0);
+				render_surface(icon, output, &now, &damage, icon_x, icon_y, 0);
 			} else {
 				struct wlr_touch_point *point =
 					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
 				if (point) {
 					icon_x = seat->touch_x + drag_icon->sx;
 					icon_y = seat->touch_y + drag_icon->sy;
-					render_surface(icon, output, &now, icon_x, icon_y, 0);
+					render_surface(icon, output, &now, &damage, icon_x, icon_y, 0);
 				}
 			}
 		}
@@ -367,10 +376,12 @@ renderer_end:
 	glDisable(GL_SCISSOR_TEST);
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);
-
-clear_damage:
+	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
+
+damage_finish:
+	pixman_region32_fini(&damage);
 }
 
 static int handle_repaint(void *data) {
@@ -392,9 +403,8 @@ static void output_damage_whole_surface(struct roots_output *output,
 		return;
 	}
 
-
-	pixman_region32_union_rect(&output->damage, &output->damage, box.x, box.y,
-		box.width, box.height);
+	pixman_region32_union_rect(&output->damage, &output->damage,
+		box.x, box.y, box.width, box.height);
 }
 
 void output_damage_whole_view(struct roots_output *output,
@@ -462,6 +472,7 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	output->wlr_output = wlr_output;
 	wl_list_insert(&desktop->outputs, &output->link);
 	pixman_region32_init(&output->damage);
+	pixman_region32_init(&output->previous_damage);
 	struct wl_event_loop *ev =
 		wl_display_get_event_loop(desktop->server->wl_display);
 	output->repaint_timer = wl_event_loop_add_timer(ev, handle_repaint, output);
@@ -518,6 +529,7 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 
 	wl_event_source_remove(output->repaint_timer);
 	pixman_region32_fini(&output->damage);
+	pixman_region32_fini(&output->previous_damage);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
 	free(output);
