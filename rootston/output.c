@@ -273,11 +273,11 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&output->damage) &&
 			!wlr_output->needs_swap) {
-		int refresh = wlr_output->refresh;
-		if (refresh <= 0) {
-			refresh = 60;
+		float hz = wlr_output->refresh / 1000.0f;
+		if (hz <= 0) {
+			hz = 60;
 		}
-		wl_event_source_timer_update(output->repaint_timer, 1000.0f / refresh);
+		wl_event_source_timer_update(output->repaint_timer, 1000.0f / hz);
 		goto clear_damage;
 	}
 
