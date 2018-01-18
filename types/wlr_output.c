@@ -332,19 +332,22 @@ void wlr_output_make_current(struct wlr_output *output) {
 	output->impl->make_current(output);
 }
 
-static void output_fullscreen_surface_render(struct wlr_output *output,
-		struct wlr_surface *surface, const struct timespec *when) {
+static void output_fullscreen_surface_get_box(struct wlr_output *output,
+		struct wlr_surface *surface, struct wlr_box *box) {
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
 	int x = (width - surface->current->width) / 2;
 	int y = (height - surface->current->height) / 2;
 
-	int render_x = x * output->scale;
-	int render_y = y * output->scale;
-	int render_width = surface->current->width * output->scale;
-	int render_height = surface->current->height * output->scale;
+	box->x = x * output->scale;
+	box->y = y * output->scale;
+	box->width = surface->current->width * output->scale;
+	box->height = surface->current->height * output->scale;
+}
 
+static void output_fullscreen_surface_render(struct wlr_output *output,
+		struct wlr_surface *surface, const struct timespec *when) {
 	glViewport(0, 0, output->width, output->height);
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -353,11 +356,14 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 		return;
 	}
 
+	struct wlr_box box;
+	output_fullscreen_surface_get_box(output, surface, &box);
+
 	float translate[16];
-	wlr_matrix_translate(&translate, render_x, render_y, 0);
+	wlr_matrix_translate(&translate, box.x, box.y, 0);
 
 	float scale[16];
-	wlr_matrix_scale(&scale, render_width, render_height, 1);
+	wlr_matrix_scale(&scale, box.width, box.height, 1);
 
 	float matrix[16];
 	wlr_matrix_mul(&translate, &scale, &matrix);
@@ -401,14 +407,14 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	struct wlr_box cursor_box;
-	output_cursor_get_box(cursor, &cursor_box);
+	struct wlr_box box;
+	output_cursor_get_box(cursor, &box);
 
 	float translate[16];
-	wlr_matrix_translate(&translate, cursor_box.x, cursor_box.y, 0);
+	wlr_matrix_translate(&translate, box.x, box.y, 0);
 
 	float scale[16];
-	wlr_matrix_scale(&scale, cursor_box.width, cursor_box.height, 1);
+	wlr_matrix_scale(&scale, box.width, box.height, 1);
 
 	float matrix[16];
 	wlr_matrix_mul(&translate, &scale, &matrix);
@@ -477,8 +483,17 @@ static void output_fullscreen_surface_handle_commit(
 		struct wl_listener *listener, void *data) {
 	struct wlr_output *output = wl_container_of(listener, output,
 		fullscreen_surface_commit);
-	// TODO: use surface damage
-	output_damage_whole(output);
+	struct wlr_surface *surface = output->fullscreen_surface;
+
+	struct wlr_box box;
+	output_fullscreen_surface_get_box(output, surface, &box);
+
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	pixman_region32_translate(&damage, box.x, box.y);
+	pixman_region32_union(&output->damage, &output->damage, &damage);
+	pixman_region32_fini(&damage);
 }
 
 static void output_fullscreen_surface_handle_destroy(

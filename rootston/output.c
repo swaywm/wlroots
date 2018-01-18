@@ -420,10 +420,34 @@ void output_damage_whole_view(struct roots_output *output,
 	// TODO: subsurfaces, popups, etc
 }
 
+static void output_damage_from_surface(struct roots_output *output,
+		struct wlr_surface *surface, double lx, double ly) {
+	if (!wlr_surface_has_buffer(surface)) {
+		return;
+	}
+
+	struct wlr_box box;
+	bool intersects = surface_intersect_output(surface,
+		output->desktop->layout, output->wlr_output, lx, ly, &box);
+	if (!intersects) {
+		return;
+	}
+
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	pixman_region32_translate(&damage, box.x, box.y);
+	pixman_region32_union(&output->damage, &output->damage, &damage);
+	pixman_region32_fini(&damage);
+}
+
 void output_damage_from_view(struct roots_output *output,
 		struct roots_view *view) {
-	// TODO: use surface damage
-	output_damage_whole_view(output, view);
+	if (view->wlr_surface != NULL) {
+		output_damage_from_surface(output, view->wlr_surface, view->x, view->y);
+	}
+
+	// TODO: subsurfaces, popups, etc
 }
 
 static void set_mode(struct wlr_output *output,

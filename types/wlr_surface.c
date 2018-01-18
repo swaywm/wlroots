@@ -351,7 +351,7 @@ static void wlr_surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void wlr_surface_flush_damage(struct wlr_surface *surface,
+static void wlr_surface_apply_damage(struct wlr_surface *surface,
 		bool reupload_buffer) {
 	if (!surface->current->buffer) {
 		return;
@@ -391,9 +391,6 @@ static void wlr_surface_flush_damage(struct wlr_surface *surface,
 	}
 
 release:
-	pixman_region32_clear(&surface->current->surface_damage);
-	pixman_region32_clear(&surface->current->buffer_damage);
-
 	wlr_surface_state_release_buffer(surface->current);
 }
 
@@ -413,7 +410,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
 		oldh != surface->current->buffer_height;
-	wlr_surface_flush_damage(surface, reupload_buffer);
+	wlr_surface_apply_damage(surface, reupload_buffer);
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
@@ -434,6 +431,9 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 
 	// TODO: add the invalid bitfield to this callback
 	wl_signal_emit(&surface->events.commit, surface);
+
+	pixman_region32_clear(&surface->current->surface_damage);
+	pixman_region32_clear(&surface->current->buffer_damage);
 }
 
 static bool wlr_subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
