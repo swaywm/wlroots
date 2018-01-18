@@ -72,7 +72,7 @@ static void render_surface(struct wlr_surface *surface,
 		&output->damage);
 	bool damaged = pixman_region32_not_empty(&surface_damage);
 	if (!damaged) {
-		goto render_subsurfaces;
+		goto finish_surface_damage;
 	}
 
 	float transform[16];
@@ -131,9 +131,10 @@ static void render_surface(struct wlr_surface *surface,
 
 	wlr_surface_send_frame_done(surface, when);
 
-render_subsurfaces:
+finish_surface_damage:
 	pixman_region32_fini(&surface_damage);
 
+render_subsurfaces:;
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
 		struct wlr_surface_state *state = subsurface->surface->current;
