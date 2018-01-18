@@ -255,6 +255,7 @@ bool view_center(struct roots_view *view) {
 }
 
 void view_destroy(struct roots_view *view) {
+	view_damage(view);
 	wl_signal_emit(&view->events.destroy, view);
 
 	if (view->fullscreen_output) {

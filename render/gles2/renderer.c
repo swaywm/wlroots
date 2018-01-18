@@ -108,11 +108,9 @@ static void init_globals() {
 static void wlr_gles2_begin(struct wlr_renderer *_renderer,
 		struct wlr_output *output) {
 	// TODO: let users customize the clear color?
-	GL_CALL(glClearColor(0.25f, 0.25f, 0.25f, 1));
-	GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-	int32_t width = output->width;
-	int32_t height = output->height;
-	GL_CALL(glViewport(0, 0, width, height));
+	//GL_CALL(glClearColor(0.25f, 0.25f, 0.25f, 1));
+	//GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+	GL_CALL(glViewport(0, 0, output->width, output->height));
 
 	// enable transparency
 	GL_CALL(glEnable(GL_BLEND));

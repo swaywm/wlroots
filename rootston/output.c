@@ -41,70 +41,98 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	box->width = surface->current->width * wlr_output->scale;
 	box->height = surface->current->height * wlr_output->scale;
 
-	struct wlr_box render_box = {
+	struct wlr_box layout_box = {
 		.x = lx, .y = ly,
-		.width = box->width, .height = box->height,
+		.width = surface->current->width, .height = surface->current->height,
 	};
-	return wlr_output_layout_intersects(output_layout, wlr_output, &render_box);
+	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
 static void render_surface(struct wlr_surface *surface,
-		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double lx, double ly, float rotation) {
+		struct roots_output *output, struct timespec *when,
+		double lx, double ly, float rotation) {
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
 	}
 
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface, desktop->layout,
-		wlr_output, lx, ly, &box);
-	if (intersects) {
-		float matrix[16];
+	bool intersects = surface_intersect_output(surface, output->desktop->layout,
+		output->wlr_output, lx, ly, &box);
+	if (!intersects) {
+		goto render_subsurfaces;
+	}
 
+	// TODO: do not render regions of the surface that aren't damaged
+	// TODO: output scale, output transform support
+	pixman_region32_t surface_damage;
+	pixman_region32_init(&surface_damage);
+	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
+		box.width, box.height);
+	pixman_region32_intersect(&surface_damage, &surface_damage,
+		&output->damage);
+	bool damaged = pixman_region32_not_empty(&surface_damage);
+	if (!damaged) {
+		goto render_subsurfaces;
+	}
+
+	float transform[16];
+	wlr_matrix_translate(&transform, box.x, box.y, 0);
+
+	if (rotation != 0) {
 		float translate_center[16];
-		wlr_matrix_translate(&translate_center,
-			box.x + box.width / 2, box.y + box.height / 2, 0);
+		wlr_matrix_translate(&translate_center, box.width/2, box.height/2, 0);
 
 		float rotate[16];
 		wlr_matrix_rotate(&rotate, rotation);
 
 		float translate_origin[16];
-		wlr_matrix_translate(&translate_origin, -box.width / 2,
-			-box.height / 2, 0);
+		wlr_matrix_translate(&translate_origin, -box.width/2, -box.height/2, 0);
 
-		float scale[16];
-		wlr_matrix_scale(&scale, box.width, box.height, 1);
-
-		float transform[16];
-		wlr_matrix_mul(&translate_center, &rotate, &transform);
+		wlr_matrix_mul(&transform, &translate_center, &transform);
+		wlr_matrix_mul(&transform, &rotate, &transform);
 		wlr_matrix_mul(&transform, &translate_origin, &transform);
-		wlr_matrix_mul(&transform, &scale, &transform);
-
-		if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-			float surface_translate_center[16];
-			wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
-
-			float surface_transform[16];
-			wlr_matrix_transform(surface_transform,
-				wlr_output_transform_invert(surface->current->transform));
-
-			float surface_translate_origin[16];
-			wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
-
-			wlr_matrix_mul(&transform, &surface_translate_center,
-				&transform);
-			wlr_matrix_mul(&transform, &surface_transform, &transform);
-			wlr_matrix_mul(&transform, &surface_translate_origin,
-				&transform);
-		}
-
-		wlr_matrix_mul(&wlr_output->transform_matrix, &transform, &matrix);
-
-		wlr_render_with_matrix(desktop->server->renderer, surface->texture,
-			&matrix);
-
-		wlr_surface_send_frame_done(surface, when);
 	}
+
+	float scale[16];
+	wlr_matrix_scale(&scale, box.width, box.height, 1);
+
+	wlr_matrix_mul(&transform, &scale, &transform);
+
+	if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		float surface_translate_center[16];
+		wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
+
+		float surface_transform[16];
+		wlr_matrix_transform(surface_transform,
+			wlr_output_transform_invert(surface->current->transform));
+
+		float surface_translate_origin[16];
+		wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
+
+		wlr_matrix_mul(&transform, &surface_translate_center,
+			&transform);
+		wlr_matrix_mul(&transform, &surface_transform, &transform);
+		wlr_matrix_mul(&transform, &surface_translate_origin,
+			&transform);
+	}
+
+	float matrix[16];
+	wlr_matrix_mul(&output->wlr_output->transform_matrix, &transform, &matrix);
+
+	int nrects;
+	pixman_box32_t *rects =
+		pixman_region32_rectangles(&surface_damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		glScissor(rects[i].x1, output->wlr_output->height - rects[i].y2,
+			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		wlr_render_with_matrix(output->desktop->server->renderer,
+			surface->texture, &matrix);
+	}
+
+	wlr_surface_send_frame_done(surface, when);
+
+render_subsurfaces:
+	pixman_region32_fini(&surface_damage);
 
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
@@ -116,16 +144,14 @@ static void render_surface(struct wlr_surface *surface,
 		rotate_child_position(&sx, &sy, sw, sh, surface->current->width,
 			surface->current->height, rotation);
 
-		render_surface(subsurface->surface, desktop, wlr_output, when,
-			lx + sx,
-			ly + sy,
+		render_surface(subsurface->surface, output, when, lx + sx, ly + sy,
 			rotation);
 	}
 }
 
 static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
-		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double base_x, double base_y, float rotation) {
+		struct roots_output *output, struct timespec *when,
+		double base_x, double base_y, float rotation) {
 	double width = surface->surface->current->width;
 	double height = surface->surface->current->height;
 
@@ -143,20 +169,18 @@ static void render_xdg_v6_popups(struct wlr_xdg_surface_v6 *surface,
 		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
 			width, height, rotation);
 
-		render_surface(popup->surface, desktop, wlr_output, when,
+		render_surface(popup->surface, output, when,
 			base_x + popup_sx, base_y + popup_sy, rotation);
-		render_xdg_v6_popups(popup, desktop, wlr_output, when,
+		render_xdg_v6_popups(popup, output, when,
 			base_x + popup_sx, base_y + popup_sy, rotation);
 	}
 }
 
 static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
-		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when, double lx, double ly, float rotation,
-		bool is_child) {
+		struct roots_output *output, struct timespec *when,
+		double lx, double ly, float rotation, bool is_child) {
 	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-		render_surface(surface->surface, desktop, wlr_output, when,
-			lx, ly, rotation);
+		render_surface(surface->surface, output, when, lx, ly, rotation);
 
 		double width = surface->surface->current->width;
 		double height = surface->surface->current->height;
@@ -171,41 +195,40 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 			rotate_child_position(&popup_x, &popup_y, popup_width, popup_height,
 				width, height, rotation);
 
-			render_wl_shell_surface(popup, desktop, wlr_output, when,
+			render_wl_shell_surface(popup, output, when,
 				lx + popup_x, ly + popup_y, rotation, true);
 		}
 	}
 }
 
 static void render_xwayland_children(struct wlr_xwayland_surface *surface,
-		struct roots_desktop *desktop, struct wlr_output *wlr_output,
-		struct timespec *when) {
+		struct roots_output *output, struct timespec *when) {
 	struct wlr_xwayland_surface *child;
 	wl_list_for_each(child, &surface->children, parent_link) {
 		if (child->surface != NULL && child->added) {
-			render_surface(child->surface, desktop, wlr_output, when,
+			render_surface(child->surface, output, when,
 				child->x, child->y, 0);
 		}
-		render_xwayland_children(child, desktop, wlr_output, when);
+		render_xwayland_children(child, output, when);
 	}
 }
 
-static void render_view(struct roots_view *view, struct roots_desktop *desktop,
-		struct wlr_output *wlr_output, struct timespec *when) {
+static void render_view(struct roots_view *view, struct roots_output *output,
+		struct timespec *when) {
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
-		render_surface(view->wlr_surface, desktop, wlr_output, when,
+		render_surface(view->wlr_surface, output, when, view->x, view->y,
+			view->rotation);
+		render_xdg_v6_popups(view->xdg_surface_v6, output, when,
 			view->x, view->y, view->rotation);
-		render_xdg_v6_popups(view->xdg_surface_v6, desktop, wlr_output,
-			when, view->x, view->y, view->rotation);
 		break;
 	case ROOTS_WL_SHELL_VIEW:
-		render_wl_shell_surface(view->wl_shell_surface, desktop, wlr_output,
-			when, view->x, view->y, view->rotation, false);
+		render_wl_shell_surface(view->wl_shell_surface, output, when,
+			view->x, view->y, view->rotation, false);
 		break;
 	case ROOTS_XWAYLAND_VIEW:
-		render_surface(view->wlr_surface, desktop, wlr_output, when,
-			view->x, view->y, view->rotation);
+		render_surface(view->wlr_surface, output, when, view->x, view->y,
+			view->rotation);
 		break;
 	}
 }
@@ -239,6 +262,13 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	// TODO: use real wlr_output damage
+	if (wlr_output->needs_swap) {
+		int width, height;
+		wlr_output_effective_resolution(wlr_output, &width, &height);
+		pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
+			width, height);
+	}
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&output->damage) &&
 			!wlr_output->needs_swap) {
@@ -252,6 +282,17 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
+	glEnable(GL_SCISSOR_TEST);
+
+	int nrects;
+	pixman_box32_t *rects =
+		pixman_region32_rectangles(&output->damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		glScissor(rects[i].x1, wlr_output->height - rects[i].y2,
+			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		glClearColor(0.25f, 0.25f, 0.25f, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
@@ -275,14 +316,13 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			render_view(view, desktop, wlr_output, &now);
+			render_view(view, output, &now);
 
 			// During normal rendering the xwayland window tree isn't traversed
 			// because all windows are rendered. Here we only want to render
 			// the fullscreen window's children so we have to traverse the tree.
 			if (view->type == ROOTS_XWAYLAND_VIEW) {
-				render_xwayland_children(view->xwayland_surface, desktop,
-					wlr_output, &now);
+				render_xwayland_children(view->xwayland_surface, output, &now);
 			}
 		}
 
@@ -293,7 +333,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
-		render_view(view, desktop, wlr_output, &now);
+		render_view(view, output, &now);
 	}
 
 	struct wlr_drag_icon *drag_icon = NULL;
@@ -309,20 +349,21 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 			if (drag_icon->is_pointer) {
 				icon_x = cursor->x + drag_icon->sx;
 				icon_y = cursor->y + drag_icon->sy;
-				render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+				render_surface(icon, output, &now, icon_x, icon_y, 0);
 			} else {
 				struct wlr_touch_point *point =
 					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
 				if (point) {
 					icon_x = seat->touch_x + drag_icon->sx;
 					icon_y = seat->touch_y + drag_icon->sy;
-					render_surface(icon, desktop, wlr_output, &now, icon_x, icon_y, 0);
+					render_surface(icon, output, &now, icon_x, icon_y, 0);
 				}
 			}
 		}
 	}
 
 renderer_end:
+	glDisable(GL_SCISSOR_TEST);
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output);
 
