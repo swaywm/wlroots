@@ -278,13 +278,12 @@ static void render_output(struct roots_output *output) {
 	pixman_region32_union(&damage, &output->damage, &output->previous_damage);
 
 	// TODO: fullscreen
-	if (!pixman_region32_not_empty(&output->damage)) {
+	if (!pixman_region32_not_empty(&damage)) {
 		float hz = wlr_output->refresh / 1000.0f;
 		if (hz <= 0) {
 			hz = 60;
 		}
 		wl_event_source_timer_update(output->repaint_timer, 1000.0f / hz);
-		pixman_region32_clear(&output->damage);
 		goto damage_finish;
 	}
 
