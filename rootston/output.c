@@ -62,7 +62,6 @@ static void render_surface(struct wlr_surface *surface,
 		goto render_subsurfaces;
 	}
 
-	// TODO: do not render regions of the surface that aren't damaged
 	// TODO: output scale, output transform support
 	pixman_region32_t surface_damage;
 	pixman_region32_init(&surface_damage);
@@ -71,7 +70,7 @@ static void render_surface(struct wlr_surface *surface,
 	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
 	bool damaged = pixman_region32_not_empty(&surface_damage);
 	if (!damaged) {
-		goto finish_surface_damage;
+		goto surface_damage_finish;
 	}
 
 	float transform[16];
@@ -130,7 +129,7 @@ static void render_surface(struct wlr_surface *surface,
 
 	wlr_surface_send_frame_done(surface, when);
 
-finish_surface_damage:
+surface_damage_finish:
 	pixman_region32_fini(&surface_damage);
 
 render_subsurfaces:;
@@ -272,14 +271,12 @@ static void render_output(struct roots_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	pixman_region32_union(&output->damage, &output->damage, &wlr_output->damage);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union(&damage, &output->damage, &output->previous_damage);
 
-	// TODO: use real wlr_output damage
-	if (wlr_output->needs_swap) {
-		output_damage_whole(output);
-	}
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&output->damage)) {
 		float hz = wlr_output->refresh / 1000.0f;

@@ -2,6 +2,7 @@
 #define WLR_TYPES_WLR_OUTPUT_H
 
 #include <stdbool.h>
+#include <pixman.h>
 #include <wayland-util.h>
 #include <wayland-server.h>
 
@@ -51,8 +52,8 @@ struct wlr_output {
 	float scale;
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
-	bool needs_swap;
 
+	pixman_region32_t damage;
 	float transform_matrix[16];
 
 	// Note: some backends may have zero modes

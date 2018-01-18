@@ -279,6 +279,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
+	pixman_region32_init(&output->damage);
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
@@ -292,6 +293,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	wlr_output_set_fullscreen_surface(output, NULL);
+	pixman_region32_fini(&output->damage);
 
 	wl_signal_emit(&output->events.destroy, output);
 
@@ -440,7 +442,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 	}
 
 	output->impl->swap_buffers(output);
-	output->needs_swap = false;
+	pixman_region32_clear(&output->damage);
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,
@@ -457,12 +459,17 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
+static void output_damage_whole(struct wlr_output *output) {
+	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
+		output->width, output->height);
+}
+
 static void output_fullscreen_surface_reset(struct wlr_output *output) {
 	if (output->fullscreen_surface != NULL) {
 		wl_list_remove(&output->fullscreen_surface_commit.link);
 		wl_list_remove(&output->fullscreen_surface_destroy.link);
 		output->fullscreen_surface = NULL;
-		output->needs_swap = true;
+		output_damage_whole(output);
 	}
 }
 
@@ -470,7 +477,8 @@ static void output_fullscreen_surface_handle_commit(
 		struct wl_listener *listener, void *data) {
 	struct wlr_output *output = wl_container_of(listener, output,
 		fullscreen_surface_commit);
-	output->needs_swap = true;
+	// TODO: use surface damage
+	output_damage_whole(output);
 }
 
 static void output_fullscreen_surface_handle_destroy(
@@ -491,7 +499,7 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	output_fullscreen_surface_reset(output);
 
 	output->fullscreen_surface = surface;
-	output->needs_swap = true;
+	output_damage_whole(output);
 
 	if (surface == NULL) {
 		return;
@@ -507,9 +515,16 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 }
 
 
+static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
+	struct wlr_box box;
+	output_cursor_get_box(cursor, &box);
+	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
+		box.x, box.y, box.width, box.height);
+}
+
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	if (cursor->output->hardware_cursor != cursor) {
-		cursor->output->needs_swap = true;
+		output_cursor_damage_whole(cursor);
 	}
 	if (cursor->surface != NULL) {
 		wl_list_remove(&cursor->surface_commit.link);
@@ -543,7 +558,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	}
 
 	wlr_log(L_DEBUG, "Falling back to software cursor");
-	cursor->output->needs_swap = true;
+	output_cursor_damage_whole(cursor);
 
 	cursor->enabled = pixels != NULL;
 	if (!cursor->enabled) {
@@ -602,7 +617,7 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	cursor->height = cursor->surface->current->height * cursor->output->scale;
 
 	if (cursor->output->hardware_cursor != cursor) {
-		cursor->output->needs_swap = true;
+		output_cursor_damage_whole(cursor);
 	} else {
 		// TODO: upload pixels
 
@@ -677,6 +692,14 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		double x, double y) {
+	if (cursor->x == x && cursor->y == y) {
+		return true;
+	}
+
+	if (cursor->output->hardware_cursor != cursor) {
+		output_cursor_damage_whole(cursor);
+	}
+
 	x *= cursor->output->scale;
 	y *= cursor->output->scale;
 	cursor->x = x;
@@ -684,7 +707,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	output_cursor_update_visible(cursor);
 
 	if (cursor->output->hardware_cursor != cursor) {
-		cursor->output->needs_swap = true;
+		output_cursor_damage_whole(cursor);
 		return true;
 	}
 
