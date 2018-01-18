@@ -16,15 +16,7 @@
 #include <wlr/types/wlr_idle.h>
 #include "rootston/view.h"
 #include "rootston/config.h"
-
-struct roots_output {
-	struct roots_desktop *desktop;
-	struct wlr_output *wlr_output;
-	struct wl_listener frame;
-	struct timespec last_frame;
-	struct wl_list link; // roots_desktop:outputs
-	struct roots_view *fullscreen_view;
-};
+#include "rootston/output.h"
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
@@ -64,19 +56,18 @@ struct roots_desktop {
 struct roots_server;
 
 struct roots_desktop *desktop_create(struct roots_server *server,
-		struct roots_config *config);
+	struct roots_config *config);
 void desktop_destroy(struct roots_desktop *desktop);
 struct roots_output *desktop_output_from_wlr_output(
 	struct roots_desktop *desktop, struct wlr_output *output);
 struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	double ly, struct wlr_surface **surface, double *sx, double *sy);
+void desktop_damage_surface(struct roots_desktop *desktop,
+	struct wlr_surface *surface, double lx, double ly);
 
 void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
-
-void output_add_notify(struct wl_listener *listener, void *data);
-void output_remove_notify(struct wl_listener *listener, void *data);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);

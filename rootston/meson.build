@@ -15,5 +15,5 @@ if get_option('enable_xwayland')
 	sources += ['xwayland.c']
 endif
 executable(
-	'rootston', sources, dependencies: [wlroots, wlr_protos]
+	'rootston', sources, dependencies: [wlroots, wlr_protos, pixman]
 )

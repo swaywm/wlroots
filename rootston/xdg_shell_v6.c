@@ -217,6 +217,8 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 			roots_surface->pending_move_resize_configure_serial = 0;
 		}
 	}
+
+	desktop_damage_surface(view->desktop, view->wlr_surface, view->x, view->y);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

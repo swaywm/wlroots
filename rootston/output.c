@@ -10,7 +10,7 @@
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
-#include "rootston/desktop.h"
+#include "rootston/output.h"
 #include "rootston/config.h"
 
 /**
@@ -31,6 +31,23 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 	}
 }
 
+static bool surface_intersect_output(struct wlr_surface *surface,
+		struct wlr_output_layout *output_layout, struct wlr_output *wlr_output,
+		double lx, double ly, struct wlr_box *box) {
+	double ox = lx, oy = ly;
+	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
+	box->x = ox * wlr_output->scale;
+	box->y = oy * wlr_output->scale;
+	box->width = surface->current->width * wlr_output->scale;
+	box->height = surface->current->height * wlr_output->scale;
+
+	struct wlr_box render_box = {
+		.x = lx, .y = ly,
+		.width = box->width, .height = box->height,
+	};
+	return wlr_output_layout_intersects(output_layout, wlr_output, &render_box);
+}
+
 static void render_surface(struct wlr_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when, double lx, double ly, float rotation) {
@@ -38,35 +55,25 @@ static void render_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	int width = surface->current->width;
-	int height = surface->current->height;
-	int render_width = width * wlr_output->scale;
-	int render_height = height * wlr_output->scale;
-	double ox = lx, oy = ly;
-	wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
-	ox *= wlr_output->scale;
-	oy *= wlr_output->scale;
-
-	struct wlr_box render_box = {
-		.x = lx, .y = ly,
-		.width = render_width, .height = render_height,
-	};
-	if (wlr_output_layout_intersects(desktop->layout, wlr_output, &render_box)) {
+	struct wlr_box box;
+	bool intersects = surface_intersect_output(surface, desktop->layout,
+		wlr_output, lx, ly, &box);
+	if (intersects) {
 		float matrix[16];
 
 		float translate_center[16];
 		wlr_matrix_translate(&translate_center,
-			(int)ox + render_width / 2, (int)oy + render_height / 2, 0);
+			box.x + box.width / 2, box.y + box.height / 2, 0);
 
 		float rotate[16];
 		wlr_matrix_rotate(&rotate, rotation);
 
 		float translate_origin[16];
-		wlr_matrix_translate(&translate_origin, -render_width / 2,
-			-render_height / 2, 0);
+		wlr_matrix_translate(&translate_origin, -box.width / 2,
+			-box.height / 2, 0);
 
 		float scale[16];
-		wlr_matrix_scale(&scale, render_width, render_height, 1);
+		wlr_matrix_scale(&scale, box.width, box.height, 1);
 
 		float transform[16];
 		wlr_matrix_mul(&translate_center, &rotate, &transform);
@@ -106,7 +113,8 @@ static void render_surface(struct wlr_surface *surface,
 		double sy = state->subsurface_position.y;
 		double sw = state->buffer_width / state->scale;
 		double sh = state->buffer_height / state->scale;
-		rotate_child_position(&sx, &sy, sw, sh, width, height, rotation);
+		rotate_child_position(&sx, &sy, sw, sh, surface->current->width,
+			surface->current->height, rotation);
 
 		render_surface(subsurface->surface, desktop, wlr_output, when,
 			lx + sx,
@@ -219,8 +227,8 @@ static bool has_standalone_surface(struct roots_view *view) {
 }
 
 static void output_frame_notify(struct wl_listener *listener, void *data) {
-	struct wlr_output *wlr_output = data;
 	struct roots_output *output = wl_container_of(listener, output, frame);
+	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
 
@@ -230,6 +238,12 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	// TODO: fullscreen
+	if (!pixman_region32_not_empty(&output->damage) &&
+			!wlr_output->needs_swap) {
+		goto swap_buffers;
+	}
 
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
@@ -266,10 +280,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 					wlr_output, &now);
 			}
 		}
-		wlr_renderer_end(server->renderer);
-		wlr_output_swap_buffers(wlr_output);
-		output->last_frame = desktop->last_frame = now;
-		return;
+
+		goto renderer_end;
 	} else {
 		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
@@ -305,10 +317,31 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		}
 	}
 
+renderer_end:
 	wlr_renderer_end(server->renderer);
+swap_buffers:
 	wlr_output_swap_buffers(wlr_output);
 
+	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
+}
+
+void output_damage_surface(struct roots_output *output,
+		struct wlr_surface *surface, double lx, double ly) {
+	if (!wlr_surface_has_buffer(surface)) {
+		return;
+	}
+
+	struct wlr_box box;
+	bool intersects = surface_intersect_output(surface,
+		output->desktop->layout, output->wlr_output, lx, ly, &box);
+	if (!intersects) {
+		return;
+	}
+
+	// TODO: use surface damage
+	pixman_region32_union_rect(&output->damage, &output->damage, box.x, box.y,
+		box.width, box.height);
 }
 
 static void set_mode(struct wlr_output *output,
@@ -361,9 +394,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);
 	output->desktop = desktop;
 	output->wlr_output = wlr_output;
+	wl_list_insert(&desktop->outputs, &output->link);
+	pixman_region32_init(&output->damage);
+
 	output->frame.notify = output_frame_notify;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
-	wl_list_insert(&desktop->outputs, &output->link);
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
@@ -412,6 +447,7 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
 
+	pixman_region32_fini(&output->damage);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
 	free(output);

@@ -513,12 +513,20 @@ void desktop_destroy(struct roots_desktop *desktop) {
 }
 
 struct roots_output *desktop_output_from_wlr_output(
-		struct roots_desktop *desktop, struct wlr_output *output) {
-	struct roots_output *roots_output;
-	wl_list_for_each(roots_output, &desktop->outputs, link) {
-		if (roots_output->wlr_output == output) {
-			return roots_output;
+		struct roots_desktop *desktop, struct wlr_output *wlr_output) {
+	struct roots_output *output;
+	wl_list_for_each(output, &desktop->outputs, link) {
+		if (output->wlr_output == wlr_output) {
+			return output;
 		}
 	}
 	return NULL;
+}
+
+void desktop_damage_surface(struct roots_desktop *desktop,
+		struct wlr_surface *surface, double lx, double ly) {
+	struct roots_output *output;
+	wl_list_for_each(output, &desktop->outputs, link) {
+		output_damage_surface(output, surface, lx, ly);
+	}
 }
