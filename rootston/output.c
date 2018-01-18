@@ -226,7 +226,7 @@ static bool has_standalone_surface(struct roots_view *view) {
 	return true;
 }
 
-static void output_frame_notify(struct wl_listener *listener, void *data) {
+static void output_handle_frame(struct wl_listener *listener, void *data) {
 	struct roots_output *output = wl_container_of(listener, output, frame);
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
@@ -242,7 +242,12 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&output->damage) &&
 			!wlr_output->needs_swap) {
-		goto swap_buffers;
+		int refresh = wlr_output->refresh;
+		if (refresh <= 0) {
+			refresh = 60;
+		}
+		wl_event_source_timer_update(output->repaint_timer, 1000.0f / refresh);
+		goto clear_damage;
 	}
 
 	wlr_output_make_current(wlr_output);
@@ -319,11 +324,17 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 renderer_end:
 	wlr_renderer_end(server->renderer);
-swap_buffers:
 	wlr_output_swap_buffers(wlr_output);
 
+clear_damage:
 	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
+}
+
+static int handle_repaint(void *data) {
+	struct roots_output *output = data;
+	output_handle_frame(&output->frame, output->wlr_output);
+	return 0;
 }
 
 void output_damage_surface(struct roots_output *output,
@@ -396,8 +407,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	output->wlr_output = wlr_output;
 	wl_list_insert(&desktop->outputs, &output->link);
 	pixman_region32_init(&output->damage);
+	struct wl_event_loop *ev =
+		wl_display_get_event_loop(desktop->server->wl_display);
+	output->repaint_timer = wl_event_loop_add_timer(ev, handle_repaint, output);
 
-	output->frame.notify = output_frame_notify;
+	output->frame.notify = output_handle_frame;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
 
 	struct roots_output_config *output_config =
@@ -447,6 +461,7 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
 
+	wl_event_source_remove(output->repaint_timer);
 	pixman_region32_fini(&output->damage);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);

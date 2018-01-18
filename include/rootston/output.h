@@ -10,11 +10,14 @@ struct roots_desktop;
 struct roots_output {
 	struct roots_desktop *desktop;
 	struct wlr_output *wlr_output;
+	struct wl_list link; // roots_desktop:outputs
+
+	struct roots_view *fullscreen_view;
+
 	struct wl_listener frame;
 	struct timespec last_frame;
-	struct wl_list link; // roots_desktop:outputs
-	struct roots_view *fullscreen_view;
 	pixman_region32_t damage;
+	struct wl_event_source *repaint_timer;
 };
 
 void output_add_notify(struct wl_listener *listener, void *data);
