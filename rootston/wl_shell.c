@@ -90,17 +90,20 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 	int width = wlr_surface->current->width;
 	int height = wlr_surface->current->height;
-
 	if (view->pending_move_resize.update_x) {
-		view->x = view->pending_move_resize.x +
+		double x = view->pending_move_resize.x +
 			view->pending_move_resize.width - width;
+		view_update_position(view, x, view->y);
 		view->pending_move_resize.update_x = false;
 	}
 	if (view->pending_move_resize.update_y) {
-		view->y = view->pending_move_resize.y +
+		double y = view->pending_move_resize.y +
 			view->pending_move_resize.height - height;
+		view_update_position(view, view->x, y);
 		view->pending_move_resize.update_y = false;
 	}
+
+	view_damage(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

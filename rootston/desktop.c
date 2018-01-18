@@ -61,8 +61,7 @@ void view_move(struct roots_view *view, double x, double y) {
 	if (view->move) {
 		view->move(view, x, y);
 	} else {
-		view->x = x;
-		view->y = y;
+		view_update_position(view, x, y);
 	}
 	view_update_output(view, &before);
 }
@@ -268,6 +267,7 @@ void view_destroy(struct roots_view *view) {
 void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	view->desktop = desktop;
 	wl_signal_init(&view->events.destroy);
+	view_damage(view);
 }
 
 void view_setup(struct roots_view *view) {
@@ -280,6 +280,20 @@ void view_setup(struct roots_view *view) {
 
 	view_center(view);
 	view_update_output(view, NULL);
+}
+
+void view_damage(struct roots_view *view) {
+	struct roots_output *output;
+	wl_list_for_each(output, &view->desktop->outputs, link) {
+		output_damage_view(output, view);
+	}
+}
+
+void view_update_position(struct roots_view *view, double x, double y) {
+	view_damage(view);
+	view->x = x;
+	view->y = y;
+	view_damage(view);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,
@@ -521,12 +535,4 @@ struct roots_output *desktop_output_from_wlr_output(
 		}
 	}
 	return NULL;
-}
-
-void desktop_damage_surface(struct roots_desktop *desktop,
-		struct wlr_surface *surface, double lx, double ly) {
-	struct roots_output *output;
-	wl_list_for_each(output, &desktop->outputs, link) {
-		output_damage_surface(output, surface, lx, ly);
-	}
 }

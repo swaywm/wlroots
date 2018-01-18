@@ -337,7 +337,7 @@ static int handle_repaint(void *data) {
 	return 0;
 }
 
-void output_damage_surface(struct roots_output *output,
+static void output_damage_surface(struct roots_output *output,
 		struct wlr_surface *surface, double lx, double ly) {
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
@@ -353,6 +353,12 @@ void output_damage_surface(struct roots_output *output,
 	// TODO: use surface damage
 	pixman_region32_union_rect(&output->damage, &output->damage, box.x, box.y,
 		box.width, box.height);
+}
+
+void output_damage_view(struct roots_output *output, struct roots_view *view) {
+	output_damage_surface(output, view->wlr_surface, view->x, view->y);
+
+	// TODO: subsurfaces, popups, etc
 }
 
 static void set_mode(struct wlr_output *output,

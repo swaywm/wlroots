@@ -18,8 +18,7 @@ static void activate(struct roots_view *view, bool active) {
 static void move(struct roots_view *view, double x, double y) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
-	view->x = x;
-	view->y = y;
+	view_update_position(view, x, y);
 	wlr_xwayland_surface_configure(xwayland_surface, x, y,
 		xwayland_surface->width, xwayland_surface->height);
 }
@@ -133,8 +132,7 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 		roots_surface->view->xwayland_surface;
 	struct wlr_xwayland_surface_configure_event *event = data;
 
-	roots_surface->view->x = (double)event->x;
-	roots_surface->view->y = (double)event->y;
+	view_update_position(roots_surface->view, event->x, event->y);
 
 	wlr_xwayland_surface_configure(xwayland_surface, event->x, event->y,
 		event->width, event->height);
@@ -210,15 +208,19 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	int height = wlr_surface->current->height;
 
 	if (view->pending_move_resize.update_x) {
-		view->x = view->pending_move_resize.x +
+		double x = view->pending_move_resize.x +
 			view->pending_move_resize.width - width;
+		view_update_position(view, x, view->y);
 		view->pending_move_resize.update_x = false;
 	}
 	if (view->pending_move_resize.update_y) {
-		view->y = view->pending_move_resize.y +
+		double y = view->pending_move_resize.y +
 			view->pending_move_resize.height - height;
+		view_update_position(view, view->x, y);
 		view->pending_move_resize.update_y = false;
 	}
+
+	view_damage(view);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {
@@ -229,8 +231,9 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = view->desktop;
 
 	view->wlr_surface = xsurface->surface;
-	view->x = (double)xsurface->x;
-	view->y = (double)xsurface->y;
+	view->x = xsurface->x;
+	view->y = xsurface->y;
+	view_damage(view);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&xsurface->surface->events.commit,
@@ -242,10 +245,11 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
+
+	view_damage(roots_surface->view);
+
 	roots_surface->view->wlr_surface = NULL;
-
 	wl_list_remove(&roots_surface->surface_commit.link);
-
 	wl_list_remove(&roots_surface->view->link);
 }
 

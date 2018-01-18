@@ -102,8 +102,7 @@ static void move_resize(struct roots_view *view, double x, double y,
 	if (serial > 0) {
 		roots_surface->pending_move_resize_configure_serial = serial;
 	} else {
-		view->x = x;
-		view->y = y;
+		view_update_position(view, x, y);
 	}
 }
 
@@ -205,12 +204,14 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		get_size(view, &size);
 
 		if (view->pending_move_resize.update_x) {
-			view->x = view->pending_move_resize.x +
+			double x = view->pending_move_resize.x +
 				view->pending_move_resize.width - size.width;
+			view_update_position(view, x, view->y);
 		}
 		if (view->pending_move_resize.update_y) {
-			view->y = view->pending_move_resize.y +
+			double y = view->pending_move_resize.y +
 				view->pending_move_resize.height - size.height;
+			view_update_position(view, view->x, y);
 		}
 
 		if (pending_serial == surface->configure_serial) {
@@ -218,7 +219,7 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		}
 	}
 
-	desktop_damage_surface(view->desktop, view->wlr_surface, view->x, view->y);
+	view_damage(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

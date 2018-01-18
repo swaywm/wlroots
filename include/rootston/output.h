@@ -23,7 +23,6 @@ struct roots_output {
 void output_add_notify(struct wl_listener *listener, void *data);
 void output_remove_notify(struct wl_listener *listener, void *data);
 
-void output_damage_surface(struct roots_output *output,
-	struct wlr_surface *surface, double lx, double ly);
+void output_damage_view(struct roots_output *output, struct roots_view *view);
 
 #endif
