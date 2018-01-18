@@ -626,6 +626,10 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
+	if (cursor->output->hardware_cursor != cursor) {
+		output_cursor_damage_whole(cursor);
+	}
+
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
 	cursor->width = cursor->surface->current->width * cursor->output->scale;
@@ -662,14 +666,23 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		return;
 	}
 
-	cursor->hotspot_x = hotspot_x * cursor->output->scale;
-	cursor->hotspot_y = hotspot_y * cursor->output->scale;
+	hotspot_x *= cursor->output->scale;
+	hotspot_y *= cursor->output->scale;
 
 	if (surface && surface == cursor->surface) {
+		// Only update the hotspot: surface hasn't changed
+
+		if (cursor->output->hardware_cursor != cursor) {
+			output_cursor_damage_whole(cursor);
+		}
+		cursor->hotspot_x = hotspot_x;
+		cursor->hotspot_y = hotspot_y;
+		if (cursor->output->hardware_cursor != cursor) {
+			output_cursor_damage_whole(cursor);
+		}
+
 		if (cursor->output->hardware_cursor == cursor &&
 				cursor->output->impl->set_cursor) {
-			// If the surface hasn't changed and it's an hardware cursor, only
-			// update the hotspot
 			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
 				hotspot_x, hotspot_y, false);
 		}
@@ -688,6 +701,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	}
 
 	cursor->surface = surface;
+	cursor->hotspot_x = hotspot_x;
+	cursor->hotspot_y = hotspot_y;
 
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
