@@ -255,7 +255,7 @@ bool view_center(struct roots_view *view) {
 }
 
 void view_destroy(struct roots_view *view) {
-	view_damage(view);
+	view_damage_whole(view);
 	wl_signal_emit(&view->events.destroy, view);
 
 	if (view->fullscreen_output) {
@@ -268,7 +268,7 @@ void view_destroy(struct roots_view *view) {
 void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	view->desktop = desktop;
 	wl_signal_init(&view->events.destroy);
-	view_damage(view);
+	view_damage_whole(view);
 }
 
 void view_setup(struct roots_view *view) {
@@ -283,18 +283,25 @@ void view_setup(struct roots_view *view) {
 	view_update_output(view, NULL);
 }
 
-void view_damage(struct roots_view *view) {
+void view_apply_damage(struct roots_view *view) {
 	struct roots_output *output;
 	wl_list_for_each(output, &view->desktop->outputs, link) {
-		output_damage_view(output, view);
+		output_damage_from_view(output, view);
+	}
+}
+
+void view_damage_whole(struct roots_view *view) {
+	struct roots_output *output;
+	wl_list_for_each(output, &view->desktop->outputs, link) {
+		output_damage_whole_view(output, view);
 	}
 }
 
 void view_update_position(struct roots_view *view, double x, double y) {
-	view_damage(view);
+	view_damage_whole(view);
 	view->x = x;
 	view->y = y;
-	view_damage(view);
+	view_damage_whole(view);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,

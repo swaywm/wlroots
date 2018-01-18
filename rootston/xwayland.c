@@ -220,7 +220,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 		view->pending_move_resize.update_y = false;
 	}
 
-	view_damage(view);
+	view_apply_damage(view);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {
@@ -233,7 +233,7 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->wlr_surface = xsurface->surface;
 	view->x = xsurface->x;
 	view->y = xsurface->y;
-	view_damage(view);
+	view_damage_whole(view);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&xsurface->surface->events.commit,
@@ -246,7 +246,7 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
 
-	view_damage(roots_surface->view);
+	view_damage_whole(roots_surface->view);
 
 	roots_surface->view->wlr_surface = NULL;
 	wl_list_remove(&roots_surface->surface_commit.link);

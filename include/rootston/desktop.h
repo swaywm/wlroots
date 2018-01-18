@@ -66,7 +66,8 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
-void view_damage(struct roots_view *view);
+void view_apply_damage(struct roots_view *view);
+void view_damage_whole(struct roots_view *view);
 void view_update_position(struct roots_view *view, double x, double y);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);

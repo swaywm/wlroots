@@ -103,7 +103,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 		view->pending_move_resize.update_y = false;
 	}
 
-	view_damage(view);
+	view_apply_damage(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {

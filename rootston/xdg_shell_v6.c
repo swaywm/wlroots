@@ -219,7 +219,7 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		}
 	}
 
-	view_damage(view);
+	view_apply_damage(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
