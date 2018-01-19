@@ -201,6 +201,11 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	}
 	uint32_t fb_id = get_fb_for_bo(bo);
 
+	if (conn->pageflip_pending) {
+		wlr_log(L_ERROR, "Skipping pageflip");
+		return;
+	}
+
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		conn->pageflip_pending = true;
 	} else {
