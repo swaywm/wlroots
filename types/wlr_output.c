@@ -280,6 +280,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
+	pixman_region32_init(&output->previous_damage);
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
@@ -293,7 +294,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	wlr_output_set_fullscreen_surface(output, NULL);
-	pixman_region32_fini(&output->damage);
 
 	wl_signal_emit(&output->events.destroy, output);
 
@@ -307,6 +307,9 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wl_list_for_each_safe(cursor, tmp_cursor, &output->cursors, link) {
 		wlr_output_cursor_destroy(cursor);
 	}
+
+	pixman_region32_fini(&output->damage);
+	pixman_region32_fini(&output->previous_damage);
 
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
@@ -347,12 +350,15 @@ static void output_fullscreen_surface_get_box(struct wlr_output *output,
 }
 
 static void output_fullscreen_surface_render(struct wlr_output *output,
-		struct wlr_surface *surface, const struct timespec *when) {
+		struct wlr_surface *surface, const struct timespec *when,
+		pixman_region32_t *damage) {
 	glViewport(0, 0, output->width, output->height);
-	glClearColor(0, 0, 0, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	if (!wlr_surface_has_buffer(surface)) {
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
 		return;
 	}
 
@@ -369,7 +375,17 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	wlr_matrix_mul(&translate, &scale, &matrix);
 	wlr_matrix_mul(&output->transform_matrix, &matrix, &matrix);
 
-	wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
+	glEnable(GL_SCISSOR_TEST);
+	for (int i = 0; i < nrects; ++i) {
+		glScissor(rects[i].x1, output->height - rects[i].y2,
+			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+	}
+	glDisable(GL_SCISSOR_TEST);
 
 	wlr_surface_send_frame_done(surface, when);
 }
@@ -434,8 +450,17 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	if (output->fullscreen_surface != NULL) {
-		output_fullscreen_surface_render(output, output->fullscreen_surface,
-			&now);
+		pixman_region32_t damage;
+		pixman_region32_init(&damage);
+		pixman_region32_copy(&damage, &output->damage);
+		pixman_region32_union(&damage, &damage, &output->previous_damage);
+
+		if (pixman_region32_not_empty(&damage)) {
+			output_fullscreen_surface_render(output, output->fullscreen_surface,
+				&now, &damage);
+		}
+
+		pixman_region32_fini(&damage);
 	}
 
 	struct wlr_output_cursor *cursor;
@@ -448,6 +473,7 @@ void wlr_output_swap_buffers(struct wlr_output *output) {
 	}
 
 	output->impl->swap_buffers(output);
+	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
 }
 

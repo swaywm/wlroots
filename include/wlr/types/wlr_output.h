@@ -53,7 +53,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 
-	pixman_region32_t damage;
+	pixman_region32_t damage, previous_damage;
 	float transform_matrix[16];
 
 	// Note: some backends may have zero modes
