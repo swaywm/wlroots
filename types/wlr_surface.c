@@ -133,11 +133,14 @@ static void surface_set_input_region(struct wl_client *client,
 	}
 }
 
-static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surface_state *state) {
+static bool wlr_surface_update_size(struct wlr_surface *surface,
+		struct wlr_surface_state *state) {
 	if (!state->buffer) {
+		pixman_region32_union_rect(&state->surface_damage,
+			&state->surface_damage, 0, 0, state->width, state->height);
 		state->height = 0;
 		state->width = 0;
-		return;
+		return true;
 	}
 
 	int scale = state->scale;
@@ -146,16 +149,16 @@ static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surf
 	wlr_texture_get_buffer_size(surface->texture, state->buffer,
 		&state->buffer_width, &state->buffer_height);
 
-	int _width = state->buffer_width / scale;
-	int _height = state->buffer_height / scale;
+	int width = state->buffer_width / scale;
+	int height = state->buffer_height / scale;
 
 	if (transform == WL_OUTPUT_TRANSFORM_90 ||
 		transform == WL_OUTPUT_TRANSFORM_270 ||
 		transform == WL_OUTPUT_TRANSFORM_FLIPPED_90 ||
 		transform == WL_OUTPUT_TRANSFORM_FLIPPED_270) {
-		int tmp = _width;
-		_width = _height;
-		_height = tmp;
+		int tmp = width;
+		width = height;
+		height = tmp;
 	}
 
 	struct wlr_frame_callback *cb, *tmp;
@@ -164,24 +167,36 @@ static void wlr_surface_update_size(struct wlr_surface *surface, struct wlr_surf
 	}
 	wl_list_init(&state->frame_callback_list);
 
-	state->width = _width;
-	state->height = _height;
+	bool update_damage = false;
+	if (width < state->width) {
+		pixman_region32_union_rect(&state->surface_damage, &state->surface_damage,
+			width, 0, state->width - width, state->height);
+		update_damage = true;
+	}
+	if (height < state->height) {
+		pixman_region32_union_rect(&state->surface_damage, &state->surface_damage,
+			0, height, state->width, state->height - height);
+		update_damage = true;
+	}
+
+	state->width = width;
+	state->height = height;
+
+	return update_damage;
 }
 
 static void wlr_surface_to_buffer_region(int scale,
 		enum wl_output_transform transform, pixman_region32_t *surface_region,
-		pixman_region32_t *buffer_region,
-		int width, int height) {
-	pixman_box32_t *src_rects, *dest_rects;
-	int nrects, i;
-
-	src_rects = pixman_region32_rectangles(surface_region, &nrects);
-	dest_rects = malloc(nrects * sizeof(*dest_rects));
-	if (!dest_rects) {
+		pixman_region32_t *buffer_region, int width, int height) {
+	int nrects;
+	pixman_box32_t *src_rects =
+		pixman_region32_rectangles(surface_region, &nrects);
+	pixman_box32_t *dest_rects = malloc(nrects * sizeof(*dest_rects));
+	if (dest_rects == NULL) {
 		return;
 	}
 
-	for (i = 0; i < nrects; i++) {
+	for (int i = 0; i < nrects; i++) {
 		switch (transform) {
 		default:
 		case WL_OUTPUT_TRANSFORM_NORMAL:
@@ -236,7 +251,7 @@ static void wlr_surface_to_buffer_region(int scale,
 	}
 
 	if (scale != 1) {
-		for (i = 0; i < nrects; i++) {
+		for (int i = 0; i < nrects; i++) {
 			dest_rects[i].x1 *= scale;
 			dest_rects[i].x2 *= scale;
 			dest_rects[i].y1 *= scale;
@@ -252,8 +267,8 @@ static void wlr_surface_to_buffer_region(int scale,
 /**
  * Append pending state to current state and clear pending state.
  */
-static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surface_state *next,
-		struct wlr_surface_state *state) {
+static void wlr_surface_move_state(struct wlr_surface *surface,
+		struct wlr_surface_state *next, struct wlr_surface_state *state) {
 	bool update_damage = false;
 	bool update_size = false;
 
@@ -274,24 +289,22 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 		update_size = true;
 	}
 	if (update_size) {
-		wlr_surface_update_size(surface, state);
+		update_damage = wlr_surface_update_size(surface, state);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
-		pixman_region32_union(&state->surface_damage,
-			&state->surface_damage,
+		pixman_region32_intersect_rect(&next->surface_damage,
+			&next->surface_damage, 0, 0, state->width, state->height);
+		pixman_region32_union(&state->surface_damage, &state->surface_damage,
 			&next->surface_damage);
-		pixman_region32_intersect_rect(&state->surface_damage,
-			&state->surface_damage, 0, 0, state->width,
-			state->height);
-
 		pixman_region32_clear(&next->surface_damage);
 		update_damage = true;
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
-		pixman_region32_union(&state->buffer_damage,
-			&state->buffer_damage,
+		pixman_region32_intersect_rect(&next->buffer_damage,
+			&next->buffer_damage, 0, 0, state->buffer_width,
+			state->buffer_height);
+		pixman_region32_union(&state->buffer_damage, &state->buffer_damage,
 			&next->buffer_damage);
-
 		pixman_region32_clear(&next->buffer_damage);
 		update_damage = true;
 	}
@@ -304,10 +317,6 @@ static void wlr_surface_move_state(struct wlr_surface *surface, struct wlr_surfa
 		pixman_region32_union(&state->buffer_damage,
 			&state->buffer_damage, &buffer_damage);
 		pixman_region32_fini(&buffer_damage);
-
-		pixman_region32_intersect_rect(&state->buffer_damage,
-			&state->buffer_damage, 0, 0,
-			state->buffer_width, state->buffer_height);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
 		// TODO: process buffer
