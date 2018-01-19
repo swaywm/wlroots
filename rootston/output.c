@@ -271,6 +271,35 @@ static void render_output(struct roots_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	float clear_color[] = {0.25f, 0.25f, 0.25f};
+
+	// Check if we can delegate the fullscreen surface to the output
+	if (output->fullscreen_view != NULL) {
+		struct roots_view *view = output->fullscreen_view;
+
+		// Make sure the view is centered on screen
+		const struct wlr_box *output_box =
+			wlr_output_layout_get_box(desktop->layout, wlr_output);
+		struct wlr_box view_box;
+		view_get_box(view, &view_box);
+		double view_x = (double)(output_box->width - view_box.width) / 2 +
+			output_box->x;
+		double view_y = (double)(output_box->height - view_box.height) / 2 +
+			output_box->y;
+		view_move(view, view_x, view_y);
+
+		if (has_standalone_surface(view)) {
+			wlr_output_set_fullscreen_surface(wlr_output, view->wlr_surface);
+		} else {
+			wlr_output_set_fullscreen_surface(wlr_output, NULL);
+		}
+
+		// Fullscreen views are rendered on a black background
+		clear_color[0] = clear_color[1] = clear_color[2] = 0;
+	} else {
+		wlr_output_set_fullscreen_surface(wlr_output, NULL);
+	}
+
 	pixman_region32_union(&output->damage, &output->damage, &wlr_output->damage);
 
 	pixman_region32_t damage;
@@ -298,46 +327,30 @@ static void render_output(struct roots_output *output) {
 	for (int i = 0; i < nrects; ++i) {
 		glScissor(rects[i].x1, wlr_output->height - rects[i].y2,
 			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
-		glClearColor(0.25f, 0.25f, 0.25f, 1);
+		glClearColor(clear_color[0], clear_color[1], clear_color[2], 1);
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
+	// If a view is fullscreen on this output, render it
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
 
-		// Make sure the view is centered on screen
-		const struct wlr_box *output_box =
-			wlr_output_layout_get_box(desktop->layout, wlr_output);
-		struct wlr_box view_box;
-		view_get_box(view, &view_box);
-		double view_x = (double)(output_box->width - view_box.width) / 2 +
-			output_box->x;
-		double view_y = (double)(output_box->height - view_box.height) / 2 +
-			output_box->y;
-		view_move(view, view_x, view_y);
+		if (wlr_output->fullscreen_surface == view->wlr_surface) {
+			// The output will render the fullscreen view
+			goto renderer_end;
+		}
 
-		if (has_standalone_surface(view)) {
-			wlr_output_set_fullscreen_surface(wlr_output, view->wlr_surface);
-		} else {
-			wlr_output_set_fullscreen_surface(wlr_output, NULL);
+		render_view(view, output, &now, &damage);
 
-			glClearColor(0, 0, 0, 0);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			render_view(view, output, &now, &damage);
-
-			// During normal rendering the xwayland window tree isn't traversed
-			// because all windows are rendered. Here we only want to render
-			// the fullscreen window's children so we have to traverse the tree.
-			if (view->type == ROOTS_XWAYLAND_VIEW) {
-				render_xwayland_children(view->xwayland_surface, output, &now,
-					&damage);
-			}
+		// During normal rendering the xwayland window tree isn't traversed
+		// because all windows are rendered. Here we only want to render
+		// the fullscreen window's children so we have to traverse the tree.
+		if (view->type == ROOTS_XWAYLAND_VIEW) {
+			render_xwayland_children(view->xwayland_surface, output, &now,
+				&damage);
 		}
 
 		goto renderer_end;
-	} else {
-		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
 
 	struct roots_view *view;
@@ -413,6 +426,10 @@ static void output_damage_whole_surface(struct roots_output *output,
 
 void output_damage_whole_view(struct roots_output *output,
 		struct roots_view *view) {
+	if (output->fullscreen_view != NULL && output->fullscreen_view != view) {
+		return;
+	}
+
 	if (view->wlr_surface != NULL) {
 		output_damage_whole_surface(output, view->wlr_surface, view->x, view->y);
 	}
@@ -443,6 +460,10 @@ static void output_damage_from_surface(struct roots_output *output,
 
 void output_damage_from_view(struct roots_output *output,
 		struct roots_view *view) {
+	if (output->fullscreen_view != NULL && output->fullscreen_view != view) {
+		return;
+	}
+
 	if (view->wlr_surface != NULL) {
 		output_damage_from_surface(output, view->wlr_surface, view->x, view->y);
 	}
