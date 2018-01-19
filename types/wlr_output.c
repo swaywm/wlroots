@@ -272,6 +272,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->scale = 1;
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->wl_resources);
+	wl_signal_init(&output->events.damage);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.enable);
@@ -494,6 +495,7 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 static void output_damage_whole(struct wlr_output *output) {
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		output->width, output->height);
+	wl_signal_emit(&output->events.damage, output);
 }
 
 static void output_fullscreen_surface_reset(struct wlr_output *output) {
@@ -520,6 +522,8 @@ static void output_fullscreen_surface_handle_commit(
 	pixman_region32_translate(&damage, box.x, box.y);
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
+
+	wl_signal_emit(&output->events.damage, output);
 }
 
 static void output_fullscreen_surface_handle_destroy(
@@ -561,6 +565,7 @@ static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	output_cursor_get_box(cursor, &box);
 	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
 		box.x, box.y, box.width, box.height);
+	wl_signal_emit(&cursor->output->events.damage, cursor->output);
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {

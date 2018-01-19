@@ -63,6 +63,7 @@ struct wlr_output {
 	int32_t refresh; // mHz
 
 	struct {
+		struct wl_signal damage;
 		struct wl_signal frame;
 		struct wl_signal swap_buffers;
 		struct wl_signal enable;
