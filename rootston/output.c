@@ -296,6 +296,8 @@ static void render_output(struct roots_output *output) {
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union(&damage, &output->damage, &output->previous_damage);
+	pixman_region32_intersect_rect(&damage, &damage, 0, 0, wlr_output->width,
+		wlr_output->height);
 
 	// TODO: fullscreen
 	if (!pixman_region32_not_empty(&damage)) {
@@ -404,10 +406,8 @@ static void schedule_render(struct roots_output *output) {
 }
 
 static void output_damage_whole(struct roots_output *output) {
-	int width, height;
-	wlr_output_effective_resolution(output->wlr_output, &width, &height);
 	pixman_region32_union_rect(&output->damage, &output->damage,
-		0, 0, width, height);
+		0, 0, output->wlr_output->width, output->wlr_output->height);
 
 	schedule_render(output);
 }
