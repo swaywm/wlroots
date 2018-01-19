@@ -471,6 +471,11 @@ void output_damage_from_view(struct roots_output *output,
 	// TODO: subsurfaces, popups, etc
 }
 
+static void output_handle_mode(struct wl_listener *listener, void *data) {
+	struct roots_output *output = wl_container_of(listener, output, mode);
+	output_damage_whole(output);
+}
+
 static void set_mode(struct wlr_output *output,
 		struct roots_output_config *oc) {
 	int mhz = (int)(oc->mode.refresh_rate * 1000);
@@ -530,6 +535,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	output->frame.notify = output_handle_frame;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
+	output->mode.notify = output_handle_mode;
+	wl_signal_add(&wlr_output->events.mode, &output->mode);
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);

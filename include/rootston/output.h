@@ -14,10 +14,12 @@ struct roots_output {
 
 	struct roots_view *fullscreen_view;
 
-	struct wl_listener frame;
 	struct timespec last_frame;
 	pixman_region32_t damage, previous_damage;
 	struct wl_event_source *repaint_timer;
+
+	struct wl_listener frame;
+	struct wl_listener mode;
 };
 
 void output_add_notify(struct wl_listener *listener, void *data);
