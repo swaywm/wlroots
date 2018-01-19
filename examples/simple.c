@@ -40,7 +40,7 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	wlr_output_swap_buffers(output->output);
+	wlr_output_swap_buffers(output->output, NULL, NULL);
 }
 
 int main() {

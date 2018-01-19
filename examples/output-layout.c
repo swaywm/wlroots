@@ -125,7 +125,7 @@ static void handle_output_frame(struct output_state *output,
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
 static void handle_output_add(struct output_state *ostate) {

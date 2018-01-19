@@ -2,6 +2,7 @@
 #define WLR_TYPES_WLR_OUTPUT_H
 
 #include <stdbool.h>
+#include <time.h>
 #include <pixman.h>
 #include <wayland-util.h>
 #include <wayland-server.h>
@@ -103,7 +104,13 @@ void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
 void wlr_output_make_current(struct wlr_output *output);
-void wlr_output_swap_buffers(struct wlr_output *output);
+/**
+ * Swaps the output buffers. If the time of the frame isn't known, set `when` to
+ * NULL. If the compositor doesn't support damage tracking, set `damage` to
+ * NULL.
+ */
+void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+	pixman_region32_t *damage);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);

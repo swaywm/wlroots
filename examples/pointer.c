@@ -91,7 +91,7 @@ static void handle_output_frame(struct output_state *output,
 		sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
 static void handle_output_add(struct output_state *ostate) {

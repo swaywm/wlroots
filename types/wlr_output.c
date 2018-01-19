@@ -408,7 +408,7 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
-		const struct timespec *when) {
+		const struct timespec *when, pixman_region32_t *damage) {
 	struct wlr_texture *texture = cursor->texture;
 	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
@@ -420,12 +420,21 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		return;
 	}
 
+	struct wlr_box box;
+	output_cursor_get_box(cursor, &box);
+
+	pixman_region32_t surface_damage;
+	pixman_region32_init(&surface_damage);
+	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
+		box.width, box.height);
+	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
+	if (!pixman_region32_not_empty(&surface_damage)) {
+		goto surface_damage_finish;
+	}
+
 	glViewport(0, 0, cursor->output->width, cursor->output->height);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	struct wlr_box box;
-	output_cursor_get_box(cursor, &box);
 
 	float translate[16];
 	wlr_matrix_translate(&translate, box.x, box.y, 0);
@@ -439,43 +448,68 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 
 	wlr_render_with_matrix(renderer, texture, &matrix);
 
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
+	glEnable(GL_SCISSOR_TEST);
+	for (int i = 0; i < nrects; ++i) {
+		glScissor(rects[i].x1, cursor->output->height - rects[i].y2,
+			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		wlr_render_with_matrix(renderer, texture, &matrix);
+	}
+	glDisable(GL_SCISSOR_TEST);
+
 	if (cursor->surface != NULL) {
 		wlr_surface_send_frame_done(cursor->surface, when);
 	}
+
+surface_damage_finish:
+	pixman_region32_fini(&surface_damage);
 }
 
-void wlr_output_swap_buffers(struct wlr_output *output) {
-	wl_signal_emit(&output->events.swap_buffers, &output);
+void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+		pixman_region32_t *damage) {
+	wl_signal_emit(&output->events.swap_buffers, damage);
 
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
+	pixman_region32_t *render_damage = damage;
+	if (damage == NULL) {
+		pixman_region32_t output_damage;
+		pixman_region32_init(&output_damage);
+		pixman_region32_copy(&output_damage, &output->damage);
+		pixman_region32_union(&output_damage, &output_damage,
+			&output->previous_damage);
+		render_damage = &output_damage;
+	}
 
-	if (output->fullscreen_surface != NULL) {
-		pixman_region32_t damage;
-		pixman_region32_init(&damage);
-		pixman_region32_copy(&damage, &output->damage);
-		pixman_region32_union(&damage, &damage, &output->previous_damage);
+	if (when == NULL) {
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		when = &now;
+	}
 
-		if (pixman_region32_not_empty(&damage)) {
+	if (pixman_region32_not_empty(render_damage)) {
+		if (output->fullscreen_surface != NULL) {
 			output_fullscreen_surface_render(output, output->fullscreen_surface,
-				&now, &damage);
+				when, render_damage);
 		}
 
-		pixman_region32_fini(&damage);
-	}
-
-	struct wlr_output_cursor *cursor;
-	wl_list_for_each(cursor, &output->cursors, link) {
-		if (!cursor->enabled || !cursor->visible ||
-				output->hardware_cursor == cursor) {
-			continue;
+		struct wlr_output_cursor *cursor;
+		wl_list_for_each(cursor, &output->cursors, link) {
+			if (!cursor->enabled || !cursor->visible ||
+					output->hardware_cursor == cursor) {
+				continue;
+			}
+			output_cursor_render(cursor, when, render_damage);
 		}
-		output_cursor_render(cursor, &now);
 	}
 
+	// TODO: provide `damage` (not `render_damage`) to backend
 	output->impl->swap_buffers(output);
 	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
+
+	if (damage == NULL) {
+		pixman_region32_fini(render_damage);
+	}
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,

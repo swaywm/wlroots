@@ -56,7 +56,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 
 	long ms = (ts->tv_sec - output->last_frame.tv_sec) * 1000 +
 		(ts->tv_nsec - output->last_frame.tv_nsec) / 1000000;

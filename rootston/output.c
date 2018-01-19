@@ -374,7 +374,7 @@ static void render_output(struct roots_output *output) {
 renderer_end:
 	glDisable(GL_SCISSOR_TEST);
 	wlr_renderer_end(server->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, &now, &damage);
 	output->frame_scheduled = true;
 	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);

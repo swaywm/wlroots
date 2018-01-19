@@ -76,7 +76,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
 static void handle_tool_axis(struct tablet_tool_state *tstate,

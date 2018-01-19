@@ -56,7 +56,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
 static void handle_touch_down(struct touch_state *tstate, int32_t touch_id,
