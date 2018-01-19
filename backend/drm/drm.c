@@ -199,14 +199,13 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	if (drm->parent) {
 		bo = wlr_drm_surface_mgpu_copy(&plane->mgpu_surf, bo);
 	}
-
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		conn->pageflip_pending = true;
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
-			1000.0f / conn->output.current_mode->refresh);
+			1000000.0f / conn->output.current_mode->refresh);
 	}
 }
 
@@ -241,7 +240,7 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 		conn->pageflip_pending = true;
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
-			1000.0f / conn->output.current_mode->refresh);
+			1000000.0f / conn->output.current_mode->refresh);
 	}
 }
 
