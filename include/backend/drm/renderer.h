@@ -45,7 +45,7 @@ bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_bac
 		int32_t width, uint32_t height, uint32_t format);
 
 void wlr_drm_surface_finish(struct wlr_drm_surface *surf);
-void wlr_drm_surface_make_current(struct wlr_drm_surface *surf);
+bool wlr_drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf);
 struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf);
 void wlr_drm_surface_post(struct wlr_drm_surface *surf);

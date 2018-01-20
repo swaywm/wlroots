@@ -113,9 +113,9 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 	memset(surf, 0, sizeof(*surf));
 }
 
-void wlr_drm_surface_make_current(struct wlr_drm_surface *surf) {
-	eglMakeCurrent(surf->renderer->egl.display, surf->egl, surf->egl,
-		surf->renderer->egl.context);
+bool wlr_drm_surface_make_current(struct wlr_drm_surface *surf,
+		int *buffer_damage) {
+	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_damage);
 }
 
 struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf) {
@@ -123,7 +123,9 @@ struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
 
-	eglSwapBuffers(surf->renderer->egl.display, surf->egl);
+	if (!eglSwapBuffers(surf->renderer->egl.display, surf->egl)) {
+		wlr_log(L_ERROR, "eglSwapBuffers failed");
+	}
 
 	surf->front = surf->back;
 	surf->back = gbm_surface_lock_front_buffer(surf->gbm);
@@ -135,7 +137,7 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 		return surf->front;
 	}
 
-	wlr_drm_surface_make_current(surf);
+	wlr_drm_surface_make_current(surf, NULL);
 	glViewport(0, 0, surf->width, surf->height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -207,8 +209,9 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer, str
 	return tex->tex;
 }
 
-struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gbm_bo *src) {
-	wlr_drm_surface_make_current(dest);
+struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
+		struct gbm_bo *src) {
+	wlr_drm_surface_make_current(dest, NULL);
 
 	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
 

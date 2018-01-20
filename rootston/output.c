@@ -294,11 +294,26 @@ static void render_output(struct roots_output *output) {
 		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
 
+	int buffer_age = -1;
+	wlr_output_make_current(wlr_output, &buffer_age);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_union(&damage, &output->damage, &output->previous_damage);
-	pixman_region32_intersect_rect(&damage, &damage, 0, 0, wlr_output->width,
-		wlr_output->height);
+	if (buffer_age <= 0 || buffer_age - 1 > ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN) {
+		// Buffer new or too old, damage the whole output
+		pixman_region32_union_rect(&damage, &damage, 0, 0,
+			wlr_output->width, wlr_output->height);
+	} else {
+		pixman_region32_copy(&damage, &output->damage);
+
+		size_t idx = output->previous_damage_idx;
+		for (int i = 0; i < buffer_age - 1; i++) {
+			int j = (idx + i) % ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
+			pixman_region32_union(&damage, &damage, &output->previous_damage[j]);
+		}
+	}
+	pixman_region32_intersect_rect(&damage, &damage, 0, 0,
+		wlr_output->width, wlr_output->height);
 
 	if (!pixman_region32_not_empty(&damage) && !wlr_output->needs_swap) {
 		// Output doesn't need swap and isn't damaged, skip rendering completely
@@ -308,7 +323,6 @@ static void render_output(struct roots_output *output) {
 
 	wlr_log(L_DEBUG, "render");
 
-	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 	glEnable(GL_SCISSOR_TEST);
 
@@ -384,7 +398,10 @@ renderer_end:
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output, &now, &damage);
 	output->frame_pending = true;
-	pixman_region32_copy(&output->previous_damage, &output->damage);
+	output->previous_damage_idx += ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN - 1;
+	output->previous_damage_idx %= ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
+	pixman_region32_copy(&output->previous_damage[output->previous_damage_idx],
+		&output->damage);
 	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
 
@@ -551,7 +568,9 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	output->wlr_output = wlr_output;
 	wl_list_insert(&desktop->outputs, &output->link);
 	pixman_region32_init(&output->damage);
-	pixman_region32_init(&output->previous_damage);
+	for (size_t i = 0; i < ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN; ++i) {
+		pixman_region32_init(&output->previous_damage[i]);
+	}
 
 	output->frame.notify = output_handle_frame;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
@@ -610,7 +629,9 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//	sample->compositor);
 
 	pixman_region32_fini(&output->damage);
-	pixman_region32_fini(&output->previous_damage);
+	for (size_t i = 0; i < ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN; ++i) {
+		pixman_region32_fini(&output->previous_damage[i]);
+	}
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
 	wl_list_remove(&output->mode.link);

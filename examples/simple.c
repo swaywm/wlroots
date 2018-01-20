@@ -35,7 +35,7 @@ void handle_output_frame(struct output_state *output, struct timespec *ts) {
 		sample->dec = inc;
 	}
 
-	wlr_output_make_current(output->output);
+	wlr_output_make_current(output->output, NULL);
 
 	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);

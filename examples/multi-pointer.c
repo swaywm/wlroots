@@ -56,7 +56,7 @@ static void handle_output_frame(struct output_state *output,
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output);
+	wlr_output_make_current(wlr_output, NULL);
 
 	glClearColor(sample->clear_color[0], sample->clear_color[1],
 		sample->clear_color[2], sample->clear_color[3]);

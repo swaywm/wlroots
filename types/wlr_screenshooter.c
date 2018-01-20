@@ -47,7 +47,6 @@ static void output_frame_notify(struct wl_listener *listener, void *_data) {
 	struct wlr_renderer *renderer = state->screenshot->screenshooter->renderer;
 	struct wlr_output *output = state->screenshot->output;
 
-	wlr_output_make_current(output);
 	wlr_renderer_read_pixels(renderer, 0, 0, output->width, output->height,
 		state->pixels);
 

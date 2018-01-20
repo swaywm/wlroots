@@ -42,7 +42,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_output_make_current(wlr_output);
+	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
 
 	float matrix[16], view[16];

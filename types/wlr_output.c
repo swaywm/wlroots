@@ -281,7 +281,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
-	pixman_region32_init(&output->previous_damage);
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
@@ -310,7 +309,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 
 	pixman_region32_fini(&output->damage);
-	pixman_region32_fini(&output->previous_damage);
 
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
@@ -332,8 +330,8 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 	*height /= output->scale;
 }
 
-void wlr_output_make_current(struct wlr_output *output) {
-	output->impl->make_current(output);
+bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
+	return output->impl->make_current(output, buffer_age);
 }
 
 static void output_fullscreen_surface_get_box(struct wlr_output *output,
@@ -466,17 +464,17 @@ surface_damage_finish:
 	pixman_region32_fini(&surface_damage);
 }
 
-void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	wl_signal_emit(&output->events.swap_buffers, damage);
 
 	pixman_region32_t *render_damage = damage;
 	if (damage == NULL) {
+		// Damage tracking not supported, repaint the whole output
 		pixman_region32_t output_damage;
 		pixman_region32_init(&output_damage);
-		pixman_region32_copy(&output_damage, &output->damage);
-		pixman_region32_union(&output_damage, &output_damage,
-			&output->previous_damage);
+		pixman_region32_union_rect(&output_damage, &output_damage,
+			0, 0, output->width, output->height);
 		render_damage = &output_damage;
 	}
 
@@ -503,14 +501,18 @@ void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	}
 
 	// TODO: provide `damage` (not `render_damage`) to backend
-	output->impl->swap_buffers(output);
+	if (!output->impl->swap_buffers(output)) {
+		return false;
+	}
+
 	output->needs_swap = false;
-	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
 
 	if (damage == NULL) {
 		pixman_region32_fini(render_damage);
 	}
+
+	return true;
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,

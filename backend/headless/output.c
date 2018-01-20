@@ -48,18 +48,15 @@ static void output_transform(struct wlr_output *wlr_output,
 	output->wlr_output.transform = transform;
 }
 
-static void output_make_current(struct wlr_output *wlr_output) {
+static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
 	struct wlr_headless_output *output =
 		(struct wlr_headless_output *)wlr_output;
-	if (!eglMakeCurrent(output->backend->egl.display,
-		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
+		buffer_age);
 }
 
-static void output_swap_buffers(struct wlr_output *wlr_output) {
-	// No-op
+static bool output_swap_buffers(struct wlr_output *wlr_output) {
+	return true; // No-op
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {

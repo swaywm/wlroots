@@ -379,28 +379,23 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	// output has been allocated on the stack, do not free it
 }
 
-static void output_make_current(struct wlr_output *wlr_output) {
+static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
 }
 
-static void output_swap_buffers(struct wlr_output *wlr_output) {
+static bool output_swap_buffers(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
 	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		return false;
 	}
 
-	// Damage the whole output
-	// TODO: use the buffer age extension
-	pixman_region32_union_rect(&wlr_output->damage, &wlr_output->damage,
-		0, 0, wlr_output->width, wlr_output->height);
-	wlr_output_update_needs_swap(wlr_output);
+	return true;
 }
 
 static struct wlr_output_impl output_impl = {

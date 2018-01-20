@@ -183,12 +183,13 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 	free(drm->planes);
 }
 
-static void wlr_drm_connector_make_current(struct wlr_output *output) {
+static bool wlr_drm_connector_make_current(struct wlr_output *output,
+		int *buffer_age) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	wlr_drm_surface_make_current(&conn->crtc->primary->surf);
+	return wlr_drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
+static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 
@@ -203,7 +204,7 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 
 	if (conn->pageflip_pending) {
 		wlr_log(L_ERROR, "Skipping pageflip");
-		return;
+		return true;
 	}
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
@@ -212,6 +213,8 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000000.0f / conn->output.current_mode->refresh);
 	}
+
+	return true;
 }
 
 static void wlr_drm_connector_set_gamma(struct wlr_output *output,
@@ -595,7 +598,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	wlr_drm_surface_make_current(&plane->surf);
+	wlr_drm_surface_make_current(&plane->surf, NULL);
 
 	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);

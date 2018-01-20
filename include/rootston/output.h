@@ -5,6 +5,8 @@
 #include <pixman.h>
 #include <wayland-server.h>
 
+#define ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN 2
+
 struct roots_desktop;
 
 struct roots_output {
@@ -15,8 +17,11 @@ struct roots_output {
 	struct roots_view *fullscreen_view;
 
 	struct timespec last_frame;
-	pixman_region32_t damage, previous_damage;
+	pixman_region32_t damage;
 	bool frame_pending;
+
+	pixman_region32_t previous_damage[ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN];
+	size_t previous_damage_idx;
 
 	struct wl_listener frame;
 	struct wl_listener mode;

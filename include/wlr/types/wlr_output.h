@@ -33,6 +33,8 @@ struct wlr_output_cursor {
 	struct wl_listener surface_destroy;
 };
 
+#define WLR_OUTPUT_PREVIOUS_DAMAGE_COUNT 2
+
 struct wlr_output_impl;
 
 struct wlr_output {
@@ -55,7 +57,7 @@ struct wlr_output {
 	enum wl_output_transform transform;
 
 	bool needs_swap;
-	pixman_region32_t damage, previous_damage;
+	pixman_region32_t damage;
 	float transform_matrix[16];
 
 	// Note: some backends may have zero modes
@@ -104,13 +106,19 @@ void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
-void wlr_output_make_current(struct wlr_output *output);
+/**
+ * Makes the output GL context current.
+ *
+ * `buffer_age` is set to the drawing buffer age in number of frames or -1 if
+ * unknown.
+ */
+bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
 /**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL. If the compositor doesn't support damage tracking, set `damage` to
  * NULL.
  */
-void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	pixman_region32_t *damage);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);

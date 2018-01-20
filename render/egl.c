@@ -127,18 +127,23 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	}
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl->context);
-	egl->egl_exts = eglQueryString(egl->display, EGL_EXTENSIONS);
-	if (strstr(egl->egl_exts, "EGL_WL_bind_wayland_display") == NULL ||
-			strstr(egl->egl_exts, "EGL_KHR_image_base") == NULL) {
+	egl->egl_exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
+	egl->gl_exts_str = (const char*) glGetString(GL_EXTENSIONS);
+
+	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
+	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->egl_exts_str);
+	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
+	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", egl->gl_exts_str);
+
+	if (strstr(egl->egl_exts_str, "EGL_WL_bind_wayland_display") == NULL ||
+			strstr(egl->egl_exts_str, "EGL_KHR_image_base") == NULL) {
 		wlr_log(L_ERROR, "Required egl extensions not supported");
 		goto error;
 	}
 
-	egl->gl_exts = (const char*) glGetString(GL_EXTENSIONS);
-	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
-	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->egl_exts);
-	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
-	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", egl->gl_exts);
+	egl->egl_exts.buffer_age =
+		strstr(egl->egl_exts_str, "EGL_EXT_buffer_age") != NULL;
+
 	return true;
 
 error:
@@ -207,4 +212,33 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 		return EGL_NO_SURFACE;
 	}
 	return surf;
+}
+
+int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
+	if (!egl->egl_exts.buffer_age) {
+		return -1;
+	}
+
+	EGLint buffer_age;
+	EGLBoolean ok = eglQuerySurface(egl->display, surface,
+		EGL_BUFFER_AGE_EXT, &buffer_age);
+	if (!ok) {
+		wlr_log(L_ERROR, "Failed to get EGL surface buffer age: %s", egl_error());
+		return -1;
+	}
+
+	return buffer_age;
+}
+
+bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
+		int *buffer_age) {
+	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
+		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+		return false;
+	}
+
+	if (buffer_age != NULL) {
+		*buffer_age = wlr_egl_get_buffer_age(egl, surface);
+	}
+	return true;
 }
