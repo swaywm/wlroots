@@ -272,8 +272,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->scale = 1;
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->wl_resources);
-	wl_signal_init(&output->events.damage);
 	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.needs_swap);
 	wl_signal_init(&output->events.swap_buffers);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
@@ -504,6 +504,7 @@ void wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 
 	// TODO: provide `damage` (not `render_damage`) to backend
 	output->impl->swap_buffers(output);
+	output->needs_swap = false;
 	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
 
@@ -526,10 +527,15 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
+void wlr_output_update_needs_swap(struct wlr_output *output) {
+	output->needs_swap = true;
+	wl_signal_emit(&output->events.needs_swap, output);
+}
+
 static void output_damage_whole(struct wlr_output *output) {
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		output->width, output->height);
-	wl_signal_emit(&output->events.damage, output);
+	wlr_output_update_needs_swap(output);
 }
 
 static void output_fullscreen_surface_reset(struct wlr_output *output) {
@@ -557,7 +563,7 @@ static void output_fullscreen_surface_handle_commit(
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
 
-	wl_signal_emit(&output->events.damage, output);
+	wlr_output_update_needs_swap(output);
 }
 
 static void output_fullscreen_surface_handle_destroy(
@@ -599,7 +605,7 @@ static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	output_cursor_get_box(cursor, &box);
 	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
 		box.x, box.y, box.width, box.height);
-	wl_signal_emit(&cursor->output->events.damage, cursor->output);
+	wlr_output_update_needs_swap(cursor->output);
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {

@@ -54,6 +54,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 
+	bool needs_swap;
 	pixman_region32_t damage, previous_damage;
 	float transform_matrix[16];
 
@@ -64,8 +65,8 @@ struct wlr_output {
 	int32_t refresh; // mHz
 
 	struct {
-		struct wl_signal damage;
 		struct wl_signal frame;
+		struct wl_signal needs_swap;
 		struct wl_signal swap_buffers;
 		struct wl_signal enable;
 		struct wl_signal mode;

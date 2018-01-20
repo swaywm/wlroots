@@ -32,5 +32,6 @@ void wlr_output_update_mode(struct wlr_output *output,
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
 void wlr_output_update_enabled(struct wlr_output *output, bool enabled);
+void wlr_output_update_needs_swap(struct wlr_output *output);
 
 #endif

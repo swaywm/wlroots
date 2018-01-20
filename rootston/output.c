@@ -258,6 +258,7 @@ static void render_output(struct roots_output *output) {
 	struct roots_server *server = desktop->server;
 
 	if (!wlr_output->enabled) {
+		output->frame_pending = false;
 		return;
 	}
 
@@ -299,9 +300,9 @@ static void render_output(struct roots_output *output) {
 	pixman_region32_intersect_rect(&damage, &damage, 0, 0, wlr_output->width,
 		wlr_output->height);
 
-	// TODO: fullscreen
-	if (!pixman_region32_not_empty(&damage)) {
-		output->frame_scheduled = false;
+	if (!pixman_region32_not_empty(&damage) && !wlr_output->needs_swap) {
+		// Output doesn't need swap and isn't damaged, skip rendering completely
+		output->frame_pending = false;
 		goto damage_finish;
 	}
 
@@ -310,6 +311,11 @@ static void render_output(struct roots_output *output) {
 	wlr_output_make_current(wlr_output);
 	wlr_renderer_begin(server->renderer, wlr_output);
 	glEnable(GL_SCISSOR_TEST);
+
+	if (!pixman_region32_not_empty(&damage)) {
+		// Output isn't damaged but needs buffer swap
+		goto renderer_end;
+	}
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
@@ -377,7 +383,7 @@ renderer_end:
 	glDisable(GL_SCISSOR_TEST);
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output, &now, &damage);
-	output->frame_scheduled = true;
+	output->frame_pending = true;
 	pixman_region32_copy(&output->previous_damage, &output->damage);
 	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
@@ -397,11 +403,11 @@ static void handle_idle_render(void *data) {
 }
 
 static void schedule_render(struct roots_output *output) {
-	if (!output->frame_scheduled) {
+	if (!output->frame_pending) {
 		struct wl_event_loop *ev =
 			wl_display_get_event_loop(output->desktop->server->wl_display);
 		wl_event_loop_add_idle(ev, handle_idle_render, output);
-		output->frame_scheduled = true;
+		output->frame_pending = true;
 	}
 }
 
@@ -485,9 +491,9 @@ static void output_handle_mode(struct wl_listener *listener, void *data) {
 	output_damage_whole(output);
 }
 
-static void output_handle_damage(struct wl_listener *listener, void *data) {
+static void output_handle_needs_swap(struct wl_listener *listener, void *data) {
 	struct roots_output *output =
-		wl_container_of(listener, output, damage_listener);
+		wl_container_of(listener, output, needs_swap);
 	pixman_region32_union(&output->damage, &output->damage,
 		&output->wlr_output->damage);
 	schedule_render(output);
@@ -551,8 +557,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
 	output->mode.notify = output_handle_mode;
 	wl_signal_add(&wlr_output->events.mode, &output->mode);
-	output->damage_listener.notify = output_handle_damage;
-	wl_signal_add(&wlr_output->events.damage, &output->damage_listener);
+	output->needs_swap.notify = output_handle_needs_swap;
+	wl_signal_add(&wlr_output->events.needs_swap, &output->needs_swap);
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
@@ -607,5 +613,7 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	pixman_region32_fini(&output->previous_damage);
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
+	wl_list_remove(&output->mode.link);
+	wl_list_remove(&output->needs_swap.link);
 	free(output);
 }

@@ -619,7 +619,11 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	gbm_bo_unmap(bo, bo_data);
 
-	return drm->iface->crtc_set_cursor(drm, crtc, bo);
+	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
+	if (ok) {
+		wlr_output_update_needs_swap(output);
+	}
+	return ok;
 }
 
 static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
@@ -643,8 +647,12 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		transformed_box.y -= plane->cursor_hotspot_y;
 	}
 
-	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
+	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
 		transformed_box.y);
+	if (ok) {
+		wlr_output_update_needs_swap(output);
+	}
+	return ok;
 }
 
 static void wlr_drm_connector_destroy(struct wlr_output *output) {

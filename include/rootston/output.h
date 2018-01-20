@@ -16,11 +16,11 @@ struct roots_output {
 
 	struct timespec last_frame;
 	pixman_region32_t damage, previous_damage;
-	bool frame_scheduled;
+	bool frame_pending;
 
 	struct wl_listener frame;
 	struct wl_listener mode;
-	struct wl_listener damage_listener;
+	struct wl_listener needs_swap;
 };
 
 void output_add_notify(struct wl_listener *listener, void *data);
