@@ -395,6 +395,12 @@ static void output_swap_buffers(struct wlr_output *wlr_output) {
 	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
 	}
+
+	// Damage the whole output
+	// TODO: use the buffer age extension
+	pixman_region32_union_rect(&wlr_output->damage, &wlr_output->damage,
+		0, 0, wlr_output->width, wlr_output->height);
+	wlr_output_update_needs_swap(wlr_output);
 }
 
 static struct wlr_output_impl output_impl = {
