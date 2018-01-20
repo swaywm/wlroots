@@ -298,6 +298,10 @@ void view_damage_whole(struct roots_view *view) {
 }
 
 void view_update_position(struct roots_view *view, double x, double y) {
+	if (view->x == x && view->y == y) {
+		return;
+	}
+
 	view_damage_whole(view);
 	view->x = x;
 	view->y = y;

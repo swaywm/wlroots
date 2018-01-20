@@ -204,23 +204,23 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_surface *wlr_surface = view->wlr_surface;
 
+	view_apply_damage(view);
+
 	int width = wlr_surface->current->width;
 	int height = wlr_surface->current->height;
-
+	double x = view->x;
+	double y = view->y;
 	if (view->pending_move_resize.update_x) {
-		double x = view->pending_move_resize.x +
-			view->pending_move_resize.width - width;
-		view_update_position(view, x, view->y);
+		x = view->pending_move_resize.x + view->pending_move_resize.width -
+			width;
 		view->pending_move_resize.update_x = false;
 	}
 	if (view->pending_move_resize.update_y) {
-		double y = view->pending_move_resize.y +
-			view->pending_move_resize.height - height;
-		view_update_position(view, view->x, y);
+		y = view->pending_move_resize.y + view->pending_move_resize.height -
+			height;
 		view->pending_move_resize.update_y = false;
 	}
-
-	view_apply_damage(view);
+	view_update_position(view, x, y);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {

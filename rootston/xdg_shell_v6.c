@@ -197,29 +197,30 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
+	view_apply_damage(view);
+
 	uint32_t pending_serial =
 		roots_surface->pending_move_resize_configure_serial;
 	if (pending_serial > 0 && pending_serial >= surface->configure_serial) {
 		struct wlr_box size;
 		get_size(view, &size);
 
+		double x = view->x;
+		double y = view->y;
 		if (view->pending_move_resize.update_x) {
-			double x = view->pending_move_resize.x +
-				view->pending_move_resize.width - size.width;
-			view_update_position(view, x, view->y);
+			x = view->pending_move_resize.x + view->pending_move_resize.width -
+				size.width;
 		}
 		if (view->pending_move_resize.update_y) {
-			double y = view->pending_move_resize.y +
-				view->pending_move_resize.height - size.height;
-			view_update_position(view, view->x, y);
+			y = view->pending_move_resize.y + view->pending_move_resize.height -
+				size.height;
 		}
+		view_update_position(view, x, y);
 
 		if (pending_serial == surface->configure_serial) {
 			roots_surface->pending_move_resize_configure_serial = 0;
 		}
 	}
-
-	view_apply_damage(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
