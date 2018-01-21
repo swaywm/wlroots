@@ -23,12 +23,14 @@ struct roots_wl_shell_surface {
 struct roots_xdg_surface_v6 {
 	struct roots_view *view;
 
-	struct wl_listener commit;
 	struct wl_listener destroy;
+	struct wl_listener new_popup;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
 	struct wl_listener request_fullscreen;
+
+	struct wl_listener surface_commit;
 
 	uint32_t pending_move_resize_configure_serial;
 };
@@ -131,6 +133,13 @@ struct roots_subsurface {
 	struct roots_view_child view_child;
 	struct wlr_subsurface *wlr_subsurface;
 	struct wl_listener destroy;
+};
+
+struct roots_xdg_popup_v6 {
+	struct roots_view_child view_child;
+	struct wlr_xdg_popup_v6 *wlr_popup;
+	struct wl_listener destroy;
+	struct wl_listener new_popup;
 };
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
