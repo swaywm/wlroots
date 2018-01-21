@@ -121,8 +121,10 @@ static void view_for_each_surface(struct roots_view *view,
 			view->y, view->rotation, false, iterator, user_data);
 		break;
 	case ROOTS_XWAYLAND_VIEW:
-		surface_for_each_surface(view->wlr_surface, view->x, view->y,
-			view->rotation, iterator, user_data);
+		if (view->wlr_surface != NULL) {
+			surface_for_each_surface(view->wlr_surface, view->x, view->y,
+				view->rotation, iterator, user_data);
+		}
 		break;
 	}
 }
@@ -466,6 +468,28 @@ static void output_damage_whole(struct roots_output *output) {
 	schedule_render(output);
 }
 
+static bool view_accept_damage(struct roots_output *output,
+		struct roots_view *view) {
+	if (output->fullscreen_view == NULL) {
+		return true;
+	}
+	if (output->fullscreen_view == view) {
+		return true;
+	}
+	if (output->fullscreen_view->type == ROOTS_XWAYLAND_VIEW &&
+			view->type == ROOTS_XWAYLAND_VIEW) {
+		// Special case: accept damage from children
+		struct wlr_xwayland_surface *xsurface = view->xwayland_surface;
+		while (xsurface != NULL) {
+			if (output->fullscreen_view->xwayland_surface == xsurface) {
+				return true;
+			}
+			xsurface = xsurface->parent;
+		}
+	}
+	return false;
+}
+
 static void damage_whole_surface(struct wlr_surface *surface,
 		double lx, double ly, float rotation, void *data) {
 	struct roots_output *output = data;
@@ -489,7 +513,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 
 void output_damage_whole_view(struct roots_output *output,
 		struct roots_view *view) {
-	if (output->fullscreen_view != NULL && output->fullscreen_view != view) {
+	if (!view_accept_damage(output, view)) {
 		return;
 	}
 
@@ -524,7 +548,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 
 void output_damage_from_view(struct roots_output *output,
 		struct roots_view *view) {
-	if (output->fullscreen_view != NULL && output->fullscreen_view != view) {
+	if (!view_accept_damage(output, view)) {
 		return;
 	}
 

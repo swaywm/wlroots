@@ -315,7 +315,7 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 		wl_list_init(&xsurface->parent_link);
 	}
 
-	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xsurface->parent);
 	wl_signal_emit(&xsurface->events.set_parent, xsurface);
 }
 
