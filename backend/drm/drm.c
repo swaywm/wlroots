@@ -193,6 +193,9 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return;
+	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf);
@@ -230,6 +233,9 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)conn->output.backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return;
+	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	struct gbm_bo *bo = wlr_drm_surface_get_front(
@@ -450,6 +456,9 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
 	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", conn->output.name,
 		crtc - drm->crtcs,
 		crtc->overlay ? crtc->overlay - drm->overlay_planes : -1,
@@ -501,6 +510,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	struct wlr_drm_renderer *renderer = &drm->renderer;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
 	struct wlr_drm_plane *plane = crtc->cursor;
 
 	// We don't have a real cursor plane, so we make a fake one
@@ -622,6 +634,9 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+	if (!conn || !conn->crtc) {
+		return false;
+	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
 
 	struct wlr_box box;
