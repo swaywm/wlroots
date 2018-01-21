@@ -501,6 +501,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	struct wlr_drm_renderer *renderer = &drm->renderer;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
 	struct wlr_drm_plane *plane = crtc->cursor;
 
 	// We don't have a real cursor plane, so we make a fake one
