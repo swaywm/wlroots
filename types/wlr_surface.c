@@ -424,7 +424,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each_reverse(subsurface, &surface->subsurface_pending_list,
-		parent_pending_link) {
+			parent_pending_link) {
 		wl_list_remove(&subsurface->parent_link);
 		wl_list_insert(&surface->subsurface_list, &subsurface->parent_link);
 
@@ -468,7 +468,6 @@ static void wlr_subsurface_parent_commit(struct wlr_subsurface *subsurface,
 		bool synchronized) {
 		struct wlr_surface *surface = subsurface->surface;
 	if (synchronized || subsurface->synchronized) {
-
 		if (subsurface->has_cache) {
 			wlr_surface_move_state(surface, subsurface->cached, surface->pending);
 			wlr_surface_commit_pending(surface);
@@ -604,6 +603,8 @@ static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
 }
 
 void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
+	wl_signal_emit(&subsurface->events.destroy, subsurface);
+
 	wlr_surface_state_destroy(subsurface->cached);
 
 	if (subsurface->parent) {
@@ -651,6 +652,7 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
+	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->subsurface_list);
 	wl_list_init(&surface->subsurface_pending_list);
 	wl_resource_set_implementation(res, &surface_interface,
@@ -739,10 +741,6 @@ static struct wlr_subsurface *subsurface_find_sibling(
 static void subsurface_place_above(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *sibling_resource) {
 	struct wlr_subsurface *subsurface = wl_resource_get_user_data(resource);
-
-	if (!subsurface) {
-		return;
-	}
 
 	struct wlr_surface *sibling_surface =
 		wl_resource_get_user_data(sibling_resource);
@@ -849,6 +847,7 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 	}
 	subsurface->synchronized = true;
 	subsurface->surface = surface;
+	wl_signal_init(&subsurface->events.destroy);
 
 	// link parent
 	subsurface->parent = parent;
@@ -874,6 +873,8 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		subsurface_resource_destroy);
 
 	surface->subsurface = subsurface;
+
+	wl_signal_emit(&parent->events.new_subsurface, subsurface);
 }
 
 

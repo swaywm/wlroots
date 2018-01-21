@@ -56,6 +56,10 @@ struct wlr_subsurface {
 	struct wl_list parent_pending_link;
 
 	struct wl_listener parent_destroy_listener;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 struct wlr_surface {
@@ -70,6 +74,7 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
+		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
 

@@ -35,7 +35,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 
 	wl_list_insert(&compositor->surfaces,
 		wl_resource_get_link(surface_resource));
-	wl_signal_emit(&compositor->events.create_surface, surface);
+	wl_signal_emit(&compositor->events.new_surface, surface);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
@@ -185,7 +185,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
-	wl_signal_init(&compositor->events.create_surface);
+	wl_signal_init(&compositor->events.new_surface);
 
 	compositor->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &compositor->display_destroy);
