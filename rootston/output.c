@@ -158,8 +158,14 @@ static void render_decorations(struct roots_view *view,
 	}
 	struct wlr_box deco_box;
 	view_get_deco_box(view, &deco_box);
-	double ox = deco_box.x;
-	double oy = deco_box.y;
+	double sx = deco_box.x - view->x;
+	double sy = deco_box.y - view->y;
+	rotate_child_position(&sx, &sy, deco_box.width, deco_box.height,
+		view->wlr_surface->current->width,
+		view->wlr_surface->current->height, view->rotation);
+	double ox = sx + view->x;
+	double oy = sy + view->y;
+
 	wlr_output_layout_output_coords(desktop->layout, output, &ox, &oy);
 	ox *= output->scale;
 	oy *= output->scale;

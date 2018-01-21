@@ -30,8 +30,8 @@ struct roots_seat_view {
 	struct roots_view *view;
 
 	bool has_button_grab;
-	double grab_vx;
-	double grab_vy;
+	double grab_sx;
+	double grab_sy;
 
 	struct wl_list link; // roots_seat::views
 

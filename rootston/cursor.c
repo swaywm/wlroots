@@ -30,25 +30,27 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 	// TODO
 }
 
-static void seat_view_deco_motion(struct roots_seat_view *view, double deco_vx, double deco_vy) {
+static void seat_view_deco_motion(struct roots_seat_view *view, double deco_sx, double deco_sy) {
 	struct roots_cursor *cursor = view->seat->cursor;
 
-	double vx = deco_vx;
-	double vy = deco_vy;
+	double sx = deco_sx;
+	double sy = deco_sy;
 	if (view->has_button_grab) {
-		vx = view->grab_vx;
-		vy = view->grab_vy;
+		sx = view->grab_sx;
+		sy = view->grab_sy;
 	}
 
-	bool is_titlebar = vy < 0 && -vy < view->view->titlebar_height;
+	enum wlr_deco_part parts = view_get_deco_part(view->view, sx, sy);
+
+	bool is_titlebar = (parts & WLR_DECO_PART_TITLEBAR);
 	uint32_t edges = 0;
-	if (vx < 0) {
+	if (parts & WLR_DECO_PART_LEFT_BORDER) {
 		edges |= WLR_EDGE_LEFT;
-	} else if (vx > view->view->wlr_surface->current->width) {
+	} else if (parts & WLR_DECO_PART_RIGHT_BORDER) {
 		edges |= WLR_EDGE_RIGHT;
-	} else if (vy > view->view->wlr_surface->current->height) {
+	} else if (parts & WLR_DECO_PART_BOTTOM_BORDER) {
 		edges |= WLR_EDGE_BOTTOM;
-	} else if (-vy > view->view->titlebar_height) {
+	} else if (parts & WLR_DECO_PART_TOP_BORDER) {
 		edges |= WLR_EDGE_TOP;
 	}
 
@@ -75,12 +77,12 @@ static void seat_view_deco_leave(struct roots_seat_view *view) {
 	view->has_button_grab = false;
 }
 
-static void seat_view_deco_button(struct roots_seat_view *view, double vx,
-		double vy, uint32_t button, uint32_t state) {
+static void seat_view_deco_button(struct roots_seat_view *view, double sx,
+		double sy, uint32_t button, uint32_t state) {
 	if (button == BTN_LEFT && state == WLR_BUTTON_PRESSED) {
 		view->has_button_grab = true;
-		view->grab_vx = vx;
-		view->grab_vy = vy;
+		view->grab_sx = sx;
+		view->grab_sy = sy;
 	} else {
 		view->has_button_grab = false;
 	}
@@ -117,9 +119,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		if (view && !surface) {
 			if (seat_view) {
 				cursor->pointer_view = seat_view;
-				seat_view_deco_motion(seat_view,
-					cursor->cursor->x - seat_view->view->x,
-					cursor->cursor->y - seat_view->view->y);
+				seat_view_deco_motion(seat_view, sx, sy);
 			}
 		} if (view && surface) {
 			// motion over a view surface
@@ -239,10 +239,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 
 	if (view && !surface) {
 		if (cursor->pointer_view) {
-			seat_view_deco_button(cursor->pointer_view,
-					cursor->cursor->x - cursor->pointer_view->view->x,
-					cursor->cursor->y - cursor->pointer_view->view->y,
-					button, state);
+			seat_view_deco_button(cursor->pointer_view, sx, sy, button, state);
 		}
 	}
 

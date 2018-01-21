@@ -19,6 +19,7 @@
 #include "rootston/server.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
+#include "rootston/view.h"
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
@@ -41,6 +42,43 @@ void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
 	box->y -= (view->border_width + view->titlebar_height);
 	box->width += view->border_width * 2;
 	box->height += (view->border_width * 2 + view->titlebar_height);
+}
+
+enum wlr_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
+	if (!view->decorated) {
+		return WLR_DECO_PART_NONE;
+	}
+
+	int sw = view->wlr_surface->current->width;
+	int sh = view->wlr_surface->current->height;
+	int bw = view->border_width;
+	int titlebar_h = view->titlebar_height;
+
+	if (sx > 0 && sx < sw && sy < 0 && sy > -view->titlebar_height) {
+		return WLR_DECO_PART_TITLEBAR;
+	}
+
+	enum wlr_deco_part parts = 0;
+	if (sy >= -(titlebar_h + bw) &&
+			sy <= sh + bw) {
+		if (sx < 0 && sx > -bw) {
+			parts |= WLR_DECO_PART_LEFT_BORDER;
+		} else if (sx > sw && sx < sw + bw) {
+			parts |= WLR_DECO_PART_RIGHT_BORDER;
+		}
+	}
+
+	if (sx >= -bw && sx <= sw + bw) {
+		if (sy > sh && sy <= sh + bw) {
+			parts |= WLR_DECO_PART_BOTTOM_BORDER;
+		} else if (sy >= -(titlebar_h + bw) && sy < 0) {
+			parts |= WLR_DECO_PART_TOP_BORDER;
+		}
+	}
+
+	// TODO corners
+
+	return parts;
 }
 
 static void view_update_output(const struct roots_view *view,
@@ -359,6 +397,12 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		return true;
 	}
 
+	if (view_get_deco_part(view, view_sx, view_sy)) {
+		*sx = view_sx;
+		*sy = view_sy;
+		return view;
+	}
+
 	if (wlr_box_contains_point(&box, view_sx, view_sy) &&
 			pixman_region32_contains_point(&view->wlr_surface->current->input,
 				view_sx, view_sy, NULL)) {
@@ -391,14 +435,6 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	wl_list_for_each(view, &desktop->views, link) {
 		if (view_at(view, lx, ly, surface, sx, sy)) {
 			return view;
-		}
-
-		if (view->decorated) {
-			struct wlr_box deco_box;
-			view_get_deco_box(view, &deco_box);
-			if (wlr_box_contains_point(&deco_box, lx, ly)) {
-				return view;
-			}
 		}
 	}
 	return NULL;

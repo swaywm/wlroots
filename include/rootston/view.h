@@ -120,7 +120,6 @@ struct roots_view {
 };
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
-void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height);
@@ -133,5 +132,18 @@ void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);
 void view_teardown(struct roots_view *view);
+
+void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
+
+enum wlr_deco_part {
+	WLR_DECO_PART_NONE = 0,
+	WLR_DECO_PART_TOP_BORDER = (1 << 0),
+	WLR_DECO_PART_BOTTOM_BORDER = (1 << 1),
+	WLR_DECO_PART_LEFT_BORDER = (1 << 2),
+	WLR_DECO_PART_RIGHT_BORDER = (1 << 3),
+	WLR_DECO_PART_TITLEBAR = (1 << 4),
+};
+
+enum wlr_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy);
 
 #endif
