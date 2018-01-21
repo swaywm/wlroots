@@ -731,8 +731,9 @@ static struct wlr_subsurface *subsurface_find_sibling(
 
 	struct wlr_subsurface *sibling;
 	wl_list_for_each(sibling, &parent->subsurface_list, parent_link) {
-		if (sibling->surface == surface && sibling != subsurface)
+		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
+		}
 	}
 
 	return NULL;

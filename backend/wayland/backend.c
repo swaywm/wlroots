@@ -85,12 +85,24 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 
 	wl_event_source_remove(backend->remote_display_src);
 	wlr_egl_finish(&backend->egl);
-	if (backend->seat) wl_seat_destroy(backend->seat);
-	if (backend->shm) wl_shm_destroy(backend->shm);
-	if (backend->shell) zxdg_shell_v6_destroy(backend->shell);
-	if (backend->compositor) wl_compositor_destroy(backend->compositor);
-	if (backend->registry) wl_registry_destroy(backend->registry);
-	if (backend->remote_display) wl_display_disconnect(backend->remote_display);
+	if (backend->seat) {
+		wl_seat_destroy(backend->seat);
+	}
+	if (backend->shm) {
+		wl_shm_destroy(backend->shm);
+	}
+	if (backend->shell) {
+		zxdg_shell_v6_destroy(backend->shell);
+	}
+	if (backend->compositor) {
+		wl_compositor_destroy(backend->compositor);
+	}
+	if (backend->registry) {
+		wl_registry_destroy(backend->registry);
+	}
+	if (backend->remote_display) {
+		wl_display_disconnect(backend->remote_display);
+	}
 	free(backend);
 }
 
