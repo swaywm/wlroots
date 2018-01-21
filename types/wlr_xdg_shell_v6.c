@@ -103,7 +103,9 @@ static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
 	.axis = xdg_pointer_grab_axis,
 };
 
-static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab, struct wlr_surface *surface) {
+static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab,
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers) {
 	// keyboard focus should remain on the popup
 }
 
@@ -112,8 +114,9 @@ static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab, uint32_t 
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
-static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab) {
-	wlr_seat_keyboard_send_modifiers(grab->seat);
+static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab,
+		struct wlr_keyboard_modifiers *modifiers) {
+	wlr_seat_keyboard_send_modifiers(grab->seat, modifiers);
 }
 
 static void xdg_keyboard_grab_cancel(struct wlr_seat_keyboard_grab *grab) {

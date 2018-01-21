@@ -293,17 +293,34 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		return NULL;
 	}
 
-	wlr_seat_set_capabilities(seat->seat,
-		WL_SEAT_CAPABILITY_KEYBOARD |
-		WL_SEAT_CAPABILITY_POINTER |
-		WL_SEAT_CAPABILITY_TOUCH);
-
 	wl_list_insert(&input->seats, &seat->link);
 
 	seat->seat_destroy.notify = roots_seat_handle_seat_destroy;
 	wl_signal_add(&seat->seat->events.destroy, &seat->seat_destroy);
 
 	return seat;
+}
+
+static void seat_update_capabilities(struct roots_seat *seat) {
+	uint32_t caps = 0;
+	if (!wl_list_empty(&seat->keyboards)) {
+		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
+	}
+	if (!wl_list_empty(&seat->pointers) || !wl_list_empty(&seat->tablet_tools)) {
+		caps |= WL_SEAT_CAPABILITY_POINTER;
+	}
+	if (!wl_list_empty(&seat->touch)) {
+		caps |= WL_SEAT_CAPABILITY_TOUCH;
+	}
+	wlr_seat_set_capabilities(seat->seat, caps);
+
+	// Hide cursor if seat doesn't have pointer capability
+	if ((caps & WL_SEAT_CAPABILITY_POINTER) == 0) {
+		wlr_cursor_set_image(seat->cursor->cursor, NULL, 0, 0, 0, 0, 0, 0);
+	} else {
+		wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
+			seat->cursor->default_xcursor, seat->cursor->cursor);
+	}
 }
 
 static void seat_add_keyboard(struct roots_seat *seat,
@@ -404,6 +421,8 @@ void roots_seat_add_device(struct roots_seat *seat,
 		seat_add_tablet_tool(seat, device);
 		break;
 	}
+
+	seat_update_capabilities(seat);
 }
 
 static void seat_remove_keyboard(struct roots_seat *seat,
@@ -480,6 +499,8 @@ void roots_seat_remove_device(struct roots_seat *seat,
 		seat_remove_tablet_tool(seat, device);
 		break;
 	}
+
+	seat_update_capabilities(seat);
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
@@ -655,7 +676,16 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
-	wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface);
+
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			keyboard->keycodes, keyboard->num_keycodes,
+			&keyboard->modifiers);
+	} else {
+		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			NULL, 0, NULL);
+	}
 }
 
 void roots_seat_cycle_focus(struct roots_seat *seat) {
