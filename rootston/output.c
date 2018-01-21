@@ -52,9 +52,16 @@ static void render_surface(struct wlr_surface *surface,
 		.width = render_width, .height = render_height,
 	};
 	if (wlr_output_layout_intersects(desktop->layout, wlr_output, &render_box)) {
+		struct wlr_box model_box = {
+			.x = ox,
+			.y = oy,
+			.width = render_width,
+			.height = render_height,
+		};
 		float matrix[16];
-		wlr_output_get_box_matrix(wlr_output, ox, oy, render_width,
-			render_height, surface->current->transform, rotation, &matrix);
+		wlr_matrix_box_model(&matrix, &model_box, surface->current->transform,
+			rotation);
+		wlr_matrix_mul(&wlr_output->transform_matrix, &matrix, &matrix);
 		wlr_render_with_matrix(desktop->server->renderer, surface->texture,
 			&matrix);
 
@@ -157,11 +164,17 @@ static void render_decorations(struct roots_view *view,
 	ox *= output->scale;
 	oy *= output->scale;
 
-	float matrix[16];
-	wlr_output_get_box_matrix(output, ox, oy, deco_box.width,
-		deco_box.height, WL_OUTPUT_TRANSFORM_NORMAL, view->rotation,
-		&matrix);
+	struct wlr_box model_box = {
+		.x = ox,
+		.y = oy,
+		.width = deco_box.width,
+		.height = deco_box.height,
+	};
 
+	float matrix[16];
+	wlr_matrix_box_model(&matrix, &model_box, WL_OUTPUT_TRANSFORM_NORMAL,
+		view->rotation);
+	wlr_matrix_mul(&output->transform_matrix, &matrix, &matrix);
 	float color[4] = { 0.2, 0.2, 0.2, 1 };
 	wlr_render_colored_quad(desktop->server->renderer, &color, &matrix);
 }

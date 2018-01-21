@@ -136,11 +136,4 @@ enum wl_output_transform wlr_output_transform_invert(
 enum wl_output_transform wlr_output_transform_compose(
 	enum wl_output_transform tr_a, enum wl_output_transform tr_b);
 
-/**
- * Get a matrix suitable for rendering a box on the output.
- */
-void wlr_output_get_box_matrix(struct wlr_output *output, int ox, int oy,
-		int width, int height, enum wl_output_transform transform,
-		float rotation, float (*mat)[16]);
-
 #endif
