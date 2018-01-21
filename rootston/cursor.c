@@ -74,6 +74,9 @@ static void seat_view_deco_motion(struct roots_seat_view *view, double deco_sx, 
 }
 
 static void seat_view_deco_leave(struct roots_seat_view *view) {
+	struct roots_cursor *cursor = view->seat->cursor;
+	wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+		cursor->default_xcursor, cursor->cursor);
 	view->has_button_grab = false;
 }
 
@@ -85,6 +88,13 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 		view->grab_sy = sy;
 	} else {
 		view->has_button_grab = false;
+	}
+
+	enum wlr_deco_part parts = view_get_deco_part(view->view, sx, sy);
+	if (state == WLR_BUTTON_RELEASED && (parts & WLR_DECO_PART_TITLEBAR)) {
+		struct roots_cursor *cursor = view->seat->cursor;
+		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
+				cursor->default_xcursor, cursor->cursor);
 	}
 }
 
@@ -246,8 +256,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	if (state == WLR_BUTTON_RELEASED &&
 			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
 		cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
-			cursor->default_xcursor, cursor->cursor);
 		if (seat->seat->pointer_state.button_count == 0) {
 			return;
 		}
