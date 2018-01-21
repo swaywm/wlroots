@@ -231,7 +231,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_xdg_surface->request_move.link);
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
 	wl_list_remove(&roots_xdg_surface->view->link);
-	view_destroy(roots_xdg_surface->view);
+	view_finish(roots_xdg_surface->view);
+	free(roots_xdg_surface->view);
 	free(roots_xdg_surface);
 }
 

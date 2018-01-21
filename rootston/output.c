@@ -444,7 +444,7 @@ static void output_damage_whole(struct roots_output *output) {
 }
 
 static void output_damage_whole_surface(struct roots_output *output,
-		struct wlr_surface *surface, double lx, double ly) {
+		struct wlr_surface *surface, double lx, double ly, float rotation) {
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
 	}
@@ -460,6 +460,18 @@ static void output_damage_whole_surface(struct roots_output *output,
 		box.x, box.y, box.width, box.height);
 
 	schedule_render(output);
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		struct wlr_surface_state *state = subsurface->surface->current;
+		double sx = state->subsurface_position.x;
+		double sy = state->subsurface_position.y;
+		rotate_child_position(&sx, &sy, state->width, state->height,
+			surface->current->width, surface->current->height, rotation);
+
+		output_damage_whole_surface(output, subsurface->surface,
+			lx + sx, ly + sy, rotation);
+	}
 }
 
 void output_damage_whole_view(struct roots_output *output,
@@ -469,14 +481,15 @@ void output_damage_whole_view(struct roots_output *output,
 	}
 
 	if (view->wlr_surface != NULL) {
-		output_damage_whole_surface(output, view->wlr_surface, view->x, view->y);
+		output_damage_whole_surface(output, view->wlr_surface,
+			view->x, view->y, view->rotation);
 	}
 
-	// TODO: subsurfaces, popups, etc
+	// TODO: popups, etc
 }
 
 static void output_damage_from_surface(struct roots_output *output,
-		struct wlr_surface *surface, double lx, double ly) {
+		struct wlr_surface *surface, double lx, double ly, float rotation) {
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
 	}
@@ -497,6 +510,18 @@ static void output_damage_from_surface(struct roots_output *output,
 	pixman_region32_fini(&damage);
 
 	schedule_render(output);
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		struct wlr_surface_state *state = subsurface->surface->current;
+		double sx = state->subsurface_position.x;
+		double sy = state->subsurface_position.y;
+		rotate_child_position(&sx, &sy, state->width, state->height,
+			surface->current->width, surface->current->height, rotation);
+
+		output_damage_from_surface(output, subsurface->surface,
+			lx + sx, ly + sy, rotation);
+	}
 }
 
 void output_damage_from_view(struct roots_output *output,
@@ -506,10 +531,11 @@ void output_damage_from_view(struct roots_output *output,
 	}
 
 	if (view->wlr_surface != NULL) {
-		output_damage_from_surface(output, view->wlr_surface, view->x, view->y);
+		output_damage_from_surface(output, view->wlr_surface,
+			view->x, view->y, view->rotation);
 	}
 
-	// TODO: subsurfaces, popups, etc
+	// TODO: popups, etc
 }
 
 static void output_handle_mode(struct wl_listener *listener, void *data) {

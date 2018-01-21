@@ -118,7 +118,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->set_state.link);
 	wl_list_remove(&roots_surface->surface_commit.link);
 	wl_list_remove(&roots_surface->view->link);
-	view_destroy(roots_surface->view);
+	view_finish(roots_surface->view);
+	free(roots_surface->view);
 	free(roots_surface);
 }
 

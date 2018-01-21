@@ -64,7 +64,7 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	double ly, struct wlr_surface **surface, double *sx, double *sy);
 
 void view_init(struct roots_view *view, struct roots_desktop *desktop);
-void view_destroy(struct roots_view *view);
+void view_finish(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
 void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);

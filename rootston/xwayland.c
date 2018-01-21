@@ -121,7 +121,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	if (xwayland_surface->mapped) {
 		wl_list_remove(&roots_surface->view->link);
 	}
-	view_destroy(roots_surface->view);
+	view_finish(roots_surface->view);
+	free(roots_surface->view);
 	free(roots_surface);
 }
 
@@ -233,24 +234,26 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->wlr_surface = xsurface->surface;
 	view->x = xsurface->x;
 	view->y = xsurface->y;
+	wl_list_insert(&desktop->views, &view->link);
+
 	view_damage_whole(view);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&xsurface->surface->events.commit,
 		&roots_surface->surface_commit);
-
-	wl_list_insert(&desktop->views, &view->link);
 }
 
 static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
+	struct roots_view *view = roots_surface->view;
 
-	view_damage_whole(roots_surface->view);
-
-	roots_surface->view->wlr_surface = NULL;
 	wl_list_remove(&roots_surface->surface_commit.link);
-	wl_list_remove(&roots_surface->view->link);
+
+	view_damage_whole(view);
+
+	view->wlr_surface = NULL;
+	wl_list_remove(&view->link);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {

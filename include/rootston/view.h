@@ -91,7 +91,11 @@ struct roots_view {
 		struct roots_xwayland_surface *roots_xwayland_surface;
 #endif
 	};
+
 	struct wlr_surface *wlr_surface;
+	struct wl_list children; // roots_view_child::link
+
+	struct wl_listener new_subsurface;
 
 	struct {
 		struct wl_signal destroy;
@@ -112,6 +116,21 @@ struct roots_view {
 	void (*close)(struct roots_view *view);
 };
 
+struct roots_view_child {
+	struct roots_view *view;
+	struct wlr_surface *wlr_surface;
+	struct wl_list link;
+
+	struct wl_listener commit;
+	struct wl_listener new_subsurface;
+};
+
+struct roots_subsurface {
+	struct roots_view_child view_child;
+	struct wlr_subsurface *wlr_subsurface;
+	struct wl_listener destroy;
+};
+
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);
@@ -125,5 +144,13 @@ void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);
 void view_teardown(struct roots_view *view);
+
+void view_child_init(struct roots_view_child *child, struct roots_view *view,
+	struct wlr_surface *wlr_surface);
+void view_child_finish(struct roots_view_child *child);
+
+struct roots_subsurface *subsurface_create(struct roots_view *view,
+	struct wlr_subsurface *wlr_subsurface);
+void subsurface_destroy(struct roots_subsurface *subsurface);
 
 #endif
