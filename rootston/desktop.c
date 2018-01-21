@@ -280,6 +280,7 @@ static void view_child_handle_new_subsurface(struct wl_listener *listener,
 
 void view_child_init(struct roots_view_child *child, struct roots_view *view,
 		struct wlr_surface *wlr_surface) {
+	assert(child->destroy);
 	child->view = view;
 	child->wlr_surface = wlr_surface;
 	child->commit.notify = view_child_handle_commit;
@@ -289,11 +290,22 @@ void view_child_init(struct roots_view_child *child, struct roots_view *view,
 	wl_list_insert(&view->children, &child->link);
 }
 
+static void subsurface_destroy(struct roots_view_child *child) {
+	assert(child->destroy == subsurface_destroy);
+	struct roots_subsurface *subsurface = (struct roots_subsurface *)child;
+	if (subsurface == NULL) {
+		return;
+	}
+	wl_list_remove(&subsurface->destroy.link);
+	view_child_finish(&subsurface->view_child);
+	free(subsurface);
+}
+
 static void subsurface_handle_destroy(struct wl_listener *listener,
 		void *data) {
 	struct roots_subsurface *subsurface =
 		wl_container_of(listener, subsurface, destroy);
-	subsurface_destroy(subsurface);
+	subsurface_destroy((struct roots_view_child *)subsurface);
 }
 
 struct roots_subsurface *subsurface_create(struct roots_view *view,
@@ -304,19 +316,11 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 		return NULL;
 	}
 	subsurface->wlr_subsurface = wlr_subsurface;
+	subsurface->view_child.destroy = subsurface_destroy;
 	view_child_init(&subsurface->view_child, view, wlr_subsurface->surface);
 	subsurface->destroy.notify = subsurface_handle_destroy;
 	wl_signal_add(&wlr_subsurface->events.destroy, &subsurface->destroy);
 	return subsurface;
-}
-
-void subsurface_destroy(struct roots_subsurface *subsurface) {
-	if (subsurface == NULL) {
-		return;
-	}
-	wl_list_remove(&subsurface->destroy.link);
-	view_child_finish(&subsurface->view_child);
-	free(subsurface);
 }
 
 void view_finish(struct roots_view *view) {
@@ -324,6 +328,11 @@ void view_finish(struct roots_view *view) {
 	wl_signal_emit(&view->events.destroy, view);
 
 	wl_list_remove(&view->new_subsurface.link);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
 
 	if (view->fullscreen_output) {
 		view->fullscreen_output->fullscreen_view = NULL;

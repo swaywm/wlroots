@@ -236,6 +236,12 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->y = xsurface->y;
 	wl_list_insert(&desktop->views, &view->link);
 
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &view->wlr_surface->subsurface_list,
+			parent_link) {
+		subsurface_create(view, subsurface);
+	}
+
 	view_damage_whole(view);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
@@ -251,6 +257,11 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->surface_commit.link);
 
 	view_damage_whole(view);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
 
 	view->wlr_surface = NULL;
 	wl_list_remove(&view->link);

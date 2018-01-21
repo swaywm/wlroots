@@ -123,6 +123,8 @@ struct roots_view_child {
 
 	struct wl_listener commit;
 	struct wl_listener new_subsurface;
+
+	void (*destroy)(struct roots_view_child *child);
 };
 
 struct roots_subsurface {
@@ -151,6 +153,5 @@ void view_child_finish(struct roots_view_child *child);
 
 struct roots_subsurface *subsurface_create(struct roots_view *view,
 	struct wlr_subsurface *wlr_subsurface);
-void subsurface_destroy(struct roots_subsurface *subsurface);
 
 #endif
