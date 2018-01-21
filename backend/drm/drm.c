@@ -193,6 +193,9 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return;
+	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf);
@@ -230,6 +233,9 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)conn->output.backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return;
+	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	struct gbm_bo *bo = wlr_drm_surface_get_front(
@@ -450,6 +456,9 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
 	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", conn->output.name,
 		crtc - drm->crtcs,
 		crtc->overlay ? crtc->overlay - drm->overlay_planes : -1,
