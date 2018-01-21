@@ -5,6 +5,11 @@
 #include <pixman.h>
 #include <wayland-server.h>
 
+/**
+ * Damage tracking requires to keep track of previous frames' damage. To allow
+ * damage tracking to work with triple buffering, an history of two frames is
+ * required.
+ */
 #define ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN 2
 
 struct roots_desktop;
@@ -20,6 +25,7 @@ struct roots_output {
 	pixman_region32_t damage;
 	bool frame_pending;
 
+	// circular queue for previous damage
 	pixman_region32_t previous_damage[ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN];
 	size_t previous_damage_idx;
 

@@ -31,6 +31,10 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 	}
 }
 
+/**
+ * Checks whether a surface at (lx, ly) intersects an output. Sets `box` to the
+ * surface box in the output, in output-local coordinates.
+ */
 static bool surface_intersect_output(struct wlr_surface *surface,
 		struct wlr_output_layout *output_layout, struct wlr_output *wlr_output,
 		double lx, double ly, struct wlr_box *box) {
@@ -138,10 +142,8 @@ render_subsurfaces:;
 		struct wlr_surface_state *state = subsurface->surface->current;
 		double sx = state->subsurface_position.x;
 		double sy = state->subsurface_position.y;
-		double sw = state->buffer_width / state->scale;
-		double sh = state->buffer_height / state->scale;
-		rotate_child_position(&sx, &sy, sw, sh, surface->current->width,
-			surface->current->height, rotation);
+		rotate_child_position(&sx, &sy, state->width, state->height,
+			surface->current->width, surface->current->height, rotation);
 
 		render_surface(subsurface->surface, output, when, damage,
 			lx + sx, ly + sy, rotation);
@@ -297,6 +299,7 @@ static void render_output(struct roots_output *output) {
 	int buffer_age = -1;
 	wlr_output_make_current(wlr_output, &buffer_age);
 
+	// Check if we can use damage tracking
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	if (buffer_age <= 0 || buffer_age - 1 > ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN) {
@@ -306,8 +309,9 @@ static void render_output(struct roots_output *output) {
 	} else {
 		pixman_region32_copy(&damage, &output->damage);
 
+		// Accumulate damage from old buffers
 		size_t idx = output->previous_damage_idx;
-		for (int i = 0; i < buffer_age - 1; i++) {
+		for (int i = 0; i < buffer_age - 1; ++i) {
 			int j = (idx + i) % ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
 			pixman_region32_union(&damage, &damage, &output->previous_damage[j]);
 		}
@@ -362,11 +366,13 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
+	// Render all views
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
 		render_view(view, output, &now, &damage);
 	}
 
+	// Render drag icons
 	struct wlr_drag_icon *drag_icon = NULL;
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &server->input->seats, link) {
@@ -398,6 +404,7 @@ renderer_end:
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output, &now, &damage);
 	output->frame_pending = true;
+	// same as decrementing, but works on unsigned integers
 	output->previous_damage_idx += ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN - 1;
 	output->previous_damage_idx %= ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
 	pixman_region32_copy(&output->previous_damage[output->previous_damage_idx],
@@ -421,6 +428,7 @@ static void handle_idle_render(void *data) {
 
 static void schedule_render(struct roots_output *output) {
 	if (!output->frame_pending) {
+		// TODO: ask the backend to send a frame event when appropriate instead
 		struct wl_event_loop *ev =
 			wl_display_get_event_loop(output->desktop->server->wl_display);
 		wl_event_loop_add_idle(ev, handle_idle_render, output);
@@ -480,6 +488,7 @@ static void output_damage_from_surface(struct roots_output *output,
 		return;
 	}
 
+	// TODO: output scale, output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_copy(&damage, &surface->current->surface_damage);

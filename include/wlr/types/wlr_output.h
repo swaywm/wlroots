@@ -33,8 +33,6 @@ struct wlr_output_cursor {
 	struct wl_listener surface_destroy;
 };
 
-#define WLR_OUTPUT_PREVIOUS_DAMAGE_COUNT 2
-
 struct wlr_output_impl;
 
 struct wlr_output {
@@ -51,20 +49,20 @@ struct wlr_output {
 	char serial[16];
 	int32_t phys_width, phys_height; // mm
 
+	// Note: some backends may have zero modes
+	struct wl_list modes;
+	struct wlr_output_mode *current_mode;
+	int32_t width, height;
+	int32_t refresh; // mHz, may be zero
+
 	bool enabled;
 	float scale;
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 
 	bool needs_swap;
-	pixman_region32_t damage;
+	pixman_region32_t damage; // damage for cursors and fullscreen surface
 	float transform_matrix[16];
-
-	// Note: some backends may have zero modes
-	struct wl_list modes;
-	struct wlr_output_mode *current_mode;
-	int32_t width, height;
-	int32_t refresh; // mHz
 
 	struct {
 		struct wl_signal frame;
@@ -107,16 +105,18 @@ void wlr_output_destroy(struct wlr_output *output);
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
 /**
- * Makes the output GL context current.
+ * Makes the output rendering context current.
  *
  * `buffer_age` is set to the drawing buffer age in number of frames or -1 if
- * unknown.
+ * unknown. This is useful for damage tracking.
  */
 bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
 /**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL. If the compositor doesn't support damage tracking, set `damage` to
  * NULL.
+ *
+ * Swapping buffers schedules a `frame` event.
  */
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	pixman_region32_t *damage);
@@ -125,6 +125,7 @@ void wlr_output_set_gamma(struct wlr_output *output,
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
+
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
 /**
