@@ -634,6 +634,9 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+	if (!conn || !conn->crtc) {
+		return false;
+	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
 
 	struct wlr_box box;
