@@ -482,11 +482,9 @@ static void read_surface_net_wm_state(struct wlr_xwm *xwm,
 	for (uint32_t i = 0; i < reply->value_len; i++) {
 		if (atom[i] == xwm->atoms[_NET_WM_STATE_FULLSCREEN]) {
 			xsurface->fullscreen = true;
-		}
-		if (atom[i] == xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT]) {
+		} else if (atom[i] == xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT]) {
 			xsurface->maximized_vert = true;
-		}
-		if (atom[i] == xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ]) {
+		} else if (atom[i] == xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ]) {
 			xsurface->maximized_horz = true;
 		}
 	}
