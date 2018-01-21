@@ -331,7 +331,7 @@ static bool add_signal_matches(struct logind_session *session) {
 static int dbus_event(int fd, uint32_t mask, void *data) {
 	sd_bus *bus = data;
 	while (sd_bus_process(bus, NULL) > 0) {
-		;
+		// Do nothing.
 	}
 	return 1;
 }
