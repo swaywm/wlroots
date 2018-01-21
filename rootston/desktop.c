@@ -44,9 +44,9 @@ void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
 	box->height += (view->border_width * 2 + view->titlebar_height);
 }
 
-enum wlr_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
+enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
 	if (!view->decorated) {
-		return WLR_DECO_PART_NONE;
+		return ROOTS_DECO_PART_NONE;
 	}
 
 	int sw = view->wlr_surface->current->width;
@@ -55,24 +55,24 @@ enum wlr_deco_part view_get_deco_part(struct roots_view *view, double sx, double
 	int titlebar_h = view->titlebar_height;
 
 	if (sx > 0 && sx < sw && sy < 0 && sy > -view->titlebar_height) {
-		return WLR_DECO_PART_TITLEBAR;
+		return ROOTS_DECO_PART_TITLEBAR;
 	}
 
-	enum wlr_deco_part parts = 0;
+	enum roots_deco_part parts = 0;
 	if (sy >= -(titlebar_h + bw) &&
 			sy <= sh + bw) {
 		if (sx < 0 && sx > -bw) {
-			parts |= WLR_DECO_PART_LEFT_BORDER;
+			parts |= ROOTS_DECO_PART_LEFT_BORDER;
 		} else if (sx > sw && sx < sw + bw) {
-			parts |= WLR_DECO_PART_RIGHT_BORDER;
+			parts |= ROOTS_DECO_PART_RIGHT_BORDER;
 		}
 	}
 
 	if (sx >= -bw && sx <= sw + bw) {
 		if (sy > sh && sy <= sh + bw) {
-			parts |= WLR_DECO_PART_BOTTOM_BORDER;
+			parts |= ROOTS_DECO_PART_BOTTOM_BORDER;
 		} else if (sy >= -(titlebar_h + bw) && sy < 0) {
-			parts |= WLR_DECO_PART_TOP_BORDER;
+			parts |= ROOTS_DECO_PART_TOP_BORDER;
 		}
 	}
 

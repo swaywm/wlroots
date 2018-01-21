@@ -40,17 +40,17 @@ static void seat_view_deco_motion(struct roots_seat_view *view, double deco_sx, 
 		sy = view->grab_sy;
 	}
 
-	enum wlr_deco_part parts = view_get_deco_part(view->view, sx, sy);
+	enum roots_deco_part parts = view_get_deco_part(view->view, sx, sy);
 
-	bool is_titlebar = (parts & WLR_DECO_PART_TITLEBAR);
+	bool is_titlebar = (parts & ROOTS_DECO_PART_TITLEBAR);
 	uint32_t edges = 0;
-	if (parts & WLR_DECO_PART_LEFT_BORDER) {
+	if (parts & ROOTS_DECO_PART_LEFT_BORDER) {
 		edges |= WLR_EDGE_LEFT;
-	} else if (parts & WLR_DECO_PART_RIGHT_BORDER) {
+	} else if (parts & ROOTS_DECO_PART_RIGHT_BORDER) {
 		edges |= WLR_EDGE_RIGHT;
-	} else if (parts & WLR_DECO_PART_BOTTOM_BORDER) {
+	} else if (parts & ROOTS_DECO_PART_BOTTOM_BORDER) {
 		edges |= WLR_EDGE_BOTTOM;
-	} else if (parts & WLR_DECO_PART_TOP_BORDER) {
+	} else if (parts & ROOTS_DECO_PART_TOP_BORDER) {
 		edges |= WLR_EDGE_TOP;
 	}
 
@@ -90,8 +90,8 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 		view->has_button_grab = false;
 	}
 
-	enum wlr_deco_part parts = view_get_deco_part(view->view, sx, sy);
-	if (state == WLR_BUTTON_RELEASED && (parts & WLR_DECO_PART_TITLEBAR)) {
+	enum roots_deco_part parts = view_get_deco_part(view->view, sx, sy);
+	if (state == WLR_BUTTON_RELEASED && (parts & ROOTS_DECO_PART_TITLEBAR)) {
 		struct roots_cursor *cursor = view->seat->cursor;
 		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
 				cursor->default_xcursor, cursor->cursor);
