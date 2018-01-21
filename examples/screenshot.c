@@ -277,8 +277,9 @@ int main(int argc, char *argv[]) {
 			screenshooter, output->output, output->buffer);
 		orbital_screenshot_add_listener(screenshot, &screenshot_listener, screenshot);
 		buffer_copy_done = 0;
-		while (!buffer_copy_done)
+		while (!buffer_copy_done) {
 			wl_display_roundtrip(display);
+		}
 	}
 
 	write_image("wayland-screenshot.png", width, height);

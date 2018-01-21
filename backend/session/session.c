@@ -307,8 +307,9 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 		}
 
 		const char *seat = udev_device_get_property_value(dev, "ID_SEAT");
-		if (!seat)
+		if (!seat) {
 			seat = "seat0";
+		}
 		if (session->seat[0] && strcmp(session->seat, seat) != 0) {
 			udev_device_unref(dev);
 			continue;

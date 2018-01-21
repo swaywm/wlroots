@@ -64,8 +64,12 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	odata->x_offs += odata->x_vel * seconds;
 	odata->y_offs += odata->y_vel * seconds;
-	if (odata->x_offs > 128) odata->x_offs = 0;
-	if (odata->y_offs > 128) odata->y_offs = 0;
+	if (odata->x_offs > 128) {
+		odata->x_offs = 0;
+	}
+	if (odata->y_offs > 128) {
+		odata->y_offs = 0;
+	}
 }
 
 static void handle_output_add(struct output_state *output) {
