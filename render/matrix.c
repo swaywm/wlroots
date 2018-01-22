@@ -161,8 +161,9 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	mat[15] = 1.0f;
 }
 
-void wlr_matrix_box_model(float (*mat)[16], struct wlr_box *box,
-		enum wl_output_transform transform, float rotation) {
+void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
+		enum wl_output_transform transform, float rotation,
+		float (*projection)[16]) {
 	int x = box->x;
 	int y = box->y;
 	int width = box->width;
@@ -203,4 +204,6 @@ void wlr_matrix_box_model(float (*mat)[16], struct wlr_box *box,
 		wlr_matrix_mul(mat, &surface_translate_origin,
 			mat);
 	}
+
+	wlr_matrix_mul(projection, mat, mat);
 }

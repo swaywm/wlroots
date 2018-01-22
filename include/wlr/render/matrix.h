@@ -15,7 +15,8 @@ void wlr_matrix_transform(float mat[static 16],
 		enum wl_output_transform transform);
 void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 		enum wl_output_transform transform);
-void wlr_matrix_box_model(float (*mat)[16], struct wlr_box *box,
-		enum wl_output_transform transform, float rotation);
+void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
+		enum wl_output_transform transform, float rotation, float
+		(*projection)[16]);
 
 #endif
