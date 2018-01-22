@@ -11,6 +11,7 @@ struct roots_wl_shell_surface {
 	struct roots_view *view;
 
 	struct wl_listener destroy;
+	struct wl_listener new_popup;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
@@ -133,6 +134,14 @@ struct roots_subsurface {
 	struct roots_view_child view_child;
 	struct wlr_subsurface *wlr_subsurface;
 	struct wl_listener destroy;
+};
+
+struct roots_wl_shell_popup {
+	struct roots_view_child view_child;
+	struct wlr_wl_shell_surface *wlr_wl_shell_surface;
+	struct wl_listener destroy;
+	struct wl_listener set_state;
+	struct wl_listener new_popup;
 };
 
 struct roots_xdg_popup_v6 {

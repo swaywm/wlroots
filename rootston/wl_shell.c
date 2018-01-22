@@ -10,6 +10,61 @@
 #include "rootston/server.h"
 #include "rootston/input.h"
 
+static void popup_destroy(struct roots_view_child *child) {
+	assert(child->destroy == popup_destroy);
+	struct roots_wl_shell_popup *popup = (struct roots_wl_shell_popup *)child;
+	if (popup == NULL) {
+		return;
+	}
+	wl_list_remove(&popup->destroy.link);
+	wl_list_remove(&popup->set_state.link);
+	wl_list_remove(&popup->new_popup.link);
+	view_child_finish(&popup->view_child);
+	free(popup);
+}
+
+static void popup_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_popup *popup =
+		wl_container_of(listener, popup, destroy);
+	popup_destroy((struct roots_view_child *)popup);
+}
+
+static void popup_handle_set_state(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_popup *popup =
+		wl_container_of(listener, popup, set_state);
+	popup_destroy((struct roots_view_child *)popup);
+}
+
+static struct roots_wl_shell_popup *popup_create(struct roots_view *view,
+	struct wlr_wl_shell_surface *wlr_wl_shell_surface);
+
+static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_popup *popup =
+		wl_container_of(listener, popup, new_popup);
+	struct wlr_wl_shell_surface *wlr_wl_shell_surface = data;
+	popup_create(popup->view_child.view, wlr_wl_shell_surface);
+}
+
+static struct roots_wl_shell_popup *popup_create(struct roots_view *view,
+		struct wlr_wl_shell_surface *wlr_wl_shell_surface) {
+	struct roots_wl_shell_popup *popup =
+		calloc(1, sizeof(struct roots_wl_shell_popup));
+	if (popup == NULL) {
+		return NULL;
+	}
+	popup->wlr_wl_shell_surface = wlr_wl_shell_surface;
+	popup->view_child.destroy = popup_destroy;
+	view_child_init(&popup->view_child, view, wlr_wl_shell_surface->surface);
+	popup->destroy.notify = popup_handle_destroy;
+	wl_signal_add(&wlr_wl_shell_surface->events.destroy, &popup->destroy);
+	popup->set_state.notify = popup_handle_set_state;
+	wl_signal_add(&wlr_wl_shell_surface->events.set_state, &popup->set_state);
+	popup->new_popup.notify = popup_handle_new_popup;
+	wl_signal_add(&wlr_wl_shell_surface->events.new_popup, &popup->new_popup);
+	return popup;
+}
+
+
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	assert(view->type == ROOTS_WL_SHELL_VIEW);
 	struct wlr_wl_shell_surface *surf = view->wl_shell_surface;
@@ -107,6 +162,13 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	view_update_position(view, x, y);
 }
 
+static void handle_new_popup(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, new_popup);
+	struct wlr_wl_shell_surface *wlr_wl_shell_surface = data;
+	popup_create(roots_surface->view, wlr_wl_shell_surface);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -126,9 +188,14 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, wl_shell_surface);
-
 	struct wlr_wl_shell_surface *surface = data;
-	wlr_log(L_DEBUG, "new shell surface: title=%s, class=%s",
+
+	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+		wlr_log(L_DEBUG, "new wl shell popup");
+		return;
+	}
+
+	wlr_log(L_DEBUG, "new wl shell surface: title=%s, class=%s",
 		surface->title, surface->class);
 	wlr_wl_shell_surface_ping(surface);
 
@@ -139,6 +206,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	}
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
+	roots_surface->new_popup.notify = handle_new_popup;
+	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	roots_surface->request_resize.notify = handle_request_resize;

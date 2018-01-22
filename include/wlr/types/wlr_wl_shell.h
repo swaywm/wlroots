@@ -79,6 +79,7 @@ struct wlr_wl_shell_surface {
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
+		struct wl_signal new_popup;
 
 		struct wl_signal request_move;
 		struct wl_signal request_resize;

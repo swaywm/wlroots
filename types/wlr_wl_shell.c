@@ -221,6 +221,7 @@ static void shell_surface_popup_set_parent(struct wlr_wl_shell_surface *surface,
 	if (parent) {
 		wl_list_remove(&surface->popup_link);
 		wl_list_insert(&parent->popups, &surface->popup_link);
+		wl_signal_emit(&parent->events.new_popup, surface);
 	}
 }
 
@@ -519,6 +520,7 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 
 	wl_signal_init(&wl_surface->events.destroy);
 	wl_signal_init(&wl_surface->events.ping_timeout);
+	wl_signal_init(&wl_surface->events.new_popup);
 	wl_signal_init(&wl_surface->events.request_move);
 	wl_signal_init(&wl_surface->events.request_resize);
 	wl_signal_init(&wl_surface->events.request_fullscreen);
