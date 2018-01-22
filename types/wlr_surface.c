@@ -272,6 +272,9 @@ static void wlr_surface_move_state(struct wlr_surface *surface,
 	bool update_damage = false;
 	bool update_size = false;
 
+	int oldw = state->width;
+	int oldh = state->height;
+
 	if ((next->invalid & WLR_SURFACE_INVALID_SCALE)) {
 		state->scale = next->scale;
 		update_size = true;
@@ -327,13 +330,25 @@ static void wlr_surface_move_state(struct wlr_surface *surface,
 		pixman_region32_copy(&state->input, &next->input);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
+		// Subsurface has moved
+		int dx = state->subsurface_position.x - next->subsurface_position.x;
+		int dy = state->subsurface_position.y - next->subsurface_position.y;
+
 		state->subsurface_position.x = next->subsurface_position.x;
 		state->subsurface_position.y = next->subsurface_position.y;
 		next->subsurface_position.x = 0;
 		next->subsurface_position.y = 0;
+
+		if (dx != 0 || dy != 0) {
+			pixman_region32_union_rect(&state->surface_damage,
+				&state->surface_damage, dx, dy, oldw, oldh);
+			pixman_region32_union_rect(&state->surface_damage,
+				&state->surface_damage, 0, 0, state->width, state->height);
+		}
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST)) {
-		wl_list_insert_list(&state->frame_callback_list, &next->frame_callback_list);
+		wl_list_insert_list(&state->frame_callback_list,
+			&next->frame_callback_list);
 		wl_list_init(&next->frame_callback_list);
 	}
 
@@ -381,10 +396,12 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 	if (reupload_buffer) {
 		wlr_texture_upload_shm(surface->texture, format, buffer);
 	} else {
-		pixman_region32_t damage = surface->current->buffer_damage;
-		if (!pixman_region32_not_empty(&damage)) {
-			goto release;
-		}
+		pixman_region32_t damage;
+		pixman_region32_init(&damage);
+		pixman_region32_copy(&damage, &surface->current->buffer_damage);
+		pixman_region32_intersect_rect(&damage, &damage, 0, 0,
+			surface->current->buffer_width, surface->current->buffer_height);
+
 		int n;
 		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
 		for (int i = 0; i < n; ++i) {
@@ -397,6 +414,8 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 				break;
 			}
 		}
+
+		pixman_region32_fini(&damage);
 	}
 
 release:
