@@ -72,7 +72,4 @@ const char *egl_error(void);
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);
 
-// TODO: remove
-int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface);
-
 #endif

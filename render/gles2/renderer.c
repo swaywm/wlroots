@@ -105,7 +105,7 @@ static void init_globals() {
 	init_default_shaders();
 }
 
-static void wlr_gles2_begin(struct wlr_renderer *_renderer,
+static void wlr_gles2_begin(struct wlr_renderer *wlr_renderer,
 		struct wlr_output *output) {
 	GL_CALL(glViewport(0, 0, output->width, output->height));
 
@@ -117,14 +117,30 @@ static void wlr_gles2_begin(struct wlr_renderer *_renderer,
 	// for users to sling matricies themselves
 }
 
-static void wlr_gles2_end(struct wlr_renderer *renderer) {
+static void wlr_gles2_end(struct wlr_renderer *wlr_renderer) {
 	// no-op
 }
 
+static void wlr_gles2_clear(struct wlr_renderer *wlr_renderer, float red,
+		float green, float blue, float alpha) {
+	glClearColor(red, green, blue, alpha);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+static void wlr_gles2_scissor(struct wlr_renderer *wlr_renderer,
+		struct wlr_box *box) {
+	if (box != NULL) {
+		glScissor(box->x, box->y, box->width, box->height);
+		glEnable(GL_SCISSOR_TEST);
+	} else {
+		glDisable(GL_SCISSOR_TEST);
+	}
+}
+
 static struct wlr_texture *wlr_gles2_texture_create(
-		struct wlr_renderer *_renderer) {
+		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
-		(struct wlr_gles2_renderer *)_renderer;
+		(struct wlr_gles2_renderer *)wlr_renderer;
 	return gles2_texture_create(renderer->egl);
 }
 
@@ -154,7 +170,7 @@ static void draw_quad() {
 	GL_CALL(glDisableVertexAttribArray(1));
 }
 
-static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
+static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]) {
 	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
@@ -169,7 +185,7 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *_renderer,
 	return true;
 }
 
-static void wlr_gles2_render_quad(struct wlr_renderer *renderer,
+static void wlr_gles2_render_quad(struct wlr_renderer *wlr_renderer,
 		const float (*color)[4], const float (*matrix)[16]) {
 	GL_CALL(glUseProgram(shaders.quad));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
@@ -177,7 +193,7 @@ static void wlr_gles2_render_quad(struct wlr_renderer *renderer,
 	draw_quad();
 }
 
-static void wlr_gles2_render_ellipse(struct wlr_renderer *renderer,
+static void wlr_gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
 		const float (*color)[4], const float (*matrix)[16]) {
 	GL_CALL(glUseProgram(shaders.ellipse));
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
@@ -197,10 +213,10 @@ static const enum wl_shm_format *wlr_gles2_formats(
 	return formats;
 }
 
-static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *_renderer,
+static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *buffer) {
 	struct wlr_gles2_renderer *renderer =
-		(struct wlr_gles2_renderer *)_renderer;
+		(struct wlr_gles2_renderer *)wlr_renderer;
 	EGLint format;
 	return wlr_egl_query_buffer(renderer->egl, buffer,
 		EGL_TEXTURE_FORMAT, &format);
@@ -216,8 +232,8 @@ static void rgba_to_argb(uint32_t *data, size_t height, size_t stride) {
 	}
 }
 
-static void wlr_gles2_read_pixels(struct wlr_renderer *renderer, int x, int y,
-		int width, int height, void *out_data) {
+static void wlr_gles2_read_pixels(struct wlr_renderer *wlr_renderer,
+		int x, int y, int width, int height, void *out_data) {
 	glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, out_data);
 	rgba_to_argb(out_data, height, width*4);
 }
@@ -225,6 +241,8 @@ static void wlr_gles2_read_pixels(struct wlr_renderer *renderer, int x, int y,
 static struct wlr_renderer_impl wlr_renderer_impl = {
 	.begin = wlr_gles2_begin,
 	.end = wlr_gles2_end,
+	.clear = wlr_gles2_clear,
+	.scissor = wlr_gles2_scissor,
 	.texture_create = wlr_gles2_texture_create,
 	.render_with_matrix = wlr_gles2_render_texture,
 	.render_quad = wlr_gles2_render_quad,

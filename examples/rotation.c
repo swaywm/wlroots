@@ -44,6 +44,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_clear(sample->renderer, 0.25f, 0.25f, 0.25f, 1);
 
 	float matrix[16];
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {

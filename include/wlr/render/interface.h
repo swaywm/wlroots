@@ -6,6 +6,7 @@
 #include <EGL/eglext.h>
 #include <stdbool.h>
 #include <wlr/render.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_renderer_impl;
@@ -17,6 +18,9 @@ struct wlr_renderer {
 struct wlr_renderer_impl {
 	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
 	void (*end)(struct wlr_renderer *renderer);
+	void (*clear)(struct wlr_renderer *renderer, float red, float green,
+		float blue, float alpha);
+	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	struct wlr_texture *(*texture_create)(struct wlr_renderer *renderer);
 	bool (*render_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float (*matrix)[16]);

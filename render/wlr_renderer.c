@@ -23,6 +23,15 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->impl->end(r);
 }
 
+void wlr_renderer_clear(struct wlr_renderer *r, float red, float green,
+		float blue, float alpha) {
+	r->impl->clear(r, red, green, blue, alpha);
+}
+
+void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
+	r->impl->scissor(r, box);
+}
+
 struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
 	return r->impl->texture_create(r);
 }

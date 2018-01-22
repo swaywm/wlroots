@@ -2,7 +2,6 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <GLES2/gl2.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -247,8 +246,13 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	pixman_box32_t *rects =
 		pixman_region32_rectangles(&surface_damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
-		glScissor(rects[i].x1, output->wlr_output->height - rects[i].y2,
-			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		struct wlr_box scissor = {
+			.x = rects[i].x1,
+			.y = output->wlr_output->height - rects[i].y2,
+			.width = rects[i].x2 - rects[i].x1,
+			.height = rects[i].y2 - rects[i].y1,
+		};
+		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
 		wlr_render_with_matrix(output->desktop->server->renderer,
 			surface->texture, &matrix);
 	}
@@ -353,7 +357,6 @@ static void render_output(struct roots_output *output) {
 	};
 
 	wlr_renderer_begin(server->renderer, wlr_output);
-	glEnable(GL_SCISSOR_TEST);
 
 	if (!pixman_region32_not_empty(&damage)) {
 		// Output isn't damaged but needs buffer swap
@@ -363,10 +366,15 @@ static void render_output(struct roots_output *output) {
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
-		glScissor(rects[i].x1, wlr_output->height - rects[i].y2,
-			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
-		glClearColor(clear_color[0], clear_color[1], clear_color[2], 1);
-		glClear(GL_COLOR_BUFFER_BIT);
+		struct wlr_box scissor = {
+			.x = rects[i].x1,
+			.y = wlr_output->height - rects[i].y2,
+			.width = rects[i].x2 - rects[i].x1,
+			.height = rects[i].y2 - rects[i].y1,
+		};
+		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
+		wlr_renderer_clear(output->desktop->server->renderer,
+			clear_color[0], clear_color[1], clear_color[2], 1);
 	}
 
 	// If a view is fullscreen on this output, render it
@@ -425,7 +433,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 renderer_end:
-	glDisable(GL_SCISSOR_TEST);
+	wlr_renderer_scissor(output->desktop->server->renderer, NULL);
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output, &now, &damage);
 	output->frame_pending = true;
