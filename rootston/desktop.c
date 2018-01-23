@@ -400,7 +400,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 	if (view_get_deco_part(view, view_sx, view_sy)) {
 		*sx = view_sx;
 		*sy = view_sy;
-		return view;
+		*surface = NULL;
+		return true;
 	}
 
 	if (wlr_box_contains_point(&box, view_sx, view_sy) &&

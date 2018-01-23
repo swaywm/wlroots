@@ -115,7 +115,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 			seat_view_deco_leave(cursor->pointer_view);
 			cursor->pointer_view = NULL;
 		}
-		bool set_compositor_cursor = !view && cursor->cursor_client;
+		bool set_compositor_cursor = !view && !surface && cursor->cursor_client;
 		if (view && surface) {
 			struct wl_client *view_client =
 				wl_resource_get_client(view->wlr_surface->resource);
@@ -211,7 +211,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	bool is_touch = device->type == WLR_INPUT_DEVICE_TOUCH;
 
-	struct wlr_surface *surface;
+	struct wlr_surface *surface = NULL;
 	double sx, sy;
 	struct roots_view *view =
 		desktop_view_at(desktop, lx, ly, &surface, &sx, &sy);
