@@ -573,6 +573,10 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
 
+	if (seat_view == seat->cursor->pointer_view) {
+		seat->cursor->pointer_view = NULL;
+	}
+
 	wl_list_remove(&seat_view->view_destroy.link);
 	wl_list_remove(&seat_view->link);
 	free(seat_view);
@@ -601,10 +605,35 @@ static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
 	seat_view->seat = seat;
 	seat_view->view = view;
 
-	wl_list_insert(&seat->views, &seat_view->link);
+	wl_list_insert(seat->views.prev, &seat_view->link);
 
 	seat_view->view_destroy.notify = seat_view_handle_destroy;
 	wl_signal_add(&view->events.destroy, &seat_view->view_destroy);
+
+	return seat_view;
+}
+
+struct roots_seat_view *roots_seat_view_from_view(
+		struct roots_seat *seat, struct roots_view *view) {
+	if (view == NULL) {
+		return NULL;
+	}
+
+	bool found = false;
+	struct roots_seat_view *seat_view = NULL;
+	wl_list_for_each(seat_view, &seat->views, link) {
+		if (seat_view->view == view) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		seat_view = seat_add_view(seat, view);
+		if (seat_view == NULL) {
+			wlr_log(L_ERROR, "Allocation failed");
+			return NULL;
+		}
+	}
 
 	return seat_view;
 }
@@ -626,22 +655,11 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 			view->xwayland_surface->override_redirect) {
 		return;
 	}
-
 	struct roots_seat_view *seat_view = NULL;
 	if (view != NULL) {
-		bool found = false;
-		wl_list_for_each(seat_view, &seat->views, link) {
-			if (seat_view->view == view) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
-			seat_view = seat_add_view(seat, view);
-			if (seat_view == NULL) {
-				wlr_log(L_ERROR, "Allocation failed");
-				return;
-			}
+		seat_view = roots_seat_view_from_view(seat, view);
+		if (seat_view == NULL) {
+			return;
 		}
 	}
 

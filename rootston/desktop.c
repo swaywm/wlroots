@@ -19,6 +19,7 @@
 #include "rootston/server.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
+#include "rootston/view.h"
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
@@ -29,6 +30,55 @@ void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 		box->width = view->wlr_surface->current->width;
 		box->height = view->wlr_surface->current->height;
 	}
+}
+
+void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
+	view_get_box(view, box);
+	if (!view->decorated) {
+		return;
+	}
+
+	box->x -= view->border_width;
+	box->y -= (view->border_width + view->titlebar_height);
+	box->width += view->border_width * 2;
+	box->height += (view->border_width * 2 + view->titlebar_height);
+}
+
+enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
+	if (!view->decorated) {
+		return ROOTS_DECO_PART_NONE;
+	}
+
+	int sw = view->wlr_surface->current->width;
+	int sh = view->wlr_surface->current->height;
+	int bw = view->border_width;
+	int titlebar_h = view->titlebar_height;
+
+	if (sx > 0 && sx < sw && sy < 0 && sy > -view->titlebar_height) {
+		return ROOTS_DECO_PART_TITLEBAR;
+	}
+
+	enum roots_deco_part parts = 0;
+	if (sy >= -(titlebar_h + bw) &&
+			sy <= sh + bw) {
+		if (sx < 0 && sx > -bw) {
+			parts |= ROOTS_DECO_PART_LEFT_BORDER;
+		} else if (sx > sw && sx < sw + bw) {
+			parts |= ROOTS_DECO_PART_RIGHT_BORDER;
+		}
+	}
+
+	if (sx >= -bw && sx <= sw + bw) {
+		if (sy > sh && sy <= sh + bw) {
+			parts |= ROOTS_DECO_PART_BOTTOM_BORDER;
+		} else if (sy >= -(titlebar_h + bw) && sy < 0) {
+			parts |= ROOTS_DECO_PART_TOP_BORDER;
+		}
+	}
+
+	// TODO corners
+
+	return parts;
 }
 
 static void view_update_output(const struct roots_view *view,
@@ -344,6 +394,13 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		*sx = view_sx - sub_x;
 		*sy = view_sy - sub_y;
 		*surface = subsurface->surface;
+		return true;
+	}
+
+	if (view_get_deco_part(view, view_sx, view_sy)) {
+		*sx = view_sx;
+		*sy = view_sy;
+		*surface = NULL;
 		return true;
 	}
 

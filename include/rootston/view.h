@@ -61,6 +61,10 @@ struct roots_view {
 	double x, y;
 	float rotation;
 
+	bool decorated;
+	int border_width;
+	int titlebar_height;
+
 	bool maximized;
 	struct roots_output *fullscreen_output;
 	struct {
@@ -125,5 +129,18 @@ void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);
 void view_teardown(struct roots_view *view);
+
+void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
+
+enum roots_deco_part {
+	ROOTS_DECO_PART_NONE = 0,
+	ROOTS_DECO_PART_TOP_BORDER = (1 << 0),
+	ROOTS_DECO_PART_BOTTOM_BORDER = (1 << 1),
+	ROOTS_DECO_PART_LEFT_BORDER = (1 << 2),
+	ROOTS_DECO_PART_RIGHT_BORDER = (1 << 3),
+	ROOTS_DECO_PART_TITLEBAR = (1 << 4),
+};
+
+enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy);
 
 #endif

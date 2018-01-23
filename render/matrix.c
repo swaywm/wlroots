@@ -1,6 +1,8 @@
 #include <string.h>
 #include <math.h>
 #include <wayland-server-protocol.h>
+#include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/render/matrix.h>
 
 /* Obtains the index for the given row/column */
@@ -157,4 +159,51 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	// Identity
 	mat[10] = 1.0f;
 	mat[15] = 1.0f;
+}
+
+void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
+		enum wl_output_transform transform, float rotation,
+		float (*projection)[16]) {
+	int x = box->x;
+	int y = box->y;
+	int width = box->width;
+	int height = box->height;
+
+	float translate_center[16];
+	wlr_matrix_translate(&translate_center,
+			(int)x + width / 2, (int)y + height / 2, 0);
+
+	float rotate[16];
+	wlr_matrix_rotate(&rotate, rotation);
+
+	float translate_origin[16];
+	wlr_matrix_translate(&translate_origin, -width / 2,
+			-height / 2, 0);
+
+	float scale[16];
+	wlr_matrix_scale(&scale, width, height, 1);
+
+	wlr_matrix_mul(&translate_center, &rotate, mat);
+	wlr_matrix_mul(mat, &translate_origin, mat);
+	wlr_matrix_mul(mat, &scale, mat);
+
+	if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		float surface_translate_center[16];
+		wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
+
+		float surface_transform[16];
+		wlr_matrix_transform(surface_transform,
+				wlr_output_transform_invert(transform));
+
+		float surface_translate_origin[16];
+		wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
+
+		wlr_matrix_mul(mat, &surface_translate_center,
+				mat);
+		wlr_matrix_mul(mat, &surface_transform, mat);
+		wlr_matrix_mul(mat, &surface_translate_origin,
+			mat);
+	}
+
+	wlr_matrix_mul(projection, mat, mat);
 }

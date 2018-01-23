@@ -296,6 +296,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->type = ROOTS_XWAYLAND_VIEW;
 	view->x = (double)surface->x;
 	view->y = (double)surface->y;
+
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;
 	view->wlr_surface = surface->surface;
@@ -311,6 +312,12 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wl_list_insert(&desktop->views, &view->link);
 
 	if (!surface->override_redirect) {
+		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
+			view->decorated = true;
+			view->border_width = 4;
+			view->titlebar_height = 12;
+		}
+
 		view_setup(view);
 	}
 }
