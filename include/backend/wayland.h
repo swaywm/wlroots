@@ -6,6 +6,7 @@
 #include <wayland-server.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
+#include <wlr/render.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/types/wlr_box.h>
 #include <wayland-util.h>
@@ -19,6 +20,7 @@ struct wlr_wl_backend {
 	struct wl_list devices;
 	struct wl_list outputs;
 	struct wlr_egl egl;
+	struct wlr_renderer *renderer;
 	size_t requested_outputs;
 	struct wl_listener local_display_destroy;
 	/* remote state */

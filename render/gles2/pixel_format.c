@@ -2,7 +2,10 @@
 #include <GLES2/gl2ext.h>
 #include "render/gles2.h"
 
-// Adapted from weston
+/*
+* The wayland formats are little endian while the GL formats are big endian,
+* so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
+*/
 struct pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
