@@ -31,6 +31,15 @@ static void activate(struct roots_view *view, bool active) {
 	}
 }
 
+static bool get_activated(struct roots_view *view) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		return surface->toplevel_state->current.activated;
+	}
+	return false;
+}
+
 static void apply_size_constraints(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height, uint32_t *dest_width,
 		uint32_t *dest_height) {
@@ -279,6 +288,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->wlr_surface = surface->surface;
 	view->get_size = get_size;
 	view->activate = activate;
+	view->get_activated = get_activated;
 	view->resize = resize;
 	view->move_resize = move_resize;
 	view->maximize = maximize;

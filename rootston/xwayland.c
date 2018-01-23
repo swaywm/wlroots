@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/xwayland.h>
+#include <wlr/xwm.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
 #include "rootston/server.h"
@@ -13,6 +14,12 @@
 static void activate(struct roots_view *view, bool active) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	wlr_xwayland_surface_activate(view->xwayland_surface, active);
+}
+
+static bool get_activated(struct roots_view *view) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	struct wlr_xwm *xwm = view->xwayland_surface->xwm;
+	return view->xwayland_surface == xwm->focus_surface;
 }
 
 static void move(struct roots_view *view, double x, double y) {
@@ -301,6 +308,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->roots_xwayland_surface = roots_surface;
 	view->wlr_surface = surface->surface;
 	view->activate = activate;
+	view->get_activated = get_activated;
 	view->resize = resize;
 	view->move = move;
 	view->move_resize = move_resize;

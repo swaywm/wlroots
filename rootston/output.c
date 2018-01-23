@@ -179,7 +179,13 @@ static void render_decorations(struct roots_view *view,
 	float matrix[16];
 	wlr_matrix_project_box(&matrix, &project_box, WL_OUTPUT_TRANSFORM_NORMAL,
 		view->rotation, &output->transform_matrix);
-	float color[4] = { 0.2, 0.2, 0.2, 1 };
+	float color[4]	= { 0.2, 0.2, 0.2, 1 };
+	if (view_get_activated(view)) {
+		color[0] = 0.09804;
+		color[1] = 0.09804;
+		color[2] = 0.43921;
+	}
+
 	wlr_render_colored_quad(desktop->server->renderer, &color, &matrix);
 }
 

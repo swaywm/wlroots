@@ -123,6 +123,13 @@ void view_activate(struct roots_view *view, bool activate) {
 	}
 }
 
+bool view_get_activated(struct roots_view *view) {
+	if (view->get_activated) {
+		return view->get_activated(view);
+	}
+	return input_view_has_focus(view->desktop->server->input, view);
+}
+
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 	struct wlr_box before;
 	view_get_box(view, &before);

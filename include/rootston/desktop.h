@@ -74,6 +74,7 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 void view_init(struct roots_view *view, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
+bool view_get_activated(struct roots_view *view);
 
 void output_add_notify(struct wl_listener *listener, void *data);
 void output_remove_notify(struct wl_listener *listener, void *data);

@@ -107,6 +107,7 @@ struct roots_view {
 	// elsewhere
 	void (*get_size)(const struct roots_view *view, struct wlr_box *box);
 	void (*activate)(struct roots_view *view, bool active);
+	bool (*get_activated)(struct roots_view *view);
 	void (*move)(struct roots_view *view, double x, double y);
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
 	void (*move_resize)(struct roots_view *view, double x, double y,
