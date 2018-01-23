@@ -406,29 +406,15 @@ static void render_output(struct roots_output *output) {
 	}
 
 	// Render drag icons
-	struct wlr_drag_icon *drag_icon = NULL;
+	struct roots_drag_icon *drag_icon = NULL;
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &server->input->seats, link) {
-		wl_list_for_each(drag_icon, &seat->seat->drag_icons, link) {
-			if (!drag_icon->mapped) {
+		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+			if (!drag_icon->wlr_drag_icon->mapped) {
 				continue;
 			}
-			struct wlr_surface *icon = drag_icon->surface;
-			struct wlr_cursor *cursor = seat->cursor->cursor;
-			double icon_x = 0, icon_y = 0;
-			if (drag_icon->is_pointer) {
-				icon_x = cursor->x + drag_icon->sx;
-				icon_y = cursor->y + drag_icon->sy;
-				render_surface(icon, icon_x, icon_y, 0, &data);
-			} else {
-				struct wlr_touch_point *point =
-					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
-				if (point) {
-					icon_x = seat->touch_x + drag_icon->sx;
-					icon_y = seat->touch_y + drag_icon->sy;
-					render_surface(icon, icon_x, icon_y, 0, &data);
-				}
-			}
+			render_surface(drag_icon->wlr_drag_icon->surface,
+				drag_icon->x, drag_icon->y, 0, &data);
 		}
 	}
 
@@ -526,6 +512,12 @@ void output_damage_whole_view(struct roots_output *output,
 	}
 
 	view_for_each_surface(view, damage_whole_surface, output);
+}
+
+void output_damage_whole_drag_icon(struct roots_output *output,
+		struct roots_drag_icon *icon) {
+	surface_for_each_surface(icon->wlr_drag_icon->surface, icon->x, icon->y, 0,
+		damage_whole_surface, output);
 }
 
 static void damage_from_surface(struct wlr_surface *surface,

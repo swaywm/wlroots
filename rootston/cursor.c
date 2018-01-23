@@ -58,6 +58,11 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		} else {
 			wlr_seat_pointer_clear_focus(seat->seat);
 		}
+
+		struct roots_drag_icon *drag_icon;
+		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+			roots_drag_icon_update_position(drag_icon);
+		}
 		break;
 	case ROOTS_CURSOR_MOVE:
 		view = roots_seat_get_focus(seat);
