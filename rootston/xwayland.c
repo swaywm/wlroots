@@ -312,9 +312,11 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wl_list_insert(&desktop->views, &view->link);
 
 	if (!surface->override_redirect) {
-		view->decorated = true;
-		view->border_width = 4;
-		view->titlebar_height = 12;
+		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
+			view->decorated = true;
+			view->border_width = 4;
+			view->titlebar_height = 12;
+		}
 
 		view_setup(view);
 	}
