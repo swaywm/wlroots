@@ -209,6 +209,8 @@ struct wlr_seat {
 		struct wl_signal selection;
 		struct wl_signal primary_selection;
 
+		struct wl_signal new_drag_icon;
+
 		struct wl_signal destroy;
 	} events;
 

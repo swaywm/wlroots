@@ -17,12 +17,15 @@ struct roots_seat {
 	struct wl_list views; // roots_seat_view::link
 	bool has_focus;
 
+	struct wl_list drag_icons; // roots_drag_icon::link
+
 	struct wl_list keyboards;
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
 
-	struct wl_listener seat_destroy;
+	struct wl_listener new_drag_icon;
+	struct wl_listener destroy;
 };
 
 struct roots_seat_view {
@@ -31,6 +34,16 @@ struct roots_seat_view {
 	struct wl_list link; // roots_seat::views
 
 	struct wl_listener view_destroy;
+};
+
+struct roots_drag_icon {
+	struct roots_seat *seat;
+	struct wlr_drag_icon *wlr_drag_icon;
+	struct wl_list link;
+
+	struct wl_listener surface_commit;
+	struct wl_listener map;
+	struct wl_listener destroy;
 };
 
 struct roots_pointer {

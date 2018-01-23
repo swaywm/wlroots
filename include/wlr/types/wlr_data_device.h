@@ -71,10 +71,10 @@ struct wlr_drag_icon {
 	bool is_pointer;
 	int32_t touch_id;
 
-	int32_t sx;
-	int32_t sy;
+	int32_t sx, sy;
 
 	struct {
+		struct wl_signal map; // emitted when mapped or unmapped
 		struct wl_signal destroy;
 	} events;
 

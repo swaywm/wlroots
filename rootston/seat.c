@@ -241,16 +241,37 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->tool_tip.notify = handle_tool_tip;
 
 	wl_signal_add(&seat->seat->events.request_set_cursor,
-			&seat->cursor->request_set_cursor);
+		&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
+}
+
+static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat = wl_container_of(listener, seat, new_drag_icon);
+	struct wlr_drag_icon *wlr_drag_icon = data;
+
+	struct roots_drag_icon *icon = calloc(1, sizeof(struct roots_drag_icon));
+	if (icon == NULL) {
+		return;
+	}
+	icon->seat = seat;
+	icon->wlr_drag_icon = wlr_drag_icon;
+
+	icon->surface_commit.notify = roots_drag_icon_handle_surface_commit;
+	wl_signal_add(&wlr_drag_icon->events.surface_commit, &icon->surface_commit);
+	icon->map.notify = roots_drag_icon_handle_map;
+	wl_signal_add(&wlr_drag_icon->events.map, &icon->map);
+	icon->destroy.notify = roots_drag_icon_handle_destroy;
+	wl_signal_add(&wlr_drag_icon->events.destroy, &icon->destroy);
+
+	wl_list_insert(&seat->drag_icons, &icon->link);
 }
 
 static void seat_view_destroy(struct roots_seat_view *seat_view);
 
-static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
+static void roots_seat_handle_destroy(struct wl_listener *listener,
 		void *data) {
-	struct roots_seat *seat =
-		wl_container_of(listener, seat, seat_destroy);
+	struct roots_seat *seat = wl_container_of(listener, seat, destroy);
 
 	// TODO: probably more to be freed here
 	wl_list_remove(&seat->seat_destroy.link);
@@ -262,7 +283,7 @@ static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
 }
 
 void roots_seat_destroy(struct roots_seat *seat) {
-	roots_seat_handle_seat_destroy(&seat->seat_destroy, seat->seat);
+	roots_seat_handle_destroy(&seat->destroy, seat->seat);
 	wlr_seat_destroy(seat->seat);
 }
 
@@ -277,6 +298,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
 	wl_list_init(&seat->views);
+	wl_list_init(&seat->drag_icons);
 
 	seat->input = input;
 
@@ -295,8 +317,10 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
-	seat->seat_destroy.notify = roots_seat_handle_seat_destroy;
-	wl_signal_add(&seat->seat->events.destroy, &seat->seat_destroy);
+	seat->new_drag_icon.notify = roots_seat_handle_new_drag_icon;
+	wl_signal_add(&seat->seat->events.new_drag_icon, &seat->new_drag_icon);
+	seat->destroy.notify = roots_seat_handle_seat_destroy;
+	wl_signal_add(&seat->seat->events.destroy, &seat->destroy);
 
 	return seat;
 }
