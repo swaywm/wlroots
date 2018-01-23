@@ -203,6 +203,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->y = y;
 	l_output->state->auto_configured = false;
 	wlr_output_layout_reconfigure(layout);
+	wlr_output_create_global(output);
 	wl_signal_emit(&layout->events.add, l_output);
 }
 
@@ -289,6 +290,7 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		wlr_output_layout_output_destroy(l_output);
 		wlr_output_layout_reconfigure(layout);
 	}
+	wlr_output_destroy_global(output);
 }
 
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
@@ -394,6 +396,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 
 	l_output->state->auto_configured = true;
 	wlr_output_layout_reconfigure(layout);
+	wlr_output_create_global(output);
 	wl_signal_emit(&layout->events.add, l_output);
 }
 

@@ -226,7 +226,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
-	wlr_output_update_enabled(&output->wlr_output, true);
+	output->wlr_output.enabled = true;
 
 	wl_signal_emit(&x11->backend.events.output_add, output);
 	wl_signal_emit(&x11->backend.events.input_add, &x11->keyboard_dev);
