@@ -168,6 +168,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	return &drm->backend;
 
 error_event:
+	wl_list_remove(&drm->session_signal.link);
 	wl_event_source_remove(drm->drm_event);
 error_fd:
 	wlr_session_close_file(drm->session, drm->fd);
