@@ -46,6 +46,8 @@ struct roots_drag_icon {
 	struct wlr_drag_icon *wlr_drag_icon;
 	struct wl_list link;
 
+	double x, y;
+
 	struct wl_listener surface_commit;
 	struct wl_listener map;
 	struct wl_listener destroy;
@@ -103,6 +105,10 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view);
 
 struct roots_seat_view *roots_seat_view_from_view( struct roots_seat *seat,
-		struct roots_view *view);
+	struct roots_view *view);
+
+void roots_drag_icon_update_position(struct roots_drag_icon *icon);
+
+void roots_drag_icon_damage_whole(struct roots_drag_icon *icon);
 
 #endif

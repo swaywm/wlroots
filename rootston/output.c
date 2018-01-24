@@ -174,7 +174,6 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	struct render_data *data = _data;
 	struct roots_output *output = data->output;
 	struct timespec *when = data->when;
-	pixman_region32_t *damage = data->damage;
 
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
@@ -188,14 +187,14 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	}
 
 	// TODO: output scale, output transform support
-	pixman_region32_t surface_damage;
-	pixman_region32_init(&surface_damage);
-	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
 		box.width, box.height);
-	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
-	bool damaged = pixman_region32_not_empty(&surface_damage);
+	pixman_region32_intersect(&damage, &damage, data->damage);
+	bool damaged = pixman_region32_not_empty(&damage);
 	if (!damaged) {
-		goto surface_damage_finish;
+		goto damage_finish;
 	}
 
 	float matrix[16];
@@ -206,7 +205,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 
 	int nrects;
 	pixman_box32_t *rects =
-		pixman_region32_rectangles(&surface_damage, &nrects);
+		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		struct wlr_box scissor = {
 			.x = rects[i].x1,
@@ -221,17 +220,12 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 
 	wlr_surface_send_frame_done(surface, when);
 
-surface_damage_finish:
-	pixman_region32_fini(&surface_damage);
+damage_finish:
+	pixman_region32_fini(&damage);
 }
 
-static void render_decorations(struct roots_view *view,
-		struct render_data *data) {
-	if (!view->decorated) {
-		return;
-	}
-
-	struct roots_output *output = data->output;
+static void get_decoration_box(struct roots_view *view,
+		struct roots_output *output, struct wlr_box *box) {
 	struct wlr_output *wlr_output = output->wlr_output;
 
 	struct wlr_box deco_box;
@@ -246,18 +240,56 @@ static void render_decorations(struct roots_view *view,
 
 	wlr_output_layout_output_coords(output->desktop->layout, wlr_output, &x, &y);
 
-	struct wlr_box box = {
-		.x = x * wlr_output->scale,
-		.y = y * wlr_output->scale,
-		.width = deco_box.width * wlr_output->scale,
-		.height = deco_box.height * wlr_output->scale,
-	};
+	box->x = x * wlr_output->scale;
+	box->y = y * wlr_output->scale;
+	box->width = deco_box.width * wlr_output->scale;
+	box->height = deco_box.height * wlr_output->scale;
+}
+
+static void render_decorations(struct roots_view *view,
+		struct render_data *data) {
+	if (!view->decorated || view->wlr_surface == NULL) {
+		return;
+	}
+
+	struct roots_output *output = data->output;
+
+	struct wlr_box box;
+	get_decoration_box(view, output, &box);
+
+	// TODO: output scale, output transform support
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
+		box.width, box.height);
+	pixman_region32_intersect(&damage, &damage, data->damage);
+	bool damaged = pixman_region32_not_empty(&damage);
+	if (!damaged) {
+		goto damage_finish;
+	}
 
 	float matrix[16];
 	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
-		view->rotation, &wlr_output->transform_matrix);
-	float color[4] = { 0.2, 0.2, 0.2, 1 };
-	wlr_render_colored_quad(output->desktop->server->renderer, &color, &matrix);
+		view->rotation, &output->wlr_output->transform_matrix);
+	float color[] = { 0.2, 0.2, 0.2, 1 };
+
+	int nrects;
+	pixman_box32_t *rects =
+		pixman_region32_rectangles(&damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		struct wlr_box scissor = {
+			.x = rects[i].x1,
+			.y = output->wlr_output->height - rects[i].y2,
+			.width = rects[i].x2 - rects[i].x1,
+			.height = rects[i].y2 - rects[i].y1,
+		};
+		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
+		wlr_render_colored_quad(output->desktop->server->renderer, &color,
+			&matrix);
+	}
+
+damage_finish:
+	pixman_region32_fini(&damage);
 }
 
 static void render_view(struct roots_view *view, struct render_data *data) {
@@ -408,29 +440,15 @@ static void render_output(struct roots_output *output) {
 	}
 
 	// Render drag icons
-	struct wlr_drag_icon *drag_icon = NULL;
+	struct roots_drag_icon *drag_icon = NULL;
 	struct roots_seat *seat = NULL;
 	wl_list_for_each(seat, &server->input->seats, link) {
-		wl_list_for_each(drag_icon, &seat->seat->drag_icons, link) {
-			if (!drag_icon->mapped) {
+		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+			if (!drag_icon->wlr_drag_icon->mapped) {
 				continue;
 			}
-			struct wlr_surface *icon = drag_icon->surface;
-			struct wlr_cursor *cursor = seat->cursor->cursor;
-			double icon_x = 0, icon_y = 0;
-			if (drag_icon->is_pointer) {
-				icon_x = cursor->x + drag_icon->sx;
-				icon_y = cursor->y + drag_icon->sy;
-				render_surface(icon, icon_x, icon_y, 0, &data);
-			} else {
-				struct wlr_touch_point *point =
-					wlr_seat_touch_get_point(seat->seat, drag_icon->touch_id);
-				if (point) {
-					icon_x = seat->touch_x + drag_icon->sx;
-					icon_y = seat->touch_y + drag_icon->sy;
-					render_surface(icon, icon_x, icon_y, 0, &data);
-				}
-			}
+			render_surface(drag_icon->wlr_drag_icon->surface,
+				drag_icon->x, drag_icon->y, 0, &data);
 		}
 	}
 
@@ -521,13 +539,33 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	schedule_render(output);
 }
 
+static void damage_whole_decoration(struct roots_view *view,
+		struct roots_output *output) {
+	if (!view->decorated || view->wlr_surface == NULL) {
+		return;
+	}
+
+	struct wlr_box box;
+	get_decoration_box(view, output, &box);
+
+	pixman_region32_union_rect(&output->damage, &output->damage,
+		box.x, box.y, box.width, box.height);
+}
+
 void output_damage_whole_view(struct roots_output *output,
 		struct roots_view *view) {
 	if (!view_accept_damage(output, view)) {
 		return;
 	}
 
+	damage_whole_decoration(view, output);
 	view_for_each_surface(view, damage_whole_surface, output);
+}
+
+void output_damage_whole_drag_icon(struct roots_output *output,
+		struct roots_drag_icon *icon) {
+	surface_for_each_surface(icon->wlr_drag_icon->surface, icon->x, icon->y, 0,
+		damage_whole_surface, output);
 }
 
 static void damage_from_surface(struct wlr_surface *surface,

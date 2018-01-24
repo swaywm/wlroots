@@ -27,6 +27,12 @@ void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	if (view->get_size) {
 		view->get_size(view, box);
 	} else {
+		if (view->wlr_surface == NULL) {
+			// View is unmapped
+			box->width = box->height = 0;
+			return;
+		}
+
 		box->width = view->wlr_surface->current->width;
 		box->height = view->wlr_surface->current->height;
 	}
