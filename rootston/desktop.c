@@ -564,7 +564,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(
 		desktop->server_decoration_manager,
-		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
+		config->deco_mode);
 	desktop->primary_selection_device_manager =
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);

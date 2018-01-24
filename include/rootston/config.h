@@ -2,6 +2,7 @@
 #define _ROOTSTON_CONFIG_H
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_server_decoration.h>
 
 #define ROOTS_CONFIG_DEFAULT_SEAT_NAME "seat0"
 
@@ -59,6 +60,7 @@ struct roots_cursor_config {
 
 struct roots_config {
 	bool xwayland;
+	enum wlr_server_decoration_manager_mode deco_mode;
 
 	struct wl_list outputs;
 	struct wl_list devices;
