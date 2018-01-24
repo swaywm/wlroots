@@ -134,6 +134,15 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 	output->wl_global = NULL;
 }
 
+void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
+	if (output->enabled == enabled) {
+		return;
+	}
+
+	output->enabled = enabled;
+	wl_signal_emit(&output->events.enable, output);
+}
+
 static void wlr_output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
 		output->transform);

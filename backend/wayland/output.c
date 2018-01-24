@@ -326,7 +326,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	}
 
 	wl_list_insert(&backend->outputs, &output->link);
-	wlr_output->enabled = true;
+	wlr_output_update_enabled(wlr_output, true);
 	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
 

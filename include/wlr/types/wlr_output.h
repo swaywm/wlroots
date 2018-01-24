@@ -89,8 +89,8 @@ struct wlr_output {
 struct wlr_surface;
 
 void wlr_output_enable(struct wlr_output *output, bool enable);
-void wlr_output_create_global();
-void wlr_output_destroy_global();
+void wlr_output_create_global(struct wlr_output *output);
+void wlr_output_destroy_global(struct wlr_output *output);
 bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
