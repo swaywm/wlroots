@@ -198,49 +198,11 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		goto surface_damage_finish;
 	}
 
-	float transform[16];
-	wlr_matrix_translate(&transform, box.x, box.y, 0);
-
-	if (rotation != 0) {
-		float translate_center[16];
-		wlr_matrix_translate(&translate_center, box.width/2, box.height/2, 0);
-
-		float rotate[16];
-		wlr_matrix_rotate(&rotate, rotation);
-
-		float translate_origin[16];
-		wlr_matrix_translate(&translate_origin, -box.width/2, -box.height/2, 0);
-
-		wlr_matrix_mul(&transform, &translate_center, &transform);
-		wlr_matrix_mul(&transform, &rotate, &transform);
-		wlr_matrix_mul(&transform, &translate_origin, &transform);
-	}
-
-	float scale[16];
-	wlr_matrix_scale(&scale, box.width, box.height, 1);
-
-	wlr_matrix_mul(&transform, &scale, &transform);
-
-	if (surface->current->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-		float surface_translate_center[16];
-		wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
-
-		float surface_transform[16];
-		wlr_matrix_transform(surface_transform,
-			wlr_output_transform_invert(surface->current->transform));
-
-		float surface_translate_origin[16];
-		wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
-
-		wlr_matrix_mul(&transform, &surface_translate_center,
-			&transform);
-		wlr_matrix_mul(&transform, &surface_transform, &transform);
-		wlr_matrix_mul(&transform, &surface_translate_origin,
-			&transform);
-	}
-
 	float matrix[16];
-	wlr_matrix_mul(&output->wlr_output->transform_matrix, &transform, &matrix);
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(surface->current->transform);
+	wlr_matrix_project_box(&matrix, &box, transform, rotation,
+		&output->wlr_output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects =
@@ -261,6 +223,46 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 
 surface_damage_finish:
 	pixman_region32_fini(&surface_damage);
+}
+
+static void render_decorations(struct roots_view *view,
+		struct render_data *data) {
+	if (!view->decorated) {
+		return;
+	}
+
+	struct roots_output *output = data->output;
+	struct wlr_output *wlr_output = output->wlr_output;
+
+	struct wlr_box deco_box;
+	view_get_deco_box(view, &deco_box);
+	double sx = deco_box.x - view->x;
+	double sy = deco_box.y - view->y;
+	rotate_child_position(&sx, &sy, deco_box.width, deco_box.height,
+		view->wlr_surface->current->width,
+		view->wlr_surface->current->height, view->rotation);
+	double x = sx + view->x;
+	double y = sy + view->y;
+
+	wlr_output_layout_output_coords(output->desktop->layout, wlr_output, &x, &y);
+
+	struct wlr_box box = {
+		.x = x * wlr_output->scale,
+		.y = y * wlr_output->scale,
+		.width = deco_box.width * wlr_output->scale,
+		.height = deco_box.height * wlr_output->scale,
+	};
+
+	float matrix[16];
+	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
+		view->rotation, &wlr_output->transform_matrix);
+	float color[4] = { 0.2, 0.2, 0.2, 1 };
+	wlr_render_colored_quad(output->desktop->server->renderer, &color, &matrix);
+}
+
+static void render_view(struct roots_view *view, struct render_data *data) {
+	render_decorations(view, data);
+	view_for_each_surface(view, render_surface, data);
 }
 
 static bool has_standalone_surface(struct roots_view *view) {
@@ -402,7 +404,7 @@ static void render_output(struct roots_output *output) {
 	// Render all views
 	struct roots_view *view;
 	wl_list_for_each_reverse(view, &desktop->views, link) {
-		view_for_each_surface(view, render_surface, &data);
+		render_view(view, &data);
 	}
 
 	// Render drag icons

@@ -113,7 +113,7 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 	wl_output_send_to_resource(wl_resource);
 }
 
-static void wlr_output_create_global(struct wlr_output *output) {
+void wlr_output_create_global(struct wlr_output *output) {
 	if (output->wl_global != NULL) {
 		return;
 	}
@@ -122,7 +122,7 @@ static void wlr_output_create_global(struct wlr_output *output) {
 	output->wl_global = wl_global;
 }
 
-static void wlr_output_destroy_global(struct wlr_output *output) {
+void wlr_output_destroy_global(struct wlr_output *output) {
 	if (output->wl_global == NULL) {
 		return;
 	}
@@ -140,13 +140,6 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	}
 
 	output->enabled = enabled;
-
-	if (enabled) {
-		wlr_output_create_global(output);
-	} else {
-		wlr_output_destroy_global(output);
-	}
-
 	wl_signal_emit(&output->events.enable, output);
 }
 

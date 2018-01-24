@@ -510,7 +510,7 @@ void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_cursor_state *state =
-		wl_container_of(listener, state, layout_change);
+		wl_container_of(listener, state, layout_destroy);
 	wlr_cursor_detach_output_layout(state->cursor);
 }
 
