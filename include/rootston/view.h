@@ -6,6 +6,10 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_server_decoration.h>
+
+#define ROOTS_BORDER_WIDTH 4
+#define ROOTS_TITLEBAR_HEIGHT 12;
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;
@@ -101,6 +105,11 @@ struct roots_view {
 		struct wl_signal destroy;
 	} events;
 
+	// kde decoration protocol
+	struct wlr_server_decoration *server_decoration;
+	struct wl_listener decoration_destroy;
+	struct wl_listener decoration_mode;
+
 	// TODO: This would probably be better as a field that's updated on a
 	// configure event from the xdg_shell
 	// If not then this should follow the typical type/impl pattern we use
@@ -143,5 +152,10 @@ enum roots_deco_part {
 };
 
 enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy);
+
+void view_set_decorated(struct roots_view *view, bool decorated);
+
+void view_set_server_decoration(struct roots_view *view,
+		struct wlr_server_decoration *deco);
 
 #endif

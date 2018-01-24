@@ -321,9 +321,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 
 	if (!surface->override_redirect) {
 		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
-			view->decorated = true;
-			view->border_width = 4;
-			view->titlebar_height = 12;
+			view_set_decorated(view, true);
 		}
 
 		view_setup(view);

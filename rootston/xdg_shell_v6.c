@@ -296,19 +296,6 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	roots_surface->view = view;
 
-	struct wlr_server_decoration *deco = NULL;
-	wl_list_for_each(deco, &desktop->server_decoration_manager->decorations,
-		link) {
-		if (deco->surface == view->wlr_surface) {
-			if (deco->mode == WLR_SERVER_DECORATION_MANAGER_MODE_SERVER) {
-				view->decorated = true;
-				view->border_width = 4;
-				view->titlebar_height = 12;
-				break;
-			}
-		}
-	}
-
 	view_init(view, desktop);
 	wl_list_insert(&desktop->views, &view->link);
 

@@ -81,6 +81,54 @@ enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, doub
 	return parts;
 }
 
+void view_set_decorated(struct roots_view *view, bool decorated) {
+	if (decorated) {
+		view->decorated = true;
+		view->border_width = ROOTS_BORDER_WIDTH;
+		view->titlebar_height = ROOTS_TITLEBAR_HEIGHT;
+	} else {
+		view->decorated = false;
+	}
+}
+
+static void view_update_server_decorations(struct roots_view *view) {
+	bool decorated = (view->server_decoration &&
+			view->server_decoration->mode ==
+			WLR_SERVER_DECORATION_MANAGER_MODE_SERVER);
+
+	view_set_decorated(view, decorated);
+}
+
+void handle_server_decoration_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_view *view = wl_container_of(listener, view, decoration_destroy);
+	view_set_server_decoration(view, NULL);
+}
+
+void handle_server_decoration_mode(struct wl_listener *listener, void *data) {
+	struct roots_view *view = wl_container_of(listener, view, decoration_destroy);
+	view_update_server_decorations(view);
+}
+
+void view_set_server_decoration(struct roots_view *view,
+		struct wlr_server_decoration *deco) {
+	if (view->server_decoration) {
+		wl_list_remove(&view->decoration_destroy.link);
+		wl_list_remove(&view->decoration_mode.link);
+		view->server_decoration = NULL;
+	}
+
+	if (deco) {
+		wl_signal_add(&deco->events.destroy, &view->decoration_destroy);
+		view->decoration_destroy.notify = handle_server_decoration_destroy;
+		wl_signal_add(&deco->events.mode, &view->decoration_mode);
+		view->decoration_mode.notify = handle_server_decoration_mode;
+		view->server_decoration = deco;
+	}
+
+	view_update_server_decorations(view);
+}
+
 static void view_update_output(const struct roots_view *view,
 		const struct wlr_box *before) {
 	struct roots_desktop *desktop = view->desktop;
@@ -319,6 +367,8 @@ void view_destroy(struct roots_view *view) {
 		view->fullscreen_output->fullscreen_view = NULL;
 	}
 
+	view_set_server_decoration(view, NULL);
+
 	free(view);
 }
 
@@ -337,6 +387,16 @@ void view_setup(struct roots_view *view) {
 
 	view_center(view);
 	view_update_output(view, NULL);
+
+	struct wlr_server_decoration *deco = NULL;
+	wl_list_for_each(deco,
+		&view->desktop->server_decoration_manager->decorations, link) {
+		if (deco->surface == view->wlr_surface) {
+			view_set_server_decoration(view, deco);
+			break;
+		}
+	}
+
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,
@@ -476,6 +536,20 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_new_decoration(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(listener, desktop, decoration_new);
+	struct wlr_server_decoration *deco = data;
+
+	// find the view for this decoration
+	struct roots_view *view = NULL;
+	wl_list_for_each(view, &desktop->views, link) {
+		if (deco->surface == view->wlr_surface) {
+			view_set_server_decoration(view, deco);
+			return;
+		}
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -560,11 +634,16 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		server->wl_display);
 	desktop->screenshooter = wlr_screenshooter_create(server->wl_display,
 		server->renderer);
+
 	desktop->server_decoration_manager =
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(
-		desktop->server_decoration_manager,
-		config->deco_mode);
+		desktop->server_decoration_manager, config->deco_mode);
+
+	wl_signal_add(&desktop->server_decoration_manager->events.new_decoration,
+		&desktop->decoration_new);
+	desktop->decoration_new.notify = handle_new_decoration;
+
 	desktop->primary_selection_device_manager =
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
