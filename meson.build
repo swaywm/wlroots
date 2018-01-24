@@ -153,6 +153,22 @@ wlroots = declare_dependency(
 	include_directories: wlr_inc,
 )
 
+
+summary = [
+  '',
+  '----------------',
+  'wlroots @0@'.format(meson.project_version()),
+  '',
+  '   libcap: @0@'.format(get_option('enable_libcap')),
+  '  systemd: @0@'.format(get_option('enable_systemd')),
+  '  elogind: @0@'.format(get_option('enable_elogind')),
+  ' xwayland: @0@'.format(get_option('enable_xwayland')),
+  '----------------',
+  ''
+]
+message('\n'.join(summary))
+
+
 subdir('rootston')
 subdir('examples')
 
