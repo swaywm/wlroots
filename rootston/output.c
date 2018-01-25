@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
+#include <wlr/util/region.h>
 #include "rootston/server.h"
 #include "rootston/output.h"
 #include "rootston/config.h"
@@ -186,7 +187,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		return;
 	}
 
-	// TODO: output scale, output transform support
+	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
@@ -257,7 +258,7 @@ static void render_decorations(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
-	// TODO: output scale, output transform support
+	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
@@ -583,10 +584,11 @@ static void damage_from_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	// TODO: output scale, output transform support
+	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
 	pixman_region32_translate(&damage, box.x, box.y);
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
