@@ -138,6 +138,10 @@ static void screenshooter_shoot(struct wl_client *client,
 	state->screenshot = screenshot;
 	state->frame_listener.notify = output_frame_notify;
 	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
+
+	// Schedule a buffer swap
+	output->needs_swap = true;
+	wlr_output_schedule_frame(output);
 }
 
 static struct orbital_screenshooter_interface screenshooter_impl = {
