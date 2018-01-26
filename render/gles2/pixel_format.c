@@ -25,12 +25,16 @@ struct pixel_format formats[] = {
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XBGR8888,
+		.depth = 24,
+		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.shader = &shaders.rgbx
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_ABGR8888,
+		.depth = 32,
+		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.shader = &shaders.rgba

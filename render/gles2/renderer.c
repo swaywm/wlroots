@@ -229,7 +229,7 @@ static bool wlr_gles2_read_pixels(struct wlr_renderer *renderer,
 	unsigned char *p = data + dst_y * stride;
 	for (size_t i = src_y; i < src_y + height; ++i) {
 		glReadPixels(src_x, src_y + height - i - 1, width, 1, fmt->gl_format,
-			fmt->gl_type, p + i * stride + dst_x * 4);
+			fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
 	}
 
 	return true;
