@@ -61,7 +61,8 @@ struct wlr_output {
 	enum wl_output_transform transform;
 
 	bool needs_swap;
-	pixman_region32_t damage; // damage for cursors and fullscreen surface
+	// damage for cursors and fullscreen surface, in output-local coordinates
+	pixman_region32_t damage;
 	float transform_matrix[16];
 
 	struct {

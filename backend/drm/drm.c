@@ -581,15 +581,14 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	}
 
 	struct wlr_box hotspot = {
-		.width = plane->surf.width,
-		.height = plane->surf.height,
 		.x = hotspot_x,
 		.y = hotspot_y,
 	};
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_hotspot;
-	wlr_box_transform(&hotspot, transform, &transformed_hotspot);
+	wlr_box_transform(&hotspot, transform,
+		plane->surf.width, plane->surf.height, &transformed_hotspot);
 	plane->cursor_hotspot_x = transformed_hotspot.x;
 	plane->cursor_hotspot_y = transformed_hotspot.y;
 
@@ -650,15 +649,15 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
 
-	struct wlr_box box;
-	box.x = x;
-	box.y = y;
-	wlr_output_effective_resolution(output, &box.width, &box.height);
+	struct wlr_box box = { .x = x, .y = y };
+
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	struct wlr_box transformed_box;
-	wlr_box_transform(&box, transform, &transformed_box);
+	wlr_box_transform(&box, transform, width, height, &transformed_box);
 
 	if (plane != NULL) {
 		transformed_box.x -= plane->cursor_hotspot_x;

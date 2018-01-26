@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/util/region.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/egl.h>
@@ -185,85 +186,6 @@ static bool wlr_surface_update_size(struct wlr_surface *surface,
 	return update_damage;
 }
 
-static void wlr_surface_to_buffer_region(int scale,
-		enum wl_output_transform transform, pixman_region32_t *surface_region,
-		pixman_region32_t *buffer_region, int width, int height) {
-	int nrects;
-	pixman_box32_t *src_rects =
-		pixman_region32_rectangles(surface_region, &nrects);
-	pixman_box32_t *dest_rects = malloc(nrects * sizeof(*dest_rects));
-	if (dest_rects == NULL) {
-		return;
-	}
-
-	for (int i = 0; i < nrects; i++) {
-		switch (transform) {
-		default:
-		case WL_OUTPUT_TRANSFORM_NORMAL:
-			dest_rects[i].x1 = src_rects[i].x1;
-			dest_rects[i].y1 = src_rects[i].y1;
-			dest_rects[i].x2 = src_rects[i].x2;
-			dest_rects[i].y2 = src_rects[i].y2;
-			break;
-		case WL_OUTPUT_TRANSFORM_90:
-			dest_rects[i].x1 = height - src_rects[i].y2;
-			dest_rects[i].y1 = src_rects[i].x1;
-			dest_rects[i].x2 = height - src_rects[i].y1;
-			dest_rects[i].y2 = src_rects[i].x2;
-			break;
-		case WL_OUTPUT_TRANSFORM_180:
-			dest_rects[i].x1 = width - src_rects[i].x2;
-			dest_rects[i].y1 = height - src_rects[i].y2;
-			dest_rects[i].x2 = width - src_rects[i].x1;
-			dest_rects[i].y2 = height - src_rects[i].y1;
-			break;
-		case WL_OUTPUT_TRANSFORM_270:
-			dest_rects[i].x1 = src_rects[i].y1;
-			dest_rects[i].y1 = width - src_rects[i].x2;
-			dest_rects[i].x2 = src_rects[i].y2;
-			dest_rects[i].y2 = width - src_rects[i].x1;
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED:
-			dest_rects[i].x1 = width - src_rects[i].x2;
-			dest_rects[i].y1 = src_rects[i].y1;
-			dest_rects[i].x2 = width - src_rects[i].x1;
-			dest_rects[i].y2 = src_rects[i].y2;
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-			dest_rects[i].x1 = height - src_rects[i].y2;
-			dest_rects[i].y1 = width - src_rects[i].x2;
-			dest_rects[i].x2 = height - src_rects[i].y1;
-			dest_rects[i].y2 = width - src_rects[i].x1;
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-			dest_rects[i].x1 = src_rects[i].x1;
-			dest_rects[i].y1 = height - src_rects[i].y2;
-			dest_rects[i].x2 = src_rects[i].x2;
-			dest_rects[i].y2 = height - src_rects[i].y1;
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-			dest_rects[i].x1 = src_rects[i].y1;
-			dest_rects[i].y1 = src_rects[i].x1;
-			dest_rects[i].x2 = src_rects[i].y2;
-			dest_rects[i].y2 = src_rects[i].x2;
-			break;
-		}
-	}
-
-	if (scale != 1) {
-		for (int i = 0; i < nrects; i++) {
-			dest_rects[i].x1 *= scale;
-			dest_rects[i].x2 *= scale;
-			dest_rects[i].y1 *= scale;
-			dest_rects[i].y2 *= scale;
-		}
-	}
-
-	pixman_region32_fini(buffer_region);
-	pixman_region32_init_rects(buffer_region, dest_rects, nrects);
-	free(dest_rects);
-}
-
 /**
  * Append pending state to current state and clear pending state.
  */
@@ -314,9 +236,11 @@ static void wlr_surface_move_state(struct wlr_surface *surface,
 	if (update_damage) {
 		pixman_region32_t buffer_damage;
 		pixman_region32_init(&buffer_damage);
-		wlr_surface_to_buffer_region(state->scale, state->transform,
-			&state->surface_damage, &buffer_damage, state->width,
-			state->height);
+		pixman_region32_copy(&buffer_damage, &state->surface_damage);
+		wlr_region_transform(&buffer_damage, &buffer_damage,
+			wlr_output_transform_invert(state->transform),
+			state->width, state->height);
+		wlr_region_scale(&buffer_damage, &buffer_damage, state->scale);
 		pixman_region32_union(&state->buffer_damage,
 			&state->buffer_damage, &buffer_damage);
 		pixman_region32_fini(&buffer_damage);

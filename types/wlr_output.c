@@ -14,6 +14,7 @@
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
+#include <wlr/util/region.h>
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
@@ -554,6 +555,7 @@ static void output_fullscreen_surface_handle_commit(
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	wlr_region_scale(&damage, &damage, output->scale);
 	pixman_region32_translate(&damage, box.x, box.y);
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);

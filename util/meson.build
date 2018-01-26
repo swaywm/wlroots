@@ -6,5 +6,5 @@ lib_wlr_util = static_library(
 		'region.c',
 	),
 	include_directories: wlr_inc,
-	dependencies: [pixman],
+	dependencies: [wayland_server, pixman],
 )

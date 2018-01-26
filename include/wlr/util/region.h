@@ -2,6 +2,7 @@
 #define WLR_UTIL_REGION_H
 
 #include <pixman.h>
+#include <wayland-server.h>
 
 /**
  * Scales a region, ie. multiplies all its coordinates by `scale`.
@@ -11,5 +12,11 @@
  */
 void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 	float scale);
+
+/**
+ * Applies a transform to a region inside a box of size `width` x `height`.
+ */
+void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
+	enum wl_output_transform transform, int width, int height);
 
 #endif

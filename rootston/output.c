@@ -170,6 +170,39 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
+static void output_get_transformed_size(struct wlr_output *wlr_output,
+		int *width, int *height) {
+	if (wlr_output->transform % 2 == 0) {
+		*width = wlr_output->width;
+		*height = wlr_output->height;
+	} else {
+		*width = wlr_output->height;
+		*height = wlr_output->width;
+	}
+}
+
+static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
+	struct wlr_output *wlr_output = output->wlr_output;
+
+	struct wlr_box box = {
+		.x = rect->x1,
+		.y = rect->y1,
+		.width = rect->x2 - rect->x1,
+		.height = rect->y2 - rect->y1,
+	};
+
+	int ow, oh;
+	output_get_transformed_size(output->wlr_output, &ow, &oh);
+
+	// Scissor is in renderer coordinates, ie. upside down
+	enum wl_output_transform transform = wlr_output_transform_compose(
+		wlr_output_transform_invert(wlr_output->transform),
+		WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	wlr_box_transform(&box, transform, ow, oh, &box);
+
+	wlr_renderer_scissor(output->desktop->server->renderer, &box);
+}
+
 static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		float rotation, void *_data) {
 	struct render_data *data = _data;
@@ -187,7 +220,6 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		return;
 	}
 
-	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
@@ -205,16 +237,9 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		&output->wlr_output->transform_matrix);
 
 	int nrects;
-	pixman_box32_t *rects =
-		pixman_region32_rectangles(&damage, &nrects);
+	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
-		struct wlr_box scissor = {
-			.x = rects[i].x1,
-			.y = output->wlr_output->height - rects[i].y2,
-			.width = rects[i].x2 - rects[i].x1,
-			.height = rects[i].y2 - rects[i].y1,
-		};
-		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
+		scissor_output(output, &rects[i]);
 		wlr_render_with_matrix(output->desktop->server->renderer,
 			surface->texture, &matrix);
 	}
@@ -258,7 +283,6 @@ static void render_decorations(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
-	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
@@ -278,13 +302,7 @@ static void render_decorations(struct roots_view *view,
 	pixman_box32_t *rects =
 		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
-		struct wlr_box scissor = {
-			.x = rects[i].x1,
-			.y = output->wlr_output->height - rects[i].y2,
-			.width = rects[i].x2 - rects[i].x1,
-			.height = rects[i].y2 - rects[i].y1,
-		};
-		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
+		scissor_output(output, &rects[i]);
 		wlr_render_colored_quad(output->desktop->server->renderer, &color,
 			&matrix);
 	}
@@ -359,13 +377,15 @@ static void render_output(struct roots_output *output) {
 	int buffer_age = -1;
 	wlr_output_make_current(wlr_output, &buffer_age);
 
+	int width, height;
+	output_get_transformed_size(output->wlr_output, &width, &height);
+
 	// Check if we can use damage tracking
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	if (buffer_age <= 0 || buffer_age - 1 > ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN) {
 		// Buffer new or too old, damage the whole output
-		pixman_region32_union_rect(&damage, &damage, 0, 0,
-			wlr_output->width, wlr_output->height);
+		pixman_region32_union_rect(&damage, &damage, 0, 0, width, height);
 	} else {
 		pixman_region32_copy(&damage, &output->damage);
 
@@ -376,8 +396,7 @@ static void render_output(struct roots_output *output) {
 			pixman_region32_union(&damage, &damage, &output->previous_damage[j]);
 		}
 	}
-	pixman_region32_intersect_rect(&damage, &damage, 0, 0,
-		wlr_output->width, wlr_output->height);
+	pixman_region32_intersect_rect(&damage, &damage, 0, 0, width, height);
 
 	if (!pixman_region32_not_empty(&damage) && !wlr_output->needs_swap) {
 		// Output doesn't need swap and isn't damaged, skip rendering completely
@@ -401,13 +420,7 @@ static void render_output(struct roots_output *output) {
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
-		struct wlr_box scissor = {
-			.x = rects[i].x1,
-			.y = wlr_output->height - rects[i].y2,
-			.width = rects[i].x2 - rects[i].x1,
-			.height = rects[i].y2 - rects[i].y1,
-		};
-		wlr_renderer_scissor(output->desktop->server->renderer, &scissor);
+		scissor_output(output, &rects[i]);
 		wlr_renderer_clear(output->desktop->server->renderer,
 			clear_color[0], clear_color[1], clear_color[2], 1);
 	}
@@ -491,8 +504,11 @@ static void schedule_render(struct roots_output *output) {
 }
 
 static void output_damage_whole(struct roots_output *output) {
-	pixman_region32_union_rect(&output->damage, &output->damage,
-		0, 0, output->wlr_output->width, output->wlr_output->height);
+	int width, height;
+	output_get_transformed_size(output->wlr_output, &width, &height);
+
+	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
+		width, height);
 
 	schedule_render(output);
 }
@@ -584,7 +600,6 @@ static void damage_from_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	// TODO: output transform support
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
 	pixman_region32_copy(&damage, &surface->current->surface_damage);

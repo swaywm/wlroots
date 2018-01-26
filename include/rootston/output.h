@@ -7,7 +7,7 @@
 
 /**
  * Damage tracking requires to keep track of previous frames' damage. To allow
- * damage tracking to work with triple buffering, an history of two frames is
+ * damage tracking to work with triple buffering, a history of two frames is
  * required.
  */
 #define ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN 2
@@ -22,7 +22,7 @@ struct roots_output {
 	struct roots_view *fullscreen_view;
 
 	struct timespec last_frame;
-	pixman_region32_t damage;
+	pixman_region32_t damage; // in ouput-local coordinates
 	bool frame_pending;
 
 	// circular queue for previous damage
