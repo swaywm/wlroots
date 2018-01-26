@@ -338,7 +338,6 @@ static void render_output(struct roots_output *output) {
 	struct roots_server *server = desktop->server;
 
 	if (!wlr_output->enabled) {
-		output->frame_pending = false;
 		return;
 	}
 
@@ -400,7 +399,6 @@ static void render_output(struct roots_output *output) {
 
 	if (!pixman_region32_not_empty(&damage) && !wlr_output->needs_swap) {
 		// Output doesn't need swap and isn't damaged, skip rendering completely
-		output->frame_pending = false;
 		goto damage_finish;
 	}
 
@@ -470,7 +468,6 @@ renderer_end:
 	wlr_renderer_scissor(output->desktop->server->renderer, NULL);
 	wlr_renderer_end(server->renderer);
 	wlr_output_swap_buffers(wlr_output, &now, &damage);
-	output->frame_pending = true;
 	// same as decrementing, but works on unsigned integers
 	output->previous_damage_idx += ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN - 1;
 	output->previous_damage_idx %= ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
@@ -488,21 +485,6 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	render_output(output);
 }
 
-static void handle_idle_render(void *data) {
-	struct roots_output *output = data;
-	render_output(output);
-}
-
-static void schedule_render(struct roots_output *output) {
-	if (!output->frame_pending) {
-		// TODO: ask the backend to send a frame event when appropriate instead
-		struct wl_event_loop *ev =
-			wl_display_get_event_loop(output->desktop->server->wl_display);
-		wl_event_loop_add_idle(ev, handle_idle_render, output);
-		output->frame_pending = true;
-	}
-}
-
 static void output_damage_whole(struct roots_output *output) {
 	int width, height;
 	output_get_transformed_size(output->wlr_output, &width, &height);
@@ -510,7 +492,7 @@ static void output_damage_whole(struct roots_output *output) {
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
 
-	schedule_render(output);
+	wlr_output_schedule_frame(output->wlr_output);
 }
 
 static bool view_accept_damage(struct roots_output *output,
@@ -553,7 +535,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	pixman_region32_union_rect(&output->damage, &output->damage,
 		box.x, box.y, box.width, box.height);
 
-	schedule_render(output);
+	wlr_output_schedule_frame(output->wlr_output);
 }
 
 static void damage_whole_decoration(struct roots_view *view,
@@ -608,7 +590,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
 
-	schedule_render(output);
+	wlr_output_schedule_frame(output->wlr_output);
 }
 
 void output_damage_from_view(struct roots_output *output,
@@ -630,7 +612,7 @@ static void output_handle_needs_swap(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, output, needs_swap);
 	pixman_region32_union(&output->damage, &output->damage,
 		&output->wlr_output->damage);
-	schedule_render(output);
+	wlr_output_schedule_frame(output->wlr_output);
 }
 
 static void set_mode(struct wlr_output *output,

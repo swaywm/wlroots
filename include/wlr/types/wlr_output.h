@@ -63,6 +63,7 @@ struct wlr_output {
 	bool needs_swap;
 	// damage for cursors and fullscreen surface, in output-local coordinates
 	pixman_region32_t damage;
+	bool frame_pending;
 	float transform_matrix[16];
 
 	struct {
@@ -123,6 +124,11 @@ bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
  */
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	pixman_region32_t *damage);
+/**
+ * Manually schedules a `frame` event. If a `frame` event is already pending,
+ * it is a no-op.
+ */
+void wlr_output_schedule_frame(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);

@@ -23,7 +23,6 @@ struct roots_output {
 
 	struct timespec last_frame;
 	pixman_region32_t damage; // in ouput-local coordinates
-	bool frame_pending;
 
 	// circular queue for previous damage
 	pixman_region32_t previous_damage[ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN];

@@ -85,7 +85,7 @@ bool wlr_output_is_headless(struct wlr_output *wlr_output) {
 
 static int signal_frame(void *data) {
 	struct wlr_headless_output *output = data;
-	wl_signal_emit(&output->wlr_output.events.frame, &output->wlr_output);
+	wlr_output_send_frame(&output->wlr_output);
 	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	return 0;
 }

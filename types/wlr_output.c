@@ -499,6 +499,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		return false;
 	}
 
+	output->frame_pending = true;
 	output->needs_swap = false;
 	pixman_region32_clear(&output->damage);
 
@@ -507,6 +508,27 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	}
 
 	return true;
+}
+
+void wlr_output_send_frame(struct wlr_output *output) {
+	output->frame_pending = false;
+	wl_signal_emit(&output->events.frame, output);
+}
+
+static void schedule_frame_handle_idle_timer(void *data) {
+	struct wlr_output *output = data;
+	wlr_output_send_frame(output);
+}
+
+void wlr_output_schedule_frame(struct wlr_output *output) {
+	if (output->frame_pending) {
+		return;
+	}
+
+	// TODO: ask the backend to send a frame event when appropriate instead
+	struct wl_event_loop *ev = wl_display_get_event_loop(output->display);
+	wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
+	output->frame_pending = true;
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,

@@ -881,7 +881,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	if (drm->session->active) {
-		wl_signal_emit(&conn->output.events.frame, &conn->output);
+		wlr_output_send_frame(&conn->output);
 	}
 }
 

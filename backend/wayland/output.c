@@ -17,11 +17,11 @@ int os_create_anonymous_file(off_t size);
 
 static struct wl_callback_listener frame_listener;
 
-static void surface_frame_callback(void *data, struct wl_callback *cb, uint32_t time) {
+static void surface_frame_callback(void *data, struct wl_callback *cb,
+		uint32_t time) {
 	struct wlr_wl_backend_output *output = data;
-	struct wlr_output *wlr_output = (struct wlr_output *)output;
-	assert(wlr_output);
-	wl_signal_emit(&wlr_output->events.frame, wlr_output);
+	assert(output);
+	wlr_output_send_frame(&output->wlr_output);
 	wl_callback_destroy(cb);
 	output->frame_callback = NULL;
 }

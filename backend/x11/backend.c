@@ -44,7 +44,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 
 	switch (event->response_type) {
 	case XCB_EXPOSE: {
-		wl_signal_emit(&output->wlr_output.events.frame, output);
+		wlr_output_send_frame(&output->wlr_output);
 		break;
 	}
 	case XCB_KEY_PRESS:
@@ -174,7 +174,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 
 static int signal_frame(void *data) {
 	struct wlr_x11_backend *x11 = data;
-	wl_signal_emit(&x11->output.wlr_output.events.frame, &x11->output);
+	wlr_output_send_frame(&x11->output.wlr_output);
 	wl_event_source_timer_update(x11->frame_timer, 16);
 	return 0;
 }
