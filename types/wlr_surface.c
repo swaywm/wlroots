@@ -169,14 +169,13 @@ static bool wlr_surface_update_size(struct wlr_surface *surface,
 	wl_list_init(&state->frame_callback_list);
 
 	bool update_damage = false;
-	if (width < state->width) {
-		pixman_region32_union_rect(&state->surface_damage, &state->surface_damage,
-			width, 0, state->width - width, state->height);
-		update_damage = true;
-	}
-	if (height < state->height) {
-		pixman_region32_union_rect(&state->surface_damage, &state->surface_damage,
-			0, height, state->width, state->height - height);
+	if (width != state->width || height != state->height) {
+		// Damage the whole surface on resize
+		// This isn't in the spec, but Weston does it and QT expects it
+		pixman_region32_union_rect(&state->surface_damage,
+			&state->surface_damage, 0, 0, state->width, state->height);
+		pixman_region32_union_rect(&state->surface_damage,
+			&state->surface_damage, 0, 0, width, height);
 		update_damage = true;
 	}
 
