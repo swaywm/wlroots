@@ -419,8 +419,6 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
-	wlr_renderer_clear(output->desktop->server->renderer, 1, 1, 1, 1);
-
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {

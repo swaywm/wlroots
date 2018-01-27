@@ -192,6 +192,9 @@ static bool wlr_drm_connector_make_current(struct wlr_output *output,
 static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+	if (!drm->session->active) {
+		return false;
+	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -516,6 +519,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	struct wlr_drm_renderer *renderer = &drm->renderer;
 
+	if (!drm->session->active) {
+		return false;
+	}
+
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		return false;
@@ -644,6 +651,9 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+	if (!drm->session->active) {
+		return false;
+	}
 	if (!conn->crtc) {
 		return false;
 	}

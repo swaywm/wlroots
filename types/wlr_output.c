@@ -184,11 +184,6 @@ void wlr_output_update_mode(struct wlr_output *output,
 
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
-	if (output->width == width && output->height == height &&
-			output->refresh == refresh) {
-		return;
-	}
-
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
