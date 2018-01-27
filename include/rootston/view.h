@@ -164,6 +164,7 @@ void view_move_resize(struct roots_view *view, double x, double y,
 void view_maximize(struct roots_view *view, bool maximized);
 void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 	struct wlr_output *output);
+void view_rotate(struct roots_view *view, float rotation);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);

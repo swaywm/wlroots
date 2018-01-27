@@ -200,7 +200,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 		view_move_resize(view, output_box->x, output_box->y, output_box->width,
 			output_box->height);
-		view->rotation = 0;
+		view_rotate(view, 0);
 	}
 
 	if (view->maximized && !maximized) {
@@ -208,7 +208,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
-		view->rotation = view->saved.rotation;
+		view_rotate(view, view->saved.rotation);
 	}
 }
 
@@ -249,7 +249,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			wlr_output_layout_get_box(view->desktop->layout, output);
 		view_move_resize(view, output_box->x, output_box->y, output_box->width,
 			output_box->height);
-		view->rotation = 0;
+		view_rotate(view, 0);
 
 		roots_output->fullscreen_view = view;
 		view->fullscreen_output = roots_output;
@@ -258,11 +258,21 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 	if (was_fullscreen && !fullscreen) {
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
-		view->rotation = view->saved.rotation;
+		view_rotate(view, view->saved.rotation);
 
 		view->fullscreen_output->fullscreen_view = NULL;
 		view->fullscreen_output = NULL;
 	}
+}
+
+void view_rotate(struct roots_view *view, float rotation) {
+	if (view->rotation == rotation) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->rotation = rotation;
+	view_damage_whole(view);
 }
 
 void view_close(struct roots_view *view) {

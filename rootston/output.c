@@ -155,7 +155,7 @@ struct render_data {
  */
 static bool surface_intersect_output(struct wlr_surface *surface,
 		struct wlr_output_layout *output_layout, struct wlr_output *wlr_output,
-		double lx, double ly, struct wlr_box *box) {
+		double lx, double ly, float rotation, struct wlr_box *box) {
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
 	box->x = ox * wlr_output->scale;
@@ -167,6 +167,7 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 		.x = lx, .y = ly,
 		.width = surface->current->width, .height = surface->current->height,
 	};
+	wlr_box_rotated_bounds(&layout_box, -rotation, &layout_box);
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
@@ -215,15 +216,18 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 
 	struct wlr_box box;
 	bool intersects = surface_intersect_output(surface, output->desktop->layout,
-		output->wlr_output, lx, ly, &box);
+		output->wlr_output, lx, ly, rotation, &box);
 	if (!intersects) {
 		return;
 	}
 
+	struct wlr_box rotated;
+	wlr_box_rotated_bounds(&box, -rotation, &rotated);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
-		box.width, box.height);
+	pixman_region32_union_rect(&damage, &damage, rotated.x, rotated.y,
+		rotated.width, rotated.height);
 	pixman_region32_intersect(&damage, &damage, data->damage);
 	bool damaged = pixman_region32_not_empty(&damage);
 	if (!damaged) {
@@ -415,6 +419,8 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
+	wlr_renderer_clear(output->desktop->server->renderer, 1, 1, 1, 1);
+
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
@@ -526,11 +532,13 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	}
 
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface,
-		output->desktop->layout, output->wlr_output, lx, ly, &box);
+	bool intersects = surface_intersect_output(surface, output->desktop->layout,
+		output->wlr_output, lx, ly, rotation, &box);
 	if (!intersects) {
 		return;
 	}
+
+	wlr_box_rotated_bounds(&box, -rotation, &box);
 
 	pixman_region32_union_rect(&output->damage, &output->damage,
 		box.x, box.y, box.width, box.height);
@@ -546,6 +554,8 @@ static void damage_whole_decoration(struct roots_view *view,
 
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
+
+	wlr_box_rotated_bounds(&box, -view->rotation, &box);
 
 	pixman_region32_union_rect(&output->damage, &output->damage,
 		box.x, box.y, box.width, box.height);
@@ -576,8 +586,8 @@ static void damage_from_surface(struct wlr_surface *surface,
 	}
 
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface,
-		output->desktop->layout, output->wlr_output, lx, ly, &box);
+	bool intersects = surface_intersect_output(surface, output->desktop->layout,
+		output->wlr_output, lx, ly, rotation, &box);
 	if (!intersects) {
 		return;
 	}
@@ -596,6 +606,11 @@ static void damage_from_surface(struct wlr_surface *surface,
 void output_damage_from_view(struct roots_output *output,
 		struct roots_view *view) {
 	if (!view_accept_damage(output, view)) {
+		return;
+	}
+
+	if (view->rotation != 0) {
+		output_damage_whole_view(output, view);
 		return;
 	}
 

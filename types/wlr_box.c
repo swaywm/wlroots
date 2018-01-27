@@ -114,3 +114,32 @@ void wlr_box_transform(const struct wlr_box *box,
 		break;
 	}
 }
+
+void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
+		struct wlr_box *dest) {
+	if (rotation == 0) {
+		*dest = *box;
+		return;
+	}
+
+	double ox = box->x + (double)box->width/2;
+	double oy = box->y + (double)box->height/2;
+
+	double c = fabs(cos(rotation));
+	double s = fabs(sin(rotation));
+
+	double x1 = ox + (box->x - ox) * c + (box->y - oy) * s;
+	double x2 = ox +
+		(box->x + box->width - ox) * c +
+		(box->y + box->height - oy) * s;
+
+	double y1 = oy + (box->x - ox) * s + (box->y - oy) * c;
+	double y2 = oy +
+		(box->x + box->width - ox) * s +
+		(box->y + box->height - oy) * c;
+
+	dest->x = fmin(x1, x2);
+	dest->width = fmax(x1, x2) - fmin(x1, x2);
+	dest->y = fmin(y1, y2);
+	dest->height = fmax(y1, y2) - fmin(y1, y2);
+}
