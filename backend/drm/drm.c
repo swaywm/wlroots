@@ -459,7 +459,7 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 	if (!crtc) {
 		return false;
 	}
-	wlr_log(L_DEBUG, "%s: crtc=%ju ovr=%jd pri=%jd cur=%jd", conn->output.name,
+	wlr_log(L_DEBUG, "%s: crtc=%td ovr=%td pri=%td cur=%td", conn->output.name,
 		crtc - drm->crtcs,
 		crtc->overlay ? crtc->overlay - drm->overlay_planes : -1,
 		crtc->primary ? crtc->primary - drm->primary_planes : -1,

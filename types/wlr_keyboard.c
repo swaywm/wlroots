@@ -215,13 +215,13 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	}
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
 	if (kb->keymap_fd < 0) {
-		wlr_log(L_ERROR, "creating a keymap file for %lu bytes failed", kb->keymap_size);
+		wlr_log(L_ERROR, "creating a keymap file for %zu bytes failed", kb->keymap_size);
 		goto err;
 	}
 	void *ptr = mmap(NULL, kb->keymap_size,
 		PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);
 	if (ptr == (void*)-1) {
-		wlr_log(L_ERROR, "failed to mmap() %lu bytes", kb->keymap_size);
+		wlr_log(L_ERROR, "failed to mmap() %zu bytes", kb->keymap_size);
 		goto err;
 	}
 	strcpy(ptr, keymap_str);
