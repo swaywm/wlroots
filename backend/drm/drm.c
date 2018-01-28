@@ -213,13 +213,11 @@ static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 		return false;
 	}
 
-	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
-		conn->pageflip_pending = true;
-	} else {
-		wl_event_source_timer_update(conn->retry_pageflip,
-			1000000.0f / conn->output.current_mode->refresh);
+	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
+		return false;
 	}
 
+	conn->pageflip_pending = true;
 	return true;
 }
 
