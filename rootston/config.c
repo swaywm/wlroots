@@ -243,6 +243,16 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			} else {
 				wlr_log(L_ERROR, "got unknown xwayland value: %s", value);
 			}
+		} else if (strcmp(name, "decoration-mode") == 0) {
+			if (strcasecmp(value, "server") == 0) {
+				config->deco_mode = WLR_SERVER_DECORATION_MANAGER_MODE_SERVER;
+			} else if (strcmp(value, "client") == 0) {
+				config->deco_mode = WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT;
+			} else if (strcmp(value, "none") == 0) {
+				config->deco_mode = WLR_SERVER_DECORATION_MANAGER_MODE_NONE;
+			} else {
+				wlr_log(L_ERROR, "got unknown decoration mode: %s", value);
+			}
 		} else {
 			wlr_log(L_ERROR, "got unknown core config: %s", name);
 		}
@@ -387,6 +397,7 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	}
 
 	config->xwayland = true;
+	config->deco_mode = WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
 	wl_list_init(&config->keyboards);
