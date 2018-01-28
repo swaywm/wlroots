@@ -518,6 +518,7 @@ static bool view_accept_damage(struct roots_output *output,
 	if (output->fullscreen_view == view) {
 		return true;
 	}
+#ifdef WLR_HAS_XWAYLAND
 	if (output->fullscreen_view->type == ROOTS_XWAYLAND_VIEW &&
 			view->type == ROOTS_XWAYLAND_VIEW) {
 		// Special case: accept damage from children
@@ -529,6 +530,7 @@ static bool view_accept_damage(struct roots_output *output,
 			xsurface = xsurface->parent;
 		}
 	}
+#endif
 	return false;
 }
 
