@@ -6,6 +6,12 @@ compiler:
   - gcc
   - clang
 
+# Settings to try
+env:
+ matrix:
+  - OPTIONS="-Denable_libcap=true  -Denable_systemd=true  -Denable_elogind=false -Denable_xwayland=true"
+  - OPTIONS="-Denable_libcap=false -Denable_systemd=false -Denable_elogind=false -Denable_xwayland=false"
+
 arch:
   packages:
     - meson
@@ -19,7 +25,7 @@ arch:
     - xcb-util-image
     - libcap
   script:
-    - "meson build"
+    - "meson build $OPTIONS"
     - "ninja -C build"
 
 script:

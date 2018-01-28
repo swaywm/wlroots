@@ -120,15 +120,18 @@ static void view_for_each_surface(struct roots_view *view,
 		wl_shell_surface_for_each_surface(view->wl_shell_surface, view->x,
 			view->y, view->rotation, false, iterator, user_data);
 		break;
+#ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		if (view->wlr_surface != NULL) {
 			surface_for_each_surface(view->wlr_surface, view->x, view->y,
 				view->rotation, iterator, user_data);
 		}
 		break;
+#endif
 	}
 }
 
+#ifdef WLR_HAS_XWAYLAND
 static void xwayland_children_for_each_surface(
 		struct wlr_xwayland_surface *surface,
 		surface_iterator_func_t iterator, void *user_data) {
@@ -141,6 +144,7 @@ static void xwayland_children_for_each_surface(
 		xwayland_children_for_each_surface(child, iterator, user_data);
 	}
 }
+#endif
 
 
 struct render_data {
@@ -333,8 +337,10 @@ static bool has_standalone_surface(struct roots_view *view) {
 		return wl_list_empty(&view->xdg_surface_v6->popups);
 	case ROOTS_WL_SHELL_VIEW:
 		return wl_list_empty(&view->wl_shell_surface->popups);
+#ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		return wl_list_empty(&view->xwayland_surface->children);
+#endif
 	}
 	return true;
 }
@@ -444,10 +450,12 @@ static void render_output(struct roots_output *output) {
 		// During normal rendering the xwayland window tree isn't traversed
 		// because all windows are rendered. Here we only want to render
 		// the fullscreen window's children so we have to traverse the tree.
+#ifdef WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
 			xwayland_children_for_each_surface(view->xwayland_surface,
 				render_surface, &data);
 		}
+#endif
 
 		goto renderer_end;
 	}

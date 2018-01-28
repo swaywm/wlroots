@@ -153,6 +153,22 @@ wlroots = declare_dependency(
 	include_directories: wlr_inc,
 )
 
+
+summary = [
+  '',
+  '----------------',
+  'wlroots @0@'.format(meson.project_version()),
+  '',
+  '   libcap: @0@'.format(get_option('enable_libcap')),
+  '  systemd: @0@'.format(get_option('enable_systemd')),
+  '  elogind: @0@'.format(get_option('enable_elogind')),
+  ' xwayland: @0@'.format(get_option('enable_xwayland')),
+  '----------------',
+  ''
+]
+message('\n'.join(summary))
+
+
 subdir('rootston')
 subdir('examples')
 
@@ -164,3 +180,31 @@ pkgconfig.generate(
 	name: meson.project_name(),
 	description: 'Wayland compositor library',
 )
+
+git = find_program('git', required: false)
+if git.found()
+	all_files = run_command(
+		git,
+		['--git-dir=@0@/.git'.format(meson.source_root()),
+		 'ls-files',
+		 ':/*.[ch]'])
+	all_files = files(all_files.stdout().split())
+
+	etags = find_program('etags', required: false)
+	if etags.found() and all_files.length() > 0
+		custom_target('etags',
+		   build_by_default: true,
+		   input: all_files,
+		   output: 'TAGS',
+		   command: [etags.path(), '-o', 'TAGS'] + all_files)
+	endif
+
+	ctags = find_program('ctags', required: false)
+	if ctags.found() and all_files.length() > 0
+		custom_target('ctags',
+		   build_by_default: true,
+		   input: all_files,
+		   output: 'tags',
+		   command: [ctags.path(), '-o', 'tags'] + all_files)
+	endif
+endif
