@@ -287,10 +287,13 @@ static void render_decorations(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
+	struct wlr_box rotated;
+	wlr_box_rotated_bounds(&box, -view->rotation, &rotated);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_union_rect(&damage, &damage, box.x, box.y,
-		box.width, box.height);
+	pixman_region32_union_rect(&damage, &damage, rotated.x, rotated.y,
+		rotated.width, rotated.height);
 	pixman_region32_intersect(&damage, &damage, data->damage);
 	bool damaged = pixman_region32_not_empty(&damage);
 	if (!damaged) {
