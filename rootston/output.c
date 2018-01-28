@@ -387,7 +387,9 @@ static void render_output(struct roots_output *output) {
 	}
 
 	int buffer_age = -1;
-	wlr_output_make_current(wlr_output, &buffer_age);
+	if (!wlr_output_make_current(wlr_output, &buffer_age)) {
+		return;
+	}
 
 	int width, height;
 	output_get_transformed_size(output->wlr_output, &width, &height);
@@ -482,7 +484,9 @@ static void render_output(struct roots_output *output) {
 renderer_end:
 	wlr_renderer_scissor(output->desktop->server->renderer, NULL);
 	wlr_renderer_end(server->renderer);
-	wlr_output_swap_buffers(wlr_output, &now, &damage);
+	if (!wlr_output_swap_buffers(wlr_output, &now, &damage)) {
+		goto damage_finish;
+	}
 	// same as decrementing, but works on unsigned integers
 	output->previous_damage_idx += ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN - 1;
 	output->previous_damage_idx %= ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;

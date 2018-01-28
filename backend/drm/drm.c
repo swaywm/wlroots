@@ -210,7 +210,7 @@ static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 
 	if (conn->pageflip_pending) {
 		wlr_log(L_ERROR, "Skipping pageflip");
-		return true;
+		return false;
 	}
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
