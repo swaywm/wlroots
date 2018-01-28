@@ -62,6 +62,7 @@ struct roots_view {
 	struct wl_list link; // roots_desktop::views
 
 	double x, y;
+	uint32_t width, height;
 	float rotation;
 
 	bool decorated;
@@ -108,11 +109,7 @@ struct roots_view {
 		struct wl_signal destroy;
 	} events;
 
-	// TODO: This would probably be better as a field that's updated on a
-	// configure event from the xdg_shell
-	// If not then this should follow the typical type/impl pattern we use
-	// elsewhere
-	void (*get_size)(const struct roots_view *view, struct wlr_box *box);
+	// TODO: this should follow the typical type/impl pattern we use elsewhere
 	void (*activate)(struct roots_view *view, bool active);
 	void (*move)(struct roots_view *view, double x, double y);
 	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);

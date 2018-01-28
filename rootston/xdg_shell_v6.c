@@ -245,12 +245,13 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 	view_apply_damage(view);
 
+	struct wlr_box size;
+	get_size(view, &size);
+	view_update_size(view, size.width, size.height);
+
 	uint32_t pending_serial =
 		roots_surface->pending_move_resize_configure_serial;
 	if (pending_serial > 0 && pending_serial >= surface->configure_serial) {
-		struct wlr_box size;
-		get_size(view, &size);
-
 		double x = view->x;
 		double y = view->y;
 		if (view->pending_move_resize.update_x) {
@@ -338,10 +339,10 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view->type = ROOTS_XDG_SHELL_V6_VIEW;
+
 	view->xdg_surface_v6 = surface;
 	view->roots_xdg_surface_v6 = roots_surface;
 	view->wlr_surface = surface->surface;
-	view->get_size = get_size;
 	view->activate = activate;
 	view->resize = resize;
 	view->move_resize = move_resize;
@@ -349,6 +350,12 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->set_fullscreen = set_fullscreen;
 	view->close = close;
 	roots_surface->view = view;
+
+	struct wlr_box box;
+	get_size(view, &box);
+	view->width = box.width;
+	view->height = box.height;
+
 	view_init(view, desktop);
 	wl_list_insert(&desktop->views, &view->link);
 

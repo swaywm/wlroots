@@ -209,6 +209,8 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 	int width = wlr_surface->current->width;
 	int height = wlr_surface->current->height;
+	view_update_size(view, width, height);
+
 	double x = view->x;
 	double y = view->y;
 	if (view->pending_move_resize.update_x) {
@@ -234,6 +236,8 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	view->wlr_surface = xsurface->surface;
 	view->x = xsurface->x;
 	view->y = xsurface->y;
+	view->width = xsurface->surface->current->width;
+	view->height = xsurface->surface->current->height;
 	wl_list_insert(&desktop->views, &view->link);
 
 	struct wlr_subsurface *subsurface;
@@ -264,6 +268,7 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	}
 
 	view->wlr_surface = NULL;
+	view->width = view->height = 0;
 	wl_list_remove(&view->link);
 }
 
@@ -314,6 +319,8 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->type = ROOTS_XWAYLAND_VIEW;
 	view->x = (double)surface->x;
 	view->y = (double)surface->y;
+	view->width = surface->surface->current->width;
+	view->height = surface->surface->current->height;
 
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;

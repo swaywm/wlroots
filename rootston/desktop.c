@@ -24,18 +24,8 @@
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
 	box->y = view->y;
-	if (view->get_size) {
-		view->get_size(view, box);
-	} else {
-		if (view->wlr_surface == NULL) {
-			// View is unmapped
-			box->width = box->height = 0;
-			return;
-		}
-
-		box->width = view->wlr_surface->current->width;
-		box->height = view->wlr_surface->current->height;
-	}
+	box->width = view->width;
+	box->height = view->height;
 }
 
 void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
@@ -466,6 +456,17 @@ void view_update_position(struct roots_view *view, double x, double y) {
 	view_damage_whole(view);
 	view->x = x;
 	view->y = y;
+	view_damage_whole(view);
+}
+
+void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
+	if (view->width == width && view->height == height) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->width = width;
+	view->height = height;
 	view_damage_whole(view);
 }
 
