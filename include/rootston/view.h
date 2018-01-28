@@ -51,7 +51,9 @@ struct roots_xwayland_surface {
 enum roots_view_type {
 	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
+#ifdef WLR_HAS_XWAYLAND
 	ROOTS_XWAYLAND_VIEW,
+#endif
 };
 
 struct roots_view {

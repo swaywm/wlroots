@@ -137,6 +137,7 @@ static void render_wl_shell_surface(struct wlr_wl_shell_surface *surface,
 	}
 }
 
+#ifdef WLR_HAS_XWAYLAND
 static void render_xwayland_children(struct wlr_xwayland_surface *surface,
 		struct roots_desktop *desktop, struct wlr_output *wlr_output,
 		struct timespec *when) {
@@ -149,6 +150,7 @@ static void render_xwayland_children(struct wlr_xwayland_surface *surface,
 		render_xwayland_children(child, desktop, wlr_output, when);
 	}
 }
+#endif
 
 static void render_decorations(struct roots_view *view,
 		struct roots_desktop *desktop, struct wlr_output *output) {
@@ -198,10 +200,12 @@ static void render_view(struct roots_view *view, struct roots_desktop *desktop,
 		render_wl_shell_surface(view->wl_shell_surface, desktop, wlr_output,
 			when, view->x, view->y, view->rotation, false);
 		break;
+#ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		render_surface(view->wlr_surface, desktop, wlr_output, when,
 			view->x, view->y, view->rotation);
 		break;
+#endif
 	}
 }
 
@@ -215,8 +219,10 @@ static bool has_standalone_surface(struct roots_view *view) {
 		return wl_list_empty(&view->xdg_surface_v6->popups);
 	case ROOTS_WL_SHELL_VIEW:
 		return wl_list_empty(&view->wl_shell_surface->popups);
+#ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		return wl_list_empty(&view->xwayland_surface->children);
+#endif
 	}
 	return true;
 }
@@ -264,10 +270,12 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 			// During normal rendering the xwayland window tree isn't traversed
 			// because all windows are rendered. Here we only want to render
 			// the fullscreen window's children so we have to traverse the tree.
+#ifdef WLR_HAS_XWAYLAND
 			if (view->type == ROOTS_XWAYLAND_VIEW) {
 				render_xwayland_children(view->xwayland_surface, desktop,
 					wlr_output, &now);
 			}
+#endif
 		}
 		wlr_renderer_end(server->renderer);
 		wlr_output_swap_buffers(wlr_output);

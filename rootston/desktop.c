@@ -490,6 +490,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->server = server;
 	desktop->config = config;
 
+#ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =
@@ -509,6 +510,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		free(desktop);
 		return NULL;
 	}
+#endif
 
 	desktop->layout = wlr_output_layout_create();
 	desktop->layout_change.notify = handle_layout_change;

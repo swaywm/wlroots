@@ -651,10 +651,12 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
+#ifdef WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
 			view->xwayland_surface->override_redirect) {
 		return;
 	}
+#endif
 	struct roots_seat_view *seat_view = NULL;
 	if (view != NULL) {
 		seat_view = roots_seat_view_from_view(seat, view);
