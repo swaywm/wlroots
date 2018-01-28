@@ -563,8 +563,11 @@ void wlr_output_update_needs_swap(struct wlr_output *output) {
 }
 
 static void output_damage_whole(struct wlr_output *output) {
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
-		output->width, output->height);
+		width, height);
 	wlr_output_update_needs_swap(output);
 }
 
