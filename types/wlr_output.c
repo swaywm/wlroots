@@ -323,6 +323,37 @@ bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
 	return output->impl->make_current(output, buffer_age);
 }
 
+static void output_get_transformed_size(struct wlr_output *output,
+		int *width, int *height) {
+	if (output->transform % 2 == 0) {
+		*width = output->width;
+		*height = output->height;
+	} else {
+		*width = output->height;
+		*height = output->width;
+	}
+}
+
+static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
+	struct wlr_box box = {
+		.x = rect->x1,
+		.y = rect->y1,
+		.width = rect->x2 - rect->x1,
+		.height = rect->y2 - rect->y1,
+	};
+
+	int ow, oh;
+	output_get_transformed_size(output, &ow, &oh);
+
+	// Scissor is in renderer coordinates, ie. upside down
+	enum wl_output_transform transform = wlr_output_transform_compose(
+		wlr_output_transform_invert(output->transform),
+		WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	wlr_box_transform(&box, transform, ow, oh, &box);
+
+	glScissor(box.x, box.y, box.width, box.height);
+}
+
 static void output_fullscreen_surface_get_box(struct wlr_output *output,
 		struct wlr_surface *surface, struct wlr_box *box) {
 	int width, height;
@@ -353,22 +384,17 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	struct wlr_box box;
 	output_fullscreen_surface_get_box(output, surface, &box);
 
-	float translate[16];
-	wlr_matrix_translate(&translate, box.x, box.y, 0);
-
-	float scale[16];
-	wlr_matrix_scale(&scale, box.width, box.height, 1);
-
 	float matrix[16];
-	wlr_matrix_mul(&translate, &scale, &matrix);
-	wlr_matrix_mul(&output->transform_matrix, &matrix, &matrix);
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(surface->current->transform);
+	wlr_matrix_project_box(&matrix, &box, transform, 0,
+		&output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
 	glEnable(GL_SCISSOR_TEST);
 	for (int i = 0; i < nrects; ++i) {
-		glScissor(rects[i].x1, output->height - rects[i].y2,
-			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		output_scissor(output, &rects[i]);
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
@@ -423,24 +449,15 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	float translate[16];
-	wlr_matrix_translate(&translate, box.x, box.y, 0);
-
-	float scale[16];
-	wlr_matrix_scale(&scale, box.width, box.height, 1);
-
 	float matrix[16];
-	wlr_matrix_mul(&translate, &scale, &matrix);
-	wlr_matrix_mul(&cursor->output->transform_matrix, &matrix, &matrix);
-
-	wlr_render_with_matrix(renderer, texture, &matrix);
+	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		&cursor->output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
 	glEnable(GL_SCISSOR_TEST);
 	for (int i = 0; i < nrects; ++i) {
-		glScissor(rects[i].x1, cursor->output->height - rects[i].y2,
-			rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+		output_scissor(cursor->output, &rects[i]);
 		wlr_render_with_matrix(renderer, texture, &matrix);
 	}
 	glDisable(GL_SCISSOR_TEST);
