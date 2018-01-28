@@ -233,16 +233,30 @@ static void wlr_surface_move_state(struct wlr_surface *surface,
 		update_damage = true;
 	}
 	if (update_damage) {
-		pixman_region32_t buffer_damage;
+		pixman_region32_t buffer_damage, surface_damage;
 		pixman_region32_init(&buffer_damage);
+		pixman_region32_init(&surface_damage);
+
+		// Surface to buffer damage
 		pixman_region32_copy(&buffer_damage, &state->surface_damage);
 		wlr_region_transform(&buffer_damage, &buffer_damage,
 			wlr_output_transform_invert(state->transform),
 			state->width, state->height);
 		wlr_region_scale(&buffer_damage, &buffer_damage, state->scale);
-		pixman_region32_union(&state->buffer_damage,
-			&state->buffer_damage, &buffer_damage);
+
+		// Buffer to surface damage
+		pixman_region32_copy(&surface_damage, &state->buffer_damage);
+		wlr_region_transform(&surface_damage, &surface_damage, state->transform,
+			state->buffer_width, state->buffer_height);
+		wlr_region_scale(&surface_damage, &surface_damage, 1.0f/state->scale);
+
+		pixman_region32_union(&state->buffer_damage, &state->buffer_damage,
+			&buffer_damage);
+		pixman_region32_union(&state->surface_damage, &state->surface_damage,
+			&surface_damage);
+
 		pixman_region32_fini(&buffer_damage);
+		pixman_region32_fini(&surface_damage);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
 		// TODO: process buffer
