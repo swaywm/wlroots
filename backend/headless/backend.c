@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -61,10 +61,18 @@ static struct wlr_egl *backend_get_egl(struct wlr_backend *wlr_backend) {
 	return &backend->egl;
 }
 
+static struct wlr_renderer *backend_get_renderer(
+		struct wlr_backend *wlr_backend) {
+	struct wlr_headless_backend *backend =
+		(struct wlr_headless_backend *)wlr_backend;
+	return backend->renderer;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_egl = backend_get_egl,
+	.get_renderer = backend_get_renderer,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -101,6 +109,11 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	if (!ok) {
 		free(backend);
 		return NULL;
+	}
+
+	backend->renderer = wlr_gles2_renderer_create(&backend->backend);
+	if (backend->renderer == NULL) {
+		wlr_log(L_ERROR, "Failed to create renderer");
 	}
 
 	backend->display_destroy.notify = handle_display_destroy;

@@ -3,24 +3,13 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/render.h>
+#include <wlr/backend.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
 
-static void copy_yflip(uint8_t *dst, uint8_t *src, int32_t height,
-		int32_t stride) {
-	uint8_t *end = dst + height * stride;
-	while (dst < end) {
-		memcpy(dst, src, stride);
-		dst += stride;
-		src -= stride;
-	}
-}
-
 struct screenshot_state {
-	int32_t width, height, stride;
-	uint8_t *pixels;
 	struct wl_shm_buffer *shm_buffer;
 	struct wlr_screenshot *screenshot;
 	struct wl_listener frame_listener;
@@ -41,26 +30,32 @@ static void handle_screenshot_resource_destroy(
 	}
 }
 
-static void output_frame_notify(struct wl_listener *listener, void *_data) {
+static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	struct screenshot_state *state = wl_container_of(listener, state,
 		frame_listener);
-	struct wlr_renderer *renderer = state->screenshot->screenshooter->renderer;
 	struct wlr_output *output = state->screenshot->output;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wl_shm_buffer *shm_buffer = state->shm_buffer;
 
-	wlr_renderer_read_pixels(renderer, 0, 0, output->width, output->height,
-		state->pixels);
+	enum wl_shm_format format = wl_shm_buffer_get_format(shm_buffer);
+	int32_t width = wl_shm_buffer_get_width(shm_buffer);
+	int32_t height = wl_shm_buffer_get_height(shm_buffer);
+	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
+	wl_shm_buffer_begin_access(shm_buffer);
+	void *data = wl_shm_buffer_get_data(shm_buffer);
+	bool ok = wlr_renderer_read_pixels(renderer, format, stride, width, height,
+		0, 0, 0, 0, data);
+	wl_shm_buffer_end_access(shm_buffer);
 
-	void *data = wl_shm_buffer_get_data(state->shm_buffer);
-	wl_shm_buffer_begin_access(state->shm_buffer);
-	copy_yflip(data, state->pixels + state->stride * (state->height - 1),
-		state->height, state->stride);
-	wl_shm_buffer_end_access(state->shm_buffer);
-
-	free(state->pixels);
-	wl_list_remove(&listener->link);
+	if (!ok) {
+		wlr_log(L_ERROR, "Cannot read pixels");
+		goto cleanup;
+	}
 
 	orbital_screenshot_send_done(state->screenshot->resource);
 
+cleanup:
+	wl_list_remove(&listener->link);
 	free(state);
 }
 
@@ -71,35 +66,35 @@ static void screenshooter_shoot(struct wl_client *client,
 	struct wlr_screenshooter *screenshooter =
 		wl_resource_get_user_data(screenshooter_resource);
 	struct wlr_output *output = wl_resource_get_user_data(output_resource);
-	if (!wl_shm_buffer_get(buffer_resource)) {
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	if (renderer == NULL) {
+		wlr_log(L_ERROR, "Backend doesn't have a renderer");
+		return;
+	}
+
+	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(buffer_resource);
+	if (shm_buffer == NULL) {
 		wlr_log(L_ERROR, "Invalid buffer: not a shared memory buffer");
 		return;
 	}
-	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(buffer_resource);
+
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
-	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 	if (width < output->width || height < output->height) {
 		wlr_log(L_ERROR, "Invalid buffer: too small");
 		return;
 	}
 
 	uint32_t format = wl_shm_buffer_get_format(shm_buffer);
-	if (format != WL_SHM_FORMAT_XRGB8888) {
+	if (!wlr_renderer_format_supported(renderer, format)) {
 		wlr_log(L_ERROR, "Invalid buffer: unsupported format");
-		return;
-	}
-
-	uint8_t *pixels = malloc(stride * height);
-	if (pixels == NULL) {
-		wl_client_post_no_memory(client);
 		return;
 	}
 
 	struct wlr_screenshot *screenshot =
 		calloc(1, sizeof(struct wlr_screenshot));
 	if (!screenshot) {
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
@@ -111,7 +106,6 @@ static void screenshooter_shoot(struct wl_client *client,
 		wl_resource_get_version(screenshooter_resource), id);
 	if (screenshot->resource == NULL) {
 		free(screenshot);
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
@@ -126,17 +120,12 @@ static void screenshooter_shoot(struct wl_client *client,
 	if (!state) {
 		wl_resource_destroy(screenshot->resource);
 		free(screenshot);
-		free(pixels);
 		wl_resource_post_no_memory(screenshooter_resource);
 		return;
 	}
-	state->width = width;
-	state->height = height;
-	state->stride = stride;
-	state->pixels = pixels;
 	state->shm_buffer = shm_buffer;
 	state->screenshot = screenshot;
-	state->frame_listener.notify = output_frame_notify;
+	state->frame_listener.notify = output_handle_frame;
 	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
 
 	// Schedule a buffer swap
@@ -182,14 +171,12 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_screenshooter_destroy(screenshooter);
 }
 
-struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display,
-		struct wlr_renderer *renderer) {
+struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
 	struct wlr_screenshooter *screenshooter =
 		calloc(1, sizeof(struct wlr_screenshooter));
 	if (!screenshooter) {
 		return NULL;
 	}
-	screenshooter->renderer = renderer;
 
 	wl_list_init(&screenshooter->screenshots);
 

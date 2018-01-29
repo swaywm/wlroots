@@ -7,6 +7,7 @@
 struct wlr_headless_backend {
 	struct wlr_backend backend;
 	struct wlr_egl egl;
+	struct wlr_renderer *renderer;
 	struct wl_display *display;
 	struct wl_list outputs;
 	struct wl_list input_devices;

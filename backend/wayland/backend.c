@@ -6,6 +6,7 @@
 #include <EGL/eglext.h>
 #include <wayland-server.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -106,15 +107,22 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
+static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *wlr_backend) {
+	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
 	return &backend->egl;
+}
+
+static struct wlr_renderer *wlr_wl_backend_get_renderer(
+		struct wlr_backend *wlr_backend) {
+	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
+	return backend->renderer;
 }
 
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_wl_backend_start,
 	.destroy = wlr_wl_backend_destroy,
-	.get_egl = wlr_wl_backend_get_egl
+	.get_egl = wlr_wl_backend_get_egl,
+	.get_renderer = wlr_wl_backend_get_renderer,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -191,7 +199,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char
 		return false;
 	}
 
-	if (!(backend->registry = wl_display_get_registry(backend->remote_display))) {
+	backend->registry = wl_display_get_registry(backend->remote_display);
+	if (backend->registry == NULL) {
 		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
 		return false;
 	}
@@ -199,6 +208,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char
 	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
 		backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
+
+	backend->renderer = wlr_gles2_renderer_create(&backend->backend);
+	if (backend->renderer == NULL) {
+		wlr_log_errno(L_ERROR, "Could not create renderer");
+	}
 
 	backend->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->local_display_destroy);

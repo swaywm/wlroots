@@ -61,7 +61,15 @@ bool wlr_renderer_buffer_is_drm(struct wlr_renderer *r,
 	return r->impl->buffer_is_drm(r, buffer);
 }
 
-void wlr_renderer_read_pixels(struct wlr_renderer *r, int x, int y,
-		int width, int height, void *out_data) {
-	r->impl->read_pixels(r, x, y, width, height, out_data);
+bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		void *data) {
+	return r->impl->read_pixels(r, fmt, stride, width, height, src_x, src_y,
+		dst_x, dst_y, data);
+}
+
+bool wlr_renderer_format_supported(struct wlr_renderer *r,
+		enum wl_shm_format fmt) {
+	return r->impl->format_supported(r, fmt);
 }

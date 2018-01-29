@@ -16,6 +16,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -272,15 +273,22 @@ static struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
 	return &x11->egl;
 }
 
-bool wlr_backend_is_x11(struct wlr_backend *backend) {
-	return backend->impl == &backend_impl;
+static struct wlr_renderer *wlr_x11_backend_get_renderer(
+		struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	return x11->renderer;
 }
 
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
+	.get_renderer = wlr_x11_backend_get_renderer,
 };
+
+bool wlr_backend_is_x11(struct wlr_backend *backend) {
+	return backend->impl == &backend_impl;
+}
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_x11_backend *x11 =
@@ -328,6 +336,11 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR, x11->xlib_conn, NULL,
 			x11->screen->root_visual)) {
 		goto error_event;
+	}
+
+	x11->renderer = wlr_gles2_renderer_create(&x11->backend);
+	if (x11->renderer == NULL) {
+		wlr_log(L_ERROR, "Failed to create renderer");
 	}
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,

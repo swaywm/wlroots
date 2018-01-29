@@ -56,10 +56,17 @@ const enum wl_shm_format *wlr_renderer_get_formats(
 bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
 	struct wl_resource *buffer);
 /**
- * Reads pixels and stores them in out_data as ARGB8888.
+ * Reads out of pixels of the currently bound surface into data. `stride` is in
+ * bytes.
  */
-void wlr_renderer_read_pixels(struct wlr_renderer *r, int x, int y,
-	int width, int height, void *out_data);
+bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
+	uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
+/**
+ * Checks if a format is supported.
+ */
+bool wlr_renderer_format_supported(struct wlr_renderer *r,
+	enum wl_shm_format fmt);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
