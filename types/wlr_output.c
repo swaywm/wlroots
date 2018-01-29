@@ -474,14 +474,16 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	wl_signal_emit(&output->events.swap_buffers, damage);
 
-	pixman_region32_t *render_damage = damage;
-	if (damage == NULL) {
-		// Damage tracking not supported, repaint the whole output
-		pixman_region32_t output_damage;
-		pixman_region32_init(&output_damage);
-		pixman_region32_union_rect(&output_damage, &output_damage,
-			0, 0, output->width, output->height);
-		render_damage = &output_damage;
+	int width, height;
+	output_get_transformed_size(output, &width, &height);
+
+	pixman_region32_t render_damage;
+	pixman_region32_init(&render_damage);
+	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
+		width, height);
+	if (damage != NULL) {
+		// Damage tracking supported
+		pixman_region32_intersect(&render_damage, &render_damage, damage);
 	}
 
 	if (when == NULL) {
@@ -490,10 +492,10 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		when = &now;
 	}
 
-	if (pixman_region32_not_empty(render_damage)) {
+	if (pixman_region32_not_empty(&render_damage)) {
 		if (output->fullscreen_surface != NULL) {
 			output_fullscreen_surface_render(output, output->fullscreen_surface,
-				when, render_damage);
+				when, &render_damage);
 		}
 
 		struct wlr_output_cursor *cursor;
@@ -502,7 +504,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 					output->hardware_cursor == cursor) {
 				continue;
 			}
-			output_cursor_render(cursor, when, render_damage);
+			output_cursor_render(cursor, when, &render_damage);
 		}
 	}
 
@@ -515,10 +517,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	output->needs_swap = false;
 	pixman_region32_clear(&output->damage);
 
-	if (damage == NULL) {
-		pixman_region32_fini(render_damage);
-	}
-
+	pixman_region32_fini(&render_damage);
 	return true;
 }
 
