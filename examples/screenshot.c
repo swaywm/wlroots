@@ -74,7 +74,7 @@ static void output_handle_mode(void *data, struct wl_output *wl_output,
 }
 
 static void output_handle_done(void *data, struct wl_output *wl_output) {
-
+	// No-op
 }
 
 static const struct wl_output_listener output_listener = {
@@ -148,16 +148,6 @@ static struct wl_buffer *create_shm_buffer(int width, int height,
 	return buffer;
 }
 
-static void argb_to_rgba(uint32_t *data, size_t height, size_t stride) {
-	size_t n = height*stride/4;
-	for (size_t i = 0; i < n; ++i) {
-		uint32_t v = data[i];
-		uint32_t rgb = v & 0x00ffffff;
-		uint32_t a = (v & 0xff000000) >> 24;
-		data[i] = (rgb << 8) | a;
-	}
-}
-
 static void write_image(const char *filename, int width, int height) {
 	int buffer_stride = width * 4;
 
@@ -181,8 +171,6 @@ static void write_image(const char *filename, int width, int height) {
 
 		free(output);
 	}
-
-	argb_to_rgba(data, height, buffer_stride);
 
 	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
 	sprintf(size, "%dx%d+0", width, height);
@@ -213,7 +201,9 @@ static void write_image(const char *filename, int width, int height) {
 			exit(EXIT_FAILURE);
 		}
 		close(fd[0]);
-		execlp("convert", "convert", "-depth", "8", "-size", size, "rgba:-",
+		// We requested WL_SHM_FORMAT_XRGB8888 in little endian, so that's BGRA
+		// in big endian.
+		execlp("convert", "convert", "-depth", "8", "-size", size, "bgra:-",
 			"-alpha", "opaque", filename, NULL);
 		fprintf(stderr, "cannot execute convert\n");
 		exit(EXIT_FAILURE);

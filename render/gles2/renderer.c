@@ -211,20 +211,33 @@ static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *_renderer,
 		EGL_TEXTURE_FORMAT, &format);
 }
 
-static void rgba_to_argb(uint32_t *data, size_t height, size_t stride) {
-	size_t n = height*stride/4;
-	for (size_t i = 0; i < n; ++i) {
-		uint32_t v = data[i];
-		uint32_t rgb = (v & 0xffffff00) >> 8;
-		uint32_t a = v & 0x000000ff;
-		data[i] = rgb | (a << 24);
+static bool wlr_gles2_read_pixels(struct wlr_renderer *renderer,
+		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
+		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
+		uint32_t dst_y, void *data) {
+	const struct pixel_format *fmt = gl_format_for_wl_format(wl_fmt);
+	if (fmt == NULL) {
+		wlr_log(L_ERROR, "Cannot read pixels: unsupported pixel format");
+		return false;
 	}
+
+	// Make sure any pending drawing is finished before we try to read it
+	glFinish();
+
+	// Unfortunately GLES2 doesn't support GL_PACK_*, so we have to read
+	// the lines out row by row
+	unsigned char *p = data + dst_y * stride;
+	for (size_t i = src_y; i < src_y + height; ++i) {
+		glReadPixels(src_x, src_y + height - i - 1, width, 1, fmt->gl_format,
+			fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
+	}
+
+	return true;
 }
 
-static void wlr_gles2_read_pixels(struct wlr_renderer *renderer, int x, int y,
-		int width, int height, void *out_data) {
-	glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, out_data);
-	rgba_to_argb(out_data, height, width*4);
+static bool wlr_gles2_format_supported(struct wlr_renderer *r,
+		enum wl_shm_format wl_fmt) {
+	return gl_format_for_wl_format(wl_fmt);
 }
 
 static struct wlr_renderer_impl wlr_renderer_impl = {
@@ -237,6 +250,7 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.formats = wlr_gles2_formats,
 	.buffer_is_drm = wlr_gles2_buffer_is_drm,
 	.read_pixels = wlr_gles2_read_pixels,
+	.format_supported = wlr_gles2_format_supported,
 };
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
