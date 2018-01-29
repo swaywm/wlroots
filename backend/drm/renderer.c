@@ -66,6 +66,17 @@ bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
 	surf->width = width;
 	surf->height = height;
 
+	if (surf->gbm) {
+		if (surf->front) {
+			gbm_surface_release_buffer(surf->gbm, surf->front);
+			surf->front = NULL;
+		}
+		if (surf->back) {
+			gbm_surface_release_buffer(surf->gbm, surf->back);
+			surf->back = NULL;
+		}
+	}
+
 	surf->gbm = gbm_surface_create(renderer->gbm, width, height,
 		format, GBM_BO_USE_RENDERING | flags);
 	if (!surf->gbm) {
