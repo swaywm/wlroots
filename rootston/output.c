@@ -493,7 +493,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	render_output(output);
 }
 
-static void output_damage_whole(struct roots_output *output) {
+void output_damage_whole(struct roots_output *output) {
 	int width, height;
 	wlr_output_transformed_resolution(output->wlr_output, &width, &height);
 

@@ -243,6 +243,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 
 		roots_output->fullscreen_view = view;
 		view->fullscreen_output = roots_output;
+		output_damage_whole(roots_output);
 	}
 
 	if (was_fullscreen && !fullscreen) {
@@ -250,6 +251,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			view->saved.height);
 		view_rotate(view, view->saved.rotation);
 
+		output_damage_whole(view->fullscreen_output);
 		view->fullscreen_output->fullscreen_view = NULL;
 		view->fullscreen_output = NULL;
 	}

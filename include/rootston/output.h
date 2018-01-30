@@ -39,6 +39,7 @@ void output_remove_notify(struct wl_listener *listener, void *data);
 struct roots_view;
 struct roots_drag_icon;
 
+void output_damage_whole(struct roots_output *output);
 void output_damage_whole_view(struct roots_output *output,
 	struct roots_view *view);
 void output_damage_from_view(struct roots_output *output,
