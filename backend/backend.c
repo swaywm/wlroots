@@ -37,7 +37,6 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 		return;
 	}
 
-	wl_signal_emit(&backend->events.destroy, backend);
 	if (backend->impl && backend->impl->destroy) {
 		backend->impl->destroy(backend);
 	} else {

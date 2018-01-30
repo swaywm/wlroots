@@ -259,6 +259,8 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 		xkb_state_unref(x11->keyboard_dev.keyboard->xkb_state);
 	}
 
+	wl_signal_emit(&backend->events.destroy, backend);
+
 	wl_list_remove(&x11->display_destroy.link);
 
 	wl_event_source_remove(x11->frame_timer);

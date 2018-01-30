@@ -64,9 +64,9 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	return true;
 }
 
-static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
-	if (!_backend) {
+static void wlr_wl_backend_destroy(struct wlr_backend *wlr_backend) {
+	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
+	if (backend == NULL) {
 		return;
 	}
 
@@ -79,6 +79,8 @@ static void wlr_wl_backend_destroy(struct wlr_backend *_backend) {
 	wl_list_for_each_safe(input_device, tmp_input_device, &backend->devices, link) {
 		wlr_input_device_destroy(input_device);
 	}
+
+	wl_signal_emit(&wlr_backend->events.destroy, wlr_backend);
 
 	wl_list_remove(&backend->local_display_destroy.link);
 

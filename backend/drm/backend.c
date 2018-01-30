@@ -34,6 +34,8 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&conn->output);
 	}
 
+	wl_signal_emit(&backend->events.destroy, backend);
+
 	wl_list_remove(&drm->display_destroy.link);
 	wl_list_remove(&drm->session_signal.link);
 	wl_list_remove(&drm->drm_invalidated.link);

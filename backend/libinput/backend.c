@@ -95,12 +95,12 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	return true;
 }
 
-static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
-	if (!_backend) {
+static void wlr_libinput_backend_destroy(struct wlr_backend *wlr_backend) {
+	if (!wlr_backend) {
 		return;
 	}
 	struct wlr_libinput_backend *backend =
-		(struct wlr_libinput_backend *)_backend;
+		(struct wlr_libinput_backend *)wlr_backend;
 
 	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
 		struct wl_list *wlr_devices = backend->wlr_device_lists.items[i];
@@ -111,6 +111,8 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *_backend) {
 		}
 		free(wlr_devices);
 	}
+
+	wl_signal_emit(&wlr_backend->events.destroy, wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
 	wl_list_remove(&backend->session_signal.link);

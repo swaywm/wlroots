@@ -161,11 +161,12 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 	return true;
 }
 
-static void wlr_wl_output_destroy(struct wlr_output *_output) {
+static void wlr_wl_output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_wl_backend_output *output =
-		(struct wlr_wl_backend_output *)_output;
-	wl_signal_emit(&output->backend->backend.events.output_remove,
-		&output->wlr_output);
+		(struct wlr_wl_backend_output *)wlr_output;
+	if (output == NULL) {
+		return;
+	}
 
 	wl_list_remove(&output->link);
 

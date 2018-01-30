@@ -62,8 +62,6 @@ static bool output_swap_buffers(struct wlr_output *wlr_output) {
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		(struct wlr_headless_output *)wlr_output;
-	wl_signal_emit(&output->backend->backend.events.output_remove,
-		&output->wlr_output);
 
 	wl_list_remove(&output->link);
 

@@ -286,6 +286,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wlr_output_destroy_global(output);
 	wlr_output_set_fullscreen_surface(output, NULL);
 
+	wl_signal_emit(&output->backend->events.output_remove, output);
 	wl_signal_emit(&output->events.destroy, output);
 
 	struct wlr_output_mode *mode, *tmp_mode;
