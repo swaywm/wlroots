@@ -19,4 +19,11 @@ void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 	enum wl_output_transform transform, int width, int height);
 
+/**
+ * Expands the region of `distance`. If `distance` is negative, it shrinks the
+ * region.
+ */
+void wlr_region_expand(pixman_region32_t *dst, pixman_region32_t *src,
+	int distance);
+
 #endif

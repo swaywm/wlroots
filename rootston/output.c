@@ -600,6 +600,12 @@ static void damage_from_surface(struct wlr_surface *surface,
 	pixman_region32_init(&damage);
 	pixman_region32_copy(&damage, &surface->current->surface_damage);
 	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
+	if (ceil(output->wlr_output->scale) > surface->current->scale) {
+		// When scaling up a surface, it'll become blurry so we need to expand
+		// the damage region
+		wlr_region_expand(&damage, &damage,
+			ceil(output->wlr_output->scale) - surface->current->scale);
+	}
 	pixman_region32_translate(&damage, box.x, box.y);
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
