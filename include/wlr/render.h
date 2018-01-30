@@ -15,6 +15,11 @@ void wlr_renderer_begin(struct wlr_renderer *r, struct wlr_output *output);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, float red, float green,
 	float blue, float alpha);
+/**
+ * Defines a scissor box. Only pixels that lie within the scissor box can be
+ * modified by drawing functions. Providing a NULL `box` disables the scissor
+ * box.
+ */
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
 /**
  * Requests a texture handle from this renderer.
