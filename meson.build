@@ -36,7 +36,7 @@ wlr_inc = include_directories('include')
 
 cc = meson.get_compiler('c')
 
-# Clang complains about some zeroed initialiser lists (= {0}), even though they
+# Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
 if cc.get_id() == 'clang'
 	add_project_arguments('-Wno-missing-field-initializers', language: 'c')

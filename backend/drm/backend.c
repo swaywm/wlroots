@@ -119,7 +119,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	char *name = drmGetDeviceNameFromFd2(gpu_fd);
 	drmVersion *version = drmGetVersion(gpu_fd);
-	wlr_log(L_INFO, "Initalizing DRM backend for %s (%s)", name, version->name);
+	wlr_log(L_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
 	free(name);
 	drmFreeVersion(version);
 
