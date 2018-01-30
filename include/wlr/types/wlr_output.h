@@ -106,6 +106,14 @@ void wlr_output_set_transform(struct wlr_output *output,
 void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
 void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_destroy(struct wlr_output *output);
+/**
+ * Computes the transformed output resolution.
+ */
+void wlr_output_transformed_resolution(struct wlr_output *output,
+	int *width, int *height);
+/**
+ * Computes the transformed and scaled output resolution.
+ */
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
 /**

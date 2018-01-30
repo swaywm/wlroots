@@ -591,11 +591,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	};
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
-	struct wlr_box transformed_hotspot;
 	wlr_box_transform(&hotspot, transform,
-		plane->surf.width, plane->surf.height, &transformed_hotspot);
-	plane->cursor_hotspot_x = transformed_hotspot.x;
-	plane->cursor_hotspot_y = transformed_hotspot.y;
+		plane->surf.width, plane->surf.height, &hotspot);
+	plane->cursor_hotspot_x = hotspot.x;
+	plane->cursor_hotspot_y = hotspot.y;
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
@@ -660,20 +659,18 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	struct wlr_box box = { .x = x, .y = y };
 
 	int width, height;
-	wlr_output_effective_resolution(output, &width, &height);
+	wlr_output_transformed_resolution(output, &width, &height);
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
-	struct wlr_box transformed_box;
-	wlr_box_transform(&box, transform, width, height, &transformed_box);
+	wlr_box_transform(&box, transform, width, height, &box);
 
 	if (plane != NULL) {
-		transformed_box.x -= plane->cursor_hotspot_x;
-		transformed_box.y -= plane->cursor_hotspot_y;
+		box.x -= plane->cursor_hotspot_x;
+		box.y -= plane->cursor_hotspot_y;
 	}
 
-	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
-		transformed_box.y);
+	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
 	}

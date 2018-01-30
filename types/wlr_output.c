@@ -306,24 +306,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 }
 
-void wlr_output_effective_resolution(struct wlr_output *output,
-		int *width, int *height) {
-	if (output->transform % 2 == 1) {
-		*width = output->height;
-		*height = output->width;
-	} else {
-		*width = output->width;
-		*height = output->height;
-	}
-	*width /= output->scale;
-	*height /= output->scale;
-}
-
-bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
-	return output->impl->make_current(output, buffer_age);
-}
-
-static void output_get_transformed_size(struct wlr_output *output,
+void wlr_output_transformed_resolution(struct wlr_output *output,
 		int *width, int *height) {
 	if (output->transform % 2 == 0) {
 		*width = output->width;
@@ -332,6 +315,17 @@ static void output_get_transformed_size(struct wlr_output *output,
 		*width = output->height;
 		*height = output->width;
 	}
+}
+
+void wlr_output_effective_resolution(struct wlr_output *output,
+		int *width, int *height) {
+	wlr_output_transformed_resolution(output, width, height);
+	*width /= output->scale;
+	*height /= output->scale;
+}
+
+bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
+	return output->impl->make_current(output, buffer_age);
 }
 
 static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
@@ -343,7 +337,7 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 	};
 
 	int ow, oh;
-	output_get_transformed_size(output, &ow, &oh);
+	wlr_output_transformed_resolution(output, &ow, &oh);
 
 	// Scissor is in renderer coordinates, ie. upside down
 	enum wl_output_transform transform = wlr_output_transform_compose(
@@ -475,7 +469,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	wl_signal_emit(&output->events.swap_buffers, damage);
 
 	int width, height;
-	output_get_transformed_size(output, &width, &height);
+	wlr_output_transformed_resolution(output, &width, &height);
 
 	pixman_region32_t render_damage;
 	pixman_region32_init(&render_damage);

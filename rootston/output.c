@@ -175,17 +175,6 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
-static void output_get_transformed_size(struct wlr_output *wlr_output,
-		int *width, int *height) {
-	if (wlr_output->transform % 2 == 0) {
-		*width = wlr_output->width;
-		*height = wlr_output->height;
-	} else {
-		*width = wlr_output->height;
-		*height = wlr_output->width;
-	}
-}
-
 static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 	struct wlr_output *wlr_output = output->wlr_output;
 
@@ -197,7 +186,7 @@ static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 	};
 
 	int ow, oh;
-	output_get_transformed_size(output->wlr_output, &ow, &oh);
+	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
 
 	// Scissor is in renderer coordinates, ie. upside down
 	enum wl_output_transform transform = wlr_output_transform_compose(
@@ -392,7 +381,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 	int width, height;
-	output_get_transformed_size(output->wlr_output, &width, &height);
+	wlr_output_transformed_resolution(output->wlr_output, &width, &height);
 
 	// Check if we can use damage tracking
 	pixman_region32_t damage;
@@ -506,7 +495,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 static void output_damage_whole(struct roots_output *output) {
 	int width, height;
-	output_get_transformed_size(output->wlr_output, &width, &height);
+	wlr_output_transformed_resolution(output->wlr_output, &width, &height);
 
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
