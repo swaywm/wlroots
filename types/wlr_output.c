@@ -594,6 +594,14 @@ static void output_fullscreen_surface_handle_commit(
 		fullscreen_surface_commit);
 	struct wlr_surface *surface = output->fullscreen_surface;
 
+	if (output->fullscreen_width != surface->current->width ||
+			output->fullscreen_height != surface->current->height) {
+		output->fullscreen_width = surface->current->width;
+		output->fullscreen_height = surface->current->height;
+		output_damage_whole(output);
+		return;
+	}
+
 	struct wlr_box box;
 	output_fullscreen_surface_get_box(output, surface, &box);
 

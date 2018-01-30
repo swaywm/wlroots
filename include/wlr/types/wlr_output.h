@@ -82,6 +82,7 @@ struct wlr_output {
 	struct wlr_surface *fullscreen_surface;
 	struct wl_listener fullscreen_surface_commit;
 	struct wl_listener fullscreen_surface_destroy;
+	int fullscreen_width, fullscreen_height;
 
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
