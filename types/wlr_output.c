@@ -273,6 +273,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
+
+	output->frame_pending = true;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -466,6 +468,15 @@ surface_damage_finish:
 
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
+	if (output->frame_pending) {
+		wlr_log(L_ERROR, "Tried to swap buffers when a frame is pending");
+		return false;
+	}
+	if (output->idle_frame != NULL) {
+		wl_event_source_remove(output->idle_frame);
+		output->idle_frame = NULL;
+	}
+
 	wl_signal_emit(&output->events.swap_buffers, damage);
 
 	int width, height;
@@ -522,18 +533,21 @@ void wlr_output_send_frame(struct wlr_output *output) {
 
 static void schedule_frame_handle_idle_timer(void *data) {
 	struct wlr_output *output = data;
-	wlr_output_send_frame(output);
+	output->idle_frame = NULL;
+	if (!output->frame_pending) {
+		wlr_output_send_frame(output);
+	}
 }
 
 void wlr_output_schedule_frame(struct wlr_output *output) {
-	if (output->frame_pending) {
+	if (output->frame_pending || output->idle_frame != NULL) {
 		return;
 	}
 
 	// TODO: ask the backend to send a frame event when appropriate instead
 	struct wl_event_loop *ev = wl_display_get_event_loop(output->display);
-	wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
-	output->frame_pending = true;
+	output->idle_frame =
+		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
 }
 
 void wlr_output_set_gamma(struct wlr_output *output,

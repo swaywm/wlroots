@@ -77,6 +77,8 @@ struct wlr_output {
 		struct wl_signal destroy;
 	} events;
 
+	struct wl_event_source *idle_frame;
+
 	struct wlr_surface *fullscreen_surface;
 	struct wl_listener fullscreen_surface_commit;
 	struct wl_listener fullscreen_surface_destroy;
