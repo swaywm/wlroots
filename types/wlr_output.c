@@ -572,7 +572,7 @@ void wlr_output_update_needs_swap(struct wlr_output *output) {
 
 static void output_damage_whole(struct wlr_output *output) {
 	int width, height;
-	wlr_output_effective_resolution(output, &width, &height);
+	wlr_output_transformed_resolution(output, &width, &height);
 
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
@@ -714,10 +714,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 	struct wlr_box output_box;
 	output_box.x = output_box.y = 0;
-	wlr_output_effective_resolution(cursor->output, &output_box.width,
+	wlr_output_transformed_resolution(cursor->output, &output_box.width,
 		&output_box.height);
-	output_box.width *= cursor->output->scale;
-	output_box.height *= cursor->output->scale;
 
 	struct wlr_box cursor_box;
 	output_cursor_get_box(cursor, &cursor_box);
