@@ -48,7 +48,7 @@ struct screenshooter_output {
 	struct wl_output *output;
 	struct wl_buffer *buffer;
 	int width, height, offset_x, offset_y;
-	int transform;
+	enum wl_output_transform transform;
 	void *data;
 	struct wl_list link;
 };
@@ -161,25 +161,75 @@ static void write_image(const char *filename, int width, int height) {
 	struct screenshooter_output *output, *next;
 	wl_list_for_each_safe(output, next, &output_list, link) {
 		int output_stride = output->width * 4;
-		void *s = output->data;
-		void *d = data + (output->offset_y - min_y) * buffer_stride +
-			(output->offset_x - min_x) * 4;
+		uint32_t *src = (uint32_t *)output->data;
+		uint32_t *dst = (uint32_t *)(data +
+			(output->offset_y - min_y) * buffer_stride +
+			(output->offset_x - min_x) * 4);
 
-		if (output->transform == WL_OUTPUT_TRANSFORM_90) {
-			uint32_t *ss = s;
-			uint32_t *sd = d;
-			for (int i = 0; i < output->width; ++i) {
-				for (int j = 0; j < output->height; ++j) {
-					sd[i * width + j]
-						= ss[j * output->width + (output->width - i)];
+		switch (output->transform) {
+		case WL_OUTPUT_TRANSFORM_NORMAL:
+			for (int i = 0; i < output->height; i++) {
+				memcpy(dst, src, output_stride);
+				dst += width;
+				src += output->width;
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[i * output->width + output->width - j];
 				}
 			}
-		} else {
-			for (int i = 0; i < output->height; i++) {
-				memcpy(d, s, output_stride);
-				d += buffer_stride;
-				s += output_stride;
+			break;
+		case WL_OUTPUT_TRANSFORM_90:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[j * output->width + output->width - i];
+				}
 			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[(output->height - j) * output->width + output->width - i];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_180:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[(output->height - i) * output->width + output->width - j];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[(output->height - i) * output->width + j];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_270:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[(output->height - j) * output->width + i];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[j * output->width + i];
+				}
+			}
+			break;
 		}
 
 		free(output);
