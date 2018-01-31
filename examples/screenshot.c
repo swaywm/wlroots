@@ -48,6 +48,7 @@ struct screenshooter_output {
 	struct wl_output *output;
 	struct wl_buffer *buffer;
 	int width, height, offset_x, offset_y;
+	int transform;
 	void *data;
 	struct wl_list link;
 };
@@ -60,6 +61,7 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 	if (wl_output == output->output) {
 		output->offset_x = x;
 		output->offset_y = y;
+		output->transform = transform;
 	}
 }
 
@@ -163,10 +165,21 @@ static void write_image(const char *filename, int width, int height) {
 		void *d = data + (output->offset_y - min_y) * buffer_stride +
 			(output->offset_x - min_x) * 4;
 
-		for (int i = 0; i < output->height; i++) {
-			memcpy(d, s, output_stride);
-			d += buffer_stride;
-			s += output_stride;
+		if (output->transform == WL_OUTPUT_TRANSFORM_90) {
+			uint32_t *ss = s;
+			uint32_t *sd = d;
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					sd[i * width + j]
+						= ss[j * output->width + (output->width - i)];
+				}
+			}
+		} else {
+			for (int i = 0; i < output->height; i++) {
+				memcpy(d, s, output_stride);
+				d += buffer_stride;
+				s += output_stride;
+			}
 		}
 
 		free(output);
@@ -211,15 +224,23 @@ static void write_image(const char *filename, int width, int height) {
 }
 
 static int set_buffer_size(int *width, int *height) {
+	int owidth, oheight;
 	min_x = min_y = INT_MAX;
 	max_x = max_y = INT_MIN;
 
 	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
+		if (output->transform & 0x1) {
+			owidth = output->height;
+			oheight = output->width;
+		} else {
+			owidth = output->width;
+			oheight = output->height;
+		}
 		min_x = MIN(min_x, output->offset_x);
 		min_y = MIN(min_y, output->offset_y);
-		max_x = MAX(max_x, output->offset_x + output->width);
-		max_y = MAX(max_y, output->offset_y + output->height);
+		max_x = MAX(max_x, output->offset_x + owidth);
+		max_y = MAX(max_y, output->offset_y + oheight);
 	}
 
 	if (max_x <= min_x || max_y <= min_y) {
