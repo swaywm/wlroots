@@ -178,7 +178,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->height; ++i) {
 				for (int j = 0; j < output->width; ++j) {
 					dst[i * width + j] =
-						src[i * output->width + output->width - j];
+						src[i * output->width + output->width - 1 - j];
 				}
 			}
 			break;
@@ -186,7 +186,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->width; ++i) {
 				for (int j = 0; j < output->height; ++j) {
 					dst[i * width + j] =
-						src[j * output->width + output->width - i];
+						src[j * output->width + output->width - 1 - i];
 				}
 			}
 			break;
@@ -194,7 +194,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->width; ++i) {
 				for (int j = 0; j < output->height; ++j) {
 					dst[i * width + j] =
-						src[(output->height - j) * output->width + output->width - i];
+						src[(output->height - 1 - j) * output->width + output->width - 1 - i];
 				}
 			}
 			break;
@@ -202,7 +202,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->height; ++i) {
 				for (int j = 0; j < output->width; ++j) {
 					dst[i * width + j] =
-						src[(output->height - i) * output->width + output->width - j];
+						src[(output->height - 1 - i) * output->width + output->width - 1 - j];
 				}
 			}
 			break;
@@ -210,7 +210,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->height; ++i) {
 				for (int j = 0; j < output->width; ++j) {
 					dst[i * width + j] =
-						src[(output->height - i) * output->width + j];
+						src[(output->height - 1 - i) * output->width + j];
 				}
 			}
 			break;
@@ -218,7 +218,7 @@ static void write_image(const char *filename, int width, int height) {
 			for (int i = 0; i < output->width; ++i) {
 				for (int j = 0; j < output->height; ++j) {
 					dst[i * width + j] =
-						src[(output->height - j) * output->width + i];
+						src[(output->height - 1 - j) * output->width + i];
 				}
 			}
 			break;
