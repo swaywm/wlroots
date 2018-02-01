@@ -694,6 +694,7 @@ struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
 		return NULL;
 	}
 	cursor->output = output;
+	wl_signal_init(&cursor->events.destroy);
 	wl_list_init(&cursor->surface_commit.link);
 	cursor->surface_commit.notify = output_cursor_handle_commit;
 	wl_list_init(&cursor->surface_destroy.link);
@@ -707,6 +708,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		return;
 	}
 	output_cursor_reset(cursor);
+	wl_signal_emit(&cursor->events.destroy, cursor);
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
 		if (cursor->output->impl->set_cursor) {
