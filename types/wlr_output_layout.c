@@ -327,7 +327,11 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		output_distance =
 			(x - output_x) * (x - output_x) + (y - output_y) * (y - output_y);
 
-		if (output_distance < min_distance) {
+		if (!isfinite(output_distance)) {
+			output_distance = DBL_MAX;
+		}
+
+		if (output_distance <= min_distance) {
 			min_x = output_x;
 			min_y = output_y;
 			min_distance = output_distance;
