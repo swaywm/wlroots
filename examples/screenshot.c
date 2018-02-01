@@ -48,6 +48,7 @@ struct screenshooter_output {
 	struct wl_output *output;
 	struct wl_buffer *buffer;
 	int width, height, offset_x, offset_y;
+	enum wl_output_transform transform;
 	void *data;
 	struct wl_list link;
 };
@@ -60,6 +61,7 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 	if (wl_output == output->output) {
 		output->offset_x = x;
 		output->offset_y = y;
+		output->transform = transform;
 	}
 }
 
@@ -159,14 +161,75 @@ static void write_image(const char *filename, int width, int height) {
 	struct screenshooter_output *output, *next;
 	wl_list_for_each_safe(output, next, &output_list, link) {
 		int output_stride = output->width * 4;
-		void *s = output->data;
-		void *d = data + (output->offset_y - min_y) * buffer_stride +
-			(output->offset_x - min_x) * 4;
+		uint32_t *src = (uint32_t *)output->data;
+		uint32_t *dst = (uint32_t *)(data +
+			(output->offset_y - min_y) * buffer_stride +
+			(output->offset_x - min_x) * 4);
 
-		for (int i = 0; i < output->height; i++) {
-			memcpy(d, s, output_stride);
-			d += buffer_stride;
-			s += output_stride;
+		switch (output->transform) {
+		case WL_OUTPUT_TRANSFORM_NORMAL:
+			for (int i = 0; i < output->height; i++) {
+				memcpy(dst, src, output_stride);
+				dst += width;
+				src += output->width;
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[i * output->width + output->width - 1 - j];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_90:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[j * output->width + output->width - 1 - i];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[(output->height - 1 - j) * output->width + output->width - 1 - i];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_180:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[(output->height - 1 - i) * output->width + output->width - 1 - j];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+			for (int i = 0; i < output->height; ++i) {
+				for (int j = 0; j < output->width; ++j) {
+					dst[i * width + j] =
+						src[(output->height - 1 - i) * output->width + j];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_270:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[(output->height - 1 - j) * output->width + i];
+				}
+			}
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+			for (int i = 0; i < output->width; ++i) {
+				for (int j = 0; j < output->height; ++j) {
+					dst[i * width + j] =
+						src[j * output->width + i];
+				}
+			}
+			break;
 		}
 
 		free(output);
@@ -211,15 +274,23 @@ static void write_image(const char *filename, int width, int height) {
 }
 
 static int set_buffer_size(int *width, int *height) {
+	int owidth, oheight;
 	min_x = min_y = INT_MAX;
 	max_x = max_y = INT_MIN;
 
 	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
+		if (output->transform & 0x1) {
+			owidth = output->height;
+			oheight = output->width;
+		} else {
+			owidth = output->width;
+			oheight = output->height;
+		}
 		min_x = MIN(min_x, output->offset_x);
 		min_y = MIN(min_y, output->offset_y);
-		max_x = MAX(max_x, output->offset_x + output->width);
-		max_y = MAX(max_y, output->offset_y + output->height);
+		max_x = MAX(max_x, output->offset_x + owidth);
+		max_y = MAX(max_y, output->offset_y + oheight);
 	}
 
 	if (max_x <= min_x || max_y <= min_y) {
