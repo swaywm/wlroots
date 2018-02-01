@@ -32,8 +32,9 @@ union wlr_drm_crtc_props {
 
 		uint32_t active;
 		uint32_t mode_id;
+		uint32_t gamma_lut;
 	};
-	uint32_t props[4];
+	uint32_t props[5];
 };
 
 union wlr_drm_plane_props {

@@ -27,6 +27,10 @@ struct wlr_drm_interface {
 	// Move the cursor on crtc
 	bool (*crtc_move_cursor)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, int x, int y);
+	// Set the gamma lut on crtc
+	bool (*crtc_set_gamma)(struct wlr_drm_backend *drm,
+			struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
+			uint32_t size);
 };
 
 extern const struct wlr_drm_interface atomic_iface;

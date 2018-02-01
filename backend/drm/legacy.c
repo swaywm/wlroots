@@ -59,9 +59,17 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
 	return !drmModeMoveCursor(drm->fd, crtc->id, x, y);
 }
 
+bool legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
+		uint32_t size) {
+	return !drmModeCrtcSetGamma(drm->fd, crtc->id, size, r, g, b);
+}
+
+
 const struct wlr_drm_interface legacy_iface = {
 	.conn_enable = legacy_conn_enable,
 	.crtc_pageflip = legacy_crtc_pageflip,
 	.crtc_set_cursor = legacy_crtc_set_cursor,
 	.crtc_move_cursor = legacy_crtc_move_cursor,
+	.crtc_set_gamma = legacy_crtc_set_gamma,
 };

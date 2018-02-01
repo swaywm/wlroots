@@ -169,6 +169,9 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 		if (crtc->mode_id) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
+		if (crtc->gamma_lut) {
+			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
+		}
 	}
 	for (size_t i = 0; i < drm->num_planes; ++i) {
 		struct wlr_drm_plane *plane = &drm->planes[i];
@@ -227,7 +230,7 @@ static void wlr_drm_connector_set_gamma(struct wlr_output *output,
 		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	drmModeCrtcSetGamma(drm->fd, conn->crtc->id, size, r, g, b);
+	drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
 }
 
 static uint32_t wlr_drm_connector_get_gamma_size(struct wlr_output *output) {
