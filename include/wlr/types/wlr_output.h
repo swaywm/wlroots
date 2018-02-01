@@ -29,6 +29,10 @@ struct wlr_output_cursor {
 	struct wlr_surface *surface;
 	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 struct wlr_output_impl;
