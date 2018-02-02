@@ -312,6 +312,12 @@ damage_finish:
 }
 
 static void render_view(struct roots_view *view, struct render_data *data) {
+	// Do not render views fullscreened on other outputs
+	if (view->fullscreen_output != NULL &&
+			view->fullscreen_output != data->output) {
+		return;
+	}
+
 	render_decorations(view, data);
 	view_for_each_surface(view, render_surface, data);
 }
