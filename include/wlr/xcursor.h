@@ -50,6 +50,9 @@ struct wlr_xcursor {
 	uint32_t total_delay; /* length of the animation in ms */
 };
 
+/**
+ * Contanier for an Xcursor theme.
+ */
 struct wlr_xcursor_theme {
 	unsigned int cursor_count;
 	struct wlr_xcursor **cursors;
@@ -57,13 +60,27 @@ struct wlr_xcursor_theme {
 	int size;
 };
 
+/**
+ * Loads the named xcursor theme at the given cursor size (in pixels). This is
+ * useful if you need cursor images for your compositor to use when a
+ * client-side cursors is not available or you wish to override client-side
+ * cursors for a particular UI interaction (such as using a grab cursor when
+ * moving a window around).
+ */
 struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size);
 
 void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme);
 
+/**
+ * Obtains a wlr_xcursor image for the specified cursor name (e.g. "left_ptr").
+ */
 struct wlr_xcursor *wlr_xcursor_theme_get_cursor(
 	struct wlr_xcursor_theme *theme, const char *name);
 
+/**
+ * Returns the current frame number for an animated cursor give a monotonic time
+ * reference.
+ */
 int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
 
 /**
