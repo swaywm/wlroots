@@ -542,10 +542,27 @@ static void damage_whole_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	wlr_box_rotated_bounds(&box, -rotation, &box);
+	// Take the surface damage and damage the whole surface
+	// The surface damage is still useful in case the surface got resized
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
+	pixman_region32_union_rect(&damage, &damage, 0, 0, box.width, box.height);
+	pixman_region32_translate(&damage, box.x, box.y);
+	pixman_box32_t *extents = pixman_region32_extents(&damage);
+	struct wlr_box extents_box = {
+		.x = extents->x1,
+		.y = extents->y1,
+		.width = extents->x2 - extents->x1,
+		.height = extents->y2 - extents->y1,
+	};
+	pixman_region32_fini(&damage);
+
+	wlr_box_rotated_bounds(&extents_box, -rotation, &extents_box);
 
 	pixman_region32_union_rect(&output->damage, &output->damage,
-		box.x, box.y, box.width, box.height);
+		extents_box.x, extents_box.y, extents_box.width, extents_box.height);
 
 	wlr_output_schedule_frame(output->wlr_output);
 }
