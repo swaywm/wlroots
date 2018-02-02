@@ -207,6 +207,7 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		conn->pageflip_pending = true;
+		wlr_output_update_enabled(output, true);
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000.0f / conn->output.current_mode->refresh);
@@ -245,6 +246,7 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
 		conn->pageflip_pending = true;
+		wlr_output_update_enabled(&conn->output, true);
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000.0f / conn->output.current_mode->refresh);
