@@ -517,10 +517,6 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	struct wlr_drm_renderer *renderer = &drm->renderer;
 
-	if (!drm->session->active) {
-		return false;
-	}
-
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		return false;
@@ -540,6 +536,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	if (!buf && update_pixels) {
 		// Hide the cursor
 		plane->cursor_enabled = false;
+		if (!drm->session->active) {
+			return true;
+		}
 		return drm->iface->crtc_set_cursor(drm, crtc, NULL);
 	}
 	plane->cursor_enabled = true;
@@ -637,6 +636,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	gbm_bo_unmap(bo, bo_data);
 
+	if (!drm->session->active) {
+		return true;
+	}
+
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
@@ -648,9 +651,6 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	if (!drm->session->active) {
-		return false;
-	}
 	if (!conn->crtc) {
 		return false;
 	}
@@ -668,6 +668,13 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	if (plane != NULL) {
 		box.x -= plane->cursor_hotspot_x;
 		box.y -= plane->cursor_hotspot_y;
+	}
+
+	conn->cursor_x = box.x;
+	conn->cursor_y = box.y;
+
+	if (!drm->session->active) {
+		return true;
 	}
 
 	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
