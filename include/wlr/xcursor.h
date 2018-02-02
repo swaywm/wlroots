@@ -51,7 +51,7 @@ struct wlr_xcursor {
 };
 
 /**
- * Contanier for an Xcursor theme.
+ * Container for an Xcursor theme.
  */
 struct wlr_xcursor_theme {
 	unsigned int cursor_count;
