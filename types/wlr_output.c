@@ -11,9 +11,9 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_matrix.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);

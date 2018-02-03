@@ -10,7 +10,7 @@
 #include <gbm.h>
 #include <wayland-util.h>
 
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/backend/drm.h>
 #include <wlr/render/egl.h>
 

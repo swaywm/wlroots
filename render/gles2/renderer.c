@@ -5,11 +5,11 @@
 #include <GLES2/gl2ext.h>
 #include <wayland-util.h>
 #include <wayland-server-protocol.h>
-#include <wlr/backend.h>
-#include <wlr/render.h>
+#include <wlr/backend/backend.h>
+#include <wlr/render/render.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 #include "glapi.h"

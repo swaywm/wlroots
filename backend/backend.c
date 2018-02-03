@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <libinput.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/libinput.h>

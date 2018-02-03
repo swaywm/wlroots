@@ -2,7 +2,7 @@
 #define WLR_BACKEND_H
 
 #include <wayland-server.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/render/egl.h>
 
 struct wlr_backend_impl;

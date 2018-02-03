@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/backend/interface.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 #include "backend/drm/drm.h"

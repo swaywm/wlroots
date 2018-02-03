@@ -5,7 +5,7 @@
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/xwayland.h>
+#include <wlr/xwayland/xwayland.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
 #include "rootston/server.h"

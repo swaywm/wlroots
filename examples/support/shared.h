@@ -7,8 +7,8 @@
 #include <stdbool.h>
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-protocol.h>
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/backend.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 

@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <xf86drm.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_list.h>

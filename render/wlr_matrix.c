@@ -3,7 +3,7 @@
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_matrix.h>
 
 /* Obtains the index for the given row/column */
 static inline int mind(int row, int col) {

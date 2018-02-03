@@ -7,7 +7,7 @@
 #include <EGL/egl.h>
 #include <gbm.h>
 
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 
 struct wlr_drm_backend;
 struct wlr_drm_plane;
