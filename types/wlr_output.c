@@ -10,9 +10,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <GLES2/gl2.h>
 #include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/util/region.h>
 
@@ -332,6 +330,9 @@ bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
 }
 
 static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
+
 	struct wlr_box box = {
 		.x = rect->x1,
 		.y = rect->y1,
@@ -348,7 +349,7 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 		WL_OUTPUT_TRANSFORM_FLIPPED_180);
 	wlr_box_transform(&box, transform, ow, oh, &box);
 
-	glScissor(box.x, box.y, box.width, box.height);
+	wlr_renderer_scissor(renderer, &box);
 }
 
 static void output_fullscreen_surface_get_box(struct wlr_output *output,
@@ -368,13 +369,11 @@ static void output_fullscreen_surface_get_box(struct wlr_output *output,
 static void output_fullscreen_surface_render(struct wlr_output *output,
 		struct wlr_surface *surface, const struct timespec *when,
 		pixman_region32_t *damage) {
-	glViewport(0, 0, output->width, output->height);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
 
 	if (!wlr_surface_has_buffer(surface)) {
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_renderer_clear(renderer, &(float[]){0, 0, 0, 0});
 		return;
 	}
 
@@ -389,14 +388,12 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
-	glEnable(GL_SCISSOR_TEST);
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(output, &rects[i]);
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		wlr_renderer_clear(renderer, &(float[]){0, 0, 0, 0});
 		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
 	}
-	glDisable(GL_SCISSOR_TEST);
+	wlr_renderer_scissor(renderer, NULL);
 
 	wlr_surface_send_frame_done(surface, when);
 }
@@ -419,14 +416,15 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
 		const struct timespec *when, pixman_region32_t *damage) {
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(cursor->output->backend);
+	assert(renderer);
+
 	struct wlr_texture *texture = cursor->texture;
-	struct wlr_renderer *renderer = cursor->renderer;
 	if (cursor->surface != NULL) {
 		texture = cursor->surface->texture;
-		renderer = cursor->surface->renderer;
 	}
-
-	if (texture == NULL || renderer == NULL) {
+	if (texture == NULL) {
 		return;
 	}
 
@@ -442,22 +440,17 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		goto surface_damage_finish;
 	}
 
-	glViewport(0, 0, cursor->output->width, cursor->output->height);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
 	float matrix[16];
 	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
 		&cursor->output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
-	glEnable(GL_SCISSOR_TEST);
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(cursor->output, &rects[i]);
 		wlr_render_with_matrix(renderer, texture, &matrix);
 	}
-	glDisable(GL_SCISSOR_TEST);
+	wlr_renderer_scissor(renderer, NULL);
 
 	if (cursor->surface != NULL) {
 		wlr_surface_send_frame_done(cursor->surface, when);
@@ -672,6 +665,10 @@ static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(cursor->output->backend);
+	assert(renderer);
+
 	output_cursor_reset(cursor);
 
 	cursor->width = width;
@@ -701,15 +698,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	if (cursor->renderer == NULL) {
-		cursor->renderer = wlr_gles2_renderer_create(cursor->output->backend);
-		if (cursor->renderer == NULL) {
-			return false;
-		}
-	}
-
 	if (cursor->texture == NULL) {
-		cursor->texture = wlr_render_texture_create(cursor->renderer);
+		cursor->texture = wlr_render_texture_create(renderer);
 		if (cursor->texture == NULL) {
 			return false;
 		}
@@ -898,9 +888,6 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	}
 	if (cursor->texture != NULL) {
 		wlr_texture_destroy(cursor->texture);
-	}
-	if (cursor->renderer != NULL) {
-		wlr_renderer_destroy(cursor->renderer);
 	}
 	wl_list_remove(&cursor->link);
 	free(cursor);

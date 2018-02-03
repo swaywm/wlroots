@@ -24,7 +24,6 @@ struct wlr_output_cursor {
 	struct wl_list link;
 
 	// only when using a software cursor without a surface
-	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
 
 	// only when using a cursor surface
