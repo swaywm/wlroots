@@ -5,7 +5,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdbool.h>
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_renderer_impl;

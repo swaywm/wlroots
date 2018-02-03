@@ -17,9 +17,9 @@
 #include <errno.h>
 #include <wayland-server.h>
 #include "wlr/util/log.h"
-#include "wlr/xwayland.h"
+#include "wlr/xwayland/xwayland.h"
 #include "sockets.h"
-#include "wlr/xwm.h"
+#include "wlr/xwayland/xwm.h"
 
 #ifdef __FreeBSD__
 static inline int clearenv(void) {

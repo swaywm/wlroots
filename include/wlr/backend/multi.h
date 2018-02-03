@@ -1,8 +1,8 @@
 #ifndef WLR_BACKEND_MULTI_H
 #define WLR_BACKEND_MULTI_H
 
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/backend.h>
+#include <wlr/backend/session/session.h>
 
 struct wlr_backend *wlr_multi_backend_create(struct wl_display *display);
 

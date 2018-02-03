@@ -7,7 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "rootston/server.h"
 #include "rootston/desktop.h"

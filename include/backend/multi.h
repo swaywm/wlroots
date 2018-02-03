@@ -3,7 +3,7 @@
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/multi.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wayland-util.h>
 
 struct wlr_multi_backend {

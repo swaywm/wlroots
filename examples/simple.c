@@ -6,8 +6,8 @@
 #include <inttypes.h>
 #include <wayland-server.h>
 #include <GLES2/gl2.h>
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/backend.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>

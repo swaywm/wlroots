@@ -2,12 +2,12 @@
 #define _ROOTSTON_SERVER_H
 #include <wayland-server.h>
 #include <wlr/config.h>
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/backend.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 #ifdef WLR_HAS_XWAYLAND
-#include <wlr/xwayland.h>
+#include <wlr/xwayland/xwayland.h>
 #endif
 #include "rootston/config.h"
 #include "rootston/desktop.h"

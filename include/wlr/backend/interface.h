@@ -2,7 +2,7 @@
 #define WLR_BACKEND_INTERFACE_H
 
 #include <stdbool.h>
-#include <wlr/backend.h>
+#include <wlr/backend/backend.h>
 #include <wlr/render/egl.h>
 
 struct wlr_backend_impl {

@@ -24,7 +24,7 @@
  */
 
 #define _XOPEN_SOURCE 500
-#include <wlr/render.h>
+#include <wlr/render/render.h>
 #include <wlr/xcursor.h>
 #include <wlr/util/log.h>
 #include <stdio.h>

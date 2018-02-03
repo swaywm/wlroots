@@ -3,7 +3,7 @@
 
 #include <xcb/render.h>
 #include <wayland-server-core.h>
-#include <wlr/xwayland.h>
+#include <wlr/xwayland/xwayland.h>
 
 enum atom_name {
 	WL_SURFACE_ID,

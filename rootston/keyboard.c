@@ -7,7 +7,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/backend/multi.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"

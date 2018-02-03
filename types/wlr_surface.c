@@ -5,7 +5,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_matrix.h>
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {

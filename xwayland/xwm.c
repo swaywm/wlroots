@@ -11,9 +11,9 @@
 #include "wlr/util/log.h"
 #include "wlr/util/edges.h"
 #include "wlr/types/wlr_surface.h"
-#include "wlr/xwayland.h"
+#include "wlr/xwayland/xwayland.h"
 #include "wlr/xcursor.h"
-#include "wlr/xwm.h"
+#include "wlr/xwayland/xwm.h"
 
 #ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>

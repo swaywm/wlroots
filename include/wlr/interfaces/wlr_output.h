@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/backend.h>
+#include <wlr/backend/backend.h>
 
 struct wlr_output_impl {
 	void (*enable)(struct wlr_output *output, bool enable);

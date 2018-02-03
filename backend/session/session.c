@@ -10,7 +10,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <wlr/config.h>
-#include <wlr/backend/session.h>
+#include <wlr/backend/session/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 

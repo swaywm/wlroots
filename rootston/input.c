@@ -4,7 +4,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
-#include <wlr/xwayland.h>
+#include <wlr/xwayland/xwayland.h>
 #include <wlr/backend/libinput.h>
 #include "rootston/server.h"
 #include "rootston/config.h"
