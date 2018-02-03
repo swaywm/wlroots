@@ -549,12 +549,12 @@ static void damage_whole_surface(struct wlr_surface *surface,
 		return;
 	}
 
+	int ow, oh;
+	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
+
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface, output->desktop->layout,
+	surface_intersect_output(surface, output->desktop->layout,
 		output->wlr_output, lx, ly, rotation, &box);
-	if (!intersects) {
-		return;
-	}
 
 	// Take the surface damage and damage the whole surface
 	// The surface damage is still useful in case the surface got resized
@@ -564,6 +564,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
 	pixman_region32_union_rect(&damage, &damage, 0, 0, box.width, box.height);
 	pixman_region32_translate(&damage, box.x, box.y);
+	pixman_region32_intersect_rect(&damage, &damage, 0, 0, ow, oh);
 	pixman_box32_t *extents = pixman_region32_extents(&damage);
 	struct wlr_box extents_box = {
 		.x = extents->x1,
@@ -620,12 +621,12 @@ static void damage_from_surface(struct wlr_surface *surface,
 		return;
 	}
 
+	int ow, oh;
+	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
+
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface, output->desktop->layout,
+	surface_intersect_output(surface, output->desktop->layout,
 		output->wlr_output, lx, ly, rotation, &box);
-	if (!intersects) {
-		return;
-	}
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -638,6 +639,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 			ceil(output->wlr_output->scale) - surface->current->scale);
 	}
 	pixman_region32_translate(&damage, box.x, box.y);
+	pixman_region32_intersect_rect(&damage, &damage, 0, 0, ow, oh);
 	pixman_region32_union(&output->damage, &output->damage, &damage);
 	pixman_region32_fini(&damage);
 
