@@ -2,6 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -177,6 +178,8 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 
 static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 	struct wlr_output *wlr_output = output->wlr_output;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	assert(renderer);
 
 	struct wlr_box box = {
 		.x = rect->x1,
@@ -194,7 +197,7 @@ static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 		WL_OUTPUT_TRANSFORM_FLIPPED_180);
 	wlr_box_transform(&box, transform, ow, oh, &box);
 
-	wlr_renderer_scissor(output->desktop->server->renderer, &box);
+	wlr_renderer_scissor(renderer, &box);
 }
 
 static void render_surface(struct wlr_surface *surface, double lx, double ly,
@@ -202,6 +205,9 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	struct render_data *data = _data;
 	struct roots_output *output = data->output;
 	struct timespec *when = data->when;
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(output->wlr_output->backend);
+	assert(renderer);
 
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
@@ -237,8 +243,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_with_matrix(output->desktop->server->renderer,
-			surface->texture, &matrix);
+		wlr_render_with_matrix(renderer, surface->texture, &matrix);
 	}
 
 	wlr_surface_send_frame_done(surface, when);
@@ -276,6 +281,9 @@ static void render_decorations(struct roots_view *view,
 	}
 
 	struct roots_output *output = data->output;
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(output->wlr_output->backend);
+	assert(renderer);
 
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
@@ -303,8 +311,7 @@ static void render_decorations(struct roots_view *view,
 		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_colored_quad(output->desktop->server->renderer, &color,
-			&matrix);
+		wlr_render_colored_quad(renderer, &color, &matrix);
 	}
 
 damage_finish:
@@ -344,6 +351,8 @@ static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
 	struct roots_server *server = desktop->server;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	assert(renderer);
 
 	if (!wlr_output->enabled) {
 		return;
@@ -418,7 +427,7 @@ static void render_output(struct roots_output *output) {
 		.damage = &damage,
 	};
 
-	wlr_renderer_begin(server->renderer, wlr_output);
+	wlr_renderer_begin(renderer, wlr_output);
 
 	if (!pixman_region32_not_empty(&damage)) {
 		// Output isn't damaged but needs buffer swap
@@ -429,8 +438,8 @@ static void render_output(struct roots_output *output) {
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_renderer_clear(output->desktop->server->renderer,
-			clear_color[0], clear_color[1], clear_color[2], 1);
+		wlr_renderer_clear(renderer, clear_color[0], clear_color[1],
+			clear_color[2], 1);
 	}
 
 	// If a view is fullscreen on this output, render it
@@ -477,8 +486,8 @@ static void render_output(struct roots_output *output) {
 	}
 
 renderer_end:
-	wlr_renderer_scissor(output->desktop->server->renderer, NULL);
-	wlr_renderer_end(server->renderer);
+	wlr_renderer_scissor(renderer, NULL);
+	wlr_renderer_end(renderer);
 	if (!wlr_output_swap_buffers(wlr_output, &now, &damage)) {
 		goto damage_finish;
 	}
