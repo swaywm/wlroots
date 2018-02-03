@@ -267,6 +267,12 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 		child->destroy(child);
 	}
 
+	if (view->fullscreen_output != NULL) {
+		output_damage_whole(view->fullscreen_output);
+		view->fullscreen_output->fullscreen_view = NULL;
+		view->fullscreen_output = NULL;
+	}
+
 	view->wlr_surface = NULL;
 	view->width = view->height = 0;
 	wl_list_remove(&view->link);
