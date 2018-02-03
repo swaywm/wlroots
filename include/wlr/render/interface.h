@@ -18,8 +18,7 @@ struct wlr_renderer {
 struct wlr_renderer_impl {
 	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
 	void (*end)(struct wlr_renderer *renderer);
-	void (*clear)(struct wlr_renderer *renderer, float red, float green,
-		float blue, float alpha);
+	void (*clear)(struct wlr_renderer *renderer, const float (*color)[4]);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	struct wlr_texture *(*texture_create)(struct wlr_renderer *renderer);
 	bool (*render_with_matrix)(struct wlr_renderer *renderer,

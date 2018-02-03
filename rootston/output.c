@@ -361,7 +361,7 @@ static void render_output(struct roots_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	float clear_color[] = {0.25f, 0.25f, 0.25f};
+	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
 	// Check if we can delegate the fullscreen surface to the output
 	if (output->fullscreen_view != NULL) {
@@ -438,8 +438,7 @@ static void render_output(struct roots_output *output) {
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_renderer_clear(renderer, clear_color[0], clear_color[1],
-			clear_color[2], 1);
+		wlr_renderer_clear(renderer, &clear_color);
 	}
 
 	// If a view is fullscreen on this output, render it

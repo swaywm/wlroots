@@ -23,9 +23,8 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->impl->end(r);
 }
 
-void wlr_renderer_clear(struct wlr_renderer *r, float red, float green,
-		float blue, float alpha) {
-	r->impl->clear(r, red, green, blue, alpha);
+void wlr_renderer_clear(struct wlr_renderer *r, const float (*color)[4]) {
+	r->impl->clear(r, color);
 }
 
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {

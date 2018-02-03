@@ -121,9 +121,9 @@ static void wlr_gles2_end(struct wlr_renderer *wlr_renderer) {
 	// no-op
 }
 
-static void wlr_gles2_clear(struct wlr_renderer *wlr_renderer, float red,
-		float green, float blue, float alpha) {
-	glClearColor(red, green, blue, alpha);
+static void wlr_gles2_clear(struct wlr_renderer *wlr_renderer,
+		const float (*color)[4]) {
+	glClearColor((*color)[0], (*color)[1], (*color)[2], (*color)[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 

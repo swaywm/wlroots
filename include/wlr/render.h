@@ -13,8 +13,7 @@ struct wlr_renderer;
 
 void wlr_renderer_begin(struct wlr_renderer *r, struct wlr_output *output);
 void wlr_renderer_end(struct wlr_renderer *r);
-void wlr_renderer_clear(struct wlr_renderer *r, float red, float green,
-	float blue, float alpha);
+void wlr_renderer_clear(struct wlr_renderer *r, const float (*color)[4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor
