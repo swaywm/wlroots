@@ -45,6 +45,9 @@ struct wlr_drm_crtc {
 	uint32_t gamma_lut;
 	drmModeAtomicReq *atomic;
 
+	// Legacy only
+	drmModeCrtc *legacy_crtc;
+
 	union {
 		struct {
 			struct wlr_drm_plane *overlay;

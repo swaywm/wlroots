@@ -226,10 +226,24 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	return atomic_end(drm->fd, &atom);
 }
 
+static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc) {
+	uint64_t gamma_lut_size;
+
+	if (!wlr_drm_get_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
+			   &gamma_lut_size)) {
+		wlr_log(L_ERROR, "Unable to get gamma lut size");
+		return 0;
+	}
+
+	return (uint32_t) gamma_lut_size;
+}
+
 const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
 	.crtc_move_cursor = atomic_crtc_move_cursor,
 	.crtc_set_gamma = atomic_crtc_set_gamma,
+	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };
