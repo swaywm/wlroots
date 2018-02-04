@@ -232,13 +232,21 @@ static void wlr_drm_connector_set_gamma(struct wlr_output *output,
 		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
+
+	if (conn->crtc) {
+		drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
+	}
 }
 
 static uint32_t wlr_drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	return drm->iface->crtc_get_gamma_size(drm, conn->crtc);
+
+	if (conn->crtc) {
+		return drm->iface->crtc_get_gamma_size(drm, conn->crtc);
+	}
+
+	return 0;
 }
 
 void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
