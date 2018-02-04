@@ -2,7 +2,7 @@
 # Disable X11 support. Enabled by default.
 xwayland=false
 
-# Single output configuration. String after semicolon must match output's name.
+# Single output configuration. String after colon must match output's name.
 [output:VGA-1]
 # Set logical (layout) coordinates for this screen
 x = 1920
@@ -24,7 +24,7 @@ geometry = 2500x800
 # Load a custom XCursor theme
 theme = default
 
-# Single device configuration. String after semicolon must match device's name.
+# Single device configuration. String after colon must match device's name.
 [device:PixArt Dell MS116 USB Optical Mouse]
 # Restrict cursor movements for this mouse to single output
 map-to-output = VGA-1
