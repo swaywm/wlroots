@@ -138,8 +138,8 @@ void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 		(box->x + box->width - ox) * s +
 		(box->y + box->height - oy) * c;
 
-	dest->x = fmin(x1, x2);
-	dest->width = fmax(x1, x2) - fmin(x1, x2);
-	dest->y = fmin(y1, y2);
-	dest->height = fmax(y1, y2) - fmin(y1, y2);
+	dest->x = floor(fmin(x1, x2));
+	dest->width = ceil(fmax(x1, x2) - fmin(x1, x2));
+	dest->y = floor(fmin(y1, y2));
+	dest->height = ceil(fmax(y1, y2) - fmin(y1, y2));
 }

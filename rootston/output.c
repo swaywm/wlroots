@@ -553,31 +553,16 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
 
 	struct wlr_box box;
-	surface_intersect_output(surface, output->desktop->layout,
+	bool intersects = surface_intersect_output(surface, output->desktop->layout,
 		output->wlr_output, lx, ly, rotation, &box);
+	if (!intersects) {
+		return;
+	}
 
-	// Take the surface damage and damage the whole surface
-	// The surface damage is still useful in case the surface got resized
-	pixman_region32_t damage;
-	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current->surface_damage);
-	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
-	pixman_region32_union_rect(&damage, &damage, 0, 0, box.width, box.height);
-	pixman_region32_translate(&damage, box.x, box.y);
-	pixman_region32_intersect_rect(&damage, &damage, 0, 0, ow, oh);
-	pixman_box32_t *extents = pixman_region32_extents(&damage);
-	struct wlr_box extents_box = {
-		.x = extents->x1,
-		.y = extents->y1,
-		.width = extents->x2 - extents->x1,
-		.height = extents->y2 - extents->y1,
-	};
-	pixman_region32_fini(&damage);
-
-	wlr_box_rotated_bounds(&extents_box, -rotation, &extents_box);
+	wlr_box_rotated_bounds(&box, -rotation, &box);
 
 	pixman_region32_union_rect(&output->damage, &output->damage,
-		extents_box.x, extents_box.y, extents_box.width, extents_box.height);
+		box.x, box.y, box.width, box.height);
 
 	wlr_output_schedule_frame(output->wlr_output);
 }
@@ -616,44 +601,56 @@ void output_damage_whole_drag_icon(struct roots_output *output,
 static void damage_from_surface(struct wlr_surface *surface,
 		double lx, double ly, float rotation, void *data) {
 	struct roots_output *output = data;
+	struct wlr_output *wlr_output = output->wlr_output;
 
 	if (!wlr_surface_has_buffer(surface)) {
 		return;
 	}
 
 	int ow, oh;
-	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
+	wlr_output_transformed_resolution(wlr_output, &ow, &oh);
 
 	struct wlr_box box;
 	surface_intersect_output(surface, output->desktop->layout,
-		output->wlr_output, lx, ly, rotation, &box);
+		wlr_output, lx, ly, rotation, &box);
 
-	pixman_region32_t damage;
-	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current->surface_damage);
-	wlr_region_scale(&damage, &damage, output->wlr_output->scale);
-	if (ceil(output->wlr_output->scale) > surface->current->scale) {
-		// When scaling up a surface, it'll become blurry so we need to expand
-		// the damage region
-		wlr_region_expand(&damage, &damage,
-			ceil(output->wlr_output->scale) - surface->current->scale);
+	if (rotation == 0) {
+		pixman_region32_t damage;
+		pixman_region32_init(&damage);
+		pixman_region32_copy(&damage, &surface->current->surface_damage);
+		wlr_region_scale(&damage, &damage, wlr_output->scale);
+		if (ceil(wlr_output->scale) > surface->current->scale) {
+			// When scaling up a surface, it'll become blurry so we need to
+			// expand the damage region
+			wlr_region_expand(&damage, &damage,
+				ceil(wlr_output->scale) - surface->current->scale);
+		}
+		pixman_region32_translate(&damage, box.x, box.y);
+		pixman_region32_union(&output->damage, &output->damage, &damage);
+		pixman_region32_fini(&damage);
+	} else {
+		pixman_box32_t *extents =
+			pixman_region32_extents(&surface->current->surface_damage);
+		struct wlr_box damage_box = {
+			.x = box.x + extents->x1 * wlr_output->scale,
+			.y = box.y + extents->y1 * wlr_output->scale,
+			.width = (extents->x2 - extents->x1) * wlr_output->scale,
+			.height = (extents->y2 - extents->y1) * wlr_output->scale,
+		};
+		wlr_box_rotated_bounds(&damage_box, -rotation, &damage_box);
+		pixman_region32_union_rect(&output->damage, &output->damage,
+			damage_box.x, damage_box.y, damage_box.width, damage_box.height);
 	}
-	pixman_region32_translate(&damage, box.x, box.y);
-	pixman_region32_intersect_rect(&damage, &damage, 0, 0, ow, oh);
-	pixman_region32_union(&output->damage, &output->damage, &damage);
-	pixman_region32_fini(&damage);
 
-	wlr_output_schedule_frame(output->wlr_output);
+	pixman_region32_intersect_rect(&output->damage, &output->damage, 0, 0,
+		ow, oh);
+
+	wlr_output_schedule_frame(wlr_output);
 }
 
 void output_damage_from_view(struct roots_output *output,
 		struct roots_view *view) {
 	if (!view_accept_damage(output, view)) {
-		return;
-	}
-
-	if (view->rotation != 0) {
-		output_damage_whole_view(output, view);
 		return;
 	}
 
