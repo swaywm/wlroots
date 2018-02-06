@@ -244,35 +244,29 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			roots_seat_begin_rotate(seat, view);
 			break;
 		}
-		if (!is_touch) {
-			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
-		}
-		return;
-	}
+	} else {
 
-	if (view && !surface) {
-		if (cursor->pointer_view) {
-			seat_view_deco_button(cursor->pointer_view, sx, sy, button, state);
+		if (view && !surface) {
+			if (cursor->pointer_view) {
+				seat_view_deco_button(cursor->pointer_view, sx, sy, button, state);
+			}
 		}
-	}
 
-	if (state == WLR_BUTTON_RELEASED &&
-			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-		cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-		if (seat->seat->pointer_state.button_count == 0) {
-			return;
+		if (state == WLR_BUTTON_RELEASED &&
+				cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		}
-	}
 
-	switch (state) {
-	case WLR_BUTTON_RELEASED:
-		if (!is_touch) {
-			roots_cursor_update_position(cursor, time);
+		switch (state) {
+		case WLR_BUTTON_RELEASED:
+			if (!is_touch) {
+				roots_cursor_update_position(cursor, time);
+			}
+			break;
+		case WLR_BUTTON_PRESSED:
+			roots_seat_set_focus(seat, view);
+			break;
 		}
-		break;
-	case WLR_BUTTON_PRESSED:
-		roots_seat_set_focus(seat, view);
-		break;
 	}
 
 	if (!is_touch) {
