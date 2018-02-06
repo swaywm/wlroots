@@ -84,10 +84,16 @@ void roots_seat_cycle_focus(struct roots_seat *seat);
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view);
 
+void roots_seat_cancel_move(struct roots_seat *seat);
+
 void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 		uint32_t edges);
 
+void roots_seat_cancel_resize(struct roots_seat *seat);
+
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_cancel_rotate(struct roots_seat *seat);
 
 struct roots_seat_view *roots_seat_view_from_view( struct roots_seat *seat,
 		struct roots_view *view);
