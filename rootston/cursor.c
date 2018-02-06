@@ -244,6 +244,9 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			roots_seat_begin_rotate(seat, view);
 			break;
 		}
+		if (!is_touch) {
+			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		}
 		return;
 	}
 
