@@ -101,7 +101,7 @@ static void move_resize(struct roots_view *view, double x, double y,
 		constrained_height);
 	if (serial > 0) {
 		roots_surface->pending_move_resize_configure_serial = serial;
-	} else if(roots_surface->pending_move_resize_configure_serial == 0) {
+	} else if (roots_surface->pending_move_resize_configure_serial == 0) {
 		view->x = x;
 		view->y = y;
 	}
