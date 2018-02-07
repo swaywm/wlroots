@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -703,6 +704,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->primary_selection_device_manager =
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
+	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
 
 	return desktop;
 }
