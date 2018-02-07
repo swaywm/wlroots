@@ -14,6 +14,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
@@ -759,21 +760,10 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
 			}
 
-			wlr_conn->output.phys_width = drm_conn->mmWidth;
-			wlr_conn->output.phys_height = drm_conn->mmHeight;
-			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
 			snprintf(wlr_conn->output.name, sizeof(wlr_conn->output.name),
 				"%s-%"PRIu32,
 				 conn_get_name(drm_conn->connector_type),
 				 drm_conn->connector_type_id);
-
-			wlr_drm_get_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
-
-			size_t edid_len = 0;
-			uint8_t *edid = wlr_drm_get_prop_blob(drm->fd,
-				wlr_conn->id, wlr_conn->props.edid, &edid_len);
-			parse_edid(&wlr_conn->output, edid_len, edid);
-			free(edid);
 
 			wl_list_insert(&drm->outputs, &wlr_conn->link);
 			wlr_log(L_INFO, "Found display '%s'", wlr_conn->output.name);
@@ -795,6 +785,21 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
 			wlr_log(L_INFO, "'%s' connected", wlr_conn->output.name);
+
+			wlr_conn->output.phys_width = drm_conn->mmWidth;
+			wlr_conn->output.phys_height = drm_conn->mmHeight;
+			wlr_log(L_INFO, "Physical size: %"PRId32"x%"PRId32,
+				wlr_conn->output.phys_width, wlr_conn->output.phys_height);
+			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
+
+			wlr_drm_get_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
+
+			size_t edid_len = 0;
+			uint8_t *edid = wlr_drm_get_prop_blob(drm->fd,
+				wlr_conn->id, wlr_conn->props.edid, &edid_len);
+			parse_edid(&wlr_conn->output, edid_len, edid);
+			free(edid);
+
 			wlr_log(L_INFO, "Detected modes:");
 
 			for (int i = 0; i < drm_conn->count_modes; ++i) {
@@ -946,6 +951,17 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 				crtc->planes[i] = NULL;
 			}
 		}
+
+		struct wlr_drm_mode *mode;
+		struct wlr_drm_mode *tmp;
+		wl_list_for_each_safe(mode, tmp, &conn->output.modes, wlr_mode.link) {
+			wl_list_remove(&mode->wlr_mode.link);
+			free(mode);
+		}
+
+		memset(&conn->output.make, 0, sizeof(conn->output.make));
+		memset(&conn->output.model, 0, sizeof(conn->output.model));
+		memset(&conn->output.serial, 0, sizeof(conn->output.serial));
 
 		conn->crtc = NULL;
 		conn->possible_crtc = 0;
