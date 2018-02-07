@@ -261,7 +261,9 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		}
 	}
 
-	if (view && surface) {
+	if ((view && surface) ||
+		(state == WLR_BUTTON_RELEASED &&
+		 seat->seat->pointer_state.button_count != 0)) {
 		if (!is_touch) {
 			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 		}
