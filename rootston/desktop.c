@@ -146,12 +146,12 @@ void view_move_resize(struct roots_view *view, double x, double y,
 		return;
 	}
 
-	view->pending_move_resize.update_x = update_x;
-	view->pending_move_resize.update_y = update_y;
-	view->pending_move_resize.x = x;
-	view->pending_move_resize.y = y;
-	view->pending_move_resize.width = width;
-	view->pending_move_resize.height = height;
+	view->pending.move_resize.update_x = update_x;
+	view->pending.move_resize.update_y = update_y;
+	view->pending.move_resize.x = x;
+	view->pending.move_resize.y = y;
+	view->pending.move_resize.width = width;
+	view->pending.move_resize.height = height;
 
 	view_resize(view, width, height);
 }
@@ -182,7 +182,8 @@ void view_maximize(struct roots_view *view, bool maximized) {
 		struct wlr_box view_box;
 		view_get_box(view, &view_box);
 
-		view->maximized = true;
+		view->pending.maximized = true;
+
 		view->saved.x = view->x;
 		view->saved.y = view->y;
 		view->saved.rotation = view->rotation;
@@ -199,7 +200,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 	}
 
 	if (view->maximized && !maximized) {
-		view->maximized = false;
+		view->pending.maximized = false;
 
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
@@ -246,8 +247,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			output_box->height);
 		view->rotation = 0;
 
-		roots_output->fullscreen_view = view;
-		view->fullscreen_output = roots_output;
+		view->pending.fullscreen_output = roots_output;
 	}
 
 	if (was_fullscreen && !fullscreen) {
@@ -255,8 +255,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			view->saved.height);
 		view->rotation = view->saved.rotation;
 
-		view->fullscreen_output->fullscreen_view = NULL;
-		view->fullscreen_output = NULL;
+		view->pending.fullscreen_output = NULL;
 	}
 }
 

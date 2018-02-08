@@ -91,15 +91,15 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	int width = wlr_surface->current->width;
 	int height = wlr_surface->current->height;
 
-	if (view->pending_move_resize.update_x) {
-		view->x = view->pending_move_resize.x +
-			view->pending_move_resize.width - width;
-		view->pending_move_resize.update_x = false;
+	if (view->pending.move_resize.update_x) {
+		view->x = view->pending.move_resize.x +
+			view->pending.move_resize.width - width;
+		view->pending.move_resize.update_x = false;
 	}
-	if (view->pending_move_resize.update_y) {
-		view->y = view->pending_move_resize.y +
-			view->pending_move_resize.height - height;
-		view->pending_move_resize.update_y = false;
+	if (view->pending.move_resize.update_y) {
+		view->y = view->pending.move_resize.y +
+			view->pending.move_resize.height - height;
+		view->pending.move_resize.update_y = false;
 	}
 }
 
