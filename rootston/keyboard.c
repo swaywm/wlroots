@@ -159,7 +159,7 @@ static bool keyboard_execute_compositor_binding(struct roots_keyboard *keyboard,
 	if (keysym == XKB_KEY_Escape) {
 		wlr_seat_pointer_end_grab(keyboard->seat->seat);
 		wlr_seat_keyboard_end_grab(keyboard->seat->seat);
-		roots_seat_cancel_transform(keyboard->seat);
+		roots_seat_end_compositor_grab(keyboard->seat);
 	}
 
 	return false;

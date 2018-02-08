@@ -779,7 +779,7 @@ void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 		ROOTS_XCURSOR_ROTATE, seat->cursor->cursor);
 }
 
-void roots_seat_cancel_transform(struct roots_seat *seat) {
+void roots_seat_end_compositor_grab(struct roots_seat *seat) {
 	struct roots_cursor *cursor = seat->cursor;
 	struct roots_view *view = roots_seat_get_focus(seat);
 
