@@ -89,6 +89,8 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view);
 
+void roots_seat_end_compositor_grab(struct roots_seat *seat);
+
 struct roots_seat_view *roots_seat_view_from_view( struct roots_seat *seat,
 		struct roots_view *view);
 
