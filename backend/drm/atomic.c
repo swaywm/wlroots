@@ -214,6 +214,7 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	if (drmModeCreatePropertyBlob(drm->fd, gamma,
 				sizeof(struct drm_color_lut) * size, &crtc->gamma_lut)) {
 		wlr_log_errno(L_ERROR, "Unable to create property blob");
+		free(gamma);
 		return false;
 	}
 
