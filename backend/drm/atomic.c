@@ -199,7 +199,7 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
 		uint32_t size) {
-	struct drm_color_lut *gamma = calloc(sizeof(struct drm_color_lut), size);
+	struct drm_color_lut gamma[size];
 
 	for (uint32_t i = 0; i < size; i++) {
 		gamma[i].red = r[i];
@@ -214,11 +214,8 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	if (drmModeCreatePropertyBlob(drm->fd, gamma,
 				sizeof(struct drm_color_lut) * size, &crtc->gamma_lut)) {
 		wlr_log_errno(L_ERROR, "Unable to create property blob");
-		free(gamma);
 		return false;
 	}
-
-	free(gamma);
 
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
