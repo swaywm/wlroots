@@ -401,16 +401,12 @@ static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) 
 	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
 }
 
-static bool output_swap_buffers(struct wlr_output *wlr_output) {
+static bool output_swap_buffers(struct wlr_output *wlr_output,
+		pixman_region32_t *damage) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		return false;
-	}
-
-	return true;
+	return wlr_egl_swap_buffers(&x11->egl, output->surf, damage);
 }
 
 static struct wlr_output_impl output_impl = {

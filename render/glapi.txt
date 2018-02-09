@@ -6,3 +6,5 @@ eglCreatePlatformWindowSurfaceEXT
 -eglBindWaylandDisplayWL
 -eglUnbindWaylandDisplayWL
 -glEGLImageTargetTexture2DOES
+-eglSwapBuffersWithDamageEXT
+-eglSwapBuffersWithDamageKHR

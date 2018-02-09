@@ -190,7 +190,8 @@ static bool wlr_drm_connector_make_current(struct wlr_output *output,
 	return wlr_drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
+static bool wlr_drm_connector_swap_buffers(struct wlr_output *output,
+		pixman_region32_t *damage) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	if (!drm->session->active) {
@@ -203,7 +204,7 @@ static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf);
+	struct gbm_bo *bo = wlr_drm_surface_swap_buffers(&plane->surf, damage);
 	if (drm->parent) {
 		bo = wlr_drm_surface_mgpu_copy(&plane->mgpu_surf, bo);
 	}
@@ -635,7 +636,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		GL_UNSIGNED_BYTE, bo_data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
-	wlr_drm_surface_swap_buffers(&plane->surf);
+	wlr_drm_surface_swap_buffers(&plane->surf, NULL);
 
 	gbm_bo_unmap(bo, bo_data);
 

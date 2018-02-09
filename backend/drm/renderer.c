@@ -133,14 +133,13 @@ bool wlr_drm_surface_make_current(struct wlr_drm_surface *surf,
 	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_damage);
 }
 
-struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf) {
+struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf,
+		pixman_region32_t *damage) {
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
 
-	if (!eglSwapBuffers(surf->renderer->egl.display, surf->egl)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed");
-	}
+	wlr_egl_swap_buffers(&surf->renderer->egl, surf->egl, damage);
 
 	surf->front = surf->back;
 	surf->back = gbm_surface_lock_front_buffer(surf->gbm);
@@ -156,7 +155,7 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	glViewport(0, 0, surf->width, surf->height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	return wlr_drm_surface_swap_buffers(surf);
+	return wlr_drm_surface_swap_buffers(surf, NULL);
 }
 
 void wlr_drm_surface_post(struct wlr_drm_surface *surf) {
@@ -244,7 +243,7 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	glClear(GL_COLOR_BUFFER_BIT);
 	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, &matrix);
 
-	return wlr_drm_surface_swap_buffers(dest);
+	return wlr_drm_surface_swap_buffers(dest, NULL);
 }
 
 bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_backend *drm,

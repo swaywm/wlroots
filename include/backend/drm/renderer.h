@@ -41,14 +41,17 @@ bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
 	struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 	uint32_t format, uint32_t flags);
 
-bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_backend *drm,
-		int32_t width, uint32_t height, uint32_t format);
+bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane,
+	struct wlr_drm_backend *drm, int32_t width, uint32_t height,
+	uint32_t format);
 
 void wlr_drm_surface_finish(struct wlr_drm_surface *surf);
 bool wlr_drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
-struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf);
+struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf,
+	pixman_region32_t *damage);
 struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf);
 void wlr_drm_surface_post(struct wlr_drm_surface *surf);
-struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest, struct gbm_bo *src);
+struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
+	struct gbm_bo *src);
 
 #endif
