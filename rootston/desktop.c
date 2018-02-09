@@ -24,12 +24,8 @@
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
 	box->y = view->y;
-	if (view->get_size) {
-		view->get_size(view, box);
-	} else {
-		box->width = view->wlr_surface->current->width;
-		box->height = view->wlr_surface->current->height;
-	}
+	box->width = view->width;
+	box->height = view->height;
 }
 
 void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
@@ -111,8 +107,7 @@ void view_move(struct roots_view *view, double x, double y) {
 	if (view->move) {
 		view->move(view, x, y);
 	} else {
-		view->x = x;
-		view->y = y;
+		view_update_position(view, x, y);
 	}
 	view_update_output(view, &before);
 }
@@ -195,7 +190,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 		view_move_resize(view, output_box->x, output_box->y, output_box->width,
 			output_box->height);
-		view->rotation = 0;
+		view_rotate(view, 0);
 	}
 
 	if (view->maximized && !maximized) {
@@ -203,7 +198,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
-		view->rotation = view->saved.rotation;
+		view_rotate(view, view->saved.rotation);
 	}
 }
 
@@ -244,20 +239,32 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 			wlr_output_layout_get_box(view->desktop->layout, output);
 		view_move_resize(view, output_box->x, output_box->y, output_box->width,
 			output_box->height);
-		view->rotation = 0;
+		view_rotate(view, 0);
 
 		roots_output->fullscreen_view = view;
 		view->fullscreen_output = roots_output;
+		output_damage_whole(roots_output);
 	}
 
 	if (was_fullscreen && !fullscreen) {
 		view_move_resize(view, view->saved.x, view->saved.y, view->saved.width,
 			view->saved.height);
-		view->rotation = view->saved.rotation;
+		view_rotate(view, view->saved.rotation);
 
+		output_damage_whole(view->fullscreen_output);
 		view->fullscreen_output->fullscreen_view = NULL;
 		view->fullscreen_output = NULL;
 	}
+}
+
+void view_rotate(struct roots_view *view, float rotation) {
+	if (view->rotation == rotation) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->rotation = rotation;
+	view_damage_whole(view);
 }
 
 void view_close(struct roots_view *view) {
@@ -305,19 +312,116 @@ bool view_center(struct roots_view *view) {
 	return true;
 }
 
-void view_destroy(struct roots_view *view) {
+void view_child_finish(struct roots_view_child *child) {
+	if (child == NULL) {
+		return;
+	}
+	view_damage_whole(child->view);
+	wl_list_remove(&child->link);
+	wl_list_remove(&child->commit.link);
+	wl_list_remove(&child->new_subsurface.link);
+}
+
+static void view_child_handle_commit(struct wl_listener *listener,
+		void *data) {
+	struct roots_view_child *child = wl_container_of(listener, child, commit);
+	view_apply_damage(child->view);
+}
+
+static void view_child_handle_new_subsurface(struct wl_listener *listener,
+		void *data) {
+	struct roots_view_child *child =
+		wl_container_of(listener, child, new_subsurface);
+	struct wlr_subsurface *wlr_subsurface = data;
+	subsurface_create(child->view, wlr_subsurface);
+}
+
+void view_child_init(struct roots_view_child *child, struct roots_view *view,
+		struct wlr_surface *wlr_surface) {
+	assert(child->destroy);
+	child->view = view;
+	child->wlr_surface = wlr_surface;
+	child->commit.notify = view_child_handle_commit;
+	wl_signal_add(&wlr_surface->events.commit, &child->commit);
+	child->new_subsurface.notify = view_child_handle_new_subsurface;
+	wl_signal_add(&wlr_surface->events.new_subsurface, &child->new_subsurface);
+	wl_list_insert(&view->children, &child->link);
+}
+
+static void subsurface_destroy(struct roots_view_child *child) {
+	assert(child->destroy == subsurface_destroy);
+	struct roots_subsurface *subsurface = (struct roots_subsurface *)child;
+	if (subsurface == NULL) {
+		return;
+	}
+	wl_list_remove(&subsurface->destroy.link);
+	view_child_finish(&subsurface->view_child);
+	free(subsurface);
+}
+
+static void subsurface_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_subsurface *subsurface =
+		wl_container_of(listener, subsurface, destroy);
+	subsurface_destroy((struct roots_view_child *)subsurface);
+}
+
+struct roots_subsurface *subsurface_create(struct roots_view *view,
+		struct wlr_subsurface *wlr_subsurface) {
+	struct roots_subsurface *subsurface =
+		calloc(1, sizeof(struct roots_subsurface));
+	if (subsurface == NULL) {
+		return NULL;
+	}
+	subsurface->wlr_subsurface = wlr_subsurface;
+	subsurface->view_child.destroy = subsurface_destroy;
+	view_child_init(&subsurface->view_child, view, wlr_subsurface->surface);
+	subsurface->destroy.notify = subsurface_handle_destroy;
+	wl_signal_add(&wlr_subsurface->events.destroy, &subsurface->destroy);
+	return subsurface;
+}
+
+void view_finish(struct roots_view *view) {
+	view_damage_whole(view);
 	wl_signal_emit(&view->events.destroy, view);
+
+	wl_list_remove(&view->new_subsurface.link);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
 
 	if (view->fullscreen_output) {
 		view->fullscreen_output->fullscreen_view = NULL;
 	}
+}
 
-	free(view);
+static void view_handle_new_subsurface(struct wl_listener *listener,
+		void *data) {
+	struct roots_view *view = wl_container_of(listener, view, new_subsurface);
+	struct wlr_subsurface *wlr_subsurface = data;
+	subsurface_create(view, wlr_subsurface);
 }
 
 void view_init(struct roots_view *view, struct roots_desktop *desktop) {
+	assert(view->wlr_surface);
+
 	view->desktop = desktop;
 	wl_signal_init(&view->events.destroy);
+	wl_list_init(&view->children);
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &view->wlr_surface->subsurface_list,
+			parent_link) {
+		subsurface_create(view, subsurface);
+	}
+
+	view->new_subsurface.notify = view_handle_new_subsurface;
+	wl_signal_add(&view->wlr_surface->events.new_subsurface,
+		&view->new_subsurface);
+
+	view_damage_whole(view);
 }
 
 void view_setup(struct roots_view *view) {
@@ -330,6 +434,42 @@ void view_setup(struct roots_view *view) {
 
 	view_center(view);
 	view_update_output(view, NULL);
+}
+
+void view_apply_damage(struct roots_view *view) {
+	struct roots_output *output;
+	wl_list_for_each(output, &view->desktop->outputs, link) {
+		output_damage_from_view(output, view);
+	}
+}
+
+void view_damage_whole(struct roots_view *view) {
+	struct roots_output *output;
+	wl_list_for_each(output, &view->desktop->outputs, link) {
+		output_damage_whole_view(output, view);
+	}
+}
+
+void view_update_position(struct roots_view *view, double x, double y) {
+	if (view->x == x && view->y == y) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->x = x;
+	view->y = y;
+	view_damage_whole(view);
+}
+
+void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
+	if (view->width == width && view->height == height) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->width = width;
+	view->height = height;
+	view_damage_whole(view);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,
@@ -569,11 +709,11 @@ void desktop_destroy(struct roots_desktop *desktop) {
 }
 
 struct roots_output *desktop_output_from_wlr_output(
-		struct roots_desktop *desktop, struct wlr_output *output) {
-	struct roots_output *roots_output;
-	wl_list_for_each(roots_output, &desktop->outputs, link) {
-		if (roots_output->wlr_output == output) {
-			return roots_output;
+		struct roots_desktop *desktop, struct wlr_output *wlr_output) {
+	struct roots_output *output;
+	wl_list_for_each(output, &desktop->outputs, link) {
+		if (output->wlr_output == wlr_output) {
+			return output;
 		}
 	}
 	return NULL;

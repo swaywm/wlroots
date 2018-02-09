@@ -42,8 +42,9 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_output_make_current(wlr_output);
+	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
 
 	float matrix[16];
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
@@ -56,7 +57,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 
 	long ms = (ts->tv_sec - output->last_frame.tv_sec) * 1000 +
 		(ts->tv_nsec - output->last_frame.tv_nsec) / 1000000;

@@ -100,8 +100,9 @@ static void handle_output_frame(struct output_state *output,
 	struct sample_state *sample = state->data;
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output);
+	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);
 
@@ -125,7 +126,7 @@ static void handle_output_frame(struct output_state *output,
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output);
+	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
 static void handle_output_add(struct output_state *ostate) {

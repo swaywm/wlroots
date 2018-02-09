@@ -45,7 +45,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 
 	switch (event->response_type) {
 	case XCB_EXPOSE: {
-		wl_signal_emit(&output->wlr_output.events.frame, output);
+		wlr_output_send_frame(&output->wlr_output);
 		break;
 	}
 	case XCB_KEY_PRESS:
@@ -175,7 +175,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 
 static int signal_frame(void *data) {
 	struct wlr_x11_backend *x11 = data;
-	wl_signal_emit(&x11->output.wlr_output.events.frame, &x11->output);
+	wlr_output_send_frame(&x11->output.wlr_output);
 	wl_event_source_timer_update(x11->frame_timer, 16);
 	return 0;
 }
@@ -258,6 +258,8 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	if (x11->keyboard_dev.keyboard->xkb_state) {
 		xkb_state_unref(x11->keyboard_dev.keyboard->xkb_state);
 	}
+
+	wl_signal_emit(&backend->events.destroy, backend);
 
 	wl_list_remove(&x11->display_destroy.link);
 
@@ -392,22 +394,23 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	// output has been allocated on the stack, do not free it
 }
 
-static void output_make_current(struct wlr_output *wlr_output) {
+static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	if (!eglMakeCurrent(x11->egl.display, output->surf, output->surf, x11->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
-	}
+	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
 }
 
-static void output_swap_buffers(struct wlr_output *wlr_output) {
+static bool output_swap_buffers(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
 	if (!eglSwapBuffers(x11->egl.display, output->surf)) {
 		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		return false;
 	}
+
+	return true;
 }
 
 static struct wlr_output_impl output_impl = {

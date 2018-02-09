@@ -22,7 +22,7 @@ lib_wlr_render = static_library(
 	glapi[0],
 	glapi[1],
 	include_directories: wlr_inc,
-	dependencies: [glesv2, egl],
+	dependencies: [glesv2, egl, pixman],
 )
 
 wlr_render = declare_dependency(

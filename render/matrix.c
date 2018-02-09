@@ -169,22 +169,26 @@ void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
 	int width = box->width;
 	int height = box->height;
 
-	float translate_center[16];
-	wlr_matrix_translate(&translate_center,
-			(int)x + width / 2, (int)y + height / 2, 0);
+	wlr_matrix_translate(mat, x, y, 0);
 
-	float rotate[16];
-	wlr_matrix_rotate(&rotate, rotation);
+	if (rotation != 0) {
+		float translate_center[16];
+		wlr_matrix_translate(&translate_center, width/2, height/2, 0);
 
-	float translate_origin[16];
-	wlr_matrix_translate(&translate_origin, -width / 2,
-			-height / 2, 0);
+		float rotate[16];
+		wlr_matrix_rotate(&rotate, rotation);
+
+		float translate_origin[16];
+		wlr_matrix_translate(&translate_origin, -width/2, -height/2, 0);
+
+		wlr_matrix_mul(mat, &translate_center, mat);
+		wlr_matrix_mul(mat, &rotate, mat);
+		wlr_matrix_mul(mat, &translate_origin, mat);
+	}
 
 	float scale[16];
 	wlr_matrix_scale(&scale, width, height, 1);
 
-	wlr_matrix_mul(&translate_center, &rotate, mat);
-	wlr_matrix_mul(mat, &translate_origin, mat);
 	wlr_matrix_mul(mat, &scale, mat);
 
 	if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
@@ -192,17 +196,14 @@ void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
 		wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
 
 		float surface_transform[16];
-		wlr_matrix_transform(surface_transform,
-				wlr_output_transform_invert(transform));
+		wlr_matrix_transform(surface_transform, transform);
 
 		float surface_translate_origin[16];
 		wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
 
-		wlr_matrix_mul(mat, &surface_translate_center,
-				mat);
+		wlr_matrix_mul(mat, &surface_translate_center, mat);
 		wlr_matrix_mul(mat, &surface_transform, mat);
-		wlr_matrix_mul(mat, &surface_translate_origin,
-			mat);
+		wlr_matrix_mul(mat, &surface_translate_origin, mat);
 	}
 
 	wlr_matrix_mul(projection, mat, mat);

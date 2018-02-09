@@ -11,8 +11,12 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *egl_exts;
-	const char *gl_exts;
+	const char *egl_exts_str;
+	const char *gl_exts_str;
+
+	struct {
+		bool buffer_age;
+	} egl_exts;
 
 	struct wl_display *wl_display;
 };
@@ -64,5 +68,8 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
  * Returns a string for the last error ocurred with egl.
  */
 const char *egl_error(void);
+
+bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
+	int *buffer_age);
 
 #endif

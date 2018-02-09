@@ -123,8 +123,8 @@ struct wlr_drm_connector {
 
 	union wlr_drm_connector_props props;
 
-	uint32_t width;
-	uint32_t height;
+	uint32_t width, height;
+	int32_t cursor_x, cursor_y;
 
 	drmModeCrtc *old_crtc;
 

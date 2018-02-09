@@ -41,8 +41,8 @@ static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
-	void *data = wl_shm_buffer_get_data(shm_buffer);
 	wl_shm_buffer_begin_access(shm_buffer);
+	void *data = wl_shm_buffer_get_data(shm_buffer);
 	bool ok = wlr_renderer_read_pixels(renderer, format, stride, width, height,
 		0, 0, 0, 0, data);
 	wl_shm_buffer_end_access(shm_buffer);
@@ -127,6 +127,10 @@ static void screenshooter_shoot(struct wl_client *client,
 	state->screenshot = screenshot;
 	state->frame_listener.notify = output_handle_frame;
 	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
+
+	// Schedule a buffer swap
+	output->needs_swap = true;
+	wlr_output_schedule_frame(output);
 }
 
 static struct orbital_screenshooter_interface screenshooter_impl = {

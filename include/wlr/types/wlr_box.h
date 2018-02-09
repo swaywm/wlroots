@@ -2,6 +2,7 @@
 #define WLR_TYPES_WLR_BOX_H
 
 #include <stdbool.h>
+#include <wayland-server.h>
 
 struct wlr_box {
 	int x, y;
@@ -18,8 +19,17 @@ bool wlr_box_contains_point(const struct wlr_box *box, double x, double y);
 
 bool wlr_box_empty(const struct wlr_box *box);
 
-enum wl_output_transform;
+/**
+ * Transforms a box inside a `width` x `height` box.
+ */
 void wlr_box_transform(const struct wlr_box *box,
-	enum wl_output_transform transform, struct wlr_box *dest);
+	enum wl_output_transform transform, int width, int height,
+	struct wlr_box *dest);
+
+/**
+ * Creates the smallest box that contains a rotated box.
+ */
+void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
+	struct wlr_box *dest);
 
 #endif

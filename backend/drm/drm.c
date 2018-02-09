@@ -184,18 +184,22 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 	free(drm->planes);
 }
 
-static void wlr_drm_connector_make_current(struct wlr_output *output) {
+static bool wlr_drm_connector_make_current(struct wlr_output *output,
+		int *buffer_age) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	wlr_drm_surface_make_current(&conn->crtc->primary->surf);
+	return wlr_drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
+static bool wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+	if (!drm->session->active) {
+		return false;
+	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
-		return;
+		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
@@ -203,16 +207,20 @@ static void wlr_drm_connector_swap_buffers(struct wlr_output *output) {
 	if (drm->parent) {
 		bo = wlr_drm_surface_mgpu_copy(&plane->mgpu_surf, bo);
 	}
-
 	uint32_t fb_id = get_fb_for_bo(bo);
 
-	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
-		conn->pageflip_pending = true;
-		wlr_output_update_enabled(output, true);
-	} else {
-		wl_event_source_timer_update(conn->retry_pageflip,
-			1000.0f / conn->output.current_mode->refresh);
+	if (conn->pageflip_pending) {
+		wlr_log(L_ERROR, "Skipping pageflip");
+		return false;
 	}
+
+	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
+		return false;
+	}
+
+	conn->pageflip_pending = true;
+	wlr_output_update_enabled(output, true);
+	return true;
 }
 
 static void wlr_drm_connector_set_gamma(struct wlr_output *output,
@@ -250,7 +258,7 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 		wlr_output_update_enabled(&conn->output, true);
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
-			1000.0f / conn->output.current_mode->refresh);
+			1000000.0f / conn->output.current_mode->refresh);
 	}
 }
 
@@ -531,6 +539,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	if (!buf && update_pixels) {
 		// Hide the cursor
 		plane->cursor_enabled = false;
+		if (!drm->session->active) {
+			return true;
+		}
 		return drm->iface->crtc_set_cursor(drm, crtc, NULL);
 	}
 	plane->cursor_enabled = true;
@@ -577,17 +588,15 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	}
 
 	struct wlr_box hotspot = {
-		.width = plane->surf.width,
-		.height = plane->surf.height,
 		.x = hotspot_x,
 		.y = hotspot_y,
 	};
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
-	struct wlr_box transformed_hotspot;
-	wlr_box_transform(&hotspot, transform, &transformed_hotspot);
-	plane->cursor_hotspot_x = transformed_hotspot.x;
-	plane->cursor_hotspot_y = transformed_hotspot.y;
+	wlr_box_transform(&hotspot, transform,
+		plane->surf.width, plane->surf.height, &hotspot);
+	plane->cursor_hotspot_x = hotspot.x;
+	plane->cursor_hotspot_y = hotspot.y;
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
@@ -606,7 +615,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	wlr_drm_surface_make_current(&plane->surf);
+	wlr_drm_surface_make_current(&plane->surf, NULL);
 
 	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, buf);
@@ -630,35 +639,52 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	gbm_bo_unmap(bo, bo_data);
 
-	return drm->iface->crtc_set_cursor(drm, crtc, bo);
+	if (!drm->session->active) {
+		return true;
+	}
+
+	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
+	if (ok) {
+		wlr_output_update_needs_swap(output);
+	}
+	return ok;
 }
 
 static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	if (!conn || !conn->crtc) {
+	if (!conn->crtc) {
 		return false;
 	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
 
-	struct wlr_box box;
-	box.x = x;
-	box.y = y;
-	wlr_output_effective_resolution(output, &box.width, &box.height);
+	struct wlr_box box = { .x = x, .y = y };
+
+	int width, height;
+	wlr_output_transformed_resolution(output, &width, &height);
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
-	struct wlr_box transformed_box;
-	wlr_box_transform(&box, transform, &transformed_box);
+	wlr_box_transform(&box, transform, width, height, &box);
 
 	if (plane != NULL) {
-		transformed_box.x -= plane->cursor_hotspot_x;
-		transformed_box.y -= plane->cursor_hotspot_y;
+		box.x -= plane->cursor_hotspot_x;
+		box.y -= plane->cursor_hotspot_y;
 	}
 
-	return drm->iface->crtc_move_cursor(drm, conn->crtc, transformed_box.x,
-		transformed_box.y);
+	conn->cursor_x = box.x;
+	conn->cursor_y = box.y;
+
+	if (!drm->session->active) {
+		return true;
+	}
+
+	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
+	if (ok) {
+		wlr_output_update_needs_swap(output);
+	}
+	return ok;
 }
 
 static void wlr_drm_connector_destroy(struct wlr_output *output) {
@@ -874,7 +900,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	if (drm->session->active) {
-		wl_signal_emit(&conn->output.events.frame, &conn->output);
+		wlr_output_send_frame(&conn->output);
 	}
 }
 

@@ -34,6 +34,7 @@ struct wlr_xdg_client_v6 {
 
 struct wlr_xdg_popup_v6 {
 	struct wlr_xdg_surface_v6 *base;
+	struct wl_list link;
 
 	struct wl_resource *resource;
 	bool committed;
@@ -104,8 +105,7 @@ struct wlr_xdg_surface_v6 {
 		struct wlr_xdg_popup_v6 *popup_state;
 	};
 
-	struct wl_list popups;
-	struct wl_list popup_link;
+	struct wl_list popups; // wlr_xdg_popup_v6::link
 
 	bool configured;
 	bool added;
@@ -126,6 +126,7 @@ struct wlr_xdg_surface_v6 {
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
+		struct wl_signal new_popup;
 
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;

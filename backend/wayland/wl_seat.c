@@ -54,14 +54,16 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	struct wlr_output *wlr_output = &wlr_wl_pointer->current_output->wlr_output;
 
-	struct wlr_box box;
+	int width, height;
 	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
-		&box.width, &box.height);
-	box.x = wl_fixed_to_int(surface_x);
-	box.y = wl_fixed_to_int(surface_y);
+		&width, &height);
 
+	struct wlr_box box = {
+		.x = wl_fixed_to_int(surface_x),
+		.y = wl_fixed_to_int(surface_y),
+	};
 	struct wlr_box transformed;
-	wlr_box_transform(&box, wlr_output->transform, &transformed);
+	wlr_box_transform(&box, wlr_output->transform, width, height, &transformed);
 	transformed.x /= wlr_output->scale;
 	transformed.y /= wlr_output->scale;
 

@@ -315,7 +315,7 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 		wl_list_init(&xsurface->parent_link);
 	}
 
-	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xid);
+	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xsurface->parent);
 	wl_signal_emit(&xsurface->events.set_parent, xsurface);
 }
 
@@ -1407,7 +1407,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm_selection_init(xwm);
 
 	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
-	wl_signal_add(&wlr_xwayland->compositor->events.create_surface,
+	wl_signal_add(&wlr_xwayland->compositor->events.new_surface,
 		&xwm->compositor_surface_create);
 
 	xwm_create_wm_window(xwm);

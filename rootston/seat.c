@@ -241,19 +241,97 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->tool_tip.notify = handle_tool_tip;
 
 	wl_signal_add(&seat->seat->events.request_set_cursor,
-			&seat->cursor->request_set_cursor);
+		&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
+}
+
+static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct roots_drag_icon *icon =
+		wl_container_of(listener, icon, surface_commit);
+	roots_drag_icon_damage_whole(icon);
+}
+
+static void roots_drag_icon_handle_map(struct wl_listener *listener,
+		void *data) {
+	struct roots_drag_icon *icon =
+		wl_container_of(listener, icon, map);
+	roots_drag_icon_damage_whole(icon);
+}
+
+static void roots_drag_icon_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_drag_icon *icon =
+		wl_container_of(listener, icon, destroy);
+	roots_drag_icon_damage_whole(icon);
+
+	wl_list_remove(&icon->link);
+	wl_list_remove(&icon->surface_commit.link);
+	wl_list_remove(&icon->map.link);
+	wl_list_remove(&icon->destroy.link);
+	free(icon);
+}
+
+static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat = wl_container_of(listener, seat, new_drag_icon);
+	struct wlr_drag_icon *wlr_drag_icon = data;
+
+	struct roots_drag_icon *icon = calloc(1, sizeof(struct roots_drag_icon));
+	if (icon == NULL) {
+		return;
+	}
+	icon->seat = seat;
+	icon->wlr_drag_icon = wlr_drag_icon;
+
+	icon->surface_commit.notify = roots_drag_icon_handle_surface_commit;
+	wl_signal_add(&wlr_drag_icon->surface->events.commit, &icon->surface_commit);
+	icon->map.notify = roots_drag_icon_handle_map;
+	wl_signal_add(&wlr_drag_icon->events.map, &icon->map);
+	icon->destroy.notify = roots_drag_icon_handle_destroy;
+	wl_signal_add(&wlr_drag_icon->events.destroy, &icon->destroy);
+
+	wl_list_insert(&seat->drag_icons, &icon->link);
+}
+
+void roots_drag_icon_update_position(struct roots_drag_icon *icon) {
+	roots_drag_icon_damage_whole(icon);
+
+	struct wlr_drag_icon *wlr_icon = icon->wlr_drag_icon;
+	struct roots_seat *seat = icon->seat;
+	struct wlr_cursor *cursor = seat->cursor->cursor;
+	if (wlr_icon->is_pointer) {
+		icon->x = cursor->x + wlr_icon->sx;
+		icon->y = cursor->y + wlr_icon->sy;
+	} else {
+		struct wlr_touch_point *point =
+			wlr_seat_touch_get_point(seat->seat, wlr_icon->touch_id);
+		if (point == NULL) {
+			return;
+		}
+		icon->x = seat->touch_x + wlr_icon->sx;
+		icon->y = seat->touch_y + wlr_icon->sy;
+	}
+
+	roots_drag_icon_damage_whole(icon);
+}
+
+void roots_drag_icon_damage_whole(struct roots_drag_icon *icon) {
+	struct roots_output *output;
+	wl_list_for_each(output, &icon->seat->input->server->desktop->outputs,
+			link) {
+		output_damage_whole_drag_icon(output, icon);
+	}
 }
 
 static void seat_view_destroy(struct roots_seat_view *seat_view);
 
-static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
+static void roots_seat_handle_destroy(struct wl_listener *listener,
 		void *data) {
-	struct roots_seat *seat =
-		wl_container_of(listener, seat, seat_destroy);
+	struct roots_seat *seat = wl_container_of(listener, seat, destroy);
 
 	// TODO: probably more to be freed here
-	wl_list_remove(&seat->seat_destroy.link);
+	wl_list_remove(&seat->destroy.link);
 
 	struct roots_seat_view *view, *nview;
 	wl_list_for_each_safe(view, nview, &seat->views, link) {
@@ -262,7 +340,7 @@ static void roots_seat_handle_seat_destroy(struct wl_listener *listener,
 }
 
 void roots_seat_destroy(struct roots_seat *seat) {
-	roots_seat_handle_seat_destroy(&seat->seat_destroy, seat->seat);
+	roots_seat_handle_destroy(&seat->destroy, seat->seat);
 	wlr_seat_destroy(seat->seat);
 }
 
@@ -277,6 +355,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->touch);
 	wl_list_init(&seat->tablet_tools);
 	wl_list_init(&seat->views);
+	wl_list_init(&seat->drag_icons);
 
 	seat->input = input;
 
@@ -295,8 +374,10 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
-	seat->seat_destroy.notify = roots_seat_handle_seat_destroy;
-	wl_signal_add(&seat->seat->events.destroy, &seat->seat_destroy);
+	seat->new_drag_icon.notify = roots_seat_handle_new_drag_icon;
+	wl_signal_add(&seat->seat->events.new_drag_icon, &seat->new_drag_icon);
+	seat->destroy.notify = roots_seat_handle_destroy;
+	wl_signal_add(&seat->seat->events.destroy, &seat->destroy);
 
 	return seat;
 }
@@ -682,6 +763,8 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
+
+	view_damage_whole(view);
 
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (keyboard != NULL) {

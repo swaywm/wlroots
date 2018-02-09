@@ -18,8 +18,7 @@ static void activate(struct roots_view *view, bool active) {
 static void move(struct roots_view *view, double x, double y) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
-	view->x = x;
-	view->y = y;
+	view_update_position(view, x, y);
 	wlr_xwayland_surface_configure(xwayland_surface, x, y,
 		xwayland_surface->width, xwayland_surface->height);
 }
@@ -122,7 +121,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	if (xwayland_surface->mapped) {
 		wl_list_remove(&roots_surface->view->link);
 	}
-	view_destroy(roots_surface->view);
+	view_finish(roots_surface->view);
+	free(roots_surface->view);
 	free(roots_surface);
 }
 
@@ -133,8 +133,7 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 		roots_surface->view->xwayland_surface;
 	struct wlr_xwayland_surface_configure_event *event = data;
 
-	roots_surface->view->x = (double)event->x;
-	roots_surface->view->y = (double)event->y;
+	view_update_position(roots_surface->view, event->x, event->y);
 
 	wlr_xwayland_surface_configure(xwayland_surface, event->x, event->y,
 		event->width, event->height);
@@ -206,19 +205,25 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_surface *wlr_surface = view->wlr_surface;
 
+	view_apply_damage(view);
+
 	int width = wlr_surface->current->width;
 	int height = wlr_surface->current->height;
+	view_update_size(view, width, height);
 
+	double x = view->x;
+	double y = view->y;
 	if (view->pending_move_resize.update_x) {
-		view->x = view->pending_move_resize.x +
-			view->pending_move_resize.width - width;
+		x = view->pending_move_resize.x + view->pending_move_resize.width -
+			width;
 		view->pending_move_resize.update_x = false;
 	}
 	if (view->pending_move_resize.update_y) {
-		view->y = view->pending_move_resize.y +
-			view->pending_move_resize.height - height;
+		y = view->pending_move_resize.y + view->pending_move_resize.height -
+			height;
 		view->pending_move_resize.update_y = false;
 	}
+	view_update_position(view, x, y);
 }
 
 static void handle_map_notify(struct wl_listener *listener, void *data) {
@@ -229,24 +234,48 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = view->desktop;
 
 	view->wlr_surface = xsurface->surface;
-	view->x = (double)xsurface->x;
-	view->y = (double)xsurface->y;
+	view->x = xsurface->x;
+	view->y = xsurface->y;
+	view->width = xsurface->surface->current->width;
+	view->height = xsurface->surface->current->height;
+	wl_list_insert(&desktop->views, &view->link);
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &view->wlr_surface->subsurface_list,
+			parent_link) {
+		subsurface_create(view, subsurface);
+	}
+
+	view_damage_whole(view);
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&xsurface->surface->events.commit,
 		&roots_surface->surface_commit);
-
-	wl_list_insert(&desktop->views, &view->link);
 }
 
 static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap_notify);
-	roots_surface->view->wlr_surface = NULL;
+	struct roots_view *view = roots_surface->view;
 
 	wl_list_remove(&roots_surface->surface_commit.link);
 
-	wl_list_remove(&roots_surface->view->link);
+	view_damage_whole(view);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
+
+	if (view->fullscreen_output != NULL) {
+		output_damage_whole(view->fullscreen_output);
+		view->fullscreen_output->fullscreen_view = NULL;
+		view->fullscreen_output = NULL;
+	}
+
+	view->wlr_surface = NULL;
+	view->width = view->height = 0;
+	wl_list_remove(&view->link);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
@@ -296,6 +325,8 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->type = ROOTS_XWAYLAND_VIEW;
 	view->x = (double)surface->x;
 	view->y = (double)surface->y;
+	view->width = surface->surface->current->width;
+	view->height = surface->surface->current->height;
 
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;

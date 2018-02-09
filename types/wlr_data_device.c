@@ -457,6 +457,7 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 		if (drag->icon) {
 			drag->icon->mapped = false;
 			wl_list_remove(&drag->icon_destroy.link);
+			wl_signal_emit(&drag->icon->events.map, drag->icon);
 		}
 
 		free(drag);
@@ -676,8 +677,8 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 	icon->is_pointer = is_pointer;
 	icon->touch_id = touch_id;
 	icon->mapped = true;
-	wl_list_insert(&client->seat->drag_icons, &icon->link);
 
+	wl_signal_init(&icon->events.map);
 	wl_signal_init(&icon->events.destroy);
 
 	wl_signal_add(&icon->surface->events.destroy, &icon->surface_destroy);
@@ -688,6 +689,9 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 
 	wl_signal_add(&client->events.destroy, &icon->seat_client_destroy);
 	icon->seat_client_destroy.notify = handle_drag_icon_seat_client_destroy;
+
+	wl_list_insert(&client->seat->drag_icons, &icon->link);
+	wl_signal_emit(&client->seat->events.new_drag_icon, icon);
 
 	return icon;
 }

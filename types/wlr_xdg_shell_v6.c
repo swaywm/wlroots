@@ -206,7 +206,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 			}
 		}
 
-		wl_list_remove(&surface->popup_link);
+		wl_list_remove(&surface->popup_state->link);
 		free(surface->popup_state);
 	}
 
@@ -505,12 +505,13 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	surface->popup_state->parent = parent;
 	surface->popup_state->geometry =
 		xdg_positioner_get_geometry(positioner, surface, parent);
-	wl_list_insert(&surface->popup_state->parent->popups,
-		&surface->popup_link);
+	wl_list_insert(&parent->popups, &surface->popup_state->link);
 
 	wl_resource_set_implementation(surface->popup_state->resource,
 		&zxdg_popup_v6_implementation, surface,
 		xdg_popup_resource_destroy);
+
+	wl_signal_emit(&parent->events.new_popup, surface->popup_state);
 }
 
 
@@ -1187,6 +1188,7 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.request_show_window_menu);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
+	wl_signal_init(&surface->events.new_popup);
 
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
@@ -1404,14 +1406,16 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 	// XXX: I think this is so complicated because we're mixing geometry
 	// coordinates with surface coordinates. Input handling should only deal
 	// with surface coordinates.
-	struct wlr_xdg_surface_v6 *popup;
-	wl_list_for_each(popup, &surface->popups, popup_link) {
+	struct wlr_xdg_popup_v6 *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface_v6 *popup = popup_state->base;
+
 		double _popup_sx =
-			surface->geometry->x + popup->popup_state->geometry.x;
+			surface->geometry->x + popup_state->geometry.x;
 		double _popup_sy =
-			surface->geometry->y + popup->popup_state->geometry.y;
-		int popup_width =  popup->popup_state->geometry.width;
-		int popup_height =  popup->popup_state->geometry.height;
+			surface->geometry->y + popup_state->geometry.y;
+		int popup_width =  popup_state->geometry.width;
+		int popup_height =  popup_state->geometry.height;
 
 		struct wlr_xdg_surface_v6 *_popup =
 			wlr_xdg_surface_v6_popup_at(popup,
