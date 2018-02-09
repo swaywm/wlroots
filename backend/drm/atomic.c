@@ -221,7 +221,6 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	free(gamma);
 
 	struct atomic atom;
-
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
 	return atomic_end(drm->fd, &atom);
@@ -237,7 +236,7 @@ static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		return 0;
 	}
 
-	return (uint32_t) gamma_lut_size;
+	return (uint32_t)gamma_lut_size;
 }
 
 const struct wlr_drm_interface atomic_iface = {
