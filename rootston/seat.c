@@ -861,3 +861,28 @@ void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	wlr_xcursor_manager_set_cursor_image(seat->cursor->xcursor_manager,
 		ROOTS_XCURSOR_ROTATE, seat->cursor->cursor);
 }
+
+void roots_seat_end_compositor_grab(struct roots_seat *seat) {
+	struct roots_cursor *cursor = seat->cursor;
+	struct roots_view *view = roots_seat_get_focus(seat);
+
+	if (view == NULL) {
+		return;
+	}
+
+	switch(cursor->mode) {
+		case ROOTS_CURSOR_MOVE:
+			view_move(view, cursor->view_x, cursor->view_y);
+			break;
+		case ROOTS_CURSOR_RESIZE:
+			view_move_resize(view, cursor->view_x, cursor->view_y, cursor->view_width, cursor->view_height);
+			break;
+		case ROOTS_CURSOR_ROTATE:
+			view->rotation = cursor->view_rotation;
+			break;
+		case ROOTS_CURSOR_PASSTHROUGH:
+			break;
+	}
+
+	cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+}
