@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_passive_grab.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -643,6 +644,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->wl_shell->events.new_surface,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
+
+	desktop->passive_grab_v1 = wlr_passive_grab_create_v1(server->wl_display);
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
