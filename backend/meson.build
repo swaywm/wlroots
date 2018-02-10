@@ -27,6 +27,17 @@ backend_files = files(
 	'x11/backend.c',
 )
 
+backend_deps = [
+	wayland_server,
+	egl,
+	gbm,
+	libinput,
+	wlr_render,
+	wlr_protos,
+	drm,
+	pixman,
+]
+
 if host_machine.system().startswith('freebsd')
 	backend_files += files('session/direct-freebsd.c')
 else
@@ -35,26 +46,17 @@ endif
 
 if conf_data.get('WLR_HAS_SYSTEMD', false)
 	backend_files += files('session/logind.c')
+	backend_deps += systemd
 endif
 
 if conf_data.get('WLR_HAS_ELOGIND', false)
 	backend_files += files('session/logind.c')
+	backend_deps += elogind
 endif
 
 lib_wlr_backend = static_library(
 	'wlr_backend',
 	backend_files,
 	include_directories: wlr_inc,
-	dependencies: [
-		wayland_server,
-		egl,
-		gbm,
-		libinput,
-		systemd,
-		elogind,
-		wlr_render,
-		wlr_protos,
-		drm,
-		pixman,
-	],
+	dependencies: backend_deps,
 )
