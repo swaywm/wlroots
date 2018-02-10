@@ -140,6 +140,7 @@ bool wlr_drm_resources_init(struct wlr_drm_backend *drm) {
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
 		crtc->id = res->crtcs[i];
+		crtc->legacy_crtc = drmModeGetCrtc(drm->fd, crtc->id);
 		wlr_drm_get_crtc_props(drm->fd, crtc->id, &crtc->props);
 	}
 
@@ -166,8 +167,12 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
 		drmModeAtomicFree(crtc->atomic);
+		drmModeFreeCrtc(crtc->legacy_crtc);
 		if (crtc->mode_id) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
+		}
+		if (crtc->gamma_lut) {
+			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
 		}
 	}
 	for (size_t i = 0; i < drm->num_planes; ++i) {
@@ -228,13 +233,26 @@ static void wlr_drm_connector_set_gamma(struct wlr_output *output,
 		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	drmModeCrtcSetGamma(drm->fd, conn->crtc->id, size, r, g, b);
+	bool ok;
+
+	if (conn->crtc) {
+		ok = drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
+		if (ok) {
+			wlr_output_update_needs_swap(output);
+		}
+	}
+
 }
 
 static uint32_t wlr_drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	drmModeCrtc *crtc = conn->old_crtc;
-	return crtc ? crtc->gamma_size : 0;
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+
+	if (conn->crtc) {
+		return drm->iface->crtc_get_gamma_size(drm, conn->crtc);
+	}
+
+	return 0;
 }
 
 void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {

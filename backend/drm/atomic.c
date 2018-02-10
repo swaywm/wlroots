@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <gbm.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -195,9 +196,61 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 	return atomic_end(drm->fd, &atom);
 }
 
+static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
+		uint32_t size) {
+	struct drm_color_lut gamma[size];
+
+	// Fallback to legacy gamma interface when gamma properties are not available
+	// (can happen on older intel gpu's that support gamma but not degamma)
+	if (crtc->props.gamma_lut == 0) {
+		return legacy_iface.crtc_set_gamma(drm, crtc, r, g, b, size);
+	}
+
+	for (uint32_t i = 0; i < size; i++) {
+		gamma[i].red = r[i];
+		gamma[i].green = g[i];
+		gamma[i].blue = b[i];
+	}
+
+	if (crtc->gamma_lut != 0) {
+		drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
+	}
+
+	if (drmModeCreatePropertyBlob(drm->fd, gamma,
+				sizeof(struct drm_color_lut) * size, &crtc->gamma_lut)) {
+		wlr_log_errno(L_ERROR, "Unable to create property blob");
+		return false;
+	}
+
+	struct atomic atom;
+	atomic_begin(crtc, &atom);
+	atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
+	return atomic_end(drm->fd, &atom);
+}
+
+static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc) {
+	uint64_t gamma_lut_size;
+
+	if (crtc->props.gamma_lut_size == 0) {
+		return legacy_iface.crtc_get_gamma_size(drm, crtc);
+	}
+
+	if (!wlr_drm_get_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
+			   &gamma_lut_size)) {
+		wlr_log(L_ERROR, "Unable to get gamma lut size");
+		return 0;
+	}
+
+	return (uint32_t)gamma_lut_size;
+}
+
 const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
 	.crtc_move_cursor = atomic_crtc_move_cursor,
+	.crtc_set_gamma = atomic_crtc_set_gamma,
+	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };
