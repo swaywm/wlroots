@@ -201,6 +201,12 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		uint32_t size) {
 	struct drm_color_lut gamma[size];
 
+	// Fallback to legacy gamma interface when gamma properties are not available
+	// (can happen on older intel gpu's that support gamma but not degamma)
+	if (crtc->props.gamma_lut == 0) {
+		return legacy_iface.crtc_set_gamma(drm, crtc, r, g, b, size);
+	}
+
 	for (uint32_t i = 0; i < size; i++) {
 		gamma[i].red = r[i];
 		gamma[i].green = g[i];
@@ -226,6 +232,10 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
 	uint64_t gamma_lut_size;
+
+	if (crtc->props.gamma_lut_size == 0) {
+		return legacy_iface.crtc_get_gamma_size(drm, crtc);
+	}
 
 	if (!wlr_drm_get_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
 			   &gamma_lut_size)) {
