@@ -33,11 +33,11 @@ else
 	backend_files += files('session/direct.c')
 endif
 
-if systemd.found() and get_option('enable_systemd')
+if conf_data.get('WLR_HAS_SYSTEMD', false)
 	backend_files += files('session/logind.c')
 endif
 
-if elogind.found() and get_option('enable_elogind')
+if conf_data.get('WLR_HAS_ELOGIND', false)
 	backend_files += files('session/logind.c')
 endif
 

@@ -159,10 +159,10 @@ summary = [
   '----------------',
   'wlroots @0@'.format(meson.project_version()),
   '',
-  '   libcap: @0@'.format(get_option('enable_libcap')),
-  '  systemd: @0@'.format(get_option('enable_systemd')),
-  '  elogind: @0@'.format(get_option('enable_elogind')),
-  ' xwayland: @0@'.format(get_option('enable_xwayland')),
+  '   libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
+  '  systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
+  '  elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
+  ' xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
   '----------------',
   ''
 ]
