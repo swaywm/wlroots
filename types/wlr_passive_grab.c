@@ -67,14 +67,14 @@ static void passive_grab_grab_keyboard(struct wl_client *client,
 	grab->surface = wl_resource_get_user_data(surface);
 	assert(grab->surface);
 
-	wl_resource_set_implementation(resource, &passive_grab_impl,
+	wl_resource_set_implementation(grab_resource, &passive_grab_impl,
 		grab, &passive_grab_grab_handle_destroy);
 
 	struct wlr_passive_grab_manager *manager = wl_resource_get_user_data(resource);
 	assert(manager);
 
-	wl_list_insert(&grab->link, &manager->grabs);
-	wlr_log(L_DEBUG, "Someting aquired an xwayland keyboard grab");
+	wl_list_insert(&manager->grabs, &grab->link);
+	wlr_log(L_DEBUG, "Someting aquired an xwayland keyboard grab: %p", manager);
 	wl_signal_emit(&manager->passive_grab->events.new_grab, grab);
 }
 
@@ -123,11 +123,12 @@ static void passive_grab_bind_v1(struct wl_client *client, void *data,
 		return;
 	}
 
+	manager->passive_grab = passive_grab;
 	wl_list_insert(&passive_grab->clients, &manager->link);
 	wl_list_init(&manager->grabs);
 	wl_resource_set_implementation(resource, &keyboard_grab_manager_impl,
 		manager, &passive_grab_manager_handle_destroy);
-	wlr_log(L_DEBUG, "Someting bound to xwayland keyboard grab");
+	wlr_log(L_DEBUG, "Someting bound to xwayland keyboard grab: %p", manager);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -147,7 +148,13 @@ struct wlr_passive_grab_v1 *wlr_passive_grab_create_v1(struct wl_display *displa
 	passive_grab->global = wl_global_create(display,
 		&zwp_xwayland_keyboard_grab_manager_v1_interface, 1, passive_grab,
 		passive_grab_bind_v1);
+	if (!passive_grab->global) {
+		free(passive_grab);
+		return NULL;
+	}
+
 	wl_list_init(&passive_grab->clients);
+	wl_signal_init(&passive_grab->events.new_grab);
 
 	passive_grab->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &passive_grab->display_destroy);
