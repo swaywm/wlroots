@@ -65,24 +65,24 @@ xcb_image      = dependency('xcb-image')
 xcb_render     = dependency('xcb-render')
 xcb_icccm      = dependency('xcb-icccm', required: false)
 x11_xcb        = dependency('x11-xcb')
-libcap         = dependency('libcap', required: false)
-systemd        = dependency('libsystemd', required: false)
-elogind        = dependency('libelogind', required: false)
+libcap         = dependency('libcap', required: get_option('enable_libcap') == 'true')
+systemd        = dependency('libsystemd', required: get_option('enable_systemd') == 'true')
+elogind        = dependency('libelogind', required: get_option('enable_elogind') == 'true')
 math           = cc.find_library('m', required: false)
 
 if xcb_icccm.found()
 	conf_data.set('WLR_HAS_XCB_ICCCM', true)
 endif
 
-if libcap.found() and get_option('enable_libcap')
+if libcap.found() and get_option('enable_libcap') != 'false'
 	conf_data.set('WLR_HAS_LIBCAP', true)
 endif
 
-if systemd.found() and get_option('enable_systemd')
+if systemd.found() and get_option('enable_systemd') != 'false'
 	conf_data.set('WLR_HAS_SYSTEMD', true)
 endif
 
-if elogind.found() and get_option('enable_elogind')
+if elogind.found() and get_option('enable_elogind') != 'false'
 	conf_data.set('WLR_HAS_ELOGIND', true)
 endif
 
