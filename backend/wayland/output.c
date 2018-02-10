@@ -47,7 +47,8 @@ static bool wlr_wl_output_make_current(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
-static bool wlr_wl_output_swap_buffers(struct wlr_output *wlr_output) {
+static bool wlr_wl_output_swap_buffers(struct wlr_output *wlr_output,
+		pixman_region32_t *damage) {
 	struct wlr_wl_backend_output *output =
 		(struct wlr_wl_backend_output *)wlr_output;
 
@@ -59,12 +60,8 @@ static bool wlr_wl_output_swap_buffers(struct wlr_output *wlr_output) {
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
-		return false;
-	}
-
-	return true;
+	return wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface,
+		damage);
 }
 
 static void wlr_wl_output_transform(struct wlr_output *_output,

@@ -1,9 +1,10 @@
 #ifndef WLR_EGL_H
 #define WLR_EGL_H
 
+#include <stdbool.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <stdbool.h>
+#include <pixman.h>
 #include <wayland-server.h>
 
 struct wlr_egl {
@@ -16,6 +17,7 @@ struct wlr_egl {
 
 	struct {
 		bool buffer_age;
+		bool swap_buffers_with_damage;
 	} egl_exts;
 
 	struct wl_display *wl_display;
@@ -71,5 +73,8 @@ const char *egl_error(void);
 
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);
+
+bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
+	pixman_region32_t *damage);
 
 #endif

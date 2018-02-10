@@ -507,8 +507,14 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		}
 	}
 
-	// TODO: provide `damage` (not `render_damage`) to backend
-	if (!output->impl->swap_buffers(output)) {
+	// Transform damage into renderer coordinates, ie. upside down
+	enum wl_output_transform transform = wlr_output_transform_compose(
+		wlr_output_transform_invert(output->transform),
+		WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	wlr_region_transform(&render_damage, &render_damage, transform, width,
+		height);
+
+	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
 		return false;
 	}
 

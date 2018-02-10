@@ -55,7 +55,8 @@ static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) 
 		buffer_age);
 }
 
-static bool output_swap_buffers(struct wlr_output *wlr_output) {
+static bool output_swap_buffers(struct wlr_output *wlr_output,
+		pixman_region32_t *damage) {
 	return true; // No-op
 }
 

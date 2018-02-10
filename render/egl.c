@@ -1,8 +1,8 @@
 #include <assert.h>
+#include <stdlib.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
-#include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/render/egl.h>
 #include "glapi.h"
@@ -143,6 +143,9 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 	egl->egl_exts.buffer_age =
 		strstr(egl->egl_exts_str, "EGL_EXT_buffer_age") != NULL;
+	egl->egl_exts.swap_buffers_with_damage =
+		strstr(egl->egl_exts_str, "EGL_EXT_swap_buffers_with_damage") != NULL ||
+		strstr(egl->egl_exts_str, "EGL_KHR_swap_buffers_with_damage") != NULL;
 
 	return true;
 
@@ -239,6 +242,40 @@ bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 
 	if (buffer_age != NULL) {
 		*buffer_age = wlr_egl_get_buffer_age(egl, surface);
+	}
+	return true;
+}
+
+bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
+		pixman_region32_t *damage) {
+	EGLBoolean ret;
+	if (damage != NULL && egl->egl_exts.swap_buffers_with_damage) {
+		int nrects;
+		pixman_box32_t *rects =
+			pixman_region32_rectangles(damage, &nrects);
+		EGLint egl_damage[4 * nrects];
+		for (int i = 0; i < nrects; ++i) {
+			egl_damage[4*i] = rects[i].x1;
+			egl_damage[4*i + 1] = rects[i].y1;
+			egl_damage[4*i + 2] = rects[i].x2 - rects[i].x1;
+			egl_damage[4*i + 3] = rects[i].y2 - rects[i].y1;
+		}
+
+		assert(eglSwapBuffersWithDamageEXT || eglSwapBuffersWithDamageKHR);
+		if (eglSwapBuffersWithDamageEXT) {
+			ret = eglSwapBuffersWithDamageEXT(egl->display, surface, egl_damage,
+				nrects);
+		} else {
+			ret = eglSwapBuffersWithDamageKHR(egl->display, surface, egl_damage,
+				nrects);
+		}
+	} else {
+		ret = eglSwapBuffers(egl->display, surface);
+	}
+
+	if (!ret) {
+		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		return false;
 	}
 	return true;
 }
