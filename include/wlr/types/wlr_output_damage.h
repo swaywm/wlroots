@@ -1,7 +1,9 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_DAMAGE_H
 #define WLR_TYPES_WLR_OUTPUT_DAMAGE_H
 
+#include <time.h>
 #include <pixman.h>
+#include <wlr/types/wlr_output.h>
 
 /**
  * Damage tracking requires to keep track of previous frames' damage. To allow
@@ -34,6 +36,8 @@ struct wlr_output_damage {
 
 	struct wl_listener output_destroy;
 	struct wl_listener output_mode;
+	struct wl_listener output_transform;
+	struct wl_listener output_scale;
 	struct wl_listener output_needs_swap;
 	struct wl_listener output_frame;
 };
