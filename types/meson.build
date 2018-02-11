@@ -11,6 +11,7 @@ lib_wlr_types = static_library(
 		'wlr_keyboard.c',
 		'wlr_list.c',
 		'wlr_output.c',
+		'wlr_output_damage.c',
 		'wlr_output_layout.c',
 		'wlr_pointer.c',
 		'wlr_primary_selection.c',

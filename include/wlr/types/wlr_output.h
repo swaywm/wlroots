@@ -38,6 +38,15 @@ struct wlr_output_cursor {
 
 struct wlr_output_impl;
 
+/**
+ * A compositor output region. This typically corresponds to a monitor that
+ * displays part of the compositor space.
+ *
+ * Compositors should listen to the `frame` event to render an output. They
+ * should call `wlr_output_make_current`, render and then call
+ * `wlr_output_swap_buffers`. No rendering should happen outside a `frame` event
+ * handler.
+ */
 struct wlr_output {
 	const struct wlr_output_impl *impl;
 	struct wlr_backend *backend;
