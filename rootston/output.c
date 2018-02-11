@@ -390,33 +390,14 @@ static void render_output(struct roots_output *output) {
 		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
 
-	int buffer_age = -1;
-	if (!wlr_output_make_current(wlr_output, &buffer_age)) {
+	bool needs_swap;
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	if (!wlr_output_damage_make_current(output->damage, &needs_swap, &damage)) {
 		return;
 	}
 
-	int width, height;
-	wlr_output_transformed_resolution(output->wlr_output, &width, &height);
-
-	// Check if we can use damage tracking
-	pixman_region32_t damage;
-	pixman_region32_init(&damage);
-	if (buffer_age <= 0 || buffer_age - 1 > ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN) {
-		// Buffer new or too old, damage the whole output
-		pixman_region32_union_rect(&damage, &damage, 0, 0, width, height);
-	} else {
-		pixman_region32_copy(&damage, &output->damage);
-
-		// Accumulate damage from old buffers
-		size_t idx = output->previous_damage_idx;
-		for (int i = 0; i < buffer_age - 1; ++i) {
-			int j = (idx + i) % ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
-			pixman_region32_union(&damage, &damage, &output->previous_damage[j]);
-		}
-	}
-	pixman_region32_intersect_rect(&damage, &damage, 0, 0, width, height);
-
-	if (!pixman_region32_not_empty(&damage) && !wlr_output->needs_swap) {
+	if (!needs_swap) {
 		// Output doesn't need swap and isn't damaged, skip rendering completely
 		goto damage_finish;
 	}
@@ -487,34 +468,23 @@ static void render_output(struct roots_output *output) {
 renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
 	wlr_renderer_end(renderer);
-	if (!wlr_output_swap_buffers(wlr_output, &now, &damage)) {
+	if (!wlr_output_damage_swap_buffers(output->damage, &now, &damage)) {
 		goto damage_finish;
 	}
-	// same as decrementing, but works on unsigned integers
-	output->previous_damage_idx += ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN - 1;
-	output->previous_damage_idx %= ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN;
-	pixman_region32_copy(&output->previous_damage[output->previous_damage_idx],
-		&output->damage);
-	pixman_region32_clear(&output->damage);
 	output->last_frame = desktop->last_frame = now;
 
 damage_finish:
 	pixman_region32_fini(&damage);
 }
 
-static void output_handle_frame(struct wl_listener *listener, void *data) {
+static void output_damage_handle_frame(struct wl_listener *listener,
+		void *data) {
 	struct roots_output *output = wl_container_of(listener, output, frame);
 	render_output(output);
 }
 
 void output_damage_whole(struct roots_output *output) {
-	int width, height;
-	wlr_output_transformed_resolution(output->wlr_output, &width, &height);
-
-	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
-		width, height);
-
-	wlr_output_schedule_frame(output->wlr_output);
+	wlr_output_damage_add_whole(output->damage);
 }
 
 static bool view_accept_damage(struct roots_output *output,
@@ -561,10 +531,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 
 	wlr_box_rotated_bounds(&box, -rotation, &box);
 
-	pixman_region32_union_rect(&output->damage, &output->damage,
-		box.x, box.y, box.width, box.height);
-
-	wlr_output_schedule_frame(output->wlr_output);
+	wlr_output_damage_add_box(output->damage, &box);
 }
 
 static void damage_whole_decoration(struct roots_view *view,
@@ -578,8 +545,7 @@ static void damage_whole_decoration(struct roots_view *view,
 
 	wlr_box_rotated_bounds(&box, -view->rotation, &box);
 
-	pixman_region32_union_rect(&output->damage, &output->damage,
-		box.x, box.y, box.width, box.height);
+	wlr_output_damage_add_box(output->damage, &box);
 }
 
 void output_damage_whole_view(struct roots_output *output,
@@ -626,8 +592,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 				ceil(wlr_output->scale) - surface->current->scale);
 		}
 		pixman_region32_translate(&damage, box.x, box.y);
-		pixman_region32_union(&output->damage, &output->damage, &damage);
-		pixman_region32_fini(&damage);
+		wlr_output_damage_add(output->damage, &damage);
 	} else {
 		pixman_box32_t *extents =
 			pixman_region32_extents(&surface->current->surface_damage);
@@ -638,14 +603,8 @@ static void damage_from_surface(struct wlr_surface *surface,
 			.height = (extents->y2 - extents->y1) * wlr_output->scale,
 		};
 		wlr_box_rotated_bounds(&damage_box, -rotation, &damage_box);
-		pixman_region32_union_rect(&output->damage, &output->damage,
-			damage_box.x, damage_box.y, damage_box.width, damage_box.height);
+		wlr_output_damage_add_box(output->damage, &damage_box);
 	}
-
-	pixman_region32_intersect_rect(&output->damage, &output->damage, 0, 0,
-		ow, oh);
-
-	wlr_output_schedule_frame(wlr_output);
 }
 
 void output_damage_from_view(struct roots_output *output,
@@ -655,19 +614,6 @@ void output_damage_from_view(struct roots_output *output,
 	}
 
 	view_for_each_surface(view, damage_from_surface, output);
-}
-
-static void output_handle_mode(struct wl_listener *listener, void *data) {
-	struct roots_output *output = wl_container_of(listener, output, mode);
-	output_damage_whole(output);
-}
-
-static void output_handle_needs_swap(struct wl_listener *listener, void *data) {
-	struct roots_output *output =
-		wl_container_of(listener, output, needs_swap);
-	pixman_region32_union(&output->damage, &output->damage,
-		&output->wlr_output->damage);
-	wlr_output_schedule_frame(output->wlr_output);
 }
 
 static void set_mode(struct wlr_output *output,
@@ -721,17 +667,11 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	output->desktop = desktop;
 	output->wlr_output = wlr_output;
 	wl_list_insert(&desktop->outputs, &output->link);
-	pixman_region32_init(&output->damage);
-	for (size_t i = 0; i < ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN; ++i) {
-		pixman_region32_init(&output->previous_damage[i]);
-	}
 
-	output->frame.notify = output_handle_frame;
-	wl_signal_add(&wlr_output->events.frame, &output->frame);
-	output->mode.notify = output_handle_mode;
-	wl_signal_add(&wlr_output->events.mode, &output->mode);
-	output->needs_swap.notify = output_handle_needs_swap;
-	wl_signal_add(&wlr_output->events.needs_swap, &output->needs_swap);
+	output->damage = wlr_output_damage_create(wlr_output);
+
+	output->frame.notify = output_damage_handle_frame;
+	wl_signal_add(&output->damage->events.frame, &output->frame);
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
@@ -782,13 +722,8 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
 
-	pixman_region32_fini(&output->damage);
-	for (size_t i = 0; i < ROOTS_OUTPUT_PREVIOUS_DAMAGE_LEN; ++i) {
-		pixman_region32_fini(&output->previous_damage[i]);
-	}
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->frame.link);
-	wl_list_remove(&output->mode.link);
-	wl_list_remove(&output->needs_swap.link);
+	wlr_output_damage_destroy(output->damage);
 	free(output);
 }
