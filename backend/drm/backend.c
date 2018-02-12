@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include <wlr/render/egl.h>
 #include "backend/drm/drm.h"
 
@@ -34,7 +35,7 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&conn->output);
 	}
 
-	wl_signal_emit(&backend->events.destroy, backend);
+	wlr_signal_emit_safe(&backend->events.destroy, backend);
 
 	wl_list_remove(&drm->display_destroy.link);
 	wl_list_remove(&drm->session_signal.link);

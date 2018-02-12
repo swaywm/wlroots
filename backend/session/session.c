@@ -13,6 +13,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
@@ -49,7 +50,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
-			wl_signal_emit(&dev->signal, session);
+			wlr_signal_emit_safe(&dev->signal, session);
 			break;
 		}
 	}

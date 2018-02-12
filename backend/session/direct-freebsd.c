@@ -15,6 +15,7 @@
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "backend/session/direct-ipc.h"
 
 const struct session_impl session_direct;
@@ -95,12 +96,12 @@ static int vt_handler(int signo, void *data) {
 
 	if (session->base.active) {
 		session->base.active = false;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
 		session->base.active = true;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
 
 	return 1;

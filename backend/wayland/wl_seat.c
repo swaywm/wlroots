@@ -10,6 +10,7 @@
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "backend/wayland.h"
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
@@ -78,7 +79,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.height_mm = layout_box.height;
 	wlr_event.x_mm = transformed.x + wlr_output->lx - layout_box.x;
 	wlr_event.y_mm = transformed.y + wlr_output->ly - layout_box.y;
-	wl_signal_emit(&dev->pointer->events.motion_absolute, &wlr_event);
+	wlr_signal_emit_safe(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -91,7 +92,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.button = button;
 	wlr_event.state = state;
 	wlr_event.time_msec = time;
-	wl_signal_emit(&dev->pointer->events.button, &wlr_event);
+	wlr_signal_emit_safe(&dev->pointer->events.button, &wlr_event);
 }
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
@@ -106,7 +107,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	wlr_event.orientation = axis;
 	wlr_event.time_msec = time;
 	wlr_event.source = wlr_wl_pointer->axis_source;
-	wl_signal_emit(&dev->pointer->events.axis, &wlr_event);
+	wlr_signal_emit_safe(&dev->pointer->events.axis, &wlr_event);
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
@@ -194,7 +195,7 @@ static struct wl_keyboard_listener keyboard_listener = {
 
 static void input_device_destroy(struct wlr_input_device *_dev) {
 	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)_dev;
-	wl_signal_emit(&dev->backend->backend.events.input_remove, &dev->wlr_input_device);
+	wlr_signal_emit_safe(&dev->backend->backend.events.input_remove, &dev->wlr_input_device);
 	if (dev->resource) {
 		wl_proxy_destroy(dev->resource);
 	}
@@ -256,7 +257,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wlr_device->pointer = &wlr_wl_pointer->wlr_pointer;
 		wlr_pointer_init(wlr_device->pointer, NULL);
 		wlr_wl_device->resource = wl_pointer;
-		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_device);
 		backend->pointer = wl_pointer;
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
@@ -280,7 +281,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_device);
 		wlr_wl_device->resource = wl_keyboard;
-		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_device);
 	}
 }
 

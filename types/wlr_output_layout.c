@@ -1,11 +1,12 @@
-#include <wlr/util/log.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_box.h>
 #include <limits.h>
 #include <float.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <wlr/util/log.h>
+#include <wlr/util/signal.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_box.h>
 
 struct wlr_output_layout_state {
 	struct wlr_box _box; // should never be read directly, use the getter
@@ -46,7 +47,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
-	wl_signal_emit(&l_output->events.destroy, l_output);
+	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
 	wl_list_remove(&l_output->state->mode.link);
 	wl_list_remove(&l_output->state->scale.link);
 	wl_list_remove(&l_output->state->transform.link);
@@ -61,7 +62,7 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 		return;
 	}
 
-	wl_signal_emit(&layout->events.destroy, layout);
+	wlr_signal_emit_safe(&layout->events.destroy, layout);
 
 	struct wlr_output_layout_output *l_output, *temp = NULL;
 	wl_list_for_each_safe(l_output, temp, &layout->outputs, link) {
@@ -129,7 +130,7 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 		wlr_output_set_position(l_output->output, l_output->x, l_output->y);
 	}
 
-	wl_signal_emit(&layout->events.change, layout);
+	wlr_signal_emit_safe(&layout->events.change, layout);
 }
 
 static void handle_output_mode(struct wl_listener *listener, void *data) {
@@ -204,7 +205,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = false;
 	wlr_output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
-	wl_signal_emit(&layout->events.add, l_output);
+	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
@@ -401,7 +402,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = true;
 	wlr_output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
-	wl_signal_emit(&layout->events.add, l_output);
+	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
 struct wlr_output *wlr_output_layout_get_center_output(

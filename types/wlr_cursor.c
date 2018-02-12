@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -325,7 +326,7 @@ static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
 	struct wlr_cursor_device *device =
 		wl_container_of(listener, device, motion);
-	wl_signal_emit(&device->cursor->events.motion, event);
+	wlr_signal_emit_safe(&device->cursor->events.motion, event);
 }
 
 static void handle_pointer_motion_absolute(struct wl_listener *listener,
@@ -333,62 +334,62 @@ static void handle_pointer_motion_absolute(struct wl_listener *listener,
 	struct wlr_event_pointer_motion_absolute *event = data;
 	struct wlr_cursor_device *device =
 		wl_container_of(listener, device, motion_absolute);
-	wl_signal_emit(&device->cursor->events.motion_absolute, event);
+	wlr_signal_emit_safe(&device->cursor->events.motion_absolute, event);
 }
 
 static void handle_pointer_button(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_button *event = data;
 	struct wlr_cursor_device *device =
 		wl_container_of(listener, device, button);
-	wl_signal_emit(&device->cursor->events.button, event);
+	wlr_signal_emit_safe(&device->cursor->events.button, event);
 }
 
 static void handle_pointer_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_axis *event = data;
 	struct wlr_cursor_device *device = wl_container_of(listener, device, axis);
-	wl_signal_emit(&device->cursor->events.axis, event);
+	wlr_signal_emit_safe(&device->cursor->events.axis, event);
 }
 
 static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_up);
-	wl_signal_emit(&device->cursor->events.touch_up, event);
+	wlr_signal_emit_safe(&device->cursor->events.touch_up, event);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_down);
-	wl_signal_emit(&device->cursor->events.touch_down, event);
+	wlr_signal_emit_safe(&device->cursor->events.touch_down, event);
 }
 
 static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_motion *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_motion);
-	wl_signal_emit(&device->cursor->events.touch_motion, event);
+	wlr_signal_emit_safe(&device->cursor->events.touch_motion, event);
 }
 
 static void handle_touch_cancel(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_cancel *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_cancel);
-	wl_signal_emit(&device->cursor->events.touch_cancel, event);
+	wlr_signal_emit_safe(&device->cursor->events.touch_cancel, event);
 }
 
 static void handle_tablet_tool_tip(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_tip *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_tip);
-	wl_signal_emit(&device->cursor->events.tablet_tool_tip, event);
+	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_tip, event);
 }
 
 static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_axis *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_axis);
-	wl_signal_emit(&device->cursor->events.tablet_tool_axis, event);
+	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_axis, event);
 }
 
 static void handle_tablet_tool_button(struct wl_listener *listener,
@@ -396,7 +397,7 @@ static void handle_tablet_tool_button(struct wl_listener *listener,
 	struct wlr_event_tablet_tool_button *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_button);
-	wl_signal_emit(&device->cursor->events.tablet_tool_button, event);
+	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_button, event);
 }
 
 static void handle_tablet_tool_proximity(struct wl_listener *listener,
@@ -404,7 +405,7 @@ static void handle_tablet_tool_proximity(struct wl_listener *listener,
 	struct wlr_event_tablet_tool_proximity *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_proximity);
-	wl_signal_emit(&device->cursor->events.tablet_tool_proximity, event);
+	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_proximity, event);
 }
 
 static void handle_device_destroy(struct wl_listener *listener, void *data) {

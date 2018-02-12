@@ -10,6 +10,7 @@
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 
 void wlr_input_device_init(struct wlr_input_device *dev,
 		enum wlr_input_device_type type,
@@ -29,7 +30,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 		return;
 	}
 
-	wl_signal_emit(&dev->events.destroy, dev);
+	wlr_signal_emit_safe(&dev->events.destroy, dev);
 
 	if (dev->_device) {
 		switch (dev->type) {

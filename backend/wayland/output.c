@@ -10,6 +10,7 @@
 #include <GLES2/gl2.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "backend/wayland.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
@@ -338,7 +339,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);
-	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
+	wlr_signal_emit_safe(&backend->backend.events.output_add, wlr_output);
 	return wlr_output;
 
 error:

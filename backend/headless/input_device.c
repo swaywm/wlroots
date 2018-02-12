@@ -6,12 +6,13 @@
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "backend/headless.h"
 
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 	struct wlr_headless_input_device *device =
 		(struct wlr_headless_input_device *)wlr_dev;
-	wl_signal_emit(&device->backend->backend.events.input_remove, wlr_dev);
+	wlr_signal_emit_safe(&device->backend->backend.events.input_remove, wlr_dev);
 	free(device);
 }
 
@@ -88,7 +89,7 @@ struct wlr_input_device *wlr_headless_add_input_device(
 	wl_list_insert(&backend->input_devices, &wlr_device->link);
 
 	if (backend->started) {
-		wl_signal_emit(&backend->backend.events.input_add, wlr_device);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_device);
 	}
 
 	return wlr_device;

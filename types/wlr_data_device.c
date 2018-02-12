@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
 
@@ -290,7 +291,7 @@ static void seat_client_selection_data_source_destroy(
 
 	seat->selection_data_source = NULL;
 
-	wl_signal_emit(&seat->events.selection, seat);
+	wlr_signal_emit_safe(&seat->events.selection, seat);
 }
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
@@ -321,7 +322,7 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 		wlr_seat_client_send_selection(focused_client);
 	}
 
-	wl_signal_emit(&seat->events.selection, seat);
+	wlr_signal_emit_safe(&seat->events.selection, seat);
 
 	if (source) {
 		seat->selection_data_source_destroy.notify =
@@ -457,7 +458,7 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 		if (drag->icon) {
 			drag->icon->mapped = false;
 			wl_list_remove(&drag->icon_destroy.link);
-			wl_signal_emit(&drag->icon->events.map, drag->icon);
+			wlr_signal_emit_safe(&drag->icon->events.map, drag->icon);
 		}
 
 		free(drag);
@@ -634,7 +635,7 @@ static void wlr_drag_icon_destroy(struct wlr_drag_icon *icon) {
 	if (!icon) {
 		return;
 	}
-	wl_signal_emit(&icon->events.destroy, icon);
+	wlr_signal_emit_safe(&icon->events.destroy, icon);
 	wlr_surface_set_role_committed(icon->surface, NULL, NULL);
 	wl_list_remove(&icon->surface_destroy.link);
 	wl_list_remove(&icon->seat_client_destroy.link);
@@ -691,7 +692,7 @@ static struct wlr_drag_icon *wlr_drag_icon_create(
 	icon->seat_client_destroy.notify = handle_drag_icon_seat_client_destroy;
 
 	wl_list_insert(&client->seat->drag_icons, &icon->link);
-	wl_signal_emit(&client->seat->events.new_drag_icon, icon);
+	wlr_signal_emit_safe(&client->seat->events.new_drag_icon, icon);
 
 	return icon;
 }
@@ -941,7 +942,7 @@ void wlr_data_source_finish(struct wlr_data_source *source) {
 		return;
 	}
 
-	wl_signal_emit(&source->events.destroy, source);
+	wlr_signal_emit_safe(&source->events.destroy, source);
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {

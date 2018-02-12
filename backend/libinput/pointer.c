@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "backend/libinput.h"
 
 struct wlr_pointer *wlr_libinput_pointer_create(
@@ -35,7 +36,7 @@ void handle_pointer_motion(struct libinput_event *event,
 		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	wlr_event.delta_x = libinput_event_pointer_get_dx(pevent);
 	wlr_event.delta_y = libinput_event_pointer_get_dy(pevent);
-	wl_signal_emit(&wlr_dev->pointer->events.motion, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.motion, &wlr_event);
 }
 
 void handle_pointer_motion_abs(struct libinput_event *event,
@@ -55,7 +56,7 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 	wlr_event.x_mm = libinput_event_pointer_get_absolute_x(pevent);
 	wlr_event.y_mm = libinput_event_pointer_get_absolute_y(pevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
-	wl_signal_emit(&wlr_dev->pointer->events.motion_absolute, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.motion_absolute, &wlr_event);
 }
 
 void handle_pointer_button(struct libinput_event *event,
@@ -81,7 +82,7 @@ void handle_pointer_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_RELEASED;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->pointer->events.button, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.button, &wlr_event);
 }
 
 void handle_pointer_axis(struct libinput_event *event,
@@ -128,7 +129,7 @@ void handle_pointer_axis(struct libinput_event *event,
 			}
 			wlr_event.delta = libinput_event_pointer_get_axis_value(
 					pevent, axies[i]);
-			wl_signal_emit(&wlr_dev->pointer->events.axis, &wlr_event);
+			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
 		}
 	}
 }

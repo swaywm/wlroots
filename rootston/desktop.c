@@ -16,6 +16,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "rootston/server.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
@@ -383,7 +384,7 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 
 void view_finish(struct roots_view *view) {
 	view_damage_whole(view);
-	wl_signal_emit(&view->events.destroy, view);
+	wlr_signal_emit_safe(&view->events.destroy, view);
 
 	wl_list_remove(&view->new_subsurface.link);
 

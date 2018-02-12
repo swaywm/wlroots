@@ -5,6 +5,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include <wayland-util.h>
+#include <wlr/util/signal.h>
 #include "backend/libinput.h"
 
 struct wlr_input_device *get_appropriate_device(
@@ -88,7 +89,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 			free(wlr_dev);
 			goto fail;
 		}
-		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_POINTER)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
@@ -101,7 +102,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 			free(wlr_dev);
 			goto fail;
 		}
-		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TOUCH)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
@@ -114,7 +115,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 			free(wlr_dev);
 			goto fail;
 		}
-		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_TOOL)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
@@ -127,7 +128,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 			free(wlr_dev);
 			goto fail;
 		}
-		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_PAD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
@@ -140,7 +141,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 			free(wlr_dev);
 			goto fail;
 		}
-		wl_signal_emit(&backend->backend.events.input_add, wlr_dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_dev);
 	}
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_GESTURE)) {
 		// TODO
@@ -178,7 +179,7 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	}
 	struct wlr_input_device *dev, *tmp_dev;
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
-		wl_signal_emit(&backend->backend.events.input_remove, dev);
+		wlr_signal_emit_safe(&backend->backend.events.input_remove, dev);
 		wlr_input_device_destroy(dev);
 	}
 	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {

@@ -18,6 +18,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include <wlr/render/matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
@@ -870,7 +871,7 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'",
 				wlr_conn->output.name);
-			wl_signal_emit(&drm->backend.events.output_add, &wlr_conn->output);
+			wlr_signal_emit_safe(&drm->backend.events.output_add, &wlr_conn->output);
 		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(L_INFO, "'%s' disconnected", wlr_conn->output.name);
@@ -1014,7 +1015,7 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 	case WLR_DRM_CONN_NEEDS_MODESET:
 		wlr_log(L_INFO, "Emitting destruction signal for '%s'",
 				conn->output.name);
-		wl_signal_emit(&drm->backend.events.output_remove, &conn->output);
+		wlr_signal_emit_safe(&drm->backend.events.output_remove, &conn->output);
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
 		break;

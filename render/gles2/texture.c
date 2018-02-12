@@ -10,6 +10,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "render/gles2.h"
 
 static struct pixel_format external_pixel_format = {
@@ -271,7 +272,7 @@ static void gles2_texture_bind(struct wlr_texture *_texture) {
 
 static void gles2_texture_destroy(struct wlr_texture *_texture) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
-	wl_signal_emit(&texture->wlr_texture.destroy_signal, &texture->wlr_texture);
+	wlr_signal_emit_safe(&texture->wlr_texture.destroy_signal, &texture->wlr_texture);
 	if (texture->tex_id) {
 		GL_CALL(glDeleteTextures(1, &texture->tex_id));
 	}

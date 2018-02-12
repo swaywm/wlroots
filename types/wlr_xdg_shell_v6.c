@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 #include "xdg-shell-unstable-v6-protocol.h"
 
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
@@ -160,7 +161,7 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	// TODO: probably need to ungrab before this event
-	wl_signal_emit(&surface->events.destroy, surface);
+	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
@@ -511,7 +512,7 @@ static void xdg_surface_get_popup(struct wl_client *client,
 		&zxdg_popup_v6_implementation, surface,
 		xdg_popup_resource_destroy);
 
-	wl_signal_emit(&parent->events.new_popup, surface->popup_state);
+	wlr_signal_emit_safe(&parent->events.new_popup, surface->popup_state);
 }
 
 
@@ -582,7 +583,7 @@ static void xdg_toplevel_protocol_show_window_menu(struct wl_client *client,
 		.y = y,
 	};
 
-	wl_signal_emit(&surface->events.request_show_window_menu, &event);
+	wlr_signal_emit_safe(&surface->events.request_show_window_menu, &event);
 }
 
 static void xdg_toplevel_protocol_move(struct wl_client *client,
@@ -610,7 +611,7 @@ static void xdg_toplevel_protocol_move(struct wl_client *client,
 		.serial = serial,
 	};
 
-	wl_signal_emit(&surface->events.request_move, &event);
+	wlr_signal_emit_safe(&surface->events.request_move, &event);
 }
 
 static void xdg_toplevel_protocol_resize(struct wl_client *client,
@@ -639,7 +640,7 @@ static void xdg_toplevel_protocol_resize(struct wl_client *client,
 		.edges = edges,
 	};
 
-	wl_signal_emit(&surface->events.request_resize, &event);
+	wlr_signal_emit_safe(&surface->events.request_resize, &event);
 }
 
 static void xdg_toplevel_protocol_set_max_size(struct wl_client *client,
@@ -660,14 +661,14 @@ static void xdg_toplevel_protocol_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = true;
-	wl_signal_emit(&surface->events.request_maximize, surface);
+	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
 	surface->toplevel_state->next.maximized = false;
-	wl_signal_emit(&surface->events.request_maximize, surface);
+	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
@@ -687,7 +688,7 @@ static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		.output = output,
 	};
 
-	wl_signal_emit(&surface->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
@@ -702,13 +703,13 @@ static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		.output = NULL,
 	};
 
-	wl_signal_emit(&surface->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->events.request_minimize, surface);
+	wlr_signal_emit_safe(&surface->events.request_minimize, surface);
 }
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
@@ -1123,7 +1124,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 
 	if (surface->configured && !surface->added) {
 		surface->added = true;
-		wl_signal_emit(&surface->client->shell->events.new_surface, surface);
+		wlr_signal_emit_safe(&surface->client->shell->events.new_surface, surface);
 	}
 }
 
@@ -1243,7 +1244,7 @@ static int wlr_xdg_client_v6_ping_timeout(void *user_data) {
 
 	struct wlr_xdg_surface_v6 *surface;
 	wl_list_for_each(surface, &client->surfaces, link) {
-		wl_signal_emit(&surface->events.ping_timeout, surface);
+		wlr_signal_emit_safe(&surface->events.ping_timeout, surface);
 	}
 
 	client->ping_serial = 0;

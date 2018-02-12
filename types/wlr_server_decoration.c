@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 
 static void server_decoration_handle_release(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -18,14 +19,14 @@ static void server_decoration_handle_request_mode(struct wl_client *client,
 		return;
 	}
 	decoration->mode = mode;
-	wl_signal_emit(&decoration->events.mode, decoration);
+	wlr_signal_emit_safe(&decoration->events.mode, decoration);
 	org_kde_kwin_server_decoration_send_mode(decoration->resource,
 		decoration->mode);
 }
 
 static void server_decoration_destroy(
 		struct wlr_server_decoration *decoration) {
-	wl_signal_emit(&decoration->events.destroy, decoration);
+	wlr_signal_emit_safe(&decoration->events.destroy, decoration);
 	wl_list_remove(&decoration->surface_destroy_listener.link);
 	wl_resource_set_user_data(decoration->resource, NULL);
 	wl_list_remove(&decoration->link);
@@ -97,7 +98,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 	org_kde_kwin_server_decoration_send_mode(decoration->resource,
 		decoration->mode);
 
-	wl_signal_emit(&manager->events.new_decoration, decoration);
+	wlr_signal_emit_safe(&manager->events.new_decoration, decoration);
 }
 
 static const struct org_kde_kwin_server_decoration_manager_interface

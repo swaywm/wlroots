@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include <wlr/util/signal.h>
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {
@@ -195,7 +196,7 @@ static void seat_client_primary_selection_source_destroy(
 
 	seat->primary_selection_source = NULL;
 
-	wl_signal_emit(&seat->events.primary_selection, seat);
+	wlr_signal_emit_safe(&seat->events.primary_selection, seat);
 }
 
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
@@ -225,7 +226,7 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 		wlr_seat_client_send_primary_selection(focused_client);
 	}
 
-	wl_signal_emit(&seat->events.primary_selection, seat);
+	wlr_signal_emit_safe(&seat->events.primary_selection, seat);
 
 	if (source) {
 		seat->primary_selection_source_destroy.notify =
@@ -278,7 +279,7 @@ void wlr_primary_selection_source_finish(
 		return;
 	}
 
-	wl_signal_emit(&source->events.destroy, source);
+	wlr_signal_emit_safe(&source->events.destroy, source);
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
