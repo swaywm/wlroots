@@ -1,16 +1,16 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <wlr/xwayland.h>
-#include <wlr/backend/libinput.h>
-#include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/seat.h"
+#include "rootston/server.h"
 
 static const char *device_type(enum wlr_input_device_type type) {
 	switch (type) {

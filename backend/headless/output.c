@@ -1,11 +1,11 @@
-#include <stdlib.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
+#include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/headless.h"
+#include "util/signal.h"
 
 static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 		unsigned int height) {

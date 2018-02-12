@@ -1,13 +1,13 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/interface.h>
+#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
-#include <wlr/render/interface.h>
-#include <wlr/types/wlr_surface.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {

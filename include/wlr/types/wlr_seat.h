@@ -1,10 +1,11 @@
 #ifndef WLR_TYPES_WLR_SEAT_H
 #define WLR_TYPES_WLR_SEAT_H
+
 #include <time.h>
-#include <wlr/types/wlr_surface.h>
+#include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-#include <wayland-server.h>
+#include <wlr/types/wlr_surface.h>
 
 /**
  * Contains state for a single client's bound wl_seat resource and can be used

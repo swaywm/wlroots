@@ -1,8 +1,8 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_DAMAGE_H
 #define WLR_TYPES_WLR_OUTPUT_DAMAGE_H
 
-#include <time.h>
 #include <pixman.h>
+#include <time.h>
 #include <wlr/types/wlr_output.h>
 
 /**

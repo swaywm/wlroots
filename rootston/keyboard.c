@@ -1,18 +1,18 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_pointer.h>
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
-#include "rootston/seat.h"
 #include "rootston/keyboard.h"
+#include "rootston/seat.h"
 
 static ssize_t pressed_keysyms_index(xkb_keysym_t *pressed_keysyms,
 		xkb_keysym_t keysym) {

@@ -1,10 +1,10 @@
+#include "util/signal.h"
 #include <stdlib.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
-#include <wlr/interfaces/wlr_output.h>
-#include <wlr/interfaces/wlr_input_device.h>
 #include "backend/headless.h"
 #include "glapi.h"
 

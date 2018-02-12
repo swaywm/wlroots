@@ -1,10 +1,10 @@
 #include <assert.h>
-#include <stdlib.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
-#include <wlr/util/log.h>
+#include <stdlib.h>
 #include <wlr/render/egl.h>
+#include <wlr/util/log.h>
 #include "glapi.h"
 
 // Extension documentation

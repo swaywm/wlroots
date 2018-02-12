@@ -1,8 +1,8 @@
 #ifndef WLR_TYPES_WLR_PRIMARY_SELECTION_H
 #define WLR_TYPES_WLR_PRIMARY_SELECTION_H
 
-#include <wlr/types/wlr_seat.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_seat.h>
 
 struct wlr_primary_selection_device_manager {
 	struct wl_global *global;

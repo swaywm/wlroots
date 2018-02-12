@@ -1,10 +1,9 @@
 #ifndef BACKEND_DRM_IFACE_H
 #define BACKEND_DRM_IFACE_H
 
+#include <gbm.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#include <gbm.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 

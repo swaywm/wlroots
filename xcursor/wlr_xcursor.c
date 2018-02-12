@@ -24,12 +24,12 @@
  */
 
 #define _XOPEN_SOURCE 500
-#include <wlr/xcursor.h>
-#include <wlr/util/log.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
+#include <wlr/util/log.h>
+#include <wlr/xcursor.h>
 #include "xcursor/xcursor.h"
 
 static void wlr_xcursor_destroy(struct wlr_xcursor *cursor) {

@@ -6,7 +6,6 @@
 #include "backend/wayland.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
-
 static void xdg_shell_handle_ping(void *data, struct zxdg_shell_v6 *shell,
 		uint32_t serial) {
 	zxdg_shell_v6_pong(shell, serial);

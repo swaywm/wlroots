@@ -1,18 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
-#include <time.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <assert.h>
-#include <wlr/types/wlr_output_layout.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
+#include <wlr/render/matrix.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include "rootston/server.h"
-#include "rootston/output.h"
 #include "rootston/config.h"
+#include "rootston/output.h"
+#include "rootston/server.h"
 
 typedef void (*surface_iterator_func_t)(struct wlr_surface *surface,
 	double lx, double ly, float rotation, void *data);

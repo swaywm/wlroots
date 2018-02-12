@@ -1,9 +1,9 @@
-#ifndef XWAYLAND_INTERNALS_H
-#define XWAYLAND_INTERNALS_H
+#ifndef WLR_XWM_H
+#define WLR_XWM_H
 
-#include <xcb/render.h>
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
+#include <xcb/render.h>
 
 enum atom_name {
 	WL_SURFACE_ID,

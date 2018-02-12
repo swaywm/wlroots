@@ -1,22 +1,23 @@
-#ifndef _ROOTSTON_DESKTOP_H
-#define _ROOTSTON_DESKTOP_H
+#ifndef ROOTSTON_DESKTOP_H
+#define ROOTSTON_DESKTOP_H
+
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_wl_shell.h>
-#include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_list.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_screenshooter.h>
-#include <wlr/types/wlr_list.h>
-#include <wlr/types/wlr_idle.h>
-#include "rootston/view.h"
+#include <wlr/types/wlr_wl_shell.h>
+#include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_xdg_shell_v6.h>
 #include "rootston/config.h"
 #include "rootston/output.h"
+#include "rootston/view.h"
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link

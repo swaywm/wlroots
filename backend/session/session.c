@@ -1,18 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <libudev.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <libudev.h>
 #include <wayland-server.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <wlr/config.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 #include "util/signal.h"
 
 extern const struct session_impl session_logind;

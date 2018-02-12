@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_POINTER_H
 #define WLR_TYPES_WLR_POINTER_H
 
-#include <wlr/types/wlr_input_device.h>
-#include <wayland-server.h>
 #include <stdint.h>
+#include <wayland-server.h>
+#include <wlr/types/wlr_input_device.h>
 
 struct wlr_pointer_impl;
 

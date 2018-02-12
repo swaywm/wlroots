@@ -1,10 +1,10 @@
-#include <stdint.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
-#include <wayland-util.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <wayland-server-protocol.h>
+#include <wayland-util.h>
 #include <wlr/backend.h>
 #include <wlr/render.h>
 #include <wlr/render/egl.h>

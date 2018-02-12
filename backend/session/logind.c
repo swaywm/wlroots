@@ -1,17 +1,17 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
-#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <sys/sysmacros.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/sysmacros.h>
+#include <unistd.h>
 #include <wayland-server.h>
-#include <wlr/config.h>
 #include <wlr/backend/session/interface.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 

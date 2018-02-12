@@ -1,22 +1,22 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
+#include <linux/input.h>
+#include <linux/kd.h>
+#include <linux/major.h>
+#include <linux/vt.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <linux/kd.h>
-#include <linux/major.h>
-#include <linux/input.h>
-#include <linux/vt.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/session/direct-ipc.h"
+#include "util/signal.h"
 
 enum { DRM_MAJOR = 226 };
 

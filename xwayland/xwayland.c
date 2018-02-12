@@ -4,23 +4,23 @@
 // for SOCK_CLOEXEC
 #define __BSD_VISIBLE 1
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <unistd.h>
 #include <wayland-server.h>
-#include <wlr/xwayland.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
+#include <wlr/xwayland.h>
+#include <wlr/xwm.h>
 #include "sockets.h"
-#include "wlr/xwm.h"
+#include "util/signal.h"
 
 #ifdef __FreeBSD__
 static inline int clearenv(void) {

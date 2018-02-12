@@ -157,16 +157,16 @@ wlroots = declare_dependency(
 
 
 summary = [
-  '',
-  '----------------',
-  'wlroots @0@'.format(meson.project_version()),
-  '',
-  '   libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
-  '  systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
-  '  elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
-  ' xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
-  '----------------',
-  ''
+	'',
+	'----------------',
+	'wlroots @0@'.format(meson.project_version()),
+	'',
+	'   libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
+	'  systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
+	'  elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
+	' xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
+	'----------------',
+	''
 ]
 message('\n'.join(summary))
 
@@ -195,18 +195,18 @@ if git.found()
 	etags = find_program('etags', required: false)
 	if etags.found() and all_files.length() > 0
 		custom_target('etags',
-		   build_by_default: true,
-		   input: all_files,
-		   output: 'TAGS',
-		   command: [etags.path(), '-o', 'TAGS'] + all_files)
+			build_by_default: true,
+			input: all_files,
+			output: 'TAGS',
+			command: [etags.path(), '-o', 'TAGS'] + all_files)
 	endif
 
 	ctags = find_program('ctags', required: false)
 	if ctags.found() and all_files.length() > 0
 		custom_target('ctags',
-		   build_by_default: true,
-		   input: all_files,
-		   output: 'tags',
-		   command: [ctags.path(), '-o', 'tags'] + all_files)
+			build_by_default: true,
+			input: all_files,
+			output: 'tags',
+			command: [ctags.path(), '-o', 'tags'] + all_files)
 	endif
 endif

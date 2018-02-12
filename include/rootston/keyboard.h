@@ -1,5 +1,5 @@
-#ifndef _ROOTSTON_KEYBOARD_H
-#define _ROOTSTON_KEYBOARD_H
+#ifndef ROOTSTON_KEYBOARD_H
+#define ROOTSTON_KEYBOARD_H
 
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"

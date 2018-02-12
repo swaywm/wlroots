@@ -2,8 +2,8 @@
 #define WLR_BACKEND_DRM_H
 
 #include <wayland-server.h>
-#include <wlr/backend/session.h>
 #include <wlr/backend.h>
+#include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,

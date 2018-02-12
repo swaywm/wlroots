@@ -1,17 +1,17 @@
-#include <stdint.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
-#include <wayland-util.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <wayland-server-protocol.h>
+#include <wayland-util.h>
 #include <wlr/render.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "render/gles2.h"
+#include "util/signal.h"
 
 static struct pixel_format external_pixel_format = {
 	.wl_format = 0,

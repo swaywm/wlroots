@@ -1,19 +1,19 @@
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <wayland-server.h>
-#include <xf86drm.h>
-#include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/egl.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
-#include <wlr/render/egl.h>
+#include <xf86drm.h>
 #include "backend/drm/drm.h"
+#include "util/signal.h"
 
 static bool wlr_drm_backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;

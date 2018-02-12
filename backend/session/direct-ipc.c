@@ -4,22 +4,22 @@
 #define INPUT_MAJOR 0
 #endif
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <wlr/config.h>
+#include <wlr/util/log.h>
+#include <xf86drm.h>
 #ifdef __linux__
 #include <sys/sysmacros.h>
 #include <linux/major.h>
 #endif
-#include <xf86drm.h>
-#include <wlr/config.h>
-#include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };

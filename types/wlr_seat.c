@@ -4,12 +4,12 @@
 #include <string.h>
 #include <time.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_primary_selection.h>
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {

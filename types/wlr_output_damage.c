@@ -1,11 +1,11 @@
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <time.h>
 #include <wayland-server.h>
-#include "util/signal.h"
 #include <wlr/types/wlr_box.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_damage.h>
+#include <wlr/types/wlr_output.h>
+#include "util/signal.h"
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_output_damage *output_damage =

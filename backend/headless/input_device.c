@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_touch.h>
-#include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
+#include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/headless.h"
+#include "util/signal.h"
 
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 	struct wlr_headless_input_device *device =

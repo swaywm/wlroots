@@ -1,8 +1,8 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
-#include <wayland-server.h>
 #include <pixman.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <wayland-server.h>
 
 static void region_add(struct wl_client *client, struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {

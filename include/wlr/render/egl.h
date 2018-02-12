@@ -1,10 +1,10 @@
-#ifndef WLR_EGL_H
-#define WLR_EGL_H
+#ifndef WLR_RENDER_EGL_H
+#define WLR_RENDER_EGL_H
 
-#include <stdbool.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <pixman.h>
+#include <stdbool.h>
 #include <wayland-server.h>
 
 struct wlr_egl {

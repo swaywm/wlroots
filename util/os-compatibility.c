@@ -24,13 +24,13 @@
  */
 
 #define _XOPEN_SOURCE 700
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <string.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "util/os-compatibility.h"
 
 int os_fd_set_cloexec(int fd) {

@@ -1,17 +1,17 @@
 #define _XOPEN_SOURCE 500
 #include <assert.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <wayland-client.h>
-#include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/wayland.h"
+#include "util/signal.h"
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t surface_x,

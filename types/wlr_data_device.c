@@ -1,14 +1,14 @@
 #define _XOPEN_SOURCE 700
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <assert.h>
 #include <unistd.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include <wlr/types/wlr_seat.h>
-#include <wlr/types/wlr_data_device.h>
 
 #define ALL_ACTIONS (WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | \
 		WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE | \

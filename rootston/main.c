@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
-#include <wlr/config.h>
 #include <wlr/backend.h>
 #include <wlr/backend/headless.h>
 #include <wlr/backend/multi.h>
+#include <wlr/config.h>
 #include <wlr/render.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"

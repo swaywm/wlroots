@@ -1,8 +1,8 @@
-#ifndef WLR_UTIL_LIST_H
-#define WLR_UTIL_LIST_H
+#ifndef WLR_TYPES_WLR_LIST_H
+#define WLR_TYPES_WLR_LIST_H
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 struct wlr_list {
 	size_t capacity;

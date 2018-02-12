@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <wlr/render/interface.h>
 
 void wlr_renderer_init(struct wlr_renderer *renderer,

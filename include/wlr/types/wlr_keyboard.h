@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_KEYBOARD_H
 #define WLR_TYPES_WLR_KEYBOARD_H
 
-#include <wayland-server.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <wayland-server.h>
 #include <wayland-server.h>
 #include <xkbcommon/xkbcommon.h>
 

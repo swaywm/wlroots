@@ -1,11 +1,11 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
-#include <wlr/backend/session.h>
+#include <stdlib.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/session.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 static int wlr_libinput_open_restricted(const char *path,
 		int flags, void *_backend) {

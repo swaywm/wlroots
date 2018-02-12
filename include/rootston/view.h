@@ -1,5 +1,5 @@
-#ifndef _ROOTSTON_VIEW_H
-#define _ROOTSTON_VIEW_H
+#ifndef ROOTSTON_VIEW_H
+#define ROOTSTON_VIEW_H
 
 #include <stdbool.h>
 #include <wlr/config.h>

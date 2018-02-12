@@ -8,8 +8,8 @@ sources = [
 	'main.c',
 	'output.c',
 	'seat.c',
-	'xdg_shell_v6.c',
 	'wl_shell.c',
+	'xdg_shell_v6.c',
 ]
 if get_option('enable_xwayland')
 	sources += ['xwayland.c']

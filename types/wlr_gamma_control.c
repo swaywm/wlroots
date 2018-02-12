@@ -4,8 +4,8 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "gamma-control-protocol.h"
+#include "util/signal.h"
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {

@@ -1,14 +1,14 @@
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <wayland-server-protocol.h>
 #include <wayland-server.h>
-#include <wlr/util/log.h>
-#include "util/signal.h"
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_wl_shell.h>
-#include <wayland-server-protocol.h>
+#include <wlr/util/log.h>
+#include "util/signal.h"
 
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
 

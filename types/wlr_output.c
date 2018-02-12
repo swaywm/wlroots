@@ -5,13 +5,13 @@
 #include <tgmath.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/render.h>
+#include <wlr/render/matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
 

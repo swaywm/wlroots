@@ -1,12 +1,12 @@
 #include <assert.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/xwayland.h>
 #include <wlr/util/log.h>
+#include <wlr/xwayland.h>
 #include "rootston/server.h"
 #include "rootston/server.h"
 

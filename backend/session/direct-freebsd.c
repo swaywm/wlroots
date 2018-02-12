@@ -1,22 +1,22 @@
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <dev/evdev/input.h>
-#include <sys/kbio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/consio.h>
+#include <sys/ioctl.h>
+#include <sys/kbio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/session/direct-ipc.h"
+#include "util/signal.h"
 
 const struct session_impl session_direct;
 

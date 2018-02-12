@@ -1,19 +1,17 @@
 #ifndef BACKEND_DRM_DRM_H
 #define BACKEND_DRM_DRM_H
 
+#include <EGL/egl.h>
+#include <gbm.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <wayland-server.h>
-#include <xf86drmMode.h>
-#include <EGL/egl.h>
-#include <gbm.h>
 #include <wayland-util.h>
-
-#include <wlr/backend/session.h>
 #include <wlr/backend/drm.h>
+#include <wlr/backend/session.h>
 #include <wlr/render/egl.h>
-
+#include <xf86drmMode.h>
 #include "iface.h"
 #include "properties.h"
 #include "renderer.h"

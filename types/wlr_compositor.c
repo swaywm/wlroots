@@ -1,11 +1,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_region.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include <wlr/types/wlr_surface.h>
-#include <wlr/types/wlr_region.h>
-#include <wlr/types/wlr_compositor.h>
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	wl_list_remove(wl_resource_get_link(data));

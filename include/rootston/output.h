@@ -1,8 +1,8 @@
-#ifndef _ROOTSTON_OUTPUT_H
-#define _ROOTSTON_OUTPUT_H
+#ifndef ROOTSTON_OUTPUT_H
+#define ROOTSTON_OUTPUT_H
 
-#include <time.h>
 #include <pixman.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output_damage.h>
 

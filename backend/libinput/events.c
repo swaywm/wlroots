@@ -1,12 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
+#include <wayland-util.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
-#include <wayland-util.h>
-#include "util/signal.h"
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,

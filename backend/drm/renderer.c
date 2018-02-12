@@ -1,18 +1,16 @@
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <gbm.h>
+#include <GLES2/gl2.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <gbm.h>
-#include <GLES2/gl2.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <wayland-util.h>
-
-#include <wlr/util/log.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render/matrix.h>
+#include <wlr/util/log.h>
 #include "backend/drm/drm.h"
 #include "glapi.h"
 

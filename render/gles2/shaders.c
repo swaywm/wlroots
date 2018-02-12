@@ -1,5 +1,5 @@
-#include "render/gles2.h"
 #include <GLES2/gl2.h>
+#include "render/gles2.h"
 
 // Colored quads
 const GLchar quad_vertex_src[] =

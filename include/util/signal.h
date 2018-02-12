@@ -1,5 +1,5 @@
-#ifndef WLR_UTIL_SIGNAL_H
-#define WLR_UTIL_SIGNAL_H
+#ifndef UTIL_SIGNAL_H
+#define UTIL_SIGNAL_H
 
 #include <wayland-server.h>
 

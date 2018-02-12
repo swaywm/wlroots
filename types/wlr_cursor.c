@@ -1,13 +1,13 @@
-#include <wlr/types/wlr_cursor.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <wayland-server.h>
+#include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include <wayland-server.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_input_device.h>
 
 struct wlr_cursor_device {
 	struct wlr_cursor *cursor;

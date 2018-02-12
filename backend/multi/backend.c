@@ -4,9 +4,9 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
-#include "backend/multi.h"
 #include "backend/drm/drm.h"
+#include "backend/multi.h"
+#include "util/signal.h"
 
 struct subbackend_state {
 	struct wlr_backend *backend;

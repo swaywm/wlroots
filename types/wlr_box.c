@@ -1,7 +1,7 @@
 #include <limits.h>
-#include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/util/log.h>

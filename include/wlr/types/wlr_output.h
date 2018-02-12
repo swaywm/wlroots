@@ -1,11 +1,11 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
+#include <pixman.h>
 #include <stdbool.h>
 #include <time.h>
-#include <pixman.h>
-#include <wayland-util.h>
 #include <wayland-server.h>
+#include <wayland-util.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode

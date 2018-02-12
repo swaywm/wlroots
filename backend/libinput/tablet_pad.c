@@ -1,12 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
 		struct libinput_device *libinput_dev) {

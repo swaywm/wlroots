@@ -1,12 +1,12 @@
-#include <limits.h>
-#include <float.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <float.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_box.h>
 
 struct wlr_output_layout_state {
 	struct wlr_box _box; // should never be read directly, use the getter

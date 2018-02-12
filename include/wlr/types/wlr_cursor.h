@@ -2,10 +2,10 @@
 #define WLR_TYPES_WLR_CURSOR_H
 
 #include <wayland-server.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_cursor_state;
 

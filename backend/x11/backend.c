@@ -1,29 +1,29 @@
 #define _POSIX_C_SOURCE 200112L
+#include <EGL/egl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <EGL/egl.h>
 #include <wayland-server.h>
-#include <xcb/xcb.h>
-#include <xcb/glx.h>
+#include <wlr/backend/interface.h>
+#include <wlr/backend/x11.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
+#include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
+#include <xcb/glx.h>
+#include <xcb/xcb.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
-#include <wlr/backend/interface.h>
-#include <wlr/backend/x11.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
-#include <wlr/interfaces/wlr_output.h>
-#include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/util/log.h>
-#include "util/signal.h"
 #include "backend/x11.h"
+#include "util/signal.h"
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;

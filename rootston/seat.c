@@ -3,14 +3,14 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
+#include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
-#include <wlr/types/wlr_idle.h>
-#include "rootston/xcursor.h"
-#include "rootston/input.h"
-#include "rootston/seat.h"
-#include "rootston/keyboard.h"
 #include "rootston/cursor.h"
+#include "rootston/input.h"
+#include "rootston/keyboard.h"
+#include "rootston/seat.h"
+#include "rootston/xcursor.h"
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =

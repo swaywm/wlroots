@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/types/wlr_tablet_tool.h>
 
 void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
 		struct wlr_tablet_tool_impl *impl) {
