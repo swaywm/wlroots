@@ -59,7 +59,6 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (dev->impl && dev->impl->destroy) {
 		dev->impl->destroy(dev);
 	} else {
-		wl_list_remove(&dev->events.destroy.listener_list);
 		free(dev);
 	}
 }

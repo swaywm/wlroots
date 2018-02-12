@@ -622,11 +622,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_list_init(&desktop->views);
 	wl_list_init(&desktop->outputs);
 
-	desktop->output_add.notify = output_add_notify;
-	wl_signal_add(&server->backend->events.output_add, &desktop->output_add);
-	desktop->output_remove.notify = output_remove_notify;
-	wl_signal_add(&server->backend->events.output_remove,
-		&desktop->output_remove);
+	desktop->new_output.notify = handle_new_output;
+	wl_signal_add(&server->backend->events.new_output, &desktop->new_output);
 
 	desktop->server = server;
 	desktop->config = config;

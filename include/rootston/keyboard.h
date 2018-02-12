@@ -13,6 +13,7 @@ struct roots_keyboard {
 	struct roots_keyboard_config *config;
 	struct wl_list link;
 
+	struct wl_listener device_destroy;
 	struct wl_listener keyboard_key;
 	struct wl_listener keyboard_modifiers;
 

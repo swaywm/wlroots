@@ -39,8 +39,7 @@ struct roots_desktop {
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
 
-	struct wl_listener output_add;
-	struct wl_listener output_remove;
+	struct wl_listener new_output;
 	struct wl_listener layout_change;
 	struct wl_listener xdg_shell_v6_surface;
 	struct wl_listener wl_shell_surface;

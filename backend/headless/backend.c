@@ -17,14 +17,14 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 	wl_list_for_each(output, &backend->outputs, link) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 		wlr_output_update_enabled(&output->wlr_output, true);
-		wlr_signal_emit_safe(&backend->backend.events.output_add,
+		wlr_signal_emit_safe(&backend->backend.events.new_output,
 			&output->wlr_output);
 	}
 
 	struct wlr_headless_input_device *input_device;
 	wl_list_for_each(input_device, &backend->input_devices,
 			wlr_input_device.link) {
-		wlr_signal_emit_safe(&backend->backend.events.input_add,
+		wlr_signal_emit_safe(&backend->backend.events.new_input,
 			&input_device->wlr_input_device);
 	}
 

@@ -230,9 +230,9 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	xcb_flush(x11->xcb_conn);
 	wlr_output_update_enabled(&output->wlr_output, true);
 
-	wlr_signal_emit_safe(&x11->backend.events.output_add, output);
-	wlr_signal_emit_safe(&x11->backend.events.input_add, &x11->keyboard_dev);
-	wlr_signal_emit_safe(&x11->backend.events.input_add, &x11->pointer_dev);
+	wlr_signal_emit_safe(&x11->backend.events.new_output, output);
+	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
+	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->pointer_dev);
 
 	wl_event_source_timer_update(x11->frame_timer, 16);
 
@@ -249,8 +249,8 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	struct wlr_x11_output *output = &x11->output;
 	wlr_output_destroy(&output->wlr_output);
 
-	wlr_signal_emit_safe(&backend->events.input_remove, &x11->pointer_dev);
-	wlr_signal_emit_safe(&backend->events.input_remove, &x11->keyboard_dev);
+	wlr_signal_emit_safe(&x11->pointer_dev.events.destroy, &x11->pointer_dev);
+	wlr_signal_emit_safe(&x11->keyboard_dev.events.destroy, &x11->keyboard_dev);
 	// TODO probably need to use wlr_keyboard_destroy, but the devices need to
 	// be malloced for that to work
 	if (x11->keyboard_dev.keyboard->keymap) {

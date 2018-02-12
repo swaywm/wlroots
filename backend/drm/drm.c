@@ -871,7 +871,8 @@ void wlr_drm_scan_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			wlr_log(L_INFO, "Sending modesetting signal for '%s'",
 				wlr_conn->output.name);
-			wlr_signal_emit_safe(&drm->backend.events.output_add, &wlr_conn->output);
+			wlr_signal_emit_safe(&drm->backend.events.new_output,
+				&wlr_conn->output);
 		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(L_INFO, "'%s' disconnected", wlr_conn->output.name);
@@ -979,8 +980,6 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		return;
 	}
 
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)conn->output.backend;
-
 	switch (conn->state) {
 	case WLR_DRM_CONN_CONNECTED:
 	case WLR_DRM_CONN_CLEANUP:;
@@ -1014,8 +1013,8 @@ void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		/* Fallthrough */
 	case WLR_DRM_CONN_NEEDS_MODESET:
 		wlr_log(L_INFO, "Emitting destruction signal for '%s'",
-				conn->output.name);
-		wlr_signal_emit_safe(&drm->backend.events.output_remove, &conn->output);
+			conn->output.name);
+		wlr_signal_emit_safe(&conn->output.events.destroy, &conn->output);
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
 		break;

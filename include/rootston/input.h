@@ -13,8 +13,7 @@ struct roots_input {
 	struct roots_config *config;
 	struct roots_server *server;
 
-	struct wl_listener input_add;
-	struct wl_listener input_remove;
+	struct wl_listener new_input;
 
 	struct wl_list seats;
 };

@@ -11,11 +11,9 @@
 struct subbackend_state {
 	struct wlr_backend *backend;
 	struct wlr_backend *container;
-	struct wl_listener input_add;
-	struct wl_listener input_remove;
-	struct wl_listener output_add;
-	struct wl_listener output_remove;
-	struct wl_listener backend_destroy;
+	struct wl_listener new_input;
+	struct wl_listener new_output;
+	struct wl_listener destroy;
 	struct wl_list link;
 };
 
@@ -32,11 +30,9 @@ static bool multi_backend_start(struct wlr_backend *wlr_backend) {
 }
 
 static void subbackend_state_destroy(struct subbackend_state *sub) {
-	wl_list_remove(&sub->input_add.link);
-	wl_list_remove(&sub->input_remove.link);
-	wl_list_remove(&sub->output_add.link);
-	wl_list_remove(&sub->output_remove.link);
-	wl_list_remove(&sub->backend_destroy.link);
+	wl_list_remove(&sub->new_input.link);
+	wl_list_remove(&sub->new_output.link);
+	wl_list_remove(&sub->destroy.link);
 	wl_list_remove(&sub->link);
 	free(sub);
 }
@@ -118,34 +114,21 @@ bool wlr_backend_is_multi(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
 
-static void input_add_reemit(struct wl_listener *listener, void *data) {
+static void new_input_reemit(struct wl_listener *listener, void *data) {
 	struct subbackend_state *state = wl_container_of(listener,
-			state, input_add);
-	wlr_signal_emit_safe(&state->container->events.input_add, data);
+			state, new_input);
+	wlr_signal_emit_safe(&state->container->events.new_input, data);
 }
 
-static void input_remove_reemit(struct wl_listener *listener, void *data) {
+static void new_output_reemit(struct wl_listener *listener, void *data) {
 	struct subbackend_state *state = wl_container_of(listener,
-			state, input_remove);
-	wlr_signal_emit_safe(&state->container->events.input_remove, data);
-}
-
-static void output_add_reemit(struct wl_listener *listener, void *data) {
-	struct subbackend_state *state = wl_container_of(listener,
-			state, output_add);
-	wlr_signal_emit_safe(&state->container->events.output_add, data);
-}
-
-static void output_remove_reemit(struct wl_listener *listener, void *data) {
-	struct subbackend_state *state = wl_container_of(listener,
-			state, output_remove);
-	wlr_signal_emit_safe(&state->container->events.output_remove, data);
+			state, new_output);
+	wlr_signal_emit_safe(&state->container->events.new_output, data);
 }
 
 static void handle_subbackend_destroy(struct wl_listener *listener,
 		void *data) {
-	struct subbackend_state *state = wl_container_of(listener,
-			state, backend_destroy);
+	struct subbackend_state *state = wl_container_of(listener, state, destroy);
 	subbackend_state_destroy(state);
 }
 
@@ -180,20 +163,14 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
-	wl_signal_add(&backend->events.destroy, &sub->backend_destroy);
-	sub->backend_destroy.notify = handle_subbackend_destroy;
+	wl_signal_add(&backend->events.destroy, &sub->destroy);
+	sub->destroy.notify = handle_subbackend_destroy;
 
-	wl_signal_add(&backend->events.input_add, &sub->input_add);
-	sub->input_add.notify = input_add_reemit;
+	wl_signal_add(&backend->events.new_input, &sub->new_input);
+	sub->new_input.notify = new_input_reemit;
 
-	wl_signal_add(&backend->events.input_remove, &sub->input_remove);
-	sub->input_remove.notify = input_remove_reemit;
-
-	wl_signal_add(&backend->events.output_add, &sub->output_add);
-	sub->output_add.notify = output_add_reemit;
-
-	wl_signal_add(&backend->events.output_remove, &sub->output_remove);
-	sub->output_remove.notify = output_remove_reemit;
+	wl_signal_add(&backend->events.new_output, &sub->new_output);
+	sub->new_output.notify = new_output_reemit;
 
 	wlr_signal_emit_safe(&multi->events.backend_add, backend);
 }

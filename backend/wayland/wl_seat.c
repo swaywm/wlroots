@@ -193,9 +193,8 @@ static struct wl_keyboard_listener keyboard_listener = {
 	.repeat_info = keyboard_handle_repeat_info
 };
 
-static void input_device_destroy(struct wlr_input_device *_dev) {
-	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)_dev;
-	wlr_signal_emit_safe(&dev->backend->backend.events.input_remove, &dev->wlr_input_device);
+static void input_device_destroy(struct wlr_input_device *wlr_dev) {
+	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)wlr_dev;
 	if (dev->resource) {
 		wl_proxy_destroy(dev->resource);
 	}
@@ -257,7 +256,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wlr_device->pointer = &wlr_wl_pointer->wlr_pointer;
 		wlr_pointer_init(wlr_device->pointer, NULL);
 		wlr_wl_device->resource = wl_pointer;
-		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_device);
+		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_device);
 		backend->pointer = wl_pointer;
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
@@ -281,7 +280,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_device);
 		wlr_wl_device->resource = wl_keyboard;
-		wlr_signal_emit_safe(&backend->backend.events.input_add, wlr_device);
+		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_device);
 	}
 }
 

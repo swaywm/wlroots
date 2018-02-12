@@ -56,18 +56,21 @@ struct roots_drag_icon {
 struct roots_pointer {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_list link;
 };
 
 struct roots_touch {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_list link;
 };
 
 struct roots_tablet_tool {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_listener axis;
 	struct wl_listener proximity;
 	struct wl_listener tip;

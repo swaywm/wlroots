@@ -18,11 +18,11 @@ struct roots_output {
 	struct timespec last_frame;
 	struct wlr_output_damage *damage;
 
+	struct wl_listener destroy;
 	struct wl_listener frame;
 };
 
-void output_add_notify(struct wl_listener *listener, void *data);
-void output_remove_notify(struct wl_listener *listener, void *data);
+void handle_new_output(struct wl_listener *listener, void *data);
 
 struct roots_view;
 struct roots_drag_icon;
