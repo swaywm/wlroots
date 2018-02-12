@@ -13,7 +13,7 @@
 #include <wlr/render/matrix.h>
 #include <wlr/render.h>
 #include <wlr/util/region.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);

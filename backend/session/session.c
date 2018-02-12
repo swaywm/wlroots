@@ -13,7 +13,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;

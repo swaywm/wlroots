@@ -2,7 +2,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include "backend/headless.h"

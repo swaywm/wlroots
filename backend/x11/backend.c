@@ -22,7 +22,7 @@
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/x11.h"
 
 static struct wlr_backend_impl backend_impl;

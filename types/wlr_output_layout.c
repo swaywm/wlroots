@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_box.h>

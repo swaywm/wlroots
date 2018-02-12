@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wayland-server-protocol.h>

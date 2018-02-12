@@ -10,7 +10,7 @@
 #include <wlr/config.h>
 #include <wlr/util/log.h>
 #include <wlr/util/edges.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/types/wlr_surface.h>
 #include <wlr/xwayland.h>
 #include <wlr/xcursor.h>

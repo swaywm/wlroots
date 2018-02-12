@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_compositor.h>

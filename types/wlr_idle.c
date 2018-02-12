@@ -4,7 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "idle-protocol.h"
 
 static void idle_timeout_destroy(struct wlr_idle_timeout *timer) {

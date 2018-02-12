@@ -7,7 +7,7 @@
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {

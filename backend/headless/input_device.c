@@ -6,7 +6,7 @@
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/headless.h"
 
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {

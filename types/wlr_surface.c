@@ -3,7 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/render/egl.h>

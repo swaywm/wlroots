@@ -10,7 +10,7 @@
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/wayland.h"
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,

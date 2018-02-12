@@ -5,7 +5,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include <wayland-util.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/libinput.h"
 
 struct wlr_input_device *get_appropriate_device(

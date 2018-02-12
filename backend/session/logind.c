@@ -13,7 +13,7 @@
 #include <wlr/config.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 #ifdef WLR_HAS_SYSTEMD
 	#include <systemd/sd-bus.h>

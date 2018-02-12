@@ -11,7 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/render/egl.h>
 #include "backend/drm/drm.h"
 

@@ -1,4 +1,4 @@
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 static void handle_noop(struct wl_listener *listener, void *data) {
 	// Do nothing

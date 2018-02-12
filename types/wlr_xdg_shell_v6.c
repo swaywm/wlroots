@@ -10,7 +10,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "xdg-shell-unstable-v6-protocol.h"
 
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";

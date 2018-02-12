@@ -11,7 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/wayland.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 

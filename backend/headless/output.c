@@ -4,7 +4,7 @@
 #include <GLES2/gl2.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/headless.h"
 
 static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,

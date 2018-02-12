@@ -10,7 +10,7 @@
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 void wlr_input_device_init(struct wlr_input_device *dev,
 		enum wlr_input_device_type type,

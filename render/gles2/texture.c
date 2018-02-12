@@ -10,7 +10,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "render/gles2.h"
 
 static struct pixel_format external_pixel_format = {

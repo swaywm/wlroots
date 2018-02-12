@@ -5,7 +5,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/libinput.h"
 
 struct wlr_touch *wlr_libinput_touch_create(

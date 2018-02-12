@@ -4,7 +4,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/interface.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/libinput.h"
 
 static int wlr_libinput_open_restricted(const char *path,

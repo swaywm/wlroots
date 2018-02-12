@@ -15,7 +15,7 @@
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include "backend/session/direct-ipc.h"
 
 enum { DRM_MAJOR = 226 };

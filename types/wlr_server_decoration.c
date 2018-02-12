@@ -4,7 +4,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 static void server_decoration_handle_release(struct wl_client *client,
 		struct wl_resource *resource) {

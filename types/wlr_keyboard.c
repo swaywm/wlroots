@@ -7,7 +7,7 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 
 int os_create_anonymous_file(off_t size);
 

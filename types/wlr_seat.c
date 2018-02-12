@@ -7,7 +7,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
-#include <wlr/util/signal.h>
+#include "util/signal.h"
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
 
