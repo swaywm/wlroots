@@ -1,12 +1,10 @@
 #ifndef BACKEND_DRM_RENDERER_H
 #define BACKEND_DRM_RENDERER_H
 
-#include <stdbool.h>
-#include <stdint.h>
-
 #include <EGL/egl.h>
 #include <gbm.h>
-
+#include <stdbool.h>
+#include <stdint.h>
 #include <wlr/render.h>
 
 struct wlr_drm_backend;

@@ -2,9 +2,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <wlr/util/log.h>
 #include "backend/drm/properties.h"
 
 /*

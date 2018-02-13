@@ -1,10 +1,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
-#include <wlr/util/log.h>
-#include <wlr/types/wlr_surface.h>
-#include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_region.h>
+#include <wlr/types/wlr_surface.h>
+#include <wlr/util/log.h>
+#include "util/signal.h"
 
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	wl_list_remove(wl_resource_get_link(data));
@@ -35,7 +36,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 
 	wl_list_insert(&compositor->surfaces,
 		wl_resource_get_link(surface_resource));
-	wl_signal_emit(&compositor->events.new_surface, surface);
+	wlr_signal_emit_safe(&compositor->events.new_surface, surface);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,

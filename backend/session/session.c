@@ -1,18 +1,19 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <libudev.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <libudev.h>
 #include <wayland-server.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <wlr/config.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include "util/signal.h"
 
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
@@ -49,7 +50,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
-			wl_signal_emit(&dev->signal, session);
+			wlr_signal_emit_safe(&dev->signal, session);
 			break;
 		}
 	}

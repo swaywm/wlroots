@@ -1,12 +1,13 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/interface.h>
+#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include <wlr/render/interface.h>
-#include <wlr/types/wlr_surface.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/matrix.h>
+#include "util/signal.h"
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {
@@ -395,7 +396,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	}
 
 	// TODO: add the invalid bitfield to this callback
-	wl_signal_emit(&surface->events.commit, surface);
+	wlr_signal_emit_safe(&surface->events.commit, surface);
 
 	pixman_region32_clear(&surface->current->surface_damage);
 	pixman_region32_clear(&surface->current->buffer_damage);
@@ -559,7 +560,7 @@ static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
 }
 
 void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
-	wl_signal_emit(&subsurface->events.destroy, subsurface);
+	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wlr_surface_state_destroy(subsurface->cached);
 
@@ -578,7 +579,7 @@ void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
 
 static void destroy_surface(struct wl_resource *resource) {
 	struct wlr_surface *surface = wl_resource_get_user_data(resource);
-	wl_signal_emit(&surface->events.destroy, surface);
+	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
 	if (surface->subsurface) {
 		wlr_subsurface_destroy(surface->subsurface);
@@ -831,7 +832,7 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 
 	surface->subsurface = subsurface;
 
-	wl_signal_emit(&parent->events.new_subsurface, subsurface);
+	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
 }
 
 

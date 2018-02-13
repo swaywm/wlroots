@@ -1,16 +1,16 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <wlr/xwayland.h>
-#include <wlr/backend/libinput.h>
-#include "rootston/server.h"
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/seat.h"
+#include "rootston/server.h"
 
 static const char *device_type(enum wlr_input_device_type type) {
 	switch (type) {
@@ -40,9 +40,9 @@ struct roots_seat *input_get_seat(struct roots_input *input, char *name) {
 	return seat;
 }
 
-static void input_add_notify(struct wl_listener *listener, void *data) {
+static void handle_new_input(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
-	struct roots_input *input = wl_container_of(listener, input, input_add);
+	struct roots_input *input = wl_container_of(listener, input, new_input);
 
 	char *seat_name = ROOTS_CONFIG_DEFAULT_SEAT_NAME;
 	struct roots_device_config *dc =
@@ -74,16 +74,6 @@ static void input_add_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void input_remove_notify(struct wl_listener *listener, void *data) {
-	struct wlr_input_device *device = data;
-	struct roots_input *input = wl_container_of(listener, input, input_remove);
-
-	struct roots_seat *seat;
-	wl_list_for_each(seat, &input->seats, link) {
-		roots_seat_remove_device(seat, device);
-	}
-}
-
 struct roots_input *input_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots input");
@@ -99,10 +89,8 @@ struct roots_input *input_create(struct roots_server *server,
 
 	wl_list_init(&input->seats);
 
-	input->input_add.notify = input_add_notify;
-	wl_signal_add(&server->backend->events.input_add, &input->input_add);
-	input->input_remove.notify = input_remove_notify;
-	wl_signal_add(&server->backend->events.input_remove, &input->input_remove);
+	input->new_input.notify = handle_new_input;
+	wl_signal_add(&server->backend->events.new_input, &input->new_input);
 
 	return input;
 }

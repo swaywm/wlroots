@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_TABLET_PAD_H
 #define WLR_TYPES_WLR_TABLET_PAD_H
 
-#include <wlr/types/wlr_input_device.h>
-#include <wayland-server.h>
 #include <stdint.h>
+#include <wayland-server.h>
+#include <wlr/types/wlr_input_device.h>
 
 /*
  * NOTE: the wlr tablet pad implementation does not currently support tablets

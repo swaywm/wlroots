@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/interfaces/wlr_touch.h>
-#include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
+#include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/interfaces/wlr_touch.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
+#include "util/signal.h"
 
 void wlr_input_device_init(struct wlr_input_device *dev,
 		enum wlr_input_device_type type,
@@ -29,7 +30,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 		return;
 	}
 
-	wl_signal_emit(&dev->events.destroy, dev);
+	wlr_signal_emit_safe(&dev->events.destroy, dev);
 
 	if (dev->_device) {
 		switch (dev->type) {
@@ -58,7 +59,6 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (dev->impl && dev->impl->destroy) {
 		dev->impl->destroy(dev);
 	} else {
-		wl_list_remove(&dev->events.destroy.listener_list);
 		free(dev);
 	}
 }

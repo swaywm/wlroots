@@ -1,10 +1,10 @@
 #ifndef WLR_RENDER_INTERFACE_H
 #define WLR_RENDER_INTERFACE_H
 
-#include <wayland-server-protocol.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdbool.h>
+#include <wayland-server-protocol.h>
 #include <wlr/render.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>

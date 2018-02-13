@@ -1,10 +1,10 @@
 #ifndef WLR_BACKEND_SESSION_H
 #define WLR_BACKEND_SESSION_H
 
-#include <stdbool.h>
-#include <wayland-server.h>
 #include <libudev.h>
+#include <stdbool.h>
 #include <sys/types.h>
+#include <wayland-server.h>
 
 struct session_impl;
 

@@ -1,17 +1,18 @@
-#include <stdlib.h>
-#include <stdint.h>
 #include <assert.h>
-#include <limits.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <limits.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/backend/interface.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
-#include <wlr/backend/interface.h>
-#include <wlr/interfaces/wlr_output.h>
-#include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
@@ -80,7 +81,7 @@ static void wlr_wl_backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_input_device_destroy(input_device);
 	}
 
-	wl_signal_emit(&wlr_backend->events.destroy, wlr_backend);
+	wlr_signal_emit_safe(&wlr_backend->events.destroy, wlr_backend);
 
 	wl_list_remove(&backend->local_display_destroy.link);
 

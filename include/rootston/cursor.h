@@ -1,5 +1,5 @@
-#ifndef _ROOTSTON_CURSOR_H
-#define _ROOTSTON_CURSOR_H
+#ifndef ROOTSTON_CURSOR_H
+#define ROOTSTON_CURSOR_H
 
 #include "rootston/seat.h"
 

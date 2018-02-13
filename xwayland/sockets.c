@@ -3,19 +3,19 @@
 // for SOCK_CLOEXEC
 #define __BSD_VISIBLE 1
 #endif
-#include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
-#include <errno.h>
-#include "wlr/util/log.h"
+#include <unistd.h>
+#include <wlr/util/log.h>
 #include "sockets.h"
 
 static const char *lock_fmt = "/tmp/.X%d-lock";

@@ -1,14 +1,14 @@
 #include <assert.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
-#include "rootston/server.h"
 #include "rootston/input.h"
+#include "rootston/server.h"
 
 static void popup_destroy(struct roots_view_child *child) {
 	assert(child->destroy == popup_destroy);

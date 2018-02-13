@@ -1,5 +1,5 @@
-#ifndef _ROOTSTON_KEYBOARD_H
-#define _ROOTSTON_KEYBOARD_H
+#ifndef ROOTSTON_KEYBOARD_H
+#define ROOTSTON_KEYBOARD_H
 
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/input.h"
@@ -13,6 +13,7 @@ struct roots_keyboard {
 	struct roots_keyboard_config *config;
 	struct wl_list link;
 
+	struct wl_listener device_destroy;
 	struct wl_listener keyboard_key;
 	struct wl_listener keyboard_modifiers;
 

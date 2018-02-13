@@ -1,9 +1,10 @@
+#include "util/signal.h"
 #include <stdlib.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
-#include <wlr/interfaces/wlr_output.h>
-#include <wlr/interfaces/wlr_input_device.h>
 #include "backend/headless.h"
 #include "glapi.h"
 
@@ -16,14 +17,14 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 	wl_list_for_each(output, &backend->outputs, link) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 		wlr_output_update_enabled(&output->wlr_output, true);
-		wl_signal_emit(&backend->backend.events.output_add,
+		wlr_signal_emit_safe(&backend->backend.events.new_output,
 			&output->wlr_output);
 	}
 
 	struct wlr_headless_input_device *input_device;
 	wl_list_for_each(input_device, &backend->input_devices,
 			wlr_input_device.link) {
-		wl_signal_emit(&backend->backend.events.input_add,
+		wlr_signal_emit_safe(&backend->backend.events.new_input,
 			&input_device->wlr_input_device);
 	}
 
@@ -51,7 +52,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 
-	wl_signal_emit(&wlr_backend->events.destroy, backend);
+	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
 	wlr_egl_finish(&backend->egl);
 	free(backend);

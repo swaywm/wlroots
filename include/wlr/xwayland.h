@@ -1,8 +1,8 @@
 #ifndef WLR_XWAYLAND_H
 #define WLR_XWAYLAND_H
 
-#include <time.h>
 #include <stdbool.h>
+#include <time.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>

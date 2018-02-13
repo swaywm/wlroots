@@ -4,22 +4,23 @@
 // for SOCK_CLOEXEC
 #define __BSD_VISIBLE 1
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <unistd.h>
 #include <wayland-server.h>
-#include "wlr/util/log.h"
-#include "wlr/xwayland.h"
+#include <wlr/util/log.h>
+#include <wlr/xwayland.h>
+#include <wlr/xwm.h>
 #include "sockets.h"
-#include "wlr/xwm.h"
+#include "util/signal.h"
 
 #ifdef __FreeBSD__
 static inline int clearenv(void) {
@@ -237,7 +238,7 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
 	setenv("DISPLAY", display_name, true);
 
-	wl_signal_emit(&wlr_xwayland->events.ready, wlr_xwayland);
+	wlr_signal_emit_safe(&wlr_xwayland->events.ready, wlr_xwayland);
 	/* ready is a one-shot signal, fire and forget */
 	wl_signal_init(&wlr_xwayland->events.ready);
 

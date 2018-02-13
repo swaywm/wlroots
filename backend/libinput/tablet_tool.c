@@ -1,11 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
 		struct libinput_device *libinput_dev) {
@@ -72,7 +73,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	}
 	wlr_log(L_DEBUG, "Tablet tool axis event %d @ %f,%f",
 			wlr_event.updated_axes, wlr_event.x_mm, wlr_event.y_mm);
-	wl_signal_emit(&wlr_dev->tablet_tool->events.axis, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.axis, &wlr_event);
 }
 
 void handle_tablet_tool_proximity(struct libinput_event *event,
@@ -98,7 +99,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		handle_tablet_tool_axis(event, libinput_dev);
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_tool->events.proximity, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.proximity, &wlr_event);
 }
 
 void handle_tablet_tool_tip(struct libinput_event *event,
@@ -124,7 +125,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		wlr_event.state = WLR_TABLET_TOOL_TIP_DOWN;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_tool->events.tip, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.tip, &wlr_event);
 }
 
 void handle_tablet_tool_button(struct libinput_event *event,
@@ -151,5 +152,5 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_PRESSED;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_tool->events.button, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.button, &wlr_event);
 }

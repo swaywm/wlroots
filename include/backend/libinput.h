@@ -1,10 +1,11 @@
 #ifndef BACKEND_LIBINPUT_H
 #define BACKEND_LIBINPUT_H
+
 #include <libinput.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_list.h>
 
 struct wlr_libinput_backend {

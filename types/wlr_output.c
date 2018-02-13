@@ -5,14 +5,15 @@
 #include <tgmath.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/render.h>
+#include <wlr/render/matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render.h>
 #include <wlr/util/region.h>
+#include "util/signal.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
@@ -139,7 +140,7 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	}
 
 	output->enabled = enabled;
-	wl_signal_emit(&output->events.enable, output);
+	wlr_signal_emit_safe(&output->events.enable, output);
 }
 
 static void wlr_output_update_matrix(struct wlr_output *output) {
@@ -193,7 +194,7 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		wlr_output_send_current_mode_to_resource(resource);
 	}
 
-	wl_signal_emit(&output->events.mode, output);
+	wlr_signal_emit_safe(&output->events.mode, output);
 }
 
 void wlr_output_set_transform(struct wlr_output *output,
@@ -207,7 +208,7 @@ void wlr_output_set_transform(struct wlr_output *output,
 		wl_output_send_to_resource(resource);
 	}
 
-	wl_signal_emit(&output->events.transform, output);
+	wlr_signal_emit_safe(&output->events.transform, output);
 }
 
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,
@@ -239,7 +240,7 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 		wl_output_send_to_resource(resource);
 	}
 
-	wl_signal_emit(&output->events.scale, output);
+	wlr_signal_emit_safe(&output->events.scale, output);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -284,8 +285,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	wlr_output_destroy_global(output);
 	wlr_output_set_fullscreen_surface(output, NULL);
 
-	wl_signal_emit(&output->backend->events.output_remove, output);
-	wl_signal_emit(&output->events.destroy, output);
+	wlr_signal_emit_safe(&output->events.destroy, output);
 
 	struct wlr_output_mode *mode, *tmp_mode;
 	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
@@ -471,7 +471,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	wl_signal_emit(&output->events.swap_buffers, damage);
+	wlr_signal_emit_safe(&output->events.swap_buffers, damage);
 
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
@@ -528,7 +528,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 
 void wlr_output_send_frame(struct wlr_output *output) {
 	output->frame_pending = false;
-	wl_signal_emit(&output->events.frame, output);
+	wlr_signal_emit_safe(&output->events.frame, output);
 }
 
 static void schedule_frame_handle_idle_timer(void *data) {
@@ -566,7 +566,7 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 
 void wlr_output_update_needs_swap(struct wlr_output *output) {
 	output->needs_swap = true;
-	wl_signal_emit(&output->events.needs_swap, output);
+	wlr_signal_emit_safe(&output->events.needs_swap, output);
 }
 
 static void output_damage_whole(struct wlr_output *output) {
@@ -883,7 +883,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		return;
 	}
 	output_cursor_reset(cursor);
-	wl_signal_emit(&cursor->events.destroy, cursor);
+	wlr_signal_emit_safe(&cursor->events.destroy, cursor);
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
 		if (cursor->output->impl->set_cursor) {

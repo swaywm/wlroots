@@ -1,5 +1,6 @@
-#ifndef _ROOTSTON_SEAT_H
-#define _ROOTSTON_SEAT_H
+#ifndef ROOTSTON_SEAT_H
+#define ROOTSTON_SEAT_H
+
 #include <wayland-server.h>
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
@@ -56,18 +57,21 @@ struct roots_drag_icon {
 struct roots_pointer {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_list link;
 };
 
 struct roots_touch {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_list link;
 };
 
 struct roots_tablet_tool {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
 	struct wl_listener axis;
 	struct wl_listener proximity;
 	struct wl_listener tip;

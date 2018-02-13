@@ -2,9 +2,9 @@
 #define WLR_INTERFACES_WLR_OUTPUT_H
 
 #include <stdbool.h>
+#include <wlr/backend.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/backend.h>
 
 struct wlr_output_impl {
 	void (*enable)(struct wlr_output *output, bool enable);

@@ -1,5 +1,5 @@
-#ifndef _ROOTSTON_XCURSOR_H
-#define _ROOTSTON_XCURSOR_H
+#ifndef ROOTSTON_XCURSOR_H
+#define ROOTSTON_XCURSOR_H
 
 #include <stdint.h>
 

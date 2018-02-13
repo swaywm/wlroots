@@ -1,6 +1,6 @@
-#include <stdlib.h>
-#include <stdbool.h>
 #include <GLES2/gl2.h>
+#include <stdbool.h>
+#include <stdlib.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 

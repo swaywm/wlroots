@@ -12,10 +12,8 @@ struct wlr_backend {
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal input_add;
-		struct wl_signal input_remove;
-		struct wl_signal output_add;
-		struct wl_signal output_remove;
+		struct wl_signal new_input;
+		struct wl_signal new_output;
 	} events;
 };
 

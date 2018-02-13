@@ -1,9 +1,9 @@
 #ifndef WLR_RENDER_H
 #define WLR_RENDER_H
 
-#include <stdint.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <stdint.h>
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>

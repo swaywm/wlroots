@@ -1,12 +1,13 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <assert.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
+#include "util/signal.h"
 
 int os_create_anonymous_file(off_t size);
 
@@ -110,7 +111,7 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 
 	bool updated = keyboard_modifier_update(keyboard);
 	if (updated) {
-		wl_signal_emit(&keyboard->events.modifiers, keyboard);
+		wlr_signal_emit_safe(&keyboard->events.modifiers, keyboard);
 	}
 }
 
@@ -128,11 +129,11 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 
 	bool updated = keyboard_modifier_update(keyboard);
 	if (updated) {
-		wl_signal_emit(&keyboard->events.modifiers, keyboard);
+		wlr_signal_emit_safe(&keyboard->events.modifiers, keyboard);
 	}
 
 	keyboard_key_update(keyboard, event);
-	wl_signal_emit(&keyboard->events.key, event);
+	wlr_signal_emit_safe(&keyboard->events.key, event);
 }
 
 void wlr_keyboard_init(struct wlr_keyboard *kb,
@@ -234,7 +235,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 
 	keyboard_modifier_update(kb);
 
-	wl_signal_emit(&kb->events.keymap, kb);
+	wlr_signal_emit_safe(&kb->events.keymap, kb);
 	return;
 
 err:
@@ -253,7 +254,7 @@ void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
 	}
 	kb->repeat_info.rate = rate;
 	kb->repeat_info.delay = delay;
-	wl_signal_emit(&kb->events.repeat_info, kb);
+	wlr_signal_emit_safe(&kb->events.repeat_info, kb);
 }
 
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {

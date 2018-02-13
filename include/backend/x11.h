@@ -1,11 +1,11 @@
-#ifndef WLR_X11_H
-#define WLR_X11_H
+#ifndef BACKEND_X11_H
+#define BACKEND_X11_H
 
 #include <stdbool.h>
-#include <xcb/xcb.h>
-#include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
 #include <wlr/render/egl.h>
+#include <X11/Xlib-xcb.h>
+#include <xcb/xcb.h>
 
 struct wlr_x11_backend;
 

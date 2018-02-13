@@ -1,8 +1,8 @@
 #ifndef BACKEND_HEADLESS_H
 #define BACKEND_HEADLESS_H
 
-#include <wlr/backend/interface.h>
 #include <wlr/backend/headless.h>
+#include <wlr/backend/interface.h>
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;

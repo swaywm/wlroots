@@ -1,7 +1,8 @@
-#ifndef _ROOTSTON_CONFIG_H
-#define _ROOTSTON_CONFIG_H
-#include <wlr/types/wlr_output_layout.h>
+#ifndef ROOTSTON_CONFIG_H
+#define ROOTSTON_CONFIG_H
+
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_output_layout.h>
 
 #define ROOTS_CONFIG_DEFAULT_SEAT_NAME "seat0"
 

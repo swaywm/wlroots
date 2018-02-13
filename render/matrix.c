@@ -1,9 +1,9 @@
-#include <string.h>
 #include <math.h>
+#include <string.h>
 #include <wayland-server-protocol.h>
+#include <wlr/render/matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/render/matrix.h>
 
 /* Obtains the index for the given row/column */
 static inline int mind(int row, int col) {

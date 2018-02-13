@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/util/log.h>
 #include "idle-protocol.h"
+#include "util/signal.h"
 
 static void idle_timeout_destroy(struct wlr_idle_timeout *timer) {
 	wl_list_remove(&timer->input_listener.link);
@@ -186,5 +187,5 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 }
 
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat) {
-	wl_signal_emit(&idle->activity_notify, seat);
+	wlr_signal_emit_safe(&idle->activity_notify, seat);
 }

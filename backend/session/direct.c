@@ -1,21 +1,22 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
+#include <linux/input.h>
+#include <linux/kd.h>
+#include <linux/major.h>
+#include <linux/vt.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <linux/kd.h>
-#include <linux/major.h>
-#include <linux/input.h>
-#include <linux/vt.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
+#include "util/signal.h"
 
 enum { DRM_MAJOR = 226 };
 
@@ -107,7 +108,7 @@ static int vt_handler(int signo, void *data) {
 
 	if (session->base.active) {
 		session->base.active = false;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 
 		struct wlr_device *dev;
 		wl_list_for_each(dev, &session->base.devices, link) {
@@ -130,7 +131,7 @@ static int vt_handler(int signo, void *data) {
 		}
 
 		session->base.active = true;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
 
 	return 1;

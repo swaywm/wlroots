@@ -1,16 +1,17 @@
-#include <stdio.h>
 #include <assert.h>
+#include <GLES2/gl2.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <wayland-client.h>
-#include <GLES2/gl2.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
 int os_create_anonymous_file(off_t size);
@@ -338,7 +339,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);
-	wl_signal_emit(&backend->backend.events.output_add, wlr_output);
+	wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 	return wlr_output;
 
 error:

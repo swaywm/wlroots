@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "gamma-control-protocol.h"
+#include "util/signal.h"
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -15,7 +16,7 @@ static void gamma_control_destroy(struct wlr_gamma_control *gamma_control) {
 	if (gamma_control == NULL) {
 		return;
 	}
-	wl_signal_emit(&gamma_control->events.destroy, gamma_control);
+	wlr_signal_emit_safe(&gamma_control->events.destroy, gamma_control);
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
 	wl_resource_set_user_data(gamma_control->resource, NULL);
 	wl_list_remove(&gamma_control->link);

@@ -1,18 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
-#include <time.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <assert.h>
-#include <wlr/types/wlr_output_layout.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
+#include <wlr/render/matrix.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
-#include <wlr/render/matrix.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include "rootston/server.h"
-#include "rootston/output.h"
 #include "rootston/config.h"
+#include "rootston/output.h"
+#include "rootston/server.h"
 
 typedef void (*surface_iterator_func_t)(struct wlr_surface *surface,
 	double lx, double ly, float rotation, void *data);
@@ -644,9 +644,22 @@ static void set_mode(struct wlr_output *output,
 	}
 }
 
-void output_add_notify(struct wl_listener *listener, void *data) {
+static void output_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_output *output = wl_container_of(listener, output, destroy);
+
+	// TODO: cursor
+	//example_config_configure_cursor(sample->config, sample->cursor,
+	//	sample->compositor);
+
+	wl_list_remove(&output->link);
+	wl_list_remove(&output->destroy.link);
+	wl_list_remove(&output->frame.link);
+	free(output);
+}
+
+void handle_new_output(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = wl_container_of(listener, desktop,
-		output_add);
+		new_output);
 	struct wlr_output *wlr_output = data;
 	struct roots_input *input = desktop->server->input;
 	struct roots_config *config = desktop->config;
@@ -670,6 +683,8 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 
 	output->damage = wlr_output_damage_create(wlr_output);
 
+	output->destroy.notify = output_handle_destroy;
+	wl_signal_add(&wlr_output->events.destroy, &output->destroy);
 	output->frame.notify = output_damage_handle_frame;
 	wl_signal_add(&output->damage->events.frame, &output->frame);
 
@@ -698,32 +713,4 @@ void output_add_notify(struct wl_listener *listener, void *data) {
 	}
 
 	output_damage_whole(output);
-}
-
-void output_remove_notify(struct wl_listener *listener, void *data) {
-	struct wlr_output *wlr_output = data;
-	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, output_remove);
-
-	struct roots_output *output = NULL, *_output;
-	wl_list_for_each(_output, &desktop->outputs, link) {
-		if (_output->wlr_output == wlr_output) {
-			output = _output;
-			break;
-		}
-	}
-	if (!output) {
-		return; // We are unfamiliar with this output
-	}
-
-	wlr_output_layout_remove(desktop->layout, output->wlr_output);
-
-	// TODO: cursor
-	//example_config_configure_cursor(sample->config, sample->cursor,
-	//	sample->compositor);
-
-	wl_list_remove(&output->link);
-	wl_list_remove(&output->frame.link);
-	wlr_output_damage_destroy(output->damage);
-	free(output);
 }

@@ -3,14 +3,14 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
+#include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
-#include <wlr/types/wlr_idle.h>
-#include "rootston/xcursor.h"
-#include "rootston/input.h"
-#include "rootston/seat.h"
-#include "rootston/keyboard.h"
 #include "rootston/cursor.h"
+#include "rootston/input.h"
+#include "rootston/keyboard.h"
+#include "rootston/seat.h"
+#include "rootston/xcursor.h"
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
@@ -404,6 +404,17 @@ static void seat_update_capabilities(struct roots_seat *seat) {
 	}
 }
 
+static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
+	struct roots_keyboard *keyboard =
+		wl_container_of(listener, keyboard, device_destroy);
+	struct roots_seat *seat = keyboard->seat;
+	roots_keyboard_destroy(keyboard);
+	wl_list_remove(&keyboard->device_destroy.link);
+	wl_list_remove(&keyboard->keyboard_key.link);
+	wl_list_remove(&keyboard->keyboard_modifiers.link);
+	seat_update_capabilities(seat);
+}
+
 static void seat_add_keyboard(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	assert(device->type == WLR_INPUT_DEVICE_KEYBOARD);
@@ -418,15 +429,29 @@ static void seat_add_keyboard(struct roots_seat *seat,
 
 	wl_list_insert(&seat->keyboards, &keyboard->link);
 
+	keyboard->device_destroy.notify = handle_keyboard_destroy;
+	wl_signal_add(&keyboard->device->events.destroy, &keyboard->device_destroy);
 	keyboard->keyboard_key.notify = handle_keyboard_key;
 	wl_signal_add(&keyboard->device->keyboard->events.key,
 		&keyboard->keyboard_key);
-
 	keyboard->keyboard_modifiers.notify = handle_keyboard_modifiers;
 	wl_signal_add(&keyboard->device->keyboard->events.modifiers,
 		&keyboard->keyboard_modifiers);
 
 	wlr_seat_set_keyboard(seat->seat, device);
+}
+
+static void handle_pointer_destroy(struct wl_listener *listener, void *data) {
+	struct roots_pointer *pointer =
+		wl_container_of(listener, pointer, device_destroy);
+	struct roots_seat *seat = pointer->seat;
+
+	wl_list_remove(&pointer->link);
+	wlr_cursor_detach_input_device(seat->cursor->cursor, pointer->device);
+	wl_list_remove(&pointer->device_destroy.link);
+	free(pointer);
+
+	seat_update_capabilities(seat);
 }
 
 static void seat_add_pointer(struct roots_seat *seat,
@@ -441,8 +466,25 @@ static void seat_add_pointer(struct roots_seat *seat,
 	pointer->device = device;
 	pointer->seat = seat;
 	wl_list_insert(&seat->pointers, &pointer->link);
+
+	pointer->device_destroy.notify = handle_pointer_destroy;
+	wl_signal_add(&pointer->device->events.destroy, &pointer->device_destroy);
+
 	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
+}
+
+static void handle_touch_destroy(struct wl_listener *listener, void *data) {
+	struct roots_pointer *touch =
+		wl_container_of(listener, touch, device_destroy);
+	struct roots_seat *seat = touch->seat;
+
+	wl_list_remove(&touch->link);
+	wlr_cursor_detach_input_device(seat->cursor->cursor, touch->device);
+	wl_list_remove(&touch->device_destroy.link);
+	free(touch);
+
+	seat_update_capabilities(seat);
 }
 
 static void seat_add_touch(struct roots_seat *seat,
@@ -457,6 +499,10 @@ static void seat_add_touch(struct roots_seat *seat,
 	touch->device = device;
 	touch->seat = seat;
 	wl_list_insert(&seat->touch, &touch->link);
+
+	touch->device_destroy.notify = handle_touch_destroy;
+	wl_signal_add(&touch->device->events.destroy, &touch->device_destroy);
+
 	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
 }
@@ -464,6 +510,20 @@ static void seat_add_touch(struct roots_seat *seat,
 static void seat_add_tablet_pad(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	// TODO
+}
+
+static void handle_tablet_tool_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_pointer *tablet_tool =
+		wl_container_of(listener, tablet_tool, device_destroy);
+	struct roots_seat *seat = tablet_tool->seat;
+
+	wl_list_remove(&tablet_tool->link);
+	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet_tool->device);
+	wl_list_remove(&tablet_tool->device_destroy.link);
+	free(tablet_tool);
+
+	seat_update_capabilities(seat);
 }
 
 static void seat_add_tablet_tool(struct roots_seat *seat,
@@ -479,6 +539,11 @@ static void seat_add_tablet_tool(struct roots_seat *seat,
 	tablet_tool->device = device;
 	tablet_tool->seat = seat;
 	wl_list_insert(&seat->tablet_tools, &tablet_tool->link);
+
+	tablet_tool->device_destroy.notify = handle_tablet_tool_destroy;
+	wl_signal_add(&tablet_tool->device->events.destroy,
+		&tablet_tool->device_destroy);
+
 	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
 }
@@ -500,84 +565,6 @@ void roots_seat_add_device(struct roots_seat *seat,
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		seat_add_tablet_tool(seat, device);
-		break;
-	}
-
-	seat_update_capabilities(seat);
-}
-
-static void seat_remove_keyboard(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	struct roots_keyboard *keyboard;
-	wl_list_for_each(keyboard, &seat->keyboards, link) {
-		if (keyboard->device == device) {
-			roots_keyboard_destroy(keyboard);
-			return;
-		}
-	}
-}
-
-static void seat_remove_pointer(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	struct roots_pointer *pointer;
-	wl_list_for_each(pointer, &seat->pointers, link) {
-		if (pointer->device == device) {
-			wl_list_remove(&pointer->link);
-			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
-			free(pointer);
-			return;
-		}
-	}
-}
-
-static void seat_remove_touch(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	struct roots_touch *touch;
-	wl_list_for_each(touch, &seat->touch, link) {
-		if (touch->device == device) {
-			wl_list_remove(&touch->link);
-			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
-			free(touch);
-			return;
-		}
-	}
-}
-
-static void seat_remove_tablet_pad(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	// TODO
-}
-
-static void seat_remove_tablet_tool(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	struct roots_tablet_tool *tablet_tool;
-	wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
-		if (tablet_tool->device == device) {
-			wl_list_remove(&tablet_tool->link);
-			wlr_cursor_detach_input_device(seat->cursor->cursor, device);
-			free(tablet_tool);
-			return;
-		}
-	}
-}
-
-void roots_seat_remove_device(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	switch (device->type) {
-	case WLR_INPUT_DEVICE_KEYBOARD:
-		seat_remove_keyboard(seat, device);
-		break;
-	case WLR_INPUT_DEVICE_POINTER:
-		seat_remove_pointer(seat, device);
-		break;
-	case WLR_INPUT_DEVICE_TOUCH:
-		seat_remove_touch(seat, device);
-		break;
-	case WLR_INPUT_DEVICE_TABLET_PAD:
-		seat_remove_tablet_pad(seat, device);
-		break;
-	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		seat_remove_tablet_tool(seat, device);
 		break;
 	}
 

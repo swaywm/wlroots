@@ -1,17 +1,17 @@
-#include <wayland-server.h>
-#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <libinput.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <libinput.h>
-#include <wlr/backend/session.h>
-#include <wlr/backend/interface.h>
+#include <unistd.h>
+#include <wayland-server.h>
 #include <wlr/backend/drm.h>
+#include <wlr/backend/interface.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/backend/x11.h>
-#include <wlr/backend/multi.h>
 #include <wlr/util/log.h>
 
 void wlr_backend_init(struct wlr_backend *backend,
@@ -19,10 +19,8 @@ void wlr_backend_init(struct wlr_backend *backend,
 	assert(backend);
 	backend->impl = impl;
 	wl_signal_init(&backend->events.destroy);
-	wl_signal_init(&backend->events.input_add);
-	wl_signal_init(&backend->events.input_remove);
-	wl_signal_init(&backend->events.output_add);
-	wl_signal_init(&backend->events.output_remove);
+	wl_signal_init(&backend->events.new_input);
+	wl_signal_init(&backend->events.new_output);
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {

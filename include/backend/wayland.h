@@ -3,13 +3,13 @@
 
 #include <stdbool.h>
 #include <wayland-client.h>
-#include <wayland-server.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
-#include <wlr/render.h>
-#include <wlr/backend/wayland.h>
-#include <wlr/types/wlr_box.h>
+#include <wayland-server.h>
 #include <wayland-util.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/render.h>
+#include <wlr/render/egl.h>
+#include <wlr/types/wlr_box.h>
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;

@@ -1,9 +1,9 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
 
@@ -57,7 +57,7 @@ void handle_keyboard_key(struct libinput_event *event,
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_keyboard_get_time_usec(kbevent));
 	wlr_event.keycode = libinput_event_keyboard_get_key(kbevent);
-	enum libinput_key_state state = 
+	enum libinput_key_state state =
 		libinput_event_keyboard_get_key_state(kbevent);
 	switch (state) {
 	case LIBINPUT_KEY_STATE_RELEASED:

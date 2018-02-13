@@ -3,17 +3,18 @@
 #endif
 #include <stdlib.h>
 #include <unistd.h>
-#include <xcb/composite.h>
-#include <xcb/xfixes.h>
-#include <xcb/xcb_image.h>
-#include <xcb/render.h>
 #include <wlr/config.h>
-#include "wlr/util/log.h"
-#include "wlr/util/edges.h"
-#include "wlr/types/wlr_surface.h"
-#include "wlr/xwayland.h"
-#include "wlr/xcursor.h"
-#include "wlr/xwm.h"
+#include <wlr/types/wlr_surface.h>
+#include <wlr/util/edges.h>
+#include <wlr/util/log.h>
+#include <wlr/xcursor.h>
+#include <wlr/xwayland.h>
+#include <wlr/xwm.h>
+#include <xcb/composite.h>
+#include <xcb/render.h>
+#include <xcb/xcb_image.h>
+#include <xcb/xfixes.h>
+#include "util/signal.h"
 
 #ifdef WLR_HAS_XCB_ICCCM
 	#include <xcb/xcb_icccm.h>
@@ -210,7 +211,7 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 
 static void wlr_xwayland_surface_destroy(
 		struct wlr_xwayland_surface *xsurface) {
-	wl_signal_emit(&xsurface->events.destroy, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.destroy, xsurface);
 
 	if (xsurface == xsurface->xwm->focus_surface) {
 		xwm_surface_activate(xsurface->xwm, NULL);
@@ -266,7 +267,7 @@ static void read_surface_class(struct wlr_xwm *xwm,
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance,
 		surface->class);
-	wl_signal_emit(&surface->events.set_class, surface);
+	wlr_signal_emit_safe(&surface->events.set_class, surface);
 }
 
 static void read_surface_title(struct wlr_xwm *xwm,
@@ -291,7 +292,7 @@ static void read_surface_title(struct wlr_xwm *xwm,
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", xsurface->title);
-	wl_signal_emit(&xsurface->events.set_title, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.set_title, xsurface);
 }
 
 static void read_surface_parent(struct wlr_xwm *xwm,
@@ -316,7 +317,7 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 	}
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xsurface->parent);
-	wl_signal_emit(&xsurface->events.set_parent, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.set_parent, xsurface);
 }
 
 static void read_surface_pid(struct wlr_xwm *xwm,
@@ -329,7 +330,7 @@ static void read_surface_pid(struct wlr_xwm *xwm,
 	pid_t *pid = xcb_get_property_value(reply);
 	xsurface->pid = *pid;
 	wlr_log(L_DEBUG, "NET_WM_PID %d", xsurface->pid);
-	wl_signal_emit(&xsurface->events.set_pid, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.set_pid, xsurface);
 }
 
 static void read_surface_window_type(struct wlr_xwm *xwm,
@@ -352,7 +353,7 @@ static void read_surface_window_type(struct wlr_xwm *xwm,
 	xsurface->window_type_len = atoms_len;
 
 	wlr_log(L_DEBUG, "NET_WM_WINDOW_TYPE (%zu)", atoms_len);
-	wl_signal_emit(&xsurface->events.set_window_type, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.set_window_type, xsurface);
 }
 
 static void read_surface_protocols(struct wlr_xwm *xwm,
@@ -535,7 +536,7 @@ static void handle_surface_commit(struct wlr_surface *wlr_surface,
 	if (!xsurface->added &&
 			wlr_surface_has_buffer(xsurface->surface) &&
 			xsurface->mapped) {
-		wl_signal_emit(&xsurface->xwm->xwayland->events.new_surface, xsurface);
+		wlr_signal_emit_safe(&xsurface->xwm->xwayland->events.new_surface, xsurface);
 		xsurface->added = true;
 	}
 }
@@ -578,7 +579,7 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
 
 	xsurface->mapped = true;
-	wl_signal_emit(&xsurface->events.map_notify, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.map_notify, xsurface);
 }
 
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
@@ -626,7 +627,7 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		wlr_event->width = ev->width;
 		wlr_event->height = ev->height;
 
-		wl_signal_emit(&xsurface->events.request_configure, wlr_event);
+		wlr_signal_emit_safe(&xsurface->events.request_configure, wlr_event);
 
 		free(wlr_event);
 	}
@@ -710,7 +711,7 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 
 	if (xsurface->mapped) {
 		xsurface->mapped = false;
-		wl_signal_emit(&xsurface->events.unmap_notify, xsurface);
+		wlr_signal_emit_safe(&xsurface->events.unmap_notify, xsurface);
 	}
 
 	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
@@ -814,7 +815,7 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	switch (detail) {
 	case _NET_WM_MOVERESIZE_MOVE:
 		move_event.surface = xsurface;
-		wl_signal_emit(&xsurface->events.request_move, &move_event);
+		wlr_signal_emit_safe(&xsurface->events.request_move, &move_event);
 		break;
 	case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
 	case _NET_WM_MOVERESIZE_SIZE_TOP:
@@ -826,7 +827,7 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	case _NET_WM_MOVERESIZE_SIZE_LEFT:
 		resize_event.surface = xsurface;
 		resize_event.edges = net_wm_edges_to_wlr(detail);
-		wl_signal_emit(&xsurface->events.request_resize, &resize_event);
+		wlr_signal_emit_safe(&xsurface->events.request_resize, &resize_event);
 		break;
 	case _NET_WM_MOVERESIZE_CANCEL:
 		// handled by the compositor
@@ -904,7 +905,7 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 			xsurface->saved_height = xsurface->height;
 		}
 
-		wl_signal_emit(&xsurface->events.request_fullscreen, xsurface);
+		wlr_signal_emit_safe(&xsurface->events.request_fullscreen, xsurface);
 	}
 
 	if (maximized != xsurface_is_maximized(xsurface)) {
@@ -913,7 +914,7 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 			xsurface->saved_height = xsurface->height;
 		}
 
-		wl_signal_emit(&xsurface->events.request_maximize, xsurface);
+		wlr_signal_emit_safe(&xsurface->events.request_maximize, xsurface);
 	}
 }
 

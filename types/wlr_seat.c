@@ -4,11 +4,12 @@
 #include <string.h>
 #include <time.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_seat.h>
-#include <wlr/types/wlr_input_device.h>
-#include <wlr/util/log.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_seat.h>
+#include <wlr/util/log.h>
+#include "util/signal.h"
 
 static void resource_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -49,7 +50,7 @@ static void wl_pointer_set_cursor(struct wl_client *client,
 	event->hotspot_x = hotspot_x;
 	event->hotspot_y = hotspot_y;
 
-	wl_signal_emit(&seat_client->seat->events.request_set_cursor, event);
+	wlr_signal_emit_safe(&seat_client->seat->events.request_set_cursor, event);
 
 	free(event);
 }
@@ -177,7 +178,7 @@ static void wl_seat_get_touch(struct wl_client *client,
 
 static void wlr_seat_client_resource_destroy(struct wl_resource *seat_resource) {
 	struct wlr_seat_client *client = wl_resource_get_user_data(seat_resource);
-	wl_signal_emit(&client->events.destroy, client);
+	wlr_signal_emit_safe(&client->events.destroy, client);
 
 	if (client == client->seat->pointer_state.focused_client) {
 		client->seat->pointer_state.focused_client = NULL;
@@ -350,7 +351,7 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		return;
 	}
 
-	wl_signal_emit(&seat->events.destroy, seat);
+	wlr_signal_emit_safe(&seat->events.destroy, seat);
 
 	wl_list_remove(&seat->display_destroy.link);
 
@@ -656,14 +657,14 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 	assert(grab->seat);
 	wlr_seat->pointer_state.grab = grab;
 
-	wl_signal_emit(&wlr_seat->events.pointer_grab_begin, grab);
+	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_begin, grab);
 }
 
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	if (grab != wlr_seat->pointer_state.default_grab) {
 		wlr_seat->pointer_state.grab = wlr_seat->pointer_state.default_grab;
-		wl_signal_emit(&wlr_seat->events.pointer_grab_end, grab);
+		wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_end, grab);
 		if (grab->interface->cancel) {
 			grab->interface->cancel(grab);
 		}
@@ -812,7 +813,7 @@ void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 	grab->seat = wlr_seat;
 	wlr_seat->keyboard_state.grab = grab;
 
-	wl_signal_emit(&wlr_seat->events.keyboard_grab_begin, grab);
+	wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_begin, grab);
 }
 
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
@@ -820,7 +821,7 @@ void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
 
 	if (grab != wlr_seat->keyboard_state.default_grab) {
 		wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
-		wl_signal_emit(&wlr_seat->events.keyboard_grab_end, grab);
+		wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_end, grab);
 		if (grab->interface->cancel) {
 			grab->interface->cancel(grab);
 		}
@@ -979,7 +980,7 @@ void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
 	grab->seat = wlr_seat;
 	wlr_seat->touch_state.grab = grab;
 
-	wl_signal_emit(&wlr_seat->events.touch_grab_begin, grab);
+	wlr_signal_emit_safe(&wlr_seat->events.touch_grab_begin, grab);
 }
 
 void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
@@ -987,7 +988,7 @@ void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
 
 	if (grab != wlr_seat->touch_state.default_grab) {
 		wlr_seat->touch_state.grab = wlr_seat->touch_state.default_grab;
-		wl_signal_emit(&wlr_seat->events.touch_grab_end, grab);
+		wlr_signal_emit_safe(&wlr_seat->events.touch_grab_end, grab);
 		if (grab->interface->cancel) {
 			grab->interface->cancel(grab);
 		}
@@ -1003,7 +1004,7 @@ static void touch_point_clear_focus(struct wlr_touch_point *point) {
 }
 
 static void touch_point_destroy(struct wlr_touch_point *point) {
-	wl_signal_emit(&point->events.destroy, point);
+	wlr_signal_emit_safe(&point->events.destroy, point);
 
 	touch_point_clear_focus(point);
 	wl_list_remove(&point->surface_destroy.link);

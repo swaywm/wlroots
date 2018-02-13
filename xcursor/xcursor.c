@@ -24,11 +24,11 @@
  */
 
 #define _DEFAULT_SOURCE
-#include "xcursor/xcursor.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
+#include "xcursor/xcursor.h"
 
 /*
  * From libXcursor/include/X11/extensions/Xcursor.h

@@ -3,9 +3,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <wlr/util/log.h>
 
 static bool colored = true;

@@ -1,11 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
 		struct libinput_device *libinput_dev) {
@@ -41,7 +42,7 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_RELEASED;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_pad->events.button, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_pad->events.button, &wlr_event);
 }
 
 void handle_tablet_pad_ring(struct libinput_event *event,
@@ -67,7 +68,7 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 		wlr_event.source = WLR_TABLET_PAD_RING_SOURCE_FINGER;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_pad->events.ring, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_pad->events.ring, &wlr_event);
 }
 
 void handle_tablet_pad_strip(struct libinput_event *event,
@@ -93,5 +94,5 @@ void handle_tablet_pad_strip(struct libinput_event *event,
 		wlr_event.source = WLR_TABLET_PAD_STRIP_SOURCE_FINGER;
 		break;
 	}
-	wl_signal_emit(&wlr_dev->tablet_pad->events.strip, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet_pad->events.strip, &wlr_event);
 }

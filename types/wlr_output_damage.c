@@ -1,10 +1,11 @@
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_damage.h>
+#include <wlr/types/wlr_output.h>
+#include "util/signal.h"
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_output_damage *output_damage =
@@ -46,7 +47,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	wl_signal_emit(&output_damage->events.frame, output_damage);
+	wlr_signal_emit_safe(&output_damage->events.frame, output_damage);
 }
 
 struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
@@ -85,7 +86,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	if (output_damage == NULL) {
 		return;
 	}
-	wl_signal_emit(&output_damage->events.destroy, output_damage);
+	wlr_signal_emit_safe(&output_damage->events.destroy, output_damage);
 	wl_list_remove(&output_damage->output_destroy.link);
 	wl_list_remove(&output_damage->output_mode.link);
 	wl_list_remove(&output_damage->output_transform.link);

@@ -24,18 +24,18 @@ protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
+	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
-	'idle.xml',
 ]
 
 client_protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
+	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
-	'idle.xml',
 ]
 
 wl_protos_src = []

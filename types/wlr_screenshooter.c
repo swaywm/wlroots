@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/render.h>
 #include <wlr/backend.h>
-#include <wlr/types/wlr_screenshooter.h>
+#include <wlr/render.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_screenshooter.h>
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
 

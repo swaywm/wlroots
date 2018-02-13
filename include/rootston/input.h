@@ -1,20 +1,20 @@
-#ifndef _ROOTSTON_INPUT_H
-#define _ROOTSTON_INPUT_H
+#ifndef ROOTSTON_INPUT_H
+#define ROOTSTON_INPUT_H
+
 #include <wayland-server.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_seat.h>
-#include "rootston/cursor.h"
 #include "rootston/config.h"
-#include "rootston/view.h"
+#include "rootston/cursor.h"
 #include "rootston/server.h"
+#include "rootston/view.h"
 
 struct roots_input {
 	struct roots_config *config;
 	struct roots_server *server;
 
-	struct wl_listener input_add;
-	struct wl_listener input_remove;
+	struct wl_listener new_input;
 
 	struct wl_list seats;
 };

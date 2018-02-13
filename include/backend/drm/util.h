@@ -2,9 +2,9 @@
 #define BACKEND_DRM_UTIL_H
 
 #include <stdint.h>
+#include <wlr/types/wlr_output.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <wlr/types/wlr_output.h>
 
 // Calculates a more accurate refresh rate (mHz) than what mode itself provides
 int32_t calculate_refresh_rate(drmModeModeInfo *mode);

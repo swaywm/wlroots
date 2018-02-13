@@ -2,12 +2,13 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include <assert.h>
-#include <wayland-server.h>
-#include <wlr/util/log.h>
-#include <wlr/types/wlr_surface.h>
-#include <wlr/types/wlr_wl_shell.h>
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
+#include <wayland-server.h>
+#include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_wl_shell.h>
+#include <wlr/util/log.h>
+#include "util/signal.h"
 
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
 
@@ -123,7 +124,7 @@ static void shell_surface_protocol_move(struct wl_client *client,
 		.serial = serial,
 	};
 
-	wl_signal_emit(&surface->events.request_move, &event);
+	wlr_signal_emit_safe(&surface->events.request_move, &event);
 }
 
 static struct wlr_wl_shell_popup_grab *shell_popup_grab_from_seat(
@@ -187,7 +188,7 @@ static void shell_surface_protocol_resize(struct wl_client *client,
 		.edges = edges,
 	};
 
-	wl_signal_emit(&surface->events.request_resize, &event);
+	wlr_signal_emit_safe(&surface->events.request_resize, &event);
 }
 
 static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
@@ -200,7 +201,7 @@ static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
 	shell_surface_destroy_popup_state(surface);
 	surface->popup_state = popup_state;
 
-	wl_signal_emit(&surface->events.set_state, surface);
+	wlr_signal_emit_safe(&surface->events.set_state, surface);
 }
 
 static void shell_surface_protocol_set_toplevel(struct wl_client *client,
@@ -221,7 +222,7 @@ static void shell_surface_popup_set_parent(struct wlr_wl_shell_surface *surface,
 	if (parent) {
 		wl_list_remove(&surface->popup_link);
 		wl_list_insert(&parent->popups, &surface->popup_link);
-		wl_signal_emit(&parent->events.new_popup, surface);
+		wlr_signal_emit_safe(&parent->events.new_popup, surface);
 	}
 }
 
@@ -290,7 +291,7 @@ static void shell_surface_protocol_set_fullscreen(struct wl_client *client,
 		.output = output,
 	};
 
-	wl_signal_emit(&surface->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
 }
 
 static void shell_surface_protocol_set_popup(struct wl_client *client,
@@ -368,7 +369,7 @@ static void shell_surface_protocol_set_maximized(struct wl_client *client,
 		.output = output,
 	};
 
-	wl_signal_emit(&surface->events.request_maximize, &event);
+	wlr_signal_emit_safe(&surface->events.request_maximize, &event);
 }
 
 static void shell_surface_protocol_set_title(struct wl_client *client,
@@ -384,7 +385,7 @@ static void shell_surface_protocol_set_title(struct wl_client *client,
 	free(surface->title);
 	surface->title = tmp;
 
-	wl_signal_emit(&surface->events.set_title, surface);
+	wlr_signal_emit_safe(&surface->events.set_title, surface);
 }
 
 static void shell_surface_protocol_set_class(struct wl_client *client,
@@ -400,7 +401,7 @@ static void shell_surface_protocol_set_class(struct wl_client *client,
 	free(surface->class);
 	surface->class = tmp;
 
-	wl_signal_emit(&surface->events.set_class, surface);
+	wlr_signal_emit_safe(&surface->events.set_class, surface);
 }
 
 static const struct wl_shell_surface_interface shell_surface_impl = {
@@ -417,7 +418,7 @@ static const struct wl_shell_surface_interface shell_surface_impl = {
 };
 
 static void shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
-	wl_signal_emit(&surface->events.destroy, surface);
+	wlr_signal_emit_safe(&surface->events.destroy, surface);
 	shell_surface_destroy_popup_state(surface);
 	wl_resource_set_user_data(surface->resource, NULL);
 
@@ -457,7 +458,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 			wlr_surface_has_buffer(surface->surface) &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
 		surface->configured = true;
-		wl_signal_emit(&surface->shell->events.new_surface, surface);
+		wlr_signal_emit_safe(&surface->shell->events.new_surface, surface);
 	}
 
 	if (surface->popup_mapped &&
@@ -473,7 +474,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 
 static int shell_surface_ping_timeout(void *user_data) {
 	struct wlr_wl_shell_surface *surface = user_data;
-	wl_signal_emit(&surface->events.ping_timeout, surface);
+	wlr_signal_emit_safe(&surface->events.ping_timeout, surface);
 
 	surface->ping_serial = 0;
 	return 1;

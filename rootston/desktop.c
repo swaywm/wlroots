@@ -1,25 +1,25 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
-#include <time.h>
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
-#include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
-#include "rootston/server.h"
 #include "rootston/seat.h"
-#include "rootston/xcursor.h"
+#include "rootston/server.h"
 #include "rootston/view.h"
+#include "rootston/xcursor.h"
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
@@ -621,11 +621,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_list_init(&desktop->views);
 	wl_list_init(&desktop->outputs);
 
-	desktop->output_add.notify = output_add_notify;
-	wl_signal_add(&server->backend->events.output_add, &desktop->output_add);
-	desktop->output_remove.notify = output_remove_notify;
-	wl_signal_add(&server->backend->events.output_remove,
-		&desktop->output_remove);
+	desktop->new_output.notify = handle_new_output;
+	wl_signal_add(&server->backend->events.new_output, &desktop->new_output);
 
 	desktop->server = server;
 	desktop->config = config;

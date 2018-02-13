@@ -1,16 +1,16 @@
 #define _XOPEN_SOURCE 700
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
+#include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/util/edges.h>
+#include <wlr/util/log.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
-#include <wlr/types/wlr_xcursor_manager.h>
-#include <wlr/util/log.h>
-#include <wlr/util/edges.h>
-#include "rootston/xcursor.h"
 #include "rootston/cursor.h"
+#include "rootston/xcursor.h"
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
 	struct roots_cursor *cursor = calloc(1, sizeof(struct roots_cursor));

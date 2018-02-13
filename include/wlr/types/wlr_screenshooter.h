@@ -1,5 +1,6 @@
-#ifndef _WLR_SCREENSHOOTER_H
-#define _WLR_SCREENSHOOTER_H
+#ifndef WLR_TYPES_WLR_SCREENSHOOTER_H
+#define WLR_TYPES_WLR_SCREENSHOOTER_H
+
 #include <wayland-server.h>
 
 struct wlr_screenshooter {

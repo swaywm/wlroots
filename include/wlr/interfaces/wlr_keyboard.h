@@ -1,8 +1,8 @@
 #ifndef WLR_INTERFACES_WLR_KEYBOARD_H
 #define WLR_INTERFACES_WLR_KEYBOARD_H
 
-#include <wlr/types/wlr_keyboard.h>
 #include <stdint.h>
+#include <wlr/types/wlr_keyboard.h>
 
 struct wlr_keyboard_impl {
 	void (*destroy)(struct wlr_keyboard *keyboard);

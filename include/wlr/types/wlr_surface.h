@@ -1,9 +1,10 @@
 #ifndef WLR_TYPES_WLR_SURFACE_H
 #define WLR_TYPES_WLR_SURFACE_H
-#include <stdint.h>
-#include <stdbool.h>
-#include <time.h>
+
 #include <pixman.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 

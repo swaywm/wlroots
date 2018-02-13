@@ -1,21 +1,22 @@
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <dev/evdev/input.h>
-#include <sys/kbio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/consio.h>
+#include <sys/ioctl.h>
+#include <sys/kbio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
+#include "util/signal.h"
 
 const struct session_impl session_direct;
 
@@ -95,12 +96,12 @@ static int vt_handler(int signo, void *data) {
 
 	if (session->base.active) {
 		session->base.active = false;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
 		session->base.active = true;
-		wl_signal_emit(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
 
 	return 1;

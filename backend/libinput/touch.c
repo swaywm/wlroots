@@ -1,11 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <libinput.h>
+#include <stdlib.h>
 #include <wlr/backend/session.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
+#include "util/signal.h"
 
 struct wlr_touch *wlr_libinput_touch_create(
 		struct libinput_device *libinput_dev) {
@@ -37,7 +38,7 @@ void handle_touch_down(struct libinput_event *event,
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
-	wl_signal_emit(&wlr_dev->touch->events.down, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->touch->events.down, &wlr_event);
 }
 
 void handle_touch_up(struct libinput_event *event,
@@ -55,7 +56,7 @@ void handle_touch_up(struct libinput_event *event,
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
-	wl_signal_emit(&wlr_dev->touch->events.up, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->touch->events.up, &wlr_event);
 }
 
 void handle_touch_motion(struct libinput_event *event,
@@ -76,7 +77,7 @@ void handle_touch_motion(struct libinput_event *event,
 	wlr_event.x_mm = libinput_event_touch_get_x(tevent);
 	wlr_event.y_mm = libinput_event_touch_get_y(tevent);
 	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
-	wl_signal_emit(&wlr_dev->touch->events.motion, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->touch->events.motion, &wlr_event);
 }
 
 void handle_touch_cancel(struct libinput_event *event,
@@ -94,5 +95,5 @@ void handle_touch_cancel(struct libinput_event *event,
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
 	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
-	wl_signal_emit(&wlr_dev->touch->events.cancel, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->touch->events.cancel, &wlr_event);
 }

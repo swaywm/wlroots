@@ -15,6 +15,7 @@
 struct output_state {
 	struct compositor_state *compositor;
 	struct wlr_output *output;
+	struct wl_listener destroy;
 	struct wl_listener frame;
 	struct wl_listener resolution;
 	struct timespec last_frame;
@@ -25,6 +26,7 @@ struct output_state {
 struct keyboard_state {
 	struct compositor_state *compositor;
 	struct wlr_input_device *device;
+	struct wl_listener destroy;
 	struct wl_listener key;
 	struct wl_list link;
 	void *data;
@@ -33,6 +35,7 @@ struct keyboard_state {
 struct pointer_state {
 	struct compositor_state *compositor;
 	struct wlr_input_device *device;
+	struct wl_listener destroy;
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
 	struct wl_listener button;
@@ -44,6 +47,7 @@ struct pointer_state {
 struct touch_state {
 	struct compositor_state *compositor;
 	struct wlr_input_device *device;
+	struct wl_listener destroy;
 	struct wl_listener down;
 	struct wl_listener up;
 	struct wl_listener motion;
@@ -55,6 +59,7 @@ struct touch_state {
 struct tablet_tool_state {
 	struct compositor_state *compositor;
 	struct wlr_input_device *device;
+	struct wl_listener destroy;
 	struct wl_listener axis;
 	struct wl_listener proximity;
 	struct wl_listener tip;
@@ -66,6 +71,7 @@ struct tablet_tool_state {
 struct tablet_pad_state {
 	struct compositor_state *compositor;
 	struct wlr_input_device *device;
+	struct wl_listener destroy;
 	struct wl_listener button;
 	struct wl_list link;
 	void *data;
@@ -122,12 +128,10 @@ struct compositor_state {
 	struct wl_list touch;
 	struct wl_list tablet_tools;
 	struct wl_list tablet_pads;
-	struct wl_listener input_add;
-	struct wl_listener input_remove;
+	struct wl_listener new_input;
 
 	struct timespec last_frame;
-	struct wl_listener output_add;
-	struct wl_listener output_remove;
+	struct wl_listener new_output;
 	struct wl_list outputs;
 
 	void *data;

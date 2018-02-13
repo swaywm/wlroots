@@ -1,10 +1,11 @@
-#include <stdlib.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
+#include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
+#include "util/signal.h"
 
 static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 		unsigned int height) {
@@ -136,7 +137,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	if (backend->started) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 		wlr_output_update_enabled(wlr_output, true);
-		wl_signal_emit(&backend->backend.events.output_add, wlr_output);
+		wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 	}
 
 	return wlr_output;
