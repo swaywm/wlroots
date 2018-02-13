@@ -157,6 +157,7 @@ void wlr_output_set_gamma(struct wlr_output *output,
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
+struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);

@@ -164,4 +164,6 @@ void wlr_surface_set_role_committed(struct wlr_surface *surface,
 		void (*role_committed)(struct wlr_surface *surface, void *role_data),
 		void *role_data);
 
+struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
+
 #endif
