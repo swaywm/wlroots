@@ -270,7 +270,12 @@ static void xdg_positioner_protocol_set_anchor(struct wl_client *client,
 	struct wlr_xdg_positioner *positioner =
 		wl_resource_get_user_data(resource);
 
-	/* post error if anchor > XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT ? */
+	if (anchor > XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT) {
+		wl_resource_post_error(resource,
+			XDG_POSITIONER_ERROR_INVALID_INPUT,
+			"invalid anchor value");
+		return;
+	}
 
 	positioner->anchor = anchor;
 }
@@ -280,7 +285,12 @@ static void xdg_positioner_protocol_set_gravity(struct wl_client *client,
 	struct wlr_xdg_positioner *positioner =
 		wl_resource_get_user_data(resource);
 
-	/* post error if gravity > XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT ? */
+	if (gravity > XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT) {
+		wl_resource_post_error(resource,
+			XDG_POSITIONER_ERROR_INVALID_INPUT,
+			"invalid gravity value");
+		return;
+	}
 
 	positioner->gravity = gravity;
 }
