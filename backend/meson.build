@@ -28,14 +28,15 @@ backend_files = files(
 )
 
 backend_deps = [
-	wayland_server,
+	drm,
 	egl,
 	gbm,
 	libinput,
-	wlr_render,
-	wlr_protos,
-	drm,
 	pixman,
+	xkbcommon,
+	wayland_server,
+	wlr_protos,
+	wlr_render,
 ]
 
 if host_machine.system().startswith('freebsd')
