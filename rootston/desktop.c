@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include "rootston/seat.h"
 #include "rootston/server.h"
@@ -638,6 +639,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
 		&desktop->xdg_shell_v6_surface);
 	desktop->xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
+
+	desktop->xdg_shell = wlr_xdg_shell_create(server->wl_display);
+	wl_signal_add(&desktop->xdg_shell->events.new_surface,
+		&desktop->xdg_shell_surface);
+	desktop->xdg_shell_surface.notify = handle_xdg_shell_surface;
 
 	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
 	wl_signal_add(&desktop->wl_shell->events.new_surface,

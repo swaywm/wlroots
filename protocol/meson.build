@@ -22,6 +22,7 @@ wayland_scanner_client = generator(
 
 protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
+	[wl_protocol_dir, 'stable/xdg-shell/xdg-shell.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
 	'idle.xml',
@@ -31,6 +32,7 @@ protocols = [
 
 client_protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
+	[wl_protocol_dir, 'stable/xdg-shell/xdg-shell.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
 	'idle.xml',

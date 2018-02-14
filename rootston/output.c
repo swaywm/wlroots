@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "rootston/config.h"
@@ -81,6 +82,34 @@ static void xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
 	}
 }
 
+static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
+		double base_x, double base_y, float rotation,
+		surface_iterator_func_t iterator, void *user_data) {
+	double width = surface->surface->current->width;
+	double height = surface->surface->current->height;
+
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_width = popup->surface->current->width;
+		double popup_height = popup->surface->current->height;
+
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
+		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
+			width, height, rotation);
+
+		surface_for_each_surface(popup->surface, base_x + popup_sx,
+			base_y + popup_sy, rotation, iterator, user_data);
+		xdg_surface_for_each_surface(popup, base_x + popup_sx,
+			base_y + popup_sy, rotation, iterator, user_data);
+	}
+}
+
 static void wl_shell_surface_for_each_surface(
 		struct wlr_wl_shell_surface *surface, double lx, double ly,
 		float rotation, bool is_child, surface_iterator_func_t iterator,
@@ -115,6 +144,12 @@ static void view_for_each_surface(struct roots_view *view,
 		surface_for_each_surface(view->wlr_surface, view->x, view->y,
 			view->rotation, iterator, user_data);
 		xdg_surface_v6_for_each_surface(view->xdg_surface_v6, view->x, view->y,
+			view->rotation, iterator, user_data);
+		break;
+	case ROOTS_XDG_SHELL_VIEW:
+		surface_for_each_surface(view->wlr_surface, view->x, view->y,
+			view->rotation, iterator, user_data);
+		xdg_surface_for_each_surface(view->xdg_surface, view->x, view->y,
 			view->rotation, iterator, user_data);
 		break;
 	case ROOTS_WL_SHELL_VIEW:
@@ -337,6 +372,8 @@ static bool has_standalone_surface(struct roots_view *view) {
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
 		return wl_list_empty(&view->xdg_surface_v6->popups);
+	case ROOTS_XDG_SHELL_VIEW:
+		return wl_list_empty(&view->xdg_surface->popups);
 	case ROOTS_WL_SHELL_VIEW:
 		return wl_list_empty(&view->wl_shell_surface->popups);
 #ifdef WLR_HAS_XWAYLAND
