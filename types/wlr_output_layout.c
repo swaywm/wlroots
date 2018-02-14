@@ -421,3 +421,53 @@ struct wlr_output *wlr_output_layout_get_center_output(
 
 	return wlr_output_layout_output_at(layout, dest_x, dest_y);
 }
+
+
+struct wlr_output *wlr_output_layout_adjacent_output(
+		struct wlr_output_layout *layout, enum wlr_direction direction,
+		struct wlr_output *reference, double ref_x, double ref_y) {
+	// XXX should we allow reference to be NULL?
+	assert(reference);
+
+	struct wlr_box *ref_box = wlr_output_layout_get_box(layout, reference);
+
+	double min_distance = DBL_MAX;
+	struct wlr_output *closest_output = NULL;
+	struct wlr_output_layout_output *l_output;
+	wl_list_for_each(l_output, &layout->outputs, link) {
+		if (reference != NULL && reference == l_output->output) {
+			continue;
+		}
+		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+
+		bool match = false;
+		// test to make sure this output is in the given direction
+		if (direction | WLR_DIRECTION_LEFT) {
+			match = box->x + box->width <= ref_box->x || match;
+		}
+		if (direction | WLR_DIRECTION_RIGHT) {
+			match = box->x >= ref_box->x + ref_box->width || match;
+		}
+		if (direction | WLR_DIRECTION_UP) {
+			match = box->y + box->height <= ref_box->y;
+		}
+		if (direction | WLR_DIRECTION_DOWN) {
+			match = box->y >= ref_box->y + ref_box->height;
+		}
+		if (!match) {
+			continue;
+		}
+
+		// calculate distance from the given reference point
+		double x, y;
+		wlr_output_layout_closest_point(layout, l_output->output,
+			ref_x, ref_y, &x, &y);
+		double distance =
+			(x - ref_x) * (x - ref_x) + (y - ref_y) * (y - ref_y);
+		if (distance < min_distance) {
+			min_distance = distance;
+			closest_output = l_output->output;
+		}
+	}
+	return closest_output;
+}
