@@ -238,7 +238,7 @@ static void xdg_positioner_protocol_set_size(struct wl_client *client,
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(resource,
 			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
-			"width and height must be positives and non-zero");
+			"width and height must be positive and non-zero");
 		return;
 	}
 
@@ -255,7 +255,7 @@ static void xdg_positioner_protocol_set_anchor_rect(struct wl_client *client,
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(resource,
 			ZXDG_POSITIONER_V6_ERROR_INVALID_INPUT,
-			"width and height must be positives and non-zero");
+			"width and height must be positive and non-zero");
 		return;
 	}
 
