@@ -633,6 +633,14 @@ static void handle_passive_grab(struct wl_listener *listener, void *data) {
 	roots_grab->destroy_listener.notify = handle_passive_grab_destroy;
 	struct roots_seat *seat = grab->seat->data;
 
+	struct roots_view *view;
+	wl_list_for_each(view, &desktop->views, link) {
+		if (view->wlr_surface == grab->surface) {
+			roots_seat_set_focus(seat, view);
+			break;
+		}
+	}
+
 	wl_list_insert(&seat->passive_grabs, &roots_grab->link);
 }
 
