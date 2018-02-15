@@ -10,7 +10,6 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_xwayland_keyboard_grab_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -21,6 +20,10 @@
 #include "rootston/server.h"
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
+
+#ifdef WLR_HAS_XWAYLAND
+#include <wlr/types/wlr_xwayland_keyboard_grab_v1.h>
+#endif
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
@@ -610,6 +613,8 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+#ifdef WLR_HAS_XWAYLAND
+
 static void handle_xwayland_keyboard_grab_destroy(struct wl_listener *listener,
 		void *data) {
 	struct roots_xwayland_keyboard_grab_v1 *roots_grab =
@@ -645,6 +650,7 @@ static void handle_xwayland_keyboard_grab(struct wl_listener *listener, void *da
 
 	wl_list_insert(&seat->xwayland_keyboard_grabs, &roots_grab->link);
 }
+#endif
 
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
