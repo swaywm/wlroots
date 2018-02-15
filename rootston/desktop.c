@@ -626,29 +626,35 @@ static void handle_xwayland_keyboard_grab_destroy(struct wl_listener *listener,
 
 static void handle_xwayland_keyboard_grab(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xwayland_keyboard_grab_v1);
+		wl_container_of(listener, desktop, xwayland_keyboard_grab_v1_listener);
 	struct wlr_xwayland_keyboard_grab_v1_grab *grab = data;
 
-	struct roots_xwayland_keyboard_grab_v1 *roots_grab =
-		calloc(1, sizeof(struct roots_xwayland_keyboard_grab_v1));
-	if (!roots_grab) {
-		return;
-	}
-
-	roots_grab->grab = grab;
-	wl_signal_add(&grab->events.destroy, &roots_grab->destroy_listener);
-	roots_grab->destroy_listener.notify = handle_xwayland_keyboard_grab_destroy;
-	struct roots_seat *seat = grab->seat->data;
-
+	struct roots_view *found = NULL;
 	struct roots_view *view;
 	wl_list_for_each(view, &desktop->views, link) {
 		if (view->wlr_surface == grab->surface) {
-			roots_seat_set_focus(seat, view);
+			found = view;
 			break;
 		}
 	}
 
-	wl_list_insert(&seat->xwayland_keyboard_grabs, &roots_grab->link);
+	if (found) {
+		struct roots_seat *seat = grab->seat->data;
+		roots_seat_set_focus(seat, found);
+
+		struct roots_xwayland_keyboard_grab_v1 *roots_grab =
+			calloc(1, sizeof(struct roots_xwayland_keyboard_grab_v1));
+		if (!roots_grab) {
+			return;
+		}
+
+		roots_grab->grab = grab;
+		wl_signal_add(&grab->events.destroy, &roots_grab->destroy_listener);
+		roots_grab->destroy_listener.notify = handle_xwayland_keyboard_grab_destroy;
+
+		wl_list_insert(&seat->xwayland_keyboard_grabs, &roots_grab->link);
+	}
+
 }
 #endif
 
@@ -689,14 +695,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 
 #ifdef WLR_HAS_XWAYLAND
-	desktop->xwayland_keyboard_grab_v1 =
-		wlr_xwayland_keyboard_grab_v1_create(server->wl_display);
-
-	wl_signal_add(&desktop->xwayland_keyboard_grab_v1->events.new_grab,
-			&desktop->xwayland_keyboard_grab_v1_listener);
-	desktop->xwayland_keyboard_grab_v1_listener.notify = handle_xwayland_keyboard_grab;
-
-
 	const char *cursor_theme = NULL;
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =
@@ -735,6 +733,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 				image->width, image->width, image->height, image->hotspot_x,
 				image->hotspot_y);
 		}
+
+		desktop->xwayland_keyboard_grab_v1 =
+			wlr_xwayland_keyboard_grab_v1_create(server->wl_display,
+				desktop->xwayland);
+
+		wl_signal_add(&desktop->xwayland_keyboard_grab_v1->events.new_grab,
+				&desktop->xwayland_keyboard_grab_v1_listener);
+		desktop->xwayland_keyboard_grab_v1_listener.notify =
+			handle_xwayland_keyboard_grab;
 	}
 #endif
 

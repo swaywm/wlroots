@@ -6,6 +6,8 @@
 #include <wayland-util.h>
 #include <wayland-server.h>
 
+#include <wlr/xwayland.h>
+
 
 struct wlr_xwayland_keyboard_grab_v1_grab {
 	struct wl_resource *resource;
@@ -21,6 +23,7 @@ struct wlr_xwayland_keyboard_grab_v1_grab {
 
 struct wlr_xwayland_keyboard_grab_v1 {
 	struct wl_global *global;
+	struct wlr_xwayland *xwayland;
 
 	struct wl_list clients; // wlr_passive_grab_manager::link;
 	
@@ -31,7 +34,8 @@ struct wlr_xwayland_keyboard_grab_v1 {
 	struct wl_listener display_destroy;
 };
 
-struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(struct wl_display *display);
+struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(
+	struct wl_display *display, struct wlr_xwayland *xwayland);
 void wlr_xwayland_keyboard_grab_v1_destroy(struct wlr_xwayland_keyboard_grab_v1 *passive_grab);
 
 #endif

@@ -30,7 +30,7 @@ protocols = [
 ]
 
 if get_option('enable_xwayland')
-	protocols += [wl_protocol_dir, 'unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml']
+	protocols += [[wl_protocol_dir, 'unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml']]
 endif
 
 client_protocols = [

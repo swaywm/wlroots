@@ -117,7 +117,17 @@ static struct zwp_xwayland_keyboard_grab_manager_v1_interface keyboard_grab_mana
 static void xwayland_keyboard_grab_v1_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	assert(data);
+	assert(client);
 	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab = data;
+
+	if (client != xwayland_keyboard_grab->xwayland->client) {
+		wlr_log(L_DEBUG, "Denying xwayland_keyboard_grab access for client");
+		// TODO: Can we post a better error here?
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+
 	struct wlr_xwayland_keyboard_grab_v1_manager *manager =
 		calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1_manager));
 	if (!manager) {
@@ -148,8 +158,10 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_xwayland_keyboard_grab_v1_destroy(xwayland_keyboard_grab);
 }
 
-struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(struct wl_display *display) {
+struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(
+		struct wl_display *display, struct wlr_xwayland *xwayland) {
 	assert(display);
+	assert(xwayland);
 	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab =
 		calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1));
 	if (!xwayland_keyboard_grab) {
@@ -169,6 +181,7 @@ struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(struc
 
 	xwayland_keyboard_grab->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &xwayland_keyboard_grab->display_destroy);
+	xwayland_keyboard_grab->xwayland = xwayland;
 
 	return xwayland_keyboard_grab;
 }
