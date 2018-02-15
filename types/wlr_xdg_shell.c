@@ -334,6 +334,10 @@ static void xdg_shell_create_positioner(struct wl_client *wl_client,
 		return;
 	}
 
+	/* set widths to detect improper usages of get_popup */
+	positioner->size.width = -1;
+	positioner->anchor_rect.width = -1;
+
 	positioner->resource = wl_resource_create(wl_client,
 		&xdg_positioner_interface,
 		wl_resource_get_version(resource),
@@ -500,7 +504,7 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	struct wlr_xdg_positioner *positioner =
 		wl_resource_get_user_data(positioner_resource);
 
-	if (positioner->size.width == 0 || positioner->anchor_rect.width == 0) {
+	if (positioner->size.width == -1 || positioner->anchor_rect.width == -1) {
 		wl_resource_post_error(resource,
 			XDG_WM_BASE_ERROR_INVALID_POSITIONER,
 			"positioner object is not complete");
