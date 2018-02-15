@@ -51,8 +51,8 @@ struct roots_desktop {
 	struct wl_listener xwayland_surface;
 	struct wl_listener xwayland_ready;
 
-	struct wlr_passive_grab_v1 *passive_grab_v1;
-	struct wl_listener passive_grab;
+	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab_v1;
+	struct wl_listener xwayland_keyboard_grab_v1_listener;
 #endif
 };
 

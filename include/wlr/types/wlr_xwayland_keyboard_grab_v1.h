@@ -1,5 +1,5 @@
-#ifndef WLR_TYPES_WLR_PASSIVE_GRAB_H
-#define WLR_TYPES_WLR_PASSIVE_GRAB_H
+#ifndef WLR_TYPES_WLR_XWAYLAND_KEYBOARD_GRAB_V1_H
+#define WLR_TYPES_WLR_XWAYLAND_KEYBOARD_GRAB_V1_H
 
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
@@ -7,7 +7,7 @@
 #include <wayland-server.h>
 
 
-struct wlr_passive_grab_grab {
+struct wlr_xwayland_keyboard_grab_v1_grab {
 	struct wl_resource *resource;
 	struct wlr_surface *surface;
 	struct wlr_seat *seat;
@@ -19,7 +19,7 @@ struct wlr_passive_grab_grab {
 	} events;
 };
 
-struct wlr_passive_grab_v1 {
+struct wlr_xwayland_keyboard_grab_v1 {
 	struct wl_global *global;
 
 	struct wl_list clients; // wlr_passive_grab_manager::link;
@@ -31,7 +31,7 @@ struct wlr_passive_grab_v1 {
 	struct wl_listener display_destroy;
 };
 
-struct wlr_passive_grab_v1 *wlr_passive_grab_create_v1(struct wl_display *display);
-void wlr_passive_grab_destroy_v1(struct wlr_passive_grab_v1 *passive_grab);
+struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(struct wl_display *display);
+void wlr_xwayland_keyboard_grab_v1_destroy(struct wlr_xwayland_keyboard_grab_v1 *passive_grab);
 
 #endif
