@@ -420,6 +420,7 @@ static struct wlr_box xdg_positioner_get_geometry(
 	default:
 		geometry.y +=
 			positioner->anchor_rect.y + positioner->anchor_rect.height / 2;
+		break;
 	}
 
 	switch (positioner->anchor) {
@@ -436,6 +437,7 @@ static struct wlr_box xdg_positioner_get_geometry(
 	default:
 		geometry.x +=
 			positioner->anchor_rect.x + positioner->anchor_rect.width / 2;
+		break;
 	}
 
 	switch (positioner->gravity) {
@@ -451,6 +453,7 @@ static struct wlr_box xdg_positioner_get_geometry(
 		break;
 	default:
 		geometry.y -= geometry.height / 2;
+		break;
 	}
 
 	switch (positioner->gravity) {
@@ -466,6 +469,7 @@ static struct wlr_box xdg_positioner_get_geometry(
 		break;
 	default:
 		geometry.x -= geometry.width / 2;
+		break;
 	}
 
 	if (positioner->constraint_adjustment ==
