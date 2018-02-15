@@ -610,7 +610,8 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void handle_xwayland_keyboard_grab_destroy(struct wl_listener *listener, void *data) {
+static void handle_xwayland_keyboard_grab_destroy(struct wl_listener *listener,
+		void *data) {
 	struct roots_xwayland_keyboard_grab_v1 *roots_grab =
 		wl_container_of(listener, roots_grab, destroy_listener);
 
@@ -623,7 +624,8 @@ static void handle_xwayland_keyboard_grab(struct wl_listener *listener, void *da
 		wl_container_of(listener, desktop, xwayland_keyboard_grab_v1);
 	struct wlr_xwayland_keyboard_grab_v1_grab *grab = data;
 
-	struct roots_xwayland_keyboard_grab_v1 *roots_grab = calloc(1, sizeof(struct roots_xwayland_keyboard_grab_v1));
+	struct roots_xwayland_keyboard_grab_v1 *roots_grab =
+		calloc(1, sizeof(struct roots_xwayland_keyboard_grab_v1));
 	if (!roots_grab) {
 		return;
 	}
@@ -681,7 +683,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 
 #ifdef WLR_HAS_XWAYLAND
-	desktop->xwayland_keyboard_grab_v1 = wlr_xwayland_keyboard_grab_v1_create(server->wl_display);
+	desktop->xwayland_keyboard_grab_v1 =
+		wlr_xwayland_keyboard_grab_v1_create(server->wl_display);
 
 	wl_signal_add(&desktop->xwayland_keyboard_grab_v1->events.new_grab,
 			&desktop->xwayland_keyboard_grab_v1_listener);

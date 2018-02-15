@@ -22,7 +22,8 @@ struct wlr_xwayland_keyboard_grab_v1_manager {
 
 static void xwayland_keyboard_grab_grab_handle_destroy(struct wl_resource *resource) {
 	assert(resource);
-	struct wlr_xwayland_keyboard_grab_v1_grab *grab = wl_resource_get_user_data(resource);
+	struct wlr_xwayland_keyboard_grab_v1_grab *grab =
+		wl_resource_get_user_data(resource);
 	assert(grab);
 
 	wl_signal_emit(&grab->events.destroy, grab);
@@ -30,7 +31,8 @@ static void xwayland_keyboard_grab_grab_handle_destroy(struct wl_resource *resou
 	free(grab);
 }
 
-static void xwayland_keyboard_grab_grab_destroy(struct wl_client *client, struct wl_resource *resource) {
+static void xwayland_keyboard_grab_grab_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
@@ -46,7 +48,8 @@ static void xwayland_keyboard_grab_grab_keyboard(struct wl_client *client,
 	assert(surface);
 	assert(seat);
 
-	struct wlr_xwayland_keyboard_grab_v1_grab *grab = calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1_grab));
+	struct wlr_xwayland_keyboard_grab_v1_grab *grab =
+		calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1_grab));
 	if (!grab) {
 		wl_client_post_no_memory(client);
 		return;
@@ -73,7 +76,8 @@ static void xwayland_keyboard_grab_grab_keyboard(struct wl_client *client,
 	wl_resource_set_implementation(grab_resource, &xwayland_keyboard_grab_impl,
 		grab, &xwayland_keyboard_grab_grab_handle_destroy);
 
-	struct wlr_xwayland_keyboard_grab_v1_manager *manager = wl_resource_get_user_data(resource);
+	struct wlr_xwayland_keyboard_grab_v1_manager *manager =
+		wl_resource_get_user_data(resource);
 	assert(manager);
 
 	wl_list_insert(&manager->grabs, &grab->link);
@@ -83,7 +87,8 @@ static void xwayland_keyboard_grab_grab_keyboard(struct wl_client *client,
 
 static void xwayland_keyboard_grab_manager_handle_destroy(struct wl_resource *resource) {
 	assert(resource);
-	struct wlr_xwayland_keyboard_grab_v1_manager *manager = wl_resource_get_user_data(resource);
+	struct wlr_xwayland_keyboard_grab_v1_manager *manager =
+		wl_resource_get_user_data(resource);
 	assert(manager);
 
 	wl_list_remove(&manager->link);
@@ -98,7 +103,8 @@ static void xwayland_keyboard_grab_manager_handle_destroy(struct wl_resource *re
 	free(manager);
 }
 
-static void xwayland_keyboard_grab_manager_destroy(struct wl_client *client, struct wl_resource *resource) {
+static void xwayland_keyboard_grab_manager_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
@@ -112,7 +118,8 @@ static void xwayland_keyboard_grab_v1_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	assert(data);
 	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab = data;
-	struct wlr_xwayland_keyboard_grab_v1_manager *manager = calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1_manager));
+	struct wlr_xwayland_keyboard_grab_v1_manager *manager =
+		calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1_manager));
 	if (!manager) {
 		wl_client_post_no_memory(client);
 		return;
@@ -135,22 +142,23 @@ static void xwayland_keyboard_grab_v1_bind(struct wl_client *client, void *data,
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab = wl_container_of(listener,
-		xwayland_keyboard_grab, display_destroy);
+	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab =
+		wl_container_of(listener, xwayland_keyboard_grab, display_destroy);
 
 	wlr_xwayland_keyboard_grab_v1_destroy(xwayland_keyboard_grab);
 }
 
 struct wlr_xwayland_keyboard_grab_v1 *wlr_xwayland_keyboard_grab_v1_create(struct wl_display *display) {
 	assert(display);
-	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab = calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1));
+	struct wlr_xwayland_keyboard_grab_v1 *xwayland_keyboard_grab =
+		calloc(1, sizeof(struct wlr_xwayland_keyboard_grab_v1));
 	if (!xwayland_keyboard_grab) {
 		return NULL;
 	}
 
 	xwayland_keyboard_grab->global = wl_global_create(display,
-		&zwp_xwayland_keyboard_grab_manager_v1_interface, 1, xwayland_keyboard_grab,
-		xwayland_keyboard_grab_v1_bind);
+		&zwp_xwayland_keyboard_grab_manager_v1_interface, 1,
+		xwayland_keyboard_grab, xwayland_keyboard_grab_v1_bind);
 	if (!xwayland_keyboard_grab->global) {
 		free(xwayland_keyboard_grab);
 		return NULL;
