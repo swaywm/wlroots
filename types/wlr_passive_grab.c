@@ -62,8 +62,11 @@ static void passive_grab_grab_keyboard(struct wl_client *client,
 	grab->resource = grab_resource;
 	wl_signal_init(&grab->events.destroy);
 
-	grab->seat = wl_resource_get_user_data(seat);
+	struct wlr_seat_client *seat_client = wl_resource_get_user_data(seat);
+	grab->seat = seat_client->seat;
+	wlr_log(L_DEBUG, "Seat class: %s", wl_resource_get_class(seat));
 	assert(grab->seat);
+
 	grab->surface = wl_resource_get_user_data(surface);
 	assert(grab->surface);
 

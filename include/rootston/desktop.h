@@ -39,7 +39,6 @@ struct roots_desktop {
 	struct wlr_server_decoration_manager *server_decoration_manager;
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
-	struct wlr_passive_grab_v1 *passive_grab_v1;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
@@ -51,6 +50,9 @@ struct roots_desktop {
 	struct wlr_xwayland *xwayland;
 	struct wl_listener xwayland_surface;
 	struct wl_listener xwayland_ready;
+
+	struct wlr_passive_grab_v1 *passive_grab_v1;
+	struct wl_listener passive_grab;
 #endif
 };
 

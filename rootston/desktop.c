@@ -610,6 +610,32 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_passive_grab_destroy(struct wl_listener *listener, void *data) {
+	struct roots_passive_grab *roots_grab =
+		wl_container_of(listener, roots_grab, destroy_listener);
+
+	wl_list_remove(&roots_grab->link);
+	free(roots_grab);
+}
+
+static void handle_passive_grab(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, passive_grab);
+	struct wlr_passive_grab_grab *grab = data;
+
+	struct roots_passive_grab *roots_grab = calloc(1, sizeof(struct roots_passive_grab));
+	if (!roots_grab) {
+		return;
+	}
+
+	roots_grab->grab = grab;
+	wl_signal_add(&grab->events.destroy, &roots_grab->destroy_listener);
+	roots_grab->destroy_listener.notify = handle_passive_grab_destroy;
+	struct roots_seat *seat = grab->seat->data;
+
+	wl_list_insert(&seat->passive_grabs, &roots_grab->link);
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -645,9 +671,13 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
-	desktop->passive_grab_v1 = wlr_passive_grab_create_v1(server->wl_display);
 
 #ifdef WLR_HAS_XWAYLAND
+	desktop->passive_grab_v1 = wlr_passive_grab_create_v1(server->wl_display);
+	wl_signal_add(&desktop->passive_grab_v1->events.new_grab, &desktop->passive_grab);
+	desktop->passive_grab.notify = handle_passive_grab;
+
+
 	const char *cursor_theme = NULL;
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =

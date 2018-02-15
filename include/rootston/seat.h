@@ -5,6 +5,14 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 
+struct wlr_passive_grab_grab;
+
+struct roots_passive_grab {
+	struct wl_list link; // roots_seat::passive_grabs;
+	struct wl_listener destroy_listener;
+	struct wlr_passive_grab_grab *grab;
+};
+
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
@@ -24,6 +32,7 @@ struct roots_seat {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+	struct wl_list passive_grabs;
 
 	struct wl_listener new_drag_icon;
 	struct wl_listener destroy;
