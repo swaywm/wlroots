@@ -10,6 +10,7 @@ sources = [
 	'seat.c',
 	'wl_shell.c',
 	'xdg_shell_v6.c',
+	'xdg_shell.c',
 ]
 if get_option('enable_xwayland')
 	sources += ['xwayland.c']

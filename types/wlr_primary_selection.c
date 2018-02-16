@@ -1,12 +1,12 @@
 #define _XOPEN_SOURCE 700
 #include <assert.h>
-#include <gtk-primary-selection-protocol.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include "gtk-primary-selection-protocol.h"
 #include "util/signal.h"
 
 static const struct gtk_primary_selection_offer_interface offer_impl;

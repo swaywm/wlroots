@@ -6,8 +6,8 @@
 #include <pthread.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
-#include <idle-client-protocol.h>
 #include <wlr/util/log.h>
+#include "idle-client-protocol.h"
 
 static struct org_kde_kwin_idle *idle_manager = NULL;
 static struct wl_seat *seat = NULL;

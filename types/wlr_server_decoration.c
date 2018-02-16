@@ -1,9 +1,9 @@
 #include <assert.h>
-#include <server-decoration-protocol.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "server-decoration-protocol.h"
 #include "util/signal.h"
 
 static const struct org_kde_kwin_server_decoration_interface

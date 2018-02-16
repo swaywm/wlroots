@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include "rootston/config.h"
 #include "rootston/output.h"
 #include "rootston/view.h"
@@ -34,6 +35,7 @@ struct roots_desktop {
 	struct wlr_compositor *compositor;
 	struct wlr_wl_shell *wl_shell;
 	struct wlr_xdg_shell_v6 *xdg_shell_v6;
+	struct wlr_xdg_shell *xdg_shell;
 	struct wlr_gamma_control_manager *gamma_control_manager;
 	struct wlr_screenshooter *screenshooter;
 	struct wlr_server_decoration_manager *server_decoration_manager;
@@ -43,6 +45,7 @@ struct roots_desktop {
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
 	struct wl_listener xdg_shell_v6_surface;
+	struct wl_listener xdg_shell_surface;
 	struct wl_listener wl_shell_surface;
 	struct wl_listener decoration_new;
 
@@ -72,6 +75,7 @@ void view_update_position(struct roots_view *view, double x, double y);
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
+void handle_xdg_shell_surface(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);
 void handle_xwayland_surface(struct wl_listener *listener, void *data);
 
