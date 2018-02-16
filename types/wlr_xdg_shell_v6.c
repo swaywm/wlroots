@@ -487,7 +487,8 @@ static void xdg_popup_resource_destroy(struct wl_resource *resource) {
 
 static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation;
 
-static struct wlr_xdg_surface_v6 *xdg_surface_from_resource(struct wl_resource *resource) {
+static struct wlr_xdg_surface_v6 *xdg_surface_from_resource(
+		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zxdg_surface_v6_interface,
 		&zxdg_surface_v6_implementation));
 	return wl_resource_get_user_data(resource);
@@ -918,9 +919,7 @@ static bool wlr_xdg_surface_v6_toplevel_state_compare(
 		struct wlr_xdg_toplevel_v6 *state) {
 	struct {
 		struct wlr_xdg_toplevel_v6_state state;
-		uint32_t width;
-		uint32_t height;
-
+		uint32_t width, height;
 	} configured;
 
 	// is pending state different from current state?
