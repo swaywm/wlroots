@@ -157,6 +157,13 @@ static void decoration_manager_handle_get_decoration(struct wl_client *client,
 		wlr_xdg_surface_from_xdg_toplevel_resource(toplevel_resource);
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 
+	if (wlr_surface_has_buffer(surface->surface)) {
+		wl_resource_post_error(manager_resource,
+			ZXDG_TOPLEVEL_DECORATION_MANAGER_V1_ERROR_UNCONFIGURED_BUFFER,
+			"xdg_toplevel_decoration must not have a buffer at creation");
+		return;
+	}
+
 	struct wlr_xdg_toplevel_decoration *decoration =
 		calloc(1, sizeof(struct wlr_xdg_toplevel_decoration));
 	if (decoration == NULL) {
