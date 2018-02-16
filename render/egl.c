@@ -132,7 +132,9 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->egl_exts_str);
+	wlr_log(L_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
+	wlr_log(L_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
 	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", egl->gl_exts_str);
 
 	if (strstr(egl->egl_exts_str, "EGL_WL_bind_wayland_display") == NULL ||
