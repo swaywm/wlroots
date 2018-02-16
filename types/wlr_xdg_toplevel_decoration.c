@@ -6,6 +6,15 @@
 #include "util/signal.h"
 #include "xdg-toplevel-decoration-unstable-v1-protocol.h"
 
+static const struct zxdg_toplevel_decoration_v1_interface decoration_impl;
+
+static struct wlr_xdg_toplevel_decoration *decoration_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zxdg_toplevel_decoration_v1_interface, &decoration_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void decoration_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -15,7 +24,7 @@ static void decoration_handle_set_mode(struct wl_client *client,
 		struct wl_resource *resource,
 		enum zxdg_toplevel_decoration_v1_mode mode) {
 	struct wlr_xdg_toplevel_decoration *decoration =
-		wl_resource_get_user_data(resource);
+		decoration_from_resource(resource);
 
 	decoration->next_mode = (enum wlr_xdg_toplevel_decoration_mode)mode;
 	wlr_signal_emit_safe(&decoration->events.request_mode, decoration);
@@ -53,7 +62,7 @@ static void decoration_destroy(struct wlr_xdg_toplevel_decoration *decoration) {
 
 static void decoration_destroy_resource(struct wl_resource *resource) {
 	struct wlr_xdg_toplevel_decoration *decoration =
-		wl_resource_get_user_data(resource);
+		decoration_from_resource(resource);
 	if (decoration != NULL) {
 		decoration_destroy(decoration);
 	}
@@ -127,13 +136,25 @@ static void decoration_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
+
+static const struct zxdg_toplevel_decoration_manager_v1_interface
+	decoration_manager_impl;
+
+static struct wlr_xdg_toplevel_decoration_manager *
+		decoration_manager_from_resource(struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zxdg_toplevel_decoration_manager_v1_interface,
+		&decoration_manager_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void decoration_manager_handle_get_decoration(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *toplevel_resource) {
 	struct wlr_xdg_toplevel_decoration_manager *manager =
-		wl_resource_get_user_data(manager_resource);
+		decoration_manager_from_resource(manager_resource);
 	struct wlr_xdg_surface *surface =
-		wl_resource_get_user_data(toplevel_resource);
+		wlr_xdg_surface_from_xdg_toplevel_resource(toplevel_resource);
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 
 	struct wlr_xdg_toplevel_decoration *decoration =

@@ -240,4 +240,7 @@ struct wlr_xdg_surface *wlr_xdg_surface_popup_at(
  */
 uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
 
+struct wlr_xdg_surface *wlr_xdg_surface_from_xdg_toplevel_resource(
+	struct wl_resource *resource);
+
 #endif
