@@ -742,7 +742,7 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 	struct wl_resource *resource =
 		wl_client_get_object(xwm->xwayland->client, id);
 	if (resource) {
-		struct wlr_surface *surface = wl_resource_get_user_data(resource);
+		struct wlr_surface *surface = wlr_surface_from_resource(resource);
 		xsurface->surface_id = 0;
 		xwm_map_shell_surface(xwm, xsurface, surface);
 	} else {

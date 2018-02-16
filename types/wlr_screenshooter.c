@@ -9,6 +9,13 @@
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
 
+static struct wlr_screenshot *screenshot_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &orbital_screenshot_interface,
+		NULL));
+	return wl_resource_get_user_data(resource);
+}
+
 struct screenshot_state {
 	struct wl_shm_buffer *shm_buffer;
 	struct wlr_screenshot *screenshot;
@@ -24,7 +31,7 @@ static void screenshot_destroy(struct wlr_screenshot *screenshot) {
 static void handle_screenshot_resource_destroy(
 		struct wl_resource *screenshot_resource) {
 	struct wlr_screenshot *screenshot =
-		wl_resource_get_user_data(screenshot_resource);
+		screenshot_from_resource(screenshot_resource);
 	if (screenshot != NULL) {
 		screenshot_destroy(screenshot);
 	}
@@ -59,13 +66,22 @@ cleanup:
 	free(state);
 }
 
+static const struct orbital_screenshooter_interface screenshooter_impl;
+
+static struct wlr_screenshooter *screenshooter_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &orbital_screenshooter_interface,
+		&screenshooter_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void screenshooter_shoot(struct wl_client *client,
 		struct wl_resource *screenshooter_resource, uint32_t id,
 		struct wl_resource *output_resource,
 		struct wl_resource *buffer_resource) {
 	struct wlr_screenshooter *screenshooter =
-		wl_resource_get_user_data(screenshooter_resource);
-	struct wlr_output *output = wl_resource_get_user_data(output_resource);
+		screenshooter_from_resource(screenshooter_resource);
+	struct wlr_output *output = wlr_output_from_resource(output_resource);
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	if (renderer == NULL) {
@@ -133,7 +149,7 @@ static void screenshooter_shoot(struct wl_client *client,
 	wlr_output_schedule_frame(output);
 }
 
-static struct orbital_screenshooter_interface screenshooter_impl = {
+static const struct orbital_screenshooter_interface screenshooter_impl = {
 	.shoot = screenshooter_shoot,
 };
 

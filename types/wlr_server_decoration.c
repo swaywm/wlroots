@@ -6,6 +6,16 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
+static const struct org_kde_kwin_server_decoration_interface
+	server_decoration_impl;
+
+static struct wlr_server_decoration *decoration_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&org_kde_kwin_server_decoration_interface, &server_decoration_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void server_decoration_handle_release(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -14,7 +24,7 @@ static void server_decoration_handle_release(struct wl_client *client,
 static void server_decoration_handle_request_mode(struct wl_client *client,
 		struct wl_resource *resource, uint32_t mode) {
 	struct wlr_server_decoration *decoration =
-		wl_resource_get_user_data(resource);
+		decoration_from_resource(resource);
 	if (decoration->mode == mode) {
 		return;
 	}
@@ -35,7 +45,7 @@ static void server_decoration_destroy(
 
 static void server_decoration_destroy_resource(struct wl_resource *resource) {
 	struct wlr_server_decoration *decoration =
-		wl_resource_get_user_data(resource);
+		decoration_from_resource(resource);
 	if (decoration != NULL) {
 		server_decoration_destroy(decoration);
 	}
@@ -49,17 +59,28 @@ static void server_decoration_handle_surface_destroy(
 }
 
 static const struct org_kde_kwin_server_decoration_interface
-server_decoration_impl = {
+		server_decoration_impl = {
 	.release = server_decoration_handle_release,
 	.request_mode = server_decoration_handle_request_mode,
 };
+
+static const struct org_kde_kwin_server_decoration_manager_interface
+	server_decoration_manager_impl;
+
+static struct wlr_server_decoration_manager *manager_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&org_kde_kwin_server_decoration_manager_interface,
+		&server_decoration_manager_impl));
+	return wl_resource_get_user_data(resource);
+}
 
 static void server_decoration_manager_handle_create(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_server_decoration_manager *manager =
-		wl_resource_get_user_data(manager_resource);
-	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
+		manager_from_resource(manager_resource);
+	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
 
 	struct wlr_server_decoration *decoration =
 		calloc(1, sizeof(struct wlr_server_decoration));
@@ -102,7 +123,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 }
 
 static const struct org_kde_kwin_server_decoration_manager_interface
-server_decoration_manager_impl = {
+		server_decoration_manager_impl = {
 	.create = server_decoration_manager_handle_create,
 };
 

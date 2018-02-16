@@ -7,13 +7,21 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
+static const struct wl_compositor_interface wl_compositor_impl;
+
+static struct wlr_compositor *compositor_from_resource(struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_compositor_interface,
+		&wl_compositor_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void destroy_surface_listener(struct wl_listener *listener, void *data) {
 	wl_list_remove(wl_resource_get_link(data));
 }
 
 static void wl_compositor_create_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	struct wlr_compositor *compositor = wl_resource_get_user_data(resource);
+	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
 	struct wl_resource *surface_resource = wl_resource_create(client,
 		&wl_surface_interface, wl_resource_get_version(resource), id);
@@ -44,13 +52,13 @@ static void wl_compositor_create_region(struct wl_client *client,
 	wlr_region_create(client, resource, id);
 }
 
-struct wl_compositor_interface wl_compositor_impl = {
+static const struct wl_compositor_interface wl_compositor_impl = {
 	.create_surface = wl_compositor_create_surface,
 	.create_region = wl_compositor_create_region
 };
 
 static void wl_compositor_destroy(struct wl_resource *resource) {
-	struct wlr_compositor *compositor = wl_resource_get_user_data(resource);
+	struct wlr_compositor *compositor = compositor_from_resource(resource);
 	struct wl_resource *_resource = NULL;
 	wl_resource_for_each(_resource, &compositor->wl_resources) {
 		if (_resource == resource) {
@@ -96,8 +104,8 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource,
 		struct wl_resource *parent_resource) {
-	struct wlr_surface *surface = wl_resource_get_user_data(surface_resource);
-	struct wlr_surface *parent = wl_resource_get_user_data(parent_resource);
+	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
+	struct wlr_surface *parent = wlr_surface_from_resource(parent_resource);
 
 	static const char msg[] = "get_subsurface: wl_subsurface@";
 
