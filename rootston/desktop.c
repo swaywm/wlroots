@@ -481,6 +481,13 @@ void view_update_decorated(struct roots_view *view, bool decorated) {
 
 	view_damage_whole(view);
 	view->decorated = decorated;
+	if (decorated) {
+		view->border_width = 4;
+		view->titlebar_height = 12;
+	} else {
+		view->border_width = 0;
+		view->titlebar_height = 0;
+	}
 	view_damage_whole(view);
 }
 
