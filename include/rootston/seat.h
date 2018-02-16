@@ -5,6 +5,14 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 
+struct wlr_xwayland_keyboard_grab_v1_grab;
+
+struct roots_xwayland_keyboard_grab_v1 {
+	struct wl_list link; // roots_seat::xwayland_keyboard_grabs;
+	struct wl_listener destroy_listener;
+	struct wlr_xwayland_keyboard_grab_v1_grab *grab;
+};
+
 struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
@@ -24,6 +32,7 @@ struct roots_seat {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+	struct wl_list xwayland_keyboard_grabs;
 
 	struct wl_listener new_drag_icon;
 	struct wl_listener destroy;

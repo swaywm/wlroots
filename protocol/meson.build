@@ -29,6 +29,10 @@ protocols = [
 	'server-decoration.xml',
 ]
 
+if get_option('enable_xwayland')
+	protocols += [[wl_protocol_dir, 'unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml']]
+endif
+
 client_protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	'gamma-control.xml',

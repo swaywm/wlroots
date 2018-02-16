@@ -356,6 +356,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->tablet_tools);
 	wl_list_init(&seat->views);
 	wl_list_init(&seat->drag_icons);
+	wl_list_init(&seat->xwayland_keyboard_grabs);
 
 	seat->input = input;
 
@@ -364,6 +365,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		free(seat);
 		return NULL;
 	}
+	seat->seat->data = seat;
 
 	roots_seat_init_cursor(seat);
 	if (!seat->cursor) {
@@ -707,6 +709,11 @@ struct roots_seat_view *roots_seat_view_from_view(
 }
 
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
+	// Prevent focus switching, when a passive grab is active
+	if (!wl_list_empty(&seat->xwayland_keyboard_grabs)) {
+		return;
+	}
+
 	// Make sure the view will be rendered on top of others, even if it's
 	// already focused in this seat
 	if (view != NULL) {
