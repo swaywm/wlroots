@@ -29,5 +29,5 @@ lib_wlr_types = static_library(
 		'wlr_xdg_shell.c',
 	),
 	include_directories: wlr_inc,
-	dependencies: [wayland_server, pixman, wlr_protos],
+	dependencies: [pixman, xkbcommon, wayland_server, wlr_protos],
 )

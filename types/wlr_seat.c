@@ -23,15 +23,24 @@ static void pointer_send_frame(struct wl_resource *resource) {
 	}
 }
 
+static const struct wl_pointer_interface wl_pointer_impl;
+
+static struct wlr_seat_client *seat_client_from_pointer_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_pointer_interface,
+		&wl_pointer_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void wl_pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *pointer_resource, uint32_t serial,
 		struct wl_resource *surface_resource,
 		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(pointer_resource);
+		seat_client_from_pointer_resource(pointer_resource);
 	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
-		surface = wl_resource_get_user_data(surface_resource);
+		surface = wlr_surface_from_resource(surface_resource);
 
 		if (wlr_surface_set_role(surface, "wl_pointer-cursor", surface_resource,
 				WL_POINTER_ERROR_ROLE) < 0) {
@@ -67,7 +76,7 @@ static void wl_pointer_destroy(struct wl_resource *resource) {
 static void wl_seat_get_pointer(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(seat_resource);
+		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_POINTER)) {
 		return;
 	}
@@ -126,7 +135,7 @@ static void seat_client_send_repeat_info(struct wlr_seat_client *client,
 static void wl_seat_get_keyboard(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(seat_resource);
+		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
 		return;
 	}
@@ -160,7 +169,7 @@ static void wl_touch_destroy(struct wl_resource *resource) {
 static void wl_seat_get_touch(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
-		wl_resource_get_user_data(seat_resource);
+		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_TOUCH)) {
 		return;
 	}
@@ -177,7 +186,8 @@ static void wl_seat_get_touch(struct wl_client *client,
 }
 
 static void wlr_seat_client_resource_destroy(struct wl_resource *seat_resource) {
-	struct wlr_seat_client *client = wl_resource_get_user_data(seat_resource);
+	struct wlr_seat_client *client =
+		wlr_seat_client_from_resource(seat_resource);
 	wlr_signal_emit_safe(&client->events.destroy, client);
 
 	if (client == client->seat->pointer_state.focused_client) {
@@ -1249,4 +1259,11 @@ bool wlr_seat_touch_has_grab(struct wlr_seat *seat) {
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial) {
 	return serial == seat->pointer_state.grab_serial ||
 		serial == seat->touch_state.grab_serial;
+}
+
+struct wlr_seat_client *wlr_seat_client_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_seat_interface,
+		&wl_seat_impl));
+	return wl_resource_get_user_data(resource);
 }
