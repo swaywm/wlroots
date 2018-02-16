@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="xdg_toplevel_decoration_unstable_v1">
+  <copyright>
+    Copyright © 2018 Simon Ser
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <interface name="zxdg_toplevel_decoration_manager_v1" version="1">
+    <description summary="window decoration manager">
+      This interface permits choosing between client-side and server-side
+      window decorations for a toplevel surface.
+
+      A window decoration is a user interface component used to move, resize and
+      change a window's state. It can be managed either by the client (part of
+      the surface) or by the server.
+
+      By advertizing this interface the server anounces support for server-side
+      window decorations.
+
+      Warning! The protocol described in this file is experimental and
+      backward incompatible changes may be made. Backward compatible changes
+      may be added together with the corresponding interface version bump.
+      Backward incompatible changes are done by bumping the version number in
+      the protocol and interface names and resetting the interface version.
+      Once the protocol is to be declared stable, the 'z' prefix and the
+      version number in the protocol and interface names are removed and the
+      interface version number is reset.
+    </description>
+
+    <enum name="error">
+      <entry name="unconfigured_buffer" value="1"/>
+      <entry name="already_constructed" value="2"/>
+    </enum>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the decoration manager object">
+        Destroy the decoration manager.
+      </description>
+    </request>
+
+    <request name="get_decoration">
+      <description summary="create a new decoration object">
+        Create a new decoration object associated with the given toplevel.
+
+        Creating a zxdg_toplevel_decoration_v1 from a xdg_toplevel which has a
+        buffer attached or committed is a client error, and any attempts by a
+        client to attach or manipulate a buffer prior to the first
+        zxdg_toplevel_decoration_v1.configure call must also be treated as
+        errors.
+      </description>
+      <arg name="id" type="new_id" interface="zxdg_toplevel_decoration_v1"/>
+      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
+    </request>
+  </interface>
+
+  <interface name="zxdg_toplevel_decoration_v1" version="1">
+    <description summary="decoration object for a toplevel surface">
+      The decoration object allows the client to switch between a client-side
+      and server-side window decoration for a toplevel surface.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the decoration object">
+        Switch back to client-side-only window decoration mode.
+      </description>
+    </request>
+
+    <request name="set_mode">
+      <description summary="set the decoration mode">
+        Set the toplevel surface decoration mode.
+
+        After requesting a decoration mode, the compositor will respond by
+        emitting a xdg_surface.configure event. The client should then update
+        its content, drawing it with or without decorations depending on the
+        received mode. The client must also acknowledge the configure when
+        committing the new content (see xdg_surface.ack_configure).
+
+        The compositor can ignore this request.
+      </description>
+      <arg name="mode" type="uint" enum="mode" summary="the decoration mode"/>
+    </request>
+
+    <event name="preferred_mode">
+      <description summary="advertise the server's preferred mode">
+        The preferred_mode event describes the server's preferred decoration
+        mode for this toplevel surface. The event is sent when binding to the
+        decoration object and whenever the preferred mode changes.
+      </description>
+      <arg name="mode" type="uint" enum="mode" summary="the preferred mode"/>
+    </event>
+
+    <event name="configure">
+      <description summary="suggest a surface change">
+        The configure event asks the client to change its decoration mode. The
+        configured state should not be applied immediately. See
+        xdg_surface.configure for details.
+      </description>
+      <arg name="mode" type="uint" enum="mode" summary="the decoration mode"/>
+    </event>
+
+    <enum name="mode">
+      <description summary="window decoration modes">
+        These values describe window decoration modes.
+      </description>
+      <entry name="client" value="1" summary="client-side window decoration"/>
+      <entry name="server" value="2" summary="server-side window decoration"/>
+    </enum>
+  </interface>
+</protocol>

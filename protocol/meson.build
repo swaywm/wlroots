@@ -28,12 +28,15 @@ protocols = [
 	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'xdg-toplevel-decoration-unstable-v1.xml',
 ]
 
 client_protocols = [
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
+	[wl_protocol_dir, 'stable/xdg-shell/xdg-shell.xml'],
 	'idle.xml',
 	'screenshooter.xml',
+	'xdg-toplevel-decoration-unstable-v1.xml',
 ]
 
 wl_protos_src = []

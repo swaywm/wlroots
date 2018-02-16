@@ -16,6 +16,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_toplevel_decoration.h>
 #include <wlr/util/log.h>
 #include "rootston/seat.h"
 #include "rootston/server.h"
@@ -473,6 +474,16 @@ void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) 
 	view_damage_whole(view);
 }
 
+void view_update_decorated(struct roots_view *view, bool decorated) {
+	if (view->decorated == decorated) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->decorated = decorated;
+	view_damage_whole(view);
+}
+
 static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
 	if (view->type == ROOTS_WL_SHELL_VIEW &&
@@ -637,18 +648,18 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
-		&desktop->xdg_shell_v6_surface);
-	desktop->xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
+		&desktop->new_xdg_shell_v6_surface);
+	desktop->new_xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
 
 	desktop->xdg_shell = wlr_xdg_shell_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell->events.new_surface,
-		&desktop->xdg_shell_surface);
-	desktop->xdg_shell_surface.notify = handle_xdg_shell_surface;
+		&desktop->new_xdg_shell_surface);
+	desktop->new_xdg_shell_surface.notify = handle_xdg_shell_surface;
 
 	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
 	wl_signal_add(&desktop->wl_shell->events.new_surface,
-		&desktop->wl_shell_surface);
-	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
+		&desktop->new_wl_shell_surface);
+	desktop->new_wl_shell_surface.notify = handle_wl_shell_surface;
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
@@ -675,8 +686,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);
 		wl_signal_add(&desktop->xwayland->events.new_surface,
-			&desktop->xwayland_surface);
-		desktop->xwayland_surface.notify = handle_xwayland_surface;
+			&desktop->new_xwayland_surface);
+		desktop->new_xwayland_surface.notify = handle_xwayland_surface;
 
 		if (wlr_xcursor_manager_load(desktop->xcursor_manager, 1)) {
 			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
@@ -703,6 +714,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->primary_selection_device_manager =
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
+
+	desktop->xdg_toplevel_decoration_manager =
+		wlr_xdg_toplevel_decoration_manager_create(server->wl_display);
+	wl_signal_add(&desktop->xdg_toplevel_decoration_manager->events.new_decoration,
+		&desktop->new_xdg_toplevel_decoration);
+	desktop->new_xdg_toplevel_decoration.notify = handle_xdg_toplevel_decoration;
 
 	return desktop;
 }

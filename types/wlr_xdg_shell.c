@@ -884,6 +884,7 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		if (configure->serial < serial) {
 			wl_list_remove(&configure->link);
+			wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 			free(configure);
 		} else if (configure->serial == serial) {
 			wl_list_remove(&configure->link);
@@ -913,6 +914,8 @@ static void xdg_surface_ack_configure(struct wl_client *client,
 
 	surface->configured = true;
 	surface->configure_serial = serial;
+
+	wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 
 	free(configure);
 }
@@ -1070,6 +1073,7 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	}
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
+	configure->surface = surface;
 	configure->serial = surface->configure_next_serial;
 
 	switch (surface->role) {
@@ -1088,11 +1092,12 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 		break;
 	}
 
+	wlr_signal_emit_safe(&surface->events.configure, configure);
+
 	xdg_surface_send_configure(surface->resource, configure->serial);
 }
 
-static uint32_t wlr_xdg_surface_schedule_configure(
-		struct wlr_xdg_surface *surface) {
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 	bool pending_same = false;
@@ -1279,6 +1284,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
 	wl_signal_init(&surface->events.new_popup);
+	wl_signal_init(&surface->events.configure);
+	wl_signal_init(&surface->events.ack_configure);
 
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);

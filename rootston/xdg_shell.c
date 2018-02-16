@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_toplevel_decoration.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/input.h"
@@ -303,7 +304,7 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	}
 
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xdg_shell_surface);
+		wl_container_of(listener, desktop, new_xdg_shell_surface);
 
 	wlr_log(L_DEBUG, "new xdg toplevel: title=%s, app_id=%s",
 		surface->title, surface->app_id);
@@ -360,4 +361,82 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	wl_list_insert(&desktop->views, &view->link);
 
 	view_setup(view);
+}
+
+
+static void decoration_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, destroy);
+
+	view_update_decorated(decoration->surface->view, false);
+	wl_list_remove(&decoration->destroy.link);
+	wl_list_remove(&decoration->request_mode.link);
+	free(decoration);
+}
+
+static void decoration_handle_request_mode(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, request_mode);
+
+	wlr_xdg_toplevel_decoration_set_mode(decoration->wlr_decoration,
+		decoration->wlr_decoration->next_mode);
+}
+
+static void decoration_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, surface_commit);
+
+	bool decorated = decoration->wlr_decoration->current_mode ==
+		WLR_XDG_TOPLEVEL_DECORATION_MODE_SERVER;
+	view_update_decorated(decoration->surface->view, decorated);
+}
+
+void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, new_xdg_toplevel_decoration);
+	struct wlr_xdg_toplevel_decoration *wlr_decoration = data;
+
+	wlr_log(L_DEBUG, "new xdg toplevel decoration");
+
+	bool found = false;
+	struct roots_view *view = NULL;
+	wl_list_for_each(view, &desktop->views, link) {
+		if (view->wlr_surface == wlr_decoration->surface->surface) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		return;
+	}
+	assert(view->type == ROOTS_XDG_SHELL_VIEW);
+
+	struct roots_xdg_toplevel_decoration *decoration =
+		calloc(1, sizeof(struct roots_xdg_toplevel_decoration));
+	if (decoration == NULL) {
+		return;
+	}
+	decoration->wlr_decoration = wlr_decoration;
+	decoration->surface = view->roots_xdg_surface;
+
+	decoration->destroy.notify = decoration_handle_destroy;
+	wl_signal_add(&wlr_decoration->events.destroy, &decoration->destroy);
+	decoration->request_mode.notify = decoration_handle_request_mode;
+	wl_signal_add(&wlr_decoration->events.request_mode, &decoration->request_mode);
+	decoration->surface_commit.notify = decoration_handle_surface_commit;
+	wl_signal_add(&view->wlr_surface->events.commit, &decoration->surface_commit);
+
+	enum wlr_xdg_toplevel_decoration_mode preferred_mode =
+		WLR_XDG_TOPLEVEL_DECORATION_MODE_CLIENT;
+	wlr_xdg_toplevel_decoration_send_preferred_mode(wlr_decoration,
+		preferred_mode);
+
+	enum wlr_xdg_toplevel_decoration_mode mode = wlr_decoration->next_mode;
+	if (mode == 0) {
+		mode = preferred_mode;
+	}
+	wlr_xdg_toplevel_decoration_set_mode(wlr_decoration, mode);
 }

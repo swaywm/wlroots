@@ -280,7 +280,7 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xwayland_surface);
+		wl_container_of(listener, desktop, new_xwayland_surface);
 
 	struct wlr_xwayland_surface *surface = data;
 	wlr_log(L_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
