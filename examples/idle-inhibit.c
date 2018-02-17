@@ -96,8 +96,15 @@ static void xdg_toplevel_handle_configure(void *data,
 	height = h;
 }
 
+static void xdg_toplevel_handle_close(void *data,
+		struct xdg_toplevel *xdg_toplevel) {
+	exit(EXIT_SUCCESS);
+}
+
+
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.configure = xdg_toplevel_handle_configure,
+	.close = xdg_toplevel_handle_close,
 };
 
 // static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
