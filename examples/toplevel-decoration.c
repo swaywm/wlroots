@@ -24,13 +24,37 @@ struct wlr_egl egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 
-enum zxdg_toplevel_decoration_v1_mode decoration_mode;
+struct zxdg_toplevel_decoration_v1 *decoration;
+enum zxdg_toplevel_decoration_v1_mode server_preferred_mode,
+	client_preferred_mode, current_mode;
+
+static const char *get_mode_name(enum zxdg_toplevel_decoration_v1_mode mode) {
+	if (mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT) {
+		return "client-side decorations";
+	} else {
+		return "server-side decorations";
+	}
+}
+
+static void request_preferred_mode(void) {
+	enum zxdg_toplevel_decoration_v1_mode mode = client_preferred_mode;
+	if (mode == 0) {
+		// No client preference, use server preference
+		mode = server_preferred_mode;
+	}
+	if (mode == 0 || mode == current_mode) {
+		return;
+	}
+
+	printf("Requesting %s\n", get_mode_name(mode));
+	zxdg_toplevel_decoration_v1_set_mode(decoration, mode);
+}
 
 static void draw(void) {
 	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
 
 	float color[] = {1.0, 1.0, 0.0, 1.0};
-	if (decoration_mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT) {
+	if (current_mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT) {
 		color[0] = 0.0;
 	}
 
@@ -66,26 +90,16 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 static void decoration_handle_preferred_mode(void *data,
 		struct zxdg_toplevel_decoration_v1 *decoration,
 		enum zxdg_toplevel_decoration_v1_mode mode) {
-	if (mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT) {
-		printf("Server prefers client-side decorations\n");
-	} else {
-		printf("Server prefers server-side decorations\n");
-	}
-
-	if (decoration_mode == 0) {
-		decoration_mode = mode;
-	}
+	printf("Server prefers %s\n", get_mode_name(mode));
+	server_preferred_mode = mode;
+	request_preferred_mode();
 }
 
 static void decoration_handle_configure(void *data,
 		struct zxdg_toplevel_decoration_v1 *decoration,
 		enum zxdg_toplevel_decoration_v1_mode mode) {
-	if (mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT) {
-		printf("Using client-side decorations\n");
-	} else {
-		printf("Using server-side decorations\n");
-	}
-	decoration_mode = mode;
+	printf("Using %s\n", get_mode_name(mode));
+	current_mode = mode;
 }
 
 static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
@@ -120,9 +134,9 @@ int main(int argc, char **argv) {
 	if (argc == 2) {
 		char *mode = argv[1];
 		if (strcmp(mode, "client") == 0) {
-			decoration_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT;
+			client_preferred_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT;
 		} else if (strcmp(mode, "server") == 0) {
-			decoration_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER;
+			client_preferred_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER;
 		} else {
 			fprintf(stderr, "Invalid decoration mode\n");
 			return EXIT_FAILURE;
@@ -160,13 +174,11 @@ int main(int argc, char **argv) {
 	struct xdg_surface *xdg_surface =
 		xdg_wm_base_get_xdg_surface(wm_base, surface);
 	struct xdg_toplevel *xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
-	struct zxdg_toplevel_decoration_v1 *decoration =
-		zxdg_toplevel_decoration_manager_v1_get_decoration(decoration_manager,
-		xdg_toplevel);
+	decoration = zxdg_toplevel_decoration_manager_v1_get_decoration(
+		decoration_manager, xdg_toplevel);
 
-	if (decoration_mode != 0) {
-		zxdg_toplevel_decoration_v1_set_mode(decoration, decoration_mode);
-	}
+	wl_display_roundtrip(display);
+	request_preferred_mode();
 
 	xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
 	xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, NULL);
