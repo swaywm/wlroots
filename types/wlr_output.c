@@ -17,7 +17,7 @@
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
 	assert(resource);
-	struct wlr_output *output = wl_resource_get_user_data(resource);
+	struct wlr_output *output = wlr_output_from_resource(resource);
 	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
@@ -53,7 +53,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 static void wlr_output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
 	assert(resource);
-	struct wlr_output *output = wl_resource_get_user_data(resource);
+	struct wlr_output *output = wlr_output_from_resource(resource);
 	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version < WL_OUTPUT_MODE_SINCE_VERSION) {
@@ -75,7 +75,7 @@ static void wlr_output_send_current_mode_to_resource(
 }
 
 static void wl_output_destroy(struct wl_resource *resource) {
-	struct wlr_output *output = wl_resource_get_user_data(resource);
+	struct wlr_output *output = wlr_output_from_resource(resource);
 	struct wl_resource *_resource = NULL;
 	wl_resource_for_each(_resource, &output->wl_resources) {
 		if (_resource == resource) {
@@ -646,6 +646,12 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 		output_fullscreen_surface_handle_destroy;
 	wl_signal_add(&surface->events.destroy,
 		&output->fullscreen_surface_destroy);
+}
+
+struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_output_interface,
+		&wl_output_impl));
+	return wl_resource_get_user_data(resource);
 }
 
 

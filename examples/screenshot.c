@@ -23,20 +23,20 @@
 
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 199309L
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <wayland-client.h>
-#include <limits.h>
-#include <sys/param.h>
-#include <screenshooter-client-protocol.h>
-#include "util/os-compatibility.h"
 #include <wlr/util/log.h>
+#include "screenshooter-client-protocol.h"
+#include "util/os-compatibility.h"
 
 static struct wl_shm *shm = NULL;
 static struct orbital_screenshooter *screenshooter = NULL;

@@ -26,7 +26,8 @@ lib_wlr_types = static_library(
 		'wlr_wl_shell.c',
 		'wlr_xcursor_manager.c',
 		'wlr_xdg_shell_v6.c',
+		'wlr_xdg_shell.c',
 	),
 	include_directories: wlr_inc,
-	dependencies: [wayland_server, pixman, wlr_protos],
+	dependencies: [pixman, xkbcommon, wayland_server, wlr_protos],
 )
