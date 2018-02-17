@@ -5,7 +5,6 @@
 #include <wayland-util.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/util/direction.h>
 
 struct wlr_output_layout_state;
 
@@ -96,6 +95,13 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
  */
 struct wlr_output *wlr_output_layout_get_center_output(
 		struct wlr_output_layout *layout);
+
+enum wlr_direction {
+	WLR_DIRECTION_UP = 0,
+	WLR_DIRECTION_DOWN = 1,
+	WLR_DIRECTION_LEFT = 2,
+	WLR_DIRECTION_RIGHT = 4,
+};
 
 /**
  * Get the closest adjacent output to the reference output from the reference
