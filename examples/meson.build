@@ -41,3 +41,10 @@ executable(
 	dependencies: [wayland_client, wlr_protos, wlroots, threads],
 	link_with: lib_shared,
 )
+
+executable(
+	'idle-inhibit',
+	'idle-inhibit.c',
+	dependencies: [wayland_client, wlr_protos, wlroots, threads],
+	link_with: lib_shared,
+)
