@@ -442,17 +442,17 @@ struct wlr_output *wlr_output_layout_adjacent_output(
 
 		bool match = false;
 		// test to make sure this output is in the given direction
-		if (direction | WLR_DIRECTION_LEFT) {
+		if (direction & WLR_DIRECTION_LEFT) {
 			match = box->x + box->width <= ref_box->x || match;
 		}
-		if (direction | WLR_DIRECTION_RIGHT) {
+		if (direction & WLR_DIRECTION_RIGHT) {
 			match = box->x >= ref_box->x + ref_box->width || match;
 		}
-		if (direction | WLR_DIRECTION_UP) {
-			match = box->y + box->height <= ref_box->y;
+		if (direction & WLR_DIRECTION_UP) {
+			match = box->y + box->height <= ref_box->y || match;
 		}
-		if (direction | WLR_DIRECTION_DOWN) {
-			match = box->y >= ref_box->y + ref_box->height;
+		if (direction & WLR_DIRECTION_DOWN) {
+			match = box->y >= ref_box->y + ref_box->height || match;
 		}
 		if (!match) {
 			continue;
