@@ -107,6 +107,61 @@ static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
 	.configure = decoration_handle_configure,
 };
 
+static void pointer_handle_enter(void *data, struct wl_pointer *pointer,
+		uint32_t serial, struct wl_surface *surface,
+		wl_fixed_t sx, wl_fixed_t sy) {
+	// No-op
+}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *pointer,
+		uint32_t serial, struct wl_surface *surface) {
+	// No-op
+}
+
+static void pointer_handle_motion(void *data, struct wl_pointer *pointer,
+		uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
+	// No-op
+}
+
+static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, uint32_t time, uint32_t button,
+		enum wl_pointer_button_state state) {
+	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		// Toggle mode
+		if (client_preferred_mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER) {
+			client_preferred_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT;
+		} else {
+			client_preferred_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER;
+		}
+		request_preferred_mode();
+	}
+}
+
+static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, enum wl_pointer_axis axis, wl_fixed_t value) {
+	// No-op
+}
+
+static const struct wl_pointer_listener pointer_listener = {
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
+	.motion = pointer_handle_motion,
+	.button = pointer_handle_button,
+	.axis = pointer_handle_axis,
+};
+
+static void seat_handle_capabilities(void *data, struct wl_seat *seat,
+		enum wl_seat_capability caps) {
+	if (caps & WL_SEAT_CAPABILITY_POINTER) {
+		struct wl_pointer *pointer = wl_seat_get_pointer(seat);
+		wl_pointer_add_listener(pointer, &pointer_listener, NULL);
+	}
+}
+
+static const struct wl_seat_listener seat_listener = {
+	.capabilities = seat_handle_capabilities,
+};
+
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, "wl_compositor") == 0) {
@@ -117,6 +172,10 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, "zxdg_toplevel_decoration_manager_v1") == 0) {
 		decoration_manager = wl_registry_bind(registry, name,
 			&zxdg_toplevel_decoration_manager_v1_interface, 1);
+	} else if (strcmp(interface, "wl_seat") == 0) {
+		struct wl_seat *seat =
+			wl_registry_bind(registry, name, &wl_seat_interface, 1);
+		wl_seat_add_listener(seat, &seat_listener, NULL);
 	}
 }
 
