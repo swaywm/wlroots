@@ -426,7 +426,6 @@ struct wlr_output *wlr_output_layout_get_center_output(
 struct wlr_output *wlr_output_layout_adjacent_output(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
 		struct wlr_output *reference, double ref_x, double ref_y) {
-	// XXX should we allow reference to be NULL?
 	assert(reference);
 
 	struct wlr_box *ref_box = wlr_output_layout_get_box(layout, reference);
