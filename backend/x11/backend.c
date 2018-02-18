@@ -221,10 +221,20 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	init_atom(x11, &x11->atoms.wm_protocols, 1, "WM_PROTOCOLS");
 	init_atom(x11, &x11->atoms.wm_delete_window, 0, "WM_DELETE_WINDOW");
+	init_atom(x11, &x11->atoms.net_wm_name, 1, "_NET_WM_NAME");
+	init_atom(x11, &x11->atoms.utf8_string, 0, "UTF8_STRING");
 
 	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
 		x11->atoms.wm_protocols.reply->atom, XCB_ATOM_ATOM, 32, 1,
 		&x11->atoms.wm_delete_window.reply->atom);
+
+	char title[32];
+	if (snprintf(title, sizeof(title), "wlroots - %s", output->wlr_output.name)) {
+		xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
+			x11->atoms.net_wm_name.reply->atom,
+			x11->atoms.utf8_string.reply->atom, 8,
+			strlen(title), title);
+	}
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
