@@ -4,7 +4,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include "server-decoration-protocol.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 static const struct org_kde_kwin_server_decoration_interface
@@ -128,7 +127,6 @@ static const struct org_kde_kwin_server_decoration_manager_interface
 	.create = server_decoration_manager_handle_create,
 };
 
-WLR_API
 void wlr_server_decoration_manager_set_default_mode(
 		struct wlr_server_decoration_manager *manager, uint32_t default_mode) {
 	manager->default_mode = default_mode;
@@ -164,7 +162,6 @@ static void server_decoration_manager_bind(struct wl_client *client, void *data,
 		manager->default_mode);
 }
 
-WLR_API
 void wlr_server_decoration_manager_destroy(
 		struct wlr_server_decoration_manager *manager) {
 	if (manager == NULL) {
@@ -190,7 +187,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_server_decoration_manager_destroy(manager);
 }
 
-WLR_API
 struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 		struct wl_display *display) {
 	struct wlr_server_decoration_manager *manager =

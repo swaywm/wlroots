@@ -31,7 +31,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "util/defs.h"
 #include "util/os-compatibility.h"
 
 int os_fd_set_cloexec(int fd) {
@@ -98,11 +97,6 @@ int create_tmpfile_cloexec(char *tmpname)
  * If posix_fallocate() is not supported, program may receive
  * SIGBUS on accessing mmap()'ed file contents instead.
  */
-/*
- * XXX: This is not part of our public headers, but one of the examples uses it.
- * We really should not export this.
- */
-WLR_API
 int os_create_anonymous_file(off_t size) {
 	static const char template[] = "/wlroots-shared-XXXXXX";
 	const char *path;

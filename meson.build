@@ -17,7 +17,6 @@ project(
 so_version = ['0', '0', '0']
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
-add_project_arguments('-fvisibility=hidden', language: 'c')
 add_project_arguments(
 	'-DWLR_SRC_DIR="@0@"'.format(meson.source_root()),
 	language: 'c',

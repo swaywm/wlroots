@@ -24,7 +24,6 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 bool wlr_drm_check_features(struct wlr_drm_backend *drm) {
@@ -729,7 +728,6 @@ static struct wlr_output_impl output_impl = {
 	.get_gamma_size = wlr_drm_connector_get_gamma_size,
 };
 
-WLR_API
 bool wlr_output_is_drm(struct wlr_output *output) {
 	return output->impl == &output_impl;
 }

@@ -13,9 +13,7 @@
 #include <wlr/backend/wayland.h>
 #include <wlr/backend/x11.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 
-WLR_API
 void wlr_backend_init(struct wlr_backend *backend,
 		const struct wlr_backend_impl *impl) {
 	assert(backend);
@@ -25,7 +23,6 @@ void wlr_backend_init(struct wlr_backend *backend,
 	wl_signal_init(&backend->events.new_output);
 }
 
-WLR_API
 bool wlr_backend_start(struct wlr_backend *backend) {
 	if (backend->impl->start) {
 		return backend->impl->start(backend);
@@ -33,7 +30,6 @@ bool wlr_backend_start(struct wlr_backend *backend) {
 	return true;
 }
 
-WLR_API
 void wlr_backend_destroy(struct wlr_backend *backend) {
 	if (!backend) {
 		return;
@@ -46,7 +42,6 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	}
 }
 
-WLR_API
 struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
 	if (backend->impl->get_egl) {
 		return backend->impl->get_egl(backend);
@@ -54,7 +49,6 @@ struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
 	return NULL;
 }
 
-WLR_API
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	if (backend->impl->get_renderer) {
 		return backend->impl->get_renderer(backend);
@@ -85,7 +79,6 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	return backend;
 }
 
-WLR_API
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	if (!backend) {
@@ -156,4 +149,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	}
 
 	return backend;
+}
+
+uint32_t usec_to_msec(uint64_t usec) {
+	return (uint32_t)(usec / 1000);
 }

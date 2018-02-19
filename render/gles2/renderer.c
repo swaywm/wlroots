@@ -13,7 +13,6 @@
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 #include "glapi.h"
-#include "util/defs.h"
 
 struct shaders shaders;
 
@@ -267,7 +266,6 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.format_supported = wlr_gles2_format_supported,
 };
 
-WLR_API
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	init_globals();
 	struct wlr_gles2_renderer *renderer;

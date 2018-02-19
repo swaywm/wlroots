@@ -7,7 +7,6 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "gtk-primary-selection-protocol.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 static const struct gtk_primary_selection_offer_interface offer_impl;
@@ -174,7 +173,6 @@ static void source_resource_handle_destroy(struct wl_resource *resource) {
 }
 
 
-WLR_API
 void wlr_seat_client_send_primary_selection(
 		struct wlr_seat_client *seat_client) {
 	if (wl_list_empty(&seat_client->primary_selection_devices)) {
@@ -218,7 +216,6 @@ static void seat_client_primary_selection_source_destroy(
 	wlr_signal_emit_safe(&seat->events.primary_selection, seat);
 }
 
-WLR_API
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 		struct wlr_primary_selection_source *source, uint32_t serial) {
 	if (source) {
@@ -286,14 +283,13 @@ static void device_resource_handle_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-WLR_API
+
 void wlr_primary_selection_source_init(
 		struct wlr_primary_selection_source *source) {
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
 }
 
-WLR_API
 void wlr_primary_selection_source_finish(
 		struct wlr_primary_selection_source *source) {
 	if (source == NULL) {
@@ -386,7 +382,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_primary_selection_device_manager_destroy(manager);
 }
 
-WLR_API
 struct wlr_primary_selection_device_manager *
 		wlr_primary_selection_device_manager_create(
 		struct wl_display *display) {
@@ -409,7 +404,6 @@ struct wlr_primary_selection_device_manager *
 	return manager;
 }
 
-WLR_API
 void wlr_primary_selection_device_manager_destroy(
 		struct wlr_primary_selection_device_manager *manager) {
 	if (manager == NULL) {

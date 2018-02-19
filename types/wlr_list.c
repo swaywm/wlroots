@@ -5,9 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <wlr/types/wlr_list.h>
-#include "util/defs.h"
 
-WLR_API
 bool wlr_list_init(struct wlr_list *list) {
 	list->capacity = 10;
 	list->length = 0;
@@ -31,19 +29,16 @@ static bool list_resize(struct wlr_list *list) {
 	return true;
 }
 
-WLR_API
 void wlr_list_finish(struct wlr_list *list) {
 	free(list->items);
 }
 
-WLR_API
 void wlr_list_for_each(struct wlr_list *list, void (*callback)(void *item)) {
 	for (size_t i = 0; i < list->length; i++) {
 		callback(list->items[i]);
 	}
 }
 
-WLR_API
 ssize_t wlr_list_push(struct wlr_list *list, void *item) {
 	if (!list_resize(list)) {
 		return -1;
@@ -52,7 +47,6 @@ ssize_t wlr_list_push(struct wlr_list *list, void *item) {
 	return list->length;
 }
 
-WLR_API
 ssize_t wlr_list_insert(struct wlr_list *list, size_t index, void *item) {
 	if (!list_resize(list)) {
 		return -1;
@@ -64,14 +58,12 @@ ssize_t wlr_list_insert(struct wlr_list *list, size_t index, void *item) {
 	return list->length;
 }
 
-WLR_API
 void wlr_list_del(struct wlr_list *list, size_t index) {
 	list->length--;
 	memmove(&list->items[index], &list->items[index + 1],
 		sizeof(void *) * (list->length - index));
 }
 
-WLR_API
 void *wlr_list_pop(struct wlr_list *list) {
 	if (list->length == 0) {
 		return NULL;
@@ -81,7 +73,6 @@ void *wlr_list_pop(struct wlr_list *list) {
 	return last;
 }
 
-WLR_API
 void *wlr_list_peek(struct wlr_list *list) {
 	if (list->length == 0) {
 		return NULL;
@@ -89,7 +80,6 @@ void *wlr_list_peek(struct wlr_list *list) {
 	return list->items[list->length - 1];
 }
 
-WLR_API
 ssize_t wlr_list_cat(struct wlr_list *list, const struct wlr_list *source) {
 	size_t old_len = list->length;
 	size_t i;
@@ -102,13 +92,11 @@ ssize_t wlr_list_cat(struct wlr_list *list, const struct wlr_list *source) {
 	return list->length;
 }
 
-WLR_API
 void wlr_list_qsort(struct wlr_list *list,
 		int compare(const void *left, const void *right)) {
 	qsort(list->items, list->length, sizeof(void *), compare);
 }
 
-WLR_API
 ssize_t wlr_list_find(struct wlr_list *list,
 		int compare(const void *item, const void *data), const void *data) {
 	for (size_t i = 0; i < list->length; i++) {

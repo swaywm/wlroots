@@ -8,7 +8,6 @@
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
-#include "util/defs.h"
 
 static struct wlr_screenshot *screenshot_from_resource(
 		struct wl_resource *resource) {
@@ -169,7 +168,6 @@ static void screenshooter_bind(struct wl_client *wl_client, void *data,
 		screenshooter, NULL);
 }
 
-WLR_API
 void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
 	if (!screenshooter) {
 		return;
@@ -189,7 +187,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_screenshooter_destroy(screenshooter);
 }
 
-WLR_API
 struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
 	struct wlr_screenshooter *screenshooter =
 		calloc(1, sizeof(struct wlr_screenshooter));
