@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "util/defs.h"
 #include "util/signal.h"
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
@@ -205,6 +206,7 @@ static struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy
 };
 
+WLR_API
 bool wlr_input_device_is_wl(struct wlr_input_device *dev) {
 	return dev->impl == &input_device_impl;
 }

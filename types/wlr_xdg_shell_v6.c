@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-protocol.h"
 
@@ -1353,6 +1354,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_xdg_shell_v6_destroy(xdg_shell);
 }
 
+WLR_API
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	struct wlr_xdg_shell_v6 *xdg_shell =
 		calloc(1, sizeof(struct wlr_xdg_shell_v6));
@@ -1381,6 +1383,7 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	return xdg_shell;
 }
 
+WLR_API
 void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 	if (!xdg_shell) {
 		return;
@@ -1390,6 +1393,7 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 	free(xdg_shell);
 }
 
+WLR_API
 void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
 	if (surface->client->ping_serial != 0) {
 		// already pinged
@@ -1404,6 +1408,7 @@ void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
 		surface->client->ping_serial);
 }
 
+WLR_API
 uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1413,6 +1418,7 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
+WLR_API
 uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 		bool activated) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1421,6 +1427,7 @@ uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
+WLR_API
 uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 		bool maximized) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1429,6 +1436,7 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
+WLR_API
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 		bool fullscreen) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1437,6 +1445,7 @@ uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
+WLR_API
 uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1445,11 +1454,13 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
+WLR_API
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
 }
 
+WLR_API
 void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 		double *popup_sx, double *popup_sy) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
@@ -1460,6 +1471,7 @@ void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 		surface->geometry->y;
 }
 
+WLR_API
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy) {

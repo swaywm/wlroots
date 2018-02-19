@@ -5,7 +5,9 @@
 #include <wayland-server-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 
+WLR_API
 void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 		double *dest_x, double *dest_y) {
 	// find the closest x point
@@ -27,10 +29,12 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	}
 }
 
+WLR_API
 bool wlr_box_empty(const struct wlr_box *box) {
 	return box == NULL || box->width <= 0 || box->height <= 0;
 }
 
+WLR_API
 bool wlr_box_intersection(const struct wlr_box *box_a,
 		const struct wlr_box *box_b, struct wlr_box *dest) {
 	bool a_empty = wlr_box_empty(box_a);
@@ -57,6 +61,7 @@ bool wlr_box_intersection(const struct wlr_box *box_a,
 	return !wlr_box_empty(dest);
 }
 
+WLR_API
 bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
 	if (wlr_box_empty(box)) {
 		return false;
@@ -66,6 +71,7 @@ bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
 	}
 }
 
+WLR_API
 void wlr_box_transform(const struct wlr_box *box,
 		enum wl_output_transform transform, int width, int height,
 		struct wlr_box *dest) {
@@ -115,6 +121,7 @@ void wlr_box_transform(const struct wlr_box *box,
 	}
 }
 
+WLR_API
 void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 		struct wlr_box *dest) {
 	if (rotation == 0) {

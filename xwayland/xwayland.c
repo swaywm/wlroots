@@ -20,6 +20,7 @@
 #include <wlr/xwayland.h>
 #include <wlr/xwm.h>
 #include "sockets.h"
+#include "util/defs.h"
 #include "util/signal.h"
 
 #ifdef __FreeBSD__
@@ -336,12 +337,14 @@ static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 	return true;
 }
 
+WLR_API
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
 	wlr_xwayland_set_seat(wlr_xwayland, NULL);
 	wlr_xwayland_finish(wlr_xwayland);
 	free(wlr_xwayland);
 }
 
+WLR_API
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 		struct wlr_compositor *compositor) {
 	struct wlr_xwayland *wlr_xwayland = calloc(1, sizeof(struct wlr_xwayland));
@@ -355,6 +358,7 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	return NULL;
 }
 
+WLR_API
 void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 		uint8_t *pixels, uint32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
@@ -386,6 +390,7 @@ static void wlr_xwayland_handle_seat_destroy(struct wl_listener *listener,
 	wlr_xwayland_set_seat(xwayland, NULL);
 }
 
+WLR_API
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 		struct wlr_seat *seat) {
 	if (xwayland->seat) {

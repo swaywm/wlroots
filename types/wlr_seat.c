@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 static void resource_destroy(struct wl_client *client,
@@ -356,6 +357,7 @@ static const struct wlr_touch_grab_interface default_touch_grab_impl = {
 };
 
 
+WLR_API
 void wlr_seat_destroy(struct wlr_seat *seat) {
 	if (!seat) {
 		return;
@@ -396,6 +398,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_seat_destroy(seat);
 }
 
+WLR_API
 struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	struct wlr_seat *wlr_seat = calloc(1, sizeof(struct wlr_seat));
 	if (!wlr_seat) {
@@ -489,6 +492,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	return wlr_seat;
 }
 
+WLR_API
 struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,
 		struct wl_client *wl_client) {
 	assert(wlr_seat);
@@ -501,6 +505,7 @@ struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,
 	return NULL;
 }
 
+WLR_API
 void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 		uint32_t capabilities) {
 	wlr_seat->capabilities = capabilities;
@@ -510,6 +515,7 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 	}
 }
 
+WLR_API
 void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name) {
 	free(wlr_seat->name);
 	wlr_seat->name = strdup(name);
@@ -519,6 +525,7 @@ void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name) {
 	}
 }
 
+WLR_API
 bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface) {
 	return surface == wlr_seat->pointer_state.focused_surface;
@@ -542,6 +549,7 @@ static void pointer_resource_destroy_notify(struct wl_listener *listener,
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
+WLR_API
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	assert(wlr_seat);
@@ -605,10 +613,12 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	// TODO: send focus change event
 }
 
+WLR_API
 void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
 	wlr_seat_pointer_enter(wlr_seat, NULL, 0, 0);
 }
 
+WLR_API
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
@@ -624,6 +634,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	}
 }
 
+WLR_API
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t button, uint32_t state) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
@@ -640,6 +651,7 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 	return serial;
 }
 
+WLR_API
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
@@ -660,6 +672,7 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 	}
 }
 
+WLR_API
 void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_pointer_grab *grab) {
 	assert(wlr_seat);
@@ -670,6 +683,7 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_begin, grab);
 }
 
+WLR_API
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	if (grab != wlr_seat->pointer_state.default_grab) {
@@ -681,12 +695,14 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 	}
 }
 
+WLR_API
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->enter(grab, surface, sx, sy);
 }
 
+WLR_API
 void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
@@ -694,6 +710,7 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	grab->interface->motion(grab, time, sx, sy);
 }
 
+WLR_API
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		uint32_t time, uint32_t button, uint32_t state) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
@@ -717,6 +734,7 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 	return serial;
 }
 
+WLR_API
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
@@ -724,10 +742,12 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 	grab->interface->axis(grab, time, orientation, value);
 }
 
+WLR_API
 bool wlr_seat_pointer_has_grab(struct wlr_seat *seat) {
 	return seat->pointer_state.grab->interface != &default_pointer_grab_impl;
 }
 
+WLR_API
 void wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 		uint32_t key, uint32_t state) {
 	struct wlr_seat_client *client = wlr_seat->keyboard_state.focused_client;
@@ -770,6 +790,7 @@ static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 	state->keyboard = NULL;
 }
 
+WLR_API
 void wlr_seat_set_keyboard(struct wlr_seat *seat,
 		struct wlr_input_device *device) {
 	// TODO call this on device key event before the event reaches the
@@ -814,10 +835,12 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat,
 	}
 }
 
+WLR_API
 struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat) {
 	return seat->keyboard_state.keyboard;
 }
 
+WLR_API
 void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_keyboard_grab *grab) {
 	grab->seat = wlr_seat;
@@ -826,6 +849,7 @@ void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 	wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_begin, grab);
 }
 
+WLR_API
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_keyboard_grab *grab = wlr_seat->keyboard_state.grab;
 
@@ -856,6 +880,7 @@ static void keyboard_resource_destroy_notify(struct wl_listener *listener,
 	wlr_seat_keyboard_clear_focus(state->seat);
 }
 
+WLR_API
 void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 		struct wlr_keyboard_modifiers *modifiers) {
 	struct wlr_seat_client *client = seat->keyboard_state.focused_client;
@@ -876,6 +901,7 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 	}
 }
 
+WLR_API
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
@@ -955,6 +981,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 	}
 }
 
+WLR_API
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
@@ -962,15 +989,18 @@ void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
 	grab->interface->enter(grab, surface, keycodes, num_keycodes, modifiers);
 }
 
+WLR_API
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *seat) {
 	// TODO respect grabs here?
 	wlr_seat_keyboard_enter(seat, NULL, NULL, 0, NULL);
 }
 
+WLR_API
 bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat) {
 	return seat->keyboard_state.grab->interface != &default_keyboard_grab_impl;
 }
 
+WLR_API
 void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
 		struct wlr_keyboard_modifiers *modifiers) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
@@ -978,6 +1008,7 @@ void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
 	grab->interface->modifiers(grab, modifiers);
 }
 
+WLR_API
 void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 		uint32_t key, uint32_t state) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
@@ -985,6 +1016,7 @@ void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
 	grab->interface->key(grab, time, key, state);
 }
 
+WLR_API
 void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_touch_grab *grab) {
 	grab->seat = wlr_seat;
@@ -993,6 +1025,7 @@ void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
 	wlr_signal_emit_safe(&wlr_seat->events.touch_grab_begin, grab);
 }
 
+WLR_API
 void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat) {
 	struct wlr_seat_touch_grab *grab = wlr_seat->touch_state.grab;
 
@@ -1072,6 +1105,7 @@ static struct wlr_touch_point *touch_point_create(
 	return point;
 }
 
+WLR_API
 struct wlr_touch_point *wlr_seat_touch_get_point(
 		struct wlr_seat *seat, int32_t touch_id) {
 	struct wlr_touch_point *point = NULL;
@@ -1084,6 +1118,7 @@ struct wlr_touch_point *wlr_seat_touch_get_point(
 	return NULL;
 }
 
+WLR_API
 uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
@@ -1106,6 +1141,7 @@ uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 	return serial;
 }
 
+WLR_API
 void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
@@ -1121,6 +1157,7 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 	touch_point_destroy(point);
 }
 
+WLR_API
 void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id, double sx, double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
@@ -1168,6 +1205,7 @@ static void touch_point_set_focus(struct wlr_touch_point *point,
 	}
 }
 
+WLR_API
 void wlr_seat_touch_point_focus(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
@@ -1186,6 +1224,7 @@ void wlr_seat_touch_point_focus(struct wlr_seat *seat,
 	}
 }
 
+WLR_API
 void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
@@ -1197,6 +1236,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 	touch_point_clear_focus(point);
 }
 
+WLR_API
 uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
@@ -1217,6 +1257,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 	return serial;
 }
 
+WLR_API
 void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
@@ -1232,6 +1273,7 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_
 	}
 }
 
+WLR_API
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t touch_id,
 		double sx, double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
@@ -1248,19 +1290,23 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 	}
 }
 
+WLR_API
 int wlr_seat_touch_num_points(struct wlr_seat *seat) {
 	return wl_list_length(&seat->touch_state.touch_points);
 }
 
+WLR_API
 bool wlr_seat_touch_has_grab(struct wlr_seat *seat) {
 	return seat->touch_state.grab->interface != &default_touch_grab_impl;
 }
 
+WLR_API
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial) {
 	return serial == seat->pointer_state.grab_serial ||
 		serial == seat->touch_state.grab_serial;
 }
 
+WLR_API
 struct wlr_seat_client *wlr_seat_client_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_seat_interface,

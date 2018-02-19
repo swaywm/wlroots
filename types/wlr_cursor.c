@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 struct wlr_cursor_device {
@@ -55,6 +56,7 @@ struct wlr_cursor_state {
 	struct wl_listener layout_destroy;
 };
 
+WLR_API
 struct wlr_cursor *wlr_cursor_create() {
 	struct wlr_cursor *cur = calloc(1, sizeof(struct wlr_cursor));
 	if (!cur) {
@@ -149,6 +151,7 @@ static void wlr_cursor_device_destroy(struct wlr_cursor_device *c_device) {
 	free(c_device);
 }
 
+WLR_API
 void wlr_cursor_destroy(struct wlr_cursor *cur) {
 	wlr_cursor_detach_output_layout(cur);
 
@@ -232,6 +235,7 @@ static struct wlr_box *get_mapping(struct wlr_cursor *cur,
 	return NULL;
 }
 
+WLR_API
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double x, double y) {
 	assert(cur->state->layout);
@@ -253,6 +257,7 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	return result;
 }
 
+WLR_API
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, double x_mm, double y_mm) {
 	assert(cur->state->layout);
@@ -268,6 +273,7 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 	wlr_cursor_warp_unchecked(cur, x, y);
 }
 
+WLR_API
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double delta_x, double delta_y) {
 	assert(cur->state->layout);
@@ -298,6 +304,7 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	wlr_cursor_warp_unchecked(cur, x, y);
 }
 
+WLR_API
 void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
 		int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
 		int32_t hotspot_y, float scale) {
@@ -313,6 +320,7 @@ void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
 	}
 }
 
+WLR_API
 void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
 		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_cursor_output_cursor *output_cursor;
@@ -478,6 +486,7 @@ static struct wlr_cursor_device *wlr_cursor_device_create(
 	return c_device;
 }
 
+WLR_API
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
@@ -499,6 +508,7 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	wlr_cursor_device_create(cur, dev);
 }
 
+WLR_API
 void wlr_cursor_detach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	struct wlr_cursor_device *c_device, *tmp = NULL;
@@ -571,6 +581,7 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+WLR_API
 void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
 		struct wlr_output_layout *l) {
 	wlr_cursor_detach_output_layout(cur);
@@ -594,11 +605,13 @@ void wlr_cursor_attach_output_layout(struct wlr_cursor *cur,
 	}
 }
 
+WLR_API
 void wlr_cursor_map_to_output(struct wlr_cursor *cur,
 		struct wlr_output *output) {
 	cur->state->mapped_output = output;
 }
 
+WLR_API
 void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_output *output) {
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
@@ -611,6 +624,7 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 	c_device->mapped_output = output;
 }
 
+WLR_API
 void wlr_cursor_map_to_region(struct wlr_cursor *cur,
 		struct wlr_box *box) {
 	if (box && wlr_box_empty(box)) {
@@ -621,6 +635,7 @@ void wlr_cursor_map_to_region(struct wlr_cursor *cur,
 	cur->state->mapped_box = box;
 }
 
+WLR_API
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_box *box) {
 	if (box && wlr_box_empty(box)) {
@@ -639,6 +654,7 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 	c_device->mapped_box = box;
 }
 
+WLR_API
 bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
 		struct wlr_input_device *device, double x_mm, double y_mm,
 		double width_mm, double height_mm, double *lx, double *ly) {

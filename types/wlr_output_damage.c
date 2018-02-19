@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
@@ -50,6 +51,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&output_damage->events.frame, output_damage);
 }
 
+WLR_API
 struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	struct wlr_output_damage *output_damage =
 		calloc(1, sizeof(struct wlr_output_damage));
@@ -82,6 +84,7 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	return output_damage;
 }
 
+WLR_API
 void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	if (output_damage == NULL) {
 		return;
@@ -100,6 +103,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	free(output_damage);
 }
 
+WLR_API
 bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
 		bool *needs_swap, pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
@@ -131,6 +135,7 @@ bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
 	return true;
 }
 
+WLR_API
 bool wlr_output_damage_swap_buffers(struct wlr_output_damage *output_damage,
 		struct timespec *when, pixman_region32_t *damage) {
 	if (!wlr_output_swap_buffers(output_damage->output, when, damage)) {
@@ -148,6 +153,7 @@ bool wlr_output_damage_swap_buffers(struct wlr_output_damage *output_damage,
 	return true;
 }
 
+WLR_API
 void wlr_output_damage_add(struct wlr_output_damage *output_damage,
 		pixman_region32_t *damage) {
 	int width, height;
@@ -160,6 +166,7 @@ void wlr_output_damage_add(struct wlr_output_damage *output_damage,
 	wlr_output_schedule_frame(output_damage->output);
 }
 
+WLR_API
 void wlr_output_damage_add_whole(struct wlr_output_damage *output_damage) {
 	int width, height;
 	wlr_output_transformed_resolution(output_damage->output, &width, &height);
@@ -170,6 +177,7 @@ void wlr_output_damage_add_whole(struct wlr_output_damage *output_damage) {
 	wlr_output_schedule_frame(output_damage->output);
 }
 
+WLR_API
 void wlr_output_damage_add_box(struct wlr_output_damage *output_damage,
 		struct wlr_box *box) {
 	int width, height;

@@ -83,4 +83,6 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 void handle_tablet_pad_strip(struct libinput_event *event,
 		struct libinput_device *device);
 
+uint32_t usec_to_msec(uint64_t usec);
+
 #endif

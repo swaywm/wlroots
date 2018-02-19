@@ -4,12 +4,14 @@
 #include <wlr/render/matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
+#include "util/defs.h"
 
 /* Obtains the index for the given row/column */
 static inline int mind(int row, int col) {
 	return (row - 1) * 4 + col - 1;
 }
 
+WLR_API
 void wlr_matrix_identity(float (*output)[16]) {
 	static const float identity[16] = {
 		1.0f, 0.0f, 0.0f, 0.0f,
@@ -20,6 +22,7 @@ void wlr_matrix_identity(float (*output)[16]) {
 	memcpy(*output, identity, sizeof(identity));
 }
 
+WLR_API
 void wlr_matrix_translate(float (*output)[16], float x, float y, float z) {
 	wlr_matrix_identity(output);
 	(*output)[mind(1, 4)] = x;
@@ -27,6 +30,7 @@ void wlr_matrix_translate(float (*output)[16], float x, float y, float z) {
 	(*output)[mind(3, 4)] = z;
 }
 
+WLR_API
 void wlr_matrix_scale(float (*output)[16], float x, float y, float z) {
 	wlr_matrix_identity(output);
 	(*output)[mind(1, 1)] = x;
@@ -34,6 +38,7 @@ void wlr_matrix_scale(float (*output)[16], float x, float y, float z) {
 	(*output)[mind(3, 3)] = z;
 }
 
+WLR_API
 void wlr_matrix_rotate(float (*output)[16], float radians) {
 	wlr_matrix_identity(output);
 	float _cos = cosf(radians);
@@ -44,6 +49,7 @@ void wlr_matrix_rotate(float (*output)[16], float radians) {
 	(*output)[mind(2, 2)] = _cos;
 }
 
+WLR_API
 void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]) {
 	float _product[16] = {
 		(*x)[mind(1, 1)] * (*y)[mind(1, 1)] + (*x)[mind(1, 2)] * (*y)[mind(2, 1)] +
@@ -120,6 +126,7 @@ static const float transforms[][4] = {
 	},
 };
 
+WLR_API
 void wlr_matrix_transform(float mat[static 16],
 		enum wl_output_transform transform) {
 	memset(mat, 0, sizeof(*mat) * 16);
@@ -138,6 +145,7 @@ void wlr_matrix_transform(float mat[static 16],
 }
 
 // Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
+WLR_API
 void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 		enum wl_output_transform transform) {
 	memset(mat, 0, sizeof(*mat) * 16);
@@ -161,6 +169,7 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	mat[15] = 1.0f;
 }
 
+WLR_API
 void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
 		enum wl_output_transform transform, float rotation,
 		float (*projection)[16]) {

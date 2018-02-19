@@ -5,6 +5,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
+#include "util/defs.h"
 #include "util/signal.h"
 
 static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
@@ -79,6 +80,7 @@ static const struct wlr_output_impl output_impl = {
 	.swap_buffers = output_swap_buffers,
 };
 
+WLR_API
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {
 	return wlr_output->impl == &output_impl;
 }
@@ -90,6 +92,7 @@ static int signal_frame(void *data) {
 	return 0;
 }
 
+WLR_API
 struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		unsigned int width, unsigned int height) {
 	struct wlr_headless_backend *backend =

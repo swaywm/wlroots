@@ -12,6 +12,7 @@
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
+#include "util/defs.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
@@ -128,6 +129,7 @@ static struct wlr_backend_impl backend_impl = {
 	.get_renderer = wlr_wl_backend_get_renderer,
 };
 
+WLR_API
 bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
@@ -181,6 +183,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_wl_backend_destroy(&backend->backend);
 }
 
+WLR_API
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
