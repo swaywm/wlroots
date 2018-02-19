@@ -5,7 +5,6 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "gamma-control-protocol.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 static void resource_destroy(struct wl_client *client,
@@ -147,7 +146,6 @@ static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		manager, NULL);
 }
 
-WLR_API
 void wlr_gamma_control_manager_destroy(
 		struct wlr_gamma_control_manager *manager) {
 	if (!manager) {
@@ -168,7 +166,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_gamma_control_manager_destroy(manager);
 }
 
-WLR_API
 struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(
 		struct wl_display *display) {
 	struct wlr_gamma_control_manager *manager =

@@ -3,9 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_tool.h>
-#include "util/defs.h"
 
-WLR_API
 void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
 		struct wlr_tablet_tool_impl *impl) {
 	tool->impl = impl;
@@ -15,7 +13,6 @@ void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
 	wl_signal_init(&tool->events.button);
 }
 
-WLR_API
 void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
 	if (!tool) {
 		return;

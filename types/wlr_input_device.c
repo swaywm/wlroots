@@ -10,10 +10,8 @@
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
-WLR_API
 void wlr_input_device_init(struct wlr_input_device *dev,
 		enum wlr_input_device_type type,
 		struct wlr_input_device_impl *impl,
@@ -27,7 +25,6 @@ void wlr_input_device_init(struct wlr_input_device *dev,
 	wl_signal_init(&dev->events.destroy);
 }
 
-WLR_API
 void wlr_input_device_destroy(struct wlr_input_device *dev) {
 	if (!dev) {
 		return;

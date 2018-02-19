@@ -8,7 +8,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 static void wlr_surface_state_reset_buffer(struct wlr_surface_state *state) {
@@ -531,7 +530,6 @@ const struct wl_surface_interface surface_interface = {
 	.damage_buffer = surface_damage_buffer
 };
 
-WLR_API
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_surface_interface,
 		&surface_interface));
@@ -607,7 +605,6 @@ static void destroy_surface(struct wl_resource *resource) {
 	free(surface);
 }
 
-WLR_API
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer) {
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
@@ -633,7 +630,6 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	return surface;
 }
 
-WLR_API
 void wlr_surface_get_matrix(struct wlr_surface *surface,
 		float (*matrix)[16],
 		const float (*projection)[16],
@@ -650,12 +646,10 @@ void wlr_surface_get_matrix(struct wlr_surface *surface,
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
-WLR_API
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
 	return surface->texture && surface->texture->valid;
 }
 
-WLR_API
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		struct wl_resource *error_resource, uint32_t error_code) {
 	assert(role);
@@ -814,7 +808,6 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 	subsurface->parent = NULL;
 }
 
-WLR_API
 void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
@@ -864,7 +857,7 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
 }
 
-WLR_API
+
 struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface) {
 	struct wlr_subsurface *sub;
 
@@ -875,7 +868,6 @@ struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface) {
 	return surface;
 }
 
-WLR_API
 struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
@@ -908,7 +900,6 @@ struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 	return NULL;
 }
 
-WLR_API
 void wlr_surface_send_enter(struct wlr_surface *surface,
 		struct wlr_output *output) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
@@ -921,7 +912,6 @@ void wlr_surface_send_enter(struct wlr_surface *surface,
 	}
 }
 
-WLR_API
 void wlr_surface_send_leave(struct wlr_surface *surface,
 		struct wlr_output *output) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
@@ -938,7 +928,6 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
-WLR_API
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when) {
 	struct wlr_frame_callback *cb, *cnext;
@@ -949,7 +938,6 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 	}
 }
 
-WLR_API
 void wlr_surface_set_role_committed(struct wlr_surface *surface,
 		void (*role_committed)(struct wlr_surface *surface, void *role_data),
 		void *role_data) {

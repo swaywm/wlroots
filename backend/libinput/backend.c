@@ -5,7 +5,6 @@
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 static int wlr_libinput_open_restricted(const char *path,
@@ -129,7 +128,6 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = wlr_libinput_backend_destroy
 };
 
-WLR_API
 bool wlr_backend_is_libinput(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
@@ -156,7 +154,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_libinput_backend_destroy(&backend->backend);
 }
 
-WLR_API
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session) {
 	assert(display && session);
@@ -188,12 +185,7 @@ error_backend:
 	return NULL;
 }
 
-WLR_API
 struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *_dev) {
 	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
 	return dev->handle;
-}
-
-uint32_t usec_to_msec(uint64_t usec) {
-	return (uint32_t)(usec / 1000);
 }

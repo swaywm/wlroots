@@ -6,7 +6,6 @@
 #include <wlr/util/log.h>
 #include "backend/drm/drm.h"
 #include "backend/multi.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 struct subbackend_state {
@@ -91,7 +90,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	multi_backend_destroy((struct wlr_backend*)backend);
 }
 
-WLR_API
 struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
@@ -112,7 +110,6 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	return &backend->backend;
 }
 
-WLR_API
 bool wlr_backend_is_multi(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
@@ -146,7 +143,6 @@ static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_ba
 	return NULL;
 }
 
-WLR_API
 void wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
 	assert(wlr_backend_is_multi(_multi));
@@ -179,7 +175,6 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	wlr_signal_emit_safe(&multi->events.backend_add, backend);
 }
 
-WLR_API
 void wlr_multi_backend_remove(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
 	assert(wlr_backend_is_multi(_multi));
@@ -194,7 +189,6 @@ void wlr_multi_backend_remove(struct wlr_backend *_multi,
 	}
 }
 
-WLR_API
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_multi(_backend));
 
@@ -208,7 +202,6 @@ struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
 	return NULL;
 }
 
-WLR_API
 bool wlr_multi_is_empty(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_multi(_backend));
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;

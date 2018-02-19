@@ -7,7 +7,6 @@
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "glapi.h"
-#include "util/defs.h"
 
 static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
@@ -85,7 +84,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&backend->backend);
 }
 
-WLR_API
 struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	wlr_log(L_INFO, "Creating headless backend");
 
@@ -127,7 +125,6 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	return &backend->backend;
 }
 
-WLR_API
 bool wlr_backend_is_headless(struct wlr_backend *backend) {
 	return backend->impl == &backend_impl;
 }

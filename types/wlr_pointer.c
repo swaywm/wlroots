@@ -3,9 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/types/wlr_pointer.h>
-#include "util/defs.h"
 
-WLR_API
 void wlr_pointer_init(struct wlr_pointer *pointer,
 		struct wlr_pointer_impl *impl) {
 	pointer->impl = impl;
@@ -15,7 +13,6 @@ void wlr_pointer_init(struct wlr_pointer *pointer,
 	wl_signal_init(&pointer->events.axis);
 }
 
-WLR_API
 void wlr_pointer_destroy(struct wlr_pointer *pointer) {
 	if (pointer && pointer->impl && pointer->impl->destroy) {
 		pointer->impl->destroy(pointer);

@@ -7,7 +7,6 @@
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 int os_create_anonymous_file(off_t size);
@@ -101,7 +100,6 @@ static void keyboard_key_update(struct wlr_keyboard *keyboard,
 	assert(keyboard->num_keycodes <= WLR_KEYBOARD_KEYS_CAP);
 }
 
-WLR_API
 void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group) {
@@ -117,7 +115,6 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 	}
 }
 
-WLR_API
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	if (keyboard->xkb_state == NULL) {
@@ -139,7 +136,6 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 	wlr_signal_emit_safe(&keyboard->events.key, event);
 }
 
-WLR_API
 void wlr_keyboard_init(struct wlr_keyboard *kb,
 		struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
@@ -153,7 +149,6 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	kb->repeat_info.delay = 600;
 }
 
-WLR_API
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	if (kb == NULL) {
 		return;
@@ -169,14 +164,12 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	free(kb);
 }
 
-WLR_API
 void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 	if (kb->impl && kb->impl->led_update) {
 		kb->impl->led_update(kb, leds);
 	}
 }
 
-WLR_API
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
 	char *keymap_str = NULL;
@@ -254,7 +247,6 @@ err:
 	free(keymap_str);
 }
 
-WLR_API
 void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
 		int32_t delay) {
 	if (kb->repeat_info.rate == rate && kb->repeat_info.delay == delay) {
@@ -265,7 +257,6 @@ void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
 	wlr_signal_emit_safe(&kb->events.repeat_info, kb);
 }
 
-WLR_API
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {
 	xkb_mod_mask_t mask = kb->modifiers.depressed | kb->modifiers.latched;
 	uint32_t modifiers = 0;

@@ -13,7 +13,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
@@ -114,7 +113,6 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 	wl_output_send_to_resource(wl_resource);
 }
 
-WLR_API
 void wlr_output_create_global(struct wlr_output *output) {
 	if (output->wl_global != NULL) {
 		return;
@@ -124,7 +122,6 @@ void wlr_output_create_global(struct wlr_output *output) {
 	output->wl_global = wl_global;
 }
 
-WLR_API
 void wlr_output_destroy_global(struct wlr_output *output) {
 	if (output->wl_global == NULL) {
 		return;
@@ -137,7 +134,6 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 	output->wl_global = NULL;
 }
 
-WLR_API
 void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	if (output->enabled == enabled) {
 		return;
@@ -152,7 +148,6 @@ static void wlr_output_update_matrix(struct wlr_output *output) {
 		output->transform);
 }
 
-WLR_API
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->enabled == enable) {
 		return;
@@ -163,7 +158,6 @@ void wlr_output_enable(struct wlr_output *output, bool enable) {
 	}
 }
 
-WLR_API
 bool wlr_output_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
 	if (!output->impl || !output->impl->set_mode) {
@@ -172,7 +166,6 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	return output->impl->set_mode(output, mode);
 }
 
-WLR_API
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
 	if (!output->impl || !output->impl->set_custom_mode) {
@@ -181,7 +174,6 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	return output->impl->set_custom_mode(output, width, height, refresh);
 }
 
-WLR_API
 void wlr_output_update_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
 	output->current_mode = mode;
@@ -189,7 +181,6 @@ void wlr_output_update_mode(struct wlr_output *output,
 		mode->refresh);
 }
 
-WLR_API
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
 	output->width = width;
@@ -206,7 +197,6 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	wlr_signal_emit_safe(&output->events.mode, output);
 }
 
-WLR_API
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
@@ -221,7 +211,6 @@ void wlr_output_set_transform(struct wlr_output *output,
 	wlr_signal_emit_safe(&output->events.transform, output);
 }
 
-WLR_API
 void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 		int32_t ly) {
 	if (lx == output->lx && ly == output->ly) {
@@ -238,7 +227,6 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	}
 }
 
-WLR_API
 void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	if (output->scale == scale) {
 		return;
@@ -261,7 +249,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_output_destroy_global(output);
 }
 
-WLR_API
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->make_current && impl->swap_buffers && impl->transform);
@@ -289,7 +276,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->frame_pending = true;
 }
 
-WLR_API
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) {
 		return;
@@ -321,7 +307,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 }
 
-WLR_API
 void wlr_output_transformed_resolution(struct wlr_output *output,
 		int *width, int *height) {
 	if (output->transform % 2 == 0) {
@@ -333,7 +318,6 @@ void wlr_output_transformed_resolution(struct wlr_output *output,
 	}
 }
 
-WLR_API
 void wlr_output_effective_resolution(struct wlr_output *output,
 		int *width, int *height) {
 	wlr_output_transformed_resolution(output, width, height);
@@ -341,7 +325,6 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 	*height /= output->scale;
 }
 
-WLR_API
 bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
 	return output->impl->make_current(output, buffer_age);
 }
@@ -477,7 +460,6 @@ surface_damage_finish:
 	pixman_region32_fini(&surface_damage);
 }
 
-WLR_API
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	if (output->frame_pending) {
@@ -544,7 +526,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	return true;
 }
 
-WLR_API
 void wlr_output_send_frame(struct wlr_output *output) {
 	output->frame_pending = false;
 	wlr_signal_emit_safe(&output->events.frame, output);
@@ -558,7 +539,6 @@ static void schedule_frame_handle_idle_timer(void *data) {
 	}
 }
 
-WLR_API
 void wlr_output_schedule_frame(struct wlr_output *output) {
 	if (output->frame_pending || output->idle_frame != NULL) {
 		return;
@@ -570,7 +550,6 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
 }
 
-WLR_API
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	if (output->impl->set_gamma) {
@@ -578,7 +557,6 @@ void wlr_output_set_gamma(struct wlr_output *output,
 	}
 }
 
-WLR_API
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	if (!output->impl->get_gamma_size) {
 		return 0;
@@ -586,7 +564,6 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
-WLR_API
 void wlr_output_update_needs_swap(struct wlr_output *output) {
 	output->needs_swap = true;
 	wlr_signal_emit_safe(&output->events.needs_swap, output);
@@ -645,7 +622,6 @@ static void output_fullscreen_surface_handle_destroy(
 	output_fullscreen_surface_reset(output);
 }
 
-WLR_API
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 		struct wlr_surface *surface) {
 	// TODO: hardware fullscreen
@@ -672,7 +648,6 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 		&output->fullscreen_surface_destroy);
 }
 
-WLR_API
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_output_interface,
 		&wl_output_impl));
@@ -699,7 +674,6 @@ static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	}
 }
 
-WLR_API
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
@@ -807,7 +781,6 @@ static void output_cursor_handle_destroy(struct wl_listener *listener,
 	output_cursor_reset(cursor);
 }
 
-WLR_API
 void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
 	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
@@ -868,7 +841,6 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	}
 }
 
-WLR_API
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		double x, double y) {
 	if (cursor->x == x && cursor->y == y) {
@@ -896,7 +868,6 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
 }
 
-WLR_API
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
 	struct wlr_output_cursor *cursor =
 		calloc(1, sizeof(struct wlr_output_cursor));
@@ -913,7 +884,6 @@ struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
 	return cursor;
 }
 
-WLR_API
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	if (cursor == NULL) {
 		return;
@@ -936,7 +906,6 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 }
 
 
-WLR_API
 enum wl_output_transform wlr_output_transform_invert(
 		enum wl_output_transform tr) {
 	if ((tr & WL_OUTPUT_TRANSFORM_90) && !(tr & WL_OUTPUT_TRANSFORM_FLIPPED)) {
@@ -945,7 +914,6 @@ enum wl_output_transform wlr_output_transform_invert(
 	return tr;
 }
 
-WLR_API
 enum wl_output_transform wlr_output_transform_compose(
 		enum wl_output_transform tr_a, enum wl_output_transform tr_b) {
 	uint32_t flipped = (tr_a ^ tr_b) & WL_OUTPUT_TRANSFORM_FLIPPED;

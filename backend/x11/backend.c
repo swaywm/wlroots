@@ -23,7 +23,6 @@
 #include <dev/evdev/input-event-codes.h>
 #endif
 #include "backend/x11.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 static struct wlr_backend_impl backend_impl;
@@ -300,7 +299,6 @@ static struct wlr_backend_impl backend_impl = {
 	.get_renderer = wlr_x11_backend_get_renderer,
 };
 
-WLR_API
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
 	return backend->impl == &backend_impl;
 }
@@ -311,7 +309,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_x11_backend_destroy(&x11->backend);
 }
 
-WLR_API
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		const char *x11_display) {
 	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
@@ -431,12 +428,10 @@ static struct wlr_output_impl output_impl = {
 	.swap_buffers = output_swap_buffers,
 };
 
-WLR_API
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
 	return wlr_output->impl == &output_impl;
 }
 
-WLR_API
 bool wlr_input_device_is_x11(struct wlr_input_device *wlr_dev) {
 	return wlr_dev->impl == &input_device_impl;
 }

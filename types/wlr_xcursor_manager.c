@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/types/wlr_xcursor_manager.h>
-#include "util/defs.h"
 
-WLR_API
 struct wlr_xcursor_manager *wlr_xcursor_manager_create(const char *name,
 		uint32_t size) {
 	struct wlr_xcursor_manager *manager =
@@ -20,7 +18,6 @@ struct wlr_xcursor_manager *wlr_xcursor_manager_create(const char *name,
 	return manager;
 }
 
-WLR_API
 void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager) {
 	if (manager == NULL) {
 		return;
@@ -35,7 +32,6 @@ void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager) {
 	free(manager);
 }
 
-WLR_API
 int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 		float scale) {
 	struct wlr_xcursor_manager_theme *theme;
@@ -59,7 +55,6 @@ int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 	return 0;
 }
 
-WLR_API
 struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 		struct wlr_xcursor_manager *manager, const char *name, float scale) {
 	struct wlr_xcursor_manager_theme *theme;
@@ -71,7 +66,6 @@ struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 	return NULL;
 }
 
-WLR_API
 void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
 		const char *name, struct wlr_cursor *cursor) {
 	struct wlr_xcursor_manager_theme *theme;

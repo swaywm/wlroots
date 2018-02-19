@@ -5,7 +5,6 @@
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 static const struct wl_compositor_interface wl_compositor_impl;
@@ -87,7 +86,6 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *data,
 		wl_resource_get_link(wl_resource));
 }
 
-WLR_API
 void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	if (compositor == NULL) {
 		return;
@@ -172,7 +170,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_compositor_destroy(compositor);
 }
 
-WLR_API
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
 	struct wlr_compositor *compositor =

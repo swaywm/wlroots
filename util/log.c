@@ -7,7 +7,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 
 static bool colored = true;
 static log_importance_t log_importance = L_ERROR;
@@ -49,7 +48,6 @@ void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
 
 static log_callback_t log_callback = wlr_log_stderr;
 
-WLR_API
 void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
 	if (verbosity < L_LAST) {
 		log_importance = verbosity;
@@ -59,12 +57,10 @@ void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
 	}
 }
 
-WLR_API
 void _wlr_vlog(log_importance_t verbosity, const char *fmt, va_list args) {
 	log_callback(verbosity, fmt, args);
 }
 
-WLR_API
 void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -77,7 +73,6 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // e.g. '/src/build/wlroots/backend/wayland/backend.c' and
 // '../backend/wayland/backend.c' will both be stripped to
 // 'backend/wayland/backend.c'
-WLR_API
 const char *_strip_path(const char *filepath) {
 	static int srclen = sizeof(WLR_SRC_DIR);
 	if (strstr(filepath, WLR_SRC_DIR) == filepath) {

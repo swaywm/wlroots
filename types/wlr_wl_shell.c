@@ -8,7 +8,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/util/log.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
@@ -592,7 +591,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_wl_shell_destroy(wl_shell);
 }
 
-WLR_API
 struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 	struct wlr_wl_shell *wl_shell = calloc(1, sizeof(struct wlr_wl_shell));
 	if (!wl_shell) {
@@ -617,7 +615,6 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 	return wl_shell;
 }
 
-WLR_API
 void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	if (!wlr_wl_shell) {
 		return;
@@ -633,7 +630,6 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	free(wlr_wl_shell);
 }
 
-WLR_API
 void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
 	if (surface->ping_serial != 0) {
 		// already pinged
@@ -647,13 +643,11 @@ void wlr_wl_shell_surface_ping(struct wlr_wl_shell_surface *surface) {
 	wl_shell_surface_send_ping(surface->resource, surface->ping_serial);
 }
 
-WLR_API
 void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 		uint32_t edges, int32_t width, int32_t height) {
 	wl_shell_surface_send_configure(surface->resource, edges, width, height);
 }
 
-WLR_API
 struct wlr_wl_shell_surface *wlr_wl_shell_surface_popup_at(
 		struct wlr_wl_shell_surface *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy) {

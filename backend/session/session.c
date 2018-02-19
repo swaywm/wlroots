@@ -13,7 +13,6 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "util/defs.h"
 #include "util/signal.h"
 
 extern const struct session_impl session_logind;
@@ -67,7 +66,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_session_destroy(session);
 }
 
-WLR_API
 struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	struct wlr_session *session = NULL;
 	const struct session_impl **iter;
@@ -124,7 +122,6 @@ error_session:
 	return NULL;
 }
 
-WLR_API
 void wlr_session_destroy(struct wlr_session *session) {
 	if (!session) {
 		return;
@@ -139,7 +136,6 @@ void wlr_session_destroy(struct wlr_session *session) {
 	session->impl->destroy(session);
 }
 
-WLR_API
 int wlr_session_open_file(struct wlr_session *session, const char *path) {
 	int fd = session->impl->open(session, path);
 	if (fd < 0) {
@@ -183,7 +179,6 @@ static struct wlr_device *find_device(struct wlr_session *session, int fd) {
 	assert(0);
 }
 
-WLR_API
 void wlr_session_close_file(struct wlr_session *session, int fd) {
 	struct wlr_device *dev = find_device(session, fd);
 
@@ -192,7 +187,6 @@ void wlr_session_close_file(struct wlr_session *session, int fd) {
 	free(dev);
 }
 
-WLR_API
 void wlr_session_signal_add(struct wlr_session *session, int fd,
 		struct wl_listener *listener) {
 	struct wlr_device *dev = find_device(session, fd);
@@ -200,7 +194,6 @@ void wlr_session_signal_add(struct wlr_session *session, int fd,
 	wl_signal_add(&dev->signal, listener);
 }
 
-WLR_API
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 	if (!session) {
 		return false;
@@ -276,7 +269,6 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 /* Tries to find the primary GPU by checking for the "boot_vga" attribute.
  * If it's not found, it returns the first valid GPU it finds.
  */
-WLR_API
 size_t wlr_session_find_gpus(struct wlr_session *session,
 		size_t ret_len, int *ret) {
 	const char *explicit = getenv("WLR_DRM_DEVICES");

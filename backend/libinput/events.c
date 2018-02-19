@@ -6,7 +6,6 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
-#include "util/defs.h"
 #include "util/signal.h"
 
 struct wlr_input_device *get_appropriate_device(
@@ -55,7 +54,6 @@ static struct wlr_input_device *allocate_device(
 	return wlr_dev;
 }
 
-WLR_API
 bool wlr_input_device_is_libinput(struct wlr_input_device *wlr_dev) {
         return wlr_dev->impl == &input_device_impl;
 }

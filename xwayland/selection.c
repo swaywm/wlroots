@@ -9,7 +9,6 @@
 #include <wlr/util/log.h>
 #include <wlr/xwm.h>
 #include <xcb/xfixes.h>
-#include "util/defs.h"
 
 static const size_t incr_chunk_size = 64 * 1024;
 
@@ -806,7 +805,6 @@ static void selection_init(struct wlr_xwm *xwm,
 		selection->atom, mask);
 }
 
-WLR_API
 void xwm_selection_init(struct wlr_xwm *xwm) {
 	uint32_t values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
 	xwm->selection_window = xcb_generate_id(xwm->xcb_conn);
@@ -830,7 +828,6 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
 }
 
-WLR_API
 void xwm_selection_finish(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
@@ -899,7 +896,6 @@ static void seat_handle_primary_selection(struct wl_listener *listener,
 	xwm_selection_set_owner(&xwm->primary_selection, source != NULL);
 }
 
-WLR_API
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
 	if (xwm->seat != NULL) {
 		wl_list_remove(&xwm->seat_selection.link);

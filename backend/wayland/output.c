@@ -11,7 +11,6 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
-#include "util/defs.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
@@ -218,7 +217,6 @@ static struct wlr_output_impl output_impl = {
 	.move_cursor = wlr_wl_output_move_cursor,
 };
 
-WLR_API
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {
 	return wlr_output->impl == &output_impl;
 }
@@ -262,7 +260,6 @@ static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
 	.close = xdg_toplevel_handle_close,
 };
 
-WLR_API
 struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	assert(wlr_backend_is_wl(_backend));
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
