@@ -3,7 +3,9 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/types/wlr_tablet_pad.h>
+#include "util/defs.h"
 
+WLR_API
 void wlr_tablet_pad_init(struct wlr_tablet_pad *pad,
 		struct wlr_tablet_pad_impl *impl) {
 	pad->impl = impl;
@@ -12,6 +14,7 @@ void wlr_tablet_pad_init(struct wlr_tablet_pad *pad,
 	wl_signal_init(&pad->events.strip);
 }
 
+WLR_API
 void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
 	if (pad && pad->impl && pad->impl->destroy) {
 		pad->impl->destroy(pad);

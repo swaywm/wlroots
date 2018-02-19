@@ -13,6 +13,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
+#include "util/defs.h"
 #include "util/signal.h"
 
 static bool wlr_drm_backend_start(struct wlr_backend *backend) {
@@ -66,6 +67,7 @@ static struct wlr_backend_impl backend_impl = {
 	.get_renderer = wlr_drm_backend_get_renderer,
 };
 
+WLR_API
 bool wlr_backend_is_drm(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
@@ -117,6 +119,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_drm_backend_destroy(&drm->backend);
 }
 
+WLR_API
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent) {
 	assert(display && session && gpu_fd >= 0);

@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 struct wlr_output_layout_state {
@@ -25,6 +26,7 @@ struct wlr_output_layout_output_state {
 	struct wl_listener output_destroy;
 };
 
+WLR_API
 struct wlr_output_layout *wlr_output_layout_create() {
 	struct wlr_output_layout *layout =
 		calloc(1, sizeof(struct wlr_output_layout));
@@ -57,6 +59,7 @@ static void wlr_output_layout_output_destroy(
 	free(l_output);
 }
 
+WLR_API
 void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 	if (!layout) {
 		return;
@@ -189,6 +192,7 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 	return l_output;
 }
 
+WLR_API
 void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int x, int y) {
 	struct wlr_output_layout_output *l_output =
@@ -208,6 +212,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
+WLR_API
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *l_output;
@@ -219,6 +224,7 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 	return NULL;
 }
 
+WLR_API
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, int x, int y) {
 	if (reference) {
@@ -231,6 +237,7 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 	}
 }
 
+WLR_API
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output *reference, const struct wlr_box *target_box) {
 	struct wlr_box out_box;
@@ -257,6 +264,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 	}
 }
 
+WLR_API
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double x, double y) {
 	struct wlr_output_layout_output *l_output;
@@ -269,6 +277,7 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 	return NULL;
 }
 
+WLR_API
 void wlr_output_layout_move(struct wlr_output_layout *layout,
 		struct wlr_output *output, int x, int y) {
 	struct wlr_output_layout_output *l_output =
@@ -283,6 +292,7 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 	}
 }
 
+WLR_API
 void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
@@ -294,6 +304,7 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 	wlr_output_destroy_global(output);
 }
 
+WLR_API
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 		struct wlr_output *reference, double *x, double *y) {
 	assert(layout && reference);
@@ -310,6 +321,7 @@ void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
 	}
 }
 
+WLR_API
 void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		struct wlr_output *reference, double x, double y, double *dest_x,
 		double *dest_y) {
@@ -343,6 +355,7 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 	*dest_y = min_y;
 }
 
+WLR_API
 struct wlr_box *wlr_output_layout_get_box(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *l_output;
@@ -387,6 +400,7 @@ struct wlr_box *wlr_output_layout_get_box(
 	// not reached
 }
 
+WLR_API
 void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
@@ -405,6 +419,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
+WLR_API
 struct wlr_output *wlr_output_layout_get_center_output(
 		struct wlr_output_layout *layout) {
 	if (wl_list_empty(&layout->outputs)) {

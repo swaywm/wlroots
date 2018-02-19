@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 #define ALL_ACTIONS (WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | \
@@ -270,6 +271,7 @@ static struct wlr_data_offer *wlr_data_source_send_offer(
 	return offer;
 }
 
+WLR_API
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	if (wl_list_empty(&seat_client->data_devices)) {
 		return;
@@ -312,6 +314,7 @@ static void seat_client_selection_data_source_destroy(
 	wlr_signal_emit_safe(&seat->events.selection, seat);
 }
 
+WLR_API
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
 	if (source) {
@@ -962,12 +965,14 @@ static void data_source_resource_handle_destroy(struct wl_resource *resource) {
 	free(source);
 }
 
+WLR_API
 void wlr_data_source_init(struct wlr_data_source *source) {
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
 	source->actions = -1;
 }
 
+WLR_API
 void wlr_data_source_finish(struct wlr_data_source *source) {
 	if (source == NULL) {
 		return;
@@ -1059,6 +1064,7 @@ static void data_device_manager_bind(struct wl_client *client,
 		NULL, NULL);
 }
 
+WLR_API
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
 	if (!manager) {
 		return;
@@ -1075,6 +1081,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_data_device_manager_destroy(manager);
 }
 
+WLR_API
 struct wlr_data_device_manager *wlr_data_device_manager_create(
 		struct wl_display *display) {
 	struct wlr_data_device_manager *manager =

@@ -30,6 +30,7 @@
 #include <string.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
+#include "util/defs.h"
 #include "xcursor/xcursor.h"
 
 static void wlr_xcursor_destroy(struct wlr_xcursor *cursor) {
@@ -212,6 +213,7 @@ static void load_callback(XcursorImages *images, void *data) {
 	XcursorImagesDestroy(images);
 }
 
+WLR_API
 struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size) {
 	struct wlr_xcursor_theme *theme;
 
@@ -255,6 +257,7 @@ out_error_name:
 	return NULL;
 }
 
+WLR_API
 void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme) {
 	unsigned int i;
 
@@ -267,6 +270,7 @@ void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme) {
 	free(theme);
 }
 
+WLR_API
 struct wlr_xcursor *wlr_xcursor_theme_get_cursor(struct wlr_xcursor_theme *theme,
 		const char *name) {
 	unsigned int i;
@@ -322,10 +326,12 @@ static int wlr_xcursor_frame_and_duration(struct wlr_xcursor *cursor,
 	return i;
 }
 
+WLR_API
 int wlr_xcursor_frame(struct wlr_xcursor *_cursor, uint32_t time) {
 	return wlr_xcursor_frame_and_duration(_cursor, time, NULL);
 }
 
+WLR_API
 const char *wlr_xcursor_get_resize_name(enum wlr_edges edges) {
 	if (edges & WLR_EDGE_TOP) {
 		if (edges & WLR_EDGE_RIGHT) {

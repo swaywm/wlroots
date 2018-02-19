@@ -6,11 +6,13 @@
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "glapi.h"
+#include "util/defs.h"
 
 // Extension documentation
 // https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
 // https://cgit.freedesktop.org/mesa/mesa/tree/docs/specs/WL_bind_wayland_display.spec
 
+WLR_API
 const char *egl_error(void) {
 	switch (eglGetError()) {
 	case EGL_SUCCESS:
@@ -83,6 +85,7 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 	return false;
 }
 
+WLR_API
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
@@ -158,6 +161,7 @@ error:
 	return false;
 }
 
+WLR_API
 void wlr_egl_finish(struct wlr_egl *egl) {
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
@@ -169,6 +173,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	eglReleaseThread();
 }
 
+WLR_API
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
 	if (!eglBindWaylandDisplayWL) {
 		return false;
@@ -182,6 +187,7 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 	return false;
 }
 
+WLR_API
 bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 		int attrib, int *value) {
 	if (!eglQueryWaylandBufferWL) {
@@ -190,6 +196,7 @@ bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 	return eglQueryWaylandBufferWL(egl->display, buf, attrib, value);
 }
 
+WLR_API
 EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
 		EGLClientBuffer buffer, const EGLint *attribs) {
 	if (!eglCreateImageKHR) {
@@ -200,6 +207,7 @@ EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
 		buffer, attribs);
 }
 
+WLR_API
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	if (!eglDestroyImageKHR) {
 		return false;
@@ -209,6 +217,7 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	return true;
 }
 
+WLR_API
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 	EGLSurface surf = eglCreatePlatformWindowSurfaceEXT(egl->display, egl->config,
 		window, NULL);
@@ -235,6 +244,7 @@ int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
 	return buffer_age;
 }
 
+WLR_API
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 		int *buffer_age) {
 	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
@@ -248,6 +258,7 @@ bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	return true;
 }
 
+WLR_API
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
 	EGLBoolean ret;

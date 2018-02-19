@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/util/log.h>
 #include "idle-protocol.h"
+#include "util/defs.h"
 #include "util/signal.h"
 
 static const struct org_kde_kwin_idle_timeout_interface idle_timeout_impl;
@@ -157,6 +158,7 @@ static void idle_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(wl_resource, &idle_impl, idle, NULL);
 }
 
+WLR_API
 void wlr_idle_destroy(struct wlr_idle *idle) {
 	if (!idle) {
 		return;
@@ -175,6 +177,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_idle_destroy(idle);
 }
 
+WLR_API
 struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 	struct wlr_idle *idle = calloc(1, sizeof(struct wlr_idle));
 	if (!idle) {
@@ -203,6 +206,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 	return idle;
 }
 
+WLR_API
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat) {
 	wlr_signal_emit_safe(&idle->activity_notify, seat);
 }

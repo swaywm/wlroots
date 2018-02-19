@@ -14,6 +14,7 @@
 #include <xcb/render.h>
 #include <xcb/xcb_image.h>
 #include <xcb/xfixes.h>
+#include "util/defs.h"
 #include "util/signal.h"
 
 #ifdef WLR_HAS_XCB_ICCCM
@@ -1043,6 +1044,7 @@ static void handle_compositor_surface_create(struct wl_listener *listener,
 	}
 }
 
+WLR_API
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 		bool activated) {
 	struct wlr_xwayland_surface *focused = xsurface->xwm->focus_surface;
@@ -1053,6 +1055,7 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 	}
 }
 
+WLR_API
 void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	xsurface->x = x;
@@ -1069,6 +1072,7 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	xcb_flush(xwm->xcb_conn);
 }
 
+WLR_API
 void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwm *xwm = xsurface->xwm;
 
@@ -1100,6 +1104,7 @@ void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 	xcb_flush(xwm->xcb_conn);
 }
 
+WLR_API
 void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
@@ -1292,6 +1297,7 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 	free(reply);
 }
 
+WLR_API
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 		uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y) {
 	if (!xwm->render_format_id) {
@@ -1332,6 +1338,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	xcb_flush(xwm->xcb_conn);
 }
 
+WLR_API
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
 	if (xwm == NULL) {
@@ -1418,6 +1425,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	return xwm;
 }
 
+WLR_API
 void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
 		bool maximized) {
 	surface->maximized_horz = maximized;
@@ -1426,6 +1434,7 @@ void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
 	xcb_flush(surface->xwm->xcb_conn);
 }
 
+WLR_API
 void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 		bool fullscreen) {
 	surface->fullscreen = fullscreen;

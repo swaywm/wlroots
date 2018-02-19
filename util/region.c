@@ -1,7 +1,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <wlr/util/region.h>
+#include "util/defs.h"
 
+WLR_API
 void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 		float scale) {
 	if (scale == 1) {
@@ -29,6 +31,7 @@ void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 	free(dst_rects);
 }
 
+WLR_API
 void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 		enum wl_output_transform transform, int width, int height) {
 	if (transform == WL_OUTPUT_TRANSFORM_NORMAL) {
@@ -102,6 +105,7 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 	free(dst_rects);
 }
 
+WLR_API
 void wlr_region_expand(pixman_region32_t *dst, pixman_region32_t *src,
 		int distance) {
 	if (distance == 0) {

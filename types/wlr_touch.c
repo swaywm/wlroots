@@ -3,7 +3,9 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/types/wlr_touch.h>
+#include "util/defs.h"
 
+WLR_API
 void wlr_touch_init(struct wlr_touch *touch,
 		struct wlr_touch_impl *impl) {
 	touch->impl = impl;
@@ -13,6 +15,7 @@ void wlr_touch_init(struct wlr_touch *touch,
 	wl_signal_init(&touch->events.cancel);
 }
 
+WLR_API
 void wlr_touch_destroy(struct wlr_touch *touch) {
 	if (touch && touch->impl && touch->impl->destroy) {
 		touch->impl->destroy(touch);
