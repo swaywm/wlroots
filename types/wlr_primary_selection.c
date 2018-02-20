@@ -253,6 +253,16 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 	}
 }
 
+
+static const struct gtk_primary_selection_device_interface device_impl;
+
+static struct wlr_seat_client *seat_client_from_device_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&gtk_primary_selection_device_interface, &device_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void device_handle_set_selection(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *source_resource,
 		uint32_t serial) {
@@ -262,7 +272,7 @@ static void device_handle_set_selection(struct wl_client *client,
 	}
 
 	struct wlr_seat_client *seat_client =
-		wlr_seat_client_from_resource(resource);
+		seat_client_from_device_resource(resource);
 
 	struct wlr_primary_selection_source *wlr_source =
 		(struct wlr_primary_selection_source *)source;
