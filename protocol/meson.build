@@ -39,7 +39,6 @@ client_protocols = [
 	'gtk-primary-selection.xml',
 	'idle.xml',
 	'screenshooter.xml',
-	'server-decoration.xml',
 ]
 
 wl_protos_src = []

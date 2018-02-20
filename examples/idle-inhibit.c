@@ -11,9 +11,12 @@
 #include <linux/input-event-codes.h>
 
 /**
- * Usage: toplevel-decoration [mode]
- * Creates a xdg-toplevel supporting decoration negotiation. If `mode` is
- * specified, the client will prefer this decoration mode.
+ * Usage: idle-inhibit
+ * Creates a xdg-toplevel using the idle-inhibit protocol.
+ * It will be solid green, when it has an idle inhibitor, and solid yellow if
+ * it does not.
+ * Left click with a pointer will toggle this state. (Touch is not supported
+ * for now).
  */
 
 static int width = 500, height = 300;
@@ -49,7 +52,12 @@ static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32
 	draw();
 }
 
-static void noop () {}
+/* Function that just does nothing.
+ * When it is noop(void) (like draw) the compiler complains about type
+ * mismatches in the listener struct.
+ * Without any arguments, it can be implicitly casted
+ */
+static void noop() {}
 
 static const struct wl_pointer_listener pointer_listener = {
 	.enter = noop,
@@ -107,11 +115,6 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.close = xdg_toplevel_handle_close,
 };
 
-// static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
-// 	.preferred_mode = decoration_handle_preferred_mode,
-// 	.configure = decoration_handle_configure,
-// };
-
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, "wl_compositor") == 0) {
@@ -138,18 +141,6 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 int main(int argc, char **argv) {
-//	if (argc == 2) {
-//		char *mode = argv[1];
-//		if (strcmp(mode, "client") == 0) {
-//			decoration_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT;
-//		} else if (strcmp(mode, "server") == 0) {
-//			decoration_mode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER;
-//		} else {
-//			fprintf(stderr, "Invalid decoration mode\n");
-//			return EXIT_FAILURE;
-//		}
-//	}
-
 	struct wl_display *display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "Failed to create display\n");
