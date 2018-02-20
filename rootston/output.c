@@ -535,6 +535,11 @@ damage_finish:
 
 	// Send frame done events to all surfaces
 	if (output->fullscreen_view != NULL) {
+		if (wlr_output->fullscreen_surface == output->fullscreen_view->wlr_surface) {
+			// The surface is managed by the wlr_output
+			return;
+		}
+
 		view_for_each_surface(view, surface_send_frame_done, &data);
 
 #ifdef WLR_HAS_XWAYLAND
