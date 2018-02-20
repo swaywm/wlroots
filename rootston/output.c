@@ -535,7 +535,8 @@ damage_finish:
 
 	// Send frame done events to all surfaces
 	if (output->fullscreen_view != NULL) {
-		if (wlr_output->fullscreen_surface == output->fullscreen_view->wlr_surface) {
+		struct roots_view *view = output->fullscreen_view;
+		if (wlr_output->fullscreen_surface == view->wlr_surface) {
 			// The surface is managed by the wlr_output
 			return;
 		}
