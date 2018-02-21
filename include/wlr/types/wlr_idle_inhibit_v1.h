@@ -15,7 +15,7 @@ struct wlr_idle_inhibit_manager_v1 {
 	} events;
 };
 
-struct wlr_idle_inhibit_inhibitor_v1 {
+struct wlr_idle_inhibitor_v1 {
 	struct wlr_surface *surface;
 	struct wl_resource *resource;
 	struct wl_listener surface_destroy;

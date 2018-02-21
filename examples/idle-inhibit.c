@@ -31,7 +31,20 @@ struct wlr_egl egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 
-static void draw(void);
+static void draw(void) {
+	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+
+	float color[] = {1.0, 1.0, 0.0, 1.0};
+	if (idle_inhibitor) {
+		color[0] = 0.0;
+	}
+
+	glViewport(0, 0, width, height);
+	glClearColor(color[0], color[1], color[2], 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	eglSwapBuffers(egl.display, egl_surface);
+}
 
 static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32_t serial,
 		uint32_t time, uint32_t button, uint32_t state_w) {
@@ -52,39 +65,57 @@ static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32
 	draw();
 }
 
-/* Function that just does nothing.
- * When it is noop(void) (like draw) the compiler complains about type
- * mismatches in the listener struct.
- * Without any arguments, it can be implicitly casted
- */
-static void noop() {}
+static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface,
+		wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, uint32_t axis, wl_fixed_t value) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_axis_source(void *data,
+		struct wl_pointer *wl_pointer, uint32_t axis_source) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_axis_stop(void *data,
+		struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis) {
+	/* NOOP: ignore event */
+}
+
+static void pointer_handle_axis_discrete(void *data,
+		struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete) {
+	/* NOOP: ignore event */
+}
 
 static const struct wl_pointer_listener pointer_listener = {
-	.enter = noop,
-	.leave = noop,
-	.motion = noop,
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
+	.motion = pointer_handle_motion,
 	.button = pointer_handle_button,
-	.axis = noop,
-	.frame = noop,
-	.axis_source = noop,
-	.axis_stop = noop,
-	.axis_discrete = noop,
+	.axis = pointer_handle_axis,
+	.frame = pointer_handle_frame,
+	.axis_source = pointer_handle_axis_source,
+	.axis_stop = pointer_handle_axis_stop,
+	.axis_discrete = pointer_handle_axis_discrete,
 };
-
-static void draw(void) {
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
-
-	float color[] = {1.0, 1.0, 0.0, 1.0};
-	if (idle_inhibitor) {
-		color[0] = 0.0;
-	}
-
-	glViewport(0, 0, width, height);
-	glClearColor(color[0], color[1], color[2], 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	eglSwapBuffers(egl.display, egl_surface);
-}
 
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
@@ -118,8 +149,8 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, "wl_compositor") == 0) {
-		compositor = wl_registry_bind(registry, name, &wl_compositor_interface,
-			1);
+		compositor = wl_registry_bind(registry, name,
+			&wl_compositor_interface, 1);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
 	} else if (strcmp(interface, zwp_idle_inhibit_manager_v1_interface.name) == 0) {
@@ -132,7 +163,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 
 static void handle_global_remove(void *data, struct wl_registry *registry,
 		uint32_t name) {
-	// TODO
+	// who cares
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -194,7 +225,7 @@ int main(int argc, char **argv) {
 	draw();
 
 	while (wl_display_dispatch(display) != -1) {
-		// No-op
+		/** Do Nothing */
 	}
 
 	return EXIT_SUCCESS;
