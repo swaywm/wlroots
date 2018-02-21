@@ -296,7 +296,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_with_matrix(renderer, surface->texture, &matrix);
+		wlr_render_with_matrix(renderer, surface->texture, &matrix, 1.0f);
 	}
 
 damage_finish:

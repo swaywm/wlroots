@@ -33,12 +33,13 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
  * 	float projection[16];
  * 	float matrix[16];
  * 	wlr_texture_get_matrix(texture, &matrix, &projection, 123, 321);
- * 	wlr_render_with_matrix(renderer, texture, &matrix);
+ * 	wlr_render_with_matrix(renderer, texture, &matrix, 0.5f);
  *
- * This will render the texture at <123, 321>.
+ * This will render the texture at <123, 321> with an alpha channel of 0.5.
  */
 bool wlr_render_with_matrix(struct wlr_renderer *r,
-	struct wlr_texture *texture, const float (*matrix)[16]);
+	struct wlr_texture *texture, const float (*matrix)[16], float alpha);
+
 /**
  * Renders a solid quad in the specified color.
  */
