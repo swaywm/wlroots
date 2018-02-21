@@ -62,7 +62,7 @@ extern const GLchar fragment_src_external[];
 
 bool _gles2_flush_errors(const char *file, int line);
 #define gles2_flush_errors(...) \
-	_gles2_flush_errors(_strip_path(__FILE__), __LINE__)
+	_gles2_flush_errors(wlr_strip_path(__FILE__), __LINE__)
 
 #define GL_CALL(func) func; gles2_flush_errors()
 
