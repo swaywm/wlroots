@@ -163,10 +163,12 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	struct wlr_input_device *dev = data;
 	assert(dev && dev->keyboard);
 
-	struct wlr_event_keyboard_key wlr_event;
-	wlr_event.keycode = key;
-	wlr_event.state = state;
-	wlr_event.time_msec = time;
+	struct wlr_event_keyboard_key wlr_event = {
+		.keycode = key,
+		.state = state,
+		.time_msec = time,
+		.update_state = false,
+	};
 	wlr_keyboard_notify_key(dev->keyboard, &wlr_event);
 }
 
