@@ -122,7 +122,7 @@ static void create_idle_timer(struct wl_client *client,
 	wl_signal_add(&timer->seat->events.destroy, &timer->seat_destroy);
 
 	timer->input_listener.notify = handle_input_notification;
-	wl_signal_add(&idle->activity_notify, &timer->input_listener);
+	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
 	// create the timer
 	timer->idle_source =
 		wl_event_loop_add_timer(idle->event_loop, idle_notify, timer);
@@ -181,7 +181,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 		return NULL;
 	}
 	wl_list_init(&idle->idle_timers);
-	wl_signal_init(&idle->activity_notify);
+	wl_signal_init(&idle->events.activity_notify);
 
 	idle->event_loop = wl_display_get_event_loop(display);
 	if (idle->event_loop == NULL) {
@@ -204,5 +204,5 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 }
 
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat) {
-	wlr_signal_emit_safe(&idle->activity_notify, seat);
+	wlr_signal_emit_safe(&idle->events.activity_notify, seat);
 }
