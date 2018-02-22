@@ -121,12 +121,32 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
+static int backingfile(off_t size) {
+	static char template[] = "/tmp/wlroots-shared-XXXXXX";
+	int fd, ret;
+
+	fd = mkstemp(template);
+	if (fd < 0) {
+		return -1;
+	}
+
+	while ((ret = ftruncate(fd, size)) == EINTR) {}
+	if (ret < 0) {
+		close(fd);
+		return -1;
+	}
+
+	unlink(template);
+	return fd;
+}
+
+
 static struct wl_buffer *create_shm_buffer(int width, int height,
 		void **data_out) {
 	int stride = width * 4;
 	int size = stride * height;
 
-	int fd = os_create_anonymous_file(size);
+	int fd = backingfile(size);
 	if (fd < 0) {
 		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
 		return NULL;
