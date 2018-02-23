@@ -182,6 +182,21 @@ static void xwayland_children_for_each_surface(
 }
 #endif
 
+static void drag_icons_for_each_surface(struct roots_input *input,
+		surface_iterator_func_t iterator, void *user_data) {
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		struct roots_drag_icon *drag_icon;
+		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
+			if (!drag_icon->wlr_drag_icon->mapped) {
+				continue;
+			}
+			surface_for_each_surface(drag_icon->wlr_drag_icon->surface,
+				drag_icon->x, drag_icon->y, 0, iterator, user_data);
+		}
+	}
+}
+
 
 struct render_data {
 	struct roots_output *output;
@@ -190,18 +205,22 @@ struct render_data {
 };
 
 /**
- * Checks whether a surface at (lx, ly) intersects an output. Sets `box` to the
- * surface box in the output, in output-local coordinates.
+ * Checks whether a surface at (lx, ly) intersects an output. If `box` is not
+ * NULL, it populates it with the surface box in the output, in output-local
+ * coordinates.
  */
 static bool surface_intersect_output(struct wlr_surface *surface,
 		struct wlr_output_layout *output_layout, struct wlr_output *wlr_output,
 		double lx, double ly, float rotation, struct wlr_box *box) {
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
-	box->x = ox * wlr_output->scale;
-	box->y = oy * wlr_output->scale;
-	box->width = surface->current->width * wlr_output->scale;
-	box->height = surface->current->height * wlr_output->scale;
+
+	if (box != NULL) {
+		box->x = ox * wlr_output->scale;
+		box->y = oy * wlr_output->scale;
+		box->width = surface->current->width * wlr_output->scale;
+		box->height = surface->current->height * wlr_output->scale;
+	}
 
 	struct wlr_box layout_box = {
 		.x = lx, .y = ly,
@@ -239,7 +258,6 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		float rotation, void *_data) {
 	struct render_data *data = _data;
 	struct roots_output *output = data->output;
-	struct timespec *when = data->when;
 	struct wlr_renderer *renderer =
 		wlr_backend_get_renderer(output->wlr_output->backend);
 	assert(renderer);
@@ -280,8 +298,6 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		scissor_output(output, &rects[i]);
 		wlr_render_with_matrix(renderer, surface->texture, &matrix);
 	}
-
-	wlr_surface_send_frame_done(surface, when);
 
 damage_finish:
 	pixman_region32_fini(&damage);
@@ -384,6 +400,20 @@ static bool has_standalone_surface(struct roots_view *view) {
 	return true;
 }
 
+static void surface_send_frame_done(struct wlr_surface *surface, double lx,
+		double ly, float rotation, void *_data) {
+	struct render_data *data = _data;
+	struct roots_output *output = data->output;
+	struct timespec *when = data->when;
+
+	if (!surface_intersect_output(surface, output->desktop->layout,
+			output->wlr_output, lx, ly, rotation, NULL)) {
+		return;
+	}
+
+	wlr_surface_send_frame_done(surface, when);
+}
+
 static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
@@ -434,16 +464,16 @@ static void render_output(struct roots_output *output) {
 		return;
 	}
 
-	if (!needs_swap) {
-		// Output doesn't need swap and isn't damaged, skip rendering completely
-		goto damage_finish;
-	}
-
 	struct render_data data = {
 		.output = output,
 		.when = &now,
 		.damage = &damage,
 	};
+
+	if (!needs_swap) {
+		// Output doesn't need swap and isn't damaged, skip rendering completely
+		goto damage_finish;
+	}
 
 	wlr_renderer_begin(renderer, wlr_output);
 
@@ -490,17 +520,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 	// Render drag icons
-	struct roots_drag_icon *drag_icon = NULL;
-	struct roots_seat *seat = NULL;
-	wl_list_for_each(seat, &server->input->seats, link) {
-		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
-			if (!drag_icon->wlr_drag_icon->mapped) {
-				continue;
-			}
-			render_surface(drag_icon->wlr_drag_icon->surface,
-				drag_icon->x, drag_icon->y, 0, &data);
-		}
-	}
+	drag_icons_for_each_surface(server->input, render_surface, &data);
 
 renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
@@ -512,6 +532,32 @@ renderer_end:
 
 damage_finish:
 	pixman_region32_fini(&damage);
+
+	// Send frame done events to all surfaces
+	if (output->fullscreen_view != NULL) {
+		struct roots_view *view = output->fullscreen_view;
+		if (wlr_output->fullscreen_surface == view->wlr_surface) {
+			// The surface is managed by the wlr_output
+			return;
+		}
+
+		view_for_each_surface(view, surface_send_frame_done, &data);
+
+#ifdef WLR_HAS_XWAYLAND
+		if (view->type == ROOTS_XWAYLAND_VIEW) {
+			xwayland_children_for_each_surface(view->xwayland_surface,
+				surface_send_frame_done, &data);
+		}
+#endif
+	} else {
+		struct roots_view *view;
+		wl_list_for_each_reverse(view, &desktop->views, link) {
+			view_for_each_surface(view, surface_send_frame_done, &data);
+		}
+
+		drag_icons_for_each_surface(server->input, surface_send_frame_done,
+			&data);
+	}
 }
 
 void output_damage_whole(struct roots_output *output) {
