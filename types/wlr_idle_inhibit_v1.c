@@ -12,14 +12,14 @@ static struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl;
 
 static struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl;
 
-struct wlr_idle_inhibit_manager_v1 *
+static struct wlr_idle_inhibit_manager_v1 *
 wlr_idle_inhibit_manager_v1_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwp_idle_inhibit_manager_v1_interface,
 		&idle_inhibit_impl));
 	return wl_resource_get_user_data(resource);
 }
 
-struct wlr_idle_inhibitor_v1 *
+static struct wlr_idle_inhibitor_v1 *
 wlr_idle_inhibitor_v1_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwp_idle_inhibitor_v1_interface,
 		&idle_inhibitor_impl));

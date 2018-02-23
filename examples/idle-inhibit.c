@@ -68,41 +68,41 @@ static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_axis_source(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis_source) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_axis_stop(void *data,
 		struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static void pointer_handle_axis_discrete(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete) {
-	/* NOOP: ignore event */
+	// This space intentionally left blank
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
 	draw();
 
 	while (wl_display_dispatch(display) != -1) {
-		/** Do Nothing */
+		// This space intentionally left blank
 	}
 
 	return EXIT_SUCCESS;

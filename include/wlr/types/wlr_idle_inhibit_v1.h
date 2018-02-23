@@ -3,6 +3,18 @@
 
 #include <wayland-server.h>
 
+/* This interface permits clients to inhibit the idle behavior such as
+ * screenblanking, locking, and screensaving.
+ *
+ * This allows clients to ensure they stay visible instead of being hidden by
+ * power-saving.
+ *
+ * Inhibitors are created for surfaces. They should only be in effect, while
+ * this surface is visible.
+ * The effect could also be limited to outputs it is displayed on (e.g.
+ * dimm/dpms off outputs, except the one a video is displayed on).
+ */
+
 struct wlr_idle_inhibit_manager_v1 {
 	struct wl_list wl_resources; // wl_resource_get_link
 	struct wl_list inhibitors; // wlr_idle_inhibit_inhibitor_v1::link
