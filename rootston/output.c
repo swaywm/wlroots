@@ -514,12 +514,6 @@ damage_finish:
 	pixman_region32_fini(&damage);
 }
 
-static void output_damage_handle_frame(struct wl_listener *listener,
-		void *data) {
-	struct roots_output *output = wl_container_of(listener, output, frame);
-	render_output(output);
-}
-
 void output_damage_whole(struct roots_output *output) {
 	wlr_output_damage_add_whole(output->damage);
 }
@@ -681,17 +675,35 @@ static void set_mode(struct wlr_output *output,
 	}
 }
 
-static void output_handle_destroy(struct wl_listener *listener, void *data) {
-	struct roots_output *output = wl_container_of(listener, output, destroy);
-
+static void output_destroy(struct roots_output *output) {
 	// TODO: cursor
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
 
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->destroy.link);
-	wl_list_remove(&output->frame.link);
+	wl_list_remove(&output->damage_frame.link);
+	wl_list_remove(&output->damage_destroy.link);
 	free(output);
+}
+
+static void output_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_output *output = wl_container_of(listener, output, destroy);
+	output_destroy(output);
+}
+
+static void output_damage_handle_frame(struct wl_listener *listener,
+		void *data) {
+	struct roots_output *output =
+		wl_container_of(listener, output, damage_frame);
+	render_output(output);
+}
+
+static void output_damage_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_output *output =
+		wl_container_of(listener, output, damage_destroy);
+	output_destroy(output);
 }
 
 void handle_new_output(struct wl_listener *listener, void *data) {
@@ -722,8 +734,10 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	output->destroy.notify = output_handle_destroy;
 	wl_signal_add(&wlr_output->events.destroy, &output->destroy);
-	output->frame.notify = output_damage_handle_frame;
-	wl_signal_add(&output->damage->events.frame, &output->frame);
+	output->damage_frame.notify = output_damage_handle_frame;
+	wl_signal_add(&output->damage->events.frame, &output->damage_frame);
+	output->damage_destroy.notify = output_damage_handle_destroy;
+	wl_signal_add(&output->damage->events.destroy, &output->damage_destroy);
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
