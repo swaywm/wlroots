@@ -408,10 +408,10 @@ static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
 		wl_container_of(listener, keyboard, device_destroy);
 	struct roots_seat *seat = keyboard->seat;
-	roots_keyboard_destroy(keyboard);
 	wl_list_remove(&keyboard->device_destroy.link);
 	wl_list_remove(&keyboard->keyboard_key.link);
 	wl_list_remove(&keyboard->keyboard_modifiers.link);
+	roots_keyboard_destroy(keyboard);
 	seat_update_capabilities(seat);
 }
 
