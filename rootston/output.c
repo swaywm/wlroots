@@ -202,6 +202,7 @@ struct render_data {
 	struct roots_output *output;
 	struct timespec *when;
 	pixman_region32_t *damage;
+	float alpha;
 };
 
 /**
@@ -296,7 +297,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_with_matrix(renderer, surface->texture, &matrix, 1.0f);
+		wlr_render_with_matrix(renderer, surface->texture, &matrix, data->alpha);
 	}
 
 damage_finish:
@@ -376,6 +377,7 @@ static void render_view(struct roots_view *view, struct render_data *data) {
 		return;
 	}
 
+	data->alpha = view->alpha;
 	render_decorations(view, data);
 	view_for_each_surface(view, render_surface, data);
 }

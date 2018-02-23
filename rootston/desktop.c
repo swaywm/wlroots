@@ -25,6 +25,10 @@
 
 struct roots_view *view_create() {
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (!view) {
+		return NULL;
+	}
+	view->alpha = 1.0f;
 	return view;
 }
 
