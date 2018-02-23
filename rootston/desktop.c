@@ -278,6 +278,15 @@ void view_rotate(struct roots_view *view, float rotation) {
 	view_damage_whole(view);
 }
 
+void view_cycle_alpha(struct roots_view *view) {
+	view->alpha -= 0.05;
+	/* Don't go completely transparent */
+	if (view->alpha < 0.1) {
+		view->alpha = 1.0;
+	}
+	view_damage_whole(view);
+}
+
 void view_close(struct roots_view *view) {
 	if (view->close) {
 		view->close(view);
