@@ -22,6 +22,12 @@
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
 
+
+struct roots_view *view_create() {
+	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	return view;
+}
+
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
 	box->y = view->y;
