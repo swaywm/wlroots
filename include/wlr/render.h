@@ -123,6 +123,8 @@ bool wlr_texture_upload_drm(struct wlr_texture *tex,
 bool wlr_texture_upload_eglimage(struct wlr_texture *tex,
 	EGLImageKHR image, uint32_t width, uint32_t height);
 
+bool wlr_texture_upload_dmabuf(struct wlr_texture *tex,
+	struct wl_resource *dmabuf_resource);
 /**
  * Copies a rectangle of pixels from a wl_shm_buffer onto the texture. The
  * buffer is not accessed after this function returns. Under some circumstances,

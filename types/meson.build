@@ -9,6 +9,7 @@ lib_wlr_types = static_library(
 		'wlr_idle.c',
 		'wlr_input_device.c',
 		'wlr_keyboard.c',
+		'wlr_linux_dmabuf.c',
 		'wlr_list.c',
 		'wlr_output_damage.c',
 		'wlr_output_layout.c',

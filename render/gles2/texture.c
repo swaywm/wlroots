@@ -227,6 +227,42 @@ static bool gles2_texture_upload_eglimage(struct wlr_texture *wlr_tex,
 	return true;
 }
 
+
+static bool gles2_texture_upload_dmabuf(struct wlr_texture *_tex,
+		struct wl_resource *dmabuf_resource) {
+	struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)_tex;
+	struct wlr_dmabuf_buffer *dmabuf = wlr_dmabuf_buffer_from_buffer_resource(
+		dmabuf_resource);
+
+	if (!tex->egl->egl_exts.dmabuf_import) {
+		wlr_log(L_ERROR, "Want dmabuf but extension not present");
+		return false;
+	}
+
+	tex->wlr_texture.width = dmabuf->attributes.width;
+	tex->wlr_texture.height = dmabuf->attributes.height;
+
+	if (tex->image) {
+		wlr_egl_destroy_image(tex->egl, tex->image);
+	}
+
+	if (wlr_dmabuf_buffer_has_inverted_y(dmabuf)) {
+		_tex->inverted_y = true;
+	}
+
+	GLenum target = GL_TEXTURE_2D;
+	const struct pixel_format *pf =
+		gl_format_for_wl_format(WL_SHM_FORMAT_ARGB8888);
+	gles2_texture_ensure_texture(tex);
+	GL_CALL(glBindTexture(target, tex->tex_id));
+	tex->image = wlr_egl_create_image_from_dmabuf(tex->egl, &dmabuf->attributes);
+	GL_CALL(glActiveTexture(GL_TEXTURE0));
+	GL_CALL(glEGLImageTargetTexture2DOES(target, tex->image));
+	tex->pixel_format = pf;
+	tex->wlr_texture.valid = true;
+	return true;
+}
+
 static void gles2_texture_get_matrix(struct wlr_texture *_texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
@@ -240,6 +276,21 @@ static void gles2_texture_get_matrix(struct wlr_texture *_texture,
 	wlr_matrix_mul(projection, matrix, matrix);
 }
 
+
+static bool gles2_texture_get_dmabuf_size(struct wlr_texture *texture, struct
+		wl_resource *resource, int *width, int *height) {
+	if (!wlr_dmabuf_resource_is_buffer(resource)) {
+		return false;
+	}
+
+	struct wlr_dmabuf_buffer *dmabuf = wlr_dmabuf_buffer_from_buffer_resource(
+		resource);
+	*width = dmabuf->attributes.width;
+	*height = dmabuf->attributes.height;
+	return true;
+}
+
+
 static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 		wl_resource *resource, int *width, int *height) {
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(resource);
@@ -250,10 +301,12 @@ static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 		}
 		if (!wlr_egl_query_buffer(tex->egl, resource, EGL_WIDTH,
 				(EGLint*)width)) {
-			wlr_log(L_ERROR, "could not get size of the buffer "
-				"(no buffer found)");
-			return;
-		};
+			if (!gles2_texture_get_dmabuf_size(texture, resource,
+					width, height)) {
+				wlr_log(L_ERROR, "could not get size of the buffer");
+				return;
+			}
+		}
 		wlr_egl_query_buffer(tex->egl, resource, EGL_HEIGHT,
 			(EGLint*)height);
 
@@ -292,6 +345,7 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.upload_shm = gles2_texture_upload_shm,
 	.update_shm = gles2_texture_update_shm,
 	.upload_drm = gles2_texture_upload_drm,
+	.upload_dmabuf = gles2_texture_upload_dmabuf,
 	.upload_eglimage = gles2_texture_upload_eglimage,
 	.get_matrix = gles2_texture_get_matrix,
 	.get_buffer_size = gles2_texture_get_buffer_size,
