@@ -10,7 +10,7 @@ struct wlr_pointer_impl;
 struct wlr_pointer {
 	struct wlr_pointer_impl *impl;
 
-	struct {
+	struct wlr_pointer_events {
 		struct wl_signal motion;
 		struct wl_signal motion_absolute;
 		struct wl_signal button;

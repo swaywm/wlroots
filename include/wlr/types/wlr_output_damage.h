@@ -29,7 +29,7 @@ struct wlr_output_damage {
 	pixman_region32_t previous[WLR_OUTPUT_DAMAGE_PREVIOUS_LEN];
 	size_t previous_idx;
 
-	struct {
+	struct wlr_output_damage_events {
 		struct wl_signal frame;
 		struct wl_signal destroy;
 	} events;

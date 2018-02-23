@@ -10,7 +10,7 @@ struct wlr_tablet_tool_impl;
 struct wlr_tablet_tool {
 	struct wlr_tablet_tool_impl *impl;
 
-	struct {
+	struct wlr_tablet_tool_events {
 		struct wl_signal axis;
 		struct wl_signal proximity;
 		struct wl_signal tip;

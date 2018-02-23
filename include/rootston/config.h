@@ -13,7 +13,7 @@ struct roots_output_config {
 	int x, y;
 	float scale;
 	struct wl_list link;
-	struct {
+	struct roots_output_config_mode {
 		int width, height;
 		float refresh_rate;
 	} mode;

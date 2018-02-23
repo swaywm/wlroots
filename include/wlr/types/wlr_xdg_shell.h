@@ -13,7 +13,7 @@ struct wlr_xdg_shell {
 
 	struct wl_listener display_destroy;
 
-	struct {
+	struct wlr_xdg_shell_events {
 		struct wl_signal new_surface;
 	} events;
 
@@ -123,7 +123,7 @@ struct wlr_xdg_surface {
 
 	struct wl_listener surface_destroy_listener;
 
-	struct {
+	struct wlr_xdg_surface_events {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
 		struct wl_signal new_popup;

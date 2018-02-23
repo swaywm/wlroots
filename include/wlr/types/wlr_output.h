@@ -31,7 +31,7 @@ struct wlr_output_cursor {
 	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
 
-	struct {
+	struct wlr_output_cursor_events {
 		struct wl_signal destroy;
 	} events;
 };
@@ -78,7 +78,7 @@ struct wlr_output {
 	bool frame_pending;
 	float transform_matrix[16];
 
-	struct {
+	struct wlr_output_events {
 		struct wl_signal frame;
 		struct wl_signal needs_swap;
 		struct wl_signal swap_buffers;

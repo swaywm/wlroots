@@ -90,13 +90,13 @@ struct roots_view {
 
 	bool maximized;
 	struct roots_output *fullscreen_output;
-	struct {
+	struct roots_view_saved {
 		double x, y;
 		uint32_t width, height;
 		float rotation;
 	} saved;
 
-	struct {
+	struct roots_view_pending_move_resize {
 		bool update_x, update_y;
 		double x, y;
 		uint32_t width, height;
@@ -126,7 +126,7 @@ struct roots_view {
 
 	struct wl_listener new_subsurface;
 
-	struct {
+	struct roots_view_events {
 		struct wl_signal destroy;
 	} events;
 

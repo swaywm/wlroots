@@ -13,7 +13,7 @@ struct wlr_multi_backend {
 
 	struct wl_listener display_destroy;
 
-	struct {
+	struct wlr_multi_backend_events {
 		struct wl_signal backend_add;
 		struct wl_signal backend_remove;
 	} events;

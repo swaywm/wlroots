@@ -15,7 +15,7 @@ struct wlr_egl {
 	const char *egl_exts_str;
 	const char *gl_exts_str;
 
-	struct {
+	struct wlr_egl_egl_exts {
 		bool buffer_age;
 		bool swap_buffers_with_damage;
 	} egl_exts;

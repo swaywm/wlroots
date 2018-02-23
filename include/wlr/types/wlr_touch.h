@@ -9,7 +9,7 @@ struct wlr_touch_impl;
 struct wlr_touch {
 	struct wlr_touch_impl *impl;
 
-	struct {
+	struct wlr_touch_events {
 		struct wl_signal down;
 		struct wl_signal up;
 		struct wl_signal motion;

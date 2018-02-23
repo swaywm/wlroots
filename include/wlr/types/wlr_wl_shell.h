@@ -14,7 +14,7 @@ struct wlr_wl_shell {
 
 	struct wl_listener display_destroy;
 
-	struct {
+	struct wlr_wl_shell_events {
 		struct wl_signal new_surface;
 	} events;
 
@@ -76,7 +76,7 @@ struct wlr_wl_shell_surface {
 	struct wl_list popups;
 	bool popup_mapped;
 
-	struct {
+	struct wlr_wl_shell_surface_events {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
 		struct wl_signal new_popup;

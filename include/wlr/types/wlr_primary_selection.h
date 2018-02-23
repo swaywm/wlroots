@@ -27,7 +27,7 @@ struct wlr_primary_selection_source {
 	struct wlr_primary_selection_offer *offer;
 	struct wlr_seat_client *seat_client;
 
-	struct {
+	struct wlr_primary_selection_source_events {
 		struct wl_signal destroy;
 	} events;
 
