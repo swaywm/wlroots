@@ -90,6 +90,7 @@ void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	if (compositor == NULL) {
 		return;
 	}
+	wlr_signal_emit_safe(&compositor->events.destroy, compositor);
 	wl_list_remove(&compositor->display_destroy.link);
 	wl_global_destroy(compositor->wl_global);
 	free(compositor);
@@ -195,6 +196,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	wl_list_init(&compositor->wl_resources);
 	wl_list_init(&compositor->surfaces);
 	wl_signal_init(&compositor->events.new_surface);
+	wl_signal_init(&compositor->events.destroy);
 
 	compositor->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &compositor->display_destroy);

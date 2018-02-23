@@ -93,7 +93,8 @@ struct wlr_xwm {
 
 	const xcb_query_extension_reply_t *xfixes;
 
-	struct wl_listener compositor_surface_create;
+	struct wl_listener compositor_new_surface;
+	struct wl_listener compositor_destroy;
 	struct wl_listener seat_selection;
 	struct wl_listener seat_primary_selection;
 };
