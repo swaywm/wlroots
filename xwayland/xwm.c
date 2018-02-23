@@ -1019,11 +1019,11 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	return count;
 }
 
-static void handle_compositor_surface_create(struct wl_listener *listener,
+static void handle_compositor_new_surface(struct wl_listener *listener,
 		void *data) {
-	struct wlr_surface *surface = data;
 	struct wlr_xwm *xwm =
-		wl_container_of(listener, xwm, compositor_surface_create);
+		wl_container_of(listener, xwm, compositor_new_surface);
+	struct wlr_surface *surface = data;
 	if (wl_resource_get_client(surface->resource) != xwm->xwayland->client) {
 		return;
 	}
@@ -1041,6 +1041,16 @@ static void handle_compositor_surface_create(struct wl_listener *listener,
 			return;
 		}
 	}
+}
+
+static void handle_compositor_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwm *xwm =
+		wl_container_of(listener, xwm, compositor_destroy);
+	wl_list_remove(&xwm->compositor_new_surface.link);
+	wl_list_remove(&xwm->compositor_destroy.link);
+	wl_list_init(&xwm->compositor_new_surface.link);
+	wl_list_init(&xwm->compositor_destroy.link);
 }
 
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
@@ -1124,7 +1134,8 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
 	}
-	wl_list_remove(&xwm->compositor_surface_create.link);
+	wl_list_remove(&xwm->compositor_new_surface.link);
+	wl_list_remove(&xwm->compositor_destroy.link);
 	xcb_disconnect(xwm->xcb_conn);
 
 	free(xwm);
@@ -1407,9 +1418,12 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 
 	xwm_selection_init(xwm);
 
-	xwm->compositor_surface_create.notify = handle_compositor_surface_create;
+	xwm->compositor_new_surface.notify = handle_compositor_new_surface;
 	wl_signal_add(&wlr_xwayland->compositor->events.new_surface,
-		&xwm->compositor_surface_create);
+		&xwm->compositor_new_surface);
+	xwm->compositor_destroy.notify = handle_compositor_destroy;
+	wl_signal_add(&wlr_xwayland->compositor->events.destroy,
+		&xwm->compositor_destroy);
 
 	xwm_create_wm_window(xwm);
 

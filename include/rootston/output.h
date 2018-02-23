@@ -19,7 +19,8 @@ struct roots_output {
 	struct wlr_output_damage *damage;
 
 	struct wl_listener destroy;
-	struct wl_listener frame;
+	struct wl_listener damage_frame;
+	struct wl_listener damage_destroy;
 };
 
 void handle_new_output(struct wl_listener *listener, void *data);
