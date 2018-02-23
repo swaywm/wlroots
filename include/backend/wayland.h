@@ -45,7 +45,7 @@ struct wlr_wl_backend_output {
 	struct wl_egl_window *egl_window;
 	struct wl_callback *frame_callback;
 
-	struct {
+	struct wlr_wl_backend_cursor {
 		struct wl_shm_pool *pool;
 		void *buffer; // actually a (client-side) struct wl_buffer*
 		uint32_t buf_size;

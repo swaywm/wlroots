@@ -40,7 +40,7 @@ struct wlr_input_device {
 		struct wlr_tablet_pad *tablet_pad;
 	};
 
-	struct {
+	struct wlr_input_device_events {
 		struct wl_signal destroy;
 	} events;
 

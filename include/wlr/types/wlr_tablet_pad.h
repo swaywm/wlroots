@@ -16,7 +16,7 @@ struct wlr_tablet_pad_impl;
 struct wlr_tablet_pad {
 	struct wlr_tablet_pad_impl *impl;
 
-	struct {
+	struct wlr_tablet_pad_events {
 		struct wl_signal button;
 		struct wl_signal ring;
 		struct wl_signal strip;

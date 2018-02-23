@@ -10,7 +10,7 @@ struct wlr_backend_impl;
 struct wlr_backend {
 	const struct wlr_backend_impl *impl;
 
-	struct {
+	struct wlr_backend_events {
 		struct wl_signal destroy;
 		struct wl_signal new_input;
 		struct wl_signal new_output;

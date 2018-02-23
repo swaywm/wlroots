@@ -13,7 +13,7 @@ struct wlr_cursor {
 	struct wlr_cursor_state *state;
 	double x, y;
 
-	struct {
+	struct wlr_cursor_events {
 		struct wl_signal motion;
 		struct wl_signal motion_absolute;
 		struct wl_signal button;

@@ -19,7 +19,7 @@ struct wlr_gamma_control {
 
 	struct wl_listener output_destroy_listener;
 
-	struct {
+	struct wlr_gamma_control_events {
 		struct wl_signal destroy;
 	} events;
 

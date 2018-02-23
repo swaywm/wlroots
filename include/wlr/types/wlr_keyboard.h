@@ -54,12 +54,12 @@ struct wlr_keyboard {
 	size_t num_keycodes;
 	struct wlr_keyboard_modifiers modifiers;
 
-	struct {
+	struct wlr_keyboard_repeat_info {
 		int32_t rate;
 		int32_t delay;
 	} repeat_info;
 
-	struct {
+	struct wlr_keyboard_events {
 		struct wl_signal key;
 		struct wl_signal modifiers;
 		struct wl_signal keymap;

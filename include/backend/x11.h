@@ -43,7 +43,7 @@ struct wlr_x11_backend {
 	struct wl_event_source *event_source;
 	struct wl_event_source *frame_timer;
 
-	struct {
+	struct wlr_x11_backend_events {
 		struct wlr_x11_atom wm_protocols;
 		struct wlr_x11_atom wm_delete_window;
 		struct wlr_x11_atom net_wm_name;

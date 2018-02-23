@@ -57,7 +57,7 @@ struct wlr_data_source {
 	enum wl_data_device_manager_dnd_action current_dnd_action;
 	uint32_t compositor_action;
 
-	struct {
+	struct wlr_data_source_events {
 		struct wl_signal destroy;
 	} events;
 };
@@ -73,7 +73,7 @@ struct wlr_drag_icon {
 
 	int32_t sx, sy;
 
-	struct {
+	struct wlr_drag_icon_events {
 		struct wl_signal map; // emitted when mapped or unmapped
 		struct wl_signal destroy;
 	} events;

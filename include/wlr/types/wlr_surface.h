@@ -35,7 +35,7 @@ struct wlr_surface_state {
 	int width, height;
 	int buffer_width, buffer_height;
 
-	struct {
+	struct wlr_surface_state_subsurface_position {
 		int32_t x, y;
 	} subsurface_position;
 
@@ -58,7 +58,7 @@ struct wlr_subsurface {
 
 	struct wl_listener parent_destroy_listener;
 
-	struct {
+	struct wlr_subsurface_events {
 		struct wl_signal destroy;
 	} events;
 };
@@ -73,7 +73,7 @@ struct wlr_surface {
 	float buffer_to_surface_matrix[16];
 	float surface_to_buffer_matrix[16];
 
-	struct {
+	struct wlr_surface_events {
 		struct wl_signal commit;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;

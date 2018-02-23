@@ -34,7 +34,7 @@ struct wlr_xwayland {
 	struct wlr_seat *seat;
 	struct wl_listener seat_destroy;
 
-	struct {
+	struct wlr_xwayland_events {
 		struct wl_signal ready;
 		struct wl_signal new_surface;
 	} events;
@@ -122,7 +122,7 @@ struct wlr_xwayland_surface {
 
 	bool has_alpha;
 
-	struct {
+	struct wlr_xwayland_surface_events {
 		struct wl_signal destroy;
 		struct wl_signal request_configure;
 		struct wl_signal request_move;

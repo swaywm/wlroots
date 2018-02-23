@@ -12,7 +12,7 @@ struct wlr_compositor {
 
 	struct wl_listener display_destroy;
 
-	struct {
+	struct wlr_compositor_events {
 		struct wl_signal new_surface;
 	} events;
 };

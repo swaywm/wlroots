@@ -24,7 +24,7 @@ struct wlr_seat_client {
 	struct wl_list data_devices;
 	struct wl_list primary_selection_devices;
 
-	struct {
+	struct wlr_seat_client_events {
 		struct wl_signal destroy;
 	} events;
 
@@ -44,7 +44,7 @@ struct wlr_touch_point {
 	struct wl_listener focus_surface_destroy;
 	struct wl_listener resource_destroy;
 
-	struct {
+	struct wlr_touch_point_events {
 		struct wl_signal destroy;
 	} events;
 
@@ -195,7 +195,7 @@ struct wlr_seat {
 	struct wl_listener selection_data_source_destroy;
 	struct wl_listener primary_selection_source_destroy;
 
-	struct {
+	struct wlr_seat_events {
 		struct wl_signal pointer_grab_begin;
 		struct wl_signal pointer_grab_end;
 
