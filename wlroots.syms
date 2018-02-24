@@ -2,6 +2,7 @@ WLROOTS_0_0_0 {
     global:
         wlr_*;
         _wlr_log;
+        _wlr_vlog;
     local:
         wlr_data_device_keyboard_drag_interface;
         wlr_data_device_pointer_drag_interface;
