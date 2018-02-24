@@ -16,6 +16,10 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_list.h>
+#include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
+#include "rootston/view.h"
 #include "rootston/config.h"
 #include "rootston/output.h"
 #include "rootston/view.h"
@@ -41,6 +45,7 @@ struct roots_desktop {
 	struct wlr_server_decoration_manager *server_decoration_manager;
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
+	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
