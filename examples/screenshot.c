@@ -122,7 +122,7 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 static int backingfile(off_t size) {
-	static char template[] = "/tmp/wlroots-shared-XXXXXX";
+	char template[] = "/tmp/wlroots-shared-XXXXXX";
 	int fd, ret;
 
 	fd = mkstemp(template);
