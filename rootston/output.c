@@ -356,7 +356,7 @@ static void render_decorations(struct roots_view *view,
 	float matrix[16];
 	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
 		view->rotation, &output->wlr_output->transform_matrix);
-	float color[] = { 0.2, 0.2, 0.2, 1 };
+	float color[] = { 0.2, 0.2, 0.2, view->alpha };
 
 	int nrects;
 	pixman_box32_t *rects =
