@@ -23,6 +23,16 @@
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
 
+
+struct roots_view *view_create() {
+	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (!view) {
+		return NULL;
+	}
+	view->alpha = 1.0f;
+	return view;
+}
+
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
 	box->y = view->y;
@@ -266,6 +276,15 @@ void view_rotate(struct roots_view *view, float rotation) {
 
 	view_damage_whole(view);
 	view->rotation = rotation;
+	view_damage_whole(view);
+}
+
+void view_cycle_alpha(struct roots_view *view) {
+	view->alpha -= 0.05;
+	/* Don't go completely transparent */
+	if (view->alpha < 0.1) {
+		view->alpha = 1.0;
+	}
 	view_damage_whole(view);
 }
 

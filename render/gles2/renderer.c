@@ -171,7 +171,7 @@ static void draw_quad() {
 }
 
 static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *texture, const float (*matrix)[16]) {
+		struct wlr_texture *texture, const float (*matrix)[16], float alpha) {
 	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
@@ -179,11 +179,11 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
 
 	wlr_texture_bind(texture);
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
-	// TODO: source alpha from somewhere else I guess
-	GL_CALL(glUniform1f(2, 1.0f));
+	GL_CALL(glUniform1f(2, alpha));
 	draw_quad();
 	return true;
 }
+
 
 static void wlr_gles2_render_quad(struct wlr_renderer *wlr_renderer,
 		const float (*color)[4], const float (*matrix)[16]) {

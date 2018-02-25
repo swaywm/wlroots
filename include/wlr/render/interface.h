@@ -22,7 +22,7 @@ struct wlr_renderer_impl {
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	struct wlr_texture *(*texture_create)(struct wlr_renderer *renderer);
 	bool (*render_with_matrix)(struct wlr_renderer *renderer,
-		struct wlr_texture *texture, const float (*matrix)[16]);
+		struct wlr_texture *texture, const float (*matrix)[16], float alpha);
 	void (*render_quad)(struct wlr_renderer *renderer,
 		const float (*color)[4], const float (*matrix)[16]);
 	void (*render_ellipse)(struct wlr_renderer *renderer,

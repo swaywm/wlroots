@@ -333,7 +333,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
 
-	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	struct roots_view *view = view_create();
 	if (!view) {
 		free(roots_surface);
 		return;

@@ -317,7 +317,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->surface->events.commit,
 		&roots_surface->surface_commit);
 
-	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	struct roots_view *view = view_create();
 	if (view == NULL) {
 		free(roots_surface);
 		return;

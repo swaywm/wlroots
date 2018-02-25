@@ -52,7 +52,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 			wlr_texture_get_matrix(sample->cat_texture, &matrix,
 				&wlr_output->transform_matrix, x, y);
 			wlr_render_with_matrix(sample->renderer,
-					sample->cat_texture, &matrix);
+					sample->cat_texture, &matrix, 1.0f);
 		}
 	}
 
