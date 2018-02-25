@@ -54,6 +54,12 @@ const char *atom_map[ATOM_LAST] = {
 	"INCR",
 	"TEXT",
 	"TIMESTAMP",
+	"_NET_WM_WINDOW_TYPE_UTILITY",
+	"_NET_WM_WINDOW_TYPE_TOOLTIP",
+	"_NET_WM_WINDOW_TYPE_DND",
+	"_NET_WM_WINDOW_TYPE_DROPDOWN_MENU",
+	"_NET_WM_WINDOW_TYPE_POPUP_MENU",
+	"_NET_WM_WINDOW_TYPE_COMBO",
 };
 
 /* General helpers */
@@ -1446,3 +1452,17 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 	xsurface_set_net_wm_state(surface);
 	xcb_flush(surface->xwm->xcb_conn);
 }
+
+bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+		size_t num_atoms, enum atom_name needle) {
+	xcb_atom_t atom = xwm->atoms[needle];
+
+	for (size_t i = 0; i < num_atoms; ++i) {
+		if (atom == atoms[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}
+

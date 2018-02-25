@@ -721,7 +721,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 #ifdef WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
-			view->xwayland_surface->override_redirect) {
+			wlr_xwayland_surface_is_unmanaged(view->xwayland_surface)) {
 		return;
 	}
 #endif

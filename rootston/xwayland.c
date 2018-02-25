@@ -350,5 +350,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 		}
 
 		view_setup(view);
+	} else {
+		view_initial_focus(view);
 	}
 }

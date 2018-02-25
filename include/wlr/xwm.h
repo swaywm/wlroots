@@ -39,6 +39,12 @@ enum atom_name {
 	INCR,
 	TEXT,
 	TIMESTAMP,
+	NET_WM_WINDOW_TYPE_UTILITY,
+	NET_WM_WINDOW_TYPE_TOOLTIP,
+	NET_WM_WINDOW_TYPE_DND,
+	NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
+	NET_WM_WINDOW_TYPE_POPUP_MENU,
+	NET_WM_WINDOW_TYPE_COMBO,
 	ATOM_LAST,
 };
 
@@ -112,5 +118,8 @@ void xwm_selection_init(struct wlr_xwm *xwm);
 void xwm_selection_finish(struct wlr_xwm *xwm);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
+
+bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+		size_t num_atoms, enum atom_name needle);
 
 #endif

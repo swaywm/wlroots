@@ -186,4 +186,5 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 		struct wlr_seat *seat);
 
+bool wlr_xwayland_surface_is_unmanaged(const struct wlr_xwayland_surface *surface);
 #endif
