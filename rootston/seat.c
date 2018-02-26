@@ -715,12 +715,33 @@ struct roots_seat_view *roots_seat_view_from_view(
 	return seat_view;
 }
 
+static void release_fullscreen(struct roots_output *output) {
+	if (output->fullscreen_view) {
+		if (output->fullscreen_view->set_fullscreen) {
+			output->fullscreen_view->set_fullscreen(
+				output->fullscreen_view, false);
+		}
+		view_set_fullscreen(output->fullscreen_view, false, output->wlr_output);
+	}
+}
+
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	// Make sure the view will be rendered on top of others, even if it's
 	// already focused in this seat
 	if (view != NULL) {
 		wl_list_remove(&view->link);
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
+	}
+
+	struct roots_desktop *desktop = view->desktop;
+	struct roots_output *output;
+	struct wlr_box box;
+	view_get_box(view, &box);
+	wl_list_for_each(output, &desktop->outputs, link) {
+		if (wlr_output_layout_intersects(desktop->layout,
+				output->wlr_output, &box)) {
+			release_fullscreen(output);
+		}
 	}
 
 	struct roots_view *prev_focus = roots_seat_get_focus(seat);
