@@ -282,7 +282,7 @@ void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 }
 
-static void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
+void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
@@ -296,6 +296,8 @@ static void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
 
 	if (enable) {
 		wlr_drm_connector_start_renderer(conn);
+	} else {
+		output->current_mode = NULL;
 	}
 
 	wlr_output_update_enabled(&conn->output, enable);
