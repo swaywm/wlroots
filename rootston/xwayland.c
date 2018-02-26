@@ -100,7 +100,8 @@ static void maximize(struct roots_view *view, bool maximized) {
 	wlr_xwayland_surface_set_maximized(view->xwayland_surface, maximized);
 }
 
-static void set_fullscreen(struct roots_view *view, bool fullscreen) {
+static void set_fullscreen(struct roots_view *view, bool fullscreen,
+		struct wlr_output *output) {
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 
 	wlr_xwayland_surface_set_fullscreen(view->xwayland_surface, fullscreen);

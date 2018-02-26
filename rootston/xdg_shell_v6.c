@@ -162,14 +162,15 @@ static void maximize(struct roots_view *view, bool maximized) {
 	wlr_xdg_toplevel_v6_set_maximized(surface, maximized);
 }
 
-static void set_fullscreen(struct roots_view *view, bool fullscreen) {
+static void set_fullscreen(struct roots_view *view, bool fullscreen,
+		struct wlr_output *output) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		return;
 	}
 
-	wlr_xdg_toplevel_v6_set_fullscreen(surface, fullscreen);
+	wlr_xdg_toplevel_v6_set_fullscreen(surface, fullscreen, output);
 }
 
 static void close(struct roots_view *view) {
@@ -360,4 +361,9 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	wl_list_insert(&desktop->views, &view->link);
 
 	view_setup(view);
+
+	if (surface->toplevel_state->current.fullscreen) {
+		view_set_fullscreen(view, true,
+			surface->toplevel_state->current.fullscreen_output);
+	}
 }
