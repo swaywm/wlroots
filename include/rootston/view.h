@@ -95,7 +95,6 @@ struct roots_view {
 		double x, y;
 		uint32_t width, height;
 		float rotation;
-		float alpha;
 	} saved;
 
 	struct {
