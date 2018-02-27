@@ -470,6 +470,7 @@ static void render_output(struct roots_output *output) {
 		.output = output,
 		.when = &now,
 		.damage = &damage,
+		.alpha = 1.0,
 	};
 
 	if (!needs_swap) {
