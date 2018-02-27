@@ -523,6 +523,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 	// Render drag icons
+	data.alpha = 1.0;
 	drag_icons_for_each_surface(server->input, render_surface, &data);
 
 renderer_end:
