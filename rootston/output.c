@@ -470,6 +470,7 @@ static void render_output(struct roots_output *output) {
 		.output = output,
 		.when = &now,
 		.damage = &damage,
+		.alpha = 1.0,
 	};
 
 	if (!needs_swap) {
@@ -522,6 +523,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 	// Render drag icons
+	data.alpha = 1.0;
 	drag_icons_for_each_surface(server->input, render_surface, &data);
 
 renderer_end:
