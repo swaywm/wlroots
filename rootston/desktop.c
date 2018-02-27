@@ -445,13 +445,17 @@ void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	view_damage_whole(view);
 }
 
-void view_setup(struct roots_view *view) {
+void view_initial_focus(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
 	// TODO what seat gets focus? the one with the last input event?
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
 		roots_seat_set_focus(seat, view);
 	}
+}
+
+void view_setup(struct roots_view *view) {
+	view_initial_focus(view);
 
 	view_center(view);
 	view_update_output(view, NULL);
