@@ -193,7 +193,7 @@ bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
 EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
 		EGLClientBuffer buffer, const EGLint *attribs) {
 	if (!eglCreateImageKHR) {
-		return false;
+		return NULL;
 	}
 
 	return eglCreateImageKHR(egl->display, egl->context, target,
