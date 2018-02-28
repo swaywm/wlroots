@@ -83,6 +83,24 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 	return false;
 }
 
+static bool check_egl_ext(const char *egl_exts, const char *ext) {
+	size_t extlen = strlen(ext);
+	const char *end = egl_exts + strlen(egl_exts);
+
+	while (egl_exts < end) {
+		if (*egl_exts == ' ') {
+			egl_exts++;
+			continue;
+		}
+		size_t n = strcspn(egl_exts, " ");
+		if (n == extlen && strncmp(ext, egl_exts, n) == 0) {
+			return true;
+		}
+		egl_exts += n;
+	}
+	return false;
+}
+
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
@@ -137,17 +155,17 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	wlr_log(L_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
 	wlr_log(L_INFO, "Supported OpenGL ES extensions: %s", egl->gl_exts_str);
 
-	if (strstr(egl->egl_exts_str, "EGL_WL_bind_wayland_display") == NULL ||
-			strstr(egl->egl_exts_str, "EGL_KHR_image_base") == NULL) {
+	if (!check_egl_ext(egl->egl_exts_str, "EGL_WL_bind_wayland_display") ||
+			!check_egl_ext(egl->egl_exts_str, "EGL_KHR_image_base")) {
 		wlr_log(L_ERROR, "Required egl extensions not supported");
 		goto error;
 	}
 
 	egl->egl_exts.buffer_age =
-		strstr(egl->egl_exts_str, "EGL_EXT_buffer_age") != NULL;
+		check_egl_ext(egl->egl_exts_str, "EGL_EXT_buffer_age");
 	egl->egl_exts.swap_buffers_with_damage =
-		strstr(egl->egl_exts_str, "EGL_EXT_swap_buffers_with_damage") != NULL ||
-		strstr(egl->egl_exts_str, "EGL_KHR_swap_buffers_with_damage") != NULL;
+		check_egl_ext(egl->egl_exts_str, "EGL_EXT_swap_buffers_with_damage") ||
+		check_egl_ext(egl->egl_exts_str, "EGL_KHR_swap_buffers_with_damage");
 
 	return true;
 
