@@ -86,7 +86,8 @@ static bool gles2_texture_upload_shm(struct wlr_texture *_texture,
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
 	const struct pixel_format *fmt = gl_format_for_wl_format(format);
 	if (!fmt || !fmt->gl_format) {
-		wlr_log(L_ERROR, "No supported pixel format for this texture");
+		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32" for this texture",
+				format);
 		return false;
 	}
 	wl_shm_buffer_begin_access(buffer);
