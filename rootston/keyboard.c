@@ -106,6 +106,11 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		}
 	} else if (strcmp(command, "next_window") == 0) {
 		roots_seat_cycle_focus(seat);
+	} else if (strcmp(command, "alpha") == 0) {
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL) {
+			view_cycle_alpha(focus);
+		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();

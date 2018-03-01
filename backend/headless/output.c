@@ -67,6 +67,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
+	wl_event_source_remove(output->frame_timer);
+
 	eglDestroySurface(output->backend->egl.display, output->egl_surface);
 	free(output);
 }

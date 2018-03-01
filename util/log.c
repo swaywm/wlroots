@@ -73,7 +73,7 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // e.g. '/src/build/wlroots/backend/wayland/backend.c' and
 // '../backend/wayland/backend.c' will both be stripped to
 // 'backend/wayland/backend.c'
-const char *_strip_path(const char *filepath) {
+const char *wlr_strip_path(const char *filepath) {
 	static int srclen = sizeof(WLR_SRC_DIR);
 	if (strstr(filepath, WLR_SRC_DIR) == filepath) {
 		filepath += srclen;

@@ -83,6 +83,7 @@ struct roots_view {
 	double x, y;
 	uint32_t width, height;
 	float rotation;
+	float alpha;
 
 	bool decorated;
 	int border_width;
@@ -188,6 +189,7 @@ struct roots_xdg_toplevel_decoration {
 	struct wl_listener surface_commit;
 };
 
+struct roots_view *view_create();
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);
@@ -198,6 +200,7 @@ void view_maximize(struct roots_view *view, bool maximized);
 void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 	struct wlr_output *output);
 void view_rotate(struct roots_view *view, float rotation);
+void view_cycle_alpha(struct roots_view *view);
 void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);

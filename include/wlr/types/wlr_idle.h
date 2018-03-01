@@ -19,7 +19,9 @@ struct wlr_idle {
 	struct wl_event_loop *event_loop;
 
 	struct wl_listener display_destroy;
-	struct wl_signal activity_notify;
+	struct {
+		struct wl_signal activity_notify;
+	} events;
 
 	void *data;
 };

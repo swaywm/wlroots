@@ -188,6 +188,17 @@ static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
 	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
+static void parse_xcb_setup(struct wlr_output *output, xcb_connection_t *xcb_conn) {
+	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb_conn);
+
+	snprintf(output->make, sizeof(output->make), "%.*s",
+			xcb_setup_vendor_length(xcb_setup),
+			xcb_setup_vendor(xcb_setup));
+	snprintf(output->model, sizeof(output->model), "%"PRIu16".%"PRIu16,
+			xcb_setup->protocol_major_version,
+			xcb_setup->protocol_minor_version);
+}
+
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	struct wlr_x11_output *output = &x11->output;
@@ -207,6 +218,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl,
 		x11->wl_display);
 	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
+	parse_xcb_setup(&output->wlr_output, x11->xcb_conn);
 
 	output->win = xcb_generate_id(x11->xcb_conn);
 	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
@@ -221,10 +233,20 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 
 	init_atom(x11, &x11->atoms.wm_protocols, 1, "WM_PROTOCOLS");
 	init_atom(x11, &x11->atoms.wm_delete_window, 0, "WM_DELETE_WINDOW");
+	init_atom(x11, &x11->atoms.net_wm_name, 1, "_NET_WM_NAME");
+	init_atom(x11, &x11->atoms.utf8_string, 0, "UTF8_STRING");
 
 	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
 		x11->atoms.wm_protocols.reply->atom, XCB_ATOM_ATOM, 32, 1,
 		&x11->atoms.wm_delete_window.reply->atom);
+
+	char title[32];
+	if (snprintf(title, sizeof(title), "wlroots - %s", output->wlr_output.name)) {
+		xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
+			x11->atoms.net_wm_name.reply->atom,
+			x11->atoms.utf8_string.reply->atom, 8,
+			strlen(title), title);
+	}
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);

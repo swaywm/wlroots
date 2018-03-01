@@ -42,8 +42,10 @@ meta-key = Logo
 # - "exec" to execute a shell command
 # - "close" to close the current view
 # - "next_window" to cycle through windows
+# - "alpha" to cycle a window's alpha channel
 [bindings]
 Logo+Shift+e = exit
 Logo+q = close
 Logo+m = maximize
 Alt+Tab = next_window
+Ctrl+Shift+a = alpha

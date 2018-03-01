@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -22,6 +23,16 @@
 #include "rootston/server.h"
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
+
+
+struct roots_view *view_create() {
+	struct roots_view *view = calloc(1, sizeof(struct roots_view));
+	if (!view) {
+		return NULL;
+	}
+	view->alpha = 1.0f;
+	return view;
+}
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
 	box->x = view->x;
@@ -269,6 +280,15 @@ void view_rotate(struct roots_view *view, float rotation) {
 	view_damage_whole(view);
 }
 
+void view_cycle_alpha(struct roots_view *view) {
+	view->alpha -= 0.05;
+	/* Don't go completely transparent */
+	if (view->alpha < 0.1) {
+		view->alpha = 1.0;
+	}
+	view_damage_whole(view);
+}
+
 void view_close(struct roots_view *view) {
 	if (view->close) {
 		view->close(view);
@@ -426,13 +446,17 @@ void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	view_damage_whole(view);
 }
 
-void view_setup(struct roots_view *view) {
+void view_initial_focus(struct roots_view *view) {
 	struct roots_input *input = view->desktop->server->input;
 	// TODO what seat gets focus? the one with the last input event?
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
 		roots_seat_set_focus(seat, view);
 	}
+}
+
+void view_setup(struct roots_view *view) {
+	view_initial_focus(view);
 
 	view_center(view);
 	view_update_output(view, NULL);
@@ -721,6 +745,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->primary_selection_device_manager =
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
+	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
 
 	desktop->xdg_toplevel_decoration_manager =
 		wlr_xdg_toplevel_decoration_manager_create(server->wl_display);

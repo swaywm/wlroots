@@ -170,12 +170,6 @@ static bool wlr_surface_update_size(struct wlr_surface *surface,
 		height = tmp;
 	}
 
-	struct wlr_frame_callback *cb, *tmp;
-	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
-		wl_resource_destroy(cb->resource);
-	}
-	wl_list_init(&state->frame_callback_list);
-
 	bool update_damage = false;
 	if (width != state->width || height != state->height) {
 		// Damage the whole surface on resize

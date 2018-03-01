@@ -408,10 +408,10 @@ static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
 		wl_container_of(listener, keyboard, device_destroy);
 	struct roots_seat *seat = keyboard->seat;
-	roots_keyboard_destroy(keyboard);
 	wl_list_remove(&keyboard->device_destroy.link);
 	wl_list_remove(&keyboard->keyboard_key.link);
 	wl_list_remove(&keyboard->keyboard_modifiers.link);
+	roots_keyboard_destroy(keyboard);
 	seat_update_capabilities(seat);
 }
 
@@ -721,7 +721,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 #ifdef WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
-			view->xwayland_surface->override_redirect) {
+			wlr_xwayland_surface_is_unmanaged(view->xwayland_surface)) {
 		return;
 	}
 #endif

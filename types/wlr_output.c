@@ -391,7 +391,7 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(output, &rects[i]);
 		wlr_renderer_clear(renderer, &(float[]){0, 0, 0, 0});
-		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix);
+		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 
@@ -448,7 +448,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(cursor->output, &rects[i]);
-		wlr_render_with_matrix(renderer, texture, &matrix);
+		wlr_render_with_matrix(renderer, texture, &matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 

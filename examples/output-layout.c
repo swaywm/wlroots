@@ -122,7 +122,7 @@ static void handle_output_frame(struct output_state *output,
 		wlr_texture_get_matrix(sample->cat_texture, &matrix,
 			&wlr_output->transform_matrix, local_x, local_y);
 		wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix);
+			sample->cat_texture, &matrix, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

@@ -14,6 +14,7 @@ struct wlr_compositor {
 
 	struct {
 		struct wl_signal new_surface;
+		struct wl_signal destroy;
 	} events;
 };
 

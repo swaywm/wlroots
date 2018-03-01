@@ -144,6 +144,7 @@ void wlr_drm_restore_outputs(struct wlr_drm_backend *drm);
 void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn);
 void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
 int wlr_drm_event(int fd, uint32_t mask, void *data);
+void wlr_drm_connector_enable(struct wlr_output *output, bool enable);
 
 void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
 

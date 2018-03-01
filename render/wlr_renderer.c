@@ -36,8 +36,8 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
 }
 
 bool wlr_render_with_matrix(struct wlr_renderer *r,
-		struct wlr_texture *texture, const float (*matrix)[16]) {
-	return r->impl->render_with_matrix(r, texture, matrix);
+		struct wlr_texture *texture, const float (*matrix)[16], float alpha) {
+	return r->impl->render_with_matrix(r, texture, matrix, alpha);
 }
 
 void wlr_render_colored_quad(struct wlr_renderer *r,
