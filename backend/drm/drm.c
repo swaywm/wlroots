@@ -296,8 +296,6 @@ void wlr_drm_connector_enable(struct wlr_output *output, bool enable) {
 
 	if (enable) {
 		wlr_drm_connector_start_renderer(conn);
-	} else {
-		output->current_mode = NULL;
 	}
 
 	wlr_output_update_enabled(&conn->output, enable);

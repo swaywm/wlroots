@@ -81,7 +81,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link){
-			if (conn->output.current_mode) {
+			if (conn->output.enabled) {
 				wlr_output_set_mode(&conn->output, conn->output.current_mode);
 			} else {
 				wlr_drm_connector_enable(&conn->output, false);
