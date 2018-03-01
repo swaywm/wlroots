@@ -901,7 +901,6 @@ void wlr_surface_send_enter(struct wlr_surface *surface,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		if (client == wl_resource_get_client(resource)) {
 			wl_surface_send_enter(surface->resource, resource);
-			break;
 		}
 	}
 }
@@ -913,7 +912,6 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		if (client == wl_resource_get_client(resource)) {
 			wl_surface_send_leave(surface->resource, resource);
-			break;
 		}
 	}
 }

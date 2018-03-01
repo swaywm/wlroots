@@ -16,9 +16,7 @@
 #include "util/signal.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
-	assert(resource);
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
 		wl_output_send_geometry(resource, output->lx, output->ly,
@@ -52,9 +50,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 
 static void wlr_output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
-	assert(resource);
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version < WL_OUTPUT_MODE_SINCE_VERSION) {
 		return;
@@ -76,7 +72,7 @@ static void wlr_output_send_current_mode_to_resource(
 
 static void wl_output_destroy(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	struct wl_resource *_resource = NULL;
+	struct wl_resource *_resource;
 	wl_resource_for_each(_resource, &output->wl_resources) {
 		if (_resource == resource) {
 			struct wl_list *link = wl_resource_get_link(_resource);
@@ -98,7 +94,6 @@ static struct wl_output_interface wl_output_impl = {
 static void wl_output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_output *wlr_output = data;
-	assert(wl_client && wlr_output);
 
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
