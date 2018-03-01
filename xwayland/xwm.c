@@ -93,7 +93,7 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		XCB_EVENT_MASK_FOCUS_CHANGE |
 		XCB_EVENT_MASK_PROPERTY_CHANGE;
 	xcb_change_window_attributes(xwm->xcb_conn, window_id,
-		XCB_CW_EVENT_MASK, &values);
+		XCB_CW_EVENT_MASK, values);
 
 	surface->xwm = xwm;
 	surface->window_id = window_id;
