@@ -109,6 +109,16 @@ void function() {
 }
 ```
 
+### Empty blocks
+Empty blocks are written explicitly with the normal braces, and the body
+contains the comment `// This space intentionally left blank`.
+
+```c
+void noop() {
+	// This space intentionally left blank
+}
+```
+
 ### Indentation
 
 Indentations are a single tab.
@@ -142,6 +152,10 @@ breaking points so your code is easy to read.
 Function and type names should be prefixed with `wlr_submodule_` (e.g. `struct
 wlr_drm_plane`, `wlr_output_set_cursor`).  For static functions and types local
 to a file, the names chosen aren't as important.
+
+Types that represent a protocol defined interface, the type should have the
+name of the interface with the prefix (e.g. `zwp_`, `org_kde_`) replaced by 
+`wlr_`. E.g. `zwp_idle_inhibitor_v1` will be `wlr_idle_inhibitor_v1`.
 
 For include guards, use the header's filename relative to include.  Uppercase
 all of the characters, and replace any invalid characters with an underscore.
