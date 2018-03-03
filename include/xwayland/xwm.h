@@ -105,6 +105,9 @@ struct wlr_xwm {
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
 
 	const xcb_query_extension_reply_t *xfixes;
+#ifdef WLR_HAS_XCB_ERRORS
+	xcb_errors_context_t *errors_context;
+#endif
 
 	struct wl_listener compositor_new_surface;
 	struct wl_listener compositor_destroy;

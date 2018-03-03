@@ -952,30 +952,24 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 
 static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 #ifdef WLR_HAS_XCB_ERRORS
-	xcb_errors_context_t *err_ctx;
-	if (xcb_errors_context_new(xwm->xcb_conn, &err_ctx)) {
-		wlr_log(L_DEBUG, "xcb error happened, but could not allocate error context");
-		goto log_raw;
-	}
-
 	const char *major_name =
-		xcb_errors_get_name_for_major_code(err_ctx, ev->major_opcode);
+		xcb_errors_get_name_for_major_code(xwm->errors_context,
+			ev->major_opcode);
 	if (!major_name) {
 		wlr_log(L_DEBUG, "xcb error happened, but could not get major name");
-		xcb_errors_context_free(err_ctx);
 		goto log_raw;
 	}
 
 	const char *minor_name =
-		xcb_errors_get_name_for_minor_code(err_ctx,
+		xcb_errors_get_name_for_minor_code(xwm->errors_context,
 			ev->major_opcode, ev->minor_opcode);
 
 	const char *extension;
 	const char *error_name =
-		xcb_errors_get_name_for_error(err_ctx, ev->error_code, &extension);
+		xcb_errors_get_name_for_error(xwm->errors_context,
+			ev->error_code, &extension);
 	if (!error_name) {
 		wlr_log(L_DEBUG, "xcb error happened, but could not get error name");
-		xcb_errors_context_free(err_ctx);
 		goto log_raw;
 	}
 
@@ -984,7 +978,6 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 		error_name, extension ? extension : "no extension",
 		ev->sequence, ev->bad_value);
 
-	xcb_errors_context_free(err_ctx);
 	return;
 log_raw:
 #endif
@@ -997,26 +990,17 @@ log_raw:
 
 static void xwm_handle_unhandled_event(struct wlr_xwm *xwm, xcb_generic_event_t *ev) {
 #ifdef WLR_HAS_XCB_ERRORS
-	xcb_errors_context_t *err_ctx;
-	if (xcb_errors_context_new(xwm->xcb_conn, &err_ctx)) {
-		wlr_log(L_DEBUG, "Could not allocate context for unhandled X11 event: %u",
-			ev->response_type);
-		return;
-	}
-
 	const char *extension;
 	const char *event_name =
-		xcb_errors_get_name_for_xcb_event(err_ctx, ev, &extension);
+		xcb_errors_get_name_for_xcb_event(xwm->errors_context,
+			ev, &extension);
 	if (!event_name) {
 		wlr_log(L_DEBUG, "no name for unhandled event: %u",
 			ev->response_type);
-		xcb_errors_context_free(err_ctx);
 		return;
 	}
 
 	wlr_log(L_DEBUG, "unhandled X11 event: %s (%u)", event_name, ev->response_type);
-
-	xcb_errors_context_free(err_ctx);
 #else
 	wlr_log(L_DEBUG, "unhandled X11 event: %u", ev->response_type);
 #endif
@@ -1203,6 +1187,11 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
+#ifdef WLR_HAS_XCB_ERRORS
+	if (xwm->errors_context) {
+		xcb_errors_context_free(xwm->errors_context);
+	}
+#endif
 	struct wlr_xwayland_surface *xsurface, *tmp;
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
@@ -1439,6 +1428,13 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		return NULL;
 	}
 
+#ifdef WLR_HAS_XCB_ERRORS
+	if (xcb_errors_context_new(xwm->xcb_conn, &xwm->errors_context)) {
+		wlr_log(L_ERROR, "Could not allocate error context");
+		xwm_destroy(xwm);
+		return NULL;
+	}
+#endif
 	xcb_screen_iterator_t screen_iterator =
 		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
 	xwm->screen = screen_iterator.data;
