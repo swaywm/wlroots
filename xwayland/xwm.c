@@ -986,10 +986,10 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 		goto log_raw;
 	}
 
-	wlr_log(L_ERROR, "xcb error: op %s (%s), code %s (%s), value %"PRIu32,
+	wlr_log(L_ERROR, "xcb error: op %s (%s), code %s (%s), sequence %"PRIu16", value %"PRIu32,
 		major_name, minor_name ? minor_name : "no minor",
 		error_name, extension ? extension : "no extension",
-		ev->bad_value);
+		ev->sequence, ev->bad_value);
 
 	xcb_errors_context_free(err_ctx);
 	return;
