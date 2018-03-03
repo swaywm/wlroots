@@ -103,7 +103,6 @@ if get_option('enable_xwayland')
 	conf_data.set('WLR_HAS_XWAYLAND', true)
 else
 	exclude_headers += 'xwayland.h'
-	exclude_headers += 'xwm.h'
 endif
 exclude_headers += 'meson.build'
 install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_headers)

@@ -7,8 +7,8 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
-#include <wlr/xwm.h>
 #include <xcb/xfixes.h>
+#include "xwayland/xwm.h"
 
 static const size_t incr_chunk_size = 64 * 1024;
 

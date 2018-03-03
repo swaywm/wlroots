@@ -8,10 +8,6 @@
 #include <wlr/types/wlr_seat.h>
 #include <xcb/xcb.h>
 
-#ifdef WLR_HAS_XCB_ICCCM
-	#include <xcb/xcb_icccm.h>
-#endif
-
 struct wlr_xwm;
 struct wlr_xwayland_cursor;
 

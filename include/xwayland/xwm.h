@@ -5,6 +5,13 @@
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
 
+#ifdef WLR_HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+#ifdef WLR_HAS_XCB_ERRORS
+	#include <xcb/xcb_errors.h>
+#endif
+
 enum atom_name {
 	WL_SURFACE_ID,
 	WM_DELETE_WINDOW,

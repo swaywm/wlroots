@@ -9,19 +9,12 @@
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <wlr/xwayland.h>
-#include <wlr/xwm.h>
 #include <xcb/composite.h>
 #include <xcb/render.h>
 #include <xcb/xcb_image.h>
 #include <xcb/xfixes.h>
 #include "util/signal.h"
-
-#ifdef WLR_HAS_XCB_ICCCM
-	#include <xcb/xcb_icccm.h>
-#endif
-#ifdef WLR_HAS_XCB_ERRORS
-	#include <xcb/xcb_errors.h>
-#endif
+#include "xwayland/xwm.h"
 
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
