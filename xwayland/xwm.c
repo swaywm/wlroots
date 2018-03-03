@@ -965,20 +965,21 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 		goto log_raw;
 	}
 
-	const char *major_name;
-	major_name = xcb_errors_get_name_for_major_code(err_ctx, ev->major_opcode);
+	const char *major_name =
+		xcb_errors_get_name_for_major_code(err_ctx, ev->major_opcode);
 	if (!major_name) {
 		wlr_log(L_DEBUG, "xcb error happened, but could not get major name");
 		xcb_errors_context_free(err_ctx);
 		goto log_raw;
 	}
 
-	const char *minor_name;
-	minor_name = xcb_errors_get_name_for_minor_code(err_ctx,
-		ev->major_opcode, ev->minor_opcode);
+	const char *minor_name =
+		xcb_errors_get_name_for_minor_code(err_ctx,
+			ev->major_opcode, ev->minor_opcode);
 
-	const char *error_name, *extension;
-	error_name = xcb_errors_get_name_for_error(err_ctx, ev->error_code, &extension);
+	const char *extension;
+	const char *error_name =
+		xcb_errors_get_name_for_error(err_ctx, ev->error_code, &extension);
 	if (!error_name) {
 		wlr_log(L_DEBUG, "xcb error happened, but could not get error name");
 		xcb_errors_context_free(err_ctx);
