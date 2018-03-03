@@ -1,8 +1,3 @@
-CMakeCache.txt
-CMakeFiles
-Makefile
-cmake_install.cmake
-install_manifest.txt
 .clang_complete
 *.o
 *.a
@@ -11,3 +6,4 @@ test/
 build/
 wayland-*-protocol.*
 wlr-example.ini
+rootston.ini
