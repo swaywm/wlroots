@@ -954,6 +954,12 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	}
 }
 
+static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
+	wlr_log(L_ERROR, "xcb error: code %d, sequence %d, value %d, opcode %d:%d",
+		ev->error_code, ev->sequence, ev->bad_value,
+		ev->minor_opcode, ev->major_opcode);
+}
+
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
  * others redefine anyway is meh
  */
@@ -1010,9 +1016,12 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 		case XCB_FOCUS_IN:
 			xwm_handle_focus_in(xwm, (xcb_focus_in_event_t *)event);
 			break;
+		case 0:
+			xwm_handle_xcb_error(xwm, (xcb_value_error_t *)event);
+			break;
 		default:
-			wlr_log(L_DEBUG, "X11 event: %d",
-				event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK);
+			wlr_log(L_DEBUG, "unhandled X11 event: %d",
+				event->response_type);
 			break;
 		}
 		free(event);
