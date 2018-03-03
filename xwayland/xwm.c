@@ -1002,6 +1002,33 @@ log_raw:
 
 }
 
+static void xwm_handle_unhandled_event(struct wlr_xwm *xwm, xcb_generic_event_t *ev) {
+#ifdef WLR_HAS_XCB_ERRORS
+	xcb_errors_context_t *err_ctx;
+	if (xcb_errors_context_new(xwm->xcb_conn, &err_ctx)) {
+		wlr_log(L_DEBUG, "Could not allocate context for unhandled X11 event: %u",
+			ev->response_type);
+		return;
+	}
+
+	const char *extension;
+	const char *event_name =
+		xcb_errors_get_name_for_xcb_event(err_ctx, ev, &extension);
+	if (!event_name) {
+		wlr_log(L_DEBUG, "no name for unhandled event: %u",
+			ev->response_type);
+		xcb_errors_context_free(err_ctx);
+		return;
+	}
+
+	wlr_log(L_DEBUG, "unhandled X11 event: %s (%u)", event_name, ev->response_type);
+
+	xcb_errors_context_free(err_ctx);
+#else
+	wlr_log(L_DEBUG, "unhandled X11 event: %u", ev->response_type);
+#endif
+}
+
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
  * others redefine anyway is meh
  */
@@ -1062,8 +1089,7 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			xwm_handle_xcb_error(xwm, (xcb_value_error_t *)event);
 			break;
 		default:
-			wlr_log(L_DEBUG, "unhandled X11 event: %d",
-				event->response_type);
+			xwm_handle_unhandled_event(xwm, event);
 			break;
 		}
 		free(event);
