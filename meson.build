@@ -64,6 +64,7 @@ xcb_xfixes     = dependency('xcb-xfixes')
 xcb_image      = dependency('xcb-image')
 xcb_render     = dependency('xcb-render')
 xcb_icccm      = dependency('xcb-icccm', required: false)
+xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
 x11_xcb        = dependency('x11-xcb')
 libcap         = dependency('libcap', required: get_option('enable_libcap') == 'true')
 systemd        = dependency('libsystemd', required: get_option('enable_systemd') == 'true')
@@ -76,6 +77,10 @@ wlr_deps = []
 
 if xcb_icccm.found()
 	conf_data.set('WLR_HAS_XCB_ICCCM', true)
+endif
+
+if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
+	conf_data.set('WLR_HAS_XCB_ERRORS', true)
 endif
 
 if libcap.found() and get_option('enable_libcap') != 'false'
@@ -98,7 +103,6 @@ if get_option('enable_xwayland')
 	conf_data.set('WLR_HAS_XWAYLAND', true)
 else
 	exclude_headers += 'xwayland.h'
-	exclude_headers += 'xwm.h'
 endif
 exclude_headers += 'meson.build'
 install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_headers)
@@ -164,10 +168,12 @@ summary = [
 	'----------------',
 	'wlroots @0@'.format(meson.project_version()),
 	'',
-	'   libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
-	'  systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
-	'  elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
-	' xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
+	'     libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
+	'    systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
+	'    elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
+	'   xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
+	'  xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
+	' xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
 	'----------------',
 	''
 ]

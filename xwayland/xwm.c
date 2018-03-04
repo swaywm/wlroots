@@ -9,16 +9,12 @@
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <wlr/xwayland.h>
-#include <wlr/xwm.h>
 #include <xcb/composite.h>
 #include <xcb/render.h>
 #include <xcb/xcb_image.h>
 #include <xcb/xfixes.h>
 #include "util/signal.h"
-
-#ifdef WLR_HAS_XCB_ICCCM
-	#include <xcb/xcb_icccm.h>
-#endif
+#include "xwayland/xwm.h"
 
 const char *atom_map[ATOM_LAST] = {
 	"WL_SURFACE_ID",
@@ -954,6 +950,62 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	}
 }
 
+static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
+#ifdef WLR_HAS_XCB_ERRORS
+	const char *major_name =
+		xcb_errors_get_name_for_major_code(xwm->errors_context,
+			ev->major_opcode);
+	if (!major_name) {
+		wlr_log(L_DEBUG, "xcb error happened, but could not get major name");
+		goto log_raw;
+	}
+
+	const char *minor_name =
+		xcb_errors_get_name_for_minor_code(xwm->errors_context,
+			ev->major_opcode, ev->minor_opcode);
+
+	const char *extension;
+	const char *error_name =
+		xcb_errors_get_name_for_error(xwm->errors_context,
+			ev->error_code, &extension);
+	if (!error_name) {
+		wlr_log(L_DEBUG, "xcb error happened, but could not get error name");
+		goto log_raw;
+	}
+
+	wlr_log(L_ERROR, "xcb error: op %s (%s), code %s (%s), sequence %"PRIu16", value %"PRIu32,
+		major_name, minor_name ? minor_name : "no minor",
+		error_name, extension ? extension : "no extension",
+		ev->sequence, ev->bad_value);
+
+	return;
+log_raw:
+#endif
+	wlr_log(L_ERROR,
+		"xcb error: op %"PRIu8":%"PRIu16", code %"PRIu8", sequence %"PRIu16", value %"PRIu32,
+		ev->major_opcode, ev->minor_opcode, ev->error_code,
+		ev->sequence, ev->bad_value);
+
+}
+
+static void xwm_handle_unhandled_event(struct wlr_xwm *xwm, xcb_generic_event_t *ev) {
+#ifdef WLR_HAS_XCB_ERRORS
+	const char *extension;
+	const char *event_name =
+		xcb_errors_get_name_for_xcb_event(xwm->errors_context,
+			ev, &extension);
+	if (!event_name) {
+		wlr_log(L_DEBUG, "no name for unhandled event: %u",
+			ev->response_type);
+		return;
+	}
+
+	wlr_log(L_DEBUG, "unhandled X11 event: %s (%u)", event_name, ev->response_type);
+#else
+	wlr_log(L_DEBUG, "unhandled X11 event: %u", ev->response_type);
+#endif
+}
+
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
  * others redefine anyway is meh
  */
@@ -1010,9 +1062,11 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 		case XCB_FOCUS_IN:
 			xwm_handle_focus_in(xwm, (xcb_focus_in_event_t *)event);
 			break;
+		case 0:
+			xwm_handle_xcb_error(xwm, (xcb_value_error_t *)event);
+			break;
 		default:
-			wlr_log(L_DEBUG, "X11 event: %d",
-				event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK);
+			xwm_handle_unhandled_event(xwm, event);
 			break;
 		}
 		free(event);
@@ -1133,6 +1187,11 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
+#ifdef WLR_HAS_XCB_ERRORS
+	if (xwm->errors_context) {
+		xcb_errors_context_free(xwm->errors_context);
+	}
+#endif
 	struct wlr_xwayland_surface *xsurface, *tmp;
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
 		wlr_xwayland_surface_destroy(xsurface);
@@ -1369,6 +1428,13 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		return NULL;
 	}
 
+#ifdef WLR_HAS_XCB_ERRORS
+	if (xcb_errors_context_new(xwm->xcb_conn, &xwm->errors_context)) {
+		wlr_log(L_ERROR, "Could not allocate error context");
+		xwm_destroy(xwm);
+		return NULL;
+	}
+#endif
 	xcb_screen_iterator_t screen_iterator =
 		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
 	xwm->screen = screen_iterator.data;
@@ -1453,7 +1519,7 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 	xcb_flush(surface->xwm->xcb_conn);
 }
 
-bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 		size_t num_atoms, enum atom_name needle) {
 	xcb_atom_t atom = xwm->atoms[needle];
 
