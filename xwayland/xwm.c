@@ -1519,7 +1519,7 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 	xcb_flush(surface->xwm->xcb_conn);
 }
 
-bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 		size_t num_atoms, enum atom_name needle) {
 	xcb_atom_t atom = xwm->atoms[needle];
 

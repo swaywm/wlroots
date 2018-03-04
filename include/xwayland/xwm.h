@@ -1,5 +1,5 @@
-#ifndef WLR_XWM_H
-#define WLR_XWM_H
+#ifndef XWAYLAND_XWM_H
+#define XWAYLAND_XWM_H
 
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
@@ -129,7 +129,7 @@ void xwm_selection_finish(struct wlr_xwm *xwm);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
-bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 		size_t num_atoms, enum atom_name needle);
 
 #endif

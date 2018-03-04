@@ -418,7 +418,7 @@ bool wlr_xwayland_surface_is_unmanaged(const struct wlr_xwayland_surface *surfac
 	};
 
 	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
-		if (wlr_xwm_atoms_contains(surface->xwm, surface->window_type,
+		if (xwm_atoms_contains(surface->xwm, surface->window_type,
 				surface->window_type_len, needles[i])) {
 			return true;
 		}
