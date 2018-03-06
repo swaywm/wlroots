@@ -31,7 +31,7 @@ static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
 	free(dev);
 }
 
-static struct wlr_input_device_impl input_device_impl = {
+static const struct wlr_input_device_impl input_device_impl = {
 	.destroy = wlr_libinput_device_destroy
 };
 

@@ -17,11 +17,6 @@ struct wlr_x11_output {
 	EGLSurface surf;
 };
 
-struct wlr_x11_atom {
-	xcb_intern_atom_cookie_t cookie;
-	xcb_intern_atom_reply_t *reply;
-};
-
 struct wlr_x11_backend {
 	struct wlr_backend backend;
 	struct wl_display *wl_display;
@@ -44,10 +39,10 @@ struct wlr_x11_backend {
 	struct wl_event_source *frame_timer;
 
 	struct {
-		struct wlr_x11_atom wm_protocols;
-		struct wlr_x11_atom wm_delete_window;
-		struct wlr_x11_atom net_wm_name;
-		struct wlr_x11_atom utf8_string;
+		xcb_atom_t wm_protocols;
+		xcb_atom_t wm_delete_window;
+		xcb_atom_t net_wm_name;
+		xcb_atom_t utf8_string;
 	} atoms;
 
 	// The time we last received an event
