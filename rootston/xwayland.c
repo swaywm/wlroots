@@ -276,6 +276,8 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 	view->wlr_surface = NULL;
 	view->width = view->height = 0;
 	wl_list_remove(&view->link);
+
+	wl_signal_emit(&view->events.destroy, view);
 }
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
