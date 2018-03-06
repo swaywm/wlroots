@@ -15,7 +15,6 @@
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
-#include <xcb/glx.h>
 #include <xcb/xcb.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
@@ -24,6 +23,8 @@
 #endif
 #include "backend/x11.h"
 #include "util/signal.h"
+
+#define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
 static struct wlr_backend_impl backend_impl;
 static struct wlr_output_impl output_impl;
@@ -44,7 +45,7 @@ static uint32_t xcb_button_to_wl(uint32_t button) {
 static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
 	struct wlr_x11_output *output = &x11->output;
 
-	switch (event->response_type) {
+	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
 		wlr_output_send_frame(&output->wlr_output);
 		break;
@@ -144,9 +145,14 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
 		break;
 	}
-	case XCB_GLX_DELETE_QUERIES_ARB: {
-		wl_display_terminate(x11->wl_display);
-		return true;
+	case XCB_CLIENT_MESSAGE: {
+		xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
+
+		if (ev->data.data32[0] == x11->atoms.wm_delete_window) {
+			wl_display_terminate(x11->wl_display);
+			return true;
+		}
+
 		break;
 	}
 	default:
@@ -179,13 +185,6 @@ static int signal_frame(void *data) {
 	wlr_output_send_frame(&x11->output.wlr_output);
 	wl_event_source_timer_update(x11->frame_timer, 16);
 	return 0;
-}
-
-static void init_atom(struct wlr_x11_backend *x11, struct wlr_x11_atom *atom,
-		uint8_t only_if_exists, const char *name) {
-	atom->cookie = xcb_intern_atom(x11->xcb_conn, only_if_exists, strlen(name),
-		name);
-	atom->reply = xcb_intern_atom_reply(x11->xcb_conn, atom->cookie, NULL);
 }
 
 static void parse_xcb_setup(struct wlr_output *output, xcb_connection_t *xcb_conn) {
@@ -231,20 +230,54 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		return false;
 	}
 
-	init_atom(x11, &x11->atoms.wm_protocols, 1, "WM_PROTOCOLS");
-	init_atom(x11, &x11->atoms.wm_delete_window, 0, "WM_DELETE_WINDOW");
-	init_atom(x11, &x11->atoms.net_wm_name, 1, "_NET_WM_NAME");
-	init_atom(x11, &x11->atoms.utf8_string, 0, "UTF8_STRING");
+	struct {
+		const char *name;
+		xcb_intern_atom_cookie_t cookie;
+		xcb_atom_t *atom;
+	} atom[] = {
+		{
+			.name = "WM_PROTOCOLS",
+			.atom = &x11->atoms.wm_protocols,
+		},
+		{
+			.name = "WM_DELETE_WINDOW",
+			.atom = &x11->atoms.wm_delete_window,
+		},
+		{
+			.name = "_NET_WM_NAME",
+			.atom = &x11->atoms.net_wm_name,
+		},
+		{
+			.name = "UTF8_STRING",
+			.atom = &x11->atoms.utf8_string,
+		},
+	};
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		atom[i].cookie = xcb_intern_atom(x11->xcb_conn,
+			true, strlen(atom[i].name), atom[i].name);
+	}
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+			x11->xcb_conn, atom[i].cookie, NULL);
+
+		if (reply) {
+			*atom[i].atom = reply->atom;
+			free(reply);
+		} else {
+			*atom[i].atom = XCB_ATOM_NONE;
+		}
+	}
 
 	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
-		x11->atoms.wm_protocols.reply->atom, XCB_ATOM_ATOM, 32, 1,
-		&x11->atoms.wm_delete_window.reply->atom);
+		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
+		&x11->atoms.wm_delete_window);
 
 	char title[32];
 	if (snprintf(title, sizeof(title), "wlroots - %s", output->wlr_output.name)) {
 		xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
-			x11->atoms.net_wm_name.reply->atom,
-			x11->atoms.utf8_string.reply->atom, 8,
+			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
 			strlen(title), title);
 	}
 
