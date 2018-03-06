@@ -24,7 +24,7 @@ enum wlr_input_device_type {
 struct wlr_input_device_impl;
 
 struct wlr_input_device {
-	struct wlr_input_device_impl *impl;
+	const struct wlr_input_device_impl *impl;
 
 	enum wlr_input_device_type type;
 	int vendor, product;

@@ -26,9 +26,9 @@
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
-static struct wlr_backend_impl backend_impl;
-static struct wlr_output_impl output_impl;
-static struct wlr_input_device_impl input_device_impl = { 0 };
+static const struct wlr_backend_impl backend_impl;
+static const struct wlr_output_impl output_impl;
+static const struct wlr_input_device_impl input_device_impl = { 0 };
 
 static uint32_t xcb_button_to_wl(uint32_t button) {
 	switch (button) {
@@ -337,7 +337,7 @@ static struct wlr_renderer *wlr_x11_backend_get_renderer(
 	return x11->renderer;
 }
 
-static struct wlr_backend_impl backend_impl = {
+static const struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
 	.get_egl = wlr_x11_backend_get_egl,
@@ -465,7 +465,7 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	return wlr_egl_swap_buffers(&x11->egl, output->surf, damage);
 }
 
-static struct wlr_output_impl output_impl = {
+static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
