@@ -846,11 +846,17 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		output_cursor_damage_whole(cursor);
 	}
 
+	bool was_visible = cursor->visible;
 	x *= cursor->output->scale;
 	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
 	output_cursor_update_visible(cursor);
+
+	if (!was_visible && !cursor->visible) {
+		// Cursor is still hidden, do nothing
+		return true;
+	}
 
 	if (cursor->output->hardware_cursor != cursor) {
 		output_cursor_damage_whole(cursor);
