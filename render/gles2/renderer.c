@@ -179,7 +179,8 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
 
 	wlr_texture_bind(texture);
 	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
-	GL_CALL(glUniform1f(2, alpha));
+	GL_CALL(glUniform1i(1, texture->inverted_y));
+	GL_CALL(glUniform1f(3, alpha));
 	draw_quad();
 	return true;
 }

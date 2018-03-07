@@ -85,6 +85,7 @@ struct wlr_texture {
 	bool valid;
 	uint32_t format;
 	int width, height;
+	bool inverted_y;
 	struct wl_signal destroy_signal;
 	struct wl_resource *resource;
 };

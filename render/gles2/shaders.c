@@ -50,6 +50,7 @@ const GLchar ellipse_fragment_src[] =
 // Textured quads
 const GLchar vertex_src[] =
 "uniform mat4 proj;"
+"uniform bool invert_y;"
 "attribute vec2 pos;"
 "attribute vec2 texcoord;"
 "varying vec2 v_texcoord;"
@@ -69,7 +70,11 @@ const GLchar vertex_src[] =
 "}"
 "void main() {"
 "	gl_Position = transpose(proj) * vec4(pos, 0.0, 1.0);"
-"	v_texcoord = texcoord;"
+"  if (invert_y) {"
+"    v_texcoord = vec2(texcoord.s, 1.0 - texcoord.t);"
+"  } else {"
+"    v_texcoord = texcoord;"
+"  }"
 "}";
 
 const GLchar fragment_src_rgba[] =

@@ -164,6 +164,7 @@ static bool gles2_texture_upload_drm(struct wlr_texture *_tex,
 
 	EGLint inverted_y;
 	wlr_egl_query_buffer(tex->egl, buf, EGL_WAYLAND_Y_INVERTED_WL, &inverted_y);
+	tex->wlr_texture.inverted_y = !!inverted_y;
 
 	GLenum target;
 	const struct pixel_format *pf;
