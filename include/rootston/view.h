@@ -92,6 +92,11 @@ struct roots_view {
 	int border_width;
 	int titlebar_height;
 
+	bool special; // marks special "system" feature set
+	struct {
+		bool focusable;
+	} features;
+
 	bool maximized;
 	struct roots_output *fullscreen_output;
 	struct {
