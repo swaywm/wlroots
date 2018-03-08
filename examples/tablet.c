@@ -14,6 +14,7 @@
 #include <wlr/render.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_pad.h>
@@ -28,7 +29,9 @@ struct sample_state {
 	double distance;
 	double pressure;
 	double x_mm, y_mm;
+	double x_tilt, y_tilt;
 	double width_mm, height_mm;
+	double ring;
 	struct wl_list link;
 	float tool_color[4];
 	float pad_color[4];
@@ -46,7 +49,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output);
 	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16], view[16];
+	float matrix[16];
 	float distance = 0.8f * (1 - sample->distance);
 	float tool_color[4] = { distance, distance, distance, 1 };
 	for (size_t i = 0; sample->button && i < 4; ++i) {
@@ -58,22 +61,31 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	float pad_height = sample->height_mm * scale;
 	float left = width / 2.0f - pad_width / 2.0f;
 	float top = height / 2.0f - pad_height / 2.0f;
-	wlr_matrix_translate(&matrix, left, top, 0);
-	wlr_matrix_scale(&view, pad_width, pad_height, 1);
-	wlr_matrix_mul(&matrix, &view, &view);
-	wlr_matrix_mul(&wlr_output->transform_matrix, &view, &matrix);
+	struct wlr_box box = {
+		.x = left, .y = top,
+		.width = pad_width, .height = pad_height,
+	};
+	wlr_matrix_project_box(&matrix, &box, 0, 0,
+			&wlr_output->transform_matrix);
 	wlr_render_colored_quad(sample->renderer, &sample->pad_color, &matrix);
 
 	if (sample->proximity) {
-		wlr_matrix_translate(&matrix,
-				sample->x_mm * scale - 8 * (sample->pressure + 1) + left,
-				sample->y_mm * scale - 8 * (sample->pressure + 1) + top, 0);
-		wlr_matrix_scale(&view,
-				16 * (sample->pressure + 1),
-				16 * (sample->pressure + 1), 1);
-		wlr_matrix_mul(&matrix, &view, &view);
-		wlr_matrix_mul(&wlr_output->transform_matrix, &view, &matrix);
-		wlr_render_colored_ellipse(sample->renderer, &tool_color, &matrix);
+		struct wlr_box box = {
+			.x = sample->x_mm * scale - 8 * (sample->pressure + 1) + left,
+			.y = sample->y_mm * scale - 8 * (sample->pressure + 1) + top,
+			.width = 16 * (sample->pressure + 1),
+			.height = 16 * (sample->pressure + 1),
+		};
+		wlr_matrix_project_box(&matrix, &box, 0, sample->ring,
+				&wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
+		box.x += sample->x_tilt;
+		box.y += sample->y_tilt;
+		box.width /= 2;
+		box.height /= 2;
+		wlr_matrix_project_box(&matrix, &box, 0, 0,
+				&wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
 	}
 
 	wlr_renderer_end(sample->renderer);
@@ -96,6 +108,12 @@ static void handle_tool_axis(struct tablet_tool_state *tstate,
 	}
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_PRESSURE)) {
 		sample->pressure = event->pressure;
+	}
+	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_TILT_X)) {
+		sample->x_tilt = event->tilt_x;
+	}
+	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_TILT_Y)) {
+		sample->y_tilt = event->tilt_y;
 	}
 }
 
@@ -125,7 +143,7 @@ static void handle_tool_button(struct tablet_tool_state *tstate,
 static void handle_pad_button(struct tablet_pad_state *pstate,
 		uint32_t button, enum wlr_button_state state) {
 	struct sample_state *sample = pstate->compositor->data;
-	float default_color[4] = { 0.75, 0.75, 0.75, 1.0 };
+	float default_color[4] = { 0.5, 0.5, 0.5, 1.0 };
 	if (state == WLR_BUTTON_RELEASED) {
 		memcpy(sample->pad_color, default_color, sizeof(default_color));
 	} else {
@@ -139,11 +157,19 @@ static void handle_pad_button(struct tablet_pad_state *pstate,
 	}
 }
 
+static void handle_pad_ring(struct tablet_pad_state *pstate,
+		uint32_t ring, double position) {
+	struct sample_state *sample = pstate->compositor->data;
+	if (position != -1) {
+		sample->ring = -(position * (M_PI / 180.0));
+	}
+}
+
 int main(int argc, char *argv[]) {
 	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {
 		.tool_color = { 1, 1, 1, 1 },
-		.pad_color = { 0.75, 0.75, 0.75, 1.0 }
+		.pad_color = { 0.5, 0.5, 0.5, 1.0 }
 	};
 	struct compositor_state compositor = { 0,
 		.data = &state,
@@ -152,6 +178,7 @@ int main(int argc, char *argv[]) {
 		.tool_proximity_cb = handle_tool_proximity,
 		.tool_button_cb = handle_tool_button,
 		.pad_button_cb = handle_pad_button,
+		.pad_ring_cb = handle_pad_ring,
 	};
 	compositor_init(&compositor);
 

@@ -294,6 +294,14 @@ static void tablet_pad_button_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void tablet_pad_ring_notify(struct wl_listener *listener, void *data) {
+	struct wlr_event_tablet_pad_ring *event = data;
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, ring);
+	if (pstate->compositor->pad_ring_cb) {
+		pstate->compositor->pad_ring_cb(pstate, event->ring, event->position);
+	}
+}
+
 static void tablet_pad_destroy_notify(struct wl_listener *listener, void *data) {
 	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, destroy);
 	struct compositor_state *state = pstate->compositor;
@@ -315,6 +323,8 @@ static void tablet_pad_add(struct wlr_input_device *device,
 	wl_signal_add(&device->events.destroy, &pstate->destroy);
 	pstate->button.notify = tablet_pad_button_notify;
 	wl_signal_add(&device->tablet_pad->events.button, &pstate->button);
+	pstate->ring.notify = tablet_pad_ring_notify;
+	wl_signal_add(&device->tablet_pad->events.ring, &pstate->ring);
 	wl_list_insert(&state->tablet_pads, &pstate->link);
 }
 

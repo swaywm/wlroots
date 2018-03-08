@@ -71,8 +71,6 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_WHEEL;
 		wlr_event.wheel_delta = libinput_event_tablet_tool_get_wheel_delta(tevent);
 	}
-	wlr_log(L_DEBUG, "Tablet tool axis event %d @ %f,%f",
-			wlr_event.updated_axes, wlr_event.x_mm, wlr_event.y_mm);
 	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.axis, &wlr_event);
 }
 

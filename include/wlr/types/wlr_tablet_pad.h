@@ -29,6 +29,7 @@ struct wlr_event_tablet_pad_button {
 	uint32_t time_msec;
 	uint32_t button;
 	enum wlr_button_state state;
+	unsigned int mode;
 };
 
 enum wlr_tablet_pad_ring_source {
@@ -41,6 +42,7 @@ struct wlr_event_tablet_pad_ring {
 	enum wlr_tablet_pad_ring_source source;
 	uint32_t ring;
 	double position;
+	unsigned int mode;
 };
 
 enum wlr_tablet_pad_strip_source {
@@ -53,6 +55,7 @@ struct wlr_event_tablet_pad_strip {
 	enum wlr_tablet_pad_strip_source source;
 	uint32_t strip;
 	double position;
+	unsigned int mode;
 };
 
 #endif
