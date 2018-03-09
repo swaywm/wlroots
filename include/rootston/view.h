@@ -101,6 +101,7 @@ struct roots_view {
 	struct {
 		bool focusable;
 		enum roots_special_frame frame;
+		struct wlr_output *frame_output;
 	} features;
 
 	bool maximized;

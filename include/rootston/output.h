@@ -13,6 +13,7 @@ struct roots_output {
 	struct wlr_output *wlr_output;
 	struct wl_list link; // roots_desktop:outputs
 
+	struct wl_list frame_views;
 	struct roots_view *fullscreen_view;
 	struct wl_list layers[4]; // layer_surface::link
 
