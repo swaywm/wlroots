@@ -905,9 +905,13 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 		return;
 	}
 
-	// Focus the next view
-	struct roots_seat_view *next_seat_view = wl_container_of(
-		first_seat_view->link.next, next_seat_view, link);
+	// Focus the next view which is focusable
+	struct roots_seat_view *next_seat_view = first_seat_view;;
+	do {
+		next_seat_view = wl_container_of(
+			first_seat_view->link.next, next_seat_view, link);
+	} while (next_seat_view->view->special
+		&& !next_seat_view->view->features.focusable);
 	roots_seat_set_focus(seat, next_seat_view->view);
 
 	// Move the first view to the end of the list
