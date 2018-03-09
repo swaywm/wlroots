@@ -58,14 +58,6 @@ libinput       = dependency('libinput', version: '>=1.7.0')
 xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
-xcb            = dependency('xcb')
-xcb_composite  = dependency('xcb-composite')
-xcb_xfixes     = dependency('xcb-xfixes')
-xcb_image      = dependency('xcb-image')
-xcb_render     = dependency('xcb-render')
-xcb_icccm      = dependency('xcb-icccm', required: false)
-xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
-x11_xcb        = dependency('x11-xcb')
 libcap         = dependency('libcap', required: get_option('enable_libcap') == 'true')
 systemd        = dependency('libsystemd', required: get_option('enable_systemd') == 'true')
 elogind        = dependency('libelogind', required: get_option('enable_elogind') == 'true')
@@ -74,14 +66,6 @@ math           = cc.find_library('m', required: false)
 exclude_headers = []
 wlr_parts = []
 wlr_deps = []
-
-if xcb_icccm.found()
-	conf_data.set('WLR_HAS_XCB_ICCCM', true)
-endif
-
-if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
-	conf_data.set('WLR_HAS_XCB_ERRORS', true)
-endif
 
 if libcap.found() and get_option('enable_libcap') != 'false'
 	conf_data.set('WLR_HAS_LIBCAP', true)
@@ -95,6 +79,38 @@ endif
 
 if elogind.found() and get_option('enable_elogind') != 'false'
 	conf_data.set('WLR_HAS_ELOGIND', true)
+endif
+
+if get_option('enable_x11_backend') or get_option('enable_xwayland')
+        xcb            = dependency('xcb')
+        xcb_composite  = dependency('xcb-composite')
+        xcb_xfixes     = dependency('xcb-xfixes')
+        xcb_image      = dependency('xcb-image')
+        xcb_render     = dependency('xcb-render')
+        x11_xcb        = dependency('x11-xcb')
+
+        xcb_icccm      = dependency('xcb-icccm', required: false)
+        xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
+
+        if xcb_icccm.found()
+                conf_data.set('WLR_HAS_XCB_ICCCM', true)
+        endif
+
+        if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
+                conf_data.set('WLR_HAS_XCB_ERRORS', true)
+        endif
+
+        wlr_deps += [
+                xcb,
+                xcb_composite,
+                x11_xcb,
+        ]
+else
+        add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
+endif
+
+if get_option('enable_x11_backend')
+        conf_data.set('WLR_HAS_X11_BACKEND', true)
 endif
 
 if get_option('enable_xwayland')
@@ -138,9 +154,6 @@ wlr_deps += [
 	xkbcommon,
 	udev,
 	pixman,
-	xcb,
-	xcb_composite,
-	x11_xcb,
 	math,
 ]
 
@@ -168,12 +181,13 @@ summary = [
 	'----------------',
 	'wlroots @0@'.format(meson.project_version()),
 	'',
-	'     libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
-	'    systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
-	'    elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
-	'   xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
-	'  xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
-	' xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
+	'      libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
+	'     systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
+	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
+	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
+	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11BACKEND', false)),
+	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
+	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
 	'----------------',
 	''
 ]

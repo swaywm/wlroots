@@ -24,7 +24,6 @@ backend_files = files(
 	'wayland/output.c',
 	'wayland/registry.c',
 	'wayland/wl_seat.c',
-	'x11/backend.c',
 )
 
 backend_deps = [
@@ -48,6 +47,10 @@ endif
 if conf_data.get('WLR_HAS_SYSTEMD', false)
 	backend_files += files('session/logind.c')
 	backend_deps += systemd
+endif
+
+if conf_data.get('WLR_HAS_X11_BACKEND', false)
+	backend_files += files('x11/backend.c')
 endif
 
 if conf_data.get('WLR_HAS_ELOGIND', false)
