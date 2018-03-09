@@ -287,9 +287,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
 	wl_list_remove(&roots_xdg_surface->request_maximize.link);
 	wl_list_remove(&roots_xdg_surface->request_fullscreen.link);
-	wl_list_remove(&roots_xdg_surface->view->link);
-	view_finish(roots_xdg_surface->view);
-	free(roots_xdg_surface->view);
+	view_destroy(roots_xdg_surface->view);
 	free(roots_xdg_surface);
 }
 
@@ -333,7 +331,7 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
 
-	struct roots_view *view = view_create();
+	struct roots_view *view = view_create(desktop);
 	if (!view) {
 		free(roots_surface);
 		return;
@@ -342,7 +340,6 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 
 	view->xdg_surface = surface;
 	view->roots_xdg_surface = roots_surface;
-	view->wlr_surface = surface->surface;
 	view->activate = activate;
 	view->resize = resize;
 	view->move_resize = move_resize;
@@ -356,8 +353,6 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	view->width = box.width;
 	view->height = box.height;
 
-	view_init(view, desktop);
-	wl_list_insert(&desktop->views, &view->link);
-
+	view_map(view, surface->surface);
 	view_setup(view);
 }

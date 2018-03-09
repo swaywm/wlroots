@@ -181,7 +181,6 @@ struct roots_xdg_popup {
 	struct wl_listener new_popup;
 };
 
-struct roots_view *view_create();
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);

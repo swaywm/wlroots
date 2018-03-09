@@ -23,13 +23,15 @@
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
 
-
-struct roots_view *view_create() {
+struct roots_view *view_create(struct roots_desktop *desktop) {
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {
 		return NULL;
 	}
+	view->desktop = desktop;
 	view->alpha = 1.0f;
+	wl_signal_init(&view->events.destroy);
+	wl_list_init(&view->children);
 	return view;
 }
 
@@ -402,20 +404,18 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 	return subsurface;
 }
 
-void view_finish(struct roots_view *view) {
-	view_damage_whole(view);
+void view_destroy(struct roots_view *view) {
+	if (view == NULL) {
+		return;
+	}
+
+	if (view->wlr_surface != NULL) {
+		view_unmap(view);
+	}
+
 	wl_signal_emit(&view->events.destroy, view);
 
-	wl_list_remove(&view->new_subsurface.link);
-
-	struct roots_view_child *child, *tmp;
-	wl_list_for_each_safe(child, tmp, &view->children, link) {
-		child->destroy(child);
-	}
-
-	if (view->fullscreen_output) {
-		view->fullscreen_output->fullscreen_view = NULL;
-	}
+	free(view);
 }
 
 static void view_handle_new_subsurface(struct wl_listener *listener,
@@ -425,12 +425,10 @@ static void view_handle_new_subsurface(struct wl_listener *listener,
 	subsurface_create(view, wlr_subsurface);
 }
 
-void view_init(struct roots_view *view, struct roots_desktop *desktop) {
-	assert(view->wlr_surface);
+void view_map(struct roots_view *view, struct wlr_surface *surface) {
+	assert(view->wlr_surface == NULL);
 
-	view->desktop = desktop;
-	wl_signal_init(&view->events.destroy);
-	wl_list_init(&view->children);
+	view->wlr_surface = surface;
 
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &view->wlr_surface->subsurface_list,
@@ -442,7 +440,31 @@ void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	wl_signal_add(&view->wlr_surface->events.new_subsurface,
 		&view->new_subsurface);
 
+	wl_list_insert(&view->desktop->views, &view->link);
 	view_damage_whole(view);
+}
+
+void view_unmap(struct roots_view *view) {
+	assert(view->wlr_surface != NULL);
+
+	view_damage_whole(view);
+	wl_list_remove(&view->link);
+
+	wl_list_remove(&view->new_subsurface.link);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
+
+	if (view->fullscreen_output != NULL) {
+		output_damage_whole(view->fullscreen_output);
+		view->fullscreen_output->fullscreen_view = NULL;
+		view->fullscreen_output = NULL;
+	}
+
+	view->wlr_surface = NULL;
+	view->width = view->height = 0;
 }
 
 void view_initial_focus(struct roots_view *view) {
