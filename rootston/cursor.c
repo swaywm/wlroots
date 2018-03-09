@@ -273,7 +273,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			}
 			break;
 		case WLR_BUTTON_PRESSED:
-			if (!view->special || view->features.focusable) {
+			if (!view || !view->special || view->features.focusable) {
 				roots_seat_set_focus(seat, view);
             }
 			if (surface && wlr_surface_is_layer_surface(surface)) {
