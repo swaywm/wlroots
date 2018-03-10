@@ -54,7 +54,8 @@ void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
 	box->height += (view->border_width * 2 + view->titlebar_height);
 }
 
-enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
+enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx,
+		double sy) {
 	if (!view->decorated) {
 		return ROOTS_DECO_PART_NONE;
 	}
@@ -94,9 +95,15 @@ enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, doub
 static void view_update_output(const struct roots_view *view,
 		const struct wlr_box *before) {
 	struct roots_desktop *desktop = view->desktop;
-	struct roots_output *output;
+
+	if (view->wlr_surface == NULL) {
+		return;
+	}
+
 	struct wlr_box box;
 	view_get_box(view, &box);
+
+	struct roots_output *output;
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before != NULL && wlr_output_layout_intersects(
 			desktop->layout, output->wlr_output, before);
@@ -479,7 +486,10 @@ void view_initial_focus(struct roots_view *view) {
 void view_setup(struct roots_view *view) {
 	view_initial_focus(view);
 
-	view_center(view);
+	if (view->fullscreen_output == NULL) {
+		view_center(view);
+	}
+
 	view_update_output(view, NULL);
 }
 

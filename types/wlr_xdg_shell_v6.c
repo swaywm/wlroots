@@ -481,6 +481,7 @@ static void xdg_popup_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
 	if (surface != NULL) {
+		// TODO: don't destroy the surface, unmap it
 		xdg_surface_destroy(surface);
 	}
 }
@@ -792,6 +793,7 @@ static void xdg_toplevel_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	if (surface != NULL) {
+		// TODO: don't destroy the surface, unmap it
 		xdg_surface_destroy(surface);
 	}
 }
@@ -1172,9 +1174,19 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		break;
 	}
 
-	if (surface->configured && !surface->added) {
+	if (!surface->added) {
 		surface->added = true;
-		wlr_signal_emit_safe(&surface->client->shell->events.new_surface, surface);
+		wlr_signal_emit_safe(&surface->client->shell->events.new_surface,
+			surface);
+	}
+	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
+			!surface->mapped) {
+		surface->mapped = true;
+		wlr_signal_emit_safe(&surface->events.map, surface);
+	}
+	if (surface->configured && !wlr_surface_has_buffer(surface->surface) &&
+			surface->mapped) {
+		// TODO: unmap the surface
 	}
 }
 
@@ -1249,6 +1261,8 @@ static void xdg_shell_get_xdg_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
 	wl_signal_init(&surface->events.new_popup);
+	wl_signal_init(&surface->events.map);
+	wl_signal_init(&surface->events.unmap);
 
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);

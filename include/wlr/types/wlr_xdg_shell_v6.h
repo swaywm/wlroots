@@ -107,8 +107,7 @@ struct wlr_xdg_surface_v6 {
 
 	struct wl_list popups; // wlr_xdg_popup_v6::link
 
-	bool configured;
-	bool added;
+	bool added, configured, mapped;
 	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
@@ -127,6 +126,8 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
 		struct wl_signal new_popup;
+		struct wl_signal map;
+		struct wl_signal unmap;
 
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;

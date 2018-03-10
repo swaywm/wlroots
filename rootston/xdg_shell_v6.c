@@ -243,6 +243,10 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
+	if (!surface->mapped) {
+		return;
+	}
+
 	view_apply_damage(view);
 
 	struct wlr_box size;
@@ -275,6 +279,28 @@ static void handle_new_popup(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, roots_xdg_surface, new_popup);
 	struct wlr_xdg_popup_v6 *wlr_popup = data;
 	popup_create(roots_xdg_surface->view, wlr_popup);
+}
+
+static void handle_map(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, map);
+	struct roots_view *view = roots_xdg_surface->view;
+
+	struct wlr_box box;
+	get_size(view, &box);
+	view->width = box.width;
+	view->height = box.height;
+
+	view_map(view, view->xdg_surface_v6->surface);
+	view_setup(view);
+}
+
+static void handle_unmap(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, unmap);
+	struct roots_view *view = roots_xdg_surface->view;
+
+	view_unmap(view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -317,6 +343,10 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 		&roots_surface->surface_commit);
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
+	roots_surface->map.notify = handle_map;
+	wl_signal_add(&surface->events.map, &roots_surface->map);
+	roots_surface->unmap.notify = handle_unmap;
+	wl_signal_add(&surface->events.unmap, &roots_surface->unmap);
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	roots_surface->request_resize.notify = handle_request_resize;
@@ -347,12 +377,4 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->set_fullscreen = set_fullscreen;
 	view->close = close;
 	roots_surface->view = view;
-
-	struct wlr_box box;
-	get_size(view, &box);
-	view->width = box.width;
-	view->height = box.height;
-
-	view_map(view, surface->surface);
-	view_setup(view);
 }

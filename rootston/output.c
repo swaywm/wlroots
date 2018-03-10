@@ -501,7 +501,9 @@ static void render_output(struct roots_output *output) {
 			goto renderer_end;
 		}
 
-		view_for_each_surface(view, render_surface, &data);
+		if (view->wlr_surface != NULL) {
+			view_for_each_surface(view, render_surface, &data);
+		}
 
 		// During normal rendering the xwayland window tree isn't traversed
 		// because all windows are rendered. Here we only want to render
@@ -570,6 +572,9 @@ void output_damage_whole(struct roots_output *output) {
 
 static bool view_accept_damage(struct roots_output *output,
 		struct roots_view *view) {
+	if (view->wlr_surface == NULL) {
+		return false;
+	}
 	if (output->fullscreen_view == NULL) {
 		return true;
 	}
