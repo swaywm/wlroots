@@ -176,7 +176,7 @@ static void params_create_common(struct wl_client *client,
 	}
 
 	if ((uint64_t)buffer->attributes.offset[0] +
-			(uint64_t) buffer->attributes.stride[0] * height > UINT32_MAX) {
+			(uint64_t)buffer->attributes.stride[0] * height > UINT32_MAX) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 			"size overflow for plane");
@@ -205,15 +205,15 @@ static void params_create_common(struct wl_client *client,
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"invalid buffer stride or height for plane");
-				goto err_out;
+			goto err_out;
 		}
 	}
 
 	/* reject unknown flags */
 	if (buffer->attributes.flags & ~ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT) {
 		wl_resource_post_error(params_resource,
-				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
-				"Unknown dmabuf flags %"PRIu32, buffer->attributes.flags);
+			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
+			"Unknown dmabuf flags %"PRIu32, buffer->attributes.flags);
 		goto err_out;
 	}
 
