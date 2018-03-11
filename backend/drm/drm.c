@@ -602,12 +602,25 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		wlr_output_transform_invert(output->transform);
 	wlr_box_transform(&hotspot, transform,
 		plane->surf.width, plane->surf.height, &hotspot);
-	plane->cursor_hotspot_x = hotspot.x;
-	plane->cursor_hotspot_y = hotspot.y;
+
+	if (plane->cursor_hotspot_x != hotspot.x ||
+			plane->cursor_hotspot_y != hotspot.y) {
+		// Update cursor hotspot
+		conn->cursor_x -= hotspot.x - plane->cursor_hotspot_x;
+		conn->cursor_y -= hotspot.y - plane->cursor_hotspot_y;
+		plane->cursor_hotspot_x = hotspot.x;
+		plane->cursor_hotspot_y = hotspot.y;
+
+		if (!drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
+				conn->cursor_y)) {
+			return false;
+		}
+
+		wlr_output_update_needs_swap(output);
+	}
 
 	if (!update_pixels) {
-		// Only update the cursor hotspot
-		wlr_output_update_needs_swap(output);
+		// Don't update cursor image
 		return true;
 	}
 
