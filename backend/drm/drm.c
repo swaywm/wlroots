@@ -544,10 +544,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 	if (!crtc) {
 		return false;
 	}
-	struct wlr_drm_plane *plane = crtc->cursor;
 
-	// We don't have a real cursor plane, so we make a fake one
+	struct wlr_drm_plane *plane = crtc->cursor;
 	if (!plane) {
+		// We don't have a real cursor plane, so we make a fake one
 		plane = calloc(1, sizeof(*plane));
 		if (!plane) {
 			wlr_log_errno(L_ERROR, "Allocation failed");
@@ -555,16 +555,6 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		}
 		crtc->cursor = plane;
 	}
-
-	if (!buf && update_pixels) {
-		// Hide the cursor
-		plane->cursor_enabled = false;
-		if (!drm->session->active) {
-			return true;
-		}
-		return drm->iface->crtc_set_cursor(drm, crtc, NULL);
-	}
-	plane->cursor_enabled = true;
 
 	if (!plane->surf.gbm) {
 		int ret;
@@ -607,10 +597,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
-	struct wlr_box hotspot = {
-		.x = hotspot_x,
-		.y = hotspot_y,
-	};
+	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
 	wlr_box_transform(&hotspot, transform,
@@ -620,49 +607,54 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 	if (!update_pixels) {
 		// Only update the cursor hotspot
+		wlr_output_update_needs_swap(output);
 		return true;
 	}
 
-	struct gbm_bo *bo = plane->cursor_bo;
-	uint32_t bo_width = gbm_bo_get_width(bo);
-	uint32_t bo_height = gbm_bo_get_height(bo);
-	uint32_t bo_stride;
-	void *bo_data;
+	plane->cursor_enabled = buf != NULL;
 
-	if (!gbm_bo_map(bo, 0, 0, bo_width, bo_height,
-			GBM_BO_TRANSFER_WRITE, &bo_stride, &bo_data)) {
-		wlr_log_errno(L_ERROR, "Unable to map buffer");
-		return false;
+	if (buf != NULL) {
+		uint32_t bo_width = gbm_bo_get_width(plane->cursor_bo);
+		uint32_t bo_height = gbm_bo_get_height(plane->cursor_bo);
+
+		uint32_t bo_stride;
+		void *bo_data;
+		if (!gbm_bo_map(plane->cursor_bo, 0, 0, bo_width, bo_height,
+				GBM_BO_TRANSFER_WRITE, &bo_stride, &bo_data)) {
+			wlr_log_errno(L_ERROR, "Unable to map buffer");
+			return false;
+		}
+
+		wlr_drm_surface_make_current(&plane->surf, NULL);
+
+		wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
+			stride, width, height, buf);
+
+		glViewport(0, 0, plane->surf.width, plane->surf.height);
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		float matrix[16];
+		wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
+		wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
+			&matrix, 1.0f);
+
+		glFinish();
+		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
+		glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
+			GL_UNSIGNED_BYTE, bo_data);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+
+		wlr_drm_surface_swap_buffers(&plane->surf, NULL);
+
+		gbm_bo_unmap(plane->cursor_bo, bo_data);
 	}
-
-	wlr_drm_surface_make_current(&plane->surf, NULL);
-
-	wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
-		stride, width, height, buf);
-
-	glViewport(0, 0, plane->surf.width, plane->surf.height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	float matrix[16];
-	wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-	wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
-		&matrix, 1.0f);
-
-	glFinish();
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-	glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
-		GL_UNSIGNED_BYTE, bo_data);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
-
-	wlr_drm_surface_swap_buffers(&plane->surf, NULL);
-
-	gbm_bo_unmap(bo, bo_data);
 
 	if (!drm->session->active) {
-		return true;
+		return true; // will be committed when session is resumed
 	}
 
+	struct gbm_bo *bo = plane->cursor_enabled ? plane->cursor_bo : NULL;
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
@@ -697,7 +689,7 @@ static bool wlr_drm_connector_move_cursor(struct wlr_output *output,
 	conn->cursor_y = box.y;
 
 	if (!drm->session->active) {
-		return true;
+		return true; // will be committed when session is resumed
 	}
 
 	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
