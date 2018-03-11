@@ -514,13 +514,13 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 
 static void handle_tablet_tool_destroy(struct wl_listener *listener,
 		void *data) {
-	struct roots_pointer *tablet_tool =
+	struct roots_tablet_tool *tablet_tool =
 		wl_container_of(listener, tablet_tool, device_destroy);
 	struct roots_seat *seat = tablet_tool->seat;
 
-	wl_list_remove(&tablet_tool->link);
 	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet_tool->device);
 	wl_list_remove(&tablet_tool->device_destroy.link);
+	wl_list_remove(&tablet_tool->link);
 	free(tablet_tool);
 
 	seat_update_capabilities(seat);
