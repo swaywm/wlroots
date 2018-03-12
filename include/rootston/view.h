@@ -142,6 +142,7 @@ struct roots_view {
 	void (*maximize)(struct roots_view *view, bool maximized);
 	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
 	void (*close)(struct roots_view *view);
+	void (*destroy)(struct roots_view *view);
 };
 
 struct roots_view_child {

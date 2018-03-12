@@ -422,6 +422,10 @@ void view_destroy(struct roots_view *view) {
 
 	wl_signal_emit(&view->events.destroy, view);
 
+	if (view->destroy) {
+		view->destroy(view);
+	}
+
 	free(view);
 }
 

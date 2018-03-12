@@ -180,6 +180,21 @@ static void close(struct roots_view *view) {
 	}
 }
 
+static void destroy(struct roots_view *view) {
+	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
+	struct roots_xdg_surface_v6 *roots_xdg_surface = view->roots_xdg_surface_v6;
+	wl_list_remove(&roots_xdg_surface->surface_commit.link);
+	wl_list_remove(&roots_xdg_surface->destroy.link);
+	wl_list_remove(&roots_xdg_surface->new_popup.link);
+	wl_list_remove(&roots_xdg_surface->map.link);
+	wl_list_remove(&roots_xdg_surface->unmap.link);
+	wl_list_remove(&roots_xdg_surface->request_move.link);
+	wl_list_remove(&roots_xdg_surface->request_resize.link);
+	wl_list_remove(&roots_xdg_surface->request_maximize.link);
+	wl_list_remove(&roots_xdg_surface->request_fullscreen.link);
+	free(roots_xdg_surface);
+}
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, request_move);
@@ -298,25 +313,13 @@ static void handle_map(struct wl_listener *listener, void *data) {
 static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, unmap);
-	struct roots_view *view = roots_xdg_surface->view;
-
-	view_unmap(view);
+	view_unmap(roots_xdg_surface->view);
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, destroy);
-	wl_list_remove(&roots_xdg_surface->surface_commit.link);
-	wl_list_remove(&roots_xdg_surface->destroy.link);
-	wl_list_remove(&roots_xdg_surface->new_popup.link);
-	wl_list_remove(&roots_xdg_surface->map.link);
-	wl_list_remove(&roots_xdg_surface->unmap.link);
-	wl_list_remove(&roots_xdg_surface->request_move.link);
-	wl_list_remove(&roots_xdg_surface->request_resize.link);
-	wl_list_remove(&roots_xdg_surface->request_maximize.link);
-	wl_list_remove(&roots_xdg_surface->request_fullscreen.link);
 	view_destroy(roots_xdg_surface->view);
-	free(roots_xdg_surface);
 }
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
@@ -378,5 +381,6 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->maximize = maximize;
 	view->set_fullscreen = set_fullscreen;
 	view->close = close;
+	view->destroy = destroy;
 	roots_surface->view = view;
 }

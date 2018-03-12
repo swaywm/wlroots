@@ -106,9 +106,9 @@ static void set_fullscreen(struct roots_view *view, bool fullscreen) {
 	wlr_xwayland_surface_set_fullscreen(view->xwayland_surface, fullscreen);
 }
 
-static void handle_destroy(struct wl_listener *listener, void *data) {
-	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, destroy);
+static void destroy(struct roots_view *view) {
+	assert(view->type == ROOTS_XWAYLAND_VIEW);
+	struct roots_xwayland_surface *roots_surface = view->roots_xwayland_surface;
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->request_configure.link);
 	wl_list_remove(&roots_surface->request_move.link);
@@ -116,8 +116,13 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_surface->request_maximize.link);
 	wl_list_remove(&roots_surface->map_notify.link);
 	wl_list_remove(&roots_surface->unmap_notify.link);
-	view_destroy(roots_surface->view);
 	free(roots_surface);
+}
+
+static void handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, destroy);
+	view_destroy(roots_surface->view);
 }
 
 static void handle_request_configure(struct wl_listener *listener, void *data) {
@@ -307,6 +312,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->maximize = maximize;
 	view->set_fullscreen = set_fullscreen;
 	view->close = close;
+	view->destroy = destroy;
 	roots_surface->view = view;
 
 	view_map(view, surface->surface);
