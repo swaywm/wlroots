@@ -63,9 +63,11 @@ static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	if (surface->geometry->width > 0 && surface->geometry->height > 0) {
 		box->width = surface->geometry->width;
 		box->height = surface->geometry->height;
-	} else {
+	} else if (view->wlr_surface != NULL) {
 		box->width = view->wlr_surface->current->width;
 		box->height = view->wlr_surface->current->height;
+	} else {
+		box->width = box->height = 0;
 	}
 }
 
