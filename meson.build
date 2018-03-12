@@ -196,7 +196,7 @@ git = find_program('git', required: false)
 if git.found()
 	all_files = run_command(
 		git,
-		['--git-dir=@0@/.git'.format(meson.source_root()),
+		['--git-dir=@0@/.git'.format(meson.current_source_dir()),
 		 'ls-files',
 		 ':/*.[ch]'])
 	all_files = files(all_files.stdout().split())
