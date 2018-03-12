@@ -309,6 +309,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&roots_xdg_surface->surface_commit.link);
 	wl_list_remove(&roots_xdg_surface->destroy.link);
 	wl_list_remove(&roots_xdg_surface->new_popup.link);
+	wl_list_remove(&roots_xdg_surface->map.link);
+	wl_list_remove(&roots_xdg_surface->unmap.link);
 	wl_list_remove(&roots_xdg_surface->request_move.link);
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
 	wl_list_remove(&roots_xdg_surface->request_maximize.link);
