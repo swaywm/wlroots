@@ -30,6 +30,7 @@ struct roots_view *view_create(struct roots_desktop *desktop) {
 	}
 	view->desktop = desktop;
 	view->alpha = 1.0f;
+	wl_signal_init(&view->events.unmap);
 	wl_signal_init(&view->events.destroy);
 	wl_list_init(&view->children);
 	return view;

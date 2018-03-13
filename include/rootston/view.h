@@ -130,6 +130,7 @@ struct roots_view {
 	struct wl_listener new_subsurface;
 
 	struct {
+		struct wl_signal unmap;
 		struct wl_signal destroy;
 	} events;
 

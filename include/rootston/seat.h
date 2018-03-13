@@ -39,6 +39,7 @@ struct roots_seat_view {
 
 	struct wl_list link; // roots_seat::views
 
+	struct wl_listener view_unmap;
 	struct wl_listener view_destroy;
 };
 
