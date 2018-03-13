@@ -868,9 +868,15 @@ static void wlr_xdg_toplevel_v6_ack_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->next = configure->state;
-	surface->toplevel_state->pending.width = 0;
-	surface->toplevel_state->pending.height = 0;
+
+	surface->toplevel_state->current.maximized =
+		configure->toplevel_state.maximized;
+	surface->toplevel_state->current.fullscreen =
+		configure->toplevel_state.fullscreen;
+	surface->toplevel_state->current.resizing =
+		configure->toplevel_state.resizing;
+	surface->toplevel_state->current.activated =
+		configure->toplevel_state.activated;
 }
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
@@ -982,9 +988,9 @@ static bool wlr_xdg_surface_v6_toplevel_state_compare(
 	} else {
 		struct wlr_xdg_surface_v6_configure *configure =
 			wl_container_of(state->base->configure_list.prev, configure, link);
-		configured.state = configure->state;
-		configured.width = configure->state.width;
-		configured.height = configure->state.height;
+		configured.state = configure->toplevel_state;
+		configured.width = configure->toplevel_state.width;
+		configured.height = configure->toplevel_state.height;
 	}
 
 	if (state->pending.activated != configured.state.activated) {
@@ -1019,7 +1025,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	uint32_t *s;
 	struct wl_array states;
 
-	configure->state = surface->toplevel_state->pending;
+	configure->toplevel_state = surface->toplevel_state->pending;
 
 	wl_array_init(&states);
 	if (surface->toplevel_state->pending.maximized) {
@@ -1160,8 +1166,7 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
-	if (!wlr_surface_has_buffer(surface->surface)
-			&& !surface->toplevel_state->added) {
+	if (!surface->toplevel_state->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
 		wlr_xdg_surface_v6_schedule_configure(surface);
@@ -1169,11 +1174,15 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		return;
 	}
 
-	if (!wlr_surface_has_buffer(surface->surface)) {
-		return;
-	}
-
-	surface->toplevel_state->current = surface->toplevel_state->next;
+	// update state that doesn't need compositor approval
+	surface->toplevel_state->current.max_width =
+		surface->toplevel_state->next.max_width;
+	surface->toplevel_state->current.min_width =
+		surface->toplevel_state->next.min_width;
+	surface->toplevel_state->current.max_height =
+		surface->toplevel_state->next.max_height;
+	surface->toplevel_state->current.min_height =
+		surface->toplevel_state->next.min_height;
 }
 
 static void wlr_xdg_surface_v6_popup_committed(
@@ -1482,6 +1491,7 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.width = width;
 	surface->toplevel_state->pending.height = height;
+	wlr_log(L_DEBUG, "wlr_xdg_toplevel_v6_set_size %d", width);
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }

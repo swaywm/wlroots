@@ -385,4 +385,11 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	view->destroy = destroy;
 	roots_surface->view = view;
+
+	if (surface->toplevel_state->next.maximized) {
+		view_maximize(view, true);
+	}
+	if (surface->toplevel_state->next.fullscreen) {
+		view_set_fullscreen(view, true, NULL);
+	}
 }

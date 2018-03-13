@@ -62,19 +62,10 @@ enum wlr_xdg_surface_v6_role {
 };
 
 struct wlr_xdg_toplevel_v6_state {
-	bool maximized;
-	bool fullscreen;
-	bool resizing;
-	bool activated;
-
-	uint32_t width;
-	uint32_t height;
-
-	uint32_t max_width;
-	uint32_t max_height;
-
-	uint32_t min_width;
-	uint32_t min_height;
+	bool maximized, fullscreen, resizing, activated;
+	uint32_t width, height;
+	uint32_t max_width, max_height;
+	uint32_t min_width, min_height;
 };
 
 struct wlr_xdg_toplevel_v6 {
@@ -90,7 +81,8 @@ struct wlr_xdg_toplevel_v6 {
 struct wlr_xdg_surface_v6_configure {
 	struct wl_list link; // wlr_xdg_surface_v6::configure_list
 	uint32_t serial;
-	struct wlr_xdg_toplevel_v6_state state;
+
+	struct wlr_xdg_toplevel_v6_state toplevel_state; // TODO: should be null-able
 };
 
 struct wlr_xdg_surface_v6 {
@@ -100,6 +92,7 @@ struct wlr_xdg_surface_v6 {
 	struct wl_list link; // wlr_xdg_client_v6::surfaces
 	enum wlr_xdg_surface_v6_role role;
 
+	// TODO: the _state prefix should be dropped
 	union {
 		struct wlr_xdg_toplevel_v6 *toplevel_state;
 		struct wlr_xdg_popup_v6 *popup_state;
@@ -118,7 +111,7 @@ struct wlr_xdg_surface_v6 {
 
 	bool has_next_geometry;
 	struct wlr_box *next_geometry;
-	struct wlr_box *geometry;
+	struct wlr_box *geometry; // TODO: should not be a pointer
 
 	struct wl_listener surface_destroy_listener;
 

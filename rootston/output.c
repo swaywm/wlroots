@@ -433,7 +433,8 @@ static void render_output(struct roots_output *output) {
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
 	// Check if we can delegate the fullscreen surface to the output
-	if (output->fullscreen_view != NULL) {
+	if (output->fullscreen_view != NULL &&
+			output->fullscreen_view->wlr_surface != NULL) {
 		struct roots_view *view = output->fullscreen_view;
 
 		// Make sure the view is centered on screen
