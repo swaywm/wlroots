@@ -868,15 +868,19 @@ static void wlr_xdg_toplevel_v6_ack_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	assert(configure->toplevel_state != NULL);
 
 	surface->toplevel_state->current.maximized =
-		configure->toplevel_state.maximized;
+		configure->toplevel_state->maximized;
 	surface->toplevel_state->current.fullscreen =
-		configure->toplevel_state.fullscreen;
+		configure->toplevel_state->fullscreen;
 	surface->toplevel_state->current.resizing =
-		configure->toplevel_state.resizing;
+		configure->toplevel_state->resizing;
 	surface->toplevel_state->current.activated =
-		configure->toplevel_state.activated;
+		configure->toplevel_state->activated;
+
+	free(configure->toplevel_state);
+	configure->toplevel_state = NULL;
 }
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
@@ -988,9 +992,9 @@ static bool wlr_xdg_surface_v6_toplevel_state_compare(
 	} else {
 		struct wlr_xdg_surface_v6_configure *configure =
 			wl_container_of(state->base->configure_list.prev, configure, link);
-		configured.state = configure->toplevel_state;
-		configured.width = configure->toplevel_state.width;
-		configured.height = configure->toplevel_state.height;
+		configured.state = *configure->toplevel_state;
+		configured.width = configure->toplevel_state->width;
+		configured.height = configure->toplevel_state->height;
 	}
 
 	if (state->pending.activated != configured.state.activated) {
@@ -1025,7 +1029,12 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	uint32_t *s;
 	struct wl_array states;
 
-	configure->toplevel_state = surface->toplevel_state->pending;
+	configure->toplevel_state = malloc(sizeof(*configure->toplevel_state));
+	if (configure->toplevel_state == NULL) {
+		wlr_log(L_ERROR, "Allocation failed");
+		return;
+	}
+	*configure->toplevel_state = surface->toplevel_state->pending;
 
 	wl_array_init(&states);
 	if (surface->toplevel_state->pending.maximized) {
