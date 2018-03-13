@@ -60,9 +60,9 @@ static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
 
-	if (surface->geometry->width > 0 && surface->geometry->height > 0) {
-		box->width = surface->geometry->width;
-		box->height = surface->geometry->height;
+	if (surface->geometry.width > 0 && surface->geometry.height > 0) {
+		box->width = surface->geometry.width;
+		box->height = surface->geometry.height;
 	} else if (view->wlr_surface != NULL) {
 		box->width = view->wlr_surface->current->width;
 		box->height = view->wlr_surface->current->height;

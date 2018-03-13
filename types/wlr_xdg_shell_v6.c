@@ -217,8 +217,8 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	}
 
 	surface->has_next_geometry = false;
-	memset(surface->geometry, 0, sizeof(struct wlr_box));
-	memset(surface->next_geometry, 0, sizeof(struct wlr_box));
+	memset(&surface->geometry, 0, sizeof(struct wlr_box));
+	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
 
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
@@ -232,8 +232,6 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
-	free(surface->geometry);
-	free(surface->next_geometry);
 	free(surface);
 }
 
@@ -945,10 +943,10 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 	}
 
 	surface->has_next_geometry = true;
-	surface->next_geometry->height = height;
-	surface->next_geometry->width = width;
-	surface->next_geometry->x = x;
-	surface->next_geometry->y = y;
+	surface->next_geometry.height = height;
+	surface->next_geometry.width = width;
+	surface->next_geometry.x = x;
+	surface->next_geometry.y = y;
 }
 
 static void xdg_surface_handle_destroy(struct wl_client *client,
@@ -1072,11 +1070,6 @@ static void wlr_xdg_toplevel_v6_send_configure(
 
 	uint32_t width = surface->toplevel->pending.width;
 	uint32_t height = surface->toplevel->pending.height;
-
-	if (width == 0 || height == 0) {
-		width = surface->geometry->width;
-		height = surface->geometry->height;
-	}
 
 	zxdg_toplevel_v6_send_configure(surface->toplevel->resource, width,
 		height, &states);
@@ -1217,10 +1210,10 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 
 	if (surface->has_next_geometry) {
 		surface->has_next_geometry = false;
-		surface->geometry->x = surface->next_geometry->x;
-		surface->geometry->y = surface->next_geometry->y;
-		surface->geometry->width = surface->next_geometry->width;
-		surface->geometry->height = surface->next_geometry->height;
+		surface->geometry.x = surface->next_geometry.x;
+		surface->geometry.y = surface->next_geometry.y;
+		surface->geometry.width = surface->next_geometry.width;
+		surface->geometry.height = surface->next_geometry.height;
 	}
 
 	switch (surface->role) {
@@ -1268,21 +1261,9 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 	struct wlr_xdg_client_v6 *client =
 		xdg_client_from_resource(client_resource);
 
-	struct wlr_xdg_surface_v6 *surface;
-	if (!(surface = calloc(1, sizeof(struct wlr_xdg_surface_v6)))) {
-		wl_client_post_no_memory(wl_client);
-		return;
-	}
-
-	if (!(surface->geometry = calloc(1, sizeof(struct wlr_box)))) {
-		free(surface);
-		wl_client_post_no_memory(wl_client);
-		return;
-	}
-
-	if (!(surface->next_geometry = calloc(1, sizeof(struct wlr_box)))) {
-		free(surface->geometry);
-		free(surface);
+	struct wlr_xdg_surface_v6 *surface =
+		calloc(1, sizeof(struct wlr_xdg_surface_v6));
+	if (surface == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
@@ -1294,8 +1275,6 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 		&zxdg_surface_v6_interface, wl_resource_get_version(client_resource),
 		id);
 	if (surface->resource == NULL) {
-		free(surface->next_geometry);
-		free(surface->geometry);
 		free(surface);
 		wl_client_post_no_memory(wl_client);
 		return;
@@ -1303,8 +1282,6 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 
 	if (wlr_surface_has_buffer(surface->surface)) {
 		wl_resource_destroy(surface->resource);
-		free(surface->next_geometry);
-		free(surface->geometry);
 		free(surface);
 		wl_resource_post_error(surface_resource,
 			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
@@ -1500,7 +1477,6 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->pending.width = width;
 	surface->toplevel->pending.height = height;
-	wlr_log(L_DEBUG, "wlr_xdg_toplevel_v6_set_size %d", width);
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
@@ -1546,10 +1522,10 @@ void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 		double *popup_sx, double *popup_sy) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
 	struct wlr_xdg_surface_v6 *parent = surface->popup->parent;
-	*popup_sx = parent->geometry->x + surface->popup->geometry.x -
-		surface->geometry->x;
-	*popup_sy = parent->geometry->y + surface->popup->geometry.y -
-		surface->geometry->y;
+	*popup_sx = parent->geometry.x + surface->popup->geometry.x -
+		surface->geometry.x;
+	*popup_sy = parent->geometry.y + surface->popup->geometry.y -
+		surface->geometry.y;
 }
 
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
@@ -1563,30 +1539,30 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *popup = popup_state->base;
 
 		double _popup_sx =
-			surface->geometry->x + popup_state->geometry.x;
+			surface->geometry.x + popup_state->geometry.x;
 		double _popup_sy =
-			surface->geometry->y + popup_state->geometry.y;
+			surface->geometry.y + popup_state->geometry.y;
 		int popup_width =  popup_state->geometry.width;
 		int popup_height =  popup_state->geometry.height;
 
 		struct wlr_xdg_surface_v6 *_popup =
 			wlr_xdg_surface_v6_popup_at(popup,
-				sx - _popup_sx + popup->geometry->x,
-				sy - _popup_sy + popup->geometry->y,
+				sx - _popup_sx + popup->geometry.x,
+				sy - _popup_sy + popup->geometry.y,
 				popup_sx, popup_sy);
 		if (_popup) {
-			*popup_sx = *popup_sx + _popup_sx - popup->geometry->x;
-			*popup_sy = *popup_sy + _popup_sy - popup->geometry->y;
+			*popup_sx = *popup_sx + _popup_sx - popup->geometry.x;
+			*popup_sy = *popup_sy + _popup_sy - popup->geometry.y;
 			return _popup;
 		}
 
 		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
 				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
 			if (pixman_region32_contains_point(&popup->surface->current->input,
-						sx - _popup_sx + popup->geometry->x,
-						sy - _popup_sy + popup->geometry->y, NULL)) {
-				*popup_sx = _popup_sx - popup->geometry->x;
-				*popup_sy = _popup_sy - popup->geometry->y;
+						sx - _popup_sx + popup->geometry.x,
+						sy - _popup_sy + popup->geometry.y, NULL)) {
+				*popup_sx = _popup_sx - popup->geometry.x;
+				*popup_sy = _popup_sy - popup->geometry.y;
 				return popup;
 			}
 		}

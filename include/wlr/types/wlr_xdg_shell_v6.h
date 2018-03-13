@@ -109,8 +109,8 @@ struct wlr_xdg_surface_v6 {
 	char *app_id;
 
 	bool has_next_geometry;
-	struct wlr_box *next_geometry;
-	struct wlr_box *geometry; // TODO: should not be a pointer
+	struct wlr_box next_geometry;
+	struct wlr_box geometry;
 
 	struct wl_listener surface_destroy_listener;
 
