@@ -32,6 +32,62 @@ struct wlr_xdg_client_v6 {
 	struct wl_event_source *ping_timer;
 };
 
+enum wlr_positioner_v6_anchor {
+	/**
+	 * the center of the anchor rectangle
+	 */
+	WLR_POSITIONER_V6_ANCHOR_NONE = 0,
+	/**
+	 * the top edge of the anchor rectangle
+	 */
+	WLR_POSITIONER_V6_ANCHOR_TOP = 1,
+	/**
+	 * the bottom edge of the anchor rectangle
+	 */
+	WLR_POSITIONER_V6_ANCHOR_BOTTOM = 2,
+	/**
+	 * the left edge of the anchor rectangle
+	 */
+	WLR_POSITIONER_V6_ANCHOR_LEFT = 4,
+	/**
+	 * the right edge of the anchor rectangle
+	 */
+	WLR_POSITIONER_V6_ANCHOR_RIGHT = 8,
+};
+
+enum wlr_positioner_v6_gravity {
+	/**
+	 * center over the anchor edge
+	 */
+	WLR_POSITIONER_V6_GRAVITY_NONE = 0,
+	/**
+	 * position above the anchor edge
+	 */
+	WLR_POSITIONER_V6_GRAVITY_TOP = 1,
+	/**
+	 * position below the anchor edge
+	 */
+	WLR_POSITIONER_V6_GRAVITY_BOTTOM = 2,
+	/**
+	 * position to the left of the anchor edge
+	 */
+	WLR_POSITIONER_V6_GRAVITY_LEFT = 4,
+	/**
+	 * position to the right of the anchor edge
+	 */
+	WLR_POSITIONER_V6_GRAVITY_RIGHT = 8,
+};
+
+enum wlr_positioner_v6_constraint_adjustment {
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_NONE = 0,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_X = 1,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_Y = 2,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_X = 4,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_Y = 8,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_X = 16,
+	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_Y = 32,
+};
+
 struct wlr_xdg_popup_v6 {
 	struct wlr_xdg_surface_v6 *base;
 	struct wl_list link;
@@ -41,6 +97,10 @@ struct wlr_xdg_popup_v6 {
 	struct wlr_xdg_surface_v6 *parent;
 	struct wlr_seat *seat;
 	struct wlr_box geometry;
+
+	enum wlr_positioner_v6_anchor anchor;
+	enum wlr_positioner_v6_gravity gravity;
+	enum wlr_positioner_v6_constraint_adjustment constraint_adjustment;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab_v6::popups
 };

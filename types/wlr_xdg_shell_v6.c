@@ -537,6 +537,12 @@ static void xdg_surface_get_popup(struct wl_client *client,
 	surface->popup_state->parent = parent;
 	surface->popup_state->geometry =
 		xdg_positioner_get_geometry(positioner, surface, parent);
+
+	// positioner properties
+	surface->popup_state->anchor = (uint32_t)positioner->anchor;
+	surface->popup_state->gravity = (uint32_t)positioner->gravity;
+	surface->popup_state->constraint_adjustment = (uint32_t)positioner->constraint_adjustment;
+
 	wl_list_insert(&parent->popups, &surface->popup_state->link);
 
 	wl_resource_set_implementation(surface->popup_state->resource,
