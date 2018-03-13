@@ -13,8 +13,8 @@
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-protocol.h"
 
-static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel";
-static const char *wlr_desktop_xdg_popup_role = "xdg_popup";
+static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel_v6";
+static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
 struct wlr_xdg_positioner_v6 {
 	struct wl_resource *resource;
