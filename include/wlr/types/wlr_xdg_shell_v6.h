@@ -63,9 +63,10 @@ enum wlr_xdg_surface_v6_role {
 
 struct wlr_xdg_toplevel_v6_state {
 	bool maximized;
-	bool fullscreen;
 	bool resizing;
 	bool activated;
+	bool fullscreen;
+	struct wlr_output *fullscreen_output;
 
 	uint32_t width;
 	uint32_t height;
@@ -200,7 +201,7 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
  * fullscreen. Returns the associated configure serial.
  */
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
-		bool fullscreen);
+		bool fullscreen, struct wlr_output *output);
 
 /**
  * Request that this toplevel surface consider itself to be resizing or not

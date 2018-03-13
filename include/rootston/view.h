@@ -138,7 +138,7 @@ struct roots_view {
 	void (*move_resize)(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height);
 	void (*maximize)(struct roots_view *view, bool maximized);
-	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
+	void (*set_fullscreen)(struct roots_view *view, bool fullscreen, struct wlr_output* output);
 	void (*close)(struct roots_view *view);
 };
 

@@ -730,6 +730,7 @@ static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 	}
 
 	surface->toplevel_state->next.fullscreen = true;
+	surface->toplevel_state->next.fullscreen_output = output;
 
 	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
 		.surface = surface,
@@ -737,7 +738,11 @@ static void xdg_toplevel_protocol_set_fullscreen(struct wl_client *client,
 		.output = output,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	if (surface->toplevel_state->added) {
+		wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	} else {
+		wlr_xdg_toplevel_v6_set_fullscreen(surface, true, output);
+	}
 }
 
 static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
@@ -746,6 +751,7 @@ static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		xdg_surface_from_xdg_toplevel_resource(resource);
 
 	surface->toplevel_state->next.fullscreen = false;
+	surface->toplevel_state->next.fullscreen_output = NULL;
 
 	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
 		.surface = surface,
@@ -753,7 +759,11 @@ static void xdg_toplevel_protocol_unset_fullscreen(struct wl_client *client,
 		.output = NULL,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	if (surface->toplevel_state->added) {
+		wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	} else {
+		wlr_xdg_toplevel_v6_set_fullscreen(surface, false, NULL);
+	}
 }
 
 static void xdg_toplevel_protocol_set_minimized(struct wl_client *client,
@@ -1430,9 +1440,10 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
-		bool fullscreen) {
+		bool fullscreen, struct wlr_output *output) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel_state->pending.fullscreen = fullscreen;
+	surface->toplevel_state->pending.fullscreen_output = output;
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
