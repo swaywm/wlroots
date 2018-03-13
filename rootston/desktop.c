@@ -417,11 +417,11 @@ void view_destroy(struct roots_view *view) {
 		return;
 	}
 
+	wl_signal_emit(&view->events.destroy, view);
+
 	if (view->wlr_surface != NULL) {
 		view_unmap(view);
 	}
-
-	wl_signal_emit(&view->events.destroy, view);
 
 	if (view->destroy) {
 		view->destroy(view);
