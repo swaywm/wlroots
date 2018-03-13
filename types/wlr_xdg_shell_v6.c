@@ -166,20 +166,20 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	wlr_signal_emit_safe(&surface->events.unmap, surface);
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wl_resource_set_user_data(surface->toplevel_state->resource, NULL);
-		free(surface->toplevel_state);
-		surface->toplevel_state = NULL;
+		wl_resource_set_user_data(surface->toplevel->resource, NULL);
+		free(surface->toplevel);
+		surface->toplevel = NULL;
 	}
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
-		wl_resource_set_user_data(surface->popup_state->resource, NULL);
+		wl_resource_set_user_data(surface->popup->resource, NULL);
 
-		if (surface->popup_state->seat) {
+		if (surface->popup->seat) {
 			struct wlr_xdg_popup_grab_v6 *grab =
 				xdg_shell_popup_grab_from_seat(surface->client->shell,
-					surface->popup_state->seat);
+					surface->popup->seat);
 
-			wl_list_remove(&surface->popup_state->grab_link);
+			wl_list_remove(&surface->popup->grab_link);
 
 			if (wl_list_empty(&grab->popups)) {
 				if (grab->seat->pointer_state.grab == &grab->pointer_grab) {
@@ -191,9 +191,9 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 			}
 		}
 
-		wl_list_remove(&surface->popup_state->link);
-		free(surface->popup_state);
-		surface->popup_state = NULL;
+		wl_list_remove(&surface->popup->link);
+		free(surface->popup);
+		surface->popup = NULL;
 	}
 
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
@@ -452,8 +452,8 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 
-	if (surface->popup_state->committed) {
-		wl_resource_post_error(surface->popup_state->resource,
+	if (surface->popup->committed) {
+		wl_resource_post_error(surface->popup->resource,
 			ZXDG_POPUP_V6_ERROR_INVALID_GRAB,
 			"xdg_popup is already mapped");
 		return;
@@ -465,10 +465,10 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 
 	struct wlr_xdg_surface_v6 *topmost = xdg_popup_grab_get_topmost(popup_grab);
 	bool parent_is_toplevel =
-		surface->popup_state->parent->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
+		surface->popup->parent->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
 
 	if ((topmost == NULL && !parent_is_toplevel) ||
-			(topmost != NULL && topmost != surface->popup_state->parent)) {
+			(topmost != NULL && topmost != surface->popup->parent)) {
 		wl_resource_post_error(surface->client->resource,
 			ZXDG_SHELL_V6_ERROR_NOT_THE_TOPMOST_POPUP,
 			"xdg_popup was not created on the topmost popup");
@@ -476,9 +476,9 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 	}
 
 	popup_grab->client = surface->client->client;
-	surface->popup_state->seat = seat_client->seat;
+	surface->popup->seat = seat_client->seat;
 
-	wl_list_insert(&popup_grab->popups, &surface->popup_state->grab_link);
+	wl_list_insert(&popup_grab->popups, &surface->popup->grab_link);
 
 	wlr_seat_pointer_start_grab(seat_client->seat,
 		&popup_grab->pointer_grab);
@@ -492,7 +492,7 @@ static void xdg_popup_handle_destroy(struct wl_client *client,
 		xdg_surface_from_xdg_popup_resource(resource);
 	struct wlr_xdg_popup_grab_v6 *grab =
 		xdg_shell_popup_grab_from_seat(surface->client->shell,
-			surface->popup_state->seat);
+			surface->popup->seat);
 	struct wlr_xdg_surface_v6 *topmost =
 		xdg_popup_grab_get_topmost(grab);
 
@@ -552,33 +552,33 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 		return;
 	}
 
-	surface->popup_state = calloc(1, sizeof(struct wlr_xdg_popup_v6));
-	if (!surface->popup_state) {
+	surface->popup = calloc(1, sizeof(struct wlr_xdg_popup_v6));
+	if (!surface->popup) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
-	surface->popup_state->resource =
+	surface->popup->resource =
 		wl_resource_create(client, &zxdg_popup_v6_interface,
 			wl_resource_get_version(resource), id);
-	if (surface->popup_state->resource == NULL) {
-		free(surface->popup_state);
+	if (surface->popup->resource == NULL) {
+		free(surface->popup);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_POPUP;
-	surface->popup_state->base = surface;
-	surface->popup_state->parent = parent;
-	surface->popup_state->geometry =
+	surface->popup->base = surface;
+	surface->popup->parent = parent;
+	surface->popup->geometry =
 		xdg_positioner_get_geometry(positioner, surface, parent);
-	wl_list_insert(&parent->popups, &surface->popup_state->link);
+	wl_list_insert(&parent->popups, &surface->popup->link);
 
-	wl_resource_set_implementation(surface->popup_state->resource,
+	wl_resource_set_implementation(surface->popup->resource,
 		&zxdg_popup_v6_implementation, surface,
 		xdg_popup_resource_destroy);
 
-	wlr_signal_emit_safe(&parent->events.new_popup, surface->popup_state);
+	wlr_signal_emit_safe(&parent->events.new_popup, surface->popup);
 }
 
 
@@ -601,7 +601,7 @@ static void xdg_toplevel_handle_set_parent(struct wl_client *client,
 		parent = xdg_surface_from_xdg_toplevel_resource(parent_resource);
 	}
 
-	surface->toplevel_state->parent = parent;
+	surface->toplevel->parent = parent;
 }
 
 static void xdg_toplevel_handle_set_title(struct wl_client *client,
@@ -641,7 +641,7 @@ static void xdg_toplevel_handle_show_window_menu(struct wl_client *client,
 		wlr_seat_client_from_resource(seat_resource);
 
 	if (!surface->configured) {
-		wl_resource_post_error(surface->toplevel_state->resource,
+		wl_resource_post_error(surface->toplevel->resource,
 			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
 			"surface has not been configured yet");
 		return;
@@ -672,7 +672,7 @@ static void xdg_toplevel_handle_move(struct wl_client *client,
 		wlr_seat_client_from_resource(seat_resource);
 
 	if (!surface->configured) {
-		wl_resource_post_error(surface->toplevel_state->resource,
+		wl_resource_post_error(surface->toplevel->resource,
 			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
 			"surface has not been configured yet");
 		return;
@@ -701,7 +701,7 @@ static void xdg_toplevel_handle_resize(struct wl_client *client,
 		wlr_seat_client_from_resource(seat_resource);
 
 	if (!surface->configured) {
-		wl_resource_post_error(surface->toplevel_state->resource,
+		wl_resource_post_error(surface->toplevel->resource,
 			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
 			"surface has not been configured yet");
 		return;
@@ -726,23 +726,23 @@ static void xdg_toplevel_handle_set_max_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
-	surface->toplevel_state->next.max_width = width;
-	surface->toplevel_state->next.max_height = height;
+	surface->toplevel->next.max_width = width;
+	surface->toplevel->next.max_height = height;
 }
 
 static void xdg_toplevel_handle_set_min_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
-	surface->toplevel_state->next.min_width = width;
-	surface->toplevel_state->next.min_height = height;
+	surface->toplevel->next.min_width = width;
+	surface->toplevel->next.min_height = height;
 }
 
 static void xdg_toplevel_handle_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
-	surface->toplevel_state->next.maximized = true;
+	surface->toplevel->next.maximized = true;
 	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
 }
 
@@ -750,7 +750,7 @@ static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
-	surface->toplevel_state->next.maximized = false;
+	surface->toplevel->next.maximized = false;
 	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
 }
 
@@ -764,7 +764,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 		output = wlr_output_from_resource(output_resource);
 	}
 
-	surface->toplevel_state->next.fullscreen = true;
+	surface->toplevel->next.fullscreen = true;
 
 	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
 		.surface = surface,
@@ -780,7 +780,7 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 
-	surface->toplevel_state->next.fullscreen = false;
+	surface->toplevel->next.fullscreen = false;
 
 	struct wlr_xdg_toplevel_v6_set_fullscreen_event event = {
 		.surface = surface,
@@ -840,24 +840,24 @@ static void xdg_surface_handle_get_toplevel(struct wl_client *client,
 		return;
 	}
 
-	surface->toplevel_state = calloc(1, sizeof(struct wlr_xdg_toplevel_v6));
-	if (surface->toplevel_state == NULL) {
+	surface->toplevel = calloc(1, sizeof(struct wlr_xdg_toplevel_v6));
+	if (surface->toplevel == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
-	surface->toplevel_state->base = surface;
+	surface->toplevel->base = surface;
 
 	struct wl_resource *toplevel_resource = wl_resource_create(client,
 		&zxdg_toplevel_v6_interface, wl_resource_get_version(resource), id);
 	if (toplevel_resource == NULL) {
-		free(surface->toplevel_state);
+		free(surface->toplevel);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
 
-	surface->toplevel_state->resource = toplevel_resource;
+	surface->toplevel->resource = toplevel_resource;
 
 	wl_resource_set_implementation(toplevel_resource,
 		&zxdg_toplevel_v6_implementation, surface,
@@ -870,13 +870,13 @@ static void wlr_xdg_toplevel_v6_ack_configure(
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	assert(configure->toplevel_state != NULL);
 
-	surface->toplevel_state->current.maximized =
+	surface->toplevel->current.maximized =
 		configure->toplevel_state->maximized;
-	surface->toplevel_state->current.fullscreen =
+	surface->toplevel->current.fullscreen =
 		configure->toplevel_state->fullscreen;
-	surface->toplevel_state->current.resizing =
+	surface->toplevel->current.resizing =
 		configure->toplevel_state->resizing;
-	surface->toplevel_state->current.activated =
+	surface->toplevel->current.activated =
 		configure->toplevel_state->activated;
 
 	free(configure->toplevel_state);
@@ -1034,10 +1034,10 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		wlr_log(L_ERROR, "Allocation failed");
 		return;
 	}
-	*configure->toplevel_state = surface->toplevel_state->pending;
+	*configure->toplevel_state = surface->toplevel->pending;
 
 	wl_array_init(&states);
-	if (surface->toplevel_state->pending.maximized) {
+	if (surface->toplevel->pending.maximized) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
@@ -1045,7 +1045,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED;
 	}
-	if (surface->toplevel_state->pending.fullscreen) {
+	if (surface->toplevel->pending.fullscreen) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
@@ -1053,7 +1053,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN;
 	}
-	if (surface->toplevel_state->pending.resizing) {
+	if (surface->toplevel->pending.resizing) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
@@ -1061,7 +1061,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_RESIZING;
 	}
-	if (surface->toplevel_state->pending.activated) {
+	if (surface->toplevel->pending.activated) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
@@ -1070,15 +1070,15 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
 	}
 
-	uint32_t width = surface->toplevel_state->pending.width;
-	uint32_t height = surface->toplevel_state->pending.height;
+	uint32_t width = surface->toplevel->pending.width;
+	uint32_t height = surface->toplevel->pending.height;
 
 	if (width == 0 || height == 0) {
 		width = surface->geometry->width;
 		height = surface->geometry->height;
 	}
 
-	zxdg_toplevel_v6_send_configure(surface->toplevel_state->resource, width,
+	zxdg_toplevel_v6_send_configure(surface->toplevel->resource, width,
 		height, &states);
 
 	wl_array_release(&states);
@@ -1086,7 +1086,7 @@ static void wlr_xdg_toplevel_v6_send_configure(
 
 error_out:
 	wl_array_release(&states);
-	wl_resource_post_no_memory(surface->toplevel_state->resource);
+	wl_resource_post_no_memory(surface->toplevel->resource);
 }
 
 static void wlr_xdg_surface_send_configure(void *user_data) {
@@ -1112,11 +1112,11 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 		wlr_xdg_toplevel_v6_send_configure(surface, configure);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
-		zxdg_popup_v6_send_configure(surface->popup_state->resource,
-			surface->popup_state->geometry.x,
-			surface->popup_state->geometry.y,
-			surface->popup_state->geometry.width,
-			surface->popup_state->geometry.height);
+		zxdg_popup_v6_send_configure(surface->popup->resource,
+			surface->popup->geometry.x,
+			surface->popup->geometry.y,
+			surface->popup->geometry.width,
+			surface->popup->geometry.height);
 		break;
 	}
 
@@ -1135,7 +1135,7 @@ static uint32_t wlr_xdg_surface_v6_schedule_configure(
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		pending_same =
-			wlr_xdg_surface_v6_toplevel_state_compare(surface->toplevel_state);
+			wlr_xdg_surface_v6_toplevel_state_compare(surface->toplevel);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
 		break;
@@ -1175,32 +1175,32 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
-	if (!surface->toplevel_state->added) {
+	if (!surface->toplevel->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
 		wlr_xdg_surface_v6_schedule_configure(surface);
-		surface->toplevel_state->added = true;
+		surface->toplevel->added = true;
 		return;
 	}
 
 	// update state that doesn't need compositor approval
-	surface->toplevel_state->current.max_width =
-		surface->toplevel_state->next.max_width;
-	surface->toplevel_state->current.min_width =
-		surface->toplevel_state->next.min_width;
-	surface->toplevel_state->current.max_height =
-		surface->toplevel_state->next.max_height;
-	surface->toplevel_state->current.min_height =
-		surface->toplevel_state->next.min_height;
+	surface->toplevel->current.max_width =
+		surface->toplevel->next.max_width;
+	surface->toplevel->current.min_width =
+		surface->toplevel->next.min_width;
+	surface->toplevel->current.max_height =
+		surface->toplevel->next.max_height;
+	surface->toplevel->current.min_height =
+		surface->toplevel->next.min_height;
 }
 
 static void wlr_xdg_surface_v6_popup_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
 
-	if (!surface->popup_state->committed) {
+	if (!surface->popup->committed) {
 		wlr_xdg_surface_v6_schedule_configure(surface);
-		surface->popup_state->committed = true;
+		surface->popup->committed = true;
 	}
 }
 
@@ -1498,8 +1498,8 @@ void wlr_xdg_surface_v6_ping(struct wlr_xdg_surface_v6 *surface) {
 uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 		uint32_t width, uint32_t height) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.width = width;
-	surface->toplevel_state->pending.height = height;
+	surface->toplevel->pending.width = width;
+	surface->toplevel->pending.height = height;
 	wlr_log(L_DEBUG, "wlr_xdg_toplevel_v6_set_size %d", width);
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
@@ -1508,7 +1508,7 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 		bool activated) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.activated = activated;
+	surface->toplevel->pending.activated = activated;
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
@@ -1516,7 +1516,7 @@ uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 		bool maximized) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.maximized = maximized;
+	surface->toplevel->pending.maximized = maximized;
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
@@ -1524,7 +1524,7 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 		bool fullscreen) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.fullscreen = fullscreen;
+	surface->toplevel->pending.fullscreen = fullscreen;
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
@@ -1532,23 +1532,23 @@ uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	surface->toplevel_state->pending.resizing = resizing;
+	surface->toplevel->pending.resizing = resizing;
 
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
 void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	zxdg_toplevel_v6_send_close(surface->toplevel_state->resource);
+	zxdg_toplevel_v6_send_close(surface->toplevel->resource);
 }
 
 void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 		double *popup_sx, double *popup_sy) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
-	struct wlr_xdg_surface_v6 *parent = surface->popup_state->parent;
-	*popup_sx = parent->geometry->x + surface->popup_state->geometry.x -
+	struct wlr_xdg_surface_v6 *parent = surface->popup->parent;
+	*popup_sx = parent->geometry->x + surface->popup->geometry.x -
 		surface->geometry->x;
-	*popup_sy = parent->geometry->y + surface->popup_state->geometry.y -
+	*popup_sy = parent->geometry->y + surface->popup->geometry.y -
 		surface->geometry->y;
 }
 

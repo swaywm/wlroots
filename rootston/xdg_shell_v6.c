@@ -85,7 +85,7 @@ static void apply_size_constraints(struct wlr_xdg_surface_v6 *surface,
 	*dest_width = width;
 	*dest_height = height;
 
-	struct wlr_xdg_toplevel_v6_state *state = &surface->toplevel_state->current;
+	struct wlr_xdg_toplevel_v6_state *state = &surface->toplevel->current;
 	if (width < state->min_width) {
 		*dest_width = state->min_width;
 	} else if (state->max_width > 0 &&
@@ -236,7 +236,7 @@ static void handle_request_maximize(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	view_maximize(view, surface->toplevel_state->next.maximized);
+	view_maximize(view, surface->toplevel->next.maximized);
 }
 
 static void handle_request_fullscreen(struct wl_listener *listener,
@@ -386,10 +386,10 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->destroy = destroy;
 	roots_surface->view = view;
 
-	if (surface->toplevel_state->next.maximized) {
+	if (surface->toplevel->next.maximized) {
 		view_maximize(view, true);
 	}
-	if (surface->toplevel_state->next.fullscreen) {
+	if (surface->toplevel->next.fullscreen) {
 		view_set_fullscreen(view, true, NULL);
 	}
 }

@@ -92,10 +92,9 @@ struct wlr_xdg_surface_v6 {
 	struct wl_list link; // wlr_xdg_client_v6::surfaces
 	enum wlr_xdg_surface_v6_role role;
 
-	// TODO: the _state prefix should be dropped
 	union {
-		struct wlr_xdg_toplevel_v6 *toplevel_state;
-		struct wlr_xdg_popup_v6 *popup_state;
+		struct wlr_xdg_toplevel_v6 *toplevel;
+		struct wlr_xdg_popup_v6 *popup;
 	};
 
 	struct wl_list popups; // wlr_xdg_popup_v6::link
