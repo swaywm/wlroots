@@ -506,8 +506,7 @@ static void xdg_popup_handle_destroy(struct wl_client *client,
 	if (topmost != surface) {
 		wl_resource_post_error(surface->client->resource,
 			ZXDG_SHELL_V6_ERROR_NOT_THE_TOPMOST_POPUP,
-			"xdg_popup was destroyed while it was not the topmost "
-			"popup");
+			"xdg_popup was destroyed while it was not the topmost popup");
 		return;
 	}
 
@@ -805,8 +804,8 @@ static void xdg_toplevel_handle_set_minimized(struct wl_client *client,
 	wlr_signal_emit_safe(&surface->events.request_minimize, surface);
 }
 
-static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
-{
+static const struct zxdg_toplevel_v6_interface
+		zxdg_toplevel_v6_implementation = {
 	.destroy = resource_handle_destroy,
 	.set_parent = xdg_toplevel_handle_set_parent,
 	.set_title = xdg_toplevel_handle_set_title,
@@ -820,7 +819,7 @@ static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation =
 	.unset_maximized = xdg_toplevel_handle_unset_maximized,
 	.set_fullscreen = xdg_toplevel_handle_set_fullscreen,
 	.unset_fullscreen = xdg_toplevel_handle_unset_fullscreen,
-	.set_minimized = xdg_toplevel_handle_set_minimized
+	.set_minimized = xdg_toplevel_handle_set_minimized,
 };
 
 static void xdg_surface_resource_destroy(struct wl_resource *resource) {
@@ -902,11 +901,8 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	struct wlr_xdg_surface_v6_configure *configure, *tmp;
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		if (configure->serial < serial) {
-			wl_list_remove(&configure->link);
 			xdg_surface_configure_destroy(configure);
 		} else if (configure->serial == serial) {
-			wl_list_remove(&configure->link);
-			wl_list_init(&configure->link);
 			found = true;
 			break;
 		} else {
