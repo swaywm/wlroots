@@ -25,21 +25,15 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
  */
 struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
 /**
- * Renders the requested texture using the provided matrix. A typical texture
- * rendering goes like so:
- *
- * 	struct wlr_renderer *renderer;
- * 	struct wlr_texture *texture;
- * 	float projection[9];
- * 	float matrix[9];
- * 	wlr_texture_get_matrix(texture, matrix, projection, 123, 321);
- * 	wlr_render_texture_with_matrix(renderer, texture, matrix, 0.5f);
- *
- * This will render the texture at <123, 321> with an alpha channel of 0.5.
+ * Renders the requested texture.
+ */
+bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+	const float projection[static 9], int x, int y, float alpha);
+/**
+ * Renders the requested texture using the provided matrix.
  */
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 	struct wlr_texture *texture, const float matrix[static 9], float alpha);
-
 /**
  * Renders a solid quad in the specified color.
  */
@@ -95,22 +89,22 @@ struct wlr_texture {
  * returns.
  */
 bool wlr_texture_upload_pixels(struct wlr_texture *tex,
-		enum wl_shm_format format, int stride, int width, int height,
-		const unsigned char *pixels);
+	enum wl_shm_format format, int stride, int width, int height,
+	const unsigned char *pixels);
 /**
  * Copies pixels to this texture. The buffer is not accessed after this function
  * returns. Under some circumstances, this function may re-upload the entire
  * buffer - therefore, the entire buffer must be valid.
  */
 bool wlr_texture_update_pixels(struct wlr_texture *surf,
-		enum wl_shm_format format, int stride, int x, int y,
-		int width, int height, const unsigned char *pixels);
+	enum wl_shm_format format, int stride, int x, int y,
+	int width, int height, const unsigned char *pixels);
 /**
  * Copies pixels from a wl_shm_buffer into this texture. The buffer is not
  * accessed after this function returns.
  */
 bool wlr_texture_upload_shm(struct wlr_texture *tex, uint32_t format,
-		struct wl_shm_buffer *shm);
+	struct wl_shm_buffer *shm);
 
 /**
  * Attaches the contents from the given wl_drm wl_buffer resource onto the
@@ -132,18 +126,7 @@ bool wlr_texture_upload_dmabuf(struct wlr_texture *tex,
  * must be valid.
  */
 bool wlr_texture_update_shm(struct wlr_texture *surf, uint32_t format,
-		int x, int y, int width, int height, struct wl_shm_buffer *shm);
-/**
- * Prepares a matrix with the appropriate scale for the given texture and
- * multiplies it with the projection, producing a matrix that the shader can
- * muptlipy vertex coordinates with to get final screen coordinates.
- *
- * The projection matrix is assumed to be an orthographic projection of [0,
- * width) and [0, height], and the x and y coordinates provided are used as
- * such.
- */
-void wlr_texture_get_matrix(struct wlr_texture *texture, float mat[static 9],
-		const float projection[static 9], int x, int y);
+	int x, int y, int width, int height, struct wl_shm_buffer *shm);
 /**
  * Destroys this wlr_texture.
  */

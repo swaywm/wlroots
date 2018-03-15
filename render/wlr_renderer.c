@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
+#include <wlr/types/wlr_matrix.h>
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		struct wlr_renderer_impl *impl) {
@@ -33,6 +34,17 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 
 struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
 	return r->impl->texture_create(r);
+}
+
+bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+		const float projection[static 9], int x, int y, float alpha) {
+	float mat[9];
+	wlr_matrix_identity(mat);
+	wlr_matrix_translate(mat, x, y);
+	wlr_matrix_scale(mat, texture->width, texture->height);
+	wlr_matrix_multiply(mat, projection, mat);
+
+	return wlr_render_texture_with_matrix(r, texture, mat, alpha);
 }
 
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,

@@ -62,8 +62,6 @@ struct wlr_texture_impl {
 		uint32_t width, uint32_t height);
 	bool (*upload_dmabuf)(struct wlr_texture *texture,
 		struct wl_resource *dmabuf_resource);
-	void (*get_matrix)(struct wlr_texture *state, float mat[static 9],
-		const float projection[static 9], int x, int y);
 	void (*get_buffer_size)(struct wlr_texture *texture,
 		struct wl_resource *resource, int *width, int *height);
 	void (*bind)(struct wlr_texture *texture);

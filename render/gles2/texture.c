@@ -227,7 +227,6 @@ static bool gles2_texture_upload_eglimage(struct wlr_texture *wlr_tex,
 	return true;
 }
 
-
 static bool gles2_texture_upload_dmabuf(struct wlr_texture *_tex,
 		struct wl_resource *dmabuf_resource) {
 	struct wlr_gles2_texture *tex = (struct wlr_gles2_texture *)_tex;
@@ -263,17 +262,6 @@ static bool gles2_texture_upload_dmabuf(struct wlr_texture *_tex,
 	return true;
 }
 
-static void gles2_texture_get_matrix(struct wlr_texture *_texture,
-		float mat[static 9], const float projection[static 9], int x, int y) {
-	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
-	wlr_matrix_identity(mat);
-	wlr_matrix_translate(mat, x, y);
-	wlr_matrix_scale(mat, texture->wlr_texture.width,
-		texture->wlr_texture.height);
-	wlr_matrix_multiply(mat, projection, mat);
-}
-
-
 static bool gles2_texture_get_dmabuf_size(struct wlr_texture *texture, struct
 		wl_resource *resource, int *width, int *height) {
 	if (!wlr_dmabuf_resource_is_buffer(resource)) {
@@ -286,7 +274,6 @@ static bool gles2_texture_get_dmabuf_size(struct wlr_texture *texture, struct
 	*height = dmabuf->attributes.height;
 	return true;
 }
-
 
 static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 		wl_resource *resource, int *width, int *height) {
@@ -344,7 +331,6 @@ static struct wlr_texture_impl wlr_texture_impl = {
 	.upload_drm = gles2_texture_upload_drm,
 	.upload_dmabuf = gles2_texture_upload_dmabuf,
 	.upload_eglimage = gles2_texture_upload_eglimage,
-	.get_matrix = gles2_texture_get_matrix,
 	.get_buffer_size = gles2_texture_get_buffer_size,
 	.bind = gles2_texture_bind,
 	.destroy = gles2_texture_destroy,
