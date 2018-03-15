@@ -111,7 +111,7 @@ static void handle_output_frame(struct output_state *output,
 		.width = 128, .height = 128,
 	};
 	if (wlr_output_layout_intersects(sample->layout, output->output, &box)) {
-		float matrix[16];
+		float matrix[9];
 
 		// transform global coordinates to local coordinates
 		double local_x = sample->x_offs;
@@ -121,8 +121,8 @@ static void handle_output_frame(struct output_state *output,
 
 		wlr_texture_get_matrix(sample->cat_texture, matrix,
 			wlr_output->transform_matrix, local_x, local_y);
-		wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, matrix, 1.0f);
+		wlr_render_texture_with_matrix(sample->renderer, sample->cat_texture,
+			matrix, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

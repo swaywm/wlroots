@@ -70,8 +70,8 @@ struct wlr_surface {
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
-	float buffer_to_surface_matrix[16];
-	float surface_to_buffer_matrix[16];
+	float buffer_to_surface_matrix[9];
+	float surface_to_buffer_matrix[9];
 
 	struct {
 		struct wl_signal commit;
@@ -109,9 +109,9 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
  * from 0 to 1 in both dimensions.
  */
 void wlr_surface_get_matrix(struct wlr_surface *surface,
-		float mat[static 16],
-		const float projection[static 16],
-		const float transform[static 16]);
+		float mat[static 9],
+		const float projection[static 9],
+		const float transform[static 9]);
 
 
 /**

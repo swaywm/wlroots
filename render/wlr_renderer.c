@@ -35,19 +35,19 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
 	return r->impl->texture_create(r);
 }
 
-bool wlr_render_with_matrix(struct wlr_renderer *r,
-		struct wlr_texture *texture, const float matrix[static 16],
+bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
+		struct wlr_texture *texture, const float matrix[static 9],
 		float alpha) {
-	return r->impl->render_with_matrix(r, texture, matrix, alpha);
+	return r->impl->render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
 void wlr_render_colored_quad(struct wlr_renderer *r,
-		const float color[static 4], const float matrix[static 16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	r->impl->render_quad(r, color, matrix);
 }
 
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
-		const float color[static 4], const float matrix[static 16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	r->impl->render_ellipse(r, color, matrix);
 }
 

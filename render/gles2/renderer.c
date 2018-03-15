@@ -85,11 +85,13 @@ static void init_default_shaders() {
 	if (!compile_program(quad_vertex_src, quad_fragment_src, &shaders.quad)) {
 		goto error;
 	}
-	if (!compile_program(quad_vertex_src, ellipse_fragment_src, &shaders.ellipse)) {
+	if (!compile_program(quad_vertex_src, ellipse_fragment_src,
+			&shaders.ellipse)) {
 		goto error;
 	}
 	if (glEGLImageTargetTexture2DOES) {
-		if (!compile_program(quad_vertex_src, fragment_src_external, &shaders.external)) {
+		if (!compile_program(quad_vertex_src, fragment_src_external,
+				&shaders.external)) {
 			goto error;
 		}
 	}
@@ -170,16 +172,16 @@ static void draw_quad() {
 	GL_CALL(glDisableVertexAttribArray(1));
 }
 
-static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *texture, const float matrix[static 16],
-		float alpha) {
+static bool wlr_gles2_render_texture_with_matrix(
+		struct wlr_renderer *wlr_renderer, struct wlr_texture *texture,
+		const float matrix[static 9], float alpha) {
 	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
 	}
 
 	wlr_texture_bind(texture);
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, matrix));
+	GL_CALL(glUniformMatrix3fv(0, 1, GL_FALSE, matrix));
 	GL_CALL(glUniform1f(2, alpha));
 	draw_quad();
 	return true;
@@ -187,17 +189,17 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
 
 
 static void wlr_gles2_render_quad(struct wlr_renderer *wlr_renderer,
-		const float color[static 4], const float matrix[static 16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	GL_CALL(glUseProgram(shaders.quad));
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, matrix));
+	GL_CALL(glUniformMatrix3fv(0, 1, GL_FALSE, matrix));
 	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
 	draw_quad();
 }
 
 static void wlr_gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
-		const float color[static 4], const float matrix[static 16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	GL_CALL(glUseProgram(shaders.ellipse));
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, matrix));
+	GL_CALL(glUniformMatrix3fv(0, 1, GL_TRUE, matrix));
 	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
 	draw_quad();
 }
@@ -258,7 +260,7 @@ static struct wlr_renderer_impl wlr_renderer_impl = {
 	.clear = wlr_gles2_clear,
 	.scissor = wlr_gles2_scissor,
 	.texture_create = wlr_gles2_texture_create,
-	.render_with_matrix = wlr_gles2_render_texture,
+	.render_texture_with_matrix = wlr_gles2_render_texture_with_matrix,
 	.render_quad = wlr_gles2_render_quad,
 	.render_ellipse = wlr_gles2_render_ellipse,
 	.formats = wlr_gles2_formats,

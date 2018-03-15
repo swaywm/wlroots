@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <gbm.h>
@@ -226,20 +227,21 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	wlr_drm_surface_make_current(dest, NULL);
 
 	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
+	assert(tex);
 
-	static const float matrix[16] = {
+	static const float color[] = {0.0, 0.0, 0.0, 1.0};
+
+	static const float mat[9] = {
 		[0] = 2.0f,
-		[3] = -1.0f,
-		[5] = 2.0f,
-		[7] = -1.0f,
-		[10] = 1.0f,
-		[15] = 1.0f,
+		[2] = -1.0f,
+		[4] = 2.0f,
+		[5] = -1.0f,
+		[8] = 1.0f,
 	};
 
 	glViewport(0, 0, dest->width, dest->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, matrix, 1.0f);
+	wlr_renderer_clear(dest->renderer->wlr_rend, color);
+	wlr_render_texture_with_matrix(dest->renderer->wlr_rend, tex, mat, 1.0f);
 
 	return wlr_drm_surface_swap_buffers(dest, NULL);
 }

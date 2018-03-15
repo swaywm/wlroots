@@ -49,7 +49,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16];
+	float matrix[9];
 	float distance = 0.8f * (1 - sample->distance);
 	float tool_color[4] = { distance, distance, distance, 1 };
 	for (size_t i = 0; sample->button && i < 4; ++i) {

@@ -647,9 +647,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		glClearColor(0.0, 0.0, 0.0, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		float matrix[16];
+		float matrix[9];
 		wlr_texture_get_matrix(plane->wlr_tex, matrix, plane->matrix, 0, 0);
-		wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
+		wlr_render_texture_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
 			matrix, 1.0f);
 
 		glFinish();

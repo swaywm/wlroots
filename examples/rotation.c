@@ -46,12 +46,12 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16];
+	float matrix[9];
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
 			wlr_texture_get_matrix(sample->cat_texture, matrix,
 				wlr_output->transform_matrix, x, y);
-			wlr_render_with_matrix(sample->renderer,
+			wlr_render_texture_with_matrix(sample->renderer,
 				sample->cat_texture, matrix, 1.0f);
 		}
 	}

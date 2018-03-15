@@ -227,16 +227,13 @@ static bool gles2_texture_upload_eglimage(struct wlr_texture *wlr_tex,
 }
 
 static void gles2_texture_get_matrix(struct wlr_texture *_texture,
-		float mat[static 16], const float projection[static 16], int x, int y) {
+		float mat[static 9], const float projection[static 9], int x, int y) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
-	float world[16];
 	wlr_matrix_identity(mat);
-	wlr_matrix_translate(world, x, y, 0);
-	wlr_matrix_mul(mat, mat, world);
-	wlr_matrix_scale(world,
-			texture->wlr_texture.width, texture->wlr_texture.height, 1);
-	wlr_matrix_mul(mat, mat, world);
-	wlr_matrix_mul(mat, projection, mat);
+	wlr_matrix_translate(mat, x, y);
+	wlr_matrix_scale(mat, texture->wlr_texture.width,
+		texture->wlr_texture.height);
+	wlr_matrix_multiply(mat, projection, mat);
 }
 
 static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct

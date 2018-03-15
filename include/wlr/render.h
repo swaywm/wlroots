@@ -30,26 +30,26 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
  *
  * 	struct wlr_renderer *renderer;
  * 	struct wlr_texture *texture;
- * 	float projection[16];
- * 	float matrix[16];
- * 	wlr_texture_get_matrix(texture, &matrix, &projection, 123, 321);
- * 	wlr_render_with_matrix(renderer, texture, &matrix, 0.5f);
+ * 	float projection[9];
+ * 	float matrix[9];
+ * 	wlr_texture_get_matrix(texture, matrix, projection, 123, 321);
+ * 	wlr_render_texture_with_matrix(renderer, texture, matrix, 0.5f);
  *
  * This will render the texture at <123, 321> with an alpha channel of 0.5.
  */
-bool wlr_render_with_matrix(struct wlr_renderer *r,
-	struct wlr_texture *texture, const float matrix[static 16], float alpha);
+bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
+	struct wlr_texture *texture, const float matrix[static 9], float alpha);
 
 /**
  * Renders a solid quad in the specified color.
  */
 void wlr_render_colored_quad(struct wlr_renderer *r,
-	const float color[static 4], const float matrix[static 16]);
+	const float color[static 4], const float matrix[static 9]);
 /**
  * Renders a solid ellipse in the specified color.
  */
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
-	const float color[static 4], const float matrix[static 16]);
+	const float color[static 4], const float matrix[static 9]);
 /**
  * Returns a list of pixel formats supported by this renderer.
  */
@@ -139,8 +139,8 @@ bool wlr_texture_update_shm(struct wlr_texture *surf, uint32_t format,
  * width) and [0, height], and the x and y coordinates provided are used as
  * such.
  */
-void wlr_texture_get_matrix(struct wlr_texture *texture, float mat[static 16],
-		const float projection[static 16], int x, int y);
+void wlr_texture_get_matrix(struct wlr_texture *texture, float mat[static 9],
+		const float projection[static 9], int x, int y);
 /**
  * Destroys this wlr_texture.
  */

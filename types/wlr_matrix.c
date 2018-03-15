@@ -5,143 +5,113 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
-/* Obtains the index for the given row/column */
-static inline int mind(int row, int col) {
-	return (row - 1) * 4 + col - 1;
-}
-
-void wlr_matrix_identity(float mat[static 16]) {
-	static const float identity[16] = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f,
+void wlr_matrix_identity(float mat[static 9]) {
+	static const float identity[9] = {
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	};
 	memcpy(mat, identity, sizeof(identity));
 }
 
-void wlr_matrix_translate(float mat[static 16], float x, float y, float z) {
-	wlr_matrix_identity(mat);
-	mat[mind(1, 4)] = x;
-	mat[mind(2, 4)] = y;
-	mat[mind(3, 4)] = z;
-}
+void wlr_matrix_multiply(float mat[static 9], const float a[static 9],
+		const float b[static 9]) {
+	float product[9];
 
-void wlr_matrix_scale(float mat[static 16], float x, float y, float z) {
-	wlr_matrix_identity(mat);
-	mat[mind(1, 1)] = x;
-	mat[mind(2, 2)] = y;
-	mat[mind(3, 3)] = z;
-}
+	product[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
+	product[1] = a[0]*b[1] + a[1]*b[4] + a[2]*b[7];
+	product[2] = a[0]*b[2] + a[1]*b[5] + a[2]*b[8];
 
-void wlr_matrix_rotate(float mat[static 16], float radians) {
-	wlr_matrix_identity(mat);
-	float _cos = cosf(radians);
-	float _sin = sinf(radians);
-	mat[mind(1, 1)] = _cos;
-	mat[mind(1, 2)] = _sin;
-	mat[mind(2, 1)] = -_sin;
-	mat[mind(2, 2)] = _cos;
-}
+	product[3] = a[3]*b[0] + a[4]*b[3] + a[5]*b[6];
+	product[4] = a[3]*b[1] + a[4]*b[4] + a[5]*b[7];
+	product[5] = a[3]*b[2] + a[4]*b[5] + a[5]*b[8];
 
-void wlr_matrix_mul(float mat[static 16], const float x[static 16],
-		const float y[static 16]) {
-	float product[16] = {
-		x[mind(1, 1)] * y[mind(1, 1)] + x[mind(1, 2)] * y[mind(2, 1)] +
-			x[mind(1, 3)] * y[mind(3, 1)] + x[mind(1, 4)] * y[mind(4, 1)],
-		x[mind(1, 1)] * y[mind(1, 2)] + x[mind(1, 2)] * y[mind(2, 2)] +
-			x[mind(1, 3)] * y[mind(3, 2)] + x[mind(1, 4)] * y[mind(4, 2)],
-		x[mind(1, 1)] * y[mind(1, 3)] + x[mind(1, 2)] * y[mind(2, 3)] +
-			x[mind(1, 3)] * y[mind(3, 3)] + x[mind(1, 4)] * y[mind(4, 3)],
-		x[mind(1, 1)] * y[mind(1, 4)] + x[mind(1, 2)] * y[mind(2, 4)] +
-			x[mind(1, 4)] * y[mind(3, 4)] + x[mind(1, 4)] * y[mind(4, 4)],
+	product[6] = a[6]*b[0] + a[7]*b[3] + a[8]*b[6];
+	product[7] = a[6]*b[1] + a[7]*b[4] + a[8]*b[7];
+	product[8] = a[6]*b[2] + a[7]*b[5] + a[8]*b[8];
 
-		x[mind(2, 1)] * y[mind(1, 1)] + x[mind(2, 2)] * y[mind(2, 1)] +
-			x[mind(2, 3)] * y[mind(3, 1)] + x[mind(2, 4)] * y[mind(4, 1)],
-		x[mind(2, 1)] * y[mind(1, 2)] + x[mind(2, 2)] * y[mind(2, 2)] +
-			x[mind(2, 3)] * y[mind(3, 2)] + x[mind(2, 4)] * y[mind(4, 2)],
-		x[mind(2, 1)] * y[mind(1, 3)] + x[mind(2, 2)] * y[mind(2, 3)] +
-			x[mind(2, 3)] * y[mind(3, 3)] + x[mind(2, 4)] * y[mind(4, 3)],
-		x[mind(2, 1)] * y[mind(1, 4)] + x[mind(2, 2)] * y[mind(2, 4)] +
-			x[mind(2, 4)] * y[mind(3, 4)] + x[mind(2, 4)] * y[mind(4, 4)],
-
-		x[mind(3, 1)] * y[mind(1, 1)] + x[mind(3, 2)] * y[mind(2, 1)] +
-			x[mind(3, 3)] * y[mind(3, 1)] + x[mind(3, 4)] * y[mind(4, 1)],
-		x[mind(3, 1)] * y[mind(1, 2)] + x[mind(3, 2)] * y[mind(2, 2)] +
-			x[mind(3, 3)] * y[mind(3, 2)] + x[mind(3, 4)] * y[mind(4, 2)],
-		x[mind(3, 1)] * y[mind(1, 3)] + x[mind(3, 2)] * y[mind(2, 3)] +
-			x[mind(3, 3)] * y[mind(3, 3)] + x[mind(3, 4)] * y[mind(4, 3)],
-		x[mind(3, 1)] * y[mind(1, 4)] + x[mind(3, 2)] * y[mind(2, 4)] +
-			x[mind(3, 4)] * y[mind(3, 4)] + x[mind(3, 4)] * y[mind(4, 4)],
-
-		x[mind(4, 1)] * y[mind(1, 1)] + x[mind(4, 2)] * y[mind(2, 1)] +
-			x[mind(4, 3)] * y[mind(3, 1)] + x[mind(4, 4)] * y[mind(4, 1)],
-		x[mind(4, 1)] * y[mind(1, 2)] + x[mind(4, 2)] * y[mind(2, 2)] +
-			x[mind(4, 3)] * y[mind(3, 2)] + x[mind(4, 4)] * y[mind(4, 2)],
-		x[mind(4, 1)] * y[mind(1, 3)] + x[mind(4, 2)] * y[mind(2, 3)] +
-			x[mind(4, 3)] * y[mind(3, 3)] + x[mind(4, 4)] * y[mind(4, 3)],
-		x[mind(4, 1)] * y[mind(1, 4)] + x[mind(4, 2)] * y[mind(2, 4)] +
-			x[mind(4, 4)] * y[mind(3, 4)] + x[mind(4, 4)] * y[mind(4, 4)],
-	};
 	memcpy(mat, product, sizeof(product));
 }
 
-static const float transforms[][4] = {
+void wlr_matrix_translate(float mat[static 9], float x, float y) {
+	float translate[9] = {
+		1.0f, 0.0f, x,
+		0.0f, 1.0f, y,
+		0.0f, 0.0f, 1.0f,
+	};
+	wlr_matrix_multiply(mat, mat, translate);
+}
+
+void wlr_matrix_scale(float mat[static 9], float x, float y) {
+	float scale[9] = {
+		x,    0.0f, 0.0f,
+		0.0f, y,    0.0f,
+		0.0f, 0.0f, 1.0f,
+	};
+	wlr_matrix_multiply(mat, mat, scale);
+}
+
+void wlr_matrix_rotate(float mat[static 9], float rad) {
+	float rotate[9] = {
+		cos(rad), -sin(rad), 0.0f,
+		sin(rad),  cos(rad), 0.0f,
+		0.0f,      0.0f,     1.0f,
+	};
+	wlr_matrix_multiply(mat, mat, rotate);
+}
+
+static const float transforms[][9] = {
 	[WL_OUTPUT_TRANSFORM_NORMAL] = {
-		1.0f, 0.0f,
-		0.0f, 1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f,
-		1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_180] = {
-		-1.0f, 0.0f,
-		0.0f, -1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f,
-		-1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
-		-1.0f, 0.0f,
-		0.0f, 1.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, -1.0f,
-		-1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
-		1.0f, 0.0f,
-		0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, 1.0f,
-		1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,
 	},
 };
 
-void wlr_matrix_transform(float mat[static 16],
+void wlr_matrix_transform(float mat[static 9],
 		enum wl_output_transform transform) {
-	memset(mat, 0, sizeof(*mat) * 16);
-
-	const float *t = transforms[transform];
-
-	// Rotation + reflection
-	mat[0] = t[0];
-	mat[1] = t[1];
-	mat[4] = t[2];
-	mat[5] = t[3];
-
-	// Identity
-	mat[10] = 1.0f;
-	mat[15] = 1.0f;
+	wlr_matrix_multiply(mat, mat, transforms[transform]);
 }
 
 // Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
+void wlr_matrix_texture(float mat[static 9], int32_t width, int32_t height,
 		enum wl_output_transform transform) {
-	memset(mat, 0, sizeof(*mat) * 16);
+	memset(mat, 0, sizeof(*mat) * 9);
 
 	const float *t = transforms[transform];
 	float x = 2.0f / width;
@@ -150,62 +120,41 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	// Rotation + reflection
 	mat[0] = x * t[0];
 	mat[1] = x * t[1];
-	mat[4] = y * -t[2];
-	mat[5] = y * -t[3];
+	mat[3] = y * -t[3];
+	mat[4] = y * -t[4];
 
 	// Translation
-	mat[3] = -copysign(1.0f, mat[0] + mat[1]);
-	mat[7] = -copysign(1.0f, mat[4] + mat[5]);
+	mat[2] = -copysign(1.0f, mat[0] + mat[1]);
+	mat[5] = -copysign(1.0f, mat[3] + mat[4]);
 
 	// Identity
-	mat[10] = 1.0f;
-	mat[15] = 1.0f;
+	mat[8] = 1.0f;
 }
 
-void wlr_matrix_project_box(float mat[static 16], const struct wlr_box *box,
+void wlr_matrix_project_box(float mat[static 9], const struct wlr_box *box,
 		enum wl_output_transform transform, float rotation,
-		const float projection[static 16]) {
+		const float projection[static 9]) {
 	int x = box->x;
 	int y = box->y;
 	int width = box->width;
 	int height = box->height;
 
-	wlr_matrix_translate(mat, x, y, 0);
+	wlr_matrix_identity(mat);
+	wlr_matrix_translate(mat, x, y);
 
 	if (rotation != 0) {
-		float translate_center[16];
-		wlr_matrix_translate(translate_center, width/2, height/2, 0);
-
-		float rotate[16];
-		wlr_matrix_rotate(rotate, rotation);
-
-		float translate_origin[16];
-		wlr_matrix_translate(translate_origin, -width/2, -height/2, 0);
-
-		wlr_matrix_mul(mat, mat, translate_center);
-		wlr_matrix_mul(mat, mat, rotate);
-		wlr_matrix_mul(mat, mat, translate_origin);
+		wlr_matrix_translate(mat, width/2, height/2);
+		wlr_matrix_rotate(mat, rotation);
+		wlr_matrix_translate(mat, -width/2, -height/2);
 	}
 
-	float scale[16];
-	wlr_matrix_scale(scale, width, height, 1);
-
-	wlr_matrix_mul(mat, mat, scale);
+	wlr_matrix_scale(mat, width, height);
 
 	if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-		float surface_translate_center[16];
-		wlr_matrix_translate(surface_translate_center, 0.5, 0.5, 0);
-
-		float surface_transform[16];
-		wlr_matrix_transform(surface_transform, transform);
-
-		float surface_translate_origin[16];
-		wlr_matrix_translate(surface_translate_origin, -0.5, -0.5, 0);
-
-		wlr_matrix_mul(mat, mat, surface_translate_center);
-		wlr_matrix_mul(mat, mat, surface_transform);
-		wlr_matrix_mul(mat, mat, surface_translate_origin);
+		wlr_matrix_translate(mat, 0.5, 0.5);
+		wlr_matrix_transform(mat, transform);
+		wlr_matrix_translate(mat, -0.5, -0.5);
 	}
 
-	wlr_matrix_mul(mat, projection, mat);
+	wlr_matrix_multiply(mat, projection, mat);
 }

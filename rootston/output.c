@@ -287,7 +287,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		goto damage_finish;
 	}
 
-	float matrix[16];
+	float matrix[9];
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current->transform);
 	wlr_matrix_project_box(matrix, &box, transform, rotation,
@@ -297,7 +297,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_with_matrix(renderer, surface->texture, matrix, data->alpha);
+		wlr_render_texture_with_matrix(renderer, surface->texture, matrix, data->alpha);
 	}
 
 damage_finish:
@@ -353,7 +353,7 @@ static void render_decorations(struct roots_view *view,
 		goto damage_finish;
 	}
 
-	float matrix[16];
+	float matrix[9];
 	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
 		view->rotation, output->wlr_output->transform_matrix);
 	float color[] = { 0.2, 0.2, 0.2, view->alpha };
