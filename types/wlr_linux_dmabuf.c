@@ -139,19 +139,18 @@ static void params_create_common(struct wl_client *client,
 		goto err_out;
 	}
 
-	/* TODO: support more planes */
-	if (buffer->attributes.n_planes != 1) {
-		wl_resource_post_error(params_resource,
-			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
-			"only single plane buffers supported not %d",
-			buffer->attributes.n_planes);
-		goto err_out;
-	}
-
 	if (buffer->attributes.fd[0] == -1) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
-			"no dmabuf has been added for plane");
+			"no dmabuf has been added for plane 0");
+		goto err_out;
+	}
+
+	if ((buffer->attributes.fd[3] >= 0 || buffer->attributes.fd[2] >= 0) &&
+			(buffer->attributes.fd[2] == -1 || buffer->attributes.fd[1] == -1)) {
+		wl_resource_post_error (params_resource,
+			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
+			"gap in dmabuf planes");
 		goto err_out;
 	}
 
@@ -167,43 +166,48 @@ static void params_create_common(struct wl_client *client,
 		goto err_out;
 	}
 
-	if ((uint64_t)buffer->attributes.offset[0] + buffer->attributes.stride[0] > UINT32_MAX) {
-		wl_resource_post_error(params_resource,
-			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-			"size overflow for plane");
-		goto err_out;
-	}
-
-	if ((uint64_t)buffer->attributes.offset[0] +
-			(uint64_t)buffer->attributes.stride[0] * height > UINT32_MAX) {
-		wl_resource_post_error(params_resource,
-			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-			"size overflow for plane");
-		goto err_out;
-	}
-
-	off_t size = lseek(buffer->attributes.fd[0], 0, SEEK_END);
-	if (size != -1) { /* Skip checks if kernel does no support seek on buffer */
-		if (buffer->attributes.offset[0] >= size) {
+	for (int i = 0; i < buffer->attributes.n_planes; i++) {
+		if ((uint64_t)buffer->attributes.offset[i]
+				+ buffer->attributes.stride[i] > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-				"invalid offset %i for plane",
-				buffer->attributes.offset[0]);
+				"size overflow for plane %d", i);
 			goto err_out;
 		}
 
-		if (buffer->attributes.offset[0] + buffer->attributes.stride[0] > size) {
+		if ((uint64_t)buffer->attributes.offset[i]
+				+ (uint64_t)buffer->attributes.stride[i] * height > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-				"invalid stride %i for plane",
-				buffer->attributes.stride[0]);
+				"size overflow for plane %d", i);
 			goto err_out;
 		}
 
-		if (buffer->attributes.offset[0] + buffer->attributes.stride[0] * height > size) {
+		off_t size = lseek(buffer->attributes.fd[i], 0, SEEK_END);
+		if (size == -1) { /* Skip checks if kernel does no support seek on buffer */
+			continue;
+		}
+		if (buffer->attributes.offset[i] >= size) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-				"invalid buffer stride or height for plane");
+				"invalid offset %i for plane %d",
+				buffer->attributes.offset[i], i);
+			goto err_out;
+		}
+
+		if (buffer->attributes.offset[i] + buffer->attributes.stride[i]	> size) {
+			wl_resource_post_error(params_resource,
+				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
+				"invalid stride %i for plane %d",
+				buffer->attributes.stride[i], i);
+			goto err_out;
+		}
+
+		if (i == 0 && /* planes > 0 might be subsampled according to fourcc format */
+			buffer->attributes.offset[i] + buffer->attributes.stride[i] * height > size) {
+			wl_resource_post_error(params_resource,
+				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
+				"invalid buffer stride or height for plane %d", i);
 			goto err_out;
 		}
 	}

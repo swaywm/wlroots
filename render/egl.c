@@ -325,15 +325,6 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 
 EGLImage wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer_attribs *attributes) {
-	int atti = 0;
-	EGLint attribs[20];
-	attribs[atti++] = EGL_WIDTH;
-	attribs[atti++] = attributes->width;
-	attribs[atti++] = EGL_HEIGHT;
-	attribs[atti++] = attributes->height;
-	attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
-	attribs[atti++] = attributes->format;
-
 	bool has_modifier = false;
 	if (attributes->modifier[0] != DRM_FORMAT_MOD_INVALID) {
 		if (!egl->egl_exts.dmabuf_import_modifiers) {
@@ -342,25 +333,66 @@ EGLImage wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		has_modifier = true;
 	}
 
-	/* TODO: YUV planes have up four planes but we only support a
-	   single EGLImage for now */
-	if (attributes->n_planes > 1) {
-		return NULL;
-	}
+	unsigned int atti = 0;
+	EGLint attribs[50];
+	attribs[atti++] = EGL_WIDTH;
+	attribs[atti++] = attributes->width;
+	attribs[atti++] = EGL_HEIGHT;
+	attribs[atti++] = attributes->height;
+	attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
+	attribs[atti++] = attributes->format;
 
-	attribs[atti++] = EGL_DMA_BUF_PLANE0_FD_EXT;
-	attribs[atti++] = attributes->fd[0];
-	attribs[atti++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
-	attribs[atti++] = attributes->offset[0];
-	attribs[atti++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
-	attribs[atti++] = attributes->stride[0];
-	if (has_modifier) {
-		attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
-		attribs[atti++] = attributes->modifier[0] & 0xFFFFFFFF;
-		attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
-		attribs[atti++] = attributes->modifier[0] >> 32;
+	struct {
+		EGLint fd;
+		EGLint offset;
+		EGLint pitch;
+		EGLint mod_lo;
+		EGLint mod_hi;
+	} attr_names[WLR_LINUX_DMABUF_MAX_PLANES] = {
+		{
+			EGL_DMA_BUF_PLANE0_FD_EXT,
+			EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+			EGL_DMA_BUF_PLANE0_PITCH_EXT,
+			EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+			EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT
+		}, {
+			EGL_DMA_BUF_PLANE1_FD_EXT,
+			EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+			EGL_DMA_BUF_PLANE1_PITCH_EXT,
+			EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT,
+			EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT
+		}, {
+			EGL_DMA_BUF_PLANE2_FD_EXT,
+			EGL_DMA_BUF_PLANE2_OFFSET_EXT,
+			EGL_DMA_BUF_PLANE2_PITCH_EXT,
+			EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT,
+			EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT
+		}, {
+			EGL_DMA_BUF_PLANE3_FD_EXT,
+			EGL_DMA_BUF_PLANE3_OFFSET_EXT,
+			EGL_DMA_BUF_PLANE3_PITCH_EXT,
+			EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT,
+			EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT
+		}
+	};
+
+	for (int i=0; i < attributes->n_planes; i++) {
+		attribs[atti++] = attr_names[i].fd;
+		attribs[atti++] = attributes->fd[i];
+		attribs[atti++] = attr_names[i].offset;
+		attribs[atti++] = attributes->offset[i];
+		attribs[atti++] = attr_names[i].pitch;
+		attribs[atti++] = attributes->stride[i];
+		if (has_modifier) {
+			attribs[atti++] = attr_names[i].mod_lo;
+			attribs[atti++] = attributes->modifier[i] & 0xFFFFFFFF;
+			attribs[atti++] = attr_names[i].mod_hi;
+			attribs[atti++] = attributes->modifier[i] >> 32;
+		}
 	}
 	attribs[atti++] = EGL_NONE;
+	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
+
 	return eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 }
@@ -371,7 +403,8 @@ EGLImage wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer *dmabuf) {
 	switch (dmabuf->attributes.format & ~DRM_FORMAT_BIG_ENDIAN) {
-		/* YUV based formats not yet supported */
+		/* TODO: YUV based formats not yet supported, require multiple
+		 * wlr_create_image_from_dmabuf */
 	case WL_SHM_FORMAT_YUYV:
 	case WL_SHM_FORMAT_YVYU:
 	case WL_SHM_FORMAT_UYVY:
