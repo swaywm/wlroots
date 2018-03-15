@@ -325,6 +325,10 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 					surface->current->buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
 			goto release;
+		} else if (wlr_dmabuf_resource_is_buffer(
+					   surface->current->buffer)) {
+			wlr_texture_upload_dmabuf(surface->texture, surface->current->buffer);
+			goto release;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
 			return;
