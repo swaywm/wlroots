@@ -459,6 +459,8 @@ void view_map(struct roots_view *view, struct wlr_surface *surface) {
 void view_unmap(struct roots_view *view) {
 	assert(view->wlr_surface != NULL);
 
+	wl_signal_emit(&view->events.unmap, view);
+
 	view_damage_whole(view);
 	wl_list_remove(&view->link);
 
