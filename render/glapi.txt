@@ -8,3 +8,5 @@ eglCreatePlatformWindowSurfaceEXT
 -glEGLImageTargetTexture2DOES
 -eglSwapBuffersWithDamageEXT
 -eglSwapBuffersWithDamageKHR
+-eglQueryDmaBufFormatsEXT
+-eglQueryDmaBufModifiersEXT

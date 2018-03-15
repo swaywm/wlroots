@@ -8,6 +8,7 @@
 #include <wlr/render.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 
 struct wlr_renderer_impl;
 
@@ -59,6 +60,8 @@ struct wlr_texture_impl {
 		struct wl_resource *drm_buf);
 	bool (*upload_eglimage)(struct wlr_texture *texture, EGLImageKHR image,
 		uint32_t width, uint32_t height);
+	bool (*upload_dmabuf)(struct wlr_texture *texture,
+		struct wl_resource *dmabuf_resource);
 	void (*get_matrix)(struct wlr_texture *state, float mat[static 9],
 		const float projection[static 9], int x, int y);
 	void (*get_buffer_size)(struct wlr_texture *texture,
