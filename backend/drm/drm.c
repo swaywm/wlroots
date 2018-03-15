@@ -17,7 +17,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>

@@ -1,7 +1,7 @@
 #include <math.h>
 #include <string.h>
 #include <wayland-server-protocol.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 

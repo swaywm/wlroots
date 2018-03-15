@@ -7,7 +7,7 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>

@@ -1,5 +1,5 @@
-#ifndef WLR_RENDER_MATRIX_H
-#define WLR_RENDER_MATRIX_H
+#ifndef WLR_TYPES_WLR_MATRIX_H
+#define WLR_TYPES_WLR_MATRIX_H
 
 #include <stdint.h>
 #include <wlr/types/wlr_box.h>
