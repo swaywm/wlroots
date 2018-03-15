@@ -122,8 +122,8 @@ static void wlr_gles2_end(struct wlr_renderer *wlr_renderer) {
 }
 
 static void wlr_gles2_clear(struct wlr_renderer *wlr_renderer,
-		const float (*color)[4]) {
-	glClearColor((*color)[0], (*color)[1], (*color)[2], (*color)[3]);
+		const float color[static 4]) {
+	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
@@ -171,14 +171,15 @@ static void draw_quad() {
 }
 
 static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *texture, const float (*matrix)[16], float alpha) {
+		struct wlr_texture *texture, const float matrix[static 16],
+		float alpha) {
 	if (!texture || !texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
 	}
 
 	wlr_texture_bind(texture);
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, matrix));
 	GL_CALL(glUniform1f(2, alpha));
 	draw_quad();
 	return true;
@@ -186,18 +187,18 @@ static bool wlr_gles2_render_texture(struct wlr_renderer *wlr_renderer,
 
 
 static void wlr_gles2_render_quad(struct wlr_renderer *wlr_renderer,
-		const float (*color)[4], const float (*matrix)[16]) {
+		const float color[static 4], const float matrix[static 16]) {
 	GL_CALL(glUseProgram(shaders.quad));
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, *matrix));
-	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_FALSE, matrix));
+	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
 	draw_quad();
 }
 
 static void wlr_gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
-		const float (*color)[4], const float (*matrix)[16]) {
+		const float color[static 4], const float matrix[static 16]) {
 	GL_CALL(glUseProgram(shaders.ellipse));
-	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, *matrix));
-	GL_CALL(glUniform4f(1, (*color)[0], (*color)[1], (*color)[2], (*color)[3]));
+	GL_CALL(glUniformMatrix4fv(0, 1, GL_TRUE, matrix));
+	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
 	draw_quad();
 }
 

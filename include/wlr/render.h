@@ -13,7 +13,7 @@ struct wlr_renderer;
 
 void wlr_renderer_begin(struct wlr_renderer *r, struct wlr_output *output);
 void wlr_renderer_end(struct wlr_renderer *r);
-void wlr_renderer_clear(struct wlr_renderer *r, const float (*color)[4]);
+void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor
@@ -38,18 +38,18 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
  * This will render the texture at <123, 321> with an alpha channel of 0.5.
  */
 bool wlr_render_with_matrix(struct wlr_renderer *r,
-	struct wlr_texture *texture, const float (*matrix)[16], float alpha);
+	struct wlr_texture *texture, const float matrix[static 16], float alpha);
 
 /**
  * Renders a solid quad in the specified color.
  */
 void wlr_render_colored_quad(struct wlr_renderer *r,
-	const float (*color)[4], const float (*matrix)[16]);
+	const float color[static 4], const float matrix[static 16]);
 /**
  * Renders a solid ellipse in the specified color.
  */
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
-	const float (*color)[4], const float (*matrix)[16]);
+	const float color[static 4], const float matrix[static 16]);
 /**
  * Returns a list of pixel formats supported by this renderer.
  */
@@ -139,8 +139,8 @@ bool wlr_texture_update_shm(struct wlr_texture *surf, uint32_t format,
  * width) and [0, height], and the x and y coordinates provided are used as
  * such.
  */
-void wlr_texture_get_matrix(struct wlr_texture *texture,
-		float (*matrix)[16], const float (*projection)[16], int x, int y);
+void wlr_texture_get_matrix(struct wlr_texture *texture, float mat[static 16],
+		const float projection[static 16], int x, int y);
 /**
  * Destroys this wlr_texture.
  */

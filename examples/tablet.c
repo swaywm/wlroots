@@ -47,7 +47,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	float matrix[16];
 	float distance = 0.8f * (1 - sample->distance);
@@ -65,9 +65,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		.x = left, .y = top,
 		.width = pad_width, .height = pad_height,
 	};
-	wlr_matrix_project_box(&matrix, &box, 0, 0,
-			&wlr_output->transform_matrix);
-	wlr_render_colored_quad(sample->renderer, &sample->pad_color, &matrix);
+	wlr_matrix_project_box(matrix, &box, 0, 0, wlr_output->transform_matrix);
+	wlr_render_colored_quad(sample->renderer, sample->pad_color, matrix);
 
 	if (sample->proximity) {
 		struct wlr_box box = {
@@ -76,16 +75,16 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 			.width = 16 * (sample->pressure + 1),
 			.height = 16 * (sample->pressure + 1),
 		};
-		wlr_matrix_project_box(&matrix, &box, 0, sample->ring,
-				&wlr_output->transform_matrix);
-		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
+		wlr_matrix_project_box(matrix, &box, 0, sample->ring,
+			wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, tool_color, matrix);
 		box.x += sample->x_tilt;
 		box.y += sample->y_tilt;
 		box.width /= 2;
 		box.height /= 2;
-		wlr_matrix_project_box(&matrix, &box, 0, 0,
-				&wlr_output->transform_matrix);
-		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
+		wlr_matrix_project_box(matrix, &box, 0, 0,
+			wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, tool_color, matrix);
 	}
 
 	wlr_renderer_end(sample->renderer);

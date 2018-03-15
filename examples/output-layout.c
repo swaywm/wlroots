@@ -102,7 +102,7 @@ static void handle_output_frame(struct output_state *output,
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);
 
@@ -119,10 +119,10 @@ static void handle_output_frame(struct output_state *output,
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		wlr_texture_get_matrix(sample->cat_texture, &matrix,
-			&wlr_output->transform_matrix, local_x, local_y);
+		wlr_texture_get_matrix(sample->cat_texture, matrix,
+			wlr_output->transform_matrix, local_x, local_y);
 		wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix, 1.0f);
+			sample->cat_texture, matrix, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

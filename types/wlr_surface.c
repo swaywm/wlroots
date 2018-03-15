@@ -625,19 +625,19 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 }
 
 void wlr_surface_get_matrix(struct wlr_surface *surface,
-		float (*matrix)[16],
-		const float (*projection)[16],
-		const float (*transform)[16]) {
+		float mat[static 16],
+		const float projection[static 16],
+		const float transform[static 16]) {
 	int width = surface->texture->width;
 	int height = surface->texture->height;
 	float scale[16];
-	wlr_matrix_identity(matrix);
+	wlr_matrix_identity(mat);
 	if (transform) {
-		wlr_matrix_mul(matrix, transform, matrix);
+		wlr_matrix_mul(mat, mat, transform);
 	}
-	wlr_matrix_scale(&scale, width, height, 1);
-	wlr_matrix_mul(matrix, &scale, matrix);
-	wlr_matrix_mul(projection, matrix, matrix);
+	wlr_matrix_scale(scale, width, height, 1);
+	wlr_matrix_mul(mat, mat, scale);
+	wlr_matrix_mul(mat, projection, mat);
 }
 
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {

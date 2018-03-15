@@ -54,8 +54,8 @@ bool wlr_texture_upload_eglimage(struct wlr_texture *texture,
 }
 
 void wlr_texture_get_matrix(struct wlr_texture *texture,
-		float (*matrix)[16], const float (*projection)[16], int x, int y) {
-	texture->impl->get_matrix(texture, matrix, projection, x, y);
+		float mat[static 16], const float projection[static 16], int x, int y) {
+	texture->impl->get_matrix(texture, mat, projection, x, y);
 }
 
 void wlr_texture_get_buffer_size(struct wlr_texture *texture, struct wl_resource

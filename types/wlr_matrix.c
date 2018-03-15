@@ -10,79 +10,80 @@ static inline int mind(int row, int col) {
 	return (row - 1) * 4 + col - 1;
 }
 
-void wlr_matrix_identity(float (*output)[16]) {
+void wlr_matrix_identity(float mat[static 16]) {
 	static const float identity[16] = {
 		1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
+		0.0f, 0.0f, 0.0f, 1.0f,
 	};
-	memcpy(*output, identity, sizeof(identity));
+	memcpy(mat, identity, sizeof(identity));
 }
 
-void wlr_matrix_translate(float (*output)[16], float x, float y, float z) {
-	wlr_matrix_identity(output);
-	(*output)[mind(1, 4)] = x;
-	(*output)[mind(2, 4)] = y;
-	(*output)[mind(3, 4)] = z;
+void wlr_matrix_translate(float mat[static 16], float x, float y, float z) {
+	wlr_matrix_identity(mat);
+	mat[mind(1, 4)] = x;
+	mat[mind(2, 4)] = y;
+	mat[mind(3, 4)] = z;
 }
 
-void wlr_matrix_scale(float (*output)[16], float x, float y, float z) {
-	wlr_matrix_identity(output);
-	(*output)[mind(1, 1)] = x;
-	(*output)[mind(2, 2)] = y;
-	(*output)[mind(3, 3)] = z;
+void wlr_matrix_scale(float mat[static 16], float x, float y, float z) {
+	wlr_matrix_identity(mat);
+	mat[mind(1, 1)] = x;
+	mat[mind(2, 2)] = y;
+	mat[mind(3, 3)] = z;
 }
 
-void wlr_matrix_rotate(float (*output)[16], float radians) {
-	wlr_matrix_identity(output);
+void wlr_matrix_rotate(float mat[static 16], float radians) {
+	wlr_matrix_identity(mat);
 	float _cos = cosf(radians);
 	float _sin = sinf(radians);
-	(*output)[mind(1, 1)] = _cos;
-	(*output)[mind(1, 2)] = _sin;
-	(*output)[mind(2, 1)] = -_sin;
-	(*output)[mind(2, 2)] = _cos;
+	mat[mind(1, 1)] = _cos;
+	mat[mind(1, 2)] = _sin;
+	mat[mind(2, 1)] = -_sin;
+	mat[mind(2, 2)] = _cos;
 }
 
-void wlr_matrix_mul(const float (*x)[16], const float (*y)[16], float (*product)[16]) {
-	float _product[16] = {
-		(*x)[mind(1, 1)] * (*y)[mind(1, 1)] + (*x)[mind(1, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 1)] + (*x)[mind(1, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 2)] + (*x)[mind(1, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 2)] + (*x)[mind(1, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 3)] + (*x)[mind(1, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(1, 3)] * (*y)[mind(3, 3)] + (*x)[mind(1, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(1, 1)] * (*y)[mind(1, 4)] + (*x)[mind(1, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(1, 4)] * (*y)[mind(3, 4)] + (*x)[mind(1, 4)] * (*y)[mind(4, 4)],
+void wlr_matrix_mul(float mat[static 16], const float x[static 16],
+		const float y[static 16]) {
+	float product[16] = {
+		x[mind(1, 1)] * y[mind(1, 1)] + x[mind(1, 2)] * y[mind(2, 1)] +
+			x[mind(1, 3)] * y[mind(3, 1)] + x[mind(1, 4)] * y[mind(4, 1)],
+		x[mind(1, 1)] * y[mind(1, 2)] + x[mind(1, 2)] * y[mind(2, 2)] +
+			x[mind(1, 3)] * y[mind(3, 2)] + x[mind(1, 4)] * y[mind(4, 2)],
+		x[mind(1, 1)] * y[mind(1, 3)] + x[mind(1, 2)] * y[mind(2, 3)] +
+			x[mind(1, 3)] * y[mind(3, 3)] + x[mind(1, 4)] * y[mind(4, 3)],
+		x[mind(1, 1)] * y[mind(1, 4)] + x[mind(1, 2)] * y[mind(2, 4)] +
+			x[mind(1, 4)] * y[mind(3, 4)] + x[mind(1, 4)] * y[mind(4, 4)],
 
-		(*x)[mind(2, 1)] * (*y)[mind(1, 1)] + (*x)[mind(2, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 1)] + (*x)[mind(2, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 2)] + (*x)[mind(2, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 2)] + (*x)[mind(2, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 3)] + (*x)[mind(2, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(2, 3)] * (*y)[mind(3, 3)] + (*x)[mind(2, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(2, 1)] * (*y)[mind(1, 4)] + (*x)[mind(2, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(2, 4)] * (*y)[mind(3, 4)] + (*x)[mind(2, 4)] * (*y)[mind(4, 4)],
+		x[mind(2, 1)] * y[mind(1, 1)] + x[mind(2, 2)] * y[mind(2, 1)] +
+			x[mind(2, 3)] * y[mind(3, 1)] + x[mind(2, 4)] * y[mind(4, 1)],
+		x[mind(2, 1)] * y[mind(1, 2)] + x[mind(2, 2)] * y[mind(2, 2)] +
+			x[mind(2, 3)] * y[mind(3, 2)] + x[mind(2, 4)] * y[mind(4, 2)],
+		x[mind(2, 1)] * y[mind(1, 3)] + x[mind(2, 2)] * y[mind(2, 3)] +
+			x[mind(2, 3)] * y[mind(3, 3)] + x[mind(2, 4)] * y[mind(4, 3)],
+		x[mind(2, 1)] * y[mind(1, 4)] + x[mind(2, 2)] * y[mind(2, 4)] +
+			x[mind(2, 4)] * y[mind(3, 4)] + x[mind(2, 4)] * y[mind(4, 4)],
 
-		(*x)[mind(3, 1)] * (*y)[mind(1, 1)] + (*x)[mind(3, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 1)] + (*x)[mind(3, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 2)] + (*x)[mind(3, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 2)] + (*x)[mind(3, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 3)] + (*x)[mind(3, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(3, 3)] * (*y)[mind(3, 3)] + (*x)[mind(3, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(3, 1)] * (*y)[mind(1, 4)] + (*x)[mind(3, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(3, 4)] * (*y)[mind(3, 4)] + (*x)[mind(3, 4)] * (*y)[mind(4, 4)],
+		x[mind(3, 1)] * y[mind(1, 1)] + x[mind(3, 2)] * y[mind(2, 1)] +
+			x[mind(3, 3)] * y[mind(3, 1)] + x[mind(3, 4)] * y[mind(4, 1)],
+		x[mind(3, 1)] * y[mind(1, 2)] + x[mind(3, 2)] * y[mind(2, 2)] +
+			x[mind(3, 3)] * y[mind(3, 2)] + x[mind(3, 4)] * y[mind(4, 2)],
+		x[mind(3, 1)] * y[mind(1, 3)] + x[mind(3, 2)] * y[mind(2, 3)] +
+			x[mind(3, 3)] * y[mind(3, 3)] + x[mind(3, 4)] * y[mind(4, 3)],
+		x[mind(3, 1)] * y[mind(1, 4)] + x[mind(3, 2)] * y[mind(2, 4)] +
+			x[mind(3, 4)] * y[mind(3, 4)] + x[mind(3, 4)] * y[mind(4, 4)],
 
-		(*x)[mind(4, 1)] * (*y)[mind(1, 1)] + (*x)[mind(4, 2)] * (*y)[mind(2, 1)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 1)] + (*x)[mind(4, 4)] * (*y)[mind(4, 1)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 2)] + (*x)[mind(4, 2)] * (*y)[mind(2, 2)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 2)] + (*x)[mind(4, 4)] * (*y)[mind(4, 2)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 3)] + (*x)[mind(4, 2)] * (*y)[mind(2, 3)] +
-			(*x)[mind(4, 3)] * (*y)[mind(3, 3)] + (*x)[mind(4, 4)] * (*y)[mind(4, 3)],
-		(*x)[mind(4, 1)] * (*y)[mind(1, 4)] + (*x)[mind(4, 2)] * (*y)[mind(2, 4)] +
-			(*x)[mind(4, 4)] * (*y)[mind(3, 4)] + (*x)[mind(4, 4)] * (*y)[mind(4, 4)],
+		x[mind(4, 1)] * y[mind(1, 1)] + x[mind(4, 2)] * y[mind(2, 1)] +
+			x[mind(4, 3)] * y[mind(3, 1)] + x[mind(4, 4)] * y[mind(4, 1)],
+		x[mind(4, 1)] * y[mind(1, 2)] + x[mind(4, 2)] * y[mind(2, 2)] +
+			x[mind(4, 3)] * y[mind(3, 2)] + x[mind(4, 4)] * y[mind(4, 2)],
+		x[mind(4, 1)] * y[mind(1, 3)] + x[mind(4, 2)] * y[mind(2, 3)] +
+			x[mind(4, 3)] * y[mind(3, 3)] + x[mind(4, 4)] * y[mind(4, 3)],
+		x[mind(4, 1)] * y[mind(1, 4)] + x[mind(4, 2)] * y[mind(2, 4)] +
+			x[mind(4, 4)] * y[mind(3, 4)] + x[mind(4, 4)] * y[mind(4, 4)],
 	};
-	memcpy(*product, _product, sizeof(_product));
+	memcpy(mat, product, sizeof(product));
 }
 
 static const float transforms[][4] = {
@@ -161,9 +162,9 @@ void wlr_matrix_texture(float mat[static 16], int32_t width, int32_t height,
 	mat[15] = 1.0f;
 }
 
-void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
+void wlr_matrix_project_box(float mat[static 16], const struct wlr_box *box,
 		enum wl_output_transform transform, float rotation,
-		float (*projection)[16]) {
+		const float projection[static 16]) {
 	int x = box->x;
 	int y = box->y;
 	int width = box->width;
@@ -173,38 +174,38 @@ void wlr_matrix_project_box(float (*mat)[16], struct wlr_box *box,
 
 	if (rotation != 0) {
 		float translate_center[16];
-		wlr_matrix_translate(&translate_center, width/2, height/2, 0);
+		wlr_matrix_translate(translate_center, width/2, height/2, 0);
 
 		float rotate[16];
-		wlr_matrix_rotate(&rotate, rotation);
+		wlr_matrix_rotate(rotate, rotation);
 
 		float translate_origin[16];
-		wlr_matrix_translate(&translate_origin, -width/2, -height/2, 0);
+		wlr_matrix_translate(translate_origin, -width/2, -height/2, 0);
 
-		wlr_matrix_mul(mat, &translate_center, mat);
-		wlr_matrix_mul(mat, &rotate, mat);
-		wlr_matrix_mul(mat, &translate_origin, mat);
+		wlr_matrix_mul(mat, mat, translate_center);
+		wlr_matrix_mul(mat, mat, rotate);
+		wlr_matrix_mul(mat, mat, translate_origin);
 	}
 
 	float scale[16];
-	wlr_matrix_scale(&scale, width, height, 1);
+	wlr_matrix_scale(scale, width, height, 1);
 
-	wlr_matrix_mul(mat, &scale, mat);
+	wlr_matrix_mul(mat, mat, scale);
 
 	if (transform != WL_OUTPUT_TRANSFORM_NORMAL) {
 		float surface_translate_center[16];
-		wlr_matrix_translate(&surface_translate_center, 0.5, 0.5, 0);
+		wlr_matrix_translate(surface_translate_center, 0.5, 0.5, 0);
 
 		float surface_transform[16];
 		wlr_matrix_transform(surface_transform, transform);
 
 		float surface_translate_origin[16];
-		wlr_matrix_translate(&surface_translate_origin, -0.5, -0.5, 0);
+		wlr_matrix_translate(surface_translate_origin, -0.5, -0.5, 0);
 
-		wlr_matrix_mul(mat, &surface_translate_center, mat);
-		wlr_matrix_mul(mat, &surface_transform, mat);
-		wlr_matrix_mul(mat, &surface_translate_origin, mat);
+		wlr_matrix_mul(mat, mat, surface_translate_center);
+		wlr_matrix_mul(mat, mat, surface_transform);
+		wlr_matrix_mul(mat, mat, surface_translate_origin);
 	}
 
-	wlr_matrix_mul(projection, mat, mat);
+	wlr_matrix_mul(mat, projection, mat);
 }

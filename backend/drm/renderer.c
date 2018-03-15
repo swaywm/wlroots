@@ -239,7 +239,7 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	glViewport(0, 0, dest->width, dest->height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, &matrix, 1.0f);
+	wlr_render_with_matrix(dest->renderer->wlr_rend, tex, matrix, 1.0f);
 
 	return wlr_drm_surface_swap_buffers(dest, NULL);
 }

@@ -99,6 +99,7 @@ struct wlr_surface {
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
+
 /**
  * Gets a matrix you can pass into wlr_render_with_matrix to display this
  * surface. `matrix` is the output matrix, `projection` is the wlr_output
@@ -108,9 +109,9 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
  * from 0 to 1 in both dimensions.
  */
 void wlr_surface_get_matrix(struct wlr_surface *surface,
-		float (*matrix)[16],
-		const float (*projection)[16],
-		const float (*transform)[16]);
+		float mat[static 16],
+		const float projection[static 16],
+		const float transform[static 16]);
 
 
 /**
