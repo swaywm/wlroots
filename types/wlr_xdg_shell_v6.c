@@ -159,6 +159,16 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 }
 
 
+static void xdg_surface_configure_destroy(
+		struct wlr_xdg_surface_v6_configure *configure) {
+	if (configure == NULL) {
+		return;
+	}
+	wl_list_remove(&configure->link);
+	free(configure->toplevel_state);
+	free(configure);
+}
+
 static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE);
 
@@ -196,6 +206,11 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		surface->popup = NULL;
 	}
 
+	struct wlr_xdg_surface_v6_configure *configure, *tmp;
+	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
+		xdg_surface_configure_destroy(configure);
+	}
+
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
 	free(surface->title);
 	surface->title = NULL;
@@ -209,12 +224,6 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		surface->configure_idle = NULL;
 	}
 	surface->configure_next_serial = 0;
-
-	struct wlr_xdg_surface_v6_configure *configure, *tmp;
-	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
-		wl_list_remove(&configure->link);
-		free(configure);
-	}
 
 	surface->has_next_geometry = false;
 	memset(&surface->geometry, 0, sizeof(struct wlr_box));
@@ -876,9 +885,6 @@ static void wlr_xdg_toplevel_v6_ack_configure(
 		configure->toplevel_state->resizing;
 	surface->toplevel->current.activated =
 		configure->toplevel_state->activated;
-
-	free(configure->toplevel_state);
-	configure->toplevel_state = NULL;
 }
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
@@ -897,9 +903,10 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		if (configure->serial < serial) {
 			wl_list_remove(&configure->link);
-			free(configure);
+			xdg_surface_configure_destroy(configure);
 		} else if (configure->serial == serial) {
 			wl_list_remove(&configure->link);
+			wl_list_init(&configure->link);
 			found = true;
 			break;
 		} else {
@@ -927,7 +934,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	surface->configured = true;
 	surface->configure_serial = serial;
 
-	free(configure);
+	xdg_surface_configure_destroy(configure);
 }
 
 static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
@@ -1024,16 +1031,17 @@ static void wlr_xdg_toplevel_v6_send_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	uint32_t *s;
-	struct wl_array states;
 
 	configure->toplevel_state = malloc(sizeof(*configure->toplevel_state));
 	if (configure->toplevel_state == NULL) {
 		wlr_log(L_ERROR, "Allocation failed");
+		wl_resource_post_no_memory(surface->toplevel->resource);
 		return;
 	}
 	*configure->toplevel_state = surface->toplevel->pending;
 
+	uint32_t *s;
+	struct wl_array states;
 	wl_array_init(&states);
 	if (surface->toplevel->pending.maximized) {
 		s = wl_array_add(&states, sizeof(uint32_t));
@@ -1070,7 +1078,6 @@ static void wlr_xdg_toplevel_v6_send_configure(
 
 	uint32_t width = surface->toplevel->pending.width;
 	uint32_t height = surface->toplevel->pending.height;
-
 	zxdg_toplevel_v6_send_configure(surface->toplevel->resource, width,
 		height, &states);
 
