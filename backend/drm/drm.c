@@ -587,8 +587,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		enum wl_output_transform transform = wlr_output_transform_compose(
 			wlr_output_transform_invert(output->transform),
 			WL_OUTPUT_TRANSFORM_FLIPPED_180);
-		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
-			transform);
+		wlr_matrix_projection(plane->matrix, plane->surf.width,
+			plane->surf.height, transform);
 
 		plane->wlr_tex =
 			wlr_render_texture_create(plane->surf.renderer->wlr_rend);

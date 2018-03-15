@@ -139,8 +139,8 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 }
 
 static void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
-		output->transform);
+	wlr_matrix_projection(output->transform_matrix, output->width,
+		output->height, output->transform);
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
