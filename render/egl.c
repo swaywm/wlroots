@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -101,6 +102,26 @@ static bool check_egl_ext(const char *egl_exts, const char *ext) {
 	return false;
 }
 
+static void print_dmabuf_formats(struct wlr_egl *egl) {
+	/* Avoid log msg if extension is not present */
+	if (!egl->egl_exts.dmabuf_import_modifiers) {
+		return;
+	}
+
+	int *formats;
+	int num = wlr_egl_get_dmabuf_formats(egl, &formats);
+	if (num < 0) {
+		return;
+	}
+
+	char str_formats[num * 5 + 1];
+	for (int i = 0; i < num; i++) {
+		snprintf(&str_formats[i*5], (num - i) * 5 + 1, "%.4s ", (char*)&formats[i]);
+	}
+	wlr_log(L_INFO, "Supported dmabuf buffer formats: %s", str_formats);
+	free(formats);
+}
+
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
@@ -172,6 +193,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	egl->egl_exts.dmabuf_import_modifiers =
 		check_egl_ext(egl->egl_exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
+	print_dmabuf_formats(egl);
 
 	return true;
 
