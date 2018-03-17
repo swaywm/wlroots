@@ -1,9 +1,16 @@
-#ifndef WLR_XWM_H
-#define WLR_XWM_H
+#ifndef XWAYLAND_XWM_H
+#define XWAYLAND_XWM_H
 
 #include <wayland-server-core.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
+
+#ifdef WLR_HAS_XCB_ICCCM
+	#include <xcb/xcb_icccm.h>
+#endif
+#ifdef WLR_HAS_XCB_ERRORS
+	#include <xcb/xcb_errors.h>
+#endif
 
 enum atom_name {
 	WL_SURFACE_ID,
@@ -98,6 +105,9 @@ struct wlr_xwm {
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
 
 	const xcb_query_extension_reply_t *xfixes;
+#ifdef WLR_HAS_XCB_ERRORS
+	xcb_errors_context_t *errors_context;
+#endif
 
 	struct wl_listener compositor_new_surface;
 	struct wl_listener compositor_destroy;
@@ -119,7 +129,7 @@ void xwm_selection_finish(struct wlr_xwm *xwm);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
-bool wlr_xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
+bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 		size_t num_atoms, enum atom_name needle);
 
 #endif

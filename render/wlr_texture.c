@@ -53,6 +53,11 @@ bool wlr_texture_upload_eglimage(struct wlr_texture *texture,
 	return texture->impl->upload_eglimage(texture, image, width, height);
 }
 
+bool wlr_texture_upload_dmabuf(struct wlr_texture *texture,
+		struct wl_resource *dmabuf_resource) {
+	return texture->impl->upload_dmabuf(texture, dmabuf_resource);
+}
+
 void wlr_texture_get_matrix(struct wlr_texture *texture,
 		float (*matrix)[16], const float (*projection)[16], int x, int y) {
 	texture->impl->get_matrix(texture, matrix, projection, x, y);

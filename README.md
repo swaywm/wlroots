@@ -1,4 +1,4 @@
-# wlroots [![](https://api.travis-ci.org/swaywm/wlroots.svg)](https://travis-ci.org/swaywm/wlroots)
+# wlroots
 
 Pluggable, composable modules for building a
 [Wayland](http://wayland.freedesktop.org/) compositor.
@@ -46,4 +46,4 @@ After building, run rootston from a terminal or VT with:
 Now you can run windows in the compositor from the command line or by
 configuring bindings in your
 [`rootston.ini`](https://github.com/swaywm/wlroots/blob/master/rootston/rootston.ini.example)
-file. 
+file.

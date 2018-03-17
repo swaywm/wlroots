@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,33 +37,22 @@
 #include <wayland-client.h>
 #include <wlr/util/log.h>
 #include "screenshooter-client-protocol.h"
-#include "util/os-compatibility.h"
 
 static struct wl_shm *shm = NULL;
 static struct orbital_screenshooter *screenshooter = NULL;
 static struct wl_list output_list;
-int min_x, min_y, max_x, max_y;
-int buffer_copy_done;
+static bool buffer_copy_done;
 
 struct screenshooter_output {
 	struct wl_output *output;
-	struct wl_buffer *buffer;
-	int width, height, offset_x, offset_y;
-	enum wl_output_transform transform;
-	void *data;
+	int width, height;
 	struct wl_list link;
 };
 
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int x, int y, int physical_width, int physical_height, int subpixel,
 		const char *make, const char *model, int transform) {
-	struct screenshooter_output *output = wl_output_get_user_data(wl_output);
-
-	if (wl_output == output->output) {
-		output->offset_x = x;
-		output->offset_y = y;
-		output->transform = transform;
-	}
+	// No-op
 }
 
 static void output_handle_mode(void *data, struct wl_output *wl_output,
@@ -86,7 +76,7 @@ static const struct wl_output_listener output_listener = {
 };
 
 static void screenshot_done(void *data, struct orbital_screenshot *screenshot) {
-	buffer_copy_done = 1;
+	buffer_copy_done = true;
 }
 
 static const struct orbital_screenshot_listener screenshot_listener = {
@@ -113,7 +103,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 
 static void handle_global_remove(void *data, struct wl_registry *registry,
 		uint32_t name) {
-	// Unimplemented
+	// Who cares?
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -123,14 +113,15 @@ static const struct wl_registry_listener registry_listener = {
 
 static int backingfile(off_t size) {
 	char template[] = "/tmp/wlroots-shared-XXXXXX";
-	int fd, ret;
-
-	fd = mkstemp(template);
+	int fd = mkstemp(template);
 	if (fd < 0) {
 		return -1;
 	}
 
-	while ((ret = ftruncate(fd, size)) == EINTR) {}
+	int ret;
+	while ((ret = ftruncate(fd, size)) == EINTR) {
+		// No-op
+	}
 	if (ret < 0) {
 		close(fd);
 		return -1;
@@ -139,7 +130,6 @@ static int backingfile(off_t size) {
 	unlink(template);
 	return fd;
 }
-
 
 static struct wl_buffer *create_shm_buffer(int width, int height,
 		void **data_out) {
@@ -170,91 +160,8 @@ static struct wl_buffer *create_shm_buffer(int width, int height,
 	return buffer;
 }
 
-static void write_image(const char *filename, int width, int height) {
-	int buffer_stride = width * 4;
-
-	void *data = calloc(1, buffer_stride * height);
-	if (!data) {
-		return;
-	}
-
-	struct screenshooter_output *output, *next;
-	wl_list_for_each_safe(output, next, &output_list, link) {
-		int output_stride = output->width * 4;
-		uint32_t *src = (uint32_t *)output->data;
-		uint32_t *dst = (uint32_t *)(data +
-			(output->offset_y - min_y) * buffer_stride +
-			(output->offset_x - min_x) * 4);
-
-		switch (output->transform) {
-		case WL_OUTPUT_TRANSFORM_NORMAL:
-			for (int i = 0; i < output->height; i++) {
-				memcpy(dst, src, output_stride);
-				dst += width;
-				src += output->width;
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED:
-			for (int i = 0; i < output->height; ++i) {
-				for (int j = 0; j < output->width; ++j) {
-					dst[i * width + j] =
-						src[i * output->width + output->width - 1 - j];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_90:
-			for (int i = 0; i < output->width; ++i) {
-				for (int j = 0; j < output->height; ++j) {
-					dst[i * width + j] =
-						src[j * output->width + output->width - 1 - i];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-			for (int i = 0; i < output->width; ++i) {
-				for (int j = 0; j < output->height; ++j) {
-					dst[i * width + j] =
-						src[(output->height - 1 - j) * output->width + output->width - 1 - i];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_180:
-			for (int i = 0; i < output->height; ++i) {
-				for (int j = 0; j < output->width; ++j) {
-					dst[i * width + j] =
-						src[(output->height - 1 - i) * output->width + output->width - 1 - j];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-			for (int i = 0; i < output->height; ++i) {
-				for (int j = 0; j < output->width; ++j) {
-					dst[i * width + j] =
-						src[(output->height - 1 - i) * output->width + j];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_270:
-			for (int i = 0; i < output->width; ++i) {
-				for (int j = 0; j < output->height; ++j) {
-					dst[i * width + j] =
-						src[(output->height - 1 - j) * output->width + i];
-				}
-			}
-			break;
-		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-			for (int i = 0; i < output->width; ++i) {
-				for (int j = 0; j < output->height; ++j) {
-					dst[i * width + j] =
-						src[j * output->width + i];
-				}
-			}
-			break;
-		}
-
-		free(output);
-	}
-
+static void write_image(const char *filename, int width, int height,
+		void *data) {
 	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
 	sprintf(size, "%dx%d+0", width, height);
 
@@ -270,12 +177,11 @@ static void write_image(const char *filename, int width, int height) {
 		exit(EXIT_FAILURE);
 	} else if (child != 0) {
 		close(fd[0]);
-		if (write(fd[1], data, buffer_stride * height) < 0) {
+		if (write(fd[1], data, 4 * width * height) < 0) {
 			fprintf(stderr, "write() failed: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		close(fd[1]);
-		free(data);
 		waitpid(child, NULL, 0);
 	} else {
 		close(fd[1]);
@@ -293,38 +199,9 @@ static void write_image(const char *filename, int width, int height) {
 	}
 }
 
-static int set_buffer_size(int *width, int *height) {
-	int owidth, oheight;
-	min_x = min_y = INT_MAX;
-	max_x = max_y = INT_MIN;
-
-	struct screenshooter_output *output;
-	wl_list_for_each(output, &output_list, link) {
-		if (output->transform & 0x1) {
-			owidth = output->height;
-			oheight = output->width;
-		} else {
-			owidth = output->width;
-			oheight = output->height;
-		}
-		min_x = MIN(min_x, output->offset_x);
-		min_y = MIN(min_y, output->offset_y);
-		max_x = MAX(max_x, output->offset_x + owidth);
-		max_y = MAX(max_y, output->offset_y + oheight);
-	}
-
-	if (max_x <= min_x || max_y <= min_y) {
-		return -1;
-	}
-
-	*width = max_x - min_x;
-	*height = max_y - min_y;
-
-	return 0;
-}
-
 int main(int argc, char *argv[]) {
 	wlr_log_init(L_DEBUG, NULL);
+
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "failed to create display: %m\n");
@@ -342,27 +219,31 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	int width, height;
-	if (set_buffer_size(&width, &height)) {
-		fprintf(stderr, "cannot set buffer size\n");
-		return -1;
-	}
-
+	int i = 0;
 	struct screenshooter_output *output;
 	wl_list_for_each(output, &output_list, link) {
-		output->buffer = create_shm_buffer(output->width, output->height, &output->data);
-		if (output->buffer == NULL) {
+		void *data = NULL;
+		struct wl_buffer *buffer =
+			create_shm_buffer(output->width, output->height, &data);
+		if (buffer == NULL) {
 			return -1;
 		}
 		struct orbital_screenshot *screenshot = orbital_screenshooter_shoot(
-			screenshooter, output->output, output->buffer);
-		orbital_screenshot_add_listener(screenshot, &screenshot_listener, screenshot);
-		buffer_copy_done = 0;
+			screenshooter, output->output, buffer);
+		orbital_screenshot_add_listener(screenshot, &screenshot_listener,
+			screenshot);
+		buffer_copy_done = false;
 		while (!buffer_copy_done) {
 			wl_display_roundtrip(display);
 		}
+
+		char filename[24 + 10]; // int32_t are max 10 digits
+		snprintf(filename, sizeof(filename), "wayland-screenshot-%d.png", i);
+
+		write_image(filename, output->width, output->height, data);
+		wl_buffer_destroy(buffer);
+		++i;
 	}
 
-	write_image("wayland-screenshot.png", width, height);
 	return EXIT_SUCCESS;
 }

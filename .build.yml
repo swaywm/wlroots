@@ -11,7 +11,7 @@ packages:
   - pixman
   - clang
 sources:
-  - https://git.sr.ht/~sircmpwn/wlroots
+  - https://github.com/swaywm/wlroots
 tasks:
   - setup: |
       mkdir wlroots/build-{gcc,clang}

@@ -48,6 +48,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 static void wlr_output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
+	wlr_output_destroy_global(l_output->output);
 	wl_list_remove(&l_output->state->mode.link);
 	wl_list_remove(&l_output->state->scale.link);
 	wl_list_remove(&l_output->state->transform.link);
@@ -64,7 +65,7 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 	wlr_signal_emit_safe(&layout->events.destroy, layout);
 
-	struct wlr_output_layout_output *l_output, *temp = NULL;
+	struct wlr_output_layout_output *l_output, *temp;
 	wl_list_for_each_safe(l_output, temp, &layout->outputs, link) {
 		wlr_output_layout_output_destroy(l_output);
 	}
@@ -291,7 +292,6 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		wlr_output_layout_output_destroy(l_output);
 		wlr_output_layout_reconfigure(layout);
 	}
-	wlr_output_destroy_global(output);
 }
 
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,

@@ -73,6 +73,7 @@ struct tablet_pad_state {
 	struct wlr_input_device *device;
 	struct wl_listener destroy;
 	struct wl_listener button;
+	struct wl_listener ring;
 	struct wl_list link;
 	void *data;
 };
@@ -117,6 +118,8 @@ struct compositor_state {
 			uint32_t button, enum wlr_button_state state);
 	void (*pad_button_cb)(struct tablet_pad_state *s,
 			uint32_t button, enum wlr_button_state state);
+	void (*pad_ring_cb)(struct tablet_pad_state *s,
+			uint32_t ring, double position);
 
 	struct wl_display *display;
 	struct wl_event_loop *event_loop;

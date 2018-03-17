@@ -325,6 +325,10 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 					surface->current->buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
 			goto release;
+		} else if (wlr_dmabuf_resource_is_buffer(
+					   surface->current->buffer)) {
+			wlr_texture_upload_dmabuf(surface->texture, surface->current->buffer);
+			goto release;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
 			return;
@@ -901,7 +905,6 @@ void wlr_surface_send_enter(struct wlr_surface *surface,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		if (client == wl_resource_get_client(resource)) {
 			wl_surface_send_enter(surface->resource, resource);
-			break;
 		}
 	}
 }
@@ -913,7 +916,6 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 	wl_resource_for_each(resource, &output->wl_resources) {
 		if (client == wl_resource_get_client(resource)) {
 			wl_surface_send_leave(surface->resource, resource);
-			break;
 		}
 	}
 }

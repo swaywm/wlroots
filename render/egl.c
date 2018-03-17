@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -101,6 +102,26 @@ static bool check_egl_ext(const char *egl_exts, const char *ext) {
 	return false;
 }
 
+static void print_dmabuf_formats(struct wlr_egl *egl) {
+	/* Avoid log msg if extension is not present */
+	if (!egl->egl_exts.dmabuf_import_modifiers) {
+		return;
+	}
+
+	int *formats;
+	int num = wlr_egl_get_dmabuf_formats(egl, &formats);
+	if (num < 0) {
+		return;
+	}
+
+	char str_formats[num * 5 + 1];
+	for (int i = 0; i < num; i++) {
+		snprintf(&str_formats[i*5], (num - i) * 5 + 1, "%.4s ", (char*)&formats[i]);
+	}
+	wlr_log(L_INFO, "Supported dmabuf buffer formats: %s", str_formats);
+	free(formats);
+}
+
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
@@ -166,6 +187,13 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	egl->egl_exts.swap_buffers_with_damage =
 		check_egl_ext(egl->egl_exts_str, "EGL_EXT_swap_buffers_with_damage") ||
 		check_egl_ext(egl->egl_exts_str, "EGL_KHR_swap_buffers_with_damage");
+
+	egl->egl_exts.dmabuf_import =
+		check_egl_ext(egl->egl_exts_str, "EGL_EXT_image_dma_buf_import");
+	egl->egl_exts.dmabuf_import_modifiers =
+		check_egl_ext(egl->egl_exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
+		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
+	print_dmabuf_formats(egl);
 
 	return true;
 
@@ -298,4 +326,133 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		return false;
 	}
 	return true;
+}
+
+EGLImage wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
+		struct wlr_dmabuf_buffer_attribs *attributes) {
+	int atti = 0;
+	EGLint attribs[20];
+	attribs[atti++] = EGL_WIDTH;
+	attribs[atti++] = attributes->width;
+	attribs[atti++] = EGL_HEIGHT;
+	attribs[atti++] = attributes->height;
+	attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
+	attribs[atti++] = attributes->format;
+
+	bool has_modifier = false;
+	if (attributes->modifier[0] != DRM_FORMAT_MOD_INVALID) {
+		if (!egl->egl_exts.dmabuf_import_modifiers) {
+			return NULL;
+		}
+		has_modifier = true;
+	}
+
+	/* TODO: YUV planes have up four planes but we only support a
+	   single EGLImage for now */
+	if (attributes->n_planes > 1) {
+		return NULL;
+	}
+
+	attribs[atti++] = EGL_DMA_BUF_PLANE0_FD_EXT;
+	attribs[atti++] = attributes->fd[0];
+	attribs[atti++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
+	attribs[atti++] = attributes->offset[0];
+	attribs[atti++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
+	attribs[atti++] = attributes->stride[0];
+	if (has_modifier) {
+		attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
+		attribs[atti++] = attributes->modifier[0] & 0xFFFFFFFF;
+		attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
+		attribs[atti++] = attributes->modifier[0] >> 32;
+	}
+	attribs[atti++] = EGL_NONE;
+	return eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
+		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+}
+
+#ifndef DRM_FORMAT_BIG_ENDIAN
+# define DRM_FORMAT_BIG_ENDIAN 0x80000000
+#endif
+bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
+		struct wlr_dmabuf_buffer *dmabuf) {
+	switch (dmabuf->attributes.format & ~DRM_FORMAT_BIG_ENDIAN) {
+		/* YUV based formats not yet supported */
+	case WL_SHM_FORMAT_YUYV:
+	case WL_SHM_FORMAT_YVYU:
+	case WL_SHM_FORMAT_UYVY:
+	case WL_SHM_FORMAT_VYUY:
+	case WL_SHM_FORMAT_AYUV:
+		return false;
+	default:
+		break;
+	}
+
+	EGLImage egl_image = wlr_egl_create_image_from_dmabuf(egl,
+		&dmabuf->attributes);
+	if (egl_image) {
+		/* We can import the image, good. No need to keep it
+		   since wlr_texture_upload_dmabuf will import it again */
+		wlr_egl_destroy_image(egl, egl_image);
+		return true;
+	}
+	/* TODO: import yuv dmabufs */
+	return false;
+}
+
+int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
+		int **formats) {
+	if (!egl->egl_exts.dmabuf_import ||
+		!egl->egl_exts.dmabuf_import_modifiers) {
+		wlr_log(L_ERROR, "dmabuf extension not present");
+		return -1;
+	}
+
+	EGLint num;
+	if (!eglQueryDmaBufFormatsEXT(egl->display, 0, NULL, &num)) {
+		wlr_log(L_ERROR, "failed to query number of dmabuf formats");
+		return -1;
+	}
+
+	*formats = calloc(num, sizeof(int));
+	if (*formats == NULL) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		return -1;
+	}
+
+	if (!eglQueryDmaBufFormatsEXT(egl->display, num, *formats, &num)) {
+		wlr_log(L_ERROR, "failed to query dmabuf format");
+		free(*formats);
+		return -1;
+	}
+	return num;
+}
+
+int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
+		int format, uint64_t **modifiers) {
+	if (!egl->egl_exts.dmabuf_import ||
+		!egl->egl_exts.dmabuf_import_modifiers) {
+		wlr_log(L_ERROR, "dmabuf extension not present");
+		return -1;
+	}
+
+	EGLint num;
+	if (!eglQueryDmaBufModifiersEXT(egl->display, format, 0,
+			NULL, NULL, &num)) {
+		wlr_log(L_ERROR, "failed to query dmabuf number of modifiers");
+		return -1;
+	}
+
+	*modifiers = calloc(num, sizeof(uint64_t));
+	if (*modifiers == NULL) {
+		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		return -1;
+	}
+
+	if (!eglQueryDmaBufModifiersEXT(egl->display, format, num,
+		*modifiers, NULL, &num)) {
+		wlr_log(L_ERROR, "failed to query dmabuf modifiers");
+		free(*modifiers);
+		return -1;
+	}
+	return num;
 }

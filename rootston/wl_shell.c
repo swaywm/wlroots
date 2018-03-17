@@ -78,6 +78,19 @@ static void close(struct roots_view *view) {
 	wl_client_destroy(surf->client);
 }
 
+static void destroy(struct roots_view *view) {
+	assert(view->type == ROOTS_WL_SHELL_VIEW);
+	struct roots_wl_shell_surface *roots_surface = view->roots_wl_shell_surface;
+	wl_list_remove(&roots_surface->destroy.link);
+	wl_list_remove(&roots_surface->request_move.link);
+	wl_list_remove(&roots_surface->request_resize.link);
+	wl_list_remove(&roots_surface->request_maximize.link);
+	wl_list_remove(&roots_surface->request_fullscreen.link);
+	wl_list_remove(&roots_surface->set_state.link);
+	wl_list_remove(&roots_surface->surface_commit.link);
+	free(roots_surface);
+}
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
@@ -174,17 +187,7 @@ static void handle_new_popup(struct wl_listener *listener, void *data) {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
-	wl_list_remove(&roots_surface->destroy.link);
-	wl_list_remove(&roots_surface->request_move.link);
-	wl_list_remove(&roots_surface->request_resize.link);
-	wl_list_remove(&roots_surface->request_maximize.link);
-	wl_list_remove(&roots_surface->request_fullscreen.link);
-	wl_list_remove(&roots_surface->set_state.link);
-	wl_list_remove(&roots_surface->surface_commit.link);
-	wl_list_remove(&roots_surface->view->link);
-	view_finish(roots_surface->view);
-	free(roots_surface->view);
-	free(roots_surface);
+	view_destroy(roots_surface->view);
 }
 
 void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
@@ -227,7 +230,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit, &roots_surface->surface_commit);
 
-	struct roots_view *view = view_create();
+	struct roots_view *view = view_create(desktop);
 	if (!view) {
 		free(roots_surface);
 		return;
@@ -238,13 +241,12 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
-	view->wlr_surface = surface->surface;
 	view->resize = resize;
 	view->close = close;
+	view->destroy = destroy;
 	roots_surface->view = view;
-	view_init(view, desktop);
-	wl_list_insert(&desktop->views, &view->link);
 
+	view_map(view, surface->surface);
 	view_setup(view);
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {

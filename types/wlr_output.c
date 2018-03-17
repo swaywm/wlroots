@@ -16,9 +16,7 @@
 #include "util/signal.h"
 
 static void wl_output_send_to_resource(struct wl_resource *resource) {
-	assert(resource);
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
 		wl_output_send_geometry(resource, output->lx, output->ly,
@@ -52,9 +50,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 
 static void wlr_output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
-	assert(resource);
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	assert(output);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version < WL_OUTPUT_MODE_SINCE_VERSION) {
 		return;
@@ -76,7 +72,7 @@ static void wlr_output_send_current_mode_to_resource(
 
 static void wl_output_destroy(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	struct wl_resource *_resource = NULL;
+	struct wl_resource *_resource;
 	wl_resource_for_each(_resource, &output->wl_resources) {
 		if (_resource == resource) {
 			struct wl_list *link = wl_resource_get_link(_resource);
@@ -98,7 +94,6 @@ static struct wl_output_interface wl_output_impl = {
 static void wl_output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_output *wlr_output = data;
-	assert(wl_client && wlr_output);
 
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
@@ -674,6 +669,31 @@ static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	}
 }
 
+static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
+	struct wlr_box output_box;
+	output_box.x = output_box.y = 0;
+	wlr_output_transformed_resolution(cursor->output, &output_box.width,
+		&output_box.height);
+
+	struct wlr_box cursor_box;
+	output_cursor_get_box(cursor, &cursor_box);
+
+	struct wlr_box intersection;
+	bool visible =
+		wlr_box_intersection(&output_box, &cursor_box, &intersection);
+
+	if (cursor->surface != NULL) {
+		if (cursor->visible && !visible) {
+			wlr_surface_send_leave(cursor->surface, cursor->output);
+		}
+		if (!cursor->visible && visible) {
+			wlr_surface_send_enter(cursor->surface, cursor->output);
+		}
+	}
+
+	cursor->visible = visible;
+}
+
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
@@ -687,6 +707,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->height = height;
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
+	output_cursor_update_visible(cursor);
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
 	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
@@ -719,31 +740,6 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	return wlr_texture_upload_pixels(cursor->texture, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, pixels);
-}
-
-static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
-	struct wlr_box output_box;
-	output_box.x = output_box.y = 0;
-	wlr_output_transformed_resolution(cursor->output, &output_box.width,
-		&output_box.height);
-
-	struct wlr_box cursor_box;
-	output_cursor_get_box(cursor, &cursor_box);
-
-	struct wlr_box intersection;
-	bool visible =
-		wlr_box_intersection(&output_box, &cursor_box, &intersection);
-
-	if (cursor->surface != NULL) {
-		if (cursor->visible && !visible) {
-			wlr_surface_send_leave(cursor->surface, cursor->output);
-		}
-		if (!cursor->visible && visible) {
-			wlr_surface_send_enter(cursor->surface, cursor->output);
-		}
-	}
-
-	cursor->visible = visible;
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
@@ -851,11 +847,17 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		output_cursor_damage_whole(cursor);
 	}
 
+	bool was_visible = cursor->visible;
 	x *= cursor->output->scale;
 	y *= cursor->output->scale;
 	cursor->x = x;
 	cursor->y = y;
 	output_cursor_update_visible(cursor);
+
+	if (!was_visible && !cursor->visible) {
+		// Cursor is still hidden, do nothing
+		return true;
+	}
 
 	if (cursor->output->hardware_cursor != cursor) {
 		output_cursor_damage_whole(cursor);
@@ -881,6 +883,7 @@ struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
 	wl_list_init(&cursor->surface_destroy.link);
 	cursor->surface_destroy.notify = output_cursor_handle_destroy;
 	wl_list_insert(&output->cursors, &cursor->link);
+	cursor->visible = true; // default position is at (0, 0)
 	return cursor;
 }
 

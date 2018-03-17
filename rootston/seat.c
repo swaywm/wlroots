@@ -514,13 +514,13 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 
 static void handle_tablet_tool_destroy(struct wl_listener *listener,
 		void *data) {
-	struct roots_pointer *tablet_tool =
+	struct roots_tablet_tool *tablet_tool =
 		wl_container_of(listener, tablet_tool, device_destroy);
 	struct roots_seat *seat = tablet_tool->seat;
 
-	wl_list_remove(&tablet_tool->link);
 	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet_tool->device);
 	wl_list_remove(&tablet_tool->device_destroy.link);
+	wl_list_remove(&tablet_tool->link);
 	free(tablet_tool);
 
 	seat_update_capabilities(seat);
@@ -645,6 +645,7 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 		seat->cursor->pointer_view = NULL;
 	}
 
+	wl_list_remove(&seat_view->view_unmap.link);
 	wl_list_remove(&seat_view->view_destroy.link);
 	wl_list_remove(&seat_view->link);
 	free(seat_view);
@@ -655,6 +656,12 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 			seat->views.next, first_seat_view, link);
 		roots_seat_set_focus(seat, first_seat_view->view);
 	}
+}
+
+static void seat_view_handle_unmap(struct wl_listener *listener, void *data) {
+	struct roots_seat_view *seat_view =
+		wl_container_of(listener, seat_view, view_unmap);
+	seat_view_destroy(seat_view);
 }
 
 static void seat_view_handle_destroy(struct wl_listener *listener, void *data) {
@@ -675,6 +682,8 @@ static struct roots_seat_view *seat_add_view(struct roots_seat *seat,
 
 	wl_list_insert(seat->views.prev, &seat_view->link);
 
+	seat_view->view_unmap.notify = seat_view_handle_unmap;
+	wl_signal_add(&view->events.unmap, &seat_view->view_unmap);
 	seat_view->view_destroy.notify = seat_view_handle_destroy;
 	wl_signal_add(&view->events.destroy, &seat_view->view_destroy);
 
