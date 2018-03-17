@@ -680,6 +680,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 		}
 		pixman_region32_translate(&damage, box.x, box.y);
 		wlr_output_damage_add(output->damage, &damage);
+		pixman_region32_fini(&damage);
 	} else {
 		pixman_box32_t *extents =
 			pixman_region32_extents(&surface->current->surface_damage);
