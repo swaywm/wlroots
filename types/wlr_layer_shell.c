@@ -235,7 +235,10 @@ static struct zwlr_layer_shell_v1_interface layer_shell_impl = {
 static void wlr_layer_client_destroy(struct wl_resource *resource) {
 	struct wlr_layer_client *client = layer_client_from_resource(resource);
 
-	// TODO: Destroy surfaces
+	struct wlr_layer_surface *surface, *tmp = NULL;
+	wl_list_for_each_safe(surface, tmp, &client->surfaces, link) {
+		layer_surface_destroy(surface);
+	}
 
 	wl_list_remove(&client->link);
 	free(client);
