@@ -26,6 +26,11 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		// GNOME sends a pointer enter when the surface is being destroyed
 		return;
 	}
+	if (wlr_wl_pointer->current_output) {
+		wl_list_remove(&wlr_wl_pointer->output_destroy_listener.link);
+	}
+	wl_signal_add(&output->wlr_output.events.destroy,
+		&wlr_wl_pointer->output_destroy_listener);
 	wlr_wl_pointer->current_output = output;
 	output->enter_serial = serial;
 	wlr_wl_output_update_cursor(output);
@@ -49,7 +54,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_pointer *wlr_wl_pointer =
 		(struct wlr_wl_pointer *)dev->pointer;
 	if (!wlr_wl_pointer->current_output) {
-		wlr_log(L_ERROR, "pointer motion event without current output");
+		wlr_log(L_DEBUG, "pointer motion event without current output");
 		return;
 	}
 
@@ -231,6 +236,14 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 	return wlr_device;
 }
 
+static void wlr_wl_pointer_handle_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_wl_pointer *wlr_wl_pointer =
+		wl_container_of(listener, wlr_wl_pointer, output_destroy_listener);
+	wlr_wl_pointer->current_output = NULL;
+	wl_list_remove(&wlr_wl_pointer->output_destroy_listener.link);
+}
+
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	struct wlr_wl_backend *backend = data;
@@ -243,6 +256,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			wlr_log(L_ERROR, "Unable to allocate wlr_wl_pointer");
 			return;
 		}
+		wlr_wl_pointer->output_destroy_listener.notify =
+			wlr_wl_pointer_handle_output_destroy;
 
 		struct wlr_input_device *wlr_device;
 		if (!(wlr_device = allocate_device(backend, WLR_INPUT_DEVICE_POINTER))) {
