@@ -27,6 +27,8 @@ struct roots_xdg_surface_v6 {
 
 	struct wl_listener destroy;
 	struct wl_listener new_popup;
+	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
@@ -42,6 +44,8 @@ struct roots_xdg_surface {
 
 	struct wl_listener destroy;
 	struct wl_listener new_popup;
+	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
@@ -128,6 +132,7 @@ struct roots_view {
 	struct wl_listener new_subsurface;
 
 	struct {
+		struct wl_signal unmap;
 		struct wl_signal destroy;
 	} events;
 
@@ -140,6 +145,7 @@ struct roots_view {
 	void (*maximize)(struct roots_view *view, bool maximized);
 	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
 	void (*close)(struct roots_view *view);
+	void (*destroy)(struct roots_view *view);
 };
 
 struct roots_view_child {
@@ -181,7 +187,6 @@ struct roots_xdg_popup {
 	struct wl_listener new_popup;
 };
 
-struct roots_view *view_create();
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);
