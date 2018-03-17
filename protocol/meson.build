@@ -30,6 +30,7 @@ protocols = [
 	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'wlr-layer-shell-unstable-v1.xml',
 ]
 
 client_protocols = [

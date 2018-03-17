@@ -48,6 +48,7 @@ struct roots_desktop {
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
 	struct wlr_linux_dmabuf *linux_dmabuf;
+	struct wlr_layer_shell *layer_shell;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
