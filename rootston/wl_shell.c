@@ -192,7 +192,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 
 void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, wl_shell_surface);
+		wl_container_of(listener, desktop, new_wl_shell_surface);
 	struct wlr_wl_shell_surface *surface = data;
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {

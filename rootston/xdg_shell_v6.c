@@ -334,7 +334,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	}
 
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xdg_shell_v6_surface);
+		wl_container_of(listener, desktop, new_xdg_shell_v6_surface);
 
 	wlr_log(L_DEBUG, "new xdg toplevel: title=%s, app_id=%s",
 		surface->title, surface->app_id);

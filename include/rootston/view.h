@@ -187,6 +187,16 @@ struct roots_xdg_popup {
 	struct wl_listener new_popup;
 };
 
+struct roots_xdg_toplevel_decoration {
+	struct wlr_xdg_toplevel_decoration *wlr_decoration;
+	struct roots_xdg_surface *surface;
+	struct wl_listener destroy;
+	struct wl_listener request_mode;
+	struct wl_listener surface_map;
+	struct wl_listener surface_unmap;
+	struct wl_listener surface_commit;
+};
+
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);

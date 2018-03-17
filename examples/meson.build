@@ -48,3 +48,10 @@ executable(
 	dependencies: [wayland_client, wlr_protos, wlroots, threads],
 	link_with: lib_shared,
 )
+
+executable(
+	'toplevel-decoration',
+	'toplevel-decoration.c',
+	dependencies: [wayland_client, wlr_protos, wlroots],
+	link_with: lib_shared,
+)

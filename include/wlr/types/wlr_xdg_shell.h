@@ -79,6 +79,7 @@ struct wlr_xdg_toplevel {
 };
 
 struct wlr_xdg_surface_configure {
+	struct wlr_xdg_surface *surface;
 	struct wl_list link; // wlr_xdg_surface::configure_list
 	uint32_t serial;
 
@@ -127,6 +128,10 @@ struct wlr_xdg_surface {
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
 		struct wl_signal request_show_window_menu;
+
+		// for protocol extensions
+		struct wl_signal configure;
+		struct wl_signal ack_configure;
 	} events;
 
 	void *data;
@@ -221,5 +226,14 @@ void wlr_xdg_surface_popup_get_position(struct wlr_xdg_surface *surface,
 struct wlr_xdg_surface *wlr_xdg_surface_popup_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
+
+/**
+ * Schedule a surface configuration. This should only be called by protocols
+ * extending the shell.
+ */
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
+
+struct wlr_xdg_surface *wlr_xdg_surface_from_xdg_toplevel_resource(
+	struct wl_resource *resource);
 
 #endif

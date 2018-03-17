@@ -18,6 +18,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_toplevel_decoration.h>
 #include <wlr/util/log.h>
 #include "rootston/seat.h"
 #include "rootston/server.h"
@@ -34,6 +35,7 @@ struct roots_view *view_create(struct roots_desktop *desktop) {
 	wl_signal_init(&view->events.unmap);
 	wl_signal_init(&view->events.destroy);
 	wl_list_init(&view->children);
+	wl_list_insert(&view->desktop->unmapped_views, &view->link);
 	return view;
 }
 
@@ -428,6 +430,7 @@ void view_destroy(struct roots_view *view) {
 		view->destroy(view);
 	}
 
+	wl_list_remove(&view->link);
 	free(view);
 }
 
@@ -453,6 +456,7 @@ void view_map(struct roots_view *view, struct wlr_surface *surface) {
 	wl_signal_add(&view->wlr_surface->events.new_subsurface,
 		&view->new_subsurface);
 
+	wl_list_remove(&view->link);
 	wl_list_insert(&view->desktop->views, &view->link);
 	view_damage_whole(view);
 }
@@ -464,6 +468,7 @@ void view_unmap(struct roots_view *view) {
 
 	view_damage_whole(view);
 	wl_list_remove(&view->link);
+	wl_list_insert(&view->desktop->unmapped_views, &view->link);
 
 	wl_list_remove(&view->new_subsurface.link);
 
@@ -534,6 +539,23 @@ void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) 
 	view_damage_whole(view);
 	view->width = width;
 	view->height = height;
+	view_damage_whole(view);
+}
+
+void view_update_decorated(struct roots_view *view, bool decorated) {
+	if (view->decorated == decorated) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->decorated = decorated;
+	if (decorated) {
+		view->border_width = 4;
+		view->titlebar_height = 12;
+	} else {
+		view->border_width = 0;
+		view->titlebar_height = 0;
+	}
 	view_damage_whole(view);
 }
 
@@ -684,6 +706,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	}
 
 	wl_list_init(&desktop->views);
+	wl_list_init(&desktop->unmapped_views);
 	wl_list_init(&desktop->outputs);
 
 	desktop->new_output.notify = handle_new_output;
@@ -701,18 +724,18 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->xdg_shell_v6 = wlr_xdg_shell_v6_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell_v6->events.new_surface,
-		&desktop->xdg_shell_v6_surface);
-	desktop->xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
+		&desktop->new_xdg_shell_v6_surface);
+	desktop->new_xdg_shell_v6_surface.notify = handle_xdg_shell_v6_surface;
 
 	desktop->xdg_shell = wlr_xdg_shell_create(server->wl_display);
 	wl_signal_add(&desktop->xdg_shell->events.new_surface,
-		&desktop->xdg_shell_surface);
-	desktop->xdg_shell_surface.notify = handle_xdg_shell_surface;
+		&desktop->new_xdg_shell_surface);
+	desktop->new_xdg_shell_surface.notify = handle_xdg_shell_surface;
 
 	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
 	wl_signal_add(&desktop->wl_shell->events.new_surface,
-		&desktop->wl_shell_surface);
-	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
+		&desktop->new_wl_shell_surface);
+	desktop->new_wl_shell_surface.notify = handle_wl_shell_surface;
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
@@ -739,8 +762,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
 			desktop->compositor);
 		wl_signal_add(&desktop->xwayland->events.new_surface,
-			&desktop->xwayland_surface);
-		desktop->xwayland_surface.notify = handle_xwayland_surface;
+			&desktop->new_xwayland_surface);
+		desktop->new_xwayland_surface.notify = handle_xwayland_surface;
 
 		if (wlr_xcursor_manager_load(desktop->xcursor_manager, 1)) {
 			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
@@ -771,6 +794,13 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);
+
+	desktop->xdg_toplevel_decoration_manager =
+		wlr_xdg_toplevel_decoration_manager_create(server->wl_display);
+	wl_signal_add(&desktop->xdg_toplevel_decoration_manager->events.new_decoration,
+		&desktop->new_xdg_toplevel_decoration);
+	desktop->new_xdg_toplevel_decoration.notify = handle_xdg_toplevel_decoration;
+
 	return desktop;
 }
 

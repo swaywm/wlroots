@@ -27,6 +27,7 @@
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
+	struct wl_list unmapped_views; // roots_view::link
 
 	struct wl_list outputs; // roots_output::link
 	struct timespec last_frame;
@@ -44,6 +45,7 @@ struct roots_desktop {
 	struct wlr_gamma_control_manager *gamma_control_manager;
 	struct wlr_screenshooter *screenshooter;
 	struct wlr_server_decoration_manager *server_decoration_manager;
+	struct wlr_xdg_toplevel_decoration_manager *xdg_toplevel_decoration_manager;
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
@@ -51,14 +53,14 @@ struct roots_desktop {
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
-	struct wl_listener xdg_shell_v6_surface;
-	struct wl_listener xdg_shell_surface;
-	struct wl_listener wl_shell_surface;
-	struct wl_listener decoration_new;
+	struct wl_listener new_xdg_shell_v6_surface;
+	struct wl_listener new_xdg_shell_surface;
+	struct wl_listener new_wl_shell_surface;
+	struct wl_listener new_xdg_toplevel_decoration;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
-	struct wl_listener xwayland_surface;
+	struct wl_listener new_xwayland_surface;
 	struct wl_listener xwayland_ready;
 #endif
 };
@@ -80,12 +82,14 @@ void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);
 void view_update_position(struct roots_view *view, double x, double y);
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height);
+void view_update_decorated(struct roots_view *view, bool decorated);
 void view_initial_focus(struct roots_view *view);
 void view_map(struct roots_view *view, struct wlr_surface *surface);
 void view_unmap(struct roots_view *view);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_xdg_shell_surface(struct wl_listener *listener, void *data);
+void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);
 void handle_xwayland_surface(struct wl_listener *listener, void *data);
 

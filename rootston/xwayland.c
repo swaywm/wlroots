@@ -255,7 +255,7 @@ static void handle_unmap_notify(struct wl_listener *listener, void *data) {
 
 void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xwayland_surface);
+		wl_container_of(listener, desktop, new_xwayland_surface);
 
 	struct wlr_xwayland_surface *surface = data;
 	wlr_log(L_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
@@ -319,9 +319,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 
 	if (!surface->override_redirect) {
 		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
-			view->decorated = true;
-			view->border_width = 4;
-			view->titlebar_height = 12;
+			view_update_decorated(view, true);
 		}
 
 		view_setup(view);
