@@ -31,25 +31,68 @@ static struct wlr_layer_surface *layer_surface_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static void layer_surface_configure_destroy(
+		struct wlr_layer_surface_configure *configure) {
+	if (configure == NULL) {
+		return;
+	}
+	wl_list_remove(&configure->link);
+	free(configure);
+}
+
 static void layer_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
-	// TODO
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+
+	bool found = false;
+	struct wlr_layer_surface_configure *configure, *tmp;
+	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
+		if (configure->serial < serial) {
+			layer_surface_configure_destroy(configure);
+		} else if (configure->serial == serial) {
+			found = true;
+			break;
+		} else {
+			break;
+		}
+	}
+	if (!found) {
+		wl_resource_post_error(surface->client->resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SURFACE_STATE,
+			"wrong configure serial: %u", serial);
+		return;
+	}
+
+	surface->configured = true;
+	surface->configure_serial = serial;
+
+	surface->current.anchor = configure->state.anchor;
+	surface->current.exclusive_zone = configure->state.exclusive_zone;
+	surface->current.margin = configure->state.margin;
+
+	layer_surface_configure_destroy(configure);
 }
 
 static void layer_surface_handle_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
-	// TODO
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	surface->next.anchor = anchor;
 }
 
 static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 		struct wl_resource *resource, uint32_t zone) {
-	// TODO
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	surface->next.exclusive_zone = zone;
 }
 
 static void layer_surface_handle_set_margin(struct wl_client *client,
-		struct wl_resource *resource, int32_t top, int32_t right,
-		int32_t bottom, int32_t left) {
-	// TODO
+		struct wl_resource *resource, uint32_t top,
+		uint32_t right, uint32_t bottom, uint32_t left) {
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	surface->next.margin.top = top;
+	surface->next.margin.right = right;
+	surface->next.margin.bottom = bottom;
+	surface->next.margin.left = left;
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
@@ -71,16 +114,6 @@ static const struct zwlr_layer_surface_v1_interface layer_surface_implementation
 	.get_popup = layer_surface_handle_get_popup,
 	.get_input = layer_surface_handle_get_input,
 };
-
-static void layer_surface_configure_destroy(
-		struct wlr_layer_surface_configure *configure) {
-	if (configure == NULL) {
-		return;
-	}
-	wl_list_remove(&configure->link);
-	free(configure->state);
-	free(configure);
-}
 
 static void layer_surface_unmap(struct wlr_layer_surface *surface) {
 	// TODO: probably need to ungrab before this event

@@ -131,10 +131,10 @@
 
         Margin is double-buffered, see wl_surface.commit.
       </description>
-      <arg name="top" type="int"/>
-      <arg name="right" type="int"/>
-      <arg name="bottom" type="int"/>
-      <arg name="left" type="int"/>
+      <arg name="top" type="uint"/>
+      <arg name="right" type="uint"/>
+      <arg name="bottom" type="uint"/>
+      <arg name="left" type="uint"/>
     </request>
 
     <request name="get_popup">
@@ -217,6 +217,8 @@
     <enum name="error">
       <entry name="invalid_input_device" value="0" summary="input device bitfield is invalid"/>
       <entry name="invalid_anchor" value="1" summary="anchor bitfield is invalid"/>
+      <entry name="invalid_surface_state" value="2"
+	     summary="the client provided an invalid surface state"/>
     </enum>
 
     <enum name="anchor" bitfield="true">

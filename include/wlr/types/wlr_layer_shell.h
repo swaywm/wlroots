@@ -40,7 +40,7 @@ struct wlr_layer_surface_state {
 struct wlr_layer_surface_configure {
 	struct wl_list link; // wlr_layer_surface::configure_list
 	uint32_t serial;
-	struct wlr_layer_surface_state *state;
+	struct wlr_layer_surface_state state;
 };
 
 struct wlr_layer_surface {
