@@ -11,7 +11,7 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/util/log.h>
@@ -102,7 +102,7 @@ static void handle_output_frame(struct output_state *output,
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);
 
@@ -111,18 +111,14 @@ static void handle_output_frame(struct output_state *output,
 		.width = 128, .height = 128,
 	};
 	if (wlr_output_layout_intersects(sample->layout, output->output, &box)) {
-		float matrix[16];
-
 		// transform global coordinates to local coordinates
 		double local_x = sample->x_offs;
 		double local_y = sample->y_offs;
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		wlr_texture_get_matrix(sample->cat_texture, &matrix,
-			&wlr_output->transform_matrix, local_x, local_y);
-		wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix, 1.0f);
+		wlr_render_texture(sample->renderer, sample->cat_texture,
+			wlr_output->transform_matrix, local_x, local_y, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

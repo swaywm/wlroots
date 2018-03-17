@@ -9,7 +9,7 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
@@ -47,9 +47,9 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16];
+	float matrix[9];
 	float distance = 0.8f * (1 - sample->distance);
 	float tool_color[4] = { distance, distance, distance, 1 };
 	for (size_t i = 0; sample->button && i < 4; ++i) {
@@ -65,9 +65,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 		.x = left, .y = top,
 		.width = pad_width, .height = pad_height,
 	};
-	wlr_matrix_project_box(&matrix, &box, 0, 0,
-			&wlr_output->transform_matrix);
-	wlr_render_colored_quad(sample->renderer, &sample->pad_color, &matrix);
+	wlr_matrix_project_box(matrix, &box, 0, 0, wlr_output->transform_matrix);
+	wlr_render_colored_quad(sample->renderer, sample->pad_color, matrix);
 
 	if (sample->proximity) {
 		struct wlr_box box = {
@@ -76,16 +75,16 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 			.width = 16 * (sample->pressure + 1),
 			.height = 16 * (sample->pressure + 1),
 		};
-		wlr_matrix_project_box(&matrix, &box, 0, sample->ring,
-				&wlr_output->transform_matrix);
-		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
+		wlr_matrix_project_box(matrix, &box, 0, sample->ring,
+			wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, tool_color, matrix);
 		box.x += sample->x_tilt;
 		box.y += sample->y_tilt;
 		box.width /= 2;
 		box.height /= 2;
-		wlr_matrix_project_box(&matrix, &box, 0, 0,
-				&wlr_output->transform_matrix);
-		wlr_render_colored_quad(sample->renderer, &tool_color, &matrix);
+		wlr_matrix_project_box(matrix, &box, 0, 0,
+			wlr_output->transform_matrix);
+		wlr_render_colored_quad(sample->renderer, tool_color, matrix);
 	}
 
 	wlr_renderer_end(sample->renderer);

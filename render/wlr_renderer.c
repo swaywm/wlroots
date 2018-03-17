@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
+#include <wlr/types/wlr_matrix.h>
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		struct wlr_renderer_impl *impl) {
@@ -23,7 +24,7 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->impl->end(r);
 }
 
-void wlr_renderer_clear(struct wlr_renderer *r, const float (*color)[4]) {
+void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
 	r->impl->clear(r, color);
 }
 
@@ -35,18 +36,30 @@ struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
 	return r->impl->texture_create(r);
 }
 
-bool wlr_render_with_matrix(struct wlr_renderer *r,
-		struct wlr_texture *texture, const float (*matrix)[16], float alpha) {
-	return r->impl->render_with_matrix(r, texture, matrix, alpha);
+bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+		const float projection[static 9], int x, int y, float alpha) {
+	float mat[9];
+	wlr_matrix_identity(mat);
+	wlr_matrix_translate(mat, x, y);
+	wlr_matrix_scale(mat, texture->width, texture->height);
+	wlr_matrix_multiply(mat, projection, mat);
+
+	return wlr_render_texture_with_matrix(r, texture, mat, alpha);
+}
+
+bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
+		struct wlr_texture *texture, const float matrix[static 9],
+		float alpha) {
+	return r->impl->render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
 void wlr_render_colored_quad(struct wlr_renderer *r,
-		const float (*color)[4], const float (*matrix)[16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	r->impl->render_quad(r, color, matrix);
 }
 
 void wlr_render_colored_ellipse(struct wlr_renderer *r,
-		const float (*color)[4], const float (*matrix)[16]) {
+		const float color[static 4], const float matrix[static 9]) {
 	r->impl->render_ellipse(r, color, matrix);
 }
 

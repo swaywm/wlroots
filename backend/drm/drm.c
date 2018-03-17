@@ -17,7 +17,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -587,8 +587,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		enum wl_output_transform transform = wlr_output_transform_compose(
 			wlr_output_transform_invert(output->transform),
 			WL_OUTPUT_TRANSFORM_FLIPPED_180);
-		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
-			transform);
+		wlr_matrix_projection(plane->matrix, plane->surf.width,
+			plane->surf.height, transform);
 
 		plane->wlr_tex =
 			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
@@ -647,10 +647,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		glClearColor(0.0, 0.0, 0.0, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		float matrix[16];
-		wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-		wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
-			&matrix, 1.0f);
+		wlr_render_texture(plane->surf.renderer->wlr_rend, plane->wlr_tex,
+			plane->matrix, 0, 0, 1.0f);
 
 		glFinish();
 		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);

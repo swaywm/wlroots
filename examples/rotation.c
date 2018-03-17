@@ -10,7 +10,7 @@
 #include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render.h>
 #include <wlr/backend.h>
@@ -44,15 +44,12 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16];
 	for (int y = -128 + (int)odata->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)odata->x_offs; x < width; x += 128) {
-			wlr_texture_get_matrix(sample->cat_texture, &matrix,
-				&wlr_output->transform_matrix, x, y);
-			wlr_render_with_matrix(sample->renderer,
-					sample->cat_texture, &matrix, 1.0f);
+			wlr_render_texture(sample->renderer, sample->cat_texture,
+				wlr_output->transform_matrix, x, y, 1.0f);
 		}
 	}
 
