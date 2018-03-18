@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 			};
 			found = false;
 			for (size_t i = 0; i < sizeof(layers) / sizeof(layers[0]); ++i) {
-				if (strcmp(optarg, layers[i].name)) {
+				if (strcmp(optarg, layers[i].name) == 0) {
 					layer = layers[i].value;
 					found = true;
 					break;
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 			};
 			found = false;
 			for (size_t i = 0; i < sizeof(anchors) / sizeof(anchors[0]); ++i) {
-				if (strcmp(optarg, anchors[i].name)) {
+				if (strcmp(optarg, anchors[i].name) == 0) {
 					anchor |= anchors[i].value;
 					found = true;
 					break;
