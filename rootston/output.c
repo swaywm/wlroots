@@ -29,8 +29,8 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 		double ox = *sx - pw/2 + sw/2,
 			oy = *sy - ph/2 + sh/2;
 		// Rotated coordinates
-		double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-			ry = cos(-rotation)*oy + sin(-rotation)*ox;
+		double rx = cos(rotation)*ox - sin(rotation)*oy,
+			ry = cos(rotation)*oy + sin(rotation)*ox;
 		*sx = rx + pw/2 - sw/2;
 		*sy = ry + ph/2 - sh/2;
 	}
@@ -227,7 +227,7 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 		.x = lx, .y = ly,
 		.width = surface->current->width, .height = surface->current->height,
 	};
-	wlr_box_rotated_bounds(&layout_box, -rotation, &layout_box);
+	wlr_box_rotated_bounds(&layout_box, rotation, &layout_box);
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
@@ -275,7 +275,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	}
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, -rotation, &rotated);
+	wlr_box_rotated_bounds(&box, rotation, &rotated);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -341,7 +341,7 @@ static void render_decorations(struct roots_view *view,
 	get_decoration_box(view, output, &box);
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, -view->rotation, &rotated);
+	wlr_box_rotated_bounds(&box, view->rotation, &rotated);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -616,7 +616,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	wlr_box_rotated_bounds(&box, -rotation, &box);
+	wlr_box_rotated_bounds(&box, rotation, &box);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }
@@ -630,7 +630,7 @@ static void damage_whole_decoration(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
-	wlr_box_rotated_bounds(&box, -view->rotation, &box);
+	wlr_box_rotated_bounds(&box, view->rotation, &box);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }
@@ -689,7 +689,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 			.width = (extents->x2 - extents->x1) * wlr_output->scale,
 			.height = (extents->y2 - extents->y1) * wlr_output->scale,
 		};
-		wlr_box_rotated_bounds(&damage_box, -rotation, &damage_box);
+		wlr_box_rotated_bounds(&damage_box, rotation, &damage_box);
 		wlr_output_damage_add_box(output->damage, &damage_box);
 	}
 }

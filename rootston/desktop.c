@@ -557,8 +557,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		double ox = view_sx - (double)box.width/2,
 			oy = view_sy - (double)box.height/2;
 		// Rotated coordinates
-		double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
-			ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
+		double rx = cos(view->rotation)*ox + sin(view->rotation)*oy,
+			ry = cos(view->rotation)*oy - sin(view->rotation)*ox;
 		view_sx = rx + (double)box.width/2;
 		view_sy = ry + (double)box.height/2;
 	}
