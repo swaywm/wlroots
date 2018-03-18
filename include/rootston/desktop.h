@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -27,6 +28,8 @@
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
+
+	struct wl_list layers[4]; // layer_surface::link
 
 	struct wl_list outputs; // roots_output::link
 	struct timespec last_frame;
@@ -55,6 +58,7 @@ struct roots_desktop {
 	struct wl_listener xdg_shell_v6_surface;
 	struct wl_listener xdg_shell_surface;
 	struct wl_listener wl_shell_surface;
+	struct wl_listener layer_shell_surface;
 	struct wl_listener decoration_new;
 
 #ifdef WLR_HAS_XWAYLAND
@@ -88,6 +92,7 @@ void view_unmap(struct roots_view *view);
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_xdg_shell_surface(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);
+void handle_layer_shell_surface(struct wl_listener *listener, void *data);
 void handle_xwayland_surface(struct wl_listener *listener, void *data);
 
 #endif

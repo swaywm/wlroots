@@ -1,6 +1,5 @@
 #ifndef ROOTSTON_VIEW_H
 #define ROOTSTON_VIEW_H
-
 #include <stdbool.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>

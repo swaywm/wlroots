@@ -716,7 +716,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
 	desktop->layer_shell = wlr_layer_shell_create(server->wl_display);
-	// TODO: Pick up new surfaces
+	wl_signal_add(&desktop->layer_shell->events.new_surface,
+		&desktop->layer_shell_surface);
+	desktop->layer_shell_surface.notify = handle_layer_shell_surface;
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;

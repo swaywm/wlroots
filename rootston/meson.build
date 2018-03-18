@@ -5,6 +5,7 @@ sources = [
 	'ini.c',
 	'input.c',
 	'keyboard.c',
+	'layer_shell.c',
 	'main.c',
 	'output.c',
 	'seat.c',

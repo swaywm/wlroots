@@ -222,9 +222,8 @@
     </event>
 
     <enum name="error">
-      <entry name="invalid_input_device" value="0" summary="input device bitfield is invalid"/>
-      <entry name="invalid_anchor" value="1" summary="anchor bitfield is invalid"/>
-      <entry name="invalid_surface_state" value="2"
+      <entry name="invalid_anchor" value="0" summary="anchor bitfield is invalid"/>
+      <entry name="invalid_surface_state" value="1"
 	     summary="the client provided an invalid surface state"/>
     </enum>
 
