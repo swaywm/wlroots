@@ -76,32 +76,34 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 static void layer_surface_handle_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
-	surface->next.anchor = anchor;
+	surface->client_pending.anchor = anchor;
 }
 
 static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 		struct wl_resource *resource, uint32_t zone) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
-	surface->next.exclusive_zone = zone;
+	surface->client_pending.exclusive_zone = zone;
 }
 
-static void layer_surface_handle_set_margin(struct wl_client *client,
-		struct wl_resource *resource, uint32_t top,
-		uint32_t right, uint32_t bottom, uint32_t left) {
+static void layer_surface_handle_set_margin(
+		struct wl_client *client, struct wl_resource *resource,
+		int32_t top, int32_t right, int32_t bottom, int32_t left) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
-	surface->next.margin.top = top;
-	surface->next.margin.right = right;
-	surface->next.margin.bottom = bottom;
-	surface->next.margin.left = left;
+	surface->client_pending.margin.top = top;
+	surface->client_pending.margin.right = right;
+	surface->client_pending.margin.bottom = bottom;
+	surface->client_pending.margin.left = left;
+}
+
+static void layer_surface_handle_set_keyboard_interactivity(
+		struct wl_client *client, struct wl_resource *resource,
+		uint32_t interactive) {
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	surface->client_pending.keyboard_interactive = interactive == 1;
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *popup) {
-	// TODO
-}
-
-static void layer_surface_handle_get_input(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id, struct wl_resource *seat) {
 	// TODO
 }
 
@@ -111,8 +113,8 @@ static const struct zwlr_layer_surface_v1_interface layer_surface_implementation
 	.set_anchor = layer_surface_handle_set_anchor,
 	.set_exclusive_zone = layer_surface_handle_set_exclusive_zone,
 	.set_margin = layer_surface_handle_set_margin,
+	.set_keyboard_interactivity = layer_surface_handle_set_keyboard_interactivity,
 	.get_popup = layer_surface_handle_get_popup,
-	.get_input = layer_surface_handle_get_input,
 };
 
 static void layer_surface_unmap(struct wlr_layer_surface *surface) {
@@ -165,7 +167,7 @@ static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
 		state = &configure->state;
 	}
 
-	return !memcmp(state, &surface->pending,
+	return !memcmp(state, &surface->server_pending,
 			sizeof(struct wlr_layer_surface_state));
 }
 
@@ -181,7 +183,7 @@ static void wlr_layer_surface_send_configure(void *user_data) {
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
 	configure->serial = surface->configure_next_serial;
-	configure->state = surface->pending;
+	configure->state = surface->server_pending;
 
 	zwlr_layer_surface_v1_send_configure(surface->resource,
 			configure->serial, configure->state.width, configure->state.height);
@@ -216,8 +218,8 @@ static uint32_t wlr_layer_surface_schedule_configure(
 
 void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 		uint32_t width, uint32_t height) {
-	surface->pending.width = width;
-	surface->pending.height = height;
+	surface->server_pending.width = width;
+	surface->server_pending.height = height;
 	wlr_layer_surface_schedule_configure(surface);
 }
 
@@ -231,6 +233,13 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 			"layer_surface has never been configured");
 		return;
 	}
+
+	surface->current.anchor = surface->client_pending.anchor;
+	surface->current.exclusive_zone = surface->client_pending.exclusive_zone;
+	surface->current.margin = surface->client_pending.margin;
+	surface->current.keyboard_interactive =
+		surface->client_pending.keyboard_interactive;
+
 	if (!surface->added) {
 		surface->added = true;
 		wlr_signal_emit_safe(&surface->client->shell->events.new_surface,

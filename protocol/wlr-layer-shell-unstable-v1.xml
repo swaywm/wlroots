@@ -61,7 +61,6 @@
       <entry name="role" value="0" summary="wl_surface has another role"/>
       <entry name="invalid_layer" value="1" summary="layer value is invalid"/>
       <entry name="already_constructed" value="2" summary="wl_surface has a buffer attached or committed"/>
-      <entry name="request_denied" value="4" summary="the compositor has denied your request to use this layer"/>
     </enum>
 
     <enum name="layer">
@@ -87,11 +86,9 @@
       are designed to be rendered as a layer of a stacked desktop-like
       environment.
 
-      Layer surface state (anchor, exclusive zone, margin) is double-buffered.
-      Protocol requests modify the pending state, as opposed to the current
-      state in use by the compositor. The wl_surface.commit request atomically
-      applies all pending state, replacing the current state. After commit, the
-      new pending state is as documented for each related request.
+      Layer surface state (anchor, exclusive zone, margin, interactivity) is
+      double-buffered, and will be applied at the time wl_surface.commit of the
+      corresponding wl_surface is called.
     </description>
 
     <request name="set_anchor">
@@ -129,12 +126,31 @@
         point on the output, in pixels. Setting this value for edges you are
         not anchored to has no effect.
 
+        The exclusive zone includes the margin.
+
         Margin is double-buffered, see wl_surface.commit.
       </description>
-      <arg name="top" type="uint"/>
-      <arg name="right" type="uint"/>
-      <arg name="bottom" type="uint"/>
-      <arg name="left" type="uint"/>
+      <arg name="top" type="int"/>
+      <arg name="right" type="int"/>
+      <arg name="bottom" type="int"/>
+      <arg name="left" type="int"/>
+    </request>
+
+    <request name="set_keyboard_interactivity">
+      <description summary="requests keyboard events">
+        Set to 1 to request that the seat send keyboard events to this layer
+        surface. For layers below the shell surface layer, the seat will use
+        normal focus semantics. For layers above the shell surface layers, the
+        seat will always give exclusive keyboard focus to the top-most layer
+        which has keyboard interactivity set to true.
+
+        Layer surfaces receive pointer, touch, and tablet events normally. If
+        you do not want to receive them, set the input region on your surface
+        to an empty region.
+
+        Events is double-buffered, see wl_surface.commit.
+      </description>
+      <arg name="keyboard_interactivity" type="uint"/>
     </request>
 
     <request name="get_popup">
@@ -148,15 +164,6 @@
         xdg_popup is and how it is used.
       </description>
       <arg name="popup" type="object" interface="xdg_popup"/>
-    </request>
-
-    <request name="get_input">
-      <description summary="obtain a layer input for this layer surface">
-        This creates a layer input for this layer surface. This can be used to
-        control input semantics for the layer surface on the specified wl_seat.
-      </description>
-      <arg name="id" type="new_id" interface="zwlr_layer_input_v1"/>
-      <arg name="seat" type="object" interface="wl_seat"/>
     </request>
 
     <request name="ack_configure">
@@ -226,54 +233,6 @@
       <entry name="bottom" value="2" summary="the bottom edge of the anchor rectangle"/>
       <entry name="left" value="4" summary="the left edge of the anchor rectangle"/>
       <entry name="right" value="8" summary="the right edge of the anchor rectangle"/>
-    </enum>
-  </interface>
-
-  <interface name="zwlr_layer_input_v1" version="1">
-    <description summary="layer surface input configuration object">
-      Clients can use this interface to specify input semantics for a layer
-      surface on a given seat. By default, layer surfaces are considered
-      non-interactive by seats, and will not participate in their focus
-      semantics or receive input events for them.
-
-      Input state is double-buffered.  Protocol requests modify the pending
-      state, as opposed to the current state in use by the compositor. The
-      wl_surface.commit request for the associated layer surface atomically
-      applies all pending state, replacing the current state. After commit, the
-      new pending state is as documented for each related request.
-    </description>
-
-    <request name="set_events">
-      <description summary="set input events to receive">
-        Requests that the seat send input events for the specified input devices
-        to this layer surface.
-
-        Positional events (pointer and touch) will only be sent if the layer
-        surface is the top-most interactive surface, and only when the position
-        of these events are relative to the surface. Enter and leave events will
-        be signalled normally in these cases.
-
-        Keyboard events will treat the layer surface as the only focused surface
-        on the seat. Upon requesting keyboard events, the layer surface will
-        receive a keyboard enter event. A leave event is signalled when it
-        invokes set_events again without keyboard events specified.
-
-        Events is double-buffered, see wl_surface.commit.
-      </description>
-      <arg name="events" type="uint" enum="input_device"/>
-    </request>
-
-    <request name="destroy" type="destructor">
-      <description summary="destroy the layer_input">
-        This request destroys the layer input.
-      </description>
-    </request>
-
-    <enum name="input_device" bitfield="true">
-      <entry name="pointer" value="1" summary="wl_pointer devices"/>
-      <entry name="keyboard" value="2" summary="wl_keyboard devices"/>
-      <entry name="touch" value="4" summary="wl_touch devices"/>
-      <entry name="tablet" value="8" summary="zwp_tablet and zwp_tablet_tool devices"/>
     </enum>
   </interface>
 </protocol>

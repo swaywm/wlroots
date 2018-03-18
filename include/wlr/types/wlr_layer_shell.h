@@ -48,6 +48,7 @@ struct wlr_layer_surface_state {
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
+	bool keyboard_interactive;
 	// Server
 	uint32_t width, height;
 };
@@ -73,8 +74,8 @@ struct wlr_layer_surface {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	struct wlr_layer_surface_state next; // client protocol requests
-	struct wlr_layer_surface_state pending; // our configure requests
+	struct wlr_layer_surface_state client_pending;
+	struct wlr_layer_surface_state server_pending;
 	struct wlr_layer_surface_state current;
 
 	struct wl_listener surface_destroy_listener;
