@@ -7,6 +7,18 @@
 #include <wlr/types/wlr_surface.h>
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
+/**
+ * wlr_layer_shell allows clients to arrange themselves in "layers" on the
+ * desktop in accordance with the wlr-layer-shell protocol. When a client is
+ * added, the new_surface signal will be raised and passed a reference to our
+ * wlr_layer_surface. At this time, the client will have configured the surface
+ * as it desires, including information like desired anchors and margins. The
+ * compositor should use this information to decide how to arrange the layer
+ * on-screen, then determine the dimensions of the layer and call
+ * wlr_layer_surface_configure. The client will then attach a buffer and commit
+ * the surface, at which point the wlr_layer_surface map signal is raised and
+ * the compositor should begin rendering the surface.
+ */
 struct wlr_layer_shell {
 	struct wl_global *wl_global;
 	struct wl_list clients;
@@ -30,11 +42,14 @@ struct wlr_layer_client {
 };
 
 struct wlr_layer_surface_state {
+	// Client
 	uint32_t anchor;
 	uint32_t exclusive_zone;
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
+	// Server
+	uint32_t width, height;
 };
 
 struct wlr_layer_surface_configure {
@@ -75,5 +90,13 @@ struct wlr_layer_surface {
 
 struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display);
 void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell);
+
+/**
+ * Notifies the layer surface to configure itself with this width/height. The
+ * layer_surface will signal its map event when the surface is ready to assume
+ * this size.
+ */
+void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
+		uint32_t width, uint32_t height);
 
 #endif
