@@ -5,7 +5,7 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/config.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_data_device.h>
 #ifdef WLR_HAS_XWAYLAND
 #include <wlr/xwayland.h>

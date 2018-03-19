@@ -7,8 +7,8 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/render.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 
 struct wlr_wl_backend {

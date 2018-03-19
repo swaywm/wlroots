@@ -1,29 +1,29 @@
 #define _POSIX_C_SOURCE 199309L
 #define _XOPEN_SOURCE 700
+#include <GLES2/gl2.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
-#include <limits.h>
-#include <wayland-server.h>
 #include <wayland-server-protocol.h>
-#include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include <wlr/types/wlr_matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
-#include <wlr/util/log.h>
+#include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_keyboard.h>
-#include <math.h>
-#include "support/shared.h"
-#include "support/config.h"
+#include <wlr/util/log.h>
+#include <xkbcommon/xkbcommon.h>
 #include "support/cat.h"
+#include "support/config.h"
+#include "support/shared.h"
 
 struct sample_state {
 	struct example_config *config;

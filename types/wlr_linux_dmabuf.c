@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
-#include <wlr/render.h>
 #include <wlr/render/egl.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/util/log.h>

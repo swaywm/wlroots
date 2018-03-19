@@ -1,11 +1,11 @@
+#include <getopt.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <pthread.h>
-#include <wayland-client.h>
 #include <wayland-client-protocol.h>
+#include <wayland-client.h>
 #include <wlr/util/log.h>
 #include "idle-client-protocol.h"
 

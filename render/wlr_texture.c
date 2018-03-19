@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/wlr_texture.h>
 
 void wlr_texture_init(struct wlr_texture *texture,
 		struct wlr_texture_impl *impl) {

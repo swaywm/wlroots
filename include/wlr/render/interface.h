@@ -5,10 +5,11 @@
 #include <EGL/eglext.h>
 #include <stdbool.h>
 #include <wayland-server-protocol.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/types/wlr_output.h>
 
 struct wlr_renderer_impl;
 
