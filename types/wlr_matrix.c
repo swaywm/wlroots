@@ -33,6 +33,15 @@ void wlr_matrix_multiply(float mat[static 9], const float a[static 9],
 	memcpy(mat, product, sizeof(product));
 }
 
+void wlr_matrix_transpose(float mat[static 9], const float a[static 9]) {
+	float transposition[9] = {
+		a[0], a[3], a[6],
+		a[1], a[4], a[7],
+		a[2], a[5], a[8],
+	};
+	memcpy(mat, transposition, sizeof(transposition));
+}
+
 void wlr_matrix_translate(float mat[static 9], float x, float y) {
 	float translate[9] = {
 		1.0f, 0.0f, x,

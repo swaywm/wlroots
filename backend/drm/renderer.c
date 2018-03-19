@@ -178,7 +178,8 @@ static void free_eglimage(struct gbm_bo *bo, void *data) {
 	free(tex);
 }
 
-static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer, struct gbm_bo *bo) {
+static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
+		struct gbm_bo *bo) {
 	struct tex *tex = gbm_bo_get_user_data(bo);
 	if (tex) {
 		return tex->tex;
@@ -231,13 +232,8 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 
 	static const float color[] = {0.0, 0.0, 0.0, 1.0};
 
-	static const float mat[9] = {
-		[0] = 2.0f,
-		[2] = -1.0f,
-		[4] = 2.0f,
-		[5] = -1.0f,
-		[8] = 1.0f,
-	};
+	float mat[9];
+	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
 	glViewport(0, 0, dest->width, dest->height);
 	wlr_renderer_clear(dest->renderer->wlr_rend, color);
@@ -246,8 +242,9 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	return wlr_drm_surface_swap_buffers(dest, NULL);
 }
 
-bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane, struct wlr_drm_backend *drm,
-		int32_t width, uint32_t height, uint32_t format) {
+bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane,
+		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
+		uint32_t format) {
 	if (!drm->parent) {
 		return wlr_drm_surface_init(&plane->surf, &drm->renderer, width, height,
 			format, GBM_BO_USE_SCANOUT);
