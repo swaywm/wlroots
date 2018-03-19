@@ -9,7 +9,9 @@
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session);
-struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *dev);
+/** Gets the underlying libinput_device handle for the given wlr_input_device */
+struct libinput_device *wlr_libinput_get_device_handle(
+		struct wlr_input_device *dev);
 
 bool wlr_backend_is_libinput(struct wlr_backend *backend);
 bool wlr_input_device_is_libinput(struct wlr_input_device *device);
