@@ -2,7 +2,7 @@
 #define WLR_TYPES_WLR_COMPOSITOR_H
 
 #include <wayland-server.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
 
 struct wlr_compositor {
 	struct wl_global *wl_global;

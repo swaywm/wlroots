@@ -5,7 +5,7 @@
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
 
 struct wlr_drm_backend;
 struct wlr_drm_plane;

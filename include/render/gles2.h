@@ -9,9 +9,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <wlr/backend.h>
-#include <wlr/render.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
 
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;

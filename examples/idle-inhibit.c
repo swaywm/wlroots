@@ -5,8 +5,8 @@
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
-#include "xdg-shell-client-protocol.h"
 #include "idle-inhibit-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 #include <linux/input-event-codes.h>
 

@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-util.h>
-#include <wlr/render.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "backend/drm/drm.h"

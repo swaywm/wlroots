@@ -6,7 +6,7 @@
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 #include <wlr/backend.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_matrix.h>

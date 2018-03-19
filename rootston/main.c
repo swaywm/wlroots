@@ -7,7 +7,7 @@
 #include <wlr/backend/headless.h>
 #include <wlr/backend/multi.h>
 #include <wlr/config.h>
-#include <wlr/render.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"
