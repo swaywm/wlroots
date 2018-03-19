@@ -98,7 +98,7 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 	}
 }
 
-static void roots_cursor_update_position(struct roots_cursor *cursor,
+void roots_cursor_update_position(struct roots_cursor *cursor,
 		uint32_t time) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct roots_seat *seat = cursor->seat;
@@ -134,7 +134,9 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 		} if (view && surface) {
 			// motion over a view surface
 			wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
-			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+			if (time) {
+				wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+			}
 		} else {
 			wlr_seat_pointer_clear_focus(seat->seat);
 		}

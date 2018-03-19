@@ -721,6 +721,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (view != NULL) {
 		wl_list_remove(&view->link);
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
+		view_update_cursors(view, NULL);
 	}
 
 	struct roots_view *prev_focus = roots_seat_get_focus(seat);
