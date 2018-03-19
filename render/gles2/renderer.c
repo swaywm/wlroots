@@ -90,7 +90,7 @@ static void init_default_shaders() {
 		goto error;
 	}
 	if (glEGLImageTargetTexture2DOES) {
-		if (!compile_program(quad_vertex_src, fragment_src_external,
+		if (!compile_program(vertex_src, fragment_src_external,
 				&shaders.external)) {
 			goto error;
 		}

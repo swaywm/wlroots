@@ -80,8 +80,9 @@ const GLchar fragment_src_external[] =
 "precision mediump float;"
 "varying vec2 v_texcoord;"
 "uniform samplerExternalOES texture0;"
+"uniform float alpha;"
 ""
 "void main() {"
 "	vec4 col = texture2D(texture0, v_texcoord);"
-"	gl_FragColor = vec4(col.rgb, col.a);"
+"	gl_FragColor = vec4(col.rgb, col.a * alpha);"
 "}";
