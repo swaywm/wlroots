@@ -541,6 +541,36 @@ void view_update_position(struct roots_view *view, double x, double y) {
 	view_damage_whole(view);
 }
 
+void view_anchor_position(struct roots_view *view, struct roots_output *output,
+		uint32_t width, uint32_t height) {
+	if (!(view->special && view->features.frame != ROOTS_FRAME_NONE)) {
+		return;
+	}
+	struct roots_output *roots_output =
+		desktop_output_from_wlr_output(view->desktop, output->wlr_output);
+	if (roots_output == NULL) {
+		return;
+	}
+
+	struct wlr_box *output_box =
+		wlr_output_layout_get_box(view->desktop->layout, output->wlr_output);
+
+	double x, y;
+	switch (view->features.frame) {
+	case ROOTS_FRAME_BOTTOM:
+		x = output_box->x + (output_box->width - width) / 2;
+		y = output_box->y + output_box->height - height;
+		break;
+	default:
+		break;
+	}
+
+	view_damage_whole(view);
+	view->x = x;
+	view->y = y;
+	view_damage_whole(view);
+}
+
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
 	if (view->width == width && view->height == height) {
 		return;
