@@ -21,7 +21,7 @@ struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
 
 static uint32_t output = 0;
-static uint32_t layer = -1;
+static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static uint32_t width = 256, height = 256;
 
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 	char *namespace = "wlroots";
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "w:h:o:"))) {
+	while ((c = getopt(argc, argv, "w:h:o:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -185,9 +185,6 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
-
 	wl_surface = wl_compositor_create_surface(compositor);
 
 	struct zwlr_layer_surface_v1 *layer_surface =
@@ -195,8 +192,12 @@ int main(int argc, char **argv) {
 				wl_surface, wl_output, layer, namespace);
 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
 	// TODO: margin, interactivity, exclusive zone
-
 	wl_surface_commit(wl_surface);
+	wl_display_dispatch(display);
+	wl_display_roundtrip(display);
+
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
+		WL_SHM_FORMAT_ARGB8888);
 
 	egl_window = wl_egl_window_create(wl_surface, width, height);
 	egl_surface = wlr_egl_create_surface(&egl, egl_window);

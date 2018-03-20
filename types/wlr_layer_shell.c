@@ -14,20 +14,20 @@ static void resource_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static struct zwlr_layer_shell_v1_interface layer_shell_impl;
-static struct zwlr_layer_surface_v1_interface layer_surface_impl;
+static const struct zwlr_layer_shell_v1_interface layer_shell_implementation;
+static const struct zwlr_layer_surface_v1_interface layer_surface_implementation;
 
 static struct wlr_layer_client *layer_client_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwlr_layer_shell_v1_interface,
-		&layer_shell_impl));
+		&layer_shell_implementation));
 	return wl_resource_get_user_data(resource);
 }
 
 static struct wlr_layer_surface *layer_surface_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwlr_layer_surface_v1_interface,
-		&layer_surface_impl));
+		&layer_surface_implementation));
 	return wl_resource_get_user_data(resource);
 }
 
@@ -291,11 +291,22 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
+	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
+		wl_resource_post_error(surface->resource,
+				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
+				"Invalid layer %d", layer);
+		free(surface);
+		return;
+	}
+
+	wl_list_init(&surface->configure_list);
 
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+	wl_signal_init(&surface->events.map);
+	wl_signal_init(&surface->events.unmap);
 
 	wlr_surface_set_role_committed(surface->surface,
 		handle_wlr_surface_committed, surface);
@@ -307,7 +318,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	wl_list_insert(&client->surfaces, &surface->link);
 }
 
-static struct zwlr_layer_shell_v1_interface layer_shell_impl = {
+static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 	.get_layer_surface = layer_shell_handle_get_layer_surface,
 };
 
@@ -347,8 +358,8 @@ static void layer_shell_bind(struct wl_client *wl_client, void *data,
 	client->client = wl_client;
 	client->shell = layer_shell;
 
-	wl_resource_set_implementation(client->resource, &layer_shell_impl, client,
-		wlr_layer_client_destroy);
+	wl_resource_set_implementation(client->resource,
+			&layer_shell_implementation, client, wlr_layer_client_destroy);
 	wl_list_insert(&layer_shell->clients, &client->link);
 }
 

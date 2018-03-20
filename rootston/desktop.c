@@ -719,6 +719,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->layer_shell->events.new_surface,
 		&desktop->layer_shell_surface);
 	desktop->layer_shell_surface.notify = handle_layer_shell_surface;
+	for (size_t i = 0;
+			i < sizeof(desktop->layers) / sizeof(desktop->layers[0]); ++i) {
+		wl_list_init(&desktop->layers[i]);
+	}
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
