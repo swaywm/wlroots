@@ -37,6 +37,7 @@ struct wlr_gles2_texture {
 	GLuint tex_id;
 	const struct pixel_format *pixel_format;
 	EGLImageKHR image;
+	GLenum target;
 };
 
 struct shaders {
