@@ -8,7 +8,111 @@
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/layers.h"
+#include "rootston/output.h"
 #include "rootston/server.h"
+
+static void apply_exclusive(struct wlr_box *output_area,
+		uint32_t anchor, uint32_t exclusive) {
+	struct {
+		uint32_t anchors;
+		int *value;
+		int multiplier;
+	} edges[] = {
+		{
+			.anchors =
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP,
+			.value = &output_area->y,
+			.multiplier = 1,
+		},
+		{
+			.anchors =
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
+			.value = &output_area->height,
+			.multiplier = -1,
+		},
+		{
+			.anchors =
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
+			.value = &output_area->x,
+			.multiplier = 1,
+		},
+		{
+			.anchors =
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
+			.value = &output_area->width,
+			.multiplier = -1,
+		},
+	};
+	for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
+		if ((anchor & edges[i].anchors)) {
+			edges[i].value += exclusive * edges[i].multiplier;
+		}
+	}
+}
+
+static void arrange_layer(struct wlr_output *output, struct wl_list *list) {
+	struct wlr_box output_area = { .x = 0, .y = 0 };
+	wlr_output_effective_resolution(output,
+			&output_area.width, &output_area.height);
+	struct roots_layer_surface *roots_surface;
+	wl_list_for_each(roots_surface, list, link) {
+		struct wlr_layer_surface *layer = roots_surface->layer_surface;
+		struct wlr_layer_surface_state *state = &layer->current;
+		struct wlr_box box = { .width = state->width, .height = state->height };
+		// Horizontal axis
+		const uint32_t both_horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
+			| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+		if ((state->anchor & both_horiz) && box.width == -1) {
+			box.x = 0;
+			box.width = output_area.width;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
+			box.x = output_area.x;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT)) {
+			box.x = output_area.width - box.width;
+		} else {
+			box.x = (output_area.width / 2) - (box.width / 2);
+		}
+		// Vertical axis
+		const uint32_t both_vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
+			| ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+		if ((state->anchor & both_vert) && box.height == -1) {
+			box.y = 0;
+			box.height = output_area.height;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
+			box.y = output_area.y;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)) {
+			box.y = output_area.height - box.height;
+		} else {
+			box.y = (output_area.height / 2) - (box.height / 2);
+		}
+		wlr_log(L_DEBUG, "arranged layer at %dx%d@%d,%d",
+				box.width, box.height, box.x, box.y);
+		roots_surface->geo = box;
+		apply_exclusive(&output_area, state->anchor, state->exclusive_zone);
+		if (box.width != (int)state->width
+				|| box.height != (int)state->height
+				|| !roots_surface->configured) {
+			wlr_layer_surface_configure(layer, box.width, box.height);
+			roots_surface->configured = true;
+		}
+	}
+}
+
+static void arrange_layers(struct wlr_output *_output) {
+	struct roots_output *output = _output->data;
+	size_t layers = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < layers; ++i) {
+		arrange_layer(output->wlr_output, &output->layers[i]);
+	}
+}
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	// TODO
@@ -19,7 +123,13 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 }
 
 static void handle_map(struct wl_listener *listener, void *data) {
-	// TODO
+	struct wlr_layer_surface *layer_surface = data;
+	struct roots_layer_surface *layer = layer_surface->data;
+	struct wlr_output *wlr_output = layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	// TODO: This doesn't play right with output layouts and is also stupid
+	output_damage_whole_surface(layer_surface->surface, layer->geo.x,
+			layer->geo.y, 0, output);
 }
 
 static void handle_unmap(struct wl_listener *listener, void *data) {
@@ -30,8 +140,14 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_layer_surface *layer_surface = data;
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, layer_shell_surface);
-	wlr_log(L_DEBUG, "new layer surface: namespace %s layer %d",
-		layer_surface->namespace, layer_surface->layer);
+	wlr_log(L_DEBUG, "new layer surface: namespace %s layer %d anchor %d %dx%d %d,%d,%d,%d",
+		layer_surface->namespace, layer_surface->layer, layer_surface->layer,
+		layer_surface->client_pending.width,
+		layer_surface->client_pending.height,
+		layer_surface->client_pending.margin.top,
+		layer_surface->client_pending.margin.right,
+		layer_surface->client_pending.margin.bottom,
+		layer_surface->client_pending.margin.left);
 
 	struct roots_layer_surface *roots_surface =
 		calloc(1, sizeof(struct roots_layer_surface));
@@ -49,6 +165,17 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&layer_surface->events.unmap, &roots_surface->unmap);
 
 	roots_surface->layer_surface = layer_surface;
+	layer_surface->data = roots_surface;
 
-	wl_list_insert(&desktop->layers[layer_surface->layer], &roots_surface->link);
+	struct roots_output *output = layer_surface->output->data;
+	wl_list_insert(&output->layers[layer_surface->layer], &roots_surface->link);
+
+	// Temporarily set the layer's current state to client_pending
+	// So that we can easily arrange it
+	struct wlr_layer_surface_state old_state = layer_surface->current;
+	layer_surface->current = layer_surface->client_pending;
+
+	arrange_layers(output->wlr_output);
+
+	layer_surface->current = old_state;
 }

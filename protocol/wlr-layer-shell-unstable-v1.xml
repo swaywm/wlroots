@@ -86,10 +86,26 @@
       are designed to be rendered as a layer of a stacked desktop-like
       environment.
 
-      Layer surface state (anchor, exclusive zone, margin, interactivity) is
-      double-buffered, and will be applied at the time wl_surface.commit of the
-      corresponding wl_surface is called.
+      Layer surface state (size, anchor, exclusive zone, margin, interactivity)
+      is double-buffered, and will be applied at the time wl_surface.commit of
+      the corresponding wl_surface is called.
     </description>
+
+    <request name="set_size">
+      <description summary="sets the size of the surface">
+        Sets the size of the surface in pixels. The compositor will display the
+        surface centered with respect to its anchors.
+
+        If you pass -1 for either value, the compositor will assign it and
+        inform you of the assignment in the configure event. You must set your
+        anchor to opposite edges in the dimensions you omit; not doing so is a
+        protocol error. Both values are -1 by default.
+
+        Size is double-buffered, see wl_surface.commit.
+      </description>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
 
     <request name="set_anchor">
       <description summary="configures the anchor point of the surface">
@@ -222,9 +238,9 @@
     </event>
 
     <enum name="error">
-      <entry name="invalid_anchor" value="0" summary="anchor bitfield is invalid"/>
-      <entry name="invalid_surface_state" value="1"
-	     summary="the client provided an invalid surface state"/>
+      <entry name="invalid_surface_state" value="0" summary="provided surface state is invalid"/>
+      <entry name="invalid_size" value="1" summary="size is invalid"/>
+      <entry name="invalid_anchor" value="2" summary="anchor bitfield is invalid"/>
     </enum>
 
     <enum name="anchor" bitfield="true">

@@ -13,6 +13,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "rootston/config.h"
+#include "rootston/layers.h"
 #include "rootston/output.h"
 #include "rootston/server.h"
 
@@ -417,6 +418,21 @@ static void surface_send_frame_done(struct wlr_surface *surface, double lx,
 	wlr_surface_send_frame_done(surface, when);
 }
 
+static void render_layer(
+		struct roots_output *output,
+		const struct wlr_box *output_layout_box,
+		struct render_data *data,
+		struct wl_list *layer) {
+	struct roots_layer_surface *roots_surface;
+	wl_list_for_each(roots_surface, layer, link) {
+		struct wlr_layer_surface *layer = roots_surface->layer_surface;
+		render_surface(layer->surface,
+				roots_surface->geo.x + output_layout_box->x,
+				roots_surface->geo.y + output_layout_box->y,
+				0, data);
+	}
+}
+
 static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
@@ -433,14 +449,15 @@ static void render_output(struct roots_output *output) {
 
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
+	const struct wlr_box *output_box =
+		wlr_output_layout_get_box(desktop->layout, wlr_output);
+
 	// Check if we can delegate the fullscreen surface to the output
 	if (output->fullscreen_view != NULL &&
 			output->fullscreen_view->wlr_surface != NULL) {
 		struct roots_view *view = output->fullscreen_view;
 
 		// Make sure the view is centered on screen
-		const struct wlr_box *output_box =
-			wlr_output_layout_get_box(desktop->layout, wlr_output);
 		struct wlr_box view_box;
 		view_get_box(view, &view_box);
 		double view_x = (double)(output_box->width - view_box.width) / 2 +
@@ -498,6 +515,11 @@ static void render_output(struct roots_output *output) {
 		wlr_renderer_clear(renderer, clear_color);
 	}
 
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]);
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]);
+
 	// If a view is fullscreen on this output, render it
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
@@ -520,19 +542,22 @@ static void render_output(struct roots_output *output) {
 				render_surface, &data);
 		}
 #endif
-
-		goto renderer_end;
-	}
-
-	// Render all views
-	struct roots_view *view;
-	wl_list_for_each_reverse(view, &desktop->views, link) {
-		render_view(view, &data);
+	} else {
+		// Render all views
+		struct roots_view *view;
+		wl_list_for_each_reverse(view, &desktop->views, link) {
+			render_view(view, &data);
+		}
 	}
 
 	// Render drag icons
 	data.alpha = 1.0;
 	drag_icons_for_each_surface(server->input, render_surface, &data);
+
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
 renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
@@ -603,7 +628,7 @@ static bool view_accept_damage(struct roots_output *output,
 	return false;
 }
 
-static void damage_whole_surface(struct wlr_surface *surface,
+void output_damage_whole_surface(struct wlr_surface *surface,
 		double lx, double ly, float rotation, void *data) {
 	struct roots_output *output = data;
 
@@ -647,13 +672,13 @@ void output_damage_whole_view(struct roots_output *output,
 	}
 
 	damage_whole_decoration(view, output);
-	view_for_each_surface(view, damage_whole_surface, output);
+	view_for_each_surface(view, output_damage_whole_surface, output);
 }
 
 void output_damage_whole_drag_icon(struct roots_output *output,
 		struct roots_drag_icon *icon) {
 	surface_for_each_surface(icon->wlr_drag_icon->surface, icon->x, icon->y, 0,
-		damage_whole_surface, output);
+		output_damage_whole_surface, output);
 }
 
 static void damage_from_surface(struct wlr_surface *surface,
@@ -781,6 +806,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);
 	output->desktop = desktop;
 	output->wlr_output = wlr_output;
+	wlr_output->data = output;
 	wl_list_insert(&desktop->outputs, &output->link);
 
 	output->damage = wlr_output_damage_create(wlr_output);
@@ -791,6 +817,11 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	wl_signal_add(&output->damage->events.frame, &output->damage_frame);
 	output->damage_destroy.notify = output_damage_handle_destroy;
 	wl_signal_add(&output->damage->events.destroy, &output->damage_destroy);
+
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		wl_list_init(&output->layers[i]);
+	}
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);

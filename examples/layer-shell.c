@@ -23,7 +23,7 @@ struct wl_callback *frame_callback;
 static uint32_t output = 0;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
-static uint32_t width = 256, height = 256;
+static int32_t width = 256, height = 256;
 
 static void draw(void);
 
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 	char *namespace = "wlroots";
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "w:h:o:")) != -1) {
+	while ((c = getopt(argc, argv, "w:h:o:l:a:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -190,7 +190,10 @@ int main(int argc, char **argv) {
 	struct zwlr_layer_surface_v1 *layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(layer_shell,
 				wl_surface, wl_output, layer, namespace);
+	zwlr_layer_surface_v1_set_size(layer_surface, width, height);
 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
+	zwlr_layer_surface_v1_add_listener(layer_surface,
+				   &layer_surface_listener, layer_surface);
 	// TODO: margin, interactivity, exclusive zone
 	wl_surface_commit(wl_surface);
 	wl_display_dispatch(display);

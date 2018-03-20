@@ -42,14 +42,12 @@ struct wlr_layer_client {
 };
 
 struct wlr_layer_surface_state {
-	// Client
 	uint32_t anchor;
 	uint32_t exclusive_zone;
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
 	bool keyboard_interactive;
-	// Server
 	uint32_t width, height;
 };
 
@@ -61,6 +59,7 @@ struct wlr_layer_surface_configure {
 
 struct wlr_layer_surface {
 	struct wlr_surface *surface;
+	struct wlr_output *output;
 	struct wlr_layer_client *client;
 	struct wl_resource *resource;
 	struct wl_list link; // wlr_layer_client:surfaces

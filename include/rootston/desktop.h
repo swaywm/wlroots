@@ -29,8 +29,6 @@
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
 
-	struct wl_list layers[4]; // layer_surface::link
-
 	struct wl_list outputs; // roots_output::link
 	struct timespec last_frame;
 

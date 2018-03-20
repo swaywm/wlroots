@@ -4,6 +4,7 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
@@ -69,12 +70,31 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 	surface->current.anchor = configure->state.anchor;
 	surface->current.exclusive_zone = configure->state.exclusive_zone;
 	surface->current.margin = configure->state.margin;
+	surface->current.width = configure->state.width;
+	surface->current.height = configure->state.height;
 
 	layer_surface_configure_destroy(configure);
 }
 
+static void layer_surface_handle_set_size(struct wl_client *client,
+		struct wl_resource *resource, int32_t width, int32_t height) {
+	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	surface->client_pending.width = width;
+	surface->client_pending.height = height;
+}
+
 static void layer_surface_handle_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
+	const uint32_t max_anchor =
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	if (anchor > max_anchor) {
+		wl_resource_post_error(resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_ANCHOR,
+			"invalid anchor %d", anchor);
+	}
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
 	surface->client_pending.anchor = anchor;
 }
@@ -110,6 +130,7 @@ static void layer_surface_handle_get_popup(struct wl_client *client,
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation = {
 	.destroy = resource_handle_destroy,
 	.ack_configure = layer_surface_handle_ack_configure,
+	.set_size = layer_surface_handle_set_size,
 	.set_anchor = layer_surface_handle_set_anchor,
 	.set_exclusive_zone = layer_surface_handle_set_exclusive_zone,
 	.set_margin = layer_surface_handle_set_margin,
@@ -155,7 +176,7 @@ static void layer_surface_resource_destroy(struct wl_resource *resource) {
 
 static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
 	if (!surface->configured) {
-		return false;
+		return true;
 	}
 
 	struct wlr_layer_surface_state *state;
@@ -239,6 +260,8 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 	surface->current.margin = surface->client_pending.margin;
 	surface->current.keyboard_interactive =
 		surface->client_pending.keyboard_interactive;
+	surface->current.width = surface->client_pending.width;
+	surface->current.height = surface->client_pending.height;
 
 	if (!surface->added) {
 		surface->added = true;
@@ -280,6 +303,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 
 	surface->client = client;
 	surface->surface = wlr_surface_from_resource(surface_resource);
+	surface->output = wlr_output_from_resource(output_resource);
 	surface->resource = wl_resource_create(wl_client,
 		&zwlr_layer_surface_v1_interface,
 		wl_resource_get_version(client_resource),

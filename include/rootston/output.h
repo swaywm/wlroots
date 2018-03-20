@@ -14,6 +14,7 @@ struct roots_output {
 	struct wl_list link; // roots_desktop:outputs
 
 	struct roots_view *fullscreen_view;
+	struct wl_list layers[4]; // layer_surface::link
 
 	struct timespec last_frame;
 	struct wlr_output_damage *damage;
@@ -35,5 +36,7 @@ void output_damage_from_view(struct roots_output *output,
 	struct roots_view *view);
 void output_damage_whole_drag_icon(struct roots_output *output,
 	struct roots_drag_icon *icon);
+void output_damage_whole_surface(struct wlr_surface *surface,
+	double lx, double ly, float rotation, void *data);
 
 #endif
