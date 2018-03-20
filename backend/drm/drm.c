@@ -643,14 +643,13 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 			stride, width, height, buf);
 
-		glViewport(0, 0, plane->surf.width, plane->surf.height);
-		glClearColor(0.0, 0.0, 0.0, 0.0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
+		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
+		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+		wlr_render_texture(rend, plane->wlr_tex, plane->matrix, 0, 0, 1.0f);
+		wlr_renderer_end(rend);
 
-		wlr_render_texture(plane->surf.renderer->wlr_rend, plane->wlr_tex,
-			plane->matrix, 0, 0, 1.0f);
-
-		glFinish();
+		// TODO: remove these raw GL calls
 		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
 		glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
 			GL_UNSIGNED_BYTE, bo_data);

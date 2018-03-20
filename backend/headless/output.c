@@ -1,8 +1,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "util/signal.h"
@@ -120,16 +120,14 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",
 		wl_list_length(&backend->outputs) + 1);
 
-	if (!eglMakeCurrent(output->backend->egl.display,
-			output->egl_surface, output->egl_surface,
-			output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
+			NULL)) {
 		goto error;
 	}
 
-	glViewport(0, 0, wlr_output->width, wlr_output->height);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
+	wlr_renderer_end(backend->renderer);
 
 	struct wl_event_loop *ev = wl_display_get_event_loop(backend->display);
 	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);

@@ -18,7 +18,8 @@ struct wlr_renderer {
 };
 
 struct wlr_renderer_impl {
-	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
+	void (*begin)(struct wlr_renderer *renderer, uint32_t width,
+		uint32_t height);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);

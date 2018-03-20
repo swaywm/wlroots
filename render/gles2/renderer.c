@@ -26,13 +26,13 @@ static struct wlr_gles2_renderer *gles2_get_renderer(
 	return renderer;
 }
 
-static void gles2_begin(struct wlr_renderer *wlr_renderer,
-		struct wlr_output *output) {
+static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
+		uint32_t height) {
 	gles2_get_renderer(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 
-	glViewport(0, 0, output->width, output->height);
+	glViewport(0, 0, width, height);
 
 	// enable transparency
 	glEnable(GL_BLEND);

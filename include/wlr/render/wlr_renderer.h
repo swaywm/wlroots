@@ -12,7 +12,7 @@ struct wlr_output;
 
 struct wlr_renderer;
 
-void wlr_renderer_begin(struct wlr_renderer *r, struct wlr_output *output);
+void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
