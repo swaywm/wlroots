@@ -9,7 +9,7 @@
 struct wlr_texture_impl;
 
 struct wlr_texture {
-	struct wlr_texture_impl *impl;
+	const struct wlr_texture_impl *impl;
 
 	bool valid;
 	uint32_t format;

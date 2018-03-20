@@ -14,7 +14,7 @@
 struct wlr_renderer_impl;
 
 struct wlr_renderer {
-	struct wlr_renderer_impl *impl;
+	const struct wlr_renderer_impl *impl;
 };
 
 struct wlr_renderer_impl {
@@ -44,7 +44,7 @@ struct wlr_renderer_impl {
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
-		struct wlr_renderer_impl *impl);
+		const struct wlr_renderer_impl *impl);
 
 struct wlr_texture_impl {
 	bool (*upload_pixels)(struct wlr_texture *texture,
@@ -65,14 +65,12 @@ struct wlr_texture_impl {
 		struct wl_resource *dmabuf_resource);
 	void (*get_buffer_size)(struct wlr_texture *texture,
 		struct wl_resource *resource, int *width, int *height);
-	void (*bind)(struct wlr_texture *texture);
 	void (*destroy)(struct wlr_texture *texture);
 };
 
 void wlr_texture_init(struct wlr_texture *texture,
-		struct wlr_texture_impl *impl);
-void wlr_texture_bind(struct wlr_texture *texture);
+	const struct wlr_texture_impl *impl);
 void wlr_texture_get_buffer_size(struct wlr_texture *texture,
-		struct wl_resource *resource, int *width, int *height);
+	struct wl_resource *resource, int *width, int *height);
 
 #endif

@@ -17,17 +17,24 @@
 
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 
-struct pixel_format {
+struct gles2_pixel_format {
 	uint32_t wl_format;
 	GLint gl_format, gl_type;
 	int depth, bpp;
-	GLuint *shader;
 };
 
 struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
 	struct wlr_egl *egl;
+
+	struct {
+		GLuint quad;
+		GLuint ellipse;
+		GLuint tex_rgba;
+		GLuint tex_rgbx;
+		GLuint tex_ext;
+	} shaders;
 };
 
 struct wlr_gles2_texture {
@@ -35,37 +42,19 @@ struct wlr_gles2_texture {
 
 	struct wlr_egl *egl;
 	GLuint tex_id;
-	const struct pixel_format *pixel_format;
+	const struct gles2_pixel_format *pixel_format;
 	EGLImageKHR image;
 	GLenum target;
 };
 
-struct shaders {
-	bool initialized;
-	GLuint rgba, rgbx;
-	GLuint quad;
-	GLuint ellipse;
-	GLuint external;
-};
-
-extern struct shaders shaders;
-
-const struct pixel_format *gl_format_for_wl_format(enum wl_shm_format fmt);
+const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt);
 
 struct wlr_texture *gles2_texture_create();
+struct wlr_gles2_texture *gles2_get_texture(struct wlr_texture *wlr_texture);
 
-extern const GLchar quad_vertex_src[];
-extern const GLchar quad_fragment_src[];
-extern const GLchar ellipse_fragment_src[];
-extern const GLchar vertex_src[];
-extern const GLchar fragment_src_rgba[];
-extern const GLchar fragment_src_rgbx[];
-extern const GLchar fragment_src_external[];
-
-bool _gles2_flush_errors(const char *file, int line);
-#define gles2_flush_errors(...) \
-	_gles2_flush_errors(wlr_strip_path(__FILE__), __LINE__)
-
-#define GL_CALL(func) func; gles2_flush_errors()
+void gles2_push_marker(const char *file, const char *func);
+void gles2_pop_marker(void);
+#define GLES2_DEBUG_PUSH gles2_push_marker(wlr_strip_path(__FILE__), __func__)
+#define GLES2_DEBUG_POP gles2_pop_marker()
 
 #endif

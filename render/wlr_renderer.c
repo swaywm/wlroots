@@ -5,7 +5,7 @@
 #include <wlr/types/wlr_matrix.h>
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
-		struct wlr_renderer_impl *impl) {
+		const struct wlr_renderer_impl *impl) {
 	renderer->impl = impl;
 }
 

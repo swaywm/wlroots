@@ -6,14 +6,13 @@
 * The wayland formats are little endian while the GL formats are big endian,
 * so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
 */
-struct pixel_format formats[] = {
+struct gles2_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
 		.depth = 32,
 		.bpp = 32,
 		.gl_format = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
-		.shader = &shaders.rgba
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XRGB8888,
@@ -21,7 +20,6 @@ struct pixel_format formats[] = {
 		.bpp = 32,
 		.gl_format = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
-		.shader = &shaders.rgbx
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XBGR8888,
@@ -29,7 +27,6 @@ struct pixel_format formats[] = {
 		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
-		.shader = &shaders.rgbx
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_ABGR8888,
@@ -37,12 +34,11 @@ struct pixel_format formats[] = {
 		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
-		.shader = &shaders.rgba
 	},
 };
 // TODO: more pixel formats
 
-const struct pixel_format *gl_format_for_wl_format(enum wl_shm_format fmt) {
+const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
 		if (formats[i].wl_format == fmt) {
 			return &formats[i];

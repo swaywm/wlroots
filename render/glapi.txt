@@ -10,3 +10,8 @@ eglCreatePlatformWindowSurfaceEXT
 -eglSwapBuffersWithDamageKHR
 -eglQueryDmaBufFormatsEXT
 -eglQueryDmaBufModifiersEXT
+-eglDebugMessageControlKHR
+-glDebugMessageCallbackKHR
+-glDebugMessageControlKHR
+-glPopDebugGroupKHR
+-glPushDebugGroupKHR
