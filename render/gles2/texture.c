@@ -22,14 +22,16 @@ static struct pixel_format external_pixel_format = {
 	.shader = &shaders.external
 };
 
-static void gles2_texture_ensure_texture(struct wlr_gles2_texture *texture) {
+static void gles2_texture_ensure_texture(struct wlr_gles2_texture *texture,
+		GLenum target) {
 	if (texture->tex_id) {
 		return;
 	}
+	texture->target = target;
 	GL_CALL(glGenTextures(1, &texture->tex_id));
-	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+	GL_CALL(glBindTexture(target, texture->tex_id));
+	GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+	GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 }
 
 static bool gles2_texture_upload_pixels(struct wlr_texture *_texture,
@@ -47,7 +49,7 @@ static bool gles2_texture_upload_pixels(struct wlr_texture *_texture,
 	texture->wlr_texture.format = format;
 	texture->pixel_format = fmt;
 
-	gles2_texture_ensure_texture(texture);
+	gles2_texture_ensure_texture(texture, GL_TEXTURE_2D);
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride));
 	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
@@ -100,7 +102,7 @@ static bool gles2_texture_upload_shm(struct wlr_texture *_texture,
 	texture->wlr_texture.format = format;
 	texture->pixel_format = fmt;
 
-	gles2_texture_ensure_texture(texture);
+	gles2_texture_ensure_texture(texture, GL_TEXTURE_2D);
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
 	GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, pitch));
 	GL_CALL(glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0));
@@ -185,9 +187,8 @@ static bool gles2_texture_upload_drm(struct wlr_texture *_tex,
 		return false;
 	}
 
-	gles2_texture_ensure_texture(tex);
+	gles2_texture_ensure_texture(tex, target);
 	GL_CALL(glBindTexture(GL_TEXTURE_2D, tex->tex_id));
-
 	EGLint attribs[] = { EGL_WAYLAND_PLANE_WL, 0, EGL_NONE };
 
 	if (tex->image) {
@@ -220,7 +221,7 @@ static bool gles2_texture_upload_eglimage(struct wlr_texture *wlr_tex,
 	tex->wlr_texture.width = width;
 	tex->wlr_texture.height = height;
 
-	gles2_texture_ensure_texture(tex);
+	gles2_texture_ensure_texture(tex, GL_TEXTURE_2D);
 
 	GL_CALL(glActiveTexture(GL_TEXTURE0));
 	GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex->tex_id));
@@ -254,7 +255,7 @@ static bool gles2_texture_upload_dmabuf(struct wlr_texture *_tex,
 	GLenum target = GL_TEXTURE_2D;
 	const struct pixel_format *pf =
 		gl_format_for_wl_format(WL_SHM_FORMAT_ARGB8888);
-	gles2_texture_ensure_texture(tex);
+	gles2_texture_ensure_texture(tex, target);
 	GL_CALL(glBindTexture(target, tex->tex_id));
 	tex->image = wlr_egl_create_image_from_dmabuf(tex->egl, &dmabuf->attributes);
 	GL_CALL(glActiveTexture(GL_TEXTURE0));
@@ -305,9 +306,10 @@ static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 
 static void gles2_texture_bind(struct wlr_texture *_texture) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
-	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+	GL_CALL(glBindTexture(texture->target, texture->tex_id));
+	GL_CALL(glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_CALL(glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 	GL_CALL(glUseProgram(*texture->pixel_format->shader));
 }
 
