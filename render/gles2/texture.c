@@ -306,9 +306,10 @@ static void gles2_texture_get_buffer_size(struct wlr_texture *texture, struct
 
 static void gles2_texture_bind(struct wlr_texture *_texture) {
 	struct wlr_gles2_texture *texture = (struct wlr_gles2_texture *)_texture;
-	GL_CALL(glBindTexture(GL_TEXTURE_2D, texture->tex_id));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+	GL_CALL(glBindTexture(texture->target, texture->tex_id));
+	GL_CALL(glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_CALL(glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 	GL_CALL(glUseProgram(*texture->pixel_format->shader));
 }
 
