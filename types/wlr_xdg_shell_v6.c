@@ -173,7 +173,9 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE);
 
 	// TODO: probably need to ungrab before this event
-	wlr_signal_emit_safe(&surface->events.unmap, surface);
+	if (surface->mapped) {
+		wlr_signal_emit_safe(&surface->events.unmap, surface);
+	}
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
 		wl_resource_set_user_data(surface->toplevel->resource, NULL);
