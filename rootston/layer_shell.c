@@ -114,13 +114,34 @@ static void arrange_layers(struct wlr_output *_output) {
 	}
 }
 
+static void handle_output_destroy(struct wl_listener *listener, void *data) {
+	struct roots_layer_surface *layer =
+		wl_container_of(listener, layer, output_destroy);
+	layer->layer_surface->output = NULL;
+	wl_resource_destroy(layer->layer_surface->resource);
+}
+
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct roots_layer_surface *layer =
+		wl_container_of(listener, layer, surface_commit);
+	struct wlr_layer_surface *layer_surface = layer->layer_surface;
+	struct wlr_output *wlr_output = layer_surface->output;
+	if (wlr_output != NULL) {
+		struct roots_output *output = wlr_output->data;
+		output_damage_from_local_surface(output, layer_surface->surface,
+				layer->geo.x, layer->geo.y, 0);
+	}
+}
+
 static void unmap(struct wlr_layer_surface *layer_surface) {
 	struct roots_layer_surface *layer = layer_surface->data;
 	wl_list_remove(&layer->link);
 
 	struct wlr_output *wlr_output = layer_surface->output;
-	struct roots_output *output = wlr_output->data;
-	wlr_output_damage_add_box(output->damage, &layer->geo);
+	if (wlr_output != NULL) {
+		struct roots_output *output = wlr_output->data;
+		wlr_output_damage_add_box(output->damage, &layer->geo);
+	}
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -129,17 +150,8 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	if (layer->layer_surface->mapped) {
 		unmap(layer->layer_surface);
 	}
+	wl_list_remove(&layer->output_destroy.link);
 	free(layer);
-}
-
-static void handle_surface_commit(struct wl_listener *listener, void *data) {
-	struct roots_layer_surface *layer =
-		wl_container_of(listener, layer, surface_commit);
-	struct wlr_layer_surface *layer_surface = layer->layer_surface;
-	struct wlr_output *wlr_output = layer_surface->output;
-	struct roots_output *output = wlr_output->data;
-	output_damage_from_local_surface(output, layer_surface->surface,
-			layer->geo.x, layer->geo.y, 0);
 }
 
 static void handle_map(struct wl_listener *listener, void *data) {
@@ -174,9 +186,15 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	if (!roots_surface) {
 		return;
 	}
+
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&layer_surface->surface->events.commit,
 		&roots_surface->surface_commit);
+
+	roots_surface->output_destroy.notify = handle_output_destroy;
+	wl_signal_add(&layer_surface->output->events.destroy,
+		&roots_surface->output_destroy);
+
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&layer_surface->events.destroy, &roots_surface->destroy);
 	roots_surface->map.notify = handle_map;
