@@ -94,7 +94,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		compositor = wl_registry_bind(registry, name,
 				&wl_compositor_interface, 1);
 	} else if (strcmp(interface, "wl_output") == 0) {
-		if (output == 0) {
+		if (output == 0 && !wl_output) {
 			wl_output = wl_registry_bind(registry, name,
 					&wl_output_interface, 1);
 		} else {
