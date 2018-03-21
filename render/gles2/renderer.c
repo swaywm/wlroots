@@ -120,8 +120,7 @@ static bool gles2_render_texture_with_matrix(
 	GLuint prog = renderer->shaders.tex_rgba;
 	if (texture->target == GL_TEXTURE_EXTERNAL_OES) {
 		prog = renderer->shaders.tex_ext;
-	} else if (texture->pixel_format->wl_format == WL_SHM_FORMAT_XRGB8888 ||
-			texture->pixel_format->wl_format == WL_SHM_FORMAT_XBGR8888) {
+	} else if (!texture->pixel_format->has_alpha) {
 		prog = renderer->shaders.tex_rgbx;
 	}
 
