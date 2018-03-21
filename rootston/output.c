@@ -433,6 +433,18 @@ static void render_layer(
 	}
 }
 
+static void layers_send_done(
+		struct roots_output *output, struct timespec *when) {
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		struct roots_layer_surface *roots_surface;
+		wl_list_for_each(roots_surface, &output->layers[i], link) {
+			struct wlr_layer_surface *layer = roots_surface->layer_surface;
+			wlr_surface_send_frame_done(layer->surface, when);
+		}
+	}
+}
+
 static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
@@ -595,6 +607,7 @@ damage_finish:
 		drag_icons_for_each_surface(server->input, surface_send_frame_done,
 			&data);
 	}
+	layers_send_done(output, data.when);
 }
 
 void output_damage_whole(struct roots_output *output) {
@@ -628,7 +641,7 @@ static bool view_accept_damage(struct roots_output *output,
 	return false;
 }
 
-void output_damage_whole_surface(struct wlr_surface *surface,
+static void damage_whole_surface(struct wlr_surface *surface,
 		double lx, double ly, float rotation, void *data) {
 	struct roots_output *output = data;
 
@@ -672,13 +685,13 @@ void output_damage_whole_view(struct roots_output *output,
 	}
 
 	damage_whole_decoration(view, output);
-	view_for_each_surface(view, output_damage_whole_surface, output);
+	view_for_each_surface(view, damage_whole_surface, output);
 }
 
 void output_damage_whole_drag_icon(struct roots_output *output,
 		struct roots_drag_icon *icon) {
 	surface_for_each_surface(icon->wlr_drag_icon->surface, icon->x, icon->y, 0,
-		output_damage_whole_surface, output);
+		damage_whole_surface, output);
 }
 
 static void damage_from_surface(struct wlr_surface *surface,
@@ -714,6 +727,14 @@ static void damage_from_surface(struct wlr_surface *surface,
 	wlr_region_rotated_bounds(&damage, &damage, rotation, center_x, center_y);
 	wlr_output_damage_add(output->damage, &damage);
 	pixman_region32_fini(&damage);
+}
+
+void output_damage_from_local_surface(struct roots_output *output,
+		struct wlr_surface *surface, double ox, double oy, float rotation) {
+	struct wlr_output_layout_output *layout = wlr_output_layout_get(
+		output->desktop->layout, output->wlr_output);
+	damage_from_surface(surface, ox + layout->x, oy + layout->y,
+			rotation, output);
 }
 
 void output_damage_from_view(struct roots_output *output,

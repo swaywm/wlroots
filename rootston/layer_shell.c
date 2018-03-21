@@ -114,12 +114,32 @@ static void arrange_layers(struct wlr_output *_output) {
 	}
 }
 
+static void unmap(struct wlr_layer_surface *layer_surface) {
+	struct roots_layer_surface *layer = layer_surface->data;
+	wl_list_remove(&layer->link);
+
+	struct wlr_output *wlr_output = layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	wlr_output_damage_add_box(output->damage, &layer->geo);
+}
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_layer_surface *layer = wl_container_of(
+			listener, layer, destroy);
+	if (layer->layer_surface->mapped) {
+		unmap(layer->layer_surface);
+	}
+	free(layer);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_layer_surface *layer =
+		wl_container_of(listener, layer, surface_commit);
+	struct wlr_layer_surface *layer_surface = layer->layer_surface;
+	struct wlr_output *wlr_output = layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	output_damage_from_local_surface(output, layer_surface->surface,
+			layer->geo.x, layer->geo.y, 0);
 }
 
 static void handle_map(struct wl_listener *listener, void *data) {
@@ -127,13 +147,13 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = layer_surface->data;
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	// TODO: This doesn't play right with output layouts and is also stupid
-	output_damage_whole_surface(layer_surface->surface, layer->geo.x,
-			layer->geo.y, 0, output);
+	wlr_output_damage_add_box(output->damage, &layer->geo);
 }
 
 static void handle_unmap(struct wl_listener *listener, void *data) {
-	// TODO
+	struct roots_layer_surface *layer = wl_container_of(
+			listener, layer, unmap);
+	unmap(layer->layer_surface);
 }
 
 void handle_layer_shell_surface(struct wl_listener *listener, void *data) {

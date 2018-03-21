@@ -1,8 +1,9 @@
-#define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 199309L
 #include <GLES2/gl2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
@@ -25,6 +26,12 @@ static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static int32_t width = 256, height = 256;
 
+static struct {
+	struct timespec last_frame;
+	float color[3];
+	int dec;
+} demo;
+
 static void draw(void);
 
 static void surface_frame_callback(
@@ -40,17 +47,33 @@ static struct wl_callback_listener frame_listener = {
 
 static void draw(void) {
 	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
-	wlr_log(L_DEBUG, "Drawing frame");
 
-	float color[] = {1.0, 0.0, 0.0, 1.0};
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	long ms = (ts.tv_sec - demo.last_frame.tv_sec) * 1000 +
+		(ts.tv_nsec - demo.last_frame.tv_nsec) / 1000000;
+	int inc = (demo.dec + 1) % 3;
+
+	demo.color[inc] += ms / 2000.0f;
+	demo.color[demo.dec] -= ms / 2000.0f;
+
+	if (demo.color[demo.dec] < 0.0f) {
+		demo.color[inc] = 1.0f;
+		demo.color[demo.dec] = 0.0f;
+		demo.dec = inc;
+	}
+
 	glViewport(0, 0, width, height);
-	glClearColor(color[0], color[1], color[2], 1.0);
+	glClearColor(demo.color[0], demo.color[1], demo.color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	eglSwapBuffers(egl.display, egl_surface);
 
 	frame_callback = wl_surface_frame(wl_surface);
 	wl_callback_add_listener(frame_callback, &frame_listener, NULL);
+
+	eglSwapBuffers(egl.display, egl_surface);
+
+	demo.last_frame = ts;
 }
 
 static void layer_surface_configure(void *data,
@@ -196,7 +219,6 @@ int main(int argc, char **argv) {
 				   &layer_surface_listener, layer_surface);
 	// TODO: margin, interactivity, exclusive zone
 	wl_surface_commit(wl_surface);
-	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
 	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,

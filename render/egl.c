@@ -95,7 +95,7 @@ static void print_dmabuf_formats(struct wlr_egl *egl) {
 	for (int i = 0; i < num; i++) {
 		snprintf(&str_formats[i*5], (num - i) * 5 + 1, "%.4s ", (char*)&formats[i]);
 	}
-	wlr_log(L_INFO, "Supported dmabuf buffer formats: %s", str_formats);
+	wlr_log(L_DEBUG, "Supported dmabuf buffer formats: %s", str_formats);
 	free(formats);
 }
 
