@@ -21,6 +21,7 @@ struct gles2_pixel_format {
 	uint32_t wl_format;
 	GLint gl_format, gl_type;
 	int depth, bpp;
+	bool has_alpha;
 };
 
 struct wlr_gles2_renderer {
@@ -48,6 +49,7 @@ struct wlr_gles2_texture {
 };
 
 const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt);
+const enum wl_shm_format *gles2_formats(size_t *len);
 
 struct wlr_texture *gles2_texture_create();
 struct wlr_gles2_texture *gles2_get_texture(struct wlr_texture *wlr_texture);

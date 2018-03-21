@@ -179,16 +179,9 @@ static void gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
 	GLES2_DEBUG_POP;
 }
 
-static const enum wl_shm_format *gles2_formats(
-		struct wlr_renderer *renderer, size_t *len) {
-	static const enum wl_shm_format formats[] = {
-		WL_SHM_FORMAT_ARGB8888,
-		WL_SHM_FORMAT_XRGB8888,
-		WL_SHM_FORMAT_ABGR8888,
-		WL_SHM_FORMAT_XBGR8888,
-	};
-	*len = sizeof(formats) / sizeof(formats[0]);
-	return formats;
+static const enum wl_shm_format *gles2_renderer_formats(
+		struct wlr_renderer *wlr_renderer, size_t *len) {
+	return gles2_formats(len);
 }
 
 static bool gles2_buffer_is_drm(struct wlr_renderer *wlr_renderer,
@@ -266,7 +259,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_texture_with_matrix = gles2_render_texture_with_matrix,
 	.render_quad = gles2_render_quad,
 	.render_ellipse = gles2_render_ellipse,
-	.formats = gles2_formats,
+	.formats = gles2_renderer_formats,
 	.buffer_is_drm = gles2_buffer_is_drm,
 	.read_pixels = gles2_read_pixels,
 	.format_supported = gles2_format_supported,
