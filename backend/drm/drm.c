@@ -582,11 +582,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		// OpenGL will read the pixels out upside down,
-		// so we need to flip the image vertically
-		enum wl_output_transform transform = wlr_output_transform_compose(
-			wlr_output_transform_invert(output->transform),
-			WL_OUTPUT_TRANSFORM_FLIPPED_180);
+		enum wl_output_transform transform =
+			wlr_output_transform_invert(output->transform);
 		wlr_matrix_projection(plane->matrix, plane->surf.width,
 			plane->surf.height, transform);
 
@@ -649,11 +646,8 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		wlr_render_texture(rend, plane->wlr_tex, plane->matrix, 0, 0, 1.0f);
 		wlr_renderer_end(rend);
 
-		// TODO: remove these raw GL calls
-		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-		glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
-			GL_UNSIGNED_BYTE, bo_data);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride,
+			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
 
 		wlr_drm_surface_swap_buffers(&plane->surf, NULL);
 
