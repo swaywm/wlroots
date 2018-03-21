@@ -119,9 +119,10 @@ static const struct wl_registry_listener registry_listener = {
 int main(int argc, char **argv) {
 	wlr_log_init(L_DEBUG, NULL);
 	char *namespace = "wlroots";
+	int exclusive_zone = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "w:h:o:l:a:")) != -1) {
+	while ((c = getopt(argc, argv, "w:h:o:l:a:x:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -131,6 +132,9 @@ int main(int argc, char **argv) {
 			break;
 		case 'h':
 			height = atoi(optarg);
+			break;
+		case 'x':
+			exclusive_zone = atoi(optarg);
 			break;
 		case 'l': {
 			struct {
@@ -215,9 +219,10 @@ int main(int argc, char **argv) {
 				wl_surface, wl_output, layer, namespace);
 	zwlr_layer_surface_v1_set_size(layer_surface, width, height);
 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
+	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
 	zwlr_layer_surface_v1_add_listener(layer_surface,
 				   &layer_surface_listener, layer_surface);
-	// TODO: margin, interactivity, exclusive zone
+	// TODO: margin, interactivity
 	wl_surface_commit(wl_surface);
 	wl_display_roundtrip(display);
 

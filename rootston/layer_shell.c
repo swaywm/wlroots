@@ -53,7 +53,7 @@ static void apply_exclusive(struct wlr_box *output_area,
 	};
 	for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
 		if ((anchor & edges[i].anchors)) {
-			edges[i].value += exclusive * edges[i].multiplier;
+			*edges[i].value += exclusive * edges[i].multiplier;
 		}
 	}
 }
