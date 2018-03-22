@@ -198,7 +198,7 @@ static bool gles2_texture_upload_drm(struct wlr_texture *_tex,
 	tex->image = wlr_egl_create_image(tex->egl, EGL_WAYLAND_BUFFER_WL,
 		(EGLClientBuffer*) buf, attribs);
 	if (!tex->image) {
-		wlr_log(L_ERROR, "failed to create egl image: %s", egl_error());
+		wlr_log(L_ERROR, "failed to create EGL image");
  		return false;
 	}
 

@@ -12,43 +12,6 @@
 // https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
 // https://cgit.freedesktop.org/mesa/mesa/tree/docs/specs/WL_bind_wayland_display.spec
 
-const char *egl_error(void) {
-	switch (eglGetError()) {
-	case EGL_SUCCESS:
-		return "Success";
-	case EGL_NOT_INITIALIZED:
-		return "Not initialized";
-	case EGL_BAD_ACCESS:
-		return "Bad access";
-	case EGL_BAD_ALLOC:
-		return "Bad alloc";
-	case EGL_BAD_ATTRIBUTE:
-		return "Bad attribute";
-	case EGL_BAD_CONTEXT:
-		return "Bad Context";
-	case EGL_BAD_CONFIG:
-		return "Bad Config";
-	case EGL_BAD_CURRENT_SURFACE:
-		return "Bad current surface";
-	case EGL_BAD_DISPLAY:
-		return "Bad display";
-	case EGL_BAD_SURFACE:
-		return "Bad surface";
-	case EGL_BAD_MATCH:
-		return "Bad match";
-	case EGL_BAD_PARAMETER:
-		return "Bad parameter";
-	case EGL_BAD_NATIVE_PIXMAP:
-		return "Bad native pixmap";
-	case EGL_BAD_NATIVE_WINDOW:
-		return "Bad native window";
-	case EGL_CONTEXT_LOST:
-		return "Context lost";
-	default:
-		return "Unknown";
-	}
-}
-
 static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 		EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
@@ -82,6 +45,21 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 
 	wlr_log(L_ERROR, "no valid egl config found");
 	return false;
+}
+
+static log_importance_t egl_log_importance_to_wlr(EGLint type) {
+	switch (type) {
+	case EGL_DEBUG_MSG_CRITICAL_KHR: return L_ERROR;
+	case EGL_DEBUG_MSG_ERROR_KHR:    return L_ERROR;
+	case EGL_DEBUG_MSG_WARN_KHR:     return L_ERROR;
+	case EGL_DEBUG_MSG_INFO_KHR:     return L_INFO;
+	default:                         return L_INFO;
+	}
+}
+
+static void egl_log(EGLenum error, const char *command, EGLint msg_type,
+		EGLLabelKHR thread, EGLLabelKHR obj, const char *msg) {
+	_wlr_log(egl_log_importance_to_wlr(msg_type), "[EGL] %s: %s", command, msg);
 }
 
 static bool check_egl_ext(const char *egl_exts, const char *ext) {
@@ -128,8 +106,19 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		return false;
 	}
 
+	if (eglDebugMessageControlKHR) {
+		static const EGLAttrib debug_attribs[] = {
+			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_ERROR_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_WARN_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_INFO_KHR, EGL_TRUE,
+			EGL_NONE,
+		};
+		eglDebugMessageControlKHR(egl_log, debug_attribs);
+	}
+
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to bind to the OpenGL ES API");
 		goto error;
 	}
 
@@ -140,13 +129,13 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
 	}
 	if (egl->display == EGL_NO_DISPLAY) {
-		wlr_log(L_ERROR, "Failed to create EGL display: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL display");
 		goto error;
 	}
 
 	EGLint major, minor;
 	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
-		wlr_log(L_ERROR, "Failed to initialize EGL: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to initialize EGL");
 		goto error;
 	}
 
@@ -161,7 +150,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGL_NO_CONTEXT, attribs);
 
 	if (egl->context == EGL_NO_CONTEXT) {
-		wlr_log(L_ERROR, "Failed to create EGL context: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL context");
 		goto error;
 	}
 
@@ -199,12 +188,18 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 error:
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	eglTerminate(egl->display);
+	if (egl->display) {
+		eglTerminate(egl->display);
+	}
 	eglReleaseThread();
 	return false;
 }
 
 void wlr_egl_finish(struct wlr_egl *egl) {
+	if (egl == NULL) {
+		return;
+	}
+
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
@@ -259,7 +254,7 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 	EGLSurface surf = eglCreatePlatformWindowSurfaceEXT(egl->display, egl->config,
 		window, NULL);
 	if (surf == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL surface");
 		return EGL_NO_SURFACE;
 	}
 	return surf;
@@ -274,7 +269,7 @@ int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
 	EGLBoolean ok = eglQuerySurface(egl->display, surface,
 		EGL_BUFFER_AGE_EXT, &buffer_age);
 	if (!ok) {
-		wlr_log(L_ERROR, "Failed to get EGL surface buffer age: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to get EGL surface buffer age");
 		return -1;
 	}
 
@@ -284,7 +279,7 @@ int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 		int *buffer_age) {
 	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+		wlr_log(L_ERROR, "eglMakeCurrent failed");
 		return false;
 	}
 
@@ -322,7 +317,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	}
 
 	if (!ret) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		wlr_log(L_ERROR, "eglSwapBuffers failed");
 		return false;
 	}
 	return true;

@@ -321,7 +321,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	if (!eglMakeCurrent(output->backend->egl.display,
 		output->egl_surface, output->egl_surface,
 		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+		wlr_log(L_ERROR, "eglMakeCurrent failed");
 		goto error;
 	}
 
@@ -333,7 +333,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
 	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+		wlr_log(L_ERROR, "eglSwapBuffers failed");
 		goto error;
 	}
 
