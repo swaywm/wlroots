@@ -11,3 +11,7 @@ eglCreatePlatformWindowSurfaceEXT
 -eglQueryDmaBufFormatsEXT
 -eglQueryDmaBufModifiersEXT
 -eglDebugMessageControlKHR
+-glDebugMessageCallbackKHR
+-glDebugMessageControlKHR
+-glPopDebugGroupKHR
+-glPushDebugGroupKHR

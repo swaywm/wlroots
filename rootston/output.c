@@ -479,7 +479,7 @@ static void render_output(struct roots_output *output) {
 		goto damage_finish;
 	}
 
-	wlr_renderer_begin(renderer, wlr_output);
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 
 	if (!pixman_region32_not_empty(&damage)) {
 		// Output isn't damaged but needs buffer swap

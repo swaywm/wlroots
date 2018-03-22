@@ -14,11 +14,12 @@
 struct wlr_renderer_impl;
 
 struct wlr_renderer {
-	struct wlr_renderer_impl *impl;
+	const struct wlr_renderer_impl *impl;
 };
 
 struct wlr_renderer_impl {
-	void (*begin)(struct wlr_renderer *renderer, struct wlr_output *output);
+	void (*begin)(struct wlr_renderer *renderer, uint32_t width,
+		uint32_t height);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
@@ -44,7 +45,7 @@ struct wlr_renderer_impl {
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
-		struct wlr_renderer_impl *impl);
+		const struct wlr_renderer_impl *impl);
 
 struct wlr_texture_impl {
 	bool (*upload_pixels)(struct wlr_texture *texture,
@@ -65,14 +66,12 @@ struct wlr_texture_impl {
 		struct wl_resource *dmabuf_resource);
 	void (*get_buffer_size)(struct wlr_texture *texture,
 		struct wl_resource *resource, int *width, int *height);
-	void (*bind)(struct wlr_texture *texture);
 	void (*destroy)(struct wlr_texture *texture);
 };
 
 void wlr_texture_init(struct wlr_texture *texture,
-		struct wlr_texture_impl *impl);
-void wlr_texture_bind(struct wlr_texture *texture);
+	const struct wlr_texture_impl *impl);
 void wlr_texture_get_buffer_size(struct wlr_texture *texture,
-		struct wl_resource *resource, int *width, int *height);
+	struct wl_resource *resource, int *width, int *height);
 
 #endif

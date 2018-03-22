@@ -42,7 +42,7 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	struct touch_point *p;

@@ -2,7 +2,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <gbm.h>
-#include <GLES2/gl2.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -107,9 +106,6 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 		return;
 	}
 
-	eglMakeCurrent(surf->renderer->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-		EGL_NO_CONTEXT);
-
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 	}
@@ -151,9 +147,10 @@ struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
 	}
 
 	wlr_drm_surface_make_current(surf, NULL);
-	glViewport(0, 0, surf->width, surf->height);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
+	wlr_renderer_begin(renderer, surf->width, surf->height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
+	wlr_renderer_end(renderer);
 	return wlr_drm_surface_swap_buffers(surf, NULL);
 }
 
@@ -184,6 +181,8 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	if (tex) {
 		return tex->tex;
 	}
+
+	// TODO: use wlr_texture_upload_dmabuf instead
 
 	tex = malloc(sizeof(*tex));
 	if (!tex) {
@@ -230,14 +229,14 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
 	assert(tex);
 
-	static const float color[] = {0.0, 0.0, 0.0, 1.0};
-
 	float mat[9];
 	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_FLIPPED_180);
 
-	glViewport(0, 0, dest->width, dest->height);
-	wlr_renderer_clear(dest->renderer->wlr_rend, color);
-	wlr_render_texture_with_matrix(dest->renderer->wlr_rend, tex, mat, 1.0f);
+	struct wlr_renderer *renderer = dest->renderer->wlr_rend;
+	wlr_renderer_begin(renderer, dest->width, dest->height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
+	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
+	wlr_renderer_end(renderer);
 
 	return wlr_drm_surface_swap_buffers(dest, NULL);
 }

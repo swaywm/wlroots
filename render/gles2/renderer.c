@@ -2,145 +2,80 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 #include <wlr/backend.h>
-#include <wlr/render/wlr_renderer.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 #include "glapi.h"
 
-struct shaders shaders;
+static const struct wlr_renderer_impl renderer_impl;
 
-static bool compile_shader(GLuint type, const GLchar *src, GLuint *shader) {
-	*shader = GL_CALL(glCreateShader(type));
-	int len = strlen(src);
-	GL_CALL(glShaderSource(*shader, 1, &src, &len));
-	GL_CALL(glCompileShader(*shader));
-	GLint success;
-	GL_CALL(glGetShaderiv(*shader, GL_COMPILE_STATUS, &success));
-	if (success == GL_FALSE) {
-		GLint loglen;
-		GL_CALL(glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &loglen));
-		GLchar msg[loglen];
-		GL_CALL(glGetShaderInfoLog(*shader, loglen, &loglen, msg));
-		wlr_log(L_ERROR, "Shader compilation failed");
-		wlr_log(L_ERROR, "%s", msg);
-		glDeleteShader(*shader);
-		return false;
-	}
-	return true;
+static struct wlr_gles2_renderer *gles2_get_renderer(
+		struct wlr_renderer *wlr_renderer) {
+	assert(wlr_renderer->impl == &renderer_impl);
+	struct wlr_gles2_renderer *renderer =
+		(struct wlr_gles2_renderer *)wlr_renderer;
+	assert(eglGetCurrentContext() == renderer->egl->context);
+	return renderer;
 }
 
-static bool compile_program(const GLchar *vert_src,
-		const GLchar *frag_src, GLuint *program) {
-	GLuint vertex, fragment;
-	if (!compile_shader(GL_VERTEX_SHADER, vert_src, &vertex)) {
-		return false;
-	}
-	if (!compile_shader(GL_FRAGMENT_SHADER, frag_src, &fragment)) {
-		glDeleteShader(vertex);
-		return false;
-	}
-	*program = GL_CALL(glCreateProgram());
-	GL_CALL(glAttachShader(*program, vertex));
-	GL_CALL(glAttachShader(*program, fragment));
-	GL_CALL(glLinkProgram(*program));
-	GLint success;
-	GL_CALL(glGetProgramiv(*program, GL_LINK_STATUS, &success));
-	if (success == GL_FALSE) {
-		GLint loglen;
-		GL_CALL(glGetProgramiv(*program, GL_INFO_LOG_LENGTH, &loglen));
-		GLchar msg[loglen];
-		GL_CALL(glGetProgramInfoLog(*program, loglen, &loglen, msg));
-		wlr_log(L_ERROR, "Program link failed");
-		wlr_log(L_ERROR, "%s", msg);
-		glDeleteProgram(*program);
-		glDeleteShader(vertex);
-		glDeleteShader(fragment);
-		return false;
-	}
-	glDetachShader(*program, vertex);
-	glDetachShader(*program, fragment);
-	glDeleteShader(vertex);
-	glDeleteShader(fragment);
+static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
+		uint32_t height) {
+	gles2_get_renderer(wlr_renderer);
 
-	return true;
-}
+	GLES2_DEBUG_PUSH;
 
-static void init_default_shaders() {
-	if (shaders.initialized) {
-		return;
-	}
-	if (!compile_program(vertex_src, fragment_src_rgba, &shaders.rgba)) {
-		goto error;
-	}
-	if (!compile_program(vertex_src, fragment_src_rgbx, &shaders.rgbx)) {
-		goto error;
-	}
-	if (!compile_program(quad_vertex_src, quad_fragment_src, &shaders.quad)) {
-		goto error;
-	}
-	if (!compile_program(quad_vertex_src, ellipse_fragment_src,
-			&shaders.ellipse)) {
-		goto error;
-	}
-	if (glEGLImageTargetTexture2DOES) {
-		if (!compile_program(vertex_src, fragment_src_external,
-				&shaders.external)) {
-			goto error;
-		}
-	}
-
-	wlr_log(L_DEBUG, "Compiled default shaders");
-	shaders.initialized = true;
-	return;
-error:
-	wlr_log(L_ERROR, "Failed to set up default shaders!");
-}
-
-static void init_globals() {
-	init_default_shaders();
-}
-
-static void wlr_gles2_begin(struct wlr_renderer *wlr_renderer,
-		struct wlr_output *output) {
-	GL_CALL(glViewport(0, 0, output->width, output->height));
+	glViewport(0, 0, width, height);
 
 	// enable transparency
-	GL_CALL(glEnable(GL_BLEND));
-	GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	// Note: maybe we should save output projection and remove some of the need
+	// XXX: maybe we should save output projection and remove some of the need
 	// for users to sling matricies themselves
+
+	GLES2_DEBUG_POP;
 }
 
-static void wlr_gles2_end(struct wlr_renderer *wlr_renderer) {
+static void gles2_end(struct wlr_renderer *wlr_renderer) {
+	gles2_get_renderer(wlr_renderer);
 	// no-op
 }
 
-static void wlr_gles2_clear(struct wlr_renderer *wlr_renderer,
+static void gles2_clear(struct wlr_renderer *wlr_renderer,
 		const float color[static 4]) {
+	gles2_get_renderer(wlr_renderer);
+
+	GLES2_DEBUG_PUSH;
 	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
+	GLES2_DEBUG_POP;
 }
 
-static void wlr_gles2_scissor(struct wlr_renderer *wlr_renderer,
+static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
+	gles2_get_renderer(wlr_renderer);
+
+	GLES2_DEBUG_PUSH;
 	if (box != NULL) {
 		glScissor(box->x, box->y, box->width, box->height);
 		glEnable(GL_SCISSOR_TEST);
 	} else {
 		glDisable(GL_SCISSOR_TEST);
 	}
+	GLES2_DEBUG_POP;
 }
 
-static struct wlr_texture *wlr_gles2_texture_create(
+static struct wlr_texture *gles2_renderer_texture_create(
 		struct wlr_renderer *wlr_renderer) {
+	assert(wlr_renderer->impl == &renderer_impl);
 	struct wlr_gles2_renderer *renderer =
 		(struct wlr_gles2_renderer *)wlr_renderer;
 	return gles2_texture_create(renderer->egl);
@@ -160,96 +95,116 @@ static void draw_quad() {
 		0, 1, // bottom left
 	};
 
-	GL_CALL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts));
-	GL_CALL(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoord));
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
 
-	GL_CALL(glEnableVertexAttribArray(0));
-	GL_CALL(glEnableVertexAttribArray(1));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 
-	GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	GL_CALL(glDisableVertexAttribArray(0));
-	GL_CALL(glDisableVertexAttribArray(1));
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 }
 
-static bool wlr_gles2_render_texture_with_matrix(
-		struct wlr_renderer *wlr_renderer, struct wlr_texture *texture,
+static bool gles2_render_texture_with_matrix(
+		struct wlr_renderer *wlr_renderer, struct wlr_texture *wlr_texture,
 		const float matrix[static 9], float alpha) {
-	if (!texture || !texture->valid) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	if (!wlr_texture->valid) {
 		wlr_log(L_ERROR, "attempt to render invalid texture");
 		return false;
 	}
 
+	GLuint prog = renderer->shaders.tex_rgba;
+	if (texture->target == GL_TEXTURE_EXTERNAL_OES) {
+		prog = renderer->shaders.tex_ext;
+	} else if (!texture->pixel_format->has_alpha) {
+		prog = renderer->shaders.tex_rgbx;
+	}
+
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
-	wlr_texture_bind(texture);
-	GL_CALL(glUniformMatrix3fv(0, 1, GL_FALSE, transposition));
-	GL_CALL(glUniform1i(1, texture->inverted_y));
-	GL_CALL(glUniform1f(3, alpha));
+	GLES2_DEBUG_PUSH;
+	glBindTexture(texture->target, texture->tex_id);
+	glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glUseProgram(prog);
+
+	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
+	glUniform1i(1, wlr_texture->inverted_y);
+	glUniform1f(3, alpha);
 	draw_quad();
+	GLES2_DEBUG_POP;
 	return true;
 }
 
 
-static void wlr_gles2_render_quad(struct wlr_renderer *wlr_renderer,
+static void gles2_render_quad(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
-	GL_CALL(glUseProgram(shaders.quad));
-	GL_CALL(glUniformMatrix3fv(0, 1, GL_FALSE, transposition));
-	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
+	GLES2_DEBUG_PUSH;
+	glUseProgram(renderer->shaders.quad);
+	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
+	glUniform4f(1, color[0], color[1], color[2], color[3]);
 	draw_quad();
+	GLES2_DEBUG_POP;
 }
 
-static void wlr_gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
+static void gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
-	GL_CALL(glUseProgram(shaders.ellipse));
-	GL_CALL(glUniformMatrix3fv(0, 1, GL_FALSE, transposition));
-	GL_CALL(glUniform4f(1, color[0], color[1], color[2], color[3]));
+	GLES2_DEBUG_PUSH;
+	glUseProgram(renderer->shaders.ellipse);
+	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
+	glUniform4f(1, color[0], color[1], color[2], color[3]);
 	draw_quad();
+	GLES2_DEBUG_POP;
 }
 
-static const enum wl_shm_format *wlr_gles2_formats(
-		struct wlr_renderer *renderer, size_t *len) {
-	static enum wl_shm_format formats[] = {
-		WL_SHM_FORMAT_ARGB8888,
-		WL_SHM_FORMAT_XRGB8888,
-		WL_SHM_FORMAT_ABGR8888,
-		WL_SHM_FORMAT_XBGR8888,
-	};
-	*len = sizeof(formats) / sizeof(formats[0]);
-	return formats;
+static const enum wl_shm_format *gles2_renderer_formats(
+		struct wlr_renderer *wlr_renderer, size_t *len) {
+	return gles2_formats(len);
 }
 
-static bool wlr_gles2_buffer_is_drm(struct wlr_renderer *wlr_renderer,
+static bool gles2_buffer_is_drm(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *buffer) {
-	struct wlr_gles2_renderer *renderer =
-		(struct wlr_gles2_renderer *)wlr_renderer;
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
 	EGLint format;
-	return wlr_egl_query_buffer(renderer->egl, buffer,
-		EGL_TEXTURE_FORMAT, &format);
+	return wlr_egl_query_buffer(renderer->egl, buffer, EGL_TEXTURE_FORMAT,
+		&format);
 }
 
-static bool wlr_gles2_read_pixels(struct wlr_renderer *renderer,
+static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, void *data) {
-	const struct pixel_format *fmt = gl_format_for_wl_format(wl_fmt);
+	gles2_get_renderer(wlr_renderer);
+
+	const struct gles2_pixel_format *fmt = gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(L_ERROR, "Cannot read pixels: unsupported pixel format");
 		return false;
 	}
+
+	GLES2_DEBUG_PUSH;
 
 	// Make sure any pending drawing is finished before we try to read it
 	glFinish();
@@ -262,38 +217,225 @@ static bool wlr_gles2_read_pixels(struct wlr_renderer *renderer,
 			fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
 	}
 
+	GLES2_DEBUG_POP;
+
 	return true;
 }
 
-static bool wlr_gles2_format_supported(struct wlr_renderer *r,
+static bool gles2_format_supported(struct wlr_renderer *r,
 		enum wl_shm_format wl_fmt) {
-	return gl_format_for_wl_format(wl_fmt);
+	return gles2_format_from_wl(wl_fmt) != NULL;
 }
 
-static struct wlr_renderer_impl wlr_renderer_impl = {
-	.begin = wlr_gles2_begin,
-	.end = wlr_gles2_end,
-	.clear = wlr_gles2_clear,
-	.scissor = wlr_gles2_scissor,
-	.texture_create = wlr_gles2_texture_create,
-	.render_texture_with_matrix = wlr_gles2_render_texture_with_matrix,
-	.render_quad = wlr_gles2_render_quad,
-	.render_ellipse = wlr_gles2_render_ellipse,
-	.formats = wlr_gles2_formats,
-	.buffer_is_drm = wlr_gles2_buffer_is_drm,
-	.read_pixels = wlr_gles2_read_pixels,
-	.format_supported = wlr_gles2_format_supported,
+static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
+	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+
+	GLES2_DEBUG_PUSH;
+	glDeleteProgram(renderer->shaders.quad);
+	glDeleteProgram(renderer->shaders.ellipse);
+	glDeleteProgram(renderer->shaders.tex_rgba);
+	glDeleteProgram(renderer->shaders.tex_rgbx);
+	glDeleteProgram(renderer->shaders.tex_ext);
+	GLES2_DEBUG_POP;
+
+	if (glDebugMessageCallbackKHR) {
+		glDisable(GL_DEBUG_OUTPUT_KHR);
+		glDebugMessageCallbackKHR(NULL, NULL);
+	}
+
+	free(renderer);
+}
+
+static const struct wlr_renderer_impl renderer_impl = {
+	.destroy = gles2_destroy,
+	.begin = gles2_begin,
+	.end = gles2_end,
+	.clear = gles2_clear,
+	.scissor = gles2_scissor,
+	.texture_create = gles2_renderer_texture_create,
+	.render_texture_with_matrix = gles2_render_texture_with_matrix,
+	.render_quad = gles2_render_quad,
+	.render_ellipse = gles2_render_ellipse,
+	.formats = gles2_renderer_formats,
+	.buffer_is_drm = gles2_buffer_is_drm,
+	.read_pixels = gles2_read_pixels,
+	.format_supported = gles2_format_supported,
 };
 
+void gles2_push_marker(const char *file, const char *func) {
+	if (!glPushDebugGroupKHR) {
+		return;
+	}
+
+	int len = snprintf(NULL, 0, "%s:%s", file, func) + 1;
+	char str[len];
+	snprintf(str, len, "%s:%s", file, func);
+	glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
+}
+
+void gles2_pop_marker(void) {
+	if (glPopDebugGroupKHR) {
+		glPopDebugGroupKHR();
+	}
+}
+
+static log_importance_t gles2_log_importance_to_wlr(GLenum type) {
+	switch (type) {
+	case GL_DEBUG_TYPE_ERROR_KHR:               return L_ERROR;
+	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_KHR: return L_DEBUG;
+	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_KHR:  return L_ERROR;
+	case GL_DEBUG_TYPE_PORTABILITY_KHR:         return L_DEBUG;
+	case GL_DEBUG_TYPE_PERFORMANCE_KHR:         return L_DEBUG;
+	case GL_DEBUG_TYPE_OTHER_KHR:               return L_INFO;
+	case GL_DEBUG_TYPE_MARKER_KHR:              return L_DEBUG;
+	case GL_DEBUG_TYPE_PUSH_GROUP_KHR:          return L_DEBUG;
+	case GL_DEBUG_TYPE_POP_GROUP_KHR:           return L_DEBUG;
+	default:                                    return L_INFO;
+	}
+}
+
+static void gles2_log(GLenum src, GLenum type, GLuint id, GLenum severity,
+		GLsizei len, const GLchar *msg, const void *user) {
+	_wlr_log(gles2_log_importance_to_wlr(type), "[GLES2] %s", msg);
+}
+
+static GLuint compile_shader(GLuint type, const GLchar *src) {
+	GLES2_DEBUG_PUSH;
+
+	GLuint shader = glCreateShader(type);
+	glShaderSource(shader, 1, &src, NULL);
+	glCompileShader(shader);
+
+	GLint ok;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+	if (ok == GL_FALSE) {
+		glDeleteShader(shader);
+		shader = 0;
+	}
+
+	GLES2_DEBUG_POP;
+	return shader;
+}
+
+static GLuint link_program(const GLchar *vert_src, const GLchar *frag_src) {
+	GLES2_DEBUG_PUSH;
+
+	GLuint vert = compile_shader(GL_VERTEX_SHADER, vert_src);
+	if (!vert) {
+		goto error;
+	}
+
+	GLuint frag = compile_shader(GL_FRAGMENT_SHADER, frag_src);
+	if (!frag) {
+		glDeleteShader(vert);
+		goto error;
+	}
+
+	GLuint prog = glCreateProgram();
+	glAttachShader(prog, vert);
+	glAttachShader(prog, frag);
+	glLinkProgram(prog);
+
+	glDetachShader(prog, vert);
+	glDetachShader(prog, frag);
+	glDeleteShader(vert);
+	glDeleteShader(frag);
+
+	GLint ok;
+	glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+	if (ok == GL_FALSE) {
+		glDeleteProgram(prog);
+		goto error;
+	}
+
+	GLES2_DEBUG_POP;
+	return prog;
+
+error:
+	GLES2_DEBUG_POP;
+	return 0;
+}
+
+extern const GLchar quad_vertex_src[];
+extern const GLchar quad_fragment_src[];
+extern const GLchar ellipse_fragment_src[];
+extern const GLchar tex_vertex_src[];
+extern const GLchar tex_fragment_src_rgba[];
+extern const GLchar tex_fragment_src_rgbx[];
+extern const GLchar tex_fragment_src_external[];
+
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
-	init_globals();
-	struct wlr_gles2_renderer *renderer;
-	if (!(renderer = calloc(1, sizeof(struct wlr_gles2_renderer)))) {
+	struct wlr_gles2_renderer *renderer =
+		calloc(1, sizeof(struct wlr_gles2_renderer));
+	if (renderer == NULL) {
 		return NULL;
 	}
-	wlr_renderer_init(&renderer->wlr_renderer, &wlr_renderer_impl);
+	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
 	renderer->egl = wlr_backend_get_egl(backend);
+	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+
+	if (glDebugMessageCallbackKHR && glDebugMessageControlKHR) {
+		glEnable(GL_DEBUG_OUTPUT_KHR);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
+		glDebugMessageCallbackKHR(gles2_log, NULL);
+
+		// Silence unwanted message types
+		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP_KHR,
+			GL_DONT_CARE, 0, NULL, GL_FALSE);
+		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP_KHR,
+			GL_DONT_CARE, 0, NULL, GL_FALSE);
+	}
+
+	GLES2_DEBUG_PUSH;
+
+	renderer->shaders.quad = link_program(quad_vertex_src, quad_fragment_src);
+	if (!renderer->shaders.quad) {
+		goto error;
+	}
+	renderer->shaders.ellipse =
+		link_program(quad_vertex_src, ellipse_fragment_src);
+	if (!renderer->shaders.ellipse) {
+		goto error;
+	}
+	renderer->shaders.tex_rgba =
+		link_program(tex_vertex_src, tex_fragment_src_rgba);
+	if (!renderer->shaders.tex_rgba) {
+		goto error;
+	}
+	renderer->shaders.tex_rgbx =
+		link_program(tex_vertex_src, tex_fragment_src_rgbx);
+	if (!renderer->shaders.tex_rgbx) {
+		goto error;
+	}
+	if (glEGLImageTargetTexture2DOES) {
+		renderer->shaders.tex_ext =
+			link_program(tex_vertex_src, tex_fragment_src_external);
+		if (!renderer->shaders.tex_ext) {
+			goto error;
+		}
+	}
+
+	GLES2_DEBUG_POP;
 
 	return &renderer->wlr_renderer;
+
+error:
+	glDeleteProgram(renderer->shaders.quad);
+	glDeleteProgram(renderer->shaders.ellipse);
+	glDeleteProgram(renderer->shaders.tex_rgba);
+	glDeleteProgram(renderer->shaders.tex_rgbx);
+	glDeleteProgram(renderer->shaders.tex_ext);
+
+	GLES2_DEBUG_POP;
+
+	if (glDebugMessageCallbackKHR) {
+		glDisable(GL_DEBUG_OUTPUT_KHR);
+		glDebugMessageCallbackKHR(NULL, NULL);
+	}
+
+	free(renderer);
+	return NULL;
 }

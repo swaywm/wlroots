@@ -101,7 +101,7 @@ static void handle_output_frame(struct output_state *output,
 	struct wlr_output *wlr_output = output->output;
 
 	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output);
+	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);

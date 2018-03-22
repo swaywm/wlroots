@@ -4,7 +4,7 @@
 #include <wlr/render/wlr_texture.h>
 
 void wlr_texture_init(struct wlr_texture *texture,
-		struct wlr_texture_impl *impl) {
+		const struct wlr_texture_impl *impl) {
 	texture->impl = impl;
 	wl_signal_init(&texture->destroy_signal);
 }
@@ -15,10 +15,6 @@ void wlr_texture_destroy(struct wlr_texture *texture) {
 	} else {
 		free(texture);
 	}
-}
-
-void wlr_texture_bind(struct wlr_texture *texture) {
-	texture->impl->bind(texture);
 }
 
 bool wlr_texture_upload_pixels(struct wlr_texture *texture, uint32_t format,
