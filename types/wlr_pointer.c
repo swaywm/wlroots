@@ -14,7 +14,10 @@ void wlr_pointer_init(struct wlr_pointer *pointer,
 }
 
 void wlr_pointer_destroy(struct wlr_pointer *pointer) {
-	if (pointer && pointer->impl && pointer->impl->destroy) {
+	if (!pointer) {
+		return;
+	}
+	if (pointer->impl && pointer->impl->destroy) {
 		pointer->impl->destroy(pointer);
 	} else {
 		wl_list_remove(&pointer->events.motion.listener_list);
