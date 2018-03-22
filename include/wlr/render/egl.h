@@ -94,11 +94,6 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
  */
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
-/**
- * Returns a string for the last error ocurred with egl.
- */
-const char *egl_error(void);
-
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);
 

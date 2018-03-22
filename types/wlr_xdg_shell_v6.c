@@ -131,6 +131,24 @@ static const struct wlr_keyboard_grab_interface xdg_keyboard_grab_impl = {
 	.cancel = xdg_keyboard_grab_cancel,
 };
 
+static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface);
+
+static void wlr_xdg_popup_grab_handle_seat_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_xdg_popup_grab_v6 *xdg_grab =
+		wl_container_of(listener, xdg_grab, seat_destroy);
+
+	wl_list_remove(&xdg_grab->seat_destroy.link);
+
+	struct wlr_xdg_popup_v6 *popup, *next;
+	wl_list_for_each_safe(popup, next, &xdg_grab->popups, grab_link) {
+		xdg_surface_destroy(popup->base);
+	}
+
+	wl_list_remove(&xdg_grab->link);
+	free(xdg_grab);
+}
+
 static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 		struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat) {
 	struct wlr_xdg_popup_grab_v6 *xdg_grab;
@@ -154,6 +172,9 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 
 	wl_list_insert(&shell->popup_grabs, &xdg_grab->link);
 	xdg_grab->seat = seat;
+
+	xdg_grab->seat_destroy.notify = wlr_xdg_popup_grab_handle_seat_destroy;
+	wl_signal_add(&seat->events.destroy, &xdg_grab->seat_destroy);
 
 	return xdg_grab;
 }

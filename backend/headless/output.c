@@ -13,7 +13,7 @@ static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 
 	EGLSurface surf = eglCreatePbufferSurface(egl->display, egl->config, attribs);
 	if (surf == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL surface");
 		return EGL_NO_SURFACE;
 	}
 	return surf;

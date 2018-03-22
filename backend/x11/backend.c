@@ -143,6 +143,7 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		};
 
 		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
+		free(pointer);
 		break;
 	}
 	case XCB_CLIENT_MESSAGE: {
@@ -317,12 +318,20 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
 
+	if (x11->event_source) {
+		wl_event_source_remove(x11->event_source);
+	}
 	wl_list_remove(&x11->display_destroy.link);
 
 	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_finish(&x11->egl);
 
-	xcb_disconnect(x11->xcb_conn);
+	if (x11->xcb_conn) {
+		xcb_disconnect(x11->xcb_conn);
+	}
+	if (x11->xlib_conn) {
+		XCloseDisplay(x11->xlib_conn);
+	}
 	free(x11);
 }
 

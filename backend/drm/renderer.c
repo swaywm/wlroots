@@ -210,7 +210,7 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	tex->img = eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 	if (!tex->img) {
-		wlr_log(L_ERROR, "Failed to create EGL image: %s", egl_error());
+		wlr_log(L_ERROR, "Failed to create EGL image");
 		abort();
 	}
 
