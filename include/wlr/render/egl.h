@@ -6,6 +6,7 @@
 #include <pixman.h>
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 
 struct wlr_egl {
 	EGLDisplay display;
@@ -18,6 +19,8 @@ struct wlr_egl {
 	struct {
 		bool buffer_age;
 		bool swap_buffers_with_damage;
+		bool dmabuf_import;
+		bool dmabuf_import_modifiers;
 	} egl_exts;
 
 	struct wl_display *wl_display;
@@ -62,14 +65,34 @@ EGLImageKHR wlr_egl_create_image(struct wlr_egl *egl,
 		EGLenum target, EGLClientBuffer buffer, const EGLint *attribs);
 
 /**
+ * Creates an egl image from the given dmabuf attributes. Check usability
+ * of the dmabuf with wlr_egl_check_import_dmabuf once first.
+ */
+EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
+		struct wlr_dmabuf_buffer_attribs *attributes);
+
+/**
+ * Try to import the given dmabuf. On success return true false otherwise.
+ * If this succeeds the dmabuf can be used for rendering on a texture
+ */
+bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
+		struct wlr_dmabuf_buffer *dmabuf);
+
+/**
+ * Get the available dmabuf formats
+ */
+int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl, int **formats);
+
+/**
+ * Get the available dmabuf modifiers for a given format
+ */
+int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
+		uint64_t **modifiers);
+
+/**
  * Destroys an egl image created with the given wlr_egl.
  */
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
-
-/**
- * Returns a string for the last error ocurred with egl.
- */
-const char *egl_error(void);
 
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);

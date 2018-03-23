@@ -6,8 +6,8 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
@@ -139,8 +139,8 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 }
 
 static void wlr_output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_texture(output->transform_matrix, output->width, output->height,
-		output->transform);
+	wlr_matrix_projection(output->transform_matrix, output->width,
+		output->height, output->transform);
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
@@ -368,25 +368,25 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	assert(renderer);
 
 	if (!wlr_surface_has_buffer(surface)) {
-		wlr_renderer_clear(renderer, &(float[]){0, 0, 0, 0});
+		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
 		return;
 	}
 
 	struct wlr_box box;
 	output_fullscreen_surface_get_box(output, surface, &box);
 
-	float matrix[16];
+	float matrix[9];
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current->transform);
-	wlr_matrix_project_box(&matrix, &box, transform, 0,
-		&output->transform_matrix);
+	wlr_matrix_project_box(matrix, &box, transform, 0,
+		output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(output, &rects[i]);
-		wlr_renderer_clear(renderer, &(float[]){0, 0, 0, 0});
-		wlr_render_with_matrix(surface->renderer, surface->texture, &matrix, 1.0f);
+		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
+		wlr_render_texture_with_matrix(surface->renderer, surface->texture, matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 
@@ -435,15 +435,15 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		goto surface_damage_finish;
 	}
 
-	float matrix[16];
-	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
-		&cursor->output->transform_matrix);
+	float matrix[9];
+	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		cursor->output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(cursor->output, &rects[i]);
-		wlr_render_with_matrix(renderer, texture, &matrix, 1.0f);
+		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 

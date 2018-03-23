@@ -15,8 +15,8 @@ WLROOTS_0_0_0 {
         wlr_drm_get_connector_props;
         wlr_drm_get_crtc_props;
         wlr_drm_get_plane_props;
-        wlr_drm_get_prop;
         wlr_drm_get_prop_blob;
+        wlr_drm_get_prop;
         wlr_drm_plane_surfaces_init;
         wlr_drm_renderer_finish;
         wlr_drm_renderer_init;

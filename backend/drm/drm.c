@@ -15,9 +15,9 @@
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render.h>
 #include <wlr/render/gles2.h>
-#include <wlr/render/matrix.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -582,13 +582,10 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		// OpenGL will read the pixels out upside down,
-		// so we need to flip the image vertically
-		enum wl_output_transform transform = wlr_output_transform_compose(
-			wlr_output_transform_invert(output->transform),
-			WL_OUTPUT_TRANSFORM_FLIPPED_180);
-		wlr_matrix_texture(plane->matrix, plane->surf.width, plane->surf.height,
-			transform);
+		enum wl_output_transform transform =
+			wlr_output_transform_invert(output->transform);
+		wlr_matrix_projection(plane->matrix, plane->surf.width,
+			plane->surf.height, transform);
 
 		plane->wlr_tex =
 			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
@@ -643,20 +640,14 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 		wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
 			stride, width, height, buf);
 
-		glViewport(0, 0, plane->surf.width, plane->surf.height);
-		glClearColor(0.0, 0.0, 0.0, 0.0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
+		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
+		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+		wlr_render_texture(rend, plane->wlr_tex, plane->matrix, 0, 0, 1.0f);
+		wlr_renderer_end(rend);
 
-		float matrix[16];
-		wlr_texture_get_matrix(plane->wlr_tex, &matrix, &plane->matrix, 0, 0);
-		wlr_render_with_matrix(plane->surf.renderer->wlr_rend, plane->wlr_tex,
-			&matrix, 1.0f);
-
-		glFinish();
-		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, bo_stride);
-		glReadPixels(0, 0, plane->surf.width, plane->surf.height, GL_BGRA_EXT,
-			GL_UNSIGNED_BYTE, bo_data);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride,
+			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
 
 		wlr_drm_surface_swap_buffers(&plane->surf, NULL);
 

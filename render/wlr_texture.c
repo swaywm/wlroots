@@ -1,9 +1,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/wlr_texture.h>
 
 void wlr_texture_init(struct wlr_texture *texture,
-		struct wlr_texture_impl *impl) {
+		const struct wlr_texture_impl *impl) {
 	texture->impl = impl;
 	wl_signal_init(&texture->destroy_signal);
 }
@@ -14,10 +15,6 @@ void wlr_texture_destroy(struct wlr_texture *texture) {
 	} else {
 		free(texture);
 	}
-}
-
-void wlr_texture_bind(struct wlr_texture *texture) {
-	texture->impl->bind(texture);
 }
 
 bool wlr_texture_upload_pixels(struct wlr_texture *texture, uint32_t format,
@@ -53,9 +50,9 @@ bool wlr_texture_upload_eglimage(struct wlr_texture *texture,
 	return texture->impl->upload_eglimage(texture, image, width, height);
 }
 
-void wlr_texture_get_matrix(struct wlr_texture *texture,
-		float (*matrix)[16], const float (*projection)[16], int x, int y) {
-	texture->impl->get_matrix(texture, matrix, projection, x, y);
+bool wlr_texture_upload_dmabuf(struct wlr_texture *texture,
+		struct wl_resource *dmabuf_resource) {
+	return texture->impl->upload_dmabuf(texture, dmabuf_resource);
 }
 
 void wlr_texture_get_buffer_size(struct wlr_texture *texture, struct wl_resource

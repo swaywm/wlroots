@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -29,8 +29,8 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 		double ox = *sx - pw/2 + sw/2,
 			oy = *sy - ph/2 + sh/2;
 		// Rotated coordinates
-		double rx = cos(-rotation)*ox - sin(-rotation)*oy,
-			ry = cos(-rotation)*oy + sin(-rotation)*ox;
+		double rx = cos(rotation)*ox - sin(rotation)*oy,
+			ry = cos(rotation)*oy + sin(rotation)*ox;
 		*sx = rx + pw/2 - sw/2;
 		*sy = ry + ph/2 - sh/2;
 	}
@@ -227,7 +227,7 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 		.x = lx, .y = ly,
 		.width = surface->current->width, .height = surface->current->height,
 	};
-	wlr_box_rotated_bounds(&layout_box, -rotation, &layout_box);
+	wlr_box_rotated_bounds(&layout_box, rotation, &layout_box);
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
@@ -275,7 +275,7 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 	}
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, -rotation, &rotated);
+	wlr_box_rotated_bounds(&box, rotation, &rotated);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -287,17 +287,17 @@ static void render_surface(struct wlr_surface *surface, double lx, double ly,
 		goto damage_finish;
 	}
 
-	float matrix[16];
+	float matrix[9];
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current->transform);
-	wlr_matrix_project_box(&matrix, &box, transform, rotation,
-		&output->wlr_output->transform_matrix);
+	wlr_matrix_project_box(matrix, &box, transform, rotation,
+		output->wlr_output->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_with_matrix(renderer, surface->texture, &matrix, data->alpha);
+		wlr_render_texture_with_matrix(renderer, surface->texture, matrix, data->alpha);
 	}
 
 damage_finish:
@@ -341,7 +341,7 @@ static void render_decorations(struct roots_view *view,
 	get_decoration_box(view, output, &box);
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, -view->rotation, &rotated);
+	wlr_box_rotated_bounds(&box, view->rotation, &rotated);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -353,9 +353,9 @@ static void render_decorations(struct roots_view *view,
 		goto damage_finish;
 	}
 
-	float matrix[16];
-	wlr_matrix_project_box(&matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
-		view->rotation, &output->wlr_output->transform_matrix);
+	float matrix[9];
+	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
+		view->rotation, output->wlr_output->transform_matrix);
 	float color[] = { 0.2, 0.2, 0.2, view->alpha };
 
 	int nrects;
@@ -363,7 +363,7 @@ static void render_decorations(struct roots_view *view,
 		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_colored_quad(renderer, &color, &matrix);
+		wlr_render_colored_quad(renderer, color, matrix);
 	}
 
 damage_finish:
@@ -433,7 +433,8 @@ static void render_output(struct roots_output *output) {
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
 	// Check if we can delegate the fullscreen surface to the output
-	if (output->fullscreen_view != NULL) {
+	if (output->fullscreen_view != NULL &&
+			output->fullscreen_view->wlr_surface != NULL) {
 		struct roots_view *view = output->fullscreen_view;
 
 		// Make sure the view is centered on screen
@@ -478,7 +479,7 @@ static void render_output(struct roots_output *output) {
 		goto damage_finish;
 	}
 
-	wlr_renderer_begin(renderer, wlr_output);
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 
 	if (!pixman_region32_not_empty(&damage)) {
 		// Output isn't damaged but needs buffer swap
@@ -489,7 +490,7 @@ static void render_output(struct roots_output *output) {
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_renderer_clear(renderer, &clear_color);
+		wlr_renderer_clear(renderer, clear_color);
 	}
 
 	// If a view is fullscreen on this output, render it
@@ -501,7 +502,9 @@ static void render_output(struct roots_output *output) {
 			goto renderer_end;
 		}
 
-		view_for_each_surface(view, render_surface, &data);
+		if (view->wlr_surface != NULL) {
+			view_for_each_surface(view, render_surface, &data);
+		}
 
 		// During normal rendering the xwayland window tree isn't traversed
 		// because all windows are rendered. Here we only want to render
@@ -570,6 +573,9 @@ void output_damage_whole(struct roots_output *output) {
 
 static bool view_accept_damage(struct roots_output *output,
 		struct roots_view *view) {
+	if (view->wlr_surface == NULL) {
+		return false;
+	}
 	if (output->fullscreen_view == NULL) {
 		return true;
 	}
@@ -610,7 +616,7 @@ static void damage_whole_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	wlr_box_rotated_bounds(&box, -rotation, &box);
+	wlr_box_rotated_bounds(&box, rotation, &box);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }
@@ -624,7 +630,7 @@ static void damage_whole_decoration(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
-	wlr_box_rotated_bounds(&box, -view->rotation, &box);
+	wlr_box_rotated_bounds(&box, view->rotation, &box);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }
@@ -674,6 +680,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 		}
 		pixman_region32_translate(&damage, box.x, box.y);
 		wlr_output_damage_add(output->damage, &damage);
+		pixman_region32_fini(&damage);
 	} else {
 		pixman_box32_t *extents =
 			pixman_region32_extents(&surface->current->surface_damage);
@@ -683,7 +690,7 @@ static void damage_from_surface(struct wlr_surface *surface,
 			.width = (extents->x2 - extents->x1) * wlr_output->scale,
 			.height = (extents->y2 - extents->y1) * wlr_output->scale,
 		};
-		wlr_box_rotated_bounds(&damage_box, -rotation, &damage_box);
+		wlr_box_rotated_bounds(&damage_box, rotation, &damage_box);
 		wlr_output_damage_add_box(output->damage, &damage_box);
 	}
 }

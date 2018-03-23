@@ -3,100 +3,88 @@
 
 // Colored quads
 const GLchar quad_vertex_src[] =
-"uniform mat4 proj;"
-"uniform vec4 color;"
-"attribute vec2 pos;"
-"attribute vec2 texcoord;"
-"varying vec4 v_color;"
-"varying vec2 v_texcoord;"
-"mat4 transpose(in mat4 inMatrix) {"
-"    vec4 i0 = inMatrix[0];"
-"    vec4 i1 = inMatrix[1];"
-"    vec4 i2 = inMatrix[2];"
-"    vec4 i3 = inMatrix[3];"
-"    mat4 outMatrix = mat4("
-"                 vec4(i0.x, i1.x, i2.x, i3.x),"
-"                 vec4(i0.y, i1.y, i2.y, i3.y),"
-"                 vec4(i0.z, i1.z, i2.z, i3.z),"
-"                 vec4(i0.w, i1.w, i2.w, i3.w)"
-"                 );"
-"    return outMatrix;"
-"}"
-"void main() {"
-"  gl_Position = transpose(proj) * vec4(pos, 0.0, 1.0);"
-"  v_color = color;"
-"  v_texcoord = texcoord;"
-"}";
+"uniform mat3 proj;\n"
+"uniform vec4 color;\n"
+"attribute vec2 pos;\n"
+"attribute vec2 texcoord;\n"
+"varying vec4 v_color;\n"
+"varying vec2 v_texcoord;\n"
+"\n"
+"void main() {\n"
+"	gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);\n"
+"	v_color = color;\n"
+"	v_texcoord = texcoord;\n"
+"}\n";
 
 const GLchar quad_fragment_src[] =
-"precision mediump float;"
-"varying vec4 v_color;"
-"varying vec2 v_texcoord;"
-"void main() {"
-"  gl_FragColor = v_color;"
-"}";
+"precision mediump float;\n"
+"varying vec4 v_color;\n"
+"varying vec2 v_texcoord;\n"
+"\n"
+"void main() {\n"
+"	gl_FragColor = v_color;\n"
+"}\n";
 
 // Colored ellipses
 const GLchar ellipse_fragment_src[] =
-"precision mediump float;"
-"varying vec4 v_color;"
-"varying vec2 v_texcoord;"
-"void main() {"
-"  float l = length(v_texcoord - vec2(0.5, 0.5));"
-"  if (l > 0.5) discard;"
-"  gl_FragColor = v_color;"
-"}";
+"precision mediump float;\n"
+"varying vec4 v_color;\n"
+"varying vec2 v_texcoord;\n"
+"\n"
+"void main() {\n"
+"	float l = length(v_texcoord - vec2(0.5, 0.5));\n"
+"	if (l > 0.5) {\n"
+"		discard;\n"
+"	}\n"
+"	gl_FragColor = v_color;\n"
+"}\n";
 
 // Textured quads
-const GLchar vertex_src[] =
-"uniform mat4 proj;"
-"attribute vec2 pos;"
-"attribute vec2 texcoord;"
-"varying vec2 v_texcoord;"
-"mat4 transpose(in mat4 inMatrix) {"
-"    vec4 i0 = inMatrix[0];"
-"    vec4 i1 = inMatrix[1];"
-"    vec4 i2 = inMatrix[2];"
-"    vec4 i3 = inMatrix[3];"
-"    mat4 outMatrix = mat4("
-"                 vec4(i0.x, i1.x, i2.x, i3.x),"
-"                 vec4(i0.y, i1.y, i2.y, i3.y),"
-"                 vec4(i0.z, i1.z, i2.z, i3.z),"
-"                 vec4(i0.w, i1.w, i2.w, i3.w)"
-"                 );"
-""
-"    return outMatrix;"
-"}"
-"void main() {"
-"	gl_Position = transpose(proj) * vec4(pos, 0.0, 1.0);"
-"	v_texcoord = texcoord;"
-"}";
+const GLchar tex_vertex_src[] =
+"uniform mat3 proj;\n"
+"uniform bool invert_y;\n"
+"attribute vec2 pos;\n"
+"attribute vec2 texcoord;\n"
+"varying vec2 v_texcoord;\n"
+"\n"
+"void main() {\n"
+"	gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);\n"
+"	if (invert_y) {\n"
+"		v_texcoord = vec2(texcoord.s, 1.0 - texcoord.t);\n"
+"	} else {\n"
+"		v_texcoord = texcoord;\n"
+"	}\n"
+"}\n";
 
-const GLchar fragment_src_rgba[] =
-"precision mediump float;"
-"varying vec2 v_texcoord;"
-"uniform sampler2D tex;"
-"uniform float alpha;"
-"void main() {"
-"	gl_FragColor = alpha * texture2D(tex, v_texcoord);"
-"}";
+const GLchar tex_fragment_src_rgba[] =
+"precision mediump float;\n"
+"varying vec2 v_texcoord;\n"
+"uniform sampler2D tex;\n"
+"uniform float alpha;\n"
+"\n"
+"void main() {\n"
+"	gl_FragColor = alpha * texture2D(tex, v_texcoord);\n"
+"}\n";
 
-const GLchar fragment_src_rgbx[] =
-"precision mediump float;"
-"varying vec2 v_texcoord;"
-"uniform sampler2D tex;"
-"uniform float alpha;"
-"void main() {"
-"   gl_FragColor.rgb = alpha * texture2D(tex, v_texcoord).rgb;"
-"   gl_FragColor.a = alpha;"
-"}";
+const GLchar tex_fragment_src_rgbx[] =
+"precision mediump float;\n"
+"varying vec2 v_texcoord;\n"
+"uniform sampler2D tex;\n"
+"uniform float alpha;\n"
+"\n"
+"void main() {\n"
+"	gl_FragColor.rgb = alpha * texture2D(tex, v_texcoord).rgb;\n"
+"	gl_FragColor.a = alpha;\n"
+"}\n";
 
-const GLchar fragment_src_external[] =
-"#extension GL_OES_EGL_image_external : require\n"
-"precision mediump float;"
-"varying vec2 v_texcoord;"
-"uniform samplerExternalOES texture0;"
-"void main() {"
-"  vec4 col = texture2D(texture0, v_texcoord);"
-"  gl_FragColor = vec4(col.rgb, col.a);"
-"}";
+const GLchar tex_fragment_src_external[] =
+"#extension GL_OES_EGL_image_external : require\n\n"
+"precision mediump float;\n"
+"varying vec2 v_texcoord;\n"
+"uniform samplerExternalOES texture0;\n"
+"uniform float alpha;\n"
+"\n"
+"void main() {\n"
+"	vec4 col = texture2D(texture0, v_texcoord);\n"
+"	gl_FragColor = vec4(col.rgb, col.a * alpha);\n"
+"}\n";

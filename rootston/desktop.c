@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
@@ -23,13 +24,16 @@
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
 
-
-struct roots_view *view_create() {
+struct roots_view *view_create(struct roots_desktop *desktop) {
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
 	if (!view) {
 		return NULL;
 	}
+	view->desktop = desktop;
 	view->alpha = 1.0f;
+	wl_signal_init(&view->events.unmap);
+	wl_signal_init(&view->events.destroy);
+	wl_list_init(&view->children);
 	return view;
 }
 
@@ -52,7 +56,8 @@ void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
 	box->height += (view->border_width * 2 + view->titlebar_height);
 }
 
-enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy) {
+enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx,
+		double sy) {
 	if (!view->decorated) {
 		return ROOTS_DECO_PART_NONE;
 	}
@@ -92,9 +97,15 @@ enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, doub
 static void view_update_output(const struct roots_view *view,
 		const struct wlr_box *before) {
 	struct roots_desktop *desktop = view->desktop;
-	struct roots_output *output;
+
+	if (view->wlr_surface == NULL) {
+		return;
+	}
+
 	struct wlr_box box;
 	view_get_box(view, &box);
+
+	struct roots_output *output;
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before != NULL && wlr_output_layout_intersects(
 			desktop->layout, output->wlr_output, before);
@@ -402,20 +413,22 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 	return subsurface;
 }
 
-void view_finish(struct roots_view *view) {
-	view_damage_whole(view);
+void view_destroy(struct roots_view *view) {
+	if (view == NULL) {
+		return;
+	}
+
 	wl_signal_emit(&view->events.destroy, view);
 
-	wl_list_remove(&view->new_subsurface.link);
-
-	struct roots_view_child *child, *tmp;
-	wl_list_for_each_safe(child, tmp, &view->children, link) {
-		child->destroy(child);
+	if (view->wlr_surface != NULL) {
+		view_unmap(view);
 	}
 
-	if (view->fullscreen_output) {
-		view->fullscreen_output->fullscreen_view = NULL;
+	if (view->destroy) {
+		view->destroy(view);
 	}
+
+	free(view);
 }
 
 static void view_handle_new_subsurface(struct wl_listener *listener,
@@ -425,12 +438,10 @@ static void view_handle_new_subsurface(struct wl_listener *listener,
 	subsurface_create(view, wlr_subsurface);
 }
 
-void view_init(struct roots_view *view, struct roots_desktop *desktop) {
-	assert(view->wlr_surface);
+void view_map(struct roots_view *view, struct wlr_surface *surface) {
+	assert(view->wlr_surface == NULL);
 
-	view->desktop = desktop;
-	wl_signal_init(&view->events.destroy);
-	wl_list_init(&view->children);
+	view->wlr_surface = surface;
 
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &view->wlr_surface->subsurface_list,
@@ -442,7 +453,33 @@ void view_init(struct roots_view *view, struct roots_desktop *desktop) {
 	wl_signal_add(&view->wlr_surface->events.new_subsurface,
 		&view->new_subsurface);
 
+	wl_list_insert(&view->desktop->views, &view->link);
 	view_damage_whole(view);
+}
+
+void view_unmap(struct roots_view *view) {
+	assert(view->wlr_surface != NULL);
+
+	wl_signal_emit(&view->events.unmap, view);
+
+	view_damage_whole(view);
+	wl_list_remove(&view->link);
+
+	wl_list_remove(&view->new_subsurface.link);
+
+	struct roots_view_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->children, link) {
+		child->destroy(child);
+	}
+
+	if (view->fullscreen_output != NULL) {
+		output_damage_whole(view->fullscreen_output);
+		view->fullscreen_output->fullscreen_view = NULL;
+		view->fullscreen_output = NULL;
+	}
+
+	view->wlr_surface = NULL;
+	view->width = view->height = 0;
 }
 
 void view_initial_focus(struct roots_view *view) {
@@ -457,7 +494,10 @@ void view_initial_focus(struct roots_view *view) {
 void view_setup(struct roots_view *view) {
 	view_initial_focus(view);
 
-	view_center(view);
+	if (view->fullscreen_output == NULL && !view->maximized) {
+		view_center(view);
+	}
+
 	view_update_output(view, NULL);
 }
 
@@ -517,8 +557,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		double ox = view_sx - (double)box.width/2,
 			oy = view_sy - (double)box.height/2;
 		// Rotated coordinates
-		double rx = cos(view->rotation)*ox - sin(view->rotation)*oy,
-			ry = cos(view->rotation)*oy + sin(view->rotation)*ox;
+		double rx = cos(view->rotation)*ox + sin(view->rotation)*oy,
+			ry = cos(view->rotation)*oy - sin(view->rotation)*ox;
 		view_sx = rx + (double)box.width/2;
 		view_sy = ry + (double)box.height/2;
 	}
@@ -729,6 +769,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
 
+	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
+	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);
 	return desktop;
 }
 

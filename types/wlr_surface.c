@@ -3,7 +3,7 @@
 #include <wayland-server.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
-#include <wlr/render/matrix.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
@@ -325,6 +325,10 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 					surface->current->buffer)) {
 			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
 			goto release;
+		} else if (wlr_dmabuf_resource_is_buffer(
+					   surface->current->buffer)) {
+			wlr_texture_upload_dmabuf(surface->texture, surface->current->buffer);
+			goto release;
 		} else {
 			wlr_log(L_INFO, "Unknown buffer handle attached");
 			return;
@@ -622,22 +626,6 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	wl_resource_set_implementation(res, &surface_interface,
 		surface, destroy_surface);
 	return surface;
-}
-
-void wlr_surface_get_matrix(struct wlr_surface *surface,
-		float (*matrix)[16],
-		const float (*projection)[16],
-		const float (*transform)[16]) {
-	int width = surface->texture->width;
-	int height = surface->texture->height;
-	float scale[16];
-	wlr_matrix_identity(matrix);
-	if (transform) {
-		wlr_matrix_mul(matrix, transform, matrix);
-	}
-	wlr_matrix_scale(&scale, width, height, 1);
-	wlr_matrix_mul(matrix, &scale, matrix);
-	wlr_matrix_mul(projection, matrix, matrix);
 }
 
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {

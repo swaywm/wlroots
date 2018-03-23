@@ -200,7 +200,7 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 				uy = cursor->offs_y - oy;
 			int vx = cursor->cursor->x - ox,
 				vy = cursor->cursor->y - oy;
-			float angle = atan2(vx*uy - vy*ux, vx*ux + vy*uy);
+			float angle = atan2(ux*vy - uy*vx, vx*ux + vy*uy);
 			int steps = 12;
 			angle = round(angle/M_PI*steps) / (steps/M_PI);
 			view_rotate(view, cursor->view_rotation + angle);

@@ -53,6 +53,7 @@ struct wlr_xdg_popup_grab {
 	struct wlr_seat *seat;
 	struct wl_list popups;
 	struct wl_list link; // wlr_xdg_shell::popup_grabs
+	struct wl_listener seat_destroy;
 };
 
 enum wlr_xdg_surface_role {
@@ -62,19 +63,10 @@ enum wlr_xdg_surface_role {
 };
 
 struct wlr_xdg_toplevel_state {
-	bool maximized;
-	bool fullscreen;
-	bool resizing;
-	bool activated;
-
-	uint32_t width;
-	uint32_t height;
-
-	uint32_t max_width;
-	uint32_t max_height;
-
-	uint32_t min_width;
-	uint32_t min_height;
+	bool maximized, fullscreen, resizing, activated;
+	uint32_t width, height;
+	uint32_t max_width, max_height;
+	uint32_t min_width, min_height;
 };
 
 struct wlr_xdg_toplevel {
@@ -90,7 +82,8 @@ struct wlr_xdg_toplevel {
 struct wlr_xdg_surface_configure {
 	struct wl_list link; // wlr_xdg_surface::configure_list
 	uint32_t serial;
-	struct wlr_xdg_toplevel_state state;
+
+	struct wlr_xdg_toplevel_state *toplevel_state;
 };
 
 struct wlr_xdg_surface {
@@ -101,14 +94,13 @@ struct wlr_xdg_surface {
 	enum wlr_xdg_surface_role role;
 
 	union {
-		struct wlr_xdg_toplevel *toplevel_state;
-		struct wlr_xdg_popup *popup_state;
+		struct wlr_xdg_toplevel *toplevel;
+		struct wlr_xdg_popup *popup;
 	};
 
 	struct wl_list popups; // wlr_xdg_popup::link
 
-	bool configured;
-	bool added;
+	bool added, configured, mapped;
 	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
@@ -118,8 +110,8 @@ struct wlr_xdg_surface {
 	char *app_id;
 
 	bool has_next_geometry;
-	struct wlr_box *next_geometry;
-	struct wlr_box *geometry;
+	struct wlr_box next_geometry;
+	struct wlr_box geometry;
 
 	struct wl_listener surface_destroy_listener;
 
@@ -127,6 +119,8 @@ struct wlr_xdg_surface {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
 		struct wl_signal new_popup;
+		struct wl_signal map;
+		struct wl_signal unmap;
 
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;

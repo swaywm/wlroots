@@ -70,8 +70,8 @@ struct wlr_surface {
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
-	float buffer_to_surface_matrix[16];
-	float surface_to_buffer_matrix[16];
+	float buffer_to_surface_matrix[9];
+	float surface_to_buffer_matrix[9];
 
 	struct {
 		struct wl_signal commit;
@@ -99,19 +99,6 @@ struct wlr_surface {
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 		struct wlr_renderer *renderer);
-/**
- * Gets a matrix you can pass into wlr_render_with_matrix to display this
- * surface. `matrix` is the output matrix, `projection` is the wlr_output
- * projection matrix, and `transform` is any additional transformations you want
- * to perform on the surface (or NULL/the identity matrix if you don't).
- * `transform` is used before the surface is scaled, so its geometry extends
- * from 0 to 1 in both dimensions.
- */
-void wlr_surface_get_matrix(struct wlr_surface *surface,
-		float (*matrix)[16],
-		const float (*projection)[16],
-		const float (*transform)[16]);
-
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the

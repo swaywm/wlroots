@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <GLES2/gl2.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +8,7 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
 #include "util/signal.h"
@@ -313,27 +313,26 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	output->egl_window = wl_egl_window_create(output->surface,
 			wlr_output->width, wlr_output->height);
-	output->egl_surface = wlr_egl_create_surface(&backend->egl, output->egl_window);
+	output->egl_surface = wlr_egl_create_surface(&backend->egl,
+		output->egl_window);
 
 	wl_display_roundtrip(output->backend->remote_display);
 
 	// start rendering loop per callbacks by rendering first frame
-	if (!eglMakeCurrent(output->backend->egl.display,
-		output->egl_surface, output->egl_surface,
-		output->backend->egl.context)) {
-		wlr_log(L_ERROR, "eglMakeCurrent failed: %s", egl_error());
+	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
+			NULL)) {
 		goto error;
 	}
 
-	glViewport(0, 0, wlr_output->width, wlr_output->height);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
+	wlr_renderer_end(backend->renderer);
 
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	if (!eglSwapBuffers(output->backend->egl.display, output->egl_surface)) {
-		wlr_log(L_ERROR, "eglSwapBuffers failed: %s", egl_error());
+	if (!wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface,
+			NULL)) {
 		goto error;
 	}
 

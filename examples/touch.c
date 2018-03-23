@@ -1,25 +1,25 @@
 #define _POSIX_C_SOURCE 199309L
 #define _XOPEN_SOURCE 500
+#include <GLES2/gl2.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <math.h>
-#include <wayland-server.h>
 #include <wayland-server-protocol.h>
-#include <xkbcommon/xkbcommon.h>
-#include <GLES2/gl2.h>
-#include <wlr/render/matrix.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render.h>
+#include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/gles2.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_list.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
-#include "support/shared.h"
+#include <xkbcommon/xkbcommon.h>
 #include "support/cat.h"
+#include "support/shared.h"
 
 struct sample_state {
 	struct wlr_renderer *renderer;
@@ -42,18 +42,15 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output);
-	wlr_renderer_clear(sample->renderer, &(float[]){0.25f, 0.25f, 0.25f, 1});
+	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
-	float matrix[16];
 	struct touch_point *p;
 	wl_list_for_each(p, &sample->touch_points, link) {
-		wlr_texture_get_matrix(sample->cat_texture, &matrix,
-			&wlr_output->transform_matrix,
-			(int)(p->x * width) - sample->cat_texture->width / 2,
-			(int)(p->y * height) - sample->cat_texture->height / 2);
-		wlr_render_with_matrix(sample->renderer,
-			sample->cat_texture, &matrix, 1.0f);
+		int x = (int)(p->x * width) - sample->cat_texture->width / 2;
+		int y = (int)(p->y * height) - sample->cat_texture->height / 2;
+		wlr_render_texture(sample->renderer, sample->cat_texture,
+			wlr_output->transform_matrix, x, y, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

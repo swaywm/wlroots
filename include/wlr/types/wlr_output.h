@@ -76,7 +76,7 @@ struct wlr_output {
 	// damage for cursors and fullscreen surface, in output-local coordinates
 	pixman_region32_t damage;
 	bool frame_pending;
-	float transform_matrix[16];
+	float transform_matrix[9];
 
 	struct {
 		struct wl_signal frame;

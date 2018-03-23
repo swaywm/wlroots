@@ -7,8 +7,8 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/render.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 
 struct wlr_wl_backend {
@@ -71,6 +71,7 @@ struct wlr_wl_pointer {
 	struct wlr_pointer wlr_pointer;
 	enum wlr_axis_source axis_source;
 	struct wlr_wl_backend_output *current_output;
+	struct wl_listener output_destroy_listener;
 };
 
 void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
