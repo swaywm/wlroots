@@ -275,9 +275,15 @@ static bool gles2_texture_upload_dmabuf(struct wlr_texture *wlr_texture,
 		wlr_texture->inverted_y = true;
 	}
 
-	GLenum target = GL_TEXTURE_2D;
-	const struct gles2_pixel_format *pf =
-		gles2_format_from_wl(WL_SHM_FORMAT_ARGB8888);
+	GLenum target;
+	const struct gles2_pixel_format *pf;
+	if (dmabuf->attributes.n_planes > 1) {
+		target = GL_TEXTURE_EXTERNAL_OES;
+		pf = &external_pixel_format;
+	} else {
+		target = GL_TEXTURE_2D;
+		pf = gles2_format_from_wl(WL_SHM_FORMAT_ARGB8888);
+	}
 	GLES2_DEBUG_PUSH;
 	gles2_texture_ensure(tex, target);
 	glBindTexture(target, tex->tex_id);
