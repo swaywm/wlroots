@@ -3,4 +3,4 @@ option('enable_systemd', type: 'combo', choices: ['auto', 'true', 'false'], valu
 option('enable_elogind', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Enable support for logind')
 option('enable_xcb_errors', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Use xcb-errors util library')
 option('enable_xwayland', type: 'boolean', value: true, description: 'Enable support X11 applications')
-option('enable_x11_backend', type: 'boolean', value: false, description: 'Enable X11 backend')
+option('enable_x11_backend', type: 'boolean', value: true, description: 'Enable X11 backend')

@@ -11,7 +11,9 @@
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/backend/x11.h>
+#ifdef WLR_HAS_X11_BACKEND
+#    include <wlr/backend/x11.h>
+#endif
 #include <wlr/util/log.h>
 
 void wlr_backend_init(struct wlr_backend *backend,

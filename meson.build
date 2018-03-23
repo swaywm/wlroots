@@ -185,7 +185,7 @@ summary = [
 	'     systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
 	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
 	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
-	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11BACKEND', false)),
+	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
 	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
 	'----------------',
