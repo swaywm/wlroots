@@ -25,6 +25,7 @@ static uint32_t output = 0;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static int32_t width = 256, height = 256;
+static bool run_display = true;
 
 static struct {
 	struct timespec last_frame;
@@ -84,8 +85,18 @@ static void layer_surface_configure(void *data,
 	zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
+static void layer_surface_closed(void *data,
+		struct zwlr_layer_surface_v1 *surface) {
+	eglDestroySurface(egl.display, egl_surface);
+	wl_egl_window_destroy(egl_window);
+	zwlr_layer_surface_v1_destroy(surface);
+	wl_surface_destroy(wl_surface);
+	run_display = false;
+}
+
 struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 	.configure = layer_surface_configure,
+	.closed = layer_surface_closed,
 };
 
 static void handle_global(void *data, struct wl_registry *registry,
@@ -235,7 +246,7 @@ int main(int argc, char **argv) {
 	wl_display_roundtrip(display);
 	draw();
 
-	while (wl_display_dispatch(display) != -1) {
+	while (wl_display_dispatch(display) != -1 && run_display) {
 		// This space intentionally left blank
 	}
 	return 0;

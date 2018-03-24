@@ -67,7 +67,7 @@ struct wlr_layer_surface {
 	const char *namespace;
 	enum zwlr_layer_shell_v1_layer layer;
 
-	bool added, configured, mapped;
+	bool added, configured, mapped, closed;
 	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
@@ -98,5 +98,10 @@ void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell);
  */
 void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 		uint32_t width, uint32_t height);
+
+/**
+ * Unmaps this layer surface and notifies the client that it has been closed.
+ */
+void wlr_layer_surface_close(struct wlr_layer_surface *surface);
 
 #endif

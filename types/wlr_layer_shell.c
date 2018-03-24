@@ -244,6 +244,12 @@ void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 	wlr_layer_surface_schedule_configure(surface);
 }
 
+void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
+	surface->closed = true;
+	layer_surface_unmap(surface);
+	zwlr_layer_surface_v1_send_closed(surface->resource);
+}
+
 static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		void *role_data) {
 	struct wlr_layer_surface *surface = role_data;
@@ -252,6 +258,11 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		wl_resource_post_error(surface->resource,
 			ZWLR_LAYER_SHELL_V1_ERROR_ALREADY_CONSTRUCTED,
 			"layer_surface has never been configured");
+		return;
+	}
+
+	if (surface->closed) {
+		// Ignore commits after the compositor has closed it
 		return;
 	}
 

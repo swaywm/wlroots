@@ -237,6 +237,16 @@
       <arg name="height" type="uint"/>
     </event>
 
+    <event name="closed">
+      <description summary="surface should be closed">
+    The closed event is sent by the compositor when the surface will no
+    longer be shown. The output may have been destroyed or the user may have
+    asked for it to be removed. Further changes to the surface will be ignored.
+    The client should destroy the resource after receiving this event, and
+    create a new surface if they so choose.
+      </description>
+    </event>
+
     <enum name="error">
       <entry name="invalid_surface_state" value="0" summary="provided surface state is invalid"/>
       <entry name="invalid_size" value="1" summary="size is invalid"/>
