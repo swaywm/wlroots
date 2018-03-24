@@ -177,9 +177,11 @@ static void set_fullscreen(struct roots_view *view, bool fullscreen) {
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wlr_xdg_toplevel_v6_send_close(surface);
+	struct wlr_xdg_popup_v6 *popup = NULL;
+	wl_list_for_each(popup, &surface->popups, link) {
+		wlr_xdg_surface_v6_send_close(popup->base);
 	}
+	wlr_xdg_surface_v6_send_close(surface);
 }
 
 static void destroy(struct roots_view *view) {

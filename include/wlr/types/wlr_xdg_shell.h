@@ -204,9 +204,9 @@ uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 		bool resizing);
 
 /**
- * Request that this toplevel surface closes.
+ * Request that this xdg surface closes.
  */
-void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface);
+void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
 
 /**
  * Compute the popup position in surface-local coordinates.
