@@ -70,7 +70,7 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list) {
 		// Horizontal axis
 		const uint32_t both_horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
 			| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
-		if ((state->anchor & both_horiz) && box.width == -1) {
+		if ((state->anchor & both_horiz) && box.width == 0) {
 			box.x = 0;
 			box.width = output_area.width;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
@@ -83,7 +83,7 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list) {
 		// Vertical axis
 		const uint32_t both_vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
 			| ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
-		if ((state->anchor & both_vert) && box.height == -1) {
+		if ((state->anchor & both_vert) && box.height == 0) {
 			box.y = 0;
 			box.height = output_area.height;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
@@ -97,9 +97,9 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list) {
 				box.width, box.height, box.x, box.y);
 		roots_surface->geo = box;
 		apply_exclusive(&output_area, state->anchor, state->exclusive_zone);
-		if (box.width != (int)state->width
-				|| box.height != (int)state->height
-				|| !roots_surface->configured) {
+		if (!roots_surface->configured ||
+				box.width != (int)state->width ||
+				box.height != (int)state->height) {
 			wlr_layer_surface_configure(layer, box.width, box.height);
 			roots_surface->configured = true;
 		}
