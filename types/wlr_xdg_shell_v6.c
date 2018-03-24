@@ -1537,9 +1537,22 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 	return wlr_xdg_surface_v6_schedule_configure(surface);
 }
 
-void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
-	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	zxdg_toplevel_v6_send_close(surface->toplevel->resource);
+void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		assert(0 && "not reached");
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		if (surface->toplevel) {
+			zxdg_toplevel_v6_send_close(surface->toplevel->resource);
+		}
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		if (surface->popup) {
+			zxdg_popup_v6_send_popup_done(surface->popup->resource);
+		}
+		break;
+	}
 }
 
 void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
