@@ -45,10 +45,13 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
+	int tex_width, tex_height;
+	wlr_texture_get_size(sample->cat_texture, &tex_width, &tex_height);
+
 	struct touch_point *p;
 	wl_list_for_each(p, &sample->touch_points, link) {
-		int x = (int)(p->x * width) - sample->cat_texture->width / 2;
-		int y = (int)(p->y * height) - sample->cat_texture->height / 2;
+		int x = (int)(p->x * width) - tex_width / 2;
+		int y = (int)(p->y * height) - tex_height / 2;
 		wlr_render_texture(sample->renderer, sample->cat_texture,
 			wlr_output->transform_matrix, x, y, 1.0f);
 	}
@@ -110,13 +113,13 @@ int main(int argc, char *argv[]) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_create(state.renderer);
+	state.cat_texture = wlr_texture_from_pixels(state.renderer,
+		WL_SHM_FORMAT_ARGB8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
+		cat_tex.pixel_data);
 	if (!state.cat_texture) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ARGB8888,
-		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");

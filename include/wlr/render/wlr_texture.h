@@ -5,62 +5,49 @@
 #include <EGL/eglext.h>
 #include <stdint.h>
 #include <wayland-server-protocol.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 
+struct wlr_renderer;
 struct wlr_texture_impl;
 
 struct wlr_texture {
 	const struct wlr_texture_impl *impl;
-
-	bool valid;
-	uint32_t format;
-	int width, height;
-	bool inverted_y;
-	struct wl_signal destroy_signal;
-	struct wl_resource *resource;
 };
 
 /**
- * Copies pixels to this texture. The buffer is not accessed after this function
- * returns.
+ * Create a new texture from raw pixel data. `stride` is in bytes. The returned
+ * texture is mutable.
  */
-bool wlr_texture_upload_pixels(struct wlr_texture *tex,
-	enum wl_shm_format format, int stride, int width, int height,
-	const unsigned char *pixels);
-/**
- * Copies pixels to this texture. The buffer is not accessed after this function
- * returns. Under some circumstances, this function may re-upload the entire
- * buffer - therefore, the entire buffer must be valid.
- */
-bool wlr_texture_update_pixels(struct wlr_texture *surf,
-	enum wl_shm_format format, int stride, int x, int y,
-	int width, int height, const unsigned char *pixels);
-/**
- * Copies pixels from a wl_shm_buffer into this texture. The buffer is not
- * accessed after this function returns.
- */
-bool wlr_texture_upload_shm(struct wlr_texture *tex, uint32_t format,
-	struct wl_shm_buffer *shm);
-/**
- * Attaches the contents from the given wl_drm wl_buffer resource onto the
- * texture. The wl_resource is not used after this call.
- * Will fail (return false) if the given resource is no drm buffer.
- */
-bool wlr_texture_upload_drm(struct wlr_texture *tex,
-	struct wl_resource *drm_buffer);
+struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
+	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	const void *data);
 
-bool wlr_texture_upload_eglimage(struct wlr_texture *tex,
-	EGLImageKHR image, uint32_t width, uint32_t height);
-
-bool wlr_texture_upload_dmabuf(struct wlr_texture *tex,
-	struct wl_resource *dmabuf_resource);
 /**
- * Copies a rectangle of pixels from a wl_shm_buffer onto the texture. The
- * buffer is not accessed after this function returns. Under some circumstances,
- * this function may re-upload the entire buffer - therefore, the entire buffer
- * must be valid.
+ * Create a new texture from a wayland DRM resource. The returned texture is
+ * immutable.
  */
-bool wlr_texture_update_shm(struct wlr_texture *surf, uint32_t format,
-	int x, int y, int width, int height, struct wl_shm_buffer *shm);
+struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
+	struct wl_resource *data);
+
+/**
+ * Create a new texture from a DMA-BUF. The returned texture is immutable.
+ */
+struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
+	struct wlr_dmabuf_buffer_attribs *attribs);
+
+/**
+ * Get the texture width and height.
+ */
+void wlr_texture_get_size(struct wlr_texture *texture, int *width, int *height);
+
+/**
+ * Update a texture with raw pixels. The texture must be mutable.
+ */
+bool wlr_texture_write_pixels(struct wlr_texture *texture,
+	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+	const void *data);
+
 /**
  * Destroys this wlr_texture.
  */

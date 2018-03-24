@@ -178,47 +178,33 @@ static void free_eglimage(struct gbm_bo *bo, void *data) {
 static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 		struct gbm_bo *bo) {
 	struct tex *tex = gbm_bo_get_user_data(bo);
-	if (tex) {
+	if (tex != NULL) {
 		return tex->tex;
 	}
 
-	// TODO: use wlr_texture_upload_dmabuf instead
-
-	tex = malloc(sizeof(*tex));
-	if (!tex) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+	tex = calloc(1, sizeof(struct tex));
+	if (tex == NULL) {
 		return NULL;
 	}
 
-	tex->egl = &renderer->egl;
-
-	int dmabuf_fd = gbm_bo_get_fd(bo);
-	uint32_t width = gbm_bo_get_width(bo);
-	uint32_t height = gbm_bo_get_height(bo);
-
-	EGLint attribs[] = {
-		EGL_WIDTH, width,
-		EGL_HEIGHT, height,
-		EGL_LINUX_DRM_FOURCC_EXT, gbm_bo_get_format(bo),
-		EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_fd,
-		EGL_DMA_BUF_PLANE0_OFFSET_EXT, gbm_bo_get_offset(bo, 0),
-		EGL_DMA_BUF_PLANE0_PITCH_EXT, gbm_bo_get_stride_for_plane(bo, 0),
-		EGL_IMAGE_PRESERVED_KHR, EGL_FALSE,
-		EGL_NONE,
+	struct wlr_dmabuf_buffer_attribs attribs = {
+		.n_planes = 1,
+		.width = gbm_bo_get_width(bo),
+		.height = gbm_bo_get_height(bo),
+		.format = gbm_bo_get_format(bo),
 	};
+	attribs.offset[0] = 0;
+	attribs.stride[0] = gbm_bo_get_stride_for_plane(bo, 0);
+	attribs.modifier[0] = 0;
+	attribs.fd[0] = gbm_bo_get_fd(bo);
 
-	tex->img = eglCreateImageKHR(renderer->egl.display, EGL_NO_CONTEXT,
-		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
-	if (!tex->img) {
-		wlr_log(L_ERROR, "Failed to create EGL image");
-		abort();
+	tex->tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
+	if (tex->tex == NULL) {
+		free(tex);
+		return NULL;
 	}
 
-	tex->tex = wlr_render_texture_create(renderer->wlr_rend);
-	wlr_texture_upload_eglimage(tex->tex, tex->img, width, height);
-
 	gbm_bo_set_user_data(bo, tex, free_eglimage);
-
 	return tex->tex;
 }
 
