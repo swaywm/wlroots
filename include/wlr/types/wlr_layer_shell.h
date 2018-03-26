@@ -43,12 +43,13 @@ struct wlr_layer_client {
 
 struct wlr_layer_surface_state {
 	uint32_t anchor;
-	uint32_t exclusive_zone;
+	int32_t exclusive_zone;
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
 	bool keyboard_interactive;
-	uint32_t width, height;
+	uint32_t desired_width, desired_height;
+	uint32_t actual_width, actual_height;
 };
 
 struct wlr_layer_surface_configure {

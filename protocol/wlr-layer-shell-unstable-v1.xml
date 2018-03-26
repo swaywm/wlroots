@@ -96,15 +96,15 @@
         Sets the size of the surface in pixels. The compositor will display the
         surface centered with respect to its anchors.
 
-        If you pass -1 for either value, the compositor will assign it and
+        If you pass 0 for either value, the compositor will assign it and
         inform you of the assignment in the configure event. You must set your
         anchor to opposite edges in the dimensions you omit; not doing so is a
-        protocol error. Both values are -1 by default.
+        protocol error. Both values are 0 by default.
 
         Size is double-buffered, see wl_surface.commit.
       </description>
-      <arg name="width" type="int"/>
-      <arg name="height" type="int"/>
+      <arg name="width" type="uint"/>
+      <arg name="height" type="uint"/>
     </request>
 
     <request name="set_anchor">
@@ -127,13 +127,28 @@
         implementation-dependent - do not assume that this region will not
         actually be occluded.
 
-        This value is only meaningful if the surface is anchored to an edge,
-        rather than a corner. The zone is the number of pixels from the edge
-        that are considered exclusive.
+        A positive value is only meaningful if the surface is anchored to an
+        edge, rather than a corner. The zone is the number of pixels from the
+        edge that are considered exclusive.
+
+        Surfaces that do not wish to have an exclusive zone may instead specify
+        how they should interact with surfaces that do. If set to zero, the
+        surface indicates that it would like to be moved to avoid occluding
+        surfaces with a positive excluzive zone. If set to -1, the surface
+        indicates that it would not like to be moved to accomodate for other
+        surfaces, and the compositor should extend it all the way to the edges
+        it is anchored to.
+
+        For example, a panel might set its exclusive zone to 10 pixels, so that
+        maximized shell surfaces are not shown on top of it. A notification
+        might set its exclusive zone to zero, so that it is moved to avoid
+        occluding the panel, but shell surfaces are shown underneath it. A
+        wallpaper or lock screen might set their exclusive zone to -1, so that
+        they stretch below or over the panel.
 
         Exclusive zone is double-buffered, see wl_surface.commit.
       </description>
-      <arg name="zone" type="uint"/>
+      <arg name="zone" type="int"/>
     </request>
 
     <request name="set_margin">

@@ -66,21 +66,17 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 
 	surface->configured = true;
 	surface->configure_serial = serial;
-
-	surface->current.anchor = configure->state.anchor;
-	surface->current.exclusive_zone = configure->state.exclusive_zone;
-	surface->current.margin = configure->state.margin;
-	surface->current.width = configure->state.width;
-	surface->current.height = configure->state.height;
+	surface->current.actual_width = configure->state.actual_width;
+	surface->current.actual_height = configure->state.actual_height;
 
 	layer_surface_configure_destroy(configure);
 }
 
 static void layer_surface_handle_set_size(struct wl_client *client,
-		struct wl_resource *resource, int32_t width, int32_t height) {
+		struct wl_resource *resource, uint32_t width, uint32_t height) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
-	surface->client_pending.width = width;
-	surface->client_pending.height = height;
+	surface->client_pending.desired_width = width;
+	surface->client_pending.desired_height = height;
 }
 
 static void layer_surface_handle_set_anchor(struct wl_client *client,
@@ -100,7 +96,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 }
 
 static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
-		struct wl_resource *resource, uint32_t zone) {
+		struct wl_resource *resource, int32_t zone) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
 	surface->client_pending.exclusive_zone = zone;
 }
@@ -188,8 +184,9 @@ static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
 		state = &configure->state;
 	}
 
-	return !memcmp(state, &surface->server_pending,
-			sizeof(struct wlr_layer_surface_state));
+	bool changed = state->actual_width != surface->server_pending.actual_width
+		|| state->actual_height != surface->server_pending.actual_height;
+	return changed;
 }
 
 static void wlr_layer_surface_send_configure(void *user_data) {
@@ -204,10 +201,12 @@ static void wlr_layer_surface_send_configure(void *user_data) {
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
 	configure->serial = surface->configure_next_serial;
-	configure->state = surface->server_pending;
+	configure->state.actual_width = surface->server_pending.actual_width;
+	configure->state.actual_height = surface->server_pending.actual_height;
 
 	zwlr_layer_surface_v1_send_configure(surface->resource,
-			configure->serial, configure->state.width, configure->state.height);
+			configure->serial, configure->state.actual_width,
+			configure->state.actual_height);
 }
 
 static uint32_t wlr_layer_surface_schedule_configure(
@@ -239,8 +238,8 @@ static uint32_t wlr_layer_surface_schedule_configure(
 
 void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 		uint32_t width, uint32_t height) {
-	surface->server_pending.width = width;
-	surface->server_pending.height = height;
+	surface->server_pending.actual_width = width;
+	surface->server_pending.actual_height = height;
 	wlr_layer_surface_schedule_configure(surface);
 }
 
@@ -271,8 +270,8 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 	surface->current.margin = surface->client_pending.margin;
 	surface->current.keyboard_interactive =
 		surface->client_pending.keyboard_interactive;
-	surface->current.width = surface->client_pending.width;
-	surface->current.height = surface->client_pending.height;
+	surface->current.desired_width = surface->client_pending.desired_width;
+	surface->current.desired_height = surface->client_pending.desired_height;
 
 	if (!surface->added) {
 		surface->added = true;

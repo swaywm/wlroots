@@ -12,7 +12,10 @@
 #include "rootston/server.h"
 
 static void apply_exclusive(struct wlr_box *usable_area,
-		uint32_t anchor, uint32_t exclusive) {
+		uint32_t anchor, int32_t exclusive) {
+	if (exclusive <= 0) {
+		return;
+	}
 	struct {
 		uint32_t anchors;
 		int *positive_axis;
@@ -64,48 +67,80 @@ static void apply_exclusive(struct wlr_box *usable_area,
 }
 
 static void arrange_layer(struct wlr_output *output, struct wl_list *list,
-		struct wlr_box *usable_area) {
+		struct wlr_box *usable_area, bool exclusive) {
 	struct roots_layer_surface *roots_surface;
+	struct wlr_box full_area = { 0 };
+	wlr_output_effective_resolution(output,
+			&full_area.width, &full_area.height);
 	wl_list_for_each(roots_surface, list, link) {
 		struct wlr_layer_surface *layer = roots_surface->layer_surface;
 		struct wlr_layer_surface_state *state = &layer->current;
-		struct wlr_box box = { .width = state->width, .height = state->height };
+		if (exclusive) {
+			if (state->exclusive_zone <= 0) {
+				continue;
+			}
+		} else {
+			if (state->exclusive_zone > 0) {
+				continue;
+			}
+		}
+		struct wlr_box bounds;
+		if (state->exclusive_zone == -1) {
+			bounds = full_area;
+		} else {
+			bounds = *usable_area;
+		}
+		struct wlr_box box = {
+			.width = state->desired_width,
+			.height = state->desired_height
+		};
 		// Horizontal axis
 		const uint32_t both_horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
 			| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
 		if ((state->anchor & both_horiz) && box.width == 0) {
-			box.x = 0;
-			box.width = usable_area->width;
+			box.x = bounds.x;
+			box.width = bounds.width;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
-			box.x = usable_area->x;
+			box.x = bounds.x;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT)) {
-			box.x = usable_area->x + (usable_area->width - box.width);
+			box.x = bounds.x + (bounds.width - box.width);
 		} else {
-			box.x = usable_area->x + ((usable_area->width / 2) - (box.width / 2));
+			box.x = bounds.x + ((bounds.width / 2) - (box.width / 2));
 		}
 		// Vertical axis
 		const uint32_t both_vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
 			| ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
 		if ((state->anchor & both_vert) && box.height == 0) {
-			box.y = 0;
-			box.height = usable_area->height;
+			box.y = bounds.y;
+			box.height = bounds.height;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
-			box.y = usable_area->y;
+			box.y = bounds.y;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)) {
-			box.y = usable_area->y + (usable_area->height - box.height);
+			box.y = bounds.y + (bounds.height - box.height);
 		} else {
-			box.y = usable_area->y + ((usable_area->height / 2) - (box.height / 2));
+			box.y = bounds.y + ((bounds.height / 2) - (box.height / 2));
 		}
-		wlr_log(L_DEBUG, "arranged layer at %dx%d@%d,%d",
-				box.width, box.height, box.x, box.y);
+		// Margin
+		if ((state->anchor & both_horiz)) {
+			box.x += state->margin.left;
+			box.width -= state->margin.left + state->margin.right;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
+			box.x += state->margin.bottom;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT)) {
+			box.x -= state->margin.right;
+		}
+		if ((state->anchor & both_vert)) {
+			box.y += state->margin.top;
+			box.height -= state->margin.top + state->margin.bottom;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
+			box.y += state->margin.top;
+		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)) {
+			box.y -= state->margin.bottom;
+		}
+		// Apply
 		roots_surface->geo = box;
 		apply_exclusive(usable_area, state->anchor, state->exclusive_zone);
-		if (!roots_surface->configured ||
-				box.width != (int)state->width ||
-				box.height != (int)state->height) {
-			wlr_layer_surface_configure(layer, box.width, box.height);
-			roots_surface->configured = true;
-		}
+		wlr_layer_surface_configure(layer, box.width, box.height);
 	}
 }
 
@@ -116,25 +151,20 @@ static void arrange_layers(struct wlr_output *_output) {
 	wlr_output_effective_resolution(output->wlr_output,
 			&usable_area.width, &usable_area.height);
 
-	arrange_layer(output->wlr_output,
-			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
-			&usable_area);
-	arrange_layer(output->wlr_output,
-			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
-			&usable_area);
-	memcpy(&output->usable_area, &usable_area, sizeof(struct wlr_box));
-
-	arrange_layer(output->wlr_output,
-			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
-			&usable_area);
-
-	memset(&usable_area, 0, sizeof(struct wlr_box));
-	wlr_output_effective_resolution(output->wlr_output,
-			&usable_area.width, &usable_area.height);
-
+	// Arrange exclusive surfaces from top->bottom
 	arrange_layer(output->wlr_output,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
-			&usable_area);
+			&usable_area, true);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
+			&usable_area, true);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
+			&usable_area, true);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
+			&usable_area, true);
+	memcpy(&output->usable_area, &usable_area, sizeof(struct wlr_box));
 
 	struct roots_view *view;
 	wl_list_for_each(view, &output->desktop->views, link) {
@@ -142,13 +172,35 @@ static void arrange_layers(struct wlr_output *_output) {
 			view_arrange_maximized(view);
 		}
 	}
+
+	// Arrange non-exlusive surfaces from top->bottom
+	wlr_output_effective_resolution(output->wlr_output,
+			&usable_area.width, &usable_area.height);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
+			&usable_area, false);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
+			&usable_area, false);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
+			&usable_area, false);
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
+			&usable_area, false);
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer =
 		wl_container_of(listener, layer, output_destroy);
 	layer->layer_surface->output = NULL;
+	wl_list_remove(&layer->output_destroy.link);
+	wl_list_remove(&layer->output_mode.link);
 	wlr_layer_surface_close(layer->layer_surface);
+}
+
+static void handle_output_mode(struct wl_listener *listener, void *data) {
+	arrange_layers((struct wlr_output *)data);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
@@ -183,6 +235,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 		unmap(layer->layer_surface);
 	}
 	wl_list_remove(&layer->output_destroy.link);
+	wl_list_remove(&layer->output_mode.link);
 	arrange_layers(layer->layer_surface->output);
 	free(layer);
 }
@@ -205,10 +258,11 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_layer_surface *layer_surface = data;
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, layer_shell_surface);
-	wlr_log(L_DEBUG, "new layer surface: namespace %s layer %d anchor %d %dx%d %d,%d,%d,%d",
+	wlr_log(L_DEBUG, "new layer surface: namespace %s layer %d anchor %d "
+			"size %dx%d margin %d,%d,%d,%d",
 		layer_surface->namespace, layer_surface->layer, layer_surface->layer,
-		layer_surface->client_pending.width,
-		layer_surface->client_pending.height,
+		layer_surface->client_pending.desired_width,
+		layer_surface->client_pending.desired_height,
 		layer_surface->client_pending.margin.top,
 		layer_surface->client_pending.margin.right,
 		layer_surface->client_pending.margin.bottom,
@@ -227,6 +281,10 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->output_destroy.notify = handle_output_destroy;
 	wl_signal_add(&layer_surface->output->events.destroy,
 		&roots_surface->output_destroy);
+
+	roots_surface->output_mode.notify = handle_output_mode;
+	wl_signal_add(&layer_surface->output->events.mode,
+		&roots_surface->output_mode);
 
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&layer_surface->events.destroy, &roots_surface->destroy);

@@ -26,6 +26,7 @@ static uint32_t output = 0;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static uint32_t width = 256, height = 256;
+static double alpha = 1.0;
 static bool run_display = true;
 
 static struct {
@@ -67,7 +68,7 @@ static void draw(void) {
 	}
 
 	glViewport(0, 0, width, height);
-	glClearColor(demo.color[0], demo.color[1], demo.color[2], 1.0);
+	glClearColor(demo.color[0], demo.color[1], demo.color[2], alpha);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	frame_callback = wl_surface_frame(wl_surface);
@@ -135,9 +136,11 @@ int main(int argc, char **argv) {
 	wlr_log_init(L_DEBUG, NULL);
 	char *namespace = "wlroots";
 	int exclusive_zone = 0;
+	int32_t margin_top = 0, margin_right = 0,
+			margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "w:h:o:l:a:x:")) != -1) {
+	while ((c = getopt(argc, argv, "w:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -197,6 +200,22 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "invalid anchor %s\n", optarg);
 				return 1;
 			}
+			break;
+		}
+		case 't':
+			alpha = atof(optarg);
+			break;
+		case 'm': {
+			char *endptr = optarg;
+			margin_top = strtol(endptr, &endptr, 10);
+			assert(*endptr == ',');
+			margin_right = strtol(endptr + 1, &endptr, 10);
+			assert(*endptr == ',');
+			margin_bottom = strtol(endptr + 1, &endptr, 10);
+			assert(*endptr == ',');
+			margin_left = strtol(endptr + 1, &endptr, 10);
+			assert(!*endptr);
+			break;
 		}
 		default:
 			break;
@@ -227,8 +246,9 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
+	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display,
+			attribs, WL_SHM_FORMAT_ARGB8888);
 
 	wl_surface = wl_compositor_create_surface(compositor);
 	assert(wl_surface);
@@ -240,9 +260,11 @@ int main(int argc, char **argv) {
 	zwlr_layer_surface_v1_set_size(layer_surface, width, height);
 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
 	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
+	zwlr_layer_surface_v1_set_margin(layer_surface,
+			margin_top, margin_right, margin_bottom, margin_left);
 	zwlr_layer_surface_v1_add_listener(layer_surface,
 				   &layer_surface_listener, layer_surface);
-	// TODO: margin, interactivity
+	// TODO: interactivity
 	wl_surface_commit(wl_surface);
 	wl_display_roundtrip(display);
 
