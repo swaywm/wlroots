@@ -4,6 +4,7 @@
 #include <pixman.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output_damage.h>
 
 struct roots_desktop;
@@ -18,6 +19,8 @@ struct roots_output {
 
 	struct timespec last_frame;
 	struct wlr_output_damage *damage;
+
+	struct wlr_box usable_area;
 
 	struct wl_listener destroy;
 	struct wl_listener damage_frame;
