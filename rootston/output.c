@@ -486,8 +486,9 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
-	// Uncomment this line to debug damage tracking
-	//wlr_renderer_clear(renderer, (float[]){1, 1, 0, 0});
+	if (server->config->debug_damage_tracking) {
+		wlr_renderer_clear(renderer, (float[]){1, 1, 0, 0});
+	}
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
