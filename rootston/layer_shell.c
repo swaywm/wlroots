@@ -15,45 +15,50 @@ static void apply_exclusive(struct wlr_box *usable_area,
 		uint32_t anchor, uint32_t exclusive) {
 	struct {
 		uint32_t anchors;
-		int *value;
-		int multiplier;
+		int *positive_axis;
+		int *negative_axis;
 	} edges[] = {
 		{
 			.anchors =
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP,
-			.value = &usable_area->y,
-			.multiplier = 1,
+			.positive_axis = &usable_area->y,
+			.negative_axis = &usable_area->height,
 		},
 		{
 			.anchors =
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
-			.value = &usable_area->height,
-			.multiplier = -1,
+			.positive_axis = NULL,
+			.negative_axis = &usable_area->height,
 		},
 		{
 			.anchors =
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
-			.value = &usable_area->x,
-			.multiplier = 1,
+			.positive_axis = &usable_area->x,
+			.negative_axis = &usable_area->width,
 		},
 		{
 			.anchors =
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
-			.value = &usable_area->width,
-			.multiplier = -1,
+			.positive_axis = NULL,
+			.negative_axis = &usable_area->width,
 		},
 	};
 	for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
 		if ((anchor & edges[i].anchors) == edges[i].anchors) {
-			*edges[i].value += exclusive * edges[i].multiplier;
+			if (edges[i].positive_axis) {
+				*edges[i].positive_axis += exclusive;
+			}
+			if (edges[i].negative_axis) {
+				*edges[i].negative_axis -= exclusive;
+			}
 		}
 	}
 }
@@ -74,9 +79,9 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
 			box.x = usable_area->x;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT)) {
-			box.x = usable_area->width - box.width;
+			box.x = usable_area->x + (usable_area->width - box.width);
 		} else {
-			box.x = (usable_area->width / 2) - (box.width / 2);
+			box.x = usable_area->x + ((usable_area->width / 2) - (box.width / 2));
 		}
 		// Vertical axis
 		const uint32_t both_vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
@@ -87,9 +92,9 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
 			box.y = usable_area->y;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)) {
-			box.y = usable_area->height - box.height;
+			box.y = usable_area->y + (usable_area->height - box.height);
 		} else {
-			box.y = (usable_area->height / 2) - (box.height / 2);
+			box.y = usable_area->y + ((usable_area->height / 2) - (box.height / 2));
 		}
 		wlr_log(L_DEBUG, "arranged layer at %dx%d@%d,%d",
 				box.width, box.height, box.x, box.y);
@@ -119,16 +124,24 @@ static void arrange_layers(struct wlr_output *_output) {
 			&usable_area);
 	memcpy(&output->usable_area, &usable_area, sizeof(struct wlr_box));
 
+	arrange_layer(output->wlr_output,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
+			&usable_area);
+
 	memset(&usable_area, 0, sizeof(struct wlr_box));
 	wlr_output_effective_resolution(output->wlr_output,
 			&usable_area.width, &usable_area.height);
 
 	arrange_layer(output->wlr_output,
-			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
-			&usable_area);
-	arrange_layer(output->wlr_output,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
 			&usable_area);
+
+	struct roots_view *view;
+	wl_list_for_each(view, &output->desktop->views, link) {
+		if (view->maximized) {
+			view_arrange_maximized(view);
+		}
+	}
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {

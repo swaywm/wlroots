@@ -188,6 +188,38 @@ static struct wlr_output *view_get_output(struct roots_view *view) {
 		output_y);
 }
 
+void view_arrange_maximized(struct roots_view *view) {
+	struct wlr_box view_box;
+	view_get_box(view, &view_box);
+
+	view->maximized = true;
+	view->saved.x = view->x;
+	view->saved.y = view->y;
+	view->saved.rotation = view->rotation;
+	view->saved.width = view_box.width;
+	view->saved.height = view_box.height;
+
+	struct wlr_output *output = view_get_output(view);
+	struct roots_output *roots_output = output->data;
+	struct wlr_box *output_box =
+		wlr_output_layout_get_box(view->desktop->layout, output);
+	struct wlr_box usable_area;
+	memcpy(&usable_area, &roots_output->usable_area,
+			sizeof(struct wlr_box));
+	usable_area.x += output_box->x;
+	usable_area.y += output_box->y;
+
+	wlr_log(L_DEBUG, "output area: %dx%d@%d,%d",
+			output_box->width, output_box->height,
+			output_box->x, output_box->y);
+	wlr_log(L_DEBUG, "usable area: %dx%d@%d,%d",
+			usable_area.width, usable_area.height,
+			usable_area.x, usable_area.y);
+	view_move_resize(view, usable_area.x, usable_area.y,
+			usable_area.width, usable_area.height);
+	view_rotate(view, 0);
+}
+
 void view_maximize(struct roots_view *view, bool maximized) {
 	if (view->maximized == maximized) {
 		return;
@@ -198,23 +230,7 @@ void view_maximize(struct roots_view *view, bool maximized) {
 	}
 
 	if (!view->maximized && maximized) {
-		struct wlr_box view_box;
-		view_get_box(view, &view_box);
-
-		view->maximized = true;
-		view->saved.x = view->x;
-		view->saved.y = view->y;
-		view->saved.rotation = view->rotation;
-		view->saved.width = view_box.width;
-		view->saved.height = view_box.height;
-
-		struct wlr_output *output = view_get_output(view);
-		struct wlr_box *output_box =
-			wlr_output_layout_get_box(view->desktop->layout, output);
-
-		view_move_resize(view, output_box->x, output_box->y, output_box->width,
-			output_box->height);
-		view_rotate(view, 0);
+		view_arrange_maximized(view);
 	}
 
 	if (view->maximized && !maximized) {
