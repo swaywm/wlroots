@@ -14,6 +14,7 @@
 
 static struct wl_compositor *compositor = NULL;
 static struct zwlr_layer_shell_v1 *layer_shell = NULL;
+struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output = NULL;
 
 struct wl_surface *wl_surface;
@@ -26,8 +27,11 @@ static uint32_t output = 0;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static uint32_t width = 256, height = 256;
+static int32_t margin_top = 0;
 static double alpha = 1.0;
 static bool run_display = true;
+static bool animate = false;
+static double frame = 0;
 
 static struct {
 	struct timespec last_frame;
@@ -65,6 +69,18 @@ static void draw(void) {
 		demo.color[inc] = 1.0f;
 		demo.color[demo.dec] = 0.0f;
 		demo.dec = inc;
+	}
+
+	if (animate) {
+		frame += ms / 50.0;
+		int32_t old_top = margin_top;
+		margin_top = -(20 - ((int)frame % 20));
+		if (old_top != margin_top) {
+			wlr_log(L_DEBUG, "setting margin to %d", margin_top);
+			zwlr_layer_surface_v1_set_margin(layer_surface,
+					margin_top, 0, 0, 0);
+			wl_surface_commit(wl_surface);
+		}
 	}
 
 	glViewport(0, 0, width, height);
@@ -136,11 +152,10 @@ int main(int argc, char **argv) {
 	wlr_log_init(L_DEBUG, NULL);
 	char *namespace = "wlroots";
 	int exclusive_zone = 0;
-	int32_t margin_top = 0, margin_right = 0,
-			margin_bottom = 0, margin_left = 0;
+	int32_t margin_right = 0, margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "w:h:o:l:a:x:m:t:")) != -1) {
+	while ((c = getopt(argc, argv, "nw:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -217,6 +232,9 @@ int main(int argc, char **argv) {
 			assert(!*endptr);
 			break;
 		}
+		case 'n':
+			animate = true;
+			break;
 		default:
 			break;
 		}
@@ -253,8 +271,7 @@ int main(int argc, char **argv) {
 	wl_surface = wl_compositor_create_surface(compositor);
 	assert(wl_surface);
 
-	struct zwlr_layer_surface_v1 *layer_surface =
-		zwlr_layer_shell_v1_get_layer_surface(layer_shell,
+	layer_surface = zwlr_layer_shell_v1_get_layer_surface(layer_shell,
 				wl_surface, wl_output, layer, namespace);
 	assert(layer_surface);
 	zwlr_layer_surface_v1_set_size(layer_surface, width, height);

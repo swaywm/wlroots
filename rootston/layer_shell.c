@@ -12,7 +12,9 @@
 #include "rootston/server.h"
 
 static void apply_exclusive(struct wlr_box *usable_area,
-		uint32_t anchor, int32_t exclusive) {
+		uint32_t anchor, int32_t exclusive,
+		int32_t margin_top, int32_t margin_right,
+		int32_t margin_bottom, int32_t margin_left) {
 	if (exclusive <= 0) {
 		return;
 	}
@@ -20,6 +22,7 @@ static void apply_exclusive(struct wlr_box *usable_area,
 		uint32_t anchors;
 		int *positive_axis;
 		int *negative_axis;
+		int margin;
 	} edges[] = {
 		{
 			.anchors =
@@ -28,6 +31,7 @@ static void apply_exclusive(struct wlr_box *usable_area,
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP,
 			.positive_axis = &usable_area->y,
 			.negative_axis = &usable_area->height,
+			.margin = margin_top,
 		},
 		{
 			.anchors =
@@ -36,6 +40,7 @@ static void apply_exclusive(struct wlr_box *usable_area,
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
 			.positive_axis = NULL,
 			.negative_axis = &usable_area->height,
+			.margin = margin_bottom,
 		},
 		{
 			.anchors =
@@ -44,6 +49,7 @@ static void apply_exclusive(struct wlr_box *usable_area,
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
 			.positive_axis = &usable_area->x,
 			.negative_axis = &usable_area->width,
+			.margin = margin_left,
 		},
 		{
 			.anchors =
@@ -52,15 +58,16 @@ static void apply_exclusive(struct wlr_box *usable_area,
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
 			.positive_axis = NULL,
 			.negative_axis = &usable_area->width,
+			.margin = margin_right,
 		},
 	};
 	for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
 		if ((anchor & edges[i].anchors) == edges[i].anchors) {
 			if (edges[i].positive_axis) {
-				*edges[i].positive_axis += exclusive;
+				*edges[i].positive_axis += exclusive + edges[i].margin;
 			}
 			if (edges[i].negative_axis) {
-				*edges[i].negative_axis -= exclusive;
+				*edges[i].negative_axis -= exclusive + edges[i].margin;
 			}
 		}
 	}
@@ -121,15 +128,15 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 			box.y = bounds.y + ((bounds.height / 2) - (box.height / 2));
 		}
 		// Margin
-		if ((state->anchor & both_horiz)) {
+		if ((state->anchor & both_horiz) == both_horiz) {
 			box.x += state->margin.left;
 			box.width -= state->margin.left + state->margin.right;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)) {
-			box.x += state->margin.bottom;
+			box.x += state->margin.left;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT)) {
 			box.x -= state->margin.right;
 		}
-		if ((state->anchor & both_vert)) {
+		if ((state->anchor & both_vert) == both_vert) {
 			box.y += state->margin.top;
 			box.height -= state->margin.top + state->margin.bottom;
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)) {
@@ -139,7 +146,11 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 		}
 		// Apply
 		roots_surface->geo = box;
-		apply_exclusive(usable_area, state->anchor, state->exclusive_zone);
+		apply_exclusive(usable_area, state->anchor, state->exclusive_zone,
+				state->margin.top, state->margin.right,
+				state->margin.bottom, state->margin.left);
+		wlr_log(L_DEBUG, "arranged layer at %dx%d@%d,%d",
+				box.width, box.height, box.x, box.y);
 		wlr_layer_surface_configure(layer, box.width, box.height);
 	}
 }
@@ -210,6 +221,9 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
+		output_damage_from_local_surface(output, layer_surface->surface,
+				layer->geo.x, layer->geo.y, 0);
+		arrange_layers(wlr_output);
 		output_damage_from_local_surface(output, layer_surface->surface,
 				layer->geo.x, layer->geo.y, 0);
 	}
