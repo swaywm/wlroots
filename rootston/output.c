@@ -363,7 +363,7 @@ static void render_decorations(struct roots_view *view,
 		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_colored_quad(renderer, color, matrix);
+		wlr_render_quad_with_matrix(renderer, color, matrix);
 	}
 
 damage_finish:

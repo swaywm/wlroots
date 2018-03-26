@@ -144,7 +144,7 @@ static bool gles2_render_texture_with_matrix(
 }
 
 
-static void gles2_render_quad(struct wlr_renderer *wlr_renderer,
+static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
@@ -161,7 +161,7 @@ static void gles2_render_quad(struct wlr_renderer *wlr_renderer,
 	GLES2_DEBUG_POP;
 }
 
-static void gles2_render_ellipse(struct wlr_renderer *wlr_renderer,
+static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
@@ -256,8 +256,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.scissor = gles2_scissor,
 	.texture_create = gles2_renderer_texture_create,
 	.render_texture_with_matrix = gles2_render_texture_with_matrix,
-	.render_quad = gles2_render_quad,
-	.render_ellipse = gles2_render_ellipse,
+	.render_quad_with_matrix = gles2_render_quad_with_matrix,
+	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
 	.formats = gles2_renderer_formats,
 	.buffer_is_drm = gles2_buffer_is_drm,
 	.read_pixels = gles2_read_pixels,
