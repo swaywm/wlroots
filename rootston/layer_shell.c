@@ -153,6 +153,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 		unmap(layer->layer_surface);
 	}
 	wl_list_remove(&layer->output_destroy.link);
+	arrange_layers(layer->layer_surface->output);
 	free(layer);
 }
 

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#include <assert.h>
 #include <GLES2/gl2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@ struct wl_callback *frame_callback;
 static uint32_t output = 0;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
-static int32_t width = 256, height = 256;
+static uint32_t width = 256, height = 256;
 static bool run_display = true;
 
 static struct {
@@ -82,6 +83,9 @@ static void layer_surface_configure(void *data,
 		uint32_t serial, uint32_t w, uint32_t h) {
 	width = w;
 	height = h;
+	if (egl_window) {
+		wl_egl_window_resize(egl_window, width, height, 0, 0);
+	}
 	zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
@@ -223,11 +227,16 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
+		WL_SHM_FORMAT_ARGB8888);
+
 	wl_surface = wl_compositor_create_surface(compositor);
+	assert(wl_surface);
 
 	struct zwlr_layer_surface_v1 *layer_surface =
 		zwlr_layer_shell_v1_get_layer_surface(layer_shell,
 				wl_surface, wl_output, layer, namespace);
+	assert(layer_surface);
 	zwlr_layer_surface_v1_set_size(layer_surface, width, height);
 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
 	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
@@ -237,11 +246,10 @@ int main(int argc, char **argv) {
 	wl_surface_commit(wl_surface);
 	wl_display_roundtrip(display);
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
-
 	egl_window = wl_egl_window_create(wl_surface, width, height);
+	assert(egl_window);
 	egl_surface = wlr_egl_create_surface(&egl, egl_window);
+	assert(egl_surface);
 
 	wl_display_roundtrip(display);
 	draw();
