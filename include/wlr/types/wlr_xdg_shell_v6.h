@@ -88,6 +88,21 @@ enum wlr_positioner_v6_constraint_adjustment {
 	WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_Y = 32,
 };
 
+struct wlr_xdg_positioner_v6_attributes {
+	struct wlr_box anchor_rect;
+	enum wlr_positioner_v6_anchor anchor;
+	enum wlr_positioner_v6_gravity gravity;
+	enum wlr_positioner_v6_constraint_adjustment constraint_adjustment;
+
+	struct {
+		int32_t width, height;
+	} size;
+
+	struct {
+		int32_t x, y;
+	} offset;
+};
+
 struct wlr_xdg_popup_v6 {
 	struct wlr_xdg_surface_v6 *base;
 	struct wl_list link;
@@ -98,9 +113,16 @@ struct wlr_xdg_popup_v6 {
 	struct wlr_seat *seat;
 	struct wlr_box geometry;
 
-	enum wlr_positioner_v6_anchor anchor;
-	enum wlr_positioner_v6_gravity gravity;
-	enum wlr_positioner_v6_constraint_adjustment constraint_adjustment;
+	struct wlr_xdg_positioner_v6_attributes positioner;
+	struct wlr_box anchor_rect;
+
+	struct {
+		int32_t width, height;
+	} size;
+
+	struct {
+		int32_t x, y;
+	} offset;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab_v6::popups
 };

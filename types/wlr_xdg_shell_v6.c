@@ -18,21 +18,8 @@ static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
 struct wlr_xdg_positioner_v6 {
 	struct wl_resource *resource;
-
-	struct wlr_box anchor_rect;
-	enum zxdg_positioner_v6_anchor anchor;
-	enum zxdg_positioner_v6_gravity gravity;
-	enum zxdg_positioner_v6_constraint_adjustment constraint_adjustment;
-
-	struct {
-		int32_t width, height;
-	} size;
-
-	struct {
-		int32_t x, y;
-	} offset;
+	struct wlr_xdg_positioner_v6_attributes *attrs;
 };
-
 
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -279,6 +266,7 @@ static struct wlr_xdg_positioner_v6 *xdg_positioner_from_resource(
 static void xdg_positioner_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_positioner_v6 *positioner =
 		xdg_positioner_from_resource(resource);
+	free(positioner->attrs);
 	free(positioner);
 }
 
@@ -294,8 +282,8 @@ static void xdg_positioner_handle_set_size(struct wl_client *client,
 		return;
 	}
 
-	positioner->size.width = width;
-	positioner->size.height = height;
+	positioner->attrs->size.width = width;
+	positioner->attrs->size.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
@@ -311,10 +299,10 @@ static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 		return;
 	}
 
-	positioner->anchor_rect.x = x;
-	positioner->anchor_rect.y = y;
-	positioner->anchor_rect.width = width;
-	positioner->anchor_rect.height = height;
+	positioner->attrs->anchor_rect.x = x;
+	positioner->attrs->anchor_rect.y = y;
+	positioner->attrs->anchor_rect.width = width;
+	positioner->attrs->anchor_rect.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor(struct wl_client *client,
@@ -332,7 +320,7 @@ static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 		return;
 	}
 
-	positioner->anchor = anchor;
+	positioner->attrs->anchor = anchor;
 }
 
 static void xdg_positioner_handle_set_gravity(struct wl_client *client,
@@ -350,7 +338,7 @@ static void xdg_positioner_handle_set_gravity(struct wl_client *client,
 		return;
 	}
 
-	positioner->gravity = gravity;
+	positioner->attrs->gravity = gravity;
 }
 
 static void xdg_positioner_handle_set_constraint_adjustment(
@@ -359,7 +347,7 @@ static void xdg_positioner_handle_set_constraint_adjustment(
 	struct wlr_xdg_positioner_v6 *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->constraint_adjustment = constraint_adjustment;
+	positioner->attrs->constraint_adjustment = constraint_adjustment;
 }
 
 static void xdg_positioner_handle_set_offset(struct wl_client *client,
@@ -367,8 +355,8 @@ static void xdg_positioner_handle_set_offset(struct wl_client *client,
 	struct wlr_xdg_positioner_v6 *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->offset.x = x;
-	positioner->offset.y = y;
+	positioner->attrs->offset.x = x;
+	positioner->attrs->offset.y = y;
 }
 
 static const struct zxdg_positioner_v6_interface
@@ -392,6 +380,10 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		return;
 	}
 
+	// TODO: allocate the positioner attrs?
+	positioner->attrs =
+		calloc(1, sizeof(struct wlr_xdg_positioner_v6_attributes));
+
 	positioner->resource = wl_resource_create(wl_client,
 		&zxdg_positioner_v6_interface,
 		wl_resource_get_version(resource),
@@ -408,7 +400,7 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 }
 
 static struct wlr_box xdg_positioner_get_geometry(
-		struct wlr_xdg_positioner_v6 *positioner,
+		struct wlr_xdg_positioner_v6_attributes *positioner,
 		struct wlr_xdg_surface_v6 *surface, struct wlr_xdg_surface_v6 *parent) {
 	struct wlr_box geometry = {
 		.x = positioner->offset.x,
@@ -453,7 +445,7 @@ static struct wlr_box xdg_positioner_get_geometry(
 	}
 
 	if (positioner->constraint_adjustment ==
-			ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_NONE) {
+			WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_NONE) {
 		return geometry;
 	}
 
@@ -567,7 +559,7 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	struct wlr_xdg_positioner_v6 *positioner =
 		xdg_positioner_from_resource(positioner_resource);
 
-	if (positioner->size.width == 0 || positioner->anchor_rect.width == 0) {
+	if (positioner->attrs->size.width == 0 || positioner->attrs->anchor_rect.width == 0) {
 		wl_resource_post_error(resource,
 			ZXDG_SHELL_V6_ERROR_INVALID_POSITIONER,
 			"positioner object is not complete");
@@ -598,12 +590,11 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	surface->popup->base = surface;
 	surface->popup->parent = parent;
 	surface->popup->geometry =
-		xdg_positioner_get_geometry(positioner, surface, parent);
+		xdg_positioner_get_geometry(positioner->attrs, surface, parent);
 
 	// positioner properties
-	surface->popup->anchor = (uint32_t)positioner->anchor;
-	surface->popup->gravity = (uint32_t)positioner->gravity;
-	surface->popup->constraint_adjustment = (uint32_t)positioner->constraint_adjustment;
+	memcpy(&surface->popup->positioner, &positioner->attrs,
+		sizeof(struct wlr_xdg_positioner_v6_attributes));
 
 	wl_list_insert(&parent->popups, &surface->popup->link);
 
