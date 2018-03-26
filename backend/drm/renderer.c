@@ -14,6 +14,10 @@
 #include "backend/drm/drm.h"
 #include "glapi.h"
 
+#ifndef DRM_FORMAT_MOD_LINEAR
+#define DRM_FORMAT_MOD_LINEAR 0
+#endif
+
 bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
 	renderer->gbm = gbm_create_device(drm->fd);
@@ -195,7 +199,7 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	};
 	attribs.offset[0] = 0;
 	attribs.stride[0] = gbm_bo_get_stride_for_plane(bo, 0);
-	attribs.modifier[0] = 0;
+	attribs.modifier[0] = DRM_FORMAT_MOD_LINEAR;
 	attribs.fd[0] = gbm_bo_get_fd(bo);
 
 	tex->tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
