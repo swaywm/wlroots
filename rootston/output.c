@@ -486,6 +486,10 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
+	if (server->config->debug_damage_tracking) {
+		wlr_renderer_clear(renderer, (float[]){1, 1, 0, 0});
+	}
+
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
@@ -667,32 +671,23 @@ static void damage_from_surface(struct wlr_surface *surface,
 	surface_intersect_output(surface, output->desktop->layout,
 		wlr_output, lx, ly, rotation, &box);
 
-	if (rotation == 0) {
-		pixman_region32_t damage;
-		pixman_region32_init(&damage);
-		pixman_region32_copy(&damage, &surface->current->surface_damage);
-		wlr_region_scale(&damage, &damage, wlr_output->scale);
-		if (ceil(wlr_output->scale) > surface->current->scale) {
-			// When scaling up a surface, it'll become blurry so we need to
-			// expand the damage region
-			wlr_region_expand(&damage, &damage,
-				ceil(wlr_output->scale) - surface->current->scale);
-		}
-		pixman_region32_translate(&damage, box.x, box.y);
-		wlr_output_damage_add(output->damage, &damage);
-		pixman_region32_fini(&damage);
-	} else {
-		pixman_box32_t *extents =
-			pixman_region32_extents(&surface->current->surface_damage);
-		struct wlr_box damage_box = {
-			.x = box.x + extents->x1 * wlr_output->scale,
-			.y = box.y + extents->y1 * wlr_output->scale,
-			.width = (extents->x2 - extents->x1) * wlr_output->scale,
-			.height = (extents->y2 - extents->y1) * wlr_output->scale,
-		};
-		wlr_box_rotated_bounds(&damage_box, rotation, &damage_box);
-		wlr_output_damage_add_box(output->damage, &damage_box);
+	int center_x = box.x + box.width/2;
+	int center_y = box.y + box.height/2;
+
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	wlr_region_scale(&damage, &damage, wlr_output->scale);
+	if (ceil(wlr_output->scale) > surface->current->scale) {
+		// When scaling up a surface, it'll become blurry so we need to
+		// expand the damage region
+		wlr_region_expand(&damage, &damage,
+			ceil(wlr_output->scale) - surface->current->scale);
 	}
+	pixman_region32_translate(&damage, box.x, box.y);
+	wlr_region_rotated_bounds(&damage, &damage, rotation, center_x, center_y);
+	wlr_output_damage_add(output->damage, &damage);
+	pixman_region32_fini(&damage);
 }
 
 void output_damage_from_view(struct roots_output *output,
