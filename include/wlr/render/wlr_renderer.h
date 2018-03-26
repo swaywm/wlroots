@@ -30,14 +30,24 @@ bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 	struct wlr_texture *texture, const float matrix[static 9], float alpha);
 /**
- * Renders a solid quad in the specified color.
+ * Renders a solid rectangle in the specified color.
  */
-void wlr_render_colored_quad(struct wlr_renderer *r,
+void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
+	const float color[static 4], const float projection[static 9]);
+/**
+ * Renders a solid quadrangle in the specified color with the specified matrix.
+ */
+void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
  * Renders a solid ellipse in the specified color.
  */
-void wlr_render_colored_ellipse(struct wlr_renderer *r,
+void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
+	const float color[static 4], const float projection[static 9]);
+/**
+ * Renders a solid ellipse in the specified color with the specified matrix.
+ */
+void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
  * Returns a list of pixel formats supported by this renderer.

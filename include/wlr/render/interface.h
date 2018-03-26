@@ -26,9 +26,9 @@ struct wlr_renderer_impl {
 	bool (*render_texture_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float matrix[static 9],
 		float alpha);
-	void (*render_quad)(struct wlr_renderer *renderer,
+	void (*render_quad_with_matrix)(struct wlr_renderer *renderer,
 		const float color[static 4], const float matrix[static 9]);
-	void (*render_ellipse)(struct wlr_renderer *renderer,
+	void (*render_ellipse_with_matrix)(struct wlr_renderer *renderer,
 		const float color[static 4], const float matrix[static 9]);
 	const enum wl_shm_format *(*formats)(
 		struct wlr_renderer *renderer, size_t *len);

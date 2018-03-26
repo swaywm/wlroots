@@ -11,8 +11,8 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->clear);
 	assert(impl->scissor);
 	assert(impl->render_texture_with_matrix);
-	assert(impl->render_quad);
-	assert(impl->render_ellipse);
+	assert(impl->render_quad_with_matrix);
+	assert(impl->render_ellipse_with_matrix);
 	assert(impl->formats);
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
@@ -47,16 +47,14 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 		const float projection[static 9], int x, int y, float alpha) {
-	int width, height;
-	wlr_texture_get_size(texture, &width, &height);
+	struct wlr_box box = { .x = x, .y = y };
+	wlr_texture_get_size(texture, &box.width, &box.height);
 
-	float mat[9];
-	wlr_matrix_identity(mat);
-	wlr_matrix_translate(mat, x, y);
-	wlr_matrix_scale(mat, width, height);
-	wlr_matrix_multiply(mat, projection, mat);
+	float matrix[9];
+	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		projection);
 
-	return wlr_render_texture_with_matrix(r, texture, mat, alpha);
+	return wlr_render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
@@ -65,14 +63,32 @@ bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 	return r->impl->render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
-void wlr_render_colored_quad(struct wlr_renderer *r,
-		const float color[static 4], const float matrix[static 9]) {
-	r->impl->render_quad(r, color, matrix);
+void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
+		const float color[static 4], const float projection[static 9]) {
+	float matrix[9];
+	wlr_matrix_project_box(matrix, box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		projection);
+
+	wlr_render_quad_with_matrix(r, color, matrix);
 }
 
-void wlr_render_colored_ellipse(struct wlr_renderer *r,
+void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
-	r->impl->render_ellipse(r, color, matrix);
+	r->impl->render_quad_with_matrix(r, color, matrix);
+}
+
+void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
+		const float color[static 4], const float projection[static 9]) {
+	float matrix[9];
+	wlr_matrix_project_box(matrix, box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		projection);
+
+	wlr_render_ellipse_with_matrix(r, color, matrix);
+}
+
+void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
+		const float color[static 4], const float matrix[static 9]) {
+	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
 const enum wl_shm_format *wlr_renderer_get_formats(

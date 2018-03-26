@@ -26,4 +26,11 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 void wlr_region_expand(pixman_region32_t *dst, pixman_region32_t *src,
 	int distance);
 
+/*
+ * Builds the smallest possible region that contains the region rotated about
+ * the point (ox, oy).
+ */
+void wlr_region_rotated_bounds(pixman_region32_t *dst, pixman_region32_t *src,
+	float rotation, int ox, int oy);
+
 #endif

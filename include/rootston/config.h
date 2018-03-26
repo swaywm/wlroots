@@ -66,8 +66,10 @@ struct roots_config {
 	struct wl_list bindings;
 	struct wl_list keyboards;
 	struct wl_list cursors;
+
 	char *config_path;
 	char *startup_cmd;
+	bool debug_damage_tracking;
 };
 
 /**

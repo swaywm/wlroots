@@ -25,7 +25,9 @@ static void usage(const char *name, int ret) {
 		"                (default: rootston.ini).\n"
 		"                See `rootston.ini.example` for config\n"
 		"                file documentation.\n"
-		" -E <COMMAND>   Command that will be ran at startup.\n" , name);
+		" -E <COMMAND>   Command that will be ran at startup.\n"
+		" -D             Enable damage tracking debugging.\n",
+		name);
 
 	exit(ret);
 }
@@ -394,13 +396,16 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	wl_list_init(&config->bindings);
 
 	int c;
-	while ((c = getopt(argc, argv, "C:E:h")) != -1) {
+	while ((c = getopt(argc, argv, "C:E:hD")) != -1) {
 		switch (c) {
 		case 'C':
 			config->config_path = strdup(optarg);
 			break;
 		case 'E':
 			config->startup_cmd = strdup(optarg);
+			break;
+		case 'D':
+			config->debug_damage_tracking = true;
 			break;
 		case 'h':
 		case '?':

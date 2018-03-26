@@ -326,9 +326,6 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_finish(&x11->egl);
 
-	if (x11->xcb_conn) {
-		xcb_disconnect(x11->xcb_conn);
-	}
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
 	}
@@ -428,7 +425,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 error_event:
 	wl_event_source_remove(x11->event_source);
 error_x11:
-	xcb_disconnect(x11->xcb_conn);
 	XCloseDisplay(x11->xlib_conn);
 	free(x11);
 	return NULL;
