@@ -106,6 +106,7 @@ struct wlr_xdg_surface {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
+	// Only for toplevel
 	char *title;
 	char *app_id;
 

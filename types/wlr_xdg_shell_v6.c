@@ -198,35 +198,24 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		wlr_signal_emit_safe(&surface->events.unmap, surface);
 	}
 
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wl_resource_set_user_data(surface->toplevel->resource, NULL);
-		free(surface->toplevel);
-		surface->toplevel = NULL;
-	}
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP &&
+			surface->popup->seat != NULL) {
+		struct wlr_xdg_popup_grab_v6 *grab =
+			xdg_shell_popup_grab_from_seat(surface->client->shell,
+				surface->popup->seat);
 
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
-		wl_resource_set_user_data(surface->popup->resource, NULL);
+		wl_list_remove(&surface->popup->grab_link);
 
-		if (surface->popup->seat) {
-			struct wlr_xdg_popup_grab_v6 *grab =
-				xdg_shell_popup_grab_from_seat(surface->client->shell,
-					surface->popup->seat);
-
-			wl_list_remove(&surface->popup->grab_link);
-
-			if (wl_list_empty(&grab->popups)) {
-				if (grab->seat->pointer_state.grab == &grab->pointer_grab) {
-					wlr_seat_pointer_end_grab(grab->seat);
-				}
-				if (grab->seat->keyboard_state.grab == &grab->keyboard_grab) {
-					wlr_seat_keyboard_end_grab(grab->seat);
-				}
+		if (wl_list_empty(&grab->popups)) {
+			if (grab->seat->pointer_state.grab == &grab->pointer_grab) {
+				wlr_seat_pointer_end_grab(grab->seat);
+			}
+			if (grab->seat->keyboard_state.grab == &grab->keyboard_grab) {
+				wlr_seat_keyboard_end_grab(grab->seat);
 			}
 		}
 
-		wl_list_remove(&surface->popup->link);
-		free(surface->popup);
-		surface->popup = NULL;
+		surface->popup->seat = NULL;
 	}
 
 	struct wlr_xdg_surface_v6_configure *configure, *tmp;
@@ -234,13 +223,12 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		xdg_surface_configure_destroy(configure);
 	}
 
-	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
 	free(surface->title);
 	surface->title = NULL;
 	free(surface->app_id);
 	surface->app_id = NULL;
 
-	surface->added = surface->configured = surface->mapped = false;
+	surface->configured = surface->mapped = false;
 	surface->configure_serial = 0;
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
@@ -253,12 +241,47 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
 
+static void xdg_toplevel_destroy(struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	xdg_surface_unmap(surface);
+
+	wl_resource_set_user_data(surface->toplevel->resource, NULL);
+	free(surface->toplevel);
+	surface->toplevel = NULL;
+
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
+}
+
+static void xdg_popup_destroy(struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
+	xdg_surface_unmap(surface);
+
+	wl_resource_set_user_data(surface->popup->resource, NULL);
+	wl_list_remove(&surface->popup->link);
+	free(surface->popup);
+	surface->popup = NULL;
+
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
+}
+
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE) {
 		xdg_surface_unmap(surface);
 	}
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
+
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		xdg_toplevel_destroy(surface);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		xdg_popup_destroy(surface);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		// This space is intentionally left blank
+		break;
+	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
@@ -545,7 +568,7 @@ static void xdg_popup_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
 	if (surface != NULL) {
-		xdg_surface_unmap(surface);
+		xdg_popup_destroy(surface);
 	}
 }
 
@@ -856,7 +879,7 @@ static void xdg_toplevel_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	if (surface != NULL) {
-		xdg_surface_unmap(surface);
+		xdg_toplevel_destroy(surface);
 	}
 }
 
