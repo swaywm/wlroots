@@ -6,7 +6,7 @@
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #ifdef WLR_HAS_XWAYLAND
-#    include <wlr/xwayland.h>
+#include <wlr/xwayland.h>
 #endif
 #include "rootston/config.h"
 #include "rootston/input.h"

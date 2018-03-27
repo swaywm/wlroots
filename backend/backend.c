@@ -12,7 +12,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
 #ifdef WLR_HAS_X11_BACKEND
-#    include <wlr/backend/x11.h>
+#include <wlr/backend/x11.h>
 #endif
 #include <wlr/util/log.h>
 
