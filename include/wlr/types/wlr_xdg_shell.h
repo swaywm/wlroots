@@ -40,6 +40,9 @@ struct wlr_xdg_popup {
 	bool committed;
 	struct wlr_xdg_surface *parent;
 	struct wlr_seat *seat;
+
+	// Position of the popup relative to the upper left corner of the window
+	// geometry of the parent surface
 	struct wlr_box geometry;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab::popups
