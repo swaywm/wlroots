@@ -733,7 +733,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	}
 #endif
 
-	if (unfullscreen) {
+	if (view && unfullscreen) {
 		struct roots_desktop *desktop = view->desktop;
 		struct roots_output *output;
 		struct wlr_box box;
