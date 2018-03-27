@@ -186,6 +186,8 @@ struct roots_xdg_popup {
 	struct roots_view_child view_child;
 	struct wlr_xdg_popup *wlr_popup;
 	struct wl_listener destroy;
+	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener new_popup;
 };
 
