@@ -115,7 +115,7 @@ static void layer_surface_handle_set_keyboard_interactivity(
 		struct wl_client *client, struct wl_resource *resource,
 		uint32_t interactive) {
 	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
-	surface->client_pending.keyboard_interactive = interactive == 1;
+	surface->client_pending.keyboard_interactive = !!interactive;
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
@@ -143,7 +143,7 @@ static void layer_surface_unmap(struct wlr_layer_surface *surface) {
 		layer_surface_configure_destroy(configure);
 	}
 
-	surface->added = surface->configured = surface->mapped = false;
+	surface->configured = surface->mapped = false;
 	surface->configure_serial = 0;
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
@@ -189,61 +189,34 @@ static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
 	return changed;
 }
 
-static void wlr_layer_surface_send_configure(void *user_data) {
-	struct wlr_layer_surface *surface = user_data;
-	surface->configure_idle = NULL;
-	struct wlr_layer_surface_configure *configure =
-		calloc(1, sizeof(struct wlr_layer_surface_configure));
-	if (configure == NULL) {
-		wl_client_post_no_memory(surface->client->client);
-		return;
-	}
-
-	wl_list_insert(surface->configure_list.prev, &configure->link);
-	configure->serial = surface->configure_next_serial;
-	configure->state.actual_width = surface->server_pending.actual_width;
-	configure->state.actual_height = surface->server_pending.actual_height;
-
-	zwlr_layer_surface_v1_send_configure(surface->resource,
-			configure->serial, configure->state.actual_width,
-			configure->state.actual_height);
-}
-
-static uint32_t wlr_layer_surface_schedule_configure(
-		struct wlr_layer_surface *surface) {
-	struct wl_display *display = wl_client_get_display(surface->client->client);
-	struct wl_event_loop *loop = wl_display_get_event_loop(display);
-	bool changed = wlr_layer_surface_state_changed(surface);
-
-	if (surface->configure_idle != NULL) {
-		if (changed) {
-			// configure request already scheduled
-			return surface->configure_next_serial;
-		}
-		// configure request not necessary anymore
-		wl_event_source_remove(surface->configure_idle);
-		surface->configure_idle = NULL;
-		return 0;
-	} else {
-		if (!changed) {
-			// configure request not necessary
-			return 0;
-		}
-		surface->configure_next_serial = wl_display_next_serial(display);
-		surface->configure_idle = wl_event_loop_add_idle(loop,
-			wlr_layer_surface_send_configure, surface);
-		return surface->configure_next_serial;
-	}
-}
-
 void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 		uint32_t width, uint32_t height) {
 	surface->server_pending.actual_width = width;
 	surface->server_pending.actual_height = height;
-	wlr_layer_surface_schedule_configure(surface);
+	if (wlr_layer_surface_state_changed(surface)) {
+		struct wl_display *display =
+			wl_client_get_display(surface->client->client);
+		struct wlr_layer_surface_configure *configure =
+			calloc(1, sizeof(struct wlr_layer_surface_configure));
+		if (configure == NULL) {
+			wl_client_post_no_memory(surface->client->client);
+			return;
+		}
+		surface->configure_next_serial = wl_display_next_serial(display);
+		wl_list_insert(surface->configure_list.prev, &configure->link);
+		configure->state.actual_width = width;
+		configure->state.actual_height = height;
+		configure->serial = surface->configure_next_serial;
+		zwlr_layer_surface_v1_send_configure(surface->resource,
+				configure->serial, configure->state.actual_width,
+				configure->state.actual_height);
+	}
 }
 
 void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
+	if (surface->closed) {
+		return;
+	}
 	surface->closed = true;
 	layer_surface_unmap(surface);
 	zwlr_layer_surface_v1_send_closed(surface->resource);
