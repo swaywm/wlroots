@@ -28,6 +28,16 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data) {
 	popup_destroy((struct roots_view_child *)popup);
 }
 
+static void popup_handle_map(struct wl_listener *listener, void *data) {
+	struct roots_xdg_popup *popup = wl_container_of(listener, popup, map);
+	view_damage_whole(popup->view_child.view);
+}
+
+static void popup_handle_unmap(struct wl_listener *listener, void *data) {
+	struct roots_xdg_popup *popup = wl_container_of(listener, popup, unmap);
+	view_damage_whole(popup->view_child.view);
+}
+
 static struct roots_xdg_popup *popup_create(struct roots_view *view,
 	struct wlr_xdg_popup *wlr_popup);
 
@@ -50,6 +60,10 @@ static struct roots_xdg_popup *popup_create(struct roots_view *view,
 	view_child_init(&popup->view_child, view, wlr_popup->base->surface);
 	popup->destroy.notify = popup_handle_destroy;
 	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
+	popup->map.notify = popup_handle_map;
+	wl_signal_add(&wlr_popup->base->events.map, &popup->map);
+	popup->unmap.notify = popup_handle_unmap;
+	wl_signal_add(&wlr_popup->base->events.unmap, &popup->unmap);
 	popup->new_popup.notify = popup_handle_new_popup;
 	wl_signal_add(&wlr_popup->base->events.new_popup, &popup->new_popup);
 	return popup;
