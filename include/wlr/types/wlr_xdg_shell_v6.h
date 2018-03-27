@@ -296,13 +296,19 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
 
+struct wlr_box wlr_xdg_positioner_v6_get_geometry(
+		struct wlr_xdg_positioner_v6_attributes *positioner);
+
 /**
  * Get the anchor point for this popup in the root parent's coordinate system.
  */
 void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
 		int *root_sx, int *root_sy);
 
-void wlr_positioner_v6_invert(
+void wlr_positioner_v6_invert_x(
+		struct wlr_xdg_positioner_v6_attributes *positioner);
+
+void wlr_positioner_v6_invert_y(
 		struct wlr_xdg_positioner_v6_attributes *positioner);
 
 #endif

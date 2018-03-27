@@ -399,9 +399,7 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		positioner, xdg_positioner_destroy);
 }
 
-static struct wlr_box xdg_positioner_get_geometry(
-		struct wlr_xdg_positioner_v6_attributes *positioner,
-		struct wlr_xdg_surface_v6 *surface, struct wlr_xdg_surface_v6 *parent) {
+struct wlr_box wlr_xdg_positioner_v6_get_geometry(struct wlr_xdg_positioner_v6_attributes *positioner) {
 	struct wlr_box geometry = {
 		.x = positioner->offset.x,
 		.y = positioner->offset.y,
@@ -589,7 +587,7 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	surface->popup->base = surface;
 	surface->popup->parent = parent;
 	surface->popup->geometry =
-		xdg_positioner_get_geometry(positioner->attrs, surface, parent);
+		wlr_xdg_positioner_v6_get_geometry(positioner->attrs);
 
 	// positioner properties
 	memcpy(&surface->popup->positioner, positioner->attrs,
@@ -1675,50 +1673,39 @@ void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
 	*/
 }
 
-void wlr_positioner_v6_invert(
-		struct wlr_xdg_positioner_v6_attributes *positioner) {
-	enum wlr_positioner_v6_anchor anchor = positioner->anchor;
-
-	if (anchor == WLR_POSITIONER_V6_ANCHOR_NONE) {
-		// already inverted
-	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_TOP) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM;
-	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_BOTTOM) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP;
-	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_LEFT) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_RIGHT;
-	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_RIGHT) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_LEFT;
-	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
-				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM | WLR_POSITIONER_V6_ANCHOR_RIGHT;
-	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
-				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM | WLR_POSITIONER_V6_ANCHOR_LEFT;
-	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
-				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP | WLR_POSITIONER_V6_ANCHOR_RIGHT;
-	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
-				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
-		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP | WLR_POSITIONER_V6_ANCHOR_LEFT;
+void wlr_positioner_v6_invert_x(struct wlr_xdg_positioner_v6_attributes *positioner) {
+	if (positioner->anchor & WLR_POSITIONER_V6_ANCHOR_LEFT) {
+		positioner->anchor &= ~WLR_POSITIONER_V6_ANCHOR_LEFT;
+		positioner->anchor |= WLR_POSITIONER_V6_ANCHOR_RIGHT;
+	} else if (positioner->anchor & WLR_POSITIONER_V6_ANCHOR_RIGHT) {
+		positioner->anchor &= ~WLR_POSITIONER_V6_ANCHOR_RIGHT;
+		positioner->anchor |= WLR_POSITIONER_V6_ANCHOR_LEFT;
 	}
 
-	enum wlr_positioner_v6_gravity gravity = positioner->gravity;
-	switch (gravity) {
-	case WLR_POSITIONER_V6_GRAVITY_NONE:
-		// already inverted
-		break;
-	case WLR_POSITIONER_V6_GRAVITY_TOP:
-		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_BOTTOM;
-		break;
-	case WLR_POSITIONER_V6_GRAVITY_BOTTOM:
-		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_TOP;
-		break;
-	case WLR_POSITIONER_V6_GRAVITY_LEFT:
-		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_RIGHT;
-		break;
-	case WLR_POSITIONER_V6_GRAVITY_RIGHT:
-		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_LEFT;
-		break;
+	if (positioner->gravity & WLR_POSITIONER_V6_GRAVITY_RIGHT) {
+		positioner->gravity &= ~WLR_POSITIONER_V6_GRAVITY_RIGHT;
+		positioner->gravity |= WLR_POSITIONER_V6_GRAVITY_LEFT;
+	} else if (positioner->gravity & WLR_POSITIONER_V6_GRAVITY_LEFT) {
+		positioner->gravity &= ~WLR_POSITIONER_V6_GRAVITY_LEFT;
+		positioner->gravity |= WLR_POSITIONER_V6_GRAVITY_RIGHT;
+	}
+}
+
+void wlr_positioner_v6_invert_y(
+		struct wlr_xdg_positioner_v6_attributes *positioner) {
+	if (positioner->anchor & WLR_POSITIONER_V6_ANCHOR_TOP) {
+		positioner->anchor &= ~WLR_POSITIONER_V6_ANCHOR_TOP;
+		positioner->anchor |= WLR_POSITIONER_V6_ANCHOR_BOTTOM;
+	} else if (positioner->anchor & WLR_POSITIONER_V6_ANCHOR_BOTTOM) {
+		positioner->anchor &= ~WLR_POSITIONER_V6_ANCHOR_BOTTOM;
+		positioner->anchor |= WLR_POSITIONER_V6_ANCHOR_TOP;
+	}
+
+	if (positioner->gravity & WLR_POSITIONER_V6_GRAVITY_TOP) {
+		positioner->gravity &= ~WLR_POSITIONER_V6_GRAVITY_TOP;
+		positioner->gravity |= WLR_POSITIONER_V6_GRAVITY_BOTTOM;
+	} else if (positioner->gravity & WLR_POSITIONER_V6_GRAVITY_BOTTOM) {
+		positioner->gravity &= ~WLR_POSITIONER_V6_GRAVITY_BOTTOM;
+		positioner->gravity |= WLR_POSITIONER_V6_GRAVITY_TOP;
 	}
 }

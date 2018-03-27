@@ -38,6 +38,77 @@ static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
 	popup_create(popup->view_child.view, wlr_popup);
 }
 
+static void popup_get_coords(struct wlr_xdg_popup_v6 *popup,
+		double *sx, double *sy) {
+	struct wlr_xdg_surface_v6 *parent = popup->parent;
+	double popup_sx = popup->geometry.x;
+	double popup_sy = popup->geometry.y;
+	while (parent->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		popup_sx += parent->popup->geometry.x;
+		popup_sy += parent->popup->geometry.y;
+		parent = parent->popup->parent;
+	}
+
+	*sx = popup_sx + parent->geometry.x;
+	*sy = popup_sy + parent->geometry.y;
+}
+
+static void popup_is_constrained(struct roots_xdg_popup_v6 *popup,
+		bool *x_constrained, bool *y_constrained) {
+	struct roots_view *view = popup->view_child.view;
+	struct wlr_output_layout *layout = view->desktop->layout;
+	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;
+	int popup_width = wlr_popup->geometry.width;
+	int popup_height = wlr_popup->geometry.height;
+
+	int anchor_lx, anchor_ly;
+	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_lx, &anchor_ly);
+
+	double popup_lx, popup_ly;
+	popup_get_coords(wlr_popup, &popup_lx, &popup_ly);
+	popup_lx += view->x;
+	popup_ly += view->y;
+
+	anchor_lx += popup_lx;
+	anchor_ly += popup_ly;
+
+	double dest_x = 0, dest_y = 0;
+	wlr_output_layout_closest_point(layout, NULL, anchor_lx, anchor_ly,
+		&dest_x, &dest_y);
+
+	struct wlr_output *output =
+		wlr_output_layout_output_at(layout, dest_x, dest_y);
+	// XXX: handle empty output layout
+	assert(output);
+
+	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
+	*x_constrained = popup_lx <= output_box->x ||
+			popup_lx + popup_width >= output_box->x + output_box->width;
+	*y_constrained = popup_ly <= output_box->y ||
+			popup_ly + popup_height >= output_box->y + output_box->height;
+}
+
+static void popup_unconstrain_flip(struct roots_xdg_popup_v6 *popup) {
+	bool x_constrained, y_constrained;
+	popup_is_constrained(popup, &x_constrained, &y_constrained);
+
+	if (x_constrained) {
+		wlr_positioner_v6_invert_x(&popup->wlr_popup->positioner);
+	}
+	if (y_constrained) {
+		wlr_positioner_v6_invert_y(&popup->wlr_popup->positioner);
+	}
+
+	popup->wlr_popup->geometry =
+		wlr_xdg_positioner_v6_get_geometry(&popup->wlr_popup->positioner);
+}
+
+static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
+	popup_unconstrain_flip(popup);
+	// TODO popup_unconstrain_slide(popup);
+	// TODO popup_unconstrain_resize(popup);
+}
+
 static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 		struct wlr_xdg_popup_v6 *wlr_popup) {
 	struct roots_xdg_popup_v6 *popup =
@@ -45,55 +116,6 @@ static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 	if (popup == NULL) {
 		return NULL;
 	}
-
-	struct wlr_xdg_surface_v6 *parent = wlr_popup->parent;
-	double popup_lx = wlr_popup->geometry.x;
-	double popup_ly = wlr_popup->geometry.y;
-	while (parent->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		popup_lx += parent->popup->geometry.x;
-		popup_ly += parent->popup->geometry.y;
-		parent = parent->popup->parent;
-	}
-
-	popup_lx += view->x + parent->geometry.x;
-	popup_ly += view->y + parent->geometry.y;
-	int popup_width = wlr_popup->geometry.width;
-	int popup_height = wlr_popup->geometry.height;
-
-	int anchor_x, anchor_y;
-	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_x, &anchor_y);
-	anchor_x += popup_lx;
-	anchor_y += popup_ly;
-
-	struct wlr_output_layout *layout = view->desktop->layout;
-
-	// get the output that contains (or closest to) the anchor point
-	struct wlr_output *output =
-		wlr_output_layout_output_at(layout, anchor_x, anchor_y);
-	if (output == NULL) {
-		// TODO find the closest output to the anchor
-		assert(false);
-	}
-
-	// does the output completely contain the popup?
-	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
-	bool output_contains_popup_x = popup_lx >= output_box->x &&
-			popup_lx + popup_width <= output_box->x + output_box->width;
-	bool output_contains_popup_y = popup_ly >= output_box->y &&
-			popup_ly + popup_height <= output_box->y + output_box->height;
-
-	if (!output_contains_popup_x) {
-		// TODO flip_x
-		// TODO slide_x
-		// TODO resize_x
-	}
-
-	if (!output_contains_popup_y) {
-		// TODO flip_y
-		// TODO slide_y
-		// TODO resize_y
-	}
-
 	popup->wlr_popup = wlr_popup;
 	popup->view_child.destroy = popup_destroy;
 	view_child_init(&popup->view_child, view, wlr_popup->base->surface);
@@ -101,6 +123,9 @@ static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
 	popup->new_popup.notify = popup_handle_new_popup;
 	wl_signal_add(&wlr_popup->base->events.new_popup, &popup->new_popup);
+
+	popup_unconstrain(popup);
+
 	return popup;
 }
 
