@@ -53,6 +53,20 @@ enum atom_name {
 	NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
 	NET_WM_WINDOW_TYPE_POPUP_MENU,
 	NET_WM_WINDOW_TYPE_COMBO,
+	DND_SELECTION,
+	DND_AWARE,
+	DND_STATUS,
+	DND_POSITION,
+	DND_ENTER,
+	DND_LEAVE,
+	DND_DROP,
+	DND_FINISHED,
+	DND_PROXY,
+	DND_TYPE_LIST,
+	DND_ACTION_MOVE,
+	DND_ACTION_COPY,
+	DND_ACTION_ASK,
+	DND_ACTION_PRIVATE,
 	ATOM_LAST,
 };
 
@@ -63,6 +77,8 @@ enum net_wm_state_action {
 	NET_WM_STATE_ADD = 1,
 	NET_WM_STATE_TOGGLE = 2,
 };
+
+#define XDND_VERSION 5
 
 struct wlr_xwm_selection {
 	struct wlr_xwm *xwm;
@@ -99,6 +115,8 @@ struct wlr_xwm {
 	xcb_window_t selection_window;
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
+
+	xcb_window_t dnd_window;
 
 	struct wlr_xwayland_surface *focus_surface;
 

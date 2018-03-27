@@ -56,9 +56,22 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_WINDOW_TYPE_DROPDOWN_MENU",
 	"_NET_WM_WINDOW_TYPE_POPUP_MENU",
 	"_NET_WM_WINDOW_TYPE_COMBO",
+	"XdndSelection",
+	"XdndAware",
+	"XdndStatus",
+	"XdndPosition",
+	"XdndEnter",
+	"XdndLeave",
+	"XdndDrop",
+	"XdndFinished",
+	"XdndProxy",
+	"XdndTypeList",
+	"XdndActionMove",
+	"XdndActionCopy",
+	"XdndActionAsk",
+	"XdndActionPrivate",
 };
 
-/* General helpers */
 // TODO: replace this with hash table?
 static struct wlr_xwayland_surface *lookup_surface(struct wlr_xwm *xwm,
 		xcb_window_t window_id) {
@@ -1531,4 +1544,3 @@ bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 
 	return false;
 }
-

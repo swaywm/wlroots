@@ -12,6 +12,32 @@
 
 static const size_t incr_chunk_size = 64 * 1024;
 
+static xcb_atom_t data_device_manager_dnd_action_to_atom(
+		struct wlr_xwm *xwm, enum wl_data_device_manager_dnd_action action) {
+	if (action & WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY) {
+		return xwm->atoms[DND_ACTION_COPY];
+	} else if (action & WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE) {
+		return xwm->atoms[DND_ACTION_MOVE];
+	} else if (action & WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK) {
+		return xwm->atoms[DND_ACTION_ASK];
+	}
+	return XCB_ATOM_NONE;
+}
+
+static enum wl_data_device_manager_dnd_action
+		data_device_manager_dnd_action_from_atom(struct wlr_xwm *xwm,
+		enum atom_name atom) {
+	if (atom == xwm->atoms[DND_ACTION_COPY] ||
+			atom == xwm->atoms[DND_ACTION_PRIVATE]) {
+		return WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+	} else if (atom == xwm->atoms[DND_ACTION_MOVE]) {
+		return WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE;
+	} else if (atom == xwm->atoms[DND_ACTION_ASK]) {
+		return WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
+	}
+	return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+}
+
 static void xwm_selection_send_notify(struct wlr_xwm_selection *selection,
 		xcb_atom_t property) {
 	xcb_selection_notify_event_t selection_notify = {
@@ -807,7 +833,8 @@ static void selection_init(struct wlr_xwm *xwm,
 }
 
 void xwm_selection_init(struct wlr_xwm *xwm) {
-	uint32_t values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
+	// Clipboard and primary selection
+	uint32_t selection_values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
 	xwm->selection_window = xcb_generate_id(xwm->xcb_conn);
 	xcb_create_window(xwm->xcb_conn,
 		XCB_COPY_FROM_PARENT,
@@ -818,7 +845,7 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 		0,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, values);
+		XCB_CW_EVENT_MASK, selection_values);
 
 	xcb_set_selection_owner(xwm->xcb_conn,
 		xwm->selection_window,
@@ -827,6 +854,30 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 
 	selection_init(xwm, &xwm->clipboard_selection, xwm->atoms[CLIPBOARD]);
 	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
+
+	// Drag'n'drop
+	uint32_t dnd_values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
+	xwm->dnd_window = xcb_generate_id(xwm->xcb_conn);
+	xcb_create_window(xwm->xcb_conn,
+		XCB_COPY_FROM_PARENT,
+		xwm->dnd_window,
+		xwm->screen->root,
+		0, 0,
+		10, 10,
+		0,
+		XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		xwm->screen->root_visual,
+		XCB_CW_EVENT_MASK, dnd_values);
+
+	uint32_t version = XDND_VERSION;
+	xcb_change_property(xwm->xcb_conn,
+		XCB_PROP_MODE_REPLACE,
+		xwm->dnd_window,
+		xwm->atoms[DND_AWARE],
+		XCB_ATOM_ATOM,
+		32,
+		1,
+		&version);
 }
 
 void xwm_selection_finish(struct wlr_xwm *xwm) {
@@ -835,6 +886,9 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 	}
 	if (xwm->selection_window) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
+	}
+	if (xwm->dnd_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
 	}
 	if (xwm->seat) {
 		if (xwm->seat->selection_data_source &&
