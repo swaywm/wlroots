@@ -339,7 +339,7 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, desktop, xdg_shell_surface);
 
 	wlr_log(L_DEBUG, "new xdg toplevel: title=%s, app_id=%s",
-		surface->title, surface->app_id);
+		surface->toplevel->title, surface->toplevel->app_id);
 	wlr_xdg_surface_ping(surface);
 
 	struct roots_xdg_surface *roots_surface =
@@ -357,15 +357,16 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->unmap.notify = handle_unmap;
 	wl_signal_add(&surface->events.unmap, &roots_surface->unmap);
 	roots_surface->request_move.notify = handle_request_move;
-	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
+	wl_signal_add(&surface->toplevel->events.request_move,
+		&roots_surface->request_move);
 	roots_surface->request_resize.notify = handle_request_resize;
-	wl_signal_add(&surface->events.request_resize,
+	wl_signal_add(&surface->toplevel->events.request_resize,
 		&roots_surface->request_resize);
 	roots_surface->request_maximize.notify = handle_request_maximize;
-	wl_signal_add(&surface->events.request_maximize,
+	wl_signal_add(&surface->toplevel->events.request_maximize,
 		&roots_surface->request_maximize);
 	roots_surface->request_fullscreen.notify = handle_request_fullscreen;
-	wl_signal_add(&surface->events.request_fullscreen,
+	wl_signal_add(&surface->toplevel->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
