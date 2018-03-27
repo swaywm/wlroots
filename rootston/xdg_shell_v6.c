@@ -92,6 +92,26 @@ static void popup_unconstrain_flip(struct roots_xdg_popup_v6 *popup) {
 	bool x_constrained, y_constrained;
 	popup_is_constrained(popup, &x_constrained, &y_constrained);
 
+	if (!x_constrained && !y_constrained) {
+		return;
+	}
+
+	if (x_constrained) {
+		wlr_positioner_v6_invert_x(&popup->wlr_popup->positioner);
+	}
+	if (y_constrained) {
+		wlr_positioner_v6_invert_y(&popup->wlr_popup->positioner);
+	}
+
+	popup->wlr_popup->geometry =
+		wlr_xdg_positioner_v6_get_geometry(&popup->wlr_popup->positioner);
+
+	popup_is_constrained(popup, &x_constrained, &y_constrained);
+
+	if (!x_constrained && !y_constrained) {
+		return;
+	}
+
 	if (x_constrained) {
 		wlr_positioner_v6_invert_x(&popup->wlr_popup->positioner);
 	}
@@ -104,26 +124,91 @@ static void popup_unconstrain_flip(struct roots_xdg_popup_v6 *popup) {
 }
 
 static void popup_unconstrain_slide(struct roots_xdg_popup_v6 *popup) {
-	bool x_constrained, y_constrained;
-	popup_is_constrained(popup, &x_constrained, &y_constrained);
+	struct roots_view *view = popup->view_child.view;
+	struct wlr_output_layout *layout = view->desktop->layout;
+	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;
+	int popup_width = wlr_popup->geometry.width;
+	int popup_height = wlr_popup->geometry.height;
+
+	int anchor_lx, anchor_ly;
+	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_lx, &anchor_ly);
+
+	double popup_lx, popup_ly;
+	popup_get_coords(wlr_popup, &popup_lx, &popup_ly);
+	popup_lx += view->x;
+	popup_ly += view->y;
+
+	anchor_lx += popup_lx;
+	anchor_ly += popup_ly;
+
+	double dest_x = 0, dest_y = 0;
+	wlr_output_layout_closest_point(layout, NULL, anchor_lx, anchor_ly,
+		&dest_x, &dest_y);
+
+	struct wlr_output *output =
+		wlr_output_layout_output_at(layout, dest_x, dest_y);
+	// XXX: handle empty output layout
+	assert(output);
+
+	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
+
+	bool x_constrained = popup_lx <= output_box->x ||
+			popup_lx + popup_width >= output_box->x + output_box->width;
+	bool y_constrained = popup_ly <= output_box->y ||
+			popup_ly + popup_height >= output_box->y + output_box->height;
+
+	double popup_ox = popup_lx - output_box->x,
+		popup_oy = popup_ly - output_box->y;
 
 	if (x_constrained) {
-		// TODO slide_x
+		wlr_popup->geometry.x -= popup_width - (output_box->width - popup_ox);
 	}
 	if (y_constrained) {
-		// TODO slide_y
+		wlr_popup->geometry.y -= popup_height - (output_box->height - popup_oy);
 	}
 }
 
 static void popup_unconstrain_resize(struct roots_xdg_popup_v6 *popup) {
-	bool x_constrained, y_constrained;
-	popup_is_constrained(popup, &x_constrained, &y_constrained);
+	struct roots_view *view = popup->view_child.view;
+	struct wlr_output_layout *layout = view->desktop->layout;
+	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;
+	int popup_width = wlr_popup->geometry.width;
+	int popup_height = wlr_popup->geometry.height;
+
+	int anchor_lx, anchor_ly;
+	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_lx, &anchor_ly);
+
+	double popup_lx, popup_ly;
+	popup_get_coords(wlr_popup, &popup_lx, &popup_ly);
+	popup_lx += view->x;
+	popup_ly += view->y;
+
+	anchor_lx += popup_lx;
+	anchor_ly += popup_ly;
+
+	double dest_x = 0, dest_y = 0;
+	wlr_output_layout_closest_point(layout, NULL, anchor_lx, anchor_ly,
+		&dest_x, &dest_y);
+
+	struct wlr_output *output =
+		wlr_output_layout_output_at(layout, dest_x, dest_y);
+	// XXX: handle empty output layout
+	assert(output);
+
+	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
+
+	bool x_constrained = popup_lx <= output_box->x ||
+			popup_lx + popup_width >= output_box->x + output_box->width;
+	bool y_constrained = popup_ly <= output_box->y ||
+			popup_ly + popup_height >= output_box->y + output_box->height;
+
+	double popup_ox = popup_lx - output_box->x, popup_oy = popup_ly - output_box->y;
 
 	if (x_constrained) {
-		// TODO resize_x
+		wlr_popup->geometry.width = output_box->x + output_box->width - popup_ox;
 	}
 	if (y_constrained) {
-		// TODO resize_y
+		wlr_popup->geometry.height = output_box->y + output_box->height - popup_oy;
 	}
 }
 
