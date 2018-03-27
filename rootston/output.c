@@ -560,14 +560,15 @@ static void render_output(struct roots_output *output) {
 		wl_list_for_each_reverse(view, &desktop->views, link) {
 			render_view(view, &data);
 		}
+		// Render top layer above shell views
+		render_layer(output, output_box, &data,
+				&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
 	}
 
 	// Render drag icons
 	data.alpha = 1.0;
 	drag_icons_for_each_surface(server->input, render_surface, &data);
 
-	render_layer(output, output_box, &data,
-			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
 	render_layer(output, output_box, &data,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
@@ -670,6 +671,7 @@ void output_damage_whole_local_surface(struct roots_output *output,
 		output->desktop->layout, output->wlr_output);
 	damage_whole_surface(surface, ox + layout->x, oy + layout->y,
 			rotation, output);
+	// TODO: subsurfaces
 }
 
 static void damage_whole_decoration(struct roots_view *view,
@@ -743,6 +745,7 @@ void output_damage_from_local_surface(struct roots_output *output,
 		output->desktop->layout, output->wlr_output);
 	damage_from_surface(surface, ox + layout->x, oy + layout->y,
 			rotation, output);
+	// TODO: Subsurfaces
 }
 
 void output_damage_from_view(struct roots_output *output,

@@ -138,6 +138,11 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 		} else if ((state->anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)) {
 			box.y -= state->margin.bottom;
 		}
+		if (box.width < 0 || box.height < 0) {
+			// TODO: Bubble up a protocol error?
+			wlr_layer_surface_close(layer);
+			continue;
+		}
 		// Apply
 		roots_surface->geo = box;
 		apply_exclusive(usable_area, state->anchor, state->exclusive_zone,
@@ -177,6 +182,7 @@ static void arrange_layers(struct wlr_output *_output) {
 	}
 
 	// Arrange non-exlusive surfaces from top->bottom
+	usable_area.x = usable_area.y = 0;
 	wlr_output_effective_resolution(output->wlr_output,
 			&usable_area.width, &usable_area.height);
 	arrange_layer(output->wlr_output,
@@ -313,6 +319,7 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&layer_surface->events.map, &roots_surface->map);
 	roots_surface->unmap.notify = handle_unmap;
 	wl_signal_add(&layer_surface->events.unmap, &roots_surface->unmap);
+	// TODO: Listen for subsurfaces
 
 	roots_surface->layer_surface = layer_surface;
 	layer_surface->data = roots_surface;
