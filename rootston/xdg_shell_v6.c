@@ -45,6 +45,55 @@ static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 	if (popup == NULL) {
 		return NULL;
 	}
+
+	struct wlr_xdg_surface_v6 *parent = wlr_popup->parent;
+	double popup_lx = wlr_popup->geometry.x;
+	double popup_ly = wlr_popup->geometry.y;
+	while (parent->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+		popup_lx += parent->popup->geometry.x;
+		popup_ly += parent->popup->geometry.y;
+		parent = parent->popup->parent;
+	}
+
+	popup_lx += view->x + parent->geometry.x;
+	popup_ly += view->y + parent->geometry.y;
+	int popup_width = wlr_popup->geometry.width;
+	int popup_height = wlr_popup->geometry.height;
+
+	int anchor_x, anchor_y;
+	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_x, &anchor_y);
+	anchor_x += popup_lx;
+	anchor_y += popup_ly;
+
+	struct wlr_output_layout *layout = view->desktop->layout;
+
+	// get the output that contains (or closest to) the anchor point
+	struct wlr_output *output =
+		wlr_output_layout_output_at(layout, anchor_x, anchor_y);
+	if (output == NULL) {
+		// TODO find the closest output to the anchor
+		assert(false);
+	}
+
+	// does the output completely contain the popup?
+	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
+	bool output_contains_popup_x = popup_lx >= output_box->x &&
+			popup_lx + popup_width <= output_box->x + output_box->width;
+	bool output_contains_popup_y = popup_ly >= output_box->y &&
+			popup_ly + popup_height <= output_box->y + output_box->height;
+
+	if (!output_contains_popup_x) {
+		// TODO flip_x
+		// TODO slide_x
+		// TODO resize_x
+	}
+
+	if (!output_contains_popup_y) {
+		// TODO flip_y
+		// TODO slide_y
+		// TODO resize_y
+	}
+
 	popup->wlr_popup = wlr_popup;
 	popup->view_child.destroy = popup_destroy;
 	view_child_init(&popup->view_child, view, wlr_popup->base->surface);

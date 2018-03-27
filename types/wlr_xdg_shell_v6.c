@@ -454,7 +454,6 @@ static struct wlr_box xdg_positioner_get_geometry(
 	return geometry;
 }
 
-
 static const struct zxdg_popup_v6_interface zxdg_popup_v6_implementation;
 
 static struct wlr_xdg_surface_v6 *xdg_surface_from_xdg_popup_resource(
@@ -593,7 +592,7 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 		xdg_positioner_get_geometry(positioner->attrs, surface, parent);
 
 	// positioner properties
-	memcpy(&surface->popup->positioner, &positioner->attrs,
+	memcpy(&surface->popup->positioner, positioner->attrs,
 		sizeof(struct wlr_xdg_positioner_v6_attributes));
 
 	wl_list_insert(&parent->popups, &surface->popup->link);
@@ -604,7 +603,6 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 
 	wlr_signal_emit_safe(&parent->events.new_popup, surface->popup);
 }
-
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation;
 
@@ -1590,4 +1588,137 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 	}
 
 	return NULL;
+}
+
+void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
+		int *root_sx, int *root_sy) {
+	struct wlr_box rect = popup->positioner.anchor_rect;
+	enum wlr_positioner_v6_anchor anchor = popup->positioner.anchor;
+	int sx = 0, sy = 0;
+
+	if (anchor == WLR_POSITIONER_V6_ANCHOR_NONE) {
+		sx = (rect.x + rect.width) / 2;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_TOP) {
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_BOTTOM) {
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y + rect.height;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_LEFT) {
+		sx = rect.x;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_RIGHT) {
+		sx = rect.x + rect.width;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
+				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
+		sx = rect.x;
+		sy = rect.y;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
+				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
+		sx = rect.x + rect.width;
+		sy = rect.y;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
+				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
+		sx = rect.x;
+		sy = rect.y + rect.height;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
+				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
+		sx = rect.x + rect.width;
+		sy = rect.y + rect.height;
+	}
+
+	*root_sx = sx;
+	*root_sy = sy;
+
+	/*
+	// XXX: THIS IS WILL WORK WITH XDG SHELL STABLE
+	switch (popup->positioner.anchor) {
+	case WLR_POSITIONER_ANCHOR_NONE:
+		sx = (rect.x + rect.width) / 2;
+		sy = (rect.y + rect.height) / 2;
+		break;
+	case WLR_POSITIONER_ANCHOR_TOP:
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y;
+		break;
+	case WLR_POSITIONER_ANCHOR_BOTTOM:
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y + rect.height;
+		break;
+	case WLR_POSITIONER_ANCHOR_LEFT:
+		sx = rect.x;
+		sy = (rect.y + rect.height) / 2;
+		break;
+	case WLR_POSITIONER_ANCHOR_RIGHT:
+		sx = rect.x + rect.width;
+		sy = (rect.y + rect.height) / 2;
+		break;
+	case WLR_POSITIONER_ANCHOR_TOP_LEFT:
+		sx = rect.x;
+		sy = rect.y;
+		break;
+	case WLR_POSITIONER_ANCHOR_BOTTOM_LEFT:
+		sx = rect.x;
+		sy = rect.y + rect.height;
+		break;
+	case WLR_POSITIONER_ANCHOR_TOP_RIGHT:
+		sx = rect.x + rect.width;
+		sy = rect.y;
+		break;
+	case WLR_POSITIONER_ANCHOR_BOTTOM_RIGHT:
+		sx = rect.x + rect.width;
+		sy = rect.y + rect.height;
+		break;
+	}
+	*/
+}
+
+void wlr_positioner_v6_invert(
+		struct wlr_xdg_positioner_v6_attributes *positioner) {
+	enum wlr_positioner_v6_anchor anchor = positioner->anchor;
+
+	if (anchor == WLR_POSITIONER_V6_ANCHOR_NONE) {
+		// already inverted
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_TOP) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_BOTTOM) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_LEFT) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_RIGHT;
+	} else if (anchor == WLR_POSITIONER_V6_ANCHOR_RIGHT) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_LEFT;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
+				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM | WLR_POSITIONER_V6_ANCHOR_RIGHT;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_TOP |
+				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_BOTTOM | WLR_POSITIONER_V6_ANCHOR_LEFT;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
+				WLR_POSITIONER_V6_ANCHOR_LEFT)) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP | WLR_POSITIONER_V6_ANCHOR_RIGHT;
+	} else if (anchor == (WLR_POSITIONER_V6_ANCHOR_BOTTOM |
+				WLR_POSITIONER_V6_ANCHOR_RIGHT)) {
+		positioner->anchor = WLR_POSITIONER_V6_ANCHOR_TOP | WLR_POSITIONER_V6_ANCHOR_LEFT;
+	}
+
+	enum wlr_positioner_v6_gravity gravity = positioner->gravity;
+	switch (gravity) {
+	case WLR_POSITIONER_V6_GRAVITY_NONE:
+		// already inverted
+		break;
+	case WLR_POSITIONER_V6_GRAVITY_TOP:
+		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_BOTTOM;
+		break;
+	case WLR_POSITIONER_V6_GRAVITY_BOTTOM:
+		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_TOP;
+		break;
+	case WLR_POSITIONER_V6_GRAVITY_LEFT:
+		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_RIGHT;
+		break;
+	case WLR_POSITIONER_V6_GRAVITY_RIGHT:
+		positioner->gravity = WLR_POSITIONER_V6_GRAVITY_LEFT;
+		break;
+	}
 }

@@ -114,15 +114,6 @@ struct wlr_xdg_popup_v6 {
 	struct wlr_box geometry;
 
 	struct wlr_xdg_positioner_v6_attributes positioner;
-	struct wlr_box anchor_rect;
-
-	struct {
-		int32_t width, height;
-	} size;
-
-	struct {
-		int32_t x, y;
-	} offset;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab_v6::popups
 };
@@ -304,5 +295,14 @@ void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
+
+/**
+ * Get the anchor point for this popup in the root parent's coordinate system.
+ */
+void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
+		int *root_sx, int *root_sy);
+
+void wlr_positioner_v6_invert(
+		struct wlr_xdg_positioner_v6_attributes *positioner);
 
 #endif

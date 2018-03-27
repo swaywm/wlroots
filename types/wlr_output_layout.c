@@ -339,8 +339,12 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		}
 	}
 
-	*dest_x = min_x;
-	*dest_y = min_y;
+	if (dest_x) {
+		*dest_x = min_x;
+	}
+	if (dest_y) {
+		*dest_y = min_y;
+	}
 }
 
 struct wlr_box *wlr_output_layout_get_box(
