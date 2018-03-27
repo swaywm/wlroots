@@ -149,8 +149,6 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 		apply_exclusive(usable_area, state->anchor, state->exclusive_zone,
 				state->margin.top, state->margin.right,
 				state->margin.bottom, state->margin.left);
-		wlr_log(L_DEBUG, "arranged layer at %dx%d@%d,%d",
-				box.width, box.height, box.x, box.y);
 		wlr_layer_surface_configure(layer, box.width, box.height);
 	}
 }
@@ -221,11 +219,17 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
-		output_damage_from_local_surface(output, layer_surface->surface,
-				layer->geo.x, layer->geo.y, 0);
+		struct wlr_box old_geo = layer->geo;
 		arrange_layers(wlr_output);
-		output_damage_from_local_surface(output, layer_surface->surface,
-				layer->geo.x, layer->geo.y, 0);
+		if (memcmp(&old_geo, &layer->geo, sizeof(struct wlr_box)) != 0) {
+			output_damage_whole_local_surface(output, layer_surface->surface,
+					old_geo.x, old_geo.y, 0);
+			output_damage_whole_local_surface(output, layer_surface->surface,
+					layer->geo.x, layer->geo.y, 0);
+		} else {
+			output_damage_from_local_surface(output, layer_surface->surface,
+					layer->geo.x, layer->geo.y, 0);
+		}
 	}
 }
 

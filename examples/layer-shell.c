@@ -76,7 +76,6 @@ static void draw(void) {
 		int32_t old_top = margin_top;
 		margin_top = -(20 - ((int)frame % 20));
 		if (old_top != margin_top) {
-			wlr_log(L_DEBUG, "setting margin to %d", margin_top);
 			zwlr_layer_surface_v1_set_margin(layer_surface,
 					margin_top, 0, 0, 0);
 			wl_surface_commit(wl_surface);

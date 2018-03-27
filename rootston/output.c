@@ -664,6 +664,14 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	wlr_output_damage_add_box(output->damage, &box);
 }
 
+void output_damage_whole_local_surface(struct roots_output *output,
+		struct wlr_surface *surface, double ox, double oy, float rotation) {
+	struct wlr_output_layout_output *layout = wlr_output_layout_get(
+		output->desktop->layout, output->wlr_output);
+	damage_whole_surface(surface, ox + layout->x, oy + layout->y,
+			rotation, output);
+}
+
 static void damage_whole_decoration(struct roots_view *view,
 		struct roots_output *output) {
 	if (!view->decorated || view->wlr_surface == NULL) {

@@ -40,6 +40,8 @@ void output_damage_from_view(struct roots_output *output,
 void output_damage_whole_drag_icon(struct roots_output *output,
 	struct roots_drag_icon *icon);
 void output_damage_from_local_surface(struct roots_output *output,
-		struct wlr_surface *surface, double ox, double oy, float rotation);
+	struct wlr_surface *surface, double ox, double oy, float rotation);
+void output_damage_whole_local_surface(struct roots_output *output,
+	struct wlr_surface *surface, double ox, double oy, float rotation);
 
 #endif
