@@ -13,8 +13,7 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *egl_exts_str;
-	const char *gl_exts_str;
+	const char *exts_str;
 
 	struct {
 		bool buffer_age;
