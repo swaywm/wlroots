@@ -18,7 +18,7 @@ static void resource_handle_destroy(struct wl_client *client,
 static const struct zwlr_layer_shell_v1_interface layer_shell_implementation;
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation;
 
-static struct wlr_layer_client *layer_client_from_resource(
+static struct wlr_layer_shell *layer_shell_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwlr_layer_shell_v1_interface,
 		&layer_shell_implementation));
@@ -58,7 +58,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 		}
 	}
 	if (!found) {
-		wl_resource_post_error(surface->client->resource,
+		wl_resource_post_error(resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SURFACE_STATE,
 			"wrong configure serial: %u", serial);
 		return;
@@ -156,7 +156,6 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	layer_surface_unmap(surface);
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
-	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy_listener.link);
 	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 	free(surface);
@@ -195,11 +194,11 @@ void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 	surface->server_pending.actual_height = height;
 	if (wlr_layer_surface_state_changed(surface)) {
 		struct wl_display *display =
-			wl_client_get_display(surface->client->client);
+			wl_client_get_display(wl_resource_get_client(surface->resource));
 		struct wlr_layer_surface_configure *configure =
 			calloc(1, sizeof(struct wlr_layer_surface_configure));
 		if (configure == NULL) {
-			wl_client_post_no_memory(surface->client->client);
+			wl_client_post_no_memory(wl_resource_get_client(surface->resource));
 			return;
 		}
 		surface->configure_next_serial = wl_display_next_serial(display);
@@ -248,7 +247,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 
 	if (!surface->added) {
 		surface->added = true;
-		wlr_signal_emit_safe(&surface->client->shell->events.new_surface,
+		wlr_signal_emit_safe(&surface->shell->events.new_surface,
 				surface);
 	}
 	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
@@ -274,8 +273,8 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		struct wl_resource *surface_resource,
 		struct wl_resource *output_resource,
 		uint32_t layer, const char *namespace) {
-	struct wlr_layer_client *client =
-		layer_client_from_resource(client_resource);
+	struct wlr_layer_shell *shell =
+		layer_shell_from_resource(client_resource);
 
 	struct wlr_layer_surface *surface =
 		calloc(1, sizeof(struct wlr_layer_surface));
@@ -284,7 +283,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		return;
 	}
 
-	surface->client = client;
+	surface->shell = shell;
 	surface->surface = wlr_surface_from_resource(surface_resource);
 	surface->output = wlr_output_from_resource(output_resource);
 	surface->resource = wl_resource_create(wl_client,
@@ -322,23 +321,14 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 			surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
 		&layer_surface_implementation, surface, layer_surface_resource_destroy);
-	wl_list_insert(&client->surfaces, &surface->link);
 }
 
 static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 	.get_layer_surface = layer_shell_handle_get_layer_surface,
 };
 
-static void wlr_layer_client_destroy(struct wl_resource *resource) {
-	struct wlr_layer_client *client = layer_client_from_resource(resource);
-
-	struct wlr_layer_surface *surface, *tmp = NULL;
-	wl_list_for_each_safe(surface, tmp, &client->surfaces, link) {
-		layer_surface_destroy(surface);
-	}
-
-	wl_list_remove(&client->link);
-	free(client);
+static void client_handle_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void layer_shell_bind(struct wl_client *wl_client, void *data,
@@ -346,28 +336,16 @@ static void layer_shell_bind(struct wl_client *wl_client, void *data,
 	struct wlr_layer_shell *layer_shell = data;
 	assert(wl_client && layer_shell);
 
-	struct wlr_layer_client *client =
-		calloc(1, sizeof(struct wlr_layer_client));
-	if (client == NULL) {
-		wl_client_post_no_memory(wl_client);
-		return;
-	}
-
-	wl_list_init(&client->surfaces);
-
-	client->resource = wl_resource_create(
+	struct wl_resource *resource = wl_resource_create(
 			wl_client, &zwlr_layer_shell_v1_interface, version, id);
-	if (client->resource == NULL) {
-		free(client);
+	if (resource == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	client->client = wl_client;
-	client->shell = layer_shell;
-
-	wl_resource_set_implementation(client->resource,
-			&layer_shell_implementation, client, wlr_layer_client_destroy);
-	wl_list_insert(&layer_shell->clients, &client->link);
+	wl_resource_set_implementation(resource,
+			&layer_shell_implementation, layer_shell, client_handle_destroy);
+	wl_list_insert(&layer_shell->client_resources,
+			wl_resource_get_link(resource));
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -383,7 +361,7 @@ struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
 		return NULL;
 	}
 
-	wl_list_init(&layer_shell->clients);
+	wl_list_init(&layer_shell->client_resources);
 
 	struct wl_global *wl_global = wl_global_create(display,
 		&zwlr_layer_shell_v1_interface, 1, layer_shell, layer_shell_bind);
@@ -404,6 +382,10 @@ struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
 void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell) {
 	if (!layer_shell) {
 		return;
+	}
+	struct wl_resource *client, *tmp;
+	wl_resource_for_each_safe(client, tmp, &layer_shell->client_resources) {
+		wl_resource_destroy(client);
 	}
 	wl_list_remove(&layer_shell->display_destroy.link);
 	wl_global_destroy(layer_shell->wl_global);

@@ -209,12 +209,6 @@ void view_arrange_maximized(struct roots_view *view) {
 	usable_area.x += output_box->x;
 	usable_area.y += output_box->y;
 
-	wlr_log(L_DEBUG, "output area: %dx%d@%d,%d",
-			output_box->width, output_box->height,
-			output_box->x, output_box->y);
-	wlr_log(L_DEBUG, "usable area: %dx%d@%d,%d",
-			usable_area.width, usable_area.height,
-			usable_area.x, usable_area.y);
 	view_move_resize(view, usable_area.x, usable_area.y,
 			usable_area.width, usable_area.height);
 	view_rotate(view, 0);

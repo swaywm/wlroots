@@ -16,6 +16,7 @@ struct roots_layer_surface {
 	struct wl_listener surface_commit;
 	struct wl_listener output_destroy;
 	struct wl_listener output_mode;
+	struct wl_listener output_transform;
 
 	bool configured;
 	struct wlr_box geo;

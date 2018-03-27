@@ -21,7 +21,7 @@
  */
 struct wlr_layer_shell {
 	struct wl_global *wl_global;
-	struct wl_list clients;
+	struct wl_list client_resources; // wl_resource
 
 	struct wl_listener display_destroy;
 
@@ -30,15 +30,6 @@ struct wlr_layer_shell {
 	} events;
 
 	void *data;
-};
-
-struct wlr_layer_client {
-	struct wlr_layer_shell *shell;
-	struct wl_resource *resource;
-	struct wl_client *client;
-	struct wl_list surfaces;
-
-	struct wl_list link; // wlr_layer_shell::clients
 };
 
 struct wlr_layer_surface_state {
@@ -61,9 +52,8 @@ struct wlr_layer_surface_configure {
 struct wlr_layer_surface {
 	struct wlr_surface *surface;
 	struct wlr_output *output;
-	struct wlr_layer_client *client;
 	struct wl_resource *resource;
-	struct wl_list link; // wlr_layer_client:surfaces
+	struct wlr_layer_shell *shell;
 
 	const char *namespace;
 	enum zwlr_layer_shell_v1_layer layer;

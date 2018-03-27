@@ -82,14 +82,8 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 	wl_list_for_each(roots_surface, list, link) {
 		struct wlr_layer_surface *layer = roots_surface->layer_surface;
 		struct wlr_layer_surface_state *state = &layer->current;
-		if (exclusive) {
-			if (state->exclusive_zone <= 0) {
-				continue;
-			}
-		} else {
-			if (state->exclusive_zone > 0) {
-				continue;
-			}
+		if (exclusive != (state->exclusive_zone >0)) {
+			continue;
 		}
 		struct wlr_box bounds;
 		if (state->exclusive_zone == -1) {
@@ -212,6 +206,10 @@ static void handle_output_mode(struct wl_listener *listener, void *data) {
 	arrange_layers((struct wlr_output *)data);
 }
 
+static void handle_output_transform(struct wl_listener *listener, void *data) {
+	arrange_layers((struct wlr_output *)data);
+}
+
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer =
 		wl_container_of(listener, layer, surface_commit);
@@ -254,6 +252,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	}
 	wl_list_remove(&layer->output_destroy.link);
 	wl_list_remove(&layer->output_mode.link);
+	wl_list_remove(&layer->output_transform.link);
 	arrange_layers(layer->layer_surface->output);
 	free(layer);
 }
@@ -303,6 +302,10 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->output_mode.notify = handle_output_mode;
 	wl_signal_add(&layer_surface->output->events.mode,
 		&roots_surface->output_mode);
+
+	roots_surface->output_transform.notify = handle_output_transform;
+	wl_signal_add(&layer_surface->output->events.transform,
+		&roots_surface->output_transform);
 
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&layer_surface->events.destroy, &roots_surface->destroy);
