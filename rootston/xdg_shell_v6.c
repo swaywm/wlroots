@@ -103,10 +103,34 @@ static void popup_unconstrain_flip(struct roots_xdg_popup_v6 *popup) {
 		wlr_xdg_positioner_v6_get_geometry(&popup->wlr_popup->positioner);
 }
 
+static void popup_unconstrain_slide(struct roots_xdg_popup_v6 *popup) {
+	bool x_constrained, y_constrained;
+	popup_is_constrained(popup, &x_constrained, &y_constrained);
+
+	if (x_constrained) {
+		// TODO slide_x
+	}
+	if (y_constrained) {
+		// TODO slide_y
+	}
+}
+
+static void popup_unconstrain_resize(struct roots_xdg_popup_v6 *popup) {
+	bool x_constrained, y_constrained;
+	popup_is_constrained(popup, &x_constrained, &y_constrained);
+
+	if (x_constrained) {
+		// TODO resize_x
+	}
+	if (y_constrained) {
+		// TODO resize_y
+	}
+}
+
 static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
 	popup_unconstrain_flip(popup);
-	// TODO popup_unconstrain_slide(popup);
-	// TODO popup_unconstrain_resize(popup);
+	popup_unconstrain_slide(popup);
+	popup_unconstrain_resize(popup);
 }
 
 static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
