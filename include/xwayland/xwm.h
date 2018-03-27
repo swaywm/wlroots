@@ -2,6 +2,7 @@
 #define XWAYLAND_XWM_H
 
 #include <wayland-server-core.h>
+#include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
 
