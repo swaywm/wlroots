@@ -377,6 +377,11 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	renderer->egl = wlr_backend_get_egl(backend);
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
+	renderer->exts_str = (const char*) glGetString(GL_EXTENSIONS);
+	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
+	wlr_log(L_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
+	wlr_log(L_INFO, "Supported GLES2 extensions: %s", renderer->exts_str);
+
 	if (glDebugMessageCallbackKHR && glDebugMessageControlKHR) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);

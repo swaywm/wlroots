@@ -28,6 +28,7 @@ struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
 	struct wlr_egl *egl;
+	const char *exts_str;
 
 	struct {
 		GLuint quad;
