@@ -47,7 +47,21 @@ static int xwm_selection_flush_source_data(struct wlr_xwm_selection *selection) 
 	return length;
 }
 
-static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
+static void xwm_data_source_remove_property_source(
+		struct wlr_xwm_selection *selection) {
+	if (selection->property_source) {
+		wl_event_source_remove(selection->property_source);
+	}
+	selection->property_source = NULL;
+}
+
+static void xwm_data_source_close_source_fd(
+		struct wlr_xwm_selection *selection) {
+	close(selection->source_fd);
+	selection->source_fd = -1;
+}
+
+static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	struct wlr_xwm_selection *selection = data;
 	struct wlr_xwm *xwm = selection->xwm;
 
@@ -72,13 +86,13 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 	}
 
 	wlr_log(L_DEBUG, "read %d (available %d, mask 0x%x) bytes: \"%.*s\"",
-			len, available, mask, len, (char *) p);
+		len, available, mask, len, (char *) p);
 
 	selection->source_data.size = current + len;
 	if (selection->source_data.size >= incr_chunk_size) {
 		if (!selection->incr) {
 			wlr_log(L_DEBUG, "got %zu bytes, starting incr",
-					selection->source_data.size);
+				selection->source_data.size);
 			selection->incr = 1;
 			xcb_change_property(xwm->xcb_conn,
 					XCB_PROP_MODE_REPLACE,
@@ -89,20 +103,17 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 					1, &incr_chunk_size);
 			selection->property_set = true;
 			selection->flush_property_on_delete = 1;
-			wl_event_source_remove(selection->property_source);
-			selection->property_source = NULL;
+			xwm_data_source_remove_property_source(selection);
 			xwm_selection_send_notify(selection, selection->request.property);
 		} else if (selection->property_set) {
-			wlr_log(L_DEBUG, "got %zu bytes, waiting for "
-				"property delete", selection->source_data.size);
+			wlr_log(L_DEBUG, "got %zu bytes, waiting for property delete",
+				selection->source_data.size);
 
 			selection->flush_property_on_delete = 1;
-			wl_event_source_remove(selection->property_source);
-			selection->property_source = NULL;
+			xwm_data_source_remove_property_source(selection);
 		} else {
-			wlr_log(L_DEBUG, "got %zu bytes, "
-				"property deleted, setting new property",
-				selection->source_data.size);
+			wlr_log(L_DEBUG, "got %zu bytes, property deleted, setting new "
+				"property", selection->source_data.size);
 			xwm_selection_flush_source_data(selection);
 		}
 	} else if (len == 0 && !selection->incr) {
@@ -111,9 +122,8 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 		xwm_selection_flush_source_data(selection);
 		xwm_selection_send_notify(selection, selection->request.property);
 		xcb_flush(xwm->xcb_conn);
-		wl_event_source_remove(selection->property_source);
-		selection->property_source = NULL;
-		close(fd);
+		xwm_data_source_remove_property_source(selection);
+		xwm_data_source_close_source_fd(selection);
 		wl_array_release(&selection->source_data);
 		selection->request.requestor = XCB_NONE;
 	} else if (len == 0 && selection->incr) {
@@ -121,20 +131,16 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 
 		selection->flush_property_on_delete = 1;
 		if (selection->property_set) {
-			wlr_log(L_DEBUG, "got %zu bytes, waiting for "
-					"property delete", selection->source_data.size);
+			wlr_log(L_DEBUG, "got %zu bytes, waiting for property delete",
+				selection->source_data.size);
 		} else {
-			wlr_log(L_DEBUG, "got %zu bytes, "
-					"property deleted, setting new property",
-					selection->source_data.size);
+			wlr_log(L_DEBUG, "got %zu bytes, property deleted, setting new "
+				"property", selection->source_data.size);
 			xwm_selection_flush_source_data(selection);
 		}
 		xcb_flush(xwm->xcb_conn);
-		wl_event_source_remove(selection->property_source);
-		selection->property_source = NULL;
-		close(selection->source_fd);
-		selection->source_fd = -1;
-		close(fd);
+		xwm_data_source_remove_property_source(selection);
+		xwm_data_source_close_source_fd(selection);
 	} else {
 		wlr_log(L_DEBUG, "nothing happened, buffered the bytes");
 	}
@@ -143,9 +149,8 @@ static int xwm_read_data_source(int fd, uint32_t mask, void *data) {
 
 error_out:
 	xwm_selection_send_notify(selection, XCB_ATOM_NONE);
-	wl_event_source_remove(selection->property_source);
-	selection->property_source = NULL;
-	close(fd);
+	xwm_data_source_remove_property_source(selection);
+	xwm_data_source_close_source_fd(selection);
 	wl_array_release(&selection->source_data);
 	return 0;
 }
@@ -191,9 +196,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	struct wl_event_loop *loop =
 		wl_display_get_event_loop(selection->xwm->xwayland->wl_display);
 	selection->property_source = wl_event_loop_add_fd(loop,
-		selection->source_fd,
-		WL_EVENT_READABLE,
-		xwm_read_data_source,
+		selection->source_fd, WL_EVENT_READABLE, xwm_data_source_read,
 		selection);
 
 	xwm_selection_source_send(selection, mime_type, p[1]);
@@ -371,7 +374,13 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	}
 }
 
-static int writable_callback(int fd, uint32_t mask, void *data) {
+static void xwm_data_source_destroy_property_reply(
+		struct wlr_xwm_selection *selection) {
+	free(selection->property_reply);
+	selection->property_reply = NULL;
+}
+
+static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 	struct wlr_xwm_selection *selection = data;
 	struct wlr_xwm *xwm = selection->xwm;
 
@@ -381,13 +390,9 @@ static int writable_callback(int fd, uint32_t mask, void *data) {
 
 	int len = write(fd, property + selection->property_start, remainder);
 	if (len == -1) {
-		free(selection->property_reply);
-		selection->property_reply = NULL;
-		if (selection->property_source) {
-			wl_event_source_remove(selection->property_source);
-		}
-		selection->property_source = NULL;
-		close(fd);
+		xwm_data_source_destroy_property_reply(selection);
+		xwm_data_source_remove_property_source(selection);
+		xwm_data_source_close_source_fd(selection);
 		wlr_log(L_ERROR, "write error to target fd: %m");
 		return 1;
 	}
@@ -398,12 +403,8 @@ static int writable_callback(int fd, uint32_t mask, void *data) {
 
 	selection->property_start += len;
 	if (len == remainder) {
-		free(selection->property_reply);
-		selection->property_reply = NULL;
-		if (selection->property_source) {
-			wl_event_source_remove(selection->property_source);
-		}
-		selection->property_source = NULL;
+		xwm_data_source_destroy_property_reply(selection);
+		xwm_data_source_remove_property_source(selection);
 
 		if (selection->incr) {
 			xcb_delete_property(xwm->xcb_conn,
@@ -411,7 +412,7 @@ static int writable_callback(int fd, uint32_t mask, void *data) {
 				xwm->atoms[WL_SELECTION]);
 		} else {
 			wlr_log(L_DEBUG, "transfer complete");
-			close(fd);
+			xwm_data_source_close_source_fd(selection);
 		}
 	}
 
@@ -422,13 +423,13 @@ static void xwm_write_property(struct wlr_xwm_selection *selection,
 		xcb_get_property_reply_t *reply) {
 	selection->property_start = 0;
 	selection->property_reply = reply;
-	writable_callback(selection->source_fd, WL_EVENT_WRITABLE, selection);
+	xwm_data_source_write(selection->source_fd, WL_EVENT_WRITABLE, selection);
 
 	if (selection->property_reply) {
 		struct wl_event_loop *loop =
 			wl_display_get_event_loop(selection->xwm->xwayland->wl_display);
 		selection->property_source = wl_event_loop_add_fd(loop,
-			selection->source_fd, WL_EVENT_WRITABLE, writable_callback,
+			selection->source_fd, WL_EVENT_WRITABLE, xwm_data_source_write,
 			selection);
 	}
 }
