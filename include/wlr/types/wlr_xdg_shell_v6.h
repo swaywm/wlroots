@@ -77,9 +77,22 @@ struct wlr_xdg_toplevel_v6 {
 	struct wlr_xdg_surface_v6 *base;
 	struct wlr_xdg_surface_v6 *parent;
 	bool added;
+
 	struct wlr_xdg_toplevel_v6_state next; // client protocol requests
 	struct wlr_xdg_toplevel_v6_state pending; // user configure requests
 	struct wlr_xdg_toplevel_v6_state current;
+
+	char *title;
+	char *app_id;
+
+	struct {
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
+		struct wl_signal request_minimize;
+		struct wl_signal request_move;
+		struct wl_signal request_resize;
+		struct wl_signal request_show_window_menu;
+	} events;
 };
 
 struct wlr_xdg_surface_v6_configure {
@@ -109,9 +122,6 @@ struct wlr_xdg_surface_v6 {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	char *title;
-	char *app_id;
-
 	bool has_next_geometry;
 	struct wlr_box next_geometry;
 	struct wlr_box geometry;
@@ -124,13 +134,6 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal new_popup;
 		struct wl_signal map;
 		struct wl_signal unmap;
-
-		struct wl_signal request_maximize;
-		struct wl_signal request_fullscreen;
-		struct wl_signal request_minimize;
-		struct wl_signal request_move;
-		struct wl_signal request_resize;
-		struct wl_signal request_show_window_menu;
 	} events;
 
 	void *data;

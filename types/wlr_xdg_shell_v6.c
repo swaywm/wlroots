@@ -198,16 +198,15 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		wlr_signal_emit_safe(&surface->events.unmap, surface);
 	}
 
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wl_resource_set_user_data(surface->toplevel->resource, NULL);
-		free(surface->toplevel);
-		surface->toplevel = NULL;
-	}
-
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
-		wl_resource_set_user_data(surface->popup->resource, NULL);
-
-		if (surface->popup->seat) {
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		free(surface->toplevel->title);
+		surface->toplevel->title = NULL;
+		free(surface->toplevel->app_id);
+		surface->toplevel->app_id = NULL;
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		if (surface->popup->seat != NULL) {
 			struct wlr_xdg_popup_grab_v6 *grab =
 				xdg_shell_popup_grab_from_seat(surface->client->shell,
 					surface->popup->seat);
@@ -222,11 +221,12 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 					wlr_seat_keyboard_end_grab(grab->seat);
 				}
 			}
-		}
 
-		wl_list_remove(&surface->popup->link);
-		free(surface->popup);
-		surface->popup = NULL;
+			surface->popup->seat = NULL;
+		}
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		assert(false && "not reached");
 	}
 
 	struct wlr_xdg_surface_v6_configure *configure, *tmp;
@@ -234,13 +234,7 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 		xdg_surface_configure_destroy(configure);
 	}
 
-	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
-	free(surface->title);
-	surface->title = NULL;
-	free(surface->app_id);
-	surface->app_id = NULL;
-
-	surface->added = surface->configured = surface->mapped = false;
+	surface->configured = surface->mapped = false;
 	surface->configure_serial = 0;
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
@@ -253,12 +247,47 @@ static void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface) {
 	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
 
+static void xdg_toplevel_destroy(struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	xdg_surface_unmap(surface);
+
+	wl_resource_set_user_data(surface->toplevel->resource, NULL);
+	free(surface->toplevel);
+	surface->toplevel = NULL;
+
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
+}
+
+static void xdg_popup_destroy(struct wlr_xdg_surface_v6 *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
+	xdg_surface_unmap(surface);
+
+	wl_resource_set_user_data(surface->popup->resource, NULL);
+	wl_list_remove(&surface->popup->link);
+	free(surface->popup);
+	surface->popup = NULL;
+
+	surface->role = WLR_XDG_SURFACE_V6_ROLE_NONE;
+}
+
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE) {
 		xdg_surface_unmap(surface);
 	}
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
+
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
+		xdg_toplevel_destroy(surface);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
+		xdg_popup_destroy(surface);
+		break;
+	case WLR_XDG_SURFACE_V6_ROLE_NONE:
+		// This space is intentionally left blank
+		break;
+	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->link);
@@ -545,7 +574,7 @@ static void xdg_popup_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
 	if (surface != NULL) {
-		xdg_surface_unmap(surface);
+		xdg_popup_destroy(surface);
 	}
 }
 
@@ -643,8 +672,8 @@ static void xdg_toplevel_handle_set_title(struct wl_client *client,
 		return;
 	}
 
-	free(surface->title);
-	surface->title = tmp;
+	free(surface->toplevel->title);
+	surface->toplevel->title = tmp;
 }
 
 static void xdg_toplevel_handle_set_app_id(struct wl_client *client,
@@ -657,8 +686,8 @@ static void xdg_toplevel_handle_set_app_id(struct wl_client *client,
 		return;
 	}
 
-	free(surface->app_id);
-	surface->app_id = tmp;
+	free(surface->toplevel->app_id);
+	surface->toplevel->app_id = tmp;
 }
 
 static void xdg_toplevel_handle_show_window_menu(struct wl_client *client,
@@ -689,7 +718,8 @@ static void xdg_toplevel_handle_show_window_menu(struct wl_client *client,
 		.y = y,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_show_window_menu, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_show_window_menu,
+		&event);
 }
 
 static void xdg_toplevel_handle_move(struct wl_client *client,
@@ -718,7 +748,7 @@ static void xdg_toplevel_handle_move(struct wl_client *client,
 		.serial = serial,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_move, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_move, &event);
 }
 
 static void xdg_toplevel_handle_resize(struct wl_client *client,
@@ -748,7 +778,7 @@ static void xdg_toplevel_handle_resize(struct wl_client *client,
 		.edges = edges,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_resize, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_resize, &event);
 }
 
 static void xdg_toplevel_handle_set_max_size(struct wl_client *client,
@@ -772,7 +802,7 @@ static void xdg_toplevel_handle_set_maximized(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	surface->toplevel->next.maximized = true;
-	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
@@ -780,7 +810,7 @@ static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	surface->toplevel->next.maximized = false;
-	wlr_signal_emit_safe(&surface->events.request_maximize, surface);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_maximize, surface);
 }
 
 static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
@@ -801,7 +831,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 		.output = output,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
@@ -817,14 +847,14 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 		.output = NULL,
 	};
 
-	wlr_signal_emit_safe(&surface->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
 }
 
 static void xdg_toplevel_handle_set_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
-	wlr_signal_emit_safe(&surface->events.request_minimize, surface);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_minimize, surface);
 }
 
 static const struct zxdg_toplevel_v6_interface
@@ -856,7 +886,7 @@ static void xdg_toplevel_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	if (surface != NULL) {
-		xdg_surface_unmap(surface);
+		xdg_toplevel_destroy(surface);
 	}
 }
 
@@ -874,6 +904,12 @@ static void xdg_surface_handle_get_toplevel(struct wl_client *client,
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+	wl_signal_init(&surface->toplevel->events.request_maximize);
+	wl_signal_init(&surface->toplevel->events.request_fullscreen);
+	wl_signal_init(&surface->toplevel->events.request_minimize);
+	wl_signal_init(&surface->toplevel->events.request_move);
+	wl_signal_init(&surface->toplevel->events.request_resize);
+	wl_signal_init(&surface->toplevel->events.request_show_window_menu);
 
 	surface->role = WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL;
 	surface->toplevel->base = surface;
@@ -1318,12 +1354,6 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 	wl_list_init(&surface->configure_list);
 	wl_list_init(&surface->popups);
 
-	wl_signal_init(&surface->events.request_maximize);
-	wl_signal_init(&surface->events.request_fullscreen);
-	wl_signal_init(&surface->events.request_minimize);
-	wl_signal_init(&surface->events.request_move);
-	wl_signal_init(&surface->events.request_resize);
-	wl_signal_init(&surface->events.request_show_window_menu);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.ping_timeout);
 	wl_signal_init(&surface->events.new_popup);
