@@ -50,34 +50,17 @@ static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
 	popup_create(popup->view_child.view, wlr_popup);
 }
 
-static void popup_get_coords(struct wlr_xdg_popup_v6 *popup,
-		double *sx, double *sy) {
-	struct wlr_xdg_surface_v6 *parent = popup->parent;
-	double popup_sx = popup->geometry.x;
-	double popup_sy = popup->geometry.y;
-	while (parent->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		popup_sx += parent->popup->geometry.x;
-		popup_sy += parent->popup->geometry.y;
-		parent = parent->popup->parent;
-	}
-
-	*sx = popup_sx + parent->geometry.x;
-	*sy = popup_sy + parent->geometry.y;
-}
-
-static void popup_constraint_offset(struct roots_xdg_popup_v6 *popup,
-		int *offset_x, int *offset_y) {
+static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
 	struct roots_view *view = popup->view_child.view;
 	struct wlr_output_layout *layout = view->desktop->layout;
 	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;
-	int popup_width = wlr_popup->geometry.width;
-	int popup_height = wlr_popup->geometry.height;
 
 	int anchor_lx, anchor_ly;
 	wlr_xdg_popup_v6_get_anchor_point(wlr_popup, &anchor_lx, &anchor_ly);
 
-	double popup_lx, popup_ly;
-	popup_get_coords(wlr_popup, &popup_lx, &popup_ly);
+	int popup_lx, popup_ly;
+	wlr_xdg_popup_v6_get_toplevel_coords(wlr_popup, wlr_popup->geometry.x,
+		wlr_popup->geometry.y, &popup_lx, &popup_ly);
 	popup_lx += view->x;
 	popup_ly += view->y;
 
@@ -93,108 +76,17 @@ static void popup_constraint_offset(struct roots_xdg_popup_v6 *popup,
 	// XXX: handle empty output layout
 	assert(output);
 
-	struct wlr_box *output_box = wlr_output_layout_get_box(layout, output);
+	int width = 0, height = 0;
+	wlr_output_effective_resolution(output, &width, &height);
 
-	*offset_x = *offset_y = 0;
+	struct wlr_box toplevel_box = {
+		.x = output->lx - view->x,
+		.y = output->ly - view->y,
+		.width = width,
+		.height = height
+	};
 
-	if (popup_lx < output_box->x) {
-		*offset_x = output_box->x - popup_lx;
-	} else if (popup_lx + popup_width > output_box->x + output_box->width) {
-		*offset_x = output_box->x + output_box->width - (popup_lx + popup_width);
-	}
-
-	if (popup_ly < output_box->y) {
-		*offset_y = output_box->y - popup_ly;
-	} else if (popup_ly + popup_height > output_box->y + output_box->height) {
-		*offset_y = output_box->y + output_box->height - (popup_ly + popup_height);
-	}
-}
-
-static bool popup_unconstrain_flip(struct roots_xdg_popup_v6 *popup) {
-	int offset_x, offset_y;
-	popup_constraint_offset(popup, &offset_y, &offset_y);
-
-	if (!offset_x && !offset_y) {
-		return true;
-	}
-
-	if (offset_x) {
-		wlr_positioner_v6_invert_x(&popup->wlr_popup->positioner);
-	}
-	if (offset_y) {
-		wlr_positioner_v6_invert_y(&popup->wlr_popup->positioner);
-	}
-
-	popup->wlr_popup->geometry =
-		wlr_xdg_positioner_v6_get_geometry(&popup->wlr_popup->positioner);
-
-	popup_constraint_offset(popup, &offset_x, &offset_y);
-
-	if (!offset_x && !offset_y) {
-		// no longer constrained
-		return true;
-	}
-
-	// revert the positioner back if it didn't fix it and go to the next part
-	if (offset_x) {
-		wlr_positioner_v6_invert_x(&popup->wlr_popup->positioner);
-	}
-	if (offset_y) {
-		wlr_positioner_v6_invert_y(&popup->wlr_popup->positioner);
-	}
-
-	popup->wlr_popup->geometry =
-		wlr_xdg_positioner_v6_get_geometry(&popup->wlr_popup->positioner);
-
-	return false;
-}
-
-static bool popup_unconstrain_slide(struct roots_xdg_popup_v6 *popup) {
-	int offset_x, offset_y;
-	popup_constraint_offset(popup, &offset_x, &offset_y);
-
-	if (!offset_x && !offset_y) {
-		return true;
-	}
-
-	if (offset_x) {
-		popup->wlr_popup->geometry.x += offset_x;
-	}
-
-	if (offset_y) {
-		popup->wlr_popup->geometry.y += offset_y;
-	}
-
-	popup_constraint_offset(popup, &offset_y, &offset_y);
-
-	return !offset_x && !offset_y;
-}
-
-static bool popup_unconstrain_resize(struct roots_xdg_popup_v6 *popup) {
-	int offset_x, offset_y;
-	popup_constraint_offset(popup, &offset_x, &offset_y);
-
-	if (!offset_x && !offset_y) {
-		return true;
-	}
-
-	if (offset_x) {
-		popup->wlr_popup->geometry.width -= offset_x;
-	}
-	if (offset_y) {
-		popup->wlr_popup->geometry.height -= offset_y;
-	}
-
-	popup_constraint_offset(popup, &offset_y, &offset_y);
-
-	return !offset_x && !offset_y;
-
-}
-
-static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
-	popup_unconstrain_flip(popup);
-	popup_unconstrain_slide(popup);
-	popup_unconstrain_resize(popup);
+	wlr_xdg_popup_v6_unconstrain_from_box(popup->wlr_popup, &toplevel_box);
 }
 
 static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,

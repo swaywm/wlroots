@@ -302,18 +302,45 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 		struct wlr_xdg_surface_v6 *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
 
+/**
+ * Get the geometry for this positioner based on the anchor rect, gravity, and
+ * size of this positioner.
+ */
 struct wlr_box wlr_xdg_positioner_v6_get_geometry(
 		struct wlr_xdg_positioner_v6_attributes *positioner);
 
 /**
- * Get the anchor point for this popup in the root parent's coordinate system.
+ * Get the anchor point for this popup in the toplevel parent's coordinate system.
  */
 void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
-		int *root_sx, int *root_sy);
+		int *toplevel_sx, int *toplevel_sy);
 
+/**
+ * Convert the given coordinates in the popup coordinate system to the toplevel
+ * surface coordinate system.
+ */
+void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
+		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy);
+
+/**
+ * Set the geometry of this popup to unconstrain it according to its
+ * xdg-positioner rules. The box should be in the popup's toplevel
+ * parent surface coordinate system.
+ */
+void wlr_xdg_popup_v6_unconstrain_from_box(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_box);
+
+/**
+  Invert the right/left anchor and gravity for this positioner. This can be
+  used to "flip" the positioner around the anchor rect in the x direction.
+ */
 void wlr_positioner_v6_invert_x(
 		struct wlr_xdg_positioner_v6_attributes *positioner);
 
+/**
+  Invert the top/bottom anchor and gravity for this positioner. This can be
+  used to "flip" the positioner around the anchor rect in the y direction.
+ */
 void wlr_positioner_v6_invert_y(
 		struct wlr_xdg_positioner_v6_attributes *positioner);
 
