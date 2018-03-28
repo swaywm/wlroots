@@ -76,8 +76,10 @@ static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
 
 	struct wlr_output *output =
 		wlr_output_layout_output_at(layout, dest_x, dest_y);
-	// XXX: handle empty output layout
-	assert(output);
+
+	if (output == NULL) {
+		return;
+	}
 
 	int width = 0, height = 0;
 	wlr_output_effective_resolution(output, &width, &height);
