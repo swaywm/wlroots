@@ -29,6 +29,8 @@ struct wlr_input_device {
 	enum wlr_input_device_type type;
 	int vendor, product;
 	char *name;
+	// Or 0 if not applicable to this device
+	double width_mm, height_mm;
 
 	/* wlr_input_device.type determines which of these is valid */
 	union {

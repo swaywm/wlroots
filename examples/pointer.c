@@ -251,8 +251,8 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_axis *event = data;
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		wlr_cursor_warp_absolute(sample->cursor, event->device,
-				event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+		wlr_cursor_warp_absolute(sample->cursor,
+				event->device, event->x, event->y);
 	}
 }
 

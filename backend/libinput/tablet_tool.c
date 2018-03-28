@@ -34,14 +34,13 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
-	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
 	if (libinput_event_tablet_tool_x_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_X;
-		wlr_event.x_mm = libinput_event_tablet_tool_get_x(tevent);
+		wlr_event.x = libinput_event_tablet_tool_get_x_transformed(tevent, 1);
 	}
 	if (libinput_event_tablet_tool_y_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_Y;
-		wlr_event.y_mm = libinput_event_tablet_tool_get_y(tevent);
+		wlr_event.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1);
 	}
 	if (libinput_event_tablet_tool_pressure_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_PRESSURE;

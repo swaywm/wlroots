@@ -392,15 +392,13 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(cursor->cursor, event->device,
-			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+			event->x, event->y);
 		roots_cursor_update_position(cursor, event->time_msec);
 	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)) {
-		wlr_cursor_warp_absolute(cursor->cursor, event->device,
-			event->x_mm / event->width_mm, -1);
+		wlr_cursor_warp_absolute(cursor->cursor, event->device, event->x, -1);
 		roots_cursor_update_position(cursor, event->time_msec);
 	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		wlr_cursor_warp_absolute(cursor->cursor, event->device,
-			-1, event->y_mm / event->height_mm);
+		wlr_cursor_warp_absolute(cursor->cursor, event->device, -1, event->y);
 		roots_cursor_update_position(cursor, event->time_msec);
 	}
 }
