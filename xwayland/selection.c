@@ -269,11 +269,31 @@ static xcb_atom_t xwm_get_mime_type_atom(struct wlr_xwm *xwm, char *mime_type) {
 	return atom;
 }
 
+static void xwm_dnd_send_event(struct wlr_xwm *xwm, xcb_atom_t type,
+		xcb_client_message_data_t *data) {
+	struct wlr_xwayland_surface *dest = xwm->drag_focus;
+	assert(dest != NULL);
+
+	xcb_client_message_event_t event = {
+		.response_type = XCB_CLIENT_MESSAGE,
+		.format = 32,
+		.sequence = 0,
+		.window = dest->window_id,
+		.type = type,
+		.data = *data,
+	};
+
+	xcb_send_event(xwm->xcb_conn,
+		0, // propagate
+		dest->window_id,
+		XCB_EVENT_MASK_NO_EVENT,
+		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
+}
+
 static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 	struct wlr_drag *drag = xwm->drag;
 	assert(drag != NULL);
-	struct wlr_xwayland_surface *dest = xwm->drag_focus;
-	assert(dest != NULL);
 	struct wl_array *mime_types = &drag->source->mime_types;
 
 	xcb_client_message_data_t data = { 0 };
@@ -312,29 +332,13 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 			n, targets);
 	}
 
-	xcb_client_message_event_t event = {
-		.response_type = XCB_CLIENT_MESSAGE,
-		.format = 32,
-		.sequence = 0,
-		.window = dest->window_id,
-		.type = xwm->atoms[DND_ENTER],
-		.data = data,
-	};
-
-	xcb_send_event(xwm->xcb_conn,
-		0, // propagate
-		dest->window_id,
-		XCB_EVENT_MASK_NO_EVENT,
-		(const char *)&event);
-	xcb_flush(xwm->xcb_conn);
+	xwm_dnd_send_event(xwm, xwm->atoms[DND_ENTER], &data);
 }
 
 static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 		int16_t y) {
 	struct wlr_drag *drag = xwm->drag;
 	assert(drag != NULL);
-	struct wlr_xwayland_surface *dest = xwm->drag_focus;
-	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
 	data.data32[0] = xwm->dnd_selection.window;
@@ -343,21 +347,7 @@ static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 	data.data32[4] =
 		data_device_manager_dnd_action_to_atom(xwm, drag->source->actions);
 
-	xcb_client_message_event_t event = {
-		.response_type = XCB_CLIENT_MESSAGE,
-		.format = 32,
-		.sequence = 0,
-		.window = dest->window_id,
-		.type = xwm->atoms[DND_POSITION],
-		.data = data,
-	};
-
-	xcb_send_event(xwm->xcb_conn,
-		0, // propagate
-		dest->window_id,
-		XCB_EVENT_MASK_NO_EVENT,
-		(const char *)&event);
-	xcb_flush(xwm->xcb_conn);
+	xwm_dnd_send_event(xwm, xwm->atoms[DND_POSITION], &data);
 }
 
 static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
@@ -370,21 +360,19 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[2] = time;
 
-	xcb_client_message_event_t event = {
-		.response_type = XCB_CLIENT_MESSAGE,
-		.format = 32,
-		.sequence = 0,
-		.window = dest->window_id,
-		.type = xwm->atoms[DND_DROP],
-		.data = data,
-	};
+	xwm_dnd_send_event(xwm, xwm->atoms[DND_DROP], &data);
+}
 
-	xcb_send_event(xwm->xcb_conn,
-		0, // propagate
-		dest->window_id,
-		XCB_EVENT_MASK_NO_EVENT,
-		(const char *)&event);
-	xcb_flush(xwm->xcb_conn);
+static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
+	struct wlr_drag *drag = xwm->drag;
+	assert(drag != NULL);
+	struct wlr_xwayland_surface *dest = xwm->drag_focus;
+	assert(dest != NULL);
+
+	xcb_client_message_data_t data = { 0 };
+	data.data32[0] = xwm->dnd_selection.window;
+
+	xwm_dnd_send_event(xwm, xwm->atoms[DND_LEAVE], &data);
 }
 
 /*static void xwm_dnd_send_finished(struct wlr_xwm *xwm) {
@@ -402,21 +390,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 			drag->source->current_dnd_action);
 	}
 
-	xcb_client_message_event_t event = {
-		.response_type = XCB_CLIENT_MESSAGE,
-		.format = 32,
-		.sequence = 0,
-		.window = dest->window_id,
-		.type = xwm->atoms[DND_FINISHED],
-		.data = data,
-	};
-
-	xcb_send_event(xwm->xcb_conn,
-		0, // propagate
-		dest->window_id,
-		XCB_EVENT_MASK_NO_EVENT,
-		(const char *)&event);
-	xcb_flush(xwm->xcb_conn);
+	xwm_dnd_send_event(xwm, xwm->atoms[DND_FINISHED], &data);
 }*/
 
 static struct wl_array *xwm_selection_source_get_mime_types(
@@ -1128,21 +1102,31 @@ static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {
 	struct wlr_drag *drag = data;
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_focus);
 
-	// TODO: check for subsurfaces?
-	bool found = false;
-	struct wlr_xwayland_surface *surface;
-	wl_list_for_each(surface, &xwm->surfaces, link) {
-		if (surface->surface == drag->focus) {
-			found = true;
-			break;
+	struct wlr_xwayland_surface *focus = NULL;
+	if (drag->focus != NULL) {
+		// TODO: check for subsurfaces?
+		struct wlr_xwayland_surface *surface;
+		wl_list_for_each(surface, &xwm->surfaces, link) {
+			if (surface->surface == drag->focus) {
+				focus = surface;
+				break;
+			}
 		}
 	}
-	if (!found) {
+
+	if (focus == xwm->drag_focus) {
 		return;
 	}
 
-	xwm->drag_focus = surface;
-	xwm_dnd_send_enter(xwm);
+	if (xwm->drag_focus != NULL) {
+		xwm_dnd_send_leave(xwm);
+	}
+
+	xwm->drag_focus = focus;
+
+	if (xwm->drag_focus != NULL) {
+		xwm_dnd_send_enter(xwm);
+	}
 }
 
 static void seat_handle_drag_motion(struct wl_listener *listener, void *data) {
@@ -1161,9 +1145,8 @@ static void seat_handle_drag_motion(struct wl_listener *listener, void *data) {
 static void seat_handle_drag_drop(struct wl_listener *listener, void *data) {
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_drop);
 	struct wlr_drag_drop_event *event = data;
-	struct wlr_xwayland_surface *surface = xwm->drag_focus;
 
-	if (surface == NULL) {
+	if (xwm->drag_focus == NULL) {
 		return; // No xwayland surface focused
 	}
 
@@ -1172,6 +1155,10 @@ static void seat_handle_drag_drop(struct wl_listener *listener, void *data) {
 
 static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_destroy);
+
+	if (xwm->drag_focus != NULL) {
+		xwm_dnd_send_leave(xwm);
+	}
 
 	wl_list_remove(&xwm->seat_drag_focus.link);
 	wl_list_remove(&xwm->seat_drag_destroy.link);
