@@ -465,6 +465,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_list_init(&wlr_seat->clients);
 	wl_list_init(&wlr_seat->drag_icons);
 
+	wl_signal_init(&wlr_seat->events.start_drag);
 	wl_signal_init(&wlr_seat->events.new_drag_icon);
 
 	wl_signal_init(&wlr_seat->events.request_set_cursor);

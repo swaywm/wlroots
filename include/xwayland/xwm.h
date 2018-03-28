@@ -115,8 +115,7 @@ struct wlr_xwm {
 	xcb_window_t selection_window;
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
-
-	xcb_window_t dnd_window;
+	struct wlr_xwm_selection dnd_selection;
 
 	struct wlr_xwayland_surface *focus_surface;
 
@@ -132,6 +131,9 @@ struct wlr_xwm {
 	struct wl_listener compositor_destroy;
 	struct wl_listener seat_selection;
 	struct wl_listener seat_primary_selection;
+	struct wl_listener seat_start_drag;
+	struct wl_listener seat_drag_focus;
+	struct wl_listener seat_drag_destroy;
 };
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);

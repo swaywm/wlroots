@@ -427,7 +427,7 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		wlr_seat_client_for_wl_client(drag->seat_client->seat,
 			wl_resource_get_client(surface->resource));
 
-	if (!focus_client || wl_list_empty(&focus_client->data_devices)) {
+	if (!focus_client) {
 		return;
 	}
 
@@ -436,34 +436,36 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 		drag->source->accepted = false;
 		struct wlr_data_offer *offer = wlr_data_source_send_offer(drag->source,
 			focus_client);
-		if (offer == NULL) {
-			return;
+		if (offer != NULL) {
+			data_offer_update_action(offer);
+
+			if (wl_resource_get_version(offer->resource) >=
+					WL_DATA_OFFER_SOURCE_ACTIONS_SINCE_VERSION) {
+				wl_data_offer_send_source_actions(offer->resource,
+					drag->source->actions);
+			}
+
+			offer_resource = offer->resource;
 		}
-
-		data_offer_update_action(offer);
-
-		if (wl_resource_get_version(offer->resource) >=
-				WL_DATA_OFFER_SOURCE_ACTIONS_SINCE_VERSION) {
-			wl_data_offer_send_source_actions(offer->resource,
-				drag->source->actions);
-		}
-
-		offer_resource = offer->resource;
 	}
 
-	uint32_t serial =
-		wl_display_next_serial(drag->seat_client->seat->display);
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &focus_client->data_devices) {
-		wl_data_device_send_enter(resource, serial, surface->resource,
-			wl_fixed_from_double(sx), wl_fixed_from_double(sy), offer_resource);
+	if (!wl_list_empty(&focus_client->data_devices)) {
+		uint32_t serial =
+			wl_display_next_serial(drag->seat_client->seat->display);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &focus_client->data_devices) {
+			wl_data_device_send_enter(resource, serial, surface->resource,
+				wl_fixed_from_double(sx), wl_fixed_from_double(sy),
+				offer_resource);
+		}
 	}
 
 	drag->focus = surface;
 	drag->focus_client = focus_client;
 	drag->seat_client_destroy.notify = handle_drag_seat_client_destroy;
-	wl_signal_add(&focus_client->events.destroy,
-		&drag->seat_client_destroy);
+	wl_signal_add(&focus_client->events.destroy, &drag->seat_client_destroy);
+
+	wlr_signal_emit_safe(&drag->events.focus, drag);
 }
 
 static void wlr_drag_end(struct wlr_drag *drag) {
@@ -488,9 +490,13 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 			wlr_signal_emit_safe(&drag->icon->events.map, drag->icon);
 		}
 
+		wlr_signal_emit_safe(&drag->events.destroy, drag);
 		free(drag);
 	}
 }
+
+const struct
+wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
 
 static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
@@ -732,22 +738,26 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 		return false;
 	}
 
-	drag->seat = client->seat;
+	wl_signal_init(&drag->events.focus);
+	wl_signal_init(&drag->events.destroy);
+
+	struct wlr_seat *seat = client->seat;
+	drag->seat = seat;
 
 	drag->is_pointer_grab = !wl_list_empty(&client->pointers) &&
-		client->seat->pointer_state.button_count == 1 &&
-		client->seat->pointer_state.grab_serial == serial &&
-		client->seat->pointer_state.focused_surface &&
-		client->seat->pointer_state.focused_surface == origin;
+		seat->pointer_state.button_count == 1 &&
+		seat->pointer_state.grab_serial == serial &&
+		seat->pointer_state.focused_surface &&
+		seat->pointer_state.focused_surface == origin;
 
 	bool is_touch_grab = !wl_list_empty(&client->touches) &&
-		wlr_seat_touch_num_points(client->seat) == 1 &&
-		client->seat->touch_state.grab_serial == serial;
+		wlr_seat_touch_num_points(seat) == 1 &&
+		seat->touch_state.grab_serial == serial;
 
 	// set in the iteration
 	struct wlr_touch_point *point = NULL;
 	if (is_touch_grab) {
-		wl_list_for_each(point, &client->seat->touch_state.touch_points, link) {
+		wl_list_for_each(point, &seat->touch_state.touch_points, link) {
 			is_touch_grab = point->surface && point->surface == origin;
 			break;
 		}
@@ -785,21 +795,25 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	drag->touch_grab.data = drag;
 	drag->touch_grab.interface = &wlr_data_device_touch_drag_interface;
-	drag->grab_touch_id = drag->seat->touch_state.grab_id;
+	drag->grab_touch_id = seat->touch_state.grab_id;
 
 	drag->keyboard_grab.data = drag;
 	drag->keyboard_grab.interface = &wlr_data_device_keyboard_drag_interface;
 
-	wlr_seat_keyboard_start_grab(drag->seat, &drag->keyboard_grab);
+	wlr_seat_keyboard_start_grab(seat, &drag->keyboard_grab);
 
 	if (drag->is_pointer_grab) {
-		wlr_seat_pointer_clear_focus(drag->seat);
-		wlr_seat_pointer_start_grab(drag->seat, &drag->pointer_grab);
+		wlr_seat_pointer_clear_focus(seat);
+		wlr_seat_pointer_start_grab(seat, &drag->pointer_grab);
 	} else {
 		assert(point);
-		wlr_seat_touch_start_grab(drag->seat, &drag->touch_grab);
+		wlr_seat_touch_start_grab(seat, &drag->touch_grab);
 		wlr_drag_set_focus(drag, point->surface, point->sx, point->sy);
 	}
+
+	seat->drag = drag; // TODO: unset this thing somewhere
+	seat->drag_serial = serial;
+	wlr_signal_emit_safe(&seat->events.start_drag, drag);
 
 	return true;
 }

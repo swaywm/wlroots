@@ -187,6 +187,9 @@ struct wlr_seat {
 	struct wlr_primary_selection_source *primary_selection_source;
 	uint32_t primary_selection_serial;
 
+	struct wlr_drag *drag;
+	uint32_t drag_serial;
+
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
 	struct wlr_seat_touch_state touch_state;
@@ -210,6 +213,7 @@ struct wlr_seat {
 		struct wl_signal selection;
 		struct wl_signal primary_selection;
 
+		struct wl_signal start_drag;
 		struct wl_signal new_drag_icon;
 
 		struct wl_signal destroy;

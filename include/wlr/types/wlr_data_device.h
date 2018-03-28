@@ -104,6 +104,11 @@ struct wlr_drag {
 	struct wl_listener source_destroy;
 	struct wl_listener seat_client_destroy;
 	struct wl_listener icon_destroy;
+
+	struct {
+		struct wl_signal focus;
+		struct wl_signal destroy;
+	} events;
 };
 
 /**

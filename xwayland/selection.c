@@ -12,7 +12,7 @@
 
 static const size_t incr_chunk_size = 64 * 1024;
 
-static xcb_atom_t data_device_manager_dnd_action_to_atom(
+/*static xcb_atom_t data_device_manager_dnd_action_to_atom(
 		struct wlr_xwm *xwm, enum wl_data_device_manager_dnd_action action) {
 	if (action & WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY) {
 		return xwm->atoms[DND_ACTION_COPY];
@@ -36,7 +36,7 @@ static enum wl_data_device_manager_dnd_action
 		return WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
 	}
 	return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
-}
+}*/
 
 static void xwm_selection_send_notify(struct wlr_xwm_selection *selection,
 		xcb_atom_t property) {
@@ -241,6 +241,81 @@ static void xwm_selection_send_timestamp(struct wlr_xwm_selection *selection) {
 	xwm_selection_send_notify(selection, selection->request.property);
 }
 
+static xcb_atom_t xwm_get_mime_type_atom(struct wlr_xwm *xwm, char *mime_type) {
+	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
+		return xwm->atoms[UTF8_STRING];
+	} else if (strcmp(mime_type, "text/plain") == 0) {
+		return xwm->atoms[TEXT];
+	}
+
+	xcb_intern_atom_cookie_t cookie =
+		xcb_intern_atom(xwm->xcb_conn, 0, strlen(mime_type), mime_type);
+	xcb_intern_atom_reply_t *reply =
+		xcb_intern_atom_reply(xwm->xcb_conn, cookie, NULL);
+	if (reply == NULL) {
+		return XCB_ATOM_NONE;
+	}
+	xcb_atom_t atom = reply->atom;
+	free(reply);
+	return atom;
+}
+
+static void xwm_dnd_send_enter(struct wlr_xwm *xwm, struct wlr_drag *drag,
+		struct wlr_xwayland_surface *dest) {
+	struct wl_array *mime_types = &drag->source->mime_types;
+
+	xcb_client_message_data_t data = { 0 };
+	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[1] = XDND_VERSION << 24;
+
+	size_t n = mime_types->size / sizeof(char *);
+	if (n <= 3) {
+		size_t i = 0;
+		char **mime_type_ptr;
+		wl_array_for_each(mime_type_ptr, mime_types) {
+			char *mime_type = *mime_type_ptr;
+			data.data32[2+i] = xwm_get_mime_type_atom(xwm, mime_type);
+			++i;
+		}
+	} else {
+		// Let the client know that targets are not contained in the message
+		// data and must be retrieved with the DND_TYPE_LIST property
+		data.data32[1] |= 1;
+
+		xcb_atom_t targets[n];
+		size_t i = 0;
+		char **mime_type_ptr;
+		wl_array_for_each(mime_type_ptr, mime_types) {
+			char *mime_type = *mime_type_ptr;
+			targets[i] = xwm_get_mime_type_atom(xwm, mime_type);
+			++i;
+		}
+
+		xcb_change_property(xwm->xcb_conn,
+			XCB_PROP_MODE_REPLACE,
+			xwm->dnd_selection.window,
+			xwm->atoms[DND_TYPE_LIST],
+			XCB_ATOM_ATOM,
+			32, // format
+			n, targets);
+	}
+
+	xcb_client_message_event_t event = {
+		.response_type = XCB_CLIENT_MESSAGE,
+		.format = 32,
+		.sequence = 0,
+		.window = dest->window_id,
+		.type = xwm->atoms[DND_ENTER],
+		.data = data,
+	};
+
+	xcb_send_event(xwm->xcb_conn,
+		0, // propagate
+		dest->window_id,
+		XCB_EVENT_MASK_NO_EVENT,
+		(const char *)&event);
+}
+
 static struct wl_array *xwm_selection_source_get_mime_types(
 		struct wlr_xwm_selection *selection) {
 	if (selection == &selection->xwm->clipboard_selection) {
@@ -271,35 +346,15 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection) {
 	}
 
 	size_t n = 2 + mime_types->size / sizeof(char *);
-	xcb_atom_t *targets = malloc(n * sizeof(xcb_atom_t));
-	if (targets == NULL) {
-		return;
-	}
+	xcb_atom_t targets[n];
 	targets[0] = xwm->atoms[TIMESTAMP];
 	targets[1] = xwm->atoms[TARGETS];
 
-	size_t i = 2;
+	size_t i = 0;
 	char **mime_type_ptr;
 	wl_array_for_each(mime_type_ptr, mime_types) {
 		char *mime_type = *mime_type_ptr;
-		xcb_atom_t atom;
-		if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
-			atom = xwm->atoms[UTF8_STRING];
-		} else if (strcmp(mime_type, "text/plain") == 0) {
-			atom = xwm->atoms[TEXT];
-		} else {
-			xcb_intern_atom_cookie_t cookie =
-				xcb_intern_atom(xwm->xcb_conn, 0, strlen(mime_type), mime_type);
-			xcb_intern_atom_reply_t *reply =
-				xcb_intern_atom_reply(xwm->xcb_conn, cookie, NULL);
-			if (reply == NULL) {
-				--n;
-				continue;
-			}
-			atom = reply->atom;
-			free(reply);
-		}
-		targets[i] = atom;
+		targets[2+i] = xwm_get_mime_type_atom(xwm, mime_type);
 		++i;
 	}
 
@@ -312,8 +367,6 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection) {
 		n, targets);
 
 	xwm_selection_send_notify(selection, selection->request.property);
-
-	free(targets);
 }
 
 static struct wlr_xwm_selection *xwm_get_selection(struct wlr_xwm *xwm,
@@ -322,6 +375,8 @@ static struct wlr_xwm_selection *xwm_get_selection(struct wlr_xwm *xwm,
 		return &xwm->clipboard_selection;
 	} else if (selection_atom == xwm->atoms[PRIMARY]) {
 		return &xwm->primary_selection;
+	} else if (selection_atom == xwm->atoms[DND_SELECTION]) {
+		return &xwm->dnd_selection;
 	} else {
 		return NULL;
 	}
@@ -856,28 +911,18 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
 
 	// Drag'n'drop
-	uint32_t dnd_values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
-	xwm->dnd_window = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_window(xwm->xcb_conn,
-		XCB_COPY_FROM_PARENT,
-		xwm->dnd_window,
-		xwm->screen->root,
-		0, 0,
-		10, 10,
-		0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, dnd_values);
-
 	uint32_t version = XDND_VERSION;
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
-		xwm->dnd_window,
+		xwm->selection_window,
 		xwm->atoms[DND_AWARE],
 		XCB_ATOM_ATOM,
 		32,
 		1,
 		&version);
+
+	selection_init(xwm, &xwm->dnd_selection, xwm->atoms[DND_SELECTION]);
+	wlr_log(L_DEBUG, "DND_SELECTION=%d", xwm->atoms[DND_SELECTION]);
 }
 
 void xwm_selection_finish(struct wlr_xwm *xwm) {
@@ -886,9 +931,6 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 	}
 	if (xwm->selection_window) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
-	}
-	if (xwm->dnd_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
 	}
 	if (xwm->seat) {
 		if (xwm->seat->selection_data_source &&
@@ -903,7 +945,6 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 		}
 		wlr_xwayland_set_seat(xwm->xwayland, NULL);
 	}
-
 }
 
 static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
@@ -951,10 +992,50 @@ static void seat_handle_primary_selection(struct wl_listener *listener,
 	xwm_selection_set_owner(&xwm->primary_selection, source != NULL);
 }
 
+static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {
+	struct wlr_drag *drag = data;
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_focus);
+
+	// TODO: check for subsurfaces?
+	bool found = false;
+	struct wlr_xwayland_surface *surface;
+	wl_list_for_each(surface, &xwm->surfaces, link) {
+		if (surface->surface == drag->focus) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		return;
+	}
+
+	xwm_dnd_send_enter(xwm, drag, surface);
+}
+
+static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_destroy);
+
+	wl_list_remove(&xwm->seat_drag_focus.link);
+	wl_list_remove(&xwm->seat_drag_destroy.link);
+}
+
+static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
+	struct wlr_drag *drag = data;
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_start_drag);
+
+	xwm_selection_set_owner(&xwm->dnd_selection, drag != NULL);
+
+	wl_signal_add(&drag->events.focus, &xwm->seat_drag_focus);
+	xwm->seat_drag_focus.notify = seat_handle_drag_focus;
+	wl_signal_add(&drag->events.destroy, &xwm->seat_drag_destroy);
+	xwm->seat_drag_destroy.notify = seat_handle_drag_destroy;
+}
+
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
 	if (xwm->seat != NULL) {
 		wl_list_remove(&xwm->seat_selection.link);
 		wl_list_remove(&xwm->seat_primary_selection.link);
+		wl_list_remove(&xwm->seat_start_drag.link);
 		xwm->seat = NULL;
 	}
 
@@ -968,6 +1049,8 @@ void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
 	xwm->seat_selection.notify = seat_handle_selection;
 	wl_signal_add(&seat->events.primary_selection, &xwm->seat_primary_selection);
 	xwm->seat_primary_selection.notify = seat_handle_primary_selection;
+	wl_signal_add(&seat->events.start_drag, &xwm->seat_start_drag);
+	xwm->seat_start_drag.notify = seat_handle_start_drag;
 
 	seat_handle_selection(&xwm->seat_selection, seat);
 	seat_handle_primary_selection(&xwm->seat_primary_selection, seat);

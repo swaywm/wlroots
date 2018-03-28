@@ -131,7 +131,8 @@ static void roots_cursor_update_position(struct roots_cursor *cursor,
 				cursor->pointer_view = seat_view;
 				seat_view_deco_motion(seat_view, sx, sy);
 			}
-		} if (view && surface) {
+		}
+		if (view && surface) {
 			// motion over a view surface
 			wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
 			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
