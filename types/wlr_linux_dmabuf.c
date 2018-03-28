@@ -19,11 +19,6 @@ static const struct wl_buffer_interface wl_buffer_impl = {
 	wl_buffer_destroy,
 };
 
-bool wlr_dmabuf_buffer_has_inverted_y(struct wlr_dmabuf_buffer *dmabuf) {
-	return dmabuf->attributes.flags
-		& ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
-}
-
 bool wlr_dmabuf_resource_is_buffer(struct wl_resource *buffer_resource) {
 	if (!wl_resource_instance_of(buffer_resource, &wl_buffer_interface,
 		&wl_buffer_impl)) {

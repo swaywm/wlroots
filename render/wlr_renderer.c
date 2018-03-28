@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
@@ -6,6 +7,15 @@
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
+	assert(impl->begin);
+	assert(impl->clear);
+	assert(impl->scissor);
+	assert(impl->render_texture_with_matrix);
+	assert(impl->render_quad_with_matrix);
+	assert(impl->render_ellipse_with_matrix);
+	assert(impl->formats);
+	assert(impl->format_supported);
+	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
 }
 
@@ -22,7 +32,9 @@ void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
 }
 
 void wlr_renderer_end(struct wlr_renderer *r) {
-	r->impl->end(r);
+	if (r->impl->end) {
+		r->impl->end(r);
+	}
 }
 
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
@@ -33,16 +45,10 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 	r->impl->scissor(r, box);
 }
 
-struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r) {
-	return r->impl->texture_create(r);
-}
-
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 		const float projection[static 9], int x, int y, float alpha) {
-	const struct wlr_box box = {
-		.x = x, .y = y,
-		.width = texture->width, .height = texture->height,
-	};
+	struct wlr_box box = { .x = x, .y = y };
+	wlr_texture_get_size(texture, &box.width, &box.height);
 
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
@@ -90,15 +96,29 @@ const enum wl_shm_format *wlr_renderer_get_formats(
 	return r->impl->formats(r, len);
 }
 
-bool wlr_renderer_buffer_is_drm(struct wlr_renderer *r,
-		struct wl_resource *buffer) {
-	return r->impl->buffer_is_drm(r, buffer);
+bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
+		struct wl_resource *resource) {
+	if (!r->impl->resource_is_wl_drm_buffer) {
+		return false;
+	}
+	return r->impl->resource_is_wl_drm_buffer(r, resource);
+}
+
+void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
+		struct wl_resource *buffer, int *width, int *height) {
+	if (!r->impl->wl_drm_buffer_get_size) {
+		return;
+	}
+	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		void *data) {
+	if (!r->impl->read_pixels) {
+		return false;
+	}
 	return r->impl->read_pixels(r, fmt, stride, width, height, src_x, src_y,
 		dst_x, dst_y, data);
 }

@@ -12,23 +12,27 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
-#include "render/gles2.h"
 #include "glapi.h"
+#include "render/gles2.h"
 
 static const struct wlr_renderer_impl renderer_impl;
 
-static struct wlr_gles2_renderer *gles2_get_renderer(
+struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer->impl == &renderer_impl);
-	struct wlr_gles2_renderer *renderer =
-		(struct wlr_gles2_renderer *)wlr_renderer;
+	return (struct wlr_gles2_renderer *)wlr_renderer;
+}
+
+struct wlr_gles2_renderer *gles2_get_renderer_in_context(
+		struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 	assert(eglGetCurrentContext() == renderer->egl->context);
 	return renderer;
 }
 
 static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 		uint32_t height) {
-	gles2_get_renderer(wlr_renderer);
+	gles2_get_renderer_in_context(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 
@@ -45,13 +49,13 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 }
 
 static void gles2_end(struct wlr_renderer *wlr_renderer) {
-	gles2_get_renderer(wlr_renderer);
+	gles2_get_renderer_in_context(wlr_renderer);
 	// no-op
 }
 
 static void gles2_clear(struct wlr_renderer *wlr_renderer,
 		const float color[static 4]) {
-	gles2_get_renderer(wlr_renderer);
+	gles2_get_renderer_in_context(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 	glClearColor(color[0], color[1], color[2], color[3]);
@@ -61,7 +65,7 @@ static void gles2_clear(struct wlr_renderer *wlr_renderer,
 
 static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
-	gles2_get_renderer(wlr_renderer);
+	gles2_get_renderer_in_context(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 	if (box != NULL) {
@@ -71,14 +75,6 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		glDisable(GL_SCISSOR_TEST);
 	}
 	GLES2_DEBUG_POP;
-}
-
-static struct wlr_texture *gles2_renderer_texture_create(
-		struct wlr_renderer *wlr_renderer) {
-	assert(wlr_renderer->impl == &renderer_impl);
-	struct wlr_gles2_renderer *renderer =
-		(struct wlr_gles2_renderer *)wlr_renderer;
-	return gles2_texture_create(renderer->egl);
 }
 
 static void draw_quad() {
@@ -107,21 +103,28 @@ static void draw_quad() {
 	glDisableVertexAttribArray(1);
 }
 
-static bool gles2_render_texture_with_matrix(
-		struct wlr_renderer *wlr_renderer, struct wlr_texture *wlr_texture,
-		const float matrix[static 9], float alpha) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	if (!wlr_texture->valid) {
-		wlr_log(L_ERROR, "attempt to render invalid texture");
-		return false;
-	}
+static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
+		struct wlr_texture *wlr_texture, const float matrix[static 9],
+		float alpha) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_texture *texture =
+		gles2_get_texture_in_context(wlr_texture);
 
-	GLuint prog = renderer->shaders.tex_rgba;
-	if (texture->target == GL_TEXTURE_EXTERNAL_OES) {
+	GLuint prog;
+	GLenum target;
+	switch (texture->type) {
+	case WLR_GLES2_TEXTURE_GLTEX:
+	case WLR_GLES2_TEXTURE_WL_DRM_GL:
+		prog = texture->has_alpha ? renderer->shaders.tex_rgba :
+			renderer->shaders.tex_rgbx;
+		target = GL_TEXTURE_2D;
+		break;
+	case WLR_GLES2_TEXTURE_WL_DRM_EXT:
+	case WLR_GLES2_TEXTURE_DMABUF:
 		prog = renderer->shaders.tex_ext;
-	} else if (!texture->pixel_format->has_alpha) {
-		prog = renderer->shaders.tex_rgbx;
+		target = GL_TEXTURE_EXTERNAL_OES;
+		break;
 	}
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
@@ -130,15 +133,23 @@ static bool gles2_render_texture_with_matrix(
 	wlr_matrix_transpose(transposition, matrix);
 
 	GLES2_DEBUG_PUSH;
-	glBindTexture(texture->target, texture->tex_id);
-	glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	GLuint tex_id = texture->type == WLR_GLES2_TEXTURE_GLTEX ?
+		texture->gl_tex : texture->image_tex;
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(target, tex_id);
+
+	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 	glUseProgram(prog);
 
 	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
-	glUniform1i(1, wlr_texture->inverted_y);
+	glUniform1i(1, texture->inverted_y);
 	glUniform1f(3, alpha);
+
 	draw_quad();
+
 	GLES2_DEBUG_POP;
 	return true;
 }
@@ -146,7 +157,8 @@ static bool gles2_render_texture_with_matrix(
 
 static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
@@ -163,7 +175,8 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
@@ -183,20 +196,38 @@ static const enum wl_shm_format *gles2_renderer_formats(
 	return gles2_formats(len);
 }
 
-static bool gles2_buffer_is_drm(struct wlr_renderer *wlr_renderer,
-		struct wl_resource *buffer) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
+		struct wl_resource *resource) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
-	EGLint format;
-	return wlr_egl_query_buffer(renderer->egl, buffer, EGL_TEXTURE_FORMAT,
-		&format);
+	if (!eglQueryWaylandBufferWL) {
+		return false;
+	}
+
+	EGLint fmt;
+	return eglQueryWaylandBufferWL(renderer->egl->display, resource,
+		EGL_TEXTURE_FORMAT, &fmt);
+}
+
+static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
+		struct wl_resource *buffer, int *width, int *height) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	if (!eglQueryWaylandBufferWL) {
+		return;
+	}
+
+	eglQueryWaylandBufferWL(renderer->egl->display, buffer, EGL_WIDTH, width);
+	eglQueryWaylandBufferWL(renderer->egl->display, buffer, EGL_HEIGHT, height);
 }
 
 static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, void *data) {
-	gles2_get_renderer(wlr_renderer);
+	gles2_get_renderer_in_context(wlr_renderer);
 
 	const struct gles2_pixel_format *fmt = gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -254,14 +285,17 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.end = gles2_end,
 	.clear = gles2_clear,
 	.scissor = gles2_scissor,
-	.texture_create = gles2_renderer_texture_create,
 	.render_texture_with_matrix = gles2_render_texture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
 	.formats = gles2_renderer_formats,
-	.buffer_is_drm = gles2_buffer_is_drm,
+	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
+	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
 	.read_pixels = gles2_read_pixels,
 	.format_supported = gles2_format_supported,
+	.texture_from_pixels = gles2_texture_from_pixels,
+	.texture_from_wl_drm = gles2_texture_from_wl_drm,
+	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 };
 
 void gles2_push_marker(const char *file, const char *func) {

@@ -220,24 +220,6 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 	return false;
 }
 
-bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
-		int attrib, int *value) {
-	if (!eglQueryWaylandBufferWL) {
-		return false;
-	}
-	return eglQueryWaylandBufferWL(egl->display, buf, attrib, value);
-}
-
-EGLImage wlr_egl_create_image(struct wlr_egl *egl, EGLenum target,
-		EGLClientBuffer buffer, const EGLint *attribs) {
-	if (!eglCreateImageKHR) {
-		return NULL;
-	}
-
-	return eglCreateImageKHR(egl->display, egl->context, target,
-		buffer, attribs);
-}
-
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	if (!eglDestroyImageKHR) {
 		return false;
