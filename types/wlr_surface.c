@@ -155,8 +155,24 @@ static bool wlr_surface_update_size(struct wlr_surface *surface,
 	int scale = state->scale;
 	enum wl_output_transform transform = state->transform;
 
-	wlr_texture_get_buffer_size(surface->texture, state->buffer,
-		&state->buffer_width, &state->buffer_height);
+	struct wl_shm_buffer *buf = wl_shm_buffer_get(state->buffer);
+	if (buf != NULL) {
+		state->buffer_width = wl_shm_buffer_get_width(buf);
+		state->buffer_height = wl_shm_buffer_get_height(buf);
+	} else if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer,
+			state->buffer)) {
+		wlr_renderer_wl_drm_buffer_get_size(surface->renderer, state->buffer,
+			&state->buffer_width, &state->buffer_height);
+	} else if (wlr_dmabuf_resource_is_buffer(state->buffer)) {
+		struct wlr_dmabuf_buffer *dmabuf =
+			wlr_dmabuf_buffer_from_buffer_resource(state->buffer);
+		state->buffer_width = dmabuf->attributes.width;
+		state->buffer_height = dmabuf->attributes.height;
+	} else {
+		wlr_log(L_ERROR, "Unknown buffer handle attached");
+		state->buffer_width = 0;
+		state->buffer_height = 0;
+	}
 
 	int width = state->buffer_width / scale;
 	int height = state->buffer_height / scale;
@@ -316,52 +332,65 @@ static void wlr_surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 
 static void wlr_surface_apply_damage(struct wlr_surface *surface,
 		bool reupload_buffer) {
-	if (!surface->current->buffer) {
+	struct wl_resource *resource = surface->current->buffer;
+	if (resource == NULL) {
 		return;
 	}
-	struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->current->buffer);
-	if (!buffer) {
-		if (wlr_renderer_buffer_is_drm(surface->renderer,
-					surface->current->buffer)) {
-			wlr_texture_upload_drm(surface->texture, surface->current->buffer);
-			goto release;
-		} else if (wlr_dmabuf_resource_is_buffer(
-					   surface->current->buffer)) {
-			wlr_texture_upload_dmabuf(surface->texture, surface->current->buffer);
-			goto release;
+
+	struct wl_shm_buffer *buf = wl_shm_buffer_get(resource);
+	if (buf != NULL) {
+		wl_shm_buffer_begin_access(buf);
+
+		enum wl_shm_format fmt = wl_shm_buffer_get_format(buf);
+		int32_t stride = wl_shm_buffer_get_stride(buf);
+		int32_t width = wl_shm_buffer_get_width(buf);
+		int32_t height = wl_shm_buffer_get_height(buf);
+		void *data = wl_shm_buffer_get_data(buf);
+
+		if (surface->texture == NULL || reupload_buffer) {
+			wlr_texture_destroy(surface->texture);
+			surface->texture = wlr_texture_from_pixels(surface->renderer, fmt,
+				stride, width, height, data);
 		} else {
-			wlr_log(L_INFO, "Unknown buffer handle attached");
-			return;
-		}
-	}
+			pixman_region32_t damage;
+			pixman_region32_init(&damage);
+			pixman_region32_copy(&damage, &surface->current->buffer_damage);
+			pixman_region32_intersect_rect(&damage, &damage, 0, 0,
+				surface->current->buffer_width,
+				surface->current->buffer_height);
 
-	uint32_t format = wl_shm_buffer_get_format(buffer);
-	if (reupload_buffer) {
-		wlr_texture_upload_shm(surface->texture, format, buffer);
-	} else {
-		pixman_region32_t damage;
-		pixman_region32_init(&damage);
-		pixman_region32_copy(&damage, &surface->current->buffer_damage);
-		pixman_region32_intersect_rect(&damage, &damage, 0, 0,
-			surface->current->buffer_width, surface->current->buffer_height);
-
-		int n;
-		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
-		for (int i = 0; i < n; ++i) {
-			pixman_box32_t rect = rects[i];
-			if (!wlr_texture_update_shm(surface->texture, format,
-					rect.x1, rect.y1,
-					rect.x2 - rect.x1,
-					rect.y2 - rect.y1,
-					buffer)) {
-				break;
+			int n;
+			pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
+			for (int i = 0; i < n; ++i) {
+				pixman_box32_t *r = &rects[i];
+				if (!wlr_texture_write_pixels(surface->texture, fmt, stride,
+						r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
+						r->x1, r->y1, data)) {
+					break;
+				}
 			}
+
+			pixman_region32_fini(&damage);
 		}
 
-		pixman_region32_fini(&damage);
+		wl_shm_buffer_end_access(buf);
+	} else if (!surface->texture || reupload_buffer) {
+		wlr_texture_destroy(surface->texture);
+
+		if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer, resource)) {
+			surface->texture =
+				wlr_texture_from_wl_drm(surface->renderer, resource);
+		} else if (wlr_dmabuf_resource_is_buffer(resource)) {
+			struct wlr_dmabuf_buffer *dmabuf =
+				wlr_dmabuf_buffer_from_buffer_resource(resource);
+			surface->texture =
+				wlr_texture_from_dmabuf(surface->renderer, &dmabuf->attributes);
+		} else {
+			surface->texture = NULL;
+			wlr_log(L_ERROR, "Unknown buffer handle attached");
+		}
 	}
 
-release:
 	wlr_surface_state_release_buffer(surface->current);
 }
 
@@ -376,7 +405,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		surface->texture->valid = false;
+		wlr_texture_destroy(surface->texture);
+		surface->texture = NULL;
 	}
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
@@ -612,7 +642,6 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	}
 	wlr_log(L_DEBUG, "New wlr_surface %p (res %p)", surface, res);
 	surface->renderer = renderer;
-	surface->texture = wlr_render_texture_create(renderer);
 	surface->resource = res;
 
 	surface->current = wlr_surface_state_create();
@@ -629,7 +658,7 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 }
 
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
-	return surface->texture && surface->texture->valid;
+	return surface->texture != NULL;
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,

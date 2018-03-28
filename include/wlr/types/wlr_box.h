@@ -27,7 +27,7 @@ void wlr_box_transform(const struct wlr_box *box,
 	struct wlr_box *dest);
 
 /**
- * Creates the smallest box that contains a rotated box.
+ * Creates the smallest box that contains the box rotated about its center.
  */
 void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 	struct wlr_box *dest);

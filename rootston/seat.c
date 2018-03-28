@@ -723,6 +723,33 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
 	}
 
+
+	bool unfullscreen = true;
+
+#ifdef WLR_HAS_XWAYLAND
+	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
+			view->xwayland_surface->override_redirect) {
+		unfullscreen = false;
+	}
+#endif
+
+	if (view && unfullscreen) {
+		struct roots_desktop *desktop = view->desktop;
+		struct roots_output *output;
+		struct wlr_box box;
+		view_get_box(view, &box);
+		wl_list_for_each(output, &desktop->outputs, link) {
+			if (output->fullscreen_view &&
+					output->fullscreen_view != view &&
+					wlr_output_layout_intersects(
+						desktop->layout,
+						output->wlr_output, &box)) {
+				view_set_fullscreen(output->fullscreen_view,
+						false, NULL);
+			}
+		}
+	}
+
 	struct roots_view *prev_focus = roots_seat_get_focus(seat);
 	if (view == prev_focus) {
 		return;

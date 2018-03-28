@@ -7,12 +7,37 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 
+/**
+ * wlr_cursor implements the behavior of the "cursor", that is, the image on the
+ * screen typically moved about with a mouse or so. It provides tracking for
+ * this in global coordinates, and integrates with wlr_output,
+ * wlr_output_layout, and wlr_input_device. You can use it to abstract multiple
+ * input devices over a single cursor, constrain cursor movement to the usable
+ * area of a wlr_output_layout and communicate position updates to the hardware
+ * cursor, constrain specific input devices to specific outputs or regions of
+ * the screen, and so on.
+ */
+
 struct wlr_cursor_state;
 
 struct wlr_cursor {
 	struct wlr_cursor_state *state;
 	double x, y;
 
+	/**
+	 * The interpretation of these signals is the responsibility of the
+	 * compositor, but some helpers are provided for your benefit. If you
+	 * receive a relative motion event, for example, you may want to call
+	 * wlr_cursor_move. If you receive an absolute event, call
+	 * wlr_cursor_warp_absolute. If you pass an input device into these
+	 * functions, it will apply the region/output constraints associated with
+	 * that device to the resulting cursor motion. If an output layout is
+	 * attached, these functions will constrain the resulting cursor motion to
+	 * within the usable space of the output layout.
+	 *
+	 * Re-broadcasting these signals to, for example, a wlr_seat, is also your
+	 * responsibility.
+	 */
 	struct {
 		struct wl_signal motion;
 		struct wl_signal motion_absolute;

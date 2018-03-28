@@ -9,9 +9,10 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -187,6 +188,25 @@ static struct wlr_output *view_get_output(struct roots_view *view) {
 		output_y);
 }
 
+void view_arrange_maximized(struct roots_view *view) {
+	struct wlr_box view_box;
+	view_get_box(view, &view_box);
+
+	struct wlr_output *output = view_get_output(view);
+	struct roots_output *roots_output = output->data;
+	struct wlr_box *output_box =
+		wlr_output_layout_get_box(view->desktop->layout, output);
+	struct wlr_box usable_area;
+	memcpy(&usable_area, &roots_output->usable_area,
+			sizeof(struct wlr_box));
+	usable_area.x += output_box->x;
+	usable_area.y += output_box->y;
+
+	view_move_resize(view, usable_area.x, usable_area.y,
+			usable_area.width, usable_area.height);
+	view_rotate(view, 0);
+}
+
 void view_maximize(struct roots_view *view, bool maximized) {
 	if (view->maximized == maximized) {
 		return;
@@ -197,23 +217,14 @@ void view_maximize(struct roots_view *view, bool maximized) {
 	}
 
 	if (!view->maximized && maximized) {
-		struct wlr_box view_box;
-		view_get_box(view, &view_box);
-
 		view->maximized = true;
 		view->saved.x = view->x;
 		view->saved.y = view->y;
 		view->saved.rotation = view->rotation;
-		view->saved.width = view_box.width;
-		view->saved.height = view_box.height;
+		view->saved.width = view->width;
+		view->saved.height = view->height;
 
-		struct wlr_output *output = view_get_output(view);
-		struct wlr_box *output_box =
-			wlr_output_layout_get_box(view->desktop->layout, output);
-
-		view_move_resize(view, output_box->x, output_box->y, output_box->width,
-			output_box->height);
-		view_rotate(view, 0);
+		view_arrange_maximized(view);
 	}
 
 	if (view->maximized && !maximized) {
@@ -713,6 +724,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->wl_shell->events.new_surface,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
+
+	desktop->layer_shell = wlr_layer_shell_create(server->wl_display);
+	wl_signal_add(&desktop->layer_shell->events.new_surface,
+		&desktop->layer_shell_surface);
+	desktop->layer_shell_surface.notify = handle_layer_shell_surface;
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;

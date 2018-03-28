@@ -40,6 +40,9 @@ struct wlr_xdg_popup {
 	bool committed;
 	struct wlr_xdg_surface *parent;
 	struct wlr_seat *seat;
+
+	// Position of the popup relative to the upper left corner of the window
+	// geometry of the parent surface
 	struct wlr_box geometry;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab::popups
@@ -74,9 +77,22 @@ struct wlr_xdg_toplevel {
 	struct wlr_xdg_surface *base;
 	struct wlr_xdg_surface *parent;
 	bool added;
-	struct wlr_xdg_toplevel_state next; // client protocol requests
-	struct wlr_xdg_toplevel_state pending; // user configure requests
+
+	struct wlr_xdg_toplevel_state client_pending;
+	struct wlr_xdg_toplevel_state server_pending;
 	struct wlr_xdg_toplevel_state current;
+
+	char *title;
+	char *app_id;
+
+	struct {
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
+		struct wl_signal request_minimize;
+		struct wl_signal request_move;
+		struct wl_signal request_resize;
+		struct wl_signal request_show_window_menu;
+	} events;
 };
 
 struct wlr_xdg_surface_configure {
@@ -106,9 +122,6 @@ struct wlr_xdg_surface {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	char *title;
-	char *app_id;
-
 	bool has_next_geometry;
 	struct wlr_box next_geometry;
 	struct wlr_box geometry;
@@ -121,13 +134,6 @@ struct wlr_xdg_surface {
 		struct wl_signal new_popup;
 		struct wl_signal map;
 		struct wl_signal unmap;
-
-		struct wl_signal request_maximize;
-		struct wl_signal request_fullscreen;
-		struct wl_signal request_minimize;
-		struct wl_signal request_move;
-		struct wl_signal request_resize;
-		struct wl_signal request_show_window_menu;
 	} events;
 
 	void *data;
@@ -204,9 +210,9 @@ uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 		bool resizing);
 
 /**
- * Request that this toplevel surface closes.
+ * Request that this xdg surface closes.
  */
-void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface);
+void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
 
 /**
  * Compute the popup position in surface-local coordinates.

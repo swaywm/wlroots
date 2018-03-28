@@ -1,6 +1,5 @@
 #ifndef ROOTSTON_VIEW_H
 #define ROOTSTON_VIEW_H
-
 #include <stdbool.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
@@ -177,6 +176,8 @@ struct roots_xdg_popup_v6 {
 	struct roots_view_child view_child;
 	struct wlr_xdg_popup_v6 *wlr_popup;
 	struct wl_listener destroy;
+	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener new_popup;
 };
 
@@ -184,6 +185,8 @@ struct roots_xdg_popup {
 	struct roots_view_child view_child;
 	struct wlr_xdg_popup *wlr_popup;
 	struct wl_listener destroy;
+	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener new_popup;
 };
 

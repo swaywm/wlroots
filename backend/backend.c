@@ -11,8 +11,13 @@
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/backend/x11.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
+
+/* WLR_HAS_X11_BACKEND needs to be after wlr/config.h */
+#ifdef WLR_HAS_X11_BACKEND
+#include <wlr/backend/x11.h>
+#endif
 
 void wlr_backend_init(struct wlr_backend *backend,
 		const struct wlr_backend_impl *impl) {
@@ -94,6 +99,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		}
 	}
 
+#ifdef WLR_HAS_X11_BACKEND
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
 		struct wlr_backend *x11_backend =
@@ -101,6 +107,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		wlr_multi_backend_add(backend, x11_backend);
 		return backend;
 	}
+#endif
 
 	// Attempt DRM+libinput
 	struct wlr_session *session = wlr_session_create(display);

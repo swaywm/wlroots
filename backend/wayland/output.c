@@ -99,8 +99,6 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 		return true;
 	}
 
-	stride *= 4; // stride is given in pixels, we need it in bytes
-
 	if (!backend->shm || !backend->pointer) {
 		wlr_log(L_INFO, "cannot set cursor, no shm or pointer");
 		return false;

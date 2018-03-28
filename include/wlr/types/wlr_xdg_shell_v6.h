@@ -111,6 +111,9 @@ struct wlr_xdg_popup_v6 {
 	bool committed;
 	struct wlr_xdg_surface_v6 *parent;
 	struct wlr_seat *seat;
+
+	// Position of the popup relative to the upper left corner of the window
+	// geometry of the parent surface
 	struct wlr_box geometry;
 
 	struct wlr_xdg_positioner_v6_attributes positioner;
@@ -147,9 +150,22 @@ struct wlr_xdg_toplevel_v6 {
 	struct wlr_xdg_surface_v6 *base;
 	struct wlr_xdg_surface_v6 *parent;
 	bool added;
-	struct wlr_xdg_toplevel_v6_state next; // client protocol requests
-	struct wlr_xdg_toplevel_v6_state pending; // user configure requests
+
+	struct wlr_xdg_toplevel_v6_state client_pending;
+	struct wlr_xdg_toplevel_v6_state server_pending;
 	struct wlr_xdg_toplevel_v6_state current;
+
+	char *title;
+	char *app_id;
+
+	struct {
+		struct wl_signal request_maximize;
+		struct wl_signal request_fullscreen;
+		struct wl_signal request_minimize;
+		struct wl_signal request_move;
+		struct wl_signal request_resize;
+		struct wl_signal request_show_window_menu;
+	} events;
 };
 
 struct wlr_xdg_surface_v6_configure {
@@ -179,9 +195,6 @@ struct wlr_xdg_surface_v6 {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	char *title;
-	char *app_id;
-
 	bool has_next_geometry;
 	struct wlr_box next_geometry;
 	struct wlr_box geometry;
@@ -194,13 +207,6 @@ struct wlr_xdg_surface_v6 {
 		struct wl_signal new_popup;
 		struct wl_signal map;
 		struct wl_signal unmap;
-
-		struct wl_signal request_maximize;
-		struct wl_signal request_fullscreen;
-		struct wl_signal request_minimize;
-		struct wl_signal request_move;
-		struct wl_signal request_resize;
-		struct wl_signal request_show_window_menu;
 	} events;
 
 	void *data;
@@ -277,9 +283,9 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 		bool resizing);
 
 /**
- * Request that this toplevel surface closes.
+ * Request that this xdg surface closes.
  */
-void wlr_xdg_toplevel_v6_send_close(struct wlr_xdg_surface_v6 *surface);
+void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface);
 
 /**
  * Compute the popup position in surface-local coordinates.

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -12,6 +13,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "rootston/config.h"
+#include "rootston/layers.h"
 #include "rootston/output.h"
 #include "rootston/server.h"
 
@@ -363,7 +365,7 @@ static void render_decorations(struct roots_view *view,
 		pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_colored_quad(renderer, color, matrix);
+		wlr_render_quad_with_matrix(renderer, color, matrix);
 	}
 
 damage_finish:
@@ -416,6 +418,33 @@ static void surface_send_frame_done(struct wlr_surface *surface, double lx,
 	wlr_surface_send_frame_done(surface, when);
 }
 
+static void render_layer(
+		struct roots_output *output,
+		const struct wlr_box *output_layout_box,
+		struct render_data *data,
+		struct wl_list *layer) {
+	struct roots_layer_surface *roots_surface;
+	wl_list_for_each(roots_surface, layer, link) {
+		struct wlr_layer_surface *layer = roots_surface->layer_surface;
+		render_surface(layer->surface,
+				roots_surface->geo.x + output_layout_box->x,
+				roots_surface->geo.y + output_layout_box->y,
+				0, data);
+	}
+}
+
+static void layers_send_done(
+		struct roots_output *output, struct timespec *when) {
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		struct roots_layer_surface *roots_surface;
+		wl_list_for_each(roots_surface, &output->layers[i], link) {
+			struct wlr_layer_surface *layer = roots_surface->layer_surface;
+			wlr_surface_send_frame_done(layer->surface, when);
+		}
+	}
+}
+
 static void render_output(struct roots_output *output) {
 	struct wlr_output *wlr_output = output->wlr_output;
 	struct roots_desktop *desktop = output->desktop;
@@ -432,14 +461,15 @@ static void render_output(struct roots_output *output) {
 
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
+	const struct wlr_box *output_box =
+		wlr_output_layout_get_box(desktop->layout, wlr_output);
+
 	// Check if we can delegate the fullscreen surface to the output
 	if (output->fullscreen_view != NULL &&
 			output->fullscreen_view->wlr_surface != NULL) {
 		struct roots_view *view = output->fullscreen_view;
 
 		// Make sure the view is centered on screen
-		const struct wlr_box *output_box =
-			wlr_output_layout_get_box(desktop->layout, wlr_output);
 		struct wlr_box view_box;
 		view_get_box(view, &view_box);
 		double view_x = (double)(output_box->width - view_box.width) / 2 +
@@ -486,12 +516,21 @@ static void render_output(struct roots_output *output) {
 		goto renderer_end;
 	}
 
+	if (server->config->debug_damage_tracking) {
+		wlr_renderer_clear(renderer, (float[]){1, 1, 0, 0});
+	}
+
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
 		wlr_renderer_clear(renderer, clear_color);
 	}
+
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]);
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]);
 
 	// If a view is fullscreen on this output, render it
 	if (output->fullscreen_view != NULL) {
@@ -515,19 +554,23 @@ static void render_output(struct roots_output *output) {
 				render_surface, &data);
 		}
 #endif
-
-		goto renderer_end;
-	}
-
-	// Render all views
-	struct roots_view *view;
-	wl_list_for_each_reverse(view, &desktop->views, link) {
-		render_view(view, &data);
+	} else {
+		// Render all views
+		struct roots_view *view;
+		wl_list_for_each_reverse(view, &desktop->views, link) {
+			render_view(view, &data);
+		}
+		// Render top layer above shell views
+		render_layer(output, output_box, &data,
+				&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
 	}
 
 	// Render drag icons
 	data.alpha = 1.0;
 	drag_icons_for_each_surface(server->input, render_surface, &data);
+
+	render_layer(output, output_box, &data,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
 renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
@@ -565,6 +608,7 @@ damage_finish:
 		drag_icons_for_each_surface(server->input, surface_send_frame_done,
 			&data);
 	}
+	layers_send_done(output, data.when);
 }
 
 void output_damage_whole(struct roots_output *output) {
@@ -621,6 +665,15 @@ static void damage_whole_surface(struct wlr_surface *surface,
 	wlr_output_damage_add_box(output->damage, &box);
 }
 
+void output_damage_whole_local_surface(struct roots_output *output,
+		struct wlr_surface *surface, double ox, double oy, float rotation) {
+	struct wlr_output_layout_output *layout = wlr_output_layout_get(
+		output->desktop->layout, output->wlr_output);
+	damage_whole_surface(surface, ox + layout->x, oy + layout->y,
+			rotation, output);
+	// TODO: subsurfaces
+}
+
 static void damage_whole_decoration(struct roots_view *view,
 		struct roots_output *output) {
 	if (!view->decorated || view->wlr_surface == NULL) {
@@ -667,32 +720,32 @@ static void damage_from_surface(struct wlr_surface *surface,
 	surface_intersect_output(surface, output->desktop->layout,
 		wlr_output, lx, ly, rotation, &box);
 
-	if (rotation == 0) {
-		pixman_region32_t damage;
-		pixman_region32_init(&damage);
-		pixman_region32_copy(&damage, &surface->current->surface_damage);
-		wlr_region_scale(&damage, &damage, wlr_output->scale);
-		if (ceil(wlr_output->scale) > surface->current->scale) {
-			// When scaling up a surface, it'll become blurry so we need to
-			// expand the damage region
-			wlr_region_expand(&damage, &damage,
-				ceil(wlr_output->scale) - surface->current->scale);
-		}
-		pixman_region32_translate(&damage, box.x, box.y);
-		wlr_output_damage_add(output->damage, &damage);
-		pixman_region32_fini(&damage);
-	} else {
-		pixman_box32_t *extents =
-			pixman_region32_extents(&surface->current->surface_damage);
-		struct wlr_box damage_box = {
-			.x = box.x + extents->x1 * wlr_output->scale,
-			.y = box.y + extents->y1 * wlr_output->scale,
-			.width = (extents->x2 - extents->x1) * wlr_output->scale,
-			.height = (extents->y2 - extents->y1) * wlr_output->scale,
-		};
-		wlr_box_rotated_bounds(&damage_box, rotation, &damage_box);
-		wlr_output_damage_add_box(output->damage, &damage_box);
+	int center_x = box.x + box.width/2;
+	int center_y = box.y + box.height/2;
+
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_copy(&damage, &surface->current->surface_damage);
+	wlr_region_scale(&damage, &damage, wlr_output->scale);
+	if (ceil(wlr_output->scale) > surface->current->scale) {
+		// When scaling up a surface, it'll become blurry so we need to
+		// expand the damage region
+		wlr_region_expand(&damage, &damage,
+			ceil(wlr_output->scale) - surface->current->scale);
 	}
+	pixman_region32_translate(&damage, box.x, box.y);
+	wlr_region_rotated_bounds(&damage, &damage, rotation, center_x, center_y);
+	wlr_output_damage_add(output->damage, &damage);
+	pixman_region32_fini(&damage);
+}
+
+void output_damage_from_local_surface(struct roots_output *output,
+		struct wlr_surface *surface, double ox, double oy, float rotation) {
+	struct wlr_output_layout_output *layout = wlr_output_layout_get(
+		output->desktop->layout, output->wlr_output);
+	damage_from_surface(surface, ox + layout->x, oy + layout->y,
+			rotation, output);
+	// TODO: Subsurfaces
 }
 
 void output_damage_from_view(struct roots_output *output,
@@ -785,6 +838,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);
 	output->desktop = desktop;
 	output->wlr_output = wlr_output;
+	wlr_output->data = output;
 	wl_list_insert(&desktop->outputs, &output->link);
 
 	output->damage = wlr_output_damage_create(wlr_output);
@@ -795,6 +849,11 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	wl_signal_add(&output->damage->events.frame, &output->damage_frame);
 	output->damage_destroy.notify = output_damage_handle_destroy;
 	wl_signal_add(&output->damage->events.destroy, &output->damage_destroy);
+
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		wl_list_init(&output->layers[i]);
+	}
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);

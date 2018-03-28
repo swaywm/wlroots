@@ -28,6 +28,18 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data) {
 	popup_destroy((struct roots_view_child *)popup);
 }
 
+static void popup_handle_map(struct wl_listener *listener, void *data) {
+	struct roots_xdg_popup_v6 *popup =
+		wl_container_of(listener, popup, map);
+	view_damage_whole(popup->view_child.view);
+}
+
+static void popup_handle_unmap(struct wl_listener *listener, void *data) {
+	struct roots_xdg_popup_v6 *popup =
+		wl_container_of(listener, popup, unmap);
+	view_damage_whole(popup->view_child.view);
+}
+
 static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 	struct wlr_xdg_popup_v6 *wlr_popup);
 
@@ -230,6 +242,10 @@ static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,
 	view_child_init(&popup->view_child, view, wlr_popup->base->surface);
 	popup->destroy.notify = popup_handle_destroy;
 	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
+	popup->map.notify = popup_handle_map;
+	wl_signal_add(&wlr_popup->base->events.map, &popup->map);
+	popup->unmap.notify = popup_handle_unmap;
+	wl_signal_add(&wlr_popup->base->events.unmap, &popup->unmap);
 	popup->new_popup.notify = popup_handle_new_popup;
 	wl_signal_add(&wlr_popup->base->events.new_popup, &popup->new_popup);
 
@@ -360,9 +376,11 @@ static void set_fullscreen(struct roots_view *view, bool fullscreen) {
 static void close(struct roots_view *view) {
 	assert(view->type == ROOTS_XDG_SHELL_V6_VIEW);
 	struct wlr_xdg_surface_v6 *surface = view->xdg_surface_v6;
-	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
-		wlr_xdg_toplevel_v6_send_close(surface);
+	struct wlr_xdg_popup_v6 *popup = NULL;
+	wl_list_for_each(popup, &surface->popups, link) {
+		wlr_xdg_surface_v6_send_close(popup->base);
 	}
+	wlr_xdg_surface_v6_send_close(surface);
 }
 
 static void destroy(struct roots_view *view) {
@@ -419,7 +437,7 @@ static void handle_request_maximize(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	view_maximize(view, surface->toplevel->next.maximized);
+	view_maximize(view, surface->toplevel->client_pending.maximized);
 }
 
 static void handle_request_fullscreen(struct wl_listener *listener,
@@ -520,7 +538,7 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, desktop, xdg_shell_v6_surface);
 
 	wlr_log(L_DEBUG, "new xdg toplevel: title=%s, app_id=%s",
-		surface->title, surface->app_id);
+		surface->toplevel->title, surface->toplevel->app_id);
 	wlr_xdg_surface_v6_ping(surface);
 
 	struct roots_xdg_surface_v6 *roots_surface =
@@ -538,15 +556,16 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->unmap.notify = handle_unmap;
 	wl_signal_add(&surface->events.unmap, &roots_surface->unmap);
 	roots_surface->request_move.notify = handle_request_move;
-	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
+	wl_signal_add(&surface->toplevel->events.request_move,
+		&roots_surface->request_move);
 	roots_surface->request_resize.notify = handle_request_resize;
-	wl_signal_add(&surface->events.request_resize,
+	wl_signal_add(&surface->toplevel->events.request_resize,
 		&roots_surface->request_resize);
 	roots_surface->request_maximize.notify = handle_request_maximize;
-	wl_signal_add(&surface->events.request_maximize,
+	wl_signal_add(&surface->toplevel->events.request_maximize,
 		&roots_surface->request_maximize);
 	roots_surface->request_fullscreen.notify = handle_request_fullscreen;
-	wl_signal_add(&surface->events.request_fullscreen,
+	wl_signal_add(&surface->toplevel->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
@@ -569,10 +588,10 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	view->destroy = destroy;
 	roots_surface->view = view;
 
-	if (surface->toplevel->next.maximized) {
+	if (surface->toplevel->client_pending.maximized) {
 		view_maximize(view, true);
 	}
-	if (surface->toplevel->next.fullscreen) {
+	if (surface->toplevel->client_pending.fullscreen) {
 		view_set_fullscreen(view, true, NULL);
 	}
 }

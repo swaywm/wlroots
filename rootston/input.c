@@ -2,10 +2,13 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
+#ifdef WLR_HAS_XWAYLAND
 #include <wlr/xwayland.h>
+#endif
 #include "rootston/config.h"
 #include "rootston/input.h"
 #include "rootston/keyboard.h"

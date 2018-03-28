@@ -197,9 +197,9 @@ int main(int argc, char *argv[]) {
 	compositor_init(&compositor);
 
 	state.renderer = wlr_gles2_renderer_create(compositor.backend);
-	state.cat_texture = wlr_render_texture_create(state.renderer);
-	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
-		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
+	state.cat_texture = wlr_texture_from_pixels(state.renderer,
+		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
+		cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");

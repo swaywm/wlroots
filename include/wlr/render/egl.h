@@ -13,14 +13,14 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *egl_exts_str;
-	const char *gl_exts_str;
+	const char *exts_str;
 
 	struct {
 		bool buffer_age;
 		bool swap_buffers_with_damage;
 		bool dmabuf_import;
 		bool dmabuf_import_modifiers;
+		bool bind_wayland_display;
 	} egl_exts;
 
 	struct wl_display *wl_display;
@@ -47,36 +47,24 @@ void wlr_egl_finish(struct wlr_egl *egl);
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
 
 /**
- * Refer to the eglQueryWaylandBufferWL extension function.
- */
-bool wlr_egl_query_buffer(struct wlr_egl *egl, struct wl_resource *buf,
-	EGLint attrib, EGLint *value);
-
-/**
  * Returns a surface for the given native window
  * The window must match the remote display the wlr_egl was created with.
  */
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
 
 /**
- * Creates an egl image from the given client buffer and attributes.
- */
-EGLImageKHR wlr_egl_create_image(struct wlr_egl *egl,
-		EGLenum target, EGLClientBuffer buffer, const EGLint *attribs);
-
-/**
  * Creates an egl image from the given dmabuf attributes. Check usability
  * of the dmabuf with wlr_egl_check_import_dmabuf once first.
  */
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_buffer_attribs *attributes);
+	struct wlr_dmabuf_buffer_attribs *attributes);
 
 /**
  * Try to import the given dmabuf. On success return true false otherwise.
  * If this succeeds the dmabuf can be used for rendering on a texture
  */
 bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_buffer *dmabuf);
+	struct wlr_dmabuf_buffer *dmabuf);
 
 /**
  * Get the available dmabuf formats

@@ -1,8 +1,6 @@
 #ifndef WLR_RENDER_WLR_RENDERER_H
 #define WLR_RENDER_WLR_RENDERER_H
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <stdint.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/wlr_texture.h>
@@ -22,10 +20,6 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
  */
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
 /**
- * Requests a texture handle from this renderer.
- */
-struct wlr_texture *wlr_render_texture_create(struct wlr_renderer *r);
-/**
  * Renders the requested texture.
  */
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
@@ -36,14 +30,24 @@ bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 	struct wlr_texture *texture, const float matrix[static 9], float alpha);
 /**
- * Renders a solid quad in the specified color.
+ * Renders a solid rectangle in the specified color.
  */
-void wlr_render_colored_quad(struct wlr_renderer *r,
+void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
+	const float color[static 4], const float projection[static 9]);
+/**
+ * Renders a solid quadrangle in the specified color with the specified matrix.
+ */
+void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
  * Renders a solid ellipse in the specified color.
  */
-void wlr_render_colored_ellipse(struct wlr_renderer *r,
+void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
+	const float color[static 4], const float projection[static 9]);
+/**
+ * Renders a solid ellipse in the specified color with the specified matrix.
+ */
+void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
  * Returns a list of pixel formats supported by this renderer.
@@ -51,10 +55,15 @@ void wlr_render_colored_ellipse(struct wlr_renderer *r,
 const enum wl_shm_format *wlr_renderer_get_formats(struct wlr_renderer *r,
 	size_t *len);
 /**
- * Returns true if this wl_buffer is a DRM buffer.
+ * Returns true if this wl_buffer is a wl_drm buffer.
  */
-bool wlr_renderer_buffer_is_drm(struct wlr_renderer *renderer,
+bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 	struct wl_resource *buffer);
+/**
+ * Gets the width and height of a wl_drm buffer.
+ */
+void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
+	struct wl_resource *buffer, int *width, int *height);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
