@@ -108,6 +108,7 @@ struct wlr_drag {
 	struct {
 		struct wl_signal focus;
 		struct wl_signal motion;
+		struct wl_signal drop;
 		struct wl_signal destroy;
 	} events;
 };
@@ -116,6 +117,11 @@ struct wlr_drag_motion_event {
 	struct wlr_drag *drag;
 	uint32_t time;
 	double sx, sy;
+};
+
+struct wlr_drag_drop_event {
+	struct wlr_drag *drag;
+	uint32_t time;
 };
 
 /**

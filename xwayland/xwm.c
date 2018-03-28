@@ -943,7 +943,7 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xwm_handle_net_wm_state_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[_NET_WM_MOVERESIZE]) {
 		xwm_handle_net_wm_moveresize_message(xwm, ev);
-	} else {
+	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
 		wlr_log(L_DEBUG, "unhandled x11 client message %u", ev->type);
 	}
 }

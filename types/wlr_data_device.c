@@ -426,7 +426,6 @@ static void wlr_drag_set_focus(struct wlr_drag *drag,
 	struct wlr_seat_client *focus_client =
 		wlr_seat_client_for_wl_client(drag->seat_client->seat,
 			wl_resource_get_client(surface->resource));
-
 	if (!focus_client) {
 		return;
 	}
@@ -541,6 +540,12 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 			drag->source->offer->in_ask =
 				drag->source->current_dnd_action ==
 				WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
+
+			struct wlr_drag_drop_event event = {
+				.drag = drag,
+				.time = time,
+			};
+			wlr_signal_emit_safe(&drag->events.drop, &event);
 		} else if (drag->source->dnd_finish) {
 			drag->source->cancel(drag->source);
 		}
@@ -556,6 +561,7 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 
 static void pointer_drag_axis(struct wlr_seat_pointer_grab *grab, uint32_t time,
 		enum wlr_axis_orientation orientation, double value) {
+	// This space is intentionally left blank
 }
 
 static void pointer_drag_cancel(struct wlr_seat_pointer_grab *grab) {
@@ -745,6 +751,7 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 
 	wl_signal_init(&drag->events.focus);
 	wl_signal_init(&drag->events.motion);
+	wl_signal_init(&drag->events.drop);
 	wl_signal_init(&drag->events.destroy);
 
 	struct wlr_seat *seat = client->seat;

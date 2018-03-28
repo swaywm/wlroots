@@ -137,6 +137,7 @@ struct wlr_xwm {
 	struct wl_listener seat_start_drag;
 	struct wl_listener seat_drag_focus;
 	struct wl_listener seat_drag_motion;
+	struct wl_listener seat_drag_drop;
 	struct wl_listener seat_drag_destroy;
 };
 
@@ -148,6 +149,8 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
+int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) ;
 
 void xwm_selection_init(struct wlr_xwm *xwm);
 void xwm_selection_finish(struct wlr_xwm *xwm);
