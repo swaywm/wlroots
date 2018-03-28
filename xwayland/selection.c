@@ -326,6 +326,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 		dest->window_id,
 		XCB_EVENT_MASK_NO_EVENT,
 		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
 }
 
 static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
@@ -356,6 +357,7 @@ static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 		dest->window_id,
 		XCB_EVENT_MASK_NO_EVENT,
 		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
 }
 
 static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
@@ -382,6 +384,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 		dest->window_id,
 		XCB_EVENT_MASK_NO_EVENT,
 		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
 }
 
 /*static void xwm_dnd_send_finished(struct wlr_xwm *xwm) {
@@ -413,6 +416,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 		dest->window_id,
 		XCB_EVENT_MASK_NO_EVENT,
 		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
 }*/
 
 static struct wl_array *xwm_selection_source_get_mime_types(
