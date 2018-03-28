@@ -51,6 +51,9 @@ static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
 }
 
 static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
+	// get the output of the popup's positioner anchor point and convert it to
+	// the toplevel parent's coordinate system and then pass it to
+	// wlr_xdg_popup_v6_unconstrain_from_box
 	struct roots_view *view = popup->view_child.view;
 	struct wlr_output_layout *layout = view->desktop->layout;
 	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;

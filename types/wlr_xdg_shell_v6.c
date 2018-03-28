@@ -1723,17 +1723,23 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 		return true;
 	}
 
-	if (offset_x) {
+	bool flip_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_X);
+
+	bool flip_y = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_Y);
+
+	if (flip_x) {
 		wlr_positioner_v6_invert_x(&popup->positioner);
 	}
-	if (offset_y) {
+	if (flip_y) {
 		wlr_positioner_v6_invert_y(&popup->positioner);
 	}
 
 	popup->geometry =
 		wlr_xdg_positioner_v6_get_geometry(&popup->positioner);
-
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
 		// no longer constrained
@@ -1741,10 +1747,10 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 	}
 
 	// revert the positioner back if it didn't fix it and go to the next part
-	if (offset_x) {
+	if (flip_x) {
 		wlr_positioner_v6_invert_x(&popup->positioner);
 	}
-	if (offset_y) {
+	if (flip_y) {
 		wlr_positioner_v6_invert_y(&popup->positioner);
 	}
 
@@ -1763,11 +1769,19 @@ static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 		return true;
 	}
 
-	if (offset_x) {
+	bool slide_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_X);
+
+	bool slide_y = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
+
+	if (slide_x) {
 		popup->geometry.x += offset_x;
 	}
 
-	if (offset_y) {
+	if (slide_y) {
 		popup->geometry.y += offset_y;
 	}
 
@@ -1785,10 +1799,18 @@ static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 		return true;
 	}
 
-	if (offset_x) {
+	bool resize_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_X);
+
+	bool resize_y = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_Y);
+
+	if (resize_x) {
 		popup->geometry.width -= offset_x;
 	}
-	if (offset_y) {
+	if (resize_y) {
 		popup->geometry.height -= offset_y;
 	}
 
@@ -1799,8 +1821,15 @@ static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 
 void wlr_xdg_popup_v6_unconstrain_from_box(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_box) {
-	wlr_xdg_popup_v6_unconstrain_flip(popup, toplevel_box);
-	wlr_xdg_popup_v6_unconstrain_slide(popup, toplevel_box);
+	if (wlr_xdg_popup_v6_unconstrain_flip(popup, toplevel_box)) {
+		return;
+	}
+	if (wlr_xdg_popup_v6_unconstrain_slide(popup, toplevel_box)) {
+		return;
+	}
+	if (wlr_xdg_popup_v6_unconstrain_resize(popup, toplevel_box)) {
+		return;
+	}
 }
 
 void wlr_positioner_v6_invert_x(struct wlr_xdg_positioner_v6_attributes *positioner) {
