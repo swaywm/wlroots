@@ -217,8 +217,8 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
 	point->touch_id = event->touch_id;
-	point->x = event->x_mm / event->width_mm;
-	point->y = event->y_mm / event->height_mm;
+	point->x = event->x;
+	point->y = event->y;
 	wl_list_insert(&sample->touch_points, &point->link);
 
 	warp_to_touch(sample, event->device);
@@ -232,8 +232,8 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct touch_point *point;
 	wl_list_for_each(point, &sample->touch_points, link) {
 		if (point->touch_id == event->touch_id) {
-			point->x = event->x_mm / event->width_mm;
-			point->y = event->y_mm / event->height_mm;
+			point->x = event->x;
+			point->y = event->y;
 			break;
 		}
 	}

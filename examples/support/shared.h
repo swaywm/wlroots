@@ -102,10 +102,10 @@ struct compositor_state {
 		enum wlr_axis_source source,
 		enum wlr_axis_orientation orientation,
 		double delta);
-	void (*touch_down_cb)(struct touch_state *s, int32_t touch_id,
-		double x, double y, double width, double height);
-	void (*touch_motion_cb)(struct touch_state *s, int32_t touch_id,
-		double x, double y, double width, double height);
+	void (*touch_down_cb)(struct touch_state *s,
+			int32_t touch_id, double x, double y);
+	void (*touch_motion_cb)(struct touch_state *s,
+			int32_t touch_id, double x, double y);
 	void (*touch_up_cb)(struct touch_state *s, int32_t touch_id);
 	void (*touch_cancel_cb)(struct touch_state *s, int32_t touch_id);
 	void (*tool_axis_cb)(struct tablet_tool_state *s,

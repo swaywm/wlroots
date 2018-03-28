@@ -156,6 +156,6 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
  */
 bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
 		struct wlr_input_device *device, double x_mm, double y_mm,
-		double width_mm, double height_mm, double *lx, double *ly);
+		double *lx, double *ly);
 
 #endif

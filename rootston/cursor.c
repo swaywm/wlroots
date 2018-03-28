@@ -310,10 +310,8 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	struct wlr_surface *surface = NULL;
 	double lx, ly;
-	bool result =
-		wlr_cursor_absolute_to_layout_coords(cursor->cursor,
-			event->device, event->x_mm, event->y_mm, event->width_mm,
-			event->height_mm, &lx, &ly);
+	bool result = wlr_cursor_absolute_to_layout_coords(cursor->cursor,
+			event->device, event->x, event->y, &lx, &ly);
 	if (!result) {
 		return;
 	}
@@ -365,8 +363,7 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 	double lx, ly;
 	bool result =
 		wlr_cursor_absolute_to_layout_coords(cursor->cursor,
-			event->device, event->x_mm, event->y_mm, event->width_mm,
-			event->height_mm, &lx, &ly);
+			event->device, event->x, event->y, &lx, &ly);
 	if (!result) {
 		return;
 	}
