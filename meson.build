@@ -82,35 +82,36 @@ if elogind.found() and get_option('enable_elogind') != 'false'
 endif
 
 if get_option('enable_x11_backend') or get_option('enable_xwayland')
-        xcb            = dependency('xcb')
-        xcb_composite  = dependency('xcb-composite')
-        xcb_xfixes     = dependency('xcb-xfixes')
-        xcb_image      = dependency('xcb-image')
-        xcb_render     = dependency('xcb-render')
-        x11_xcb        = dependency('x11-xcb')
+	xcb            = dependency('xcb')
+	xcb_composite  = dependency('xcb-composite')
+	xcb_xfixes     = dependency('xcb-xfixes')
+	xcb_xkb        = dependency('xcb-xkb') # TODO: make this optional
+	xcb_image      = dependency('xcb-image')
+	xcb_render     = dependency('xcb-render')
+	x11_xcb        = dependency('x11-xcb')
 
-        xcb_icccm      = dependency('xcb-icccm', required: false)
-        xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
+	xcb_icccm      = dependency('xcb-icccm', required: false)
+	xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
 
-        if xcb_icccm.found()
-                conf_data.set('WLR_HAS_XCB_ICCCM', true)
-        endif
+	if xcb_icccm.found()
+		conf_data.set('WLR_HAS_XCB_ICCCM', true)
+	endif
 
-        if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
-                conf_data.set('WLR_HAS_XCB_ERRORS', true)
-        endif
+	if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
+		conf_data.set('WLR_HAS_XCB_ERRORS', true)
+	endif
 
-        wlr_deps += [
-                xcb,
-                xcb_composite,
-                x11_xcb,
-        ]
+	wlr_deps += [
+		xcb,
+		xcb_composite,
+		x11_xcb,
+	]
 else
-        add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
+	add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
 endif
 
 if get_option('enable_x11_backend')
-        conf_data.set('WLR_HAS_X11_BACKEND', true)
+	conf_data.set('WLR_HAS_X11_BACKEND', true)
 endif
 
 if get_option('enable_xwayland')

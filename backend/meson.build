@@ -51,6 +51,7 @@ endif
 
 if conf_data.get('WLR_HAS_X11_BACKEND', false)
 	backend_files += files('x11/backend.c')
+	backend_deps += xcb_xkb
 endif
 
 if conf_data.get('WLR_HAS_ELOGIND', false)

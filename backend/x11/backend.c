@@ -16,6 +16,7 @@
 #include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
+#include <xcb/xkb.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
@@ -29,6 +30,10 @@
 static const struct wlr_backend_impl backend_impl;
 static const struct wlr_output_impl output_impl;
 static const struct wlr_input_device_impl input_device_impl = { 0 };
+
+// TODO: remove global state
+static uint8_t xkb_base_event;
+static uint8_t xkb_base_error;
 
 static uint32_t xcb_button_to_wl(uint32_t button) {
 	switch (button) {
@@ -157,6 +162,12 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		break;
 	}
 	default:
+		if (event->response_type == xkb_base_event) {
+			xcb_xkb_state_notify_event_t *ev =
+				(xcb_xkb_state_notify_event_t *)event;
+			wlr_keyboard_notify_modifiers(&x11->keyboard, ev->baseMods,
+				ev->latchedMods, ev->lockedMods, ev->lockedGroup);
+		}
 		break;
 	}
 
@@ -224,6 +235,28 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
 		x11->screen->root, 0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		x11->screen->root_visual, mask, values);
+
+	const xcb_query_extension_reply_t *reply =
+		xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
+	if (reply->present) {
+		xkb_base_event = reply->first_event;
+		xkb_base_error = reply->first_error;
+
+		xcb_xkb_use_extension_cookie_t cookie = xcb_xkb_use_extension(
+			x11->xcb_conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+		xcb_xkb_use_extension_reply_t *reply =
+			xcb_xkb_use_extension_reply(x11->xcb_conn, cookie, NULL);
+		if (reply && reply->supported) {
+			xcb_xkb_select_events(x11->xcb_conn,
+				XCB_XKB_ID_USE_CORE_KBD,
+				XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+				0,
+				XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+				0,
+				0,
+				0);
+		}
+	}
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
