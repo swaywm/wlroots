@@ -64,12 +64,12 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 		return;
 	}
 
-	surface->configured = true;
-	surface->configure_serial = serial;
-	surface->current.actual_width = configure->state.actual_width;
-	surface->current.actual_height = configure->state.actual_height;
-
-	layer_surface_configure_destroy(configure);
+	if (surface->acked_configure) {
+		layer_surface_configure_destroy(surface->acked_configure);
+	}
+	surface->acked_configure = configure;
+	wl_list_remove(&configure->link);
+	wl_list_init(&configure->link);
 }
 
 static void layer_surface_handle_set_size(struct wl_client *client,
@@ -170,13 +170,15 @@ static void layer_surface_resource_destroy(struct wl_resource *resource) {
 }
 
 static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
-	if (!surface->configured) {
-		return true;
-	}
-
 	struct wlr_layer_surface_state *state;
 	if (wl_list_empty(&surface->configure_list)) {
-		state = &surface->current;
+		if (surface->acked_configure) {
+			state = &surface->acked_configure->state;
+		} else if (!surface->configured) {
+			return true;
+		} else {
+			state = &surface->current;
+		}
 	} else {
 		struct wlr_layer_surface_configure *configure =
 			wl_container_of(surface->configure_list.prev, configure, link);
@@ -225,15 +227,26 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		void *role_data) {
 	struct wlr_layer_surface *surface = role_data;
 
+	if (surface->closed) {
+		// Ignore commits after the compositor has closed it
+		return;
+	}
+
+	if (surface->acked_configure) {
+		struct wlr_layer_surface_configure *configure =
+			surface->acked_configure;
+		surface->configured = true;
+		surface->configure_serial = configure->serial;
+		surface->current.actual_width = configure->state.actual_width;
+		surface->current.actual_height = configure->state.actual_height;
+		layer_surface_configure_destroy(configure);
+		surface->acked_configure = NULL;
+	}
+
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
 			ZWLR_LAYER_SHELL_V1_ERROR_ALREADY_CONSTRUCTED,
 			"layer_surface has never been configured");
-		return;
-	}
-
-	if (surface->closed) {
-		// Ignore commits after the compositor has closed it
 		return;
 	}
 

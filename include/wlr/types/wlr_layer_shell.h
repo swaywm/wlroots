@@ -64,6 +64,8 @@ struct wlr_layer_surface {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
+	struct wlr_layer_surface_configure *acked_configure;
+
 	struct wlr_layer_surface_state client_pending;
 	struct wlr_layer_surface_state server_pending;
 	struct wlr_layer_surface_state current;
