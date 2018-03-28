@@ -18,7 +18,7 @@ static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
 struct wlr_xdg_positioner_v6_resource {
 	struct wl_resource *resource;
-	struct wlr_xdg_positioner_v6 *attrs;
+	struct wlr_xdg_positioner_v6 attrs;
 };
 
 static void resource_handle_destroy(struct wl_client *client,
@@ -297,7 +297,6 @@ static struct wlr_xdg_positioner_v6_resource *xdg_positioner_from_resource(
 static void xdg_positioner_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
-	free(positioner->attrs);
 	free(positioner);
 }
 
@@ -313,8 +312,8 @@ static void xdg_positioner_handle_set_size(struct wl_client *client,
 		return;
 	}
 
-	positioner->attrs->size.width = width;
-	positioner->attrs->size.height = height;
+	positioner->attrs.size.width = width;
+	positioner->attrs.size.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
@@ -330,10 +329,10 @@ static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 		return;
 	}
 
-	positioner->attrs->anchor_rect.x = x;
-	positioner->attrs->anchor_rect.y = y;
-	positioner->attrs->anchor_rect.width = width;
-	positioner->attrs->anchor_rect.height = height;
+	positioner->attrs.anchor_rect.x = x;
+	positioner->attrs.anchor_rect.y = y;
+	positioner->attrs.anchor_rect.width = width;
+	positioner->attrs.anchor_rect.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor(struct wl_client *client,
@@ -351,7 +350,7 @@ static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 		return;
 	}
 
-	positioner->attrs->anchor = anchor;
+	positioner->attrs.anchor = anchor;
 }
 
 static void xdg_positioner_handle_set_gravity(struct wl_client *client,
@@ -369,7 +368,7 @@ static void xdg_positioner_handle_set_gravity(struct wl_client *client,
 		return;
 	}
 
-	positioner->attrs->gravity = gravity;
+	positioner->attrs.gravity = gravity;
 }
 
 static void xdg_positioner_handle_set_constraint_adjustment(
@@ -378,7 +377,7 @@ static void xdg_positioner_handle_set_constraint_adjustment(
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->attrs->constraint_adjustment = constraint_adjustment;
+	positioner->attrs.constraint_adjustment = constraint_adjustment;
 }
 
 static void xdg_positioner_handle_set_offset(struct wl_client *client,
@@ -386,8 +385,8 @@ static void xdg_positioner_handle_set_offset(struct wl_client *client,
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->attrs->offset.x = x;
-	positioner->attrs->offset.y = y;
+	positioner->attrs.offset.x = x;
+	positioner->attrs.offset.y = y;
 }
 
 static const struct zxdg_positioner_v6_interface
@@ -410,10 +409,6 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-
-	// TODO: allocate the positioner attrs?
-	positioner->attrs =
-		calloc(1, sizeof(struct wlr_xdg_positioner_v6));
 
 	positioner->resource = wl_resource_create(wl_client,
 		&zxdg_positioner_v6_interface,
@@ -587,7 +582,7 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(positioner_resource);
 
-	if (positioner->attrs->size.width == 0 || positioner->attrs->anchor_rect.width == 0) {
+	if (positioner->attrs.size.width == 0 || positioner->attrs.anchor_rect.width == 0) {
 		wl_resource_post_error(resource,
 			ZXDG_SHELL_V6_ERROR_INVALID_POSITIONER,
 			"positioner object is not complete");
@@ -618,10 +613,10 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	surface->popup->base = surface;
 	surface->popup->parent = parent;
 	surface->popup->geometry =
-		wlr_xdg_positioner_v6_get_geometry(positioner->attrs);
+		wlr_xdg_positioner_v6_get_geometry(&positioner->attrs);
 
 	// positioner properties
-	memcpy(&surface->popup->positioner, positioner->attrs,
+	memcpy(&surface->popup->positioner, &positioner->attrs,
 		sizeof(struct wlr_xdg_positioner_v6));
 
 	wl_list_insert(&parent->popups, &surface->popup->link);
