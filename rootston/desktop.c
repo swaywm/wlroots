@@ -192,13 +192,6 @@ void view_arrange_maximized(struct roots_view *view) {
 	struct wlr_box view_box;
 	view_get_box(view, &view_box);
 
-	view->maximized = true;
-	view->saved.x = view->x;
-	view->saved.y = view->y;
-	view->saved.rotation = view->rotation;
-	view->saved.width = view_box.width;
-	view->saved.height = view_box.height;
-
 	struct wlr_output *output = view_get_output(view);
 	struct roots_output *roots_output = output->data;
 	struct wlr_box *output_box =
@@ -224,6 +217,13 @@ void view_maximize(struct roots_view *view, bool maximized) {
 	}
 
 	if (!view->maximized && maximized) {
+		view->maximized = true;
+		view->saved.x = view->x;
+		view->saved.y = view->y;
+		view->saved.rotation = view->rotation;
+		view->saved.width = view->width;
+		view->saved.height = view->height;
+
 		view_arrange_maximized(view);
 	}
 

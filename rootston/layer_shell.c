@@ -239,10 +239,6 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 static void unmap(struct wlr_layer_surface *layer_surface) {
 	struct roots_layer_surface *layer = layer_surface->data;
-	if (layer->link.prev) {
-		wl_list_remove(&layer->link);
-	}
-
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
@@ -256,6 +252,11 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	if (layer->layer_surface->mapped) {
 		unmap(layer->layer_surface);
 	}
+	wl_list_remove(&layer->link);
+	wl_list_remove(&layer->destroy.link);
+	wl_list_remove(&layer->map.link);
+	wl_list_remove(&layer->unmap.link);
+	wl_list_remove(&layer->surface_commit.link);
 	wl_list_remove(&layer->output_destroy.link);
 	wl_list_remove(&layer->output_mode.link);
 	wl_list_remove(&layer->output_transform.link);
