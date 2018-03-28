@@ -1717,7 +1717,7 @@ static void wlr_xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,
 static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_box) {
 	int offset_x = 0, offset_y = 0;
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_y, &offset_y);
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
 		return true;
@@ -1727,7 +1727,7 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 		(popup->positioner.constraint_adjustment &
 		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_X);
 
-	bool flip_y = offset_x &&
+	bool flip_y = offset_y &&
 		(popup->positioner.constraint_adjustment &
 		 WLR_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_Y);
 
@@ -1740,6 +1740,8 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 
 	popup->geometry =
 		wlr_xdg_positioner_v6_get_geometry(&popup->positioner);
+
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
 		// no longer constrained
