@@ -73,7 +73,7 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double x, double y);
 
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
-	struct wlr_input_device *dev, double x_mm, double y_mm);
+	struct wlr_input_device *dev, double x, double y);
 
 /**
  * Move the cursor in the direction of the given x and y coordinates.

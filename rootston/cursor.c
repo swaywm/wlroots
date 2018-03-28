@@ -288,8 +288,8 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 
 void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 		struct wlr_event_pointer_motion_absolute *event) {
-	wlr_cursor_warp_absolute(cursor->cursor, event->device,
-		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+	wlr_cursor_warp_absolute(cursor->cursor,
+			event->device, event->x, event->y);
 	roots_cursor_update_position(cursor, event->time_msec);
 }
 

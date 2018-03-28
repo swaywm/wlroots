@@ -80,10 +80,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_event_pointer_motion_absolute wlr_event;
 	wlr_event.device = dev;
 	wlr_event.time_msec = time;
-	wlr_event.width_mm = layout_box.width;
-	wlr_event.height_mm = layout_box.height;
-	wlr_event.x_mm = transformed.x + wlr_output->lx - layout_box.x;
-	wlr_event.y_mm = transformed.y + wlr_output->ly - layout_box.y;
+	wlr_event.x = transformed.x / layout_box.width;
+	wlr_event.y = transformed.y / layout_box.height;
 	wlr_signal_emit_safe(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 

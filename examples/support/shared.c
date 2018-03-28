@@ -108,8 +108,8 @@ static void pointer_motion_absolute_notify(struct wl_listener *listener, void *d
 	struct wlr_event_pointer_motion_absolute *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, motion_absolute);
 	if (pstate->compositor->pointer_motion_absolute_cb) {
-		pstate->compositor->pointer_motion_absolute_cb(pstate,
-				event->x_mm, event->y_mm);
+		pstate->compositor->pointer_motion_absolute_cb(
+				pstate, event->x, event->y);
 	}
 }
 

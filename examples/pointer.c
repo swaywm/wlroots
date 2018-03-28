@@ -154,8 +154,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 		wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
-	sample->cur_x = event->x_mm;
-	sample->cur_y = event->y_mm;
+	sample->cur_x = event->x;
+	sample->cur_y = event->y;
 
 	wlr_cursor_warp_absolute(sample->cursor, event->device, sample->cur_x,
 		sample->cur_y);
@@ -252,7 +252,7 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
 		wlr_cursor_warp_absolute(sample->cursor, event->device,
-			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+				event->x_mm / event->width_mm, event->y_mm / event->height_mm);
 	}
 }
 

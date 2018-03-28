@@ -29,8 +29,8 @@ struct wlr_event_pointer_motion {
 struct wlr_event_pointer_motion_absolute {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
-	double x_mm, y_mm;
-	double width_mm, height_mm;
+	// From 0..1
+	double x, y;
 };
 
 struct wlr_event_pointer_button {
