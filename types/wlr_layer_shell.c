@@ -10,6 +10,8 @@
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
+static const char *zwlr_layer_surface_role = "zwlr_layer_surface";
+
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -288,6 +290,13 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		uint32_t layer, const char *namespace) {
 	struct wlr_layer_shell *shell =
 		layer_shell_from_resource(client_resource);
+	struct wlr_surface *wlr_surface =
+		wlr_surface_from_resource(surface_resource);
+
+	if (wlr_surface_set_role(wlr_surface, zwlr_layer_surface_role,
+			client_resource, ZWLR_LAYER_SHELL_V1_ERROR_ROLE)) {
+		return;
+	}
 
 	struct wlr_layer_surface *surface =
 		calloc(1, sizeof(struct wlr_layer_surface));
@@ -297,7 +306,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	}
 
 	surface->shell = shell;
-	surface->surface = wlr_surface_from_resource(surface_resource);
+	surface->surface = wlr_surface;
 	surface->output = wlr_output_from_resource(output_resource);
 	surface->resource = wl_resource_create(wl_client,
 		&zwlr_layer_surface_v1_interface,
