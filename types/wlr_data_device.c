@@ -495,9 +495,6 @@ static void wlr_drag_end(struct wlr_drag *drag) {
 	}
 }
 
-const struct
-wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
-
 static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
@@ -507,12 +504,20 @@ static void pointer_drag_enter(struct wlr_seat_pointer_grab *grab,
 static void pointer_drag_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
-	if (drag->focus  != NULL&& drag->focus_client != NULL) {
+	if (drag->focus != NULL && drag->focus_client != NULL) {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
 			wl_data_device_send_motion(resource, time, wl_fixed_from_double(sx),
 				wl_fixed_from_double(sy));
 		}
+
+		struct wlr_drag_motion_event event = {
+			.drag = drag,
+			.time = time,
+			.sx = sx,
+			.sy = sy,
+		};
+		wlr_signal_emit_safe(&drag->events.motion, &event);
 	}
 }
 
@@ -739,6 +744,7 @@ static bool seat_client_start_drag(struct wlr_seat_client *client,
 	}
 
 	wl_signal_init(&drag->events.focus);
+	wl_signal_init(&drag->events.motion);
 	wl_signal_init(&drag->events.destroy);
 
 	struct wlr_seat *seat = client->seat;

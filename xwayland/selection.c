@@ -12,7 +12,7 @@
 
 static const size_t incr_chunk_size = 64 * 1024;
 
-/*static xcb_atom_t data_device_manager_dnd_action_to_atom(
+static xcb_atom_t data_device_manager_dnd_action_to_atom(
 		struct wlr_xwm *xwm, enum wl_data_device_manager_dnd_action action) {
 	if (action & WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY) {
 		return xwm->atoms[DND_ACTION_COPY];
@@ -24,7 +24,7 @@ static const size_t incr_chunk_size = 64 * 1024;
 	return XCB_ATOM_NONE;
 }
 
-static enum wl_data_device_manager_dnd_action
+/*static enum wl_data_device_manager_dnd_action
 		data_device_manager_dnd_action_from_atom(struct wlr_xwm *xwm,
 		enum atom_name atom) {
 	if (atom == xwm->atoms[DND_ACTION_COPY] ||
@@ -183,7 +183,8 @@ error_out:
 
 static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		const char *mime_type, int32_t fd) {
-	if (selection == &selection->xwm->clipboard_selection) {
+	if (selection == &selection->xwm->clipboard_selection ||
+			selection == &selection->xwm->dnd_selection) {
 		struct wlr_data_source *source =
 			selection->xwm->seat->selection_data_source;
 		if (source != NULL) {
@@ -260,8 +261,9 @@ static xcb_atom_t xwm_get_mime_type_atom(struct wlr_xwm *xwm, char *mime_type) {
 	return atom;
 }
 
-static void xwm_dnd_send_enter(struct wlr_xwm *xwm, struct wlr_drag *drag,
-		struct wlr_xwayland_surface *dest) {
+static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
+	struct wlr_drag *drag = xwm->drag;
+	struct wlr_xwayland_surface *dest = xwm->drag_focus;
 	struct wl_array *mime_types = &drag->source->mime_types;
 
 	xcb_client_message_data_t data = { 0 };
@@ -316,9 +318,38 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm, struct wlr_drag *drag,
 		(const char *)&event);
 }
 
+static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
+		int16_t y) {
+	struct wlr_drag *drag = xwm->drag;
+	struct wlr_xwayland_surface *dest = xwm->drag_focus;
+
+	xcb_client_message_data_t data = { 0 };
+	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[2] = (x << 16) | y;
+	data.data32[3] = time;
+	data.data32[4] =
+		data_device_manager_dnd_action_to_atom(xwm, drag->source->actions);
+
+	xcb_client_message_event_t event = {
+		.response_type = XCB_CLIENT_MESSAGE,
+		.format = 32,
+		.sequence = 0,
+		.window = dest->window_id,
+		.type = xwm->atoms[DND_POSITION],
+		.data = data,
+	};
+
+	xcb_send_event(xwm->xcb_conn,
+		0, // propagate
+		dest->window_id,
+		XCB_EVENT_MASK_NO_EVENT,
+		(const char *)&event);
+}
+
 static struct wl_array *xwm_selection_source_get_mime_types(
 		struct wlr_xwm_selection *selection) {
-	if (selection == &selection->xwm->clipboard_selection) {
+	if (selection == &selection->xwm->clipboard_selection ||
+			selection == &selection->xwm->dnd_selection) {
 		struct wlr_data_source *source =
 			selection->xwm->seat->selection_data_source;
 		if (source != NULL) {
@@ -414,7 +445,7 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	selection->flush_property_on_delete = 0;
 
 	// No xwayland surface focused, deny access to clipboard
-	if (xwm->focus_surface == NULL) {
+	if (xwm->focus_surface == NULL && xwm->drag_focus == NULL) {
 		wlr_log(L_DEBUG, "denying read access to clipboard: "
 			"no xwayland surface focused");
 		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
@@ -714,7 +745,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 	// set the wayland selection to the X11 selection
 	struct wlr_xwm *xwm = selection->xwm;
 
-	if (selection == &xwm->clipboard_selection) {
+	if (selection == &xwm->clipboard_selection ||
+			selection == &xwm->dnd_selection) {
 		struct x11_data_source *source =
 			calloc(1, sizeof(struct x11_data_source));
 		if (source == NULL) {
@@ -724,6 +756,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		source->base.accept = data_source_accept;
 		source->base.send = data_source_send;
 		source->base.cancel = data_source_cancel;
+
+		// TODO: DND
 
 		source->selection = selection;
 		wl_array_init(&source->mime_types_atoms);
@@ -816,6 +850,11 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 			} else if (selection == &xwm->primary_selection) {
 				wlr_seat_set_primary_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
+			} else if (selection == &xwm->dnd_selection) {
+				// TODO: DND
+			} else {
+				wlr_log(L_DEBUG, "X11 selection has been cleared, but cannot "
+					"clear Wayland selection");
 			}
 		}
 
@@ -1009,7 +1048,21 @@ static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	xwm_dnd_send_enter(xwm, drag, surface);
+	xwm->drag_focus = surface;
+	xwm_dnd_send_enter(xwm);
+}
+
+static void seat_handle_drag_motion(struct wl_listener *listener, void *data) {
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_motion);
+	struct wlr_drag_motion_event *event = data;
+	struct wlr_xwayland_surface *surface = xwm->drag_focus;
+
+	if (surface == NULL) {
+		return; // No xwayland surface focused
+	}
+
+	xwm_dnd_send_position(xwm, event->time, surface->x + (int16_t)event->sx,
+		surface->y + (int16_t)event->sy);
 }
 
 static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
@@ -1017,6 +1070,7 @@ static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
 
 	wl_list_remove(&xwm->seat_drag_focus.link);
 	wl_list_remove(&xwm->seat_drag_destroy.link);
+	xwm->drag = NULL;
 }
 
 static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
@@ -1024,11 +1078,16 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_start_drag);
 
 	xwm_selection_set_owner(&xwm->dnd_selection, drag != NULL);
+	xwm->drag = drag;
 
-	wl_signal_add(&drag->events.focus, &xwm->seat_drag_focus);
-	xwm->seat_drag_focus.notify = seat_handle_drag_focus;
-	wl_signal_add(&drag->events.destroy, &xwm->seat_drag_destroy);
-	xwm->seat_drag_destroy.notify = seat_handle_drag_destroy;
+	if (drag != NULL) {
+		wl_signal_add(&drag->events.focus, &xwm->seat_drag_focus);
+		xwm->seat_drag_focus.notify = seat_handle_drag_focus;
+		wl_signal_add(&drag->events.motion, &xwm->seat_drag_motion);
+		xwm->seat_drag_motion.notify = seat_handle_drag_motion;
+		wl_signal_add(&drag->events.destroy, &xwm->seat_drag_destroy);
+		xwm->seat_drag_destroy.notify = seat_handle_drag_destroy;
+	}
 }
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {

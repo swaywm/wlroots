@@ -122,6 +122,9 @@ struct wlr_xwm {
 	struct wl_list surfaces; // wlr_xwayland_surface::link
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
 
+	struct wlr_drag *drag;
+	struct wlr_xwayland_surface *drag_focus;
+
 	const xcb_query_extension_reply_t *xfixes;
 #ifdef WLR_HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
@@ -133,6 +136,7 @@ struct wlr_xwm {
 	struct wl_listener seat_primary_selection;
 	struct wl_listener seat_start_drag;
 	struct wl_listener seat_drag_focus;
+	struct wl_listener seat_drag_motion;
 	struct wl_listener seat_drag_destroy;
 };
 
