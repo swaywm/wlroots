@@ -112,10 +112,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
 			.time_msec = ev->time,
-			.x_mm = ev->event_x,
-			.y_mm = ev->event_y,
-			.width_mm = output->wlr_output.width,
-			.height_mm = output->wlr_output.height,
+			.x = (double)ev->event_x / output->wlr_output.width,
+			.y = (double)ev->event_y / output->wlr_output.height,
 		};
 
 		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
@@ -140,10 +138,8 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		struct wlr_event_pointer_motion_absolute abs = {
 			.device = &x11->pointer_dev,
 			.time_msec = x11->time,
-			.x_mm = pointer->root_x,
-			.y_mm = pointer->root_y,
-			.width_mm = output->wlr_output.width,
-			.height_mm = output->wlr_output.height,
+			.x = (double)pointer->root_x / output->wlr_output.width,
+			.y = (double)pointer->root_y / output->wlr_output.height,
 		};
 
 		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);

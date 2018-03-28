@@ -60,13 +60,13 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
-static void handle_touch_down(struct touch_state *tstate, int32_t touch_id,
-		double x, double y, double width, double height) {
+static void handle_touch_down(struct touch_state *tstate,
+		int32_t touch_id, double x, double y) {
 	struct sample_state *sample = tstate->compositor->data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
 	point->touch_id = touch_id;
-	point->x = x / width;
-	point->y = y / height;
+	point->x = x;
+	point->y = y;
 	wl_list_insert(&sample->touch_points, &point->link);
 }
 
@@ -81,14 +81,14 @@ static void handle_touch_up(struct touch_state *tstate, int32_t touch_id) {
 	}
 }
 
-static void handle_touch_motion(struct touch_state *tstate, int32_t touch_id,
-		double x, double y, double width, double height) {
+static void handle_touch_motion(struct touch_state *tstate,
+		int32_t touch_id, double x, double y) {
 	struct sample_state *sample = tstate->compositor->data;
 	struct touch_point *point;
 	wl_list_for_each(point, &sample->touch_points, link) {
 		if (point->touch_id == touch_id) {
-			point->x = x / width;
-			point->y = y / height;
+			point->x = x;
+			point->y = y;
 			break;
 		}
 	}
