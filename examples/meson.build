@@ -48,3 +48,9 @@ executable(
 	dependencies: [wayland_client, wlr_protos, wlroots, threads],
 	link_with: lib_shared,
 )
+
+executable(
+	'layer-shell',
+	'layer-shell.c',
+	dependencies: [wayland_client, wlr_protos, wlroots]
+)

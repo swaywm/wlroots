@@ -20,6 +20,7 @@ struct wlr_egl {
 		bool swap_buffers_with_damage;
 		bool dmabuf_import;
 		bool dmabuf_import_modifiers;
+		bool bind_wayland_display;
 	} egl_exts;
 
 	struct wl_display *wl_display;

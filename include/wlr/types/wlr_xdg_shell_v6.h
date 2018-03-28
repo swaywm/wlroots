@@ -78,8 +78,8 @@ struct wlr_xdg_toplevel_v6 {
 	struct wlr_xdg_surface_v6 *parent;
 	bool added;
 
-	struct wlr_xdg_toplevel_v6_state next; // client protocol requests
-	struct wlr_xdg_toplevel_v6_state pending; // user configure requests
+	struct wlr_xdg_toplevel_v6_state client_pending;
+	struct wlr_xdg_toplevel_v6_state server_pending;
 	struct wlr_xdg_toplevel_v6_state current;
 
 	char *title;

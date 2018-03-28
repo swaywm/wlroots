@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -48,12 +49,14 @@ struct roots_desktop {
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
 	struct wlr_linux_dmabuf *linux_dmabuf;
+	struct wlr_layer_shell *layer_shell;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
 	struct wl_listener xdg_shell_v6_surface;
 	struct wl_listener xdg_shell_surface;
 	struct wl_listener wl_shell_surface;
+	struct wl_listener layer_shell_surface;
 	struct wl_listener decoration_new;
 
 #ifdef WLR_HAS_XWAYLAND
@@ -83,10 +86,12 @@ void view_update_size(struct roots_view *view, uint32_t width, uint32_t height);
 void view_initial_focus(struct roots_view *view);
 void view_map(struct roots_view *view, struct wlr_surface *surface);
 void view_unmap(struct roots_view *view);
+void view_arrange_maximized(struct roots_view *view);
 
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_xdg_shell_surface(struct wl_listener *listener, void *data);
 void handle_wl_shell_surface(struct wl_listener *listener, void *data);
+void handle_layer_shell_surface(struct wl_listener *listener, void *data);
 void handle_xwayland_surface(struct wl_listener *listener, void *data);
 
 #endif
