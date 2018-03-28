@@ -7,6 +7,7 @@
 #include <wayland-server.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
+#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -20,6 +21,9 @@
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
+#endif
+#ifdef WLR_HAS_XCB_XKB
+#include <xcb/xkb.h>
 #endif
 #include "backend/x11.h"
 #include "util/signal.h"
@@ -157,6 +161,14 @@ static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *e
 		break;
 	}
 	default:
+#ifdef WLR_HAS_XCB_XKB
+		if (x11->xkb_supported && event->response_type == x11->xkb_base_event) {
+			xcb_xkb_state_notify_event_t *ev =
+				(xcb_xkb_state_notify_event_t *)event;
+			wlr_keyboard_notify_modifiers(&x11->keyboard, ev->baseMods,
+				ev->latchedMods, ev->lockedMods, ev->lockedGroup);
+		}
+#endif
 		break;
 	}
 
@@ -281,6 +293,32 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
 			strlen(title), title);
 	}
+
+#ifdef WLR_HAS_XCB_XKB
+		const xcb_query_extension_reply_t *reply =
+			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
+		if (reply != NULL && reply->present) {
+			x11->xkb_base_event = reply->first_event;
+			x11->xkb_base_error = reply->first_error;
+
+			xcb_xkb_use_extension_cookie_t cookie = xcb_xkb_use_extension(
+				x11->xcb_conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+			xcb_xkb_use_extension_reply_t *reply =
+				xcb_xkb_use_extension_reply(x11->xcb_conn, cookie, NULL);
+			if (reply != NULL && reply->supported) {
+				x11->xkb_supported = true;
+
+				xcb_xkb_select_events(x11->xcb_conn,
+					XCB_XKB_ID_USE_CORE_KBD,
+					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+					0,
+					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+					0,
+					0,
+					0);
+			}
+		}
+#endif
 
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
