@@ -559,7 +559,8 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_motif_hints(xwm, xsurface, reply);
 	} else {
 		char *prop_name = get_atom_name(xwm, property);
-		wlr_log(L_DEBUG, "unhandled x11 property %u (%s)", property, prop_name);
+		wlr_log(L_DEBUG, "unhandled X11 property %u (%s) for window %u",
+			property, prop_name, xsurface->window_id);
 		free(prop_name);
 	}
 

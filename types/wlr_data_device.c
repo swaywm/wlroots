@@ -537,9 +537,11 @@ static uint32_t pointer_drag_button(struct wlr_seat_pointer_grab *grab,
 				drag->source->dnd_drop(drag->source);
 			}
 
-			drag->source->offer->in_ask =
-				drag->source->current_dnd_action ==
-				WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
+			if (drag->source->offer != NULL) {
+				drag->source->offer->in_ask =
+					drag->source->current_dnd_action ==
+					WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
+			}
 
 			struct wlr_drag_drop_event event = {
 				.drag = drag,

@@ -24,7 +24,7 @@ static xcb_atom_t data_device_manager_dnd_action_to_atom(
 	return XCB_ATOM_NONE;
 }
 
-/*static enum wl_data_device_manager_dnd_action
+static enum wl_data_device_manager_dnd_action
 		data_device_manager_dnd_action_from_atom(struct wlr_xwm *xwm,
 		enum atom_name atom) {
 	if (atom == xwm->atoms[DND_ACTION_COPY] ||
@@ -36,7 +36,7 @@ static xcb_atom_t data_device_manager_dnd_action_to_atom(
 		return WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
 	}
 	return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
-}*/
+}
 
 static void xwm_selection_send_notify(struct wlr_xwm_selection *selection,
 		xcb_atom_t property) {
@@ -963,15 +963,25 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 	if (ev->type == xwm->atoms[DND_STATUS]) {
 		struct wlr_drag *drag = xwm->drag;
 		if (drag == NULL) {
-			return 0;
+			wlr_log(L_DEBUG, "Ignoring XdndStatus client message because "
+				"there's no current drag");
+			return 1;
 		}
 
-		// xcb_client_message_data_t *data = &ev->data;
-		// xcb_window_t target_window = data->data32[0];
-		// bool accepted = data->data32[1] & 1;
-		// xcb_atom_t action = data->data32[4];
+		xcb_client_message_data_t *data = &ev->data;
+		xcb_window_t target_window = data->data32[0];
+		bool accepted = data->data32[1] & 1;
+		xcb_atom_t action_atom = data->data32[4];
 
-		// TODO: drag->source->dnd_action(data_device_manager_dnd_action_from_atom(xwm, action))
+		enum wl_data_device_manager_dnd_action action =
+			data_device_manager_dnd_action_from_atom(xwm, action_atom);
+
+		drag->source->accepted = accepted;
+		drag->source->current_dnd_action = action;
+
+		// TODO: drag->source->dnd_action()
+		wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
+			target_window, accepted, action);
 		return 1;
 	} else {
 		return 0;
@@ -1150,6 +1160,7 @@ static void seat_handle_drag_drop(struct wl_listener *listener, void *data) {
 		return; // No xwayland surface focused
 	}
 
+	wlr_log(L_DEBUG, "Wayland drag dropped over an Xwayland window");
 	xwm_dnd_send_drop(xwm, event->time);
 }
 
