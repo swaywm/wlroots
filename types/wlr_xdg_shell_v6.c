@@ -1761,7 +1761,7 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 
 static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_box) {
-	int offset_x, offset_y;
+	int offset_x = 0, offset_y = 0;
 	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
@@ -1782,6 +1782,17 @@ static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 
 	if (slide_y) {
 		popup->geometry.y += offset_y;
+	}
+
+	int toplevel_x = 0, toplevel_y = 0;
+	wlr_xdg_popup_v6_get_toplevel_coords(popup, popup->geometry.x,
+		popup->geometry.y, &toplevel_x, &toplevel_y);
+
+	if (slide_x && toplevel_x < toplevel_box->x) {
+		popup->geometry.x += toplevel_box->x - toplevel_x;
+	}
+	if (slide_y && toplevel_y < toplevel_box->y) {
+		popup->geometry.y += toplevel_box->y - toplevel_y;
 	}
 
 	wlr_xdg_popup_v6_box_constraints(popup, toplevel_box, &offset_x, &offset_y);
