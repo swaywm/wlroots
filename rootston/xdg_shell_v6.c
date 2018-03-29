@@ -92,14 +92,14 @@ static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
 
 	// the output box expressed in the coordinate system of the toplevel parent
 	// of the popup
-	struct wlr_box output_box_toplevel = {
+	struct wlr_box output_toplevel_sx_box = {
 		.x = output->lx - view->x,
 		.y = output->ly - view->y,
 		.width = width,
 		.height = height
 	};
 
-	wlr_xdg_popup_v6_unconstrain_from_box(popup->wlr_popup, &output_box_toplevel);
+	wlr_xdg_popup_v6_unconstrain_from_box(popup->wlr_popup, &output_toplevel_sx_box);
 }
 
 static struct roots_xdg_popup_v6 *popup_create(struct roots_view *view,

@@ -269,11 +269,11 @@ void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
 
 /**
  * Set the geometry of this popup to unconstrain it according to its
- * xdg-positioner rules. The box should be in the popup's toplevel
- * parent surface coordinate system.
+ * xdg-positioner rules. The box should be in the popup's root toplevel parent
+ * surface coordinate system.
  */
 void wlr_xdg_popup_v6_unconstrain_from_box(struct wlr_xdg_popup_v6 *popup,
-		struct wlr_box *toplevel_box);
+		struct wlr_box *toplevel_sx_box);
 
 /**
   Invert the right/left anchor and gravity for this positioner. This can be
