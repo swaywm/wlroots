@@ -331,7 +331,7 @@ static void wlr_surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 }
 
 static void wlr_surface_apply_damage(struct wlr_surface *surface,
-		bool reupload_buffer) {
+		bool invalid_buffer, bool reupload_buffer) {
 	struct wl_resource *resource = surface->current->buffer;
 	if (resource == NULL) {
 		return;
@@ -374,7 +374,7 @@ static void wlr_surface_apply_damage(struct wlr_surface *surface,
 		}
 
 		wl_shm_buffer_end_access(buf);
-	} else if (!surface->texture || reupload_buffer) {
+	} else if (invalid_buffer || reupload_buffer) {
 		wlr_texture_destroy(surface->texture);
 
 		if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer, resource)) {
@@ -398,9 +398,8 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 	int32_t oldw = surface->current->buffer_width;
 	int32_t oldh = surface->current->buffer_height;
 
-	bool null_buffer_commit =
-		(surface->pending->invalid & WLR_SURFACE_INVALID_BUFFER &&
-		 surface->pending->buffer == NULL);
+	bool invalid_buffer = surface->pending->invalid & WLR_SURFACE_INVALID_BUFFER;
+	bool null_buffer_commit = invalid_buffer && surface->pending->buffer == NULL;
 
 	wlr_surface_move_state(surface, surface->pending, surface->current);
 
@@ -411,7 +410,7 @@ static void wlr_surface_commit_pending(struct wlr_surface *surface) {
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
 		oldh != surface->current->buffer_height;
-	wlr_surface_apply_damage(surface, reupload_buffer);
+	wlr_surface_apply_damage(surface, invalid_buffer, reupload_buffer);
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
