@@ -1,7 +1,6 @@
 #ifndef ROOTSTON_LAYERS_H
 #define ROOTSTON_LAYERS_H
 #include <stdbool.h>
-#include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_layer_shell.h>
@@ -15,11 +14,12 @@ struct roots_layer_surface {
 	struct wl_listener unmap;
 	struct wl_listener surface_commit;
 	struct wl_listener output_destroy;
-	struct wl_listener output_mode;
-	struct wl_listener output_transform;
 
 	bool configured;
 	struct wlr_box geo;
 };
+
+struct roots_output;
+void arrange_layers(struct roots_output *output);
 
 #endif

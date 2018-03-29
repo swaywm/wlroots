@@ -816,6 +816,18 @@ static void output_damage_handle_destroy(struct wl_listener *listener,
 	output_destroy(output);
 }
 
+static void output_handle_mode(struct wl_listener *listener, void *data) {
+	struct roots_output *output =
+		wl_container_of(listener, output, mode);
+	arrange_layers(output);
+}
+
+static void output_handle_transform(struct wl_listener *listener, void *data) {
+	struct roots_output *output =
+		wl_container_of(listener, output, transform);
+	arrange_layers(output);
+}
+
 void handle_new_output(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = wl_container_of(listener, desktop,
 		new_output);
@@ -845,6 +857,11 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	output->destroy.notify = output_handle_destroy;
 	wl_signal_add(&wlr_output->events.destroy, &output->destroy);
+	output->mode.notify = output_handle_mode;
+	wl_signal_add(&wlr_output->events.mode, &output->mode);
+	output->transform.notify = output_handle_transform;
+	wl_signal_add(&wlr_output->events.transform, &output->transform);
+
 	output->damage_frame.notify = output_damage_handle_frame;
 	wl_signal_add(&output->damage->events.frame, &output->damage_frame);
 	output->damage_destroy.notify = output_damage_handle_destroy;
@@ -879,5 +896,6 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 		roots_seat_configure_xcursor(seat);
 	}
 
+	arrange_layers(output);
 	output_damage_whole(output);
 }

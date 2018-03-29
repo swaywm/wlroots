@@ -82,7 +82,7 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 	wl_list_for_each(roots_surface, list, link) {
 		struct wlr_layer_surface *layer = roots_surface->layer_surface;
 		struct wlr_layer_surface_state *state = &layer->current;
-		if (exclusive != (state->exclusive_zone >0)) {
+		if (exclusive != (state->exclusive_zone > 0)) {
 			continue;
 		}
 		struct wlr_box bounds;
@@ -152,9 +152,7 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 	}
 }
 
-static void arrange_layers(struct wlr_output *_output) {
-	struct roots_output *output = _output->data;
-
+void arrange_layers(struct roots_output *output) {
 	struct wlr_box usable_area = { 0 };
 	wlr_output_effective_resolution(output->wlr_output,
 			&usable_area.width, &usable_area.height);
@@ -204,16 +202,7 @@ static void handle_output_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, layer, output_destroy);
 	layer->layer_surface->output = NULL;
 	wl_list_remove(&layer->output_destroy.link);
-	wl_list_remove(&layer->output_mode.link);
 	wlr_layer_surface_close(layer->layer_surface);
-}
-
-static void handle_output_mode(struct wl_listener *listener, void *data) {
-	arrange_layers((struct wlr_output *)data);
-}
-
-static void handle_output_transform(struct wl_listener *listener, void *data) {
-	arrange_layers((struct wlr_output *)data);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
@@ -224,7 +213,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
 		struct wlr_box old_geo = layer->geo;
-		arrange_layers(wlr_output);
+		arrange_layers(output);
 		if (memcmp(&old_geo, &layer->geo, sizeof(struct wlr_box)) != 0) {
 			output_damage_whole_local_surface(output, layer_surface->surface,
 					old_geo.x, old_geo.y, 0);
@@ -258,9 +247,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&layer->unmap.link);
 	wl_list_remove(&layer->surface_commit.link);
 	wl_list_remove(&layer->output_destroy.link);
-	wl_list_remove(&layer->output_mode.link);
-	wl_list_remove(&layer->output_transform.link);
-	arrange_layers(layer->layer_surface->output);
+	arrange_layers((struct roots_output *)layer->layer_surface->output->data);
 	free(layer);
 }
 
@@ -306,14 +293,6 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&layer_surface->output->events.destroy,
 		&roots_surface->output_destroy);
 
-	roots_surface->output_mode.notify = handle_output_mode;
-	wl_signal_add(&layer_surface->output->events.mode,
-		&roots_surface->output_mode);
-
-	roots_surface->output_transform.notify = handle_output_transform;
-	wl_signal_add(&layer_surface->output->events.transform,
-		&roots_surface->output_transform);
-
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&layer_surface->events.destroy, &roots_surface->destroy);
 	roots_surface->map.notify = handle_map;
@@ -333,7 +312,7 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_layer_surface_state old_state = layer_surface->current;
 	layer_surface->current = layer_surface->client_pending;
 
-	arrange_layers(output->wlr_output);
+	arrange_layers(output);
 
 	layer_surface->current = old_state;
 }

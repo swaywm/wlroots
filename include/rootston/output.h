@@ -23,6 +23,8 @@ struct roots_output {
 	struct wlr_box usable_area;
 
 	struct wl_listener destroy;
+	struct wl_listener mode;
+	struct wl_listener transform;
 	struct wl_listener damage_frame;
 	struct wl_listener damage_destroy;
 };
