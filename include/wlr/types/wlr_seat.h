@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_text_input.h>
 
 /**
  * Contains state for a single client's bound wl_seat resource and can be used
