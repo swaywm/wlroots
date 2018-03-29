@@ -54,6 +54,12 @@ static void popup_unconstrain(struct roots_xdg_popup_v6 *popup) {
 	// get the output of the popup's positioner anchor point and convert it to
 	// the toplevel parent's coordinate system and then pass it to
 	// wlr_xdg_popup_v6_unconstrain_from_box
+
+	// TODO: unconstrain popups for rotated windows
+	if (popup->view_child.view->rotation != 0.0) {
+		return;
+	}
+
 	struct roots_view *view = popup->view_child.view;
 	struct wlr_output_layout *layout = view->desktop->layout;
 	struct wlr_xdg_popup_v6 *wlr_popup = popup->wlr_popup;
