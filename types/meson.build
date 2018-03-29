@@ -51,6 +51,7 @@ lib_wlr_types = static_library(
 		'tablet_v2/wlr_tablet_v2_tool.c',
 		'wlr_tablet_pad.c',
 		'wlr_tablet_tool.c',
+		'wlr_text_input_v3.c',
 		'wlr_touch.c',
 		'wlr_virtual_keyboard_v1.c',
 		'wlr_wl_shell.c',

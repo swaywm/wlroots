@@ -30,6 +30,7 @@ install_headers(
 	'wlr_tablet_pad.h',
 	'wlr_tablet_tool.h',
 	'wlr_tablet_v2.h',
+    'wlr_text_input_v3.h',
 	'wlr_touch.h',
 	'wlr_virtual_keyboard_v1.h',
 	'wlr_wl_shell.h',
