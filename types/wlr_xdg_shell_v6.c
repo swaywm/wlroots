@@ -16,23 +16,10 @@
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel_v6";
 static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
-struct wlr_xdg_positioner_v6 {
+struct wlr_xdg_positioner_v6_resource {
 	struct wl_resource *resource;
-
-	struct wlr_box anchor_rect;
-	enum zxdg_positioner_v6_anchor anchor;
-	enum zxdg_positioner_v6_gravity gravity;
-	enum zxdg_positioner_v6_constraint_adjustment constraint_adjustment;
-
-	struct {
-		int32_t width, height;
-	} size;
-
-	struct {
-		int32_t x, y;
-	} offset;
+	struct wlr_xdg_positioner_v6 attrs;
 };
-
 
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -110,8 +97,8 @@ static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab,
 	// keyboard focus should remain on the popup
 }
 
-static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab, uint32_t time,
-		uint32_t key, uint32_t state) {
+static void xdg_keyboard_grab_key(struct wlr_seat_keyboard_grab *grab,
+		uint32_t time, uint32_t key, uint32_t state) {
 	wlr_seat_keyboard_send_key(grab->seat, time, key, state);
 }
 
@@ -300,7 +287,7 @@ static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface) {
 static const struct zxdg_positioner_v6_interface
 	zxdg_positioner_v6_implementation;
 
-static struct wlr_xdg_positioner_v6 *xdg_positioner_from_resource(
+static struct wlr_xdg_positioner_v6_resource *xdg_positioner_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zxdg_positioner_v6_interface,
 		&zxdg_positioner_v6_implementation));
@@ -308,14 +295,14 @@ static struct wlr_xdg_positioner_v6 *xdg_positioner_from_resource(
 }
 
 static void xdg_positioner_destroy(struct wl_resource *resource) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 	free(positioner);
 }
 
 static void xdg_positioner_handle_set_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
 	if (width < 1 || height < 1) {
@@ -325,14 +312,14 @@ static void xdg_positioner_handle_set_size(struct wl_client *client,
 		return;
 	}
 
-	positioner->size.width = width;
-	positioner->size.height = height;
+	positioner->attrs.size.width = width;
+	positioner->attrs.size.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
 	if (width < 1 || height < 1) {
@@ -342,15 +329,15 @@ static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 		return;
 	}
 
-	positioner->anchor_rect.x = x;
-	positioner->anchor_rect.y = y;
-	positioner->anchor_rect.width = width;
-	positioner->anchor_rect.height = height;
+	positioner->attrs.anchor_rect.x = x;
+	positioner->attrs.anchor_rect.y = y;
+	positioner->attrs.anchor_rect.width = width;
+	positioner->attrs.anchor_rect.height = height;
 }
 
 static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
 	if (((anchor & ZXDG_POSITIONER_V6_ANCHOR_TOP ) &&
@@ -363,12 +350,12 @@ static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 		return;
 	}
 
-	positioner->anchor = anchor;
+	positioner->attrs.anchor = anchor;
 }
 
 static void xdg_positioner_handle_set_gravity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t gravity) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
 	if (((gravity & ZXDG_POSITIONER_V6_GRAVITY_TOP) &&
@@ -381,25 +368,25 @@ static void xdg_positioner_handle_set_gravity(struct wl_client *client,
 		return;
 	}
 
-	positioner->gravity = gravity;
+	positioner->attrs.gravity = gravity;
 }
 
 static void xdg_positioner_handle_set_constraint_adjustment(
 		struct wl_client *client, struct wl_resource *resource,
 		uint32_t constraint_adjustment) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->constraint_adjustment = constraint_adjustment;
+	positioner->attrs.constraint_adjustment = constraint_adjustment;
 }
 
 static void xdg_positioner_handle_set_offset(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y) {
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(resource);
 
-	positioner->offset.x = x;
-	positioner->offset.y = y;
+	positioner->attrs.offset.x = x;
+	positioner->attrs.offset.y = y;
 }
 
 static const struct zxdg_positioner_v6_interface
@@ -416,8 +403,8 @@ static const struct zxdg_positioner_v6_interface
 
 static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		struct wl_resource *resource, uint32_t id) {
-	struct wlr_xdg_positioner_v6 *positioner =
-		calloc(1, sizeof(struct wlr_xdg_positioner_v6));
+	struct wlr_xdg_positioner_v6_resource *positioner =
+		calloc(1, sizeof(struct wlr_xdg_positioner_v6_resource));
 	if (positioner == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
@@ -438,9 +425,8 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		positioner, xdg_positioner_destroy);
 }
 
-static struct wlr_box xdg_positioner_get_geometry(
-		struct wlr_xdg_positioner_v6 *positioner,
-		struct wlr_xdg_surface_v6 *surface, struct wlr_xdg_surface_v6 *parent) {
+struct wlr_box wlr_xdg_positioner_v6_get_geometry(
+		struct wlr_xdg_positioner_v6 *positioner) {
 	struct wlr_box geometry = {
 		.x = positioner->offset.x,
 		.y = positioner->offset.y,
@@ -492,7 +478,6 @@ static struct wlr_box xdg_positioner_get_geometry(
 
 	return geometry;
 }
-
 
 static const struct zxdg_popup_v6_interface zxdg_popup_v6_implementation;
 
@@ -595,10 +580,11 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 		xdg_surface_from_resource(resource);
 	struct wlr_xdg_surface_v6 *parent =
 		xdg_surface_from_resource(parent_resource);
-	struct wlr_xdg_positioner_v6 *positioner =
+	struct wlr_xdg_positioner_v6_resource *positioner =
 		xdg_positioner_from_resource(positioner_resource);
 
-	if (positioner->size.width == 0 || positioner->anchor_rect.width == 0) {
+	if (positioner->attrs.size.width == 0 ||
+			positioner->attrs.anchor_rect.width == 0) {
 		wl_resource_post_error(resource,
 			ZXDG_SHELL_V6_ERROR_INVALID_POSITIONER,
 			"positioner object is not complete");
@@ -629,7 +615,12 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	surface->popup->base = surface;
 	surface->popup->parent = parent;
 	surface->popup->geometry =
-		xdg_positioner_get_geometry(positioner, surface, parent);
+		wlr_xdg_positioner_v6_get_geometry(&positioner->attrs);
+
+	// positioner properties
+	memcpy(&surface->popup->positioner, &positioner->attrs,
+		sizeof(struct wlr_xdg_positioner_v6));
+
 	wl_list_insert(&parent->popups, &surface->popup->link);
 
 	wl_resource_set_implementation(surface->popup->resource,
@@ -638,7 +629,6 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 
 	wlr_signal_emit_safe(&parent->events.new_popup, surface->popup);
 }
-
 
 static const struct zxdg_toplevel_v6_interface zxdg_toplevel_v6_implementation;
 
@@ -1101,7 +1091,8 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	if (surface->toplevel->server_pending.maximized) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
+			wlr_log(L_ERROR,
+				"Could not allocate state for maximized xdg_toplevel");
 			goto error_out;
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED;
@@ -1109,7 +1100,8 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	if (surface->toplevel->server_pending.fullscreen) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
+			wlr_log(L_ERROR,
+				"Could not allocate state for fullscreen xdg_toplevel");
 			goto error_out;
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN;
@@ -1117,7 +1109,8 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	if (surface->toplevel->server_pending.resizing) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
+			wlr_log(L_ERROR,
+				"Could not allocate state for resizing xdg_toplevel");
 			goto error_out;
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_RESIZING;
@@ -1125,7 +1118,8 @@ static void wlr_xdg_toplevel_v6_send_configure(
 	if (surface->toplevel->server_pending.activated) {
 		s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
+			wlr_log(L_ERROR,
+				"Could not allocate state for activated xdg_toplevel");
 			goto error_out;
 		}
 		*s = ZXDG_TOPLEVEL_V6_STATE_ACTIVATED;
@@ -1638,4 +1632,265 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_popup_at(
 	}
 
 	return NULL;
+}
+
+void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
+		int *root_sx, int *root_sy) {
+	struct wlr_box rect = popup->positioner.anchor_rect;
+	enum zxdg_positioner_v6_anchor anchor = popup->positioner.anchor;
+	int sx = 0, sy = 0;
+
+	if (anchor == ZXDG_POSITIONER_V6_ANCHOR_NONE) {
+		sx = (rect.x + rect.width) / 2;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == ZXDG_POSITIONER_V6_ANCHOR_TOP) {
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y;
+	} else if (anchor == ZXDG_POSITIONER_V6_ANCHOR_BOTTOM) {
+		sx = (rect.x + rect.width) / 2;
+		sy = rect.y + rect.height;
+	} else if (anchor == ZXDG_POSITIONER_V6_ANCHOR_LEFT) {
+		sx = rect.x;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == ZXDG_POSITIONER_V6_ANCHOR_RIGHT) {
+		sx = rect.x + rect.width;
+		sy = (rect.y + rect.height) / 2;
+	} else if (anchor == (ZXDG_POSITIONER_V6_ANCHOR_TOP |
+				ZXDG_POSITIONER_V6_ANCHOR_LEFT)) {
+		sx = rect.x;
+		sy = rect.y;
+	} else if (anchor == (ZXDG_POSITIONER_V6_ANCHOR_TOP |
+				ZXDG_POSITIONER_V6_ANCHOR_RIGHT)) {
+		sx = rect.x + rect.width;
+		sy = rect.y;
+	} else if (anchor == (ZXDG_POSITIONER_V6_ANCHOR_BOTTOM |
+				ZXDG_POSITIONER_V6_ANCHOR_LEFT)) {
+		sx = rect.x;
+		sy = rect.y + rect.height;
+	} else if (anchor == (ZXDG_POSITIONER_V6_ANCHOR_BOTTOM |
+				ZXDG_POSITIONER_V6_ANCHOR_RIGHT)) {
+		sx = rect.x + rect.width;
+		sy = rect.y + rect.height;
+	}
+
+	*root_sx = sx;
+	*root_sy = sy;
+}
+
+void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
+		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
+	struct wlr_xdg_surface_v6 *parent = popup->parent;
+	while (parent != NULL && parent->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
+		popup_sx += parent->popup->geometry.x;
+		popup_sy += parent->popup->geometry.y;
+		parent = parent->popup->parent;
+	}
+
+	assert(parent);
+
+	*toplevel_sx = popup_sx + parent->geometry.x;
+	*toplevel_sy = popup_sy + parent->geometry.y;
+
+}
+
+static void wlr_xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_sx_box, int *offset_x, int *offset_y) {
+	int popup_width = popup->geometry.width;
+	int popup_height = popup->geometry.height;
+	int anchor_sx = 0, anchor_sy = 0;
+	wlr_xdg_popup_v6_get_anchor_point(popup, &anchor_sx, &anchor_sy);
+	int popup_sx = 0, popup_sy = 0;
+	wlr_xdg_popup_v6_get_toplevel_coords(popup, popup->geometry.x,
+		popup->geometry.y, &popup_sx, &popup_sy);
+	*offset_x = 0, *offset_y = 0;
+
+	if (popup_sx < toplevel_sx_box->x) {
+		*offset_x = toplevel_sx_box->x - popup_sx;
+	} else if (popup_sx + popup_width >
+			toplevel_sx_box->x + toplevel_sx_box->width) {
+		*offset_x = toplevel_sx_box->x + toplevel_sx_box->width -
+			(popup_sx + popup_width);
+	}
+
+	if (popup_sy < toplevel_sx_box->y) {
+		*offset_y = toplevel_sx_box->y - popup_sy;
+	} else if (popup_sy + popup_height >
+			toplevel_sx_box->y + toplevel_sx_box->height) {
+		*offset_y = toplevel_sx_box->y + toplevel_sx_box->height -
+			(popup_sy + popup_height);
+	}
+}
+
+static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_sx_box) {
+	int offset_x = 0, offset_y = 0;
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_x, &offset_y);
+
+	if (!offset_x && !offset_y) {
+		return true;
+	}
+
+	bool flip_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_X);
+
+	bool flip_y = offset_y &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_FLIP_Y);
+
+	if (flip_x) {
+		wlr_positioner_v6_invert_x(&popup->positioner);
+	}
+	if (flip_y) {
+		wlr_positioner_v6_invert_y(&popup->positioner);
+	}
+
+	popup->geometry =
+		wlr_xdg_positioner_v6_get_geometry(&popup->positioner);
+
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_x, &offset_y);
+
+	if (!offset_x && !offset_y) {
+		// no longer constrained
+		return true;
+	}
+
+	// revert the positioner back if it didn't fix it and go to the next part
+	if (flip_x) {
+		wlr_positioner_v6_invert_x(&popup->positioner);
+	}
+	if (flip_y) {
+		wlr_positioner_v6_invert_y(&popup->positioner);
+	}
+
+	popup->geometry =
+		wlr_xdg_positioner_v6_get_geometry(&popup->positioner);
+
+	return false;
+}
+
+static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_sx_box) {
+	int offset_x = 0, offset_y = 0;
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_x, &offset_y);
+
+	if (!offset_x && !offset_y) {
+		return true;
+	}
+
+	bool slide_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_X);
+
+	bool slide_y = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
+
+	if (slide_x) {
+		popup->geometry.x += offset_x;
+	}
+
+	if (slide_y) {
+		popup->geometry.y += offset_y;
+	}
+
+	int toplevel_x = 0, toplevel_y = 0;
+	wlr_xdg_popup_v6_get_toplevel_coords(popup, popup->geometry.x,
+		popup->geometry.y, &toplevel_x, &toplevel_y);
+
+	if (slide_x && toplevel_x < toplevel_sx_box->x) {
+		popup->geometry.x += toplevel_sx_box->x - toplevel_x;
+	}
+	if (slide_y && toplevel_y < toplevel_sx_box->y) {
+		popup->geometry.y += toplevel_sx_box->y - toplevel_y;
+	}
+
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_x, &offset_y);
+
+	return !offset_x && !offset_y;
+}
+
+static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_sx_box) {
+	int offset_x, offset_y;
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_x, &offset_y);
+
+	if (!offset_x && !offset_y) {
+		return true;
+	}
+
+	bool resize_x = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_X);
+
+	bool resize_y = offset_x &&
+		(popup->positioner.constraint_adjustment &
+		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_Y);
+
+	if (resize_x) {
+		popup->geometry.width -= offset_x;
+	}
+	if (resize_y) {
+		popup->geometry.height -= offset_y;
+	}
+
+	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+		&offset_y, &offset_y);
+
+	return !offset_x && !offset_y;
+}
+
+void wlr_xdg_popup_v6_unconstrain_from_box(struct wlr_xdg_popup_v6 *popup,
+		struct wlr_box *toplevel_sx_box) {
+	if (wlr_xdg_popup_v6_unconstrain_flip(popup, toplevel_sx_box)) {
+		return;
+	}
+	if (wlr_xdg_popup_v6_unconstrain_slide(popup, toplevel_sx_box)) {
+		return;
+	}
+	if (wlr_xdg_popup_v6_unconstrain_resize(popup, toplevel_sx_box)) {
+		return;
+	}
+}
+
+void wlr_positioner_v6_invert_x(struct wlr_xdg_positioner_v6 *positioner) {
+	if (positioner->anchor & ZXDG_POSITIONER_V6_ANCHOR_LEFT) {
+		positioner->anchor &= ~ZXDG_POSITIONER_V6_ANCHOR_LEFT;
+		positioner->anchor |= ZXDG_POSITIONER_V6_ANCHOR_RIGHT;
+	} else if (positioner->anchor & ZXDG_POSITIONER_V6_ANCHOR_RIGHT) {
+		positioner->anchor &= ~ZXDG_POSITIONER_V6_ANCHOR_RIGHT;
+		positioner->anchor |= ZXDG_POSITIONER_V6_ANCHOR_LEFT;
+	}
+
+	if (positioner->gravity & ZXDG_POSITIONER_V6_GRAVITY_RIGHT) {
+		positioner->gravity &= ~ZXDG_POSITIONER_V6_GRAVITY_RIGHT;
+		positioner->gravity |= ZXDG_POSITIONER_V6_GRAVITY_LEFT;
+	} else if (positioner->gravity & ZXDG_POSITIONER_V6_GRAVITY_LEFT) {
+		positioner->gravity &= ~ZXDG_POSITIONER_V6_GRAVITY_LEFT;
+		positioner->gravity |= ZXDG_POSITIONER_V6_GRAVITY_RIGHT;
+	}
+}
+
+void wlr_positioner_v6_invert_y(
+		struct wlr_xdg_positioner_v6 *positioner) {
+	if (positioner->anchor & ZXDG_POSITIONER_V6_ANCHOR_TOP) {
+		positioner->anchor &= ~ZXDG_POSITIONER_V6_ANCHOR_TOP;
+		positioner->anchor |= ZXDG_POSITIONER_V6_ANCHOR_BOTTOM;
+	} else if (positioner->anchor & ZXDG_POSITIONER_V6_ANCHOR_BOTTOM) {
+		positioner->anchor &= ~ZXDG_POSITIONER_V6_ANCHOR_BOTTOM;
+		positioner->anchor |= ZXDG_POSITIONER_V6_ANCHOR_TOP;
+	}
+
+	if (positioner->gravity & ZXDG_POSITIONER_V6_GRAVITY_TOP) {
+		positioner->gravity &= ~ZXDG_POSITIONER_V6_GRAVITY_TOP;
+		positioner->gravity |= ZXDG_POSITIONER_V6_GRAVITY_BOTTOM;
+	} else if (positioner->gravity & ZXDG_POSITIONER_V6_GRAVITY_BOTTOM) {
+		positioner->gravity &= ~ZXDG_POSITIONER_V6_GRAVITY_BOTTOM;
+		positioner->gravity |= ZXDG_POSITIONER_V6_GRAVITY_TOP;
+	}
 }
