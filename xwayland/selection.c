@@ -186,7 +186,7 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		const char *mime_type, int32_t fd) {
 	if (selection == &selection->xwm->clipboard_selection) {
 		struct wlr_data_source *source =
-			selection->xwm->seat->selection_data_source;
+			selection->xwm->seat->selection_source;
 		if (source != NULL) {
 			source->send(source, mime_type, fd);
 			return;
@@ -199,13 +199,11 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 			return;
 		}
 	} else if (selection == &selection->xwm->dnd_selection) {
-		if (selection->xwm->seat->drag != NULL) {
-			struct wlr_data_source *source =
-				selection->xwm->seat->drag->source;
-			if (source != NULL) {
-				source->send(source, mime_type, fd);
-				return;
-			}
+		struct wlr_data_source *source =
+			selection->xwm->seat->drag_source;
+		if (source != NULL) {
+			source->send(source, mime_type, fd);
+			return;
 		}
 	}
 
@@ -216,7 +214,7 @@ static struct wl_array *xwm_selection_source_get_mime_types(
 		struct wlr_xwm_selection *selection) {
 	if (selection == &selection->xwm->clipboard_selection) {
 		struct wlr_data_source *source =
-			selection->xwm->seat->selection_data_source;
+			selection->xwm->seat->selection_source;
 		if (source != NULL) {
 			return &source->mime_types;
 		}
@@ -227,9 +225,10 @@ static struct wl_array *xwm_selection_source_get_mime_types(
 			return &source->mime_types;
 		}
 	} else if (selection == &selection->xwm->dnd_selection) {
-		if (selection->xwm->seat->drag != NULL &&
-				selection->xwm->seat->drag->source != NULL) {
-			return &selection->xwm->seat->drag->source->mime_types;
+		struct wlr_data_source *source =
+			selection->xwm->seat->drag_source;
+		if (source != NULL) {
+			return &source->mime_types;
 		}
 	}
 	return NULL;
@@ -815,8 +814,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 	// set the wayland selection to the X11 selection
 	struct wlr_xwm *xwm = selection->xwm;
 
-	if (selection == &xwm->clipboard_selection ||
-			selection == &xwm->dnd_selection) {
+	if (selection == &xwm->clipboard_selection) {
 		struct x11_data_source *source =
 			calloc(1, sizeof(struct x11_data_source));
 		if (source == NULL) {
@@ -826,8 +824,6 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		source->base.accept = data_source_accept;
 		source->base.send = data_source_send;
 		source->base.cancel = data_source_cancel;
-
-		// TODO: DND
 
 		source->selection = selection;
 		wl_array_init(&source->mime_types_atoms);
@@ -861,6 +857,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		} else {
 			source->base.cancel(&source->base);
 		}
+	} else if (selection == &xwm->dnd_selection) {
+		// TODO
 	}
 }
 
@@ -1082,8 +1080,8 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
 	}
 	if (xwm->seat) {
-		if (xwm->seat->selection_data_source &&
-				xwm->seat->selection_data_source->cancel == data_source_cancel) {
+		if (xwm->seat->selection_source &&
+				xwm->seat->selection_source->cancel == data_source_cancel) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 		}
@@ -1118,7 +1116,7 @@ static void seat_handle_selection(struct wl_listener *listener,
 	struct wlr_seat *seat = data;
 	struct wlr_xwm *xwm =
 		wl_container_of(listener, xwm, seat_selection);
-	struct wlr_data_source *source = seat->selection_data_source;
+	struct wlr_data_source *source = seat->selection_source;
 
 	if (source != NULL && source->send == data_source_send) {
 		return;
@@ -1211,8 +1209,19 @@ static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
 	}
 
 	wl_list_remove(&xwm->seat_drag_focus.link);
+	wl_list_remove(&xwm->seat_drag_motion.link);
+	wl_list_remove(&xwm->seat_drag_drop.link);
 	wl_list_remove(&xwm->seat_drag_destroy.link);
 	xwm->drag = NULL;
+}
+
+static void seat_handle_drag_source_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwm *xwm =
+		wl_container_of(listener, xwm, seat_drag_source_destroy);
+
+	wl_list_remove(&xwm->seat_drag_source_destroy.link);
+	xwm->drag_focus = NULL;
 }
 
 static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
@@ -1232,6 +1241,10 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 		xwm->seat_drag_drop.notify = seat_handle_drag_drop;
 		wl_signal_add(&drag->events.destroy, &xwm->seat_drag_destroy);
 		xwm->seat_drag_destroy.notify = seat_handle_drag_destroy;
+
+		wl_signal_add(&drag->source->events.destroy,
+			&xwm->seat_drag_source_destroy);
+		xwm->seat_drag_source_destroy.notify = seat_handle_drag_source_destroy;
 	}
 }
 
