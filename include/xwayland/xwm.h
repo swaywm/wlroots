@@ -115,6 +115,8 @@ struct wlr_xwm {
 	xcb_window_t selection_window;
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
+
+	xcb_window_t dnd_window;
 	struct wlr_xwm_selection dnd_selection;
 
 	struct wlr_xwayland_surface *focus_surface;

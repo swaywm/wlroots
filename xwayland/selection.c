@@ -50,6 +50,14 @@ static void xwm_selection_send_notify(struct wlr_xwm_selection *selection,
 		.property = property,
 	};
 
+	wlr_log(L_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
+		"requestor=%d selection=%d target=%d property=%d",
+		selection->request.requestor,
+		selection->request.time,
+		selection->request.requestor,
+		selection->request.selection,
+		selection->request.target,
+		property);
 	xcb_send_event(selection->xwm->xcb_conn,
 		0, // propagate
 		selection->request.requestor,
@@ -188,7 +196,7 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		struct wlr_data_source *source =
 			selection->xwm->seat->selection_source;
 		if (source != NULL) {
-			source->send(source, mime_type, fd);
+			wlr_data_source_send(source, mime_type, fd);
 			return;
 		}
 	} else if (selection == &selection->xwm->primary_selection) {
@@ -202,7 +210,7 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		struct wlr_data_source *source =
 			selection->xwm->seat->drag_source;
 		if (source != NULL) {
-			source->send(source, mime_type, fd);
+			wlr_data_source_send(source, mime_type, fd);
 			return;
 		}
 	}
@@ -282,6 +290,8 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		selection->source_fd, WL_EVENT_READABLE, xwm_data_source_read,
 		selection);
 
+	wlr_log(L_DEBUG, "Sending Wayland selection to Xwayland window with "
+		"MIME type %s", mime_type);
 	xwm_selection_source_send(selection, mime_type, p[1]);
 	close(p[1]);
 }
@@ -345,7 +355,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 	struct wl_array *mime_types = &drag->source->mime_types;
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[0] = xwm->dnd_window;
 	data.data32[1] = XDND_VERSION << 24;
 
 	// If we have 3 MIME types or less, we can send them directly in the
@@ -375,7 +385,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 
 		xcb_change_property(xwm->xcb_conn,
 			XCB_PROP_MODE_REPLACE,
-			xwm->dnd_selection.window,
+			xwm->dnd_window,
 			xwm->atoms[DND_TYPE_LIST],
 			XCB_ATOM_ATOM,
 			32, // format
@@ -391,7 +401,7 @@ static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 	assert(drag != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[0] = xwm->dnd_window;
 	data.data32[2] = (x << 16) | y;
 	data.data32[3] = time;
 	data.data32[4] =
@@ -407,7 +417,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[0] = xwm->dnd_window;
 	data.data32[2] = time;
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_DROP], &data);
@@ -420,7 +430,7 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[0] = xwm->dnd_window;
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_LEAVE], &data);
 }
@@ -432,7 +442,7 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_selection.window;
+	data.data32[0] = xwm->dnd_window;
 	data.data32[1] = drag->source->accepted;
 
 	if (drag->source->accepted) {
@@ -496,8 +506,11 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	xcb_selection_request_event_t *selection_request =
 		(xcb_selection_request_event_t *) event;
 
-	wlr_log(L_DEBUG, "XCB_SELECTION_REQUEST (selection=%u, target=%u)",
-		selection_request->selection, selection_request->target);
+	wlr_log(L_DEBUG, "XCB_SELECTION_REQUEST (time=%u owner=%u, requestor=%u "
+		"selection=%u, target=%u, property=%u)",
+		selection_request->time, selection_request->owner,
+		selection_request->requestor, selection_request->selection,
+		selection_request->target, selection_request->property);
 
 	if (selection_request->selection == xwm->atoms[CLIPBOARD_MANAGER]) {
 		// The wlroots clipboard should already have grabbed the first target,
@@ -514,7 +527,12 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, selection_request->selection);
 	if (selection == NULL) {
-		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
+		wlr_log(L_DEBUG, "received selection request for unknown selection");
+		return;
+	}
+
+	if (selection->window != selection_request->owner) {
+		wlr_log(L_DEBUG, "received selection request with invalid owner");
 		return;
 	}
 
@@ -588,8 +606,7 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 		xwm_data_source_remove_property_source(selection);
 
 		if (selection->incr) {
-			xcb_delete_property(xwm->xcb_conn,
-				selection->window,
+			xcb_delete_property(xwm->xcb_conn, selection->window,
 				xwm->atoms[WL_SELECTION]);
 		} else {
 			wlr_log(L_DEBUG, "transfer complete");
@@ -687,26 +704,36 @@ struct x11_data_source {
 	struct wl_array mime_types_atoms;
 };
 
-static void data_source_accept(struct wlr_data_source *base, uint32_t time,
-		const char *mime_type) {
-	// No-op
+static const struct wlr_data_source_impl data_source_impl;
+
+static struct x11_data_source *data_source_from_wlr_data_source(
+		struct wlr_data_source *wlr_source) {
+	assert(wlr_source->impl == &data_source_impl);
+	return (struct x11_data_source *)wlr_source;
 }
 
-static void data_source_send(struct wlr_data_source *base,
+static void data_source_send(struct wlr_data_source *wlr_source,
 		const char *mime_type, int32_t fd) {
-	struct x11_data_source *source = (struct x11_data_source *)base;
+	struct x11_data_source *source =
+		data_source_from_wlr_data_source(wlr_source);
 	struct wlr_xwm_selection *selection = source->selection;
 
-	source_send(selection, &base->mime_types, &source->mime_types_atoms,
+	source_send(selection, &wlr_source->mime_types, &source->mime_types_atoms,
 		mime_type, fd);
 }
 
-static void data_source_cancel(struct wlr_data_source *base) {
-	struct x11_data_source *source = (struct x11_data_source *)base;
+static void data_source_cancel(struct wlr_data_source *wlr_source) {
+	struct x11_data_source *source =
+		data_source_from_wlr_data_source(wlr_source);
 	wlr_data_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }
+
+static const struct wlr_data_source_impl data_source_impl = {
+	.send = data_source_send,
+	.cancel = data_source_cancel,
+};
 
 struct x11_primary_selection_source {
 	struct wlr_primary_selection_source base;
@@ -820,10 +847,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		if (source == NULL) {
 			return;
 		}
-		wlr_data_source_init(&source->base);
-		source->base.accept = data_source_accept;
-		source->base.send = data_source_send;
-		source->base.cancel = data_source_cancel;
+		wlr_data_source_init(&source->base, &data_source_impl);
 
 		source->selection = selection;
 		wl_array_init(&source->mime_types_atoms);
@@ -834,7 +858,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 			wlr_seat_set_selection(xwm->seat, &source->base,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		} else {
-			source->base.cancel(&source->base);
+			wlr_data_source_cancel(&source->base);
 		}
 	} else if (selection == &xwm->primary_selection) {
 		struct x11_primary_selection_source *source =
@@ -1005,12 +1029,9 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 
 		struct wlr_drag *drag = xwm->drag;
 		assert(drag != NULL);
-		drag->source->accepted = accepted;
-		drag->source->current_dnd_action = action;
 
-		if (drag->source->dnd_action) {
-			drag->source->dnd_action(drag->source, action);
-		}
+		drag->source->accepted = accepted;
+		wlr_data_source_dnd_action(drag->source, action);
 
 		wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
 			target_window, accepted, action);
@@ -1024,6 +1045,8 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 				"there's no finished drag");
 			return 1;
 		}
+
+		struct wlr_data_source *source = xwm->seat->drag_source;
 
 		xcb_client_message_data_t *data = &ev->data;
 		xcb_window_t target_window = data->data32[0];
@@ -1041,10 +1064,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 			data_device_manager_dnd_action_from_atom(xwm, action_atom);
 
 		if (performed) {
-			struct wlr_data_source *source = xwm->seat->drag_source;
-			if (source->dnd_finish) {
-				source->dnd_finish(source);
-			}
+			wlr_data_source_dnd_finish(source);
 		}
 
 		wlr_log(L_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
@@ -1072,7 +1092,9 @@ static void selection_init(struct wlr_xwm *xwm,
 
 void xwm_selection_init(struct wlr_xwm *xwm) {
 	// Clipboard and primary selection
-	uint32_t selection_values[] = { XCB_EVENT_MASK_PROPERTY_CHANGE };
+	uint32_t selection_values[] = {
+		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
+	};
 	xwm->selection_window = xcb_generate_id(xwm->xcb_conn);
 	xcb_create_window(xwm->xcb_conn,
 		XCB_COPY_FROM_PARENT,
@@ -1094,15 +1116,29 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
 
 	// Drag'n'drop
+	uint32_t dnd_values[] = {
+		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
+	};
+	xwm->dnd_window = xcb_generate_id(xwm->xcb_conn);
+	xcb_create_window(xwm->xcb_conn,
+		XCB_COPY_FROM_PARENT,
+		xwm->dnd_window,
+		xwm->screen->root,
+		0, 0,
+		8192, 8192,
+		0,
+		XCB_WINDOW_CLASS_INPUT_ONLY,
+		xwm->screen->root_visual,
+		XCB_CW_EVENT_MASK, dnd_values);
+
 	uint32_t version = XDND_VERSION;
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
-		xwm->selection_window,
+		xwm->dnd_window,
 		xwm->atoms[DND_AWARE],
 		XCB_ATOM_ATOM,
-		32,
-		1,
-		&version);
+		32, // format
+		1, &version);
 
 	selection_init(xwm, &xwm->dnd_selection, xwm->atoms[DND_SELECTION]);
 }
@@ -1114,9 +1150,12 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 	if (xwm->selection_window) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
 	}
+	if (xwm->dnd_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
+	}
 	if (xwm->seat) {
 		if (xwm->seat->selection_source &&
-				xwm->seat->selection_source->cancel == data_source_cancel) {
+				xwm->seat->selection_source->impl == &data_source_impl) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 		}
@@ -1153,7 +1192,7 @@ static void seat_handle_selection(struct wl_listener *listener,
 		wl_container_of(listener, xwm, seat_selection);
 	struct wlr_data_source *source = seat->selection_source;
 
-	if (source != NULL && source->send == data_source_send) {
+	if (source != NULL && source->impl == &data_source_impl) {
 		return;
 	}
 
@@ -1195,10 +1234,8 @@ static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {
 	}
 
 	if (xwm->drag_focus != NULL) {
-		if (drag->source->dnd_action) {
-			drag->source->dnd_action(drag->source,
-				WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE);
-		}
+		wlr_data_source_dnd_action(drag->source,
+			WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE);
 		xwm_dnd_send_leave(xwm);
 	}
 
