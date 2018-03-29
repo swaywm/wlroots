@@ -1010,7 +1010,10 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		drag->source->accepted = accepted;
 		drag->source->current_dnd_action = action;
 
-		// TODO: drag->source->dnd_action()
+		if (drag->source->dnd_action) {
+			drag->source->dnd_action(drag->source, action);
+		}
+
 		wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
 			target_window, accepted, action);
 		return 1;
@@ -1159,6 +1162,10 @@ static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {
 	}
 
 	if (xwm->drag_focus != NULL) {
+		if (drag->source->dnd_action) {
+			drag->source->dnd_action(drag->source,
+				WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE);
+		}
 		xwm_dnd_send_leave(xwm);
 	}
 
@@ -1197,6 +1204,8 @@ static void seat_handle_drag_drop(struct wl_listener *listener, void *data) {
 static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_drag_destroy);
 
+	// Don't reset drag focus yet because the target will read the drag source
+	// right after
 	if (xwm->drag_focus != NULL) {
 		xwm_dnd_send_leave(xwm);
 	}
