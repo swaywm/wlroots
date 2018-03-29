@@ -1674,7 +1674,7 @@ void wlr_xdg_popup_v6_get_anchor_point(struct wlr_xdg_popup_v6 *popup,
 void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
 		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
 	struct wlr_xdg_surface_v6 *parent = popup->parent;
-	while (parent && parent->role != WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL) {
+	while (parent != NULL && parent->role == WLR_XDG_SURFACE_V6_ROLE_POPUP) {
 		popup_sx += parent->popup->geometry.x;
 		popup_sy += parent->popup->geometry.y;
 		parent = parent->popup->parent;
