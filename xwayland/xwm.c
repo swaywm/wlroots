@@ -506,7 +506,7 @@ static void read_surface_net_wm_state(struct wlr_xwm *xwm,
 	}
 }
 
-static char *get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom) {
+char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom) {
 	xcb_get_atom_name_cookie_t name_cookie =
 		xcb_get_atom_name(xwm->xcb_conn, atom);
 	xcb_get_atom_name_reply_t *name_reply =
@@ -558,7 +558,7 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
 		read_surface_motif_hints(xwm, xsurface, reply);
 	} else {
-		char *prop_name = get_atom_name(xwm, property);
+		char *prop_name = xwm_get_atom_name(xwm, property);
 		wlr_log(L_DEBUG, "unhandled X11 property %u (%s) for window %u",
 			property, prop_name, xsurface->window_id);
 		free(prop_name);
@@ -967,7 +967,7 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 	} else if (ev->type == xwm->atoms[_NET_WM_MOVERESIZE]) {
 		xwm_handle_net_wm_moveresize_message(xwm, ev);
 	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
-		char *type_name = get_atom_name(xwm, ev->type);
+		char *type_name = xwm_get_atom_name(xwm, ev->type);
 		wlr_log(L_DEBUG, "unhandled x11 client message %u (%s)", ev->type,
 			type_name);
 		free(type_name);

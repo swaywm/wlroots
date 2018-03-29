@@ -150,13 +150,14 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
-		xcb_client_message_event_t *ev) ;
+		xcb_client_message_event_t *ev);
 
 void xwm_selection_init(struct wlr_xwm *xwm);
 void xwm_selection_finish(struct wlr_xwm *xwm);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
+char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom);
 bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 		size_t num_atoms, enum atom_name needle);
 

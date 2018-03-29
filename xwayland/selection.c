@@ -54,7 +54,8 @@ static void xwm_selection_send_notify(struct wlr_xwm_selection *selection,
 		0, // propagate
 		selection->request.requestor,
 		XCB_EVENT_MASK_NO_EVENT,
-		(char *)&selection_notify);
+		(const char *)&selection_notify);
+	xcb_flush(selection->xwm->xcb_conn);
 }
 
 static int xwm_selection_flush_source_data(struct wlr_xwm_selection *selection) {
@@ -211,8 +212,56 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 	wlr_log(L_DEBUG, "not sending selection: no selection source available");
 }
 
+static struct wl_array *xwm_selection_source_get_mime_types(
+		struct wlr_xwm_selection *selection) {
+	if (selection == &selection->xwm->clipboard_selection) {
+		struct wlr_data_source *source =
+			selection->xwm->seat->selection_data_source;
+		if (source != NULL) {
+			return &source->mime_types;
+		}
+	} else if (selection == &selection->xwm->primary_selection) {
+		struct wlr_primary_selection_source *source =
+			selection->xwm->seat->primary_selection_source;
+		if (source != NULL) {
+			return &source->mime_types;
+		}
+	} else if (selection == &selection->xwm->dnd_selection) {
+		if (selection->xwm->seat->drag != NULL &&
+				selection->xwm->seat->drag->source != NULL) {
+			return &selection->xwm->seat->drag->source->mime_types;
+		}
+	}
+	return NULL;
+}
+
 static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		xcb_atom_t target, const char *mime_type) {
+	// Check MIME type
+	struct wl_array *mime_types =
+		xwm_selection_source_get_mime_types(selection);
+	if (mime_types == NULL) {
+		wlr_log(L_ERROR, "not sending selection: no MIME type list available");
+		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
+		return;
+	}
+
+	bool found = false;
+	char **mime_type_ptr;
+	wl_array_for_each(mime_type_ptr, mime_types) {
+		char *t = *mime_type_ptr;
+		if (strcmp(t, mime_type) == 0) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		wlr_log(L_ERROR, "not sending selection: "
+			"requested an unsupported MIME type %s", mime_type);
+		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
+		return;
+	}
+
 	int p[2];
 	if (pipe(p) == -1) {
 		wlr_log(L_ERROR, "pipe failed: %m");
@@ -300,6 +349,8 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[1] = XDND_VERSION << 24;
 
+	// If we have 3 MIME types or less, we can send them directly in the
+	// DND_ENTER message
 	size_t n = mime_types->size / sizeof(char *);
 	if (n <= 3) {
 		size_t i = 0;
@@ -393,31 +444,12 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_FINISHED], &data);
 }*/
 
-static struct wl_array *xwm_selection_source_get_mime_types(
-		struct wlr_xwm_selection *selection) {
-	if (selection == &selection->xwm->clipboard_selection ||
-			selection == &selection->xwm->dnd_selection) {
-		struct wlr_data_source *source =
-			selection->xwm->seat->selection_data_source;
-		if (source != NULL) {
-			return &source->mime_types;
-		}
-	} else if (selection == &selection->xwm->primary_selection) {
-		struct wlr_primary_selection_source *source =
-			selection->xwm->seat->primary_selection_source;
-		if (source != NULL) {
-			return &source->mime_types;
-		}
-	}
-	return NULL;
-}
-
 static void xwm_selection_send_targets(struct wlr_xwm_selection *selection) {
 	struct wlr_xwm *xwm = selection->xwm;
 
 	struct wl_array *mime_types = xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
-		wlr_log(L_DEBUG, "not sending selection targets: "
+		wlr_log(L_ERROR, "not sending selection targets: "
 			"no selection source available");
 		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
 		return;
@@ -493,8 +525,10 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 
 	// No xwayland surface focused, deny access to clipboard
 	if (xwm->focus_surface == NULL && xwm->drag_focus == NULL) {
-		wlr_log(L_DEBUG, "denying read access to clipboard: "
-			"no xwayland surface focused");
+		char *selection_name = xwm_get_atom_name(xwm, selection->atom);
+		wlr_log(L_DEBUG, "denying read access to selection %u (%s): "
+			"no xwayland surface focused", selection->atom, selection_name);
+		free(selection_name);
 		xwm_selection_send_notify(selection, XCB_ATOM_NONE);
 		return;
 	}
@@ -510,26 +544,15 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		xwm_selection_send_data(selection, selection_request->target,
 			"text/plain");
 	} else {
-		xcb_get_atom_name_cookie_t name_cookie =
-			xcb_get_atom_name(xwm->xcb_conn, selection_request->target);
-		xcb_get_atom_name_reply_t *name_reply =
-			xcb_get_atom_name_reply(xwm->xcb_conn, name_cookie, NULL);
-		if (name_reply == NULL) {
-			wlr_log(L_DEBUG, "not handling selection request: unknown atom");
+		char *mime_type = xwm_get_atom_name(xwm, selection_request->target);
+		if (mime_type == NULL) {
+			wlr_log(L_ERROR, "ignoring selection request: unknown atom");
 			xwm_selection_send_notify(selection, XCB_ATOM_NONE);
 			return;
 		}
-		size_t len = xcb_get_atom_name_name_length(name_reply);
-		char *mime_type = malloc((len + 1) * sizeof(char));
-		if (mime_type == NULL) {
-			free(name_reply);
-			return;
-		}
-		memcpy(mime_type, xcb_get_atom_name_name(name_reply), len);
-		mime_type[len] = '\0';
-		xwm_selection_send_data(selection, selection_request->target, mime_type);
+		xwm_selection_send_data(selection, selection_request->target,
+			mime_type);
 		free(mime_type);
-		free(name_reply);
 	}
 }
 
@@ -961,10 +984,9 @@ int xwm_handle_selection_event(struct wlr_xwm *xwm,
 int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	if (ev->type == xwm->atoms[DND_STATUS]) {
-		struct wlr_drag *drag = xwm->drag;
-		if (drag == NULL) {
-			wlr_log(L_DEBUG, "Ignoring XdndStatus client message because "
-				"there's no current drag");
+		if (xwm->drag == NULL) {
+			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+				"there's no drag");
 			return 1;
 		}
 
@@ -973,9 +995,18 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		bool accepted = data->data32[1] & 1;
 		xcb_atom_t action_atom = data->data32[4];
 
+		if (xwm->drag_focus == NULL ||
+				target_window != xwm->drag_focus->window_id) {
+			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+				"it doesn't match the current drag focus window ID");
+			return 1;
+		}
+
 		enum wl_data_device_manager_dnd_action action =
 			data_device_manager_dnd_action_from_atom(xwm, action_atom);
 
+		struct wlr_drag *drag = xwm->drag;
+		assert(drag != NULL);
 		drag->source->accepted = accepted;
 		drag->source->current_dnd_action = action;
 
@@ -1038,7 +1069,6 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 		&version);
 
 	selection_init(xwm, &xwm->dnd_selection, xwm->atoms[DND_SELECTION]);
-	wlr_log(L_DEBUG, "DND_SELECTION=%d", xwm->atoms[DND_SELECTION]);
 }
 
 void xwm_selection_finish(struct wlr_xwm *xwm) {
@@ -1182,6 +1212,7 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 
 	xwm_selection_set_owner(&xwm->dnd_selection, drag != NULL);
 	xwm->drag = drag;
+	xwm->drag_focus = NULL;
 
 	if (drag != NULL) {
 		wl_signal_add(&drag->events.focus, &xwm->seat_drag_focus);
