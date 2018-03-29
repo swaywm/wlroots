@@ -365,10 +365,10 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	wl_list_remove(&seat->display_destroy.link);
 
-	if (seat->selection_data_source) {
-		seat->selection_data_source->cancel(seat->selection_data_source);
-		seat->selection_data_source = NULL;
-		wl_list_remove(&seat->selection_data_source_destroy.link);
+	if (seat->selection_source) {
+		seat->selection_source->cancel(seat->selection_source);
+		seat->selection_source = NULL;
+		wl_list_remove(&seat->selection_source_destroy.link);
 	}
 	if (seat->primary_selection_source) {
 		seat->primary_selection_source->cancel(seat->primary_selection_source);
