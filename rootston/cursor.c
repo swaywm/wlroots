@@ -426,7 +426,6 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		return;
 	}
 
-	wlr_log(L_DEBUG, "Setting client cursor");
 	wlr_cursor_set_surface(cursor->cursor, event->surface, event->hotspot_x,
 		event->hotspot_y);
 	cursor->cursor_client = event->seat_client->client;
