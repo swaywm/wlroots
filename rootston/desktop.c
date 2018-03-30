@@ -669,12 +669,13 @@ static struct wlr_surface *layer_surface_at(struct roots_output *output,
 		double _sx = ox - roots_surface->geo.x;
 		double _sy = oy - roots_surface->geo.y;
 		struct wlr_box box = {
-			.x = 0, .y = 0,
-			.width = roots_surface->geo.width,
-			.height = roots_surface->geo.height,
+			.x = roots_surface->geo.x,
+			.y = roots_surface->geo.y,
+			.width = wlr_surface->current->width,
+			.height = wlr_surface->current->height,
 		};
 		// TODO: Test popups/subsurfaces
-		if (wlr_box_contains_point(&box, _sx, _sy) &&
+		if (wlr_box_contains_point(&box, ox, oy) &&
 				pixman_region32_contains_point(&wlr_surface->current->input,
 					_sx, _sy, NULL)) {
 			*sx = _sx;
@@ -692,7 +693,7 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 	struct wlr_output *wlr_output =
 		wlr_output_layout_output_at(desktop->layout, lx, ly);
 	struct roots_output *roots_output;
-	double ox, oy;
+	double ox = lx, oy = ly;
 	if (wlr_output) {
 		roots_output = wlr_output->data;
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);

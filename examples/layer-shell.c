@@ -7,12 +7,17 @@
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
+#include <wayland-cursor.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 static struct wl_compositor *compositor = NULL;
+static struct wl_seat *seat = NULL;
+static struct wl_shm *shm = NULL;
+static struct wl_pointer *pointer = NULL;
+//static struct wl_keyboard *keyboard = NULL;
 static struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output = NULL;
@@ -32,6 +37,12 @@ static double alpha = 1.0;
 static bool run_display = true;
 static bool animate = false;
 static double frame = 0;
+static int cur_x = -1, cur_y = -1;
+static int buttons = 0;
+
+struct wl_cursor_theme *cursor_theme;
+struct wl_cursor_image *cursor_image;
+struct wl_surface *cursor_surface;
 
 static struct {
 	struct timespec last_frame;
@@ -62,13 +73,15 @@ static void draw(void) {
 		(ts.tv_nsec - demo.last_frame.tv_nsec) / 1000000;
 	int inc = (demo.dec + 1) % 3;
 
-	demo.color[inc] += ms / 2000.0f;
-	demo.color[demo.dec] -= ms / 2000.0f;
+	if (!buttons) {
+		demo.color[inc] += ms / 2000.0f;
+		demo.color[demo.dec] -= ms / 2000.0f;
 
-	if (demo.color[demo.dec] < 0.0f) {
-		demo.color[inc] = 1.0f;
-		demo.color[demo.dec] = 0.0f;
-		demo.dec = inc;
+		if (demo.color[demo.dec] < 0.0f) {
+			demo.color[inc] = 1.0f;
+			demo.color[demo.dec] = 0.0f;
+			demo.dec = inc;
+		}
 	}
 
 	if (animate) {
@@ -83,8 +96,20 @@ static void draw(void) {
 	}
 
 	glViewport(0, 0, width, height);
-	glClearColor(demo.color[0], demo.color[1], demo.color[2], alpha);
+	if (buttons) {
+		glClearColor(1, 1, 1, alpha);
+	} else {
+		glClearColor(demo.color[0], demo.color[1], demo.color[2], alpha);
+	}
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	if (cur_x != -1 && cur_y != -1) {
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(cur_x, height - cur_y, 5, 5);
+		glClearColor(0, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_SCISSOR_TEST);
+	}
 
 	frame_callback = wl_surface_frame(wl_surface);
 	wl_callback_add_listener(frame_callback, &frame_listener, NULL);
@@ -119,11 +144,101 @@ struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 	.closed = layer_surface_closed,
 };
 
+static void wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface,
+		wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	wl_surface_attach(cursor_surface,
+			wl_cursor_image_get_buffer(cursor_image), 0, 0);
+	wl_pointer_set_cursor(wl_pointer, serial, cursor_surface,
+			cursor_image->hotspot_x, cursor_image->hotspot_y);
+	wl_surface_commit(cursor_surface);
+}
+
+static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface) {
+	cur_x = cur_y = -1;
+}
+
+static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	cur_x = (int)wl_fixed_to_double(surface_x);
+	cur_y = (int)wl_fixed_to_double(surface_y);
+}
+
+static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		buttons++;
+	} else {
+		buttons--;
+	}
+}
+
+static void wl_pointer_axis(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, uint32_t axis, wl_fixed_t value) {
+	// Who cares
+}
+
+static void wl_pointer_frame(void *data, struct wl_pointer *wl_pointer) {
+	// Who cares
+}
+
+static void wl_pointer_axis_source(void *data, struct wl_pointer *wl_pointer,
+		uint32_t axis_source) {
+	// Who cares
+}
+
+static void wl_pointer_axis_stop(void *data, struct wl_pointer *wl_pointer,
+		uint32_t time, uint32_t axis) {
+	// Who cares
+}
+
+static void wl_pointer_axis_discrete(void *data, struct wl_pointer *wl_pointer,
+		uint32_t axis, int32_t discrete) {
+	// Who cares
+}
+
+struct wl_pointer_listener pointer_listener = {
+	.enter = wl_pointer_enter,
+	.leave = wl_pointer_leave,
+	.motion = wl_pointer_motion,
+	.button = wl_pointer_button,
+	.axis = wl_pointer_axis,
+	.frame = wl_pointer_frame,
+	.axis_source = wl_pointer_axis_source,
+	.axis_stop = wl_pointer_axis_stop,
+	.axis_discrete = wl_pointer_axis_discrete,
+};
+
+static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
+		enum wl_seat_capability caps) {
+	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
+		pointer = wl_seat_get_pointer(wl_seat);
+		wl_pointer_add_listener(pointer, &pointer_listener, NULL);
+	}
+	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
+		// TODO
+	}
+}
+
+static void seat_handle_name(void *data, struct wl_seat *wl_seat,
+		const char *name) {
+	// Who cares
+}
+
+const struct wl_seat_listener seat_listener = {
+	.capabilities = seat_handle_capabilities,
+	.name = seat_handle_name,
+};
+
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, "wl_compositor") == 0) {
 		compositor = wl_registry_bind(registry, name,
 				&wl_compositor_interface, 1);
+	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
+		shm = wl_registry_bind(registry, name,
+				&wl_shm_interface, 1);
 	} else if (strcmp(interface, "wl_output") == 0) {
 		if (output == 0 && !wl_output) {
 			wl_output = wl_registry_bind(registry, name,
@@ -131,6 +246,10 @@ static void handle_global(void *data, struct wl_registry *registry,
 		} else {
 			output--;
 		}
+	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
+		seat = wl_registry_bind(registry, name,
+				&wl_seat_interface, 1);
+		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		layer_shell = wl_registry_bind(
 				registry, name, &zwlr_layer_shell_v1_interface, 1);
@@ -250,17 +369,27 @@ int main(int argc, char **argv) {
 	wl_display_roundtrip(display);
 
 	if (compositor == NULL) {
-		fprintf(stderr, "wl-compositor not available\n");
+		fprintf(stderr, "wl_compositor not available\n");
+		return 1;
+	}
+	if (shm == NULL) {
+		fprintf(stderr, "wl_shm not available\n");
 		return 1;
 	}
 	if (layer_shell == NULL) {
-		fprintf(stderr, "layer-shell not available\n");
+		fprintf(stderr, "layer_shell not available\n");
 		return 1;
 	}
 	if (wl_output == NULL) {
 		fprintf(stderr, "wl_output not available\n");
 		return 1;
 	}
+
+	assert(cursor_theme = wl_cursor_theme_load(NULL, 16, shm));
+	struct wl_cursor *cursor;
+	assert(cursor = wl_cursor_theme_get_cursor(cursor_theme, "left_ptr"));
+	cursor_image = cursor->images[0];
+	assert(cursor_surface = wl_compositor_create_surface(compositor));
 
 	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
 	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display,
@@ -294,5 +423,7 @@ int main(int argc, char **argv) {
 	while (wl_display_dispatch(display) != -1 && run_display) {
 		// This space intentionally left blank
 	}
+
+	wl_cursor_theme_destroy(cursor_theme);
 	return 0;
 }
