@@ -121,19 +121,42 @@ static void view_update_output(const struct roots_view *view,
 	}
 }
 
+void view_update_cursors(const struct roots_view *view,
+		const struct wlr_box *before) {
+	struct roots_desktop *desktop = view->desktop;
+
+	if (view->wlr_surface == NULL) {
+		return;
+	}
+
+	struct wlr_box box;
+	view_get_deco_box(view, &box);
+
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		if (seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+			continue;
+		}
+		bool in_before = before != NULL && wlr_box_contains_point(before,
+			seat->cursor->cursor->x, seat->cursor->cursor->y);
+		bool in_now = wlr_box_contains_point(&box,
+			seat->cursor->cursor->x, seat->cursor->cursor->y);
+		if (in_before != in_now) {
+			roots_cursor_update_position(seat->cursor, 0);
+		}
+	}
+}
+
 void view_move(struct roots_view *view, double x, double y) {
 	if (view->x == x && view->y == y) {
 		return;
 	}
 
-	struct wlr_box before;
-	view_get_box(view, &before);
 	if (view->move) {
 		view->move(view, x, y);
 	} else {
 		view_update_position(view, x, y);
 	}
-	view_update_output(view, &before);
 }
 
 void view_activate(struct roots_view *view, bool activate) {
@@ -143,12 +166,9 @@ void view_activate(struct roots_view *view, bool activate) {
 }
 
 void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
-	struct wlr_box before;
-	view_get_box(view, &before);
 	if (view->resize) {
 		view->resize(view, width, height);
 	}
-	view_update_output(view, &before);
 }
 
 void view_move_resize(struct roots_view *view, double x, double y,
@@ -510,6 +530,7 @@ void view_setup(struct roots_view *view) {
 	}
 
 	view_update_output(view, NULL);
+	view_update_cursors(view, NULL);
 }
 
 void view_apply_damage(struct roots_view *view) {
@@ -531,10 +552,14 @@ void view_update_position(struct roots_view *view, double x, double y) {
 		return;
 	}
 
+	struct wlr_box before;
+	view_get_box(view, &before);
 	view_damage_whole(view);
 	view->x = x;
 	view->y = y;
 	view_damage_whole(view);
+	view_update_output(view, &before);
+	view_update_cursors(view, &before);
 }
 
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
@@ -542,10 +567,14 @@ void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) 
 		return;
 	}
 
+	struct wlr_box before;
+	view_get_box(view, &before);
 	view_damage_whole(view);
 	view->width = width;
 	view->height = height;
 	view_damage_whole(view);
+	view_update_output(view, &before);
+	view_update_cursors(view, &before);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,

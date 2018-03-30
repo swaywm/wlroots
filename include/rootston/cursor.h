@@ -48,6 +48,9 @@ struct roots_cursor *roots_cursor_create(struct roots_seat *seat);
 
 void roots_cursor_destroy(struct roots_cursor *cursor);
 
+void roots_cursor_update_position(struct roots_cursor *cursor,
+		uint32_t time);
+
 void roots_cursor_handle_motion(struct roots_cursor *cursor,
 		struct wlr_event_pointer_motion *event);
 

@@ -83,6 +83,8 @@ void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);
 void view_update_position(struct roots_view *view, double x, double y);
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height);
+void view_update_cursors(const struct roots_view *view,
+	const struct wlr_box *before);
 void view_initial_focus(struct roots_view *view);
 void view_map(struct roots_view *view, struct wlr_surface *surface);
 void view_unmap(struct roots_view *view);
