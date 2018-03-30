@@ -3,6 +3,7 @@
 
 #include <pixman.h>
 #include <time.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
 /**
