@@ -64,8 +64,8 @@ struct roots_xwayland_surface {
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
 	struct wl_listener request_fullscreen;
-	struct wl_listener map_notify;
-	struct wl_listener unmap_notify;
+	struct wl_listener map;
+	struct wl_listener unmap;
 
 	struct wl_listener surface_commit;
 };

@@ -114,8 +114,8 @@ static void destroy(struct roots_view *view) {
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
 	wl_list_remove(&roots_surface->request_maximize.link);
-	wl_list_remove(&roots_surface->map_notify.link);
-	wl_list_remove(&roots_surface->unmap_notify.link);
+	wl_list_remove(&roots_surface->map.link);
+	wl_list_remove(&roots_surface->unmap.link);
 	free(roots_surface);
 }
 
@@ -225,9 +225,9 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	view_update_position(view, x, y);
 }
 
-static void handle_map_notify(struct wl_listener *listener, void *data) {
+static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, map_notify);
+		wl_container_of(listener, roots_surface, map);
 	struct wlr_xwayland_surface *xsurface = data;
 	struct roots_view *view = roots_surface->view;
 
@@ -243,9 +243,9 @@ static void handle_map_notify(struct wl_listener *listener, void *data) {
 		&roots_surface->surface_commit);
 }
 
-static void handle_unmap_notify(struct wl_listener *listener, void *data) {
+static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, unmap_notify);
+		wl_container_of(listener, roots_surface, unmap);
 	struct roots_view *view = roots_surface->view;
 
 	wl_list_remove(&roots_surface->surface_commit.link);
@@ -272,10 +272,10 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_configure.notify = handle_request_configure;
 	wl_signal_add(&surface->events.request_configure,
 		&roots_surface->request_configure);
-	roots_surface->map_notify.notify = handle_map_notify;
-	wl_signal_add(&surface->events.map_notify, &roots_surface->map_notify);
-	roots_surface->unmap_notify.notify = handle_unmap_notify;
-	wl_signal_add(&surface->events.unmap_notify, &roots_surface->unmap_notify);
+	roots_surface->map.notify = handle_map;
+	wl_signal_add(&surface->events.map, &roots_surface->map);
+	roots_surface->unmap.notify = handle_unmap;
+	wl_signal_add(&surface->events.unmap, &roots_surface->unmap);
 	roots_surface->request_move.notify = handle_request_move;
 	wl_signal_add(&surface->events.request_move, &roots_surface->request_move);
 	roots_surface->request_resize.notify = handle_request_resize;

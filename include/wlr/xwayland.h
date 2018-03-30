@@ -126,8 +126,8 @@ struct wlr_xwayland_surface {
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;
 
-		struct wl_signal map_notify;
-		struct wl_signal unmap_notify;
+		struct wl_signal map;
+		struct wl_signal unmap;
 		struct wl_signal set_title;
 		struct wl_signal set_class;
 		struct wl_signal set_parent;
