@@ -657,6 +657,25 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	return NULL;
 }
 
+struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
+		double lx, double ly, double *sx, double *sy,
+		struct roots_view **view) {
+	//struct wlr_output *wlr_output =
+	//	wlr_output_layout_output_at(desktop->layout, lx, ly);
+	// TODO: Iterate over layers
+	*view = NULL;
+	struct roots_view *_view;
+	struct wlr_surface *surface = NULL;
+	if ((_view = desktop_view_at(desktop, lx, ly, &surface, sx, sy))) {
+		if (view) {
+			*view = _view;
+		}
+		return surface;
+	}
+	// TODO: Iterate over layers
+	return NULL;
+}
+
 static void handle_layout_change(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, layout_change);
