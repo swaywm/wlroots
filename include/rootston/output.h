@@ -1,6 +1,5 @@
 #ifndef ROOTSTON_OUTPUT_H
 #define ROOTSTON_OUTPUT_H
-
 #include <pixman.h>
 #include <time.h>
 #include <wayland-server.h>

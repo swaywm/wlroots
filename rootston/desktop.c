@@ -20,10 +20,12 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
+#include "rootston/layers.h"
 #include "rootston/seat.h"
 #include "rootston/server.h"
 #include "rootston/view.h"
 #include "rootston/xcursor.h"
+#include "wlr-layer-shell-unstable-v1-protocol.h"
 
 struct roots_view *view_create(struct roots_desktop *desktop) {
 	struct roots_view *view = calloc(1, sizeof(struct roots_view));
@@ -632,8 +634,9 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 	return false;
 }
 
-struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
-		double ly, struct wlr_surface **surface, double *sx, double *sy) {
+static struct roots_view *desktop_view_at(struct roots_desktop *desktop,
+		double lx, double ly, struct wlr_surface **surface,
+		double *sx, double *sy) {
 	struct wlr_output *wlr_output =
 		wlr_output_layout_output_at(desktop->layout, lx, ly);
 	if (wlr_output != NULL) {
@@ -657,22 +660,76 @@ struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
 	return NULL;
 }
 
+static struct wlr_surface *layer_surface_at(struct roots_output *output,
+		struct wl_list *layer, double ox, double oy, double *sx, double *sy) {
+	struct roots_layer_surface *roots_surface;
+	wl_list_for_each_reverse(roots_surface, layer, link) {
+		struct wlr_surface *wlr_surface =
+			roots_surface->layer_surface->surface;
+		double _sx = ox - roots_surface->geo.x;
+		double _sy = oy - roots_surface->geo.y;
+		struct wlr_box box = {
+			.x = 0, .y = 0,
+			.width = roots_surface->geo.width,
+			.height = roots_surface->geo.height,
+		};
+		// TODO: Test popups/subsurfaces
+		if (wlr_box_contains_point(&box, _sx, _sy) &&
+				pixman_region32_contains_point(&wlr_surface->current->input,
+					_sx, _sy, NULL)) {
+			*sx = _sx;
+			*sy = _sy;
+			return wlr_surface;
+		}
+	}
+	return NULL;
+}
+
 struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 		double lx, double ly, double *sx, double *sy,
 		struct roots_view **view) {
-	//struct wlr_output *wlr_output =
-	//	wlr_output_layout_output_at(desktop->layout, lx, ly);
-	// TODO: Iterate over layers
+	struct wlr_surface *surface = NULL;
+	struct wlr_output *wlr_output =
+		wlr_output_layout_output_at(desktop->layout, lx, ly);
+	struct roots_output *roots_output;
+	double ox, oy;
+	if (wlr_output) {
+		roots_output = wlr_output->data;
+		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
+
+		if ((surface = layer_surface_at(roots_output,
+					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
+					ox, oy, sx, sy))) {
+			return surface;
+		}
+		if ((surface = layer_surface_at(roots_output,
+					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
+					ox, oy, sx, sy))) {
+			return surface;
+		}
+	}
+
 	*view = NULL;
 	struct roots_view *_view;
-	struct wlr_surface *surface = NULL;
 	if ((_view = desktop_view_at(desktop, lx, ly, &surface, sx, sy))) {
 		if (view) {
 			*view = _view;
 		}
 		return surface;
 	}
-	// TODO: Iterate over layers
+
+	if (wlr_output) {
+		if ((surface = layer_surface_at(roots_output,
+					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
+					ox, oy, sx, sy))) {
+			return surface;
+		}
+		if ((surface = layer_surface_at(roots_output,
+					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
+					ox, oy, sx, sy))) {
+			return surface;
+		}
+	}
 	return NULL;
 }
 
