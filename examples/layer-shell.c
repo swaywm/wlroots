@@ -162,8 +162,8 @@ static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
 
 static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	cur_x = (int)wl_fixed_to_double(surface_x);
-	cur_y = (int)wl_fixed_to_double(surface_y);
+	cur_x = wl_fixed_to_int(surface_x);
+	cur_y = wl_fixed_to_int(surface_y);
 }
 
 static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,

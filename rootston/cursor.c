@@ -101,18 +101,21 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 
 static void roots_passthrough_cursor(struct roots_cursor *cursor,
 		uint32_t time) {
-	struct roots_view *view;
 	double sx, sy;
-
+	struct roots_view *view = NULL;
 	struct roots_seat *seat = cursor->seat;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
+	struct wl_client *client = NULL;
+	if (surface) {
+		client = wl_resource_get_client(surface->resource);
+	}
 
-	if (!surface && cursor->cursor_client) {
+	if (cursor->cursor_client != client) {
 		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
 			cursor->default_xcursor, cursor->cursor);
-		cursor->cursor_client = NULL;
+		cursor->cursor_client = client;
 	}
 
 	if (view) {
