@@ -111,8 +111,8 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_texture *texture =
 		gles2_get_texture_in_context(wlr_texture);
 
-	GLuint prog;
-	GLenum target;
+	GLuint prog = 0;
+	GLenum target = 0;
 	switch (texture->type) {
 	case WLR_GLES2_TEXTURE_GLTEX:
 	case WLR_GLES2_TEXTURE_WL_DRM_GL:
