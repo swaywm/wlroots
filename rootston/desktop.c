@@ -694,6 +694,8 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 		wlr_output_layout_output_at(desktop->layout, lx, ly);
 	struct roots_output *roots_output;
 	double ox = lx, oy = ly;
+	*view = NULL;
+
 	if (wlr_output) {
 		roots_output = wlr_output->data;
 		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
@@ -710,7 +712,6 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 		}
 	}
 
-	*view = NULL;
 	struct roots_view *_view;
 	if ((_view = desktop_view_at(desktop, lx, ly, &surface, sx, sy))) {
 		if (view) {

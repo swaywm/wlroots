@@ -157,6 +157,7 @@ static void wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
 static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
 	cur_x = cur_y = -1;
+	buttons = 0;
 }
 
 static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
