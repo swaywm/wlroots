@@ -682,7 +682,7 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 	struct wlr_surface *surface = NULL;
 	struct wlr_output *wlr_output =
 		wlr_output_layout_output_at(desktop->layout, lx, ly);
-	struct roots_output *roots_output;
+	struct roots_output *roots_output = NULL;
 	double ox = lx, oy = ly;
 	*view = NULL;
 
