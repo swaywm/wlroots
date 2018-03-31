@@ -52,6 +52,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wl_event_source_remove(output->frame_timer);
 	eglDestroySurface(x11->egl.display, output->surf);
 	xcb_destroy_window(x11->xcb_conn, output->win);
+	xcb_flush(x11->xcb_conn);
 	free(output);
 }
 
