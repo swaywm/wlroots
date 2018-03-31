@@ -9,6 +9,7 @@
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	const char *x11_display);
+struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend);
 
 bool wlr_backend_is_x11(struct wlr_backend *backend);
 bool wlr_input_device_is_x11(struct wlr_input_device *device);

@@ -96,6 +96,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	x11->started = true;
 
 	struct {
 		const char *name;
@@ -167,7 +168,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->pointer_dev);
 
 	for (size_t i = 0; i < x11->requested_outputs; ++i) {
-		x11_output_create(x11);
+		wlr_x11_output_create(&x11->backend);
 	}
 
 	return true;

@@ -3,11 +3,12 @@
 
 #include <stdbool.h>
 #include <wayland-server.h>
+#include <wlr/backend/x11.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
-#include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_output.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
@@ -28,6 +29,7 @@ struct wlr_x11_output {
 struct wlr_x11_backend {
 	struct wlr_backend backend;
 	struct wl_display *wl_display;
+	bool started;
 
 	Display *xlib_conn;
 	xcb_connection_t *xcb_conn;
@@ -73,7 +75,6 @@ const struct wlr_input_device_impl input_device_impl;
 bool x11_handle_input_event(struct wlr_x11_backend *x11,
 	xcb_generic_event_t *event);
 
-struct wlr_x11_output *x11_output_create(struct wlr_x11_backend *x11);
 void x11_output_handle_configure_notify(struct wlr_x11_output *output,
 	xcb_configure_notify_event_t *event);
 

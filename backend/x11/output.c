@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
@@ -77,18 +78,29 @@ static const struct wlr_output_impl output_impl = {
 	.swap_buffers = output_swap_buffers,
 };
 
-struct wlr_x11_output *x11_output_create(struct wlr_x11_backend *x11) {
+struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
+	assert(wlr_backend_is_x11(backend));
+	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+
+	if (!x11->started) {
+		++x11->requested_outputs;
+		return NULL;
+	}
+
 	struct wlr_x11_output *output = calloc(1, sizeof(struct wlr_x11_output));
 	if (output == NULL) {
 		return NULL;
 	}
 	output->x11 = x11;
-	output->frame_delay = 16; // 60 Hz
 
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-1");
+	wlr_output->refresh = 60 * 1000000;
+	output->frame_delay = 16; // 60 Hz
+
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%d",
+		wl_list_length(&x11->outputs) + 1);
 	parse_xcb_setup(wlr_output, x11->xcb_conn);
 
 	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
@@ -135,7 +147,7 @@ struct wlr_x11_output *x11_output_create(struct wlr_x11_backend *x11) {
 	wl_list_insert(&x11->outputs, &output->link);
 	wlr_signal_emit_safe(&x11->backend.events.new_output, wlr_output);
 
-	return output;
+	return wlr_output;
 }
 
 void x11_output_handle_configure_notify(struct wlr_x11_output *output,
