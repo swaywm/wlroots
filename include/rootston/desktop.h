@@ -1,6 +1,5 @@
 #ifndef ROOTSTON_DESKTOP_H
 #define ROOTSTON_DESKTOP_H
-
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
@@ -73,8 +72,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 void desktop_destroy(struct roots_desktop *desktop);
 struct roots_output *desktop_output_from_wlr_output(
 	struct roots_desktop *desktop, struct wlr_output *output);
-struct roots_view *desktop_view_at(struct roots_desktop *desktop, double lx,
-	double ly, struct wlr_surface **surface, double *sx, double *sy);
+
+struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
+		double lx, double ly, double *sx, double *sy,
+		struct roots_view **view);
 
 struct roots_view *view_create(struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
