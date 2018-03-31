@@ -322,11 +322,11 @@ static log_importance_t gles2_log_importance_to_wlr(GLenum type) {
 	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_KHR:  return L_ERROR;
 	case GL_DEBUG_TYPE_PORTABILITY_KHR:         return L_DEBUG;
 	case GL_DEBUG_TYPE_PERFORMANCE_KHR:         return L_DEBUG;
-	case GL_DEBUG_TYPE_OTHER_KHR:               return L_INFO;
+	case GL_DEBUG_TYPE_OTHER_KHR:               return L_DEBUG;
 	case GL_DEBUG_TYPE_MARKER_KHR:              return L_DEBUG;
 	case GL_DEBUG_TYPE_PUSH_GROUP_KHR:          return L_DEBUG;
 	case GL_DEBUG_TYPE_POP_GROUP_KHR:           return L_DEBUG;
-	default:                                    return L_INFO;
+	default:                                    return L_DEBUG;
 	}
 }
 
