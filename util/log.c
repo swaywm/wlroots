@@ -15,7 +15,7 @@ static const char *verbosity_colors[] = {
 	[L_SILENT] = "",
 	[L_ERROR ] = "\x1B[1;31m",
 	[L_INFO  ] = "\x1B[1;34m",
-	[L_DEBUG ] = "\x1B[1;30m",
+	[L_DEBUG ] = "\x1B[1;37m",
 };
 
 void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
