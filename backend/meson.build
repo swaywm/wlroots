@@ -50,7 +50,11 @@ if conf_data.get('WLR_HAS_SYSTEMD', false)
 endif
 
 if conf_data.get('WLR_HAS_X11_BACKEND', false)
-	backend_files += files('x11/backend.c')
+	backend_files += files(
+		'x11/backend.c',
+		'x11/input_device.c',
+		'x11/output.c',
+	)
 	backend_deps += xcb_xkb
 endif
 
