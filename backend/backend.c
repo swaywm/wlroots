@@ -61,7 +61,7 @@ struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	return NULL;
 }
 
-static int parse_outputs_env(const char *name) {
+static size_t parse_outputs_env(const char *name) {
 	const char *outputs_str = getenv(name);
 	if (outputs_str == NULL) {
 		return 1;
@@ -83,8 +83,8 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 		return NULL;
 	}
 
-	int outputs = parse_outputs_env("WLR_WL_OUTPUTS");
-	for (int i = 0; i < outputs; ++i) {
+	size_t outputs = parse_outputs_env("WLR_WL_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
 		wlr_wl_output_create(backend);
 	}
 
@@ -98,8 +98,8 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		return NULL;
 	}
 
-	int outputs = parse_outputs_env("WLR_X11_OUTPUTS");
-	for (int i = 0; i < outputs; ++i) {
+	size_t outputs = parse_outputs_env("WLR_X11_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
 		wlr_x11_output_create(backend);
 	}
 

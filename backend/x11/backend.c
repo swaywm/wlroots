@@ -282,7 +282,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	wlr_backend_init(&x11->backend, &backend_impl);
 	x11->wl_display = display;
-	x11->requested_outputs = 1;
 	wl_list_init(&x11->outputs);
 
 	x11->xlib_conn = XOpenDisplay(x11_display);
