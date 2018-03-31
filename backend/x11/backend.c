@@ -1,5 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
-#include <EGL/egl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,162 +10,98 @@
 #include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
-#ifdef __linux__
-#include <linux/input-event-codes.h>
-#elif __FreeBSD__
-#include <dev/evdev/input-event-codes.h>
-#endif
 #ifdef WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
 #include "backend/x11.h"
 #include "util/signal.h"
 
-#define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
-
-static const struct wlr_backend_impl backend_impl;
-static const struct wlr_output_impl output_impl;
-static const struct wlr_input_device_impl input_device_impl = { 0 };
-
-static uint32_t xcb_button_to_wl(uint32_t button) {
-	switch (button) {
-	case XCB_BUTTON_INDEX_1: return BTN_LEFT;
-	case XCB_BUTTON_INDEX_2: return BTN_MIDDLE;
-	case XCB_BUTTON_INDEX_3: return BTN_RIGHT;
-	// XXX: I'm not sure the scroll-wheel direction is right
-	case XCB_BUTTON_INDEX_4: return BTN_GEAR_UP;
-	case XCB_BUTTON_INDEX_5: return BTN_GEAR_DOWN;
-	default: return 0;
+struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
+		xcb_window_t window) {
+	struct wlr_x11_output *output;
+	wl_list_for_each(output, &x11->outputs, link) {
+		if (output->win == window) {
+			return output;
+		}
 	}
+	return NULL;
 }
 
-static bool handle_x11_event(struct wlr_x11_backend *x11, xcb_generic_event_t *event) {
-	struct wlr_x11_output *output = &x11->output;
+void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+		struct wlr_box *box) {
+	int min_x = INT_MAX, min_y = INT_MAX;
+	int max_x = INT_MIN, max_y = INT_MIN;
+
+	struct wlr_x11_output *output;
+	wl_list_for_each(output, &backend->outputs, link) {
+		struct wlr_output *wlr_output = &output->wlr_output;
+
+		int width, height;
+		wlr_output_effective_resolution(wlr_output, &width, &height);
+
+		if (wlr_output->lx < min_x) {
+			min_x = wlr_output->lx;
+		}
+		if (wlr_output->ly < min_y) {
+			min_y = wlr_output->ly;
+		}
+		if (wlr_output->lx + width > max_x) {
+			max_x = wlr_output->lx + width;
+		}
+		if (wlr_output->ly + height > max_y) {
+			max_y = wlr_output->ly + height;
+		}
+	}
+
+	box->x = min_x;
+	box->y = min_y;
+	box->width = max_x - min_x;
+	box->height = max_y - min_y;
+}
+
+static bool handle_x11_event(struct wlr_x11_backend *x11,
+		xcb_generic_event_t *event) {
+	if (x11_handle_input_event(x11, event)) {
+		return false;
+	}
 
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
-		wlr_output_send_frame(&output->wlr_output);
-		break;
-	}
-	case XCB_KEY_PRESS:
-	case XCB_KEY_RELEASE: {
-		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
-		struct wlr_event_keyboard_key key = {
-			.time_msec = ev->time,
-			.keycode = ev->detail - 8,
-			.state = event->response_type == XCB_KEY_PRESS ?
-				WLR_KEY_PRESSED : WLR_KEY_RELEASED,
-			.update_state = true,
-		};
-
-		// TODO use xcb-xkb for more precise modifiers state?
-		wlr_keyboard_notify_key(&x11->keyboard, &key);
-		x11->time = ev->time;
-		break;
-	}
-	case XCB_BUTTON_PRESS: {
-		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
-
-		if (ev->detail == XCB_BUTTON_INDEX_4 ||
-				ev->detail == XCB_BUTTON_INDEX_5) {
-			double delta = (ev->detail == XCB_BUTTON_INDEX_4 ? -15 : 15);
-			struct wlr_event_pointer_axis axis = {
-				.device = &x11->pointer_dev,
-				.time_msec = ev->time,
-				.source = WLR_AXIS_SOURCE_WHEEL,
-				.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
-				.delta = delta,
-			};
-			wlr_signal_emit_safe(&x11->pointer.events.axis, &axis);
-			x11->time = ev->time;
-			break;
+		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
+		struct wlr_x11_output *output =
+			x11_output_from_window_id(x11, ev->window);
+		if (output != NULL) {
+			wlr_output_send_frame(&output->wlr_output);
 		}
-	}
-	/* fallthrough */
-	case XCB_BUTTON_RELEASE: {
-		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
-
-		if (ev->detail != XCB_BUTTON_INDEX_4 &&
-				ev->detail != XCB_BUTTON_INDEX_5) {
-			struct wlr_event_pointer_button button = {
-				.device = &x11->pointer_dev,
-				.time_msec = ev->time,
-				.button = xcb_button_to_wl(ev->detail),
-				.state = event->response_type == XCB_BUTTON_PRESS ?
-					WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
-			};
-
-			wlr_signal_emit_safe(&x11->pointer.events.button, &button);
-		}
-		x11->time = ev->time;
-		break;
-	}
-	case XCB_MOTION_NOTIFY: {
-		xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
-		struct wlr_event_pointer_motion_absolute abs = {
-			.device = &x11->pointer_dev,
-			.time_msec = ev->time,
-			.x = (double)ev->event_x / output->wlr_output.width,
-			.y = (double)ev->event_y / output->wlr_output.height,
-		};
-
-		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
-		x11->time = ev->time;
 		break;
 	}
 	case XCB_CONFIGURE_NOTIFY: {
-		xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *)event;
-
-		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-			ev->height, 0);
-
-		// Move the pointer to its new location
-		xcb_query_pointer_cookie_t cookie =
-			xcb_query_pointer(x11->xcb_conn, output->win);
-		xcb_query_pointer_reply_t *pointer =
-			xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
-		if (!pointer) {
-			break;
+		xcb_configure_notify_event_t *ev =
+			(xcb_configure_notify_event_t *)event;
+		struct wlr_x11_output *output =
+			x11_output_from_window_id(x11, ev->window);
+		if (output != NULL) {
+			x11_output_handle_configure_notify(output, ev);
 		}
-
-		struct wlr_event_pointer_motion_absolute abs = {
-			.device = &x11->pointer_dev,
-			.time_msec = x11->time,
-			.x = (double)pointer->root_x / output->wlr_output.width,
-			.y = (double)pointer->root_y / output->wlr_output.height,
-		};
-
-		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
-		free(pointer);
 		break;
 	}
 	case XCB_CLIENT_MESSAGE: {
 		xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
-
 		if (ev->data.data32[0] == x11->atoms.wm_delete_window) {
-			wl_display_terminate(x11->wl_display);
-			return true;
+			struct wlr_x11_output *output =
+				x11_output_from_window_id(x11, ev->window);
+			if (output != NULL) {
+				wlr_output_destroy(&output->wlr_output);
+			}
 		}
-
 		break;
 	}
-	default:
-#ifdef WLR_HAS_XCB_XKB
-		if (x11->xkb_supported && event->response_type == x11->xkb_base_event) {
-			xcb_xkb_state_notify_event_t *ev =
-				(xcb_xkb_state_notify_event_t *)event;
-			wlr_keyboard_notify_modifiers(&x11->keyboard, ev->baseMods,
-				ev->latchedMods, ev->lockedMods, ev->lockedGroup);
-		}
-#endif
-		break;
 	}
 
 	return false;
@@ -180,64 +116,20 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	}
 
 	xcb_generic_event_t *e;
-	bool quit = false;
-	while (!quit && (e = xcb_poll_for_event(x11->xcb_conn))) {
-		quit = handle_x11_event(x11, e);
+	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
+		bool quit = handle_x11_event(x11, e);
 		free(e);
+		if (quit) {
+			break;
+		}
 	}
 
 	return 0;
-}
-
-static int signal_frame(void *data) {
-	struct wlr_x11_backend *x11 = data;
-	wlr_output_send_frame(&x11->output.wlr_output);
-	wl_event_source_timer_update(x11->frame_timer, 16);
-	return 0;
-}
-
-static void parse_xcb_setup(struct wlr_output *output, xcb_connection_t *xcb_conn) {
-	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb_conn);
-
-	snprintf(output->make, sizeof(output->make), "%.*s",
-			xcb_setup_vendor_length(xcb_setup),
-			xcb_setup_vendor(xcb_setup));
-	snprintf(output->model, sizeof(output->model), "%"PRIu16".%"PRIu16,
-			xcb_setup->protocol_major_version,
-			xcb_setup->protocol_minor_version);
 }
 
 static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
-	struct wlr_x11_output *output = &x11->output;
-
-	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-	uint32_t values[2] = {
-		x11->screen->white_pixel,
-		XCB_EVENT_MASK_EXPOSURE |
-		XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
-		XCB_EVENT_MASK_POINTER_MOTION |
-		XCB_EVENT_MASK_STRUCTURE_NOTIFY
-	};
-
-	output->x11 = x11;
-
-	wlr_output_init(&output->wlr_output, &x11->backend, &output_impl,
-		x11->wl_display);
-	snprintf(output->wlr_output.name, sizeof(output->wlr_output.name), "X11-1");
-	parse_xcb_setup(&output->wlr_output, x11->xcb_conn);
-
-	output->win = xcb_generate_id(x11->xcb_conn);
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
-		x11->screen->root, 0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		x11->screen->root_visual, mask, values);
-
-	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
-	if (!output->surf) {
-		wlr_log(L_ERROR, "Failed to create EGL surface");
-		return false;
-	}
+	x11->started = true;
 
 	struct {
 		const char *name;
@@ -279,17 +171,6 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		}
 	}
 
-	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
-		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
-		&x11->atoms.wm_delete_window);
-
-	char title[32];
-	if (snprintf(title, sizeof(title), "wlroots - %s", output->wlr_output.name)) {
-		xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
-			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
-			strlen(title), title);
-	}
-
 #ifdef WLR_HAS_XCB_XKB
 		const xcb_query_extension_reply_t *reply =
 			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
@@ -316,15 +197,12 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		}
 #endif
 
-	xcb_map_window(x11->xcb_conn, output->win);
-	xcb_flush(x11->xcb_conn);
-	wlr_output_update_enabled(&output->wlr_output, true);
-
-	wlr_signal_emit_safe(&x11->backend.events.new_output, output);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->pointer_dev);
 
-	wl_event_source_timer_update(x11->frame_timer, 16);
+	for (size_t i = 0; i < x11->requested_outputs; ++i) {
+		wlr_x11_output_create(&x11->backend);
+	}
 
 	return true;
 }
@@ -336,8 +214,10 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 
-	struct wlr_x11_output *output = &x11->output;
-	wlr_output_destroy(&output->wlr_output);
+	struct wlr_x11_output *output, *tmp;
+	wl_list_for_each_safe(output, tmp, &x11->outputs, link) {
+		wlr_output_destroy(&output->wlr_output);
+	}
 
 	wlr_signal_emit_safe(&x11->pointer_dev.events.destroy, &x11->pointer_dev);
 	wlr_signal_emit_safe(&x11->keyboard_dev.events.destroy, &x11->keyboard_dev);
@@ -357,7 +237,6 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	}
 	wl_list_remove(&x11->display_destroy.link);
 
-	wl_event_source_remove(x11->frame_timer);
 	wlr_egl_finish(&x11->egl);
 
 	if (x11->xlib_conn) {
@@ -403,6 +282,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	wlr_backend_init(&x11->backend, &backend_impl);
 	x11->wl_display = display;
+	wl_list_init(&x11->outputs);
 
 	x11->xlib_conn = XOpenDisplay(x11_display);
 	if (!x11->xlib_conn) {
@@ -427,8 +307,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_x11;
 	}
 
-	x11->frame_timer = wl_event_loop_add_timer(ev, signal_frame, x11);
-
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
 
 	if (!wlr_egl_init(&x11->egl, EGL_PLATFORM_X11_KHR, x11->xlib_conn, NULL,
@@ -439,6 +317,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->renderer = wlr_gles2_renderer_create(&x11->backend);
 	if (x11->renderer == NULL) {
 		wlr_log(L_ERROR, "Failed to create renderer");
+		goto error_egl;
 	}
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
@@ -456,66 +335,12 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	return &x11->backend;
 
+error_egl:
+	wlr_egl_finish(&x11->egl);
 error_event:
 	wl_event_source_remove(x11->event_source);
 error_x11:
 	XCloseDisplay(x11->xlib_conn);
 	free(x11);
 	return NULL;
-}
-
-static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
-		int32_t height, int32_t refresh) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	const uint32_t values[] = { width, height };
-	xcb_configure_window(x11->xcb_conn, output->win,
-		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
-	return true;
-}
-
-static void output_transform(struct wlr_output *wlr_output, enum wl_output_transform transform) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	output->wlr_output.transform = transform;
-}
-
-static void output_destroy(struct wlr_output *wlr_output) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	eglDestroySurface(x11->egl.display, output->surf);
-	xcb_destroy_window(x11->xcb_conn, output->win);
-	// output has been allocated on the stack, do not free it
-}
-
-static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
-}
-
-static bool output_swap_buffers(struct wlr_output *wlr_output,
-		pixman_region32_t *damage) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	return wlr_egl_swap_buffers(&x11->egl, output->surf, damage);
-}
-
-static const struct wlr_output_impl output_impl = {
-	.set_custom_mode = output_set_custom_mode,
-	.transform = output_transform,
-	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
-};
-
-bool wlr_output_is_x11(struct wlr_output *wlr_output) {
-	return wlr_output->impl == &output_impl;
-}
-
-bool wlr_input_device_is_x11(struct wlr_input_device *wlr_dev) {
-	return wlr_dev->impl == &input_device_impl;
 }
