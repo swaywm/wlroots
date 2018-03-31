@@ -388,7 +388,7 @@ int main(int argc, char **argv) {
 
 	assert(cursor_theme = wl_cursor_theme_load(NULL, 16, shm));
 	struct wl_cursor *cursor;
-	assert(cursor = wl_cursor_theme_get_cursor(cursor_theme, "left_ptr"));
+	assert(cursor = wl_cursor_theme_get_cursor(cursor_theme, "crosshair"));
 	cursor_image = cursor->images[0];
 	assert(cursor_surface = wl_compositor_create_surface(compositor));
 
