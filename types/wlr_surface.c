@@ -952,3 +952,10 @@ void wlr_surface_set_role_committed(struct wlr_surface *surface,
 	surface->role_committed = role_committed;
 	surface->role_data = role_data;
 }
+
+bool wlr_surface_point_accepts_input(
+		struct wlr_surface *surface, double sx, double sy) {
+	return sx >= 0 && sx <= surface->current->width &&
+		sy >= 0 && sy <= surface->current->height &&
+		pixman_region32_contains_point(&surface->current->input, sx, sy, NULL);
+}
