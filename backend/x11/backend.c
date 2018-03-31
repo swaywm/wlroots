@@ -314,7 +314,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	x11->renderer = wlr_gles2_renderer_create(&x11->backend);
+	x11->renderer = wlr_gles2_renderer_create(&x11->egl);
 	if (x11->renderer == NULL) {
 		wlr_log(L_ERROR, "Failed to create renderer");
 		goto error_egl;

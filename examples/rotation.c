@@ -137,7 +137,8 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
+	struct wlr_egl *egl = wlr_backend_get_egl(compositor.backend);
+	state.renderer = wlr_gles2_renderer_create(egl);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
