@@ -171,6 +171,15 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 		}
 	}
 
+	// create a blank cursor
+	xcb_pixmap_t pix = xcb_generate_id(x11->xcb_conn);
+	xcb_create_pixmap(x11->xcb_conn, 1, pix, x11->screen->root, 1, 1);
+
+	x11->cursor = xcb_generate_id(x11->xcb_conn);
+	xcb_create_cursor(x11->xcb_conn, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
+		0, 0);
+	xcb_free_pixmap(x11->xcb_conn, pix);
+
 #ifdef WLR_HAS_XCB_XKB
 		const xcb_query_extension_reply_t *reply =
 			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
@@ -239,6 +248,9 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 
 	wlr_egl_finish(&x11->egl);
 
+	if (x11->cursor) {
+		xcb_free_cursor(x11->xcb_conn, x11->cursor);
+	}
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
 	}
