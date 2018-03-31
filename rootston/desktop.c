@@ -622,9 +622,7 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		return true;
 	}
 
-	if (wlr_box_contains_point(&box, view_sx, view_sy) &&
-			pixman_region32_contains_point(&view->wlr_surface->current->input,
-				view_sx, view_sy, NULL)) {
+	if (wlr_surface_point_accepts_input(view->wlr_surface, view_sx, view_sy)) {
 		*sx = view_sx;
 		*sy = view_sy;
 		*surface = view->wlr_surface;
@@ -668,16 +666,8 @@ static struct wlr_surface *layer_surface_at(struct roots_output *output,
 			roots_surface->layer_surface->surface;
 		double _sx = ox - roots_surface->geo.x;
 		double _sy = oy - roots_surface->geo.y;
-		struct wlr_box box = {
-			.x = roots_surface->geo.x,
-			.y = roots_surface->geo.y,
-			.width = wlr_surface->current->width,
-			.height = wlr_surface->current->height,
-		};
 		// TODO: Test popups/subsurfaces
-		if (wlr_box_contains_point(&box, ox, oy) &&
-				pixman_region32_contains_point(&wlr_surface->current->input,
-					_sx, _sy, NULL)) {
+		if (wlr_surface_point_accepts_input(wlr_surface, _sx, _sy)) {
 			*sx = _sx;
 			*sy = _sy;
 			return wlr_surface;
