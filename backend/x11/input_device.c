@@ -87,15 +87,29 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 		if (output == NULL) {
 			return false;
 		}
+		struct wlr_output *wlr_output = &output->wlr_output;
 
-		struct wlr_event_pointer_motion_absolute abs = {
+		struct wlr_box box = { .x = ev->event_x, .y = ev->event_y };
+		wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
+			wlr_output->height, &box);
+		box.x /= wlr_output->scale;
+		box.y /= wlr_output->scale;
+
+		struct wlr_box layout_box;
+		x11_output_layout_get_box(x11, &layout_box);
+
+		double ox = wlr_output->lx / (double)layout_box.width;
+		double oy = wlr_output->ly / (double)layout_box.height;
+
+		struct wlr_event_pointer_motion_absolute wlr_event = {
 			.device = &x11->pointer_dev,
 			.time_msec = ev->time,
-			.x = (double)ev->event_x / output->wlr_output.width,
-			.y = (double)ev->event_y / output->wlr_output.height,
+			.x = box.x / (double)layout_box.width + ox,
+			.y = box.y / (double)layout_box.height + oy,
 		};
 
-		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
+		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &wlr_event);
+
 		x11->time = ev->time;
 		return true;
 	}

@@ -69,6 +69,8 @@ struct wlr_x11_backend {
 
 struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
 	xcb_window_t window);
+void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+	struct wlr_box *box);
 
 const struct wlr_input_device_impl input_device_impl;
 

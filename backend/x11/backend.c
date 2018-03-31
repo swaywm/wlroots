@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,38 @@ struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
 		}
 	}
 	return NULL;
+}
+
+void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+		struct wlr_box *box) {
+	int min_x = INT_MAX, min_y = INT_MAX;
+	int max_x = INT_MIN, max_y = INT_MIN;
+
+	struct wlr_x11_output *output;
+	wl_list_for_each(output, &backend->outputs, link) {
+		struct wlr_output *wlr_output = &output->wlr_output;
+
+		int width, height;
+		wlr_output_effective_resolution(wlr_output, &width, &height);
+
+		if (wlr_output->lx < min_x) {
+			min_x = wlr_output->lx;
+		}
+		if (wlr_output->ly < min_y) {
+			min_y = wlr_output->ly;
+		}
+		if (wlr_output->lx + width > max_x) {
+			max_x = wlr_output->lx + width;
+		}
+		if (wlr_output->ly + height > max_y) {
+			max_y = wlr_output->ly + height;
+		}
+	}
+
+	box->x = min_x;
+	box->y = min_y;
+	box->width = max_x - min_x;
+	box->height = max_y - min_y;
 }
 
 static bool handle_x11_event(struct wlr_x11_backend *x11,
