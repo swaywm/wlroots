@@ -834,7 +834,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		if (xcursor != NULL) {
 			struct wlr_xcursor_image *image = xcursor->images[0];
 			wlr_xwayland_set_cursor(desktop->xwayland, image->buffer,
-				image->width, image->width, image->height, image->hotspot_x,
+				image->width * 4, image->width, image->height, image->hotspot_x,
 				image->hotspot_y);
 		}
 	}
