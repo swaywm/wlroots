@@ -353,10 +353,13 @@ static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 };
 
 static void client_handle_destroy(struct wl_resource *resource) {
+	struct wl_client *client = wl_resource_get_client(resource);
 	struct wlr_layer_shell *shell = layer_shell_from_resource(resource);
 	struct wlr_layer_surface *surface, *tmp = NULL;
 	wl_list_for_each_safe(surface, tmp, &shell->surfaces, link) {
-		layer_surface_destroy(surface);
+		if (wl_resource_get_client(surface->resource) == client) {
+			layer_surface_destroy(surface);
+		}
 	}
 	wl_list_remove(wl_resource_get_link(resource));
 }
