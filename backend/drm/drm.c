@@ -579,8 +579,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		enum wl_output_transform transform =
-			wlr_output_transform_invert(output->transform);
+		enum wl_output_transform transform = output->transform;
 		wlr_matrix_projection(plane->matrix, plane->surf.width,
 			plane->surf.height, transform);
 	}
