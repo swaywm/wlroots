@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
-#include <wlr/backend.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
@@ -400,7 +399,7 @@ extern const GLchar tex_fragment_src_rgba[];
 extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
 
-struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
+struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	struct wlr_gles2_renderer *renderer =
 		calloc(1, sizeof(struct wlr_gles2_renderer));
 	if (renderer == NULL) {
@@ -408,7 +407,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	}
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
-	renderer->egl = wlr_backend_get_egl(backend);
+	renderer->egl = egl;
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
 	renderer->exts_str = (const char*) glGetString(GL_EXTENSIONS);

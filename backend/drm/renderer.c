@@ -31,7 +31,7 @@ bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	renderer->wlr_rend = wlr_gles2_renderer_create(&drm->backend);
+	renderer->wlr_rend = wlr_gles2_renderer_create(&renderer->egl);
 	if (!renderer->wlr_rend) {
 		wlr_log(L_ERROR, "Failed to create WLR renderer");
 		goto error_egl;

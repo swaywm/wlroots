@@ -212,7 +212,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char
 		backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888);
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
-	backend->renderer = wlr_gles2_renderer_create(&backend->backend);
+	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
 	if (backend->renderer == NULL) {
 		wlr_log_errno(L_ERROR, "Could not create renderer");
 	}
