@@ -90,7 +90,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	}
 	if (texture->image) {
 		assert(eglDestroyImageKHR);
-		eglDestroyImageKHR(texture->renderer->egl->display, texture->image);
+		wlr_egl_destroy_image(texture->renderer->egl, texture->image);
 	}
 
 	if (texture->type == WLR_GLES2_TEXTURE_GLTEX) {
@@ -144,32 +144,15 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
 	GLES2_DEBUG_POP;
-	return (struct wlr_texture *)texture;
+	return &texture->wlr_texture;
 }
 
 struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *data) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	if (!eglQueryWaylandBufferWL || !eglCreateImageKHR ||
-			!glEGLImageTargetTexture2DOES) {
+	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
-	}
-
-	EGLint fmt;
-	if (!eglQueryWaylandBufferWL(renderer->egl->display, data,
-			EGL_TEXTURE_FORMAT, &fmt)) {
-		return NULL;
-	}
-
-	EGLint width, height;
-	eglQueryWaylandBufferWL(renderer->egl->display, data, EGL_WIDTH, &width);
-	eglQueryWaylandBufferWL(renderer->egl->display, data, EGL_HEIGHT, &height);
-
-	EGLint inverted_y;
-	if (!eglQueryWaylandBufferWL(renderer->egl->display, data,
-			EGL_WAYLAND_Y_INVERTED_WL, &inverted_y)) {
-		inverted_y = 0;
 	}
 
 	struct wlr_gles2_texture *texture =
@@ -180,10 +163,15 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
 	texture->renderer = renderer;
-	texture->width = width;
-	texture->height = height;
 	texture->wl_drm = data;
-	texture->inverted_y = !!inverted_y;
+
+	EGLint fmt;
+	texture->image = wlr_egl_create_image_from_wl_drm(renderer->egl, data, &fmt,
+		&texture->width, &texture->height, &texture->inverted_y);
+	if (texture->image == NULL) {
+		free(texture);
+		return NULL;
+	}
 
 	GLenum target;
 	switch (fmt) {
@@ -204,17 +192,6 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 
-	EGLint attribs[] = {
-		EGL_WAYLAND_PLANE_WL, 0,
-		EGL_NONE,
-	};
-	texture->image = eglCreateImageKHR(renderer->egl->display,
-		renderer->egl->context, EGL_WAYLAND_BUFFER_WL, data, attribs);
-	if (texture->image == NULL) {
-		free(texture);
-		return NULL;
-	}
-
 	GLES2_DEBUG_PUSH;
 
 	glGenTextures(1, &texture->image_tex);
@@ -222,7 +199,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	glEGLImageTargetTexture2DOES(target, texture->image);
 
 	GLES2_DEBUG_POP;
-	return (struct wlr_texture *)texture;
+	return &texture->wlr_texture;
 }
 
 struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
@@ -267,5 +244,5 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, texture->image);
 
 	GLES2_DEBUG_POP;
-	return (struct wlr_texture *)texture;
+	return &texture->wlr_texture;
 }

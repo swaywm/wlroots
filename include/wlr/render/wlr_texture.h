@@ -23,7 +23,7 @@ struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 	const void *data);
 
 /**
- * Create a new texture from a wayland DRM resource. The returned texture is
+ * Create a new texture from a wl_drm resource. The returned texture is
  * immutable.
  */
 struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
