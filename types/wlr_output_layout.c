@@ -191,7 +191,7 @@ static struct wlr_output_layout_output *wlr_output_layout_output_create(
 }
 
 void wlr_output_layout_add(struct wlr_output_layout *layout,
-		struct wlr_output *output, int x, int y) {
+		struct wlr_output *output, int lx, int ly) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
 	if (!l_output) {
@@ -201,8 +201,8 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 			return;
 		}
 	}
-	l_output->x = x;
-	l_output->y = y;
+	l_output->x = lx;
+	l_output->y = ly;
 	l_output->state->auto_configured = false;
 	wlr_output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
@@ -221,19 +221,19 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 }
 
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
-		struct wlr_output *reference, int x, int y) {
+		struct wlr_output *reference, int lx, int ly) {
 	if (reference) {
 		struct wlr_output_layout_output *l_output =
 			wlr_output_layout_get(layout, reference);
 		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-		return wlr_box_contains_point(box, x, y);
+		return wlr_box_contains_point(box, lx, ly);
 	} else {
-		return !!wlr_output_layout_output_at(layout, x, y);
+		return !!wlr_output_layout_output_at(layout, lx, ly);
 	}
 }
 
 bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
-		struct wlr_output *reference, const struct wlr_box *target_box) {
+		struct wlr_output *reference, const struct wlr_box *target_lbox) {
 	struct wlr_box out_box;
 
 	if (reference == NULL) {
@@ -241,7 +241,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		wl_list_for_each(l_output, &layout->outputs, link) {
 			struct wlr_box *output_box =
 				wlr_output_layout_output_get_box(l_output);
-			if (wlr_box_intersection(output_box, target_box, &out_box)) {
+			if (wlr_box_intersection(output_box, target_lbox, &out_box)) {
 				return true;
 			}
 		}
@@ -254,16 +254,16 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		}
 
 		struct wlr_box *output_box = wlr_output_layout_output_get_box(l_output);
-		return wlr_box_intersection(output_box, target_box, &out_box);
+		return wlr_box_intersection(output_box, target_lbox, &out_box);
 	}
 }
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
-		double x, double y) {
+		double lx, double ly) {
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
 		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-		if (wlr_box_contains_point(box, x, y)) {
+		if (wlr_box_contains_point(box, lx, ly)) {
 			return l_output->output;
 		}
 	}
@@ -271,12 +271,12 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 }
 
 void wlr_output_layout_move(struct wlr_output_layout *layout,
-		struct wlr_output *output, int x, int y) {
+		struct wlr_output *output, int lx, int ly) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
 	if (l_output) {
-		l_output->x = x;
-		l_output->y = y;
+		l_output->x = lx;
+		l_output->y = ly;
 		l_output->state->auto_configured = false;
 		wlr_output_layout_reconfigure(layout);
 	} else {
@@ -295,25 +295,25 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 }
 
 void wlr_output_layout_output_coords(struct wlr_output_layout *layout,
-		struct wlr_output *reference, double *x, double *y) {
+		struct wlr_output *reference, double *lx, double *ly) {
 	assert(layout && reference);
-	double src_x = *x;
-	double src_y = *y;
+	double src_x = *lx;
+	double src_y = *ly;
 
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
 		if (l_output->output == reference) {
-			*x = src_x - (double)l_output->x;
-			*y = src_y - (double)l_output->y;
+			*lx = src_x - (double)l_output->x;
+			*ly = src_y - (double)l_output->y;
 			return;
 		}
 	}
 }
 
 void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
-		struct wlr_output *reference, double x, double y, double *dest_x,
-		double *dest_y) {
-	if (dest_x == NULL && dest_y == NULL) {
+		struct wlr_output *reference, double lx, double ly, double *dest_lx,
+		double *dest_ly) {
+	if (dest_lx == NULL && dest_ly == NULL) {
 		return;
 	}
 
@@ -326,11 +326,11 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 
 		double output_x, output_y, output_distance;
 		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
-		wlr_box_closest_point(box, x, y, &output_x, &output_y);
+		wlr_box_closest_point(box, lx, ly, &output_x, &output_y);
 
 		// calculate squared distance suitable for comparison
 		output_distance =
-			(x - output_x) * (x - output_x) + (y - output_y) * (y - output_y);
+			(lx - output_x) * (lx - output_x) + (ly - output_y) * (ly - output_y);
 
 		if (!isfinite(output_distance)) {
 			output_distance = DBL_MAX;
@@ -343,11 +343,11 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		}
 	}
 
-	if (dest_x) {
-		*dest_x = min_x;
+	if (dest_lx) {
+		*dest_lx = min_x;
 	}
-	if (dest_y) {
-		*dest_y = min_y;
+	if (dest_ly) {
+		*dest_ly = min_y;
 	}
 }
 
@@ -433,7 +433,7 @@ struct wlr_output *wlr_output_layout_get_center_output(
 
 struct wlr_output *wlr_output_layout_adjacent_output(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
-		struct wlr_output *reference, double ref_x, double ref_y) {
+		struct wlr_output *reference, double ref_lx, double ref_ly) {
 	assert(reference);
 
 	struct wlr_box *ref_box = wlr_output_layout_get_box(layout, reference);
@@ -468,9 +468,9 @@ struct wlr_output *wlr_output_layout_adjacent_output(
 		// calculate distance from the given reference point
 		double x, y;
 		wlr_output_layout_closest_point(layout, l_output->output,
-			ref_x, ref_y, &x, &y);
+			ref_lx, ref_ly, &x, &y);
 		double distance =
-			(x - ref_x) * (x - ref_x) + (y - ref_y) * (y - ref_y);
+			(x - ref_lx) * (x - ref_lx) + (y - ref_ly) * (y - ref_ly);
 		if (distance < min_distance) {
 			min_distance = distance;
 			closest_output = l_output->output;
