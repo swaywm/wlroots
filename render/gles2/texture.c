@@ -25,7 +25,7 @@ static struct wlr_gles2_texture *gles2_get_texture(
 struct wlr_gles2_texture *gles2_get_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	assert(eglGetCurrentContext() == texture->renderer->egl->context);
+	assert(wlr_egl_is_current(texture->egl));
 	return texture;
 }
 
@@ -81,7 +81,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
-	wlr_egl_make_current(texture->renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
 
 	GLES2_DEBUG_PUSH;
 
@@ -90,7 +90,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	}
 	if (texture->image) {
 		assert(eglDestroyImageKHR);
-		wlr_egl_destroy_image(texture->renderer->egl, texture->image);
+		wlr_egl_destroy_image(texture->egl, texture->image);
 	}
 
 	if (texture->type == WLR_GLES2_TEXTURE_GLTEX) {
@@ -108,11 +108,10 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
+struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+	assert(wlr_egl_is_current(egl));
 
 	const struct gles2_pixel_format *fmt = gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -127,7 +126,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
-	texture->renderer = renderer;
+	texture->egl = egl;
 	texture->width = width;
 	texture->height = height;
 	texture->type = WLR_GLES2_TEXTURE_GLTEX;
@@ -147,9 +146,9 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
+struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	assert(wlr_egl_is_current(egl));
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -162,11 +161,11 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
-	texture->renderer = renderer;
+	texture->egl = egl;
 	texture->wl_drm = data;
 
 	EGLint fmt;
-	texture->image = wlr_egl_create_image_from_wl_drm(renderer->egl, data, &fmt,
+	texture->image = wlr_egl_create_image_from_wl_drm(egl, data, &fmt,
 		&texture->width, &texture->height, &texture->inverted_y);
 	if (texture->image == NULL) {
 		free(texture);
@@ -202,15 +201,15 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
+struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer_attribs *attribs) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	assert(wlr_egl_is_current(egl));
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
-	if (!renderer->egl->egl_exts.dmabuf_import) {
+	if (!egl->egl_exts.dmabuf_import) {
 		wlr_log(L_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
@@ -223,7 +222,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
-	texture->renderer = renderer;
+	texture->egl = egl;
 	texture->width = attribs->width;
 	texture->height = attribs->height;
 	texture->type = WLR_GLES2_TEXTURE_DMABUF;
@@ -231,7 +230,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	texture->inverted_y =
 		(attribs->flags & WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_Y_INVERT) != 0;
 
-	texture->image = wlr_egl_create_image_from_dmabuf(renderer->egl, attribs);
+	texture->image = wlr_egl_create_image_from_dmabuf(egl, attribs);
 	if (texture->image == NULL) {
 		free(texture);
 		return NULL;

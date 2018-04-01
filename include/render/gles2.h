@@ -10,6 +10,7 @@
 #include <string.h>
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
@@ -49,7 +50,7 @@ enum wlr_gles2_texture_type {
 struct wlr_gles2_texture {
 	struct wlr_texture wlr_texture;
 
-	struct wlr_gles2_renderer *renderer;
+	struct wlr_egl *egl;
 	enum wlr_gles2_texture_type type;
 	int width, height;
 	bool has_alpha;
@@ -68,20 +69,8 @@ struct wlr_gles2_texture {
 const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt);
 const enum wl_shm_format *gles2_formats(size_t *len);
 
-struct wlr_gles2_renderer *gles2_get_renderer(
-	struct wlr_renderer *wlr_renderer);
-struct wlr_gles2_renderer *gles2_get_renderer_in_context(
-	struct wlr_renderer *wlr_renderer);
-
 struct wlr_gles2_texture *gles2_get_texture_in_context(
 	struct wlr_texture *wlr_texture);
-struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
-	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
-	const void *data);
-struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
-	struct wl_resource *data);
-struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
-	struct wlr_dmabuf_buffer_attribs *attribs);
 
 void gles2_push_marker(const char *file, const char *func);
 void gles2_pop_marker(void);
