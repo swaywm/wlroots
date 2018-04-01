@@ -28,21 +28,22 @@ struct wlr_egl {
 
 // TODO: Allocate and return a wlr_egl
 /**
- *  Initializes an egl context for the given platform and remote display.
+ * Initializes an EGL context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
  */
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	EGLint *config_attribs, EGLint visual_id);
 
 /**
- * Frees all related egl resources, makes the context not-current and
+ * Frees all related EGL resources, makes the context not-current and
  * unbinds a bound wayland display.
  */
 void wlr_egl_finish(struct wlr_egl *egl);
 
 /**
- * Binds the given display to the egl instance.
- * This will allow clients to create egl surfaces from wayland ones and render to it.
+ * Binds the given display to the EGL instance.
+ * This will allow clients to create EGL surfaces from wayland ones and render
+ * to it.
  */
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
 
@@ -53,7 +54,14 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
 
 /**
- * Creates an egl image from the given dmabuf attributes. Check usability
+ * Creates an EGL image from the given wl_drm buffer resource.
+ */
+EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
+	struct wl_resource *data, EGLint *fmt, int *width, int *height,
+	bool *inverted_y);
+
+/**
+ * Creates an EGL image from the given dmabuf attributes. Check usability
  * of the dmabuf with wlr_egl_check_import_dmabuf once first.
  */
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
@@ -78,7 +86,7 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
 		uint64_t **modifiers);
 
 /**
- * Destroys an egl image created with the given wlr_egl.
+ * Destroys an EGL image created with the given wlr_egl.
  */
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
