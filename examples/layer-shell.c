@@ -36,6 +36,7 @@ static int32_t margin_top = 0;
 static double alpha = 1.0;
 static bool run_display = true;
 static bool animate = false;
+static bool keyboard_interactive = false;
 static double frame = 0;
 static int cur_x = -1, cur_y = -1;
 static int buttons = 0;
@@ -274,7 +275,7 @@ int main(int argc, char **argv) {
 	int32_t margin_right = 0, margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "nw:h:o:l:a:x:m:t:")) != -1) {
+	while ((c = getopt(argc, argv, "knw:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -354,6 +355,9 @@ int main(int argc, char **argv) {
 		case 'n':
 			animate = true;
 			break;
+		case 'k':
+			keyboard_interactive = true;
+			break;
 		default:
 			break;
 		}
@@ -407,9 +411,10 @@ int main(int argc, char **argv) {
 	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
 	zwlr_layer_surface_v1_set_margin(layer_surface,
 			margin_top, margin_right, margin_bottom, margin_left);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(
+			layer_surface, keyboard_interactive);
 	zwlr_layer_surface_v1_add_listener(layer_surface,
-				   &layer_surface_listener, layer_surface);
-	// TODO: interactivity
+			&layer_surface_listener, layer_surface);
 	wl_surface_commit(wl_surface);
 	wl_display_roundtrip(display);
 

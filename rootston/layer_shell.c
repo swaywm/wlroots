@@ -192,6 +192,29 @@ void arrange_layers(struct roots_output *output) {
 	arrange_layer(output->wlr_output,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
 			&usable_area, false);
+
+	// Find topmost keyboard interactive layer, if such a layer exists
+	uint32_t layers_above_shell[] = {
+		ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
+		ZWLR_LAYER_SHELL_V1_LAYER_TOP,
+	};
+	struct roots_layer_surface *layer, *topmost = NULL;
+	for (size_t i = 0;
+			i < sizeof(layers_above_shell) / sizeof(layers_above_shell[0]);
+			++i) {
+		wl_list_for_each_reverse(layer,
+				&output->layers[layers_above_shell[i]],
+				link) {
+			if (layer->layer_surface->current.keyboard_interactive) {
+				topmost = layer;
+				break;
+			}
+		}
+		if (topmost != NULL) {
+			break;
+		}
+	}
+	wlr_log(L_DEBUG, "topmost interactive layer: %p", topmost);
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
