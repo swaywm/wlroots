@@ -271,6 +271,12 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			break;
 		case WLR_BUTTON_PRESSED:
 			roots_seat_set_focus(seat, view);
+			if (surface && !view) {
+				struct wlr_layer_surface *layer = surface->role_data;
+				if (layer->current.keyboard_interactive) {
+					roots_seat_set_focus_layer(seat, layer);
+				}
+			}
 			break;
 		}
 	}

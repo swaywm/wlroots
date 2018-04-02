@@ -804,26 +804,33 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	}
 }
 
+/**
+ * Focus semantics of layer surfaces are somewhat detached from the normal focus
+ * flow. For layers above the shell layer, for example, you cannot unfocus them.
+ * You also cannot alt-tab between layer surfaces and shell surfaces.
+ */
 void roots_seat_set_focus_layer(struct roots_seat *seat,
-		struct roots_layer_surface *layer) {
+		struct wlr_layer_surface *layer) {
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
-	seat->focused_layer = layer;
 	if (!layer) {
-		wlr_seat_keyboard_clear_focus(seat->seat);
+		seat->focused_layer = NULL;
 		return;
 	}
 	if (seat->has_focus) {
 		struct roots_view *prev_focus = roots_seat_get_focus(seat);
+		wlr_seat_keyboard_clear_focus(seat->seat);
 		view_activate(prev_focus, false);
 	}
 	seat->has_focus = false;
-	struct wlr_layer_surface *layer_surface = layer->layer_surface;
+	if (layer->layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
+		seat->focused_layer = layer;
+	}
 	if (keyboard != NULL) {
-		wlr_seat_keyboard_notify_enter(seat->seat, layer_surface->surface,
+		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			keyboard->keycodes, keyboard->num_keycodes,
 			&keyboard->modifiers);
 	} else {
-		wlr_seat_keyboard_notify_enter(seat->seat, layer_surface->surface,
+		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			NULL, 0, NULL);
 	}
 }
@@ -854,7 +861,6 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
-	wlr_log(L_DEBUG, "begin move");
 	struct roots_cursor *cursor = seat->cursor;
 	cursor->mode = ROOTS_CURSOR_MOVE;
 	cursor->offs_x = cursor->cursor->x;
