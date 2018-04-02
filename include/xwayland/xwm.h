@@ -47,6 +47,7 @@ enum atom_name {
 	INCR,
 	TEXT,
 	TIMESTAMP,
+	DELETE,
 	NET_WM_WINDOW_TYPE_UTILITY,
 	NET_WM_WINDOW_TYPE_TOOLTIP,
 	NET_WM_WINDOW_TYPE_DND,
@@ -80,22 +81,33 @@ enum net_wm_state_action {
 
 #define XDND_VERSION 5
 
+struct wlr_xwm_selection;
+
+struct wlr_xwm_selection_transfer {
+	struct wlr_xwm_selection *selection;
+	bool incr;
+	bool flush_property_on_delete;
+	bool property_set;
+	struct wl_array source_data;
+	int source_fd;
+	struct wl_event_source *source;
+
+	// when sending to x11
+	xcb_selection_request_event_t request;
+
+	// when receiving from x11
+	int property_start;
+	xcb_get_property_reply_t *property_reply;
+};
+
 struct wlr_xwm_selection {
 	struct wlr_xwm *xwm;
 	xcb_atom_t atom;
 	xcb_window_t window;
-	xcb_selection_request_event_t request;
 	xcb_window_t owner;
 	xcb_timestamp_t timestamp;
-	int incr;
-	int source_fd;
-	int property_start;
-	xcb_get_property_reply_t *property_reply;
-	struct wl_event_source *property_source;
-	int flush_property_on_delete;
-	struct wl_array source_data;
-	xcb_atom_t target;
-	bool property_set;
+
+	struct wlr_xwm_selection_transfer incoming;
 };
 
 struct wlr_xwm {
