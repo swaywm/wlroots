@@ -13,7 +13,6 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_matrix.h>
@@ -196,8 +195,7 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
-	struct wlr_egl *egl = wlr_backend_get_egl(compositor.backend);
-	state.renderer = wlr_gles2_renderer_create(egl);
+	state.renderer = wlr_backend_get_renderer(compositor.backend);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
 		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);

@@ -11,7 +11,6 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
@@ -192,8 +191,7 @@ int main(int argc, char *argv[]) {
 	};
 	compositor_init(&compositor);
 
-	struct wlr_egl *egl = wlr_backend_get_egl(compositor.backend);
-	state.renderer = wlr_gles2_renderer_create(egl);
+	state.renderer = wlr_backend_get_renderer(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
