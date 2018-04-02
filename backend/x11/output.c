@@ -136,6 +136,10 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			strlen(title), title);
 	}
 
+	uint32_t cursor_values[] = { x11->cursor };
+	xcb_change_window_attributes(x11->xcb_conn, output->win, XCB_CW_CURSOR,
+		cursor_values);
+
 	xcb_map_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
 
