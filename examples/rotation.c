@@ -13,7 +13,6 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/render/gles2.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -137,18 +136,18 @@ int main(int argc, char *argv[]) {
 	compositor.keyboard_key_cb = handle_keyboard_key;
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
+	state.renderer = wlr_backend_get_renderer(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	state.cat_texture = wlr_render_texture_create(state.renderer);
+	state.cat_texture = wlr_texture_from_pixels(state.renderer,
+		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
+		cat_tex.pixel_data);
 	if (!state.cat_texture) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	wlr_texture_upload_pixels(state.cat_texture, WL_SHM_FORMAT_ABGR8888,
-		cat_tex.width, cat_tex.width, cat_tex.height, cat_tex.pixel_data);
 
 	if (!wlr_backend_start(compositor.backend)) {
 		wlr_log(L_ERROR, "Failed to start backend");

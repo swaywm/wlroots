@@ -108,8 +108,8 @@ static void pointer_motion_absolute_notify(struct wl_listener *listener, void *d
 	struct wlr_event_pointer_motion_absolute *event = data;
 	struct pointer_state *pstate = wl_container_of(listener, pstate, motion_absolute);
 	if (pstate->compositor->pointer_motion_absolute_cb) {
-		pstate->compositor->pointer_motion_absolute_cb(pstate,
-				event->x_mm, event->y_mm);
+		pstate->compositor->pointer_motion_absolute_cb(
+				pstate, event->x, event->y);
 	}
 }
 
@@ -167,8 +167,8 @@ static void touch_down_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, down);
 	if (tstate->compositor->touch_down_cb) {
-		tstate->compositor->touch_down_cb(tstate, event->touch_id,
-			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
+		tstate->compositor->touch_down_cb(tstate,
+				event->touch_id, event->x, event->y);
 	}
 }
 
@@ -176,8 +176,8 @@ static void touch_motion_notify(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_motion *event = data;
 	struct touch_state *tstate = wl_container_of(listener, tstate, motion);
 	if (tstate->compositor->touch_motion_cb) {
-		tstate->compositor->touch_motion_cb(tstate, event->touch_id,
-			event->x_mm, event->y_mm, event->width_mm, event->height_mm);
+		tstate->compositor->touch_motion_cb(tstate,
+				event->touch_id, event->x, event->y);
 	}
 }
 

@@ -11,7 +11,6 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
@@ -28,7 +27,7 @@ struct sample_state {
 	bool proximity, tap, button;
 	double distance;
 	double pressure;
-	double x_mm, y_mm;
+	double x, y;
 	double x_tilt, y_tilt;
 	double width_mm, height_mm;
 	double ring;
@@ -69,8 +68,8 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	if (sample->proximity) {
 		struct wlr_box box = {
-			.x = sample->x_mm * scale - 8 * (sample->pressure + 1) + left,
-			.y = sample->y_mm * scale - 8 * (sample->pressure + 1) + top,
+			.x = (sample->x * pad_width) - 8 * (sample->pressure + 1) + left,
+			.y = (sample->y * pad_height) - 8 * (sample->pressure + 1) + top,
 			.width = 16 * (sample->pressure + 1),
 			.height = 16 * (sample->pressure + 1),
 		};
@@ -94,13 +93,11 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 static void handle_tool_axis(struct tablet_tool_state *tstate,
 			struct wlr_event_tablet_tool_axis *event) {
 	struct sample_state *sample = tstate->compositor->data;
-	sample->width_mm = event->width_mm;
-	sample->height_mm = event->height_mm;
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)) {
-		sample->x_mm = event->x_mm;
+		sample->x = event->x;
 	}
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		sample->y_mm = event->y_mm;
+		sample->y = event->y;
 	}
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_DISTANCE)) {
 		sample->distance = event->distance;
@@ -164,13 +161,24 @@ static void handle_pad_ring(struct tablet_pad_state *pstate,
 	}
 }
 
+static void handle_input_add(struct compositor_state *cstate,
+		struct wlr_input_device *inputdev) {
+	struct sample_state *sample = cstate->data;
+	if (inputdev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+		sample->width_mm = inputdev->width_mm == 0 ?
+			20 : inputdev->width_mm;
+		sample->height_mm = inputdev->height_mm == 0 ?
+			10 : inputdev->height_mm;
+	}
+}
+
 int main(int argc, char *argv[]) {
 	wlr_log_init(L_DEBUG, NULL);
 	struct sample_state state = {
 		.tool_color = { 1, 1, 1, 1 },
 		.pad_color = { 0.5, 0.5, 0.5, 1.0 }
 	};
-	struct compositor_state compositor = { 0,
+	struct compositor_state compositor = {
 		.data = &state,
 		.output_frame_cb = handle_output_frame,
 		.tool_axis_cb = handle_tool_axis,
@@ -178,10 +186,12 @@ int main(int argc, char *argv[]) {
 		.tool_button_cb = handle_tool_button,
 		.pad_button_cb = handle_pad_button,
 		.pad_ring_cb = handle_pad_ring,
+		.input_add_cb = handle_input_add,
+		0
 	};
 	compositor_init(&compositor);
 
-	state.renderer = wlr_gles2_renderer_create(compositor.backend);
+	state.renderer = wlr_backend_get_renderer(compositor.backend);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);

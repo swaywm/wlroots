@@ -46,6 +46,8 @@ static struct wlr_input_device *allocate_device(
 		return NULL;
 	}
 	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
+	libinput_device_get_size(libinput_dev,
+			&wlr_dev->width_mm, &wlr_dev->height_mm);
 	wl_list_insert(wlr_devices, &wlr_dev->link);
 	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);

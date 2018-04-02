@@ -11,6 +11,12 @@
 #define DRM_FORMAT_MOD_INVALID ((1ULL<<56) - 1)
 #endif
 
+enum {
+	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_Y_INVERT = 1,
+	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_INTERLACED = 2,
+	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_BOTTOM_FIRST = 4,
+};
+
 struct wlr_dmabuf_buffer_attribs {
 	/* set via params_add */
 	int n_planes;
@@ -22,7 +28,7 @@ struct wlr_dmabuf_buffer_attribs {
 	int32_t width;
 	int32_t height;
 	uint32_t format;
-	uint32_t flags; /* enum zlinux_buffer_params_flags */
+	uint32_t flags;
 };
 
 struct wlr_dmabuf_buffer {
@@ -51,11 +57,6 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_buffer_resource(
  */
 struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
 	struct wl_resource *params_resource);
-
-/**
- * Returns true if the given dmabuf has y-axis inverted, false otherwise
- */
-bool wlr_dmabuf_buffer_has_inverted_y(struct wlr_dmabuf_buffer *dmabuf);
 
 /* the protocol interface */
 struct wlr_linux_dmabuf {

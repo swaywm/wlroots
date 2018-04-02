@@ -53,9 +53,8 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
-	wlr_event.x_mm = libinput_event_pointer_get_absolute_x(pevent);
-	wlr_event.y_mm = libinput_event_pointer_get_absolute_y(pevent);
-	libinput_device_get_size(libinput_dev, &wlr_event.width_mm, &wlr_event.height_mm);
+	wlr_event.x = libinput_event_pointer_get_absolute_x_transformed(pevent, 1);
+	wlr_event.y = libinput_event_pointer_get_absolute_y_transformed(pevent, 1);
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.motion_absolute, &wlr_event);
 }
 

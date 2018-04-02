@@ -731,15 +731,11 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	if (cursor->texture == NULL) {
-		cursor->texture = wlr_render_texture_create(renderer);
-		if (cursor->texture == NULL) {
-			return false;
-		}
-	}
+	wlr_texture_destroy(cursor->texture);
 
-	return wlr_texture_upload_pixels(cursor->texture, WL_SHM_FORMAT_ARGB8888,
+	cursor->texture = wlr_texture_from_pixels(renderer, WL_SHM_FORMAT_ARGB8888,
 		stride, width, height, pixels);
+	return cursor->texture != NULL;
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
@@ -901,9 +897,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
-	if (cursor->texture != NULL) {
-		wlr_texture_destroy(cursor->texture);
-	}
+	wlr_texture_destroy(cursor->texture);
 	wl_list_remove(&cursor->link);
 	free(cursor);
 }

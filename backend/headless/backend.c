@@ -114,7 +114,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		return NULL;
 	}
 
-	backend->renderer = wlr_gles2_renderer_create(&backend->backend);
+	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
 	if (backend->renderer == NULL) {
 		wlr_log(L_ERROR, "Failed to create renderer");
 	}

@@ -73,7 +73,7 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double x, double y);
 
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
-	struct wlr_input_device *dev, double x_mm, double y_mm);
+	struct wlr_input_device *dev, double x, double y);
 
 /**
  * Move the cursor in the direction of the given x and y coordinates.
@@ -155,7 +155,7 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
  * Convert absolute coordinates to layout coordinates for the device.
  */
 bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
-		struct wlr_input_device *device, double x_mm, double y_mm,
-		double width_mm, double height_mm, double *lx, double *ly);
+		struct wlr_input_device *device, double x, double y,
+		double *lx, double *ly);
 
 #endif

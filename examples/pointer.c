@@ -112,7 +112,7 @@ static void handle_output_add(struct output_state *ostate) {
 		sample->compositor);
 
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
-	wlr_cursor_set_image(sample->cursor, image->buffer, image->width,
+	wlr_cursor_set_image(sample->cursor, image->buffer, image->width * 4,
 		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	wlr_cursor_warp(sample->cursor, NULL, sample->cursor->x, sample->cursor->y);
@@ -154,8 +154,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 		wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
-	sample->cur_x = event->x_mm;
-	sample->cur_y = event->y_mm;
+	sample->cur_x = event->x;
+	sample->cur_y = event->y;
 
 	wlr_cursor_warp_absolute(sample->cursor, event->device, sample->cur_x,
 		sample->cur_y);
@@ -217,8 +217,8 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct touch_point *point = calloc(1, sizeof(struct touch_point));
 	point->touch_id = event->touch_id;
-	point->x = event->x_mm / event->width_mm;
-	point->y = event->y_mm / event->height_mm;
+	point->x = event->x;
+	point->y = event->y;
 	wl_list_insert(&sample->touch_points, &point->link);
 
 	warp_to_touch(sample, event->device);
@@ -232,8 +232,8 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct touch_point *point;
 	wl_list_for_each(point, &sample->touch_points, link) {
 		if (point->touch_id == event->touch_id) {
-			point->x = event->x_mm / event->width_mm;
-			point->y = event->y_mm / event->height_mm;
+			point->x = event->x;
+			point->y = event->y;
 			break;
 		}
 	}
@@ -251,8 +251,8 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_axis *event = data;
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		wlr_cursor_warp_absolute(sample->cursor, event->device,
-			event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+		wlr_cursor_warp_absolute(sample->cursor,
+				event->device, event->x, event->y);
 	}
 }
 
@@ -324,7 +324,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	struct wlr_xcursor_image *image = state.xcursor->images[0];
-	wlr_cursor_set_image(state.cursor, image->buffer, image->width,
+	wlr_cursor_set_image(state.cursor, image->buffer, image->width * 4,
 		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	compositor_init(&compositor);

@@ -134,6 +134,9 @@ struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
 struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y);
 
+bool wlr_surface_point_accepts_input(
+		struct wlr_surface *surface, double sx, double sy);
+
 void wlr_surface_send_enter(struct wlr_surface *surface,
 		struct wlr_output *output);
 

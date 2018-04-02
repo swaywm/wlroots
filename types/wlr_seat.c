@@ -1258,8 +1258,9 @@ bool wlr_seat_touch_has_grab(struct wlr_seat *seat) {
 }
 
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial) {
-	return serial == seat->pointer_state.grab_serial ||
-		serial == seat->touch_state.grab_serial;
+	return true;
+	//return serial == seat->pointer_state.grab_serial ||
+	//	serial == seat->touch_state.grab_serial;
 }
 
 struct wlr_seat_client *wlr_seat_client_from_resource(

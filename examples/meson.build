@@ -6,6 +6,7 @@ lib_shared = static_library(
 )
 
 threads = dependency('threads')
+wayland_cursor = dependency('wayland-cursor')
 
 executable('simple', 'simple.c', dependencies: wlroots, link_with: lib_shared)
 executable('pointer', 'pointer.c', dependencies: wlroots, link_with: lib_shared)
@@ -47,4 +48,10 @@ executable(
 	'idle-inhibit.c',
 	dependencies: [wayland_client, wlr_protos, wlroots, threads],
 	link_with: lib_shared,
+)
+
+executable(
+	'layer-shell',
+	'layer-shell.c',
+	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
 )

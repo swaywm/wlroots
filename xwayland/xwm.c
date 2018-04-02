@@ -120,8 +120,8 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	wl_signal_init(&surface->events.request_resize);
 	wl_signal_init(&surface->events.request_maximize);
 	wl_signal_init(&surface->events.request_fullscreen);
-	wl_signal_init(&surface->events.map_notify);
-	wl_signal_init(&surface->events.unmap_notify);
+	wl_signal_init(&surface->events.map);
+	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.set_class);
 	wl_signal_init(&surface->events.set_title);
 	wl_signal_init(&surface->events.set_parent);
@@ -617,7 +617,7 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
 
 	xsurface->mapped = true;
-	wlr_signal_emit_safe(&xsurface->events.map_notify, xsurface);
+	wlr_signal_emit_safe(&xsurface->events.map, xsurface);
 }
 
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
@@ -749,7 +749,7 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 
 	if (xsurface->mapped) {
 		xsurface->mapped = false;
-		wlr_signal_emit_safe(&xsurface->events.unmap_notify, xsurface);
+		wlr_signal_emit_safe(&xsurface->events.unmap, xsurface);
 	}
 
 	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
@@ -1417,7 +1417,6 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
 
-	stride *= 4;
 	int depth = 32;
 
 	xcb_pixmap_t pix = xcb_generate_id(xwm->xcb_conn);

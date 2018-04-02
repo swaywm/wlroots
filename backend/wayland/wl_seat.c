@@ -60,30 +60,29 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	struct wlr_output *wlr_output = &wlr_wl_pointer->current_output->wlr_output;
 
-	int width, height;
-	wl_egl_window_get_attached_size(wlr_wl_pointer->current_output->egl_window,
-		&width, &height);
-
 	struct wlr_box box = {
 		.x = wl_fixed_to_int(surface_x),
 		.y = wl_fixed_to_int(surface_y),
 	};
-	struct wlr_box transformed;
-	wlr_box_transform(&box, wlr_output->transform, width, height, &transformed);
-	transformed.x /= wlr_output->scale;
-	transformed.y /= wlr_output->scale;
+	wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
+		wlr_output->height, &box);
+	box.x /= wlr_output->scale;
+	box.y /= wlr_output->scale;
 
 	struct wlr_box layout_box;
 	wlr_wl_output_layout_get_box(wlr_wl_pointer->current_output->backend,
 		&layout_box);
 
-	struct wlr_event_pointer_motion_absolute wlr_event;
-	wlr_event.device = dev;
-	wlr_event.time_msec = time;
-	wlr_event.width_mm = layout_box.width;
-	wlr_event.height_mm = layout_box.height;
-	wlr_event.x_mm = transformed.x + wlr_output->lx - layout_box.x;
-	wlr_event.y_mm = transformed.y + wlr_output->ly - layout_box.y;
+	double ox = wlr_output->lx / (double)layout_box.width;
+	double oy = wlr_output->ly / (double)layout_box.height;
+
+	struct wlr_event_pointer_motion_absolute wlr_event = {
+		.device = dev,
+		.time_msec = time,
+		.x = box.x / (double)layout_box.width + ox,
+		.y = box.y / (double)layout_box.height + oy,
+	};
+
 	wlr_signal_emit_safe(&dev->pointer->events.motion_absolute, &wlr_event);
 }
 

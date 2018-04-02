@@ -36,8 +36,8 @@ struct wlr_event_tablet_tool_axis {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
 	uint32_t updated_axes;
-	double x_mm, y_mm;
-	double width_mm, height_mm;
+	// From 0..1
+	double x, y;
 	double pressure;
 	double distance;
 	double tilt_x, tilt_y;
@@ -54,8 +54,8 @@ enum wlr_tablet_tool_proximity_state {
 struct wlr_event_tablet_tool_proximity {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
-	double x_mm, y_mm;
-	double width_mm, height_mm;
+	// From 0..1
+	double x, y;
 	enum wlr_tablet_tool_proximity_state state;
 };
 
@@ -67,8 +67,8 @@ enum wlr_tablet_tool_tip_state {
 struct wlr_event_tablet_tool_tip {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
-	double x_mm, y_mm;
-	double width_mm, height_mm;
+	// From 0..1
+	double x, y;
 	enum wlr_tablet_tool_tip_state state;
 };
 

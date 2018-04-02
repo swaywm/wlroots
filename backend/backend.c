@@ -61,26 +61,48 @@ struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	return NULL;
 }
 
+static size_t parse_outputs_env(const char *name) {
+	const char *outputs_str = getenv(name);
+	if (outputs_str == NULL) {
+		return 1;
+	}
+
+	char *end;
+	int outputs = (int)strtol(outputs_str, &end, 10);
+	if (*end || outputs < 0) {
+		wlr_log(L_ERROR, "%s specified with invalid integer, ignoring", name);
+		return 1;
+	}
+
+	return outputs;
+}
+
 static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_wl_backend_create(display, NULL);
-	if (backend) {
-		int outputs = 1;
-		const char *_outputs = getenv("WLR_WL_OUTPUTS");
-		if (_outputs) {
-			char *end;
-			outputs = (int)strtol(_outputs, &end, 10);
-			if (*end) {
-				wlr_log(L_ERROR, "WLR_WL_OUTPUTS specified with invalid integer, ignoring");
-				outputs = 1;
-			} else if (outputs < 0) {
-				wlr_log(L_ERROR, "WLR_WL_OUTPUTS specified with negative outputs, ignoring");
-				outputs = 1;
-			}
-		}
-		while (outputs--) {
-			wlr_wl_output_create(backend);
-		}
+	if (backend == NULL) {
+		return NULL;
 	}
+
+	size_t outputs = parse_outputs_env("WLR_WL_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
+		wlr_wl_output_create(backend);
+	}
+
+	return backend;
+}
+
+static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
+		const char *x11_display) {
+	struct wlr_backend *backend = wlr_x11_backend_create(display, x11_display);
+	if (backend == NULL) {
+		return NULL;
+	}
+
+	size_t outputs = parse_outputs_env("WLR_X11_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
+		wlr_x11_output_create(backend);
+	}
+
 	return backend;
 }
 
@@ -91,7 +113,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		return NULL;
 	}
 
-	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY")) {
+	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
+			getenv("WAYLAND_SOCKET")) {
 		struct wlr_backend *wl_backend = attempt_wl_backend(display);
 		if (wl_backend) {
 			wlr_multi_backend_add(backend, wl_backend);
@@ -103,9 +126,11 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
 		struct wlr_backend *x11_backend =
-			wlr_x11_backend_create(display, x11_display);
-		wlr_multi_backend_add(backend, x11_backend);
-		return backend;
+			attempt_x11_backend(display, x11_display);
+		if (x11_backend) {
+			wlr_multi_backend_add(backend, x11_backend);
+			return backend;
+		}
 	}
 #endif
 

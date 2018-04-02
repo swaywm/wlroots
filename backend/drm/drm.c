@@ -181,9 +181,6 @@ void wlr_drm_resources_free(struct wlr_drm_backend *drm) {
 		if (plane->cursor_bo) {
 			gbm_bo_destroy(plane->cursor_bo);
 		}
-		if (plane->wlr_tex) {
-			wlr_texture_destroy(plane->wlr_tex);
-		}
 	}
 
 	free(drm->crtcs);
@@ -582,16 +579,9 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		enum wl_output_transform transform =
-			wlr_output_transform_invert(output->transform);
+		enum wl_output_transform transform = output->transform;
 		wlr_matrix_projection(plane->matrix, plane->surf.width,
 			plane->surf.height, transform);
-
-		plane->wlr_tex =
-			wlr_render_texture_create(plane->surf.renderer->wlr_rend);
-		if (!plane->wlr_tex) {
-			return false;
-		}
 	}
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
@@ -637,13 +627,18 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 		wlr_drm_surface_make_current(&plane->surf, NULL);
 
-		wlr_texture_upload_pixels(plane->wlr_tex, WL_SHM_FORMAT_ARGB8888,
-			stride, width, height, buf);
-
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
+
+		struct wlr_texture *texture = wlr_texture_from_pixels(rend,
+			WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
+		if (texture == NULL) {
+			wlr_log(L_ERROR, "Unable to create texture");
+			return false;
+		}
+
 		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture(rend, plane->wlr_tex, plane->matrix, 0, 0, 1.0f);
+		wlr_render_texture(rend, texture, plane->matrix, 0, 0, 1.0f);
 		wlr_renderer_end(rend);
 
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride,
@@ -651,6 +646,7 @@ static bool wlr_drm_connector_set_cursor(struct wlr_output *output,
 
 		wlr_drm_surface_swap_buffers(&plane->surf, NULL);
 
+		wlr_texture_destroy(texture);
 		gbm_bo_unmap(plane->cursor_bo, bo_data);
 	}
 

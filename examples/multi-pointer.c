@@ -118,8 +118,7 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 	struct sample_cursor *cursor =
 		wl_container_of(listener, cursor, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
-	wlr_cursor_warp_absolute(cursor->cursor, event->device,
-		event->x_mm / event->width_mm, event->y_mm / event->height_mm);
+	wlr_cursor_warp_absolute(cursor->cursor, event->device, event->x, event->y);
 }
 
 static void handle_input_add(struct compositor_state *state,
@@ -149,7 +148,7 @@ static void handle_input_add(struct compositor_state *state,
 		sample->compositor);
 
 	struct wlr_xcursor_image *image = sample->xcursor->images[0];
-	wlr_cursor_set_image(cursor->cursor, image->buffer, image->width,
+	wlr_cursor_set_image(cursor->cursor, image->buffer, image->width * 4,
 		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	wl_list_insert(&sample->cursors, &cursor->link);
