@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
+#include "rootston/layers.h"
 
 struct roots_seat {
 	struct roots_input *input;
@@ -14,6 +15,9 @@ struct roots_seat {
 	// coordinates of the first touch point if it exists
 	int32_t touch_id;
 	double touch_x, touch_y;
+
+	// If the focused layer is set, views cannot receive keyboard focus
+	struct roots_layer_surface *focused_layer;
 
 	struct wl_list views; // roots_seat_view::link
 	bool has_focus;
@@ -99,6 +103,9 @@ bool roots_seat_has_meta_pressed(struct roots_seat *seat);
 struct roots_view *roots_seat_get_focus(struct roots_seat *seat);
 
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view);
+
+void roots_seat_set_focus_layer(struct roots_seat *seat,
+		struct roots_layer_surface *layer);
 
 void roots_seat_cycle_focus(struct roots_seat *seat);
 

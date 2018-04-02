@@ -17,7 +17,7 @@ static struct wl_compositor *compositor = NULL;
 static struct wl_seat *seat = NULL;
 static struct wl_shm *shm = NULL;
 static struct wl_pointer *pointer = NULL;
-//static struct wl_keyboard *keyboard = NULL;
+static struct wl_keyboard *keyboard = NULL;
 static struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output = NULL;
@@ -212,6 +212,46 @@ struct wl_pointer_listener pointer_listener = {
 	.axis_discrete = wl_pointer_axis_discrete,
 };
 
+static void wl_keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t format, int32_t fd, uint32_t size) {
+	// Who cares
+}
+
+static void wl_keyboard_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	wlr_log(L_DEBUG, "Keyboard enter");
+}
+
+static void wl_keyboard_leave(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface) {
+	wlr_log(L_DEBUG, "Keyboard leave");
+}
+
+static void wl_keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+	wlr_log(L_DEBUG, "Key event: %d %d", key, state);
+}
+
+static void wl_keyboard_modifiers(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group) {
+	// Who cares
+}
+
+static void wl_keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
+		int32_t rate, int32_t delay) {
+	// Who cares
+}
+
+static struct wl_keyboard_listener keyboard_listener = {
+	.keymap = wl_keyboard_keymap,
+	.enter = wl_keyboard_enter,
+	.leave = wl_keyboard_leave,
+	.key = wl_keyboard_key,
+	.modifiers = wl_keyboard_modifiers,
+	.repeat_info = wl_keyboard_repeat_info,
+};
+
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
@@ -219,7 +259,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wl_pointer_add_listener(pointer, &pointer_listener, NULL);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		// TODO
+		keyboard = wl_seat_get_keyboard(wl_seat);
+		wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
 	}
 }
 

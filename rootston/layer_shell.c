@@ -214,7 +214,12 @@ void arrange_layers(struct roots_output *output) {
 			break;
 		}
 	}
-	wlr_log(L_DEBUG, "topmost interactive layer: %p", topmost);
+
+	struct roots_input *input = output->desktop->server->input;
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &input->seats, link) {
+		roots_seat_set_focus_layer(seat, topmost);
+	}
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {

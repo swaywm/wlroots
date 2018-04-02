@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/cursor.h"
@@ -723,7 +724,6 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
 	}
 
-
 	bool unfullscreen = true;
 
 #ifdef WLR_HAS_XWAYLAND
@@ -781,13 +781,17 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	view_activate(view, true);
-
-	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
 
 	view_damage_whole(view);
+
+	if (seat->focused_layer) {
+		return;
+	}
+
+	view_activate(view, true);
+	seat->has_focus = true;
 
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (keyboard != NULL) {
@@ -796,6 +800,30 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 			&keyboard->modifiers);
 	} else {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			NULL, 0, NULL);
+	}
+}
+
+void roots_seat_set_focus_layer(struct roots_seat *seat,
+		struct roots_layer_surface *layer) {
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
+	seat->focused_layer = layer;
+	if (!layer) {
+		wlr_seat_keyboard_clear_focus(seat->seat);
+		return;
+	}
+	if (seat->has_focus) {
+		struct roots_view *prev_focus = roots_seat_get_focus(seat);
+		view_activate(prev_focus, false);
+	}
+	seat->has_focus = false;
+	struct wlr_layer_surface *layer_surface = layer->layer_surface;
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(seat->seat, layer_surface->surface,
+			keyboard->keycodes, keyboard->num_keycodes,
+			&keyboard->modifiers);
+	} else {
+		wlr_seat_keyboard_notify_enter(seat->seat, layer_surface->surface,
 			NULL, 0, NULL);
 	}
 }
@@ -826,6 +854,7 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 }
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
+	wlr_log(L_DEBUG, "begin move");
 	struct roots_cursor *cursor = seat->cursor;
 	cursor->mode = ROOTS_CURSOR_MOVE;
 	cursor->offs_x = cursor->cursor->x;
