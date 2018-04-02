@@ -58,30 +58,30 @@ libinput       = dependency('libinput', version: '>=1.7.0')
 xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
-libcap         = dependency('libcap', required: get_option('enable_libcap') == 'true')
-systemd        = dependency('libsystemd', required: get_option('enable_systemd') == 'true')
-elogind        = dependency('libelogind', required: get_option('enable_elogind') == 'true')
+libcap         = dependency('libcap', required: get_option('enable-libcap') == 'true')
+systemd        = dependency('libsystemd', required: get_option('enable-systemd') == 'true')
+elogind        = dependency('libelogind', required: get_option('enable-elogind') == 'true')
 math           = cc.find_library('m', required: false)
 
 exclude_headers = []
 wlr_parts = []
 wlr_deps = []
 
-if libcap.found() and get_option('enable_libcap') != 'false'
+if libcap.found() and get_option('enable-libcap') != 'false'
 	conf_data.set('WLR_HAS_LIBCAP', true)
 	wlr_deps += libcap
 endif
 
-if systemd.found() and get_option('enable_systemd') != 'false'
+if systemd.found() and get_option('enable-systemd') != 'false'
 	conf_data.set('WLR_HAS_SYSTEMD', true)
 	wlr_deps += systemd
 endif
 
-if elogind.found() and get_option('enable_elogind') != 'false'
+if elogind.found() and get_option('enable-elogind') != 'false'
 	conf_data.set('WLR_HAS_ELOGIND', true)
 endif
 
-if get_option('enable_x11_backend') or get_option('enable_xwayland')
+if get_option('enable-x11_backend') or get_option('enable-xwayland')
 	xcb            = dependency('xcb')
 	xcb_composite  = dependency('xcb-composite')
 	xcb_xfixes     = dependency('xcb-xfixes')
@@ -91,7 +91,7 @@ if get_option('enable_x11_backend') or get_option('enable_xwayland')
 
 	xcb_icccm      = dependency('xcb-icccm', required: false)
 	xcb_xkb        = dependency('xcb-xkb', required: false)
-	xcb_errors     = dependency('xcb-errors', required: get_option('enable_xcb_errors') == 'true')
+	xcb_errors     = dependency('xcb-errors', required: get_option('enable-xcb_errors') == 'true')
 
 	if xcb_icccm.found()
 		conf_data.set('WLR_HAS_XCB_ICCCM', true)
@@ -101,7 +101,7 @@ if get_option('enable_x11_backend') or get_option('enable_xwayland')
 		conf_data.set('WLR_HAS_XCB_XKB', true)
 	endif
 
-	if xcb_errors.found() and get_option('enable_xcb_errors') != 'false'
+	if xcb_errors.found() and get_option('enable-xcb_errors') != 'false'
 		conf_data.set('WLR_HAS_XCB_ERRORS', true)
 	endif
 
@@ -114,11 +114,11 @@ else
 	add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
 endif
 
-if get_option('enable_x11_backend')
+if get_option('enable-x11_backend')
 	conf_data.set('WLR_HAS_X11_BACKEND', true)
 endif
 
-if get_option('enable_xwayland')
+if get_option('enable-xwayland')
 	subdir('xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)
