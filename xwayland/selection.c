@@ -188,7 +188,8 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 				"property", transfer->source_data.size);
 			xwm_selection_flush_source_data(transfer);
 		}
-		xwm_selection_transfer_destroy_outgoing(transfer);
+		xwm_selection_transfer_remove_source(transfer);
+		xwm_selection_transfer_close_source_fd(transfer);
 	} else {
 		wlr_log(L_DEBUG, "nothing happened, buffered the bytes");
 	}
@@ -199,6 +200,32 @@ error_out:
 	xwm_selection_send_notify(xwm, &transfer->request, false);
 	xwm_selection_transfer_destroy_outgoing(transfer);
 	return 0;
+}
+
+static void xwm_send_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
+	wlr_log(L_DEBUG, "property deleted");
+
+	transfer->property_set = false;
+	if (transfer->flush_property_on_delete) {
+		wlr_log(L_DEBUG, "setting new property, %zu bytes",
+			transfer->source_data.size);
+		transfer->flush_property_on_delete = false;
+		int length = xwm_selection_flush_source_data(transfer);
+
+		if (transfer->source_fd >= 0) {
+			xwm_selection_transfer_start_outgoing(transfer);
+		} else if (length > 0) {
+			/* Transfer is all done, but queue a flush for
+			 * the delete of the last chunk so we can set
+			 * the 0 sized property to signal the end of
+			 * the transfer. */
+			transfer->flush_property_on_delete = true;
+			wl_array_release(&transfer->source_data);
+			wl_array_init(&transfer->source_data);
+		} else {
+			xwm_selection_transfer_destroy_outgoing(transfer);
+		}
+	}
 }
 
 static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
@@ -629,8 +656,7 @@ static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
 				if (event->state == XCB_PROPERTY_DELETE &&
 						event->atom == outgoing->request.property &&
 						outgoing->incr) {
-					wlr_log(L_DEBUG, "send incr chunk");
-					// TODO
+					xwm_send_incr_chunk(outgoing);
 				}
 				return 1;
 			}
