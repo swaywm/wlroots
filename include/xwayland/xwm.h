@@ -85,6 +85,7 @@ struct wlr_xwm_selection;
 
 struct wlr_xwm_selection_transfer {
 	struct wlr_xwm_selection *selection;
+
 	bool incr;
 	bool flush_property_on_delete;
 	bool property_set;
@@ -94,6 +95,7 @@ struct wlr_xwm_selection_transfer {
 
 	// when sending to x11
 	xcb_selection_request_event_t request;
+	struct wl_list outgoing_link;
 
 	// when receiving from x11
 	int property_start;
@@ -108,6 +110,7 @@ struct wlr_xwm_selection {
 	xcb_timestamp_t timestamp;
 
 	struct wlr_xwm_selection_transfer incoming;
+	struct wl_list outgoing;
 };
 
 struct wlr_xwm {
