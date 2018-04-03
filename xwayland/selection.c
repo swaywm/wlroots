@@ -39,7 +39,7 @@ static enum wl_data_device_manager_dnd_action
 }
 
 static void xwm_selection_send_notify(struct wlr_xwm *xwm,
-		xcb_selection_request_event_t *req, xcb_atom_t property) {
+		xcb_selection_request_event_t *req, bool success) {
 	xcb_selection_notify_event_t selection_notify = {
 		.response_type = XCB_SELECTION_NOTIFY,
 		.sequence = 0,
@@ -47,12 +47,13 @@ static void xwm_selection_send_notify(struct wlr_xwm *xwm,
 		.requestor = req->requestor,
 		.selection = req->selection,
 		.target = req->target,
-		.property = property,
+		.property = success ? req->property : XCB_ATOM_NONE,
 	};
 
 	wlr_log(L_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
 		"requestor=%d selection=%d target=%d property=%d", req->requestor,
-		req->time, req->requestor, req->selection, req->target, property);
+		req->time, req->requestor, req->selection, req->target,
+		selection_notify.property);
 	xcb_send_event(xwm->xcb_conn,
 		0, // propagate
 		req->requestor,
@@ -71,6 +72,7 @@ static int xwm_selection_flush_source_data(
 		8, // format
 		transfer->source_data.size,
 		transfer->source_data.data);
+	xcb_flush(transfer->selection->xwm->xcb_conn);
 	transfer->property_set = true;
 	size_t length = transfer->source_data.size;
 	transfer->source_data.size = 0;
@@ -136,8 +138,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 			transfer->property_set = true;
 			transfer->flush_property_on_delete = true;
 			xwm_data_source_remove_source(transfer);
-			xwm_selection_send_notify(xwm, &transfer->request,
-				transfer->request.property);
+			xwm_selection_send_notify(xwm, &transfer->request, true);
 		} else if (transfer->property_set) {
 			wlr_log(L_DEBUG, "got %zu bytes, waiting for property delete",
 				transfer->source_data.size);
@@ -151,10 +152,8 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 		}
 	} else if (len == 0 && !transfer->incr) {
 		wlr_log(L_DEBUG, "non-incr transfer complete");
-		/* Non-incr transfer all done. */
 		xwm_selection_flush_source_data(transfer);
-		xwm_selection_send_notify(xwm, &transfer->request,
-			transfer->request.property);
+		xwm_selection_send_notify(xwm, &transfer->request, true);
 		xcb_flush(xwm->xcb_conn);
 		xwm_data_source_remove_source(transfer);
 		xwm_data_source_close_source_fd(transfer);
@@ -182,7 +181,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	return 1;
 
 error_out:
-	xwm_selection_send_notify(xwm, &transfer->request, XCB_ATOM_NONE);
+	xwm_selection_send_notify(xwm, &transfer->request, false);
 	xwm_data_source_remove_source(transfer);
 	xwm_data_source_close_source_fd(transfer);
 	wl_array_release(&transfer->source_data);
@@ -251,7 +250,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
 		wlr_log(L_ERROR, "not sending selection: no MIME type list available");
-		xwm_selection_send_notify(selection->xwm, req, XCB_ATOM_NONE);
+		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
 
@@ -267,7 +266,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	if (!found) {
 		wlr_log(L_ERROR, "not sending selection: "
 			"requested an unsupported MIME type %s", mime_type);
-		xwm_selection_send_notify(selection->xwm, req, XCB_ATOM_NONE);
+		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
 
@@ -284,7 +283,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	int p[2];
 	if (pipe(p) == -1) {
 		wlr_log(L_ERROR, "pipe() failed: %m");
-		xwm_selection_send_notify(selection->xwm, req, XCB_ATOM_NONE);
+		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
 	fcntl(p[0], F_SETFD, FD_CLOEXEC);
@@ -459,7 +458,7 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection,
 	if (mime_types == NULL) {
 		wlr_log(L_ERROR, "not sending selection targets: "
 			"no selection source available");
-		xwm_selection_send_notify(selection->xwm, req, XCB_ATOM_NONE);
+		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
 
@@ -484,7 +483,7 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection,
 		32, // format
 		n, targets);
 
-	xwm_selection_send_notify(selection->xwm, req, req->property);
+	xwm_selection_send_notify(selection->xwm, req, true);
 }
 
 static void xwm_selection_send_timestamp(struct wlr_xwm_selection *selection,
@@ -497,7 +496,7 @@ static void xwm_selection_send_timestamp(struct wlr_xwm_selection *selection,
 		32, // format
 		1, &selection->timestamp);
 
-	xwm_selection_send_notify(selection->xwm, req, req->property);
+	xwm_selection_send_notify(selection->xwm, req, true);
 }
 
 static struct wlr_xwm_selection *xwm_get_selection(struct wlr_xwm *xwm,
@@ -537,7 +536,7 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		// The wlroots clipboard should already have grabbed the first target,
 		// so just send selection notify now. This isn't synchronized with the
 		// clipboard finishing getting the data, so there's a race here.
-		xwm_selection_send_notify(xwm, req, req->property);
+		xwm_selection_send_notify(xwm, req, true);
 		return;
 	}
 
@@ -559,7 +558,7 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		wlr_log(L_DEBUG, "denying read access to selection %u (%s): "
 			"no xwayland surface focused", selection->atom, selection_name);
 		free(selection_name);
-		xwm_selection_send_notify(xwm, req, XCB_ATOM_NONE);
+		xwm_selection_send_notify(xwm, req, false);
 		return;
 	}
 
@@ -568,14 +567,14 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	} else if (req->target == xwm->atoms[TIMESTAMP]) {
 		xwm_selection_send_timestamp(selection, req);
 	} else if (req->target == xwm->atoms[DELETE]) {
-		xwm_selection_send_notify(selection->xwm, req, req->property);
+		xwm_selection_send_notify(selection->xwm, req, true);
 	} else {
 		// Send data
 		char *mime_type = xwm_mime_type_from_atom(xwm, req->target);
 		if (mime_type == NULL) {
 			wlr_log(L_ERROR, "ignoring selection request: unknown atom %u",
 				req->target);
-			xwm_selection_send_notify(xwm, req, XCB_ATOM_NONE);
+			xwm_selection_send_notify(xwm, req, false);
 			return;
 		}
 		xwm_selection_send_data(selection, req, mime_type);
