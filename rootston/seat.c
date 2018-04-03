@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/cursor.h"
@@ -723,7 +724,6 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
 	}
 
-
 	bool unfullscreen = true;
 
 #ifdef WLR_HAS_XWAYLAND
@@ -781,13 +781,17 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-	view_activate(view, true);
-
-	seat->has_focus = true;
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
 
 	view_damage_whole(view);
+
+	if (seat->focused_layer) {
+		return;
+	}
+
+	view_activate(view, true);
+	seat->has_focus = true;
 
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (keyboard != NULL) {
@@ -796,6 +800,37 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 			&keyboard->modifiers);
 	} else {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
+			NULL, 0, NULL);
+	}
+}
+
+/**
+ * Focus semantics of layer surfaces are somewhat detached from the normal focus
+ * flow. For layers above the shell layer, for example, you cannot unfocus them.
+ * You also cannot alt-tab between layer surfaces and shell surfaces.
+ */
+void roots_seat_set_focus_layer(struct roots_seat *seat,
+		struct wlr_layer_surface *layer) {
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
+	if (!layer) {
+		seat->focused_layer = NULL;
+		return;
+	}
+	if (seat->has_focus) {
+		struct roots_view *prev_focus = roots_seat_get_focus(seat);
+		wlr_seat_keyboard_clear_focus(seat->seat);
+		view_activate(prev_focus, false);
+	}
+	seat->has_focus = false;
+	if (layer->layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
+		seat->focused_layer = layer;
+	}
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
+			keyboard->keycodes, keyboard->num_keycodes,
+			&keyboard->modifiers);
+	} else {
+		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			NULL, 0, NULL);
 	}
 }
