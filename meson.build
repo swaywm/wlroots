@@ -125,8 +125,10 @@ if get_option('enable-xwayland')
 else
 	exclude_headers += 'xwayland.h'
 endif
+
+includedir = get_option('includedir')
 exclude_headers += 'meson.build'
-install_subdir('include/wlr', install_dir: 'include', exclude_files: exclude_headers)
+install_subdir('include/wlr', install_dir: includedir, exclude_files: exclude_headers)
 
 
 subdir('include')
