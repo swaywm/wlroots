@@ -5,13 +5,18 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-
 #ifdef WLR_HAS_XCB_ICCCM
-	#include <xcb/xcb_icccm.h>
+#include <xcb/xcb_icccm.h>
 #endif
 #ifdef WLR_HAS_XCB_ERRORS
-	#include <xcb/xcb_errors.h>
+#include <xcb/xcb_errors.h>
 #endif
+#include "xwayland/selection.h"
+
+/* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
+ * others redefine anyway is meh
+ */
+#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
 
 enum atom_name {
 	WL_SURFACE_ID,
@@ -79,40 +84,6 @@ enum net_wm_state_action {
 	NET_WM_STATE_TOGGLE = 2,
 };
 
-#define XDND_VERSION 5
-
-struct wlr_xwm_selection;
-
-struct wlr_xwm_selection_transfer {
-	struct wlr_xwm_selection *selection;
-
-	bool incr;
-	bool flush_property_on_delete;
-	bool property_set;
-	struct wl_array source_data;
-	int source_fd;
-	struct wl_event_source *source;
-
-	// when sending to x11
-	xcb_selection_request_event_t request;
-	struct wl_list outgoing_link;
-
-	// when receiving from x11
-	int property_start;
-	xcb_get_property_reply_t *property_reply;
-};
-
-struct wlr_xwm_selection {
-	struct wlr_xwm *xwm;
-	xcb_atom_t atom;
-	xcb_window_t window;
-	xcb_window_t owner;
-	xcb_timestamp_t timestamp;
-
-	struct wlr_xwm_selection_transfer incoming;
-	struct wl_list outgoing;
-};
-
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
@@ -168,15 +139,12 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
-		xcb_client_message_event_t *ev);
-
-void xwm_selection_init(struct wlr_xwm *xwm);
-void xwm_selection_finish(struct wlr_xwm *xwm);
+	xcb_client_message_event_t *ev);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
 char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom);
 bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
-		size_t num_atoms, enum atom_name needle);
+	size_t num_atoms, enum atom_name needle);
 
 #endif

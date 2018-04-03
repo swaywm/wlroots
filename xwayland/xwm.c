@@ -1055,10 +1055,6 @@ static void xwm_handle_unhandled_event(struct wlr_xwm *xwm, xcb_generic_event_t 
 #endif
 }
 
-/* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
- * others redefine anyway is meh
- */
-#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
 static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	int count = 0;
 	xcb_generic_event_t *event;
