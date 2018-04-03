@@ -139,8 +139,8 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 		goto error_out;
 	}
 
-	wlr_log(L_DEBUG, "read %ld (available %zu, mask 0x%x) bytes: \"%.*s\"",
-		len, available, mask, (int)len, (char *)p);
+	wlr_log(L_DEBUG, "read %ld bytes (available %zu, mask 0x%x)", len,
+		available, mask);
 
 	transfer->source_data.size = current + len;
 	if (transfer->source_data.size >= incr_chunk_size) {
@@ -629,43 +629,6 @@ static void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	}
 }
 
-static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
-		xcb_property_notify_event_t *event) {
-	struct wlr_xwm_selection *selections[] = {
-		&xwm->clipboard_selection,
-		&xwm->primary_selection,
-		&xwm->dnd_selection,
-	};
-
-	for (size_t i = 0; i < sizeof(selections)/sizeof(selections[0]); ++i) {
-		struct wlr_xwm_selection *selection = selections[i];
-
-		if (event->window == xwm->selection_window) {
-			if (event->state == XCB_PROPERTY_NEW_VALUE &&
-					event->atom == xwm->atoms[WL_SELECTION] &&
-					selection->incoming.incr) {
-				wlr_log(L_DEBUG, "get incr chunk");
-				// TODO
-			}
-			return 1;
-		}
-
-		struct wlr_xwm_selection_transfer *outgoing;
-		wl_list_for_each(outgoing, &selection->outgoing, outgoing_link) {
-			if (event->window == outgoing->request.requestor) {
-				if (event->state == XCB_PROPERTY_DELETE &&
-						event->atom == outgoing->request.property &&
-						outgoing->incr) {
-					xwm_send_incr_chunk(outgoing);
-				}
-				return 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
 static void xwm_selection_transfer_destroy_property_reply(
 		struct wlr_xwm_selection_transfer *transfer) {
 	free(transfer->property_reply);
@@ -702,8 +665,10 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 		xwm_selection_transfer_remove_source(transfer);
 
 		if (transfer->incr) {
+			wlr_log(L_DEBUG, "deleting property");
 			xcb_delete_property(xwm->xcb_conn, transfer->selection->window,
 				xwm->atoms[WL_SELECTION]);
+			xcb_flush(xwm->xcb_conn);
 		} else {
 			wlr_log(L_DEBUG, "transfer complete");
 			xwm_selection_transfer_close_source_fd(transfer);
@@ -728,6 +693,38 @@ static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
 		transfer->source = wl_event_loop_add_fd(loop,
 			transfer->source_fd, WL_EVENT_WRITABLE, xwm_data_source_write,
 			transfer);
+	}
+}
+
+static void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
+	struct wlr_xwm *xwm = transfer->selection->xwm;
+	wlr_log(L_DEBUG, "xwm_get_incr_chunk");
+
+	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
+		0, // delete
+		transfer->selection->window,
+		xwm->atoms[WL_SELECTION],
+		XCB_GET_PROPERTY_TYPE_ANY,
+		0, // offset
+		0x1fffffff // length
+		);
+
+	xcb_get_property_reply_t *reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+	if (reply == NULL) {
+		wlr_log(L_ERROR, "cannot get selection property");
+		return;
+	}
+	//dump_property(xwm, xwm->atoms[WL_SELECTION], reply);
+
+	if (xcb_get_property_value_length(reply) > 0) {
+		/* Reply's ownership is transferred to xwm, which is responsible
+		 * for freeing it */
+		xwm_write_property(transfer, reply);
+	} else {
+		wlr_log(L_DEBUG, "transfer complete");
+		xwm_selection_transfer_close_source_fd(transfer);
+		free(reply);
 	}
 }
 
@@ -1072,6 +1069,42 @@ static int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	xcb_flush(xwm->xcb_conn);
 
 	return 1;
+}
+
+static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
+		xcb_property_notify_event_t *event) {
+	struct wlr_xwm_selection *selections[] = {
+		&xwm->clipboard_selection,
+		&xwm->primary_selection,
+		&xwm->dnd_selection,
+	};
+
+	for (size_t i = 0; i < sizeof(selections)/sizeof(selections[0]); ++i) {
+		struct wlr_xwm_selection *selection = selections[i];
+
+		if (event->window == selection->window) {
+			if (event->state == XCB_PROPERTY_NEW_VALUE &&
+					event->atom == xwm->atoms[WL_SELECTION] &&
+					selection->incoming.incr) {
+				xwm_get_incr_chunk(&selection->incoming);
+			}
+			return 1;
+		}
+
+		struct wlr_xwm_selection_transfer *outgoing;
+		wl_list_for_each(outgoing, &selection->outgoing, outgoing_link) {
+			if (event->window == outgoing->request.requestor) {
+				if (event->state == XCB_PROPERTY_DELETE &&
+						event->atom == outgoing->request.property &&
+						outgoing->incr) {
+					xwm_send_incr_chunk(outgoing);
+				}
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm,
