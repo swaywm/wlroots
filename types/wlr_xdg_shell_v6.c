@@ -16,6 +16,17 @@
 static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel_v6";
 static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
+bool wlr_surface_is_xdg_surface_v6(struct wlr_surface *surface) {
+	return strcmp(surface->role, wlr_desktop_xdg_toplevel_role) == 0 ||
+		strcmp(surface->role, wlr_desktop_xdg_popup_role) == 0;
+}
+
+struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_from_wlr_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_xdg_surface_v6(surface));
+	return (struct wlr_xdg_surface_v6 *)surface->role_data;
+}
+
 struct wlr_xdg_positioner_v6_resource {
 	struct wl_resource *resource;
 	struct wlr_xdg_positioner_v6 attrs;

@@ -34,6 +34,16 @@ static struct wlr_layer_surface *layer_surface_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+bool wlr_surface_is_layer_surface(struct wlr_surface *surface) {
+	return strcmp(surface->role, zwlr_layer_surface_role) == 0;
+}
+
+struct wlr_layer_surface *wlr_layer_surface_from_wlr_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_layer_surface(surface));
+	return (struct wlr_layer_surface *)surface->role_data;
+}
+
 static void layer_surface_configure_destroy(
 		struct wlr_layer_surface_configure *configure) {
 	if (configure == NULL) {

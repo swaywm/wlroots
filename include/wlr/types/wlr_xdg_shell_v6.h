@@ -289,4 +289,9 @@ void wlr_positioner_v6_invert_x(
 void wlr_positioner_v6_invert_y(
 		struct wlr_xdg_positioner_v6 *positioner);
 
+bool wlr_surface_is_xdg_surface_v6(struct wlr_surface *surface);
+
+struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_from_wlr_surface(
+		struct wlr_surface *surface);
+
 #endif
