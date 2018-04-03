@@ -1,3 +1,4 @@
+#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
@@ -7,6 +8,9 @@
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
+#endif
+#ifdef WLR_HAS_XCB_XKB
+#include <xcb/xkb.h>
 #endif
 #include "backend/x11.h"
 #include "util/signal.h"
