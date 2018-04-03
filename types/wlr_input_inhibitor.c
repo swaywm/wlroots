@@ -6,22 +6,41 @@
 #include "wlr-input-inhibitor-unstable-v1-protocol.h"
 
 static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_implementation;
+static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation;
 
 static struct wlr_input_inhibit_manager *input_inhibit_manager_from_resource(
 		struct wl_resource *resource) {
-	assert(wl_resource_instance_of(resource, &zwlr_input_inhibit_manager_v1_interface,
-			&inhibit_manager_implementation));
+	assert(wl_resource_instance_of(resource,
+			&zwlr_input_inhibit_manager_v1_interface,
+			&inhibit_manager_implementation)
+		|| wl_resource_instance_of(resource,
+			&zwlr_input_inhibitor_v1_interface,
+			&input_inhibitor_implementation));
 	return wl_resource_get_user_data(resource);
+}
+
+static void input_inhibit_manager_deactivate(
+		struct wlr_input_inhibit_manager *manager) {
+	if (manager->active_client == NULL && manager->active_inhibitor == NULL) {
+		return;
+	}
+	manager->active_client = NULL;
+	manager->active_inhibitor = NULL;
+	wl_signal_emit(&manager->events.deactivate, manager);
 }
 
 static void input_inhibitor_destroy(struct wl_client *client,
 			struct wl_resource *resource) {
 	struct wlr_input_inhibit_manager *manager =
 		input_inhibit_manager_from_resource(resource);
-	manager->active_client = NULL;
-	manager->active_inhibitor = NULL;
+	input_inhibit_manager_deactivate(manager);
 	wl_resource_destroy(resource);
-	wl_signal_emit(&manager->events.deactivate, manager);
+}
+
+static void input_inhibitor_resource_destroy(struct wl_resource *resource) {
+	struct wlr_input_inhibit_manager *manager =
+		input_inhibit_manager_from_resource(resource);
+	input_inhibit_manager_deactivate(manager);
 }
 
 static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation = {
@@ -46,7 +65,7 @@ static void inhibit_manager_get_inhibitor(struct wl_client *client,
 		wl_client_post_no_memory(client);
 	}
 	wl_resource_set_implementation(wl_resource, &input_inhibitor_implementation,
-			manager, NULL);
+			manager, input_inhibitor_resource_destroy);
 
 	manager->active_client = client;
 	manager->active_inhibitor = wl_resource;
@@ -58,11 +77,12 @@ static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_impl
 	.get_inhibitor = inhibit_manager_get_inhibitor
 };
 
-static void input_manager_client_destroy(struct wl_resource *resource) {
+static void input_manager_resource_destroy(struct wl_resource *resource) {
 	struct wlr_input_inhibit_manager *manager =
 		input_inhibit_manager_from_resource(resource);
-	if (manager->active_client == wl_resource_get_client(resource)) {
-		input_inhibitor_destroy(manager->active_client, resource);
+	struct wl_client *client = wl_resource_get_client(resource);
+	if (manager->active_client == client) {
+		input_inhibit_manager_deactivate(manager);
 	}
 }
 
@@ -79,7 +99,7 @@ static void inhibit_manager_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(wl_resource,
 			&inhibit_manager_implementation, manager,
-			input_manager_client_destroy);
+			input_manager_resource_destroy);
 }
 
 void wlr_input_inhibit_manager_destroy(
