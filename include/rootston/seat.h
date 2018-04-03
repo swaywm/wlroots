@@ -19,6 +19,9 @@ struct roots_seat {
 	// If the focused layer is set, views cannot receive keyboard focus
 	struct wlr_layer_surface *focused_layer;
 
+	// If non-null, only this client can receive input events
+	struct wl_client *exclusive_client;
+
 	struct wl_list views; // roots_seat_view::link
 	bool has_focus;
 
@@ -124,5 +127,11 @@ struct roots_seat_view *roots_seat_view_from_view( struct roots_seat *seat,
 void roots_drag_icon_update_position(struct roots_drag_icon *icon);
 
 void roots_drag_icon_damage_whole(struct roots_drag_icon *icon);
+
+void roots_seat_set_exclusive_client(struct roots_seat *seat,
+		struct wl_client *client);
+
+bool roots_seat_allow_input(struct roots_seat *seat,
+		struct wl_resource *resource);
 
 #endif

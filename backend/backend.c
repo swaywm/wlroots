@@ -182,7 +182,3 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	return backend;
 }
-
-uint32_t usec_to_msec(uint64_t usec) {
-	return (uint32_t)(usec / 1000);
-}

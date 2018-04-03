@@ -59,6 +59,8 @@ struct roots_desktop {
 	struct wl_listener wl_shell_surface;
 	struct wl_listener layer_shell_surface;
 	struct wl_listener decoration_new;
+	struct wl_listener input_inhibit_activate;
+	struct wl_listener input_inhibit_deactivate;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
