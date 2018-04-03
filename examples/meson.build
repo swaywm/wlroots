@@ -55,3 +55,9 @@ executable(
 	'layer-shell.c',
 	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
 )
+
+executable(
+	'input-inhibitor',
+	'input-inhibitor.c',
+	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
+)

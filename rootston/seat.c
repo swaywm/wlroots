@@ -1,6 +1,8 @@
+#define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
@@ -716,7 +718,17 @@ struct roots_seat_view *roots_seat_view_from_view(
 	return seat_view;
 }
 
+bool roots_seat_allow_input(struct roots_seat *seat,
+		struct wl_resource *resource) {
+	return !seat->exclusive_client ||
+			wl_resource_get_client(resource) == seat->exclusive_client;
+}
+
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
+	if (view && !roots_seat_allow_input(seat, view->wlr_surface->resource)) {
+		return;
+	}
+
 	// Make sure the view will be rendered on top of others, even if it's
 	// already focused in this seat
 	if (view != NULL) {
@@ -811,9 +823,12 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
  */
 void roots_seat_set_focus_layer(struct roots_seat *seat,
 		struct wlr_layer_surface *layer) {
-	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (!layer) {
 		seat->focused_layer = NULL;
+		return;
+	}
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
+	if (!roots_seat_allow_input(seat, layer->resource)) {
 		return;
 	}
 	if (seat->has_focus) {
@@ -833,6 +848,46 @@ void roots_seat_set_focus_layer(struct roots_seat *seat,
 		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			NULL, 0, NULL);
 	}
+}
+
+void roots_seat_set_exclusive_client(struct roots_seat *seat,
+		struct wl_client *client) {
+	if (!client) {
+		seat->exclusive_client = client;
+		// Triggers a refocus of the topmost surface layer if necessary
+		// TODO: Make layer surface focus per-output based on cursor position
+		struct roots_output *output;
+		wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
+			arrange_layers(output);
+		}
+		return;
+	}
+	if (seat->focused_layer) {
+		if (wl_resource_get_client(seat->focused_layer->resource) != client) {
+			roots_seat_set_focus_layer(seat, NULL);
+		}
+	}
+	if (seat->has_focus) {
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (wl_resource_get_client(focus->wlr_surface->resource) != client) {
+			roots_seat_set_focus(seat, NULL);
+		}
+	}
+	if (seat->seat->pointer_state.focused_client) {
+		if (seat->seat->pointer_state.focused_client->client != client) {
+			wlr_seat_pointer_clear_focus(seat->seat);
+		}
+	}
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	struct wlr_touch_point *point;
+	wl_list_for_each(point, &seat->seat->touch_state.touch_points, link) {
+		if (point->client->client != client) {
+			wlr_seat_touch_point_clear_focus(seat->seat,
+					now.tv_nsec / 1000, point->touch_id);
+		}
+	}
+	seat->exclusive_client = client;
 }
 
 void roots_seat_cycle_focus(struct roots_seat *seat) {

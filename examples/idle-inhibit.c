@@ -55,10 +55,8 @@ static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32
 			zwp_idle_inhibitor_v1_destroy(idle_inhibitor);
 			idle_inhibitor = NULL;
 		} else {
-			idle_inhibitor =
-				zwp_idle_inhibit_manager_v1_create_inhibitor(
-					idle_inhibit_manager,
-					surface);
+			idle_inhibitor = zwp_idle_inhibit_manager_v1_create_inhibitor(
+					idle_inhibit_manager, surface);
 		}
 	}
 
@@ -139,7 +137,6 @@ static void xdg_toplevel_handle_close(void *data,
 		struct xdg_toplevel *xdg_toplevel) {
 	exit(EXIT_SUCCESS);
 }
-
 
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.configure = xdg_toplevel_handle_configure,

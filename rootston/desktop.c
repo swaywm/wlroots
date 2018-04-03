@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -755,6 +756,25 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void input_inhibit_activate(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(
+			listener, desktop, input_inhibit_activate);
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		roots_seat_set_exclusive_client(seat,
+				desktop->input_inhibit->active_client);
+	}
+}
+
+static void input_inhibit_deactivate(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(
+			listener, desktop, input_inhibit_deactivate);
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		roots_seat_set_exclusive_client(seat, NULL);
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -854,6 +874,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
+
+	desktop->input_inhibit =
+		wlr_input_inhibit_manager_create(server->wl_display);
+	desktop->input_inhibit_activate.notify = input_inhibit_activate;
+	wl_signal_add(&desktop->input_inhibit->events.activate,
+			&desktop->input_inhibit_activate);
+	desktop->input_inhibit_deactivate.notify = input_inhibit_deactivate;
+	wl_signal_add(&desktop->input_inhibit->events.deactivate,
+			&desktop->input_inhibit_deactivate);
 
 	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);

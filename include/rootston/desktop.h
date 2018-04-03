@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_list.h>
@@ -47,6 +48,7 @@ struct roots_desktop {
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
+	struct wlr_input_inhibit_manager *input_inhibit;
 	struct wlr_linux_dmabuf *linux_dmabuf;
 	struct wlr_layer_shell *layer_shell;
 
@@ -57,6 +59,8 @@ struct roots_desktop {
 	struct wl_listener wl_shell_surface;
 	struct wl_listener layer_shell_surface;
 	struct wl_listener decoration_new;
+	struct wl_listener input_inhibit_activate;
+	struct wl_listener input_inhibit_deactivate;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;

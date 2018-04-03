@@ -111,6 +111,9 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	if (surface) {
 		client = wl_resource_get_client(surface->resource);
 	}
+	if (surface && !roots_seat_allow_input(cursor->seat, surface->resource)) {
+		return;
+	}
 
 	if (cursor->cursor_client != client) {
 		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
@@ -327,7 +330,7 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 			desktop, lx, ly, &sx, &sy, NULL);
 
 	uint32_t serial = 0;
-	if (surface) {
+	if (surface && roots_seat_allow_input(cursor->seat, surface->resource)) {
 		serial = wlr_seat_touch_notify_down(cursor->seat->seat, surface,
 			event->time_msec, event->touch_id, sx, sy);
 	}
@@ -378,7 +381,7 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 	struct wlr_surface *surface = desktop_surface_at(
 			desktop, lx, ly, &sx, &sy, NULL);
 
-	if (surface) {
+	if (surface && roots_seat_allow_input(cursor->seat, surface->resource)) {
 		wlr_seat_touch_point_focus(cursor->seat->seat, surface,
 			event->time_msec, event->touch_id, sx, sy);
 		wlr_seat_touch_notify_motion(cursor->seat->seat, event->time_msec,
