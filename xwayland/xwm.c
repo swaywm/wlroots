@@ -517,12 +517,7 @@ char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom) {
 	}
 	size_t len = xcb_get_atom_name_name_length(name_reply);
 	char *buf = xcb_get_atom_name_name(name_reply); // not a C string
-	char *name = malloc((len + 1) * sizeof(char));
-	if (name == NULL) {
-		return NULL;
-	}
-	memcpy(name, buf, len);
-	name[len] = '\0';
+	char *name = strndup(buf, len);
 	free(name_reply);
 	return name;
 }
