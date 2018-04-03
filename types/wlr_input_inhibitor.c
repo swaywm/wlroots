@@ -24,6 +24,14 @@ static void input_inhibitor_destroy(struct wl_client *client,
 	wl_signal_emit(&manager->events.deactivate, manager);
 }
 
+static void input_manager_resource_destroy(struct wl_resource *resource) {
+	struct wlr_input_inhibit_manager *manager =
+		input_inhibit_manager_from_resource(resource);
+	if (manager->active_client == wl_resource_get_client(resource)) {
+		input_inhibitor_destroy(manager->active_client, resource);
+	}
+}
+
 static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation = {
 	.destroy = input_inhibitor_destroy,
 };
@@ -45,8 +53,9 @@ static void inhibit_manager_get_inhibitor(struct wl_client *client,
 	if (!wl_resource) {
 		wl_client_post_no_memory(client);
 	}
-	wl_resource_set_implementation(wl_resource, &input_inhibitor_implementation,
-			manager, NULL);
+	wl_resource_set_implementation(wl_resource,
+			&input_inhibitor_implementation, manager,
+			input_manager_resource_destroy);
 
 	manager->active_client = client;
 	manager->active_inhibitor = wl_resource;
@@ -57,14 +66,6 @@ static void inhibit_manager_get_inhibitor(struct wl_client *client,
 static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_implementation = {
 	.get_inhibitor = inhibit_manager_get_inhibitor
 };
-
-static void input_manager_client_destroy(struct wl_resource *resource) {
-	struct wlr_input_inhibit_manager *manager =
-		input_inhibit_manager_from_resource(resource);
-	if (manager->active_client == wl_resource_get_client(resource)) {
-		input_inhibitor_destroy(manager->active_client, resource);
-	}
-}
 
 static void inhibit_manager_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
@@ -79,7 +80,7 @@ static void inhibit_manager_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(wl_resource,
 			&inhibit_manager_implementation, manager,
-			input_manager_client_destroy);
+			input_manager_resource_destroy);
 }
 
 void wlr_input_inhibit_manager_destroy(
