@@ -157,29 +157,11 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void x11_output_handle_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
-	struct wlr_x11_backend *x11 = output->x11;
-
 	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
 		ev->height, output->wlr_output.refresh);
 
 	// Move the pointer to its new location
-	xcb_query_pointer_cookie_t cookie =
-		xcb_query_pointer(x11->xcb_conn, output->win);
-	xcb_query_pointer_reply_t *pointer =
-		xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
-	if (!pointer) {
-		return;
-	}
-
-	struct wlr_event_pointer_motion_absolute abs = {
-		.device = &x11->pointer_dev,
-		.time_msec = x11->time,
-		.x = (double)pointer->root_x / output->wlr_output.width,
-		.y = (double)pointer->root_y / output->wlr_output.height,
-	};
-
-	wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
-	free(pointer);
+	x11_update_pointer_position(output, output->x11->time);
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
