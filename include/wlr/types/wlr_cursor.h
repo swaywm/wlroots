@@ -54,6 +54,8 @@ struct wlr_cursor {
 		struct wl_signal tablet_tool_tip;
 		struct wl_signal tablet_tool_button;
 	} events;
+
+	void *data;
 };
 
 struct wlr_cursor *wlr_cursor_create();
