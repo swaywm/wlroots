@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -854,6 +855,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
+	desktop->input_inhibit =
+		wlr_input_inhibit_manager_create(server->wl_display);
 
 	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);
