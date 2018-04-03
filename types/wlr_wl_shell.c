@@ -12,6 +12,16 @@
 
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
 
+bool wlr_surface_is_wl_shell_surface(struct wlr_surface *surface) {
+	return strcmp(surface->role, wlr_wl_shell_surface_role) == 0;
+}
+
+struct wlr_wl_surface *wlr_wl_shell_surface_from_wlr_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_wl_shell_surface(surface));
+	return (struct wlr_wl_surface *)surface->role_data;
+}
+
 static void shell_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
 	struct wlr_wl_shell_popup_grab *popup_grab = grab->data;
 

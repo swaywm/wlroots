@@ -229,4 +229,9 @@ struct wlr_xdg_surface *wlr_xdg_surface_popup_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
 		double *popup_sx, double *popup_sy);
 
+bool wlr_surface_is_xdg_surface(struct wlr_surface *surface);
+
+struct wlr_xdg_surface *wlr_xdg_surface_from_wlr_surface(
+		struct wlr_surface *surface);
+
 #endif

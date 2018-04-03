@@ -17,7 +17,7 @@ static struct wl_compositor *compositor = NULL;
 static struct wl_seat *seat = NULL;
 static struct wl_shm *shm = NULL;
 static struct wl_pointer *pointer = NULL;
-//static struct wl_keyboard *keyboard = NULL;
+static struct wl_keyboard *keyboard = NULL;
 static struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output = NULL;
@@ -36,6 +36,7 @@ static int32_t margin_top = 0;
 static double alpha = 1.0;
 static bool run_display = true;
 static bool animate = false;
+static bool keyboard_interactive = false;
 static double frame = 0;
 static int cur_x = -1, cur_y = -1;
 static int buttons = 0;
@@ -211,6 +212,46 @@ struct wl_pointer_listener pointer_listener = {
 	.axis_discrete = wl_pointer_axis_discrete,
 };
 
+static void wl_keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t format, int32_t fd, uint32_t size) {
+	// Who cares
+}
+
+static void wl_keyboard_enter(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	wlr_log(L_DEBUG, "Keyboard enter");
+}
+
+static void wl_keyboard_leave(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, struct wl_surface *surface) {
+	wlr_log(L_DEBUG, "Keyboard leave");
+}
+
+static void wl_keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+	wlr_log(L_DEBUG, "Key event: %d %d", key, state);
+}
+
+static void wl_keyboard_modifiers(void *data, struct wl_keyboard *wl_keyboard,
+		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group) {
+	// Who cares
+}
+
+static void wl_keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
+		int32_t rate, int32_t delay) {
+	// Who cares
+}
+
+static struct wl_keyboard_listener keyboard_listener = {
+	.keymap = wl_keyboard_keymap,
+	.enter = wl_keyboard_enter,
+	.leave = wl_keyboard_leave,
+	.key = wl_keyboard_key,
+	.modifiers = wl_keyboard_modifiers,
+	.repeat_info = wl_keyboard_repeat_info,
+};
+
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
@@ -218,7 +259,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wl_pointer_add_listener(pointer, &pointer_listener, NULL);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		// TODO
+		keyboard = wl_seat_get_keyboard(wl_seat);
+		wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
 	}
 }
 
@@ -274,7 +316,7 @@ int main(int argc, char **argv) {
 	int32_t margin_right = 0, margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "nw:h:o:l:a:x:m:t:")) != -1) {
+	while ((c = getopt(argc, argv, "knw:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -354,6 +396,9 @@ int main(int argc, char **argv) {
 		case 'n':
 			animate = true;
 			break;
+		case 'k':
+			keyboard_interactive = true;
+			break;
 		default:
 			break;
 		}
@@ -407,9 +452,10 @@ int main(int argc, char **argv) {
 	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
 	zwlr_layer_surface_v1_set_margin(layer_surface,
 			margin_top, margin_right, margin_bottom, margin_left);
+	zwlr_layer_surface_v1_set_keyboard_interactivity(
+			layer_surface, keyboard_interactive);
 	zwlr_layer_surface_v1_add_listener(layer_surface,
-				   &layer_surface_listener, layer_surface);
-	// TODO: interactivity
+			&layer_surface_listener, layer_surface);
 	wl_surface_commit(wl_surface);
 	wl_display_roundtrip(display);
 
