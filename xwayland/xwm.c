@@ -1,6 +1,7 @@
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/config.h>
@@ -57,6 +58,18 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_WINDOW_TYPE_POPUP_MENU",
 	"_NET_WM_WINDOW_TYPE_COMBO",
 };
+
+const char *wlr_xwayland_surface_role = "wlr_xwayland_surface";
+
+bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface) {
+	return strcmp(surface->role, wlr_xwayland_surface_role) == 0;
+}
+
+struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_xwayland_surface(surface));
+	return (struct wlr_xwayland_surface *)surface->role_data;
+}
 
 /* General helpers */
 // TODO: replace this with hash table?
@@ -574,6 +587,7 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		read_surface_property(xwm, xsurface, props[i]);
 	}
 
+	wlr_surface_set_role(xsurface->surface, wlr_xwayland_surface_role, NULL, 0);
 	wlr_surface_set_role_committed(xsurface->surface, handle_surface_commit,
 		xsurface);
 

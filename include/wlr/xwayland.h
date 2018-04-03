@@ -185,4 +185,9 @@ void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 bool wlr_xwayland_surface_is_unmanaged(
 	const struct wlr_xwayland_surface *surface);
 
+bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface);
+
+struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(
+		struct wlr_surface *surface);
+
 #endif
