@@ -91,6 +91,7 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	return backend;
 }
 
+#ifdef WLR_HAS_X11_BACKEND
 static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		const char *x11_display) {
 	struct wlr_backend *backend = wlr_x11_backend_create(display, x11_display);
@@ -105,6 +106,7 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 
 	return backend;
 }
+#endif
 
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
