@@ -584,12 +584,15 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		_surface = wlr_xdg_surface_v6_surface_at(view->xdg_surface_v6,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
+	case ROOTS_XDG_SHELL_VIEW:
+		_surface = wlr_xdg_surface_surface_at(view->xdg_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
 	case ROOTS_WL_SHELL_VIEW:
 		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
 	case ROOTS_XWAYLAND_VIEW:
-	case ROOTS_XDG_SHELL_VIEW: // TODO
 		_surface = wlr_surface_surface_at(view->wlr_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
