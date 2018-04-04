@@ -281,6 +281,7 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
 	wlr_output_damage_add_box(output->damage, &layer->geo);
+	wlr_surface_send_enter(layer_surface->surface, wlr_output);
 }
 
 static void handle_unmap(struct wl_listener *listener, void *data) {
