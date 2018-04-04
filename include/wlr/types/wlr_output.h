@@ -112,8 +112,15 @@ struct wlr_surface;
 void wlr_output_enable(struct wlr_output *output, bool enable);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
+/**
+ * Sets the output mode.
+ */
 bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
+/**
+ * Sets a custom mode on the output. If modes are available, they are preferred.
+ * Setting `refresh` to zero lets the backend pick a preferred value.
+ */
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
 void wlr_output_set_transform(struct wlr_output *output,
