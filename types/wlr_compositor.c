@@ -126,7 +126,7 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	if (wlr_surface_get_main_surface(parent) == surface) {
+	if (wlr_surface_get_root_surface(parent) == surface) {
 		wl_resource_post_error(resource,
 			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
 			"%s%d: wl_surface@%d is an ancestor of parent",

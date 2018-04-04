@@ -122,20 +122,24 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id);
 
 /**
- * Get the top of the subsurface tree for this surface.
+ * Get the root of the subsurface tree for this surface.
  */
-struct wlr_surface *wlr_surface_get_main_surface(struct wlr_surface *surface);
+struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface);
 
 /**
- * Find a subsurface within this surface at the surface-local coordinates.
- * Returns the surface and coordinates in the topmost surface coordinate system
- * or NULL if no subsurface is found at that location.
+ * Check if the surface accepts input events at the given surface-local
+ * coordinates.
  */
-struct wlr_subsurface *wlr_surface_subsurface_at(struct wlr_surface *surface,
-		double sx, double sy, double *sub_x, double *sub_y);
+bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
+		double sx, double sy);
 
-bool wlr_surface_point_accepts_input(
-		struct wlr_surface *surface, double sx, double sy);
+/**
+ * Find a surface in this surface's tree that accepts input events at the given
+ * surface-local coordinates. Returns the surface and coordinates in the leaf
+ * surface coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
+		double sx, double sy, double *sub_x, double *sub_y);
 
 void wlr_surface_send_enter(struct wlr_surface *surface,
 		struct wlr_output *output);

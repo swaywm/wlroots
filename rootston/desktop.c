@@ -605,14 +605,13 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		}
 	}
 
-	double sub_x, sub_y;
-	struct wlr_subsurface *subsurface =
-		wlr_surface_subsurface_at(view->wlr_surface,
-			view_sx, view_sy, &sub_x, &sub_y);
-	if (subsurface) {
-		*sx = view_sx - sub_x;
-		*sy = view_sy - sub_y;
-		*surface = subsurface->surface;
+	double _sx, _sy;
+	struct wlr_surface *_surface = wlr_surface_surface_at(view->wlr_surface,
+		view_sx, view_sy, &_sx, &_sy);
+	if (surface != NULL) {
+		*sx = _sx;
+		*sy = _sy;
+		*surface = _surface;
 		return true;
 	}
 
@@ -620,13 +619,6 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		*sx = view_sx;
 		*sy = view_sy;
 		*surface = NULL;
-		return true;
-	}
-
-	if (wlr_surface_point_accepts_input(view->wlr_surface, view_sx, view_sy)) {
-		*sx = view_sx;
-		*sy = view_sy;
-		*surface = view->wlr_surface;
 		return true;
 	}
 
