@@ -12,6 +12,8 @@
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
+#define X11_DEFAULT_REFRESH (60 * 1000) // 60 Hz
+
 struct wlr_x11_backend;
 
 struct wlr_x11_output {
