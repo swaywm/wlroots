@@ -128,7 +128,7 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface);
 
 /**
  * Check if the surface accepts input events at the given surface-local
- * coordinates.
+ * coordinates. Does not check the surface's subsurfaces.
  */
 bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 		double sx, double sy);

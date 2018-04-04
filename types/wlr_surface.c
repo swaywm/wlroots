@@ -137,6 +137,7 @@ static void surface_set_input_region(struct wl_client *client,
 		pixman_region32_t *region = wlr_region_from_resource(region_resource);
 		pixman_region32_copy(&surface->pending->input, region);
 	} else {
+		pixman_region32_fini(&surface->pending->input);
 		pixman_region32_init_rect(&surface->pending->input,
 			INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
 	}
@@ -879,6 +880,13 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 	return NULL;
 }
 
+bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
+		double sx, double sy) {
+	return sx >= 0 && sx <= surface->current->width &&
+		sy >= 0 && sy <= surface->current->height &&
+		pixman_region32_contains_point(&surface->current->input, sx, sy, NULL);
+}
+
 struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
@@ -942,11 +950,4 @@ void wlr_surface_set_role_committed(struct wlr_surface *surface,
 		void *role_data) {
 	surface->role_committed = role_committed;
 	surface->role_data = role_data;
-}
-
-bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
-		double sx, double sy) {
-	return sx >= 0 && sx <= surface->current->width &&
-		sy >= 0 && sy <= surface->current->height &&
-		pixman_region32_contains_point(&surface->current->input, sx, sy, NULL);
 }

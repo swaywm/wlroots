@@ -608,7 +608,7 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 	double _sx, _sy;
 	struct wlr_surface *_surface = wlr_surface_surface_at(view->wlr_surface,
 		view_sx, view_sy, &_sx, &_sy);
-	if (surface != NULL) {
+	if (_surface != NULL) {
 		*sx = _sx;
 		*sy = _sy;
 		*surface = _surface;
