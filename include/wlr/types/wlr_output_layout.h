@@ -17,6 +17,8 @@ struct wlr_output_layout {
 		struct wl_signal change;
 		struct wl_signal destroy;
 	} events;
+
+	void *data;
 };
 
 struct wlr_output_layout_output_state;
