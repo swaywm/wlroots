@@ -25,6 +25,7 @@ protocols = [
 	[wl_protocol_dir, 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
+	[wl_protocol_dir, 'unstable/xdg-output/xdg-output-unstable-v1.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
 	'idle.xml',
