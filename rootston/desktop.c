@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -19,6 +20,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
 #include "rootston/layers.h"
 #include "rootston/seat.h"
@@ -576,42 +578,30 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		view_sy = ry + (double)box.height/2;
 	}
 
-	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-		double popup_sx, popup_sy;
-		struct wlr_xdg_surface_v6 *popup =
-			wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
-				view_sx, view_sy, &popup_sx, &popup_sy);
-
-		if (popup) {
-			*sx = view_sx - popup_sx;
-			*sy = view_sy - popup_sy;
-			*surface = popup->surface;
-			return true;
-		}
+	double _sx, _sy;
+	struct wlr_surface *_surface = NULL;
+	switch (view->type) {
+	case ROOTS_XDG_SHELL_V6_VIEW:
+		_surface = wlr_xdg_surface_v6_surface_at(view->xdg_surface_v6,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_XDG_SHELL_VIEW:
+		_surface = wlr_xdg_surface_surface_at(view->xdg_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_WL_SHELL_VIEW:
+		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_XWAYLAND_VIEW:
+		_surface = wlr_surface_surface_at(view->wlr_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
 	}
-
-	if (view->type == ROOTS_WL_SHELL_VIEW) {
-		double popup_sx, popup_sy;
-		struct wlr_wl_shell_surface *popup =
-			wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
-				view_sx, view_sy, &popup_sx, &popup_sy);
-
-		if (popup) {
-			*sx = view_sx - popup_sx;
-			*sy = view_sy - popup_sy;
-			*surface = popup->surface;
-			return true;
-		}
-	}
-
-	double sub_x, sub_y;
-	struct wlr_subsurface *subsurface =
-		wlr_surface_subsurface_at(view->wlr_surface,
-			view_sx, view_sy, &sub_x, &sub_y);
-	if (subsurface) {
-		*sx = view_sx - sub_x;
-		*sy = view_sy - sub_y;
-		*surface = subsurface->surface;
+	if (_surface != NULL) {
+		*sx = _sx;
+		*sy = _sy;
+		*surface = _surface;
 		return true;
 	}
 
@@ -619,13 +609,6 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		*sx = view_sx;
 		*sy = view_sy;
 		*surface = NULL;
-		return true;
-	}
-
-	if (wlr_surface_point_accepts_input(view->wlr_surface, view_sx, view_sy)) {
-		*sx = view_sx;
-		*sy = view_sy;
-		*surface = view->wlr_surface;
 		return true;
 	}
 
@@ -755,6 +738,25 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void input_inhibit_activate(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(
+			listener, desktop, input_inhibit_activate);
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		roots_seat_set_exclusive_client(seat,
+				desktop->input_inhibit->active_client);
+	}
+}
+
+static void input_inhibit_deactivate(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop = wl_container_of(
+			listener, desktop, input_inhibit_deactivate);
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		roots_seat_set_exclusive_client(seat, NULL);
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(L_DEBUG, "Initializing roots desktop");
@@ -774,6 +776,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->config = config;
 
 	desktop->layout = wlr_output_layout_create();
+	wlr_xdg_output_manager_create(server->wl_display, desktop->layout);
 	desktop->layout_change.notify = handle_layout_change;
 	wl_signal_add(&desktop->layout->events.change, &desktop->layout_change);
 
@@ -854,6 +857,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
+
+	desktop->input_inhibit =
+		wlr_input_inhibit_manager_create(server->wl_display);
+	desktop->input_inhibit_activate.notify = input_inhibit_activate;
+	wl_signal_add(&desktop->input_inhibit->events.activate,
+			&desktop->input_inhibit_activate);
+	desktop->input_inhibit_deactivate.notify = input_inhibit_deactivate;
+	wl_signal_add(&desktop->input_inhibit->events.deactivate,
+			&desktop->input_inhibit_deactivate);
 
 	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);

@@ -191,3 +191,7 @@ struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *
 	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
 	return dev->handle;
 }
+
+uint32_t usec_to_msec(uint64_t usec) {
+	return (uint32_t)(usec / 1000);
+}

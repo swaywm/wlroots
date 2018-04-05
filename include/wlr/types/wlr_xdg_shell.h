@@ -215,19 +215,19 @@ uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
 
 /**
- * Compute the popup position in surface-local coordinates.
+ * Compute the popup position in its parent's surface-local coordinate system.
  */
 void wlr_xdg_surface_popup_get_position(struct wlr_xdg_surface *surface,
 		double *popup_sx, double *popup_sy);
 
 /**
- * Find a popup within this surface at the surface-local coordinates. Returns
- * the popup and coordinates in the topmost surface coordinate system or NULL if
- * no popup is found at that location.
+ * Find a surface within this xdg-surface tree at the given surface-local
+ * coordinates. Returns the surface and coordinates in the leaf surface
+ * coordinate system or NULL if no surface is found at that location.
  */
-struct wlr_xdg_surface *wlr_xdg_surface_popup_at(
+struct wlr_surface *wlr_xdg_surface_surface_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
-		double *popup_sx, double *popup_sy);
+		double *sub_x, double *sub_y);
 
 bool wlr_surface_is_xdg_surface(struct wlr_surface *surface);
 

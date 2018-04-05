@@ -25,6 +25,10 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		(struct wlr_headless_output *)wlr_output;
 	struct wlr_headless_backend *backend = output->backend;
 
+	if (refresh == 0) {
+		refresh = HEADLESS_DEFAULT_REFRESH;
+	}
+
 	if (output->egl_surface) {
 		eglDestroySurface(backend->egl.display, output->egl_surface);
 	}
@@ -114,7 +118,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		goto error;
 	}
 
-	output_set_custom_mode(wlr_output, width, height, 60*1000);
+	output_set_custom_mode(wlr_output, width, height, 0);
 	strncpy(wlr_output->make, "headless", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "headless", sizeof(wlr_output->model));
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",

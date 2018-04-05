@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -25,6 +26,34 @@ static uint32_t xcb_button_to_wl(uint32_t button) {
 	case XCB_BUTTON_INDEX_5: return BTN_GEAR_DOWN;
 	default: return 0;
 	}
+}
+
+static void x11_handle_pointer_position(struct wlr_x11_output *output,
+		int16_t x, int16_t y, xcb_timestamp_t time) {
+	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_output *wlr_output = &output->wlr_output;
+
+	struct wlr_box box = { .x = x, .y = y };
+	wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
+		wlr_output->height, &box);
+	box.x /= wlr_output->scale;
+	box.y /= wlr_output->scale;
+
+	struct wlr_box layout_box;
+	x11_output_layout_get_box(x11, &layout_box);
+
+	double ox = wlr_output->lx / (double)layout_box.width;
+	double oy = wlr_output->ly / (double)layout_box.height;
+
+	struct wlr_event_pointer_motion_absolute wlr_event = {
+		.device = &x11->pointer_dev,
+		.time_msec = time,
+		.x = box.x / (double)layout_box.width + ox,
+		.y = box.y / (double)layout_box.height + oy,
+	};
+	wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &wlr_event);
+
+	x11->time = time;
 }
 
 bool x11_handle_input_event(struct wlr_x11_backend *x11,
@@ -91,30 +120,8 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 		if (output == NULL) {
 			return false;
 		}
-		struct wlr_output *wlr_output = &output->wlr_output;
 
-		struct wlr_box box = { .x = ev->event_x, .y = ev->event_y };
-		wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
-			wlr_output->height, &box);
-		box.x /= wlr_output->scale;
-		box.y /= wlr_output->scale;
-
-		struct wlr_box layout_box;
-		x11_output_layout_get_box(x11, &layout_box);
-
-		double ox = wlr_output->lx / (double)layout_box.width;
-		double oy = wlr_output->ly / (double)layout_box.height;
-
-		struct wlr_event_pointer_motion_absolute wlr_event = {
-			.device = &x11->pointer_dev,
-			.time_msec = ev->time,
-			.x = box.x / (double)layout_box.width + ox,
-			.y = box.y / (double)layout_box.height + oy,
-		};
-
-		wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &wlr_event);
-
-		x11->time = ev->time;
+		x11_handle_pointer_position(output, ev->event_x, ev->event_y, ev->time);
 		return true;
 	}
 	default:
@@ -134,6 +141,23 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 }
 
 const struct wlr_input_device_impl input_device_impl = { 0 };
+
+void x11_update_pointer_position(struct wlr_x11_output *output,
+		xcb_timestamp_t time) {
+	struct wlr_x11_backend *x11 = output->x11;
+
+	xcb_query_pointer_cookie_t cookie =
+		xcb_query_pointer(x11->xcb_conn, output->win);
+	xcb_query_pointer_reply_t *reply =
+		xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
+	if (!reply) {
+		return;
+	}
+
+	x11_handle_pointer_position(output, reply->win_x, reply->win_y, time);
+
+	free(reply);
+}
 
 bool wlr_input_device_is_x11(struct wlr_input_device *wlr_dev) {
 	return wlr_dev->impl == &input_device_impl;

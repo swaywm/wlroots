@@ -17,6 +17,8 @@ struct wlr_output_layout {
 		struct wl_signal change;
 		struct wl_signal destroy;
 	} events;
+
+	void *data;
 };
 
 struct wlr_output_layout_output_state;
@@ -32,6 +34,11 @@ struct wlr_output_layout_output {
 	} events;
 };
 
+/**
+ * Creates a wlr_output_layout, which can be used to describing outputs in
+ * physical space relative to one another, and perform various useful operations
+ * on that state.
+ */
 struct wlr_output_layout *wlr_output_layout_create();
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);

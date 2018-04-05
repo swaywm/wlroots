@@ -474,7 +474,7 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		int format, uint64_t **modifiers) {
 	if (!egl->egl_exts.dmabuf_import ||
 		!egl->egl_exts.dmabuf_import_modifiers) {
-		wlr_log(L_ERROR, "dmabuf extension not present");
+		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
 

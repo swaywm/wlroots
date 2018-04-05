@@ -4,6 +4,8 @@
 #include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>
 
+#define HEADLESS_DEFAULT_REFRESH (60 * 1000) // 60 Hz
+
 struct wlr_headless_backend {
 	struct wlr_backend backend;
 	struct wlr_egl egl;

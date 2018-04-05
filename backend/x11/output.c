@@ -23,14 +23,25 @@ static void parse_xcb_setup(struct wlr_output *output, xcb_connection_t *xcb_con
 			xcb_setup->protocol_minor_version);
 }
 
-static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
-		int32_t height, int32_t refresh) {
+static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
+
+	if (refresh == 0) {
+		refresh = X11_DEFAULT_REFRESH;
+	}
 
 	wlr_output_update_custom_mode(&output->wlr_output, wlr_output->width,
 		wlr_output->height, refresh);
+
 	output->frame_delay = 1000000 / refresh;
+}
+
+static bool output_set_custom_mode(struct wlr_output *wlr_output,
+		int32_t width, int32_t height, int32_t refresh) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	struct wlr_x11_backend *x11 = output->x11;
+
+	output_set_refresh(&output->wlr_output, refresh);
 
 	const uint32_t values[] = { width, height };
 	xcb_configure_window(x11->xcb_conn, output->win,
@@ -97,8 +108,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
-	wlr_output->refresh = 60 * 1000000;
-	output->frame_delay = 16; // 60 Hz
+	output_set_refresh(&output->wlr_output, 0);
 
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%d",
 		wl_list_length(&x11->outputs) + 1);
@@ -157,29 +167,11 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void x11_output_handle_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
-	struct wlr_x11_backend *x11 = output->x11;
-
 	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
 		ev->height, output->wlr_output.refresh);
 
 	// Move the pointer to its new location
-	xcb_query_pointer_cookie_t cookie =
-		xcb_query_pointer(x11->xcb_conn, output->win);
-	xcb_query_pointer_reply_t *pointer =
-		xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
-	if (!pointer) {
-		return;
-	}
-
-	struct wlr_event_pointer_motion_absolute abs = {
-		.device = &x11->pointer_dev,
-		.time_msec = x11->time,
-		.x = (double)pointer->root_x / output->wlr_output.width,
-		.y = (double)pointer->root_y / output->wlr_output.height,
-	};
-
-	wlr_signal_emit_safe(&x11->pointer.events.motion_absolute, &abs);
-	free(pointer);
+	x11_update_pointer_position(output, output->x11->time);
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {

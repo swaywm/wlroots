@@ -658,42 +658,23 @@ void wlr_wl_shell_surface_configure(struct wlr_wl_shell_surface *surface,
 	wl_shell_surface_send_configure(surface->resource, edges, width, height);
 }
 
-struct wlr_wl_shell_surface *wlr_wl_shell_surface_popup_at(
+struct wlr_surface *wlr_wl_shell_surface_surface_at(
 		struct wlr_wl_shell_surface *surface, double sx, double sy,
-		double *popup_sx, double *popup_sy) {
+		double *sub_sx, double *sub_sy) {
 	struct wlr_wl_shell_surface *popup;
 	wl_list_for_each(popup, &surface->popups, popup_link) {
 		if (!popup->popup_mapped) {
 			continue;
 		}
-		double _popup_sx = popup->transient_state->x;
-		double _popup_sy = popup->transient_state->y;
-		int popup_width =
-			popup->surface->current->buffer_width;
-		int popup_height =
-			popup->surface->current->buffer_height;
 
-		struct wlr_wl_shell_surface *_popup =
-			wlr_wl_shell_surface_popup_at(popup,
-				popup->transient_state->x,
-				popup->transient_state->y,
-				popup_sx, popup_sy);
-		if (_popup) {
-			*popup_sx = sx + _popup_sx;
-			*popup_sy = sy + _popup_sy;
-			return _popup;
-		}
-
-		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
-				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
-			if (pixman_region32_contains_point(&popup->surface->current->input,
-						sx - _popup_sx, sy - _popup_sy, NULL)) {
-				*popup_sx = _popup_sx;
-				*popup_sy = _popup_sy;
-				return popup;
-			}
+		double popup_sx = popup->transient_state->x;
+		double popup_sy = popup->transient_state->y;
+		struct wlr_surface *sub = wlr_wl_shell_surface_surface_at(popup,
+			sx - popup_sx, sy - popup_sy, sub_sx, sub_sy);
+		if (sub != NULL) {
+			return sub;
 		}
 	}
 
-	return NULL;
+	return wlr_surface_surface_at(surface->surface, sx, sy, sub_sx, sub_sy);
 }

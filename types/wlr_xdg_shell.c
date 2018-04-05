@@ -1638,45 +1638,24 @@ void wlr_xdg_surface_popup_get_position(struct wlr_xdg_surface *surface,
 		surface->geometry.y;
 }
 
-struct wlr_xdg_surface *wlr_xdg_surface_popup_at(
+struct wlr_surface *wlr_xdg_surface_surface_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
-		double *popup_sx, double *popup_sy) {
-	// XXX: I think this is so complicated because we're mixing geometry
-	// coordinates with surface coordinates. Input handling should only deal
-	// with surface coordinates.
+		double *sub_x, double *sub_y) {
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
 
-		double _popup_sx =
-			surface->geometry.x + popup_state->geometry.x;
-		double _popup_sy =
-			surface->geometry.y + popup_state->geometry.y;
-		int popup_width =  popup_state->geometry.width;
-		int popup_height =  popup_state->geometry.height;
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
 
-		struct wlr_xdg_surface *_popup =
-			wlr_xdg_surface_popup_at(popup,
-				sx - _popup_sx + popup->geometry.x,
-				sy - _popup_sy + popup->geometry.y,
-				popup_sx, popup_sy);
-		if (_popup) {
-			*popup_sx = *popup_sx + _popup_sx - popup->geometry.x;
-			*popup_sy = *popup_sy + _popup_sy - popup->geometry.y;
-			return _popup;
-		}
-
-		if ((sx > _popup_sx && sx < _popup_sx + popup_width) &&
-				(sy > _popup_sy && sy < _popup_sy + popup_height)) {
-			if (pixman_region32_contains_point(&popup->surface->current->input,
-						sx - _popup_sx + popup->geometry.x,
-						sy - _popup_sy + popup->geometry.y, NULL)) {
-				*popup_sx = _popup_sx - popup->geometry.x;
-				*popup_sy = _popup_sy - popup->geometry.y;
-				return popup;
-			}
+		struct wlr_surface *sub = wlr_xdg_surface_surface_at(popup,
+			sx - popup_sx + popup->geometry.x,
+			sy - popup_sy + popup->geometry.y,
+			sub_x, sub_y);
+		if (sub != NULL) {
+			return sub;
 		}
 	}
 
-	return NULL;
+	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
 }

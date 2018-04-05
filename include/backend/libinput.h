@@ -29,6 +29,8 @@ struct wlr_libinput_input_device {
 	struct libinput_device *handle;
 };
 
+uint32_t usec_to_msec(uint64_t usec);
+
 void wlr_libinput_event(struct wlr_libinput_backend *state,
 		struct libinput_event *event);
 
