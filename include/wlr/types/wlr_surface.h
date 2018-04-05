@@ -93,8 +93,12 @@ struct wlr_surface {
 
 	// wlr_subsurface::parent_pending_link
 	struct wl_list subsurface_pending_list;
+
 	void *data;
 };
+
+typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
+	int sx, int sy, void *data);
 
 struct wlr_renderer;
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
@@ -159,5 +163,13 @@ void wlr_surface_set_role_committed(struct wlr_surface *surface,
 		void *role_data);
 
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
+
+/**
+ * Call `iterator` on each surface in the surface tree, with the surface's
+ * positon relative to the root surface. The function is called from root to
+ * leaves (in rendering order).
+ */
+void wlr_surface_for_each_surface(struct wlr_surface *surface,
+	wlr_surface_iterator_func_t iterator, void *user_data);
 
 #endif

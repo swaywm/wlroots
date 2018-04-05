@@ -1884,3 +1884,48 @@ void wlr_positioner_v6_invert_y(
 		positioner->gravity |= ZXDG_POSITIONER_V6_GRAVITY_TOP;
 	}
 }
+
+struct xdg_surface_v6_iterator_data {
+	wlr_surface_iterator_func_t user_iterator;
+	void *user_data;
+	int x, y;
+};
+
+static void xdg_surface_v6_iterator(struct wlr_surface *surface,
+		int sx, int sy, void *data) {
+	struct xdg_surface_v6_iterator_data *iter_data = data;
+	iter_data->user_iterator(surface, iter_data->x + sx, iter_data->y + sy,
+		iter_data->user_data);
+}
+
+static void xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct xdg_surface_v6_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x, .y = y,
+	};
+	wlr_surface_for_each_surface(surface->surface, xdg_surface_v6_iterator,
+		&data);
+
+	struct wlr_xdg_popup_v6 *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface_v6 *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_v6_popup_get_position(popup, &popup_sx, &popup_sy);
+
+		xdg_surface_v6_for_each_surface(popup,
+			x + popup_sx,
+			y + popup_sy,
+			iterator, user_data);
+	}
+}
+
+void wlr_xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	xdg_surface_v6_for_each_surface(surface, 0, 0, iterator, user_data);
+}

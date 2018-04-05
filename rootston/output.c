@@ -38,132 +38,70 @@ static void rotate_child_position(double *sx, double *sy, double sw, double sh,
 	}
 }
 
+struct surface_iterator_data {
+	surface_iterator_func_t user_iterator;
+	void *user_data;
+	double x, y;
+	int width, height;
+	float rotation;
+};
+
+static void surface_iterator(struct wlr_surface *surface, int _sx, int _sy,
+		void *data) {
+	struct surface_iterator_data *iter_data = data;
+
+	double sx = _sx, sy = _sy;
+	rotate_child_position(&sx, &sy, surface->current->width,
+		surface->current->height, iter_data->width, iter_data->height,
+		iter_data->rotation);
+
+	iter_data->user_iterator(surface, iter_data->x + sx, iter_data->y + sy,
+		iter_data->rotation, iter_data->user_data);
+}
+
 static void surface_for_each_surface(struct wlr_surface *surface, double lx,
 		double ly, float rotation, surface_iterator_func_t iterator,
 		void *user_data) {
-	iterator(surface, lx, ly, rotation, user_data);
+	struct surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = lx, .y = ly,
+		.width = surface->current->width,
+		.height = surface->current->height,
+		.rotation = rotation,
+	};
 
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
-		struct wlr_surface_state *state = subsurface->surface->current;
-		double sx = state->subsurface_position.x;
-		double sy = state->subsurface_position.y;
-		rotate_child_position(&sx, &sy, state->width, state->height,
-			surface->current->width, surface->current->height, rotation);
-
-		surface_for_each_surface(subsurface->surface, lx + sx, ly + sy,
-			rotation, iterator, user_data);
-	}
-}
-
-static void xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
-		double base_x, double base_y, float rotation,
-		surface_iterator_func_t iterator, void *user_data) {
-	double width = surface->surface->current->width;
-	double height = surface->surface->current->height;
-
-	struct wlr_xdg_popup_v6 *popup_state;
-	wl_list_for_each(popup_state, &surface->popups, link) {
-		struct wlr_xdg_surface_v6 *popup = popup_state->base;
-		if (!popup->configured) {
-			continue;
-		}
-
-		double popup_width = popup->surface->current->width;
-		double popup_height = popup->surface->current->height;
-
-		double popup_sx, popup_sy;
-		wlr_xdg_surface_v6_popup_get_position(popup, &popup_sx, &popup_sy);
-		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
-			width, height, rotation);
-
-		surface_for_each_surface(popup->surface, base_x + popup_sx,
-			base_y + popup_sy, rotation, iterator, user_data);
-		xdg_surface_v6_for_each_surface(popup, base_x + popup_sx,
-			base_y + popup_sy, rotation, iterator, user_data);
-	}
-}
-
-static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
-		double base_x, double base_y, float rotation,
-		surface_iterator_func_t iterator, void *user_data) {
-	double width = surface->surface->current->width;
-	double height = surface->surface->current->height;
-
-	struct wlr_xdg_popup *popup_state;
-	wl_list_for_each(popup_state, &surface->popups, link) {
-		struct wlr_xdg_surface *popup = popup_state->base;
-		if (!popup->configured) {
-			continue;
-		}
-
-		double popup_width = popup->surface->current->width;
-		double popup_height = popup->surface->current->height;
-
-		double popup_sx, popup_sy;
-		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
-		rotate_child_position(&popup_sx, &popup_sy, popup_width, popup_height,
-			width, height, rotation);
-
-		surface_for_each_surface(popup->surface, base_x + popup_sx,
-			base_y + popup_sy, rotation, iterator, user_data);
-		xdg_surface_for_each_surface(popup, base_x + popup_sx,
-			base_y + popup_sy, rotation, iterator, user_data);
-	}
-}
-
-static void wl_shell_surface_for_each_surface(
-		struct wlr_wl_shell_surface *surface, double lx, double ly,
-		float rotation, bool is_child, surface_iterator_func_t iterator,
-		void *user_data) {
-	if (is_child || surface->state != WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-		surface_for_each_surface(surface->surface, lx, ly, rotation, iterator,
-			user_data);
-
-		double width = surface->surface->current->width;
-		double height = surface->surface->current->height;
-
-		struct wlr_wl_shell_surface *popup;
-		wl_list_for_each(popup, &surface->popups, popup_link) {
-			double popup_width = popup->surface->current->width;
-			double popup_height = popup->surface->current->height;
-
-			double popup_x = popup->transient_state->x;
-			double popup_y = popup->transient_state->y;
-			rotate_child_position(&popup_x, &popup_y, popup_width, popup_height,
-				width, height, rotation);
-
-			wl_shell_surface_for_each_surface(popup, lx + popup_x, ly + popup_y,
-				rotation, true, iterator, user_data);
-		}
-	}
+	wlr_surface_for_each_surface(surface, surface_iterator, &data);
 }
 
 static void view_for_each_surface(struct roots_view *view,
 		surface_iterator_func_t iterator, void *user_data) {
+	struct surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = view->x, .y = view->y,
+		.width = view->wlr_surface->current->width,
+		.height = view->wlr_surface->current->height,
+		.rotation = view->rotation,
+	};
+
 	switch (view->type) {
 	case ROOTS_XDG_SHELL_V6_VIEW:
-		surface_for_each_surface(view->wlr_surface, view->x, view->y,
-			view->rotation, iterator, user_data);
-		xdg_surface_v6_for_each_surface(view->xdg_surface_v6, view->x, view->y,
-			view->rotation, iterator, user_data);
+		wlr_xdg_surface_v6_for_each_surface(view->xdg_surface_v6,
+			surface_iterator, &data);
 		break;
 	case ROOTS_XDG_SHELL_VIEW:
-		surface_for_each_surface(view->wlr_surface, view->x, view->y,
-			view->rotation, iterator, user_data);
-		xdg_surface_for_each_surface(view->xdg_surface, view->x, view->y,
-			view->rotation, iterator, user_data);
+		wlr_xdg_surface_for_each_surface(view->xdg_surface, surface_iterator,
+			&data);
 		break;
 	case ROOTS_WL_SHELL_VIEW:
-		wl_shell_surface_for_each_surface(view->wl_shell_surface, view->x,
-			view->y, view->rotation, false, iterator, user_data);
+		wlr_wl_shell_surface_for_each_surface(view->wl_shell_surface,
+			surface_iterator, &data);
 		break;
 #ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
-		if (view->wlr_surface != NULL) {
-			surface_for_each_surface(view->wlr_surface, view->x, view->y,
-				view->rotation, iterator, user_data);
-		}
+		wlr_surface_for_each_surface(view->wlr_surface, surface_iterator,
+			&data);
 		break;
 #endif
 	}
@@ -175,7 +113,7 @@ static void xwayland_children_for_each_surface(
 		surface_iterator_func_t iterator, void *user_data) {
 	struct wlr_xwayland_surface *child;
 	wl_list_for_each(child, &surface->children, parent_link) {
-		if (child->surface != NULL && child->added) {
+		if (child->mapped) {
 			surface_for_each_surface(child->surface, child->x, child->y, 0,
 				iterator, user_data);
 		}

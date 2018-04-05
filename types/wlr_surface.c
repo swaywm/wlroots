@@ -951,3 +951,23 @@ void wlr_surface_set_role_committed(struct wlr_surface *surface,
 	surface->role_committed = role_committed;
 	surface->role_data = role_data;
 }
+
+static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	iterator(surface, x, y, user_data);
+
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->subsurface_list, parent_link) {
+		struct wlr_surface_state *state = subsurface->surface->current;
+		int sx = state->subsurface_position.x;
+		int sy = state->subsurface_position.y;
+
+		surface_for_each_surface(subsurface->surface, x + sx, y + sy,
+			iterator, user_data);
+	}
+}
+
+void wlr_surface_for_each_surface(struct wlr_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	surface_for_each_surface(surface, 0, 0, iterator, user_data);
+}

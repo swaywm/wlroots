@@ -155,4 +155,12 @@ bool wlr_surface_is_wl_shell_surface(struct wlr_surface *surface);
 struct wlr_wl_surface *wlr_wl_shell_surface_from_wlr_surface(
 		struct wlr_surface *surface);
 
+/**
+ * Call `iterator` on each surface in the shell surface tree, with the surface's
+ * positon relative to the root xdg-surface. The function is called from root to
+ * leaves (in rendering order).
+ */
+void wlr_wl_shell_surface_for_each_surface(struct wlr_wl_shell_surface *surface,
+	wlr_surface_iterator_func_t iterator, void *user_data);
+
 #endif
