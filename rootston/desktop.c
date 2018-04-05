@@ -577,42 +577,30 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		view_sy = ry + (double)box.height/2;
 	}
 
-	if (view->type == ROOTS_XDG_SHELL_V6_VIEW) {
-		double popup_sx, popup_sy;
-		struct wlr_xdg_surface_v6 *popup =
-			wlr_xdg_surface_v6_popup_at(view->xdg_surface_v6,
-				view_sx, view_sy, &popup_sx, &popup_sy);
-
-		if (popup) {
-			*sx = view_sx - popup_sx;
-			*sy = view_sy - popup_sy;
-			*surface = popup->surface;
-			return true;
-		}
+	double _sx, _sy;
+	struct wlr_surface *_surface;
+	switch (view->type) {
+	case ROOTS_XDG_SHELL_V6_VIEW:
+		_surface = wlr_xdg_surface_v6_surface_at(view->xdg_surface_v6,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_XDG_SHELL_VIEW:
+		_surface = wlr_xdg_surface_surface_at(view->xdg_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_WL_SHELL_VIEW:
+		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
+	case ROOTS_XWAYLAND_VIEW:
+		_surface = wlr_surface_surface_at(view->wlr_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
 	}
-
-	if (view->type == ROOTS_WL_SHELL_VIEW) {
-		double popup_sx, popup_sy;
-		struct wlr_wl_shell_surface *popup =
-			wlr_wl_shell_surface_popup_at(view->wl_shell_surface,
-				view_sx, view_sy, &popup_sx, &popup_sy);
-
-		if (popup) {
-			*sx = view_sx - popup_sx;
-			*sy = view_sy - popup_sy;
-			*surface = popup->surface;
-			return true;
-		}
-	}
-
-	double sub_x, sub_y;
-	struct wlr_subsurface *subsurface =
-		wlr_surface_subsurface_at(view->wlr_surface,
-			view_sx, view_sy, &sub_x, &sub_y);
-	if (subsurface) {
-		*sx = view_sx - sub_x;
-		*sy = view_sy - sub_y;
-		*surface = subsurface->surface;
+	if (_surface != NULL) {
+		*sx = _sx;
+		*sy = _sy;
+		*surface = _surface;
 		return true;
 	}
 
@@ -620,13 +608,6 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		*sx = view_sx;
 		*sy = view_sy;
 		*surface = NULL;
-		return true;
-	}
-
-	if (wlr_surface_point_accepts_input(view->wlr_surface, view_sx, view_sy)) {
-		*sx = view_sx;
-		*sy = view_sy;
-		*surface = view->wlr_surface;
 		return true;
 	}
 
