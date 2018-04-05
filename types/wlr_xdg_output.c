@@ -46,6 +46,15 @@ static void xdg_output_manager_get_xdg_output(struct wl_client *client,
 		wlr_output_layout_get(layout, wlr_output);
 	assert(layout_output);
 
+	struct wlr_xdg_output *_xdg_output, *xdg_output = NULL;
+	wl_list_for_each(_xdg_output, &manager->outputs, link) {
+		if (_xdg_output->layout_output == layout_output) {
+			xdg_output = _xdg_output;
+			break;
+		}
+	}
+	assert(xdg_output);
+
 	struct wl_resource *output_resource = wl_resource_create(client,
 			&zxdg_output_v1_interface, wl_resource_get_version(resource), id);
 	if (!output_resource) {
@@ -55,6 +64,8 @@ static void xdg_output_manager_get_xdg_output(struct wl_client *client,
 	wl_resource_set_implementation(output_resource,
 			&xdg_output_implementation, NULL, NULL);
 	xdg_output_send_details(output_resource, layout_output);
+	wl_list_insert(&xdg_output->resources,
+			wl_resource_get_link(output_resource));
 }
 
 static const struct zxdg_output_manager_v1_interface xdg_output_manager_implementation = {
