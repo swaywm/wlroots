@@ -4,6 +4,8 @@
 #include <wayland-server.h>
 #include <wlr/render/wlr_renderer.h>
 
+struct wlr_surface;
+
 struct wlr_compositor {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
@@ -21,5 +23,9 @@ struct wlr_compositor {
 void wlr_compositor_destroy(struct wlr_compositor *wlr_compositor);
 struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		struct wlr_renderer *renderer);
+
+bool wlr_surface_is_subsurface(struct wlr_surface *surface);
+
+struct wlr_subsurface *wlr_subsurface_from_surface(struct wlr_surface *surface);
 
 #endif

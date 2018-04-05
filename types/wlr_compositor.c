@@ -7,6 +7,18 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
+static const char *subsurface_role = "wl_subsurface";
+
+bool wlr_surface_is_subsurface(struct wlr_surface *surface) {
+	return strcmp(surface->role, subsurface_role) == 0;
+}
+
+struct wlr_subsurface *wlr_subsurface_from_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_subsurface(surface));
+	return (struct wlr_subsurface *)surface->role_data;
+}
+
 static const struct wl_compositor_interface wl_compositor_impl;
 
 static struct wlr_compositor *compositor_from_resource(struct wl_resource *resource) {
@@ -134,7 +146,7 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	if (wlr_surface_set_role(surface, "wl_subsurface", resource,
+	if (wlr_surface_set_role(surface, subsurface_role, resource,
 				WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE) < 0) {
 		return;
 	}
@@ -144,6 +156,8 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 		wl_resource_post_no_memory(resource);
 		return;
 	}
+
+	surface->role_data = surface->subsurface;
 }
 
 
