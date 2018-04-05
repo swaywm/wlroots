@@ -55,7 +55,7 @@ struct wlr_output {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 
-	char name[16];
+	char name[24];
 	char make[48];
 	char model[16];
 	char serial[16];

@@ -202,7 +202,10 @@ struct example_config *parse_args(int argc, char *argv[]) {
 		char cwd[MAXPATHLEN];
 		if (getcwd(cwd, sizeof(cwd)) != NULL) {
 			char buf[MAXPATHLEN];
-			snprintf(buf, MAXPATHLEN, "%s/%s", cwd, "wlr-example.ini");
+			if (snprintf(buf, MAXPATHLEN, "%s/%s", cwd, "wlr-example.ini") >= MAXPATHLEN) {
+				wlr_log(L_ERROR, "config path too long");
+				exit(1);
+			}
 			config->config_path = strdup(buf);
 		} else {
 			wlr_log(L_ERROR, "could not get cwd");
