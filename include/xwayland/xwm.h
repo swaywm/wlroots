@@ -5,13 +5,18 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-
 #ifdef WLR_HAS_XCB_ICCCM
-	#include <xcb/xcb_icccm.h>
+#include <xcb/xcb_icccm.h>
 #endif
 #ifdef WLR_HAS_XCB_ERRORS
-	#include <xcb/xcb_errors.h>
+#include <xcb/xcb_errors.h>
 #endif
+#include "xwayland/selection.h"
+
+/* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
+ * others redefine anyway is meh
+ */
+#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
 
 enum atom_name {
 	WL_SURFACE_ID,
@@ -47,12 +52,27 @@ enum atom_name {
 	INCR,
 	TEXT,
 	TIMESTAMP,
+	DELETE,
 	NET_WM_WINDOW_TYPE_UTILITY,
 	NET_WM_WINDOW_TYPE_TOOLTIP,
 	NET_WM_WINDOW_TYPE_DND,
 	NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
 	NET_WM_WINDOW_TYPE_POPUP_MENU,
 	NET_WM_WINDOW_TYPE_COMBO,
+	DND_SELECTION,
+	DND_AWARE,
+	DND_STATUS,
+	DND_POSITION,
+	DND_ENTER,
+	DND_LEAVE,
+	DND_DROP,
+	DND_FINISHED,
+	DND_PROXY,
+	DND_TYPE_LIST,
+	DND_ACTION_MOVE,
+	DND_ACTION_COPY,
+	DND_ACTION_ASK,
+	DND_ACTION_PRIVATE,
 	ATOM_LAST,
 };
 
@@ -62,24 +82,6 @@ enum net_wm_state_action {
 	NET_WM_STATE_REMOVE = 0,
 	NET_WM_STATE_ADD = 1,
 	NET_WM_STATE_TOGGLE = 2,
-};
-
-struct wlr_xwm_selection {
-	struct wlr_xwm *xwm;
-	xcb_atom_t atom;
-	xcb_window_t window;
-	xcb_selection_request_event_t request;
-	xcb_window_t owner;
-	xcb_timestamp_t timestamp;
-	int incr;
-	int source_fd;
-	int property_start;
-	xcb_get_property_reply_t *property_reply;
-	struct wl_event_source *property_source;
-	int flush_property_on_delete;
-	struct wl_array source_data;
-	xcb_atom_t target;
-	bool property_set;
 };
 
 struct wlr_xwm {
@@ -100,10 +102,16 @@ struct wlr_xwm {
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
 
+	xcb_window_t dnd_window;
+	struct wlr_xwm_selection dnd_selection;
+
 	struct wlr_xwayland_surface *focus_surface;
 
 	struct wl_list surfaces; // wlr_xwayland_surface::link
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
+
+	struct wlr_drag *drag;
+	struct wlr_xwayland_surface *drag_focus;
 
 	const xcb_query_extension_reply_t *xfixes;
 #ifdef WLR_HAS_XCB_ERRORS
@@ -114,6 +122,12 @@ struct wlr_xwm {
 	struct wl_listener compositor_destroy;
 	struct wl_listener seat_selection;
 	struct wl_listener seat_primary_selection;
+	struct wl_listener seat_start_drag;
+	struct wl_listener seat_drag_focus;
+	struct wl_listener seat_drag_motion;
+	struct wl_listener seat_drag_drop;
+	struct wl_listener seat_drag_destroy;
+	struct wl_listener seat_drag_source_destroy;
 };
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland);
@@ -124,13 +138,13 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
-
-void xwm_selection_init(struct wlr_xwm *xwm);
-void xwm_selection_finish(struct wlr_xwm *xwm);
+int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
+	xcb_client_message_event_t *ev);
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 
+char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom);
 bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
-		size_t num_atoms, enum atom_name needle);
+	size_t num_atoms, enum atom_name needle);
 
 #endif

@@ -365,10 +365,10 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	wl_list_remove(&seat->display_destroy.link);
 
-	if (seat->selection_data_source) {
-		seat->selection_data_source->cancel(seat->selection_data_source);
-		seat->selection_data_source = NULL;
-		wl_list_remove(&seat->selection_data_source_destroy.link);
+	if (seat->selection_source) {
+		wl_list_remove(&seat->selection_source_destroy.link);
+		wlr_data_source_cancel(seat->selection_source);
+		seat->selection_source = NULL;
 	}
 	if (seat->primary_selection_source) {
 		seat->primary_selection_source->cancel(seat->primary_selection_source);
@@ -465,6 +465,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	wl_list_init(&wlr_seat->clients);
 	wl_list_init(&wlr_seat->drag_icons);
 
+	wl_signal_init(&wlr_seat->events.start_drag);
 	wl_signal_init(&wlr_seat->events.new_drag_icon);
 
 	wl_signal_init(&wlr_seat->events.request_set_cursor);

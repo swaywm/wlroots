@@ -181,19 +181,25 @@ struct wlr_seat {
 	uint32_t capabilities;
 	struct timespec last_event;
 
-	struct wlr_data_source *selection_data_source;
+	struct wlr_data_source *selection_source;
 	uint32_t selection_serial;
 
 	struct wlr_primary_selection_source *primary_selection_source;
 	uint32_t primary_selection_serial;
+
+	// `drag` goes away before `drag_source`, when the implicit grab ends
+	struct wlr_drag *drag;
+	struct wlr_data_source *drag_source;
+	uint32_t drag_serial;
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;
 	struct wlr_seat_touch_state touch_state;
 
 	struct wl_listener display_destroy;
-	struct wl_listener selection_data_source_destroy;
+	struct wl_listener selection_source_destroy;
 	struct wl_listener primary_selection_source_destroy;
+	struct wl_listener drag_source_destroy;
 
 	struct {
 		struct wl_signal pointer_grab_begin;
@@ -210,6 +216,7 @@ struct wlr_seat {
 		struct wl_signal selection;
 		struct wl_signal primary_selection;
 
+		struct wl_signal start_drag;
 		struct wl_signal new_drag_icon;
 
 		struct wl_signal destroy;
