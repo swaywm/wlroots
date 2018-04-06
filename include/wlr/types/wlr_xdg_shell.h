@@ -234,4 +234,12 @@ bool wlr_surface_is_xdg_surface(struct wlr_surface *surface);
 struct wlr_xdg_surface *wlr_xdg_surface_from_wlr_surface(
 		struct wlr_surface *surface);
 
+/**
+ * Call `iterator` on each surface in the xdg-surface tree, with the surface's
+ * positon relative to the root xdg-surface. The function is called from root to
+ * leaves (in rendering order).
+ */
+void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
+	wlr_surface_iterator_func_t iterator, void *user_data);
+
 #endif
