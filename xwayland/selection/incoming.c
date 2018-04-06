@@ -379,8 +379,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 		xcb_selection_notify_event_t *event) {
 	wlr_log(L_DEBUG, "XCB_SELECTION_NOTIFY (selection=%u, property=%u, target=%u)",
-		event->selection, event->property,
-		event->target);
+		event->selection, event->property, event->target);
 
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, event->selection);
@@ -410,6 +409,11 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "XCB_XFIXES_SELECTION_NOTIFY (selection=%u, owner=%u)",
 		event->selection, event->owner);
 
+	// Drag'n'drop works differently
+	if (event->selection == xwm->atoms[DND_SELECTION]) {
+		return xwm_dnd_handle_xfixes_selection_notify(xwm, event);
+	}
+
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, event->selection);
 	if (selection == NULL) {
@@ -435,28 +439,28 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		}
 
 		selection->owner = XCB_WINDOW_NONE;
-		return 1;
+	} else {
+		selection->owner = event->owner;
+
+		// This is our selection window.
+		// We have to use XCB_TIME_CURRENT_TIME when we claim the
+		// selection, so grab the actual timestamp here so we can
+		// answer TIMESTAMP conversion requests correctly.
+		if (event->owner == selection->window) {
+			selection->timestamp = event->timestamp;
+			return 1;
+		}
+
+		struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
+		transfer->incr = false;
+		// doing this will give a selection notify where we actually handle the sync
+		xcb_convert_selection(xwm->xcb_conn, selection->window,
+			selection->atom,
+			xwm->atoms[TARGETS],
+			xwm->atoms[WL_SELECTION],
+			event->timestamp);
+		xcb_flush(xwm->xcb_conn);
 	}
-
-	selection->owner = event->owner;
-
-	// We have to use XCB_TIME_CURRENT_TIME when we claim the
-	// selection, so grab the actual timestamp here so we can
-	// answer TIMESTAMP conversion requests correctly.
-	if (event->owner == selection->window) {
-		selection->timestamp = event->timestamp;
-		return 1;
-	}
-
-	struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
-	transfer->incr = false;
-	// doing this will give a selection notify where we actually handle the sync
-	xcb_convert_selection(xwm->xcb_conn, selection->window,
-		selection->atom,
-		xwm->atoms[TARGETS],
-		xwm->atoms[WL_SELECTION],
-		event->timestamp);
-	xcb_flush(xwm->xcb_conn);
 
 	return 1;
 }
