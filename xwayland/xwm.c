@@ -743,6 +743,11 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
+	if (xsurface->mapped) {
+		xsurface->mapped = false;
+		wlr_signal_emit_safe(&xsurface->events.unmap, xsurface);
+	}
+
 	if (xsurface->surface_id) {
 		// Make sure we're not on the unpaired surface list or we
 		// could be assigned a surface during surface creation that
@@ -756,11 +761,6 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 		wl_list_remove(&xsurface->surface_destroy.link);
 	}
 	xsurface->surface = NULL;
-
-	if (xsurface->mapped) {
-		xsurface->mapped = false;
-		wlr_signal_emit_safe(&xsurface->events.unmap, xsurface);
-	}
 
 	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
 }
