@@ -25,7 +25,7 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		(struct wlr_headless_output *)wlr_output;
 	struct wlr_headless_backend *backend = output->backend;
 
-	if (refresh == 0) {
+	if (refresh <= 0) {
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 

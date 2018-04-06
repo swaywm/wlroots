@@ -26,7 +26,7 @@ static void parse_xcb_setup(struct wlr_output *output, xcb_connection_t *xcb_con
 static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 
-	if (refresh == 0) {
+	if (refresh <= 0) {
 		refresh = X11_DEFAULT_REFRESH;
 	}
 
