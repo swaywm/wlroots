@@ -593,10 +593,12 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
+#ifdef WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		_surface = wlr_surface_surface_at(view->wlr_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
+#endif
 	}
 	if (_surface != NULL) {
 		*sx = _sx;
