@@ -589,13 +589,8 @@ static void xdg_popup_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
-	struct wlr_xdg_popup_grab *grab =
-		xdg_shell_popup_grab_from_seat(surface->client->shell,
-			surface->popup->seat);
-	struct wlr_xdg_surface *topmost =
-		xdg_popup_grab_get_topmost(grab);
 
-	if (topmost != surface) {
+	if (!wl_list_empty(&surface->popups)) {
 		wl_resource_post_error(surface->client->resource,
 			XDG_WM_BASE_ERROR_NOT_THE_TOPMOST_POPUP,
 			"xdg_popup was destroyed while it was not the topmost popup");
