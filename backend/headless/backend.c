@@ -58,12 +58,6 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *backend_get_egl(struct wlr_backend *wlr_backend) {
-	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
-	return &backend->egl;
-}
-
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
@@ -74,7 +68,6 @@ static struct wlr_renderer *backend_get_renderer(
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_egl = backend_get_egl,
 	.get_renderer = backend_get_renderer,
 };
 

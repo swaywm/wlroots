@@ -47,13 +47,6 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	}
 }
 
-struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend) {
-	if (backend->impl->get_egl) {
-		return backend->impl->get_egl(backend);
-	}
-	return NULL;
-}
-
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	if (backend->impl->get_renderer) {
 		return backend->impl->get_renderer(backend);

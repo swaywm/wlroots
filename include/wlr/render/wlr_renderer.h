@@ -65,6 +65,22 @@ bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
 	struct wl_resource *buffer, int *width, int *height);
 /**
+ * Get the available dmabuf formats
+ */
+int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *renderer,
+	int **formats);
+/**
+ * Get the available dmabuf modifiers for a given format
+ */
+int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
+	uint64_t **modifiers);
+/**
+ * Try to import the given dmabuf. On success return true false otherwise.
+ * If this succeeds the dmabuf can be used for rendering on a texture
+ */
+bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *renderer,
+	struct wlr_dmabuf_buffer *dmabuf);
+/**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
  */

@@ -257,11 +257,6 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	free(x11);
 }
 
-static struct wlr_egl *wlr_x11_backend_get_egl(struct wlr_backend *backend) {
-	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
-	return &x11->egl;
-}
-
 static struct wlr_renderer *wlr_x11_backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
@@ -271,7 +266,6 @@ static struct wlr_renderer *wlr_x11_backend_get_renderer(
 static const struct wlr_backend_impl backend_impl = {
 	.start = wlr_x11_backend_start,
 	.destroy = wlr_x11_backend_destroy,
-	.get_egl = wlr_x11_backend_get_egl,
 	.get_renderer = wlr_x11_backend_get_renderer,
 };
 

@@ -83,7 +83,7 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl, int **formats);
  * Get the available dmabuf modifiers for a given format
  */
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
-		uint64_t **modifiers);
+	uint64_t **modifiers);
 
 /**
  * Destroys an EGL image created with the given wlr_egl.

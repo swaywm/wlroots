@@ -222,6 +222,24 @@ static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 	eglQueryWaylandBufferWL(renderer->egl->display, buffer, EGL_HEIGHT, height);
 }
 
+static int gles2_get_dmabuf_formats(struct wlr_renderer *wlr_renderer,
+		int **formats) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return wlr_egl_get_dmabuf_formats(renderer->egl, formats);
+}
+
+static int gles2_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer,
+		int format, uint64_t **modifiers) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return wlr_egl_get_dmabuf_modifiers(renderer->egl, format, modifiers);
+}
+
+static bool gles2_check_import_dmabuf(struct wlr_renderer *wlr_renderer,
+		struct wlr_dmabuf_buffer *dmabuf) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return wlr_egl_check_import_dmabuf(renderer->egl, dmabuf);
+}
+
 static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
@@ -311,6 +329,9 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.formats = gles2_renderer_formats,
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
+	.get_dmabuf_formats = gles2_get_dmabuf_formats,
+	.get_dmabuf_modifiers = gles2_get_dmabuf_modifiers,
+	.check_import_dmabuf = gles2_check_import_dmabuf,
 	.read_pixels = gles2_read_pixels,
 	.format_supported = gles2_format_supported,
 	.texture_from_pixels = gles2_texture_from_pixels,

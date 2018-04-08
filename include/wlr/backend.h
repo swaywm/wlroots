@@ -38,10 +38,6 @@ bool wlr_backend_start(struct wlr_backend *backend);
  */
 void wlr_backend_destroy(struct wlr_backend *backend);
 /**
- * Obtains the wlr_egl reference this backend is using.
- */
-struct wlr_egl *wlr_backend_get_egl(struct wlr_backend *backend);
-/**
  * Obtains the wlr_renderer reference this backend is using.
  */
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend);

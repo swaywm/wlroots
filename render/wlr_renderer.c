@@ -112,6 +112,30 @@ void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
 	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
+int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *r,
+		int **formats) {
+	if (!r->impl->get_dmabuf_formats) {
+		return -1;
+	}
+	return r->impl->get_dmabuf_formats(r, formats);
+}
+
+int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *r, int format,
+		uint64_t **modifiers) {
+	if (!r->impl->get_dmabuf_modifiers) {
+		return -1;
+	}
+	return r->impl->get_dmabuf_modifiers(r, format, modifiers);
+}
+
+bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *r,
+		struct wlr_dmabuf_buffer *dmabuf) {
+	if (!r->impl->check_import_dmabuf) {
+		return false;
+	}
+	return r->impl->check_import_dmabuf(r, dmabuf);
+}
+
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,

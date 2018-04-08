@@ -110,11 +110,6 @@ static void wlr_wl_backend_destroy(struct wlr_backend *wlr_backend) {
 	free(backend);
 }
 
-static struct wlr_egl *wlr_wl_backend_get_egl(struct wlr_backend *wlr_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
-	return &backend->egl;
-}
-
 static struct wlr_renderer *wlr_wl_backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
@@ -124,7 +119,6 @@ static struct wlr_renderer *wlr_wl_backend_get_renderer(
 static struct wlr_backend_impl backend_impl = {
 	.start = wlr_wl_backend_start,
 	.destroy = wlr_wl_backend_destroy,
-	.get_egl = wlr_wl_backend_get_egl,
 	.get_renderer = wlr_wl_backend_get_renderer,
 };
 
