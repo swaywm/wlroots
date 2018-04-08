@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 	wlr_log_init(L_DEBUG, NULL);
 	server.config = roots_config_create_from_args(argc, argv);
 	server.wl_display = wl_display_create();
-	server.wl_event_loop = wl_display_get_event_loop(server.wl_display)
+	server.wl_event_loop = wl_display_get_event_loop(server.wl_display);
 	assert(server.config && server.wl_display && server.wl_event_loop);
 
 	server.backend = wlr_backend_autocreate(server.wl_display);

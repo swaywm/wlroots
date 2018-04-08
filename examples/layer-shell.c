@@ -437,7 +437,7 @@ int main(int argc, char **argv) {
 	cursor = wl_cursor_theme_get_cursor(cursor_theme, "crosshair");
 	assert(cursor);
 	cursor_image = cursor->images[0];
-	cursor_surface = wl_compositor_create_surface(compositor)
+	cursor_surface = wl_compositor_create_surface(compositor);
 	assert(cursor_surface);
 
 	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
