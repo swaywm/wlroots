@@ -43,6 +43,7 @@ enum atom_name {
 	_NET_WM_STATE_FULLSCREEN,
 	_NET_WM_STATE_MAXIMIZED_VERT,
 	_NET_WM_STATE_MAXIMIZED_HORZ,
+	_NET_WM_PING,
 	WM_STATE,
 	CLIPBOARD,
 	PRIMARY,
@@ -90,6 +91,7 @@ struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
 	struct wlr_seat *seat;
+	uint32_t ping_timeout;
 
 	xcb_atom_t atoms[ATOM_LAST];
 	xcb_connection_t *xcb_conn;

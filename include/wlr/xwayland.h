@@ -111,6 +111,9 @@ struct wlr_xwayland_surface {
 	uint32_t hints_urgency;
 	struct wlr_xwayland_surface_size_hints *size_hints;
 
+	bool pinging;
+	struct wl_event_source *ping_timer;
+
 	// _NET_WM_STATE
 	bool fullscreen;
 	bool maximized_vert;
@@ -133,6 +136,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_parent;
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
+		struct wl_signal ping_timeout;
 	} events;
 
 	struct wl_listener surface_destroy;
@@ -188,6 +192,8 @@ bool wlr_xwayland_surface_is_unmanaged(
 bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface);
 
 struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(
-		struct wlr_surface *surface);
+	struct wlr_surface *surface);
+
+void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface);
 
 #endif

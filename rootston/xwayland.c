@@ -260,6 +260,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_surface *surface = data;
 	wlr_log(L_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
 		surface->title, surface->class, surface->instance);
+	wlr_xwayland_surface_ping(surface);
 
 	struct roots_xwayland_surface *roots_surface =
 		calloc(1, sizeof(struct roots_xwayland_surface));
