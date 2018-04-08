@@ -431,11 +431,14 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	assert(cursor_theme = wl_cursor_theme_load(NULL, 16, shm));
+	cursor_theme = wl_cursor_theme_load(NULL, 16, shm);
+	assert(cursor_theme);
 	struct wl_cursor *cursor;
-	assert(cursor = wl_cursor_theme_get_cursor(cursor_theme, "crosshair"));
+	cursor = wl_cursor_theme_get_cursor(cursor_theme, "crosshair");
+	assert(cursor);
 	cursor_image = cursor->images[0];
-	assert(cursor_surface = wl_compositor_create_surface(compositor));
+	cursor_surface = wl_compositor_create_surface(compositor)
+	assert(cursor_surface);
 
 	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
 	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display,

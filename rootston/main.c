@@ -28,9 +28,10 @@ static void ready(struct wl_listener *listener, void *data) {
 
 int main(int argc, char **argv) {
 	wlr_log_init(L_DEBUG, NULL);
-	assert(server.config = roots_config_create_from_args(argc, argv));
-	assert(server.wl_display = wl_display_create());
-	assert(server.wl_event_loop = wl_display_get_event_loop(server.wl_display));
+	server.config = roots_config_create_from_args(argc, argv);
+	server.wl_display = wl_display_create();
+	server.wl_event_loop = wl_display_get_event_loop(server.wl_display)
+	assert(server.config && server.wl_display && server.wl_event_loop);
 
 	server.backend = wlr_backend_autocreate(server.wl_display);
 	if (server.backend == NULL) {
@@ -38,7 +39,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	assert(server.renderer = wlr_backend_get_renderer(server.backend));
+	server.renderer = wlr_backend_get_renderer(server.backend);
+	assert(server.renderer);
 	server.data_device_manager =
 		wlr_data_device_manager_create(server.wl_display);
 	wl_display_init_shm(server.wl_display);
