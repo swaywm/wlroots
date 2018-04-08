@@ -42,6 +42,7 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_STATE_FULLSCREEN",
 	"_NET_WM_STATE_MAXIMIZED_VERT",
 	"_NET_WM_STATE_MAXIMIZED_HORZ",
+	"_NET_WM_PING",
 	"WM_STATE",
 	"CLIPBOARD",
 	"PRIMARY",
@@ -100,6 +101,14 @@ static struct wlr_xwayland_surface *lookup_surface(struct wlr_xwm *xwm,
 	return NULL;
 }
 
+static int xwayland_surface_handle_ping_timeout(void *data) {
+	struct wlr_xwayland_surface *surface = data;
+
+	wlr_signal_emit_safe(&surface->events.ping_timeout, surface);
+	surface->pinging = false;
+	return 1;
+}
+
 static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		struct wlr_xwm *xwm, xcb_window_t window_id, int16_t x, int16_t y,
 		uint16_t width, uint16_t height, bool override_redirect) {
@@ -143,15 +152,24 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 	wl_signal_init(&surface->events.set_parent);
 	wl_signal_init(&surface->events.set_pid);
 	wl_signal_init(&surface->events.set_window_type);
+	wl_signal_init(&surface->events.ping_timeout);
 
 	xcb_get_geometry_reply_t *geometry_reply =
 		xcb_get_geometry_reply(xwm->xcb_conn, geometry_cookie, NULL);
-
 	if (geometry_reply != NULL) {
 		surface->has_alpha = geometry_reply->depth == 32;
 	}
-
 	free(geometry_reply);
+
+	struct wl_display *display = xwm->xwayland->wl_display;
+	struct wl_event_loop *loop = wl_display_get_event_loop(display);
+	surface->ping_timer = wl_event_loop_add_timer(loop,
+		xwayland_surface_handle_ping_timeout, surface);
+	if (surface->ping_timer == NULL) {
+		free(surface);
+		wlr_log(L_ERROR, "Could not add timer to event loop");
+		return NULL;
+	}
 
 	return surface;
 }
@@ -161,6 +179,27 @@ static void xwm_set_net_active_window(struct wlr_xwm *xwm,
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
 			xwm->screen->root, xwm->atoms[_NET_ACTIVE_WINDOW],
 			xwm->atoms[WINDOW], 32, 1, &window);
+}
+
+static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
+		xcb_client_message_data_t *data) {
+	struct wlr_xwm *xwm = surface->xwm;
+
+	xcb_client_message_event_t event = {
+		.response_type = XCB_CLIENT_MESSAGE,
+		.format = 32,
+		.sequence = 0,
+		.window = surface->window_id,
+		.type = xwm->atoms[WM_PROTOCOLS],
+		.data = *data,
+	};
+
+	xcb_send_event(xwm->xcb_conn,
+		0, // propagate
+		surface->window_id,
+		XCB_EVENT_MASK_NO_EVENT,
+		(const char *)&event);
+	xcb_flush(xwm->xcb_conn);
 }
 
 static void xwm_send_focus_window(struct wlr_xwm *xwm,
@@ -174,16 +213,10 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xcb_client_message_event_t client_message;
-	client_message.response_type = XCB_CLIENT_MESSAGE;
-	client_message.format = 32;
-	client_message.window = xsurface->window_id;
-	client_message.type = xwm->atoms[WM_PROTOCOLS];
-	client_message.data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
-	client_message.data.data32[1] = XCB_TIME_CURRENT_TIME;
-
-	xcb_send_event(xwm->xcb_conn, 0, xsurface->window_id,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT, (char*)&client_message);
+	xcb_client_message_data_t message_data = { 0 };
+	message_data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
+	message_data.data32[1] = XCB_TIME_CURRENT_TIME;
+	xwm_send_wm_message(xsurface, &message_data);
 
 	xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 		xsurface->window_id, XCB_CURRENT_TIME);
@@ -968,6 +1001,32 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 	}
 }
 
+static void xwm_handle_wm_protocols_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	xcb_atom_t type = ev->data.data32[0];
+
+	if (type == xwm->atoms[_NET_WM_PING]) {
+		xcb_window_t window_id = ev->data.data32[2];
+
+		struct wlr_xwayland_surface *surface = lookup_surface(xwm, window_id);
+		if (surface == NULL) {
+			return;
+		}
+
+		if (!surface->pinging) {
+			return;
+		}
+
+		wl_event_source_timer_update(surface->ping_timer, 0);
+		surface->pinging = false;
+	} else {
+		char *type_name = xwm_get_atom_name(xwm, type);
+		wlr_log(L_DEBUG, "unhandled WM_PROTOCOLS client message %u (%s)",
+			type, type_name);
+		free(type_name);
+	}
+}
+
 static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_CLIENT_MESSAGE (%u)", ev->window);
@@ -978,6 +1037,8 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xwm_handle_net_wm_state_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[_NET_WM_MOVERESIZE]) {
 		xwm_handle_net_wm_moveresize_message(xwm, ev);
+	} else if (ev->type == xwm->atoms[WM_PROTOCOLS]) {
+		xwm_handle_wm_protocols_message(xwm, ev);
 	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
 		char *type_name = xwm_get_atom_name(xwm, ev->type);
 		wlr_log(L_DEBUG, "unhandled x11 client message %u (%s)", ev->type,
@@ -1198,23 +1259,14 @@ void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 	}
 
 	if (supports_delete) {
-		xcb_client_message_event_t ev = {0};
-		ev.response_type = XCB_CLIENT_MESSAGE;
-		ev.window = xsurface->window_id;
-		ev.format = 32;
-		ev.sequence = 0;
-		ev.type = xwm->atoms[WM_PROTOCOLS];
-		ev.data.data32[0] = xwm->atoms[WM_DELETE_WINDOW];
-		ev.data.data32[1] = XCB_CURRENT_TIME;
-		xcb_send_event(xwm->xcb_conn, 0,
-			xsurface->window_id,
-			XCB_EVENT_MASK_NO_EVENT,
-			(char *)&ev);
+		xcb_client_message_data_t message_data = {0};
+		message_data.data32[0] = xwm->atoms[WM_DELETE_WINDOW];
+		message_data.data32[1] = XCB_CURRENT_TIME;
+		xwm_send_wm_message(xsurface, &message_data);
 	} else {
 		xcb_kill_client(xwm->xcb_conn, xsurface->window_id);
+		xcb_flush(xwm->xcb_conn);
 	}
-
-	xcb_flush(xwm->xcb_conn);
 }
 
 void xwm_destroy(struct wlr_xwm *xwm) {
@@ -1463,6 +1515,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm->xwayland = wlr_xwayland;
 	wl_list_init(&xwm->surfaces);
 	wl_list_init(&xwm->unpaired_surfaces);
+	xwm->ping_timeout = 10000;
 
 	xwm->xcb_conn = xcb_connect_to_fd(wlr_xwayland->wm_fd[0], NULL);
 
@@ -1598,4 +1651,17 @@ bool wlr_xwayland_surface_is_unmanaged(
 	}
 
 	return false;
+}
+
+void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface) {
+	xcb_client_message_data_t data = { 0 };
+	data.data32[0] = surface->xwm->atoms[_NET_WM_PING];
+	data.data32[1] = XCB_CURRENT_TIME;
+	data.data32[2] = surface->window_id;
+
+	xwm_send_wm_message(surface, &data);
+
+	wl_event_source_timer_update(surface->ping_timer,
+		surface->xwm->ping_timeout);
+	surface->pinging = true;
 }
