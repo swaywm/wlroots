@@ -32,7 +32,7 @@ struct wlr_dmabuf_buffer_attribs {
 };
 
 struct wlr_dmabuf_buffer {
-	struct wlr_egl *egl;
+	struct wlr_renderer *renderer;
 	struct wl_resource *buffer_resource;
 	struct wl_resource *params_resource;
 	struct wlr_dmabuf_buffer_attribs attributes;
@@ -62,14 +62,14 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
 struct wlr_linux_dmabuf {
 	struct wl_global *wl_global;
 	struct wl_listener display_destroy;
-	struct wlr_egl *egl;
+	struct wlr_renderer *renderer;
 };
 
 /**
  * Create linux-dmabuf interface
  */
 struct wlr_linux_dmabuf *wlr_linux_dmabuf_create(struct wl_display *display,
-	struct wlr_egl *egl);
+	struct wlr_renderer *renderer);
 /**
  * Destroy the linux-dmabuf interface
  */

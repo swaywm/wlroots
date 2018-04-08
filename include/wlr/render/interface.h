@@ -36,6 +36,11 @@ struct wlr_renderer_impl {
 		struct wl_resource *resource);
 	void (*wl_drm_buffer_get_size)(struct wlr_renderer *renderer,
 		struct wl_resource *buffer, int *width, int *height);
+	bool (*check_import_dmabuf)(struct wlr_renderer *renderer,
+		struct wlr_dmabuf_buffer *dmabuf);
+	int (*get_dmabuf_formats)(struct wlr_renderer *renderer, int **formats);
+	int (*get_dmabuf_modifiers)(struct wlr_renderer *renderer, int format,
+		uint64_t **modifiers);
 	bool (*read_pixels)(struct wlr_renderer *renderer, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,

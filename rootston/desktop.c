@@ -869,8 +869,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->input_inhibit->events.deactivate,
 			&desktop->input_inhibit_deactivate);
 
-	struct wlr_egl *egl = wlr_backend_get_egl(server->backend);
-	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display, egl);
+	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display,
+		server->renderer);
 	return desktop;
 }
 
