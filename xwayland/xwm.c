@@ -52,12 +52,14 @@ const char *atom_map[ATOM_LAST] = {
 	"TEXT",
 	"TIMESTAMP",
 	"DELETE",
+	"_NET_WM_WINDOW_TYPE_NORMAL",
 	"_NET_WM_WINDOW_TYPE_UTILITY",
 	"_NET_WM_WINDOW_TYPE_TOOLTIP",
 	"_NET_WM_WINDOW_TYPE_DND",
 	"_NET_WM_WINDOW_TYPE_DROPDOWN_MENU",
 	"_NET_WM_WINDOW_TYPE_POPUP_MENU",
 	"_NET_WM_WINDOW_TYPE_COMBO",
+	"_NET_WM_WINDOW_TYPE_MENU",
 	"XdndSelection",
 	"XdndAware",
 	"XdndStatus",
@@ -1569,6 +1571,28 @@ bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 
 	for (size_t i = 0; i < num_atoms; ++i) {
 		if (atom == atoms[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool wlr_xwayland_surface_is_unmanaged(
+		const struct wlr_xwayland_surface *surface) {
+	static enum atom_name needles[] = {
+		NET_WM_WINDOW_TYPE_COMBO,
+		NET_WM_WINDOW_TYPE_DND,
+		NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
+		NET_WM_WINDOW_TYPE_MENU,
+		NET_WM_WINDOW_TYPE_POPUP_MENU,
+		NET_WM_WINDOW_TYPE_TOOLTIP,
+		NET_WM_WINDOW_TYPE_UTILITY,
+	};
+
+	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
+		if (xwm_atoms_contains(surface->xwm, surface->window_type,
+				surface->window_type_len, needles[i])) {
 			return true;
 		}
 	}
