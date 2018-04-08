@@ -405,24 +405,3 @@ void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 	xwayland->seat_destroy.notify = wlr_xwayland_handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &xwayland->seat_destroy);
 }
-
-
-bool wlr_xwayland_surface_is_unmanaged(const struct wlr_xwayland_surface *surface) {
-	static enum atom_name needles[] = {
-		NET_WM_WINDOW_TYPE_UTILITY,
-		NET_WM_WINDOW_TYPE_TOOLTIP,
-		NET_WM_WINDOW_TYPE_DND,
-		NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
-		NET_WM_WINDOW_TYPE_POPUP_MENU,
-		NET_WM_WINDOW_TYPE_COMBO,
-	};
-
-	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
-		if (xwm_atoms_contains(surface->xwm, surface->window_type,
-				surface->window_type_len, needles[i])) {
-			return true;
-		}
-	}
-
-	return false;
-}
