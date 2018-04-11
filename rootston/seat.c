@@ -13,6 +13,7 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/seat.h"
+#include "rootston/text_input.h"
 #include "rootston/xcursor.h"
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
@@ -347,6 +348,15 @@ void roots_seat_destroy(struct roots_seat *seat) {
 	wlr_seat_destroy(seat->seat);
 }
 
+static void roots_seat_handle_text_input(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, new_text_input);
+	// FIXME: handle failed creation
+	struct roots_text_input *text_input = roots_text_input_create(seat, data);
+	wl_list_insert(&seat->text_inputs, &text_input->link);
+}
+
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	struct roots_seat *seat = calloc(1, sizeof(struct roots_seat));
 	if (!seat) {
@@ -359,6 +369,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->tablet_tools);
 	wl_list_init(&seat->views);
 	wl_list_init(&seat->drag_icons);
+	wl_list_init(&seat->text_inputs);
 
 	seat->input = input;
 
@@ -381,7 +392,9 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_signal_add(&seat->seat->events.new_drag_icon, &seat->new_drag_icon);
 	seat->destroy.notify = roots_seat_handle_destroy;
 	wl_signal_add(&seat->seat->events.destroy, &seat->destroy);
-
+	seat->new_text_input.notify = roots_seat_handle_text_input;
+	wl_signal_add(&input->server->desktop->text_input->events.text_input,
+		&seat->new_text_input);
 	return seat;
 }
 
@@ -814,6 +827,20 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			NULL, 0, NULL);
 	}
+
+	struct wlr_text_input *text_input;
+	wl_list_for_each(text_input,
+			&seat->input->server->desktop->text_input->text_inputs, link) {
+		if (wl_resource_get_client(text_input->resource)
+				== wl_resource_get_client(view->wlr_surface->resource)
+				&& text_input->seat == seat->seat) {
+			if (view != NULL) {
+				wlr_text_input_send_enter(text_input, view->wlr_surface);
+			} else {
+				wlr_text_input_send_leave(text_input, view->wlr_surface);
+			}
+		}
+	}
 }
 
 /**
@@ -906,11 +933,11 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 	}
 
 	// Focus the next view which is focusable
-	struct roots_seat_view *next_seat_view = first_seat_view;;
+	struct roots_seat_view *next_seat_view = first_seat_view;
 	do {
 		next_seat_view = wl_container_of(
-			first_seat_view->link.next, next_seat_view, link);
-	} while (next_seat_view->view->special
+			next_seat_view->link.next, next_seat_view, link);
+	} while (next_seat_view->view && next_seat_view->view->special
 		&& !next_seat_view->view->features.focusable);
 	roots_seat_set_focus(seat, next_seat_view->view);
 

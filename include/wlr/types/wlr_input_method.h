@@ -31,7 +31,6 @@ struct wlr_input_method {
 	struct wl_resource *resource;
 	struct {
 		struct wl_signal new_context; // struct wlr_input_method_context*
-		// TODO: create roots_keyboard (seat_add_keyboard) on this; modify roots_keyboard to support backend-less
 	} events;
 };
 
@@ -71,4 +70,5 @@ void wlr_input_method_context_send_surrounding_text(
 
 void wlr_input_method_send_deactivate(struct wlr_input_method *input_method,
 	struct wlr_input_method_context *context);
+
 #endif

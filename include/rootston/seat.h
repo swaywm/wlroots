@@ -5,6 +5,7 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/layers.h"
+#include "rootston/text_input.h"
 
 struct roots_seat {
 	struct roots_input *input;
@@ -32,8 +33,12 @@ struct roots_seat {
 	struct wl_list touch;
 	struct wl_list tablet_tools;
 
+	struct wl_list text_inputs; // roots_text_input::link
+
 	struct wl_listener new_drag_icon;
 	struct wl_listener destroy;
+	struct wl_listener new_text_input;
+	struct wl_listener destroy_text_input;
 };
 
 struct roots_seat_view {

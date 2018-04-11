@@ -301,7 +301,6 @@ fail_keymap:
 fail_ctx:
 	free(keyboard);
 fail_kb:
-	xkb_keymap_unref(keymap);
 	return false;
 }
 

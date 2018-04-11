@@ -53,12 +53,8 @@ static void wlr_text_input_destroy(struct wlr_text_input *text_input) {
 	if (text_input->resource) {
 		wl_resource_destroy(text_input->resource);
 	}
-	if (text_input->current.surrounding.text) {
-		free(text_input->current.surrounding.text);
-	}
-	if (text_input->pending.surrounding.text) {
-		free(text_input->pending.surrounding.text);
-	}
+	free(text_input->current.surrounding.text);
+	free(text_input->pending.surrounding.text);
 	free(text_input);
 }
 
@@ -90,9 +86,7 @@ static void text_input_set_surrounding_text(struct wl_client *client,
 		struct wl_resource *resource, const char *text, int32_t cursor,
 		int32_t anchor) {
 	struct wlr_text_input *text_input = text_input_from_resource(resource);
-	if (text_input->pending.surrounding.text) {
-		free(text_input->pending.surrounding.text);
-	}
+	free(text_input->pending.surrounding.text);
 	text_input->pending.surrounding.text = strdup(text);
 	if (!text_input->pending.surrounding.text) {
 		wl_client_post_no_memory(client);
@@ -122,9 +116,7 @@ static void text_input_set_cursor_rectangle(struct wl_client *client,
 static void text_input_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_text_input *text_input = text_input_from_resource(resource);
-	if (text_input->current.surrounding.text) {
-		free(text_input->pending.surrounding.text);
-	}
+	free(text_input->pending.surrounding.text);
 	text_input->current = text_input->pending;
 	if (text_input->pending.surrounding.text) {
 		text_input->current.surrounding.text =
@@ -233,6 +225,9 @@ struct wlr_text_input_manager *wlr_text_input_manager_create(
 		struct wl_display *wl_display) {
 	struct wlr_text_input_manager *manager =
 		calloc(1, sizeof(struct wlr_text_input_manager));
+	if (!manager) {
+		return NULL;
+	}
 	wl_list_init(&manager->text_inputs);
 	wl_signal_init(&manager->events.text_input);
 	manager->wl_global = wl_global_create(wl_display,

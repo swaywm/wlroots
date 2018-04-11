@@ -11,6 +11,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_input_inhibitor.h>
+#include <wlr/types/wlr_input_method.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -22,6 +23,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
+#include "rootston/input_method.h"
 #include "rootston/layers.h"
 #include "rootston/seat.h"
 #include "rootston/server.h"
@@ -561,7 +563,8 @@ void view_set_anchor_position(struct roots_view *view,
 	struct wlr_box *output_box =
 		wlr_output_layout_get_box(view->desktop->layout, output->wlr_output);
 
-	double x, y;
+	double x = view->x;
+	double y = view->y;
 	switch (view->features.frame) {
 	case ROOTS_FRAME_BOTTOM:
 		x = output_box->x + (output_box->width - width) / 2;
@@ -635,6 +638,10 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
 #endif
+	case ROOTS_INPUT_PANEL_VIEW: // FIXME?
+		_surface = wlr_surface_surface_at(view->wlr_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
 	}
 	if (_surface != NULL) {
 		*sx = _sx;
@@ -920,6 +927,19 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display,
 		server->renderer);
+
+	desktop->text_input = wlr_text_input_manager_create(server->wl_display);
+
+	desktop->input_panel = wlr_input_panel_create(server->wl_display);
+	wl_signal_add(&desktop->input_panel->events.new_surface,
+		&desktop->input_panel_surface);
+	desktop->input_panel_surface.notify = handle_input_panel_surface;
+	desktop->input_method = wlr_input_method_create(server->wl_display);
+	wl_signal_add(&desktop->input_method->events.new_context,
+		&desktop->input_method_context);
+	desktop->input_method_context.notify = handle_input_method_context;
+	desktop->input_method_context_destroy.notify =
+		handle_input_method_context_destroy;
 	return desktop;
 }
 
