@@ -102,6 +102,16 @@ struct wlr_xdg_surface_configure {
 	struct wlr_xdg_toplevel_state *toplevel_state;
 };
 
+/**
+ * An xdg-surface is a user interface element requiring management by the
+ * compositor. An xdg-surface alone isn't useful, a role should be assigned to
+ * it in order to map it.
+ *
+ * When a surface has a role and is ready to be displayed, the `map` event is
+ * emitted. When a surface should no longer be displayed, the `unmap` event is
+ * emitted. The `unmap` event is guaranted to be emitted before the `destroy`
+ * event if the view is destroyed when mapped.
+ */
 struct wlr_xdg_surface {
 	struct wlr_xdg_client *client;
 	struct wl_resource *resource;

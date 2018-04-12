@@ -273,8 +273,12 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 		i, property);
 }
 
+static void xsurface_unmap(struct wlr_xwayland_surface *surface);
+
 static void wlr_xwayland_surface_destroy(
 		struct wlr_xwayland_surface *xsurface) {
+	xsurface_unmap(xsurface);
+
 	wlr_signal_emit_safe(&xsurface->events.destroy, xsurface);
 
 	if (xsurface == xsurface->xwm->focus_surface) {
@@ -618,7 +622,8 @@ static void handle_surface_commit(struct wlr_surface *wlr_surface,
 	if (!xsurface->added &&
 			wlr_surface_has_buffer(xsurface->surface) &&
 			xsurface->mapped) {
-		wlr_signal_emit_safe(&xsurface->xwm->xwayland->events.new_surface, xsurface);
+		wlr_signal_emit_safe(&xsurface->xwm->xwayland->events.new_surface,
+			xsurface);
 		xsurface->added = true;
 	}
 }
@@ -626,9 +631,7 @@ static void handle_surface_commit(struct wlr_surface *wlr_surface,
 static void handle_surface_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_surface *xsurface =
 		wl_container_of(listener, xsurface, surface_destroy);
-
-	xsurface->surface = NULL;
-	// TODO destroy xwayland surface?
+	xsurface_unmap(xsurface);
 }
 
 static void xwm_map_shell_surface(struct wlr_xwm *xwm,
@@ -663,6 +666,27 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 
 	xsurface->mapped = true;
 	wlr_signal_emit_safe(&xsurface->events.map, xsurface);
+}
+
+static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
+	if (surface->mapped) {
+		surface->mapped = false;
+		wlr_signal_emit_safe(&surface->events.unmap, surface);
+	}
+
+	if (surface->surface_id) {
+		// Make sure we're not on the unpaired surface list or we
+		// could be assigned a surface during surface creation that
+		// was mapped before this unmap request.
+		wl_list_remove(&surface->unpaired_link);
+		surface->surface_id = 0;
+	}
+
+	if (surface->surface) {
+		wlr_surface_set_role_committed(surface->surface, NULL, NULL);
+		wl_list_remove(&surface->surface_destroy.link);
+		surface->surface = NULL;
+	}
 }
 
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
@@ -778,25 +802,7 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	if (xsurface->mapped) {
-		xsurface->mapped = false;
-		wlr_signal_emit_safe(&xsurface->events.unmap, xsurface);
-	}
-
-	if (xsurface->surface_id) {
-		// Make sure we're not on the unpaired surface list or we
-		// could be assigned a surface during surface creation that
-		// was mapped before this unmap request.
-		wl_list_remove(&xsurface->unpaired_link);
-		xsurface->surface_id = 0;
-	}
-
-	if (xsurface->surface) {
-		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
-		wl_list_remove(&xsurface->surface_destroy.link);
-	}
-	xsurface->surface = NULL;
-
+	xsurface_unmap(xsurface);
 	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
 }
 
