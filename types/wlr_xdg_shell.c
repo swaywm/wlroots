@@ -1644,8 +1644,8 @@ struct wlr_surface *wlr_xdg_surface_surface_at(
 		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
 
 		struct wlr_surface *sub = wlr_xdg_surface_surface_at(popup,
-			sx - popup_sx + popup->geometry.x,
-			sy - popup_sy + popup->geometry.y,
+			sx - popup_sx,
+			sy - popup_sy,
 			sub_x, sub_y);
 		if (sub != NULL) {
 			return sub;
