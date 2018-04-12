@@ -916,8 +916,5 @@ enum wl_output_transform wlr_output_transform_compose(
 	uint32_t flipped = (tr_a ^ tr_b) & WL_OUTPUT_TRANSFORM_FLIPPED;
 	uint32_t rotated =
 		(tr_a + tr_b) & (WL_OUTPUT_TRANSFORM_90 | WL_OUTPUT_TRANSFORM_180);
-	if ((tr_a & WL_OUTPUT_TRANSFORM_FLIPPED) && (tr_b & WL_OUTPUT_TRANSFORM_FLIPPED)) {
-		rotated = wlr_output_transform_invert(rotated);
-	}
 	return flipped | rotated;
 }
