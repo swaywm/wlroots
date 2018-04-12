@@ -31,11 +31,14 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 
 static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 		uint32_t height) {
-	gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 
 	glViewport(0, 0, width, height);
+	renderer->viewport_width = width;
+	renderer->viewport_height = height;
 
 	// enable transparency
 	glEnable(GL_BLEND);
@@ -64,11 +67,16 @@ static void gles2_clear(struct wlr_renderer *wlr_renderer,
 
 static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
-	gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
 	GLES2_DEBUG_PUSH;
 	if (box != NULL) {
-		glScissor(box->x, box->y, box->width, box->height);
+		struct wlr_box gl_box;
+		wlr_box_transform(box, WL_OUTPUT_TRANSFORM_FLIPPED_180,
+			renderer->viewport_width, renderer->viewport_height, &gl_box);
+
+		glScissor(gl_box.x, gl_box.y, gl_box.width, gl_box.height);
 		glEnable(GL_SCISSOR_TEST);
 	} else {
 		glDisable(GL_SCISSOR_TEST);
