@@ -75,6 +75,15 @@ struct wlr_xwayland_surface_size_hints {
 	uint32_t win_gravity;
 };
 
+/**
+ * An Xwayland user interface component. It has an absolute position in
+ * layout-local coordinates.
+ *
+ * When a surface is ready to be displayed, the `map` event is emitted. When a
+ * surface should no longer be displayed, the `unmap` event is emitted. The
+ * `unmap` event is guaranted to be emitted before the `destroy` event if the
+ * view is destroyed when mapped.
+ */
 struct wlr_xwayland_surface {
 	xcb_window_t window_id;
 	struct wlr_xwm *xwm;
@@ -116,8 +125,7 @@ struct wlr_xwayland_surface {
 
 	// _NET_WM_STATE
 	bool fullscreen;
-	bool maximized_vert;
-	bool maximized_horz;
+	bool maximized_vert, maximized_horz;
 
 	bool has_alpha;
 
