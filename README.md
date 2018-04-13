@@ -12,6 +12,9 @@ code you were going to write anyway.
 	Wayland interfaces, both from wayland.xml and various protocol extensions.
 	We also promote the standardization of portable extensions across
 	many compositors.
+- wlroots provides several powerful, standalone, and optional tools that
+	implement components common to many compositors, such as the arrangement of
+	outputs in physical space.
 - wlroots provides an Xwayland abstraction that allows you to have excellent
 	Xwayland support without worrying about writing your own X11 window manager
 	on top of writing your compositor.
