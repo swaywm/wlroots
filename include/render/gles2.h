@@ -38,6 +38,8 @@ struct wlr_gles2_renderer {
 		GLuint tex_rgbx;
 		GLuint tex_ext;
 	} shaders;
+
+	uint32_t viewport_width, viewport_height;
 };
 
 enum wlr_gles2_texture_type {
