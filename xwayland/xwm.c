@@ -109,7 +109,7 @@ static int xwayland_surface_handle_ping_timeout(void *data) {
 	return 1;
 }
 
-static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
+static struct wlr_xwayland_surface *xwayland_surface_create(
 		struct wlr_xwm *xwm, xcb_window_t window_id, int16_t x, int16_t y,
 		uint16_t width, uint16_t height, bool override_redirect) {
 	struct wlr_xwayland_surface *surface =
@@ -170,6 +170,8 @@ static struct wlr_xwayland_surface *wlr_xwayland_surface_create(
 		wlr_log(L_ERROR, "Could not add timer to event loop");
 		return NULL;
 	}
+
+	wlr_signal_emit_safe(&xwm->xwayland->events.new_surface, surface);
 
 	return surface;
 }
@@ -296,6 +298,8 @@ static void wlr_xwayland_surface_destroy(
 		wl_list_remove(&xsurface->surface_destroy.link);
 		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
 	}
+
+	wl_event_source_remove(xsurface->ping_timer);
 
 	free(xsurface->title);
 	free(xsurface->class);
@@ -617,26 +621,22 @@ static void read_surface_property(struct wlr_xwm *xwm,
 
 static void handle_surface_commit(struct wlr_surface *wlr_surface,
 		void *role_data) {
-	struct wlr_xwayland_surface *xsurface = role_data;
+	struct wlr_xwayland_surface *surface = role_data;
 
-	if (!xsurface->added &&
-			wlr_surface_has_buffer(xsurface->surface) &&
-			xsurface->mapped) {
-		wlr_signal_emit_safe(&xsurface->xwm->xwayland->events.new_surface,
-			xsurface);
-		xsurface->added = true;
+	if (!surface->mapped && wlr_surface_has_buffer(surface->surface)) {
+		wlr_signal_emit_safe(&surface->events.map, surface);
+		surface->mapped = true;
 	}
 }
 
 static void handle_surface_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xwayland_surface *xsurface =
-		wl_container_of(listener, xsurface, surface_destroy);
-	xsurface_unmap(xsurface);
+	struct wlr_xwayland_surface *surface =
+		wl_container_of(listener, surface, surface_destroy);
+	xsurface_unmap(surface);
 }
 
 static void xwm_map_shell_surface(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *xsurface,
-		struct wlr_surface *surface) {
+		struct wlr_xwayland_surface *xsurface, struct wlr_surface *surface) {
 	xsurface->surface = surface;
 
 	// read all surface properties
@@ -663,9 +663,6 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 
 	xsurface->surface_destroy.notify = handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
-
-	xsurface->mapped = true;
-	wlr_signal_emit_safe(&xsurface->events.map, xsurface);
 }
 
 static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
@@ -692,7 +689,14 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		xcb_create_notify_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_CREATE_NOTIFY (%u)", ev->window);
-	wlr_xwayland_surface_create(xwm, ev->window, ev->x, ev->y,
+
+	if (ev->window == xwm->window ||
+			ev->window == xwm->selection_window ||
+			ev->window == xwm->dnd_window) {
+		return;
+	}
+
+	xwayland_surface_create(xwm, ev->window, ev->x, ev->y,
 		ev->width, ev->height, ev->override_redirect);
 }
 

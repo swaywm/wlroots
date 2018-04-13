@@ -98,7 +98,6 @@ struct wlr_xwayland_surface {
 	uint16_t saved_width, saved_height;
 	bool override_redirect;
 	bool mapped;
-	bool added;
 
 	char *title;
 	char *class;

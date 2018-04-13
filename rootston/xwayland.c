@@ -228,19 +228,31 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, map);
-	struct wlr_xwayland_surface *xsurface = data;
+	struct wlr_xwayland_surface *surface = data;
 	struct roots_view *view = roots_surface->view;
 
-	view->x = xsurface->x;
-	view->y = xsurface->y;
-	view->width = xsurface->surface->current->width;
-	view->height = xsurface->surface->current->height;
-
-	view_map(view, xsurface->surface);
+	view->x = surface->x;
+	view->y = surface->y;
+	view->width = surface->surface->current->width;
+	view->height = surface->surface->current->height;
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
-	wl_signal_add(&xsurface->surface->events.commit,
+	wl_signal_add(&surface->surface->events.commit,
 		&roots_surface->surface_commit);
+
+	view_map(view, surface->surface);
+
+	if (!surface->override_redirect) {
+		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
+			view->decorated = true;
+			view->border_width = 4;
+			view->titlebar_height = 12;
+		}
+
+		view_setup(view);
+	} else {
+		view_initial_focus(view);
+	}
 }
 
 static void handle_unmap(struct wl_listener *listener, void *data) {
@@ -289,10 +301,6 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
 
-	roots_surface->surface_commit.notify = handle_surface_commit;
-	wl_signal_add(&surface->surface->events.commit,
-		&roots_surface->surface_commit);
-
 	struct roots_view *view = view_create(desktop);
 	if (view == NULL) {
 		free(roots_surface);
@@ -301,8 +309,6 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->type = ROOTS_XWAYLAND_VIEW;
 	view->x = (double)surface->x;
 	view->y = (double)surface->y;
-	view->width = surface->surface->current->width;
-	view->height = surface->surface->current->height;
 
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;
@@ -315,18 +321,4 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	view->close = close;
 	view->destroy = destroy;
 	roots_surface->view = view;
-
-	view_map(view, surface->surface);
-
-	if (!surface->override_redirect) {
-		if (surface->decorations == WLR_XWAYLAND_SURFACE_DECORATIONS_ALL) {
-			view->decorated = true;
-			view->border_width = 4;
-			view->titlebar_height = 12;
-		}
-
-		view_setup(view);
-	} else {
-		view_initial_focus(view);
-	}
 }
