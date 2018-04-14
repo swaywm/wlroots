@@ -32,15 +32,18 @@ struct wlr_xdg_client {
 	struct wl_event_source *ping_timer;
 };
 
+struct wlr_xdg_positioner;
+
 struct wlr_xdg_popup {
 	struct wlr_xdg_surface *base;
 	struct wl_list link;
 
 	struct wl_resource *resource;
 	bool committed;
-	struct wlr_xdg_surface *parent;
+	struct wlr_surface *parent;
 	struct wlr_seat *seat;
 
+	struct wlr_xdg_positioner *positioner;
 	// Position of the popup relative to the upper left corner of the window
 	// geometry of the parent surface
 	struct wlr_box geometry;
@@ -178,6 +181,11 @@ struct wlr_xdg_toplevel_show_window_menu_event {
 struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display);
 void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
 
+struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
+		struct wl_resource *resource);
+
+struct wlr_box wlr_xdg_popup_get_geometry(struct wlr_xdg_popup *popup);
+
 /**
  * Send a ping to the surface. If the surface does not respond in a reasonable
  * amount of time, the ping_timeout event will be emitted.
@@ -226,6 +234,7 @@ void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
 
 /**
  * Compute the popup position in its parent's surface-local coordinate system.
+ * This aborts if called for popups whose parent is not an xdg_surface.
  */
 void wlr_xdg_surface_popup_get_position(struct wlr_xdg_surface *surface,
 		double *popup_sx, double *popup_sy);
