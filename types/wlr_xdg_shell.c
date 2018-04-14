@@ -527,7 +527,7 @@ struct wlr_box wlr_xdg_popup_get_geometry(struct wlr_xdg_popup *popup) {
 
 static const struct xdg_popup_interface xdg_popup_implementation;
 
-static struct wlr_xdg_surface *xdg_surface_from_xdg_popup_resource(
+struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &xdg_popup_interface,
 		&xdg_popup_implementation));
@@ -538,7 +538,7 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *seat_resource,
 		uint32_t serial) {
 	struct wlr_xdg_surface *surface =
-		xdg_surface_from_xdg_popup_resource(resource);
+		wlr_xdg_surface_from_popup_resource(resource);
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 
@@ -574,7 +574,7 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 static void xdg_popup_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
-		xdg_surface_from_xdg_popup_resource(resource);
+		wlr_xdg_surface_from_popup_resource(resource);
 
 	if (!wl_list_empty(&surface->popups)) {
 		wl_resource_post_error(surface->client->resource,
@@ -593,7 +593,7 @@ static const struct xdg_popup_interface xdg_popup_implementation = {
 
 static void xdg_popup_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
-		xdg_surface_from_xdg_popup_resource(resource);
+		wlr_xdg_surface_from_popup_resource(resource);
 	if (surface != NULL) {
 		xdg_popup_destroy(surface);
 	}
@@ -1280,6 +1280,13 @@ static void wlr_xdg_surface_toplevel_committed(
 static void wlr_xdg_surface_popup_committed(
 		struct wlr_xdg_surface *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+
+	if (!surface->popup->parent) {
+		wl_resource_post_error(surface->resource,
+			XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
+			"xdg_popup has no parent");
+		return;
+	}
 
 	if (!surface->popup->committed) {
 		wlr_xdg_surface_schedule_configure(surface);

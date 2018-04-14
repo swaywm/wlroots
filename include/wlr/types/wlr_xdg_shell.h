@@ -183,6 +183,8 @@ void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
 
 struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 		struct wl_resource *resource);
+struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
+		struct wl_resource *resource);
 
 struct wlr_box wlr_xdg_popup_get_geometry(struct wlr_xdg_popup *popup);
 

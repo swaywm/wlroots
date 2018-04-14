@@ -1,4 +1,9 @@
 #define _POSIX_C_SOURCE 199309L
+#ifdef __linux__
+#include <linux/input-event-codes.h>
+#elif __FreeBSD__
+#include <dev/evdev/input-event-codes.h>
+#endif
 #include <assert.h>
 #include <GLES2/gl2.h>
 #include <limits.h>
@@ -13,15 +18,19 @@
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
-static struct wl_compositor *compositor = NULL;
-static struct wl_seat *seat = NULL;
-static struct wl_shm *shm = NULL;
-static struct wl_pointer *pointer = NULL;
-static struct wl_keyboard *keyboard = NULL;
-static struct zwlr_layer_shell_v1 *layer_shell = NULL;
+static struct wl_display *display;
+static struct wl_compositor *compositor;
+static struct wl_seat *seat;
+static struct wl_shm *shm;
+static struct wl_pointer *pointer;
+static struct wl_keyboard *keyboard;
+static struct xdg_wm_base *xdg_wm_base;
+static struct zwlr_layer_shell_v1 *layer_shell;
+
 struct zwlr_layer_surface_v1 *layer_surface;
-static struct wl_output *wl_output = NULL;
+static struct wl_output *wl_output;
 
 struct wl_surface *wl_surface;
 struct wlr_egl egl;
@@ -30,6 +39,9 @@ struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
 
 static uint32_t output = UINT32_MAX;
+struct xdg_surface *popup_surface;
+struct xdg_popup *popup;
+
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static uint32_t width = 256, height = 256;
@@ -121,6 +133,71 @@ static void draw(void) {
 	demo.last_frame = ts;
 }
 
+static void xdg_surface_handle_configure(void *data,
+		struct xdg_surface *xdg_surface, uint32_t serial) {
+	xdg_surface_ack_configure(xdg_surface, serial);
+	// Whatever
+}
+
+static const struct xdg_surface_listener xdg_surface_listener = {
+	.configure = xdg_surface_handle_configure,
+};
+
+static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
+		int32_t x, int32_t y, int32_t width, int32_t height) {
+	// Meh.
+}
+
+static void xdg_popup_done(void *data, struct xdg_popup *xdg_popup) {
+	// We leak the surface, but who cares
+	xdg_popup_destroy(popup);
+	popup = NULL;
+}
+
+static const struct xdg_popup_listener xdg_popup_listener = {
+	.configure = xdg_popup_configure,
+	.popup_done = xdg_popup_done,
+};
+
+static void create_popup() {
+	if (popup) {
+		return;
+	}
+	struct wl_surface *surface = wl_compositor_create_surface(compositor);
+	assert(xdg_wm_base && surface);
+	struct xdg_surface *xdg_surface = xdg_wm_base_get_xdg_surface(
+			xdg_wm_base, surface);
+	struct xdg_positioner *xdg_positioner = xdg_wm_base_create_positioner(
+			xdg_wm_base);
+	assert(xdg_surface && xdg_positioner);
+
+	xdg_positioner_set_size(xdg_positioner, 256, 256);
+	xdg_positioner_set_anchor_rect(xdg_positioner, 0, 0, width, height);
+
+	popup = xdg_surface_get_popup(xdg_surface, NULL, xdg_positioner);
+	assert(popup);
+
+	zwlr_layer_surface_v1_get_popup(layer_surface, popup);
+
+	xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
+	xdg_popup_add_listener(popup, &xdg_popup_listener, NULL);
+
+	wl_surface_commit(surface);
+	wl_display_roundtrip(display);
+
+	struct wl_egl_window *egl_window;
+	struct wlr_egl_surface *egl_surface;
+	egl_window = wl_egl_window_create(surface, 256, 256);
+	assert(egl_window);
+	egl_surface = wlr_egl_create_surface(&egl, egl_window);
+	assert(egl_surface);
+
+	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	eglSwapBuffers(egl.display, egl_surface);
+}
+
 static void layer_surface_configure(void *data,
 		struct zwlr_layer_surface_v1 *surface,
 		uint32_t serial, uint32_t w, uint32_t h) {
@@ -172,6 +249,9 @@ static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
 		buttons++;
+		if (button == BTN_RIGHT) {
+			create_popup();
+		}
 	} else {
 		buttons--;
 	}
@@ -277,7 +357,7 @@ const struct wl_seat_listener seat_listener = {
 
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
-	if (strcmp(interface, "wl_compositor") == 0) {
+	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		compositor = wl_registry_bind(registry, name,
 				&wl_compositor_interface, 1);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
@@ -299,6 +379,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		layer_shell = wl_registry_bind(
 				registry, name, &zwlr_layer_shell_v1_interface, 1);
+	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
+		xdg_wm_base = wl_registry_bind(
+				registry, name, &xdg_wm_base_interface, 1);
 	}
 }
 
@@ -407,7 +490,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	struct wl_display *display = wl_display_connect(NULL);
+	display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "Failed to create display\n");
 		return 1;
