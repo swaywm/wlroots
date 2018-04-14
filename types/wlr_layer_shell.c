@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
@@ -131,8 +132,19 @@ static void layer_surface_handle_set_keyboard_interactivity(
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
-		struct wl_resource *resource, struct wl_resource *popup) {
-	// TODO
+		struct wl_resource *layer_resource,
+		struct wl_resource *popup_resource) {
+	struct wlr_layer_surface *parent =
+		layer_surface_from_resource(layer_resource);
+	struct wlr_xdg_surface *popup_surface =
+		wlr_xdg_surface_from_resource(popup_resource);
+
+	assert(popup_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+	struct wlr_xdg_popup *popup = popup_surface->popup;
+	popup->parent = parent->surface;
+	popup->geometry = wlr_xdg_popup_get_geometry(popup);
+	wl_list_insert(&parent->popups, &popup->link);
+	wlr_signal_emit_safe(&parent->events.new_popup, popup);
 }
 
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation = {
@@ -343,6 +355,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	}
 
 	wl_list_init(&surface->configure_list);
+	wl_list_init(&surface->popups);
 
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_add(&surface->surface->events.destroy,
@@ -350,6 +363,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
+	wl_signal_init(&surface->events.new_popup);
 
 	wlr_surface_set_role_committed(surface->surface,
 		handle_wlr_surface_committed, surface);

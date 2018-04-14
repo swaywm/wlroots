@@ -59,6 +59,7 @@ struct wlr_layer_surface {
 	struct wlr_output *output;
 	struct wl_resource *resource;
 	struct wlr_layer_shell *shell;
+	struct wl_list popups; // wlr_xdg_popup::link
 
 	const char *namespace;
 	enum zwlr_layer_shell_v1_layer layer;
@@ -81,6 +82,7 @@ struct wlr_layer_surface {
 		struct wl_signal destroy;
 		struct wl_signal map;
 		struct wl_signal unmap;
+		struct wl_signal new_popup;
 	} events;
 
 	void *data;
