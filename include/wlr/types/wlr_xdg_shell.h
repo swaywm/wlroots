@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_XDG_SHELL_H
 #define WLR_TYPES_WLR_XDG_SHELL_H
-
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_seat.h>
 #include <wayland-server.h>
+#include "xdg-shell-protocol.h"
 
 struct wlr_xdg_shell {
 	struct wl_global *wl_global;
@@ -32,7 +32,22 @@ struct wlr_xdg_client {
 	struct wl_event_source *ping_timer;
 };
 
-struct wlr_xdg_positioner;
+struct wlr_xdg_positioner {
+	struct wl_resource *resource;
+
+	struct wlr_box anchor_rect;
+	enum xdg_positioner_anchor anchor;
+	enum xdg_positioner_gravity gravity;
+	enum xdg_positioner_constraint_adjustment constraint_adjustment;
+
+	struct {
+		int32_t width, height;
+	} size;
+
+	struct {
+		int32_t x, y;
+	} offset;
+};
 
 struct wlr_xdg_popup {
 	struct wlr_xdg_surface *base;
@@ -43,10 +58,11 @@ struct wlr_xdg_popup {
 	struct wlr_surface *parent;
 	struct wlr_seat *seat;
 
-	struct wlr_xdg_positioner *positioner;
 	// Position of the popup relative to the upper left corner of the window
 	// geometry of the parent surface
 	struct wlr_box geometry;
+
+	struct wlr_xdg_positioner positioner;
 
 	struct wl_list grab_link; // wlr_xdg_popup_grab::popups
 };
@@ -186,7 +202,8 @@ struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
 		struct wl_resource *resource);
 
-struct wlr_box wlr_xdg_popup_get_geometry(struct wlr_xdg_popup *popup);
+struct wlr_box wlr_xdg_positioner_get_geometry(
+		struct wlr_xdg_positioner *positioner);
 
 /**
  * Send a ping to the surface. If the surface does not respond in a reasonable
