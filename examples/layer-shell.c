@@ -175,8 +175,7 @@ static void create_popup() {
 	xdg_positioner_set_size(xdg_positioner, 256, 256);
 	xdg_positioner_set_offset(xdg_positioner, 0, 0);
 	xdg_positioner_set_anchor_rect(xdg_positioner, cur_x, cur_y, 1, 1);
-	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_TOP_LEFT);
-	xdg_positioner_set_gravity(xdg_positioner, XDG_POSITIONER_GRAVITY_TOP_LEFT);
+	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT);
 
 	popup = xdg_surface_get_popup(xdg_surface, NULL, xdg_positioner);
 	assert(popup);

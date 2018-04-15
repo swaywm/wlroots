@@ -465,6 +465,33 @@ static void layer_surface_iterator(struct wlr_surface *surface,
 		iter_data->user_data);
 }
 
+static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct layer_surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x, .y = y,
+	};
+	wlr_surface_for_each_surface(
+			surface->surface, layer_surface_iterator, &data);
+
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
+
+		xdg_surface_for_each_surface(popup,
+			x + popup_sx,
+			y + popup_sy,
+			iterator, user_data);
+	}
+}
+
 static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
 		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct layer_surface_iterator_data data = {
@@ -483,13 +510,11 @@ static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
 		}
 
 		double popup_sx, popup_sy;
-		popup_sx = popup->geometry.x;
-		popup_sy = popup->geometry.y;
+		popup_sx = popup->popup->geometry.x - popup->geometry.x;
+		popup_sy = popup->popup->geometry.y - popup->geometry.y;
 
-		iterator(popup->surface, data.x + popup_sx,
-				data.y + popup_sy, user_data);
-
-		wlr_xdg_surface_for_each_surface(popup, layer_surface_iterator, &data);
+		xdg_surface_for_each_surface(popup,
+			popup_sx, popup_sy, iterator, user_data);
 	}
 }
 
