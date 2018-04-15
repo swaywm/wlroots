@@ -114,9 +114,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		wl_list_length(&x11->outputs) + 1);
 	parse_xcb_setup(wlr_output, x11->xcb_conn);
 
-	uint32_t mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-	uint32_t values[2] = {
-		x11->screen->white_pixel,
+	uint32_t mask = XCB_CW_EVENT_MASK;
+	uint32_t values[] = {
 		XCB_EVENT_MASK_EXPOSURE |
 		XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
 		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
