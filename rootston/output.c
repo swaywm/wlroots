@@ -366,6 +366,8 @@ static void render_layer(struct roots_output *output,
 			roots_surface->geo.x + output_layout_box->x,
 			roots_surface->geo.y + output_layout_box->y,
 			0, &data->layout, render_surface, data);
+
+		wlr_layer_surface_for_each_surface(layer, render_surface, data);
 	}
 }
 

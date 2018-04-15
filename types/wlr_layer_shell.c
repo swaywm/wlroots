@@ -452,3 +452,49 @@ void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell) {
 	wl_global_destroy(layer_shell->wl_global);
 	free(layer_shell);
 }
+
+struct layer_surface_iterator_data {
+	wlr_surface_iterator_func_t user_iterator;
+	void *user_data;
+	int x, y;
+};
+
+static void layer_surface_iterator(struct wlr_surface *surface,
+		int sx, int sy, void *data) {
+	struct layer_surface_iterator_data *iter_data = data;
+	iter_data->user_iterator(surface, iter_data->x + sx, iter_data->y + sy,
+		iter_data->user_data);
+}
+
+static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct layer_surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x, .y = y,
+	};
+	wlr_surface_for_each_surface(surface->surface,
+			layer_surface_iterator, &data);
+
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		popup_sx = popup->geometry.x;
+		popup_sy = popup->geometry.y;
+
+		iterator(popup->surface, data.x + popup_sx,
+				data.y + popup_sy, user_data);
+
+		wlr_xdg_surface_for_each_surface(popup, layer_surface_iterator, &data);
+	}
+}
+
+void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
+}
