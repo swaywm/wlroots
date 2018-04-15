@@ -145,7 +145,8 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 
 static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
-	// Meh.
+	wlr_log(L_DEBUG, "Popup configured %dx%d@%d,%d",
+			width, height, x, y);
 }
 
 static void xdg_popup_done(void *data, struct xdg_popup *xdg_popup) {
@@ -176,8 +177,6 @@ static void create_popup() {
 	xdg_positioner_set_anchor_rect(xdg_positioner, cur_x, cur_y, 1, 1);
 	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_TOP_LEFT);
 	xdg_positioner_set_gravity(xdg_positioner, XDG_POSITIONER_GRAVITY_TOP_LEFT);
-	xdg_positioner_set_constraint_adjustment(xdg_positioner,
-			XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_NONE);
 
 	popup = xdg_surface_get_popup(xdg_surface, NULL, xdg_positioner);
 	assert(popup);
