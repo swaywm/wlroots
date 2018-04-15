@@ -74,8 +74,8 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
 		struct wlr_x11_output *output =
 			x11_output_from_window_id(x11, ev->window);
-		if (output != NULL && !output->wlr_output.frame_pending) {
-			wlr_output_send_frame(&output->wlr_output);
+		if (output != NULL) {
+			wlr_output_update_needs_swap(&output->wlr_output);
 		}
 		break;
 	}
