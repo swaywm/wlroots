@@ -65,10 +65,10 @@ void x11_output_layout_get_box(struct wlr_x11_backend *backend,
 	box->height = max_y - min_y;
 }
 
-static bool handle_x11_event(struct wlr_x11_backend *x11,
+static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
 	if (x11_handle_input_event(x11, event)) {
-		return false;
+		return;
 	}
 
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
@@ -103,8 +103,6 @@ static bool handle_x11_event(struct wlr_x11_backend *x11,
 		break;
 	}
 	}
-
-	return false;
 }
 
 static int x11_event(int fd, uint32_t mask, void *data) {
@@ -117,11 +115,8 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 
 	xcb_generic_event_t *e;
 	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
-		bool quit = handle_x11_event(x11, e);
+		handle_x11_event(x11, e);
 		free(e);
-		if (quit) {
-			break;
-		}
 	}
 
 	return 0;
