@@ -67,9 +67,7 @@ void x11_output_layout_get_box(struct wlr_x11_backend *backend,
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
-	if (x11_handle_input_event(x11, event)) {
-		return;
-	}
+	x11_handle_input_event(x11, event);
 
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
