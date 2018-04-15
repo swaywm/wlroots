@@ -165,14 +165,19 @@ static void create_popup() {
 	}
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	assert(xdg_wm_base && surface);
-	struct xdg_surface *xdg_surface = xdg_wm_base_get_xdg_surface(
-			xdg_wm_base, surface);
-	struct xdg_positioner *xdg_positioner = xdg_wm_base_create_positioner(
-			xdg_wm_base);
+	struct xdg_surface *xdg_surface =
+		xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
+	struct xdg_positioner *xdg_positioner =
+		xdg_wm_base_create_positioner(xdg_wm_base);
 	assert(xdg_surface && xdg_positioner);
 
 	xdg_positioner_set_size(xdg_positioner, 256, 256);
-	xdg_positioner_set_anchor_rect(xdg_positioner, 0, 0, width, height);
+	xdg_positioner_set_offset(xdg_positioner, 0, 0);
+	xdg_positioner_set_anchor_rect(xdg_positioner, cur_x, cur_y, 1, 1);
+	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_TOP_LEFT);
+	xdg_positioner_set_gravity(xdg_positioner, XDG_POSITIONER_GRAVITY_TOP_LEFT);
+	xdg_positioner_set_constraint_adjustment(xdg_positioner,
+			XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_NONE);
 
 	popup = xdg_surface_get_popup(xdg_surface, NULL, xdg_positioner);
 	assert(popup);
@@ -184,6 +189,8 @@ static void create_popup() {
 
 	wl_surface_commit(surface);
 	wl_display_roundtrip(display);
+
+	xdg_positioner_destroy(xdg_positioner);
 
 	struct wl_egl_window *egl_window;
 	struct wlr_egl_surface *egl_surface;

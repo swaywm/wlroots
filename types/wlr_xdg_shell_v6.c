@@ -486,8 +486,6 @@ struct wlr_box wlr_xdg_positioner_v6_get_geometry(
 		return geometry;
 	}
 
-	// TODO: add compositor policy configuration and the code here
-
 	return geometry;
 }
 
