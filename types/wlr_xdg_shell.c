@@ -605,6 +605,8 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 	// positioner properties
 	memcpy(&surface->popup->positioner, &positioner->attrs,
 		sizeof(struct wlr_xdg_positioner));
+	surface->popup->geometry =
+		wlr_xdg_positioner_get_geometry(&positioner->attrs);
 
 	wl_resource_set_implementation(surface->popup->resource,
 		&xdg_popup_implementation, surface,
@@ -612,8 +614,6 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 
 	if (parent) {
 		surface->popup->parent = parent->surface;
-		surface->popup->geometry =
-			wlr_xdg_positioner_get_geometry(&positioner->attrs);
 		wl_list_insert(&parent->popups, &surface->popup->link);
 		wlr_signal_emit_safe(&parent->events.new_popup, surface->popup);
 	}
