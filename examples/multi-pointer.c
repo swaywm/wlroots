@@ -22,7 +22,6 @@
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <xkbcommon/xkbcommon.h>
-#include "support/cat.h"
 #include "support/config.h"
 #include "support/shared.h"
 

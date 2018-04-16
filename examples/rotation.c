@@ -19,7 +19,7 @@
 #include <xkbcommon/xkbcommon.h>
 #include "support/shared.h"
 #include "support/config.h"
-#include "support/cat.h"
+#include "cat.h"
 
 struct sample_state {
 	struct example_config *config;

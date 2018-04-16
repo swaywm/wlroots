@@ -17,7 +17,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
-#include "support/cat.h"
+#include "cat.h"
 #include "support/shared.h"
 
 struct sample_state {

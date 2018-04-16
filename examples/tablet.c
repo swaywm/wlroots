@@ -19,7 +19,6 @@
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
-#include "support/cat.h"
 #include "support/shared.h"
 
 struct sample_state {
