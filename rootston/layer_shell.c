@@ -270,8 +270,10 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&layer->map.link);
 	wl_list_remove(&layer->unmap.link);
 	wl_list_remove(&layer->surface_commit.link);
-	wl_list_remove(&layer->output_destroy.link);
-	arrange_layers((struct roots_output *)layer->layer_surface->output->data);
+	if (layer->layer_surface->output) {
+		wl_list_remove(&layer->output_destroy.link);
+		arrange_layers((struct roots_output *)layer->layer_surface->output->data);
+	}
 	free(layer);
 }
 
