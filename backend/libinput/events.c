@@ -186,6 +186,9 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	}
 	struct wlr_input_device *dev, *tmp_dev;
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
+		if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
+			wlr_libinput_tablet_tool_destroy(dev);
+		}
 		wlr_input_device_destroy(dev);
 	}
 	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
