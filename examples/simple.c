@@ -38,6 +38,7 @@ struct sample_keyboard {
 
 
 void output_frame_notify(struct wl_listener *listener, void *data) {
+	wlr_log(L_DEBUG, "Output removed");
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
 	struct sample_state *sample = sample_output->sample;
 	struct timespec now;
@@ -76,6 +77,10 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
+	if (wl_list_length(&output->modes) > 0) {
+		struct wlr_output_mode *mode = wl_container_of((&output->modes)->prev, mode, link);
+		wlr_output_set_mode(output, mode);
+	}
 	sample_output->output = output;
 	sample_output->sample = sample;
 	wl_signal_add(&output->events.frame, &sample_output->frame);
