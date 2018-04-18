@@ -496,11 +496,15 @@ static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	wlr_output_update_mode(&conn->output, mode);
 
+	// When switching VTs, the mode is not updated but the buffers become
+	// invalid, so we need to manually damage the output here
+	wlr_output_damage_whole(&conn->output);
+
 	// Since realloc_crtcs can deallocate planes on OTHER outputs,
-	// we actually need to reinitialize any than has changed
+	// we actually need to reinitialize any that has changed
 	ssize_t output_index = -1;
 	wl_list_for_each(conn, &drm->outputs, link) {
-		output_index += 1;
+		output_index++;
 		struct wlr_output_mode *mode = conn->output.current_mode;
 		struct wlr_drm_crtc *crtc = conn->crtc;
 
