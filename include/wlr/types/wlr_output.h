@@ -14,6 +14,16 @@ struct wlr_output_mode {
 	struct wl_list link;
 };
 
+/* From weston */
+/* bit compatible with drm definitions. */
+enum dpms_enum {
+    WLR_DPMS_ON,
+    WLR_DPMS_STANDBY,
+    WLR_DPMS_SUSPEND,
+    WLR_DPMS_OFF
+};
+
+
 struct wlr_output_cursor {
 	struct wlr_output *output;
 	double x, y;
@@ -117,6 +127,9 @@ void wlr_output_destroy_global(struct wlr_output *output);
  */
 bool wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
+
+void wlr_output_set_dpms(struct wlr_output *output, enum dpms_enum level);
+
 /**
  * Sets a custom mode on the output. If modes are available, they are preferred.
  * Setting `refresh` to zero lets the backend pick a preferred value.
