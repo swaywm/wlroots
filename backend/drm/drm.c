@@ -461,6 +461,17 @@ error_conn:
 	return 0;
 }
 
+static void wlr_drm_connector_set_dpms(struct wlr_output *output, enum dpms_enum level) {
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+
+    if (drmModeObjectSetProperty (drm->fd, conn->id,
+                DRM_MODE_OBJECT_CONNECTOR,
+                conn->props.dpms, level) < 0)
+        wlr_log(L_ERROR, "Failed to set dpms state for %s", conn->output.name);
+
+}
+
 static bool wlr_drm_connector_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
@@ -710,6 +721,7 @@ static void wlr_drm_connector_destroy(struct wlr_output *output) {
 static struct wlr_output_impl output_impl = {
 	.enable = wlr_drm_connector_enable,
 	.set_mode = wlr_drm_connector_set_mode,
+	.set_dpms = wlr_drm_connector_set_dpms,
 	.transform = wlr_drm_connector_transform,
 	.set_cursor = wlr_drm_connector_set_cursor,
 	.move_cursor = wlr_drm_connector_move_cursor,

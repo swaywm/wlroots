@@ -161,6 +161,15 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	return output->impl->set_mode(output, mode);
 }
 
+void wlr_output_set_dpms(struct wlr_output *output,
+		enum dpms_enum level) {
+	if (!output->impl || !output->impl->set_dpms) {
+		return;
+	}
+	return output->impl->set_dpms(output, level);
+}
+
+
 bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
 	if (!output->impl || !output->impl->set_custom_mode) {
