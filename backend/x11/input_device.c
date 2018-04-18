@@ -56,7 +56,7 @@ static void x11_handle_pointer_position(struct wlr_x11_output *output,
 	x11->time = time;
 }
 
-bool x11_handle_input_event(struct wlr_x11_backend *x11,
+void x11_handle_input_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_KEY_PRESS:
@@ -73,7 +73,7 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 		// TODO use xcb-xkb for more precise modifiers state?
 		wlr_keyboard_notify_key(&x11->keyboard, &key);
 		x11->time = ev->time;
-		return true;
+		return;
 	}
 	case XCB_BUTTON_PRESS: {
 		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
@@ -110,19 +110,17 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 			wlr_signal_emit_safe(&x11->pointer.events.button, &button);
 		}
 		x11->time = ev->time;
-		return true;
+		return;
 	}
 	case XCB_MOTION_NOTIFY: {
 		xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
 
 		struct wlr_x11_output *output =
 			x11_output_from_window_id(x11, ev->event);
-		if (output == NULL) {
-			return false;
+		if (output != NULL) {
+			x11_handle_pointer_position(output, ev->event_x, ev->event_y, ev->time);
 		}
-
-		x11_handle_pointer_position(output, ev->event_x, ev->event_y, ev->time);
-		return true;
+		return;
 	}
 	default:
 #ifdef WLR_HAS_XCB_XKB
@@ -131,13 +129,11 @@ bool x11_handle_input_event(struct wlr_x11_backend *x11,
 				(xcb_xkb_state_notify_event_t *)event;
 			wlr_keyboard_notify_modifiers(&x11->keyboard, ev->baseMods,
 				ev->latchedMods, ev->lockedMods, ev->lockedGroup);
-			return true;
+			return;
 		}
 #endif
 		break;
 	}
-
-	return false;
 }
 
 const struct wlr_input_device_impl input_device_impl = { 0 };

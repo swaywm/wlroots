@@ -187,6 +187,11 @@ void wlr_output_update_mode(struct wlr_output *output,
 
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
+	if (output->width == width && output->height == height &&
+			output->refresh == refresh) {
+		return;
+	}
+
 	output->width = width;
 	output->height = height;
 	wlr_output_update_matrix(output);
@@ -348,9 +353,8 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 	wlr_output_transformed_resolution(output, &ow, &oh);
 
 	// Scissor is in renderer coordinates, ie. upside down
-	enum wl_output_transform transform = wlr_output_transform_compose(
-		wlr_output_transform_invert(output->transform),
-		WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
 	wlr_box_transform(&box, transform, ow, oh, &box);
 
 	wlr_renderer_scissor(renderer, &box);
@@ -573,7 +577,7 @@ void wlr_output_update_needs_swap(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.needs_swap, output);
 }
 
-static void output_damage_whole(struct wlr_output *output) {
+void wlr_output_damage_whole(struct wlr_output *output) {
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 
@@ -587,7 +591,7 @@ static void output_fullscreen_surface_reset(struct wlr_output *output) {
 		wl_list_remove(&output->fullscreen_surface_commit.link);
 		wl_list_remove(&output->fullscreen_surface_destroy.link);
 		output->fullscreen_surface = NULL;
-		output_damage_whole(output);
+		wlr_output_damage_whole(output);
 	}
 }
 
@@ -601,7 +605,7 @@ static void output_fullscreen_surface_handle_commit(
 			output->fullscreen_height != surface->current->height) {
 		output->fullscreen_width = surface->current->width;
 		output->fullscreen_height = surface->current->height;
-		output_damage_whole(output);
+		wlr_output_damage_whole(output);
 		return;
 	}
 
@@ -637,7 +641,7 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	output_fullscreen_surface_reset(output);
 
 	output->fullscreen_surface = surface;
-	output_damage_whole(output);
+	wlr_output_damage_whole(output);
 
 	if (surface == NULL) {
 		return;
