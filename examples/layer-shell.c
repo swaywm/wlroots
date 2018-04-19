@@ -39,7 +39,6 @@ struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
 
 static uint32_t output = UINT32_MAX;
-struct xdg_surface *popup_surface;
 struct xdg_popup *popup;
 
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
