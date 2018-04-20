@@ -40,6 +40,12 @@ struct wl_callback *frame_callback;
 
 static uint32_t output = UINT32_MAX;
 struct xdg_popup *popup;
+struct wl_surface *popup_wl_surface;
+struct wl_egl_window *popup_egl_window;
+static uint32_t popup_width = 256, popup_height = 256;
+struct wlr_egl_surface *popup_egl_surface;
+struct wl_callback *popup_frame_callback;
+float popup_alpha = 1.0;
 
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
@@ -64,6 +70,7 @@ static struct {
 } demo;
 
 static void draw(void);
+static void draw_popup(void);
 
 static void surface_frame_callback(
 		void *data, struct wl_callback *cb, uint32_t time) {
@@ -76,9 +83,19 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
+static void popup_surface_frame_callback(
+		void *data, struct wl_callback *cb, uint32_t time) {
+	wl_callback_destroy(cb);
+	popup_frame_callback = NULL;
+	draw_popup();
+}
+
+static struct wl_callback_listener popup_frame_listener = {
+	.done = popup_surface_frame_callback
+};
+
 static void draw(void) {
 	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
-
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -132,10 +149,28 @@ static void draw(void) {
 	demo.last_frame = ts;
 }
 
+static void draw_popup() {
+	static float alpha_mod = -0.01;
+
+	eglMakeCurrent(egl.display, popup_egl_surface, popup_egl_surface, egl.context);
+	glViewport(0, 0, popup_width, popup_height);
+	glClearColor(0.5f, 0.5f, 0.5f, popup_alpha);
+	popup_alpha += alpha_mod;
+	if (popup_alpha < 0.01 || popup_alpha >= 1.0f) {
+		alpha_mod *= -1.0;
+	}
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	popup_frame_callback = wl_surface_frame(popup_wl_surface);
+	assert(popup_frame_callback);
+	wl_callback_add_listener(popup_frame_callback, &popup_frame_listener, NULL);
+	eglSwapBuffers(egl.display, popup_egl_surface);
+	wl_surface_commit(popup_wl_surface);
+}
+
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
 	xdg_surface_ack_configure(xdg_surface, serial);
-	// Whatever
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
@@ -146,10 +181,17 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
 	wlr_log(L_DEBUG, "Popup configured %dx%d@%d,%d",
 			width, height, x, y);
+	popup_width = width;
+	popup_height = height;
+	if (popup_egl_window) {
+		wl_egl_window_resize(popup_egl_window, width, height, 0, 0);
+	}
 }
 
 static void xdg_popup_done(void *data, struct xdg_popup *xdg_popup) {
-	// We leak the surface, but who cares
+	eglDestroySurface(egl.display, popup_egl_surface);
+	wl_egl_window_destroy(popup_egl_window);
+	wl_surface_destroy(popup_wl_surface);
 	xdg_popup_destroy(popup);
 	popup = NULL;
 }
@@ -171,7 +213,7 @@ static void create_popup() {
 		xdg_wm_base_create_positioner(xdg_wm_base);
 	assert(xdg_surface && xdg_positioner);
 
-	xdg_positioner_set_size(xdg_positioner, 256, 256);
+	xdg_positioner_set_size(xdg_positioner, popup_width, popup_height);
 	xdg_positioner_set_offset(xdg_positioner, 0, 0);
 	xdg_positioner_set_anchor_rect(xdg_positioner, cur_x, cur_y, 1, 1);
 	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT);
@@ -189,17 +231,12 @@ static void create_popup() {
 
 	xdg_positioner_destroy(xdg_positioner);
 
-	struct wl_egl_window *egl_window;
-	struct wlr_egl_surface *egl_surface;
-	egl_window = wl_egl_window_create(surface, 256, 256);
-	assert(egl_window);
-	egl_surface = wlr_egl_create_surface(&egl, egl_window);
-	assert(egl_surface);
-
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	eglSwapBuffers(egl.display, egl_surface);
+	popup_wl_surface = surface;
+	popup_egl_window = wl_egl_window_create(surface, popup_width, popup_height);
+	assert(popup_egl_window);
+	popup_egl_surface = wlr_egl_create_surface(&egl, popup_egl_window);
+	assert(popup_egl_surface);
+	draw_popup();
 }
 
 static void layer_surface_configure(void *data,
@@ -252,12 +289,15 @@ static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
 static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-		buttons++;
 		if (button == BTN_RIGHT) {
 			create_popup();
+		} else {
+			buttons++;
 		}
 	} else {
-		buttons--;
+		if (button != BTN_RIGHT) {
+			buttons--;
+		}
 	}
 }
 
