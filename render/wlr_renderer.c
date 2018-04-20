@@ -4,6 +4,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/util/log.h>
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -150,4 +151,23 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 		enum wl_shm_format fmt) {
 	return r->impl->format_supported(r, fmt);
+}
+
+void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
+		struct wl_display *display) {
+	if (wl_display_init_shm(display)) {
+		wlr_log(L_ERROR, "Failed to initialize shm");
+		return;
+	}
+
+	size_t len;
+	const enum wl_shm_format *formats = wlr_renderer_get_formats(r, &len);
+	if (formats == NULL) {
+		wlr_log(L_ERROR, "Failed to initialize shm: cannot get formats");
+		return;
+	}
+
+	for (size_t i = 0; i < len; ++i) {
+		wl_display_add_shm_format(display, formats[i]);
+	}
 }
