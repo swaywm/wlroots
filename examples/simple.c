@@ -103,7 +103,6 @@ void keyboard_key_notify(struct wl_listener *listener, void *data) {
 				wl_display_terminate(sample->display);
 			}
 	}
-	// TODO keyboard input
 }
 
 void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
