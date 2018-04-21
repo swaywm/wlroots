@@ -168,6 +168,9 @@ void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
 	}
 
 	for (size_t i = 0; i < len; ++i) {
-		wl_display_add_shm_format(display, formats[i]);
+		if (formats[i] != WL_SHM_FORMAT_ARGB8888 &&
+				formats[i] != WL_SHM_FORMAT_XRGB8888) {
+			wl_display_add_shm_format(display, formats[i]);
+		}
 	}
 }
