@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 	assert(server.renderer);
 	server.data_device_manager =
 		wlr_data_device_manager_create(server.wl_display);
-	wl_display_init_shm(server.wl_display);
+	wlr_renderer_init_wl_shm(server.renderer, server.wl_display);
 	server.desktop = desktop_create(&server, server.config);
 	server.input = input_create(&server, server.config);
 
