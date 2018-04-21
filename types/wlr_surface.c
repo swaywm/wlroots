@@ -603,7 +603,7 @@ static void wlr_surface_state_destroy(struct wlr_surface_state *state) {
 	free(state);
 }
 
-void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
+static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wl_list_remove(&subsurface->surface_destroy.link);
@@ -696,11 +696,11 @@ static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
 
 	if (subsurface) {
-		wlr_subsurface_destroy(subsurface);
+		subsurface_destroy(subsurface);
 	}
 }
 
-static void subsurface_destroy(struct wl_client *client,
+static void subsurface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
@@ -802,7 +802,7 @@ static void subsurface_set_desync(struct wl_client *client,
 }
 
 static const struct wl_subsurface_interface subsurface_implementation = {
-	.destroy = subsurface_destroy,
+	.destroy = subsurface_handle_destroy,
 	.set_position = subsurface_set_position,
 	.place_above = subsurface_place_above,
 	.place_below = subsurface_place_below,
@@ -824,7 +824,7 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, surface_destroy);
-	wlr_subsurface_destroy(subsurface);
+	subsurface_destroy(subsurface);
 }
 
 void wlr_surface_make_subsurface(struct wlr_surface *surface,

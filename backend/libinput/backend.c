@@ -32,7 +32,7 @@ static int wlr_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	}
 	struct libinput_event *event;
 	while ((event = libinput_get_event(backend->libinput_context))) {
-		wlr_libinput_event(backend, event);
+		libinput_handle_event(backend, event);
 		libinput_event_destroy(event);
 	}
 	return 0;

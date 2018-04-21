@@ -84,7 +84,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 
 	if (!update_pixels) {
 		// Update hotspot without changing cursor image
-		wlr_wl_output_update_cursor(output);
+		wl_output_update_cursor(output);
 		return true;
 	}
 	if (!buf) {
@@ -95,7 +95,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 			output->cursor.surface = NULL;
 			output->cursor.buf_size = 0;
 		}
-		wlr_wl_output_update_cursor(output);
+		wl_output_update_cursor(output);
 		return true;
 	}
 
@@ -153,7 +153,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 	wl_surface_damage(output->cursor.surface, 0, 0, width, height);
 	wl_surface_commit(output->cursor.surface);
 
-	wlr_wl_output_update_cursor(output);
+	wl_output_update_cursor(output);
 	return true;
 }
 
@@ -192,7 +192,7 @@ static void wlr_wl_output_destroy(struct wlr_output *wlr_output) {
 	free(output);
 }
 
-void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output) {
+void wl_output_update_cursor(struct wlr_wl_backend_output *output) {
 	if (output->backend->pointer && output->enter_serial) {
 		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
 			output->cursor.surface, output->cursor.hotspot_x,
@@ -200,7 +200,7 @@ void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output) {
 	}
 }
 
-bool wlr_wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
+bool wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
 	// TODO: only return true if x == current x and y == current y
 	return true;
 }
@@ -212,7 +212,7 @@ static struct wlr_output_impl output_impl = {
 	.make_current = wlr_wl_output_make_current,
 	.swap_buffers = wlr_wl_output_swap_buffers,
 	.set_cursor = wlr_wl_output_set_cursor,
-	.move_cursor = wlr_wl_output_move_cursor,
+	.move_cursor = wl_output_move_cursor,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {
