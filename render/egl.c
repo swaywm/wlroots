@@ -241,7 +241,7 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 	return surf;
 }
 
-int wlr_egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
+static int egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
 	if (!egl->egl_exts.buffer_age) {
 		return -1;
 	}
@@ -265,7 +265,7 @@ bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	}
 
 	if (buffer_age != NULL) {
-		*buffer_age = wlr_egl_get_buffer_age(egl, surface);
+		*buffer_age = egl_get_buffer_age(egl, surface);
 	}
 	return true;
 }

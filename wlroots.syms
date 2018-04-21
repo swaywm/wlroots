@@ -4,9 +4,6 @@ WLROOTS_0_0_0 {
         _wlr_log;
         _wlr_vlog;
     local:
-        wlr_data_device_keyboard_drag_interface;
-        wlr_data_device_pointer_drag_interface;
-        wlr_data_device_touch_drag_interface;
         wlr_drm_backend_get_session;
         wlr_drm_check_features;
         wlr_drm_connector_cleanup;
@@ -31,7 +28,6 @@ WLROOTS_0_0_0 {
         wlr_drm_surface_mgpu_copy;
         wlr_drm_surface_post;
         wlr_drm_surface_swap_buffers;
-        wlr_egl_get_buffer_age;
         wlr_libinput_event;
         wlr_libinput_keyboard_create;
         wlr_libinput_pointer_create;
