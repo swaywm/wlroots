@@ -6,13 +6,18 @@
 
 struct wlr_surface;
 
-// TODO: expose subcompositor
+struct wlr_subcompositor {
+	struct wl_global *wl_global;
+	struct wl_list wl_resources;
+};
 
 struct wlr_compositor {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
 	struct wlr_renderer *renderer;
 	struct wl_list surfaces;
+
+	struct wlr_subcompositor subcompositor;
 
 	struct wl_listener display_destroy;
 
