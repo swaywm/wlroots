@@ -93,7 +93,7 @@ not use GNU extensions.
 
 ### Brackets
 
-Brackets always go on the same line, including in functions.  
+Brackets always go on the same line, including in functions.
 Always include brackets for if/while/for, even if it's a single statement.
 ```c
 void function() {
@@ -114,7 +114,7 @@ void function() {
 Indentations are a single tab.
 
 For long lines that need to be broken, the continuation line should be indented
-with an additional tab.  
+with an additional tab.
 If the line being broken is opening a new block (functions, if, while, etc.),
 the continuation line should be indented with two tabs, so they can't be
 misread as being part of the block.
@@ -139,9 +139,10 @@ breaking points so your code is easy to read.
 
 ### Names
 
-Function and type names should be prefixed with `wlr_submodule_` (e.g. `struct
-wlr_drm_plane`, `wlr_output_set_cursor`).  For static functions and types local
-to a file, the names chosen aren't as important.
+Global function and type names should be prefixed with `wlr_submodule_` (e.g.
+`struct wlr_output`, `wlr_output_set_cursor`).  For static functions and
+types local to a file, the names chosen aren't as important.  Local function
+names shouldn't have a `wlr_` prefix.
 
 For include guards, use the header's filename relative to include.  Uppercase
 all of the characters, and replace any invalid characters with an underscore.
