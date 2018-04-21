@@ -130,7 +130,7 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	if (surface->subsurface) {
+	if (wlr_surface_is_subsurface(surface)) {
 		wl_resource_post_error(resource,
 			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
 			"%s%d: wl_surface@%d is already a sub-surface",
@@ -152,12 +152,6 @@ static void subcompositor_get_subsurface(struct wl_client *client,
 	}
 
 	wlr_surface_make_subsurface(surface, parent, id);
-	if (!surface->subsurface) {
-		wl_resource_post_no_memory(resource);
-		return;
-	}
-
-	surface->role_data = surface->subsurface;
 }
 
 

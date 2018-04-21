@@ -318,7 +318,7 @@ static void render_view(struct roots_view *view, struct render_data *data) {
 }
 
 static bool has_standalone_surface(struct roots_view *view) {
-	if (!wl_list_empty(&view->wlr_surface->subsurface_list)) {
+	if (!wl_list_empty(&view->wlr_surface->subsurfaces)) {
 		return false;
 	}
 

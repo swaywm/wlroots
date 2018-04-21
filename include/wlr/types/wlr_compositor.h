@@ -6,6 +6,8 @@
 
 struct wlr_surface;
 
+// TODO: expose subcompositor
+
 struct wlr_compositor {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
