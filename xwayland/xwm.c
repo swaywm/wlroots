@@ -80,7 +80,8 @@ const char *atom_map[ATOM_LAST] = {
 const char *wlr_xwayland_surface_role = "wlr_xwayland_surface";
 
 bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface) {
-	return strcmp(surface->role, wlr_xwayland_surface_role) == 0;
+	return surface->role != NULL &&
+		strcmp(surface->role, wlr_xwayland_surface_role) == 0;
 }
 
 struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(

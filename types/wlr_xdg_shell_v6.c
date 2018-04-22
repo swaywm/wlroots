@@ -17,8 +17,9 @@ static const char *wlr_desktop_xdg_toplevel_role = "xdg_toplevel_v6";
 static const char *wlr_desktop_xdg_popup_role = "xdg_popup_v6";
 
 bool wlr_surface_is_xdg_surface_v6(struct wlr_surface *surface) {
-	return strcmp(surface->role, wlr_desktop_xdg_toplevel_role) == 0 ||
-		strcmp(surface->role, wlr_desktop_xdg_popup_role) == 0;
+	return surface->role != NULL &&
+		(strcmp(surface->role, wlr_desktop_xdg_toplevel_role) == 0 ||
+		strcmp(surface->role, wlr_desktop_xdg_popup_role) == 0);
 }
 
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_from_wlr_surface(

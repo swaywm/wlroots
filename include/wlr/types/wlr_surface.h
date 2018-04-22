@@ -56,7 +56,8 @@ struct wlr_subsurface {
 	struct wl_list parent_link;
 	struct wl_list parent_pending_link;
 
-	struct wl_listener parent_destroy_listener;
+	struct wl_listener surface_destroy;
+	struct wl_listener parent_destroy;
 
 	struct {
 		struct wl_signal destroy;
@@ -87,9 +88,7 @@ struct wlr_surface {
 	void (*role_committed)(struct wlr_surface *surface, void *role_data);
 	void *role_data;
 
-	// subsurface properties
-	struct wlr_subsurface *subsurface;
-	struct wl_list subsurface_list; // wlr_subsurface::parent_link
+	struct wl_list subsurfaces; // wlr_subsurface::parent_link
 
 	// wlr_subsurface::parent_pending_link
 	struct wl_list subsurface_pending_list;
