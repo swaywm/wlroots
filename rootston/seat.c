@@ -999,3 +999,14 @@ void roots_seat_end_compositor_grab(struct roots_seat *seat) {
 
 	cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 }
+
+struct roots_seat *input_last_active_seat(struct roots_input *input) {
+	struct roots_seat *seat = NULL, *_seat;
+	wl_list_for_each(_seat, &input->seats, link) {
+		if (!seat || (seat->seat->last_event.tv_sec > _seat->seat->last_event.tv_sec &&
+				seat->seat->last_event.tv_nsec > _seat->seat->last_event.tv_nsec)) {
+			seat = _seat;
+		}
+	}
+	return seat;
+}

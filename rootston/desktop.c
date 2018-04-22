@@ -326,13 +326,7 @@ bool view_center(struct roots_view *view) {
 
 	struct roots_desktop *desktop = view->desktop;
 	struct roots_input *input = desktop->server->input;
-	struct roots_seat *seat = NULL, *_seat;
-	wl_list_for_each(_seat, &input->seats, link) {
-		if (!seat || (seat->seat->last_event.tv_sec > _seat->seat->last_event.tv_sec &&
-				seat->seat->last_event.tv_nsec > _seat->seat->last_event.tv_nsec)) {
-			seat = _seat;
-		}
-	}
+	struct roots_seat *seat = input_last_active_seat(input);
 	if (!seat) {
 		return false;
 	}

@@ -312,6 +312,18 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 
+	if (!layer_surface->output) {
+		struct roots_input *input = desktop->server->input;
+		struct roots_seat *seat = input_last_active_seat(input);
+		assert(seat); // Technically speaking we should handle this case
+		struct wlr_output *output =
+			wlr_output_layout_output_at(desktop->layout,
+					seat->cursor->cursor->x,
+					seat->cursor->cursor->y);
+		assert(output); // And this one
+		layer_surface->output = output;
+	}
+
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&layer_surface->surface->events.commit,
 		&roots_surface->surface_commit);
