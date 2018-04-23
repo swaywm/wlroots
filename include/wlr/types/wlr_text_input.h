@@ -31,13 +31,16 @@ struct wlr_text_input {
 	struct wlr_surface *focused_surface;
 	struct wlr_text_input_properties pending;
 	struct wlr_text_input_properties current;
+
+	struct wl_list link;
+
 	struct wl_listener seat_destroy_listener;
 
 	struct {
-		struct wl_signal enable; // (uint32_t show_input_panel)
-		struct wl_signal commit; // (wlr_text_input*)
+		struct wl_signal enable; // (uint32_t* show_input_panel)
+		struct wl_signal commit; // (struct wlr_text_input*)
 		struct wl_signal disable; // (void*)
-		struct wl_signal destroy; // (wlr_seat* seat)
+		struct wl_signal destroy; // (struct wlr_seat* seat)
 	} events;
 };
 

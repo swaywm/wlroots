@@ -19,11 +19,13 @@ static struct wlr_text_input *text_input_from_resource(
 void wlr_text_input_send_enter(struct wlr_text_input *text_input,
 		struct wlr_surface *wlr_surface) {
 	zwp_text_input_v3_send_enter(text_input->resource, wlr_surface->resource);
+	text_input->focused_surface = wlr_surface;
 }
 
 void wlr_text_input_send_leave(struct wlr_text_input *text_input,
 		struct wlr_surface *wlr_surface) {
 	zwp_text_input_v3_send_leave(text_input->resource, wlr_surface->resource);
+	text_input->focused_surface = NULL;
 }
 
 void wlr_text_input_send_preedit_string(struct wlr_text_input *text_input,
@@ -44,13 +46,13 @@ void wlr_text_input_send_delete_surrounding_text(
 }
 
 static void wlr_text_input_destroy(struct wlr_text_input *text_input) {
-	if (!text_input) {
-		return;
-	}
 	wlr_signal_emit_safe(&text_input->events.destroy, text_input);
 	// remove from manager::text_inputs
-	wl_list_remove(wl_resource_get_link(text_input->resource));
-	wl_resource_destroy(text_input->resource);
+	wl_list_remove(&text_input->link);
+	// no need to destroy the resource if client closed, prompting the server to do it
+	if (text_input->resource) {
+		wl_resource_destroy(text_input->resource);
+	}
 	if (text_input->current.surrounding.text) {
 		free(text_input->current.surrounding.text);
 	}
@@ -60,10 +62,15 @@ static void wlr_text_input_destroy(struct wlr_text_input *text_input) {
 	free(text_input);
 }
 
+static void text_input_resource_destroy(struct wl_resource *resource) {
+	struct wlr_text_input *text_input = text_input_from_resource(resource);
+	text_input->resource = NULL;
+	wlr_text_input_destroy(text_input);
+}
+
 static void text_input_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
-	struct wlr_text_input *text_input = text_input_from_resource(resource);
-	wlr_text_input_destroy(text_input);
+	text_input_resource_destroy(resource);
 }
 
 static void text_input_enable(struct wl_client *client,
@@ -156,7 +163,7 @@ static void text_input_handle_seat_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_text_input *text_input = wl_container_of(listener, text_input,
 		seat_destroy_listener);
-	wlr_text_input_destroy(text_input);
+//	wlr_text_input_destroy(text_input); TODO: what to do when the seat goes under?
 }
 
 static void text_input_manager_get_text_input(struct wl_client *client,
@@ -184,19 +191,19 @@ static void text_input_manager_get_text_input(struct wl_client *client,
 	text_input->resource = wl_resource;
 
 	wl_resource_set_implementation(text_input->resource, &text_input_impl,
-		text_input, NULL);
+		text_input, text_input_resource_destroy);
 
 	struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
 	struct wlr_seat *wlr_seat = seat_client->seat;
 	text_input->seat = wlr_seat;
-	wl_signal_add(&wlr_seat->events.destroy,
+	wl_signal_add(&seat_client->events.destroy,
 		&text_input->seat_destroy_listener);
 	text_input->seat_destroy_listener.notify =
 		text_input_handle_seat_destroy;
 
 	struct wlr_text_input_manager *manager =
 		text_input_manager_from_resource(resource);
-	wl_list_insert(&manager->text_inputs, wl_resource_get_link(wl_resource));
+	wl_list_insert(&manager->text_inputs, &text_input->link);
 
 	wlr_signal_emit_safe(&manager->events.text_input, text_input);
 }

@@ -118,11 +118,11 @@
 
        There is a maximum length of wayland messages so text can not be
        longer than 4000 bytes.
-       
+
        Values set with this request are double-buffered. They will get applied
        on the next zwp_text_input_v3.commit request.
 
-       The initial value for text is an empty string, and the initial values for 
+       The initial value for text is an empty string, and the initial values for
        cursor and anchor are 0.
       </description>
       <arg name="text" type="string"/>
@@ -177,7 +177,7 @@
        Sets the content purpose and content hint. While the purpose is the
        basic purpose of an input field, the hint flags allow to modify some
        of the behavior.
-       
+
        Values set with this request are double-buffered. They will get applied
        on the next zwp_text_input_v3.commit request.
 
@@ -195,7 +195,7 @@
 
        Allows the compositor to put a window with word suggestions near the
        cursor.
-       
+
        Values set with this request are double-buffered. They will get applied
        on the next zwp_text_input_v3.commit request.
 
@@ -217,7 +217,7 @@
        input method. A commit request atomically applies all pending state,
        replacing the current state. After commit, the new pending state is as
        documented for each related request.
-       
+
        The current and pending state never changes unless noted otherwise.
       </description>
     </request>
