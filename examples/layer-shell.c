@@ -209,7 +209,7 @@ static const struct xdg_popup_listener xdg_popup_listener = {
 	.popup_done = xdg_popup_done,
 };
 
-static void create_popup() {
+static void create_popup(uint32_t serial) {
 	if (popup) {
 		return;
 	}
@@ -227,6 +227,8 @@ static void create_popup() {
 	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT);
 
 	popup = xdg_surface_get_popup(xdg_surface, NULL, xdg_positioner);
+	xdg_popup_grab(popup, seat, serial);
+
 	assert(popup);
 
 	zwlr_layer_surface_v1_get_popup(layer_surface, popup);
@@ -311,7 +313,7 @@ static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 				if (popup_wl_surface) {
 					popup_destroy();
 				} else {
-					create_popup();
+					create_popup(serial);
 				}
 			} else {
 				buttons++;
