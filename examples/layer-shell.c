@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <GLES2/gl2.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@ struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
 
-static uint32_t output = 0;
+static uint32_t output = UINT32_MAX;
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
 static uint32_t width = 256, height = 256;
@@ -283,11 +284,13 @@ static void handle_global(void *data, struct wl_registry *registry,
 		shm = wl_registry_bind(registry, name,
 				&wl_shm_interface, 1);
 	} else if (strcmp(interface, "wl_output") == 0) {
-		if (output == 0 && !wl_output) {
-			wl_output = wl_registry_bind(registry, name,
-					&wl_output_interface, 1);
-		} else {
-			output--;
+		if (output != UINT32_MAX) {
+			if (!wl_output) {
+				wl_output = wl_registry_bind(registry, name,
+						&wl_output_interface, 1);
+			} else {
+				output--;
+			}
 		}
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
 		seat = wl_registry_bind(registry, name,
@@ -424,10 +427,6 @@ int main(int argc, char **argv) {
 	}
 	if (layer_shell == NULL) {
 		fprintf(stderr, "layer_shell not available\n");
-		return 1;
-	}
-	if (wl_output == NULL) {
-		fprintf(stderr, "wl_output not available\n");
 		return 1;
 	}
 

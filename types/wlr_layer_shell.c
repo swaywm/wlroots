@@ -276,6 +276,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		surface->added = true;
 		wlr_signal_emit_safe(&surface->shell->events.new_surface,
 				surface);
+		assert(surface->output);
 	}
 	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
 			!surface->mapped) {
@@ -319,7 +320,9 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 
 	surface->shell = shell;
 	surface->surface = wlr_surface;
-	surface->output = wlr_output_from_resource(output_resource);
+	if (output_resource) {
+		surface->output = wlr_output_from_resource(output_resource);
+	}
 	surface->resource = wl_resource_create(wl_client,
 		&zwlr_layer_surface_v1_interface,
 		wl_resource_get_version(client_resource),
