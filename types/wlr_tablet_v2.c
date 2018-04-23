@@ -15,8 +15,6 @@
 
 struct wlr_tablet_manager_v2 {
 	struct wl_global *wl_global;
-	struct wl_list tablets; // wlr_tablet_v2::link
-	struct wl_list pads; // wlr_tablet_pad_v2::link
 	struct wl_list clients; // wlr_tablet_manager_client_v2::link
 
 	struct wl_listener display_destroy;
@@ -36,69 +34,44 @@ struct wlr_tablet_manager_client_v2 {
 
 struct wlr_tablet_seat_v2 {
 	struct wl_list link;
+	struct wl_client *wl_client;
 	struct wl_resource *resource;
 
 	struct wlr_tablet_manager_client_v2 *client;
 	struct wlr_seat_client *seat;
 
 	struct wl_listener seat_destroy;
+	struct wl_listener client_destroy;
 
 	struct wl_list tools;
 	struct wl_list tablets;
 	struct wl_list pads; //wlr_tablet_pad_client_v2::link
 };
 
-struct wlr_tablet_v2 {
+struct wlr_tablet_client_v2 {
 	struct wl_list link;
-	struct wl_list resources;
+	struct wl_client *client;
+	struct wl_resource *resource;
 
-	char *name;
-	struct wl_list paths; // wlr_tablet_path::link
-	// USB vendor/product id
-	unsigned int vid;
-	unsigned int pid;
-};
-
-struct wlr_tablet_pad_v2 {
-	struct wl_list link;
-	struct wl_list resources;
-
-	struct wlr_tablet_v2 *tablet;
-
-	struct wl_list groups; // wlr_tablet_pad_group::link
-	struct wl_list paths; // wlr_tablet_path::link
-	size_t button_count;
-	size_t ring_count;
-	size_t strip_count;
-};
-
-struct wlr_tablet_tool_v2 {
-	struct wl_list link;
-
-	enum zwp_tablet_tool_v2_type type;
-	uint64_t hardware_serial;
-	uint64_t hardware_wacom;
-
-	// Capabilities
-	bool tilt;
-	bool pressure;
-	bool distance;
-	bool rotation;
-	bool slider;
-	bool wheel;
+	struct wl_listener device_destroy;
+	struct wl_listener client_destroy;
 };
 
 struct wlr_tablet_tool_client_v2 {
 	struct wl_list link;
+	struct wl_client *client;
 	struct wl_resource *resource;
 
 	struct wlr_surface *cursor;
 	struct wl_listener cursor_destroy;
+
+	struct wl_listener tool_destroy;
+	struct wl_listener client_destroy;
 };
 
 struct wlr_tablet_pad_client_v2 {
 	struct wl_list link;
-	struct wlr_tablet_pad_v2 *pad;
+	struct wl_client *client;
 	struct wl_resource *resource;
 
 	size_t button_count;
@@ -108,154 +81,10 @@ struct wlr_tablet_pad_client_v2 {
 
 	size_t strip_cout;
 	struct wl_resource **strips;
+
+	struct wl_listener device_destroy;
+	struct wl_listener client_destroy;
 };
-
-struct wlr_tablet_pad_group_v2 {
-	struct wl_list link;
-	struct wl_list resources;
-
-	struct wlr_tablet_pad_v2 *pad;
-
-	size_t button_count;
-	unsigned int *buttons;
-	size_t strip_count;
-	unsigned int *strips;
-	size_t ring_count;
-	unsigned int *rings;
-
-	unsigned int mode_count;
-};
-
-struct wlr_tablet_path {
-	struct wl_list link;
-	char *path;
-};
-
-void add_tablet_path(struct wl_list *list, const char *path) {
-	struct wlr_tablet_path *tablet_path = calloc(1, sizeof(struct wlr_tablet_path));
-
-	if (!tablet_path) {
-		return;
-	}
-
-	tablet_path->path = strdup(path);
-	wl_list_insert(list, &tablet_path->link);
-}
-
-void wlr_tablet_destroy(struct wlr_tablet_v2 *tablet) {
-	wl_list_remove(&tablet->link);
-	free(tablet->name);
-
-	struct wlr_tablet_path *tmp;
-	struct wlr_tablet_path *pos;
-	wl_list_for_each_safe(pos, tmp, &tablet->paths, link) {
-		free(pos->path);
-		wl_list_remove(&pos->link);
-		free(pos);
-	}
-
-	free(tablet);
-}
-
-static void add_pad_group_from_libinput(struct wlr_tablet_pad_v2 *pad,
-		struct libinput_device *device, unsigned int index) {
-	struct libinput_tablet_pad_mode_group *li_group =
-		libinput_device_tablet_pad_get_mode_group(device, index);
-	struct wlr_tablet_pad_group_v2 *group =
-		calloc(1, sizeof(struct wlr_tablet_pad_group_v2));
-	if (!group) {
-		return;
-	}
-
-	for (size_t i = 0; i < pad->ring_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_ring(li_group, i)) {
-			++group->ring_count;
-		}
-	}
-	group->rings = calloc(sizeof(int), group->ring_count);
-	size_t ring = 0;
-	for (size_t i = 0; i < pad->ring_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_ring(li_group, i)) {
-			group->rings[ring++] = i;
-		}
-	}
-
-	for (size_t i = 0; i < pad->strip_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_strip(li_group, i)) {
-			++group->strip_count;
-		}
-	}
-	group->strips = calloc(sizeof(int), group->strip_count);
-	size_t strip = 0;
-	for (size_t i = 0; i < pad->strip_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_strip(li_group, i)) {
-			group->strips[strip++] = i;
-		}
-	}
-
-	for (size_t i = 0; i < pad->button_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_button(li_group, i)) {
-			++group->button_count;
-		}
-	}
-	group->buttons = calloc(sizeof(int), group->button_count);
-	size_t button = 0;
-	for (size_t i = 0; i < pad->button_count; ++i) {
-		if (libinput_tablet_pad_mode_group_has_button(li_group, i)) {
-			group->buttons[button++] = i;
-		}
-	}
-
-	group->mode_count = libinput_tablet_pad_mode_group_get_num_modes(li_group);
-	wl_list_insert(&pad->groups, &group->link);
-}
-
-struct wlr_tablet_pad_v2 *tablet_pad_from_libinput(struct wlr_tablet_manager_v2 *manager,
-		struct libinput_device *device) {
-	struct wlr_tablet_pad_v2 *pad = calloc(1, sizeof(struct wlr_tablet_pad_v2));
-	if (!pad) {
-		return NULL;
-	}
-
-	pad->button_count = libinput_device_tablet_pad_get_num_buttons(device);
-	pad->ring_count = libinput_device_tablet_pad_get_num_rings(device);
-	pad->strip_count = libinput_device_tablet_pad_get_num_strips(device);
-
-	struct udev_device *udev = libinput_device_get_udev_device(device);
-	add_tablet_path(&pad->paths, udev_device_get_syspath(udev));
-
-	int groups = libinput_device_tablet_pad_get_num_mode_groups(device);
-	for (int i = 0; i < groups; ++i) {
-		add_pad_group_from_libinput(pad, device, i);
-	}
-
-	wl_list_insert(&manager->pads, &pad->link);
-	return pad;
-}
-
-struct wlr_tablet_v2 *tablet_from_libinput(struct wlr_tablet_manager_v2 *manager,
-		struct libinput_device *device) {
-	struct wlr_tablet_v2 *tablet = calloc(1, sizeof(struct wlr_tablet_v2));
-	if (!tablet) {
-		return NULL;
-	}
-
-	wl_list_init(&tablet->resources);
-
-	tablet->vid = libinput_device_get_id_vendor(device);
-	tablet->pid = libinput_device_get_id_product(device);
-	tablet->name = strdup(libinput_device_get_name(device));
-	if (!tablet->name) {
-		free(tablet);
-		return NULL;
-	}
-
-	struct udev_device *udev = libinput_device_get_udev_device(device);
-	add_tablet_path(&tablet->paths, udev_device_get_syspath(udev));
-
-	wl_list_insert(&manager->tablets, &tablet->link);
-	return tablet;
-}
 
 void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager);
 static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(struct wl_resource *resource);

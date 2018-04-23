@@ -22,7 +22,29 @@ struct wlr_tablet_pad {
 		struct wl_signal strip;
 	} events;
 
+	size_t button_count;
+	size_t ring_count;
+	size_t strip_count;
+
+	struct wl_list groups; // wlr_tablet_pad_group::link
+	struct wl_list paths; // wlr_tablet_path::link
+
 	void *data;
+};
+
+struct wlr_tablet_pad_group_v2 {
+	struct wl_list link;
+
+	size_t button_count;
+	unsigned int *buttons;
+
+	size_t strip_count;
+	unsigned int *strips;
+
+	size_t ring_count;
+	unsigned int *rings;
+
+	unsigned int mode_count;
 };
 
 struct wlr_event_tablet_pad_button {

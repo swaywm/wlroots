@@ -42,6 +42,11 @@ struct wlr_tablet_tool_tool {
 
 struct wlr_tablet_tool_impl;
 
+struct wlr_tablet_path {
+	struct wl_list link;
+	char *path;
+};
+
 struct wlr_tablet_tool {
 	struct wlr_tablet_tool_impl *impl;
 
@@ -51,6 +56,9 @@ struct wlr_tablet_tool {
 		struct wl_signal tip;
 		struct wl_signal button;
 	} events;
+
+	const char *name;
+	struct wl_list paths; // wlr_table_path::link
 
 	void *data;
 };

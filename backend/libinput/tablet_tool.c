@@ -1,3 +1,7 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#include <string.h>
 #include <assert.h>
 #include <libinput.h>
 #include <stdlib.h>
@@ -8,6 +12,18 @@
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
 #include "util/signal.h"
+
+//TODO: Move out
+static void add_tablet_path(struct wl_list *list, const char *path) {
+	struct wlr_tablet_path *tablet_path = calloc(1, sizeof(struct wlr_tablet_path));
+
+	if (!tablet_path) {
+		return;
+	}
+
+	tablet_path->path = strdup(path);
+	wl_list_insert(list, &tablet_path->link);
+}
 
 struct wlr_libinput_tablet_tool {
 	struct wlr_tablet_tool_tool wlr_tool;
@@ -59,7 +75,7 @@ void wlr_libinput_tablet_tool_destroy(struct wlr_input_device *wlr_dev) {
 	}
 }
 
-struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
+struct wlr_tablet_tool *libinput_tablet_tool_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_tablet_tool *wlr_tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
@@ -67,6 +83,12 @@ struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
 		return NULL;
 	}
+
+	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
+	add_tablet_path(&wlr_tablet_tool->paths, udev_device_get_syspath(udev));
+	wlr_tablet_tool->name = strdup(libinput_device_get_name(libinput_dev));
+
+
 	wlr_tablet_tool_init(wlr_tablet_tool, NULL);
 	return wlr_tablet_tool;
 }
