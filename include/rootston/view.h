@@ -79,6 +79,11 @@ enum roots_view_type {
 #endif
 };
 
+enum roots_special_frame {
+	ROOTS_FRAME_NONE = 0, // don't be a frame
+	ROOTS_FRAME_BOTTOM, // become a frame on the bottom of the screen
+};
+
 struct roots_view {
 	struct roots_desktop *desktop;
 	struct wl_list link; // roots_desktop::views
@@ -91,6 +96,13 @@ struct roots_view {
 	bool decorated;
 	int border_width;
 	int titlebar_height;
+
+	bool special; // marks special "system" feature set
+	struct {
+		bool focusable;
+		enum roots_special_frame frame;
+		struct wlr_output *frame_output;
+	} features;
 
 	bool maximized;
 	struct roots_output *fullscreen_output;

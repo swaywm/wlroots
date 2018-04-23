@@ -206,6 +206,21 @@ void view_arrange_maximized(struct roots_view *view) {
 	usable_area.x += output_box->x;
 	usable_area.y += output_box->y;
 
+	struct roots_view *frameview;
+	wl_list_for_each_reverse(frameview, &view->desktop->views, link) {
+		if (frameview->features.frame_output != output) {
+			continue;
+		}
+		switch (frameview->features.frame) {
+		case ROOTS_FRAME_BOTTOM:
+			usable_area.height -= frameview->height;
+			break;
+		case ROOTS_FRAME_NONE:
+			// unreachable
+			break;
+		}
+	}
+
 	view_move_resize(view, usable_area.x, usable_area.y,
 			usable_area.width, usable_area.height);
 	view_rotate(view, 0);
@@ -527,6 +542,33 @@ void view_damage_whole(struct roots_view *view) {
 void view_update_position(struct roots_view *view, double x, double y) {
 	if (view->x == x && view->y == y) {
 		return;
+	}
+
+	view_damage_whole(view);
+	view->x = x;
+	view->y = y;
+	view_damage_whole(view);
+}
+
+void view_set_anchor_position(struct roots_view *view,
+		struct roots_output *output, uint32_t width, uint32_t height) {
+	if (!(view->special && view->features.frame != ROOTS_FRAME_NONE)) {
+		return;
+	}
+
+	view->features.frame_output = output->wlr_output;
+
+	struct wlr_box *output_box =
+		wlr_output_layout_get_box(view->desktop->layout, output->wlr_output);
+
+	double x, y;
+	switch (view->features.frame) {
+	case ROOTS_FRAME_BOTTOM:
+		x = output_box->x + (output_box->width - width) / 2;
+		y = output_box->y + output_box->height - height;
+		break;
+	default:
+		break;
 	}
 
 	view_damage_whole(view);
