@@ -188,12 +188,20 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 	}
 }
 
-static void xdg_popup_done(void *data, struct xdg_popup *xdg_popup) {
+static void popup_destroy()
+{
 	eglDestroySurface(egl.display, popup_egl_surface);
 	wl_egl_window_destroy(popup_egl_window);
-	wl_surface_destroy(popup_wl_surface);
 	xdg_popup_destroy(popup);
+	wl_surface_destroy(popup_wl_surface);
+	popup_wl_surface = NULL;
 	popup = NULL;
+	popup_egl_window = NULL;
+}
+
+static void xdg_popup_done(void *data, struct xdg_popup *xdg_popup) {
+	wlr_log(L_DEBUG, "Popup done");
+	popup_destroy();
 }
 
 static const struct xdg_popup_listener xdg_popup_listener = {
@@ -300,7 +308,11 @@ static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 	if (input_surface == wl_surface) {
 		if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
 			if (button == BTN_RIGHT) {
-				create_popup();
+				if (popup_wl_surface) {
+					popup_destroy();
+				} else {
+					create_popup();
+				}
 			} else {
 				buttons++;
 			}
