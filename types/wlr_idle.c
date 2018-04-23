@@ -135,6 +135,9 @@ void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_i
 
 	timer->input_listener.notify = handle_resumed_notification;
 	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
+	
+	timer->seat_destroy.notify = handle_seat_destroy;
+	wl_signal_add(&timer->seat->events.destroy, &timer->seat_destroy);
 
 	//Create the timer
 	timer->idle_source =
