@@ -5,21 +5,21 @@
 #include <wlr/types/wlr_seat.h>
 
 struct wlr_idle_timeout_listener {
-    /**
-     * Triggered when there has not been any user activity in the requested idle time interval
-     *
-     *
-     */
-    wl_event_loop_timer_func_t idle;
+	/**
+	 * Triggered when there has not been any user activity in the requested idle time interval
+	 *
+	 *
+	 */
+	wl_event_loop_timer_func_t idle;
 
-    /**
-     * Triggered on the first user activity after an idle event
-     *
-     *
-     */
-    wl_event_loop_timer_func_t resumed;
-//    void (*resumed)(void *data,
-//            struct org_kde_kwin_idle_timeout *org_kde_kwin_idle_timeout);
+	/**
+	 * Triggered on the first user activity after an idle event
+	 *
+	 *
+	 */
+	wl_event_loop_timer_func_t resumed;
+	//    void (*resumed)(void *data,
+	//            struct org_kde_kwin_idle_timeout *org_kde_kwin_idle_timeout);
 };
 
 
@@ -72,5 +72,5 @@ void wlr_idle_destroy(struct wlr_idle *idle);
  */
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat);
 
-void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener);
+void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener, struct wlr_seat *seat);
 #endif

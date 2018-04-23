@@ -86,7 +86,7 @@ static void handle_input_notification(struct wl_listener *listener, void *data) 
 	struct wlr_idle_timeout *timer =
 		wl_container_of(listener, timer, input_listener);
 	struct wlr_seat *seat = data;
-	if (timer->seat == NULL || timer->seat == seat) {
+	if (timer->seat == seat) {
 		handle_activity(timer);
 	}
 }
@@ -103,6 +103,10 @@ static int handle_idle_listener(void* data) {
 static void handle_resumed_notification(struct wl_listener *listener, void *data) {
 	struct wlr_idle_timeout *timer =
 		wl_container_of(listener, timer, input_listener);
+	struct wlr_seat *seat = data;
+	if (timer->seat != seat) {
+		return; 
+	}
 	wl_event_source_timer_update(timer->idle_source, timer->timeout);
 
 	if (timer->idle_state) {
@@ -113,24 +117,24 @@ static void handle_resumed_notification(struct wl_listener *listener, void *data
 	}
 }
 
-void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener) {
+void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener, struct wlr_seat *seat) {
 	//Create the timer
 	struct wlr_idle_timeout *timer =
 		calloc(1, sizeof(struct wlr_idle_timeout));
 	if (!timer) {
 		return;
 	}
-	timer->seat = NULL;
+	timer->seat = seat;
 	timer->timeout = timeout;
 	timer->idle_state = false;
 	timer->resource = NULL;
 	timer->listener = listener;
 
 	//Add timer to out list of idle timers
-    wl_list_insert(&idle->idle_timers, &timer->link);
+	wl_list_insert(&idle->idle_timers, &timer->link);
 
 	timer->input_listener.notify = handle_resumed_notification;
-    wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
+	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
 
 	//Create the timer
 	timer->idle_source =
