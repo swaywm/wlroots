@@ -292,6 +292,82 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	unmap(layer->layer_surface);
 }
 
+static void popup_handle_map(struct wl_listener *listener, void *data) {
+	struct roots_layer_popup *popup = wl_container_of(listener, popup, map);
+	struct roots_layer_surface *layer = popup->parent;
+	struct wlr_output *wlr_output = layer->layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	struct wlr_box geom;
+	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
+	geom.x += layer->geo.x;
+	geom.y += layer->geo.y;
+	wlr_output_damage_add_box(output->damage, &geom);
+}
+
+static void popup_handle_unmap(struct wl_listener *listener, void *data) {
+	struct roots_layer_popup *popup = wl_container_of(listener, popup, unmap);
+	struct roots_layer_surface *layer = popup->parent;
+	struct wlr_output *wlr_output = layer->layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	struct wlr_box geom;
+	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
+	geom.x += layer->geo.x;
+	geom.y += layer->geo.y;
+	wlr_output_damage_add_box(output->damage, &geom);
+}
+
+static void popup_handle_commit(struct wl_listener *listener, void *data) {
+	struct roots_layer_popup *popup = wl_container_of(listener, popup, commit);
+	struct roots_layer_surface *layer = popup->parent;
+	struct wlr_output *wlr_output = layer->layer_surface->output;
+	struct roots_output *output = wlr_output->data;
+	struct wlr_box geom;
+	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
+	geom.x += layer->geo.x;
+	geom.y += layer->geo.y;
+	wlr_output_damage_add_box(output->damage, &geom);
+}
+
+static void popup_handle_destroy(struct wl_listener *listener, void *data) {
+	struct roots_layer_popup *popup =
+		wl_container_of(listener, popup, destroy);
+
+	wl_list_remove(&popup->map.link);
+	wl_list_remove(&popup->unmap.link);
+	wl_list_remove(&popup->destroy.link);
+	wl_list_remove(&popup->commit.link);
+	free(popup);
+}
+
+static struct roots_layer_popup *popup_create(struct roots_layer_surface *parent,
+		struct wlr_xdg_popup *wlr_popup) {
+	struct roots_layer_popup *popup =
+		calloc(1, sizeof(struct roots_layer_popup));
+	if (popup == NULL) {
+		return NULL;
+	}
+	popup->wlr_popup = wlr_popup;
+	popup->parent = parent;
+	popup->map.notify = popup_handle_map;
+	wl_signal_add(&wlr_popup->base->events.map, &popup->map);
+	popup->unmap.notify = popup_handle_unmap;
+	wl_signal_add(&wlr_popup->base->events.unmap, &popup->unmap);
+	popup->destroy.notify = popup_handle_destroy;
+	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
+	popup->commit.notify = popup_handle_commit;
+	wl_signal_add(&wlr_popup->base->surface->events.commit, &popup->commit);
+	/* TODO: popups can have popups, see xdg_shell::popup_create */
+
+	return popup;
+}
+
+static void handle_new_popup(struct wl_listener *listener, void *data) {
+	struct roots_layer_surface *roots_layer_surface =
+		wl_container_of(listener, roots_layer_surface, new_popup);
+	struct wlr_xdg_popup *wlr_popup = data;
+	popup_create(roots_layer_surface, wlr_popup);
+}
+
 void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_layer_surface *layer_surface = data;
 	struct roots_desktop *desktop =
@@ -338,6 +414,8 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&layer_surface->events.map, &roots_surface->map);
 	roots_surface->unmap.notify = handle_unmap;
 	wl_signal_add(&layer_surface->events.unmap, &roots_surface->unmap);
+	roots_surface->new_popup.notify = handle_new_popup;
+	wl_signal_add(&layer_surface->events.new_popup, &roots_surface->new_popup);
 	// TODO: Listen for subsurfaces
 
 	roots_surface->layer_surface = layer_surface;

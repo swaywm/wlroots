@@ -59,6 +59,7 @@ struct wlr_layer_surface {
 	struct wlr_output *output;
 	struct wl_resource *resource;
 	struct wlr_layer_shell *shell;
+	struct wl_list popups; // wlr_xdg_popup::link
 
 	const char *namespace;
 	enum zwlr_layer_shell_v1_layer layer;
@@ -81,6 +82,7 @@ struct wlr_layer_surface {
 		struct wl_signal destroy;
 		struct wl_signal map;
 		struct wl_signal unmap;
+		struct wl_signal new_popup;
 	} events;
 
 	void *data;
@@ -106,5 +108,9 @@ bool wlr_surface_is_layer_surface(struct wlr_surface *surface);
 
 struct wlr_layer_surface *wlr_layer_surface_from_wlr_surface(
 		struct wlr_surface *surface);
+
+/* Calls the iterator function for each sub-surface and popup of this surface */
+void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data);
 
 #endif

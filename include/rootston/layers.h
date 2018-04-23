@@ -14,9 +14,19 @@ struct roots_layer_surface {
 	struct wl_listener unmap;
 	struct wl_listener surface_commit;
 	struct wl_listener output_destroy;
+	struct wl_listener new_popup;
 
 	bool configured;
 	struct wlr_box geo;
+};
+
+struct roots_layer_popup {
+	struct roots_layer_surface *parent;
+	struct wlr_xdg_popup *wlr_popup;
+	struct wl_listener map;
+	struct wl_listener unmap;
+	struct wl_listener destroy;
+	struct wl_listener commit;
 };
 
 struct roots_output;

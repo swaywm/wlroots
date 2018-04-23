@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
@@ -131,8 +132,18 @@ static void layer_surface_handle_set_keyboard_interactivity(
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
-		struct wl_resource *resource, struct wl_resource *popup) {
-	// TODO
+		struct wl_resource *layer_resource,
+		struct wl_resource *popup_resource) {
+	struct wlr_layer_surface *parent =
+		layer_surface_from_resource(layer_resource);
+	struct wlr_xdg_surface *popup_surface =
+		wlr_xdg_surface_from_popup_resource(popup_resource);
+
+	assert(popup_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+	struct wlr_xdg_popup *popup = popup_surface->popup;
+	popup->parent = parent->surface;
+	wl_list_insert(&parent->popups, &popup->link);
+	wlr_signal_emit_safe(&parent->events.new_popup, popup);
 }
 
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation = {
@@ -343,6 +354,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	}
 
 	wl_list_init(&surface->configure_list);
+	wl_list_init(&surface->popups);
 
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_add(&surface->surface->events.destroy,
@@ -350,6 +362,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
+	wl_signal_init(&surface->events.new_popup);
 
 	wlr_surface_set_role_committed(surface->surface,
 		handle_wlr_surface_committed, surface);
@@ -437,4 +450,75 @@ void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell) {
 	wl_list_remove(&layer_shell->display_destroy.link);
 	wl_global_destroy(layer_shell->wl_global);
 	free(layer_shell);
+}
+
+struct layer_surface_iterator_data {
+	wlr_surface_iterator_func_t user_iterator;
+	void *user_data;
+	int x, y;
+};
+
+static void layer_surface_iterator(struct wlr_surface *surface,
+		int sx, int sy, void *data) {
+	struct layer_surface_iterator_data *iter_data = data;
+	iter_data->user_iterator(surface, iter_data->x + sx, iter_data->y + sy,
+		iter_data->user_data);
+}
+
+static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct layer_surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x, .y = y,
+	};
+	wlr_surface_for_each_surface(
+			surface->surface, layer_surface_iterator, &data);
+
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
+
+		xdg_surface_for_each_surface(popup,
+			x + popup_sx,
+			y + popup_sy,
+			iterator, user_data);
+	}
+}
+
+static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct layer_surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x, .y = y,
+	};
+	wlr_surface_for_each_surface(surface->surface,
+			layer_surface_iterator, &data);
+
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		popup_sx = popup->popup->geometry.x - popup->geometry.x;
+		popup_sy = popup->popup->geometry.y - popup->geometry.y;
+
+		xdg_surface_for_each_surface(popup,
+			popup_sx, popup_sy, iterator, user_data);
+	}
+}
+
+void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
 }
