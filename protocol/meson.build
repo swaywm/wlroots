@@ -39,6 +39,7 @@ protocols = [
 	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'text-input-unstable-v3.xml',
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
 ]
