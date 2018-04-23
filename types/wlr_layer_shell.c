@@ -276,6 +276,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 		surface->added = true;
 		wlr_signal_emit_safe(&surface->shell->events.new_surface,
 				surface);
+		assert(surface->output);
 	}
 	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
 			!surface->mapped) {
