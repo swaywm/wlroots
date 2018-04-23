@@ -45,7 +45,7 @@ struct wl_egl_window *popup_egl_window;
 static uint32_t popup_width = 256, popup_height = 256;
 struct wlr_egl_surface *popup_egl_surface;
 struct wl_callback *popup_frame_callback;
-float popup_alpha = 1.0;
+float popup_alpha = 1.0, popup_red = 0.5f;
 
 static uint32_t layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 static uint32_t anchor = 0;
@@ -59,9 +59,9 @@ static double frame = 0;
 static int cur_x = -1, cur_y = -1;
 static int buttons = 0;
 
-struct wl_cursor_theme *cursor_theme;
 struct wl_cursor_image *cursor_image;
-struct wl_surface *cursor_surface;
+struct wl_cursor_image *popup_cursor_image;
+struct wl_surface *cursor_surface, *input_surface;
 
 static struct {
 	struct timespec last_frame;
@@ -154,7 +154,7 @@ static void draw_popup() {
 
 	eglMakeCurrent(egl.display, popup_egl_surface, popup_egl_surface, egl.context);
 	glViewport(0, 0, popup_width, popup_height);
-	glClearColor(0.5f, 0.5f, 0.5f, popup_alpha);
+	glClearColor(popup_red, 0.5f, 0.5f, popup_alpha);
 	popup_alpha += alpha_mod;
 	if (popup_alpha < 0.01 || popup_alpha >= 1.0f) {
 		alpha_mod *= -1.0;
@@ -267,11 +267,20 @@ struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 static void wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	struct wl_cursor_image *image;
+	if (surface == popup_wl_surface) {
+		image = popup_cursor_image;
+	} else {
+		image = cursor_image;
+	}
 	wl_surface_attach(cursor_surface,
-			wl_cursor_image_get_buffer(cursor_image), 0, 0);
-	wl_pointer_set_cursor(wl_pointer, serial, cursor_surface,
-			cursor_image->hotspot_x, cursor_image->hotspot_y);
+		wl_cursor_image_get_buffer(image), 0, 0);
+	wl_surface_damage(cursor_surface, 1, 0,
+		image->width, image->height);
 	wl_surface_commit(cursor_surface);
+	wl_pointer_set_cursor(wl_pointer, serial, cursor_surface,
+		image->hotspot_x, image->hotspot_y);
+	input_surface = surface;
 }
 
 static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
@@ -288,16 +297,28 @@ static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
 
 static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
-	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-		if (button == BTN_RIGHT) {
-			create_popup();
+	if (input_surface == wl_surface) {
+		if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+			if (button == BTN_RIGHT) {
+				create_popup();
+			} else {
+				buttons++;
+			}
 		} else {
-			buttons++;
+			if (button != BTN_RIGHT) {
+				buttons--;
+			}
+		}
+	} else if (input_surface == popup_wl_surface) {
+		if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+			if (button == BTN_LEFT && popup_red <= 0.9f) {
+				popup_red += 0.1;
+			} else if (button == BTN_RIGHT && popup_red >= 0.1f) {
+				popup_red -= 0.1;
+			}
 		}
 	} else {
-		if (button != BTN_RIGHT) {
-			buttons--;
-		}
+		assert(false && "Unknown surface");
 	}
 }
 
@@ -557,12 +578,18 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	cursor_theme = wl_cursor_theme_load(NULL, 16, shm);
+	struct wl_cursor_theme *cursor_theme =
+		wl_cursor_theme_load(NULL, 16, shm);
 	assert(cursor_theme);
-	struct wl_cursor *cursor;
-	cursor = wl_cursor_theme_get_cursor(cursor_theme, "crosshair");
+	struct wl_cursor *cursor =
+		wl_cursor_theme_get_cursor(cursor_theme, "crosshair");
 	assert(cursor);
 	cursor_image = cursor->images[0];
+
+	cursor = wl_cursor_theme_get_cursor(cursor_theme, "tcross");
+	assert(cursor);
+	popup_cursor_image = cursor->images[0];
+
 	cursor_surface = wl_compositor_create_surface(compositor);
 	assert(cursor_surface);
 
