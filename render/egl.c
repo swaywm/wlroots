@@ -499,3 +499,7 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 	}
 	return num;
 }
+
+void wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
+	eglDestroySurface(egl->display, surface);
+}
