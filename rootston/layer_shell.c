@@ -255,7 +255,8 @@ static void unmap(struct wlr_layer_surface *layer_surface) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
-		wlr_output_damage_add_box(output->damage, &layer->geo);
+		output_damage_whole_local_surface(output, layer_surface->surface,
+			layer->geo.x, layer->geo.y, 0);
 	}
 }
 
@@ -282,7 +283,8 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = layer_surface->data;
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	wlr_output_damage_add_box(output->damage, &layer->geo);
+	output_damage_whole_local_surface(output, layer_surface->surface,
+		layer->geo.x, layer->geo.y, 0);
 	wlr_surface_send_enter(layer_surface->surface, wlr_output);
 }
 
@@ -297,11 +299,10 @@ static void popup_handle_map(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = popup->parent;
 	struct wlr_output *wlr_output = layer->layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	struct wlr_box geom;
-	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
-	geom.x += layer->geo.x;
-	geom.y += layer->geo.y;
-	wlr_output_damage_add_box(output->damage, &geom);
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_whole_local_surface(output, popup->wlr_popup->base->surface,
+		ox, oy, 0);
 }
 
 static void popup_handle_unmap(struct wl_listener *listener, void *data) {
@@ -309,11 +310,10 @@ static void popup_handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = popup->parent;
 	struct wlr_output *wlr_output = layer->layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	struct wlr_box geom;
-	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
-	geom.x += layer->geo.x;
-	geom.y += layer->geo.y;
-	wlr_output_damage_add_box(output->damage, &geom);
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_whole_local_surface(output, popup->wlr_popup->base->surface,
+		ox, oy, 0);
 }
 
 static void popup_handle_commit(struct wl_listener *listener, void *data) {
@@ -321,11 +321,10 @@ static void popup_handle_commit(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = popup->parent;
 	struct wlr_output *wlr_output = layer->layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	struct wlr_box geom;
-	memcpy(&geom, &popup->wlr_popup->geometry, sizeof(struct wlr_box));
-	geom.x += layer->geo.x;
-	geom.y += layer->geo.y;
-	wlr_output_damage_add_box(output->damage, &geom);
+	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
+	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
+	output_damage_from_local_surface(output, popup->wlr_popup->base->surface,
+		ox, oy, 0);
 }
 
 static void popup_handle_destroy(struct wl_listener *listener, void *data) {
