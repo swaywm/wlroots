@@ -114,9 +114,24 @@ void preedit_string(struct wl_client *client, struct wl_resource *resource,
 		uint32_t serial, const char *text, const char *commit) {
 	struct wlr_input_method_context *context =
 		wl_resource_get_user_data(resource);
-	const struct wlr_input_method_context_preedit_string preedit = {text,
-		commit};
+	context->current = context->pending;
+	struct wlr_input_method_context_state blank_state = {0};
+	context->pending = blank_state;
+
+	struct wlr_input_method_context_preedit_string preedit = {
+		.text = text,
+		.commit = commit,
+		.state = &context->current,
+	};
 	wlr_signal_emit_safe(&context->events.preedit_string, (void*)&preedit);
+}
+
+void preedit_cursor(struct wl_client *client, struct wl_resource *resource,
+		int32_t index) {
+	struct wlr_input_method_context *context =
+		wl_resource_get_user_data(resource);
+	context->pending.cursor = index;
+	context->pending.cursor_set = true;
 }
 
 uint32_t *get_code(struct wlr_input_method_context *context, uint32_t sym,
@@ -154,7 +169,7 @@ static const struct zwp_input_method_context_v1_interface input_context_impl = {
 	.commit_string = commit_string,
 	.preedit_string = preedit_string,
 	.preedit_styling = noop,
-	.preedit_cursor = noop,
+	.preedit_cursor = preedit_cursor,
 	.delete_surrounding_text = noop,
 	.cursor_position = noop,
 	.modifiers_map = noop,

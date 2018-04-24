@@ -6,7 +6,12 @@ static void handle_preedit_string(struct wl_listener *listener, void *data) {
 	struct roots_text_input *text_input = wl_container_of(listener, text_input,
 		input_method_preedit_string);
 	struct wlr_input_method_context_preedit_string *preedit = data;
-	wlr_text_input_send_preedit_string(text_input->input, preedit->text, 0);
+	uint32_t cursor = 0;
+	if (preedit->state->cursor_set && preedit->state->cursor > 0) {
+		cursor = preedit->state->cursor;
+	}
+	wlr_text_input_send_preedit_string(text_input->input, preedit->text,
+		cursor);
 }
 
 static void handle_commit_string(struct wl_listener *listener, void *data) {

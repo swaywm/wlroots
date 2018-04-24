@@ -34,9 +34,15 @@ struct wlr_input_method {
 	} events;
 };
 
+struct wlr_input_method_context_state {
+	bool cursor_set;
+	int cursor;
+};
+
 struct wlr_input_method_context_preedit_string {
 	const char *text;
 	const char *commit;
+	struct wlr_input_method_context_state *state;
 };
 
 struct symcode {
@@ -50,6 +56,10 @@ struct wlr_input_method_context {
 	struct wlr_keyboard *keyboard;
 	struct symcode *symcodes;
 	uint32_t code_counts;
+
+	struct wlr_input_method_context_state pending;
+	struct wlr_input_method_context_state current;
+
 	struct {
 		struct wl_signal commit_string; // char*
 		struct wl_signal preedit_string; // struct wlr_input_method_context_preedit_string*
