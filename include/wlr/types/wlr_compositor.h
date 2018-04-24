@@ -9,6 +9,7 @@ struct wlr_surface;
 struct wlr_subcompositor {
 	struct wl_global *wl_global;
 	struct wl_list wl_resources;
+	struct wl_list subsurface_resources;
 };
 
 struct wlr_compositor {

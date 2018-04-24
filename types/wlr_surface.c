@@ -827,7 +827,7 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 	wlr_subsurface_destroy(subsurface);
 }
 
-void wlr_surface_make_subsurface(struct wlr_surface *surface,
+struct wlr_subsurface *wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
@@ -835,13 +835,13 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		calloc(1, sizeof(struct wlr_subsurface));
 	if (!subsurface) {
 		wl_client_post_no_memory(client);
-		return;
+		return NULL;
 	}
 	subsurface->cached = wlr_surface_state_create();
 	if (subsurface->cached == NULL) {
 		free(subsurface);
 		wl_client_post_no_memory(client);
-		return;
+		return NULL;
 	}
 	subsurface->synchronized = true;
 	subsurface->surface = surface;
@@ -863,7 +863,7 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 		wlr_surface_state_destroy(subsurface->cached);
 		free(subsurface);
 		wl_client_post_no_memory(client);
-		return;
+		return NULL;
 	}
 
 	wl_resource_set_implementation(subsurface->resource,
@@ -873,6 +873,8 @@ void wlr_surface_make_subsurface(struct wlr_surface *surface,
 	surface->role_data = subsurface;
 
 	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
+
+	return subsurface;
 }
 
 
