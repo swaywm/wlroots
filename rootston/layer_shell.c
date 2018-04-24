@@ -255,7 +255,8 @@ static void unmap(struct wlr_layer_surface *layer_surface) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
-		wlr_output_damage_add_box(output->damage, &layer->geo);
+		output_damage_whole_local_surface(output, layer_surface->surface,
+			layer->geo.x, layer->geo.y, 0);
 	}
 }
 
@@ -282,7 +283,8 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = layer_surface->data;
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
-	wlr_output_damage_add_box(output->damage, &layer->geo);
+	output_damage_whole_local_surface(output, layer_surface->surface,
+		layer->geo.x, layer->geo.y, 0);
 	wlr_surface_send_enter(layer_surface->surface, wlr_output);
 }
 
