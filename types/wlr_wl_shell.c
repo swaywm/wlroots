@@ -13,7 +13,8 @@
 static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
 
 bool wlr_surface_is_wl_shell_surface(struct wlr_surface *surface) {
-	return strcmp(surface->role, wlr_wl_shell_surface_role) == 0;
+	return surface->role != NULL &&
+		strcmp(surface->role, wlr_wl_shell_surface_role) == 0;
 }
 
 struct wlr_wl_surface *wlr_wl_shell_surface_from_wlr_surface(

@@ -30,4 +30,6 @@ bool input_view_has_focus(struct roots_input *input, struct roots_view *view);
 
 struct roots_seat *input_get_seat(struct roots_input *input, char *name);
 
+struct roots_seat *input_last_active_seat(struct roots_input *input);
+
 #endif
