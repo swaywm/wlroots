@@ -42,7 +42,8 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	if (wlr_surface_is_subsurface(surface)) {
+	if (wlr_surface_is_subsurface(surface) &&
+			wlr_subsurface_from_surface(surface) != NULL) {
 		wl_resource_post_error(resource,
 			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
 			"%s%d: wl_surface@%d is already a sub-surface",
@@ -99,11 +100,6 @@ static void subcompositor_init(struct wlr_subcompositor *subcompositor,
 static void subcompositor_finish(struct wlr_subcompositor *subcompositor) {
 	wl_global_destroy(subcompositor->wl_global);
 }
-
-
-
-
-
 
 
 static const struct wl_compositor_interface wl_compositor_impl;
