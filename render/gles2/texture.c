@@ -88,10 +88,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	if (texture->image_tex) {
 		glDeleteTextures(1, &texture->image_tex);
 	}
-	if (texture->image) {
-		assert(eglDestroyImageKHR);
-		wlr_egl_destroy_image(texture->egl, texture->image);
-	}
+	wlr_egl_destroy_image(texture->egl, texture->image);
 
 	if (texture->type == WLR_GLES2_TEXTURE_GLTEX) {
 		glDeleteTextures(1, &texture->gl_tex);

@@ -79,9 +79,7 @@ bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
 		}
 		gbm_surface_destroy(surf->gbm);
 	}
-	if (surf->egl) {
-		wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
-	}
+	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
 
 	surf->gbm = gbm_surface_create(renderer->gbm, width, height,
 		format, GBM_BO_USE_RENDERING | flags);
@@ -117,9 +115,7 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 		gbm_surface_release_buffer(surf->gbm, surf->back);
 	}
 
-	if (surf->egl) {
-		wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
-	}
+	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
 	if (surf->gbm) {
 		gbm_surface_destroy(surf->gbm);
 	}

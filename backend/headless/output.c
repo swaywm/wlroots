@@ -29,9 +29,7 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 
-	if (output->egl_surface) {
-		wlr_egl_destroy_surface(&backend->egl, output->egl_surface);
-	}
+	wlr_egl_destroy_surface(&backend->egl, output->egl_surface);
 
 	output->egl_surface = egl_create_surface(&backend->egl, width, height);
 	if (output->egl_surface == EGL_NO_SURFACE) {
