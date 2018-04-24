@@ -34,9 +34,9 @@ struct wlr_tablet_manager_client_v2 {
 	struct wl_list link;
 	struct wl_client *client;
 	struct wl_resource *resource;
-
 	struct wlr_tablet_manager_v2 *manager;
 
+	struct wl_listener client_destroy;
 	struct wl_list tablet_seats; // wlr_tablet_seat_client_v2::link
 };
 
@@ -51,9 +51,9 @@ struct wlr_tablet_seat_client_v2 {
 
 	struct wl_listener seat_client_destroy;
 
-	struct wl_list tools;
-	struct wl_list tablets;
-	struct wl_list pads; //wlr_tablet_pad_client_v2::link
+	struct wl_list tools;   //wlr_tablet_tool_client_v2::link
+	struct wl_list tablets; //wlr_tablet_client_v2::link
+	struct wl_list pads;    //wlr_tablet_pad_client_v2::link
 };
 
 struct wlr_tablet_client_v2 {
@@ -61,8 +61,6 @@ struct wlr_tablet_client_v2 {
 	struct wl_list tablet_link; // wlr_tablet_v2_tablet::clients
 	struct wl_client *client;
 	struct wl_resource *resource;
-
-	struct wl_listener device_destroy;
 };
 
 struct wlr_tablet_tool_client_v2 {
@@ -70,11 +68,6 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_list tool_link;
 	struct wl_client *client;
 	struct wl_resource *resource;
-
-	struct wlr_surface *cursor;
-	struct wl_listener cursor_destroy;
-
-	struct wl_listener tool_destroy;
 };
 
 struct wlr_tablet_pad_client_v2 {
@@ -93,8 +86,6 @@ struct wlr_tablet_pad_client_v2 {
 
 	size_t strip_count;
 	struct wl_resource **strips;
-
-	struct wl_listener device_destroy;
 };
 
 static struct zwp_tablet_v2_interface tablet_impl;
@@ -110,9 +101,7 @@ static void destroy_tablet_v2(struct wl_resource *resource) {
 
 	wl_list_remove(&tablet->seat_link);
 	wl_list_remove(&tablet->tablet_link);
-
-	//wl_list_remove(tablet->device_destroy.link);
-	//wl_list_remove(tablet->client_destroy.link);
+	free(tablet);
 }
 
 static void handle_tablet_v2_destroy(struct wl_client *client,
@@ -123,6 +112,52 @@ static void handle_tablet_v2_destroy(struct wl_client *client,
 static struct zwp_tablet_v2_interface tablet_impl = {
 	.destroy = handle_tablet_v2_destroy,
 };
+
+static void destroy_tablet_seat_client(struct wlr_tablet_seat_client_v2 *client) {
+	/* This is only called when the seat or client gets destroyed.
+	 * The client is liable to make a request on a deleted resource either
+	 * way, so we don't do the removed->destroy process, but just remove
+	 * all structs immediatly.
+	 */
+	struct wlr_tablet_client_v2 *tablet;
+	struct wlr_tablet_client_v2 *tmp_tablet;
+	wl_list_for_each_safe(tablet, tmp_tablet, &client->tablets, seat_link) {
+		wl_resource_destroy(tablet->resource);
+	}
+
+	struct wlr_tablet_pad_client_v2 *pad;
+	struct wlr_tablet_pad_client_v2 *tmp_pad;
+	wl_list_for_each_safe(pad, tmp_pad, &client->pads, seat_link) {
+		wl_resource_destroy(pad->resource);
+	}
+
+	struct wlr_tablet_tool_client_v2 *tool;
+	struct wlr_tablet_tool_client_v2 *tmp_tool;
+	wl_list_for_each_safe(tool, tmp_tool, &client->tools, seat_link) {
+		wl_resource_destroy(tool->resource);
+	}
+
+	wl_resource_destroy(client->resource);
+}
+
+static void handle_wlr_seat_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_seat_v2 *seat =
+		wl_container_of(listener, seat, seat_destroy);
+
+	wl_list_remove(&seat->link);
+	wl_list_remove(&seat->seat_destroy.link);
+
+	struct wlr_tablet_seat_client_v2 *client;
+	struct wlr_tablet_seat_client_v2 *tmp;
+
+	/* wl_seat doesn't have a removed event/destroy request, so we can just
+	 * destroy all attached tablet_seat_clients -> tablet_v2 resources.
+	 * The client can call requests on gone resources either way
+	 */
+	wl_list_for_each_safe(client, tmp, &seat->clients, seat_link) {
+		destroy_tablet_seat_client(client);
+	}
+}
 
 static struct wlr_tablet_seat_v2 *make_tablet_seat(
 		struct wlr_tablet_manager_v2 *manager,
@@ -141,6 +176,9 @@ static struct wlr_tablet_seat_v2 *make_tablet_seat(
 	wl_list_init(&tablet_seat->tablets);
 	wl_list_init(&tablet_seat->tools);
 	wl_list_init(&tablet_seat->pads);
+
+	tablet_seat->seat_destroy.notify = handle_wlr_seat_destroy;
+	wl_signal_add(&wlr_seat->events.destroy, &tablet_seat->seat_destroy);
 
 	wl_list_insert(&manager->seats, &tablet_seat->link);
 	return tablet_seat;
@@ -242,6 +280,15 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 	assert(false && "Unreachable");
 }
 
+static void destroy_tablet_tool(struct wl_resource *resource) {
+	struct wlr_tablet_tool_client_v2 *client =
+		wl_resource_get_user_data(resource);
+
+	wl_list_remove(&client->seat_link);
+	wl_list_remove(&client->tool_link);
+	free(client);
+}
+
 static void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 		struct wlr_tablet_v2_tablet_tool *tool) {
 	struct wlr_tablet_tool_client_v2 *client =
@@ -257,7 +304,7 @@ static void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 	wl_resource_set_implementation(client->resource, &tablet_tool_impl,
-		client, NULL);
+		client, destroy_tablet_tool);
 	zwp_tablet_seat_v2_send_tool_added(seat->resource, client->resource);
 
 	// Send the expected events
@@ -412,8 +459,33 @@ static void destroy_tablet_pad_v2(struct wl_resource *resource) {
 	wl_list_remove(&pad->seat_link);
 	wl_list_remove(&pad->pad_link);
 
-	//wl_list_remove(tablet->device_destroy.link);
-	//wl_list_remove(tablet->client_destroy.link);
+	/* This isn't optimal, if the client destroys the resources in another
+	 * order, it will be disconnected.
+	 * But this makes things *way* easier for us, and (untested) I doubt
+	 * clients will destroy it in another order.
+	 */
+	for (size_t i = 0; i < pad->group_count; ++i) {
+		if (pad->groups[i]) {
+			wl_resource_destroy(pad->groups[i]);
+		}
+	}
+	free(pad->groups);
+
+	for (size_t i = 0; i < pad->ring_count; ++i) {
+		if (pad->rings[i]) {
+			wl_resource_destroy(pad->rings[i]);
+		}
+	}
+	free(pad->rings);
+
+	for (size_t i = 0; i < pad->strip_count; ++i) {
+		if (pad->strips[i]) {
+			wl_resource_destroy(pad->strips[i]);
+		}
+	}
+	free(pad->strips);
+
+	free(pad);
 }
 
 static void handle_tablet_pad_v2_destroy(struct wl_client *client,
@@ -508,6 +580,7 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 	wl_array_add(&button_array, group->button_count * sizeof(int));
 	memcpy(button_array.data, group->buttons, group->button_count * sizeof(int));
 	zwp_tablet_pad_group_v2_send_buttons(client->groups[index], &button_array);
+	wl_array_release(&button_array);
 
 	client->strip_count = group->strip_count;
 	for (size_t i = 0; i < group->strip_count; ++i) {
@@ -647,12 +720,6 @@ struct wlr_tablet_v2_tablet_pad *wlr_make_tablet_pad(
 		add_tablet_pad_client(pos, pad);
 	}
 
-	wlr_log(L_DEBUG, "Created tablet v2 pad:");
-	struct wlr_tablet_path *path;
-	wl_list_for_each(path, &wlr_pad->paths, link) {
-		wlr_log(L_DEBUG, "%s", path->path);
-	}
-
 	return pad;
 }
 
@@ -678,23 +745,21 @@ static struct wlr_tablet_seat_client_v2 *tablet_seat_from_resource (
 static void wlr_tablet_seat_client_v2_destroy(struct wl_resource *resource) {
 	struct wlr_tablet_seat_client_v2 *seat = tablet_seat_from_resource(resource);
 
-	seat->resource = NULL;
-	/* We can't just destroy the struct, because we may need to iterate it
-	 * on display->destroy/manager_destroy
-	 */
-	// TODO: Implement the free() check
+	/* XXX: Evaluate whether we should have a way to access structs */
+	wl_list_remove(&seat->tools);
+	wl_list_remove(&seat->tablets);
+	wl_list_remove(&seat->pads);
+
+	wl_list_remove(&seat->seat_link);
+	wl_list_remove(&seat->client_link);
+
+	free(seat);
 }
 
-static void handle_seat_destroy(struct wl_listener *listener, void *data) {
+static void handle_seat_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_tablet_seat_client_v2 *seat =
 		wl_container_of(listener, seat, seat_client_destroy);
-
-	seat->seat = NULL;
-	wl_list_remove(&seat->seat_client_destroy.link);
-	/* Remove leaves it in a defunct state, we will remove again in the
-	 * actual destroy sequence
-	 */
-	wl_list_init(&seat->seat_client_destroy.link);
+	destroy_tablet_seat_client(seat);
 }
 
 static void tablet_manager_destroy(struct wl_client *client,
@@ -740,7 +805,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	wl_list_init(&seat_client->tablets);
 	wl_list_init(&seat_client->pads);
 
-	seat_client->seat_client_destroy.notify = handle_seat_destroy;
+	seat_client->seat_client_destroy.notify = handle_seat_client_destroy;
 	wl_signal_add(&seat->events.destroy, &seat_client->seat_client_destroy);
 
 	wl_list_insert(&manager->tablet_seats, &seat_client->client_link);
@@ -778,11 +843,12 @@ static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource 
 static void wlr_tablet_manager_v2_destroy(struct wl_resource *resource) {
 	struct wlr_tablet_manager_client_v2 *client = tablet_manager_client_from_resource(resource);
 
-	client->resource = NULL;
-	/* We can't just destroy the struct, because we may need to iterate it
-	 * on display->destroy/manager_destroy
-	 */
-	// TODO: Implement the free() check
+	// TODO: Evaluate whether we may need to iterate structs
+	wl_list_remove(&client->link);
+	wl_list_remove(&client->tablet_seats);
+	//wl_list_remove(&client->client_destroy.link);
+
+	free(client);
 }
 
 static void tablet_v2_bind(struct wl_client *wl_client, void *data,
