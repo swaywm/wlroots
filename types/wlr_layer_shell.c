@@ -183,6 +183,7 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	wl_list_init(&surface->surface_destroy_listener.link);
 	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 	wl_list_remove(&surface->link);
+	free(surface->namespace);
 	free(surface);
 }
 
@@ -300,7 +301,7 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 	}
 }
 
-static void handle_wlr_surface_destroyed(struct wl_listener *listener,
+static void handle_surface_destroyed(struct wl_listener *listener,
 		void *data) {
 	struct wlr_layer_surface *layer_surface =
 		wl_container_of(listener, layer_surface, surface_destroy_listener);
@@ -334,22 +335,28 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	if (output_resource) {
 		surface->output = wlr_output_from_resource(output_resource);
 	}
-	surface->resource = wl_resource_create(wl_client,
-		&zwlr_layer_surface_v1_interface,
-		wl_resource_get_version(client_resource),
-		id);
-	surface->namespace = strdup(namespace);
 	surface->layer = layer;
-	if (surface->resource == NULL || surface->namespace == NULL) {
+	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
+		free(surface);
+		wl_resource_post_error(surface->resource,
+				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
+				"Invalid layer %d", layer);
+		return;
+	}
+	surface->namespace = strdup(namespace);
+	if (surface->namespace == NULL) {
 		free(surface);
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
-		wl_resource_post_error(surface->resource,
-				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
-				"Invalid layer %d", layer);
+	surface->resource = wl_resource_create(wl_client,
+		&zwlr_layer_surface_v1_interface,
+		wl_resource_get_version(client_resource),
+		id);
+	if (surface->resource == NULL) {
+		free(surface->namespace);
 		free(surface);
+		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
@@ -359,7 +366,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
-	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+	surface->surface_destroy_listener.notify = handle_surface_destroyed;
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.new_popup);

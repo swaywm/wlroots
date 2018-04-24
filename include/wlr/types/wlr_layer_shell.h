@@ -61,7 +61,7 @@ struct wlr_layer_surface {
 	struct wlr_layer_shell *shell;
 	struct wl_list popups; // wlr_xdg_popup::link
 
-	const char *namespace;
+	char *namespace;
 	enum zwlr_layer_shell_v1_layer layer;
 
 	bool added, configured, mapped, closed;
