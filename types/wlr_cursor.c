@@ -262,8 +262,8 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
 	}
 
-	x = x > 0 ? mapping->width * x + mapping->x : cur->x;
-	y = y > 0 ? mapping->height * y + mapping->y : cur->y;
+	x = x >= 0 ? mapping->width * x + mapping->x : cur->x;
+	y = y >= 0 ? mapping->height * y + mapping->y : cur->y;
 
 	wlr_cursor_warp_unchecked(cur, x, y);
 }
