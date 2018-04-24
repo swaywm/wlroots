@@ -8,8 +8,7 @@ struct wl_resource;
 /*
  * Implements the given resource as region.
  */
-void wlr_region_create(struct wl_client *client, struct wl_resource *res,
-	uint32_t id);
+struct wl_resource *wlr_region_create(struct wl_client *client, uint32_t id);
 
 pixman_region32_t *wlr_region_from_resource(struct wl_resource *resource);
 
