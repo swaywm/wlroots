@@ -32,7 +32,7 @@ struct wlr_tablet_pad {
 	void *data;
 };
 
-struct wlr_tablet_pad_group_v2 {
+struct wlr_tablet_pad_group {
 	struct wl_list link;
 
 	size_t button_count;

@@ -64,30 +64,32 @@ void wlr_libinput_tablet_tool_destroy(struct wlr_input_device *wlr_dev) {
 	struct tablet_tool_list_elem *pos;
 	struct tablet_tool_list_elem *tmp;
 	wl_list_for_each_safe(pos, tmp, &tablet->tools, link) {
-		wl_list_remove(&pos->link);
 		struct wlr_libinput_tablet_tool *tool = pos->tool;
+		wl_list_remove(&pos->link);
+		free(pos);
 
 		if (--tool->pad_refs == 0) {
 			destroy_tool_tool(tool);
 		}
-
-		free(pos);
 	}
 }
 
 struct wlr_tablet_tool *libinput_tablet_tool_create(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	struct wlr_tablet_tool *wlr_tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
+	struct wlr_libinput_tablet *libinput_tablet_tool =
+		calloc(1, sizeof(struct wlr_libinput_tablet));
+	struct wlr_tablet_tool *wlr_tablet_tool = &libinput_tablet_tool->wlr_tool;
 	if (!wlr_tablet_tool) {
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
 		return NULL;
 	}
 
+	wl_list_init(&wlr_tablet_tool->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
 	add_tablet_path(&wlr_tablet_tool->paths, udev_device_get_syspath(udev));
 	wlr_tablet_tool->name = strdup(libinput_device_get_name(libinput_dev));
-
+	wl_list_init(&libinput_tablet_tool->tools);
 
 	wlr_tablet_tool_init(wlr_tablet_tool, NULL);
 	return wlr_tablet_tool;

@@ -17,7 +17,7 @@ enum wlr_tablet_tool_type {
 				             Wacom Inking Pen */
 	WLR_TABLET_TOOL_TYPE_AIRBRUSH,	/**< An airbrush-like tool */
 	WLR_TABLET_TOOL_TYPE_MOUSE,	/**< A mouse bound to the tablet */
-	WLR_TABLET_TOOL_TYPE_LENS,		/**< A mouse tool with a lens */
+	WLR_TABLET_TOOL_TYPE_LENS,	/**< A mouse tool with a lens */
 };
 
 struct wlr_tablet_tool_tool {

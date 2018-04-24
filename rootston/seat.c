@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "rootston/cursor.h"
 #include "rootston/input.h"
@@ -113,6 +114,19 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
 	struct wlr_event_tablet_tool_tip *event = data;
 	roots_cursor_handle_tool_tip(cursor, event);
+}
+
+static void handle_tool_proximity(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_proximity);
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
+	struct wlr_event_tablet_tool_proximity *event = data;
+
+	struct wlr_tablet_tool_tool *tool = event->tool;
+	if (!tool->data) {
+		tool->data = wlr_make_tablet_tool(desktop->tablet_v2, cursor->seat->seat, tool);
+	}
 }
 
 static void handle_request_set_cursor(struct wl_listener *listener,
@@ -250,6 +264,9 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.tablet_tool_tip, &seat->cursor->tool_tip);
 	seat->cursor->tool_tip.notify = handle_tool_tip;
+
+	wl_signal_add(&wlr_cursor->events.tablet_tool_proximity, &seat->cursor->tool_proximity);
+	seat->cursor->tool_proximity.notify = handle_tool_proximity;
 
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 		&seat->cursor->request_set_cursor);
@@ -532,6 +549,10 @@ static void seat_add_touch(struct roots_seat *seat,
 static void seat_add_tablet_pad(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	// TODO
+	// FIXME: This needs to be stored on the roots_tablet_tool
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	(void)wlr_make_tablet_pad(desktop->tablet_v2, seat->seat, device);
+
 }
 
 static void handle_tablet_tool_destroy(struct wl_listener *listener,
@@ -568,6 +589,11 @@ static void seat_add_tablet_tool(struct roots_seat *seat,
 
 	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
+
+	struct roots_desktop *desktop = seat->input->server->desktop;
+
+	// FIXME: This needs to be stored on the roots_tablet_tool
+	(void)wlr_make_tablet(desktop->tablet_v2, seat->seat, device);
 }
 
 void roots_seat_add_device(struct roots_seat *seat,

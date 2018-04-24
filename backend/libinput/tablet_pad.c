@@ -1,4 +1,8 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <assert.h>
+#include <string.h>
 #include <libinput.h>
 #include <stdlib.h>
 #include <wlr/backend/session.h>
@@ -8,12 +12,26 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
+//TODO: Move out
+static void add_tablet_path(struct wl_list *list, const char *path) {
+	struct wlr_tablet_path *tablet_path = calloc(1, sizeof(struct wlr_tablet_path));
+
+	if (!tablet_path) {
+		return;
+	}
+
+	tablet_path->path = strdup(path);
+	assert(tablet_path->path);
+	wl_list_insert(list, &tablet_path->link);
+}
+
+// FIXME: Decide on how to alloc/count here
 static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 		struct libinput_device *device, unsigned int index) {
 	struct libinput_tablet_pad_mode_group *li_group =
 		libinput_device_tablet_pad_get_mode_group(device, index);
-	struct wlr_tablet_pad_group_v2 *group =
-		calloc(1, sizeof(struct wlr_tablet_pad_group_v2));
+	struct wlr_tablet_pad_group *group =
+		calloc(1, sizeof(struct wlr_tablet_pad_group));
 	if (!group) {
 		return;
 	}
@@ -77,9 +95,11 @@ struct wlr_tablet_pad *libinput_tablet_pad_create(
 	wlr_tablet_pad->strip_count =
 		libinput_device_tablet_pad_get_num_strips(libinput_dev);
 
-	//struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
-	//add_tablet_path(&pad->paths, udev_device_get_syspath(udev));
+	wl_list_init(&wlr_tablet_pad->paths);
+	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
+	add_tablet_path(&wlr_tablet_pad->paths, udev_device_get_syspath(udev));
 
+	wl_list_init(&wlr_tablet_pad->groups);
 	int groups = libinput_device_tablet_pad_get_num_mode_groups(libinput_dev);
 	for (int i = 0; i < groups; ++i) {
 		add_pad_group_from_libinput(wlr_tablet_pad, libinput_dev, i);

@@ -56,6 +56,7 @@ struct roots_desktop {
 	struct wlr_layer_shell *layer_shell;
 	struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard;
 	struct wlr_screencopy_manager_v1 *screencopy;
+	struct wlr_tablet_manager_v2 *tablet_v2;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
