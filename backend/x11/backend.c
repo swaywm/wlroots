@@ -120,7 +120,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	return 0;
 }
 
-static bool wlr_x11_backend_start(struct wlr_backend *backend) {
+static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	x11->started = true;
 
@@ -209,7 +209,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	return true;
 }
 
-static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
+static void backend_destroy(struct wlr_backend *backend) {
 	if (!backend) {
 		return;
 	}
@@ -250,16 +250,16 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	free(x11);
 }
 
-static struct wlr_renderer *wlr_x11_backend_get_renderer(
+static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	return x11->renderer;
 }
 
 static const struct wlr_backend_impl backend_impl = {
-	.start = wlr_x11_backend_start,
-	.destroy = wlr_x11_backend_destroy,
-	.get_renderer = wlr_x11_backend_get_renderer,
+	.start = backend_start,
+	.destroy = backend_destroy,
+	.get_renderer = backend_get_renderer,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
@@ -269,7 +269,7 @@ bool wlr_backend_is_x11(struct wlr_backend *backend) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_x11_backend *x11 =
 		wl_container_of(listener, x11, display_destroy);
-	wlr_x11_backend_destroy(&x11->backend);
+	backend_destroy(&x11->backend);
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,

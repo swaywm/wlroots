@@ -461,13 +461,13 @@ static void shell_surface_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void handle_wlr_surface_destroyed(struct wl_listener *listener,
+static void shell_surface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_shell_surface *surface =
 		wl_container_of(listener, surface, surface_destroy_listener);
 	shell_surface_destroy(surface);
 }
-static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+static void handle_surface_committed(struct wlr_surface *wlr_surface,
 		void *role_data) {
 	struct wlr_wl_shell_surface *surface = role_data;
 	if (!surface->configured &&
@@ -556,9 +556,10 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 
 	wl_signal_add(&wl_surface->surface->events.destroy,
 		&wl_surface->surface_destroy_listener);
-	wl_surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+	wl_surface->surface_destroy_listener.notify =
+		shell_surface_handle_surface_destroy;
 
-	wlr_surface_set_role_committed(surface, handle_wlr_surface_committed,
+	wlr_surface_set_role_committed(surface, handle_surface_committed,
 		wl_surface);
 
 	struct wl_display *display = wl_client_get_display(client);

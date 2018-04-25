@@ -195,7 +195,7 @@ static void layer_surface_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
-static bool wlr_layer_surface_state_changed(struct wlr_layer_surface *surface) {
+static bool layer_surface_state_changed(struct wlr_layer_surface *surface) {
 	struct wlr_layer_surface_state *state;
 	if (wl_list_empty(&surface->configure_list)) {
 		if (surface->acked_configure) {
@@ -220,7 +220,7 @@ void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 		uint32_t width, uint32_t height) {
 	surface->server_pending.actual_width = width;
 	surface->server_pending.actual_height = height;
-	if (wlr_layer_surface_state_changed(surface)) {
+	if (layer_surface_state_changed(surface)) {
 		struct wl_display *display =
 			wl_client_get_display(wl_resource_get_client(surface->resource));
 		struct wlr_layer_surface_configure *configure =
@@ -249,7 +249,7 @@ void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
 	zwlr_layer_surface_v1_send_closed(surface->resource);
 }
 
-static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+static void handle_surface_committed(struct wlr_surface *wlr_surface,
 		void *role_data) {
 	struct wlr_layer_surface *surface = role_data;
 
@@ -372,7 +372,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	wl_signal_init(&surface->events.new_popup);
 
 	wlr_surface_set_role_committed(surface->surface,
-		handle_wlr_surface_committed, surface);
+		handle_surface_committed, surface);
 
 	wlr_log(L_DEBUG, "new layer_surface %p (res %p)",
 			surface, surface->resource);

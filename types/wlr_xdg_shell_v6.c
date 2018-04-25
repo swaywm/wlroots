@@ -132,7 +132,7 @@ static const struct wlr_keyboard_grab_interface xdg_keyboard_grab_impl = {
 
 static void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface);
 
-static void wlr_xdg_popup_grab_handle_seat_destroy(
+static void xdg_popup_grab_handle_seat_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_xdg_popup_grab_v6 *xdg_grab =
 		wl_container_of(listener, xdg_grab, seat_destroy);
@@ -172,7 +172,7 @@ static struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
 	wl_list_insert(&shell->popup_grabs, &xdg_grab->link);
 	xdg_grab->seat = seat;
 
-	xdg_grab->seat_destroy.notify = wlr_xdg_popup_grab_handle_seat_destroy;
+	xdg_grab->seat_destroy.notify = xdg_popup_grab_handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &xdg_grab->seat_destroy);
 
 	return xdg_grab;
@@ -924,7 +924,7 @@ static void xdg_surface_handle_get_toplevel(struct wl_client *client,
 		xdg_toplevel_resource_destroy);
 }
 
-static void wlr_xdg_toplevel_v6_ack_configure(
+static void xdg_toplevel_v6_ack_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -975,7 +975,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		assert(0 && "not reached");
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
-		wlr_xdg_toplevel_v6_ack_configure(surface, configure);
+		xdg_toplevel_v6_ack_configure(surface, configure);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
 		break;
@@ -1027,7 +1027,7 @@ static const struct zxdg_surface_v6_interface zxdg_surface_v6_implementation = {
 	.set_window_geometry = xdg_surface_handle_set_window_geometry,
 };
 
-static bool wlr_xdg_surface_v6_toplevel_state_compare(
+static bool xdg_surface_v6_toplevel_state_compare(
 		struct wlr_xdg_toplevel_v6 *state) {
 	struct {
 		struct wlr_xdg_toplevel_v6_state state;
@@ -1077,7 +1077,7 @@ static bool wlr_xdg_surface_v6_toplevel_state_compare(
 	return false;
 }
 
-static void wlr_xdg_toplevel_v6_send_configure(
+static void xdg_toplevel_v6_send_configure(
 		struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
@@ -1143,7 +1143,7 @@ error_out:
 	wl_resource_post_no_memory(surface->toplevel->resource);
 }
 
-static void wlr_xdg_surface_send_configure(void *user_data) {
+static void xdg_surface_send_configure(void *user_data) {
 	struct wlr_xdg_surface_v6 *surface = user_data;
 
 	surface->configure_idle = NULL;
@@ -1163,7 +1163,7 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 		assert(0 && "not reached");
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
-		wlr_xdg_toplevel_v6_send_configure(surface, configure);
+		xdg_toplevel_v6_send_configure(surface, configure);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
 		zxdg_popup_v6_send_configure(surface->popup->resource,
@@ -1177,7 +1177,7 @@ static void wlr_xdg_surface_send_configure(void *user_data) {
 	zxdg_surface_v6_send_configure(surface->resource, configure->serial);
 }
 
-static uint32_t wlr_xdg_surface_v6_schedule_configure(
+static uint32_t xdg_surface_v6_schedule_configure(
 		struct wlr_xdg_surface_v6 *surface) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
@@ -1189,7 +1189,7 @@ static uint32_t wlr_xdg_surface_v6_schedule_configure(
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		pending_same =
-			wlr_xdg_surface_v6_toplevel_state_compare(surface->toplevel);
+			xdg_surface_v6_toplevel_state_compare(surface->toplevel);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
 		break;
@@ -1213,26 +1213,26 @@ static uint32_t wlr_xdg_surface_v6_schedule_configure(
 
 		surface->configure_next_serial = wl_display_next_serial(display);
 		surface->configure_idle = wl_event_loop_add_idle(loop,
-			wlr_xdg_surface_send_configure, surface);
+			xdg_surface_send_configure, surface);
 		return surface->configure_next_serial;
 	}
 }
 
-static void handle_wlr_surface_destroyed(struct wl_listener *listener,
+static void xdg_surface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_surface_v6 *xdg_surface =
 		wl_container_of(listener, xdg_surface, surface_destroy_listener);
 	xdg_surface_destroy(xdg_surface);
 }
 
-static void wlr_xdg_surface_v6_toplevel_committed(
+static void xdg_surface_v6_toplevel_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
 	if (!surface->toplevel->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
-		wlr_xdg_surface_v6_schedule_configure(surface);
+		xdg_surface_v6_schedule_configure(surface);
 		surface->toplevel->added = true;
 		return;
 	}
@@ -1248,17 +1248,17 @@ static void wlr_xdg_surface_v6_toplevel_committed(
 		surface->toplevel->client_pending.min_height;
 }
 
-static void wlr_xdg_surface_v6_popup_committed(
+static void xdg_surface_v6_popup_committed(
 		struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
 
 	if (!surface->popup->committed) {
-		wlr_xdg_surface_v6_schedule_configure(surface);
+		xdg_surface_v6_schedule_configure(surface);
 		surface->popup->committed = true;
 	}
 }
 
-static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
+static void handle_surface_committed(struct wlr_surface *wlr_surface,
 		void *role_data) {
 	struct wlr_xdg_surface_v6 *surface = role_data;
 
@@ -1284,10 +1284,10 @@ static void handle_wlr_surface_committed(struct wlr_surface *wlr_surface,
 			"xdg_surface must have a role");
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
-		wlr_xdg_surface_v6_toplevel_committed(surface);
+		xdg_surface_v6_toplevel_committed(surface);
 		break;
 	case WLR_XDG_SURFACE_V6_ROLE_POPUP:
-		wlr_xdg_surface_v6_popup_committed(surface);
+		xdg_surface_v6_popup_committed(surface);
 		break;
 	}
 
@@ -1361,10 +1361,11 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 
 	wl_signal_add(&surface->surface->events.destroy,
 		&surface->surface_destroy_listener);
-	surface->surface_destroy_listener.notify = handle_wlr_surface_destroyed;
+	surface->surface_destroy_listener.notify =
+		xdg_surface_handle_surface_destroy;
 
 	wlr_surface_set_role_committed(surface->surface,
-		handle_wlr_surface_committed, surface);
+		handle_surface_committed, surface);
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
@@ -1405,7 +1406,8 @@ static const struct zxdg_shell_v6_interface xdg_shell_impl = {
 	.pong = xdg_shell_handle_pong,
 };
 
-static void wlr_xdg_client_v6_destroy(struct wl_resource *resource) {
+static void xdg_client_v6_handle_resource_destroy(
+		struct wl_resource *resource) {
 	struct wlr_xdg_client_v6 *client = xdg_client_from_resource(resource);
 
 	struct wlr_xdg_surface_v6 *surface, *tmp = NULL;
@@ -1421,7 +1423,7 @@ static void wlr_xdg_client_v6_destroy(struct wl_resource *resource) {
 	free(client);
 }
 
-static int wlr_xdg_client_v6_ping_timeout(void *user_data) {
+static int xdg_client_v6_ping_timeout(void *user_data) {
 	struct wlr_xdg_client_v6 *client = user_data;
 
 	struct wlr_xdg_surface_v6 *surface;
@@ -1458,13 +1460,13 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *data,
 	client->shell = xdg_shell;
 
 	wl_resource_set_implementation(client->resource, &xdg_shell_impl, client,
-		wlr_xdg_client_v6_destroy);
+		xdg_client_v6_handle_resource_destroy);
 	wl_list_insert(&xdg_shell->clients, &client->link);
 
 	struct wl_display *display = wl_client_get_display(client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 	client->ping_timer = wl_event_loop_add_timer(loop,
-		wlr_xdg_client_v6_ping_timeout, client);
+		xdg_client_v6_ping_timeout, client);
 	if (client->ping_timer == NULL) {
 		wl_client_post_no_memory(client->client);
 	}
@@ -1533,7 +1535,7 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 	surface->toplevel->server_pending.width = width;
 	surface->toplevel->server_pending.height = height;
 
-	return wlr_xdg_surface_v6_schedule_configure(surface);
+	return xdg_surface_v6_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
@@ -1541,7 +1543,7 @@ uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.activated = activated;
 
-	return wlr_xdg_surface_v6_schedule_configure(surface);
+	return xdg_surface_v6_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
@@ -1549,7 +1551,7 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.maximized = maximized;
 
-	return wlr_xdg_surface_v6_schedule_configure(surface);
+	return xdg_surface_v6_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
@@ -1557,7 +1559,7 @@ uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.fullscreen = fullscreen;
 
-	return wlr_xdg_surface_v6_schedule_configure(surface);
+	return xdg_surface_v6_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
@@ -1565,7 +1567,7 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.resizing = resizing;
 
-	return wlr_xdg_surface_v6_schedule_configure(surface);
+	return xdg_surface_v6_schedule_configure(surface);
 }
 
 void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
@@ -1677,7 +1679,7 @@ void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
 
 }
 
-static void wlr_xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,
+static void xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_sx_box, int *offset_x, int *offset_y) {
 	int popup_width = popup->geometry.width;
 	int popup_height = popup->geometry.height;
@@ -1705,10 +1707,10 @@ static void wlr_xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,
 	}
 }
 
-static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
+static bool xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_sx_box) {
 	int offset_x = 0, offset_y = 0;
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
@@ -1733,7 +1735,7 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 	popup->geometry =
 		wlr_xdg_positioner_v6_get_geometry(&popup->positioner);
 
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
@@ -1755,10 +1757,10 @@ static bool wlr_xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 	return false;
 }
 
-static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
+static bool xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_sx_box) {
 	int offset_x = 0, offset_y = 0;
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
@@ -1792,16 +1794,16 @@ static bool wlr_xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 		popup->geometry.y += toplevel_sx_box->y - toplevel_y;
 	}
 
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_x, &offset_y);
 
 	return !offset_x && !offset_y;
 }
 
-static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
+static bool xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_sx_box) {
 	int offset_x, offset_y;
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_x, &offset_y);
 
 	if (!offset_x && !offset_y) {
@@ -1823,7 +1825,7 @@ static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 		popup->geometry.height -= offset_y;
 	}
 
-	wlr_xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
+	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
 		&offset_y, &offset_y);
 
 	return !offset_x && !offset_y;
@@ -1831,13 +1833,13 @@ static bool wlr_xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 
 void wlr_xdg_popup_v6_unconstrain_from_box(struct wlr_xdg_popup_v6 *popup,
 		struct wlr_box *toplevel_sx_box) {
-	if (wlr_xdg_popup_v6_unconstrain_flip(popup, toplevel_sx_box)) {
+	if (xdg_popup_v6_unconstrain_flip(popup, toplevel_sx_box)) {
 		return;
 	}
-	if (wlr_xdg_popup_v6_unconstrain_slide(popup, toplevel_sx_box)) {
+	if (xdg_popup_v6_unconstrain_slide(popup, toplevel_sx_box)) {
 		return;
 	}
-	if (wlr_xdg_popup_v6_unconstrain_resize(popup, toplevel_sx_box)) {
+	if (xdg_popup_v6_unconstrain_resize(popup, toplevel_sx_box)) {
 		return;
 	}
 }

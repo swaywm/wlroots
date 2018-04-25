@@ -278,7 +278,7 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 
 static void xsurface_unmap(struct wlr_xwayland_surface *surface);
 
-static void wlr_xwayland_surface_destroy(
+static void xwayland_surface_destroy(
 		struct wlr_xwayland_surface *xsurface) {
 	xsurface_unmap(xsurface);
 
@@ -708,7 +708,7 @@ static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
 	if (xsurface == NULL) {
 		return;
 	}
-	wlr_xwayland_surface_destroy(xsurface);
+	xwayland_surface_destroy(xsurface);
 }
 
 static void xwm_handle_configure_request(struct wlr_xwm *xwm,
@@ -1304,10 +1304,10 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 #endif
 	struct wlr_xwayland_surface *xsurface, *tmp;
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
-		wlr_xwayland_surface_destroy(xsurface);
+		xwayland_surface_destroy(xsurface);
 	}
 	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
-		wlr_xwayland_surface_destroy(xsurface);
+		xwayland_surface_destroy(xsurface);
 	}
 	wl_list_remove(&xwm->compositor_new_surface.link);
 	wl_list_remove(&xwm->compositor_destroy.link);

@@ -32,7 +32,7 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
-static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
+static bool output_set_custom_mode(struct wlr_output *_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
@@ -40,7 +40,7 @@ static bool wlr_wl_output_set_custom_mode(struct wlr_output *_output,
 	return true;
 }
 
-static bool wlr_wl_output_make_current(struct wlr_output *wlr_output,
+static bool output_make_current(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_wl_backend_output *output =
 		(struct wlr_wl_backend_output *)wlr_output;
@@ -48,7 +48,7 @@ static bool wlr_wl_output_make_current(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
-static bool wlr_wl_output_swap_buffers(struct wlr_output *wlr_output,
+static bool output_swap_buffers(struct wlr_output *wlr_output,
 		pixman_region32_t *damage) {
 	struct wlr_wl_backend_output *output =
 		(struct wlr_wl_backend_output *)wlr_output;
@@ -65,13 +65,13 @@ static bool wlr_wl_output_swap_buffers(struct wlr_output *wlr_output,
 		damage);
 }
 
-static void wlr_wl_output_transform(struct wlr_output *_output,
+static void output_transform(struct wlr_output *_output,
 		enum wl_output_transform transform) {
 	struct wlr_wl_backend_output *output = (struct wlr_wl_backend_output *)_output;
 	output->wlr_output.transform = transform;
 }
 
-static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
+static bool output_set_cursor(struct wlr_output *_output,
 		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
 	struct wlr_wl_backend_output *output =
@@ -157,7 +157,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 	return true;
 }
 
-static void wlr_wl_output_destroy(struct wlr_output *wlr_output) {
+static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_wl_backend_output *output =
 		(struct wlr_wl_backend_output *)wlr_output;
 	if (output == NULL) {
@@ -200,19 +200,19 @@ void update_wl_output_cursor(struct wlr_wl_backend_output *output) {
 	}
 }
 
-bool wl_output_move_cursor(struct wlr_output *_output, int x, int y) {
+bool output_move_cursor(struct wlr_output *_output, int x, int y) {
 	// TODO: only return true if x == current x and y == current y
 	return true;
 }
 
-static struct wlr_output_impl output_impl = {
-	.set_custom_mode = wlr_wl_output_set_custom_mode,
-	.transform = wlr_wl_output_transform,
-	.destroy = wlr_wl_output_destroy,
-	.make_current = wlr_wl_output_make_current,
-	.swap_buffers = wlr_wl_output_swap_buffers,
-	.set_cursor = wlr_wl_output_set_cursor,
-	.move_cursor = wl_output_move_cursor,
+static const struct wlr_output_impl output_impl = {
+	.set_custom_mode = output_set_custom_mode,
+	.transform = output_transform,
+	.destroy = output_destroy,
+	.make_current = output_make_current,
+	.swap_buffers = output_swap_buffers,
+	.set_cursor = output_set_cursor,
+	.move_cursor = output_move_cursor,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {

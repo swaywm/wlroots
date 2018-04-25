@@ -185,7 +185,7 @@ static void wl_seat_get_touch(struct wl_client *client,
 	wl_list_insert(&seat_client->touches, wl_resource_get_link(resource));
 }
 
-static void wlr_seat_client_resource_destroy(struct wl_resource *seat_resource) {
+static void seat_client_resource_destroy(struct wl_resource *seat_resource) {
 	struct wlr_seat_client *client =
 		wlr_seat_client_from_resource(seat_resource);
 	wlr_signal_emit_safe(&client->events.destroy, client);
@@ -251,7 +251,7 @@ static void wl_seat_bind(struct wl_client *client, void *_wlr_seat,
 	wl_list_init(&seat_client->data_devices);
 	wl_list_init(&seat_client->primary_selection_devices);
 	wl_resource_set_implementation(seat_client->wl_resource, &wl_seat_impl,
-		seat_client, wlr_seat_client_resource_destroy);
+		seat_client, seat_client_resource_destroy);
 	wl_list_insert(&wlr_seat->clients, &seat_client->link);
 	if (version >= WL_SEAT_NAME_SINCE_VERSION) {
 		wl_seat_send_name(seat_client->wl_resource, wlr_seat->name);

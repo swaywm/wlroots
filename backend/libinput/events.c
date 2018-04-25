@@ -24,7 +24,7 @@ struct wlr_input_device *get_appropriate_device(
 	return NULL;
 }
 
-static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
+static void input_device_destroy(struct wlr_input_device *_dev) {
 	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
 	libinput_device_unref(dev->handle);
 	wl_list_remove(&dev->wlr_input_device.link);
@@ -32,7 +32,7 @@ static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
 }
 
 static const struct wlr_input_device_impl input_device_impl = {
-	.destroy = wlr_libinput_device_destroy
+	.destroy = input_device_destroy,
 };
 
 static struct wlr_input_device *allocate_device(

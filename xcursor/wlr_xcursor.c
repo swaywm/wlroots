@@ -32,7 +32,7 @@
 #include <wlr/xcursor.h>
 #include "xcursor/xcursor.h"
 
-static void wlr_xcursor_destroy(struct wlr_xcursor *cursor) {
+static void xcursor_destroy(struct wlr_xcursor *cursor) {
 	for (size_t i = 0; i < cursor->image_count; i++) {
 		free(cursor->images[i]->buffer);
 		free(cursor->images[i]);
@@ -45,7 +45,7 @@ static void wlr_xcursor_destroy(struct wlr_xcursor *cursor) {
 
 #include "xcursor/cursor_data.h"
 
-static struct wlr_xcursor *wlr_xcursor_create_from_data(
+static struct wlr_xcursor *xcursor_create_from_data(
 		struct cursor_metadata *metadata, struct wlr_xcursor_theme *theme) {
 	struct wlr_xcursor *cursor;
 	struct wlr_xcursor_image *image;
@@ -117,7 +117,7 @@ static void load_default_theme(struct wlr_xcursor_theme *theme) {
 
 	for (i = 0; i < theme->cursor_count; ++i) {
 		theme->cursors[i] =
-			wlr_xcursor_create_from_data(&cursor_metadata[i], theme);
+			xcursor_create_from_data(&cursor_metadata[i], theme);
 
 		if (theme->cursors[i] == NULL) {
 			break;
@@ -126,7 +126,7 @@ static void load_default_theme(struct wlr_xcursor_theme *theme) {
 	theme->cursor_count = i;
 }
 
-static struct wlr_xcursor *wlr_xcursor_create_from_xcursor_images(
+static struct wlr_xcursor *xcursor_create_from_xcursor_images(
 		XcursorImages *images, struct wlr_xcursor_theme *theme) {
 	struct wlr_xcursor *cursor;
 	struct wlr_xcursor_image *image;
@@ -193,7 +193,7 @@ static void load_callback(XcursorImages *images, void *data) {
 		return;
 	}
 
-	cursor = wlr_xcursor_create_from_xcursor_images(images, theme);
+	cursor = xcursor_create_from_xcursor_images(images, theme);
 
 	if (cursor) {
 		theme->cursor_count++;
@@ -259,7 +259,7 @@ void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme) {
 	unsigned int i;
 
 	for (i = 0; i < theme->cursor_count; i++) {
-		wlr_xcursor_destroy(theme->cursors[i]);
+		xcursor_destroy(theme->cursors[i]);
 	}
 
 	free(theme->name);
@@ -280,7 +280,7 @@ struct wlr_xcursor *wlr_xcursor_theme_get_cursor(struct wlr_xcursor_theme *theme
 	return NULL;
 }
 
-static int wlr_xcursor_frame_and_duration(struct wlr_xcursor *cursor,
+static int xcursor_frame_and_duration(struct wlr_xcursor *cursor,
 		uint32_t time, uint32_t *duration) {
 	uint32_t t;
 	int i;
@@ -323,7 +323,7 @@ static int wlr_xcursor_frame_and_duration(struct wlr_xcursor *cursor,
 }
 
 int wlr_xcursor_frame(struct wlr_xcursor *_cursor, uint32_t time) {
-	return wlr_xcursor_frame_and_duration(_cursor, time, NULL);
+	return xcursor_frame_and_duration(_cursor, time, NULL);
 }
 
 const char *wlr_xcursor_get_resize_name(enum wlr_edges edges) {

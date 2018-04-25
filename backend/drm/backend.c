@@ -15,13 +15,13 @@
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
-static bool wlr_drm_backend_start(struct wlr_backend *backend) {
+static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
 	scan_drm_connectors(drm);
 	return true;
 }
 
-static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
+static void backend_destroy(struct wlr_backend *backend) {
 	if (!backend) {
 		return;
 	}
@@ -48,16 +48,16 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 	free(drm);
 }
 
-static struct wlr_renderer *wlr_drm_backend_get_renderer(
+static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
 	return drm->renderer.wlr_rend;
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.start = wlr_drm_backend_start,
-	.destroy = wlr_drm_backend_destroy,
-	.get_renderer = wlr_drm_backend_get_renderer,
+	.start = backend_start,
+	.destroy = backend_destroy,
+	.get_renderer = backend_get_renderer,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
@@ -110,7 +110,7 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, display_destroy);
-	wlr_drm_backend_destroy(&drm->backend);
+	backend_destroy(&drm->backend);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,

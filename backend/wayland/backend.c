@@ -39,7 +39,7 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
  * compositor and creates surfaces for each output, then registers globals on
  * the specified display.
  */
-static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
+static bool backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	wlr_log(L_INFO, "Initializating wayland backend");
 
@@ -65,7 +65,7 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	return true;
 }
 
-static void wlr_wl_backend_destroy(struct wlr_backend *wlr_backend) {
+static void backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
 	if (backend == NULL) {
 		return;
@@ -110,16 +110,16 @@ static void wlr_wl_backend_destroy(struct wlr_backend *wlr_backend) {
 	free(backend);
 }
 
-static struct wlr_renderer *wlr_wl_backend_get_renderer(
+static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
 	return backend->renderer;
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.start = wlr_wl_backend_start,
-	.destroy = wlr_wl_backend_destroy,
-	.get_renderer = wlr_wl_backend_get_renderer,
+	.start = backend_start,
+	.destroy = backend_destroy,
+	.get_renderer = backend_get_renderer,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -172,7 +172,7 @@ void get_wl_output_layout_box(struct wlr_wl_backend *backend,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_wl_backend *backend =
 		wl_container_of(listener, backend, local_display_destroy);
-	wlr_wl_backend_destroy(&backend->backend);
+	backend_destroy(&backend->backend);
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote) {

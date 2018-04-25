@@ -235,7 +235,7 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 	return wlr_device;
 }
 
-static void wlr_wl_pointer_handle_output_destroy(struct wl_listener *listener,
+static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *wlr_wl_pointer =
 		wl_container_of(listener, wlr_wl_pointer, output_destroy_listener);
@@ -256,7 +256,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			return;
 		}
 		wlr_wl_pointer->output_destroy_listener.notify =
-			wlr_wl_pointer_handle_output_destroy;
+			pointer_handle_output_destroy;
 
 		struct wlr_input_device *wlr_device;
 		if (!(wlr_device = allocate_device(backend, WLR_INPUT_DEVICE_POINTER))) {
