@@ -74,6 +74,11 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static bool gles2_texture_to_dmabuf(struct wlr_texture *texture,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	return false; // TODO
+}
+
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	if (wlr_texture == NULL) {
 		return;
@@ -102,6 +107,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.get_size = gles2_texture_get_size,
 	.write_pixels = gles2_texture_write_pixels,
+	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
 };
 

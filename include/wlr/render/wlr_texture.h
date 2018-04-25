@@ -49,6 +49,12 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 	const void *data);
 
 /**
+ * Export a texture to a DMA-BUF.
+ */
+bool wlr_texture_to_dmabuf(struct wlr_texture *texture,
+	struct wlr_dmabuf_buffer_attribs *attribs);
+
+/**
  * Destroys this wlr_texture.
  */
 void wlr_texture_destroy(struct wlr_texture *texture);

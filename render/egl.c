@@ -177,9 +177,12 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	egl->egl_exts.dmabuf_import_modifiers =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
+	egl->egl_exts.dmabuf_export =
+		check_egl_ext(egl->exts_str, "EGL_MESA_image_dma_buf_export");
 
 	egl->egl_exts.bind_wayland_display =
 		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display");
+
 	print_dmabuf_formats(egl);
 
 	return true;
@@ -413,6 +416,42 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 }
 
+bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
+		int32_t width, int32_t height, uint32_t flags,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	memset(attribs, 0, sizeof(struct wlr_dmabuf_buffer_attribs));
+
+	if (!egl->egl_exts.dmabuf_export || !eglExportDMABUFImageQueryMESA ||
+			!eglExportDMABUFImageMESA) {
+		return false;
+	}
+
+	// Only one set of modifiers is returned for all planes
+	EGLuint64KHR modifiers;
+	if (!eglExportDMABUFImageQueryMESA(egl->display, image,
+			(int *)&attribs->format, &attribs->n_planes, &modifiers)) {
+		return false;
+	}
+	if (attribs->n_planes > WLR_LINUX_DMABUF_MAX_PLANES) {
+		wlr_log(L_ERROR, "EGL returned %d planes, but only %d are supported",
+			attribs->n_planes, WLR_LINUX_DMABUF_MAX_PLANES);
+		return false;
+	}
+	for (int i = 0; i < attribs->n_planes; ++i) {
+		attribs->modifier[i] = modifiers;
+	}
+
+	if (!eglExportDMABUFImageMESA(egl->display, image, attribs->fd,
+			(EGLint *)attribs->stride, (EGLint *)attribs->offset)) {
+		return false;
+	}
+
+	attribs->width = width;
+	attribs->height = height;
+	attribs->flags = flags;
+	return true;
+}
+
 #ifndef DRM_FORMAT_BIG_ENDIAN
 # define DRM_FORMAT_BIG_ENDIAN 0x80000000
 #endif
@@ -446,7 +485,7 @@ bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
 	if (!egl->egl_exts.dmabuf_import ||
-		!egl->egl_exts.dmabuf_import_modifiers) {
+			!egl->egl_exts.dmabuf_import_modifiers) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
