@@ -189,13 +189,17 @@ static struct wlr_input_method *wlr_input_method_from_resource(struct wl_resourc
 
 static void input_method_unbind(struct wl_resource *resource) {
 	struct wlr_input_method *input_method = wlr_input_method_from_resource(resource);
-	(void)input_method;
+	input_method->resource = NULL;
 }
 
 static void input_method_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	assert(wl_client);
 	struct wlr_input_method *input_method = data;
+	if (input_method->resource) {
+		wl_client_post_no_memory(wl_client); // FIXME: notify the client that the binding is taken
+		return;
+	}
 	struct wl_resource *wl_resource = wl_resource_create(wl_client,
 		&zwp_input_method_v1_interface, version, id);
 	if (wl_resource == NULL) {
