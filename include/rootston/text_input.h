@@ -8,7 +8,6 @@
 struct roots_text_input {
     struct roots_seat *seat;
     struct wlr_text_input *input;
-    struct wlr_input_method_context *context;
 
     struct wl_list link;
     struct wl_listener text_input_enable;

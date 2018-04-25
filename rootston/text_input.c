@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <wlr/util/log.h>
 #include "rootston/text_input.h"
 #include "rootston/desktop.h"
 
@@ -26,7 +27,7 @@ static void handle_text_input_enable(struct wl_listener *listener, void *data) {
 	struct roots_text_input *text_input = wl_container_of(listener, text_input,
 		text_input_enable);
 	//uint32_t show_input_panel = *(uint32_t*)data;
-	if (text_input->context != NULL) {
+	if (text_input->seat->context != NULL) {
 		return;
 	}
 	struct roots_desktop *desktop = text_input->seat->input->server->desktop;
@@ -35,7 +36,12 @@ static void handle_text_input_enable(struct wl_listener *listener, void *data) {
 	}
 	struct wlr_input_method_context *context =
 		wlr_input_method_send_activate(desktop->input_method);
-	text_input->context = context;
+	if (!context) {
+		wlr_log(L_ERROR, "Couldn't create input method context");
+		return;
+	}
+	wlr_log(L_DEBUG, "New context %p", context);
+	text_input->seat->context = context;
 	// FIXME: show all panel surfaces
 	wl_signal_add(&context->events.preedit_string,
 		&text_input->input_method_preedit_string);
@@ -52,7 +58,7 @@ static void handle_text_input_commit(struct wl_listener *listener,
 	struct roots_text_input *text_input = wl_container_of(listener, text_input,
 		text_input_commit);
 	struct wlr_text_input *input = data;
-	wlr_input_method_context_send_surrounding_text(text_input->context,
+	wlr_input_method_context_send_surrounding_text(text_input->seat->context,
 		input->current.surrounding.text, input->current.surrounding.cursor,
 		input->current.surrounding.anchor);
 }
@@ -61,12 +67,14 @@ static void handle_text_input_disable(struct wl_listener *listener,
 		void *data) {
 	struct roots_text_input *text_input = wl_container_of(listener, text_input,
 		text_input_disable);
-	if (text_input->context == NULL) {
+	if (text_input->seat->context == NULL) {
 		return;
 	}
 	struct roots_desktop *desktop = text_input->seat->input->server->desktop;
-	wlr_input_method_send_deactivate(desktop->input_method, text_input->context);
-	text_input->context = NULL;
+	wlr_input_method_send_deactivate(desktop->input_method,
+		text_input->seat->context);
+	text_input->seat->context = NULL;
+	wlr_log(L_DEBUG, "Text input disabled");
 }
 
 static void handle_text_input_destroy(struct wl_listener *listener,

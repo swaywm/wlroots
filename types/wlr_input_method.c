@@ -349,15 +349,16 @@ static void context_handle_resource_destroy(struct wl_resource *resource) {
 
 struct wlr_input_method_context *wlr_input_method_send_activate(
 		struct wlr_input_method *input_method) {
+	struct wl_client *client = wl_resource_get_client(input_method->resource);
 	struct wlr_input_method_context *context = calloc(1,
 		sizeof(struct wlr_input_method_context));
 	if (!context) {
+		wl_client_post_no_memory(client);
 		return NULL;
 	}
 	wl_signal_init(&context->events.commit_string);
 	wl_signal_init(&context->events.preedit_string);
 	wl_signal_init(&context->events.destroy);
-	struct wl_client *client = wl_resource_get_client(input_method->resource);
 	int version = wl_resource_get_version(input_method->resource);
 	struct wl_resource *wl_resource = wl_resource_create(client,
 		&zwp_input_method_context_v1_interface, version, 0);

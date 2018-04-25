@@ -17,6 +17,8 @@ struct roots_seat {
 	int32_t touch_id;
 	double touch_x, touch_y;
 
+	struct wlr_input_method_context *context;
+
 	// If the focused layer is set, views cannot receive keyboard focus
 	struct wlr_layer_surface *focused_layer;
 
