@@ -188,9 +188,8 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 	}
 }
 
-static void popup_destroy()
-{
-	eglDestroySurface(egl.display, popup_egl_surface);
+static void popup_destroy() {
+	wlr_egl_destroy_surface(&egl, popup_egl_surface);
 	wl_egl_window_destroy(popup_egl_window);
 	xdg_popup_destroy(popup);
 	wl_surface_destroy(popup_wl_surface);
@@ -262,7 +261,7 @@ static void layer_surface_configure(void *data,
 
 static void layer_surface_closed(void *data,
 		struct zwlr_layer_surface_v1 *surface) {
-	eglDestroySurface(egl.display, egl_surface);
+	wlr_egl_destroy_surface(&egl, egl_surface);
 	wl_egl_window_destroy(egl_window);
 	zwlr_layer_surface_v1_destroy(surface);
 	wl_surface_destroy(wl_surface);

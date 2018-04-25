@@ -98,4 +98,6 @@ bool wlr_egl_is_current(struct wlr_egl *egl);
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	pixman_region32_t *damage);
 
+bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
+
 #endif

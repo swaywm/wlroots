@@ -184,7 +184,7 @@ static void wlr_wl_output_destroy(struct wlr_output *wlr_output) {
 		wl_callback_destroy(output->frame_callback);
 	}
 
-	eglDestroySurface(output->backend->egl.display, output->surface);
+	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
 	wl_egl_window_destroy(output->egl_window);
 	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
 	zxdg_surface_v6_destroy(output->xdg_surface);
