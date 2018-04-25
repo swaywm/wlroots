@@ -150,18 +150,18 @@ void handle_pointer_axis(struct libinput_event *event,
 		.source = axis_source_to_wlr(source),
 	};
 
-	enum libinput_pointer_axis axies[] = {
+	enum libinput_pointer_axis axes[] = {
 		LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 		LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
 	};
 
-	for (size_t i = 0; i < sizeof(axies) / sizeof(axies[0]); ++i) {
-		if (!libinput_event_pointer_has_axis(pevent, axies[i])) {
+	for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); ++i) {
+		if (!libinput_event_pointer_has_axis(pevent, axes[i])) {
 			continue;
 		}
 
-		wlr_event.orientation = axis_orientation_to_wlr(axies[i]);
-		wlr_event.delta = normalize_axis(pevent, source, axies[i]);
+		wlr_event.orientation = axis_orientation_to_wlr(axes[i]);
+		wlr_event.delta = normalize_axis(pevent, source, axes[i]);
 
 		wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
 	}
