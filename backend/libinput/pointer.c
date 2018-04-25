@@ -95,9 +95,9 @@ static enum wlr_axis_source axis_source_to_wlr(
 		return WLR_AXIS_SOURCE_CONTINUOUS;
 	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL_TILT:
 		return WLR_AXIS_SOURCE_WHEEL_TILT;
-	default:
-		abort();
 	}
+
+	abort();
 }
 
 static enum wlr_axis_orientation axis_orientation_to_wlr(
@@ -107,9 +107,9 @@ static enum wlr_axis_orientation axis_orientation_to_wlr(
 		return WLR_AXIS_ORIENTATION_VERTICAL;
 	case LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL:
 		return WLR_AXIS_ORIENTATION_HORIZONTAL;
-	default:
-		abort();
 	}
+
+	abort();
 }
 
 static double normalize_axis(struct libinput_event_pointer *pevent,
