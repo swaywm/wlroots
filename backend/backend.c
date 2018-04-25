@@ -113,6 +113,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		struct wlr_backend *wl_backend = attempt_wl_backend(display);
 		if (wl_backend) {
 			wlr_multi_backend_add(backend, wl_backend);
+			// TODO: remove me
+			wlr_multi_backend_add(backend, attempt_wl_backend(display));
 			return backend;
 		}
 	}

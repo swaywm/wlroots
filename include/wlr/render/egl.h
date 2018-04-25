@@ -13,6 +13,8 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
+	EGLSurface surface; // TODO: remove me
+
 	const char *exts_str;
 
 	struct {

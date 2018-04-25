@@ -81,6 +81,13 @@ int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
 bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *renderer,
 	struct wlr_dmabuf_buffer *dmabuf);
 /**
+ * Import a texture so that it can be used with this renderer. Returns the
+ * texture as-is if it can already be used with this renderer. Returns NULL if
+ * the import failed.
+ */
+struct wlr_texture *wlr_renderer_import_texture(struct wlr_renderer *renderer,
+	struct wlr_texture *texture);
+/**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
  */

@@ -15,5 +15,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	struct wl_resource *data);
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_dmabuf_buffer_attribs *attribs);
+struct wlr_texture *wlr_gles2_import_texture(struct wlr_egl *egl,
+	struct wlr_texture *texture);
 
 #endif

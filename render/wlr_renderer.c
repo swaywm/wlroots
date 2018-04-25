@@ -137,6 +137,15 @@ bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *r,
 	return r->impl->check_import_dmabuf(r, dmabuf);
 }
 
+struct wlr_texture *wlr_renderer_import_texture(struct wlr_renderer *r,
+		struct wlr_texture *texture) {
+	// TODO: if texture belongs to renderer, return immediately texture
+	if (!r->impl->import_texture) {
+		return NULL;
+	}
+	return r->impl->import_texture(r, texture);
+}
+
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,

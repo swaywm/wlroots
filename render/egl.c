@@ -263,6 +263,8 @@ static int egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
 
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 		int *buffer_age) {
+	// wlr_log(L_INFO, "wlr_egl_make_current: %p", egl);
+	egl->surface = surface; // TODO: remove me
 	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
 		wlr_log(L_ERROR, "eglMakeCurrent failed");
 		return false;

@@ -25,7 +25,10 @@ static struct wlr_gles2_renderer *gles2_get_renderer(
 static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	assert(wlr_egl_is_current(renderer->egl));
+	//assert(wlr_egl_is_current(renderer->egl));
+	if (!wlr_egl_is_current(renderer->egl)) {
+		wlr_egl_make_current(renderer->egl, renderer->egl->surface, NULL);
+	}
 	return renderer;
 }
 
@@ -304,6 +307,12 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	return wlr_gles2_texture_from_dmabuf(renderer->egl, attribs);
 }
 
+static struct wlr_texture *gles2_import_texture(
+		struct wlr_renderer *wlr_renderer, struct wlr_texture *texture) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return wlr_gles2_import_texture(renderer->egl, texture);
+}
+
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
@@ -345,6 +354,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_pixels = gles2_texture_from_pixels,
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
+	.import_texture = gles2_import_texture,
 };
 
 void gles2_push_marker(const char *file, const char *func) {
@@ -475,10 +485,10 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		glDebugMessageCallbackKHR(gles2_log, NULL);
 
 		// Silence unwanted message types
-		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP_KHR,
-			GL_DONT_CARE, 0, NULL, GL_FALSE);
-		glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP_KHR,
-			GL_DONT_CARE, 0, NULL, GL_FALSE);
+		//glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP_KHR,
+		//	GL_DONT_CARE, 0, NULL, GL_FALSE);
+		//glDebugMessageControlKHR(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP_KHR,
+		//	GL_DONT_CARE, 0, NULL, GL_FALSE);
 	}
 
 	GLES2_DEBUG_PUSH;

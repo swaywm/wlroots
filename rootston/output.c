@@ -208,6 +208,13 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 		return;
 	}
 
+	struct wlr_texture *texture =
+		wlr_renderer_import_texture(renderer, surface->texture);
+	if (texture == NULL) {
+		wlr_log(L_ERROR, "Cannot import texture");
+		return;
+	}
+
 	struct wlr_box rotated;
 	wlr_box_rotated_bounds(&box, rotation, &rotated);
 
@@ -231,7 +238,7 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_texture_with_matrix(renderer, surface->texture, matrix,
+		wlr_render_texture_with_matrix(renderer, texture, matrix,
 			data->alpha);
 	}
 
