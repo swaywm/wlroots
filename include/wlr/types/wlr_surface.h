@@ -93,6 +93,8 @@ struct wlr_surface {
 	// wlr_subsurface::parent_pending_link
 	struct wl_list subsurface_pending_list;
 
+	struct wl_listener renderer_destroy;
+
 	void *data;
 };
 

@@ -622,7 +622,7 @@ void wlr_subsurface_destroy(struct wlr_subsurface *subsurface) {
 	free(subsurface);
 }
 
-static void destroy_surface(struct wl_resource *resource) {
+static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
@@ -632,6 +632,13 @@ static void destroy_surface(struct wl_resource *resource) {
 	wlr_surface_state_destroy(surface->current);
 
 	free(surface);
+}
+
+static void surface_handle_renderer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_surface *surface =
+		wl_container_of(listener, surface, renderer_destroy);
+	wl_resource_destroy(surface->resource);
 }
 
 struct wlr_surface *wlr_surface_create(struct wl_resource *res,
@@ -654,7 +661,11 @@ struct wlr_surface *wlr_surface_create(struct wl_resource *res,
 	wl_list_init(&surface->subsurfaces);
 	wl_list_init(&surface->subsurface_pending_list);
 	wl_resource_set_implementation(res, &surface_interface,
-		surface, destroy_surface);
+		surface, surface_handle_resource_destroy);
+
+	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
+	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
+
 	return surface;
 }
 

@@ -32,10 +32,13 @@ static const struct wl_region_interface region_impl = {
 	.subtract = region_subtract,
 };
 
-static void destroy_region(struct wl_resource *resource) {
+static void region_handle_resource_destroy(struct wl_resource *resource) {
 	pixman_region32_t *reg = wlr_region_from_resource(resource);
 	pixman_region32_fini(reg);
 	free(reg);
+
+	// Set by wlr_compositor
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 struct wl_resource *wlr_region_create(struct wl_client *client, uint32_t id) {
@@ -53,7 +56,7 @@ struct wl_resource *wlr_region_create(struct wl_client *client, uint32_t id) {
 		return NULL;
 	}
 	wl_resource_set_implementation(region_resource, &region_impl, region,
-		destroy_region);
+		region_handle_resource_destroy);
 	return region_resource;
 }
 
