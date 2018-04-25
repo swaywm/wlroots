@@ -144,11 +144,19 @@ uint32_t *get_code(struct wlr_input_method_context *context, uint32_t sym,
 	return NULL;
 }
 
+static const struct zwp_input_method_context_v1_interface input_context_impl;
+
+static struct wlr_input_method_context *context_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zwp_input_method_context_v1_interface, &input_context_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 void input_method_keysym(struct wl_client *client, struct wl_resource *resource,
 		uint32_t serial, uint32_t time, uint32_t sym, uint32_t state,
 		uint32_t modifiers) {
-	struct wlr_input_method_context *context =
-		wl_resource_get_user_data(resource);
+	struct wlr_input_method_context *context = context_from_resource(resource);
 	//wlr_keyboard_notify_modifiers(&context->keyboard, 0, 0, 0, 0); // FIXME
 	uint32_t *code = get_code(context, sym, modifiers);
 	if (!code) {
@@ -323,6 +331,22 @@ fail_kb:
 	return false;
 }
 
+static void context_destroy(struct wlr_input_method_context *context) {
+	wlr_signal_emit_safe(&context->events.destroy, context);
+	// the resource must be destroyed after this call by the client, so proceed with freeing everything else
+	wl_resource_set_user_data(context->resource, NULL);
+	wlr_input_device_destroy(&context->input_device);
+	free(context);
+}
+
+static void context_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_input_method_context *context = context_from_resource(resource);
+	if (!context) {
+		return; // context was freed; destroy called by client
+	}
+	context_destroy(context);
+}
+
 struct wlr_input_method_context *wlr_input_method_send_activate(
 		struct wlr_input_method *input_method) {
 	struct wlr_input_method_context *context = calloc(1,
@@ -343,7 +367,7 @@ struct wlr_input_method_context *wlr_input_method_send_activate(
 		return NULL;
 	}
 	wl_resource_set_implementation(wl_resource, &input_context_impl, context,
-		NULL);
+		context_handle_resource_destroy);
 	context->resource = wl_resource;
 	context_keyboard_init(context);
 	wlr_signal_emit_safe(&input_method->events.new_context, context);
@@ -354,12 +378,11 @@ struct wlr_input_method_context *wlr_input_method_send_activate(
 
 void wlr_input_method_send_deactivate(struct wlr_input_method *input_method,
 		struct wlr_input_method_context *context) {
-	zwp_input_method_v1_send_deactivate(input_method->resource,
-		context->resource);
-	wlr_signal_emit_safe(&context->events.destroy, context);
-	// the resource must be destroyed after this call by the client, so proceed with freeing everything else
-	wlr_input_device_destroy(&context->input_device);
-	free(context);
+	if (input_method->resource) { // resource was torn down already
+		zwp_input_method_v1_send_deactivate(input_method->resource,
+			context->resource);
+	}
+	context_destroy(context);
 }
 
 void wlr_input_method_context_send_surrounding_text(
