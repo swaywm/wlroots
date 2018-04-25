@@ -84,6 +84,51 @@ void handle_pointer_button(struct libinput_event *event,
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.button, &wlr_event);
 }
 
+static enum wlr_axis_source axis_source_to_wlr(
+		enum libinput_pointer_axis_source src) {
+	switch (src) {
+	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
+		return WLR_AXIS_SOURCE_WHEEL;
+	case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
+		return WLR_AXIS_SOURCE_FINGER;
+	case LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS:
+		return WLR_AXIS_SOURCE_CONTINUOUS;
+	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL_TILT:
+		return WLR_AXIS_SOURCE_WHEEL_TILT;
+	default:
+		abort();
+	}
+}
+
+static enum wlr_axis_orientation axis_orientation_to_wlr(
+		enum libinput_pointer_axis orientation) {
+	switch (orientation) {
+	case LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL:
+		return WLR_AXIS_ORIENTATION_VERTICAL;
+	case LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL:
+		return WLR_AXIS_ORIENTATION_HORIZONTAL;
+	default:
+		abort();
+	}
+}
+
+static double normalize_axis(struct libinput_event_pointer *pevent,
+		enum libinput_pointer_axis_source source,
+		enum libinput_pointer_axis axis) {
+	/* libinput < 0.8 sent wheel click events with value 10. Since 0.8 the
+	 * value is the angle of the click in degrees. To keep backwards-compat
+	 * with existing clients, we just send multiples of the click count.
+	 */
+	switch (source) {
+	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
+	case WLR_AXIS_SOURCE_WHEEL_TILT:
+		return 10.0 * libinput_event_pointer_get_axis_value_discrete(
+			pevent, axis);
+	default:
+		return libinput_event_pointer_get_axis_value(pevent, axis);
+	}
+}
+
 void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *libinput_dev) {
 	struct wlr_input_device *wlr_dev =
@@ -92,43 +137,32 @@ void handle_pointer_axis(struct libinput_event *event,
 		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
+
 	struct libinput_event_pointer *pevent =
 		libinput_event_get_pointer_event(event);
-	struct wlr_event_pointer_axis wlr_event = { 0 };
-	wlr_event.device = wlr_dev;
-	wlr_event.time_msec =
-		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
-	switch (libinput_event_pointer_get_axis_source(pevent)) {
-	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
-		wlr_event.source = WLR_AXIS_SOURCE_WHEEL;
-		break;
-	case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
-		wlr_event.source = WLR_AXIS_SOURCE_FINGER;
-		break;
-	case LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS:
-		wlr_event.source = WLR_AXIS_SOURCE_CONTINUOUS;
-		break;
-	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL_TILT:
-		wlr_event.source = WLR_AXIS_SOURCE_WHEEL_TILT;
-		break;
-	}
+	enum libinput_pointer_axis_source source =
+		libinput_event_pointer_get_axis_source(pevent);
+	uint64_t time_usec = libinput_event_pointer_get_time_usec(pevent);
+
+	struct wlr_event_pointer_axis wlr_event = {
+		.device = wlr_dev,
+		.time_msec = usec_to_msec(time_usec),
+		.source = axis_source_to_wlr(source),
+	};
+
 	enum libinput_pointer_axis axies[] = {
 		LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 		LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
 	};
+
 	for (size_t i = 0; i < sizeof(axies) / sizeof(axies[0]); ++i) {
-		if (libinput_event_pointer_has_axis(pevent, axies[i])) {
-			switch (axies[i]) {
-			case LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL:
-				wlr_event.orientation = WLR_AXIS_ORIENTATION_VERTICAL;
-				break;
-			case LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL:
-				wlr_event.orientation = WLR_AXIS_ORIENTATION_HORIZONTAL;
-				break;
-			}
-			wlr_event.delta = libinput_event_pointer_get_axis_value(
-					pevent, axies[i]);
-			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
+		if (!libinput_event_pointer_has_axis(pevent, axies[i])) {
+			continue;
 		}
+
+		wlr_event.orientation = axis_orientation_to_wlr(axies[i]);
+		wlr_event.delta = normalize_axis(pevent, source, axies[i]);
+
+		wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
 	}
 }
