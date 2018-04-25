@@ -26,7 +26,7 @@
 #include "backend/drm/util.h"
 #include "util/signal.h"
 
-bool drm_check_features(struct wlr_drm_backend *drm) {
+bool check_drm_features(struct wlr_drm_backend *drm) {
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
 		wlr_log(L_ERROR, "DRM universal planes unsupported");
 		return false;
@@ -87,8 +87,8 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 		p->possible_crtcs = plane->possible_crtcs;
 		uint64_t type;
 
-		if (!drm_get_plane_props(drm->fd, p->id, &p->props) ||
-				!drm_get_prop(drm->fd, p->id, p->props.type, &type)) {
+		if (!get_drm_plane_props(drm->fd, p->id, &p->props) ||
+				!get_drm_prop(drm->fd, p->id, p->props.type, &type)) {
 			drmModeFreePlane(plane);
 			goto error_planes;
 		}
@@ -122,7 +122,7 @@ error_res:
 	return false;
 }
 
-bool drm_resources_init(struct wlr_drm_backend *drm) {
+bool init_drm_resources(struct wlr_drm_backend *drm) {
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
 		wlr_log_errno(L_ERROR, "Failed to get DRM resources");
@@ -142,7 +142,7 @@ bool drm_resources_init(struct wlr_drm_backend *drm) {
 		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
 		crtc->id = res->crtcs[i];
 		crtc->legacy_crtc = drmModeGetCrtc(drm->fd, crtc->id);
-		drm_get_crtc_props(drm->fd, crtc->id, &crtc->props);
+		get_drm_crtc_props(drm->fd, crtc->id, &crtc->props);
 	}
 
 	if (!init_planes(drm)) {
@@ -160,7 +160,7 @@ error_res:
 	return false;
 }
 
-void drm_resources_finish(struct wlr_drm_backend *drm) {
+void finish_drm_resources(struct wlr_drm_backend *drm) {
 	if (!drm) {
 		return;
 	}
@@ -190,7 +190,7 @@ void drm_resources_finish(struct wlr_drm_backend *drm) {
 static bool drm_connector_make_current(struct wlr_output *output,
 		int *buffer_age) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	return drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
+	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
 static bool drm_connector_swap_buffers(struct wlr_output *output,
@@ -207,9 +207,9 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = drm_surface_swap_buffers(&plane->surf, damage);
+	struct gbm_bo *bo = swap_drm_surface_buffers(&plane->surf, damage);
 	if (drm->parent) {
-		bo = drm_surface_mgpu_copy(&plane->mgpu_surf, bo);
+		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
 	}
 	uint32_t fb_id = get_fb_for_bo(bo);
 
@@ -265,7 +265,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = drm_surface_get_front(
+	struct gbm_bo *bo = get_drm_surface_front(
 		drm->parent ? &plane->mgpu_surf : &plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 
@@ -279,7 +279,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 }
 
-void drm_connector_enable(struct wlr_output *output, bool enable) {
+void enable_drm_connector(struct wlr_output *output, bool enable) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
@@ -340,9 +340,9 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 			if (*old != new) {
 				changed_outputs[crtc_res[i]] = true;
 				if (*old) {
-					drm_surface_finish(&(*old)->surf);
+					finish_drm_surface(&(*old)->surf);
 				}
-				drm_surface_finish(&new->surf);
+				finish_drm_surface(&new->surf);
 				*old = new;
 			}
 		}
@@ -515,7 +515,7 @@ static bool drm_connector_set_mode(struct wlr_output *output,
 			continue;
 		}
 
-		if (!drm_plane_surfaces_init(crtc->primary, drm,
+		if (!init_drm_plane_surfaces(crtc->primary, drm,
 				mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
 			wlr_log(L_ERROR, "Failed to initialize renderer for plane");
 			goto error_conn;
@@ -572,7 +572,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		if (!drm_surface_init(&plane->surf, renderer, w, h,
+		if (!init_drm_surface(&plane->surf, renderer, w, h,
 				GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(L_ERROR, "Cannot allocate cursor resources");
 			return false;
@@ -631,7 +631,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		drm_surface_make_current(&plane->surf, NULL);
+		make_drm_surface_current(&plane->surf, NULL);
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
@@ -650,7 +650,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride,
 			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
 
-		drm_surface_swap_buffers(&plane->surf, NULL);
+		swap_drm_surface_buffers(&plane->surf, NULL);
 
 		wlr_texture_destroy(texture);
 		gbm_bo_unmap(plane->cursor_bo, bo_data);
@@ -714,7 +714,7 @@ static void drm_connector_destroy(struct wlr_output *output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.enable = drm_connector_enable,
+	.enable = enable_drm_connector,
 	.set_mode = drm_connector_set_mode,
 	.transform = drm_connector_transform,
 	.set_cursor = drm_connector_set_cursor,
@@ -746,7 +746,7 @@ static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_NONE] = WL_OUTPUT_SUBPIXEL_NONE,
 };
 
-void drm_scan_connectors(struct wlr_drm_backend *drm) {
+void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	wlr_log(L_INFO, "Scanning DRM connectors");
 
 	drmModeRes *res = drmModeGetResources(drm->fd);
@@ -836,10 +836,10 @@ void drm_scan_connectors(struct wlr_drm_backend *drm) {
 				wlr_conn->output.phys_width, wlr_conn->output.phys_height);
 			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
 
-			drm_get_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
+			get_drm_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
 
 			size_t edid_len = 0;
-			uint8_t *edid = drm_get_prop_blob(drm->fd,
+			uint8_t *edid = get_drm_prop_blob(drm->fd,
 				wlr_conn->id, wlr_conn->props.edid, &edid_len);
 			parse_edid(&wlr_conn->output, edid_len, edid);
 			free(edid);
@@ -913,9 +913,9 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
-	drm_surface_post(&conn->crtc->primary->surf);
+	post_drm_surface(&conn->crtc->primary->surf);
 	if (drm->parent) {
-		drm_surface_post(&conn->crtc->primary->mgpu_surf);
+		post_drm_surface(&conn->crtc->primary->mgpu_surf);
 	}
 
 	if (drm->session->active) {
@@ -923,7 +923,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 }
 
-int drm_event(int fd, uint32_t mask, void *data) {
+int handle_drm_event(int fd, uint32_t mask, void *data) {
 	drmEventContext event = {
 		.version = DRM_EVENT_CONTEXT_VERSION,
 		.page_flip_handler = page_flip_handler,
@@ -933,7 +933,7 @@ int drm_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-void drm_restore_outputs(struct wlr_drm_backend *drm) {
+void restore_drm_outputs(struct wlr_drm_backend *drm) {
 	uint64_t to_close = (1 << wl_list_length(&drm->outputs)) - 1;
 
 	struct wlr_drm_connector *conn;
@@ -946,7 +946,7 @@ void drm_restore_outputs(struct wlr_drm_backend *drm) {
 	time_t timeout = time(NULL) + 5;
 
 	while (to_close && time(NULL) < timeout) {
-		drm_event(drm->fd, 0, NULL);
+		handle_drm_event(drm->fd, 0, NULL);
 		size_t i = 0;
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
@@ -987,8 +987,8 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 				continue;
 			}
 
-			drm_surface_finish(&crtc->planes[i]->surf);
-			drm_surface_finish(&crtc->planes[i]->mgpu_surf);
+			finish_drm_surface(&crtc->planes[i]->surf);
+			finish_drm_surface(&crtc->planes[i]->mgpu_surf);
 			if (crtc->planes[i]->id == 0) {
 				free(crtc->planes[i]);
 				crtc->planes[i] = NULL;

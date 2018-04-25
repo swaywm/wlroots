@@ -28,7 +28,7 @@ struct wlr_keyboard_impl impl = {
 	.led_update = wlr_libinput_keyboard_set_leds
 };
 
-struct wlr_keyboard *libinput_keyboard_create(
+struct wlr_keyboard *create_libinput_keyboard(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_libinput_keyboard *wlr_libinput_kb;

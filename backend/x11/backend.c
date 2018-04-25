@@ -22,7 +22,7 @@
 #include "backend/x11.h"
 #include "util/signal.h"
 
-struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
+struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
 		xcb_window_t window) {
 	struct wlr_x11_output *output;
 	wl_list_for_each(output, &x11->outputs, link) {
@@ -33,7 +33,7 @@ struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
 	return NULL;
 }
 
-void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+void get_x11_output_layout_box(struct wlr_x11_backend *backend,
 		struct wlr_box *box) {
 	int min_x = INT_MAX, min_y = INT_MAX;
 	int max_x = INT_MIN, max_y = INT_MIN;
@@ -67,13 +67,13 @@ void x11_output_layout_get_box(struct wlr_x11_backend *backend,
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
-	x11_handle_input_event(x11, event);
+	handle_x11_input_event(x11, event);
 
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
 		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
 		struct wlr_x11_output *output =
-			x11_output_from_window_id(x11, ev->window);
+			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
 			wlr_output_update_needs_swap(&output->wlr_output);
 		}
@@ -83,9 +83,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_configure_notify_event_t *ev =
 			(xcb_configure_notify_event_t *)event;
 		struct wlr_x11_output *output =
-			x11_output_from_window_id(x11, ev->window);
+			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
-			x11_output_handle_configure_notify(output, ev);
+			handle_x11_configure_notify(output, ev);
 		}
 		break;
 	}
@@ -93,7 +93,7 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
 		if (ev->data.data32[0] == x11->atoms.wm_delete_window) {
 			struct wlr_x11_output *output =
-				x11_output_from_window_id(x11, ev->window);
+				get_x11_output_from_window_id(x11, ev->window);
 			if (output != NULL) {
 				wlr_output_destroy(&output->wlr_output);
 			}

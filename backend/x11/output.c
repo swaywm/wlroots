@@ -164,13 +164,13 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	return wlr_output;
 }
 
-void x11_output_handle_configure_notify(struct wlr_x11_output *output,
+void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
 	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
 		ev->height, output->wlr_output.refresh);
 
 	// Move the pointer to its new location
-	x11_update_pointer_position(output, output->x11->time);
+	update_x11_pointer_position(output, output->x11->time);
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {

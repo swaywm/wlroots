@@ -9,7 +9,8 @@
 // Calculates a more accurate refresh rate (mHz) than what mode itself provides
 int32_t calculate_refresh_rate(drmModeModeInfo *mode);
 // Populates the make/model/phys_{width,height} of output from the edid data
-void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *data);
+void parse_edid(struct wlr_output *restrict output, size_t len,
+	const uint8_t *data);
 // Returns the string representation of a DRM output type
 const char *conn_get_name(uint32_t type_id);
 // Returns the DRM framebuffer id for a gbm_bo
@@ -36,4 +37,5 @@ enum {
 size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 		size_t num_res, const uint32_t res[static restrict num_res],
 		uint32_t out[static restrict num_res]);
+
 #endif

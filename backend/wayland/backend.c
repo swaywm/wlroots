@@ -43,7 +43,7 @@ static bool wlr_wl_backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
 	wlr_log(L_INFO, "Initializating wayland backend");
 
-	wl_registry_poll(backend);
+	poll_wl_registry(backend);
 	if (!backend->compositor || !backend->shell) {
 		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
 		return false;
@@ -126,7 +126,7 @@ bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
 
-struct wlr_wl_backend_output *wl_output_for_surface(
+struct wlr_wl_backend_output *get_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface) {
 	struct wlr_wl_backend_output *output;
 	wl_list_for_each(output, &backend->outputs, link) {
@@ -137,7 +137,7 @@ struct wlr_wl_backend_output *wl_output_for_surface(
 	return NULL;
 }
 
-void wl_output_layout_get_box(struct wlr_wl_backend *backend,
+void get_wl_output_layout_box(struct wlr_wl_backend *backend,
 		struct wlr_box *box) {
 	int min_x = INT_MAX, min_y = INT_MAX;
 	int max_x = INT_MIN, max_y = INT_MIN;

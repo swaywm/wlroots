@@ -72,19 +72,19 @@ struct wlr_x11_backend {
 	struct wl_listener display_destroy;
 };
 
-struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
+struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
 	xcb_window_t window);
-void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+void get_x11_output_layout_box(struct wlr_x11_backend *backend,
 	struct wlr_box *box);
 
-const struct wlr_input_device_impl input_device_impl;
+extern const struct wlr_input_device_impl input_device_impl;
 
-void x11_handle_input_event(struct wlr_x11_backend *x11,
+void handle_x11_input_event(struct wlr_x11_backend *x11,
 	xcb_generic_event_t *event);
-void x11_update_pointer_position(struct wlr_x11_output *output,
+void update_x11_pointer_position(struct wlr_x11_output *output,
 	xcb_timestamp_t time);
 
-void x11_output_handle_configure_notify(struct wlr_x11_output *output,
+void handle_x11_configure_notify(struct wlr_x11_output *output,
 	xcb_configure_notify_event_t *event);
 
 #endif

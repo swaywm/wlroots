@@ -84,7 +84,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 
 	if (!update_pixels) {
 		// Update hotspot without changing cursor image
-		wl_output_update_cursor(output);
+		update_wl_output_cursor(output);
 		return true;
 	}
 	if (!buf) {
@@ -95,7 +95,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 			output->cursor.surface = NULL;
 			output->cursor.buf_size = 0;
 		}
-		wl_output_update_cursor(output);
+		update_wl_output_cursor(output);
 		return true;
 	}
 
@@ -153,7 +153,7 @@ static bool wlr_wl_output_set_cursor(struct wlr_output *_output,
 	wl_surface_damage(output->cursor.surface, 0, 0, width, height);
 	wl_surface_commit(output->cursor.surface);
 
-	wl_output_update_cursor(output);
+	update_wl_output_cursor(output);
 	return true;
 }
 
@@ -192,7 +192,7 @@ static void wlr_wl_output_destroy(struct wlr_output *wlr_output) {
 	free(output);
 }
 
-void wl_output_update_cursor(struct wlr_wl_backend_output *output) {
+void update_wl_output_cursor(struct wlr_wl_backend_output *output) {
 	if (output->backend->pointer && output->enter_serial) {
 		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
 			output->cursor.surface, output->cursor.hotspot_x,

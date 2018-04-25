@@ -223,13 +223,13 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 	}
 	if (xwm->seat) {
 		if (xwm->seat->selection_source &&
-				wlr_data_source_is_xwayland_data_source(
+				data_source_is_xwayland(
 					xwm->seat->selection_source)) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		}
 		if (xwm->seat->primary_selection_source &&
-				wlr_primary_selection_source_is_xwayland_primary_selection_source(
+				primary_selection_source_is_xwayland(
 					xwm->seat->primary_selection_source)) {
 			wlr_seat_set_primary_selection(xwm->seat, NULL,
 				wl_display_next_serial(xwm->xwayland->wl_display));
@@ -262,7 +262,7 @@ static void seat_handle_selection(struct wl_listener *listener,
 		wl_container_of(listener, xwm, seat_selection);
 	struct wlr_data_source *source = seat->selection_source;
 
-	if (source != NULL && wlr_data_source_is_xwayland_data_source(source)) {
+	if (source != NULL && data_source_is_xwayland(source)) {
 		return;
 	}
 
@@ -277,7 +277,7 @@ static void seat_handle_primary_selection(struct wl_listener *listener,
 	struct wlr_primary_selection_source *source = seat->primary_selection_source;
 
 	if (source != NULL &&
-			wlr_primary_selection_source_is_xwayland_primary_selection_source(
+			primary_selection_source_is_xwayland(
 				source)) {
 		return;
 	}

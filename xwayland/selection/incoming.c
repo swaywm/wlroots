@@ -182,14 +182,14 @@ struct x11_data_source {
 
 static const struct wlr_data_source_impl data_source_impl;
 
-bool wlr_data_source_is_xwayland_data_source(
+bool data_source_is_xwayland(
 		struct wlr_data_source *wlr_source) {
 	return wlr_source->impl == &data_source_impl;
 }
 
 static struct x11_data_source *data_source_from_wlr_data_source(
 		struct wlr_data_source *wlr_source) {
-	assert(wlr_data_source_is_xwayland_data_source(wlr_source));
+	assert(data_source_is_xwayland(wlr_source));
 	return (struct x11_data_source *)wlr_source;
 }
 
@@ -225,7 +225,7 @@ struct x11_primary_selection_source {
 static void primary_selection_source_cancel(
 	struct wlr_primary_selection_source *wlr_source);
 
-bool wlr_primary_selection_source_is_xwayland_primary_selection_source(
+bool primary_selection_source_is_xwayland(
 		struct wlr_primary_selection_source *wlr_source) {
 	return wlr_source->cancel == primary_selection_source_cancel;
 }

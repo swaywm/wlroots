@@ -22,7 +22,7 @@ static struct wlr_gles2_texture *gles2_get_texture(
 	return (struct wlr_gles2_texture *)wlr_texture;
 }
 
-struct wlr_gles2_texture *gles2_get_texture_in_context(
+struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 	assert(wlr_egl_is_current(texture->egl));
@@ -41,21 +41,21 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *data) {
 	struct wlr_gles2_texture *texture =
-		gles2_get_texture_in_context(wlr_texture);
+		get_gles2_texture_in_context(wlr_texture);
 
 	if (texture->type != WLR_GLES2_TEXTURE_GLTEX) {
 		wlr_log(L_ERROR, "Cannot write pixels to immutable texture");
 		return false;
 	}
 
-	const struct gles2_pixel_format *fmt = gles2_format_from_wl(wl_fmt);
+	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return false;
 	}
 
 	// TODO: what if the unpack subimage extension isn't supported?
-	GLES2_DEBUG_PUSH;
+	PUSH_GLES2_DEBUG;
 
 	glBindTexture(GL_TEXTURE_2D, texture->gl_tex);
 
@@ -70,7 +70,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
 
-	GLES2_DEBUG_POP;
+	POP_GLES2_DEBUG;
 	return true;
 }
 
@@ -83,7 +83,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
 
-	GLES2_DEBUG_PUSH;
+	PUSH_GLES2_DEBUG;
 
 	if (texture->image_tex) {
 		glDeleteTextures(1, &texture->image_tex);
@@ -94,7 +94,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 		glDeleteTextures(1, &texture->gl_tex);
 	}
 
-	GLES2_DEBUG_POP;
+	POP_GLES2_DEBUG;
 
 	free(texture);
 }
@@ -110,7 +110,7 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		uint32_t height, const void *data) {
 	assert(wlr_egl_is_current(egl));
 
-	const struct gles2_pixel_format *fmt = gles2_format_from_wl(wl_fmt);
+	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return NULL;
@@ -129,7 +129,7 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	texture->type = WLR_GLES2_TEXTURE_GLTEX;
 	texture->has_alpha = fmt->has_alpha;
 
-	GLES2_DEBUG_PUSH;
+	PUSH_GLES2_DEBUG;
 
 	glGenTextures(1, &texture->gl_tex);
 	glBindTexture(GL_TEXTURE_2D, texture->gl_tex);
@@ -139,7 +139,7 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		fmt->gl_format, fmt->gl_type, data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
-	GLES2_DEBUG_POP;
+	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
 }
 
@@ -188,13 +188,13 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	GLES2_DEBUG_PUSH;
+	PUSH_GLES2_DEBUG;
 
 	glGenTextures(1, &texture->image_tex);
 	glBindTexture(target, texture->image_tex);
 	glEGLImageTargetTexture2DOES(target, texture->image);
 
-	GLES2_DEBUG_POP;
+	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
 }
 
@@ -233,12 +233,12 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	GLES2_DEBUG_PUSH;
+	PUSH_GLES2_DEBUG;
 
 	glGenTextures(1, &texture->image_tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->image_tex);
 	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, texture->image);
 
-	GLES2_DEBUG_POP;
+	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
 }
