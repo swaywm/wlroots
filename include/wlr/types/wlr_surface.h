@@ -80,10 +80,6 @@ struct wlr_surface {
 		struct wl_signal destroy;
 	} events;
 
-	// destroy listener used by compositor
-	struct wl_listener compositor_listener;
-	void *compositor_data;
-
 	// surface commit callback for the role that runs before all others
 	void (*role_committed)(struct wlr_surface *surface, void *role_data);
 	void *role_data;
@@ -102,8 +98,14 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
 
 struct wlr_renderer;
-struct wlr_surface *wlr_surface_create(struct wl_resource *res,
-		struct wlr_renderer *renderer);
+
+/**
+ * Create a new surface resource with the provided new ID. If `resource_list`
+ * is non-NULL, adds the surface's resource to the list.
+ */
+struct wlr_surface *wlr_surface_create(struct wl_client *client,
+		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
+		struct wl_list *resource_list);
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the
@@ -121,10 +123,12 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 bool wlr_surface_has_buffer(struct wlr_surface *surface);
 
 /**
- * Create the subsurface implementation for this surface.
+ * Create a new subsurface resource with the provided new ID. If `resource_list`
+ * is non-NULL, adds the subsurface's resource to the list.
  */
-struct wlr_subsurface *wlr_surface_make_subsurface(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t id);
+struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t version, uint32_t id,
+		struct wl_list *resource_list);
 
 /**
  * Get the root of the subsurface tree for this surface.
