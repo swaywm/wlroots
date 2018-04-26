@@ -288,7 +288,9 @@ static void handle_surface_committed(struct wlr_surface *wlr_surface,
 		surface->added = true;
 		wlr_signal_emit_safe(&surface->shell->events.new_surface,
 				surface);
-		assert(surface->output);
+		// either the compositor found a suitable output or it must
+		// have closed the surface
+		assert(surface->output || surface->closed);
 	}
 	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
 			!surface->mapped) {

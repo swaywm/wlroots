@@ -395,8 +395,18 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 			wlr_output_layout_output_at(desktop->layout,
 					seat->cursor->cursor->x,
 					seat->cursor->cursor->y);
-		assert(output); // And this one
-		layer_surface->output = output;
+		if (!output) {
+			wlr_log(L_ERROR, "Couldn't find output at (%.0f,%.0f)",
+				seat->cursor->cursor->x,
+				seat->cursor->cursor->y);
+			output = wlr_output_layout_get_center_output(desktop->layout);
+		}
+		if (output) {
+			layer_surface->output = output;
+		} else {
+			wlr_layer_surface_close(layer_surface);
+			return;
+		}
 	}
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
