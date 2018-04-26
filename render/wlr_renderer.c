@@ -5,6 +5,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
+#include "util/signal.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -18,9 +19,13 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
+
+	wl_signal_init(&renderer->events.destroy);
 }
 
 void wlr_renderer_destroy(struct wlr_renderer *r) {
+	wlr_signal_emit_safe(&r->events.destroy, r);
+
 	if (r && r->impl && r->impl->destroy) {
 		r->impl->destroy(r);
 	} else {

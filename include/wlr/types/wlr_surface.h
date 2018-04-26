@@ -93,6 +93,8 @@ struct wlr_surface {
 	// wlr_subsurface::parent_pending_link
 	struct wl_list subsurface_pending_list;
 
+	struct wl_listener renderer_destroy;
+
 	void *data;
 };
 
@@ -121,7 +123,7 @@ bool wlr_surface_has_buffer(struct wlr_surface *surface);
 /**
  * Create the subsurface implementation for this surface.
  */
-void wlr_surface_make_subsurface(struct wlr_surface *surface,
+struct wlr_subsurface *wlr_surface_make_subsurface(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t id);
 
 /**

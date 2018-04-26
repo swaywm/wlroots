@@ -20,6 +20,15 @@ struct wlr_subsurface *wlr_subsurface_from_surface(
 	return (struct wlr_subsurface *)surface->role_data;
 }
 
+static const struct wl_subcompositor_interface subcompositor_impl;
+
+static struct wlr_subcompositor *subcompositor_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_subcompositor_interface,
+		&subcompositor_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void subcompositor_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -29,6 +38,8 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource,
 		struct wl_resource *parent_resource) {
+	struct wlr_subcompositor *subcompositor =
+		subcompositor_from_resource(resource);
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
 	struct wlr_surface *parent = wlr_surface_from_resource(parent_resource);
 
@@ -64,13 +75,24 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	wlr_surface_make_subsurface(surface, parent, id);
+	struct wlr_subsurface *subsurface =
+		wlr_surface_make_subsurface(surface, parent, id);
+	if (subsurface == NULL) {
+		return;
+	}
+
+	wl_list_insert(&subcompositor->subsurface_resources,
+		wl_resource_get_link(subsurface->resource));
 }
 
-static const struct wl_subcompositor_interface subcompositor_interface = {
+static const struct wl_subcompositor_interface subcompositor_impl = {
 	.destroy = subcompositor_handle_destroy,
 	.get_subsurface = subcompositor_handle_get_subsurface,
 };
+
+static void subcompositor_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
 
 static void subcompositor_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
@@ -81,8 +103,8 @@ static void subcompositor_bind(struct wl_client *client, void *data,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &subcompositor_interface,
-		subcompositor, NULL);
+	wl_resource_set_implementation(resource, &subcompositor_impl,
+		subcompositor, subcompositor_resource_destroy);
 	wl_list_insert(&subcompositor->wl_resources, wl_resource_get_link(resource));
 }
 
@@ -95,23 +117,33 @@ static void subcompositor_init(struct wlr_subcompositor *subcompositor,
 		return;
 	}
 	wl_list_init(&subcompositor->wl_resources);
+	wl_list_init(&subcompositor->subsurface_resources);
 }
 
 static void subcompositor_finish(struct wlr_subcompositor *subcompositor) {
 	wl_global_destroy(subcompositor->wl_global);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp,
+			&subcompositor->subsurface_resources) {
+		wl_resource_destroy(resource);
+	}
+	wl_resource_for_each_safe(resource, tmp, &subcompositor->wl_resources) {
+		wl_resource_destroy(resource);
+	}
 }
 
 
-static const struct wl_compositor_interface wl_compositor_impl;
+static const struct wl_compositor_interface compositor_impl;
 
 static struct wlr_compositor *compositor_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_compositor_interface,
-		&wl_compositor_impl));
+		&compositor_impl));
 	return wl_resource_get_user_data(resource);
 }
 
-static void destroy_surface_listener(struct wl_listener *listener, void *data) {
+static void compositor_handle_surface_destroy(struct wl_listener *listener,
+		void *data) {
 	wl_list_remove(wl_resource_get_link(data));
 }
 
@@ -134,35 +166,36 @@ static void wl_compositor_create_surface(struct wl_client *client,
 		return;
 	}
 	surface->compositor_data = compositor;
-	surface->compositor_listener.notify = &destroy_surface_listener;
+	surface->compositor_listener.notify = compositor_handle_surface_destroy;
 	wl_resource_add_destroy_listener(surface_resource,
 		&surface->compositor_listener);
 
-	wl_list_insert(&compositor->surfaces,
+	wl_list_insert(&compositor->surface_resources,
 		wl_resource_get_link(surface_resource));
 	wlr_signal_emit_safe(&compositor->events.new_surface, surface);
 }
 
 static void wl_compositor_create_region(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	wlr_region_create(client, resource, id);
+	struct wlr_compositor *compositor = compositor_from_resource(resource);
+
+	struct wl_resource *region_resource = wlr_region_create(client, id);
+	if (region_resource == NULL) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
+	wl_list_insert(&compositor->region_resources,
+		wl_resource_get_link(region_resource));
 }
 
-static const struct wl_compositor_interface wl_compositor_impl = {
+static const struct wl_compositor_interface compositor_impl = {
 	.create_surface = wl_compositor_create_surface,
-	.create_region = wl_compositor_create_region
+	.create_region = wl_compositor_create_region,
 };
 
-static void wl_compositor_destroy(struct wl_resource *resource) {
-	struct wlr_compositor *compositor = compositor_from_resource(resource);
-	struct wl_resource *_resource = NULL;
-	wl_resource_for_each(_resource, &compositor->wl_resources) {
-		if (_resource == resource) {
-			struct wl_list *link = wl_resource_get_link(_resource);
-			wl_list_remove(link);
-			break;
-		}
-	}
+static void compositor_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void wl_compositor_bind(struct wl_client *wl_client, void *data,
@@ -176,8 +209,8 @@ static void wl_compositor_bind(struct wl_client *wl_client, void *data,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &wl_compositor_impl,
-		compositor, wl_compositor_destroy);
+	wl_resource_set_implementation(resource, &compositor_impl,
+		compositor, compositor_resource_destroy);
 	wl_list_insert(&compositor->wl_resources, wl_resource_get_link(resource));
 }
 
@@ -189,6 +222,16 @@ void wlr_compositor_destroy(struct wlr_compositor *compositor) {
 	subcompositor_finish(&compositor->subcompositor);
 	wl_list_remove(&compositor->display_destroy.link);
 	wl_global_destroy(compositor->wl_global);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &compositor->surface_resources) {
+		wl_resource_destroy(resource);
+	}
+	wl_resource_for_each_safe(resource, tmp, &compositor->region_resources) {
+		wl_resource_destroy(resource);
+	}
+	wl_resource_for_each_safe(resource, tmp, &compositor->wl_resources) {
+		wl_resource_destroy(resource);
+	}
 	free(compositor);
 }
 
@@ -218,7 +261,8 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	compositor->renderer = renderer;
 
 	wl_list_init(&compositor->wl_resources);
-	wl_list_init(&compositor->surfaces);
+	wl_list_init(&compositor->surface_resources);
+	wl_list_init(&compositor->region_resources);
 	wl_signal_init(&compositor->events.new_surface);
 	wl_signal_init(&compositor->events.destroy);
 

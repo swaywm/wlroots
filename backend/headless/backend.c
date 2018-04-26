@@ -54,6 +54,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
+	wlr_renderer_destroy(backend->renderer);
 	wlr_egl_finish(&backend->egl);
 	free(backend);
 }

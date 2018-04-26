@@ -6,9 +6,15 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
 
-struct wlr_output;
+struct wlr_renderer_impl;
 
-struct wlr_renderer;
+struct wlr_renderer {
+	const struct wlr_renderer_impl *impl;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+};
 
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
 void wlr_renderer_end(struct wlr_renderer *r);

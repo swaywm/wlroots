@@ -239,6 +239,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	wl_list_remove(&x11->display_destroy.link);
 
+	wlr_renderer_destroy(x11->renderer);
 	wlr_egl_finish(&x11->egl);
 
 	if (x11->cursor) {

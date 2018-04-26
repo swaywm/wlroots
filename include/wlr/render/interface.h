@@ -11,12 +11,6 @@
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output.h>
 
-struct wlr_renderer_impl;
-
-struct wlr_renderer {
-	const struct wlr_renderer_impl *impl;
-};
-
 struct wlr_renderer_impl {
 	void (*begin)(struct wlr_renderer *renderer, uint32_t width,
 		uint32_t height);
