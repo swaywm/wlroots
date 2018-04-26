@@ -828,16 +828,20 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 			NULL, 0, NULL);
 	}
 
-	struct wlr_text_input *text_input;
-	wl_list_for_each(text_input,
-			&seat->input->server->desktop->text_input->text_inputs, link) {
-		if (wl_resource_get_client(text_input->resource)
-				== wl_resource_get_client(view->wlr_surface->resource)
-				&& text_input->seat == seat->seat) {
-			if (view != NULL) {
-				wlr_text_input_send_enter(text_input, view->wlr_surface);
-			} else {
-				wlr_text_input_send_leave(text_input, view->wlr_surface);
+	struct roots_text_input *text_input;
+	wl_list_for_each(text_input, &seat->text_inputs, link) {
+		if (!text_input->sent_enter) {
+			if (view
+					&& wl_resource_get_client(text_input->input->resource)
+					== wl_resource_get_client(view->wlr_surface->resource)) {
+				wlr_text_input_send_enter(text_input->input, view->wlr_surface);
+				text_input->sent_enter = true;
+			}
+		} else {
+			if (text_input->input->focused_surface != view->wlr_surface) {
+				wlr_text_input_send_leave(text_input->input,
+					text_input->input->focused_surface);
+				text_input->sent_enter = false;
 			}
 		}
 	}

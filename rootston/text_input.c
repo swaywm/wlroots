@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include "rootston/text_input.h"
@@ -23,35 +24,74 @@ static void handle_commit_string(struct wl_listener *listener, void *data) {
 	wlr_text_input_send_commit_string(text_input->input, text);
 }
 
-static void handle_text_input_enable(struct wl_listener *listener, void *data) {
-	struct roots_text_input *text_input = wl_container_of(listener, text_input,
-		text_input_enable);
-	//uint32_t show_input_panel = *(uint32_t*)data;
-	if (text_input->seat->context != NULL) {
-		return;
-	}
-	struct roots_desktop *desktop = text_input->seat->input->server->desktop;
-	if (!desktop->input_method->resource) {
-		return;
-	}
+
+static void seat_create_input_method_context(struct roots_seat *seat,
+		struct roots_text_input *text_input) {
+	assert(seat == text_input->seat);
+	struct roots_desktop *desktop = seat->input->server->desktop;
 	struct wlr_input_method_context *context =
 		wlr_input_method_send_activate(desktop->input_method);
 	if (!context) {
 		wlr_log(L_ERROR, "Couldn't create input method context");
 		return;
 	}
-	wlr_log(L_DEBUG, "New context %p", context);
-	text_input->seat->context = context;
-	// FIXME: show all panel surfaces
 	wl_signal_add(&context->events.preedit_string,
-		&text_input->input_method_preedit_string);
+				  &text_input->input_method_preedit_string);
 	text_input->input_method_preedit_string.notify = handle_preedit_string;
 	wl_signal_add(&context->events.commit_string,
-		&text_input->input_method_commit_string);
+				  &text_input->input_method_commit_string);
 	text_input->input_method_commit_string.notify = handle_commit_string;
-	// FIXME: handle destroy
+	text_input->active = true;
+	seat->context = context;
+// FIXME: handle destroy?
 }
 
+static void seat_destroy_input_method_context(struct roots_seat *seat,
+		struct roots_text_input *text_input) {
+	assert(seat == text_input->seat);
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	wlr_input_method_send_deactivate(desktop->input_method,
+		text_input->seat->context);
+	text_input->active = false;
+	seat->context = NULL;
+}
+
+static void seat_update_input_method_state(struct roots_seat *seat,
+		struct roots_text_input *changed_text_input) {
+	assert(seat == changed_text_input->seat);
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	if (!desktop->input_method->resource) { // FIXME: use seat
+		return;
+	}
+
+	struct roots_text_input *active_text_input = NULL;
+	struct roots_text_input *cur_text_input;
+	wl_list_for_each(cur_text_input, &seat->text_inputs, link) {
+		if (cur_text_input->active) {
+			active_text_input = cur_text_input;
+			break;
+		}
+	}
+
+	if (changed_text_input->enabled) {
+		if (changed_text_input != active_text_input) {
+			if (active_text_input) {
+				seat_destroy_input_method_context(seat, active_text_input);
+			}
+			seat_create_input_method_context(seat, changed_text_input);
+		}
+	} else if (changed_text_input->active) {
+		seat_destroy_input_method_context(seat, changed_text_input);
+	}
+}
+
+static void handle_text_input_enable(struct wl_listener *listener, void *data) {
+	struct roots_text_input *text_input = wl_container_of(listener, text_input,
+		text_input_enable);
+	//uint32_t show_input_panel = *(uint32_t*)data;
+	text_input->enabled = true;
+	seat_update_input_method_state(text_input->seat, text_input);
+}
 
 static void handle_text_input_commit(struct wl_listener *listener,
 		void *data) {
@@ -67,14 +107,11 @@ static void handle_text_input_disable(struct wl_listener *listener,
 		void *data) {
 	struct roots_text_input *text_input = wl_container_of(listener, text_input,
 		text_input_disable);
+	text_input->enabled = false;
 	if (text_input->seat->context == NULL) {
 		return;
 	}
-	struct roots_desktop *desktop = text_input->seat->input->server->desktop;
-	wlr_input_method_send_deactivate(desktop->input_method,
-		text_input->seat->context);
-	text_input->seat->context = NULL;
-	wlr_log(L_DEBUG, "Text input disabled");
+	seat_update_input_method_state(text_input->seat, text_input);
 }
 
 static void handle_text_input_destroy(struct wl_listener *listener,

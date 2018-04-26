@@ -9,6 +9,10 @@ struct roots_text_input {
     struct roots_seat *seat;
     struct wlr_text_input *input;
 
+	bool enabled; // client requested state
+	bool sent_enter; // server requested state
+	bool active; // active focus
+
     struct wl_list link;
     struct wl_listener text_input_enable;
     struct wl_listener text_input_disable;
