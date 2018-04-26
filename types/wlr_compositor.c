@@ -75,14 +75,8 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_subsurface *subsurface =
-		wlr_surface_make_subsurface(surface, parent, id);
-	if (subsurface == NULL) {
-		return;
-	}
-
-	wl_list_insert(&subcompositor->subsurface_resources,
-		wl_resource_get_link(subsurface->resource));
+	wlr_subsurface_create(surface, parent, wl_resource_get_version(resource),
+		id, &subcompositor->subsurface_resources);
 }
 
 static const struct wl_subcompositor_interface subcompositor_impl = {
@@ -142,36 +136,17 @@ static struct wlr_compositor *compositor_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void compositor_handle_surface_destroy(struct wl_listener *listener,
-		void *data) {
-	wl_list_remove(wl_resource_get_link(data));
-}
-
 static void wl_compositor_create_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
-	struct wl_resource *surface_resource = wl_resource_create(client,
-		&wl_surface_interface, wl_resource_get_version(resource), id);
-	if (surface_resource == NULL) {
-		wl_resource_post_no_memory(resource);
-		return;
-	}
-
-	struct wlr_surface *surface = wlr_surface_create(surface_resource,
-		compositor->renderer);
+	struct wlr_surface *surface = wlr_surface_create(client,
+		wl_resource_get_version(resource), id, compositor->renderer,
+		&compositor->surface_resources);
 	if (surface == NULL) {
-		wl_resource_destroy(surface_resource);
-		wl_resource_post_no_memory(resource);
 		return;
 	}
-	surface->compositor_data = compositor;
-	surface->compositor_listener.notify = compositor_handle_surface_destroy;
-	wl_resource_add_destroy_listener(surface_resource,
-		&surface->compositor_listener);
 
-	wl_list_insert(&compositor->surface_resources,
-		wl_resource_get_link(surface_resource));
 	wlr_signal_emit_safe(&compositor->events.new_surface, surface);
 }
 
@@ -179,14 +154,7 @@ static void wl_compositor_create_region(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
-	struct wl_resource *region_resource = wlr_region_create(client, id);
-	if (region_resource == NULL) {
-		wl_resource_post_no_memory(resource);
-		return;
-	}
-
-	wl_list_insert(&compositor->region_resources,
-		wl_resource_get_link(region_resource));
+	wlr_region_create(client, 1, id, &compositor->region_resources);
 }
 
 static const struct wl_compositor_interface compositor_impl = {
