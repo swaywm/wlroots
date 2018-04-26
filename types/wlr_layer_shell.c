@@ -338,7 +338,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	surface->layer = layer;
 	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
 		free(surface);
-		wl_resource_post_error(surface->resource,
+		wl_resource_post_error(client_resource,
 				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
 				"Invalid layer %d", layer);
 		return;
