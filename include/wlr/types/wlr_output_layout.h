@@ -107,8 +107,8 @@ struct wlr_output *wlr_output_layout_get_center_output(
 enum wlr_direction {
 	WLR_DIRECTION_UP = 1,
 	WLR_DIRECTION_DOWN = 2,
-	WLR_DIRECTION_LEFT = 3,
-	WLR_DIRECTION_RIGHT = 4,
+	WLR_DIRECTION_LEFT = 4,
+	WLR_DIRECTION_RIGHT = 8,
 };
 
 /**
