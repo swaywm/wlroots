@@ -31,6 +31,7 @@ struct roots_seat {
 	struct wl_list pointers;
 	struct wl_list touch;
 	struct wl_list tablet_tools;
+	struct wl_list tablet_pads;
 
 	struct wl_listener new_drag_icon;
 	struct wl_listener destroy;
@@ -80,12 +81,34 @@ struct roots_touch {
 struct roots_tablet_tool {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
+	struct wlr_tablet_v2_tablet *tablet_v2;
+
 	struct wl_listener device_destroy;
 	struct wl_listener axis;
 	struct wl_listener proximity;
 	struct wl_listener tip;
 	struct wl_listener button;
 	struct wl_list link;
+
+	struct wl_list pads; // struct roots_tablet_pad::tablet_link
+};
+
+struct roots_tablet_pad {
+	struct wl_list link;
+	struct wl_list tablet_link;
+	struct wlr_tablet_v2_tablet_pad *tablet_v2_pad;
+
+	struct roots_seat *seat;
+	struct wlr_input_device *device;
+
+	struct wl_listener device_destroy;
+	struct wl_listener attach;
+	struct wl_listener button;
+	struct wl_listener ring;
+	struct wl_listener strip;
+
+	struct roots_tablet_tool *tablet;
+	struct wl_listener tablet_destroy;
 };
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name);

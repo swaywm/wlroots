@@ -124,6 +124,8 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		usec_to_msec(libinput_event_tablet_pad_get_time_usec(pevent));
 	wlr_event.button = libinput_event_tablet_pad_get_button_number(pevent);
 	wlr_event.mode = libinput_event_tablet_pad_get_mode(pevent);
+	wlr_event.group = libinput_tablet_pad_mode_group_get_index(
+		libinput_event_tablet_pad_get_mode_group(pevent));
 	switch (libinput_event_tablet_pad_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
 		wlr_event.state = WLR_BUTTON_PRESSED;

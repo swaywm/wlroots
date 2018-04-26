@@ -68,6 +68,10 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_list tool_link;
 	struct wl_client *client;
 	struct wl_resource *resource;
+
+	uint32_t proximity_serial;
+
+	struct wl_event_source *frame_source;
 };
 
 struct wlr_tablet_pad_client_v2 {
@@ -75,6 +79,10 @@ struct wlr_tablet_pad_client_v2 {
 	struct wl_list pad_link;
 	struct wl_client *client;
 	struct wl_resource *resource;
+
+	uint32_t enter_serial;
+	uint32_t mode_serial;
+	uint32_t leave_serial;
 
 	size_t button_count;
 
@@ -283,6 +291,10 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 static void destroy_tablet_tool(struct wl_resource *resource) {
 	struct wlr_tablet_tool_client_v2 *client =
 		wl_resource_get_user_data(resource);
+
+	if (client->frame_source) {
+		wl_event_source_remove(client->frame_source);
+	}
 
 	wl_list_remove(&client->seat_link);
 	wl_list_remove(&client->tool_link);
@@ -706,6 +718,13 @@ struct wlr_tablet_v2_tablet_pad *wlr_make_tablet_pad(
 		return NULL;
 	}
 
+	pad->group_count = wl_list_length(&wlr_pad->groups);
+	pad->groups = calloc(pad->group_count, sizeof(int));
+	if (!pad->groups) {
+		free(pad);
+		return NULL;
+	}
+
 	pad->wlr_pad = wlr_pad;
 	wl_list_init(&pad->clients);
 
@@ -919,4 +938,248 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 	}
 
 	return tablet;
+}
+
+/* Actual protocol foo */
+
+static void send_tool_frame(void *data) {
+	struct wlr_tablet_tool_client_v2 *tool = data;
+
+	zwp_tablet_tool_v2_send_frame(tool->resource, 0);
+	tool->frame_source = NULL;
+}
+
+static void queue_tool_frame(struct wlr_tablet_tool_client_v2 *tool) {
+	if (!tool->frame_source) {
+		tool->frame_source = wl_event_loop_add_idle(NULL, send_tool_frame, tool);
+	}
+}
+
+uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
+		struct wlr_tablet_v2_tablet_tool *tool,
+		struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+
+	struct wlr_tablet_client_v2 *tablet_tmp;
+	struct wlr_tablet_client_v2 *tablet_client = NULL;
+	wl_list_for_each(tablet_tmp, &tablet->clients, tablet_link) {
+		if (tablet_tmp->client == client) {
+			tablet_client = tablet_tmp;
+			break;
+		}
+	}
+
+	// Couldn't find the client binding for the surface's client. Either
+	// the client didn't bind tablet_v2 at all, or not for the relevant
+	// seat
+	if (!tablet_client) {
+		return 0;
+	}
+
+	struct wlr_tablet_tool_client_v2 *tool_tmp;
+	struct wlr_tablet_tool_client_v2 *tool_client;
+	wl_list_for_each(tool_tmp, &tool->clients, tool_link) {
+		if (tool_tmp->client == client) {
+			tool_client = tool_tmp;
+			break;
+		}
+	}
+
+	// Couldn't find the client binding for the surface's client. Either
+	// the client didn't bind tablet_v2 at all, or not for the relevant
+	// seat
+	if (!tool_client) {
+		return 0;
+	}
+
+	tool->current_client = tool_client;
+
+	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
+	 * proximity_in. Someone wants to do the math how long that would take?
+	 */
+	uint32_t serial = ++tool_client->proximity_serial;
+
+	zwp_tablet_tool_v2_send_proximity_in(tool_client->resource, serial,
+		tablet_client->resource, surface->resource);
+	queue_tool_frame(tool_client);
+
+	return serial;
+}
+
+void wlr_send_tablet_v2_tablet_tool_motion(
+		struct wlr_tablet_v2_tablet_tool *tool, double x, double y) {
+	if (!tool->current_client) {
+		return;
+	}
+
+	zwp_tablet_tool_v2_send_motion(tool->current_client->resource,
+		wl_fixed_from_double(x), wl_fixed_from_double(y));
+
+	queue_tool_frame(tool->current_client);
+}
+
+void wlr_send_tablet_v2_tablet_tool_proximity_out(
+		struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->current_client) {
+		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
+		// XXX: Get the time for the frame
+		if (tool->current_client->frame_source) {
+			wl_event_source_remove(tool->current_client->frame_source);
+			send_tool_frame(tool->current_client);
+		}
+	}
+}
+
+
+uint32_t wlr_send_tablet_v2_tablet_pad_enter(
+		struct wlr_tablet_v2_tablet_pad *pad,
+		struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+
+	struct wlr_tablet_client_v2 *tablet_tmp;
+	struct wlr_tablet_client_v2 *tablet_client = NULL;
+	wl_list_for_each(tablet_tmp, &tablet->clients, tablet_link) {
+		if (tablet_tmp->client == client) {
+			tablet_client = tablet_tmp;
+			break;
+		}
+	}
+
+	// Couldn't find the client binding for the surface's client. Either
+	// the client didn't bind tablet_v2 at all, or not for the relevant
+	// seat
+	if (!tablet_client) {
+		return 0;
+	}
+
+	struct wlr_tablet_pad_client_v2 *pad_tmp;
+	struct wlr_tablet_pad_client_v2 *pad_client;
+	wl_list_for_each(pad_tmp, &pad->clients, pad_link) {
+		if (pad_tmp->client == client) {
+			pad_client = pad_tmp;
+			break;
+		}
+	}
+
+	// Couldn't find the client binding for the surface's client. Either
+	// the client didn't bind tablet_v2 at all, or not for the relevant
+	// seat
+	if (!pad_client) {
+		return 0;
+	}
+
+	pad->current_client = pad_client;
+
+	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
+	 * proximity_in. Someone wants to do the math how long that would take?
+	 */
+	uint32_t serial = ++pad_client->enter_serial;
+
+	zwp_tablet_pad_v2_send_enter(pad_client->resource, serial,
+		tablet_client->resource, surface->resource);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	uint32_t time = now.tv_nsec / 1000;
+
+	for (size_t i = 0; i < pad->group_count; ++i) {
+		zwp_tablet_pad_group_v2_send_mode_switch(
+			pad_client->groups[i], time, serial, pad->groups[i]);
+	}
+
+	return serial;
+}
+
+void wlr_send_tablet_v2_tablet_pad_button(
+		struct wlr_tablet_v2_tablet_pad *pad, size_t button,
+		uint32_t time, enum zwp_tablet_pad_v2_button_state state) {
+
+	if (pad->current_client) {
+		zwp_tablet_pad_v2_send_button(pad->current_client->resource,
+				time, button, state);
+	}
+}
+
+void wlr_send_tablet_v2_tablet_pad_strip(struct wlr_tablet_v2_tablet_pad *pad,
+		uint32_t strip, double position, bool finger, uint32_t time) {
+	if (!pad->current_client &&
+			pad->current_client->strips &&
+			pad->current_client->strips[strip]) {
+		return;
+	}
+	struct wl_resource *resource = pad->current_client->strips[strip];
+
+	if (finger) {
+		zwp_tablet_pad_strip_v2_send_source(resource, ZWP_TABLET_PAD_STRIP_V2_SOURCE_FINGER);
+	}
+
+	if (position < 0) {
+		zwp_tablet_pad_strip_v2_send_stop(resource);
+	} else {
+		zwp_tablet_pad_strip_v2_send_position(resource, position * 65535);
+	}
+	zwp_tablet_pad_strip_v2_send_frame(resource, time);
+}
+
+void wlr_send_tablet_v2_tablet_pad_ring(struct wlr_tablet_v2_tablet_pad *pad,
+		uint32_t ring, double position, bool finger, uint32_t time) {
+	if (!pad->current_client ||
+			!pad->current_client->rings ||
+			!pad->current_client->rings[ring]) {
+		return;
+	}
+	struct wl_resource *resource = pad->current_client->rings[ring];
+
+	if (finger) {
+		zwp_tablet_pad_ring_v2_send_source(resource, ZWP_TABLET_PAD_RING_V2_SOURCE_FINGER);
+	}
+
+	if (position < 0) {
+		zwp_tablet_pad_ring_v2_send_stop(resource);
+	} else {
+		zwp_tablet_pad_ring_v2_send_angle(resource, position);
+	}
+	zwp_tablet_pad_ring_v2_send_frame(resource, time);
+}
+
+uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pad,
+		struct wlr_surface *surface) {
+	if (!pad->current_client ||
+			wl_resource_get_client(surface->resource) != pad->current_client->client) {
+		return 0;
+	}
+
+	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
+	 * proximity_in. Someone wants to do the math how long that would take?
+	 */
+	uint32_t serial = ++pad->current_client->leave_serial;
+
+	zwp_tablet_pad_v2_send_leave(pad->current_client->resource, serial, surface->resource);
+	return serial;
+}
+
+uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad,
+		size_t group, uint32_t mode, uint32_t time) {
+	if (!pad->current_client ||
+			!pad->current_client->groups ||
+			!pad->current_client->groups[group] ) {
+		return 0;
+	}
+
+	if (pad->groups[group] == mode) {
+		return 0;
+	}
+
+	pad->groups[group] = mode;
+
+	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
+	 * proximity_in. Someone wants to do the math how long that would take?
+	 */
+	uint32_t serial = ++pad->current_client->mode_serial;
+
+	zwp_tablet_pad_group_v2_send_mode_switch(
+		pad->current_client->groups[group], time, serial, mode);
+	return serial;
 }

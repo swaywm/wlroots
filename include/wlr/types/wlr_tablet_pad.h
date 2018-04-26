@@ -20,6 +20,7 @@ struct wlr_tablet_pad {
 		struct wl_signal button;
 		struct wl_signal ring;
 		struct wl_signal strip;
+		struct wl_signal attach_tablet; //struct wlr_tablet_tool
 	} events;
 
 	size_t button_count;
@@ -52,6 +53,7 @@ struct wlr_event_tablet_pad_button {
 	uint32_t button;
 	enum wlr_button_state state;
 	unsigned int mode;
+	unsigned int group;
 };
 
 enum wlr_tablet_pad_ring_source {
