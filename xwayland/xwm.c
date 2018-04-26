@@ -61,6 +61,8 @@ const char *atom_map[ATOM_LAST] = {
 	"_NET_WM_WINDOW_TYPE_POPUP_MENU",
 	"_NET_WM_WINDOW_TYPE_COMBO",
 	"_NET_WM_WINDOW_TYPE_MENU",
+	"_NET_WM_WINDOW_TYPE_NOTIFICATION",
+	"_NET_WM_WINDOW_TYPE_SPLASH",
 	"XdndSelection",
 	"XdndAware",
 	"XdndStatus",
@@ -1649,9 +1651,10 @@ bool wlr_xwayland_surface_is_unmanaged(
 		NET_WM_WINDOW_TYPE_DND,
 		NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
 		NET_WM_WINDOW_TYPE_MENU,
+		NET_WM_WINDOW_TYPE_NOTIFICATION,
 		NET_WM_WINDOW_TYPE_POPUP_MENU,
+		NET_WM_WINDOW_TYPE_SPLASH,
 		NET_WM_WINDOW_TYPE_TOOLTIP,
-		NET_WM_WINDOW_TYPE_UTILITY,
 	};
 
 	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
