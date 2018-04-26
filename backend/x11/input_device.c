@@ -40,7 +40,7 @@ static void x11_handle_pointer_position(struct wlr_x11_output *output,
 	box.y /= wlr_output->scale;
 
 	struct wlr_box layout_box;
-	x11_output_layout_get_box(x11, &layout_box);
+	get_x11_output_layout_box(x11, &layout_box);
 
 	double ox = wlr_output->lx / (double)layout_box.width;
 	double oy = wlr_output->ly / (double)layout_box.height;
@@ -56,7 +56,7 @@ static void x11_handle_pointer_position(struct wlr_x11_output *output,
 	x11->time = time;
 }
 
-void x11_handle_input_event(struct wlr_x11_backend *x11,
+void handle_x11_input_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_KEY_PRESS:
@@ -116,7 +116,7 @@ void x11_handle_input_event(struct wlr_x11_backend *x11,
 		xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
 
 		struct wlr_x11_output *output =
-			x11_output_from_window_id(x11, ev->event);
+			get_x11_output_from_window_id(x11, ev->event);
 		if (output != NULL) {
 			x11_handle_pointer_position(output, ev->event_x, ev->event_y, ev->time);
 		}
@@ -138,7 +138,7 @@ void x11_handle_input_event(struct wlr_x11_backend *x11,
 
 const struct wlr_input_device_impl input_device_impl = { 0 };
 
-void x11_update_pointer_position(struct wlr_x11_output *output,
+void update_x11_pointer_position(struct wlr_x11_output *output,
 		xcb_timestamp_t time) {
 	struct wlr_x11_backend *x11 = output->x11;
 

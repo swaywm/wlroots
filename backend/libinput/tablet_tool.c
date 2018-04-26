@@ -8,7 +8,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
+struct wlr_tablet_tool *create_libinput_tablet_tool(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_tablet_tool *wlr_tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));

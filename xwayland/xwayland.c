@@ -128,7 +128,7 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	execvp("Xwayland", argv);
 }
 
-static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
+static void xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	if (!wlr_xwayland || wlr_xwayland->display == -1) {
 		return;
 	}
@@ -165,7 +165,7 @@ static void wlr_xwayland_finish(struct wlr_xwayland *wlr_xwayland) {
 	 */
 }
 
-static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
+static bool xwayland_start(struct wlr_xwayland *wlr_xwayland,
 	struct wl_display *wl_display, struct wlr_compositor *compositor);
 
 static void handle_client_destroy(struct wl_listener *listener, void *data) {
@@ -176,11 +176,11 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	wlr_xwayland->client = NULL;
 	wl_list_remove(&wlr_xwayland->client_destroy.link);
 
-	wlr_xwayland_finish(wlr_xwayland);
+	xwayland_finish(wlr_xwayland);
 
 	if (time(NULL) - wlr_xwayland->server_start > 5) {
 		wlr_log(L_INFO, "Restarting Xwayland");
-		wlr_xwayland_start(wlr_xwayland, wlr_xwayland->wl_display,
+		xwayland_start(wlr_xwayland, wlr_xwayland->wl_display,
 			wlr_xwayland->compositor);
 	}
 }
@@ -217,7 +217,7 @@ static int xserver_handle_ready(int signal_number, void *data) {
 
 	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
 	if (!wlr_xwayland->xwm) {
-		wlr_xwayland_finish(wlr_xwayland);
+		xwayland_finish(wlr_xwayland);
 		return 1;
 	}
 
@@ -247,7 +247,7 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	return 1; /* wayland event loop dispatcher's count */
 }
 
-static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
+static bool xwayland_start(struct wlr_xwayland *wlr_xwayland,
 		struct wl_display *wl_display, struct wlr_compositor *compositor) {
 	memset(wlr_xwayland, 0, offsetof(struct wlr_xwayland, seat));
 	wlr_xwayland->wl_display = wl_display;
@@ -261,13 +261,13 @@ static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 
 	wlr_xwayland->display = open_display_sockets(wlr_xwayland->x_fd);
 	if (wlr_xwayland->display < 0) {
-		wlr_xwayland_finish(wlr_xwayland);
+		xwayland_finish(wlr_xwayland);
 		return false;
 	}
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wl_fd) != 0 ||
 			socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wm_fd) != 0) {
 		wlr_log_errno(L_ERROR, "failed to create socketpair");
-		wlr_xwayland_finish(wlr_xwayland);
+		xwayland_finish(wlr_xwayland);
 		return false;
 	}
 
@@ -275,7 +275,7 @@ static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 
 	if (!(wlr_xwayland->client = wl_client_create(wl_display, wlr_xwayland->wl_fd[0]))) {
 		wlr_log_errno(L_ERROR, "wl_client_create failed");
-		wlr_xwayland_finish(wlr_xwayland);
+		xwayland_finish(wlr_xwayland);
 		return false;
 	}
 
@@ -323,7 +323,7 @@ static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 	}
 	if (wlr_xwayland->pid < 0) {
 		wlr_log_errno(L_ERROR, "fork failed");
-		wlr_xwayland_finish(wlr_xwayland);
+		xwayland_finish(wlr_xwayland);
 		return false;
 	}
 
@@ -340,7 +340,7 @@ static bool wlr_xwayland_start(struct wlr_xwayland *wlr_xwayland,
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
 	wlr_xwayland_set_seat(wlr_xwayland, NULL);
-	wlr_xwayland_finish(wlr_xwayland);
+	xwayland_finish(wlr_xwayland);
 	free(wlr_xwayland);
 }
 
@@ -350,7 +350,7 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 
 	wl_signal_init(&wlr_xwayland->events.new_surface);
 	wl_signal_init(&wlr_xwayland->events.ready);
-	if (wlr_xwayland_start(wlr_xwayland, wl_display, compositor)) {
+	if (xwayland_start(wlr_xwayland, wl_display, compositor)) {
 		return wlr_xwayland;
 	}
 	free(wlr_xwayland);
@@ -380,7 +380,7 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 	wlr_xwayland->cursor->hotspot_y = hotspot_y;
 }
 
-static void wlr_xwayland_handle_seat_destroy(struct wl_listener *listener,
+static void xwayland_handle_seat_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xwayland *xwayland =
 		wl_container_of(listener, xwayland, seat_destroy);
@@ -404,6 +404,6 @@ void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 		return;
 	}
 
-	xwayland->seat_destroy.notify = wlr_xwayland_handle_seat_destroy;
+	xwayland->seat_destroy.notify = xwayland_handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &xwayland->seat_destroy);
 }

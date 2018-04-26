@@ -8,7 +8,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-struct wlr_touch *wlr_libinput_touch_create(
+struct wlr_touch *create_libinput_touch(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_touch *wlr_touch = calloc(1, sizeof(struct wlr_touch));

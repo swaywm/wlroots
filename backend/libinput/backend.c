@@ -7,23 +7,23 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-static int wlr_libinput_open_restricted(const char *path,
+static int libinput_open_restricted(const char *path,
 		int flags, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
 	return wlr_session_open_file(backend->session, path);
 }
 
-static void wlr_libinput_close_restricted(int fd, void *_backend) {
+static void libinput_close_restricted(int fd, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
 	wlr_session_close_file(backend->session, fd);
 }
 
 static const struct libinput_interface libinput_impl = {
-	.open_restricted = wlr_libinput_open_restricted,
-	.close_restricted = wlr_libinput_close_restricted
+	.open_restricted = libinput_open_restricted,
+	.close_restricted = libinput_close_restricted
 };
 
-static int wlr_libinput_readable(int fd, uint32_t mask, void *_backend) {
+static int handle_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
 	if (libinput_dispatch(backend->libinput_context) != 0) {
 		wlr_log(L_ERROR, "Failed to dispatch libinput");
@@ -32,18 +32,18 @@ static int wlr_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	}
 	struct libinput_event *event;
 	while ((event = libinput_get_event(backend->libinput_context))) {
-		wlr_libinput_event(backend, event);
+		handle_libinput_event(backend, event);
 		libinput_event_destroy(event);
 	}
 	return 0;
 }
 
-static void wlr_libinput_log(struct libinput *libinput_context,
+static void log_libinput(struct libinput *libinput_context,
 		enum libinput_log_priority priority, const char *fmt, va_list args) {
 	_wlr_vlog(L_ERROR, fmt, args);
 }
 
-static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
+static bool backend_start(struct wlr_backend *_backend) {
 	struct wlr_libinput_backend *backend =
 		(struct wlr_libinput_backend *)_backend;
 	wlr_log(L_DEBUG, "Initializing libinput");
@@ -62,7 +62,7 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	}
 
 	// TODO: More sophisticated logging
-	libinput_log_set_handler(backend->libinput_context, wlr_libinput_log);
+	libinput_log_set_handler(backend->libinput_context, log_libinput);
 	libinput_log_set_priority(backend->libinput_context, LIBINPUT_LOG_PRIORITY_ERROR);
 
 	int libinput_fd = libinput_get_fd(backend->libinput_context);
@@ -73,7 +73,7 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 		}
 	}
 	if (!no_devs && backend->wlr_device_lists.length == 0) {
-		wlr_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
+		handle_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
 		if (backend->wlr_device_lists.length == 0) {
 			wlr_log(L_ERROR, "libinput initialization failed, no input devices");
 			wlr_log(L_ERROR, "Set WLR_LIBINPUT_NO_DEVICES=1 to suppress this check");
@@ -87,7 +87,7 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 		wl_event_source_remove(backend->input_event);
 	}
 	backend->input_event = wl_event_loop_add_fd(event_loop, libinput_fd,
-			WL_EVENT_READABLE, wlr_libinput_readable, backend);
+			WL_EVENT_READABLE, handle_libinput_readable, backend);
 	if (!backend->input_event) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
 		return false;
@@ -96,7 +96,7 @@ static bool wlr_libinput_backend_start(struct wlr_backend *_backend) {
 	return true;
 }
 
-static void wlr_libinput_backend_destroy(struct wlr_backend *wlr_backend) {
+static void backend_destroy(struct wlr_backend *wlr_backend) {
 	if (!wlr_backend) {
 		return;
 	}
@@ -125,9 +125,9 @@ static void wlr_libinput_backend_destroy(struct wlr_backend *wlr_backend) {
 	free(backend);
 }
 
-static struct wlr_backend_impl backend_impl = {
-	.start = wlr_libinput_backend_start,
-	.destroy = wlr_libinput_backend_destroy
+static const struct wlr_backend_impl backend_impl = {
+	.start = backend_start,
+	.destroy = backend_destroy,
 };
 
 bool wlr_backend_is_libinput(struct wlr_backend *b) {
@@ -153,7 +153,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend =
 		wl_container_of(listener, backend, display_destroy);
-	wlr_libinput_backend_destroy(&backend->backend);
+	backend_destroy(&backend->backend);
 }
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,

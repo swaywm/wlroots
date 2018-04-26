@@ -21,7 +21,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	assert(dev && dev->pointer);
 	struct wlr_wl_pointer *wlr_wl_pointer = (struct wlr_wl_pointer *)dev->pointer;
 	struct wlr_wl_backend_output *output =
-		wlr_wl_output_for_surface(wlr_wl_dev->backend, surface);
+		get_wl_output_for_surface(wlr_wl_dev->backend, surface);
 	if (!output) {
 		// GNOME sends a pointer enter when the surface is being destroyed
 		return;
@@ -33,7 +33,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		&wlr_wl_pointer->output_destroy_listener);
 	wlr_wl_pointer->current_output = output;
 	output->enter_serial = serial;
-	wlr_wl_output_update_cursor(output);
+	update_wl_output_cursor(output);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -70,7 +70,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	box.y /= wlr_output->scale;
 
 	struct wlr_box layout_box;
-	wlr_wl_output_layout_get_box(wlr_wl_pointer->current_output->backend,
+	get_wl_output_layout_box(wlr_wl_pointer->current_output->backend,
 		&layout_box);
 
 	double ox = wlr_output->lx / (double)layout_box.width;
@@ -235,7 +235,7 @@ static struct wlr_input_device *allocate_device(struct wlr_wl_backend *backend,
 	return wlr_device;
 }
 
-static void wlr_wl_pointer_handle_output_destroy(struct wl_listener *listener,
+static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *wlr_wl_pointer =
 		wl_container_of(listener, wlr_wl_pointer, output_destroy_listener);
@@ -256,7 +256,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			return;
 		}
 		wlr_wl_pointer->output_destroy_listener.notify =
-			wlr_wl_pointer_handle_output_destroy;
+			pointer_handle_output_destroy;
 
 		struct wlr_input_device *wlr_device;
 		if (!(wlr_device = allocate_device(backend, WLR_INPUT_DEVICE_POINTER))) {

@@ -22,7 +22,7 @@
 #include "backend/x11.h"
 #include "util/signal.h"
 
-struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
+struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
 		xcb_window_t window) {
 	struct wlr_x11_output *output;
 	wl_list_for_each(output, &x11->outputs, link) {
@@ -33,7 +33,7 @@ struct wlr_x11_output *x11_output_from_window_id(struct wlr_x11_backend *x11,
 	return NULL;
 }
 
-void x11_output_layout_get_box(struct wlr_x11_backend *backend,
+void get_x11_output_layout_box(struct wlr_x11_backend *backend,
 		struct wlr_box *box) {
 	int min_x = INT_MAX, min_y = INT_MAX;
 	int max_x = INT_MIN, max_y = INT_MIN;
@@ -67,13 +67,13 @@ void x11_output_layout_get_box(struct wlr_x11_backend *backend,
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
-	x11_handle_input_event(x11, event);
+	handle_x11_input_event(x11, event);
 
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
 		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
 		struct wlr_x11_output *output =
-			x11_output_from_window_id(x11, ev->window);
+			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
 			wlr_output_update_needs_swap(&output->wlr_output);
 		}
@@ -83,9 +83,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_configure_notify_event_t *ev =
 			(xcb_configure_notify_event_t *)event;
 		struct wlr_x11_output *output =
-			x11_output_from_window_id(x11, ev->window);
+			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
-			x11_output_handle_configure_notify(output, ev);
+			handle_x11_configure_notify(output, ev);
 		}
 		break;
 	}
@@ -93,7 +93,7 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
 		if (ev->data.data32[0] == x11->atoms.wm_delete_window) {
 			struct wlr_x11_output *output =
-				x11_output_from_window_id(x11, ev->window);
+				get_x11_output_from_window_id(x11, ev->window);
 			if (output != NULL) {
 				wlr_output_destroy(&output->wlr_output);
 			}
@@ -120,7 +120,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	return 0;
 }
 
-static bool wlr_x11_backend_start(struct wlr_backend *backend) {
+static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	x11->started = true;
 
@@ -209,7 +209,7 @@ static bool wlr_x11_backend_start(struct wlr_backend *backend) {
 	return true;
 }
 
-static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
+static void backend_destroy(struct wlr_backend *backend) {
 	if (!backend) {
 		return;
 	}
@@ -250,16 +250,16 @@ static void wlr_x11_backend_destroy(struct wlr_backend *backend) {
 	free(x11);
 }
 
-static struct wlr_renderer *wlr_x11_backend_get_renderer(
+static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
 	return x11->renderer;
 }
 
 static const struct wlr_backend_impl backend_impl = {
-	.start = wlr_x11_backend_start,
-	.destroy = wlr_x11_backend_destroy,
-	.get_renderer = wlr_x11_backend_get_renderer,
+	.start = backend_start,
+	.destroy = backend_destroy,
+	.get_renderer = backend_get_renderer,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
@@ -269,7 +269,7 @@ bool wlr_backend_is_x11(struct wlr_backend *backend) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_x11_backend *x11 =
 		wl_container_of(listener, x11, display_destroy);
-	wlr_x11_backend_destroy(&x11->backend);
+	backend_destroy(&x11->backend);
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,

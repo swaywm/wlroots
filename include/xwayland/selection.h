@@ -60,8 +60,8 @@ void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 	xcb_selection_notify_event_t *event);
 int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	xcb_xfixes_selection_notify_event_t *event);
-bool wlr_data_source_is_xwayland_data_source(struct wlr_data_source *wlr_source);
-bool wlr_primary_selection_source_is_xwayland_primary_selection_source(
+bool data_source_is_xwayland(struct wlr_data_source *wlr_source);
+bool primary_selection_source_is_xwayland(
 	struct wlr_primary_selection_source *wlr_source);
 
 void xwm_seat_handle_start_drag(struct wlr_xwm *xwm, struct wlr_drag *drag);

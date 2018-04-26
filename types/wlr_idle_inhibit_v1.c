@@ -8,9 +8,9 @@
 #include "wayland-server.h"
 #include "idle-inhibit-unstable-v1-protocol.h"
 
-static struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl;
+static const struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl;
 
-static struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl;
+static const struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl;
 
 static struct wlr_idle_inhibit_manager_v1 *
 wlr_idle_inhibit_manager_v1_from_resource(struct wl_resource *resource) {
@@ -50,11 +50,11 @@ static void idle_inhibitor_v1_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(manager_resource);
 }
 
-static struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl = {
+static const struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl = {
 	.destroy = idle_inhibitor_v1_handle_destroy,
 };
 
-static void wlr_create_inhibitor(struct wl_client *client,
+static void manager_create_inhibitor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
@@ -96,14 +96,14 @@ static void idle_inhibit_manager_v1_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void idle_inhibit_manager_v1_handle_destroy(struct wl_client *client,
+static void manager_destroy(struct wl_client *client,
 		struct wl_resource *manager_resource) {
 	wl_resource_destroy(manager_resource);
 }
 
-static struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl = {
-	.destroy = idle_inhibit_manager_v1_handle_destroy,
-	.create_inhibitor = wlr_create_inhibitor,
+static const struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl = {
+	.destroy = manager_destroy,
+	.create_inhibitor = manager_create_inhibitor,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

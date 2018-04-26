@@ -31,19 +31,19 @@ struct wlr_libinput_input_device {
 
 uint32_t usec_to_msec(uint64_t usec);
 
-void wlr_libinput_event(struct wlr_libinput_backend *state,
+void handle_libinput_event(struct wlr_libinput_backend *state,
 		struct libinput_event *event);
 
 struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,
 		struct libinput_device *device);
 
-struct wlr_keyboard *wlr_libinput_keyboard_create(
+struct wlr_keyboard *create_libinput_keyboard(
 		struct libinput_device *device);
 void handle_keyboard_key(struct libinput_event *event,
 		struct libinput_device *device);
 
-struct wlr_pointer *wlr_libinput_pointer_create(
+struct wlr_pointer *create_libinput_pointer(
 		struct libinput_device *device);
 void handle_pointer_motion(struct libinput_event *event,
 		struct libinput_device *device);
@@ -54,7 +54,7 @@ void handle_pointer_button(struct libinput_event *event,
 void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *device);
 
-struct wlr_touch *wlr_libinput_touch_create(
+struct wlr_touch *create_libinput_touch(
 		struct libinput_device *device);
 void handle_touch_down(struct libinput_event *event,
 		struct libinput_device *device);
@@ -65,7 +65,7 @@ void handle_touch_motion(struct libinput_event *event,
 void handle_touch_cancel(struct libinput_event *event,
 		struct libinput_device *device);
 
-struct wlr_tablet_tool *wlr_libinput_tablet_tool_create(
+struct wlr_tablet_tool *create_libinput_tablet_tool(
 		struct libinput_device *device);
 void handle_tablet_tool_axis(struct libinput_event *event,
 		struct libinput_device *device);
@@ -76,7 +76,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 void handle_tablet_tool_button(struct libinput_event *event,
 		struct libinput_device *device);
 
-struct wlr_tablet_pad *wlr_libinput_tablet_pad_create(
+struct wlr_tablet_pad *create_libinput_tablet_pad(
 		struct libinput_device *device);
 void handle_tablet_pad_button(struct libinput_event *event,
 		struct libinput_device *device);

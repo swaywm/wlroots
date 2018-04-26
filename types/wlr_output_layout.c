@@ -45,7 +45,7 @@ struct wlr_output_layout *wlr_output_layout_create() {
 	return layout;
 }
 
-static void wlr_output_layout_output_destroy(
+static void output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
 	wlr_output_destroy_global(l_output->output);
@@ -67,14 +67,14 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout) {
 
 	struct wlr_output_layout_output *l_output, *temp;
 	wl_list_for_each_safe(l_output, temp, &layout->outputs, link) {
-		wlr_output_layout_output_destroy(l_output);
+		output_layout_output_destroy(l_output);
 	}
 
 	free(layout->state);
 	free(layout);
 }
 
-static struct wlr_box *wlr_output_layout_output_get_box(
+static struct wlr_box *output_layout_output_get_box(
 		struct wlr_output_layout_output *l_output) {
 	l_output->state->_box.x = l_output->x;
 	l_output->state->_box.y = l_output->y;
@@ -92,7 +92,7 @@ static struct wlr_box *wlr_output_layout_output_get_box(
  * Auto configured outputs are placed to the right of the north east corner of
  * the rightmost output in the layout in a horizontal line.
  */
-static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
+static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 	int max_x = INT_MIN;
 	int max_x_y = INT_MIN; // y value for the max_x output
 
@@ -104,7 +104,7 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 			continue;
 		}
 
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 		if (box->x + box->width > max_x) {
 			max_x = box->x + box->width;
 			max_x_y = box->y;
@@ -121,7 +121,7 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 		if (!l_output->state->auto_configured) {
 			continue;
 		}
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 		l_output->x = max_x;
 		l_output->y = max_x_y;
 		max_x += box->width;
@@ -137,30 +137,30 @@ static void wlr_output_layout_reconfigure(struct wlr_output_layout *layout) {
 static void handle_output_mode(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, mode);
-	wlr_output_layout_reconfigure(state->layout);
+	output_layout_reconfigure(state->layout);
 }
 
 static void handle_output_scale(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, scale);
-	wlr_output_layout_reconfigure(state->layout);
+	output_layout_reconfigure(state->layout);
 }
 
 static void handle_output_transform(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, transform);
-	wlr_output_layout_reconfigure(state->layout);
+	output_layout_reconfigure(state->layout);
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, output_destroy);
 	struct wlr_output_layout *layout = state->layout;
-	wlr_output_layout_output_destroy(state->l_output);
-	wlr_output_layout_reconfigure(layout);
+	output_layout_output_destroy(state->l_output);
+	output_layout_reconfigure(layout);
 }
 
-static struct wlr_output_layout_output *wlr_output_layout_output_create(
+static struct wlr_output_layout_output *output_layout_output_create(
 		struct wlr_output_layout *layout, struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
 		calloc(1, sizeof(struct wlr_output_layout_output));
@@ -195,7 +195,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
 	if (!l_output) {
-		l_output = wlr_output_layout_output_create(layout, output);
+		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
 			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
 			return;
@@ -204,7 +204,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->x = lx;
 	l_output->y = ly;
 	l_output->state->auto_configured = false;
-	wlr_output_layout_reconfigure(layout);
+	output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
@@ -225,7 +225,7 @@ bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
 	if (reference) {
 		struct wlr_output_layout_output *l_output =
 			wlr_output_layout_get(layout, reference);
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 		return wlr_box_contains_point(box, lx, ly);
 	} else {
 		return !!wlr_output_layout_output_at(layout, lx, ly);
@@ -240,7 +240,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		struct wlr_output_layout_output *l_output;
 		wl_list_for_each(l_output, &layout->outputs, link) {
 			struct wlr_box *output_box =
-				wlr_output_layout_output_get_box(l_output);
+				output_layout_output_get_box(l_output);
 			if (wlr_box_intersection(output_box, target_lbox, &out_box)) {
 				return true;
 			}
@@ -253,7 +253,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 			return false;
 		}
 
-		struct wlr_box *output_box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *output_box = output_layout_output_get_box(l_output);
 		return wlr_box_intersection(output_box, target_lbox, &out_box);
 	}
 }
@@ -262,7 +262,7 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double lx, double ly) {
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 		if (wlr_box_contains_point(box, lx, ly)) {
 			return l_output->output;
 		}
@@ -278,7 +278,7 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 		l_output->x = lx;
 		l_output->y = ly;
 		l_output->state->auto_configured = false;
-		wlr_output_layout_reconfigure(layout);
+		output_layout_reconfigure(layout);
 	} else {
 		wlr_log(L_ERROR, "output not found in this layout: %s", output->name);
 	}
@@ -289,8 +289,8 @@ void wlr_output_layout_remove(struct wlr_output_layout *layout,
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
 	if (l_output) {
-		wlr_output_layout_output_destroy(l_output);
-		wlr_output_layout_reconfigure(layout);
+		output_layout_output_destroy(l_output);
+		output_layout_reconfigure(layout);
 	}
 }
 
@@ -325,7 +325,7 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		}
 
 		double output_x, output_y, output_distance;
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 		wlr_box_closest_point(box, lx, ly, &output_x, &output_y);
 
 		// calculate squared distance suitable for comparison
@@ -359,7 +359,7 @@ struct wlr_box *wlr_output_layout_get_box(
 		l_output = wlr_output_layout_get(layout, reference);
 
 		if (l_output) {
-			return wlr_output_layout_output_get_box(l_output);
+			return output_layout_output_get_box(l_output);
 		} else {
 			return NULL;
 		}
@@ -368,7 +368,7 @@ struct wlr_box *wlr_output_layout_get_box(
 		int min_x = INT_MAX, min_y = INT_MAX;
 		int max_x = INT_MIN, max_y = INT_MIN;
 		wl_list_for_each(l_output, &layout->outputs, link) {
-			struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+			struct wlr_box *box = output_layout_output_get_box(l_output);
 
 			if (box->x < min_x) {
 				min_x = box->x;
@@ -400,7 +400,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
 	if (!l_output) {
-		l_output = wlr_output_layout_output_create(layout, output);
+		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
 			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
 			return;
@@ -408,7 +408,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	}
 
 	l_output->state->auto_configured = true;
-	wlr_output_layout_reconfigure(layout);
+	output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
@@ -445,7 +445,7 @@ struct wlr_output *wlr_output_layout_adjacent_output(
 		if (reference != NULL && reference == l_output->output) {
 			continue;
 		}
-		struct wlr_box *box = wlr_output_layout_output_get_box(l_output);
+		struct wlr_box *box = output_layout_output_get_box(l_output);
 
 		bool match = false;
 		// test to make sure this output is in the given direction

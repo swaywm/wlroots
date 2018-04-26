@@ -87,22 +87,22 @@ static bool scan_properties(int fd, uint32_t id, uint32_t type, uint32_t *result
 	return true;
 }
 
-bool wlr_drm_get_connector_props(int fd, uint32_t id, union wlr_drm_connector_props *out) {
+bool get_drm_connector_props(int fd, uint32_t id, union wlr_drm_connector_props *out) {
 	return scan_properties(fd, id, DRM_MODE_OBJECT_CONNECTOR, out->props,
 		connector_info, sizeof(connector_info) / sizeof(connector_info[0]));
 }
 
-bool wlr_drm_get_crtc_props(int fd, uint32_t id, union wlr_drm_crtc_props *out) {
+bool get_drm_crtc_props(int fd, uint32_t id, union wlr_drm_crtc_props *out) {
 	return scan_properties(fd, id, DRM_MODE_OBJECT_CRTC, out->props,
 		crtc_info, sizeof(crtc_info) / sizeof(crtc_info[0]));
 }
 
-bool wlr_drm_get_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out) {
+bool get_drm_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out) {
 	return scan_properties(fd, id, DRM_MODE_OBJECT_PLANE, out->props,
 		plane_info, sizeof(plane_info) / sizeof(plane_info[0]));
 }
 
-bool wlr_drm_get_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret) {
+bool get_drm_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret) {
 	drmModeObjectProperties *props = drmModeObjectGetProperties(fd, obj, DRM_MODE_OBJECT_ANY);
 	if (!props) {
 		return false;
@@ -122,9 +122,9 @@ bool wlr_drm_get_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret) {
 	return found;
 }
 
-void *wlr_drm_get_prop_blob(int fd, uint32_t obj, uint32_t prop, size_t *ret_len) {
+void *get_drm_prop_blob(int fd, uint32_t obj, uint32_t prop, size_t *ret_len) {
 	uint64_t blob_id;
-	if (!wlr_drm_get_prop(fd, obj, prop, &blob_id)) {
+	if (!get_drm_prop(fd, obj, prop, &blob_id)) {
 		return NULL;
 	}
 

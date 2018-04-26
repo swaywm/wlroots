@@ -136,17 +136,12 @@ struct wlr_drm_connector {
 	struct wl_list link;
 };
 
-bool wlr_drm_check_features(struct wlr_drm_backend *drm);
-bool wlr_drm_resources_init(struct wlr_drm_backend *drm);
-void wlr_drm_resources_free(struct wlr_drm_backend *drm);
-void wlr_drm_restore_outputs(struct wlr_drm_backend *drm);
-void wlr_drm_connector_cleanup(struct wlr_drm_connector *conn);
-void wlr_drm_scan_connectors(struct wlr_drm_backend *state);
-int wlr_drm_event(int fd, uint32_t mask, void *data);
-void wlr_drm_connector_enable(struct wlr_output *output, bool enable);
-
-void wlr_drm_connector_start_renderer(struct wlr_drm_connector *conn);
-
-struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend);
+bool check_drm_features(struct wlr_drm_backend *drm);
+bool init_drm_resources(struct wlr_drm_backend *drm);
+void finish_drm_resources(struct wlr_drm_backend *drm);
+void restore_drm_outputs(struct wlr_drm_backend *drm);
+void scan_drm_connectors(struct wlr_drm_backend *state);
+int handle_drm_event(int fd, uint32_t mask, void *data);
+void enable_drm_connector(struct wlr_output *output, bool enable);
 
 #endif

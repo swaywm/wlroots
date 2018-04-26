@@ -24,7 +24,7 @@ struct wlr_input_device *get_appropriate_device(
 	return NULL;
 }
 
-static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
+static void input_device_destroy(struct wlr_input_device *_dev) {
 	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
 	libinput_device_unref(dev->handle);
 	wl_list_remove(&dev->wlr_input_device.link);
@@ -32,7 +32,7 @@ static void wlr_libinput_device_destroy(struct wlr_input_device *_dev) {
 }
 
 static const struct wlr_input_device_impl input_device_impl = {
-	.destroy = wlr_libinput_device_destroy
+	.destroy = input_device_destroy,
 };
 
 static struct wlr_input_device *allocate_device(
@@ -86,7 +86,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->keyboard = wlr_libinput_keyboard_create(libinput_dev);
+		wlr_dev->keyboard = create_libinput_keyboard(libinput_dev);
 		if (!wlr_dev->keyboard) {
 			free(wlr_dev);
 			goto fail;
@@ -99,7 +99,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->pointer = wlr_libinput_pointer_create(libinput_dev);
+		wlr_dev->pointer = create_libinput_pointer(libinput_dev);
 		if (!wlr_dev->pointer) {
 			free(wlr_dev);
 			goto fail;
@@ -112,7 +112,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->touch = wlr_libinput_touch_create(libinput_dev);
+		wlr_dev->touch = create_libinput_touch(libinput_dev);
 		if (!wlr_dev->touch) {
 			free(wlr_dev);
 			goto fail;
@@ -125,7 +125,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->tablet_tool = wlr_libinput_tablet_tool_create(libinput_dev);
+		wlr_dev->tablet_tool = create_libinput_tablet_tool(libinput_dev);
 		if (!wlr_dev->tablet_tool) {
 			free(wlr_dev);
 			goto fail;
@@ -138,7 +138,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->tablet_pad = wlr_libinput_tablet_pad_create(libinput_dev);
+		wlr_dev->tablet_pad = create_libinput_tablet_pad(libinput_dev);
 		if (!wlr_dev->tablet_pad) {
 			free(wlr_dev);
 			goto fail;
@@ -192,7 +192,7 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	free(wlr_devices);
 }
 
-void wlr_libinput_event(struct wlr_libinput_backend *backend,
+void handle_libinput_event(struct wlr_libinput_backend *backend,
 		struct libinput_event *event) {
 	assert(backend && event);
 	struct libinput_device *libinput_dev = libinput_event_get_device(event);

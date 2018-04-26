@@ -6,7 +6,7 @@
 * The wayland formats are little endian while the GL formats are big endian,
 * so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
 */
-static const struct gles2_pixel_format formats[] = {
+static const struct wlr_gles2_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
 		.depth = 32,
@@ -50,7 +50,8 @@ static const enum wl_shm_format wl_formats[] = {
 
 // TODO: more pixel formats
 
-const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt) {
+const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
+		enum wl_shm_format fmt) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
 		if (formats[i].wl_format == fmt) {
 			return &formats[i];
@@ -59,7 +60,7 @@ const struct gles2_pixel_format *gles2_format_from_wl(enum wl_shm_format fmt) {
 	return NULL;
 }
 
-const enum wl_shm_format *gles2_formats(size_t *len) {
+const enum wl_shm_format *get_gles2_formats(size_t *len) {
 	*len = sizeof(wl_formats) / sizeof(wl_formats[0]);
 	return wl_formats;
 }

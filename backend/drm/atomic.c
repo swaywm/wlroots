@@ -237,7 +237,7 @@ static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		return legacy_iface.crtc_get_gamma_size(drm, crtc);
 	}
 
-	if (!wlr_drm_get_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
+	if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
 			   &gamma_lut_size)) {
 		wlr_log(L_ERROR, "Unable to get gamma lut size");
 		return 0;

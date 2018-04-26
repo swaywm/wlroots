@@ -18,7 +18,8 @@ static const char *verbosity_colors[] = {
 	[L_DEBUG ] = "\x1B[1;30m",
 };
 
-void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
+static void log_stderr(log_importance_t verbosity, const char *fmt,
+		va_list args) {
 	if (verbosity > log_importance) {
 		return;
 	}
@@ -46,7 +47,7 @@ void wlr_log_stderr(log_importance_t verbosity, const char *fmt, va_list args) {
 	fprintf(stderr, "\n");
 }
 
-static log_callback_t log_callback = wlr_log_stderr;
+static log_callback_t log_callback = log_stderr;
 
 void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
 	if (verbosity < L_LAST) {

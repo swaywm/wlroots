@@ -48,7 +48,7 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = registry_global_remove
 };
 
-void wlr_wl_registry_poll(struct wlr_wl_backend *backend) {
+void poll_wl_registry(struct wlr_wl_backend *backend) {
 	wl_registry_add_listener(backend->registry, &registry_listener, backend);
 	wl_display_dispatch(backend->remote_display);
 	wl_display_roundtrip(backend->remote_display);

@@ -48,7 +48,7 @@ static void wl_output_send_to_resource(struct wl_resource *resource) {
 	}
 }
 
-static void wlr_output_send_current_mode_to_resource(
+static void output_send_current_mode_to_resource(
 		struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	const uint32_t version = wl_resource_get_version(resource);
@@ -138,7 +138,7 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	wlr_signal_emit_safe(&output->events.enable, output);
 }
 
-static void wlr_output_update_matrix(struct wlr_output *output) {
+static void output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_projection(output->transform_matrix, output->width,
 		output->height, output->transform);
 }
@@ -185,13 +185,13 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 	output->width = width;
 	output->height = height;
-	wlr_output_update_matrix(output);
+	output_update_matrix(output);
 
 	output->refresh = refresh;
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
-		wlr_output_send_current_mode_to_resource(resource);
+		output_send_current_mode_to_resource(resource);
 	}
 
 	wlr_signal_emit_safe(&output->events.mode, output);
@@ -200,7 +200,7 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->impl->transform(output, transform);
-	wlr_output_update_matrix(output);
+	output_update_matrix(output);
 
 	// TODO: only send geometry and done
 	struct wl_resource *resource;

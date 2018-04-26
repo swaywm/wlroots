@@ -18,7 +18,7 @@
 #define DRM_FORMAT_MOD_LINEAR 0
 #endif
 
-bool wlr_drm_renderer_init(struct wlr_drm_backend *drm,
+bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
@@ -47,7 +47,7 @@ error_gbm:
 	return false;
 }
 
-void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
+void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 	if (!renderer) {
 		return;
 	}
@@ -57,7 +57,7 @@ void wlr_drm_renderer_finish(struct wlr_drm_renderer *renderer) {
 	gbm_device_destroy(renderer->gbm);
 }
 
-bool wlr_drm_surface_init(struct wlr_drm_surface *surf,
+bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 		uint32_t format, uint32_t flags) {
 	if (surf->width == width && surf->height == height) {
@@ -103,7 +103,7 @@ error_zero:
 	return false;
 }
 
-void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
+void finish_drm_surface(struct wlr_drm_surface *surf) {
 	if (!surf || !surf->renderer) {
 		return;
 	}
@@ -123,12 +123,12 @@ void wlr_drm_surface_finish(struct wlr_drm_surface *surf) {
 	memset(surf, 0, sizeof(*surf));
 }
 
-bool wlr_drm_surface_make_current(struct wlr_drm_surface *surf,
+bool make_drm_surface_current(struct wlr_drm_surface *surf,
 		int *buffer_damage) {
 	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_damage);
 }
 
-struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf,
+struct gbm_bo *swap_drm_surface_buffers(struct wlr_drm_surface *surf,
 		pixman_region32_t *damage) {
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
@@ -141,20 +141,20 @@ struct gbm_bo *wlr_drm_surface_swap_buffers(struct wlr_drm_surface *surf,
 	return surf->back;
 }
 
-struct gbm_bo *wlr_drm_surface_get_front(struct wlr_drm_surface *surf) {
+struct gbm_bo *get_drm_surface_front(struct wlr_drm_surface *surf) {
 	if (surf->front) {
 		return surf->front;
 	}
 
-	wlr_drm_surface_make_current(surf, NULL);
+	make_drm_surface_current(surf, NULL);
 	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
 	wlr_renderer_begin(renderer, surf->width, surf->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
 	wlr_renderer_end(renderer);
-	return wlr_drm_surface_swap_buffers(surf, NULL);
+	return swap_drm_surface_buffers(surf, NULL);
 }
 
-void wlr_drm_surface_post(struct wlr_drm_surface *surf) {
+void post_drm_surface(struct wlr_drm_surface *surf) {
 	if (surf->front) {
 		gbm_surface_release_buffer(surf->gbm, surf->front);
 		surf->front = NULL;
@@ -208,9 +208,9 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	return tex->tex;
 }
 
-struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
+struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 		struct gbm_bo *src) {
-	wlr_drm_surface_make_current(dest, NULL);
+	make_drm_surface_current(dest, NULL);
 
 	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
 	assert(tex);
@@ -224,25 +224,25 @@ struct gbm_bo *wlr_drm_surface_mgpu_copy(struct wlr_drm_surface *dest,
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
 	wlr_renderer_end(renderer);
 
-	return wlr_drm_surface_swap_buffers(dest, NULL);
+	return swap_drm_surface_buffers(dest, NULL);
 }
 
-bool wlr_drm_plane_surfaces_init(struct wlr_drm_plane *plane,
+bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		uint32_t format) {
 	if (!drm->parent) {
-		return wlr_drm_surface_init(&plane->surf, &drm->renderer, width, height,
+		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
 			format, GBM_BO_USE_SCANOUT);
 	}
 
-	if (!wlr_drm_surface_init(&plane->surf, &drm->parent->renderer,
+	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
 			width, height, format, GBM_BO_USE_LINEAR)) {
 		return false;
 	}
 
-	if (!wlr_drm_surface_init(&plane->mgpu_surf, &drm->renderer,
+	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
 			width, height, format, GBM_BO_USE_SCANOUT)) {
-		wlr_drm_surface_finish(&plane->surf);
+		finish_drm_surface(&plane->surf);
 		return false;
 	}
 

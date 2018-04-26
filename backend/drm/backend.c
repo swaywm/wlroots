@@ -15,20 +15,20 @@
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
-static bool wlr_drm_backend_start(struct wlr_backend *backend) {
+static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
-	wlr_drm_scan_connectors(drm);
+	scan_drm_connectors(drm);
 	return true;
 }
 
-static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
+static void backend_destroy(struct wlr_backend *backend) {
 	if (!backend) {
 		return;
 	}
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
 
-	wlr_drm_restore_outputs(drm);
+	restore_drm_outputs(drm);
 
 	struct wlr_drm_connector *conn, *next;
 	wl_list_for_each_safe(conn, next, &drm->outputs, link) {
@@ -41,23 +41,23 @@ static void wlr_drm_backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->session_signal.link);
 	wl_list_remove(&drm->drm_invalidated.link);
 
-	wlr_drm_resources_free(drm);
-	wlr_drm_renderer_finish(&drm->renderer);
+	finish_drm_resources(drm);
+	finish_drm_renderer(&drm->renderer);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
 	free(drm);
 }
 
-static struct wlr_renderer *wlr_drm_backend_get_renderer(
+static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
 	return drm->renderer.wlr_rend;
 }
 
 static struct wlr_backend_impl backend_impl = {
-	.start = wlr_drm_backend_start,
-	.destroy = wlr_drm_backend_destroy,
-	.get_renderer = wlr_drm_backend_get_renderer,
+	.start = backend_start,
+	.destroy = backend_destroy,
+	.get_renderer = backend_get_renderer,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
@@ -71,14 +71,14 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 	if (session->active) {
 		wlr_log(L_INFO, "DRM fd resumed");
-		wlr_drm_scan_connectors(drm);
+		scan_drm_connectors(drm);
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link){
 			if (conn->output.enabled) {
 				wlr_output_set_mode(&conn->output, conn->output.current_mode);
 			} else {
-				wlr_drm_connector_enable(&conn->output, false);
+				enable_drm_connector(&conn->output, false);
 			}
 
 			if (!conn->crtc) {
@@ -104,13 +104,13 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	wlr_log(L_DEBUG, "%s invalidated", name);
 	free(name);
 
-	wlr_drm_scan_connectors(drm);
+	scan_drm_connectors(drm);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, display_destroy);
-	wlr_drm_backend_destroy(&drm->backend);
+	backend_destroy(&drm->backend);
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
@@ -144,7 +144,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
 	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
-		WL_EVENT_READABLE, wlr_drm_event, NULL);
+		WL_EVENT_READABLE, handle_drm_event, NULL);
 	if (!drm->drm_event) {
 		wlr_log(L_ERROR, "Failed to create DRM event source");
 		goto error_fd;
@@ -153,15 +153,15 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	drm->session_signal.notify = session_signal;
 	wl_signal_add(&session->session_signal, &drm->session_signal);
 
-	if (!wlr_drm_check_features(drm)) {
+	if (!check_drm_features(drm)) {
 		goto error_event;
 	}
 
-	if (!wlr_drm_resources_init(drm)) {
+	if (!init_drm_resources(drm)) {
 		goto error_event;
 	}
 
-	if (!wlr_drm_renderer_init(drm, &drm->renderer)) {
+	if (!init_drm_renderer(drm, &drm->renderer)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}

@@ -8,7 +8,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-struct wlr_pointer *wlr_libinput_pointer_create(
+struct wlr_pointer *create_libinput_pointer(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_pointer *wlr_pointer = calloc(1, sizeof(struct wlr_pointer));

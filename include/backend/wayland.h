@@ -74,11 +74,11 @@ struct wlr_wl_pointer {
 	struct wl_listener output_destroy_listener;
 };
 
-void wlr_wl_registry_poll(struct wlr_wl_backend *backend);
-void wlr_wl_output_update_cursor(struct wlr_wl_backend_output *output);
-struct wlr_wl_backend_output *wlr_wl_output_for_surface(
+void poll_wl_registry(struct wlr_wl_backend *backend);
+void update_wl_output_cursor(struct wlr_wl_backend_output *output);
+struct wlr_wl_backend_output *get_wl_output_for_surface(
 		struct wlr_wl_backend *backend, struct wl_surface *surface);
-void wlr_wl_output_layout_get_box(struct wlr_wl_backend *backend,
+void get_wl_output_layout_box(struct wlr_wl_backend *backend,
 		struct wlr_box *box);
 
 extern const struct wl_seat_listener seat_listener;
