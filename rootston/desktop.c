@@ -934,12 +934,14 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->input_panel->events.new_surface,
 		&desktop->input_panel_surface);
 	desktop->input_panel_surface.notify = handle_input_panel_surface;
-	desktop->input_method = wlr_input_method_create(server->wl_display);
+	desktop->input_method = wlr_input_method_create(server->wl_display,
+		input_method_check_credentials, &desktop->input_method_pid);
 	wl_signal_add(&desktop->input_method->events.new_context,
 		&desktop->input_method_context);
 	desktop->input_method_context.notify = handle_input_method_context;
 	desktop->input_method_context_destroy.notify =
 		handle_input_method_context_destroy;
+	input_method_manage_process(desktop);
 	return desktop;
 }
 

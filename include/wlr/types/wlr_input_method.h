@@ -26,9 +26,14 @@ struct wlr_input_panel_surface {
 	} events;
 };
 
+typedef bool (*wlr_input_method_check_credentials_func_t)(
+	struct wl_client *client, void *data);
+
 struct wlr_input_method {
 	struct wl_global *input_method;
 	struct wl_resource *resource;
+	wlr_input_method_check_credentials_func_t check_credentials;
+	void *credentials_data;
 	struct {
 		struct wl_signal new_context; // struct wlr_input_method_context*
 	} events;
@@ -69,7 +74,8 @@ struct wlr_input_method_context {
 
 struct wlr_input_panel *wlr_input_panel_create(struct wl_display *display);
 
-struct wlr_input_method *wlr_input_method_create(struct wl_display *display);
+struct wlr_input_method *wlr_input_method_create(struct wl_display *display,
+	wlr_input_method_check_credentials_func_t check_callback, void *data);
 
 struct wlr_input_method_context *wlr_input_method_send_activate(
 	struct wlr_input_method *input_method);

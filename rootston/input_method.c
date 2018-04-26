@@ -1,6 +1,16 @@
+#define _POSIX_C_SOURCE 199309L
+
+#include <signal.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <wlr/util/log.h>
 #include "rootston/input_method.h"
 #include "rootston/seat.h"
+
+static pid_t *im_pid;
+static const char *im_cmd;
 
 static void update_maximized_views(struct roots_desktop *desktop) {
 	struct roots_view *v;
@@ -133,4 +143,56 @@ void handle_input_method_context_destroy(struct wl_listener *listener,
 		}
 	}
 	update_maximized_views(desktop);
+}
+
+static void spawn_im_process() {
+	*im_pid = fork();
+	if (*im_pid == 0) {
+		sleep(1);
+		execl("/bin/sh", "/bin/sh", "-c", im_cmd, (void *)NULL);
+		exit(1);
+	} else if (*im_pid == -1) {
+		wlr_log(L_ERROR, "Could not execute IM command");
+	}
+}
+
+static void handle_im_death(int sig) {
+	pid_t p;
+	int status;
+
+	while ((p=waitpid(-1, &status, WNOHANG)) != -1)
+	{
+		if (!p) {
+			break;
+		}
+		if (p == *im_pid) {
+			*im_pid = -1;
+			spawn_im_process();
+		}
+	}
+}
+
+void input_method_manage_process(struct roots_desktop *desktop) {
+	if (!desktop->config->im_cmd) {
+		return;
+	}
+	desktop->input_method_pid = -1;
+	im_pid = &desktop->input_method_pid;
+	im_cmd = desktop->config->im_cmd;
+
+	struct sigaction sa = {0};
+	sa.sa_handler = handle_im_death;
+
+	sigaction(SIGCHLD, &sa, NULL);
+
+	spawn_im_process();
+}
+
+bool input_method_check_credentials(struct wl_client *client, void *data) {
+	pid_t allowed_pid = *((pid_t*)data);
+	pid_t pid;
+	uid_t uid;
+	gid_t gid;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	return pid == allowed_pid;
 }

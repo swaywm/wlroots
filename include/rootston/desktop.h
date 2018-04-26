@@ -56,6 +56,7 @@ struct roots_desktop {
 	struct wlr_text_input_manager *text_input;
 	struct wlr_input_panel *input_panel; // TODO: per-seat
 	struct wlr_input_method *input_method; // TODO: per-seat
+	pid_t input_method_pid;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
