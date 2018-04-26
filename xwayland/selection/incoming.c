@@ -309,6 +309,7 @@ static bool source_get_targets(struct wlr_xwm_selection *selection,
 			char **mime_type_ptr =
 				wl_array_add(mime_types, sizeof(*mime_type_ptr));
 			if (mime_type_ptr == NULL) {
+				free(mime_type);
 				break;
 			}
 			*mime_type_ptr = mime_type;
