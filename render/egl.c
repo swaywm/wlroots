@@ -162,7 +162,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	wlr_log(L_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 
 	if (!check_egl_ext(egl->exts_str, "EGL_KHR_image_base")) {
-		wlr_log(L_ERROR, "Required egl extensions not supported");
+		wlr_log(L_ERROR, "Required EGL_KHR_image_base extension not supported");
 		goto error;
 	}
 
