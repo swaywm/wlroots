@@ -35,6 +35,8 @@ struct logind_session {
 
 	char *id;
 	char *path;
+	wlr_session_sleep_listener prepare_sleep_callback;
+	void *prepare_sleep_callback_data;
 };
 
 static int logind_take_device(struct wlr_session *base, const char *path) {
@@ -409,10 +411,62 @@ error:
 	return NULL;
 }
 
+void logind_inhibit_sleep(struct wlr_session *base) {
+	struct logind_session *session = wl_container_of(base, session, base);
+	int fd = -1;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	int ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+			"/org/freedesktop/login1", "org.freedesktop.login1.Manager", "Inhibit",
+			&error, &msg, "ssss", "sleep", "sway-idle", "Setup Up Lock Screen", "delay");
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to send Inhibit signal: %s",
+				strerror(-ret));
+	} else {
+		ret = sd_bus_message_read(msg, "h", &fd);
+		if (ret < 0) {
+			wlr_log(L_ERROR, "Failed to parse D-Bus response for Inhibit: %s", strerror(-ret));
+		}
+	}
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+}
+
+static int prepare_for_sleep(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+	struct wlr_session *base = userdata;
+	struct logind_session *session = wl_container_of(base, session, base);
+	if (session->prepare_sleep_callback) {
+		session->prepare_sleep_callback(base, session->prepare_sleep_callback_data);
+	}
+	return 0;
+}
+
+void logind_prepare_sleep_listen(struct wlr_session *base, wlr_session_sleep_listener callback, void *data) {
+	struct logind_session *session = wl_container_of(base, session, base);
+	char str[256];
+	const char *fmt = "type='signal',"
+		"sender='org.freedesktop.login1',"
+		"interface='org.freedesktop.login1.%s',"
+		"member='%s',"
+		"path='%s'";
+
+	session->prepare_sleep_callback = callback;;	
+	session->prepare_sleep_callback_data = data;;	
+	snprintf(str, sizeof(str), fmt, "Manager", "PrepareForSleep", "/org/freedesktop/login1");
+	int ret = sd_bus_add_match(session->bus, NULL, str, prepare_for_sleep, base);
+	if (ret < 0) {
+		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
+		return;
+	}
+}
+
 const struct session_impl session_logind = {
 	.create = logind_session_create,
 	.destroy = logind_session_destroy,
 	.open = logind_take_device,
 	.close = logind_release_device,
 	.change_vt = logind_change_vt,
+	.inhibit_sleep = logind_inhibit_sleep,
+	.prepare_sleep_listen = logind_prepare_sleep_listen,
 };
