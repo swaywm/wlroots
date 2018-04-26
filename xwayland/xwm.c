@@ -715,34 +715,22 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		xcb_configure_request_event_t *ev) {
 	wlr_log(L_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
 		ev->width, ev->height, ev->x, ev->y);
-	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
-	if (xsurface == NULL) {
+	struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
+	if (surface == NULL) {
 		return;
 	}
 
 	// TODO: handle ev->{parent,sibling}?
 
-	if (xsurface->surface == NULL) {
-		// Surface has not been mapped yet
-		wlr_xwayland_surface_configure(xsurface, ev->x, ev->y,
-			ev->width, ev->height);
-	} else {
-		struct wlr_xwayland_surface_configure_event *wlr_event =
-			calloc(1, sizeof(struct wlr_xwayland_surface_configure_event));
-		if (wlr_event == NULL) {
-			return;
-		}
+	struct wlr_xwayland_surface_configure_event wlr_event = {
+		.surface = surface,
+		.x = ev->x,
+		.y = ev->y,
+		.width = ev->width,
+		.height = ev->height,
+	};
 
-		wlr_event->surface = xsurface;
-		wlr_event->x = ev->x;
-		wlr_event->y = ev->y;
-		wlr_event->width = ev->width;
-		wlr_event->height = ev->height;
-
-		wlr_signal_emit_safe(&xsurface->events.request_configure, wlr_event);
-
-		free(wlr_event);
-	}
+	wlr_signal_emit_safe(&surface->events.request_configure, &wlr_event);
 }
 
 static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
