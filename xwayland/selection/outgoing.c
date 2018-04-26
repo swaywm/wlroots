@@ -96,7 +96,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 		goto error_out;
 	}
 
-	wlr_log(L_DEBUG, "read %ld bytes (available %zu, mask 0x%x)", len,
+	wlr_log(L_DEBUG, "read %zd bytes (available %zu, mask 0x%x)", len,
 		available, mask);
 
 	transfer->source_data.size = current + len;

@@ -31,7 +31,7 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 		return 1;
 	}
 
-	wlr_log(L_DEBUG, "wrote %ld (chunk size %ld) of %d bytes",
+	wlr_log(L_DEBUG, "wrote %zd (chunk size %zd) of %d bytes",
 		transfer->property_start + len,
 		len, xcb_get_property_value_length(transfer->property_reply));
 
