@@ -84,7 +84,7 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 size_t wlr_session_find_gpus(struct wlr_session *session,
 	size_t ret_len, int *ret);
 
-void wlr_session_inhibit_sleep(struct wlr_session *base);
+int wlr_session_inhibit_sleep(struct wlr_session *base);
 
 void wlr_session_prepare_for_sleep_listen(struct wlr_session *session, wlr_session_sleep_listener callback, void *data);
 

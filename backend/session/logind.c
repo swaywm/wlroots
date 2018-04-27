@@ -411,7 +411,7 @@ error:
 	return NULL;
 }
 
-void logind_inhibit_sleep(struct wlr_session *base) {
+int logind_inhibit_sleep(struct wlr_session *base) {
 	struct logind_session *session = wl_container_of(base, session, base);
 	int fd = -1;
 	sd_bus_message *msg = NULL;
@@ -431,6 +431,7 @@ void logind_inhibit_sleep(struct wlr_session *base) {
 	}
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
+	return fd;
 }
 
 static int prepare_for_sleep(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
