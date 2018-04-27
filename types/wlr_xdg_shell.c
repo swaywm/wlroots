@@ -398,8 +398,8 @@ static const struct xdg_positioner_interface
 
 static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		struct wl_resource *resource, uint32_t id) {
-	struct wlr_xdg_positioner *positioner =
-		calloc(1, sizeof(struct wlr_xdg_positioner));
+	struct wlr_xdg_positioner_resource *positioner =
+		calloc(1, sizeof(struct wlr_xdg_positioner_resource));
 	if (positioner == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
