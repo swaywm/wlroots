@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/render/multi.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "rootston/config.h"
@@ -208,6 +209,10 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 		return;
 	}
 
+	struct wlr_texture *texture =
+		wlr_multi_texture_get_child(surface->texture, renderer);
+	assert(texture);
+
 	struct wlr_box rotated;
 	wlr_box_rotated_bounds(&box, rotation, &rotated);
 
@@ -231,8 +236,7 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_texture_with_matrix(renderer, surface->texture, matrix,
-			data->alpha);
+		wlr_render_texture_with_matrix(renderer, texture, matrix, data->alpha);
 	}
 
 damage_finish:

@@ -24,7 +24,7 @@ struct wlr_renderer_impl {
 		const float color[static 4], const float matrix[static 9]);
 	void (*render_ellipse_with_matrix)(struct wlr_renderer *renderer,
 		const float color[static 4], const float matrix[static 9]);
-	const enum wl_shm_format *(*formats)(
+	const enum wl_shm_format *(*get_formats)(
 		struct wlr_renderer *renderer, size_t *len);
 	bool (*resource_is_wl_drm_buffer)(struct wlr_renderer *renderer,
 		struct wl_resource *resource);
@@ -57,7 +57,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 struct wlr_texture_impl {
 	void (*get_size)(struct wlr_texture *texture, int *width, int *height);
 	bool (*write_pixels)(struct wlr_texture *texture,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
+		enum wl_shm_format fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *data);
 	void (*destroy)(struct wlr_texture *texture);

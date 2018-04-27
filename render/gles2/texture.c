@@ -40,8 +40,10 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *data) {
-	struct wlr_gles2_texture *texture =
-		get_gles2_texture_in_context(wlr_texture);
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	if (!wlr_egl_is_current(texture->egl)) {
+		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (texture->type != WLR_GLES2_TEXTURE_GLTEX) {
 		wlr_log(L_ERROR, "Cannot write pixels to immutable texture");
@@ -108,7 +110,9 @@ static const struct wlr_texture_impl texture_impl = {
 struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
-	assert(wlr_egl_is_current(egl));
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {

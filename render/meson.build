@@ -15,6 +15,8 @@ lib_wlr_render = static_library(
 		'gles2/shaders.c',
 		'gles2/texture.c',
 		'gles2/util.c',
+		'multi/renderer.c',
+		'multi/texture.c',
 		'wlr_renderer.c',
 		'wlr_texture.c',
 	),

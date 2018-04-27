@@ -15,7 +15,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_texture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
-	assert(impl->formats);
+	assert(impl->get_formats);
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
@@ -99,7 +99,7 @@ void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 
 const enum wl_shm_format *wlr_renderer_get_formats(
 		struct wlr_renderer *r, size_t *len) {
-	return r->impl->formats(r, len);
+	return r->impl->get_formats(r, len);
 }
 
 bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
