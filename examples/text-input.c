@@ -12,12 +12,13 @@
 #include <linux/input-event-codes.h>
 
 /**
- * Usage: idle-inhibit
- * Creates a xdg-toplevel using the idle-inhibit protocol.
- * It will be solid green, when it has an idle inhibitor, and solid yellow if
- * it does not.
- * Left click with a pointer will toggle this state. (Touch is not supported
- * for now).
+ * Usage: text-input [seconds]
+ * Creates a xdg-toplevel using the text-input protocol.
+ * It will be solid green when it has no text input focus, green-yellow	when it
+ * has focus, and solid yellow when it was notified that the focused moved away
+ * but still didn't give up the text input ability.
+ * Time is optional and defines the delay between getting notified of lost
+ * focus and releasing text input.
  */
 
 static int sleeptime = 0;
