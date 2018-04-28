@@ -317,12 +317,12 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
 		&input_device_impl, "X11 keyboard", 0, 0);
-	wlr_keyboard_init(&x11->keyboard, NULL);
+	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
 	x11->keyboard_dev.keyboard = &x11->keyboard;
 
 	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
 		&input_device_impl, "X11 pointer", 0, 0);
-	wlr_pointer_init(&x11->pointer, NULL);
+	wlr_pointer_init(&x11->pointer, &pointer_impl);
 	x11->pointer_dev.pointer = &x11->pointer;
 
 	x11->display_destroy.notify = handle_display_destroy;

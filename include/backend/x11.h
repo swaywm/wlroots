@@ -77,6 +77,8 @@ struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11
 void get_x11_output_layout_box(struct wlr_x11_backend *backend,
 	struct wlr_box *box);
 
+extern const struct wlr_keyboard_impl keyboard_impl;
+extern const struct wlr_pointer_impl pointer_impl;
 extern const struct wlr_input_device_impl input_device_impl;
 
 void handle_x11_input_event(struct wlr_x11_backend *x11,

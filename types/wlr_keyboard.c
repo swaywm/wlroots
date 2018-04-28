@@ -138,7 +138,7 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 }
 
 void wlr_keyboard_init(struct wlr_keyboard *kb,
-		struct wlr_keyboard_impl *impl) {
+		const struct wlr_keyboard_impl *impl) {
 	kb->impl = impl;
 	wl_signal_init(&kb->events.key);
 	wl_signal_init(&kb->events.modifiers);

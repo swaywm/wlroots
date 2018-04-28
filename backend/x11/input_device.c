@@ -136,7 +136,29 @@ void handle_x11_input_event(struct wlr_x11_backend *x11,
 	}
 }
 
-const struct wlr_input_device_impl input_device_impl = { 0 };
+static void input_device_destroy(struct wlr_input_device *wlr_device) {
+	// Don't free the input device, it's on the stack
+}
+
+const struct wlr_input_device_impl input_device_impl = {
+	.destroy = input_device_destroy,
+};
+
+static void keyboard_destroy(struct wlr_keyboard *wlr_keyboard) {
+	// Don't free the keyboard, it's on the stack
+}
+
+const struct wlr_keyboard_impl keyboard_impl = {
+	.destroy = keyboard_destroy,
+};
+
+static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
+	// Don't free the pointer, it's on the stack
+}
+
+const struct wlr_pointer_impl pointer_impl = {
+	.destroy = pointer_destroy,
+};
 
 void update_x11_pointer_position(struct wlr_x11_output *output,
 		xcb_timestamp_t time) {

@@ -8,7 +8,7 @@
 struct wlr_pointer_impl;
 
 struct wlr_pointer {
-	struct wlr_pointer_impl *impl;
+	const struct wlr_pointer_impl *impl;
 
 	struct {
 		struct wl_signal motion;
