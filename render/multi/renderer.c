@@ -22,7 +22,39 @@ static bool renderer_attempt_render_texture(struct wlr_renderer *wlr_renderer,
 }
 
 // https://www.geeksforgeeks.org/move-zeroes-end-array/
-static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
+static size_t push_zeroes_to_end_format(enum wl_shm_format arr[], size_t n) {
+	size_t count = 0;
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
+static size_t push_zeroes_to_end_int(int32_t arr[], size_t n) {
+	size_t count = 0;
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
+static size_t push_zeroes_to_end_uint64(uint64_t arr[], size_t n) {
 	size_t count = 0;
 	for (size_t i = 0; i < n; i++) {
 		if (arr[i] != 0) {
@@ -73,6 +105,9 @@ static void multi_renderer_update_formats(struct wlr_multi_renderer *renderer) {
 
 		for (size_t i = 0; i < renderer->formats_len; ++i) {
 			enum wl_shm_format fmt = renderer->formats[i];
+			if (fmt == 0) {
+				continue;
+			}
 
 			bool child_supports = false;
 			for (size_t j = 0; j < child_formats_len; ++j) {
@@ -89,7 +124,7 @@ static void multi_renderer_update_formats(struct wlr_multi_renderer *renderer) {
 	}
 
 	renderer->formats_len =
-		push_zeroes_to_end(renderer->formats, renderer->formats_len);
+		push_zeroes_to_end_format(renderer->formats, renderer->formats_len);
 }
 
 static const enum wl_shm_format *renderer_get_formats(
@@ -230,6 +265,141 @@ struct wlr_texture *renderer_texture_from_wl_drm(
 	return &texture->texture;
 }
 
+bool renderer_check_import_dmabuf(struct wlr_renderer *wlr_renderer,
+		struct wlr_dmabuf_buffer *dmabuf) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (wl_list_empty(&renderer->children)) {
+		return false;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (!wlr_renderer_check_import_dmabuf(child->renderer, dmabuf)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+int renderer_get_dmabuf_formats(struct wlr_renderer *wlr_renderer,
+		int **formats) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (wl_list_empty(&renderer->children)) {
+		return 0;
+	}
+
+	struct wlr_multi_renderer_child *first_child =
+		wl_container_of(renderer->children.prev, first_child, link);
+	int len = wlr_renderer_get_dmabuf_formats(first_child->renderer, formats);
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (child == first_child) {
+			continue;
+		}
+
+		int *child_formats;
+		int child_formats_len =
+			wlr_renderer_get_dmabuf_formats(child->renderer, &child_formats);
+
+		for (int i = 0; i < len; ++i) {
+			int fmt = (*formats)[i];
+			if (fmt == 0) {
+				continue;
+			}
+
+			bool child_supports = false;
+			for (int j = 0; j < child_formats_len; ++j) {
+				if (fmt == child_formats[j]) {
+					child_supports = true;
+					break;
+				}
+			}
+
+			if (!child_supports) {
+				(*formats)[i] = 0;
+			}
+		}
+	}
+
+	return push_zeroes_to_end_int(*formats, len);
+}
+
+int renderer_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer, int format,
+		uint64_t **modifiers) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (wl_list_empty(&renderer->children)) {
+		return 0;
+	}
+
+	struct wlr_multi_renderer_child *first_child =
+		wl_container_of(renderer->children.prev, first_child, link);
+	int len = wlr_renderer_get_dmabuf_modifiers(first_child->renderer, format,
+		modifiers);
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (child == first_child) {
+			continue;
+		}
+
+		uint64_t *child_modifiers;
+		int child_modifiers_len = wlr_renderer_get_dmabuf_modifiers(
+			child->renderer, format, &child_modifiers);
+
+		for (int i = 0; i < len; ++i) {
+			uint64_t fmt = (*modifiers)[i];
+			if (fmt == 0) {
+				continue;
+			}
+
+			bool child_supports = false;
+			for (int j = 0; j < child_modifiers_len; ++j) {
+				if (fmt == child_modifiers[j]) {
+					child_supports = true;
+					break;
+				}
+			}
+
+			if (!child_supports) {
+				(*modifiers)[i] = 0;
+			}
+		}
+	}
+
+	return push_zeroes_to_end_uint64(*modifiers, len);
+}
+
+struct wlr_texture *renderer_texture_from_dmabuf(
+		struct wlr_renderer *wlr_renderer,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (wl_list_empty(&renderer->children)) {
+		return NULL;
+	}
+
+	struct wlr_multi_texture *texture = multi_texture_create();
+	if (texture == NULL) {
+		return NULL;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		struct wlr_texture *wlr_texture_child = wlr_texture_from_dmabuf(
+			child->renderer, attribs);
+		if (wlr_texture_child == NULL) {
+			wlr_texture_destroy(&texture->texture);
+			return NULL;
+		}
+
+		multi_texture_add(texture, wlr_texture_child, child->renderer);
+	}
+
+	multi_texture_update_size(texture);
+	return &texture->texture;
+}
+
 static void renderer_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
@@ -256,6 +426,10 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.resource_is_wl_drm_buffer = renderer_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = renderer_wl_drm_buffer_get_size,
 	.texture_from_wl_drm = renderer_texture_from_wl_drm,
+	.check_import_dmabuf = renderer_check_import_dmabuf,
+	.get_dmabuf_formats = renderer_get_dmabuf_formats,
+	.get_dmabuf_modifiers = renderer_get_dmabuf_modifiers,
+	.texture_from_dmabuf = renderer_texture_from_dmabuf,
 	.destroy = renderer_destroy,
 };
 

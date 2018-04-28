@@ -170,7 +170,9 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data) {
-	assert(wlr_egl_is_current(egl));
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -221,7 +223,9 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer_attribs *attribs) {
-	assert(wlr_egl_is_current(egl));
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
