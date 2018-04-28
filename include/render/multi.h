@@ -20,6 +20,8 @@ struct wlr_multi_renderer {
 	enum wl_shm_format *formats;
 	size_t formats_len;
 
+	struct wl_display *wl_display;
+
 	struct wl_list children; // wlr_multi_renderer_child::link
 };
 
@@ -41,5 +43,6 @@ struct wlr_multi_texture {
 struct wlr_multi_texture *multi_texture_create();
 void multi_texture_add(struct wlr_multi_texture *texture,
 	struct wlr_texture *child, struct wlr_renderer *child_renderer);
+void multi_texture_update_size(struct wlr_multi_texture *texture);
 
 #endif

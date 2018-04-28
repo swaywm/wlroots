@@ -97,6 +97,16 @@ void multi_texture_add(struct wlr_multi_texture *texture,
 	child->destroy.notify = texture_handle_destroy;
 }
 
+void multi_texture_update_size(struct wlr_multi_texture *texture) {
+	assert(!wl_list_empty(&texture->children));
+
+	struct wlr_multi_texture_child *child;
+	wl_list_for_each(child, &texture->children, link) {
+		wlr_texture_get_size(child->texture, &texture->width, &texture->height);
+		break;
+	}
+}
+
 struct wlr_texture *wlr_multi_texture_get_child(struct wlr_texture *wlr_texture,
 		struct wlr_renderer *child_renderer) {
 	struct wlr_multi_texture *texture = texture_get_multi(wlr_texture);

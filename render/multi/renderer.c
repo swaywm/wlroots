@@ -100,6 +100,30 @@ static const enum wl_shm_format *renderer_get_formats(
 	return renderer->formats;
 }
 
+bool multi_renderer_has_wl_drm(struct wlr_multi_renderer *renderer) {
+	// wl_drm only works if there's one renderer
+	return wl_list_length(&renderer->children) == 1;
+}
+
+static void renderer_bind_wl_display(struct wlr_renderer *wlr_renderer,
+		struct wl_display *display) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+
+	renderer->wl_display = display;
+
+	if (!multi_renderer_has_wl_drm(renderer)) {
+		display = NULL;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (!child->renderer->impl->bind_wl_display) {
+			continue;
+		}
+		child->renderer->impl->bind_wl_display(child->renderer, display);
+	}
+}
+
 static bool renderer_format_supported(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format fmt) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
@@ -118,7 +142,6 @@ static struct wlr_texture *renderer_texture_from_pixels(
 		struct wlr_renderer *wlr_renderer, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
-
 	if (wl_list_empty(&renderer->children)) {
 		return NULL;
 	}
@@ -145,6 +168,68 @@ static struct wlr_texture *renderer_texture_from_pixels(
 	return &texture->texture;
 }
 
+bool renderer_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
+		struct wl_resource *resource) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (!multi_renderer_has_wl_drm(renderer)) {
+		return false;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		return wlr_renderer_resource_is_wl_drm_buffer(child->renderer, resource);
+	}
+
+	return false;
+}
+
+void renderer_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
+		struct wl_resource *buffer, int *width, int *height) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (!multi_renderer_has_wl_drm(renderer)) {
+		*width = *height = 0;
+		return;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		wlr_renderer_wl_drm_buffer_get_size(child->renderer, buffer,
+			width, height);
+		return;
+	}
+
+	*width = *height = 0;
+}
+
+struct wlr_texture *renderer_texture_from_wl_drm(
+		struct wlr_renderer *wlr_renderer, struct wl_resource *buffer) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	if (wl_list_empty(&renderer->children) ||
+			!multi_renderer_has_wl_drm(renderer)) {
+		return NULL;
+	}
+
+	struct wlr_multi_texture *texture = multi_texture_create();
+	if (texture == NULL) {
+		return NULL;
+	}
+
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		struct wlr_texture *wlr_texture_child = wlr_texture_from_wl_drm(
+			child->renderer, buffer);
+		if (wlr_texture_child == NULL) {
+			wlr_texture_destroy(&texture->texture);
+			return NULL;
+		}
+
+		multi_texture_add(texture, wlr_texture_child, child->renderer);
+	}
+
+	multi_texture_update_size(texture);
+	return &texture->texture;
+}
+
 static void renderer_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
@@ -166,7 +251,11 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_ellipse_with_matrix = renderer_attempt_render,
 	.get_formats = renderer_get_formats,
 	.format_supported = renderer_format_supported,
+	.bind_wl_display = renderer_bind_wl_display,
 	.texture_from_pixels = renderer_texture_from_pixels,
+	.resource_is_wl_drm_buffer = renderer_resource_is_wl_drm_buffer,
+	.wl_drm_buffer_get_size = renderer_wl_drm_buffer_get_size,
+	.texture_from_wl_drm = renderer_texture_from_wl_drm,
 	.destroy = renderer_destroy,
 };
 
@@ -181,10 +270,18 @@ struct wlr_renderer *wlr_multi_renderer_create() {
 	return &renderer->renderer;
 }
 
+/**
+ * Called when a child is added or removed.
+ */
+static void multi_renderer_update_children(struct wlr_multi_renderer *renderer) {
+	multi_renderer_update_formats(renderer);
+	renderer_bind_wl_display(&renderer->renderer, renderer->wl_display);
+}
+
 static void renderer_child_destroy(struct wlr_multi_renderer_child *child) {
 	wl_list_remove(&child->destroy.link);
 	wl_list_remove(&child->link);
-	multi_renderer_update_formats(child->parent);
+	multi_renderer_update_children(child->parent);
 	free(child);
 }
 
@@ -220,7 +317,7 @@ void wlr_multi_renderer_add(struct wlr_renderer *wlr_renderer,
 	wl_signal_add(&wlr_child->events.destroy, &child->destroy);
 	child->destroy.notify = multi_renderer_child_handle_destroy;
 
-	multi_renderer_update_formats(renderer);
+	multi_renderer_update_children(renderer);
 }
 
 void wlr_multi_renderer_remove(struct wlr_renderer *wlr_renderer,
