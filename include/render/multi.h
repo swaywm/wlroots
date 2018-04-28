@@ -4,8 +4,11 @@
 #include <wayland-util.h>
 #include <wlr/render/multi.h>
 
+struct wlr_multi_renderer;
+
 struct wlr_multi_renderer_child {
 	struct wlr_renderer *renderer;
+	struct wlr_multi_renderer *parent;
 	struct wl_list link; // wlr_multi_renderer::children
 
 	struct wl_listener destroy;
@@ -13,6 +16,9 @@ struct wlr_multi_renderer_child {
 
 struct wlr_multi_renderer {
 	struct wlr_renderer renderer;
+
+	enum wl_shm_format *formats;
+	size_t formats_len;
 
 	struct wl_list children; // wlr_multi_renderer_child::link
 };

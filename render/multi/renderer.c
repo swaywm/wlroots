@@ -21,18 +21,83 @@ static bool renderer_attempt_render_texture(struct wlr_renderer *wlr_renderer,
 	return false;
 }
 
+// https://www.geeksforgeeks.org/move-zeroes-end-array/
+static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
+	size_t count = 0;
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
+static void multi_renderer_update_formats(struct wlr_multi_renderer *renderer) {
+	free(renderer->formats);
+	renderer->formats = NULL;
+	renderer->formats_len = 0;
+	if (wl_list_empty(&renderer->children)) {
+		return;
+	}
+
+	size_t len;
+	struct wlr_multi_renderer_child *first_child =
+		wl_container_of(renderer->children.prev, first_child, link);
+	const enum wl_shm_format *first_child_formats =
+		wlr_renderer_get_formats(first_child->renderer, &len);
+
+	renderer->formats = malloc(len * sizeof(enum wl_shm_format));
+	if (renderer->formats == NULL) {
+		return;
+	}
+	renderer->formats_len = len;
+	memcpy(renderer->formats, first_child_formats,
+		len * sizeof(enum wl_shm_format));
+
+	// Restrict to the subset of formats supported by all renderers
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (child == first_child) {
+			continue;
+		}
+
+		size_t child_formats_len;
+		const enum wl_shm_format *child_formats =
+			wlr_renderer_get_formats(child->renderer, &child_formats_len);
+
+		for (size_t i = 0; i < renderer->formats_len; ++i) {
+			enum wl_shm_format fmt = renderer->formats[i];
+
+			bool child_supports = false;
+			for (size_t j = 0; j < child_formats_len; ++j) {
+				if (fmt == child_formats[j]) {
+					child_supports = true;
+					break;
+				}
+			}
+
+			if (!child_supports) {
+				renderer->formats[i] = 0;
+			}
+		}
+	}
+
+	renderer->formats_len =
+		push_zeroes_to_end(renderer->formats, renderer->formats_len);
+}
+
 static const enum wl_shm_format *renderer_get_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
-	// TODO
-	struct wlr_multi_renderer_child *child;
-	wl_list_for_each(child, &renderer->children, link) {
-		return wlr_renderer_get_formats(child->renderer, len);
-	}
-
-	*len = 0;
-	return NULL;
+	*len = renderer->formats_len;
+	return renderer->formats;
 }
 
 static bool renderer_format_supported(struct wlr_renderer *wlr_renderer,
@@ -88,6 +153,7 @@ static void renderer_destroy(struct wlr_renderer *wlr_renderer) {
 		wlr_renderer_destroy(child->renderer);
 	}
 
+	free(renderer->formats);
 	free(renderer);
 }
 
@@ -118,6 +184,7 @@ struct wlr_renderer *wlr_multi_renderer_create() {
 static void renderer_child_destroy(struct wlr_multi_renderer_child *child) {
 	wl_list_remove(&child->destroy.link);
 	wl_list_remove(&child->link);
+	multi_renderer_update_formats(child->parent);
 	free(child);
 }
 
@@ -132,18 +199,28 @@ void wlr_multi_renderer_add(struct wlr_renderer *wlr_renderer,
 		struct wlr_renderer *wlr_child) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
-	struct wlr_multi_renderer_child *child =
-		calloc(1, sizeof(struct wlr_multi_renderer_child));
+	// Check if it's already added
+	struct wlr_multi_renderer_child *child;
+	wl_list_for_each(child, &renderer->children, link) {
+		if (child->renderer == wlr_child) {
+			return;
+		}
+	}
+
+	child = calloc(1, sizeof(struct wlr_multi_renderer_child));
 	if (child == NULL) {
 		wlr_log(L_ERROR, "Allocation failed");
 		return;
 	}
 	child->renderer = wlr_child;
+	child->parent = renderer;
 
 	wl_list_insert(&renderer->children, &child->link);
 
 	wl_signal_add(&wlr_child->events.destroy, &child->destroy);
 	child->destroy.notify = multi_renderer_child_handle_destroy;
+
+	multi_renderer_update_formats(renderer);
 }
 
 void wlr_multi_renderer_remove(struct wlr_renderer *wlr_renderer,
