@@ -498,6 +498,12 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	}
 
 	if (pixman_region32_not_empty(&render_damage)) {
+		struct wlr_renderer *renderer =
+			wlr_backend_get_renderer(output->backend);
+		assert(renderer);
+
+		wlr_renderer_begin(renderer, output->width, output->height);
+
 		if (output->fullscreen_surface != NULL) {
 			output_fullscreen_surface_render(output, output->fullscreen_surface,
 				when, &render_damage);
@@ -511,6 +517,8 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 			}
 			output_cursor_render(cursor, when, &render_damage);
 		}
+
+		wlr_renderer_end(renderer);
 	}
 
 	// Transform damage into renderer coordinates, ie. upside down

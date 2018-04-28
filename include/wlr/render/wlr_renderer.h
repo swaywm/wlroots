@@ -11,13 +11,27 @@ struct wlr_renderer_impl;
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
 
+	bool rendering;
+
 	struct {
 		struct wl_signal destroy;
 	} events;
 };
 
+/**
+ * Begins to render. All rendering operations must be called between
+ * `wlr_renderer_begin` and `wlr_renderer_end`.
+ *
+ * Textures must not be created during rendering.
+ */
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
+/**
+ * Ends rendering.
+ */
 void wlr_renderer_end(struct wlr_renderer *r);
+/**
+ * Clear the whole renderer buffer with the provided color.
+ */
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
