@@ -40,10 +40,27 @@ static bool texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static void texture_child_destroy(struct wlr_multi_texture_child *child) {
+	wl_list_remove(&child->link);
+	free(child);
+}
+
+static void texture_destroy(struct wlr_texture *wlr_texture) {
+	struct wlr_multi_texture *texture = texture_get_multi(wlr_texture);
+
+	struct wlr_multi_texture_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &texture->children, link) {
+		wlr_texture_destroy(child->texture);
+		texture_child_destroy(child);
+	}
+
+	free(texture);
+}
+
 static const struct wlr_texture_impl texture_impl = {
 	.get_size = texture_get_size,
 	.write_pixels = texture_write_pixels,
-	// TODO: destroy
+	.destroy = texture_destroy,
 };
 
 struct wlr_multi_texture *multi_texture_create() {
@@ -68,8 +85,6 @@ void multi_texture_add(struct wlr_multi_texture *texture,
 	child->texture = wlr_child;
 	child->renderer = child_renderer;
 
-	// TODO: renderer_destroy
-
 	wl_list_insert(&texture->children, &child->link);
 }
 
@@ -85,4 +100,9 @@ struct wlr_texture *wlr_multi_texture_get_child(struct wlr_texture *wlr_texture,
 	}
 
 	return NULL;
+}
+
+bool wlr_multi_texture_is_empty(struct wlr_texture *wlr_texture) {
+	struct wlr_multi_texture *texture = texture_get_multi(wlr_texture);
+	return wl_list_empty(&texture->children);
 }

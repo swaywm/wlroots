@@ -80,6 +80,24 @@ static struct wlr_texture *renderer_texture_from_pixels(
 	return &texture->texture;
 }
 
+static void renderer_child_destroy(struct wlr_multi_renderer_child *child) {
+	wl_list_remove(&child->destroy.link);
+	wl_list_remove(&child->link);
+	free(child);
+}
+
+static void renderer_destroy(struct wlr_renderer *wlr_renderer) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+
+	struct wlr_multi_renderer_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &renderer->children, link) {
+		wlr_renderer_destroy(child->renderer);
+		renderer_child_destroy(child);
+	}
+
+	free(renderer);
+}
+
 static const struct wlr_renderer_impl renderer_impl = {
 	.begin = renderer_attempt_render,
 	.clear = renderer_attempt_render,
@@ -90,6 +108,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_formats = renderer_get_formats,
 	.format_supported = renderer_format_supported,
 	.texture_from_pixels = renderer_texture_from_pixels,
+	.destroy = renderer_destroy,
 };
 
 struct wlr_renderer *wlr_multi_renderer_create() {
@@ -101,6 +120,13 @@ struct wlr_renderer *wlr_multi_renderer_create() {
 	wl_list_init(&renderer->children);
 	wlr_renderer_init(&renderer->renderer, &renderer_impl);
 	return &renderer->renderer;
+}
+
+static void multi_renderer_child_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_multi_renderer_child *child =
+		wl_container_of(listener, child, destroy);
+	renderer_child_destroy(child);
 }
 
 void wlr_multi_renderer_add(struct wlr_renderer *wlr_renderer,
@@ -117,13 +143,27 @@ void wlr_multi_renderer_add(struct wlr_renderer *wlr_renderer,
 
 	wl_list_insert(&renderer->children, &child->link);
 
-	// TODO: destroy listener
+	wl_signal_add(&wlr_child->events.destroy, &child->destroy);
+	child->destroy.notify = multi_renderer_child_handle_destroy;
 }
 
-void wlr_multi_renderer_remove(struct wlr_renderer *renderer,
-	struct wlr_renderer *child);
+void wlr_multi_renderer_remove(struct wlr_renderer *wlr_renderer,
+		struct wlr_renderer *wlr_child) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
-bool wlr_multi_renderer_is_empty(struct wlr_renderer *renderer);
+	struct wlr_multi_renderer_child *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &renderer->children, link) {
+		if (child->renderer == wlr_child) {
+			renderer_child_destroy(child);
+			break;
+		}
+	}
+}
+
+bool wlr_multi_renderer_is_empty(struct wlr_renderer *wlr_renderer) {
+	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
+	return wl_list_empty(&renderer->children);
+}
 
 bool wlr_renderer_is_multi(struct wlr_renderer *wlr_renderer) {
 	return wlr_renderer->impl == &renderer_impl;

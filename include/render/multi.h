@@ -21,8 +21,6 @@ struct wlr_multi_texture_child {
 	struct wlr_renderer *renderer;
 	struct wlr_texture *texture;
 	struct wl_list link; // wlr_multi_texture::children
-
-	struct wl_listener renderer_destroy;
 };
 
 struct wlr_multi_texture {

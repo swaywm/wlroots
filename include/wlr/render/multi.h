@@ -14,6 +14,7 @@ bool wlr_renderer_is_multi(struct wlr_renderer *renderer);
 
 struct wlr_texture *wlr_multi_texture_get_child(struct wlr_texture *texture,
 	struct wlr_renderer *child_renderer);
+bool wlr_multi_texture_is_empty(struct wlr_texture *texture);
 bool wlr_texture_is_multi(struct wlr_texture *texture);
 
 #endif
