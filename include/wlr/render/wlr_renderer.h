@@ -103,6 +103,9 @@ bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *renderer,
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
+ *
+ * This function can only be called after `wlr_renderer_begin` and before
+ * swapping buffers.
  */
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 	uint32_t stride, uint32_t width, uint32_t height,
