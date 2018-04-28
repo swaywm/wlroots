@@ -166,10 +166,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	if (!wlr_egl_bind_display(&drm->renderer.egl, display)) {
-		wlr_log(L_INFO, "Failed to bind egl/wl display");
-	}
-
 	drm->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &drm->display_destroy);
 

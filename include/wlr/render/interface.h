@@ -41,6 +41,8 @@ struct wlr_renderer_impl {
 		void *data);
 	bool (*format_supported)(struct wlr_renderer *renderer,
 		enum wl_shm_format fmt);
+	void (*bind_wl_display)(struct wlr_renderer *renderer,
+		struct wl_display *display);
 	struct wlr_texture *(*texture_from_pixels)(struct wlr_renderer *renderer,
 		enum wl_shm_format fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data);

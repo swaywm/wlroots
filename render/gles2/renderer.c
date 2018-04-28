@@ -280,7 +280,14 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 static bool gles2_format_supported(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt) {
+	gles2_get_renderer(wlr_renderer);
 	return get_gles2_format_from_wl(wl_fmt) != NULL;
+}
+
+static void gles2_bind_wl_display(struct wlr_renderer *wlr_renderer,
+		struct wl_display *display) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	wlr_egl_bind_wl_display(renderer->egl, display);
 }
 
 static struct wlr_texture *gles2_texture_from_pixels(
@@ -342,6 +349,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.check_import_dmabuf = gles2_check_import_dmabuf,
 	.read_pixels = gles2_read_pixels,
 	.format_supported = gles2_format_supported,
+	.bind_wl_display = gles2_bind_wl_display,
 	.texture_from_pixels = gles2_texture_from_pixels,
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,

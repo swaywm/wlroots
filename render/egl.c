@@ -205,14 +205,14 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE,
 		EGL_NO_CONTEXT);
-	wlr_egl_bind_display(egl, NULL);
+	wlr_egl_bind_wl_display(egl, NULL);
 
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
 }
 
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *display) {
+bool wlr_egl_bind_wl_display(struct wlr_egl *egl, struct wl_display *display) {
 	if (egl->wl_display == display) {
 		return true;
 	}
@@ -227,6 +227,8 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *display) {
 
 	if (result) {
 		egl->wl_display = display;
+	} else {
+		wlr_log(L_ERROR, "Failed to bind wl_display to EGL");
 	}
 	return result;
 }

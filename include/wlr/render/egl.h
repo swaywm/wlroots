@@ -45,11 +45,11 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 void wlr_egl_finish(struct wlr_egl *egl);
 
 /**
- * Binds the given display to the EGL instance.
- * This will allow clients to create EGL surfaces from wayland ones and render
- * to it.
+ * Binds the given wl_display to the EGL instance. This will allow clients to
+ * create EGL surfaces from Wayland ones and render to it via the deprecated
+ * wl_drm interface.
  */
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
+bool wlr_egl_bind_wl_display(struct wlr_egl *egl, struct wl_display *display);
 
 /**
  * Returns a surface for the given native window
