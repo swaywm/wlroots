@@ -36,7 +36,12 @@ struct logind_session {
 	char *id;
 	char *path;
 	wlr_session_sleep_listener prepare_sleep_callback;
+	wlr_session_sleep_lock_condition release_condition;
 	void *prepare_sleep_callback_data;
+	int lock;
+	int ongoing_lock;
+	int inhibit_cnt;
+	struct wl_event_loop *event_loop;
 };
 
 static int logind_take_device(struct wlr_session *base, const char *path) {
@@ -385,8 +390,8 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		goto error_bus;
 	}
 
-	struct wl_event_loop *event_loop = wl_display_get_event_loop(disp);
-	session->event = wl_event_loop_add_fd(event_loop, sd_bus_get_fd(session->bus),
+	session->event_loop = wl_display_get_event_loop(disp);
+	session->event = wl_event_loop_add_fd(session->event_loop, sd_bus_get_fd(session->bus),
 		WL_EVENT_READABLE, dbus_event, session->bus);
 
 	if (!session_activate(session)) {
@@ -411,7 +416,7 @@ error:
 	return NULL;
 }
 
-int logind_aquire_sleep_lock(struct wlr_session *base) {
+int aquire_sleep_lock(struct wlr_session *base) {
 	struct logind_session *session = wl_container_of(base, session, base);
 	int fd = -1;
 	sd_bus_message *msg = NULL;
@@ -431,7 +436,38 @@ int logind_aquire_sleep_lock(struct wlr_session *base) {
 	}
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
+	wlr_log(L_INFO, "Aquired lock %d", fd);
 	return fd;
+}
+
+void release_lock(struct logind_session *session) {
+	wlr_log(L_INFO, "Release lock %d", session->ongoing_lock);
+	if (session->ongoing_lock >= 0)
+		close(session->ongoing_lock);
+	session->ongoing_lock = -1;
+	session->inhibit_cnt=0;
+	return;
+}
+
+
+static int test_release_condition(void *data) {
+	struct logind_session *session = data;
+	if (session->release_condition == NULL ||
+			session->release_condition(session->prepare_sleep_callback_data)) {
+		wlr_log(L_DEBUG, "Release condition fullfilled, releasing lock!");
+		release_lock(session);
+		return 0;
+	}
+
+	session->inhibit_cnt++;
+	if(session->inhibit_cnt > 10) {
+		wlr_log(L_DEBUG, "Reached inhibit timeout, releasing lock");
+		release_lock(session);
+		return 0;
+	}
+	struct wl_event_source *source = wl_event_loop_add_timer(session->event_loop, test_release_condition, session);
+	wl_event_source_timer_update(source, 100);
+	return 0;
 }
 
 static int prepare_for_sleep(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
@@ -442,14 +478,43 @@ static int prepare_for_sleep(sd_bus_message *msg, void *userdata, sd_bus_error *
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to parse D-Bus response for Inhibit: %s", strerror(-ret));
 	}
+
+	if (!going_down) {
+		session->lock = aquire_sleep_lock(base);
+		return 0;
+	}
+
+	session->inhibit_cnt=0;
+	session->ongoing_lock = session->lock;
+	if (session->release_condition == NULL ||
+			session->release_condition(session->prepare_sleep_callback_data)) {
+		wlr_log(L_DEBUG, "Already have lock, no action");
+		release_lock(session);
+	}
+
 	if (session->prepare_sleep_callback) {
-		session->prepare_sleep_callback(base, going_down, session->prepare_sleep_callback_data);
+		wlr_log(L_INFO, "Calling sleep callback, holding lock %d", session->ongoing_lock);
+		session->prepare_sleep_callback(base, session->prepare_sleep_callback_data);
+	}
+
+	if (session->ongoing_lock >= 0) {
+		struct wl_event_source *source = wl_event_loop_add_timer(session->event_loop, test_release_condition, session);
+		wl_event_source_timer_update(source, 100);
 	}
 	return 0;
 }
 
-void logind_prepare_sleep_listen(struct wlr_session *base, wlr_session_sleep_listener callback, void *data) {
+void logind_prepare_sleep_listen(struct wlr_session *base, wlr_session_sleep_listener callback, wlr_session_sleep_lock_condition release_condition, void *data) {
 	struct logind_session *session = wl_container_of(base, session, base);
+	if (session->prepare_sleep_callback != NULL) {
+		wlr_log(L_ERROR, "Sleep listener already registered, only one is supported");
+		return;
+	}
+	if (callback == NULL) {
+		wlr_log(L_ERROR, "No sleep callback provided, listening is pointless");
+		return;
+	}
+
 	char str[256];
 	const char *fmt = "type='signal',"
 		"sender='org.freedesktop.login1',"
@@ -465,6 +530,11 @@ void logind_prepare_sleep_listen(struct wlr_session *base, wlr_session_sleep_lis
 		wlr_log(L_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return;
 	}
+
+	if (release_condition != NULL) {
+		session->release_condition = release_condition;
+		session->lock = aquire_sleep_lock(base);
+	}
 }
 
 const struct session_impl session_logind = {
@@ -473,6 +543,5 @@ const struct session_impl session_logind = {
 	.open = logind_take_device,
 	.close = logind_release_device,
 	.change_vt = logind_change_vt,
-	.aquire_sleep_lock = logind_aquire_sleep_lock,
 	.prepare_sleep_listen = logind_prepare_sleep_listen,
 };

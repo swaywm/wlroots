@@ -9,8 +9,7 @@ struct session_impl {
 	int (*open)(struct wlr_session *session, const char *path);
 	void (*close)(struct wlr_session *session, int fd);
 	bool (*change_vt)(struct wlr_session *session, unsigned vt);
-	int (*aquire_sleep_lock)(struct wlr_session *session);
-	void (*prepare_sleep_listen)(struct wlr_session *session, wlr_session_sleep_listener callback, void *data);
+	void (*prepare_sleep_listen)(struct wlr_session *base, wlr_session_sleep_listener callback, wlr_session_sleep_lock_condition release_condition, void *data);
 };
 
 #endif
