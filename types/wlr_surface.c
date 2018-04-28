@@ -333,6 +333,30 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	}
 }
 
+static void surface_handle_texture_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_surface *surface =
+		wl_container_of(listener, surface, texture_destroy);
+	wl_list_remove(&surface->texture_destroy.link);
+	wl_list_init(&surface->texture_destroy.link);
+	surface->texture = NULL;
+}
+
+static void surface_set_texture(struct wlr_surface *surface,
+		struct wlr_texture *texture) {
+	wlr_texture_destroy(surface->texture);
+
+	surface->texture = texture;
+
+	if (surface->texture != NULL) {
+		wl_signal_add(&surface->texture->events.destroy,
+			&surface->texture_destroy);
+		surface->texture_destroy.notify = surface_handle_texture_destroy;
+	} else {
+		wl_list_init(&surface->texture_destroy.link);
+	}
+}
+
 static void surface_apply_damage(struct wlr_surface *surface,
 		bool invalid_buffer, bool reupload_buffer) {
 	struct wl_resource *resource = surface->current->buffer;
@@ -352,8 +376,9 @@ static void surface_apply_damage(struct wlr_surface *surface,
 
 		if (surface->texture == NULL || reupload_buffer) {
 			wlr_texture_destroy(surface->texture);
-			surface->texture = wlr_texture_from_pixels(surface->renderer, fmt,
-				stride, width, height, data);
+			struct wlr_texture *texture = wlr_texture_from_pixels(
+				surface->renderer, fmt, stride, width, height, data);
+			surface_set_texture(surface, texture);
 		} else {
 			pixman_region32_t damage;
 			pixman_region32_init(&damage);
@@ -378,20 +403,21 @@ static void surface_apply_damage(struct wlr_surface *surface,
 
 		wl_shm_buffer_end_access(buf);
 	} else if (invalid_buffer || reupload_buffer) {
-		wlr_texture_destroy(surface->texture);
-
-		if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer, resource)) {
-			surface->texture =
+		struct wlr_texture *texture = NULL;
+		if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer,
+				resource)) {
+			texture =
 				wlr_texture_from_wl_drm(surface->renderer, resource);
 		} else if (wlr_dmabuf_resource_is_buffer(resource)) {
 			struct wlr_dmabuf_buffer *dmabuf =
 				wlr_dmabuf_buffer_from_buffer_resource(resource);
-			surface->texture =
+			texture =
 				wlr_texture_from_dmabuf(surface->renderer, &dmabuf->attributes);
 		} else {
-			surface->texture = NULL;
 			wlr_log(L_ERROR, "Unknown buffer handle attached");
 		}
+
+		surface_set_texture(surface, texture);
 	}
 
 	surface_state_release_buffer(surface->current);
@@ -407,8 +433,7 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 	surface_move_state(surface, surface->pending, surface->current);
 
 	if (null_buffer_commit) {
-		wlr_texture_destroy(surface->texture);
-		surface->texture = NULL;
+		surface_set_texture(surface, NULL);
 	}
 
 	bool reupload_buffer = oldw != surface->current->buffer_width ||
@@ -634,8 +659,9 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 
 	wl_list_remove(wl_resource_get_link(surface->resource));
 
-	wl_list_remove(&surface->renderer_destroy.link);
 	wlr_texture_destroy(surface->texture);
+	wl_list_remove(&surface->renderer_destroy.link);
+	wl_list_remove(&surface->texture_destroy.link);
 	surface_state_destroy(surface->pending);
 	surface_state_destroy(surface->current);
 
@@ -684,6 +710,8 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 
 	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
 	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
+
+	wl_list_init(&surface->texture_destroy.link);
 
 	struct wl_list *resource_link = wl_resource_get_link(surface->resource);
 	if (resource_list != NULL) {

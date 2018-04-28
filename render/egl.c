@@ -1,11 +1,12 @@
 #include <assert.h>
-#include <stdio.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "glapi.h"
+#include "util/signal.h"
 
 // Extension documentation
 // https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
@@ -106,6 +107,8 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		return false;
 	}
 
+	wl_signal_init(&egl->events.destroy);
+
 	if (eglDebugMessageControlKHR) {
 		static const EGLAttrib debug_attribs[] = {
 			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
@@ -198,27 +201,34 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 		return;
 	}
 
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
-		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
-	}
+	wlr_signal_emit_safe(&egl->events.destroy, egl);
+
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE,
+		EGL_NO_CONTEXT);
+	wlr_egl_bind_display(egl, NULL);
 
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
 }
 
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!eglBindWaylandDisplayWL) {
-		return false;
-	}
-
-	if (eglBindWaylandDisplayWL(egl->display, local_display)) {
-		egl->wl_display = local_display;
+bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *display) {
+	if (egl->wl_display == display) {
 		return true;
 	}
 
-	return false;
+	bool result = false;
+	if (display == NULL && eglUnbindWaylandDisplayWL) {
+		result = eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
+	}
+	if (display != NULL && eglBindWaylandDisplayWL) {
+		result = eglBindWaylandDisplayWL(egl->display, display);
+	}
+
+	if (result) {
+		egl->wl_display = display;
+	}
+	return result;
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {

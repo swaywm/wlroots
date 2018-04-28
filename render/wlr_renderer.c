@@ -24,9 +24,13 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 }
 
 void wlr_renderer_destroy(struct wlr_renderer *r) {
+	if (r == NULL) {
+		return;
+	}
+
 	wlr_signal_emit_safe(&r->events.destroy, r);
 
-	if (r && r->impl && r->impl->destroy) {
+	if (r->impl && r->impl->destroy) {
 		r->impl->destroy(r);
 	} else {
 		free(r);

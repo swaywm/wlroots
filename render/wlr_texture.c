@@ -3,16 +3,25 @@
 #include <stdlib.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
+#include "util/signal.h"
 
 void wlr_texture_init(struct wlr_texture *texture,
 		const struct wlr_texture_impl *impl) {
 	assert(impl->get_size);
 	assert(impl->write_pixels);
 	texture->impl = impl;
+
+	wl_signal_init(&texture->events.destroy);
 }
 
 void wlr_texture_destroy(struct wlr_texture *texture) {
-	if (texture && texture->impl && texture->impl->destroy) {
+	if (texture == NULL) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&texture->events.destroy, texture);
+
+	if (texture->impl && texture->impl->destroy) {
 		texture->impl->destroy(texture);
 	} else {
 		free(texture);

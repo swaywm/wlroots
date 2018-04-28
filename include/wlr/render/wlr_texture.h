@@ -12,6 +12,10 @@ struct wlr_texture_impl;
 
 struct wlr_texture {
 	const struct wlr_texture_impl *impl;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 /**

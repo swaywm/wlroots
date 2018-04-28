@@ -24,6 +24,10 @@ struct wlr_egl {
 	} egl_exts;
 
 	struct wl_display *wl_display;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 // TODO: Allocate and return a wlr_egl

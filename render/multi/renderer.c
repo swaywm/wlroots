@@ -80,19 +80,12 @@ static struct wlr_texture *renderer_texture_from_pixels(
 	return &texture->texture;
 }
 
-static void renderer_child_destroy(struct wlr_multi_renderer_child *child) {
-	wl_list_remove(&child->destroy.link);
-	wl_list_remove(&child->link);
-	free(child);
-}
-
 static void renderer_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_multi_renderer *renderer = renderer_get_multi(wlr_renderer);
 
 	struct wlr_multi_renderer_child *child, *tmp;
 	wl_list_for_each_safe(child, tmp, &renderer->children, link) {
 		wlr_renderer_destroy(child->renderer);
-		renderer_child_destroy(child);
 	}
 
 	free(renderer);
@@ -120,6 +113,12 @@ struct wlr_renderer *wlr_multi_renderer_create() {
 	wl_list_init(&renderer->children);
 	wlr_renderer_init(&renderer->renderer, &renderer_impl);
 	return &renderer->renderer;
+}
+
+static void renderer_child_destroy(struct wlr_multi_renderer_child *child) {
+	wl_list_remove(&child->destroy.link);
+	wl_list_remove(&child->link);
+	free(child);
 }
 
 static void multi_renderer_child_handle_destroy(struct wl_listener *listener,
