@@ -411,7 +411,7 @@ error:
 	return NULL;
 }
 
-int logind_inhibit_sleep(struct wlr_session *base) {
+int logind_aquire_sleep_lock(struct wlr_session *base) {
 	struct logind_session *session = wl_container_of(base, session, base);
 	int fd = -1;
 	sd_bus_message *msg = NULL;
@@ -419,7 +419,7 @@ int logind_inhibit_sleep(struct wlr_session *base) {
 
 	int ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
 			"/org/freedesktop/login1", "org.freedesktop.login1.Manager", "Inhibit",
-			&error, &msg, "ssss", "sleep", "sway-idle", "Setup Up Lock Screen", "block");
+			&error, &msg, "ssss", "sleep", "sway-idle", "Setup Up Lock Screen", "delay");
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to send Inhibit signal: %s",
 				strerror(-ret));
@@ -442,8 +442,8 @@ static int prepare_for_sleep(sd_bus_message *msg, void *userdata, sd_bus_error *
 	if (ret < 0) {
 		wlr_log(L_ERROR, "Failed to parse D-Bus response for Inhibit: %s", strerror(-ret));
 	}
-	if (session->prepare_sleep_callback && going_down) {
-		session->prepare_sleep_callback(base, session->prepare_sleep_callback_data);
+	if (session->prepare_sleep_callback) {
+		session->prepare_sleep_callback(base, going_down, session->prepare_sleep_callback_data);
 	}
 	return 0;
 }
@@ -473,6 +473,6 @@ const struct session_impl session_logind = {
 	.open = logind_take_device,
 	.close = logind_release_device,
 	.change_vt = logind_change_vt,
-	.inhibit_sleep = logind_inhibit_sleep,
+	.aquire_sleep_lock = logind_aquire_sleep_lock,
 	.prepare_sleep_listen = logind_prepare_sleep_listen,
 };
