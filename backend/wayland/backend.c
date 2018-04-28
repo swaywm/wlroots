@@ -176,7 +176,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&backend->backend);
 }
 
-struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote) {
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
+		const char *remote) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_wl_backend *backend = calloc(1, sizeof(struct wlr_wl_backend));
@@ -194,26 +195,40 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char
 	backend->remote_display = wl_display_connect(remote);
 	if (!backend->remote_display) {
 		wlr_log_errno(L_ERROR, "Could not connect to remote display");
-		return false;
+		goto error_connect;
 	}
 
 	backend->registry = wl_display_get_registry(backend->remote_display);
 	if (backend->registry == NULL) {
 		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
-		return false;
+		goto error_registry;
 	}
 
-	wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
-		backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888);
+	if (!wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
+			backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888)) {
+		wlr_log(L_ERROR, "Could not initialize EGL");
+		goto error_egl;
+	}
 	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
 	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
 	if (backend->renderer == NULL) {
-		wlr_log_errno(L_ERROR, "Could not create renderer");
+		wlr_log(L_ERROR, "Could not create renderer");
+		goto error_renderer;
 	}
 
 	backend->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->local_display_destroy);
 
 	return &backend->backend;
+
+error_renderer:
+	wlr_egl_finish(&backend->egl);
+error_egl:
+	wl_registry_destroy(backend->registry);
+error_registry:
+	wl_display_disconnect(backend->remote_display);
+error_connect:
+	free(backend);
+	return NULL;
 }
