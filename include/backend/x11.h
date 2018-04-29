@@ -24,6 +24,9 @@ struct wlr_x11_output {
 	xcb_window_t win;
 	EGLSurface surf;
 
+	struct wlr_pointer pointer;
+	struct wlr_input_device pointer_dev;
+
 	struct wl_event_source *frame_timer;
 	int frame_delay;
 };
@@ -42,9 +45,6 @@ struct wlr_x11_backend {
 
 	struct wlr_keyboard keyboard;
 	struct wlr_input_device keyboard_dev;
-
-	struct wlr_pointer pointer;
-	struct wlr_input_device pointer_dev;
 
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
@@ -74,8 +74,6 @@ struct wlr_x11_backend {
 
 struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
 	xcb_window_t window);
-void get_x11_output_layout_box(struct wlr_x11_backend *backend,
-	struct wlr_box *box);
 
 extern const struct wlr_keyboard_impl keyboard_impl;
 extern const struct wlr_pointer_impl pointer_impl;
