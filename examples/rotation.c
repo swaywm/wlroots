@@ -248,13 +248,6 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&wlr->events.new_input, &state.new_input);
 	state.new_input.notify = new_input_notify;
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
-	const char *socket = wl_display_add_socket_auto(display);
-	if (!socket) {
-		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
-		wlr_backend_destroy(wlr);
-		exit(1);
-	}
-	setenv("_WAYLAND_DISPLAY", socket, true);
 
 	state.renderer = wlr_backend_get_renderer(wlr);
 	if (!state.renderer) {

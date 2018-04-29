@@ -395,13 +395,7 @@ int main(int argc, char *argv[]) {
 		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
 
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
-	const char *socket = wl_display_add_socket_auto(display);
-	if (!socket) {
-		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
-		wlr_backend_destroy(wlr);
-		exit(1);
-	}
-	setenv("_WAYLAND_DISPLAY", socket, true);
+
 	if (!wlr_backend_start(wlr)) {
 		wlr_log(L_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);
