@@ -40,8 +40,7 @@ struct wlr_keyboard_modifiers {
 };
 
 struct wlr_keyboard {
-	struct wlr_keyboard_impl *impl;
-	// TODO: Should this store key repeat info too?
+	const struct wlr_keyboard_impl *impl;
 
 	int keymap_fd;
 	size_t keymap_size;

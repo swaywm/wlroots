@@ -9,15 +9,7 @@
 #include "backend/headless.h"
 #include "util/signal.h"
 
-static void input_device_destroy(struct wlr_input_device *wlr_dev) {
-	struct wlr_headless_input_device *device =
-		(struct wlr_headless_input_device *)wlr_dev;
-	free(device);
-}
-
-static const struct wlr_input_device_impl input_device_impl = {
-	.destroy = input_device_destroy,
-};
+static const struct wlr_input_device_impl input_device_impl = { 0 };
 
 bool wlr_input_device_is_headless(struct wlr_input_device *wlr_dev) {
 	return wlr_dev->impl == &input_device_impl;
