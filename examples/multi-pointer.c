@@ -71,7 +71,7 @@ struct sample_keyboard {
 };
 
 void configure_cursor(struct wlr_cursor *cursor, struct wlr_input_device *device,
-					  struct sample_state *sample) {
+		 struct sample_state *sample) {
 	struct sample_output *output;
 	wlr_log(L_ERROR, "Configuring cursor %p for device %p", cursor, device);
 
