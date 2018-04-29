@@ -69,16 +69,34 @@ void wlr_cursor_destroy(struct wlr_cursor *cur);
  * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
  * device mapping constraints will be ignored.
  *
- * Returns true when the mouse warp was successful.
+ * Returns true when the cursor warp was successful.
  */
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
-	double x, double y);
+	double lx, double ly);
 
+/**
+ * Convert absolute 0..1 coordinates to layout coordinates.
+ *
+ * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
+ * device mapping constraints will be ignored.
+ */
+void wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
+	struct wlr_input_device *dev, double x, double y, double *lx, double *ly);
+
+/**
+ * Warp the cursor to the given x and y in absolute 0..1 coordinates. If the
+ * given point is out of the layout boundaries or constraints, the closest point
+ * will be used. If one coordinate is NAN, it will be ignored.
+ *
+ * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
+ * device mapping constraints will be ignored.
+ */
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 	struct wlr_input_device *dev, double x, double y);
 
 /**
- * Move the cursor in the direction of the given x and y coordinates.
+ * Move the cursor in the direction of the given x and y layout coordinates. If
+ * one coordinate is NAN, it will be ignored.
  *
  * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
  * device mapping constraints will be ignored.
@@ -152,12 +170,5 @@ void wlr_cursor_map_to_region(struct wlr_cursor *cur, struct wlr_box *box);
  */
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 	struct wlr_input_device *dev, struct wlr_box *box);
-
-/**
- * Convert absolute coordinates to layout coordinates for the device.
- */
-bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
-		struct wlr_input_device *device, double x, double y,
-		double *lx, double *ly);
 
 #endif

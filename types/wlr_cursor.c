@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_cursor.h>
@@ -175,21 +176,20 @@ static struct wlr_cursor_device *get_cursor_device(struct wlr_cursor *cur,
 }
 
 static void cursor_warp_unchecked(struct wlr_cursor *cur,
-		double x, double y) {
+		double lx, double ly) {
 	assert(cur->state->layout);
 
 	struct wlr_cursor_output_cursor *output_cursor;
 	wl_list_for_each(output_cursor, &cur->state->output_cursors, link) {
-		double output_x = x;
-		double output_y = y;
+		double output_x = lx, output_y = ly;
 		wlr_output_layout_output_coords(cur->state->layout,
 			output_cursor->output_cursor->output, &output_x, &output_y);
-		wlr_output_cursor_move(output_cursor->output_cursor, output_x,
-			output_y);
+		wlr_output_cursor_move(output_cursor->output_cursor,
+			output_x, output_y);
 	}
 
-	cur->x = x;
-	cur->y = y;
+	cur->x = lx;
+	cur->y = ly;
 }
 
 /**
@@ -233,28 +233,41 @@ static struct wlr_box *get_mapping(struct wlr_cursor *cur,
 }
 
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
-		double x, double y) {
+		double lx, double ly) {
 	assert(cur->state->layout);
+
 	bool result = false;
-
 	struct wlr_box *mapping = get_mapping(cur, dev);
-
 	if (mapping) {
-		if (wlr_box_contains_point(mapping, x, y)) {
-			cursor_warp_unchecked(cur, x, y);
-			result = true;
-		}
-	} else if (wlr_output_layout_contains_point(cur->state->layout, NULL,
-				x, y)) {
-		cursor_warp_unchecked(cur, x, y);
-		result = true;
+		result = wlr_box_contains_point(mapping, lx, ly);
+	} else {
+		result = wlr_output_layout_contains_point(cur->state->layout, NULL,
+			lx, ly);
+	}
+
+	if (result) {
+		cursor_warp_unchecked(cur, lx, ly);
 	}
 
 	return result;
 }
 
-void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
-		struct wlr_input_device *dev, double x, double y) {
+static void cursor_warp_closest(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, double lx, double ly) {
+	struct wlr_box *mapping = get_mapping(cur, dev);
+	if (mapping) {
+		wlr_box_closest_point(mapping, lx, ly, &lx, &ly);
+	} else {
+		wlr_output_layout_closest_point(cur->state->layout, NULL, lx, ly,
+			&lx, &ly);
+	}
+
+	cursor_warp_unchecked(cur, lx, ly);
+}
+
+void wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, double x, double y,
+		double *lx, double *ly) {
 	assert(cur->state->layout);
 
 	struct wlr_box *mapping = get_mapping(cur, dev);
@@ -262,40 +275,28 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
 	}
 
-	x = x >= 0 ? mapping->width * x + mapping->x : cur->x;
-	y = y >= 0 ? mapping->height * y + mapping->y : cur->y;
+	*lx = !isnan(x) ? mapping->width * x + mapping->x : cur->x;
+	*ly = !isnan(y) ? mapping->height * y + mapping->y : cur->y;
+}
 
-	cursor_warp_unchecked(cur, x, y);
+void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, double x, double y) {
+	assert(cur->state->layout);
+
+	double lx, ly;
+	wlr_cursor_absolute_to_layout_coords(cur, dev, x, y, &lx, &ly);
+
+	cursor_warp_closest(cur, dev, lx, ly);
 }
 
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double delta_x, double delta_y) {
 	assert(cur->state->layout);
 
-	double x = cur->x + delta_x;
-	double y = cur->y + delta_y;
+	double lx = !isnan(delta_x) ? cur->x + delta_x : cur->x;
+	double ly = !isnan(delta_y) ? cur->y + delta_y : cur->y;
 
-	struct wlr_box *mapping = get_mapping(cur, dev);
-
-	if (mapping) {
-		double closest_x, closest_y;
-		if (!wlr_box_contains_point(mapping, x, y)) {
-			wlr_box_closest_point(mapping, x, y, &closest_x,
-				&closest_y);
-			x = closest_x;
-			y = closest_y;
-		}
-	} else {
-		if (!wlr_output_layout_contains_point(cur->state->layout, NULL, x, y)) {
-			double layout_x, layout_y;
-			wlr_output_layout_closest_point(cur->state->layout, NULL, x, y,
-				&layout_x, &layout_y);
-			x = layout_x;
-			y = layout_y;
-		}
-	}
-
-	cursor_warp_unchecked(cur, x, y);
+	cursor_warp_closest(cur, dev, lx, ly);
 }
 
 void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
@@ -637,18 +638,4 @@ void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 	}
 
 	c_device->mapped_box = box;
-}
-
-bool wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
-		struct wlr_input_device *device, double x, double y,
-		double *lx, double *ly) {
-	struct wlr_box *mapping = get_mapping(cur, device);
-	if (!mapping) {
-		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
-	}
-
-	*lx = x > 0 ? mapping->width * x + mapping->x : cur->x;
-	*ly = y > 0 ? mapping->height * y + mapping->y : cur->y;
-
-	return true;
 }
