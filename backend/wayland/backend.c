@@ -71,7 +71,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		return;
 	}
 
-	struct wlr_wl_backend_output *output, *tmp_output;
+	struct wlr_wl_output *output, *tmp_output;
 	wl_list_for_each_safe(output, tmp_output, &backend->outputs, link) {
 		wlr_output_destroy(&output->wlr_output);
 	}
@@ -90,6 +90,9 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	wl_event_source_remove(backend->remote_display_src);
 	wlr_renderer_destroy(backend->renderer);
 	wlr_egl_finish(&backend->egl);
+	if (backend->pointer) {
+		wl_pointer_destroy(backend->pointer);
+	}
 	if (backend->seat) {
 		wl_seat_destroy(backend->seat);
 	}
@@ -125,49 +128,6 @@ static struct wlr_backend_impl backend_impl = {
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
-}
-
-struct wlr_wl_backend_output *get_wl_output_for_surface(
-		struct wlr_wl_backend *backend, struct wl_surface *surface) {
-	struct wlr_wl_backend_output *output;
-	wl_list_for_each(output, &backend->outputs, link) {
-		if (output->surface == surface) {
-			return output;
-		}
-	}
-	return NULL;
-}
-
-void get_wl_output_layout_box(struct wlr_wl_backend *backend,
-		struct wlr_box *box) {
-	int min_x = INT_MAX, min_y = INT_MAX;
-	int max_x = INT_MIN, max_y = INT_MIN;
-
-	struct wlr_wl_backend_output *output;
-	wl_list_for_each(output, &backend->outputs, link) {
-		struct wlr_output *wlr_output = &output->wlr_output;
-
-		int width, height;
-		wlr_output_effective_resolution(wlr_output, &width, &height);
-
-		if (wlr_output->lx < min_x) {
-			min_x = wlr_output->lx;
-		}
-		if (wlr_output->ly < min_y) {
-			min_y = wlr_output->ly;
-		}
-		if (wlr_output->lx + width > max_x) {
-			max_x = wlr_output->lx + width;
-		}
-		if (wlr_output->ly + height > max_y) {
-			max_y = wlr_output->ly + height;
-		}
-	}
-
-	box->x = min_x;
-	box->y = min_y;
-	box->width = max_x - min_x;
-	box->height = max_y - min_y;
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
