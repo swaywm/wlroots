@@ -3,22 +3,11 @@ wayland_cursor = dependency('wayland-cursor')
 
 executable('simple', 'simple.c', dependencies: wlroots)
 executable('pointer', 'pointer.c', dependencies: wlroots)
-executable('touch', 'touch.c', dependencies: wlroots)
+executable('touch', 'touch.c', 'cat.c', dependencies: wlroots)
 executable('tablet', 'tablet.c', dependencies: wlroots)
+executable('rotation', 'rotation.c', 'cat.c', dependencies: wlroots)
 executable('multi-pointer', 'multi-pointer.c', dependencies: wlroots)
-
-executable(
-	'rotation',
-	'rotation.c',
-    'cat.c',
-	dependencies: wlroots,
-)
-
-executable(
-	'output-layout',
-	'output-layout.c',
-	dependencies: wlroots
-)
+executable('output-layout', 'output-layout.c', 'cat.c', dependencies: wlroots)
 
 executable(
 	'screenshot',
