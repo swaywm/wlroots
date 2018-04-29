@@ -288,6 +288,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		wlr_log_errno(L_ERROR, "Could not create output surface");
 		goto error;
 	}
+	wl_surface_set_user_data(output->surface, output);
 	output->xdg_surface =
 		zxdg_shell_v6_get_xdg_surface(backend->shell, output->surface);
 	if (!output->xdg_surface) {

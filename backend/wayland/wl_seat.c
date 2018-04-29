@@ -13,32 +13,64 @@
 #include "backend/wayland.h"
 #include "util/signal.h"
 
+static struct wlr_wl_pointer *output_get_pointer(struct wlr_wl_output *output) {
+	struct wlr_input_device *wlr_dev;
+	wl_list_for_each(wlr_dev, &output->backend->devices, link) {
+		if (wlr_dev->type != WLR_INPUT_DEVICE_POINTER) {
+			continue;
+		}
+		struct wlr_wl_pointer *pointer = pointer_get_wl(wlr_dev->pointer);
+		if (pointer->output == output) {
+			return pointer;
+		}
+	}
+
+	return NULL;
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
 		wl_fixed_t sy) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->surface != surface) {
+	struct wlr_wl_backend *backend = data;
+	if (surface == NULL) {
 		return;
 	}
 
-	pointer->output->enter_serial = serial;
-	update_wl_output_cursor(pointer->output);
+	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
+	struct wlr_wl_pointer *pointer = output_get_pointer(output);
+	if (output == NULL) {
+		return;
+	}
+
+	output->enter_serial = serial;
+	backend->current_pointer = pointer;
+	update_wl_output_cursor(output);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->surface != surface) {
+	struct wlr_wl_backend *backend = data;
+	if (surface == NULL) {
 		return;
 	}
 
-	pointer->output->enter_serial = 0;
+	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
+	output->enter_serial = 0;
+
+	if (backend->current_pointer == NULL ||
+			backend->current_pointer->output != output) {
+		return;
+	}
+
+	backend->current_pointer = NULL;
+	wlr_log(L_DEBUG, "leave %p", surface);
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->enter_serial == 0) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
 		return;
 	}
 
@@ -58,8 +90,9 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->enter_serial == 0) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
 		return;
 	}
 
@@ -74,8 +107,9 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->enter_serial == 0) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
 		return;
 	}
 
@@ -95,8 +129,9 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 
 static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
 		uint32_t axis_source) {
-	struct wlr_wl_pointer *pointer = data;
-	if (pointer->output->enter_serial == 0) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
 		return;
 	}
 
@@ -269,10 +304,9 @@ void create_wl_pointer(struct wl_pointer *wl_pointer,
 		wlr_log(L_ERROR, "Allocation failed");
 		return;
 	}
-	wlr_dev = &dev->wlr_input_device;
 	pointer->input_device = dev;
 
-	wl_pointer_add_listener(wl_pointer, &pointer_listener, pointer);
+	wlr_dev = &dev->wlr_input_device;
 	wlr_dev->pointer = &pointer->wlr_pointer;
 	wlr_dev->output_name = strdup(output->wlr_output.name);
 	wlr_pointer_init(wlr_dev->pointer, &pointer_impl);
@@ -295,6 +329,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wl_list_for_each(output, &backend->outputs, link) {
 			create_wl_pointer(wl_pointer, output);
 		}
+
+		wl_pointer_add_listener(wl_pointer, &pointer_listener, backend);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
 		wlr_log(L_DEBUG, "seat %p offered keyboard", (void*) wl_seat);

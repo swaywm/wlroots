@@ -32,6 +32,7 @@ struct wlr_wl_backend {
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
+	struct wlr_wl_pointer *current_pointer;
 	char *seat_name;
 };
 
