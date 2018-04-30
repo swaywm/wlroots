@@ -32,21 +32,11 @@ static void x11_handle_pointer_position(struct wlr_x11_output *output,
 		int16_t x, int16_t y, xcb_timestamp_t time) {
 	struct wlr_x11_backend *x11 = output->x11;
 	struct wlr_output *wlr_output = &output->wlr_output;
-
-	struct wlr_box box = { .x = x, .y = y };
-	wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
-		wlr_output->height, &box);
-	box.x /= wlr_output->scale;
-	box.y /= wlr_output->scale;
-
-	int output_width, output_height;
-	wlr_output_effective_resolution(wlr_output, &output_width, &output_height);
-
 	struct wlr_event_pointer_motion_absolute event = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
-		.x = (double)box.x / output_width,
-		.y = (double)box.y / output_height,
+		.x = (double)x / wlr_output->width,
+		.y = (double)y / wlr_output->height,
 	};
 	wlr_signal_emit_safe(&output->pointer.events.motion_absolute, &event);
 
