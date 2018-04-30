@@ -33,38 +33,6 @@ struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11
 	return NULL;
 }
 
-void get_x11_output_layout_box(struct wlr_x11_backend *backend,
-		struct wlr_box *box) {
-	int min_x = INT_MAX, min_y = INT_MAX;
-	int max_x = INT_MIN, max_y = INT_MIN;
-
-	struct wlr_x11_output *output;
-	wl_list_for_each(output, &backend->outputs, link) {
-		struct wlr_output *wlr_output = &output->wlr_output;
-
-		int width, height;
-		wlr_output_effective_resolution(wlr_output, &width, &height);
-
-		if (wlr_output->lx < min_x) {
-			min_x = wlr_output->lx;
-		}
-		if (wlr_output->ly < min_y) {
-			min_y = wlr_output->ly;
-		}
-		if (wlr_output->lx + width > max_x) {
-			max_x = wlr_output->lx + width;
-		}
-		if (wlr_output->ly + height > max_y) {
-			max_y = wlr_output->ly + height;
-		}
-	}
-
-	box->x = min_x;
-	box->y = min_y;
-	box->width = max_x - min_x;
-	box->height = max_y - min_y;
-}
-
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
 	handle_x11_input_event(x11, event);
@@ -200,7 +168,6 @@ static bool backend_start(struct wlr_backend *backend) {
 #endif
 
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
-	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->pointer_dev);
 
 	for (size_t i = 0; i < x11->requested_outputs; ++i) {
 		wlr_x11_output_create(&x11->backend);
@@ -221,11 +188,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&output->wlr_output);
 	}
 
-	wlr_signal_emit_safe(&x11->pointer_dev.events.destroy, &x11->pointer_dev);
-	wlr_signal_emit_safe(&x11->keyboard_dev.events.destroy, &x11->keyboard_dev);
-
 	wlr_input_device_destroy(&x11->keyboard_dev);
-	wlr_input_device_destroy(&x11->pointer_dev);
 
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
 
@@ -319,11 +282,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
 	x11->keyboard_dev.keyboard = &x11->keyboard;
-
-	wlr_input_device_init(&x11->pointer_dev, WLR_INPUT_DEVICE_POINTER,
-		&input_device_impl, "X11 pointer", 0, 0);
-	wlr_pointer_init(&x11->pointer, &pointer_impl);
-	x11->pointer_dev.pointer = &x11->pointer;
 
 	x11->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &x11->display_destroy);

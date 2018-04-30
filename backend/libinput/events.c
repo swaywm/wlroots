@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <libinput.h>
 #include <stdlib.h>
@@ -48,6 +49,10 @@ static struct wlr_input_device *allocate_device(
 	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
 	libinput_device_get_size(libinput_dev,
 			&wlr_dev->width_mm, &wlr_dev->height_mm);
+	const char *output_name = libinput_device_get_output_name(libinput_dev);
+	if (output_name != NULL) {
+		wlr_dev->output_name = strdup(output_name);
+	}
 	wl_list_insert(wlr_devices, &wlr_dev->link);
 	wlr_libinput_dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);

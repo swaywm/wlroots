@@ -32,10 +32,11 @@ struct wlr_wl_backend {
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
+	struct wlr_wl_pointer *current_pointer;
 	char *seat_name;
 };
 
-struct wlr_wl_backend_output {
+struct wlr_wl_output {
 	struct wlr_output wlr_output;
 
 	struct wlr_wl_backend *backend;
@@ -47,7 +48,7 @@ struct wlr_wl_backend_output {
 
 	struct {
 		struct wl_shm_pool *pool;
-		void *buffer; // actually a (client-side) struct wl_buffer*
+		void *buffer; // actually a (client-side) struct wl_buffer *
 		uint32_t buf_size;
 		uint8_t *data;
 		struct wl_surface *surface;
@@ -69,17 +70,20 @@ struct wlr_wl_input_device {
 
 struct wlr_wl_pointer {
 	struct wlr_pointer wlr_pointer;
+
+	struct wlr_wl_input_device *input_device;
+	struct wl_pointer *wl_pointer;
 	enum wlr_axis_source axis_source;
-	struct wlr_wl_backend_output *current_output;
-	struct wl_listener output_destroy_listener;
+	struct wlr_wl_output *output;
+
+	struct wl_listener output_destroy;
 };
 
 void poll_wl_registry(struct wlr_wl_backend *backend);
-void update_wl_output_cursor(struct wlr_wl_backend_output *output);
-struct wlr_wl_backend_output *get_wl_output_for_surface(
-		struct wlr_wl_backend *backend, struct wl_surface *surface);
-void get_wl_output_layout_box(struct wlr_wl_backend *backend,
-		struct wlr_box *box);
+void update_wl_output_cursor(struct wlr_wl_output *output);
+struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer);
+void create_wl_pointer(struct wl_pointer *wl_pointer,
+	struct wlr_wl_output *output);
 
 extern const struct wl_seat_listener seat_listener;
 

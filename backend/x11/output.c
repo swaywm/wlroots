@@ -1,6 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
 #include "util/signal.h"
@@ -58,6 +61,8 @@ static void output_transform(struct wlr_output *wlr_output,
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
+
+	wlr_input_device_destroy(&output->pointer_dev);
 
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
@@ -155,11 +160,19 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wl_event_loop *ev = wl_display_get_event_loop(x11->wl_display);
 	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);
 
+	wl_list_insert(&x11->outputs, &output->link);
+
 	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	wlr_output_update_enabled(wlr_output, true);
 
-	wl_list_insert(&x11->outputs, &output->link);
+	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
+		&input_device_impl, "X11 pointer", 0, 0);
+	wlr_pointer_init(&output->pointer, &pointer_impl);
+	output->pointer_dev.pointer = &output->pointer;
+	output->pointer_dev.output_name = strdup(wlr_output->name);
+
 	wlr_signal_emit_safe(&x11->backend.events.new_output, wlr_output);
+	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->pointer_dev);
 
 	return wlr_output;
 }

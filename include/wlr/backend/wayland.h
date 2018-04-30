@@ -37,7 +37,7 @@ bool wlr_backend_is_wl(struct wlr_backend *backend);
 bool wlr_input_device_is_wl(struct wlr_input_device *device);
 
 /**
- * True if the given output is a wlr_wl_backend_output.
+ * True if the given output is a wlr_wl_output.
  */
 bool wlr_output_is_wl(struct wlr_output *output);
 
