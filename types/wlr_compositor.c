@@ -7,6 +7,9 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
+#define COMPOSITOR_VERSION 4
+#define SUBCOMPOSITOR_VERSION 1
+
 static const char *subsurface_role = "wl_subsurface";
 
 bool wlr_surface_is_subsurface(struct wlr_surface *surface) {
@@ -105,7 +108,8 @@ static void subcompositor_bind(struct wl_client *client, void *data,
 static void subcompositor_init(struct wlr_subcompositor *subcompositor,
 		struct wl_display *display) {
 	subcompositor->wl_global = wl_global_create(display,
-		&wl_subcompositor_interface, 1, subcompositor, subcompositor_bind);
+		&wl_subcompositor_interface, SUBCOMPOSITOR_VERSION, subcompositor,
+		subcompositor_bind);
 	if (subcompositor->wl_global == NULL) {
 		wlr_log_errno(L_ERROR, "Could not allocate subcompositor global");
 		return;
@@ -136,7 +140,7 @@ static struct wlr_compositor *compositor_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void wl_compositor_create_surface(struct wl_client *client,
+static void compositor_create_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
@@ -150,7 +154,7 @@ static void wl_compositor_create_surface(struct wl_client *client,
 	wlr_signal_emit_safe(&compositor->events.new_surface, surface);
 }
 
-static void wl_compositor_create_region(struct wl_client *client,
+static void compositor_create_region(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
@@ -158,15 +162,15 @@ static void wl_compositor_create_region(struct wl_client *client,
 }
 
 static const struct wl_compositor_interface compositor_impl = {
-	.create_surface = wl_compositor_create_surface,
-	.create_region = wl_compositor_create_region,
+	.create_surface = compositor_create_surface,
+	.create_region = compositor_create_region,
 };
 
 static void compositor_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void wl_compositor_bind(struct wl_client *wl_client, void *data,
+static void compositor_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_compositor *compositor = data;
 	assert(wl_client && compositor);
@@ -218,14 +222,13 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		return NULL;
 	}
 
-	struct wl_global *compositor_global = wl_global_create(display,
-		&wl_compositor_interface, 4, compositor, wl_compositor_bind);
-	if (!compositor_global) {
-		wlr_log_errno(L_ERROR, "Could not allocate compositor global");
+	compositor->wl_global = wl_global_create(display, &wl_compositor_interface,
+		COMPOSITOR_VERSION, compositor, compositor_bind);
+	if (!compositor->wl_global) {
 		free(compositor);
+		wlr_log_errno(L_ERROR, "Could not allocate compositor global");
 		return NULL;
 	}
-	compositor->wl_global = compositor_global;
 	compositor->renderer = renderer;
 
 	wl_list_init(&compositor->wl_resources);
