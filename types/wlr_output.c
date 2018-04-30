@@ -7,15 +7,17 @@
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
 
-static void wl_output_send_to_resource(struct wl_resource *resource) {
+#define OUTPUT_VERSION 3
+
+static void output_send_to_resource(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
@@ -70,42 +72,33 @@ static void output_send_current_mode_to_resource(
 	}
 }
 
-static void wl_output_destroy(struct wl_resource *resource) {
-	struct wlr_output *output = wlr_output_from_resource(resource);
-	struct wl_resource *_resource;
-	wl_resource_for_each(_resource, &output->wl_resources) {
-		if (_resource == resource) {
-			struct wl_list *link = wl_resource_get_link(_resource);
-			wl_list_remove(link);
-			break;
-		}
-	}
+static void output_handle_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void wl_output_release(struct wl_client *client,
+static void output_handle_release(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
-static struct wl_output_interface wl_output_impl = {
-	.release = wl_output_release,
+static const struct wl_output_interface output_impl = {
+	.release = output_handle_release,
 };
 
 static void wl_output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_output *wlr_output = data;
 
-	struct wl_resource *wl_resource = wl_resource_create(wl_client,
+	struct wl_resource *resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
-	if (wl_resource == NULL) {
+	if (resource == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	wl_resource_set_implementation(wl_resource, &wl_output_impl, wlr_output,
-		wl_output_destroy);
-	wl_list_insert(&wlr_output->wl_resources,
-		wl_resource_get_link(wl_resource));
-	wl_output_send_to_resource(wl_resource);
+	wl_resource_set_implementation(resource, &output_impl, wlr_output,
+		output_handle_resource_destroy);
+	wl_list_insert(&wlr_output->wl_resources, wl_resource_get_link(resource));
+	output_send_to_resource(resource);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
@@ -113,7 +106,7 @@ void wlr_output_create_global(struct wlr_output *output) {
 		return;
 	}
 	struct wl_global *wl_global = wl_global_create(output->display,
-		&wl_output_interface, 3, output, wl_output_bind);
+		&wl_output_interface, OUTPUT_VERSION, output, wl_output_bind);
 	output->wl_global = wl_global;
 }
 
@@ -205,7 +198,7 @@ void wlr_output_set_transform(struct wlr_output *output,
 	// TODO: only send geometry and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
-		wl_output_send_to_resource(resource);
+		output_send_to_resource(resource);
 	}
 
 	wlr_signal_emit_safe(&output->events.transform, output);
@@ -223,7 +216,7 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 	// TODO: only send geometry and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
-		wl_output_send_to_resource(resource);
+		output_send_to_resource(resource);
 	}
 }
 
@@ -237,7 +230,7 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	// TODO: only send mode and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->wl_resources) {
-		wl_output_send_to_resource(resource);
+		output_send_to_resource(resource);
 	}
 
 	wlr_signal_emit_safe(&output->events.scale, output);
@@ -649,7 +642,7 @@ void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_output_interface,
-		&wl_output_impl));
+		&output_impl));
 	return wl_resource_get_user_data(resource);
 }
 
