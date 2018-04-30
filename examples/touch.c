@@ -176,8 +176,8 @@ void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	for (int i = 0; i < nsyms; i++) {
 		xkb_keysym_t sym = syms[i];
 		if (sym == XKB_KEY_Escape) {
-				wl_display_terminate(sample->display);
-			}
+			wl_display_terminate(sample->display);
+		}
 	}
 }
 
@@ -191,26 +191,22 @@ void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
 void new_input_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_input);
-	struct sample_keyboard *keyboard;
-	struct xkb_rule_names rules;
-	struct xkb_context *context;
-	struct touch_state *tstate;
 	switch (device->type) {
-	case WLR_INPUT_DEVICE_KEYBOARD:
-		keyboard = calloc(1, sizeof(struct sample_keyboard));
+	case WLR_INPUT_DEVICE_KEYBOARD:;
+		struct sample_keyboard *keyboard = calloc(1, sizeof(struct sample_keyboard));
 		keyboard->device = device;
 		keyboard->sample = sample;
 		wl_signal_add(&device->events.destroy, &keyboard->destroy);
 		keyboard->destroy.notify = keyboard_destroy_notify;
 		wl_signal_add(&device->keyboard->events.key, &keyboard->key);
 		keyboard->key.notify = keyboard_key_notify;
-		memset(&rules, 0, sizeof(rules));
+		struct xkb_rule_names rules = { 0 };
 		rules.rules = getenv("XKB_DEFAULT_RULES");
 		rules.model = getenv("XKB_DEFAULT_MODEL");
 		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
 		rules.variant = getenv("XKB_DEFAULT_VARIANT");
 		rules.options = getenv("XKB_DEFAULT_OPTIONS");
-		context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
 			wlr_log(L_ERROR, "Failed to create XKB context");
 			exit(1);
@@ -219,8 +215,8 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 					&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
 		xkb_context_unref(context);
 		break;
-	case WLR_INPUT_DEVICE_TOUCH:
-		tstate = calloc(sizeof(struct touch_state), 1);
+	case WLR_INPUT_DEVICE_TOUCH:;
+		struct touch_state *tstate = calloc(sizeof(struct touch_state), 1);
 		tstate->device = device;
 		tstate->sample = sample;
 		tstate->destroy.notify = touch_destroy_notify;
