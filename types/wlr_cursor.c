@@ -330,11 +330,75 @@ static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.motion, event);
 }
 
+static void apply_output_transform(double *x, double *y,
+		enum wl_output_transform transform) {
+	double dx, dy;
+	double width = 1.0, height = 1.0;
+
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		dx = *x;
+		dy = *y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		dx = *y;
+		dy = width - *x;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		dx = width - *x;
+		dy = height - *y;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		dx = height - *y;
+		dy = *x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		dx = width - *x;
+		dy = *y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		dx = height - *y;
+		dy = width - *x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dx = *x;
+		dy = height - *y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dx = *y;
+		dy = *x;
+		break;
+	}
+	*x = dx;
+	*y = dy;
+}
+
+
+static struct wlr_output *get_mapped_output(struct wlr_cursor_device *cursor_device) {
+	if (cursor_device->mapped_output) {
+		return cursor_device->mapped_output;
+	}
+
+	struct wlr_cursor *cursor = cursor_device->cursor;
+	assert(cursor);
+	if (cursor->state->mapped_output) {
+		return cursor->state->mapped_output;
+	}
+	return NULL;
+}
+
+
 static void handle_pointer_motion_absolute(struct wl_listener *listener,
 		void *data) {
 	struct wlr_event_pointer_motion_absolute *event = data;
 	struct wlr_cursor_device *device =
 		wl_container_of(listener, device, motion_absolute);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.motion_absolute, event);
 }
 
@@ -362,6 +426,12 @@ static void handle_touch_down(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_down *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_down);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.touch_down, event);
 }
 
@@ -369,6 +439,12 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_motion *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, touch_motion);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.touch_motion, event);
 }
 
@@ -383,6 +459,12 @@ static void handle_tablet_tool_tip(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_tip *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_tip);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_tip, event);
 }
 
@@ -390,6 +472,12 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_axis *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_axis);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_axis, event);
 }
 
@@ -406,6 +494,12 @@ static void handle_tablet_tool_proximity(struct wl_listener *listener,
 	struct wlr_event_tablet_tool_proximity *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_proximity);
+
+	struct wlr_output *output =
+		get_mapped_output(device);
+	if (output) {
+		apply_output_transform(&event->x, &event->y, output->transform);
+	}
 	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_proximity, event);
 }
 
