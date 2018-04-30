@@ -25,8 +25,7 @@ struct wlr_dmabuf_buffer_attribs {
 	uint64_t modifier[WLR_LINUX_DMABUF_MAX_PLANES];
 	int fd[WLR_LINUX_DMABUF_MAX_PLANES];
 	/* set via params_create */
-	int32_t width;
-	int32_t height;
+	int32_t width, height;
 	uint32_t format;
 	uint32_t flags;
 };
@@ -61,8 +60,15 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
 /* the protocol interface */
 struct wlr_linux_dmabuf {
 	struct wl_global *wl_global;
-	struct wl_listener display_destroy;
 	struct wlr_renderer *renderer;
+	struct wl_list wl_resources;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	struct wl_listener display_destroy;
+	struct wl_listener renderer_destroy;
 };
 
 /**
