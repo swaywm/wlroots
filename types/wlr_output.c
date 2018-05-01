@@ -698,6 +698,27 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 	cursor->visible = visible;
 }
 
+static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
+	struct wlr_texture *texture = cursor->texture;
+	if (cursor->surface != NULL) {
+		texture = cursor->surface->texture;
+	}
+
+	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
+	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
+		if (cursor->output->impl->move_cursor && hwcur != cursor) {
+			cursor->output->impl->move_cursor(cursor->output,
+				(int)cursor->x, (int)cursor->y);
+		}
+		if (cursor->output->impl->set_cursor(cursor->output, texture,
+				cursor->hotspot_x, cursor->hotspot_y, true)) {
+			cursor->output->hardware_cursor = cursor;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
@@ -713,33 +734,26 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->hotspot_y = hotspot_y;
 	output_cursor_update_visible(cursor);
 
-	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
-	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
-		if (cursor->output->impl->move_cursor && hwcur != cursor) {
-			cursor->output->impl->move_cursor(cursor->output,
-				(int)cursor->x, (int)cursor->y);
+	wlr_texture_destroy(cursor->texture);
+	cursor->texture = NULL;
+
+	cursor->enabled = false;
+	if (pixels != NULL) {
+		cursor->texture = wlr_texture_from_pixels(renderer,
+			WL_SHM_FORMAT_ARGB8888, stride, width, height, pixels);
+		if (cursor->texture == NULL) {
+			return false;
 		}
-		int ok = cursor->output->impl->set_cursor(cursor->output, pixels,
-			stride, width, height, hotspot_x, hotspot_y, true);
-		if (ok) {
-			cursor->output->hardware_cursor = cursor;
-			return true;
-		}
+		cursor->enabled = true;
+	}
+
+	if (output_cursor_attempt_hardware(cursor)) {
+		return true;
 	}
 
 	wlr_log(L_DEBUG, "Falling back to software cursor");
 	output_cursor_damage_whole(cursor);
-
-	cursor->enabled = pixels != NULL;
-	if (!cursor->enabled) {
-		return true;
-	}
-
-	wlr_texture_destroy(cursor->texture);
-
-	cursor->texture = wlr_texture_from_pixels(renderer, WL_SHM_FORMAT_ARGB8888,
-		stride, width, height, pixels);
-	return cursor->texture != NULL;
+	return true;
 }
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor) {
@@ -752,15 +766,15 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	cursor->width = cursor->surface->current->width * cursor->output->scale;
 	cursor->height = cursor->surface->current->height * cursor->output->scale;
 
-	if (cursor->output->hardware_cursor != cursor) {
-		output_cursor_damage_whole(cursor);
-	} else {
-		// TODO: upload pixels
-
+	if (output_cursor_attempt_hardware(cursor)) {
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		wlr_surface_send_frame_done(cursor->surface, &now);
+		return;
 	}
+
+	// Fallback to software cursor
+	output_cursor_damage_whole(cursor);
 }
 
 static void output_cursor_handle_commit(struct wl_listener *listener,
@@ -800,22 +814,13 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 
 		if (cursor->output->hardware_cursor == cursor &&
 				cursor->output->impl->set_cursor) {
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0,
+			cursor->output->impl->set_cursor(cursor->output, NULL,
 				hotspot_x, hotspot_y, false);
 		}
 		return;
 	}
 
 	output_cursor_reset(cursor);
-
-	// Disable hardware cursor for surfaces
-	// TODO: support hardware cursors
-	if (cursor->output->hardware_cursor == cursor &&
-			cursor->output->impl->set_cursor) {
-		cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0, 0, 0,
-			true);
-		cursor->output->hardware_cursor = NULL;
-	}
 
 	cursor->surface = surface;
 	cursor->hotspot_x = hotspot_x;
@@ -833,7 +838,10 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		cursor->width = 0;
 		cursor->height = 0;
 
-		// TODO: if hardware cursor, disable cursor
+		if (cursor->output->hardware_cursor == cursor &&
+				cursor->output->impl->set_cursor) {
+			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, false);
+		}
 	}
 }
 
@@ -896,8 +904,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
 		if (cursor->output->impl->set_cursor) {
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, 0, 0,
-				0, true);
+			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, true);
 		}
 		cursor->output->hardware_cursor = NULL;
 	}

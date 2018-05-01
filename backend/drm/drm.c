@@ -537,8 +537,8 @@ static void drm_connector_transform(struct wlr_output *output,
 }
 
 static bool drm_connector_set_cursor(struct wlr_output *output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
+		struct wlr_texture *texture, int32_t hotspot_x, int32_t hotspot_y,
+		bool update_texture) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	struct wlr_drm_renderer *renderer = &drm->renderer;
@@ -566,11 +566,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		w = ret ? 64 : w;
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
 		h = ret ? 64 : h;
-
-		if (width > w || height > h) {
-			wlr_log(L_INFO, "Cursor too large (max %dx%d)", (int)w, (int)h);
-			return false;
-		}
 
 		if (!init_drm_surface(&plane->surf, renderer, w, h,
 				GBM_FORMAT_ARGB8888, 0)) {
@@ -612,14 +607,22 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_output_update_needs_swap(output);
 	}
 
-	if (!update_pixels) {
+	if (!update_texture) {
 		// Don't update cursor image
 		return true;
 	}
 
-	plane->cursor_enabled = buf != NULL;
+	plane->cursor_enabled = false;
+	if (texture != NULL) {
+		int width, height;
+		wlr_texture_get_size(texture, &width, &height);
 
-	if (buf != NULL) {
+		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
+			wlr_log(L_ERROR, "Cursor too large (max %dx%d)",
+				(int)plane->surf.width, (int)plane->surf.height);
+			return false;
+		}
+
 		uint32_t bo_width = gbm_bo_get_width(plane->cursor_bo);
 		uint32_t bo_height = gbm_bo_get_height(plane->cursor_bo);
 
@@ -635,13 +638,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
-		struct wlr_texture *texture = wlr_texture_from_pixels(rend,
-			WL_SHM_FORMAT_ARGB8888, stride, width, height, buf);
-		if (texture == NULL) {
-			wlr_log(L_ERROR, "Unable to create texture");
-			return false;
-		}
-
 		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture(rend, texture, plane->matrix, 0, 0, 1.0f);
@@ -652,8 +648,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		swap_drm_surface_buffers(&plane->surf, NULL);
 
-		wlr_texture_destroy(texture);
 		gbm_bo_unmap(plane->cursor_bo, bo_data);
+
+		plane->cursor_enabled = true;
 	}
 
 	if (!drm->session->active) {

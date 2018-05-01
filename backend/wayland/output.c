@@ -9,6 +9,7 @@
 #include <wayland-client.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
 #include "util/signal.h"
@@ -72,8 +73,8 @@ static void output_transform(struct wlr_output *_output,
 }
 
 static bool output_set_cursor(struct wlr_output *_output,
-		const uint8_t *buf, int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels) {
+		struct wlr_texture *texture, int32_t hotspot_x, int32_t hotspot_y,
+		bool update_texture) {
 	struct wlr_wl_output *output =
 		(struct wlr_wl_output *)_output;
 	struct wlr_wl_backend *backend = output->backend;
@@ -82,76 +83,47 @@ static bool output_set_cursor(struct wlr_output *_output,
 	output->cursor.hotspot_x = hotspot_x;
 	output->cursor.hotspot_y = hotspot_y;
 
-	if (!update_pixels) {
+	if (!update_texture) {
 		// Update hotspot without changing cursor image
 		update_wl_output_cursor(output);
 		return true;
 	}
-	if (!buf) {
-		// Hide cursor
-		if (output->cursor.surface) {
-			wl_surface_destroy(output->cursor.surface);
-			munmap(output->cursor.data, output->cursor.buf_size);
-			output->cursor.surface = NULL;
-			output->cursor.buf_size = 0;
-		}
-		update_wl_output_cursor(output);
-		return true;
-	}
 
-	if (!backend->shm || !backend->pointer) {
-		wlr_log(L_INFO, "cannot set cursor: no wl_shm or wl_pointer");
-		return false;
-	}
-
-	if (!output->cursor.surface) {
+	if (output->cursor.surface == NULL) {
 		output->cursor.surface =
-			wl_compositor_create_surface(output->backend->compositor);
+			wl_compositor_create_surface(backend->compositor);
 	}
+	struct wl_surface *surface = output->cursor.surface;
 
-	uint32_t size = stride * height;
-	if (output->cursor.buf_size != size) {
-		if (output->cursor.buffer) {
-			wl_buffer_destroy(output->cursor.buffer);
+	if (texture != NULL) {
+		int width, height;
+		wlr_texture_get_size(texture, &width, &height);
+
+		if (output->cursor.egl_window == NULL) {
+			output->cursor.egl_window =
+				wl_egl_window_create(surface, width, height);
 		}
+		wl_egl_window_resize(output->cursor.egl_window, width, height, 0, 0);
 
-		if (size > output->cursor.buf_size) {
-			if (output->cursor.pool) {
-				wl_shm_pool_destroy(output->cursor.pool);
-				output->cursor.pool = NULL;
-				munmap(output->cursor.data, output->cursor.buf_size);
-			}
-		}
+		EGLSurface egl_surface =
+			wlr_egl_create_surface(&backend->egl, output->cursor.egl_window);
 
-		if (!output->cursor.pool) {
-			int fd = os_create_anonymous_file(size);
-			if (fd < 0) {
-				wlr_log_errno(L_INFO,
-					"creating anonymous file for cursor buffer failed");
-				return false;
-			}
+		wlr_egl_make_current(&backend->egl, egl_surface, NULL);
 
-			output->cursor.data = mmap(NULL, size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, fd, 0);
-			if (output->cursor.data == MAP_FAILED) {
-				close(fd);
-				wlr_log_errno(L_INFO, "mmap failed");
-				return false;
-			}
+		float matrix[9];
+		wlr_matrix_projection(matrix, width, height, WL_OUTPUT_TRANSFORM_NORMAL);
 
-			output->cursor.pool = wl_shm_create_pool(backend->shm, fd, size);
-			close(fd);
-		}
+		wlr_renderer_begin(backend->renderer, width, height);
+		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+		wlr_render_texture(backend->renderer, texture, matrix, 0, 0, 1.0);
+		wlr_renderer_end(backend->renderer);
 
-		output->cursor.buffer = wl_shm_pool_create_buffer(output->cursor.pool,
-			0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
-		output->cursor.buf_size = size;
+		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
+		wlr_egl_destroy_surface(&backend->egl, egl_surface);
+	} else {
+		wl_surface_attach(surface, NULL, 0, 0);
+		wl_surface_commit(surface);
 	}
-
-	memcpy(output->cursor.data, buf, size);
-	wl_surface_attach(output->cursor.surface, output->cursor.buffer, 0, 0);
-	wl_surface_damage(output->cursor.surface, 0, 0, width, height);
-	wl_surface_commit(output->cursor.surface);
 
 	update_wl_output_cursor(output);
 	return true;
@@ -166,16 +138,9 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
-	if (output->cursor.buf_size != 0) {
-		assert(output->cursor.data);
-		assert(output->cursor.buffer);
-		assert(output->cursor.pool);
-
-		wl_buffer_destroy(output->cursor.buffer);
-		munmap(output->cursor.data, output->cursor.buf_size);
-		wl_shm_pool_destroy(output->cursor.pool);
+	if (output->cursor.egl_window != NULL) {
+		wl_egl_window_destroy(output->cursor.egl_window);
 	}
-
 	if (output->cursor.surface) {
 		wl_surface_destroy(output->cursor.surface);
 	}
