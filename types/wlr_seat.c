@@ -1113,7 +1113,6 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch up for unknown touch point");
 		return;
 	}
 
@@ -1128,7 +1127,6 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch motion for unknown touch point");
 		return;
 	}
 
