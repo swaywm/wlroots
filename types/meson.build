@@ -1,10 +1,13 @@
 lib_wlr_types = static_library(
 	'wlr_types',
 	files(
+		'data_device/wlr_data_device.c',
+		'data_device/wlr_data_offer.c',
+		'data_device/wlr_data_source.c',
+		'data_device/wlr_drag.c',
 		'wlr_box.c',
 		'wlr_compositor.c',
 		'wlr_cursor.c',
-		'wlr_data_device.c',
 		'wlr_gamma_control.c',
 		'wlr_idle_inhibit_v1.c',
 		'wlr_idle.c',
