@@ -252,6 +252,9 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->make_current && impl->swap_buffers && impl->transform);
+	if (impl->set_cursor || impl->move_cursor) {
+		assert(impl->set_cursor && impl->move_cursor);
+	}
 	output->backend = backend;
 	output->impl = impl;
 	output->display = display;
@@ -706,7 +709,8 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
 	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
-		if (cursor->output->impl->move_cursor && hwcur != cursor) {
+		if (hwcur != cursor) {
+			assert(cursor->output->impl->move_cursor);
 			cursor->output->impl->move_cursor(cursor->output,
 				(int)cursor->x, (int)cursor->y);
 		}
@@ -810,10 +814,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		cursor->hotspot_y = hotspot_y;
 		if (cursor->output->hardware_cursor != cursor) {
 			output_cursor_damage_whole(cursor);
-		}
-
-		if (cursor->output->hardware_cursor == cursor &&
-				cursor->output->impl->set_cursor) {
+		} else {
+			assert(cursor->output->impl->set_cursor);
 			cursor->output->impl->set_cursor(cursor->output, NULL,
 				hotspot_x, hotspot_y, false);
 		}
@@ -838,9 +840,9 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		cursor->width = 0;
 		cursor->height = 0;
 
-		if (cursor->output->hardware_cursor == cursor &&
-				cursor->output->impl->set_cursor) {
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, false);
+		if (cursor->output->hardware_cursor == cursor) {
+			assert(cursor->output->impl->set_cursor);
+			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, true);
 		}
 	}
 }
@@ -872,9 +874,7 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	if (!cursor->output->impl->move_cursor) {
-		return false;
-	}
+	assert(cursor->output->impl->move_cursor);
 	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
 }
 
