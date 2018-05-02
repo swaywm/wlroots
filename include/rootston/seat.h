@@ -111,6 +111,19 @@ struct roots_tablet_pad {
 	struct wl_listener tablet_destroy;
 };
 
+struct roots_tablet_tool_tool {
+	struct wl_list link;
+	struct wl_list tool_link;
+	struct wlr_tablet_v2_tablet_tool *tablet_v2_tool;
+
+	struct roots_seat *seat;
+
+	struct wl_listener tool_destroy;
+
+	struct roots_tablet_tool *current_tablet;
+	struct wl_listener tablet_destroy;
+};
+
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name);
 
 void roots_seat_destroy(struct roots_seat *seat);

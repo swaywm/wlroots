@@ -270,7 +270,8 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 
 	// If the tool is not unique, libinput will not find it again after the
 	// proximity out, so we should destroy it
-	if (!tool->unique) {
+	if (!tool->unique &&
+			libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT) {
 		// The tool isn't unique, it can't be on multiple tablets
 		assert(tool->pad_refs == 1);
 		struct wlr_libinput_tablet *tablet =

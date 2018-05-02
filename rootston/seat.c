@@ -101,13 +101,75 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_touch_motion(cursor, event);
 }
 
+static void handle_tablet_tool_position(struct roots_cursor *cursor,
+		struct roots_tablet_tool *tool,
+		struct wlr_tablet_tool_tool *tool_tool,
+		bool change_x, bool change_y, double x, double y,
+		uint32_t time) {
+	if (!change_x && !change_y) {
+		return;
+	}
+
+	wlr_cursor_warp_absolute(cursor->cursor, tool->device,
+		change_x ? x : -1 , change_y ? y : -1);
+
+	double sx, sy;
+	struct roots_view *view = NULL;
+	struct roots_seat *seat = cursor->seat;
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	struct wlr_surface *surface = desktop_surface_at(desktop,
+			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
+	struct roots_tablet_tool_tool *roots_tool = tool_tool->data;
+	
+	if (!surface) {
+		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		/* XXX: TODO: Fallback pointer semantics */
+		return;
+	}
+	
+	if (!wlr_surface_accepts_tablet_v2(tool->tablet_v2, surface)) {
+		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		/* XXX: TODO: Fallback pointer semantics */
+		return;
+	}
+
+	wlr_send_tablet_v2_tablet_tool_proximity_in(roots_tool->tablet_v2_tool,
+		tool->tablet_v2, surface);
+
+	wlr_send_tablet_v2_tablet_tool_motion(roots_tool->tablet_v2_tool, sx, sy);
+}
+
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
+	wlr_log(L_DEBUG, "Tool Axis");
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, tool_axis);
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
 	struct wlr_event_tablet_tool_axis *event = data;
-	roots_cursor_handle_tool_axis(cursor, event);
+	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
+
+	if (!roots_tool) {
+		wlr_log(L_DEBUG, "Tool Axis, before proximity");
+		return;
+	}
+
+	/**
+	 * We need to handle them ourselves, not pass it into the cursor
+	 * without any consideration
+	 */
+	handle_tablet_tool_position(cursor, event->device->data, event->tool,
+		event->updated_axes & WLR_TABLET_TOOL_AXIS_X,
+		event->updated_axes & WLR_TABLET_TOOL_AXIS_Y,
+		event->x, event->y, event->time_msec);
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_DISTANCE) {
+		wlr_send_tablet_v2_tablet_tool_distance(roots_tool->tablet_v2_tool, event->distance);
+	}
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_WHEEL) {
+		wlr_send_tablet_v2_tablet_tool_wheel(roots_tool->tablet_v2_tool, event->wheel_delta, 0);
+	}
+	//roots_cursor_handle_tool_axis(cursor, event);
 }
 
 static void handle_tool_tip(struct wl_listener *listener, void *data) {
@@ -119,7 +181,22 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_tool_tip(cursor, event);
 }
 
+static void handle_tablet_tool_tool_destroy(struct wl_listener *listener, void *data) {
+	wlr_log(L_DEBUG, "Tool destroy");
+	struct roots_tablet_tool_tool *tool =
+		wl_container_of(listener, tool, tool_destroy);
+	
+	wl_list_remove(&tool->link);
+	wl_list_remove(&tool->tool_link);
+
+	wl_list_remove(&tool->tool_destroy.link);
+	wl_list_remove(&tool->tablet_destroy.link);
+
+	free(tool);
+}
+
 static void handle_tool_proximity(struct wl_listener *listener, void *data) {
+	wlr_log(L_DEBUG, "Tool Proximity");
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, tool_proximity);
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
@@ -128,8 +205,18 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 
 	struct wlr_tablet_tool_tool *tool = event->tool;
 	if (!tool->data) {
-		tool->data = wlr_make_tablet_tool(desktop->tablet_v2, cursor->seat->seat, tool);
+		struct roots_tablet_tool_tool *roots_tool =
+			calloc(1, sizeof(struct roots_tablet_tool_tool));
+		roots_tool->seat = cursor->seat;
+		tool->data = roots_tool;
+		roots_tool->tablet_v2_tool =
+			wlr_make_tablet_tool(desktop->tablet_v2, cursor->seat->seat, tool);
+		roots_tool->tool_destroy.notify = handle_tablet_tool_tool_destroy;
+		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
 	}
+
+	handle_tablet_tool_position(cursor, event->device->data, event->tool,
+		true, true, event->x, event->y, event->time_msec);
 }
 
 static void handle_request_set_cursor(struct wl_listener *listener,

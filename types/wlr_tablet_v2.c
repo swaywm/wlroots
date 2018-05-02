@@ -950,8 +950,11 @@ static void send_tool_frame(void *data) {
 }
 
 static void queue_tool_frame(struct wlr_tablet_tool_client_v2 *tool) {
+	struct wl_display *display = wl_client_get_display(tool->client);
+	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 	if (!tool->frame_source) {
-		tool->frame_source = wl_event_loop_add_idle(NULL, send_tool_frame, tool);
+		tool->frame_source =
+			wl_event_loop_add_idle(loop, send_tool_frame, tool);
 	}
 }
 
@@ -960,6 +963,10 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 		struct wlr_tablet_v2_tablet *tablet,
 		struct wlr_surface *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
+
+	if (tool->focused_surface == surface) {
+		return 0;
+	}
 
 	struct wlr_tablet_client_v2 *tablet_tmp;
 	struct wlr_tablet_client_v2 *tablet_client = NULL;
@@ -1004,6 +1011,7 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 		tablet_client->resource, surface->resource);
 	queue_tool_frame(tool_client);
 
+	tool->focused_surface = surface;
 	return serial;
 }
 
@@ -1028,7 +1036,29 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 			wl_event_source_remove(tool->current_client->frame_source);
 			send_tool_frame(tool->current_client);
 		}
+		tool->current_client = NULL;
 	}
+}
+
+void wlr_send_tablet_v2_tablet_tool_distance(
+	struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance) {
+	if (tool->current_client) {
+		zwp_tablet_tool_v2_send_distance(tool->current_client->resource,
+			distance);
+
+		queue_tool_frame(tool->current_client);
+	}
+}
+
+void wlr_send_tablet_v2_tablet_tool_wheel(
+	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks) {
+	if (tool->current_client) {
+		zwp_tablet_tool_v2_send_wheel(tool->current_client->resource,
+			clicks, delta);
+
+		queue_tool_frame(tool->current_client);
+	}
+
 }
 
 
@@ -1182,4 +1212,23 @@ uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad
 	zwp_tablet_pad_group_v2_send_mode_switch(
 		pad->current_client->groups[group], time, serial, mode);
 	return serial;
+}
+
+bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+
+	if (tablet->current_client &&
+			tablet->current_client->client == client) {
+		return true;
+	}
+
+	struct wlr_tablet_client_v2 *tablet_tmp;
+	wl_list_for_each(tablet_tmp, &tablet->clients, tablet_link) {
+		if (tablet_tmp->client == client) {
+			return true;
+		}
+	}
+
+	return false;
 }

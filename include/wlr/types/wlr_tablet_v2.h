@@ -7,6 +7,7 @@
 
 #include "tablet-unstable-v2-protocol.h"
 
+struct wlr_tablet_client_v2;
 struct wlr_tablet_tool_client_v2;
 struct wlr_tablet_pad_client_v2;
 
@@ -27,6 +28,8 @@ struct wlr_tablet_v2_tablet {
 	struct wl_list clients; // wlr_tablet_client_v2::tablet_link
 
 	struct wl_listener tool_destroy;
+
+	struct wlr_tablet_client_v2 *current_client;
 };
 
 struct wlr_tablet_v2_tablet_tool {
@@ -37,6 +40,9 @@ struct wlr_tablet_v2_tablet_tool {
 	struct wl_listener tool_destroy;
 
 	struct wlr_tablet_tool_client_v2 *current_client;
+	struct wlr_surface *focused_surface;
+	struct wl_listener surface_destroy;
+	struct wl_listener client_destroy;
 };
 
 struct wlr_tablet_v2_tablet_pad {
@@ -79,6 +85,12 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 void wlr_send_tablet_v2_tablet_tool_motion(
 		struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
 
+void wlr_send_tablet_v2_tablet_tool_distance(
+	struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance);
+
+void wlr_send_tablet_v2_tablet_tool_wheel(
+	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks);
+
 void wlr_send_tablet_v2_tablet_tool_proximity_out(
 	struct wlr_tablet_v2_tablet_tool *tool);
 
@@ -101,4 +113,7 @@ uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pa
 
 uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad,
 		size_t group, uint32_t mode, uint32_t time);
+
+bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface);
 #endif /* WLR_TYPES_WLR_TABLET_V2_H */
