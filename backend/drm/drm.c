@@ -32,7 +32,8 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		return false;
 	}
 
-	if (getenv("WLR_DRM_NO_ATOMIC")) {
+	const char *no_atomic = getenv("WLR_DRM_NO_ATOMIC");
+	if (no_atomic && strcmp(no_atomic, "1") == 0) {
 		wlr_log(L_DEBUG, "WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
 		drm->iface = &legacy_iface;
 	} else if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
