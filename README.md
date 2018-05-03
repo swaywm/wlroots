@@ -25,7 +25,7 @@ code you were going to write anyway.
 wlroots implements a huge variety of Wayland compositor features and implements
 them *right*, so you can focus on the features that make your compositor
 unique. By using wlroots, you get high performance, excellent hardware
-compatability, broad support for many wayland interfaces, and comfortable
+compatibility, broad support for many wayland interfaces, and comfortable
 development tools - or any subset of these features you like, because all of
 them work independently of one another and freely compose with anything you want
 to implement yourself.
