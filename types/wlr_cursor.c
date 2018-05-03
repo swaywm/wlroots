@@ -368,6 +368,10 @@ static void apply_output_transform(double *x, double *y,
 		dx = *y;
 		dy = *x;
 		break;
+	default:
+		// displaying cursor wrong is better than crashing
+		dx = *x;
+		dy = *y;
 	}
 	*x = dx;
 	*y = dy;
