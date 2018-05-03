@@ -145,7 +145,7 @@ static void data_offer_set_actions(struct wl_client *client,
 	data_offer_update_action(offer);
 }
 
-static void data_offer_resource_destroy(struct wl_resource *resource) {
+static void data_offer_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_data_offer *offer = data_offer_from_resource(resource);
 
 	if (!offer->source) {
@@ -208,7 +208,7 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 		return NULL;
 	}
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
-		data_offer_resource_destroy);
+		data_offer_handle_resource_destroy);
 
 	offer->source_destroy.notify = handle_offer_source_destroyed;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);

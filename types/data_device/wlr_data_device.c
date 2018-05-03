@@ -11,6 +11,8 @@
 #include "types/wlr_data_device.h"
 #include "util/signal.h"
 
+#define DATA_DEVICE_MANAGER_VERSION 3
+
 static const struct wl_data_device_interface data_device_impl;
 
 static struct wlr_seat_client *seat_client_from_data_device_resource(
@@ -83,7 +85,7 @@ static const struct wl_data_device_interface data_device_impl = {
 	.release = data_device_release,
 };
 
-static void data_device_destroy(struct wl_resource *resource) {
+static void data_device_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
@@ -164,6 +166,15 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 }
 
 
+static const struct wl_data_device_manager_interface data_device_manager_impl;
+
+static struct wlr_data_device_manager *data_device_manager_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_data_device_manager_interface,
+		&data_device_manager_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void data_device_manager_get_data_device(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *seat_resource) {
@@ -178,13 +189,17 @@ static void data_device_manager_get_data_device(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
-		&data_device_destroy);
+		&data_device_handle_resource_destroy);
 	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
 }
 
 static void data_device_manager_create_data_source(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id) {
-	client_data_source_create(client, wl_resource_get_version(resource), id);
+		struct wl_resource *manager_resource, uint32_t id) {
+	struct wlr_data_device_manager *manager =
+		data_device_manager_from_resource(manager_resource);
+
+	client_data_source_create(client, wl_resource_get_version(manager_resource),
+		id, &manager->data_sources);
 }
 
 static const struct wl_data_device_manager_interface
@@ -193,8 +208,15 @@ static const struct wl_data_device_manager_interface
 	.get_data_device = data_device_manager_get_data_device,
 };
 
+static void data_device_manager_handle_resource_destroy(
+		struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
 static void data_device_manager_bind(struct wl_client *client,
 		void *data, uint32_t version, uint32_t id) {
+	struct wlr_data_device_manager *manager = data;
+
 	struct wl_resource *resource = wl_resource_create(client,
 		&wl_data_device_manager_interface,
 		version, id);
@@ -202,18 +224,26 @@ static void data_device_manager_bind(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-
 	wl_resource_set_implementation(resource, &data_device_manager_impl,
-		NULL, NULL);
+		manager, data_device_manager_handle_resource_destroy);
+
+	wl_list_insert(&manager->wl_resources, wl_resource_get_link(resource));
 }
 
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
 	if (!manager) {
 		return;
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
-	// TODO: free wl_resources
 	wl_global_destroy(manager->global);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &manager->wl_resources) {
+		wl_resource_destroy(resource);
+	}
+	wl_resource_for_each_safe(resource, tmp, &manager->data_sources) {
+		wl_resource_destroy(resource);
+	}
 	free(manager);
 }
 
@@ -232,11 +262,15 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		return NULL;
 	}
 
+	wl_list_init(&manager->wl_resources);
+	wl_list_init(&manager->data_sources);
+	wl_signal_init(&manager->events.destroy);
+
 	manager->global =
 		wl_global_create(display, &wl_data_device_manager_interface,
-			3, NULL, data_device_manager_bind);
+			DATA_DEVICE_MANAGER_VERSION, manager, data_device_manager_bind);
 	if (!manager->global) {
-		wlr_log(L_ERROR, "could not create data device manager wl global");
+		wlr_log(L_ERROR, "could not create data device manager wl_global");
 		free(manager);
 		return NULL;
 	}

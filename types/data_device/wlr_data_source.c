@@ -245,11 +245,13 @@ static void data_source_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_client_data_source *source =
 		client_data_source_from_resource(resource);
 	wlr_data_source_finish(&source->source);
+	wl_list_remove(wl_resource_get_link(source->resource));
 	free(source);
 }
 
 struct wlr_client_data_source *client_data_source_create(
-		struct wl_client *client, uint32_t version, uint32_t id) {
+		struct wl_client *client, uint32_t version, uint32_t id,
+		struct wl_list *resource_list) {
 	struct wlr_client_data_source *source =
 		calloc(1, sizeof(struct wlr_client_data_source));
 	if (source == NULL) {
@@ -265,6 +267,7 @@ struct wlr_client_data_source *client_data_source_create(
 	}
 	wl_resource_set_implementation(source->resource, &data_source_impl,
 		source, data_source_handle_resource_destroy);
+	wl_list_insert(resource_list, wl_resource_get_link(source->resource));
 
 	source->impl.accept = client_data_source_accept;
 	source->impl.send = client_data_source_send;
