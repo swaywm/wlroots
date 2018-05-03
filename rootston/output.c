@@ -756,6 +756,8 @@ static void output_destroy(struct roots_output *output) {
 
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->destroy.link);
+	wl_list_remove(&output->mode.link);
+	wl_list_remove(&output->transform.link);
 	wl_list_remove(&output->damage_frame.link);
 	wl_list_remove(&output->damage_destroy.link);
 	free(output);
