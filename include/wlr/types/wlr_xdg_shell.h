@@ -128,7 +128,7 @@ struct wlr_xdg_surface_configure {
  *
  * When a surface has a role and is ready to be displayed, the `map` event is
  * emitted. When a surface should no longer be displayed, the `unmap` event is
- * emitted. The `unmap` event is guaranted to be emitted before the `destroy`
+ * emitted. The `unmap` event is guaranteed to be emitted before the `destroy`
  * event if the view is destroyed when mapped.
  */
 struct wlr_xdg_surface {
@@ -314,7 +314,7 @@ struct wlr_xdg_surface *wlr_xdg_surface_from_wlr_surface(
 
 /**
  * Call `iterator` on each surface in the xdg-surface tree, with the surface's
- * positon relative to the root xdg-surface. The function is called from root to
+ * position relative to the root xdg-surface. The function is called from root to
  * leaves (in rendering order).
  */
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,

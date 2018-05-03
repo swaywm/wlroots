@@ -43,7 +43,7 @@ struct wlr_session {
  * of the terminal (Xorg, another Wayland compositor, etc.).
  *
  * If logind support is not enabled, you must have CAP_SYS_ADMIN or be root.
- * It is safe to drop priviledges after this is called.
+ * It is safe to drop privileges after this is called.
  *
  * Returns NULL on error.
  */

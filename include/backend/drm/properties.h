@@ -24,7 +24,7 @@ union wlr_drm_connector_props {
 
 union wlr_drm_crtc_props {
 	struct {
-		// Neither of these are guranteed to exist
+		// Neither of these are guaranteed to exist
 		uint32_t rotation;
 		uint32_t scaling_mode;
 
@@ -41,7 +41,7 @@ union wlr_drm_crtc_props {
 union wlr_drm_plane_props {
 	struct {
 		uint32_t type;
-		uint32_t rotation; // Not guranteed to exist
+		uint32_t rotation; // Not guaranteed to exist
 
 		// atomic-modesetting only
 

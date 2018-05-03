@@ -117,7 +117,7 @@ void wlr_matrix_transform(float mat[static 9],
 	wlr_matrix_multiply(mat, mat, transforms[transform]);
 }
 
-// Equivilent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
+// Equivalent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
 void wlr_matrix_projection(float mat[static 9], int width, int height,
 		enum wl_output_transform transform) {
 	memset(mat, 0, sizeof(*mat) * 9);

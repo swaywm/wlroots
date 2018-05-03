@@ -117,7 +117,7 @@ void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
 
 /**
  * Set the cursor surface. The surface can be committed to update the cursor
- * image. The surface position is substracted from the hotspot. A NULL surface
+ * image. The surface position is subtracted from the hotspot. A NULL surface
  * commit hides the cursor.
  */
 void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,

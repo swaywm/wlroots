@@ -171,7 +171,7 @@ struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 
 /**
  * Call `iterator` on each surface in the surface tree, with the surface's
- * positon relative to the root surface. The function is called from root to
+ * position relative to the root surface. The function is called from root to
  * leaves (in rendering order).
  */
 void wlr_surface_for_each_surface(struct wlr_surface *surface,

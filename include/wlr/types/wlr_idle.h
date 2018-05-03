@@ -7,7 +7,7 @@
 /**
  * Idle protocol is used to create timers which will notify the client when the
  * compositor does not receive any input for a given time(in milliseconds). Also
- * the client will be notify when the timer receve an activity notify and already
+ * the client will be notified when the timer receives an activity notify and already
  * was in idle state. Besides this, the client is able to simulate user activity
  * which will reset the timers and at any time can destroy the timer.
  */

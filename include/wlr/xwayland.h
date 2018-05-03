@@ -81,7 +81,7 @@ struct wlr_xwayland_surface_size_hints {
  *
  * When a surface is ready to be displayed, the `map` event is emitted. When a
  * surface should no longer be displayed, the `unmap` event is emitted. The
- * `unmap` event is guaranted to be emitted before the `destroy` event if the
+ * `unmap` event is guaranteed to be emitted before the `destroy` event if the
  * view is destroyed when mapped.
  */
 struct wlr_xwayland_surface {
