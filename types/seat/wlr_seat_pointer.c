@@ -64,30 +64,27 @@ static void pointer_set_cursor(struct wl_client *client,
 		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_pointer_resource(pointer_resource);
+	if (seat_client == NULL) {
+		return;
+	}
+
 	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
 		surface = wlr_surface_from_resource(surface_resource);
-
 		if (wlr_surface_set_role(surface, "wl_pointer-cursor", surface_resource,
 				WL_POINTER_ERROR_ROLE) < 0) {
 			return;
 		}
 	}
 
-	struct wlr_seat_pointer_request_set_cursor_event *event =
-		calloc(1, sizeof(struct wlr_seat_pointer_request_set_cursor_event));
-	if (event == NULL) {
-		return;
-	}
-	event->seat_client = seat_client;
-	event->surface = surface;
-	event->serial = serial;
-	event->hotspot_x = hotspot_x;
-	event->hotspot_y = hotspot_y;
-
-	wlr_signal_emit_safe(&seat_client->seat->events.request_set_cursor, event);
-
-	free(event);
+	struct wlr_seat_pointer_request_set_cursor_event event = {
+		.seat_client = seat_client,
+		.surface = surface,
+		.serial = serial,
+		.hotspot_x = hotspot_x,
+		.hotspot_y = hotspot_y,
+	};
+	wlr_signal_emit_safe(&seat_client->seat->events.request_set_cursor, &event);
 }
 
 static void pointer_release(struct wl_client *client,
@@ -102,6 +99,7 @@ static const struct wl_pointer_interface pointer_impl = {
 
 static void pointer_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
+	seat_client_destroy_pointer(resource);
 }
 
 
@@ -112,8 +110,8 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
 
 static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_seat_pointer_state *state = wl_container_of(
-			listener, state, surface_destroy);
+	struct wlr_seat_pointer_state *state =
+		wl_container_of(listener, state, surface_destroy);
 	wl_list_remove(&state->surface_destroy.link);
 	wl_list_init(&state->surface_destroy.link);
 	wlr_seat_pointer_clear_focus(state->seat);
@@ -121,8 +119,6 @@ static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
 
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
-	assert(wlr_seat);
-
 	if (wlr_seat->pointer_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
@@ -144,6 +140,10 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->pointers) {
+			if (seat_client_from_pointer_resource(resource) == NULL) {
+				continue;
+			}
+
 			wl_pointer_send_leave(resource, serial, focused_surface->resource);
 			pointer_send_frame(resource);
 		}
@@ -154,6 +154,10 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->pointers) {
+			if (seat_client_from_pointer_resource(resource) == NULL) {
+				continue;
+			}
+
 			wl_pointer_send_enter(resource, serial, surface->resource,
 				wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 			pointer_send_frame(resource);
@@ -189,6 +193,10 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
+		if (seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+
 		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
 		pointer_send_frame(resource);
@@ -205,6 +213,10 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 	uint32_t serial = wl_display_next_serial(wlr_seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
+		if (seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+
 		wl_pointer_send_button(resource, serial, time, button, state);
 		pointer_send_frame(resource);
 	}
@@ -220,6 +232,10 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
+		if (seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+
 		if (value) {
 			wl_pointer_send_axis(resource, time, orientation,
 				wl_fixed_from_double(value));
@@ -235,7 +251,6 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_pointer_grab *grab) {
 	assert(wlr_seat);
 	grab->seat = wlr_seat;
-	assert(grab->seat);
 	wlr_seat->pointer_state.grab = grab;
 
 	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_begin, grab);
@@ -311,4 +326,13 @@ void seat_client_create_pointer(struct wlr_seat_client *seat_client,
 	wl_resource_set_implementation(resource, &pointer_impl, seat_client,
 		&pointer_handle_resource_destroy);
 	wl_list_insert(&seat_client->pointers, wl_resource_get_link(resource));
+}
+
+void seat_client_destroy_pointer(struct wl_resource *resource) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_pointer_resource(resource);
+	if (seat_client == NULL) {
+		return;
+	}
+	wl_resource_set_user_data(resource, NULL);
 }
