@@ -92,7 +92,7 @@ static bool backend_start(struct wlr_backend *_backend) {
 		wlr_log(L_ERROR, "Failed to create input event on event loop");
 		return false;
 	}
-	wlr_log(L_DEBUG, "libinput sucessfully initialized");
+	wlr_log(L_DEBUG, "libinput successfully initialized");
 	return true;
 }
 

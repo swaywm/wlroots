@@ -266,7 +266,7 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 			continue;
 		}
 
-		// Not compatable
+		// Not compatible
 		if (!(st->objs[st->res[i]] & (1 << i))) {
 			continue;
 		}
