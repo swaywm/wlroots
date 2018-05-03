@@ -42,7 +42,6 @@ struct wlr_touch_point {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener focus_surface_destroy;
-	struct wl_listener resource_destroy;
 
 	struct {
 		struct wl_signal destroy;
@@ -138,7 +137,6 @@ struct wlr_seat_pointer_state {
 	uint32_t grab_time;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener resource_destroy;
 };
 
 // TODO: May be useful to be able to simulate keyboard input events
@@ -154,7 +152,6 @@ struct wlr_seat_keyboard_state {
 	struct wl_listener keyboard_repeat_info;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener resource_destroy;
 
 	struct wlr_seat_keyboard_grab *grab;
 	struct wlr_seat_keyboard_grab *default_grab;

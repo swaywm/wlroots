@@ -1,0 +1,314 @@
+#define _POSIX_C_SOURCE 200809L
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <wayland-server.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/util/log.h>
+#include "types/wlr_seat.h"
+#include "util/signal.h"
+
+static void default_pointer_enter(struct wlr_seat_pointer_grab *grab,
+		struct wlr_surface *surface, double sx, double sy) {
+	wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
+}
+
+static void default_pointer_motion(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, double sx, double sy) {
+	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
+}
+
+static uint32_t default_pointer_button(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, uint32_t button, uint32_t state) {
+	return wlr_seat_pointer_send_button(grab->seat, time, button, state);
+}
+
+static void default_pointer_axis(struct wlr_seat_pointer_grab *grab,
+		uint32_t time, enum wlr_axis_orientation orientation, double value) {
+	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value);
+}
+
+static void default_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
+	// cannot be cancelled
+}
+
+const struct wlr_pointer_grab_interface default_pointer_grab_impl = {
+	.enter = default_pointer_enter,
+	.motion = default_pointer_motion,
+	.button = default_pointer_button,
+	.axis = default_pointer_axis,
+	.cancel = default_pointer_cancel,
+};
+
+
+static void pointer_send_frame(struct wl_resource *resource) {
+	if (wl_resource_get_version(resource) >=
+			WL_POINTER_FRAME_SINCE_VERSION) {
+		wl_pointer_send_frame(resource);
+	}
+}
+
+static const struct wl_pointer_interface pointer_impl;
+
+static struct wlr_seat_client *seat_client_from_pointer_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_pointer_interface,
+		&pointer_impl));
+	return wl_resource_get_user_data(resource);
+}
+
+static void pointer_set_cursor(struct wl_client *client,
+		struct wl_resource *pointer_resource, uint32_t serial,
+		struct wl_resource *surface_resource,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_pointer_resource(pointer_resource);
+	struct wlr_surface *surface = NULL;
+	if (surface_resource != NULL) {
+		surface = wlr_surface_from_resource(surface_resource);
+
+		if (wlr_surface_set_role(surface, "wl_pointer-cursor", surface_resource,
+				WL_POINTER_ERROR_ROLE) < 0) {
+			return;
+		}
+	}
+
+	struct wlr_seat_pointer_request_set_cursor_event *event =
+		calloc(1, sizeof(struct wlr_seat_pointer_request_set_cursor_event));
+	if (event == NULL) {
+		return;
+	}
+	event->seat_client = seat_client;
+	event->surface = surface;
+	event->serial = serial;
+	event->hotspot_x = hotspot_x;
+	event->hotspot_y = hotspot_y;
+
+	wlr_signal_emit_safe(&seat_client->seat->events.request_set_cursor, event);
+
+	free(event);
+}
+
+static void pointer_release(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static const struct wl_pointer_interface pointer_impl = {
+	.set_cursor = pointer_set_cursor,
+	.release = pointer_release,
+};
+
+static void pointer_handle_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
+
+bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface) {
+	return surface == wlr_seat->pointer_state.focused_surface;
+}
+
+static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_pointer_state *state = wl_container_of(
+			listener, state, surface_destroy);
+	wl_list_remove(&state->surface_destroy.link);
+	wl_list_init(&state->surface_destroy.link);
+	wlr_seat_pointer_clear_focus(state->seat);
+}
+
+void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, double sx, double sy) {
+	assert(wlr_seat);
+
+	if (wlr_seat->pointer_state.focused_surface == surface) {
+		// this surface already got an enter notify
+		return;
+	}
+
+	struct wlr_seat_client *client = NULL;
+	if (surface) {
+		struct wl_client *wl_client = wl_resource_get_client(surface->resource);
+		client = wlr_seat_client_for_wl_client(wlr_seat, wl_client);
+	}
+
+	struct wlr_seat_client *focused_client =
+		wlr_seat->pointer_state.focused_client;
+	struct wlr_surface *focused_surface =
+		wlr_seat->pointer_state.focused_surface;
+
+	// leave the previously entered surface
+	if (focused_client != NULL && focused_surface != NULL) {
+		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &focused_client->pointers) {
+			wl_pointer_send_leave(resource, serial, focused_surface->resource);
+			pointer_send_frame(resource);
+		}
+	}
+
+	// enter the current surface
+	if (client != NULL && surface != NULL) {
+		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &client->pointers) {
+			wl_pointer_send_enter(resource, serial, surface->resource,
+				wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+			pointer_send_frame(resource);
+		}
+	}
+
+	// reinitialize the focus destroy events
+	wl_list_remove(&wlr_seat->pointer_state.surface_destroy.link);
+	wl_list_init(&wlr_seat->pointer_state.surface_destroy.link);
+	if (surface != NULL) {
+		wl_signal_add(&surface->events.destroy,
+			&wlr_seat->pointer_state.surface_destroy);
+		wlr_seat->pointer_state.surface_destroy.notify =
+			seat_pointer_handle_surface_destroy;
+	}
+
+	wlr_seat->pointer_state.focused_client = client;
+	wlr_seat->pointer_state.focused_surface = surface;
+
+	// TODO: send focus change event
+}
+
+void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
+	wlr_seat_pointer_enter(wlr_seat, NULL, 0, 0);
+}
+
+void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		double sx, double sy) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &client->pointers) {
+		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
+			wl_fixed_from_double(sy));
+		pointer_send_frame(resource);
+	}
+}
+
+uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
+		uint32_t button, uint32_t state) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return 0;
+	}
+
+	uint32_t serial = wl_display_next_serial(wlr_seat->display);
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &client->pointers) {
+		wl_pointer_send_button(resource, serial, time, button, state);
+		pointer_send_frame(resource);
+	}
+	return serial;
+}
+
+void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &client->pointers) {
+		if (value) {
+			wl_pointer_send_axis(resource, time, orientation,
+				wl_fixed_from_double(value));
+		} else if (wl_resource_get_version(resource) >=
+				WL_POINTER_AXIS_STOP_SINCE_VERSION) {
+			wl_pointer_send_axis_stop(resource, time, orientation);
+		}
+		pointer_send_frame(resource);
+	}
+}
+
+void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_pointer_grab *grab) {
+	assert(wlr_seat);
+	grab->seat = wlr_seat;
+	assert(grab->seat);
+	wlr_seat->pointer_state.grab = grab;
+
+	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_begin, grab);
+}
+
+void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	if (grab != wlr_seat->pointer_state.default_grab) {
+		wlr_seat->pointer_state.grab = wlr_seat->pointer_state.default_grab;
+		wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_end, grab);
+		if (grab->interface->cancel) {
+			grab->interface->cancel(grab);
+		}
+	}
+}
+
+void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
+		struct wlr_surface *surface, double sx, double sy) {
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	grab->interface->enter(grab, surface, sx, sy);
+}
+
+void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
+		double sx, double sy) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	grab->interface->motion(grab, time, sx, sy);
+}
+
+uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
+		uint32_t time, uint32_t button, uint32_t state) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
+	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		if (wlr_seat->pointer_state.button_count == 0) {
+			wlr_seat->pointer_state.grab_button = button;
+			wlr_seat->pointer_state.grab_time = time;
+		}
+		wlr_seat->pointer_state.button_count++;
+	} else {
+		wlr_seat->pointer_state.button_count--;
+	}
+
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	uint32_t serial = grab->interface->button(grab, time, button, state);
+
+	if (serial && wlr_seat->pointer_state.button_count == 1) {
+		wlr_seat->pointer_state.grab_serial = serial;
+	}
+
+	return serial;
+}
+
+void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
+		enum wlr_axis_orientation orientation, double value) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	grab->interface->axis(grab, time, orientation, value);
+}
+
+bool wlr_seat_pointer_has_grab(struct wlr_seat *seat) {
+	return seat->pointer_state.grab->interface != &default_pointer_grab_impl;
+}
+
+
+void seat_client_create_pointer(struct wlr_seat_client *seat_client,
+		uint32_t version, uint32_t id) {
+	struct wl_resource *resource = wl_resource_create(seat_client->client,
+		&wl_pointer_interface, version, id);
+	if (resource == NULL) {
+		wl_client_post_no_memory(seat_client->client);
+		return;
+	}
+	wl_resource_set_implementation(resource, &pointer_impl, seat_client,
+		&pointer_handle_resource_destroy);
+	wl_list_insert(&seat_client->pointers, wl_resource_get_link(resource));
+}
