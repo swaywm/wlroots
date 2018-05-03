@@ -332,14 +332,10 @@ static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 
 static void apply_output_transform(double *x, double *y,
 		enum wl_output_transform transform) {
-	double dx, dy;
+	double dx = *x, dy = *y;
 	double width = 1.0, height = 1.0;
 
 	switch (transform) {
-	case WL_OUTPUT_TRANSFORM_NORMAL:
-		dx = *x;
-		dy = *y;
-		break;
 	case WL_OUTPUT_TRANSFORM_90:
 		dx = *y;
 		dy = width - *x;
@@ -368,10 +364,6 @@ static void apply_output_transform(double *x, double *y,
 		dx = *y;
 		dy = *x;
 		break;
-	default:
-		// displaying cursor wrong is better than crashing
-		dx = *x;
-		dy = *y;
 	}
 	*x = dx;
 	*y = dy;
