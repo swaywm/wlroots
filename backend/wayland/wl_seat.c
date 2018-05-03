@@ -74,25 +74,11 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	struct wlr_output *wlr_output = &pointer->output->wlr_output;
-
-	struct wlr_box box = {
-		.x = wl_fixed_to_int(sx),
-		.y = wl_fixed_to_int(sy),
-	};
-	wlr_box_transform(&box, wlr_output->transform, wlr_output->width,
-		wlr_output->height, &box);
-	box.x /= wlr_output->scale;
-	box.y /= wlr_output->scale;
-
-	int output_width, output_height;
-	wlr_output_effective_resolution(&pointer->output->wlr_output,
-		&output_width, &output_height);
-
 	struct wlr_event_pointer_motion_absolute event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.time_msec = time,
-		.x = (double)box.x / output_width,
-		.y = (double)box.y / output_height,
+		.x = wl_fixed_to_double(sx) / wlr_output->width,
+		.y = wl_fixed_to_double(sy) / wlr_output->height,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.motion_absolute, &event);
 }
