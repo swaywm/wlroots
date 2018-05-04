@@ -79,7 +79,7 @@ static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 	wl_list_insert(&pad->groups, &group->link);
 }
 
-struct wlr_tablet_pad *libinput_tablet_pad_create(
+struct wlr_tablet_pad *create_libinput_tablet_pad(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_tablet_pad *wlr_tablet_pad = calloc(1, sizeof(struct wlr_tablet_pad));

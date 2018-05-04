@@ -74,7 +74,7 @@ void wlr_libinput_tablet_tool_destroy(struct wlr_input_device *wlr_dev) {
 	}
 }
 
-struct wlr_tablet_tool *libinput_tablet_tool_create(
+struct wlr_tablet_tool *create_libinput_tablet_tool(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
 	struct wlr_libinput_tablet *libinput_tablet_tool =
