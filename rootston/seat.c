@@ -111,7 +111,7 @@ static void handle_tablet_tool_position(struct roots_cursor *cursor,
 	}
 
 	wlr_cursor_warp_absolute(cursor->cursor, tool->device,
-		change_x ? x : -1 , change_y ? y : -1);
+		change_x ? x : NAN, change_y ? y : NAN);
 
 	double sx, sy;
 	struct roots_view *view = NULL;
@@ -188,7 +188,6 @@ static void handle_tablet_tool_tool_destroy(struct wl_listener *listener, void *
 	wl_list_remove(&tool->tool_link);
 
 	wl_list_remove(&tool->tool_destroy.link);
-	wl_list_remove(&tool->tablet_destroy.link);
 
 	free(tool);
 }
@@ -221,6 +220,8 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 			wlr_make_tablet_tool(desktop->tablet_v2, cursor->seat->seat, tool);
 		roots_tool->tool_destroy.notify = handle_tablet_tool_tool_destroy;
 		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
+		wl_list_init(&roots_tool->link);
+		wl_list_init(&roots_tool->tool_link);
 	}
 
 	handle_tablet_tool_position(cursor, event->device->data, event->tool,
