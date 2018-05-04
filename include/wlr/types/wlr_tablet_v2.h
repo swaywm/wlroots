@@ -7,6 +7,9 @@
 
 #include "tablet-unstable-v2-protocol.h"
 
+/* This can probably be even lower,the tools don't have a lot of buttons */
+#define WLR_TABLEt_V2_TOOL_BUTTONS_CAP 16
+
 struct wlr_tablet_client_v2;
 struct wlr_tablet_tool_client_v2;
 struct wlr_tablet_pad_client_v2;
@@ -43,6 +46,10 @@ struct wlr_tablet_v2_tablet_tool {
 	struct wlr_surface *focused_surface;
 	struct wl_listener surface_destroy;
 	struct wl_listener client_destroy;
+
+	uint32_t button_serial;
+	size_t num_buttons;
+	uint32_t pressed_buttons[WLR_TABLEt_V2_TOOL_BUTTONS_CAP];
 };
 
 struct wlr_tablet_v2_tablet_pad {
@@ -93,6 +100,10 @@ void wlr_send_tablet_v2_tablet_tool_wheel(
 
 void wlr_send_tablet_v2_tablet_tool_proximity_out(
 	struct wlr_tablet_v2_tablet_tool *tool);
+
+uint32_t wlr_send_tablet_v2_tablet_tool_button(
+		struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
+		enum zwp_tablet_pad_v2_button_state state);
 
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 		struct wlr_tablet_v2_tablet_pad *pad,

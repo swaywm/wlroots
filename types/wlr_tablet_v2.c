@@ -941,6 +941,47 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 }
 
 /* Actual protocol foo */
+// https://www.geeksforgeeks.org/move-zeroes-end-array/
+static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
+	size_t count = 0;
+
+	for (size_t i = 0; i < n; i++) {
+		if (arr[i] != 0) {
+			arr[count++] = arr[i];
+		}
+	}
+
+	size_t ret = count;
+
+	while (count < n) {
+		arr[count++] = 0;
+	}
+
+	return ret;
+}
+
+static void tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
+		uint32_t button, enum zwp_tablet_pad_v2_button_state state) {
+	bool found = false;
+	size_t i = 0;
+	for (; i < tool->num_buttons; ++i) {
+		if (tool->pressed_buttons[i] == button) {
+			found = true;
+			break;
+		}
+	}
+
+	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found &&
+			tool->num_buttons < WLR_TABLEt_V2_TOOL_BUTTONS_CAP) {
+		tool->pressed_buttons[tool->num_buttons++] = button;
+	}
+	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
+		tool->pressed_buttons[i] = 0;
+		tool->num_buttons = push_zeroes_to_end(tool->pressed_buttons, WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+	}
+
+	assert(tool->num_buttons <= WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+}
 
 static void send_tool_frame(void *data) {
 	struct wlr_tablet_tool_client_v2 *tool = data;
@@ -1041,13 +1082,31 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 }
 
 void wlr_send_tablet_v2_tablet_tool_distance(
-	struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance) {
+		struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance) {
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_distance(tool->current_client->resource,
 			distance);
 
 		queue_tool_frame(tool->current_client);
 	}
+}
+
+uint32_t wlr_send_tablet_v2_tablet_tool_button(
+		struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
+		enum zwp_tablet_pad_v2_button_state state) {
+	tablet_tool_button_update(tool, button, state);
+
+	if (tool->current_client) {
+		uint32_t serial = ++tool->button_serial;
+
+		zwp_tablet_tool_v2_send_button(tool->current_client->resource,
+			serial, button, state);
+		queue_tool_frame(tool->current_client);
+
+		return serial;
+	}
+
+	return 0;
 }
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
@@ -1058,9 +1117,7 @@ void wlr_send_tablet_v2_tablet_tool_wheel(
 
 		queue_tool_frame(tool->current_client);
 	}
-
 }
-
 
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 		struct wlr_tablet_v2_tablet_pad *pad,

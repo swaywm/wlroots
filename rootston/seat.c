@@ -140,7 +140,6 @@ static void handle_tablet_tool_position(struct roots_cursor *cursor,
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
-	wlr_log(L_DEBUG, "Tool Axis");
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, tool_axis);
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
@@ -148,7 +147,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_axis *event = data;
 	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
 
-	if (!roots_tool) {
+	if (!roots_tool) { // Should this be an assert?
 		wlr_log(L_DEBUG, "Tool Axis, before proximity");
 		return;
 	}
@@ -182,7 +181,6 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 }
 
 static void handle_tablet_tool_tool_destroy(struct wl_listener *listener, void *data) {
-	wlr_log(L_DEBUG, "Tool destroy");
 	struct roots_tablet_tool_tool *tool =
 		wl_container_of(listener, tool, tool_destroy);
 	
@@ -195,8 +193,18 @@ static void handle_tablet_tool_tool_destroy(struct wl_listener *listener, void *
 	free(tool);
 }
 
+static void handle_tool_button(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_button);
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
+	struct wlr_event_tablet_tool_button *event = data;
+	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
+
+	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool, event->button, event->state);
+}
+
 static void handle_tool_proximity(struct wl_listener *listener, void *data) {
-	wlr_log(L_DEBUG, "Tool Proximity");
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, tool_proximity);
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
@@ -357,6 +365,9 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.tablet_tool_proximity, &seat->cursor->tool_proximity);
 	seat->cursor->tool_proximity.notify = handle_tool_proximity;
+
+	wl_signal_add(&wlr_cursor->events.tablet_tool_button, &seat->cursor->tool_button);
+	seat->cursor->tool_button.notify = handle_tool_button;
 
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 		&seat->cursor->request_set_cursor);

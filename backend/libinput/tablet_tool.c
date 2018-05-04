@@ -263,10 +263,13 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		break;
 	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN:
 		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_IN;
-		handle_tablet_tool_axis(event, libinput_dev);
 		break;
 	}
 	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.proximity, &wlr_event);
+
+	if (libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN) {
+		handle_tablet_tool_axis(event, libinput_dev);
+	}
 
 	// If the tool is not unique, libinput will not find it again after the
 	// proximity out, so we should destroy it
