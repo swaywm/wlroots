@@ -714,9 +714,17 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(cursor->output->backend);
+	assert(renderer);
+
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
 		texture = cursor->surface->texture;
+		if (texture && wlr_texture_is_multi(texture)) {
+			texture = wlr_multi_texture_get_child(texture, renderer);
+			assert(texture);
+		}
 	}
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
