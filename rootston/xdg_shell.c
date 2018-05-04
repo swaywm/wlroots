@@ -18,6 +18,8 @@ static void popup_destroy(struct roots_view_child *child) {
 	}
 	wl_list_remove(&popup->destroy.link);
 	wl_list_remove(&popup->new_popup.link);
+	wl_list_remove(&popup->map.link);
+	wl_list_remove(&popup->unmap.link);
 	view_child_finish(&popup->view_child);
 	free(popup);
 }
