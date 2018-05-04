@@ -3,6 +3,7 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_idle.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "idle-protocol.h"
 #include "util/signal.h"
@@ -88,6 +89,71 @@ static void handle_input_notification(struct wl_listener *listener, void *data) 
 	if (timer->seat == seat) {
 		handle_activity(timer);
 	}
+}
+
+static int handle_idle_listener(void* data) {
+	struct wlr_idle_timeout *timer = data;
+	timer->idle_state = true;
+	if (timer != NULL && timer->listener != NULL && timer->listener->idle != NULL) {
+		timer->listener->idle(timer);
+	}
+	return 0;
+}
+
+static void handle_resumed_notification(struct wl_listener *listener, void *data) {
+	struct wlr_idle_timeout *timer =
+		wl_container_of(listener, timer, input_listener);
+	struct wlr_seat *seat = data;
+	if (timer->seat != seat) {
+		return; 
+	}
+	wl_event_source_timer_update(timer->idle_source, timer->timeout);
+
+	if (timer->idle_state) {
+		timer->idle_state = false;
+		if (timer != NULL && timer->listener != NULL && timer->listener->resumed != NULL) {
+			timer->listener->resumed(timer);
+		}
+	}
+}
+
+void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener, struct wlr_seat *seat) {
+	//Create the timer
+	struct wlr_idle_timeout *timer =
+		calloc(1, sizeof(struct wlr_idle_timeout));
+	if (!timer) {
+		return;
+	}
+	timer->seat = seat;
+	timer->timeout = timeout;
+	timer->idle_state = false;
+	timer->resource = NULL;
+	timer->listener = listener;
+
+	//Add timer to out list of idle timers
+	wl_list_insert(&idle->idle_timers, &timer->link);
+
+	timer->input_listener.notify = handle_resumed_notification;
+	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
+	
+	timer->seat_destroy.notify = handle_seat_destroy;
+	wl_signal_add(&timer->seat->events.destroy, &timer->seat_destroy);
+
+	//Create the timer
+	timer->idle_source =
+		wl_event_loop_add_timer(idle->event_loop, handle_idle_listener, timer);
+	if (timer->idle_source == NULL) {
+		wl_list_remove(&timer->link);
+		wl_list_remove(&timer->input_listener.link);
+		wl_list_remove(&timer->seat_destroy.link);
+		wl_resource_set_user_data(timer->resource, NULL);
+		free(timer);
+		return;
+	}
+
+	//Arm the timer
+	wl_event_source_timer_update(timer->idle_source, timer->timeout);
+	wlr_log(L_DEBUG, "Idle listener is setup");
 }
 
 static void create_idle_timer(struct wl_client *client,

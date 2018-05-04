@@ -350,3 +350,11 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 	return i;
 #endif
 }
+
+void wlr_session_prepare_for_sleep_listen(struct wlr_session *session, wlr_session_sleep_listener callback, wlr_session_sleep_lock_condition release_condition, void *data) {
+	if (!session || !session->impl || !session->impl->prepare_sleep_listen) {
+		return;
+	}
+
+	session->impl->prepare_sleep_listen(session, callback, release_condition, data);
+}

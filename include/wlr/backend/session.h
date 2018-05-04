@@ -37,6 +37,8 @@ struct wlr_session {
 	struct wl_listener display_destroy;
 };
 
+typedef void (*wlr_session_sleep_listener)(struct wlr_session *session, void *data);
+typedef bool (*wlr_session_sleep_lock_condition)(void *data);
 /*
  * Opens a session, taking control of the current virtual terminal.
  * This should not be called if another program is already in control
@@ -82,5 +84,7 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 
 size_t wlr_session_find_gpus(struct wlr_session *session,
 	size_t ret_len, int *ret);
+
+void wlr_session_prepare_for_sleep_listen(struct wlr_session *session, wlr_session_sleep_listener callback, wlr_session_sleep_lock_condition release_condition, void *data);
 
 #endif

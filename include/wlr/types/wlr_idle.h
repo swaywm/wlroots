@@ -4,6 +4,25 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
+struct wlr_idle_timeout_listener {
+	/**
+	 * Triggered when there has not been any user activity in the requested idle time interval
+	 *
+	 *
+	 */
+	wl_event_loop_timer_func_t idle;
+
+	/**
+	 * Triggered on the first user activity after an idle event
+	 *
+	 *
+	 */
+	wl_event_loop_timer_func_t resumed;
+	//    void (*resumed)(void *data,
+	//            struct org_kde_kwin_idle_timeout *org_kde_kwin_idle_timeout);
+};
+
+
 /**
  * Idle protocol is used to create timers which will notify the client when the
  * compositor does not receive any input for a given time(in milliseconds). Also
@@ -37,9 +56,11 @@ struct wlr_idle_timeout {
 
 	struct wl_listener input_listener;
 	struct wl_listener seat_destroy;
+	const struct wlr_idle_timeout_listener *listener;
 
 	void *data;
 };
+
 
 struct wlr_idle *wlr_idle_create(struct wl_display *display);
 
@@ -50,4 +71,6 @@ void wlr_idle_destroy(struct wlr_idle *idle);
  * compositor when there is an user activity event on that seat.
  */
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat);
+
+void wlr_idle_listen(struct wlr_idle *idle, uint32_t timeout, const struct wlr_idle_timeout_listener *listener, struct wlr_seat *seat);
 #endif
