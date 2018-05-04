@@ -40,25 +40,22 @@ struct wlr_wl_output {
 	struct wlr_output wlr_output;
 
 	struct wlr_wl_backend *backend;
+	struct wl_list link;
+
 	struct wl_surface *surface;
+	struct wl_callback *frame_callback;
 	struct zxdg_surface_v6 *xdg_surface;
 	struct zxdg_toplevel_v6 *xdg_toplevel;
 	struct wl_egl_window *egl_window;
-	struct wl_callback *frame_callback;
-
-	struct {
-		struct wl_shm_pool *pool;
-		void *buffer; // actually a (client-side) struct wl_buffer *
-		uint32_t buf_size;
-		uint8_t *data;
-		struct wl_surface *surface;
-		int32_t hotspot_x, hotspot_y;
-	} cursor;
+	EGLSurface egl_surface;
 
 	uint32_t enter_serial;
 
-	void *egl_surface;
-	struct wl_list link;
+	struct {
+		struct wl_surface *surface;
+		struct wl_egl_window *egl_window;
+		int32_t hotspot_x, hotspot_y;
+	} cursor;
 };
 
 struct wlr_wl_input_device {

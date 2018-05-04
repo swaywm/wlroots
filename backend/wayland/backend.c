@@ -164,8 +164,16 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_registry;
 	}
 
+	static EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 1,
+		EGL_NONE,
+	};
 	if (!wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
-			backend->remote_display, NULL, WL_SHM_FORMAT_ARGB8888)) {
+			backend->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888)) {
 		wlr_log(L_ERROR, "Could not initialize EGL");
 		goto error_egl;
 	}

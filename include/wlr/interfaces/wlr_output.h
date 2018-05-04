@@ -13,9 +13,8 @@ struct wlr_output_impl {
 		int32_t height, int32_t refresh);
 	void (*transform)(struct wlr_output *output,
 		enum wl_output_transform transform);
-	bool (*set_cursor)(struct wlr_output *output, const uint8_t *buf,
-		int32_t stride, uint32_t width, uint32_t height,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_pixels);
+	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
+		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
 	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
 	bool (*make_current)(struct wlr_output *output, int *buffer_age);
