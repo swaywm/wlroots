@@ -353,8 +353,10 @@ static void read_surface_title(struct wlr_xwm *xwm,
 		return;
 	}
 
-	// TODO: if reply->type == XCB_ATOM_STRING, uses latin1 encoding
-	// if reply->type == xwm->atoms[UTF8_STRING], uses utf8 encoding
+	bool is_utf8 = reply->type == xwm->atoms[UTF8_STRING];
+	if (!is_utf8 && xsurface->has_utf8_title) {
+		return;
+	}
 
 	size_t len = xcb_get_property_value_length(reply);
 	char *title = xcb_get_property_value(reply);
@@ -365,6 +367,7 @@ static void read_surface_title(struct wlr_xwm *xwm,
 	} else {
 		xsurface->title = NULL;
 	}
+	xsurface->has_utf8_title = is_utf8;
 
 	wlr_log(L_DEBUG, "XCB_ATOM_WM_NAME: %s", xsurface->title);
 	wlr_signal_emit_safe(&xsurface->events.set_title, xsurface);

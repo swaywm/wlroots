@@ -103,6 +103,7 @@ struct wlr_xwayland_surface {
 	char *class;
 	char *instance;
 	pid_t pid;
+	bool has_utf8_title;
 
 	struct wl_list children; // wlr_xwayland_surface::parent_link
 	struct wlr_xwayland_surface *parent;
