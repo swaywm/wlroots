@@ -11,6 +11,10 @@
 #include <wlr/util/region.h>
 #include "util/signal.h"
 
+#define CALLBACK_VERSION 1
+#define SURFACE_VERSION 4
+#define SUBSURFACE_VERSION 1
+
 static void surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {
 		wl_list_remove(&state->buffer_destroy_listener.link);
@@ -18,29 +22,29 @@ static void surface_state_reset_buffer(struct wlr_surface_state *state) {
 	}
 }
 
-static void buffer_destroy(struct wl_listener *listener, void *data) {
+static void surface_handle_buffer_destroy(struct wl_listener *listener,
+		void *data) {
 	struct wlr_surface_state *state =
 		wl_container_of(listener, state, buffer_destroy_listener);
-
-	wl_list_remove(&state->buffer_destroy_listener.link);
-	state->buffer = NULL;
+	surface_state_reset_buffer(state);
 }
 
 static void surface_state_release_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {
 		wl_resource_post_event(state->buffer, WL_BUFFER_RELEASE);
-		wl_list_remove(&state->buffer_destroy_listener.link);
-		state->buffer = NULL;
+		surface_state_reset_buffer(state);
 	}
 }
 
 static void surface_state_set_buffer(struct wlr_surface_state *state,
 		struct wl_resource *buffer) {
+	surface_state_reset_buffer(state);
+
 	state->buffer = buffer;
 	if (buffer) {
 		wl_resource_add_destroy_listener(buffer,
 			&state->buffer_destroy_listener);
-		state->buffer_destroy_listener.notify = buffer_destroy;
+		state->buffer_destroy_listener.notify = surface_handle_buffer_destroy;
 	}
 }
 
@@ -57,7 +61,6 @@ static void surface_attach(struct wl_client *client,
 	surface->pending->invalid |= WLR_SURFACE_INVALID_BUFFER;
 	surface->pending->sx = sx;
 	surface->pending->sy = sy;
-	surface_state_reset_buffer(surface->pending);
 	surface_state_set_buffer(surface->pending, buffer);
 }
 
@@ -80,7 +83,7 @@ static struct wlr_frame_callback *frame_callback_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void destroy_frame_callback(struct wl_resource *resource) {
+static void callback_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_frame_callback *cb = frame_callback_from_resource(resource);
 	wl_list_remove(&cb->link);
 	free(cb);
@@ -97,16 +100,15 @@ static void surface_frame(struct wl_client *client,
 		return;
 	}
 
-	cb->resource = wl_resource_create(client, &wl_callback_interface, 1,
-		callback);
+	cb->resource = wl_resource_create(client, &wl_callback_interface,
+		CALLBACK_VERSION, callback);
 	if (cb->resource == NULL) {
 		free(cb);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
-
 	wl_resource_set_implementation(cb->resource, NULL, cb,
-		destroy_frame_callback);
+		callback_handle_resource_destroy);
 
 	wl_list_insert(surface->pending->frame_callback_list.prev, &cb->link);
 
@@ -548,7 +550,7 @@ static void surface_damage_buffer(struct wl_client *client,
 		x, y, width, height);
 }
 
-const struct wl_surface_interface surface_interface = {
+static const struct wl_surface_interface surface_interface = {
 	.destroy = surface_destroy,
 	.attach = surface_attach,
 	.damage = surface_damage,
@@ -584,7 +586,6 @@ static struct wlr_surface_state *surface_state_create() {
 	pixman_region32_init_rect(&state->input,
 		INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
 
-
 	return state;
 }
 
@@ -604,6 +605,10 @@ static void surface_state_destroy(struct wlr_surface_state *state) {
 }
 
 static void subsurface_destroy(struct wlr_subsurface *subsurface) {
+	if (subsurface == NULL) {
+		return;
+	}
+
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wl_list_remove(&subsurface->surface_destroy.link);
@@ -614,8 +619,6 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		wl_list_remove(&subsurface->parent_pending_link);
 		wl_list_remove(&subsurface->parent_destroy.link);
 	}
-
-	wl_list_remove(wl_resource_get_link(subsurface->resource));
 
 	wl_resource_set_user_data(subsurface->resource, NULL);
 	if (subsurface->surface) {
@@ -649,6 +652,8 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 struct wlr_surface *wlr_surface_create(struct wl_client *client,
 		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
 		struct wl_list *resource_list) {
+	assert(version <= SURFACE_VERSION);
+
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
 	if (!surface) {
 		wl_client_post_no_memory(client);
@@ -726,10 +731,8 @@ static struct wlr_subsurface *subsurface_from_resource(
 
 static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
-
-	if (subsurface) {
-		subsurface_destroy(subsurface);
-	}
+	wl_list_remove(wl_resource_get_link(resource));
+	subsurface_destroy(subsurface);
 }
 
 static void subsurface_handle_destroy(struct wl_client *client,
@@ -737,13 +740,15 @@ static void subsurface_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static void subsurface_set_position(struct wl_client *client,
+static void subsurface_handle_set_position(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	if (subsurface == NULL) {
+		return;
+	}
+
 	struct wlr_surface *surface = subsurface->surface;
-
 	surface->pending->invalid |= WLR_SURFACE_INVALID_SUBSURFACE_POSITION;
-
 	surface->pending->subsurface_position.x = x;
 	surface->pending->subsurface_position.y = y;
 }
@@ -762,9 +767,12 @@ static struct wlr_subsurface *subsurface_find_sibling(
 	return NULL;
 }
 
-static void subsurface_place_above(struct wl_client *client,
+static void subsurface_handle_place_above(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *sibling_resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	if (subsurface == NULL) {
+		return;
+	}
 
 	struct wlr_surface *sibling_surface =
 		wlr_surface_from_resource(sibling_resource);
@@ -786,9 +794,12 @@ static void subsurface_place_above(struct wl_client *client,
 	subsurface->reordered = true;
 }
 
-static void subsurface_place_below(struct wl_client *client,
+static void subsurface_handle_place_below(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *sibling_resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	if (subsurface == NULL) {
+		return;
+	}
 
 	struct wlr_surface *sibling_surface =
 		wlr_surface_from_resource(sibling_resource);
@@ -810,20 +821,24 @@ static void subsurface_place_below(struct wl_client *client,
 	subsurface->reordered = true;
 }
 
-static void subsurface_set_sync(struct wl_client *client,
+static void subsurface_handle_set_sync(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
-
-	if (subsurface) {
-		subsurface->synchronized = true;
+	if (subsurface == NULL) {
+		return;
 	}
+
+	subsurface->synchronized = true;
 }
 
-static void subsurface_set_desync(struct wl_client *client,
+static void subsurface_handle_set_desync(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	if (subsurface == NULL) {
+		return;
+	}
 
-	if (subsurface && subsurface->synchronized) {
+	if (subsurface->synchronized) {
 		subsurface->synchronized = false;
 
 		if (!subsurface_is_synchronized(subsurface)) {
@@ -835,11 +850,11 @@ static void subsurface_set_desync(struct wl_client *client,
 
 static const struct wl_subsurface_interface subsurface_implementation = {
 	.destroy = subsurface_handle_destroy,
-	.set_position = subsurface_set_position,
-	.place_above = subsurface_place_above,
-	.place_below = subsurface_place_below,
-	.set_sync = subsurface_set_sync,
-	.set_desync = subsurface_set_desync,
+	.set_position = subsurface_handle_set_position,
+	.place_above = subsurface_handle_place_above,
+	.place_below = subsurface_handle_place_below,
+	.set_sync = subsurface_handle_set_sync,
+	.set_desync = subsurface_handle_set_desync,
 };
 
 static void subsurface_handle_parent_destroy(struct wl_listener *listener,
@@ -862,6 +877,8 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t version, uint32_t id,
 		struct wl_list *resource_list) {
+	assert(version <= SUBSURFACE_VERSION);
+
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	struct wlr_subsurface *subsurface =

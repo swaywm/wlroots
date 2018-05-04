@@ -9,8 +9,8 @@
 #include "types/wlr_seat.h"
 #include "util/signal.h"
 
-static uint32_t default_touch_down(struct wlr_seat_touch_grab *grab, uint32_t time,
-		struct wlr_touch_point *point) {
+static uint32_t default_touch_down(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
 	return wlr_seat_touch_send_down(grab->seat, point->surface, time,
 			point->touch_id, point->sx, point->sy);
 }
@@ -57,6 +57,14 @@ static const struct wl_touch_interface touch_impl = {
 
 static void touch_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
+	seat_client_destroy_touch(resource);
+}
+
+static struct wlr_seat_client *seat_client_from_touch_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_touch_interface,
+		&touch_impl));
+	return wl_resource_get_user_data(resource);
 }
 
 
@@ -273,6 +281,9 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 	uint32_t serial = wl_display_next_serial(seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &point->client->touches) {
+		if (seat_client_from_touch_resource(resource) == NULL) {
+			continue;
+		}
 		wl_touch_send_down(resource, serial, time, surface->resource,
 			touch_id, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
 		wl_touch_send_frame(resource);
@@ -291,6 +302,9 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_
 	uint32_t serial = wl_display_next_serial(seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &point->client->touches) {
+		if (seat_client_from_touch_resource(resource) == NULL) {
+			continue;
+		}
 		wl_touch_send_up(resource, serial, time, touch_id);
 		wl_touch_send_frame(resource);
 	}
@@ -306,6 +320,9 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &point->client->touches) {
+		if (seat_client_from_touch_resource(resource) == NULL) {
+			continue;
+		}
 		wl_touch_send_motion(resource, time, touch_id, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
 		wl_touch_send_frame(resource);
@@ -332,4 +349,13 @@ void seat_client_create_touch(struct wlr_seat_client *seat_client,
 	wl_resource_set_implementation(resource, &touch_impl, seat_client,
 		&touch_handle_resource_destroy);
 	wl_list_insert(&seat_client->touches, wl_resource_get_link(resource));
+}
+
+void seat_client_destroy_touch(struct wl_resource *resource) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_touch_resource(resource);
+	if (seat_client == NULL) {
+		return;
+	}
+	wl_resource_set_user_data(resource, NULL);
 }

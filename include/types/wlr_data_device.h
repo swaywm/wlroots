@@ -18,7 +18,8 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 void data_offer_update_action(struct wlr_data_offer *offer);
 
 struct wlr_client_data_source *client_data_source_create(
-	struct wl_client *client, uint32_t version, uint32_t id);
+	struct wl_client *client, uint32_t version, uint32_t id,
+	struct wl_list *resource_list);
 struct wlr_client_data_source *client_data_source_from_resource(
 	struct wl_resource *resource);
 struct wlr_data_offer *data_source_send_offer(struct wlr_data_source *source,

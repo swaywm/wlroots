@@ -171,7 +171,7 @@ Try to keep the use of macros to a minimum, especially if a function can do the
 job.  If you do need to use them, try to keep them close to where they're being
 used and `#undef` them after.
 
-## Example
+### Example
 
 ```c
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
@@ -230,5 +230,127 @@ error_gpu:
 error_session:
 	wlr_session_destroy(session);
 	return NULL;
+}
+```
+
+## Wayland protocol implementation
+
+Each protocol generally lives in a file with the same name, usually containing
+at leats one struct for each interface in the protocol. For instance,
+`xdg_shell` lives in `types/wlr_xdg_shell.h` and has a `wlr_xdg_surface` struct.
+
+### Globals
+
+Global interfaces generally have public constructors and destructors. Their
+struct has a field holding the `wl_global` itself, a list of resources clients
+created by binding to the global, a destroy signal and a `wl_display` destroy
+listener. Example:
+
+```c
+struct wlr_compositor {
+	struct wl_global *wl_global;
+	struct wl_list wl_resources;
+	…
+
+	struct wl_listener display_destroy;
+
+	struct {
+		struct wl_signal new_surface;
+		struct wl_signal destroy;
+	} events;
+};
+```
+
+When the destructor is called, it should emit the destroy signal, remove the
+display destroy listener, destroy the `wl_global`, destroy all bound resources
+and then destroy the struct.
+
+### Resources
+
+Resources are the representation of Wayland objects on the compositor side. They
+generally have an associated struct, called the _object struct_, stored in their
+`user_data` field.
+
+Object structs can be retrieved from resources via `wl_resource_get_data`. To
+prevent bad casts, a safe helper function checking the type of the resource is
+used:
+
+```c
+static const struct wl_surface_interface surface_impl;
+
+struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_surface_interface,
+		&surface_impl));
+	return wl_resource_get_user_data(resource);
+}
+```
+
+### Destroying resources
+
+Object structs should only be destroyed when their resource is destroyed, ie.
+in the resource destroy handler (set with `wl_resource_set_implementation`).
+Destructor requests should only call `wl_resource_destroy`.
+
+The compositor should not destroy resources on its own.
+
+### Inert resources
+
+Some resources can become inert in situations described in the protocol or when
+the compositor decides to get rid of them. All requests made to inert resources
+should be ignored, except the destructor. This is achieved by:
+
+1. When the resource becomes inert: destroy the object struct and call
+   `wl_resource_set_user_data(resource, NULL)`. Do not destroy the resource.
+2. For each request made to a resource that can be inert: add a NULL check to
+   ignore the request if the resource is inert.
+3. When the client calls the destructor request on the resource: call
+   `wl_resource_destroy(resource)` as usual.
+4. When the resource is destroyed, if the resource isn't inert, destroy the
+   object struct.
+
+Example:
+
+```c
+// Handles the destroy request
+static void subsurface_handle_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+// Handles a regular request
+static void subsurface_set_position(struct wl_client *client,
+		struct wl_resource *resource, int32_t x, int32_t y) {
+	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	if (subsurface == NULL) {
+		return;
+	}
+
+	…
+}
+
+// Destroys the wlr_subsurface struct
+static void subsurface_destroy(struct wlr_subsurface *subsurface) {
+	if (subsurface == NULL) {
+		return;
+	}
+
+	wl_resource_set_user_data(subsurface->resource, NULL);
+
+	…
+	free(subsurface);
+}
+
+// Resource destroy listener
+static void subsurface_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
+	subsurface_destroy(subsurface);
+}
+
+// Makes the resource inert
+static void subsurface_handle_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, surface_destroy);
+	subsurface_destroy(subsurface);
 }
 ```
