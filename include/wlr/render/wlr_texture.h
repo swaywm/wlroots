@@ -23,7 +23,7 @@ struct wlr_texture {
  * texture is mutable.
  */
 struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
-	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	enum wl_shm_format fmt, uint32_t stride, uint32_t width, uint32_t height,
 	const void *data);
 
 /**
