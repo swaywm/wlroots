@@ -6,6 +6,7 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/multi.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
@@ -372,6 +373,12 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 		return;
 	}
 
+	struct wlr_texture *texture = surface->texture;
+	if (wlr_texture_is_multi(texture)) {
+		texture = wlr_multi_texture_get_child(texture, renderer);
+		assert(texture);
+	}
+
 	struct wlr_box box;
 	output_fullscreen_surface_get_box(output, surface, &box);
 
@@ -386,7 +393,7 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(output, &rects[i]);
 		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
-		wlr_render_texture_with_matrix(surface->renderer, surface->texture, matrix, 1.0f);
+		wlr_render_texture_with_matrix(surface->renderer, texture, matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 
@@ -418,6 +425,10 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
 		texture = cursor->surface->texture;
+	}
+	if (texture && wlr_texture_is_multi(texture)) {
+		texture = wlr_multi_texture_get_child(texture, renderer);
+		assert(texture);
 	}
 	if (texture == NULL) {
 		return;
@@ -487,6 +498,12 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	}
 
 	if (pixman_region32_not_empty(&render_damage)) {
+		struct wlr_renderer *renderer =
+			wlr_backend_get_renderer(output->backend);
+		assert(renderer);
+
+		wlr_renderer_begin(renderer, output->width, output->height);
+
 		if (output->fullscreen_surface != NULL) {
 			output_fullscreen_surface_render(output, output->fullscreen_surface,
 				when, &render_damage);
@@ -500,6 +517,8 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 			}
 			output_cursor_render(cursor, when, &render_damage);
 		}
+
+		wlr_renderer_end(renderer);
 	}
 
 	// Transform damage into renderer coordinates, ie. upside down
@@ -695,9 +714,17 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(cursor->output->backend);
+	assert(renderer);
+
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
 		texture = cursor->surface->texture;
+		if (texture && wlr_texture_is_multi(texture)) {
+			texture = wlr_multi_texture_get_child(texture, renderer);
+			assert(texture);
+		}
 	}
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;

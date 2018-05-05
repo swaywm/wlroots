@@ -11,13 +11,27 @@ struct wlr_renderer_impl;
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
 
+	bool rendering;
+
 	struct {
 		struct wl_signal destroy;
 	} events;
 };
 
+/**
+ * Begins to render. All rendering operations must be called between
+ * `wlr_renderer_begin` and `wlr_renderer_end`.
+ *
+ * Textures must not be created during rendering.
+ */
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
+/**
+ * Ends rendering.
+ */
 void wlr_renderer_end(struct wlr_renderer *r);
+/**
+ * Clear the whole renderer buffer with the provided color.
+ */
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
@@ -71,24 +85,27 @@ bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
 	struct wl_resource *buffer, int *width, int *height);
 /**
- * Get the available dmabuf formats
+ * Get the available dmabuf formats.
  */
 int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *renderer,
 	int **formats);
 /**
- * Get the available dmabuf modifiers for a given format
+ * Get the available dmabuf modifiers for a given format.
  */
 int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
 	uint64_t **modifiers);
 /**
  * Try to import the given dmabuf. On success return true false otherwise.
- * If this succeeds the dmabuf can be used for rendering on a texture
+ * If this succeeds the dmabuf can be used for rendering on a texture.
  */
 bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *renderer,
 	struct wlr_dmabuf_buffer *dmabuf);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
+ *
+ * This function can only be called after `wlr_renderer_begin` and before
+ * swapping buffers.
  */
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 	uint32_t stride, uint32_t width, uint32_t height,
@@ -98,7 +115,10 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
  */
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	enum wl_shm_format fmt);
-void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
+/**
+ * Advertizes supported formats on the provided wl_display.
+ */
+void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *display);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.

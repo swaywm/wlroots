@@ -66,6 +66,8 @@ struct wlr_gles2_texture {
 		GLuint gl_tex;
 		struct wl_resource *wl_drm;
 	};
+
+	struct wl_listener egl_destroy;
 };
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(

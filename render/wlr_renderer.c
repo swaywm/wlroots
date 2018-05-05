@@ -15,7 +15,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_texture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
-	assert(impl->formats);
+	assert(impl->get_formats);
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
@@ -24,9 +24,13 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 }
 
 void wlr_renderer_destroy(struct wlr_renderer *r) {
+	if (r == NULL) {
+		return;
+	}
+
 	wlr_signal_emit_safe(&r->events.destroy, r);
 
-	if (r && r->impl && r->impl->destroy) {
+	if (r->impl && r->impl->destroy) {
 		r->impl->destroy(r);
 	} else {
 		free(r);
@@ -34,20 +38,28 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 }
 
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
+	assert(!r->rendering);
+
 	r->impl->begin(r, width, height);
+	r->rendering = true;
 }
 
 void wlr_renderer_end(struct wlr_renderer *r) {
+	assert(r->rendering);
+
 	if (r->impl->end) {
 		r->impl->end(r);
 	}
+	r->rendering = false;
 }
 
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
+	assert(r->rendering);
 	r->impl->clear(r, color);
 }
 
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
+	assert(r->rendering);
 	r->impl->scissor(r, box);
 }
 
@@ -66,6 +78,7 @@ bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 		struct wlr_texture *texture, const float matrix[static 9],
 		float alpha) {
+	assert(r->rendering);
 	return r->impl->render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
@@ -80,6 +93,7 @@ void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
 
 void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
+	assert(r->rendering);
 	r->impl->render_quad_with_matrix(r, color, matrix);
 }
 
@@ -94,12 +108,13 @@ void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
 
 void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
+	assert(r->rendering);
 	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
 const enum wl_shm_format *wlr_renderer_get_formats(
 		struct wlr_renderer *r, size_t *len) {
-	return r->impl->formats(r, len);
+	return r->impl->get_formats(r, len);
 }
 
 bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
@@ -158,7 +173,7 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	return r->impl->format_supported(r, fmt);
 }
 
-void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
+void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		struct wl_display *display) {
 	if (wl_display_init_shm(display)) {
 		wlr_log(L_ERROR, "Failed to initialize shm");
@@ -177,5 +192,9 @@ void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
 				formats[i] != WL_SHM_FORMAT_XRGB8888) {
 			wl_display_add_shm_format(display, formats[i]);
 		}
+	}
+
+	if (r->impl->bind_wl_display) {
+		r->impl->bind_wl_display(r, display);
 	}
 }

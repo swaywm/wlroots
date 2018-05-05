@@ -40,8 +40,10 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *data) {
-	struct wlr_gles2_texture *texture =
-		get_gles2_texture_in_context(wlr_texture);
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	if (!wlr_egl_is_current(texture->egl)) {
+		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (texture->type != WLR_GLES2_TEXTURE_GLTEX) {
 		wlr_log(L_ERROR, "Cannot write pixels to immutable texture");
@@ -81,6 +83,8 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
+	wl_list_remove(&texture->egl_destroy.link);
+
 	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
 
 	PUSH_GLES2_DEBUG;
@@ -105,17 +109,14 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
-		uint32_t height, const void *data) {
-	assert(wlr_egl_is_current(egl));
+static void texture_handle_egl_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_gles2_texture *texture =
+		wl_container_of(listener, texture, egl_destroy);
+	wlr_texture_destroy(&texture->wlr_texture);
+}
 
-	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
-	if (fmt == NULL) {
-		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
-		return NULL;
-	}
-
+static struct wlr_gles2_texture *texture_create(struct wlr_egl *egl) {
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
@@ -124,6 +125,30 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
 	texture->egl = egl;
+
+	wl_signal_add(&egl->events.destroy, &texture->egl_destroy);
+	texture->egl_destroy.notify = texture_handle_egl_destroy;
+
+	return texture;
+}
+
+struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
+		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
+		uint32_t height, const void *data) {
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
+
+	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
+	if (fmt == NULL) {
+		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
+		return NULL;
+	}
+
+	struct wlr_gles2_texture *texture = texture_create(egl);
+	if (texture == NULL) {
+		return NULL;
+	}
 	texture->width = width;
 	texture->height = height;
 	texture->type = WLR_GLES2_TEXTURE_GLTEX;
@@ -145,20 +170,18 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data) {
-	assert(wlr_egl_is_current(egl));
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
-	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+	struct wlr_gles2_texture *texture = texture_create(egl);
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
-	texture->egl = egl;
 	texture->wl_drm = data;
 
 	EGLint fmt;
@@ -200,7 +223,9 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer_attribs *attribs) {
-	assert(wlr_egl_is_current(egl));
+	if (!wlr_egl_is_current(egl)) {
+		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	}
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -212,14 +237,10 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+	struct wlr_gles2_texture *texture = texture_create(egl);
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
-	texture->egl = egl;
 	texture->width = attribs->width;
 	texture->height = attribs->height;
 	texture->type = WLR_GLES2_TEXTURE_DMABUF;

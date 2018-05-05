@@ -24,6 +24,10 @@ struct wlr_egl {
 	} egl_exts;
 
 	struct wl_display *wl_display;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 // TODO: Allocate and return a wlr_egl
@@ -41,14 +45,14 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 void wlr_egl_finish(struct wlr_egl *egl);
 
 /**
- * Binds the given display to the EGL instance.
- * This will allow clients to create EGL surfaces from wayland ones and render
- * to it.
+ * Binds the given wl_display to the EGL instance. This will allow clients to
+ * create EGL surfaces from Wayland ones and render to it via the deprecated
+ * wl_drm interface.
  */
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
+bool wlr_egl_bind_wl_display(struct wlr_egl *egl, struct wl_display *display);
 
 /**
- * Returns a surface for the given native window
+ * Returns a surface for the given native window.
  * The window must match the remote display the wlr_egl was created with.
  */
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
@@ -90,14 +94,27 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
  */
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
+/**
+ * Makes the EGL context current. If `buffer_age` is not NULL, sets it to the
+ * current buffer age, or -1 if unknown.
+ */
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);
 
+/**
+ * Checks if the EGL context is the current one.
+ */
 bool wlr_egl_is_current(struct wlr_egl *egl);
 
+/**
+ * Swaps buffers. The buffer damage is optional.
+ */
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	pixman_region32_t *damage);
 
+/**
+ * Destroys the EGL surface.
+ */
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
 
 #endif

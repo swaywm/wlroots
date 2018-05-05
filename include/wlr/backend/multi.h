@@ -7,6 +7,8 @@
 /**
  * Creates a multi-backend. Multi-backends wrap an arbitrary number of backends
  * and aggregate their new_output/new_input signals.
+ *
+ * The renderer of a multi-backend is guaranteed to be a multi-renderer.
  */
 struct wlr_backend *wlr_multi_backend_create(struct wl_display *display);
 /**

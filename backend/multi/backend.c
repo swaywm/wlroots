@@ -4,6 +4,7 @@
 #include <wlr/backend/drm.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/multi.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 #include "util/signal.h"
@@ -47,6 +48,8 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_backend_destroy(sub->backend);
 	}
 
+	wlr_renderer_destroy(backend->renderer);
+
 	// Destroy this backend only after removing all sub-backends
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 	free(backend);
@@ -55,14 +58,7 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 static struct wlr_renderer *multi_backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
-	struct subbackend_state *sub;
-	wl_list_for_each(sub, &multi->backends, link) {
-		struct wlr_renderer *rend = wlr_backend_get_renderer(sub->backend);
-		if (rend != NULL) {
-			return rend;
-		}
-	}
-	return NULL;
+	return multi->renderer;
 }
 
 struct wlr_backend_impl backend_impl = {
@@ -82,6 +78,12 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 		calloc(1, sizeof(struct wlr_multi_backend));
 	if (!backend) {
 		wlr_log(L_ERROR, "Backend allocation failed");
+		return NULL;
+	}
+
+	backend->renderer = wlr_multi_renderer_create();
+	if (backend->renderer == NULL) {
+		free(backend);
 		return NULL;
 	}
 
@@ -119,8 +121,8 @@ static void handle_subbackend_destroy(struct wl_listener *listener,
 	subbackend_state_destroy(state);
 }
 
-static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_backend *multi,
-		struct wlr_backend *backend) {
+static struct subbackend_state *multi_backend_get_subbackend(
+		struct wlr_multi_backend *multi, struct wlr_backend *backend) {
 	struct subbackend_state *sub = NULL;
 	wl_list_for_each(sub, &multi->backends, link) {
 		if (sub->backend == backend) {
@@ -150,6 +152,11 @@ void wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->backend = backend;
 	sub->container = &multi->backend;
 
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(backend);
+	if (renderer != NULL) {
+		wlr_multi_renderer_add(multi->renderer, renderer);
+	}
+
 	wl_signal_add(&backend->events.destroy, &sub->destroy);
 	sub->destroy.notify = handle_subbackend_destroy;
 
@@ -169,7 +176,6 @@ void wlr_multi_backend_remove(struct wlr_backend *_multi,
 
 	struct subbackend_state *sub =
 		multi_backend_get_subbackend(multi, backend);
-
 	if (sub) {
 		wlr_signal_emit_safe(&multi->events.backend_remove, backend);
 		subbackend_state_destroy(sub);
