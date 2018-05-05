@@ -201,7 +201,10 @@ summary = [
 message('\n'.join(summary))
 
 
-subdir('rootston')
+if get_option('enable-rootston')
+	subdir('rootston')
+endif
+
 subdir('examples')
 
 pkgconfig = import('pkgconfig')
