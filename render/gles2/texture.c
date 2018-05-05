@@ -16,16 +16,23 @@
 
 static const struct wlr_texture_impl texture_impl;
 
+static bool gles2_is_texture(struct wlr_texture *wlr_texture) {
+	return wlr_texture->impl == &texture_impl;
+}
+
 static struct wlr_gles2_texture *gles2_get_texture(
 		struct wlr_texture *wlr_texture) {
-	assert(wlr_texture->impl == &texture_impl);
+	assert(gles2_is_texture(wlr_texture));
 	return (struct wlr_gles2_texture *)wlr_texture;
 }
 
 struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	assert(wlr_egl_is_current(texture->egl));
+	//assert(wlr_egl_is_current(texture->egl));
+	if (!wlr_egl_is_current(texture->egl)) {
+		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	}
 	return texture;
 }
 
@@ -74,6 +81,30 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	struct wlr_gles2_texture *texture =
+		gles2_get_texture(wlr_texture);
+
+	if (!texture->image) {
+		assert(texture->type == WLR_GLES2_TEXTURE_GLTEX); // TODO
+		texture->image = eglCreateImageKHR(texture->egl->display, texture->egl->context,
+			EGL_GL_TEXTURE_2D_KHR, (EGLClientBuffer)(uintptr_t)texture->gl_tex, NULL);
+		if (texture->image == EGL_NO_IMAGE_KHR) {
+			wlr_log(L_ERROR, "Cannot create image");
+			return false;
+		}
+	}
+
+	uint32_t flags = 0;
+	if (texture->inverted_y) {
+		flags |= WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_Y_INVERT;
+	}
+
+	return wlr_egl_export_image_to_dmabuf(texture->egl, texture->image,
+		texture->width, texture->height, flags, attribs);
+}
+
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	if (wlr_texture == NULL) {
 		return;
@@ -102,13 +133,15 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.get_size = gles2_texture_get_size,
 	.write_pixels = gles2_texture_write_pixels,
+	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
 };
 
 struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
-	assert(wlr_egl_is_current(egl));
+	//assert(wlr_egl_is_current(egl));
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -145,7 +178,8 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data) {
-	assert(wlr_egl_is_current(egl));
+	//assert(wlr_egl_is_current(egl));
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -200,7 +234,8 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_buffer_attribs *attribs) {
-	assert(wlr_egl_is_current(egl));
+	//assert(wlr_egl_is_current(egl));
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -241,4 +276,27 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
+}
+
+struct wlr_texture *wlr_gles2_import_texture(struct wlr_egl *egl,
+		struct wlr_texture *wlr_texture) {
+	if (gles2_is_texture(wlr_texture)) {
+		struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+		if (texture->egl == egl) {
+			return wlr_texture;
+		}
+	}
+
+	// Attempt DMA-BUF
+	struct wlr_dmabuf_buffer_attribs attribs = { 0 };
+	if (wlr_texture_to_dmabuf(wlr_texture, &attribs)) {
+		struct wlr_texture *texture = wlr_gles2_texture_from_dmabuf(egl, &attribs);
+		if (texture != NULL) {
+			wlr_log(L_INFO, "exported and imported DMA-BUF");
+		}
+		return texture;
+	}
+
+	// TODO: read the texture pixels and re-upload it?
+	return NULL;
 }

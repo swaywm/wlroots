@@ -48,6 +48,8 @@ struct wlr_renderer_impl {
 		struct wl_resource *data);
 	struct wlr_texture *(*texture_from_dmabuf)(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_buffer_attribs *attribs);
+	struct wlr_texture *(*import_texture)(struct wlr_renderer *renderer,
+		struct wlr_texture *texture);
 	void (*destroy)(struct wlr_renderer *renderer);
 };
 
@@ -60,6 +62,8 @@ struct wlr_texture_impl {
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *data);
+	bool (*to_dmabuf)(struct wlr_texture *texture,
+		struct wlr_dmabuf_buffer_attribs *attribs);
 	void (*destroy)(struct wlr_texture *texture);
 };
 

@@ -13,6 +13,8 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
+	EGLSurface surface; // TODO: remove me
+
 	const char *exts_str;
 
 	struct {
@@ -20,6 +22,7 @@ struct wlr_egl {
 		bool swap_buffers_with_damage;
 		bool dmabuf_import;
 		bool dmabuf_import_modifiers;
+		bool dmabuf_export;
 		bool bind_wayland_display;
 	} egl_exts;
 
@@ -66,6 +69,10 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
  */
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_dmabuf_buffer_attribs *attributes);
+
+bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
+	int32_t width, int32_t height, uint32_t flags,
+	struct wlr_dmabuf_buffer_attribs *attribs);
 
 /**
  * Try to import the given dmabuf. On success return true false otherwise.
