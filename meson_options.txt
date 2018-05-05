@@ -5,3 +5,4 @@ option('enable-xcb_errors', type: 'combo', choices: ['auto', 'true', 'false'], v
 option('enable-xwayland', type: 'boolean', value: true, description: 'Enable support X11 applications')
 option('enable-x11_backend', type: 'boolean', value: true, description: 'Enable X11 backend')
 option('enable-rootston', type: 'boolean', value: true, description: 'Build the rootston example compositor')
+option('enable-examples', type: 'boolean', value: true, description: 'Build example applications')

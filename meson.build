@@ -205,7 +205,9 @@ if get_option('enable-rootston')
 	subdir('rootston')
 endif
 
-subdir('examples')
+if get_option('enable-examples')
+	subdir('examples')
+endif
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
