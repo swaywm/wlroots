@@ -178,17 +178,25 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *wlr_xwayland =
 		wl_container_of(listener, wlr_xwayland, client_destroy);
 
+	if (wlr_xwayland->sigusr1_source) {
+		// Xwayland failed to start, let the sigusr1 handler deal with it
+		return;
+	}
+
 	// Don't call client destroy: it's being destroyed already
 	wlr_xwayland->client = NULL;
 	wl_list_remove(&wlr_xwayland->client_destroy.link);
 
 	xwayland_finish_server(wlr_xwayland);
 
-	if (wlr_xwayland->lazy) {
-		xwayland_start_server_lazy(wlr_xwayland);
-	} else if (time(NULL) - wlr_xwayland->server_start > 5) {
-		wlr_log(L_INFO, "Restarting Xwayland");
-		xwayland_start_server(wlr_xwayland);
+	if (time(NULL) - wlr_xwayland->server_start > 5) {
+		if (wlr_xwayland->lazy) {
+			wlr_log(L_INFO, "Restarting Xwayland (lazy)");
+			xwayland_start_server_lazy(wlr_xwayland);
+		} else  {
+			wlr_log(L_INFO, "Restarting Xwayland");
+			xwayland_start_server(wlr_xwayland);
+		}
 	}
 }
 
