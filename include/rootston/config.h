@@ -60,6 +60,7 @@ struct roots_cursor_config {
 
 struct roots_config {
 	bool xwayland;
+	bool xwayland_lazy;
 
 	struct wl_list outputs;
 	struct wl_list devices;

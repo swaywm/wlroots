@@ -835,7 +835,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	if (config->xwayland) {
 		desktop->xwayland = wlr_xwayland_create(server->wl_display,
-			desktop->compositor, false);
+			desktop->compositor, config->xwayland_lazy);
 		wl_signal_add(&desktop->xwayland->events.new_surface,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
