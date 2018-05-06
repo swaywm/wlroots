@@ -265,6 +265,8 @@ static int xwayland_socket_connected(int fd, uint32_t mask, void* data){
 	wl_event_source_remove(wlr_xwayland->x_fd_read_event[0]);
 	wl_event_source_remove(wlr_xwayland->x_fd_read_event[1]);
 
+	wlr_xwayland->x_fd_read_event[0] = wlr_xwayland->x_fd_read_event[1] = NULL;
+
 	xwayland_start_server(wlr_xwayland);
 
 	return 0;
