@@ -58,6 +58,7 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	}
 
 	output_damage->output = output;
+	output_damage->max_rects = 20;
 	wl_signal_init(&output_damage->events.frame);
 	wl_signal_init(&output_damage->events.destroy);
 
@@ -124,6 +125,14 @@ bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
 		for (int i = 0; i < buffer_age - 1; ++i) {
 			int j = (idx + i) % WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
 			pixman_region32_union(damage, damage, &output_damage->previous[j]);
+		}
+
+		// Check the number of rectangles
+		int n_rects = pixman_region32_n_rects(damage);
+		if (n_rects > output_damage->max_rects) {
+			pixman_box32_t *extents = pixman_region32_extents(damage);
+			pixman_region32_union_rect(damage, damage, extents->x1, extents->y1,
+				extents->x2 - extents->x1, extents->y2 - extents->y1);
 		}
 	}
 
