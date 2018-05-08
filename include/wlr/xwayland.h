@@ -13,22 +13,26 @@ struct wlr_xwayland_cursor;
 
 struct wlr_xwayland {
 	pid_t pid;
-	int display;
-	int x_fd[2], wl_fd[2], wm_fd[2];
-	struct wl_event_source *x_fd_read_event[2];
 	struct wl_client *client;
-	struct wl_display *wl_display;
-	struct wlr_compositor *compositor;
-	time_t server_start;
-	bool lazy;
-
 	struct wl_event_source *sigusr1_source;
 	struct wl_listener client_destroy;
 	struct wl_listener display_destroy;
 	struct wlr_xwm *xwm;
 	struct wlr_xwayland_cursor *cursor;
+	int wm_fd[2], wl_fd[2];
 
-	/* Anything above seat is reset on Xwayland restart, rest is conserved */
+	time_t server_start;
+
+	/* Anything above display is reset on Xwayland restart, rest is conserved */
+
+	int display;
+	int x_fd[2];
+	struct wl_event_source *x_fd_read_event[2];
+
+	bool lazy;
+
+	struct wl_display *wl_display;
+	struct wlr_compositor *compositor;
 	struct wlr_seat *seat;
 	struct wl_listener seat_destroy;
 

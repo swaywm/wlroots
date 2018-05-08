@@ -151,6 +151,10 @@ static void xwayland_finish_server(struct wlr_xwayland *wlr_xwayland) {
 	safe_close(wlr_xwayland->wl_fd[1]);
 	safe_close(wlr_xwayland->wm_fd[0]);
 	safe_close(wlr_xwayland->wm_fd[1]);
+	memset(wlr_xwayland, 0, offsetof(struct wlr_xwayland, display));
+	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
+	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
+
 	/* We do not kill the Xwayland process, it dies to broken pipe
 	 * after we close our side of the wm/wl fds. This is more reliable
 	 * than trying to kill something that might no longer be Xwayland.
@@ -160,6 +164,7 @@ static void xwayland_finish_server(struct wlr_xwayland *wlr_xwayland) {
 static void xwayland_finish_display(struct wlr_xwayland *wlr_xwayland) {
 	safe_close(wlr_xwayland->x_fd[0]);
 	safe_close(wlr_xwayland->x_fd[1]);
+	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
 
 	wl_list_remove(&wlr_xwayland->display_destroy.link);
 
@@ -274,7 +279,6 @@ static int xwayland_socket_connected(int fd, uint32_t mask, void* data){
 
 static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
 		struct wl_display *wl_display, struct wlr_compositor *compositor) {
-	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
 
 	wlr_xwayland->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(wl_display, &wlr_xwayland->display_destroy);
@@ -293,8 +297,6 @@ static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
 }
 
 static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland) {
-	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
-	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wl_fd) != 0 ||
 			socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wm_fd) != 0) {
@@ -386,7 +388,9 @@ void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 		struct wlr_compositor *compositor, bool lazy) {
 	struct wlr_xwayland *wlr_xwayland = calloc(1, sizeof(struct wlr_xwayland));
-	memset(wlr_xwayland, 0, offsetof(struct wlr_xwayland, seat));
+	if (!wlr_xwayland) {
+		return NULL;
+	}
 
 	wlr_xwayland->wl_display = wl_display;
 	wlr_xwayland->compositor = compositor;
