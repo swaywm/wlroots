@@ -531,3 +531,25 @@ void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
 }
+
+struct wlr_surface *wlr_layer_surface_surface_at(
+		struct wlr_layer_surface *surface, double sx, double sy,
+		double *sub_x, double *sub_y) {
+	struct wlr_xdg_popup *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface *popup = popup_state->base;
+
+		double popup_sx = popup_state->geometry.x - popup->geometry.x;
+		double popup_sy = popup_state->geometry.y - popup->geometry.y;
+
+		struct wlr_surface *sub = wlr_xdg_surface_surface_at(popup,
+			sx - popup_sx,
+			sy - popup_sy,
+			sub_x, sub_y);
+		if (sub != NULL) {
+			return sub;
+		}
+	}
+
+	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
+}

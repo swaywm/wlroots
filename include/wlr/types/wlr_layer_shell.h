@@ -113,4 +113,12 @@ struct wlr_layer_surface *wlr_layer_surface_from_wlr_surface(
 void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
+/**
+ * Find a surface within this layer-surface tree at the given surface-local
+ * coordinates. Returns the surface and coordinates in the leaf surface
+ * coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_layer_surface_surface_at(
+		struct wlr_layer_surface *surface, double sx, double sy,
+		double *sub_x, double *sub_y);
 #endif
