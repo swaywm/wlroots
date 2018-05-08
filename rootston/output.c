@@ -174,9 +174,8 @@ static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 	};
 
 	int ow, oh;
-	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
+	wlr_output_transformed_resolution(wlr_output, &ow, &oh);
 
-	// Scissor is in renderer coordinates, ie. upside down
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(wlr_output->transform);
 	wlr_box_transform(&box, transform, ow, oh, &box);
