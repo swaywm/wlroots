@@ -1,5 +1,8 @@
 [core]
-# Disable X11 support. Enabled by default.
+# X11 support
+#  - true: enables X11, xwayland is started only when an X11 client connects
+#  - immediate: enables X11, xwayland is started immediately
+#  - false: disables xwayland
 xwayland=false
 
 # Single output configuration. String after colon must match output's name.

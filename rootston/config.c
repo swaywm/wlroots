@@ -240,6 +240,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		if (strcmp(name, "xwayland") == 0) {
 			if (strcasecmp(value, "true") == 0) {
 				config->xwayland = true;
+			} else if (strcasecmp(value, "immediate") == 0) {
+				config->xwayland = true;
+				config->xwayland_lazy = false;
 			} else if (strcasecmp(value, "false") == 0) {
 				config->xwayland = false;
 			} else {
@@ -389,6 +392,7 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	}
 
 	config->xwayland = true;
+	config->xwayland_lazy = true;
 	wl_list_init(&config->outputs);
 	wl_list_init(&config->devices);
 	wl_list_init(&config->keyboards);
