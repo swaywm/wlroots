@@ -641,30 +641,17 @@ static struct wlr_surface *layer_surface_at(struct roots_output *output,
 		struct wl_list *layer, double ox, double oy, double *sx, double *sy) {
 	struct roots_layer_surface *roots_surface;
 	wl_list_for_each_reverse(roots_surface, layer, link) {
-		struct wlr_surface *wlr_surface;
-		double _sx, _sy;
-		struct wlr_xdg_popup *popup;
-		wl_list_for_each(popup, &roots_surface->layer_surface->popups, link) {
-			wlr_surface = popup->base->surface;
-			 _sx = ox - roots_surface->geo.x - popup->geometry.x;
-			 _sy = oy - roots_surface->geo.y - popup->geometry.y;
-			if (wlr_surface_point_accepts_input(wlr_surface, _sx, _sy)) {
-				*sx = _sx;
-				*sy = _sy;
-				return wlr_surface;
-			}
-			// TODO: popups can have popups
-		}
-		// TODO: Test subsurfaces
-		wlr_surface = roots_surface->layer_surface->surface;
-		 _sx = ox - roots_surface->geo.x;
-		 _sy = oy - roots_surface->geo.y;
-		if (wlr_surface_point_accepts_input(wlr_surface, _sx, _sy)) {
-			*sx = _sx;
-			*sy = _sy;
-			return wlr_surface;
+		double _sx = ox - roots_surface->geo.x;
+		double _sy = oy - roots_surface->geo.y;
+
+		struct wlr_surface *sub = wlr_layer_surface_surface_at(
+			roots_surface->layer_surface, _sx, _sy, sx, sy);
+
+		if (sub) {
+			return sub;
 		}
 	}
+
 	return NULL;
 }
 
