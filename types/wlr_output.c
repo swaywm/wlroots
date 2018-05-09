@@ -695,9 +695,13 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
+	int32_t scale = cursor->output->scale;
+	enum wl_output_transform transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
 		texture = cursor->surface->texture;
+		scale = cursor->surface->current->scale;
+		transform = cursor->surface->current->transform;
 	}
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
@@ -708,7 +712,7 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 				(int)cursor->x, (int)cursor->y);
 		}
 		if (cursor->output->impl->set_cursor(cursor->output, texture,
-				cursor->hotspot_x, cursor->hotspot_y, true)) {
+				scale, transform, cursor->hotspot_x, cursor->hotspot_y, true)) {
 			cursor->output->hardware_cursor = cursor;
 			return true;
 		}
@@ -810,7 +814,7 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		} else {
 			assert(cursor->output->impl->set_cursor);
 			cursor->output->impl->set_cursor(cursor->output, NULL,
-				hotspot_x, hotspot_y, false);
+				1, WL_OUTPUT_TRANSFORM_NORMAL, hotspot_x, hotspot_y, false);
 		}
 		return;
 	}
@@ -835,7 +839,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 
 		if (cursor->output->hardware_cursor == cursor) {
 			assert(cursor->output->impl->set_cursor);
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, true);
+			cursor->output->impl->set_cursor(cursor->output, NULL, 1,
+				WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, true);
 		}
 	}
 }
@@ -897,7 +902,8 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
 		if (cursor->output->impl->set_cursor) {
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0, true);
+			cursor->output->impl->set_cursor(cursor->output, NULL, 1,
+				WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, true);
 		}
 		cursor->output->hardware_cursor = NULL;
 	}
