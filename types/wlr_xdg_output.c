@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_xdg_output.h>
@@ -23,11 +24,25 @@ static void output_handle_resource_destroy(struct wl_resource *resource) {
 
 static void output_send_details(struct wl_resource *resource,
 		struct wlr_output_layout_output *layout_output) {
+	struct wlr_output *output = layout_output->output;
 	zxdg_output_v1_send_logical_position(resource,
 			layout_output->x, layout_output->y);
+
 	int width, height;
 	wlr_output_effective_resolution(layout_output->output, &width, &height);
 	zxdg_output_v1_send_logical_size(resource, width, height);
+
+	uint32_t version = wl_resource_get_version(resource);
+	if (version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
+		zxdg_output_v1_send_name(resource, output->name);
+	}
+	if (version >= ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION) {
+		char description[128];
+		snprintf(description, sizeof(description), "%s %s %s (%s)",
+			output->make, output->model, output->serial, output->name);
+		zxdg_output_v1_send_description(resource, description);
+	}
+
 	zxdg_output_v1_send_done(resource);
 }
 
@@ -173,12 +188,11 @@ struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(
 	}
 	manager->layout = layout;
 	manager->global = wl_global_create(display,
-			&zxdg_output_manager_v1_interface,
-			OUTPUT_MANAGER_VERSION, manager, output_manager_bind);
+		&zxdg_output_manager_v1_interface, OUTPUT_MANAGER_VERSION, manager,
+		output_manager_bind);
 	if (!manager->global) {
 		free(manager);
 		return NULL;
-
 	}
 
 	wl_list_init(&manager->resources);
