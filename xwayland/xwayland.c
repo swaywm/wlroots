@@ -133,6 +133,13 @@ static void xwayland_finish_server(struct wlr_xwayland *wlr_xwayland) {
 		return;
 	}
 
+	if (wlr_xwayland->x_fd_read_event[0]) {
+		wl_event_source_remove(wlr_xwayland->x_fd_read_event[0]);
+		wl_event_source_remove(wlr_xwayland->x_fd_read_event[1]);
+
+		wlr_xwayland->x_fd_read_event[0] = wlr_xwayland->x_fd_read_event[1] = NULL;
+	}
+
 	if (wlr_xwayland->cursor != NULL) {
 		free(wlr_xwayland->cursor);
 	}
@@ -162,6 +169,10 @@ static void xwayland_finish_server(struct wlr_xwayland *wlr_xwayland) {
 }
 
 static void xwayland_finish_display(struct wlr_xwayland *wlr_xwayland) {
+	if (!wlr_xwayland || wlr_xwayland->display == -1) {
+		return;
+	}
+
 	safe_close(wlr_xwayland->x_fd[0]);
 	safe_close(wlr_xwayland->x_fd[1]);
 	wlr_xwayland->x_fd[0] = wlr_xwayland->x_fd[1] = -1;
