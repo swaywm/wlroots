@@ -55,6 +55,7 @@ struct wlr_wl_output {
 		struct wl_surface *surface;
 		struct wl_egl_window *egl_window;
 		int32_t hotspot_x, hotspot_y;
+		int32_t width, height;
 	} cursor;
 };
 

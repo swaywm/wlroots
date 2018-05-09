@@ -538,7 +538,8 @@ static void drm_connector_transform(struct wlr_output *output,
 }
 
 static bool drm_connector_set_cursor(struct wlr_output *output,
-		struct wlr_texture *texture, int32_t hotspot_x, int32_t hotspot_y,
+		struct wlr_texture *texture, int32_t scale,
+		enum wl_output_transform transform, int32_t hotspot_x, int32_t hotspot_y,
 		bool update_texture) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
@@ -581,15 +582,12 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		enum wl_output_transform transform = output->transform;
 		wlr_matrix_projection(plane->matrix, plane->surf.width,
-			plane->surf.height, transform);
+			plane->surf.height, output->transform);
 	}
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(output->transform);
-	wlr_box_transform(&hotspot, transform,
+	wlr_box_transform(&hotspot, wlr_output_transform_invert(output->transform),
 		plane->surf.width, plane->surf.height, &hotspot);
 
 	if (plane->cursor_hotspot_x != hotspot.x ||
@@ -617,6 +615,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	if (texture != NULL) {
 		int width, height;
 		wlr_texture_get_size(texture, &width, &height);
+		width = width * output->scale / scale;
+		height = height * output->scale / scale;
 
 		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
 			wlr_log(L_ERROR, "Cursor too large (max %dx%d)",
@@ -639,9 +639,14 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
+		struct wlr_box cursor_box = { .width = width, .height = height };
+
+		float matrix[9];
+		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
+
 		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture(rend, texture, plane->matrix, 0, 0, 1.0f);
+		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);
 
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, bo_stride,
