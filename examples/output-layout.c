@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
 #include <GLES2/gl2.h>
 #include <limits.h>
@@ -16,22 +16,37 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
-#include "support/cat.h"
-#include "support/config.h"
-#include "support/shared.h"
+#include "cat.h"
 
 struct sample_state {
-	struct example_config *config;
+	struct wl_display *display;
+	struct wl_listener new_output;
+	struct wl_listener new_input;
 	struct wlr_renderer *renderer;
 	struct wlr_texture *cat_texture;
 	struct wlr_output_layout *layout;
 	float x_offs, y_offs;
 	float x_vel, y_vel;
 	struct timespec ts_last;
+};
+
+struct sample_output {
+	struct sample_state *sample;
+	struct wlr_output *output;
+	struct wl_listener frame;
+	struct wl_listener destroy;
+};
+
+struct sample_keyboard {
+	struct sample_state *sample;
+	struct wlr_input_device *device;
+	struct wl_listener key;
+	struct wl_listener destroy;
 };
 
 static void animate_cat(struct sample_state *sample,
@@ -93,10 +108,12 @@ static void animate_cat(struct sample_state *sample,
 	sample->ts_last = ts;
 }
 
-static void handle_output_frame(struct output_state *output,
-		struct timespec *ts) {
-	struct compositor_state *state = output->compositor;
-	struct sample_state *sample = state->data;
+void output_frame_notify(struct wl_listener *listener, void *data) {
+	struct sample_output *output = wl_container_of(listener, output, frame);
+	struct sample_state *sample = output->sample;
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
 	struct wlr_output *wlr_output = output->output;
 
 	wlr_output_make_current(wlr_output, NULL);
@@ -124,94 +141,150 @@ static void handle_output_frame(struct output_state *output,
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
-static void handle_output_add(struct output_state *ostate) {
-	struct sample_state *sample = ostate->compositor->data;
-
-	struct output_config *o_config =
-		example_config_get_output(sample->config, ostate->output);
-
-	if (o_config) {
-		wlr_output_set_transform(ostate->output, o_config->transform);
-		wlr_output_layout_add(sample->layout, ostate->output, o_config->x,
-			o_config->y);
-	} else {
-		wlr_output_layout_add_auto(sample->layout, ostate->output);
-	}
-}
-
-static void handle_output_remove(struct output_state *ostate) {
-	struct sample_state *sample = ostate->compositor->data;
-	wlr_output_layout_remove(sample->layout, ostate->output);
-}
-
-static void update_velocities(struct compositor_state *state,
+static void update_velocities(struct sample_state *sample,
 		float x_diff, float y_diff) {
-	struct sample_state *sample = state->data;
 	sample->x_vel += x_diff;
 	sample->y_vel += y_diff;
 }
 
-static void handle_keyboard_key(struct keyboard_state *kbstate,
-		uint32_t keycode, xkb_keysym_t sym, enum wlr_key_state key_state,
-		uint64_t time_usec) {
-	// NOTE: It may be better to simply refer to our key state during each frame
-	// and make this change in pixels/sec^2
-	// Also, key repeat
-	int delta = 75;
-	if (key_state == WLR_KEY_PRESSED) {
-		switch (sym) {
-		case XKB_KEY_Left:
-			update_velocities(kbstate->compositor, -delta, 0);
-			break;
-		case XKB_KEY_Right:
-			update_velocities(kbstate->compositor, delta, 0);
-			break;
-		case XKB_KEY_Up:
-			update_velocities(kbstate->compositor, 0, -delta);
-			break;
-		case XKB_KEY_Down:
-			update_velocities(kbstate->compositor, 0, delta);
-			break;
+void output_remove_notify(struct wl_listener *listener, void *data) {
+	struct sample_output *sample_output = wl_container_of(listener, sample_output, destroy);
+	struct sample_state *sample = sample_output->sample;
+	wlr_output_layout_remove(sample->layout, sample_output->output);
+	wl_list_remove(&sample_output->frame.link);
+	wl_list_remove(&sample_output->destroy.link);
+	free(sample_output);
+}
+
+void new_output_notify(struct wl_listener *listener, void *data) {
+	struct wlr_output *output = data;
+	struct sample_state *sample = wl_container_of(listener, sample, new_output);
+	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
+	if (!wl_list_empty(&output->modes)) {
+		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
+		wlr_output_set_mode(output, mode);
+	}
+	wlr_output_layout_add_auto(sample->layout, output);
+	sample_output->output = output;
+	sample_output->sample = sample;
+	wl_signal_add(&output->events.frame, &sample_output->frame);
+	sample_output->frame.notify = output_frame_notify;
+	wl_signal_add(&output->events.destroy, &sample_output->destroy);
+	sample_output->destroy.notify = output_remove_notify;
+}
+
+void keyboard_key_notify(struct wl_listener *listener, void *data) {
+	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+	struct sample_state *sample = keyboard->sample;
+	struct wlr_event_keyboard_key *event = data;
+	uint32_t keycode = event->keycode + 8;
+	const xkb_keysym_t *syms;
+	int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
+			keycode, &syms);
+	for (int i = 0; i < nsyms; i++) {
+		xkb_keysym_t sym = syms[i];
+		if (sym == XKB_KEY_Escape) {
+			wl_display_terminate(sample->display);
+		}
+		// NOTE: It may be better to simply refer to our key state during each frame
+		// and make this change in pixels/sec^2
+		// Also, key repeat
+		int delta = 75;
+		if (event->state == WLR_KEY_PRESSED) {
+			switch (sym) {
+			case XKB_KEY_Left:
+				update_velocities(sample, -delta, 0);
+				break;
+			case XKB_KEY_Right:
+				update_velocities(sample, delta, 0);
+				break;
+			case XKB_KEY_Up:
+				update_velocities(sample, 0, -delta);
+				break;
+			case XKB_KEY_Down:
+				update_velocities(sample, 0, delta);
+				break;
+			}
 		}
 	}
 }
 
+void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
+	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
+	wl_list_remove(&keyboard->destroy.link);
+	wl_list_remove(&keyboard->key.link);
+	free(keyboard);
+}
+
+void new_input_notify(struct wl_listener *listener, void *data) {
+	struct wlr_input_device *device = data;
+	struct sample_state *sample = wl_container_of(listener, sample, new_input);
+	switch (device->type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:;
+		struct sample_keyboard *keyboard = calloc(1, sizeof(struct sample_keyboard));
+		keyboard->device = device;
+		keyboard->sample = sample;
+		wl_signal_add(&device->events.destroy, &keyboard->destroy);
+		keyboard->destroy.notify = keyboard_destroy_notify;
+		wl_signal_add(&device->keyboard->events.key, &keyboard->key);
+		keyboard->key.notify = keyboard_key_notify;
+		struct xkb_rule_names rules = { 0 };
+		rules.rules = getenv("XKB_DEFAULT_RULES");
+		rules.model = getenv("XKB_DEFAULT_MODEL");
+		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+		rules.variant = getenv("XKB_DEFAULT_VARIANT");
+		rules.options = getenv("XKB_DEFAULT_OPTIONS");
+		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+		if (!context) {
+			wlr_log(L_ERROR, "Failed to create XKB context");
+			exit(1);
+		}
+		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
+					&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+		xkb_context_unref(context);
+		break;
+	default:
+		break;
+	}
+}
+
+
 int main(int argc, char *argv[]) {
 	wlr_log_init(L_DEBUG, NULL);
-	struct sample_state state = {0};
+	struct wl_display *display = wl_display_create();
+	struct sample_state state = {
+		.x_vel = 500,
+		.y_vel = 500,
+		.display = display,
+	};
 
-	state.x_vel = 500;
-	state.y_vel = 500;
 	state.layout = wlr_output_layout_create();
 	clock_gettime(CLOCK_MONOTONIC, &state.ts_last);
 
-	state.config = parse_args(argc, argv);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
+	if (!wlr) {
+		exit(1);
+	}
 
-	struct compositor_state compositor = { 0 };
-	compositor.data = &state;
-	compositor.output_add_cb = handle_output_add;
-	compositor.output_remove_cb = handle_output_remove;
-	compositor.output_frame_cb = handle_output_frame;
-	compositor.keyboard_key_cb = handle_keyboard_key;
-	compositor_init(&compositor);
+	wl_signal_add(&wlr->events.new_output, &state.new_output);
+	state.new_output.notify = new_output_notify;
+	wl_signal_add(&wlr->events.new_input, &state.new_input);
+	state.new_input.notify = new_input_notify;
 
-	state.renderer = wlr_backend_get_renderer(compositor.backend);
+	state.renderer = wlr_backend_get_renderer(wlr);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
 		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
 
-	if (!wlr_backend_start(compositor.backend)) {
+	if (!wlr_backend_start(wlr)) {
 		wlr_log(L_ERROR, "Failed to start backend");
-		wlr_backend_destroy(compositor.backend);
+		wlr_backend_destroy(wlr);
 		exit(1);
 	}
-	wl_display_run(compositor.display);
+	wl_display_run(display);
 
 	wlr_texture_destroy(state.cat_texture);
 	wlr_renderer_destroy(state.renderer);
-	compositor_fini(&compositor);
 
 	wlr_output_layout_destroy(state.layout);
-
-	example_config_destroy(state.config);
 }

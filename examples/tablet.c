@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 500
 #include <GLES2/gl2.h>
 #include <math.h>
@@ -15,14 +15,14 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_tablet_pad.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
-#include "support/cat.h"
-#include "support/shared.h"
 
 struct sample_state {
+	struct wl_display *display;
 	struct wlr_renderer *renderer;
 	bool proximity, tap, button;
 	double distance;
@@ -34,12 +34,55 @@ struct sample_state {
 	struct wl_list link;
 	float tool_color[4];
 	float pad_color[4];
+	struct timespec last_frame;
+	struct wl_listener new_output;
+	struct wl_listener new_input;
+	struct wl_list tablet_tools;
+	struct wl_list tablet_pads;
 };
 
-static void handle_output_frame(struct output_state *output, struct timespec *ts) {
-	struct compositor_state *state = output->compositor;
-	struct sample_state *sample = state->data;
-	struct wlr_output *wlr_output = output->output;
+struct tablet_tool_state {
+	struct sample_state *sample;
+	struct wlr_input_device *device;
+	struct wl_listener destroy;
+	struct wl_listener axis;
+	struct wl_listener proximity;
+	struct wl_listener tip;
+	struct wl_listener button;
+	struct wl_list link;
+	void *data;
+};
+
+struct tablet_pad_state {
+	struct sample_state *sample;
+	struct wlr_input_device *device;
+	struct wl_listener destroy;
+	struct wl_listener button;
+	struct wl_listener ring;
+	struct wl_list link;
+	void *data;
+};
+
+struct sample_output {
+	struct sample_state *sample;
+	struct wlr_output *output;
+	struct wl_listener frame;
+	struct wl_listener destroy;
+};
+
+struct sample_keyboard {
+	struct sample_state *sample;
+	struct wlr_input_device *device;
+	struct wl_listener key;
+	struct wl_listener destroy;
+};
+
+static void output_frame_notify(struct wl_listener *listener, void *data) {
+	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
+	struct sample_state *sample = sample_output->sample;
+	struct wlr_output *wlr_output = sample_output->output;
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
@@ -88,11 +131,13 @@ static void handle_output_frame(struct output_state *output, struct timespec *ts
 
 	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	sample->last_frame = now;
 }
 
-static void handle_tool_axis(struct tablet_tool_state *tstate,
-			struct wlr_event_tablet_tool_axis *event) {
-	struct sample_state *sample = tstate->compositor->data;
+static void tablet_tool_axis_notify(struct wl_listener *listener, void *data) {
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, axis);
+	struct wlr_event_tablet_tool_axis *event = data;
+	struct sample_state *sample = tstate->sample;
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)) {
 		sample->x = event->x;
 	}
@@ -113,21 +158,23 @@ static void handle_tool_axis(struct tablet_tool_state *tstate,
 	}
 }
 
-static void handle_tool_proximity(struct tablet_tool_state *tstate,
-		enum wlr_tablet_tool_proximity_state state) {
-	struct sample_state *sample = tstate->compositor->data;
-	sample->proximity = state == WLR_TABLET_TOOL_PROXIMITY_IN;
+static void tablet_tool_proximity_notify(struct wl_listener *listener, void *data) {
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, proximity);
+	struct wlr_event_tablet_tool_proximity *event = data;
+	struct sample_state *sample = tstate->sample;
+	sample->proximity = event->state == WLR_TABLET_TOOL_PROXIMITY_IN;
 }
 
-static void handle_tool_button(struct tablet_tool_state *tstate,
-		uint32_t button, enum wlr_button_state state) {
-	struct sample_state *sample = tstate->compositor->data;
-	if (state == WLR_BUTTON_RELEASED) {
+static void tablet_tool_button_notify(struct wl_listener *listener, void *data) {
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, button);
+	struct wlr_event_tablet_tool_button *event = data;
+	struct sample_state *sample = tstate->sample;
+	if (event->state == WLR_BUTTON_RELEASED) {
 		sample->button = false;
 	} else {
 		sample->button = true;
 		for (size_t i = 0; i < 3; ++i) {
-			if (button % 3 == i) {
+			if (event->button % 3 == i) {
 				sample->tool_color[i] = 0;
 			} else {
 				sample->tool_color[i] = 1;
@@ -136,15 +183,16 @@ static void handle_tool_button(struct tablet_tool_state *tstate,
 	}
 }
 
-static void handle_pad_button(struct tablet_pad_state *pstate,
-		uint32_t button, enum wlr_button_state state) {
-	struct sample_state *sample = pstate->compositor->data;
+static void tablet_pad_button_notify(struct wl_listener *listener, void *data) {
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, button);
+	struct wlr_event_tablet_pad_button *event = data;
+	struct sample_state *sample = pstate->sample;
 	float default_color[4] = { 0.5, 0.5, 0.5, 1.0 };
-	if (state == WLR_BUTTON_RELEASED) {
+	if (event->state == WLR_BUTTON_RELEASED) {
 		memcpy(sample->pad_color, default_color, sizeof(default_color));
 	} else {
 		for (size_t i = 0; i < 3; ++i) {
-			if (button % 3 == i) {
+			if (event->button % 3 == i) {
 				sample->pad_color[i] = 0;
 			} else {
 				sample->pad_color[i] = 1;
@@ -153,56 +201,177 @@ static void handle_pad_button(struct tablet_pad_state *pstate,
 	}
 }
 
-static void handle_pad_ring(struct tablet_pad_state *pstate,
-		uint32_t ring, double position) {
-	struct sample_state *sample = pstate->compositor->data;
-	if (position != -1) {
-		sample->ring = -(position * (M_PI / 180.0));
+static void tablet_pad_ring_notify(struct wl_listener *listener, void *data) {
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, ring);
+	struct wlr_event_tablet_pad_ring *event = data;
+	struct sample_state *sample = pstate->sample;
+	if (event->position != -1) {
+		sample->ring = -(event->position * (M_PI / 180.0));
 	}
 }
 
-static void handle_input_add(struct compositor_state *cstate,
-		struct wlr_input_device *inputdev) {
-	struct sample_state *sample = cstate->data;
-	if (inputdev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		sample->width_mm = inputdev->width_mm == 0 ?
-			20 : inputdev->width_mm;
-		sample->height_mm = inputdev->height_mm == 0 ?
-			10 : inputdev->height_mm;
+static void tablet_tool_destroy_notify(struct wl_listener *listener, void *data) {
+	struct tablet_tool_state *tstate = wl_container_of(listener, tstate, destroy);
+	wl_list_remove(&tstate->link);
+	wl_list_remove(&tstate->destroy.link);
+	wl_list_remove(&tstate->axis.link);
+	wl_list_remove(&tstate->proximity.link);
+	wl_list_remove(&tstate->button.link);
+	free(tstate);
+}
+
+static void tablet_pad_destroy_notify(struct wl_listener *listener, void *data) {
+	struct tablet_pad_state *pstate = wl_container_of(listener, pstate, destroy);
+	wl_list_remove(&pstate->link);
+	wl_list_remove(&pstate->destroy.link);
+	wl_list_remove(&pstate->ring.link);
+	wl_list_remove(&pstate->button.link);
+	free(pstate);
+}
+
+void output_remove_notify(struct wl_listener *listener, void *data) {
+	struct sample_output *sample_output = wl_container_of(listener, sample_output, destroy);
+	wl_list_remove(&sample_output->frame.link);
+	wl_list_remove(&sample_output->destroy.link);
+	free(sample_output);
+}
+
+void new_output_notify(struct wl_listener *listener, void *data) {
+	struct wlr_output *output = data;
+	struct sample_state *sample = wl_container_of(listener, sample, new_output);
+	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
+	if (!wl_list_empty(&output->modes)) {
+		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
+		wlr_output_set_mode(output, mode);
+	}
+	sample_output->output = output;
+	sample_output->sample = sample;
+	wl_signal_add(&output->events.frame, &sample_output->frame);
+	sample_output->frame.notify = output_frame_notify;
+	wl_signal_add(&output->events.destroy, &sample_output->destroy);
+	sample_output->destroy.notify = output_remove_notify;
+}
+
+void keyboard_key_notify(struct wl_listener *listener, void *data) {
+	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+	struct sample_state *sample = keyboard->sample;
+	struct wlr_event_keyboard_key *event = data;
+	uint32_t keycode = event->keycode + 8;
+	const xkb_keysym_t *syms;
+	int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state,
+			keycode, &syms);
+	for (int i = 0; i < nsyms; i++) {
+		xkb_keysym_t sym = syms[i];
+		if (sym == XKB_KEY_Escape) {
+			wl_display_terminate(sample->display);
+		}
 	}
 }
+
+void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
+	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
+	wl_list_remove(&keyboard->destroy.link);
+	wl_list_remove(&keyboard->key.link);
+	free(keyboard);
+}
+
+void new_input_notify(struct wl_listener *listener, void *data) {
+	struct wlr_input_device *device = data;
+	struct sample_state *sample = wl_container_of(listener, sample, new_input);
+	switch (device->type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:;
+		struct sample_keyboard *keyboard = calloc(1, sizeof(struct sample_keyboard));
+		keyboard->device = device;
+		keyboard->sample = sample;
+		wl_signal_add(&device->events.destroy, &keyboard->destroy);
+		keyboard->destroy.notify = keyboard_destroy_notify;
+		wl_signal_add(&device->keyboard->events.key, &keyboard->key);
+		keyboard->key.notify = keyboard_key_notify;
+		struct xkb_rule_names rules = { 0 };
+		rules.rules = getenv("XKB_DEFAULT_RULES");
+		rules.model = getenv("XKB_DEFAULT_MODEL");
+		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
+		rules.variant = getenv("XKB_DEFAULT_VARIANT");
+		rules.options = getenv("XKB_DEFAULT_OPTIONS");
+		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+		if (!context) {
+			wlr_log(L_ERROR, "Failed to create XKB context");
+			exit(1);
+		}
+		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
+					&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+		xkb_context_unref(context);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:;
+		struct tablet_pad_state *pstate = calloc(sizeof(struct tablet_pad_state), 1);
+		pstate->device = device;
+		pstate->sample = sample;
+		pstate->destroy.notify = tablet_pad_destroy_notify;
+		wl_signal_add(&device->events.destroy, &pstate->destroy);
+		pstate->button.notify = tablet_pad_button_notify;
+		wl_signal_add(&device->tablet_pad->events.button, &pstate->button);
+		pstate->ring.notify = tablet_pad_ring_notify;
+		wl_signal_add(&device->tablet_pad->events.ring, &pstate->ring);
+		wl_list_insert(&sample->tablet_pads, &pstate->link);
+		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		sample->width_mm = device->width_mm == 0 ?
+			20 : device->width_mm;
+		sample->height_mm = device->height_mm == 0 ?
+			10 : device->height_mm;
+
+		struct tablet_tool_state *tstate = calloc(sizeof(struct tablet_tool_state), 1);
+		tstate->device = device;
+		tstate->sample = sample;
+		tstate->destroy.notify = tablet_tool_destroy_notify;
+		wl_signal_add(&device->events.destroy, &tstate->destroy);
+		tstate->axis.notify = tablet_tool_axis_notify;
+		wl_signal_add(&device->tablet_tool->events.axis, &tstate->axis);
+		tstate->proximity.notify = tablet_tool_proximity_notify;
+		wl_signal_add(&device->tablet_tool->events.proximity, &tstate->proximity);
+		tstate->button.notify = tablet_tool_button_notify;
+		wl_signal_add(&device->tablet_tool->events.button, &tstate->button);
+		wl_list_insert(&sample->tablet_tools, &tstate->link);
+		break;
+	default:
+		break;
+	}
+}
+
 
 int main(int argc, char *argv[]) {
 	wlr_log_init(L_DEBUG, NULL);
+	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
+		.display = display,
 		.tool_color = { 1, 1, 1, 1 },
 		.pad_color = { 0.5, 0.5, 0.5, 1.0 }
 	};
-	struct compositor_state compositor = {
-		.data = &state,
-		.output_frame_cb = handle_output_frame,
-		.tool_axis_cb = handle_tool_axis,
-		.tool_proximity_cb = handle_tool_proximity,
-		.tool_button_cb = handle_tool_button,
-		.pad_button_cb = handle_pad_button,
-		.pad_ring_cb = handle_pad_ring,
-		.input_add_cb = handle_input_add,
-		0
-	};
-	compositor_init(&compositor);
+	wl_list_init(&state.tablet_pads);
+	wl_list_init(&state.tablet_tools);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
+	if (!wlr) {
+		exit(1);
+	}
 
-	state.renderer = wlr_backend_get_renderer(compositor.backend);
+	wl_signal_add(&wlr->events.new_output, &state.new_output);
+	state.new_output.notify = new_output_notify;
+	wl_signal_add(&wlr->events.new_input, &state.new_input);
+	state.new_input.notify = new_input_notify;
+	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
+
+	state.renderer = wlr_backend_get_renderer(wlr);
 	if (!state.renderer) {
 		wlr_log(L_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
-	if (!wlr_backend_start(compositor.backend)) {
+	if (!wlr_backend_start(wlr)) {
 		wlr_log(L_ERROR, "Failed to start backend");
-		wlr_backend_destroy(compositor.backend);
+		wlr_backend_destroy(wlr);
 		exit(1);
 	}
-	wl_display_run(compositor.display);
+	wl_display_run(display);
 
 	wlr_renderer_destroy(state.renderer);
-	compositor_fini(&compositor);
+	wl_display_destroy(display);
 }
