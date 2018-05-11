@@ -160,8 +160,8 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
-	if (wl_list_length(&output->modes) > 0) {
-		struct wlr_output_mode *mode = wl_container_of((&output->modes)->prev, mode, link);
+	if (!wl_list_empty(&output->modes)) {
+		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
 		wlr_output_set_mode(output, mode);
 	}
 	wlr_output_layout_add_auto(sample->layout, output);
@@ -270,14 +270,6 @@ int main(int argc, char *argv[]) {
 	state.new_output.notify = new_output_notify;
 	wl_signal_add(&wlr->events.new_input, &state.new_input);
 	state.new_input.notify = new_input_notify;
-
-	const char *socket = wl_display_add_socket_auto(display);
-	if (!socket) {
-		wlr_log_errno(L_ERROR, "Unable to open wayland socket");
-		wlr_backend_destroy(wlr);
-		exit(1);
-	}
-	setenv("_WAYLAND_DISPLAY", socket, true);
 
 	state.renderer = wlr_backend_get_renderer(wlr);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
