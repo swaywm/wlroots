@@ -4,10 +4,10 @@
 #include <wlr/types/wlr_output_layout.h>
 
 struct wlr_xdg_output {
-	struct wl_list link;
-	struct wl_list resources;
-
 	struct wlr_xdg_output_manager *manager;
+	struct wl_list resources;
+	struct wl_list link;
+
 	struct wlr_output_layout_output *layout_output;
 
 	struct wl_listener destroy;
@@ -15,7 +15,7 @@ struct wlr_xdg_output {
 
 struct wlr_xdg_output_manager {
 	struct wl_global *global;
-
+	struct wl_list resources;
 	struct wlr_output_layout *layout;
 
 	struct wl_list outputs;
