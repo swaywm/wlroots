@@ -60,7 +60,8 @@ struct wlr_pointer_grab_interface {
 	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time,
 			uint32_t button, uint32_t state);
 	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time,
-			enum wlr_axis_orientation orientation, double value);
+			enum wlr_axis_orientation orientation, double value,
+			int32_t value_discrete, enum wlr_axis_source source);
 	void (*cancel)(struct wlr_seat_pointer_grab *grab);
 };
 
@@ -300,7 +301,8 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
  * grabs.
  **/
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
-		enum wlr_axis_orientation orientation, double value);
+		enum wlr_axis_orientation orientation, double value,
+		int32_t value_discrete, enum wlr_axis_source source);
 
 /**
  * Start a grab of the pointer of this seat. The grabber is responsible for
@@ -341,7 +343,8 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
  * Notify the seat of an axis event.
  */
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
-		enum wlr_axis_orientation orientation, double value);
+		enum wlr_axis_orientation orientation, double value,
+		int32_t value_discrete, enum wlr_axis_source source);
 
 /**
  * Whether or not the pointer has a grab other than the default grab.

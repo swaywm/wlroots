@@ -111,11 +111,14 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_event_pointer_axis event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.delta = wl_fixed_to_double(value),
+		.delta_discrete = pointer->axis_discrete,
 		.orientation = axis,
 		.time_msec = time,
 		.source = pointer->axis_source,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
+
+	pointer->axis_discrete = 0;
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
@@ -140,7 +143,13 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_axis_discrete(void *data, struct wl_pointer *wl_pointer,
 		uint32_t axis, int32_t discrete) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
 
+	pointer->axis_discrete = discrete;
 }
 
 static const struct wl_pointer_listener pointer_listener = {

@@ -58,6 +58,7 @@ struct wlr_event_pointer_axis {
 	enum wlr_axis_source source;
 	enum wlr_axis_orientation orientation;
 	double delta;
+	int32_t delta_discrete;
 };
 
 #endif

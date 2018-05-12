@@ -313,7 +313,7 @@ void roots_cursor_handle_button(struct roots_cursor *cursor,
 void roots_cursor_handle_axis(struct roots_cursor *cursor,
 		struct wlr_event_pointer_axis *event) {
 	wlr_seat_pointer_notify_axis(cursor->seat->seat, event->time_msec,
-		event->orientation, event->delta);
+		event->orientation, event->delta, event->delta_discrete, event->source);
 }
 
 void roots_cursor_handle_touch_down(struct roots_cursor *cursor,

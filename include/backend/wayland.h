@@ -72,6 +72,7 @@ struct wlr_wl_pointer {
 	struct wlr_wl_input_device *input_device;
 	struct wl_pointer *wl_pointer;
 	enum wlr_axis_source axis_source;
+	int32_t axis_discrete;
 	struct wlr_wl_output *output;
 
 	struct wl_listener output_destroy;

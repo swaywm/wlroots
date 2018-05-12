@@ -73,13 +73,15 @@ void handle_x11_input_event(struct wlr_x11_backend *x11,
 
 		if (ev->detail == XCB_BUTTON_INDEX_4 ||
 				ev->detail == XCB_BUTTON_INDEX_5) {
-			double delta = (ev->detail == XCB_BUTTON_INDEX_4 ? -15 : 15);
+			int32_t delta_discrete = ev->detail == XCB_BUTTON_INDEX_4 ? -1 : 1;
 			struct wlr_event_pointer_axis axis = {
 				.device = &output->pointer_dev,
 				.time_msec = ev->time,
 				.source = WLR_AXIS_SOURCE_WHEEL,
 				.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
-				.delta = delta,
+				// 15 is a typical value libinput sends for one scroll
+				.delta = delta_discrete * 15,
+				.delta_discrete = delta_discrete,
 			};
 			wlr_signal_emit_safe(&output->pointer.events.axis, &axis);
 			x11->time = ev->time;
