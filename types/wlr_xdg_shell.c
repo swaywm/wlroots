@@ -1656,20 +1656,17 @@ void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
 
 void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
 		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
-	assert(strcmp(popup->parent->role, wlr_desktop_xdg_toplevel_role) == 0
-			|| strcmp(popup->parent->role, wlr_desktop_xdg_popup_role) == 0);
-	struct wlr_xdg_surface *parent = popup->parent->role_data;
+	struct wlr_xdg_surface *parent =
+		wlr_xdg_surface_from_wlr_surface(popup->parent);
 	while (parent != NULL && parent->role == WLR_XDG_SURFACE_ROLE_POPUP) {
 		popup_sx += parent->popup->geometry.x;
 		popup_sy += parent->popup->geometry.y;
-		parent = parent->popup->parent->role_data;
+		parent = wlr_xdg_surface_from_wlr_surface(parent->popup->parent);
 	}
-
 	assert(parent);
 
 	*toplevel_sx = popup_sx + parent->geometry.x;
 	*toplevel_sy = popup_sy + parent->geometry.y;
-
 }
 
 static void xdg_popup_box_constraints(struct wlr_xdg_popup *popup,
