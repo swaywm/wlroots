@@ -26,9 +26,9 @@ static uint32_t default_pointer_button(struct wlr_seat_pointer_grab *grab,
 
 static void default_pointer_axis(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, enum wlr_axis_orientation orientation, double value,
-		int32_t value_discrete) {
+		int32_t value_discrete, enum wlr_axis_source source) {
 	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value,
-		value_discrete);
+		value_discrete, source);
 }
 
 static void default_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
@@ -227,7 +227,7 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value,
-		int32_t value_discrete) {
+		int32_t value_discrete, enum wlr_axis_source source) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
 	if (client == NULL) {
 		return;
@@ -241,6 +241,9 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 
 		uint32_t version = wl_resource_get_version(resource);
 
+		if (version >= WL_POINTER_AXIS_SOURCE_SINCE_VERSION) {
+			wl_pointer_send_axis_source(resource, source);
+		}
 		if (value) {
 			if (value_discrete &&
 					version >= WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
@@ -315,10 +318,11 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value,
-		int32_t value_discrete) {
+		int32_t value_discrete, enum wlr_axis_source source) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
-	grab->interface->axis(grab, time, orientation, value, value_discrete);
+	grab->interface->axis(grab, time, orientation, value, value_discrete,
+		source);
 }
 
 bool wlr_seat_pointer_has_grab(struct wlr_seat *seat) {

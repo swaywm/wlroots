@@ -94,9 +94,9 @@ static void shell_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
 
 static void shell_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, enum wlr_axis_orientation orientation, double value,
-		int32_t value_discrete) {
+		int32_t value_discrete, enum wlr_axis_source source) {
 	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value,
-		value_discrete);
+		value_discrete, source);
 }
 
 static const struct wlr_pointer_grab_interface shell_pointer_grab_impl = {
