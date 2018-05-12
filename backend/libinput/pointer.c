@@ -126,8 +126,10 @@ void handle_pointer_axis(struct libinput_event *event,
 				wlr_event.orientation = WLR_AXIS_ORIENTATION_HORIZONTAL;
 				break;
 			}
-			wlr_event.delta = libinput_event_pointer_get_axis_value(
-					pevent, axies[i]);
+			wlr_event.delta =
+				libinput_event_pointer_get_axis_value(pevent, axies[i]);
+			wlr_event.delta_discrete =
+				libinput_event_pointer_get_axis_value_discrete(pevent, axies[i]);
 			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
 		}
 	}
