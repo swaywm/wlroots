@@ -25,9 +25,9 @@ static void output_send_details(struct wl_resource *resource,
 		struct wlr_output_layout_output *layout_output) {
 	zxdg_output_v1_send_logical_position(resource,
 			layout_output->x, layout_output->y);
-	zxdg_output_v1_send_logical_size(resource,
-			(float)layout_output->output->width / layout_output->output->scale,
-			(float)layout_output->output->height / layout_output->output->scale);
+	int width, height;
+	wlr_output_effective_resolution(layout_output->output, &width, &height);
+	zxdg_output_v1_send_logical_size(resource, width, height);
 	zxdg_output_v1_send_done(resource);
 }
 
