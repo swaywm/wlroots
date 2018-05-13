@@ -209,7 +209,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!eglBindWaylandDisplayWL) {
+	if (!egl->egl_exts.bind_wayland_display) {
 		return false;
 	}
 
