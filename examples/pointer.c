@@ -18,14 +18,14 @@
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
-#include <wlr/xcursor.h>
 #include <xkbcommon/xkbcommon.h>
 
 struct sample_state {
 	struct wl_display *display;
 	struct compositor_state *compositor;
-	struct wlr_xcursor *xcursor;
+	struct wlr_xcursor_manager *xcursor_manager;
 	struct wlr_cursor *cursor;
 	double cur_x, cur_y;
 	float default_color[4];
@@ -263,10 +263,9 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	sample_output->destroy.notify = output_remove_notify;
 	wlr_output_layout_add_auto(sample->layout, sample_output->output);
 
-	struct wlr_xcursor_image *image = sample->xcursor->images[0];
-	wlr_cursor_set_image(sample->cursor, image->buffer, image->width * 4,
-		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
-
+	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
+	wlr_xcursor_manager_set_cursor_image(sample->xcursor_manager, "left_ptr",
+		sample->cursor);
 }
 
 
@@ -374,20 +373,14 @@ int main(int argc, char *argv[]) {
 		&state.tablet_tool_axis);
 	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
-	struct wlr_xcursor_theme *theme = wlr_xcursor_theme_load("default", 16);
-	if (!theme) {
-		wlr_log(L_ERROR, "Failed to load cursor theme");
-		return 1;
-	}
-	state.xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
-	if (!state.xcursor) {
+	state.xcursor_manager = wlr_xcursor_manager_create("default", 24);
+	if (!state.xcursor_manager) {
 		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
 		return 1;
 	}
 
-	struct wlr_xcursor_image *image = state.xcursor->images[0];
-	wlr_cursor_set_image(state.cursor, image->buffer, image->width * 4,
-		image->width, image->height, image->hotspot_x, image->hotspot_y, 0);
+	wlr_xcursor_manager_set_cursor_image(state.xcursor_manager, "left_ptr",
+		state.cursor);
 
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
@@ -399,7 +392,7 @@ int main(int argc, char *argv[]) {
 	wl_display_run(display);
 	wl_display_destroy(display);
 
-	wlr_xcursor_theme_destroy(theme);
+	wlr_xcursor_manager_destroy(state.xcursor_manager);
 	wlr_cursor_destroy(state.cursor);
 	wlr_output_layout_destroy(state.layout);
 }
