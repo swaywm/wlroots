@@ -1673,12 +1673,10 @@ void wlr_xdg_popup_v6_get_toplevel_coords(struct wlr_xdg_popup_v6 *popup,
 		popup_sy += parent->popup->geometry.y;
 		parent = parent->popup->parent;
 	}
-
 	assert(parent);
 
 	*toplevel_sx = popup_sx + parent->geometry.x;
 	*toplevel_sy = popup_sy + parent->geometry.y;
-
 }
 
 static void xdg_popup_v6_box_constraints(struct wlr_xdg_popup_v6 *popup,

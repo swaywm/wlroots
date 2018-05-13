@@ -422,6 +422,37 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		positioner, xdg_positioner_destroy);
 }
 
+static bool positioner_anchor_has_edge(enum xdg_positioner_anchor anchor,
+		enum xdg_positioner_anchor edge) {
+	switch (edge) {
+	case XDG_POSITIONER_ANCHOR_TOP:
+		return anchor == XDG_POSITIONER_ANCHOR_TOP ||
+			anchor == XDG_POSITIONER_ANCHOR_TOP_LEFT ||
+			anchor == XDG_POSITIONER_ANCHOR_TOP_RIGHT;
+	case XDG_POSITIONER_ANCHOR_BOTTOM:
+		return anchor == XDG_POSITIONER_ANCHOR_BOTTOM ||
+			anchor == XDG_POSITIONER_ANCHOR_BOTTOM_LEFT ||
+			anchor == XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT;
+	case XDG_POSITIONER_ANCHOR_LEFT:
+		return anchor == XDG_POSITIONER_ANCHOR_LEFT ||
+			anchor == XDG_POSITIONER_ANCHOR_TOP_LEFT ||
+			anchor == XDG_POSITIONER_ANCHOR_BOTTOM_LEFT;
+	case XDG_POSITIONER_ANCHOR_RIGHT:
+		return anchor == XDG_POSITIONER_ANCHOR_RIGHT ||
+			anchor == XDG_POSITIONER_ANCHOR_TOP_RIGHT ||
+			anchor == XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT;
+	default:
+		assert(false); // not reached
+	}
+}
+
+static bool positioner_gravity_has_edge(enum xdg_positioner_gravity gravity,
+		enum xdg_positioner_gravity edge) {
+	// gravity and edge enums are the same
+	return positioner_anchor_has_edge((enum xdg_positioner_anchor)gravity,
+		(enum xdg_positioner_anchor)edge);
+}
+
 struct wlr_box wlr_xdg_positioner_get_geometry(
 		struct wlr_xdg_positioner *positioner) {
 	struct wlr_box geometry = {
@@ -431,9 +462,11 @@ struct wlr_box wlr_xdg_positioner_get_geometry(
 		.height = positioner->size.height,
 	};
 
-	if (positioner->anchor & XDG_POSITIONER_ANCHOR_TOP) {
+	if (positioner_anchor_has_edge(positioner->anchor,
+			XDG_POSITIONER_ANCHOR_TOP)) {
 		geometry.y += positioner->anchor_rect.y;
-	} else if (positioner->anchor & XDG_POSITIONER_ANCHOR_BOTTOM) {
+	} else if (positioner_anchor_has_edge(positioner->anchor,
+			XDG_POSITIONER_ANCHOR_BOTTOM)) {
 		geometry.y +=
 			positioner->anchor_rect.y + positioner->anchor_rect.height;
 	} else {
@@ -441,26 +474,32 @@ struct wlr_box wlr_xdg_positioner_get_geometry(
 			positioner->anchor_rect.y + positioner->anchor_rect.height / 2;
 	}
 
-	if (positioner->anchor & XDG_POSITIONER_ANCHOR_LEFT) {
+	if (positioner_anchor_has_edge(positioner->anchor,
+			XDG_POSITIONER_ANCHOR_LEFT)) {
 		geometry.x += positioner->anchor_rect.x;
-	} else if (positioner->anchor & XDG_POSITIONER_ANCHOR_RIGHT) {
+	} else if (positioner_anchor_has_edge(positioner->anchor,
+			XDG_POSITIONER_ANCHOR_RIGHT)) {
 		geometry.x += positioner->anchor_rect.x + positioner->anchor_rect.width;
 	} else {
 		geometry.x +=
 			positioner->anchor_rect.x + positioner->anchor_rect.width / 2;
 	}
 
-	if (positioner->gravity & XDG_POSITIONER_GRAVITY_TOP) {
+	if (positioner_gravity_has_edge(positioner->gravity,
+			XDG_POSITIONER_GRAVITY_TOP)) {
 		geometry.y -= geometry.height;
-	} else if (positioner->gravity & XDG_POSITIONER_GRAVITY_BOTTOM) {
+	} else if (positioner_gravity_has_edge(positioner->gravity,
+			XDG_POSITIONER_GRAVITY_BOTTOM)) {
 		geometry.y = geometry.y;
 	} else {
 		geometry.y -= geometry.height / 2;
 	}
 
-	if (positioner->gravity & XDG_POSITIONER_GRAVITY_LEFT) {
+	if (positioner_gravity_has_edge(positioner->gravity,
+			XDG_POSITIONER_GRAVITY_LEFT)) {
 		geometry.x -= geometry.width;
-	} else if (positioner->gravity & XDG_POSITIONER_GRAVITY_RIGHT) {
+	} else if (positioner_gravity_has_edge(positioner->gravity,
+			XDG_POSITIONER_GRAVITY_RIGHT)) {
 		geometry.x = geometry.x;
 	} else {
 		geometry.x -= geometry.width / 2;
@@ -1632,20 +1671,16 @@ void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
 	} else if (anchor == XDG_POSITIONER_ANCHOR_RIGHT) {
 		sx = rect.x + rect.width;
 		sy = (rect.y + rect.height) / 2;
-	} else if (anchor == (XDG_POSITIONER_ANCHOR_TOP |
-				XDG_POSITIONER_ANCHOR_LEFT)) {
+	} else if (anchor == XDG_POSITIONER_ANCHOR_TOP_LEFT) {
 		sx = rect.x;
 		sy = rect.y;
-	} else if (anchor == (XDG_POSITIONER_ANCHOR_TOP |
-				XDG_POSITIONER_ANCHOR_RIGHT)) {
+	} else if (anchor == XDG_POSITIONER_ANCHOR_TOP_RIGHT) {
 		sx = rect.x + rect.width;
 		sy = rect.y;
-	} else if (anchor == (XDG_POSITIONER_ANCHOR_BOTTOM |
-				XDG_POSITIONER_ANCHOR_LEFT)) {
+	} else if (anchor == XDG_POSITIONER_ANCHOR_BOTTOM_LEFT) {
 		sx = rect.x;
 		sy = rect.y + rect.height;
-	} else if (anchor == (XDG_POSITIONER_ANCHOR_BOTTOM |
-				XDG_POSITIONER_ANCHOR_RIGHT)) {
+	} else if (anchor == XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT) {
 		sx = rect.x + rect.width;
 		sy = rect.y + rect.height;
 	}
@@ -1656,20 +1691,17 @@ void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
 
 void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
 		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
-	assert(strcmp(popup->parent->role, wlr_desktop_xdg_toplevel_role) == 0
-			|| strcmp(popup->parent->role, wlr_desktop_xdg_popup_role) == 0);
-	struct wlr_xdg_surface *parent = popup->parent->role_data;
+	struct wlr_xdg_surface *parent =
+		wlr_xdg_surface_from_wlr_surface(popup->parent);
 	while (parent != NULL && parent->role == WLR_XDG_SURFACE_ROLE_POPUP) {
 		popup_sx += parent->popup->geometry.x;
 		popup_sy += parent->popup->geometry.y;
-		parent = parent->popup->parent->role_data;
+		parent = wlr_xdg_surface_from_wlr_surface(parent->popup->parent);
 	}
-
 	assert(parent);
 
 	*toplevel_sx = popup_sx + parent->geometry.x;
 	*toplevel_sy = popup_sy + parent->geometry.y;
-
 }
 
 static void xdg_popup_box_constraints(struct wlr_xdg_popup *popup,
@@ -1837,41 +1869,64 @@ void wlr_xdg_popup_unconstrain_from_box(struct wlr_xdg_popup *popup,
 	}
 }
 
-void wlr_positioner_invert_x(struct wlr_xdg_positioner *positioner) {
-	if (positioner->anchor & XDG_POSITIONER_ANCHOR_LEFT) {
-		positioner->anchor &= ~XDG_POSITIONER_ANCHOR_LEFT;
-		positioner->anchor |= XDG_POSITIONER_ANCHOR_RIGHT;
-	} else if (positioner->anchor & XDG_POSITIONER_ANCHOR_RIGHT) {
-		positioner->anchor &= ~XDG_POSITIONER_ANCHOR_RIGHT;
-		positioner->anchor |= XDG_POSITIONER_ANCHOR_LEFT;
-	}
-
-	if (positioner->gravity & XDG_POSITIONER_GRAVITY_RIGHT) {
-		positioner->gravity &= ~XDG_POSITIONER_GRAVITY_RIGHT;
-		positioner->gravity |= XDG_POSITIONER_GRAVITY_LEFT;
-	} else if (positioner->gravity & XDG_POSITIONER_GRAVITY_LEFT) {
-		positioner->gravity &= ~XDG_POSITIONER_GRAVITY_LEFT;
-		positioner->gravity |= XDG_POSITIONER_GRAVITY_RIGHT;
+static enum xdg_positioner_anchor positioner_anchor_invert_x(
+		enum xdg_positioner_anchor anchor) {
+	switch (anchor) {
+	case XDG_POSITIONER_ANCHOR_LEFT:
+		return XDG_POSITIONER_ANCHOR_RIGHT;
+	case XDG_POSITIONER_ANCHOR_RIGHT:
+		return XDG_POSITIONER_ANCHOR_LEFT;
+	case XDG_POSITIONER_ANCHOR_TOP_LEFT:
+		return XDG_POSITIONER_ANCHOR_TOP_RIGHT;
+	case XDG_POSITIONER_ANCHOR_BOTTOM_LEFT:
+		return XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT;
+	case XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT:
+		return XDG_POSITIONER_ANCHOR_BOTTOM_LEFT;
+	default:
+		return anchor;
 	}
 }
 
-void wlr_positioner_invert_y(
-		struct wlr_xdg_positioner *positioner) {
-	if (positioner->anchor & XDG_POSITIONER_ANCHOR_TOP) {
-		positioner->anchor &= ~XDG_POSITIONER_ANCHOR_TOP;
-		positioner->anchor |= XDG_POSITIONER_ANCHOR_BOTTOM;
-	} else if (positioner->anchor & XDG_POSITIONER_ANCHOR_BOTTOM) {
-		positioner->anchor &= ~XDG_POSITIONER_ANCHOR_BOTTOM;
-		positioner->anchor |= XDG_POSITIONER_ANCHOR_TOP;
-	}
+static enum xdg_positioner_gravity positioner_gravity_invert_x(
+		enum xdg_positioner_gravity gravity) {
+	// gravity and edge enums are the same
+	return (enum xdg_positioner_gravity)positioner_anchor_invert_x(
+		(enum xdg_positioner_anchor)gravity);
+}
 
-	if (positioner->gravity & XDG_POSITIONER_GRAVITY_TOP) {
-		positioner->gravity &= ~XDG_POSITIONER_GRAVITY_TOP;
-		positioner->gravity |= XDG_POSITIONER_GRAVITY_BOTTOM;
-	} else if (positioner->gravity & XDG_POSITIONER_GRAVITY_BOTTOM) {
-		positioner->gravity &= ~XDG_POSITIONER_GRAVITY_BOTTOM;
-		positioner->gravity |= XDG_POSITIONER_GRAVITY_TOP;
+static enum xdg_positioner_anchor positioner_anchor_invert_y(
+		enum xdg_positioner_anchor anchor) {
+	switch (anchor) {
+	case XDG_POSITIONER_ANCHOR_TOP:
+		return XDG_POSITIONER_ANCHOR_BOTTOM;
+	case XDG_POSITIONER_ANCHOR_BOTTOM:
+		return XDG_POSITIONER_ANCHOR_TOP;
+	case XDG_POSITIONER_ANCHOR_TOP_LEFT:
+		return XDG_POSITIONER_ANCHOR_BOTTOM_LEFT;
+	case XDG_POSITIONER_ANCHOR_BOTTOM_LEFT:
+		return XDG_POSITIONER_ANCHOR_TOP_LEFT;
+	case XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT:
+		return XDG_POSITIONER_ANCHOR_TOP_RIGHT;
+	default:
+		return anchor;
 	}
+}
+
+static enum xdg_positioner_gravity positioner_gravity_invert_y(
+		enum xdg_positioner_gravity gravity) {
+	// gravity and edge enums are the same
+	return (enum xdg_positioner_gravity)positioner_anchor_invert_y(
+		(enum xdg_positioner_anchor)gravity);
+}
+
+void wlr_positioner_invert_x(struct wlr_xdg_positioner *positioner) {
+	positioner->anchor = positioner_anchor_invert_x(positioner->anchor);
+	positioner->gravity = positioner_gravity_invert_x(positioner->gravity);
+}
+
+void wlr_positioner_invert_y(struct wlr_xdg_positioner *positioner) {
+	positioner->anchor = positioner_anchor_invert_y(positioner->anchor);
+	positioner->gravity = positioner_gravity_invert_y(positioner->gravity);
 }
 
 struct xdg_surface_iterator_data {
