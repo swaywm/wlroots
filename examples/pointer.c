@@ -60,48 +60,48 @@ struct touch_point {
 };
 
 struct sample_output {
-	struct sample_state *sample;
+	struct sample_state *state;
 	struct wlr_output *output;
 	struct wl_listener frame;
 	struct wl_listener destroy;
 };
 
 struct sample_keyboard {
-	struct sample_state *sample;
+	struct sample_state *state;
 	struct wlr_input_device *device;
 	struct wl_listener key;
 	struct wl_listener destroy;
 };
 
-static void warp_to_touch(struct sample_state *sample,
+static void warp_to_touch(struct sample_state *state,
 		struct wlr_input_device *dev) {
-	if (wl_list_empty(&sample->touch_points)) {
+	if (wl_list_empty(&state->touch_points)) {
 		return;
 	}
 
 	double x = 0, y = 0;
 	size_t n = 0;
 	struct touch_point *point;
-	wl_list_for_each(point, &sample->touch_points, link) {
+	wl_list_for_each(point, &state->touch_points, link) {
 		x += point->x;
 		y += point->y;
 		n++;
 	}
 	x /= n;
 	y /= n;
-	wlr_cursor_warp_absolute(sample->cursor, dev, x, y);
+	wlr_cursor_warp_absolute(state->cursor, dev, x, y);
 }
 
 void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
-	struct sample_state *sample = sample_output->sample;
+	struct sample_state *state = sample_output->state;
 	struct wlr_output *wlr_output = sample_output->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 	assert(renderer);
 
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
-	wlr_renderer_clear(renderer, sample->clear_color);
+	wlr_renderer_clear(renderer, state->clear_color);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 	wlr_renderer_end(renderer);
 }
@@ -224,7 +224,7 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 
 void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-	struct sample_state *sample = keyboard->sample;
+	struct sample_state *sample = keyboard->state;
 	struct wlr_event_keyboard_key *event = data;
 	uint32_t keycode = event->keycode + 8;
 	const xkb_keysym_t *syms;
@@ -240,7 +240,7 @@ void keyboard_key_notify(struct wl_listener *listener, void *data) {
 
 void output_remove_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, destroy);
-	struct sample_state *sample = sample_output->sample;
+	struct sample_state *sample = sample_output->state;
 	wlr_output_layout_remove(sample->layout, sample_output->output);
 	wl_list_remove(&sample_output->frame.link);
 	wl_list_remove(&sample_output->destroy.link);
@@ -256,7 +256,7 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 		wlr_output_set_mode(output, mode);
 	}
 	sample_output->output = output;
-	sample_output->sample = sample;
+	sample_output->state = sample;
 	wl_signal_add(&output->events.frame, &sample_output->frame);
 	sample_output->frame.notify = output_frame_notify;
 	wl_signal_add(&output->events.destroy, &sample_output->destroy);
@@ -278,18 +278,18 @@ void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
 
 void new_input_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
-	struct sample_state *sample = wl_container_of(listener, sample, new_input);
+	struct sample_state *state = wl_container_of(listener, state, new_input);
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_POINTER:
 	case WLR_INPUT_DEVICE_TOUCH:
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		wlr_cursor_attach_input_device(sample->cursor, device);
+		wlr_cursor_attach_input_device(state->cursor, device);
 		break;
 
 	case WLR_INPUT_DEVICE_KEYBOARD:;
 		struct sample_keyboard *keyboard = calloc(1, sizeof(struct sample_keyboard));
 		keyboard->device = device;
-		keyboard->sample = sample;
+		keyboard->state = state;
 		wl_signal_add(&device->events.destroy, &keyboard->destroy);
 		keyboard->destroy.notify = keyboard_destroy_notify;
 		wl_signal_add(&device->keyboard->events.key, &keyboard->key);
