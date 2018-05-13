@@ -243,12 +243,6 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface);
 
 /**
- * Compute the popup position in its parent's surface-local coordinate system.
- */
-void wlr_xdg_surface_v6_popup_get_position(struct wlr_xdg_surface_v6 *surface,
-		double *popup_sx, double *popup_sy);
-
-/**
  * Find a surface within this xdg-surface tree at the given surface-local
  * coordinates. Returns the surface and coordinates in the leaf surface
  * coordinate system or NULL if no surface is found at that location.
