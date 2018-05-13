@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 500
 #include <assert.h>
-#include <GLES2/gl2.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,14 +96,14 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
 	struct sample_state *sample = sample_output->sample;
 	struct wlr_output *wlr_output = sample_output->output;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	assert(renderer);
 
 	wlr_output_make_current(wlr_output, NULL);
-
-	glClearColor(sample->clear_color[0], sample->clear_color[1],
-		sample->clear_color[2], sample->clear_color[3]);
-	glClear(GL_COLOR_BUFFER_BIT);
-
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_clear(renderer, sample->clear_color);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	wlr_renderer_end(renderer);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {
