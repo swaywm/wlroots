@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/drm.h>
+#include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/multi.h>
@@ -101,11 +102,52 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 }
 #endif
 
+static struct wlr_backend *attempt_headless_backend(
+		struct wl_display *display) {
+	struct wlr_backend *backend = wlr_headless_backend_create(display);
+	if (backend == NULL) {
+		return NULL;
+	}
+
+	size_t outputs = parse_outputs_env("WLR_HEADLESS_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
+		wlr_headless_add_output(backend, 1280, 720);
+	}
+
+	return backend;
+}
+
+static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
+		const char *name) {
+	if (strcmp(name, "wayland") == 0) {
+		return attempt_wl_backend(display);
+#ifdef WLR_HAS_X11_BACKEND
+	} else if (strcmp(name, "x11") == 0) {
+		return attempt_x11_backend(display, NULL);
+#endif
+	} else if (strcmp(name, "headless") == 0) {
+		return attempt_headless_backend(display);
+	}
+	return NULL;
+}
+
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	if (!backend) {
 		wlr_log(L_ERROR, "could not allocate multibackend");
 		return NULL;
+	}
+
+	const char *name = getenv("WLR_BACKEND");
+	if (name) {
+		struct wlr_backend *subbackend = attempt_backend_by_name(display, name);
+		if (subbackend) {
+			wlr_multi_backend_add(backend, subbackend);
+			return backend;
+		} else {
+			wlr_log(L_ERROR, "unrecognized backend '%s'", name);
+			return NULL;
+		}
 	}
 
 	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
