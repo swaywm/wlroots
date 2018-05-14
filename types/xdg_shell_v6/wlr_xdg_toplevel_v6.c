@@ -15,9 +15,9 @@ static struct wlr_xdg_surface_v6 *xdg_surface_from_xdg_toplevel_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-void xdg_toplevel_destroy(struct wlr_xdg_surface_v6 *surface) {
+void destroy_xdg_toplevel_v6(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
-	xdg_surface_unmap(surface);
+	unmap_xdg_surface_v6(surface);
 
 	wl_resource_set_user_data(surface->toplevel->resource, NULL);
 	free(surface->toplevel);
@@ -257,7 +257,7 @@ static const struct zxdg_toplevel_v6_interface
 	.set_minimized = xdg_toplevel_handle_set_minimized,
 };
 
-void xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
+void handle_xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	assert(configure->toplevel_state != NULL);
@@ -272,7 +272,7 @@ void xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
 		configure->toplevel_state->activated;
 }
 
-bool xdg_surface_v6_toplevel_state_compare(struct wlr_xdg_toplevel_v6 *state) {
+bool compare_xdg_surface_v6_toplevel_state(struct wlr_xdg_toplevel_v6 *state) {
 	struct {
 		struct wlr_xdg_toplevel_v6_state state;
 		uint32_t width, height;
@@ -321,7 +321,7 @@ bool xdg_surface_v6_toplevel_state_compare(struct wlr_xdg_toplevel_v6 *state) {
 	return false;
 }
 
-void xdg_toplevel_v6_send_configure(struct wlr_xdg_surface_v6 *surface,
+void send_xdg_toplevel_v6_configure(struct wlr_xdg_surface_v6 *surface,
 		struct wlr_xdg_surface_v6_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
@@ -386,13 +386,13 @@ error_out:
 	wl_resource_post_no_memory(surface->toplevel->resource);
 }
 
-void xdg_surface_v6_toplevel_committed(struct wlr_xdg_surface_v6 *surface) {
+void handle_xdg_surface_v6_toplevel_committed(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 
 	if (!surface->toplevel->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
-		xdg_surface_v6_schedule_configure(surface);
+		schedule_xdg_surface_v6_configure(surface);
 		surface->toplevel->added = true;
 		return;
 	}
@@ -412,13 +412,13 @@ static void xdg_toplevel_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_toplevel_resource(resource);
 	if (surface != NULL) {
-		xdg_toplevel_destroy(surface);
+		destroy_xdg_toplevel_v6(surface);
 	}
 }
 
-void xdg_toplevel_v6_create(struct wlr_xdg_surface_v6 *xdg_surface,
+void create_xdg_toplevel_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 		uint32_t id) {
-	if (wlr_surface_set_role(xdg_surface->surface, XDG_TOPLEVEL_ROLE,
+	if (wlr_surface_set_role(xdg_surface->surface, XDG_TOPLEVEL_V6_ROLE,
 			xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
 		return;
 	}
@@ -458,7 +458,7 @@ uint32_t wlr_xdg_toplevel_v6_set_size(struct wlr_xdg_surface_v6 *surface,
 	surface->toplevel->server_pending.width = width;
 	surface->toplevel->server_pending.height = height;
 
-	return xdg_surface_v6_schedule_configure(surface);
+	return schedule_xdg_surface_v6_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
@@ -466,7 +466,7 @@ uint32_t wlr_xdg_toplevel_v6_set_activated(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.activated = activated;
 
-	return xdg_surface_v6_schedule_configure(surface);
+	return schedule_xdg_surface_v6_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
@@ -474,7 +474,7 @@ uint32_t wlr_xdg_toplevel_v6_set_maximized(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.maximized = maximized;
 
-	return xdg_surface_v6_schedule_configure(surface);
+	return schedule_xdg_surface_v6_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
@@ -482,7 +482,7 @@ uint32_t wlr_xdg_toplevel_v6_set_fullscreen(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.fullscreen = fullscreen;
 
-	return xdg_surface_v6_schedule_configure(surface);
+	return schedule_xdg_surface_v6_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
@@ -490,5 +490,5 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.resizing = resizing;
 
-	return xdg_surface_v6_schedule_configure(surface);
+	return schedule_xdg_surface_v6_configure(surface);
 }

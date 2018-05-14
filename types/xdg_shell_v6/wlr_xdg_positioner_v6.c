@@ -5,7 +5,7 @@
 static const struct zxdg_positioner_v6_interface
 	zxdg_positioner_v6_implementation;
 
-struct wlr_xdg_positioner_v6_resource *xdg_positioner_from_resource(
+struct wlr_xdg_positioner_v6_resource *get_xdg_positioner_v6_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zxdg_positioner_v6_interface,
 		&zxdg_positioner_v6_implementation));
@@ -14,7 +14,7 @@ struct wlr_xdg_positioner_v6_resource *xdg_positioner_from_resource(
 
 static void xdg_positioner_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 	free(positioner);
 }
 
@@ -26,7 +26,7 @@ static void xdg_positioner_handle_destroy(struct wl_client *client,
 static void xdg_positioner_handle_set_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(resource,
@@ -43,7 +43,7 @@ static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(resource,
@@ -61,7 +61,7 @@ static void xdg_positioner_handle_set_anchor_rect(struct wl_client *client,
 static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t anchor) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	if (((anchor & ZXDG_POSITIONER_V6_ANCHOR_TOP ) &&
 				(anchor & ZXDG_POSITIONER_V6_ANCHOR_BOTTOM)) ||
@@ -79,7 +79,7 @@ static void xdg_positioner_handle_set_anchor(struct wl_client *client,
 static void xdg_positioner_handle_set_gravity(struct wl_client *client,
 		struct wl_resource *resource, uint32_t gravity) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	if (((gravity & ZXDG_POSITIONER_V6_GRAVITY_TOP) &&
 				(gravity & ZXDG_POSITIONER_V6_GRAVITY_BOTTOM)) ||
@@ -98,7 +98,7 @@ static void xdg_positioner_handle_set_constraint_adjustment(
 		struct wl_client *client, struct wl_resource *resource,
 		uint32_t constraint_adjustment) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	positioner->attrs.constraint_adjustment = constraint_adjustment;
 }
@@ -106,7 +106,7 @@ static void xdg_positioner_handle_set_constraint_adjustment(
 static void xdg_positioner_handle_set_offset(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
-		xdg_positioner_from_resource(resource);
+		get_xdg_positioner_v6_from_resource(resource);
 
 	positioner->attrs.offset.x = x;
 	positioner->attrs.offset.y = y;
@@ -213,7 +213,7 @@ void wlr_positioner_v6_invert_y(
 	}
 }
 
-void xdg_positioner_v6_create(struct wlr_xdg_client_v6 *client, uint32_t id) {
+void create_xdg_positioner_v6(struct wlr_xdg_client_v6 *client, uint32_t id) {
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		calloc(1, sizeof(struct wlr_xdg_positioner_v6_resource));
 	if (positioner == NULL) {

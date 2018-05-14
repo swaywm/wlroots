@@ -107,14 +107,14 @@ static void xdg_popup_grab_handle_seat_destroy(
 
 	struct wlr_xdg_popup_v6 *popup, *next;
 	wl_list_for_each_safe(popup, next, &xdg_grab->popups, grab_link) {
-		xdg_surface_destroy(popup->base);
+		destroy_xdg_surface_v6(popup->base);
 	}
 
 	wl_list_remove(&xdg_grab->link);
 	free(xdg_grab);
 }
 
-struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
+struct wlr_xdg_popup_grab_v6 *get_xdg_shell_v6_popup_grab_from_seat(
 		struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat) {
 	struct wlr_xdg_popup_grab_v6 *xdg_grab;
 	wl_list_for_each(xdg_grab, &shell->popup_grabs, link) {
@@ -154,9 +154,9 @@ static struct wlr_xdg_surface_v6 *xdg_surface_from_xdg_popup_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-void xdg_popup_destroy(struct wlr_xdg_surface_v6 *surface) {
+void destroy_xdg_popup_v6(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
-	xdg_surface_unmap(surface);
+	unmap_xdg_surface_v6(surface);
 
 	wl_resource_set_user_data(surface->popup->resource, NULL);
 	wl_list_remove(&surface->popup->link);
@@ -182,7 +182,7 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 	}
 
 	struct wlr_xdg_popup_grab_v6 *popup_grab =
-		xdg_shell_popup_grab_from_seat(surface->client->shell,
+		get_xdg_shell_v6_popup_grab_from_seat(surface->client->shell,
 			seat_client->seat);
 
 	struct wlr_xdg_surface_v6 *topmost = xdg_popup_grab_get_topmost(popup_grab);
@@ -232,20 +232,20 @@ static void xdg_popup_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
 	if (surface != NULL) {
-		xdg_popup_destroy(surface);
+		destroy_xdg_popup_v6(surface);
 	}
 }
 
-void xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface) {
+void handle_xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface) {
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_POPUP);
 
 	if (!surface->popup->committed) {
-		xdg_surface_v6_schedule_configure(surface);
+		schedule_xdg_surface_v6_configure(surface);
 		surface->popup->committed = true;
 	}
 }
 
-void xdg_popup_v6_create(struct wlr_xdg_surface_v6 *xdg_surface,
+void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 		struct wlr_xdg_surface_v6 *parent,
 		struct wlr_xdg_positioner_v6_resource *positioner, int32_t id) {
 	if (positioner->attrs.size.width == 0 ||
@@ -256,7 +256,7 @@ void xdg_popup_v6_create(struct wlr_xdg_surface_v6 *xdg_surface,
 		return;
 	}
 
-	if (wlr_surface_set_role(xdg_surface->surface, XDG_POPUP_ROLE,
+	if (wlr_surface_set_role(xdg_surface->surface, XDG_POPUP_V6_ROLE,
 			xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
 		return;
 	}

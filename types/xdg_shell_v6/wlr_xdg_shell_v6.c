@@ -18,7 +18,7 @@ static void xdg_shell_handle_create_positioner(struct wl_client *wl_client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_xdg_client_v6 *client =
 		xdg_client_from_resource(resource);
-	xdg_positioner_v6_create(client, id);
+	create_xdg_positioner_v6(client, id);
 }
 
 static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
@@ -27,7 +27,7 @@ static void xdg_shell_handle_get_xdg_surface(struct wl_client *wl_client,
 	struct wlr_xdg_client_v6 *client =
 		xdg_client_from_resource(client_resource);
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
-	xdg_surface_v6_create(client, surface, id);
+	create_xdg_surface_v6(client, surface, id);
 }
 
 static void xdg_shell_handle_pong(struct wl_client *wl_client,

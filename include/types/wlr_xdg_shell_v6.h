@@ -10,36 +10,36 @@ struct wlr_xdg_positioner_v6_resource {
 	struct wlr_xdg_positioner_v6 attrs;
 };
 
-#define XDG_TOPLEVEL_ROLE "xdg_toplevel_v6"
-#define XDG_POPUP_ROLE "xdg_popup_v6"
+#define XDG_TOPLEVEL_V6_ROLE "xdg_toplevel_v6"
+#define XDG_POPUP_V6_ROLE "xdg_popup_v6"
 
-uint32_t xdg_surface_v6_schedule_configure(struct wlr_xdg_surface_v6 *surface);
-struct wlr_xdg_surface_v6 *xdg_surface_v6_create(
+uint32_t schedule_xdg_surface_v6_configure(struct wlr_xdg_surface_v6 *surface);
+struct wlr_xdg_surface_v6 *create_xdg_surface_v6(
 	struct wlr_xdg_client_v6 *client, struct wlr_surface *surface,
 	uint32_t id);
-void xdg_surface_unmap(struct wlr_xdg_surface_v6 *surface);
-void xdg_surface_destroy(struct wlr_xdg_surface_v6 *surface);
+void unmap_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface);
+void destroy_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface);
 
-void xdg_positioner_v6_create(struct wlr_xdg_client_v6 *client, uint32_t id);
-struct wlr_xdg_positioner_v6_resource *xdg_positioner_from_resource(
+void create_xdg_positioner_v6(struct wlr_xdg_client_v6 *client, uint32_t id);
+struct wlr_xdg_positioner_v6_resource *get_xdg_positioner_v6_from_resource(
 	struct wl_resource *resource);
 
-void xdg_popup_v6_create(struct wlr_xdg_surface_v6 *xdg_surface,
+void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 	struct wlr_xdg_surface_v6 *parent,
 	struct wlr_xdg_positioner_v6_resource *positioner, int32_t id);
-void xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface);
-struct wlr_xdg_popup_grab_v6 *xdg_shell_popup_grab_from_seat(
+void handle_xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface);
+struct wlr_xdg_popup_grab_v6 *get_xdg_shell_v6_popup_grab_from_seat(
 	struct wlr_xdg_shell_v6 *shell, struct wlr_seat *seat);
-void xdg_popup_destroy(struct wlr_xdg_surface_v6 *surface);
+void destroy_xdg_popup_v6(struct wlr_xdg_surface_v6 *surface);
 
-void xdg_toplevel_v6_create(struct wlr_xdg_surface_v6 *xdg_surface,
+void create_xdg_toplevel_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 	uint32_t id);
-void xdg_surface_v6_toplevel_committed(struct wlr_xdg_surface_v6 *surface);
-void xdg_toplevel_v6_send_configure(struct wlr_xdg_surface_v6 *surface,
+void handle_xdg_surface_v6_toplevel_committed(struct wlr_xdg_surface_v6 *surface);
+void send_xdg_toplevel_v6_configure(struct wlr_xdg_surface_v6 *surface,
 	struct wlr_xdg_surface_v6_configure *configure);
-void xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
+void handle_xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
 	struct wlr_xdg_surface_v6_configure *configure);
-bool xdg_surface_v6_toplevel_state_compare(struct wlr_xdg_toplevel_v6 *state);
-void xdg_toplevel_destroy(struct wlr_xdg_surface_v6 *surface);
+bool compare_xdg_surface_v6_toplevel_state(struct wlr_xdg_toplevel_v6 *state);
+void destroy_xdg_toplevel_v6(struct wlr_xdg_surface_v6 *surface);
 
 #endif
