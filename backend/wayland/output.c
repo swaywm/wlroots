@@ -284,8 +284,12 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 		goto error;
 	}
 
+	char title[32];
+	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
+		zxdg_toplevel_v6_set_title(output->xdg_toplevel, title);
+	}
+
 	zxdg_toplevel_v6_set_app_id(output->xdg_toplevel, "wlroots");
-	zxdg_toplevel_v6_set_title(output->xdg_toplevel, "wlroots");
 	zxdg_surface_v6_add_listener(output->xdg_surface,
 			&xdg_surface_listener, output);
 	zxdg_toplevel_v6_add_listener(output->xdg_toplevel,
