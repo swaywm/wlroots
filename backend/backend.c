@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <errno.h>
 #include <libinput.h>
@@ -138,16 +139,32 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		return NULL;
 	}
 
-	const char *name = getenv("WLR_BACKEND");
-	if (name) {
-		struct wlr_backend *subbackend = attempt_backend_by_name(display, name);
-		if (subbackend) {
-			wlr_multi_backend_add(backend, subbackend);
-			return backend;
-		} else {
-			wlr_log(L_ERROR, "unrecognized backend '%s'", name);
+	char *names = getenv("WLR_BACKENDS");
+	if (names) {
+		names = strdup(names);
+		if (names == NULL) {
+			wlr_log(L_ERROR, "allocation failed");
 			return NULL;
 		}
+
+		char *saveptr;
+		char *name = strtok_r(names, ",", &saveptr);
+		while (name != NULL) {
+			struct wlr_backend *subbackend =
+				attempt_backend_by_name(display, name);
+			if (subbackend == NULL) {
+				wlr_log(L_ERROR, "unrecognized backend '%s'", name);
+				return NULL;
+			}
+
+			if (!wlr_multi_backend_add(backend, subbackend)) {
+				return NULL;
+			}
+
+			name = strtok_r(NULL, ",", &saveptr);
+		}
+
+		return backend;
 	}
 
 	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
