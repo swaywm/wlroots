@@ -13,18 +13,6 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-//TODO: Move out
-static void add_tablet_path(struct wl_list *list, const char *path) {
-	struct wlr_tablet_path *tablet_path = calloc(1, sizeof(struct wlr_tablet_path));
-
-	if (!tablet_path) {
-		return;
-	}
-
-	tablet_path->path = strdup(path);
-	wl_list_insert(list, &tablet_path->link);
-}
-
 struct wlr_libinput_tablet_tool {
 	struct wlr_tablet_tool_tool wlr_tool;
 
@@ -91,9 +79,9 @@ struct wlr_tablet_tool *create_libinput_tablet_tool(
 	}
 	struct wlr_tablet_tool *wlr_tablet_tool = &libinput_tablet_tool->wlr_tool;
 
-	wl_list_init(&wlr_tablet_tool->paths);
+	wlr_list_init(&wlr_tablet_tool->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
-	add_tablet_path(&wlr_tablet_tool->paths, udev_device_get_syspath(udev));
+	wlr_list_push(&wlr_tablet_tool->paths, strdup(udev_device_get_syspath(udev)));
 	wlr_tablet_tool->name = strdup(libinput_device_get_name(libinput_dev));
 	wl_list_init(&libinput_tablet_tool->tools);
 

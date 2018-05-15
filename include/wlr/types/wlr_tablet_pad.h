@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_list.h>
 
 /*
  * NOTE: the wlr tablet pad implementation does not currently support tablets
@@ -28,7 +29,7 @@ struct wlr_tablet_pad {
 	size_t strip_count;
 
 	struct wl_list groups; // wlr_tablet_pad_group::link
-	struct wl_list paths; // wlr_tablet_path::link
+	struct wlr_list paths; // char *
 
 	void *data;
 };

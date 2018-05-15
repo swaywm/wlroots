@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_list.h>
 
 /*
  * Copy+Paste from libinput, but this should neither use libinput, nor
@@ -42,11 +43,6 @@ struct wlr_tablet_tool_tool {
 
 struct wlr_tablet_tool_impl;
 
-struct wlr_tablet_path {
-	struct wl_list link;
-	char *path;
-};
-
 struct wlr_tablet_tool {
 	struct wlr_tablet_tool_impl *impl;
 
@@ -58,7 +54,7 @@ struct wlr_tablet_tool {
 	} events;
 
 	const char *name;
-	struct wl_list paths; // wlr_table_path::link
+	struct wlr_list paths; // char *
 
 	void *data;
 };

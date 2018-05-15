@@ -14,7 +14,14 @@ void wlr_tablet_pad_init(struct wlr_tablet_pad *pad,
 }
 
 void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
-	if (pad && pad->impl && pad->impl->destroy) {
+	if (!pad) {
+		return;
+	}
+
+	wlr_list_for_each(&pad->paths, free);
+	wlr_list_finish(&pad->paths);
+
+	if (pad->impl && pad->impl->destroy) {
 		pad->impl->destroy(pad);
 	} else {
 		free(pad);

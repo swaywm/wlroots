@@ -12,23 +12,6 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-//TODO: Move out
-static void add_tablet_path(struct wl_list *list, const char *path) {
-	struct wlr_tablet_path *tablet_path = calloc(1, sizeof(struct wlr_tablet_path));
-
-	if (!tablet_path) {
-		return;
-	}
-
-	tablet_path->path = strdup(path);
-	if (!tablet_path->path) {
-		free(tablet_path);
-		return;
-	}
-
-	wl_list_insert(list, &tablet_path->link);
-}
-
 // FIXME: Decide on how to alloc/count here
 static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 		struct libinput_device *device, unsigned int index) {
@@ -99,9 +82,9 @@ struct wlr_tablet_pad *create_libinput_tablet_pad(
 	wlr_tablet_pad->strip_count =
 		libinput_device_tablet_pad_get_num_strips(libinput_dev);
 
-	wl_list_init(&wlr_tablet_pad->paths);
+	wlr_list_init(&wlr_tablet_pad->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
-	add_tablet_path(&wlr_tablet_pad->paths, udev_device_get_syspath(udev));
+	wlr_list_push(&wlr_tablet_pad->paths, strdup(udev_device_get_syspath(udev)));
 
 	wl_list_init(&wlr_tablet_pad->groups);
 	int groups = libinput_device_tablet_pad_get_num_mode_groups(libinput_dev);

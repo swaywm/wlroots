@@ -234,9 +234,9 @@ static void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat,
 	}
 	zwp_tablet_v2_send_id(client->resource,
 		tablet->wlr_device->vendor, tablet->wlr_device->product);
-	struct wlr_tablet_path *path;
-	wl_list_for_each(path, &tablet->wlr_tool->paths, link) {
-		zwp_tablet_v2_send_path(client->resource, path->path);
+	for (size_t i = 0; i < tablet->wlr_tool->paths.length; ++i) {
+		zwp_tablet_v2_send_path(client->resource,
+			tablet->wlr_tool->paths.items[i]);
 	}
 	zwp_tablet_v2_send_done(client->resource);
 
@@ -546,6 +546,7 @@ static void destroy_tablet_pad_ring_v2(struct wl_resource *resource) {
 
 	aux->pad->rings[aux->index] = NULL;
 	free(aux);
+	wl_resource_set_user_data(resource, NULL);
 }
 static void handle_tablet_pad_ring_v2_set_feedback(struct wl_client *client,
 		struct wl_resource *resource, const char *description,
@@ -582,6 +583,7 @@ static void destroy_tablet_pad_strip_v2(struct wl_resource *resource) {
 
 	aux->pad->strips[aux->index] = NULL;
 	free(aux);
+	wl_resource_set_user_data(resource, NULL);
 }
 
 static void handle_tablet_pad_strip_v2_set_feedback(struct wl_client *client,
@@ -631,14 +633,15 @@ static struct zwp_tablet_pad_v2_interface tablet_pad_impl = {
 };
 
 static void destroy_tablet_pad_group_v2(struct wl_resource *resource) {
-	struct wlr_tablet_pad_client_v2 *client = wl_resource_get_user_data(resource);
+	struct tablet_pad_auxiliary_user_data *aux = wl_resource_get_user_data(resource);
 
-	for (size_t i = 0; i < client->group_count; ++i) {
-		if (client->groups[i] == resource) {
-			client->groups[i] = NULL;
-			return;
-		}
+	if (!aux) {
+		return;
 	}
+
+	aux->pad->groups[aux->index] = NULL;
+	free(aux);
+	wl_resource_set_user_data(resource, NULL);
 }
 
 static void handle_tablet_pad_group_v2_destroy(struct wl_client *client,
@@ -659,8 +662,15 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		wl_client_post_no_memory(client->client);
 		return;
 	}
+	struct tablet_pad_auxiliary_user_data *user_data =
+		calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
+	if (!user_data) {
+		return;
+	}
+	user_data->pad = client;
+	user_data->index = index;
 	wl_resource_set_implementation(client->groups[index], &tablet_pad_group_impl,
-		client, destroy_tablet_pad_group_v2);
+		user_data, destroy_tablet_pad_group_v2);
 
 	zwp_tablet_pad_v2_send_group(client->resource, client->groups[index]);
 	zwp_tablet_pad_group_v2_send_modes(client->groups[index], group->mode_count);
@@ -762,9 +772,9 @@ static void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 	if (pad->wlr_pad->button_count) {
 		zwp_tablet_pad_v2_send_buttons(client->resource, pad->wlr_pad->button_count);
 	}
-	struct wlr_tablet_path *path;
-	wl_list_for_each(path, &pad->wlr_pad->paths, link) {
-		zwp_tablet_pad_v2_send_path(client->resource, path->path);
+	for (size_t i = 0; i < pad->wlr_pad->paths.length; ++i) {
+		zwp_tablet_pad_v2_send_path(client->resource,
+			pad->wlr_pad->paths.items[i]);
 	}
 	size_t i = 0;
 	struct wlr_tablet_pad_group *group;
@@ -786,6 +796,18 @@ static void handle_wlr_tablet_pad_destroy(struct wl_listener *listener, void *da
 	wl_list_for_each_safe(pos, tmp, &pad->clients, pad_link) {
 		// XXX: Add a timer/flag to destroy if client is slow?
 		zwp_tablet_pad_v2_send_removed(pos->resource);
+
+		for (size_t i = 0; i < pos->group_count; ++i) {
+			destroy_tablet_pad_group_v2(pos->groups[i]);
+		}
+
+		for (size_t i = 0; i < pos->strip_count; ++i) {
+			destroy_tablet_pad_strip_v2(pos->strips[i]);
+		}
+
+		for (size_t i = 0; i < pos->ring_count; ++i) {
+			destroy_tablet_pad_ring_v2(pos->rings[i]);
+		}
 	}
 
 	wl_list_remove(&pad->clients);
