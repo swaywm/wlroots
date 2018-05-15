@@ -13,7 +13,7 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display);
  * Adds the given backend to the multi backend. This should be done before the
  * new backend is started.
  */
-void wlr_multi_backend_add(struct wlr_backend *multi,
+bool wlr_multi_backend_add(struct wlr_backend *multi,
 	struct wlr_backend *backend);
 
 void wlr_multi_backend_remove(struct wlr_backend *multi,
