@@ -148,7 +148,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
 
 	if (!roots_tool) { // Should this be an assert?
-		wlr_log(L_DEBUG, "Tool Axis, before proximity");
+		wlr_log(WLR_DEBUG, "Tool Axis, before proximity");
 		return;
 	}
 
@@ -217,7 +217,8 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 		roots_tool->seat = cursor->seat;
 		tool->data = roots_tool;
 		roots_tool->tablet_v2_tool =
-			wlr_make_tablet_tool(desktop->tablet_v2, cursor->seat->seat, tool);
+			wlr_tablet_tool_create(desktop->tablet_v2,
+				cursor->seat->seat, tool);
 		roots_tool->tool_destroy.notify = handle_tablet_tool_tool_destroy;
 		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
 		wl_list_init(&roots_tool->link);
@@ -683,7 +684,7 @@ static void handle_pad_tool_destroy(struct wl_listener *listener, void *data) {
 
 static void attach_tablet_pad(struct roots_tablet_pad *pad,
 		struct roots_tablet_tool *tool) {
-	wlr_log(L_DEBUG, "Attaching tablet pad \"%s\" to tablet tool \"%s\"",
+	wlr_log(WLR_DEBUG, "Attaching tablet pad \"%s\" to tablet tool \"%s\"",
 		pad->device->name, tool->device->name);
 
 	pad->tablet = tool;
@@ -742,7 +743,7 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 	struct roots_tablet_pad *tablet_pad =
 		calloc(sizeof(struct roots_tablet_pad), 1);
 	if (!tablet_pad) {
-		wlr_log(L_ERROR, "could not allocate tablet_pad for seat");
+		wlr_log(WLR_ERROR, "could not allocate tablet_pad for seat");
 		return;
 	}
 
@@ -772,7 +773,7 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	tablet_pad->tablet_v2_pad =
-		wlr_make_tablet_pad(desktop->tablet_v2, seat->seat, device);
+		wlr_tablet_pad_create(desktop->tablet_v2, seat->seat, device);
 
 	/* Search for a sibling tablet */
 	if (!wlr_input_device_is_libinput(device)) {
@@ -837,7 +838,7 @@ static void seat_add_tablet_tool(struct roots_seat *seat,
 	struct roots_desktop *desktop = seat->input->server->desktop;
 
 	tablet_tool->tablet_v2 =
-		wlr_make_tablet(desktop->tablet_v2, seat->seat, device);
+		wlr_tablet_create(desktop->tablet_v2, seat->seat, device);
 
 	struct libinput_device_group *group =
 		libinput_device_get_device_group(wlr_libinput_get_device_handle(device));

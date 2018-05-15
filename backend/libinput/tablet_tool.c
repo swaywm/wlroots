@@ -79,11 +79,11 @@ struct wlr_tablet_tool *create_libinput_tablet_tool(
 	assert(libinput_dev);
 	struct wlr_libinput_tablet *libinput_tablet_tool =
 		calloc(1, sizeof(struct wlr_libinput_tablet));
-	struct wlr_tablet_tool *wlr_tablet_tool = &libinput_tablet_tool->wlr_tool;
-	if (!wlr_tablet_tool) {
+	if (!libinput_tablet_tool) {
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
 		return NULL;
 	}
+	struct wlr_tablet_tool *wlr_tablet_tool = &libinput_tablet_tool->wlr_tool;
 
 	wl_list_init(&wlr_tablet_tool->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);

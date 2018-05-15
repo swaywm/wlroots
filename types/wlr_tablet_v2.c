@@ -2,18 +2,16 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include <wlr/types/wlr_tablet_v2.h>
-
-#include <wlr/util/log.h>
 #include <assert.h>
 #include <libinput.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_tablet_tool.h>
-
+#include <wlr/types/wlr_tablet_v2.h>
+#include <wlr/util/log.h>
 #include "tablet-unstable-v2-protocol.h"
 
 struct wlr_tablet_seat_v2 {
@@ -68,6 +66,7 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_list tool_link;
 	struct wl_client *client;
 	struct wl_resource *resource;
+	struct wlr_tablet_v2_tablet_tool *tool;
 
 	uint32_t proximity_serial;
 
@@ -79,6 +78,7 @@ struct wlr_tablet_pad_client_v2 {
 	struct wl_list pad_link;
 	struct wl_client *client;
 	struct wl_resource *resource;
+	struct wlr_tablet_v2_tablet_pad *pad;
 
 	uint32_t enter_serial;
 	uint32_t mode_serial;
@@ -94,6 +94,11 @@ struct wlr_tablet_pad_client_v2 {
 
 	size_t strip_count;
 	struct wl_resource **strips;
+};
+
+struct tablet_pad_auxiliary_user_data {
+	struct wlr_tablet_pad_client_v2 *pad;
+	size_t index;
 };
 
 static struct zwp_tablet_v2_interface tablet_impl;
@@ -257,12 +262,35 @@ static void handle_wlr_tablet_destroy(struct wl_listener *listener, void *data) 
 	free(tablet);
 }
 
+static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
+		struct wl_resource *resource,
+		uint32_t serial,
+		struct wl_resource *surface_resource,
+		int32_t hotspot_x,
+		int32_t hotspot_y) {
+	struct wlr_tablet_tool_client_v2 *tool = wl_resource_get_user_data(resource);
+	if (!tool) {
+		return;
+	}
+
+	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
+
+	struct wlr_tablet_v2_event_cursor evt = {
+		.surface = surface,
+		.serial = serial,
+		.hotspot_x = hotspot_x,
+		.hotspot_y = hotspot_y,
+		};
+
+	wl_signal_emit(&tool->tool->events.set_cursor, &evt);
+}
+
 static void handle_tablet_tool_v2_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 static struct zwp_tablet_tool_v2_interface tablet_tool_impl = {
-	.set_cursor = NULL,
+	.set_cursor = handle_tablet_tool_v2_set_cursor,
 	.destroy = handle_tablet_tool_v2_destroy,
 };
 
@@ -308,6 +336,7 @@ static void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 	if (!client) {
 		return;
 	}
+	client->tool = tool;
 
 	client->resource =
 		wl_resource_create(seat->wl_client, &zwp_tablet_tool_v2_interface, 1, 0);
@@ -372,7 +401,7 @@ static void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 	wl_list_insert(&tool->clients, &client->tool_link);
 }
 
-struct wlr_tablet_v2_tablet *wlr_make_tablet(
+struct wlr_tablet_v2_tablet *wlr_tablet_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_input_device *wlr_device) {
@@ -420,10 +449,11 @@ static void handle_wlr_tablet_tool_destroy(struct wl_listener *listener, void *d
 	wl_list_remove(&tool->clients);
 	wl_list_remove(&tool->link);
 	wl_list_remove(&tool->tool_destroy.link);
+	wl_list_remove(&tool->events.set_cursor.listener_list);
 	free(tool);
 }
 
-struct wlr_tablet_v2_tablet_tool *wlr_make_tablet_tool(
+struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_tablet_tool_tool *wlr_tool) {
@@ -451,6 +481,8 @@ struct wlr_tablet_v2_tablet_tool *wlr_make_tablet_tool(
 		// Tell the clients about the new tool
 		add_tablet_tool_client(pos, tool);
 	}
+
+	wl_signal_init(&tool->events.set_cursor);
 
 	return tool;
 }
@@ -506,14 +538,30 @@ static void handle_tablet_pad_v2_destroy(struct wl_client *client,
 }
 
 static void destroy_tablet_pad_ring_v2(struct wl_resource *resource) {
-	struct wlr_tablet_pad_client_v2 *client = wl_resource_get_user_data(resource);
+	struct tablet_pad_auxiliary_user_data *aux = wl_resource_get_user_data(resource);
 
-	for (size_t i = 0; i < client->ring_count; ++i) {
-		if (client->rings[i] == resource) {
-			client->rings[i] = NULL;
-			return;
-		}
+	if (!aux) {
+		return;
 	}
+
+	aux->pad->rings[aux->index] = NULL;
+	free(aux);
+}
+static void handle_tablet_pad_ring_v2_set_feedback(struct wl_client *client,
+		struct wl_resource *resource, const char *description,
+		uint32_t serial) {
+	struct tablet_pad_auxiliary_user_data *aux = wl_resource_get_user_data(resource);
+	if (!aux) {
+		return;
+	}
+
+	struct wlr_tablet_v2_event_feedback evt = {
+		.serial = serial,
+		.description = description,
+		.index = aux->index
+		};
+
+	wl_signal_emit(&aux->pad->pad->events.ring_feedback, &evt);
 }
 
 static void handle_tablet_pad_ring_v2_destroy(struct wl_client *client,
@@ -522,19 +570,35 @@ static void handle_tablet_pad_ring_v2_destroy(struct wl_client *client,
 }
 
 static struct zwp_tablet_pad_ring_v2_interface tablet_pad_ring_impl = {
-	.set_feedback = NULL,
+	.set_feedback = handle_tablet_pad_ring_v2_set_feedback,
 	.destroy = handle_tablet_pad_ring_v2_destroy,
 };
 
 static void destroy_tablet_pad_strip_v2(struct wl_resource *resource) {
-	struct wlr_tablet_pad_client_v2 *client = wl_resource_get_user_data(resource);
-
-	for (size_t i = 0; i < client->strip_count; ++i) {
-		if (client->strips[i] == resource) {
-			client->strips[i] = NULL;
-			return;
-		}
+	struct tablet_pad_auxiliary_user_data *aux = wl_resource_get_user_data(resource);
+	if (!aux) {
+		return;
 	}
+
+	aux->pad->strips[aux->index] = NULL;
+	free(aux);
+}
+
+static void handle_tablet_pad_strip_v2_set_feedback(struct wl_client *client,
+		struct wl_resource *resource, const char *description,
+		uint32_t serial) {
+	struct tablet_pad_auxiliary_user_data *aux = wl_resource_get_user_data(resource);
+	if (!aux) {
+		return;
+	}
+
+	struct wlr_tablet_v2_event_feedback evt = {
+		.serial = serial,
+		.description = description,
+		.index = aux->index
+		};
+
+	wl_signal_emit(&aux->pad->pad->events.strip_feedback, &evt);
 }
 
 static void handle_tablet_pad_strip_v2_destroy(struct wl_client *client,
@@ -543,12 +607,26 @@ static void handle_tablet_pad_strip_v2_destroy(struct wl_client *client,
 }
 
 static struct zwp_tablet_pad_strip_v2_interface tablet_pad_strip_impl = {
-	.set_feedback = NULL,
+	.set_feedback = handle_tablet_pad_strip_v2_set_feedback,
 	.destroy = handle_tablet_pad_strip_v2_destroy,
 };
 
+static void handle_tablet_pad_v2_set_feedback( struct wl_client *client,
+		struct wl_resource *resource, uint32_t button,
+		const char *description, uint32_t serial) {
+	struct wlr_tablet_v2_tablet_pad *pad = wl_resource_get_user_data(resource);
+
+	struct wlr_tablet_v2_event_feedback evt = {
+		.serial = serial,
+		.index = button,
+		.description = description,
+		};
+
+	wl_signal_emit(&pad->events.button_feedback, &evt);
+}
+
 static struct zwp_tablet_pad_v2_interface tablet_pad_impl = {
-	.set_feedback = NULL,
+	.set_feedback = handle_tablet_pad_v2_set_feedback,
 	.destroy = handle_tablet_pad_v2_destroy,
 };
 
@@ -597,22 +675,34 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 	client->strip_count = group->strip_count;
 	for (size_t i = 0; i < group->strip_count; ++i) {
 		size_t strip = group->strips[i];
+		struct tablet_pad_auxiliary_user_data *user_data =
+			calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
+		if (!user_data) {
+			continue;
+		}
+		user_data->pad = client;
+		user_data->index = strip;
 		client->strips[strip] =
 			wl_resource_create(client->client, &zwp_tablet_pad_strip_v2_interface, 1, 0);
 		wl_resource_set_implementation(client->strips[strip],
-			&tablet_pad_strip_impl,
-			client, destroy_tablet_pad_strip_v2);
+			&tablet_pad_strip_impl, user_data, destroy_tablet_pad_strip_v2);
 		zwp_tablet_pad_group_v2_send_strip(client->groups[index], client->strips[strip]);
 	}
 
 	client->ring_count = group->ring_count;
 	for (size_t i = 0; i < group->ring_count; ++i) {
 		size_t ring = group->rings[i];
+		struct tablet_pad_auxiliary_user_data *user_data =
+			calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
+		if (!user_data) {
+			continue;
+		}
+		user_data->pad = client;
+		user_data->index = ring;
 		client->rings[ring] =
 			wl_resource_create(client->client, &zwp_tablet_pad_ring_v2_interface, 1, 0);
 		wl_resource_set_implementation(client->rings[ring],
-			&tablet_pad_ring_impl,
-			client, destroy_tablet_pad_ring_v2);
+			&tablet_pad_ring_impl, user_data, destroy_tablet_pad_ring_v2);
 		zwp_tablet_pad_group_v2_send_ring(client->groups[index], client->rings[ring]);
 	}
 
@@ -627,6 +717,7 @@ static void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 		wl_client_post_no_memory(seat->wl_client);
 		return;
 	}
+	client->pad = pad;
 
 	client->groups = calloc(sizeof(int), wl_list_length(&pad->wlr_pad->groups));
 	if (!client->groups) {
@@ -700,10 +791,13 @@ static void handle_wlr_tablet_pad_destroy(struct wl_listener *listener, void *da
 	wl_list_remove(&pad->clients);
 	wl_list_remove(&pad->link);
 	wl_list_remove(&pad->pad_destroy.link);
+	wl_list_remove(&pad->events.button_feedback.listener_list);
+	wl_list_remove(&pad->events.strip_feedback.listener_list);
+	wl_list_remove(&pad->events.ring_feedback.listener_list);
 	free(pad);
 }
 
-struct wlr_tablet_v2_tablet_pad *wlr_make_tablet_pad(
+struct wlr_tablet_v2_tablet_pad *wlr_tablet_pad_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_input_device *wlr_device) {
@@ -738,6 +832,10 @@ struct wlr_tablet_v2_tablet_pad *wlr_make_tablet_pad(
 		// Tell the clients about the new tool
 		add_tablet_pad_client(pos, pad);
 	}
+
+	wl_signal_init(&pad->events.button_feedback);
+	wl_signal_init(&pad->events.strip_feedback);
+	wl_signal_init(&pad->events.ring_feedback);
 
 	return pad;
 }

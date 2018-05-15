@@ -21,7 +21,11 @@ static void add_tablet_path(struct wl_list *list, const char *path) {
 	}
 
 	tablet_path->path = strdup(path);
-	assert(tablet_path->path);
+	if (!tablet_path->path) {
+		free(tablet_path);
+		return;
+	}
+
 	wl_list_insert(list, &tablet_path->link);
 }
 

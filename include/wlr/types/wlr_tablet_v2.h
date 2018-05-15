@@ -50,6 +50,10 @@ struct wlr_tablet_v2_tablet_tool {
 	uint32_t button_serial;
 	size_t num_buttons;
 	uint32_t pressed_buttons[WLR_TABLEt_V2_TOOL_BUTTONS_CAP];
+
+	struct {
+		struct wl_signal set_cursor; // struct wlr_tablet_v2_event_cursor
+	} events;
 };
 
 struct wlr_tablet_v2_tablet_pad {
@@ -64,19 +68,38 @@ struct wlr_tablet_v2_tablet_pad {
 	struct wl_listener pad_destroy;
 
 	struct wlr_tablet_pad_client_v2 *current_client;
+
+	struct {
+		struct wl_signal button_feedback; // struct wlr_tablet_v2_event_feedback
+		struct wl_signal strip_feedback; // struct wlr_tablet_v2_event_feedback
+		struct wl_signal ring_feedback; // struct wlr_tablet_v2_event_feedback
+	} events;
 };
 
-struct wlr_tablet_v2_tablet *wlr_make_tablet(
+struct wlr_tablet_v2_event_cursor {
+	struct wlr_surface *surface;
+	uint32_t serial;
+	int32_t hotspot_x;
+	int32_t hotspot_y;
+};
+
+struct wlr_tablet_v2_event_feedback {
+	const char *description;
+	size_t index;
+	uint32_t serial;
+};
+
+struct wlr_tablet_v2_tablet *wlr_tablet_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_input_device *wlr_device);
 
-struct wlr_tablet_v2_tablet_pad *wlr_make_tablet_pad(
+struct wlr_tablet_v2_tablet_pad *wlr_tablet_pad_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_input_device *wlr_device);
 
-struct wlr_tablet_v2_tablet_tool *wlr_make_tablet_tool(
+struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_tablet_tool_tool *wlr_tool);
