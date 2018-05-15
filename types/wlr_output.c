@@ -706,11 +706,11 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
 	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
-		if (hwcur != cursor) {
-			assert(cursor->output->impl->move_cursor);
-			cursor->output->impl->move_cursor(cursor->output,
-				(int)cursor->x, (int)cursor->y);
-		}
+		// If the cursor was hidden or was a software cursor, the hardware
+		// cursor position is outdated
+		assert(cursor->output->impl->move_cursor);
+		cursor->output->impl->move_cursor(cursor->output,
+			(int)cursor->x, (int)cursor->y);
 		if (cursor->output->impl->set_cursor(cursor->output, texture,
 				scale, transform, cursor->hotspot_x, cursor->hotspot_y, true)) {
 			cursor->output->hardware_cursor = cursor;
