@@ -57,9 +57,9 @@ static void destroy_tool_tool(struct wlr_libinput_tablet_tool *tool) {
 }
 
 
-void wlr_libinput_tablet_tool_destroy(struct wlr_input_device *wlr_dev) {
+static void libinput_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
 	struct wlr_libinput_tablet *tablet =
-		wl_container_of(wlr_dev->tablet_tool, tablet, wlr_tool);
+		wl_container_of(tool, tablet, wlr_tool);
 
 	struct tablet_tool_list_elem *pos;
 	struct tablet_tool_list_elem *tmp;
@@ -72,7 +72,13 @@ void wlr_libinput_tablet_tool_destroy(struct wlr_input_device *wlr_dev) {
 			destroy_tool_tool(tool);
 		}
 	}
+
+	free(tablet);
 }
+
+static struct wlr_tablet_tool_impl tool_impl = {
+	.destroy = libinput_tablet_tool_destroy,
+};
 
 struct wlr_tablet_tool *create_libinput_tablet_tool(
 		struct libinput_device *libinput_dev) {
@@ -91,7 +97,7 @@ struct wlr_tablet_tool *create_libinput_tablet_tool(
 	wlr_tablet_tool->name = strdup(libinput_device_get_name(libinput_dev));
 	wl_list_init(&libinput_tablet_tool->tools);
 
-	wlr_tablet_tool_init(wlr_tablet_tool, NULL);
+	wlr_tablet_tool_init(wlr_tablet_tool, &tool_impl);
 	return wlr_tablet_tool;
 }
 
