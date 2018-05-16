@@ -63,7 +63,8 @@ const GLchar tex_fragment_src_rgba[] =
 "uniform float alpha;\n"
 "\n"
 "void main() {\n"
-"	gl_FragColor = alpha * texture2D(tex, v_texcoord);\n"
+"	gl_FragColor.rgb = texture2D(tex, v_texcoord).rgb;\n"
+"	gl_FragColor.a = alpha * texture2D(tex, v_texcoord).a;\n"
 "}\n";
 
 const GLchar tex_fragment_src_rgbx[] =
@@ -73,7 +74,7 @@ const GLchar tex_fragment_src_rgbx[] =
 "uniform float alpha;\n"
 "\n"
 "void main() {\n"
-"	gl_FragColor.rgb = alpha * texture2D(tex, v_texcoord).rgb;\n"
+"	gl_FragColor.rgb = texture2D(tex, v_texcoord).rgb;\n"
 "	gl_FragColor.a = alpha;\n"
 "}\n";
 
