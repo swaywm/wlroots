@@ -581,10 +581,10 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			wlr_log_errno(L_ERROR, "Failed to create cursor bo");
 			return false;
 		}
-
-		wlr_matrix_projection(plane->matrix, plane->surf.width,
-			plane->surf.height, output->transform);
 	}
+
+	wlr_matrix_projection(plane->matrix, plane->surf.width,
+		plane->surf.height, output->transform);
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
 	wlr_box_transform(&hotspot, wlr_output_transform_invert(output->transform),
