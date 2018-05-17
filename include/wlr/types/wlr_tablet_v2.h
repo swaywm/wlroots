@@ -47,6 +47,8 @@ struct wlr_tablet_v2_tablet_tool {
 	struct wl_listener surface_destroy;
 	struct wl_listener client_destroy;
 
+	uint32_t down_serial;
+	bool is_down;
 	uint32_t button_serial;
 	size_t num_buttons;
 	uint32_t pressed_buttons[WLR_TABLEt_V2_TOOL_BUTTONS_CAP];
@@ -113,11 +115,26 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 	struct wlr_tablet_v2_tablet *tablet,
 	struct wlr_surface *surface);
 
+uint32_t wlr_send_tablet_v2_tablet_tool_down(struct wlr_tablet_v2_tablet_tool *tool);
+void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool);
+
 void wlr_send_tablet_v2_tablet_tool_motion(
 		struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
 
+void wlr_send_tablet_v2_tablet_tool_pressure(
+		struct wlr_tablet_v2_tablet_tool *tool, uint32_t pressure);
+
 void wlr_send_tablet_v2_tablet_tool_distance(
 	struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance);
+
+void wlr_send_tablet_v2_tablet_tool_tilt(
+		struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
+
+void wlr_send_tablet_v2_tablet_tool_rotation(
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees);
+
+void wlr_send_tablet_v2_tablet_tool_slider(
+	struct wlr_tablet_v2_tablet_tool *tool, int32_t position);
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
 	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks);

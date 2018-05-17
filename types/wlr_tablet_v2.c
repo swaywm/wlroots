@@ -1224,6 +1224,16 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 	}
 }
 
+void wlr_send_tablet_v2_tablet_tool_pressure(
+		struct wlr_tablet_v2_tablet_tool *tool, uint32_t pressure) {
+	if (tool->current_client) {
+		zwp_tablet_tool_v2_send_pressure(tool->current_client->resource,
+			pressure);
+
+		queue_tool_frame(tool->current_client);
+	}
+}
+
 void wlr_send_tablet_v2_tablet_tool_distance(
 		struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance) {
 	if (tool->current_client) {
@@ -1232,6 +1242,42 @@ void wlr_send_tablet_v2_tablet_tool_distance(
 
 		queue_tool_frame(tool->current_client);
 	}
+}
+
+void wlr_send_tablet_v2_tablet_tool_tilt(
+		struct wlr_tablet_v2_tablet_tool *tool, double x, double y) {
+	if (!tool->current_client) {
+		return;
+	}
+
+	zwp_tablet_tool_v2_send_tilt(tool->current_client->resource,
+		wl_fixed_from_double(x), wl_fixed_from_double(y));
+
+	queue_tool_frame(tool->current_client);
+}
+
+void wlr_send_tablet_v2_tablet_tool_rotation(
+		struct wlr_tablet_v2_tablet_tool *tool, double degrees) {
+	if (!tool->current_client) {
+		return;
+	}
+
+	zwp_tablet_tool_v2_send_rotation(tool->current_client->resource,
+		wl_fixed_from_double(degrees));
+
+	queue_tool_frame(tool->current_client);
+}
+
+void wlr_send_tablet_v2_tablet_tool_slider(
+		struct wlr_tablet_v2_tablet_tool *tool, int32_t position) {
+	if (!tool->current_client) {
+		return;
+	}
+
+	zwp_tablet_tool_v2_send_slider(tool->current_client->resource,
+		position);
+
+	queue_tool_frame(tool->current_client);
 }
 
 uint32_t wlr_send_tablet_v2_tablet_tool_button(
@@ -1258,6 +1304,37 @@ void wlr_send_tablet_v2_tablet_tool_wheel(
 		zwp_tablet_tool_v2_send_wheel(tool->current_client->resource,
 			clicks, delta);
 
+		queue_tool_frame(tool->current_client);
+	}
+}
+
+uint32_t wlr_send_tablet_v2_tablet_tool_down(struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->is_down) {
+		return 0;
+	}
+
+	tool->is_down = true;
+	if (tool->current_client) {
+		uint32_t serial = ++tool->down_serial;
+
+		zwp_tablet_tool_v2_send_down(tool->current_client->resource,
+			serial);
+		queue_tool_frame(tool->current_client);
+
+		return serial;
+	}
+
+	return 0;
+}
+
+void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool) {
+	if (!tool->is_down) {
+		return;
+	}
+	tool->is_down = false;
+
+	if (tool->current_client) {
+		zwp_tablet_tool_v2_send_up(tool->current_client->resource);
 		queue_tool_frame(tool->current_client);
 	}
 }
