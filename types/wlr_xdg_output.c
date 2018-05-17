@@ -7,7 +7,7 @@
 #include <wlr/util/log.h>
 #include "xdg-output-unstable-v1-protocol.h"
 
-#define OUTPUT_MANAGER_VERSION 1
+#define OUTPUT_MANAGER_VERSION 2
 
 static void output_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
