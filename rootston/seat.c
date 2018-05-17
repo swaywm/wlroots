@@ -201,7 +201,9 @@ static void handle_tool_button(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_button *event = data;
 	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
 
-	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool, event->button, event->state);
+	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool,
+		(enum zwp_tablet_pad_v2_button_state)event->button,
+		(enum zwp_tablet_pad_v2_button_state)event->state);
 }
 
 static void handle_tablet_tool_set_cursor(struct wl_listener *listener, void *data) {
@@ -757,7 +759,8 @@ static void handle_tablet_pad_button(struct wl_listener *listener, void *data) {
 		event->group, event->mode, event->time_msec);
 
 	wlr_send_tablet_v2_tablet_pad_button(pad->tablet_v2_pad,
-		event->button, event->time_msec, event->state);
+		event->button, event->time_msec,
+		(enum zwp_tablet_pad_v2_button_state)event->state);
 }
 
 static void seat_add_tablet_pad(struct roots_seat *seat,

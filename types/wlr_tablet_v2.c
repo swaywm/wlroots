@@ -250,7 +250,7 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_surface *surface;
+	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
 		surface = wlr_surface_from_resource(surface_resource);
 		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
@@ -1168,8 +1168,8 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 		return 0;
 	}
 
-	struct wlr_tablet_tool_client_v2 *tool_tmp;
-	struct wlr_tablet_tool_client_v2 *tool_client;
+	struct wlr_tablet_tool_client_v2 *tool_tmp = NULL;
+	struct wlr_tablet_tool_client_v2 *tool_client = NULL;
 	wl_list_for_each(tool_tmp, &tool->clients, tool_link) {
 		if (tool_tmp->client == client) {
 			tool_client = tool_tmp;
@@ -1284,8 +1284,8 @@ uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 		return 0;
 	}
 
-	struct wlr_tablet_pad_client_v2 *pad_tmp;
-	struct wlr_tablet_pad_client_v2 *pad_client;
+	struct wlr_tablet_pad_client_v2 *pad_tmp = NULL;
+	struct wlr_tablet_pad_client_v2 *pad_client = NULL;
 	wl_list_for_each(pad_tmp, &pad->clients, pad_link) {
 		if (pad_tmp->client == client) {
 			pad_client = pad_tmp;
