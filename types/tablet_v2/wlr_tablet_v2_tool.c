@@ -261,20 +261,22 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 		}
 	}
 
-	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found &&
-			tool->num_buttons < WLR_TABLEt_V2_TOOL_BUTTONS_CAP) {
+	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found &&
+			tool->num_buttons < WLR_TABLET_V2_TOOL_BUTTONS_CAP) {
 		i = tool->num_buttons++;
 		tool->pressed_buttons[i] = button;
-	}
-	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
-		tool->pressed_buttons[i] = 0;
-		tool->pressed_serials[i] = 0;
-		tool->num_buttons = push_zeroes_to_end(tool->pressed_buttons, WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
-		tool->num_buttons = push_zeroes_to_end(tool->pressed_serials, WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+		tool->pressed_serials[i] = -1;
+	} else {
 		i = -1;
 	}
+	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
+		tool->pressed_buttons[i] = 0;
+		tool->pressed_serials[i] = 0;
+		tool->num_buttons = push_zeroes_to_end(tool->pressed_buttons, WLR_TABLET_V2_TOOL_BUTTONS_CAP);
+		tool->num_buttons = push_zeroes_to_end(tool->pressed_serials, WLR_TABLET_V2_TOOL_BUTTONS_CAP);
+	}
 
-	assert(tool->num_buttons <= WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+	assert(tool->num_buttons <= WLR_TABLET_V2_TOOL_BUTTONS_CAP);
 	return i;
 }
 
@@ -352,7 +354,7 @@ void wlr_send_tablet_v2_tablet_tool_proximity_in(
 		tablet_client->resource, surface->resource);
 	/* Send all the pressed buttons */
 	for (size_t i = 0; i < tool->num_buttons; ++i) {
-		 wlr_send_tablet_v2_tablet_tool_button(tool,
+		wlr_send_tablet_v2_tablet_tool_button(tool,
 			tool->pressed_buttons[i],
 			ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED);
 	}
@@ -378,12 +380,23 @@ void wlr_send_tablet_v2_tablet_tool_motion(
 void wlr_send_tablet_v2_tablet_tool_proximity_out(
 		struct wlr_tablet_v2_tablet_tool *tool) {
 	if (tool->current_client) {
+		for (size_t i = 0; i < tool->num_buttons; ++i) {
+			zwp_tablet_tool_v2_send_button(tool->current_client->resource,
+				tool->pressed_serials[i],
+				tool->pressed_buttons[i],
+				ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED);
+		}
+		if (tool->is_down) {
+			zwp_tablet_tool_v2_send_up(tool->current_client->resource);
+		}
 		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
 		if (tool->current_client->frame_source) {
 			wl_event_source_remove(tool->current_client->frame_source);
 			send_tool_frame(tool->current_client);
 		}
+
 		tool->current_client = NULL;
+		tool->focused_surface = NULL;
 	}
 }
 

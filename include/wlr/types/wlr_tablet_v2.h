@@ -8,7 +8,7 @@
 #include "tablet-unstable-v2-protocol.h"
 
 /* This can probably be even lower,the tools don't have a lot of buttons */
-#define WLR_TABLEt_V2_TOOL_BUTTONS_CAP 16
+#define WLR_TABLET_V2_TOOL_BUTTONS_CAP 16
 
 struct wlr_tablet_client_v2;
 struct wlr_tablet_tool_client_v2;
@@ -51,8 +51,8 @@ struct wlr_tablet_v2_tablet_tool {
 	bool is_down;
 	uint32_t down_serial;
 	size_t num_buttons;
-	uint32_t pressed_buttons[WLR_TABLEt_V2_TOOL_BUTTONS_CAP];
-	uint32_t pressed_serials[WLR_TABLEt_V2_TOOL_BUTTONS_CAP];
+	uint32_t pressed_buttons[WLR_TABLET_V2_TOOL_BUTTONS_CAP];
+	uint32_t pressed_serials[WLR_TABLET_V2_TOOL_BUTTONS_CAP];
 
 	struct {
 		struct wl_signal set_cursor; // struct wlr_tablet_v2_event_cursor

@@ -117,6 +117,8 @@ void wlr_tablet_seat_client_v2_destroy(struct wl_resource *resource) {
 		destroy_tablet_tool_v2(tool->resource);
 	}
 
+	wl_list_remove(&seat->seat_link);
+	wl_list_remove(&seat->client_link);
 	wl_list_remove(&seat->seat_client_destroy.link);
 
 	free(seat);
