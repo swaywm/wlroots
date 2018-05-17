@@ -78,12 +78,6 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_event_source *frame_source;
 };
 
-struct tablet_pad_auxiliary_user_data {
-	struct wlr_tablet_pad_client_v2 *pad;
-	size_t index;
-};
-
-
 struct wlr_tablet_client_v2 *tablet_client_from_resource(struct wl_resource *resource);
 void destroy_tablet_v2(struct wl_resource *resource);
 void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat, struct wlr_tablet_v2_tablet *tablet);

@@ -11,6 +11,11 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
+struct tablet_pad_auxiliary_user_data {
+	struct wlr_tablet_pad_client_v2 *pad;
+	size_t index;
+};
+
 void destroy_tablet_pad_v2(struct wl_resource *resource) {
 	struct wlr_tablet_pad_client_v2 *pad =
 		tablet_pad_client_from_resource(resource);
