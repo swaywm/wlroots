@@ -49,10 +49,6 @@ struct wlr_tablet_pad_client_v2 {
 	struct wl_resource *resource;
 	struct wlr_tablet_v2_tablet_pad *pad;
 
-	uint32_t enter_serial;
-	uint32_t mode_serial;
-	uint32_t leave_serial;
-
 	size_t button_count;
 
 	size_t group_count;
@@ -72,8 +68,6 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_resource *resource;
 	struct wlr_tablet_v2_tablet_tool *tool;
 	struct wlr_tablet_seat_client_v2 *seat;
-
-	uint32_t proximity_serial;
 
 	struct wl_event_source *frame_source;
 };

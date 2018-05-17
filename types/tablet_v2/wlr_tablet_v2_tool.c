@@ -178,7 +178,6 @@ static void handle_wlr_tablet_tool_destroy(struct wl_listener *listener, void *d
 	struct wlr_tablet_tool_client_v2 *pos;
 	struct wlr_tablet_tool_client_v2 *tmp;
 	wl_list_for_each_safe(pos, tmp, &tool->clients, tool_link) {
-		// XXX: Add a timer/flag to destroy if client is slow?
 		zwp_tablet_tool_v2_send_removed(pos->resource);
 		pos->tool = NULL;
 	}
@@ -251,7 +250,7 @@ static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
 	return ret;
 }
 
-static void tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
+static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 		uint32_t button, enum zwp_tablet_pad_v2_button_state state) {
 	bool found = false;
 	size_t i = 0;
@@ -264,20 +263,31 @@ static void tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 
 	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found &&
 			tool->num_buttons < WLR_TABLEt_V2_TOOL_BUTTONS_CAP) {
-		tool->pressed_buttons[tool->num_buttons++] = button;
+		i = tool->num_buttons++;
+		tool->pressed_buttons[i] = button;
 	}
 	if (button == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
 		tool->pressed_buttons[i] = 0;
+		tool->pressed_serials[i] = 0;
 		tool->num_buttons = push_zeroes_to_end(tool->pressed_buttons, WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+		tool->num_buttons = push_zeroes_to_end(tool->pressed_serials, WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+		i = -1;
 	}
 
 	assert(tool->num_buttons <= WLR_TABLEt_V2_TOOL_BUTTONS_CAP);
+	return i;
+}
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
 static void send_tool_frame(void *data) {
 	struct wlr_tablet_tool_client_v2 *tool = data;
 
-	zwp_tablet_tool_v2_send_frame(tool->resource, 0);
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	zwp_tablet_tool_v2_send_frame(tool->resource, timespec_to_msec(&now));
 	tool->frame_source = NULL;
 }
 
@@ -290,14 +300,14 @@ static void queue_tool_frame(struct wlr_tablet_tool_client_v2 *tool) {
 	}
 }
 
-uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
+void wlr_send_tablet_v2_tablet_tool_proximity_in(
 		struct wlr_tablet_v2_tablet_tool *tool,
 		struct wlr_tablet_v2_tablet *tablet,
 		struct wlr_surface *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	if (tool->focused_surface == surface) {
-		return 0;
+		return;
 	}
 
 	struct wlr_tablet_client_v2 *tablet_tmp;
@@ -313,7 +323,7 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 	// the client didn't bind tablet_v2 at all, or not for the relevant
 	// seat
 	if (!tablet_client) {
-		return 0;
+		return;
 	}
 
 	struct wlr_tablet_tool_client_v2 *tool_tmp = NULL;
@@ -329,22 +339,28 @@ uint32_t wlr_send_tablet_v2_tablet_tool_proximity_in(
 	// the client didn't bind tablet_v2 at all, or not for the relevant
 	// seat
 	if (!tool_client) {
-		return 0;
+		return;
 	}
 
 	tool->current_client = tool_client;
 
-	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
-	 * proximity_in. Someone wants to do the math how long that would take?
-	 */
-	uint32_t serial = ++tool_client->proximity_serial;
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+	tool->focused_surface = surface;
+	tool->proximity_serial = serial;
 
 	zwp_tablet_tool_v2_send_proximity_in(tool_client->resource, serial,
 		tablet_client->resource, surface->resource);
-	queue_tool_frame(tool_client);
+	/* Send all the pressed buttons */
+	for (size_t i = 0; i < tool->num_buttons; ++i) {
+		 wlr_send_tablet_v2_tablet_tool_button(tool,
+			tool->pressed_buttons[i],
+			ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED);
+	}
+	if (tool->is_down) {
+		wlr_send_tablet_v2_tablet_tool_down(tool);
+	}
 
-	tool->focused_surface = surface;
-	return serial;
+	queue_tool_frame(tool_client);
 }
 
 void wlr_send_tablet_v2_tablet_tool_motion(
@@ -363,7 +379,6 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 		struct wlr_tablet_v2_tablet_tool *tool) {
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
-		// XXX: Get the time for the frame
 		if (tool->current_client->frame_source) {
 			wl_event_source_remove(tool->current_client->frame_source);
 			send_tool_frame(tool->current_client);
@@ -428,22 +443,23 @@ void wlr_send_tablet_v2_tablet_tool_slider(
 	queue_tool_frame(tool->current_client);
 }
 
-uint32_t wlr_send_tablet_v2_tablet_tool_button(
+void wlr_send_tablet_v2_tablet_tool_button(
 		struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
 		enum zwp_tablet_pad_v2_button_state state) {
-	tablet_tool_button_update(tool, button, state);
+	ssize_t index = tablet_tool_button_update(tool, button, state);
 
 	if (tool->current_client) {
-		uint32_t serial = ++tool->button_serial;
+		struct wl_client *client =
+			wl_resource_get_client(tool->current_client->resource);
+		uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+		if (index >= 0) {
+			tool->pressed_serials[index] = serial;
+		}
 
 		zwp_tablet_tool_v2_send_button(tool->current_client->resource,
 			serial, button, state);
 		queue_tool_frame(tool->current_client);
-
-		return serial;
 	}
-
-	return 0;
 }
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
@@ -456,23 +472,23 @@ void wlr_send_tablet_v2_tablet_tool_wheel(
 	}
 }
 
-uint32_t wlr_send_tablet_v2_tablet_tool_down(struct wlr_tablet_v2_tablet_tool *tool) {
+void wlr_send_tablet_v2_tablet_tool_down(struct wlr_tablet_v2_tablet_tool *tool) {
 	if (tool->is_down) {
-		return 0;
+		return;
 	}
 
 	tool->is_down = true;
 	if (tool->current_client) {
-		uint32_t serial = ++tool->down_serial;
+		struct wl_client *client =
+			wl_resource_get_client(tool->current_client->resource);
+		uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
 
 		zwp_tablet_tool_v2_send_down(tool->current_client->resource,
 			serial);
 		queue_tool_frame(tool->current_client);
 
-		return serial;
+		tool->down_serial = serial;
 	}
-
-	return 0;
 }
 
 void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool) {
@@ -480,6 +496,7 @@ void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool) {
 		return;
 	}
 	tool->is_down = false;
+	tool->down_serial = 0;
 
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_up(tool->current_client->resource);

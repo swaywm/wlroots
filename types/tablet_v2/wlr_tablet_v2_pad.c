@@ -323,7 +323,6 @@ static void handle_wlr_tablet_pad_destroy(struct wl_listener *listener, void *da
 	struct wlr_tablet_pad_client_v2 *pos;
 	struct wlr_tablet_pad_client_v2 *tmp;
 	wl_list_for_each_safe(pos, tmp, &pad->clients, pad_link) {
-		// XXX: Add a timer/flag to destroy if client is slow?
 		zwp_tablet_pad_v2_send_removed(pos->resource);
 
 		for (size_t i = 0; i < pos->group_count; ++i) {
@@ -441,7 +440,7 @@ uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
 	 * proximity_in. Someone wants to do the math how long that would take?
 	 */
-	uint32_t serial = ++pad_client->enter_serial;
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
 
 	zwp_tablet_pad_v2_send_enter(pad_client->resource, serial,
 		tablet_client->resource, surface->resource);
@@ -512,15 +511,12 @@ void wlr_send_tablet_v2_tablet_pad_ring(struct wlr_tablet_v2_tablet_pad *pad,
 
 uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pad,
 		struct wlr_surface *surface) {
-	if (!pad->current_client ||
-			wl_resource_get_client(surface->resource) != pad->current_client->client) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+	if (!pad->current_client || client != pad->current_client->client) {
 		return 0;
 	}
 
-	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
-	 * proximity_in. Someone wants to do the math how long that would take?
-	 */
-	uint32_t serial = ++pad->current_client->leave_serial;
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
 
 	zwp_tablet_pad_v2_send_leave(pad->current_client->resource, serial, surface->resource);
 	return serial;
@@ -540,10 +536,8 @@ uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad
 
 	pad->groups[group] = mode;
 
-	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
-	 * proximity_in. Someone wants to do the math how long that would take?
-	 */
-	uint32_t serial = ++pad->current_client->mode_serial;
+	struct wl_client *client = wl_resource_get_client(pad->current_client->resource);
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
 
 	zwp_tablet_pad_group_v2_send_mode_switch(
 		pad->current_client->groups[group], time, serial, mode);

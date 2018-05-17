@@ -77,8 +77,6 @@ struct wlr_tablet_seat_v2 *get_or_create_tablet_seat(
 	return create_tablet_seat(manager, wlr_seat);
 }
 
-static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(struct wl_resource *resource);
-
 static void tablet_seat_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -135,6 +133,8 @@ static void tablet_manager_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
+
+static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(struct wl_resource *resource);
 
 static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *resource,
 		uint32_t id, struct wl_resource *seat_resource)

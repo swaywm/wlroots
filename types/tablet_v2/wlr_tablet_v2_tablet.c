@@ -40,7 +40,6 @@ static void handle_wlr_tablet_destroy(struct wl_listener *listener, void *data) 
 	struct wlr_tablet_client_v2 *pos;
 	struct wlr_tablet_client_v2 *tmp;
 	wl_list_for_each_safe(pos, tmp, &tablet->clients, tablet_link) {
-		// XXX: Add a timer/flag to destroy if client is slow?
 		zwp_tablet_v2_send_removed(pos->resource);
 	}
 
