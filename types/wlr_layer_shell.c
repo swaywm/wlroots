@@ -491,8 +491,8 @@ static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 			continue;
 		}
 
-		double popup_sx, popup_sy;
-		wlr_xdg_surface_popup_get_position(popup, &popup_sx, &popup_sy);
+		double popup_sx = popup_state->geometry.x - popup_state->base->geometry.x;
+		double popup_sy = popup_state->geometry.y - popup_state->base->geometry.y;
 
 		xdg_surface_for_each_surface(popup,
 			x + popup_sx,
