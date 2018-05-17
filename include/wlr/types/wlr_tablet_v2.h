@@ -81,6 +81,7 @@ struct wlr_tablet_v2_event_cursor {
 	uint32_t serial;
 	int32_t hotspot_x;
 	int32_t hotspot_y;
+	struct wlr_seat_client *seat_client;
 };
 
 struct wlr_tablet_v2_event_feedback {

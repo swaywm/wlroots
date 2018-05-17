@@ -67,6 +67,7 @@ struct wlr_tablet_tool_client_v2 {
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_tablet_v2_tablet_tool *tool;
+	struct wlr_tablet_seat_client_v2 *seat;
 
 	uint32_t proximity_serial;
 
@@ -262,24 +263,34 @@ static void handle_wlr_tablet_destroy(struct wl_listener *listener, void *data) 
 	free(tablet);
 }
 
+static const struct wlr_surface_role pointer_cursor_surface_role = {
+	.name = "wl_pointer-cursor",
+};
+
 static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
-		struct wl_resource *resource,
-		uint32_t serial,
+		struct wl_resource *resource, uint32_t serial,
 		struct wl_resource *surface_resource,
-		int32_t hotspot_x,
-		int32_t hotspot_y) {
+		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_tablet_tool_client_v2 *tool = wl_resource_get_user_data(resource);
 	if (!tool) {
 		return;
 	}
 
-	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
+	struct wlr_surface *surface;
+	if (surface_resource != NULL) {
+		surface = wlr_surface_from_resource(surface_resource);
+		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
+				surface_resource, WL_POINTER_ERROR_ROLE)) {
+			return;
+		}
+	}
 
 	struct wlr_tablet_v2_event_cursor evt = {
 		.surface = surface,
 		.serial = serial,
 		.hotspot_x = hotspot_x,
 		.hotspot_y = hotspot_y,
+		.seat_client = tool->seat->seat,
 		};
 
 	wl_signal_emit(&tool->tool->events.set_cursor, &evt);
@@ -324,6 +335,10 @@ static void destroy_tablet_tool(struct wl_resource *resource) {
 		wl_event_source_remove(client->frame_source);
 	}
 
+	if (client->tool && client->tool->current_client == client) {
+		client->tool->current_client = NULL;
+	}
+
 	wl_list_remove(&client->seat_link);
 	wl_list_remove(&client->tool_link);
 	free(client);
@@ -337,6 +352,7 @@ static void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 	client->tool = tool;
+	client->seat = seat;
 
 	client->resource =
 		wl_resource_create(seat->wl_client, &zwp_tablet_tool_v2_interface, 1, 0);
@@ -444,6 +460,7 @@ static void handle_wlr_tablet_tool_destroy(struct wl_listener *listener, void *d
 	wl_list_for_each_safe(pos, tmp, &tool->clients, tool_link) {
 		// XXX: Add a timer/flag to destroy if client is slow?
 		zwp_tablet_tool_v2_send_removed(pos->resource);
+		pos->tool = NULL;
 	}
 
 	wl_list_remove(&tool->clients);

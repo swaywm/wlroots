@@ -118,6 +118,7 @@ struct roots_tablet_tool_tool {
 
 	struct roots_seat *seat;
 
+	struct wl_listener set_cursor;
 	struct wl_listener tool_destroy;
 
 	struct roots_tablet_tool *current_tablet;

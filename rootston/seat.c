@@ -188,6 +188,7 @@ static void handle_tablet_tool_tool_destroy(struct wl_listener *listener, void *
 	wl_list_remove(&tool->tool_link);
 
 	wl_list_remove(&tool->tool_destroy.link);
+	wl_list_remove(&tool->set_cursor.link);
 
 	free(tool);
 }
@@ -201,6 +202,23 @@ static void handle_tool_button(struct wl_listener *listener, void *data) {
 	struct roots_tablet_tool_tool *roots_tool = event->tool->data;
 
 	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool, event->button, event->state);
+}
+
+static void handle_tablet_tool_set_cursor(struct wl_listener *listener, void *data) {
+	struct roots_tablet_tool_tool *tool =
+		wl_container_of(listener, tool, set_cursor);
+	struct wlr_tablet_v2_event_cursor *evt = data;
+
+
+	struct wlr_seat_pointer_request_set_cursor_event event = {
+		.surface = evt->surface,
+		.hotspot_x = evt->hotspot_x,
+		.hotspot_y = evt->hotspot_y,
+		.serial = evt->serial,
+		.seat_client = evt->seat_client,
+		};
+
+	roots_cursor_handle_request_set_cursor(tool->seat->cursor, &event);
 }
 
 static void handle_tool_proximity(struct wl_listener *listener, void *data) {
@@ -221,6 +239,10 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 				cursor->seat->seat, tool);
 		roots_tool->tool_destroy.notify = handle_tablet_tool_tool_destroy;
 		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
+
+		roots_tool->set_cursor.notify = handle_tablet_tool_set_cursor;
+		wl_signal_add(&roots_tool->tablet_v2_tool->events.set_cursor, &roots_tool->set_cursor);
+
 		wl_list_init(&roots_tool->link);
 		wl_list_init(&roots_tool->tool_link);
 	}
