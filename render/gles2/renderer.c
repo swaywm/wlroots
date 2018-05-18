@@ -42,7 +42,7 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 
 	// enable transparency
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// XXX: maybe we should save output projection and remove some of the need
 	// for users to sling matricies themselves
