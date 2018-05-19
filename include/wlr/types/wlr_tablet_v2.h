@@ -45,7 +45,6 @@ struct wlr_tablet_v2_tablet_tool {
 	struct wlr_tablet_tool_client_v2 *current_client;
 	struct wlr_surface *focused_surface;
 	struct wl_listener surface_destroy;
-	struct wl_listener client_destroy;
 
 	uint32_t proximity_serial;
 	bool is_down;
