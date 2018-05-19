@@ -185,7 +185,7 @@ static void xwayland_finish_display(struct wlr_xwayland *wlr_xwayland) {
 }
 
 static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
-	struct wl_display *wl_display, struct wlr_compositor *compositor);
+	struct wl_display *wl_display);
 
 static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland);
 static bool xwayland_start_server_lazy(struct wlr_xwayland *wlr_xwayland);
@@ -289,7 +289,7 @@ static int xwayland_socket_connected(int fd, uint32_t mask, void* data){
 }
 
 static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
-		struct wl_display *wl_display, struct wlr_compositor *compositor) {
+		struct wl_display *wl_display) {
 
 	wlr_xwayland->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(wl_display, &wlr_xwayland->display_destroy);
@@ -414,7 +414,7 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	wl_signal_init(&wlr_xwayland->events.new_surface);
 	wl_signal_init(&wlr_xwayland->events.ready);
 
-	if (!xwayland_start_display(wlr_xwayland, wl_display, compositor)) {
+	if (!xwayland_start_display(wlr_xwayland, wl_display)) {
 		goto error_alloc;
 	}
 
