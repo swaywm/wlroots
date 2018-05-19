@@ -290,7 +290,7 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 	struct wlr_drag *drag = data;
 
 	if (drag && (drag->source == NULL ||
-			!data_source_is_xwayland(drag->source))) {
+			data_source_is_xwayland(drag->source))) {
 		return;
 	}
 
