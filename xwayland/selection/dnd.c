@@ -320,6 +320,19 @@ error:
 	return false;
 }
 
+static void incoming_drag_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, incoming_drag_destroy);
+
+	static const uint32_t values[] = { XCB_STACK_MODE_BELOW };
+	xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
+		XCB_CONFIG_WINDOW_STACK_MODE, values);
+	xcb_unmap_window(xwm->xcb_conn, xwm->dnd_window);
+
+	wl_list_remove(&xwm->incoming_drag_destroy.link);
+	xwm->incoming_drag = NULL;
+}
+
 /**
  * Handle an enter message for an incoming DnD operation.
  */
@@ -339,18 +352,19 @@ static void xwm_handle_dnd_enter(struct wlr_xwm *xwm,
 		return;
 	}
 
-	if (xwm->incoming_drag == NULL) {
+	if (xwm->incoming_drag != NULL) {
 		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
-			"no xwayland drag is being performed");
+			"another xwayland drag is being performed");
 		return;
 	}
 
-	struct wlr_xwayland_data_source *source =
-		xwayland_data_source_from_wlr_data_source(xwm->incoming_drag->source);
+	struct wlr_seat *seat = xwm->seat;
+	struct wlr_seat_client *seat_client =
+		wlr_seat_client_for_wl_client(seat, xwm->xwayland->client);
 
-	if (source->base.mime_types.size > 0) {
-		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
-			"it has already been received");
+	struct wlr_xwayland_data_source *source =
+		xwayland_data_source_create(&xwm->dnd_selection);
+	if (source == NULL) {
 		return;
 	}
 
@@ -373,6 +387,17 @@ static void xwm_handle_dnd_enter(struct wlr_xwm *xwm,
 			wlr_log(L_ERROR, "failed to add MIME type atom to list");
 		}
 	}
+
+	// TODO: set the icon?
+	xwm->incoming_drag =
+		wlr_seat_client_start_grab(seat_client, &source->base, NULL, NULL);
+	if (xwm->incoming_drag == NULL) {
+		wlr_log(L_ERROR, "could not start grab");
+	}
+
+	wl_signal_add(&xwm->incoming_drag->events.destroy,
+		&xwm->incoming_drag_destroy);
+	xwm->incoming_drag_destroy.notify = incoming_drag_handle_destroy;
 
 	wlr_log(L_DEBUG, "DND_ENTER window=%d", source_window);
 }
@@ -399,7 +424,7 @@ static void xwm_handle_dnd_position(struct wlr_xwm *xwm,
 	}
 
 	if (xwm->incoming_drag == NULL) {
-		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+		wlr_log(L_DEBUG, "ignoring XdndPosition client message because "
 			"no xwayland drag is being performed");
 		return;
 	}
@@ -453,32 +478,9 @@ int xwm_dnd_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
 			XCB_CONFIG_WINDOW_STACK_MODE, values);
 
-		struct wlr_seat *seat = selection->xwm->seat;
-		struct wlr_seat_client *seat_client = wlr_seat_client_for_wl_client(
-			seat, selection->xwm->xwayland->client);
-
-		struct wlr_xwayland_data_source *source =
-			xwayland_data_source_create(selection);
-		if (source == NULL) {
-			return 0;
-		}
-
-		// TODO: send motion events to DND window
-		selection->xwm->incoming_drag =
-			wlr_seat_client_start_grab(seat_client, &source->base, NULL, NULL);
-		if (selection->xwm->incoming_drag == NULL) {
-			wlr_log(L_ERROR, "could not start grab");
-		}
+		// Let's wait for the DND_ENTER message
 	} else {
 		wlr_log(L_INFO, "end grab");
-
-		static const uint32_t values[] = { XCB_STACK_MODE_BELOW };
-		xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
-			XCB_CONFIG_WINDOW_STACK_MODE, values);
-		xcb_unmap_window(xwm->xcb_conn, xwm->dnd_window);
-
-		// TODO: drag_end(selection->xwm->incoming_drag)
-		selection->xwm->incoming_drag = NULL;
 	}
 
 	return 1;
