@@ -123,10 +123,10 @@ void wlr_send_tablet_v2_tablet_tool_motion(
 	struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
 
 void wlr_send_tablet_v2_tablet_tool_pressure(
-	struct wlr_tablet_v2_tablet_tool *tool, uint32_t pressure);
+	struct wlr_tablet_v2_tablet_tool *tool, double pressure);
 
 void wlr_send_tablet_v2_tablet_tool_distance(
-	struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance);
+	struct wlr_tablet_v2_tablet_tool *tool, double distance);
 
 void wlr_send_tablet_v2_tablet_tool_tilt(
 	struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
@@ -135,7 +135,7 @@ void wlr_send_tablet_v2_tablet_tool_rotation(
 	struct wlr_tablet_v2_tablet_tool *tool, double degrees);
 
 void wlr_send_tablet_v2_tablet_tool_slider(
-	struct wlr_tablet_v2_tablet_tool *tool, int32_t position);
+	struct wlr_tablet_v2_tablet_tool *tool, double position);
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
 	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks);

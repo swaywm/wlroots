@@ -401,20 +401,20 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 }
 
 void wlr_send_tablet_v2_tablet_tool_pressure(
-		struct wlr_tablet_v2_tablet_tool *tool, uint32_t pressure) {
+		struct wlr_tablet_v2_tablet_tool *tool, double pressure) {
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_pressure(tool->current_client->resource,
-			pressure);
+			pressure * 65535);
 
 		queue_tool_frame(tool->current_client);
 	}
 }
 
 void wlr_send_tablet_v2_tablet_tool_distance(
-		struct wlr_tablet_v2_tablet_tool *tool, uint32_t distance) {
+		struct wlr_tablet_v2_tablet_tool *tool, double distance) {
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_distance(tool->current_client->resource,
-			distance);
+			distance * 65535);
 
 		queue_tool_frame(tool->current_client);
 	}
@@ -445,13 +445,13 @@ void wlr_send_tablet_v2_tablet_tool_rotation(
 }
 
 void wlr_send_tablet_v2_tablet_tool_slider(
-		struct wlr_tablet_v2_tablet_tool *tool, int32_t position) {
+		struct wlr_tablet_v2_tablet_tool *tool, double position) {
 	if (!tool->current_client) {
 		return;
 	}
 
 	zwp_tablet_tool_v2_send_slider(tool->current_client->resource,
-		position);
+		position * 65535);
 
 	queue_tool_frame(tool->current_client);
 }
