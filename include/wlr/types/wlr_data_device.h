@@ -221,4 +221,8 @@ void wlr_data_source_dnd_finish(struct wlr_data_source *source);
 void wlr_data_source_dnd_action(struct wlr_data_source *source,
 	enum wl_data_device_manager_dnd_action action);
 
+struct wlr_drag *wlr_seat_client_start_grab(struct wlr_seat_client *client,
+	struct wlr_data_source *source, struct wlr_surface *icon_surface,
+	struct wlr_touch_point *point);
+
 #endif

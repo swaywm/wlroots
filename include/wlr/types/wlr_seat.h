@@ -188,7 +188,6 @@ struct wlr_seat {
 	// `drag` goes away before `drag_source`, when the implicit grab ends
 	struct wlr_drag *drag;
 	struct wlr_data_source *drag_source;
-	uint32_t drag_serial;
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;

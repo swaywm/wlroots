@@ -237,22 +237,33 @@ static void xwm_handle_dnd_finished(struct wlr_xwm *xwm,
 }
 
 static bool xwm_add_atom_to_mime_types(struct wlr_xwm *xwm,
-		struct wl_array *mime_types, xcb_atom_t atom) {
+		struct wl_array *mime_types, struct wl_array *mime_types_atoms,
+		xcb_atom_t atom) {
 	char *mime_type = xwm_mime_type_from_atom(xwm, atom);
 	if (mime_type == NULL) {
 		return false;
 	}
+
 	char **mime_type_ptr =
 		wl_array_add(mime_types, sizeof(*mime_type_ptr));
 	if (mime_type_ptr == NULL) {
 		return false;
 	}
 	*mime_type_ptr = mime_type;
+
+	xcb_atom_t *mime_type_atom_ptr =
+		wl_array_add(mime_types_atoms, sizeof(*mime_type_atom_ptr));
+	if (mime_type_atom_ptr == NULL) {
+		return false;
+	}
+	*mime_type_atom_ptr = atom;
+
 	return true;
 }
 
 static bool xwm_dnd_get_mime_types(struct wlr_xwm *xwm,
-		struct wl_array *mime_types, xcb_window_t source) {
+		struct wl_array *mime_types, struct wl_array *mime_types_atoms,
+		xcb_window_t source) {
 	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
 		1, // delete
 		source,
@@ -274,7 +285,8 @@ static bool xwm_dnd_get_mime_types(struct wlr_xwm *xwm,
 
 	xcb_atom_t *atoms = xcb_get_property_value(reply);
 	for (uint32_t i = 0; i < reply->value_len; ++i) {
-		if (!xwm_add_atom_to_mime_types(xwm, mime_types, atoms[i])) {
+		if (!xwm_add_atom_to_mime_types(xwm, mime_types, mime_types_atoms,
+				atoms[i])) {
 			wlr_log(L_ERROR, "failed to add MIME type atom to list");
 			goto error;
 		}
@@ -307,8 +319,15 @@ static void xwm_handle_dnd_enter(struct wlr_xwm *xwm,
 		return;
 	}
 
-	struct wl_array mime_types;
-	wl_array_init(&mime_types);
+	if (xwm->incoming_drag == NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+			"no xwayland drag is being performed");
+		return;
+	}
+
+	struct wlr_xwayland_data_source *source =
+		xwayland_data_source_from_wlr_data_source(xwm->incoming_drag->source);
+
 	if ((data->data32[1] & 1) == 0) {
 		// Less than 3 MIME types, those are in the message data
 		for (size_t i = 0; i < 3; ++i) {
@@ -316,13 +335,15 @@ static void xwm_handle_dnd_enter(struct wlr_xwm *xwm,
 			if (atom == XCB_ATOM_NONE) {
 				break;
 			}
-			if (!xwm_add_atom_to_mime_types(xwm, &mime_types, atom)) {
+			if (!xwm_add_atom_to_mime_types(xwm, &source->base.mime_types,
+					&source->mime_types_atoms, atom)) {
 				wlr_log(L_ERROR, "failed to add MIME type atom to list");
 				break;
 			}
 		}
 	} else {
-		if (!xwm_dnd_get_mime_types(xwm, &mime_types, source_window)) {
+		if (!xwm_dnd_get_mime_types(xwm, &source->base.mime_types,
+				&source->mime_types_atoms, source_window)) {
 			wlr_log(L_ERROR, "failed to add MIME type atom to list");
 		}
 	}
@@ -358,9 +379,38 @@ int xwm_dnd_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	selection->owner = event->owner;
 
 	if (event->owner != XCB_ATOM_NONE) {
-		// TODO: start grab
+		wlr_log(L_INFO, "start grab");
+
+		xcb_map_window(xwm->xcb_conn, xwm->dnd_window);
+		static const uint32_t values[] = { XCB_STACK_MODE_ABOVE };
+		xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
+			XCB_CONFIG_WINDOW_STACK_MODE, values);
+
+		struct wlr_seat *seat = selection->xwm->seat;
+		struct wlr_seat_client *seat_client = wlr_seat_client_for_wl_client(
+			seat, selection->xwm->xwayland->client);
+
+		struct wlr_xwayland_data_source *source =
+			xwayland_data_source_create(selection);
+		if (source == NULL) {
+			return 0;
+		}
+
+		selection->xwm->incoming_drag =
+			wlr_seat_client_start_grab(seat_client, &source->base, NULL, NULL);
+		if (selection->xwm->incoming_drag == NULL) {
+			wlr_log(L_ERROR, "could not start grab");
+		}
 	} else {
-		// TODO: end grab
+		wlr_log(L_INFO, "end grab");
+
+		static const uint32_t values[] = { XCB_STACK_MODE_BELOW };
+		xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
+			XCB_CONFIG_WINDOW_STACK_MODE, values);
+		xcb_unmap_window(xwm->xcb_conn, xwm->dnd_window);
+
+		// TODO: drag_end(selection->xwm->incoming_drag)
+		selection->xwm->incoming_drag = NULL;
 	}
 
 	return 1;

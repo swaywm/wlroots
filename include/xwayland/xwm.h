@@ -116,6 +116,7 @@ struct wlr_xwm {
 	struct wl_list surfaces; // wlr_xwayland_surface::link
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
 
+	struct wlr_drag *incoming_drag;
 	struct wlr_drag *drag;
 	struct wlr_xwayland_surface *drag_focus;
 
