@@ -13,6 +13,12 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
+static struct wlr_tablet_tool_impl tool_impl;
+
+static bool tablet_tool_is_libinput(struct wlr_tablet_tool *tool) {
+	return tool->impl == &tool_impl;
+}
+
 struct wlr_libinput_tablet_tool {
 	struct wlr_tablet_tool_tool wlr_tool;
 
@@ -45,7 +51,8 @@ static void destroy_tool_tool(struct wlr_libinput_tablet_tool *tool) {
 }
 
 
-static void libinput_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
+static void destroy_tablet_tool(struct wlr_tablet_tool *tool) {
+	assert(tablet_tool_is_libinput(tool));
 	struct wlr_libinput_tablet *tablet =
 		wl_container_of(tool, tablet, wlr_tool);
 
@@ -65,7 +72,7 @@ static void libinput_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
 }
 
 static struct wlr_tablet_tool_impl tool_impl = {
-	.destroy = libinput_tablet_tool_destroy,
+	.destroy = destroy_tablet_tool,
 };
 
 struct wlr_tablet_tool *create_libinput_tablet_tool(
@@ -148,6 +155,7 @@ static struct wlr_libinput_tablet_tool *get_wlr_tablet_tool(
 
 static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 		struct wlr_tablet_tool *wlr_dev) {
+	assert(tablet_tool_is_libinput(wlr_dev));
 	struct tablet_tool_list_elem *pos;
 	struct wlr_libinput_tablet *tablet = wl_container_of(wlr_dev, tablet, wlr_tool);
 
@@ -271,6 +279,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 			libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT) {
 		// The tool isn't unique, it can't be on multiple tablets
 		assert(tool->pad_refs == 1);
+		assert(tablet_tool_is_libinput(wlr_dev->tablet_tool));
 		struct wlr_libinput_tablet *tablet =
 			wl_container_of(wlr_dev->tablet_tool, tablet, wlr_tool);
 		struct tablet_tool_list_elem *pos;
