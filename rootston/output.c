@@ -458,7 +458,7 @@ static void render_output(struct roots_output *output) {
 	}
 
 	if (server->config->debug_damage_tracking) {
-		wlr_renderer_clear(renderer, (float[]){1, 1, 0, 0});
+		wlr_renderer_clear(renderer, (float[]){1, 1, 0, 1});
 	}
 
 	int nrects;
