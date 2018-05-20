@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <errno.h>
 #include <libinput.h>
@@ -6,6 +7,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/drm.h>
+#include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/backend/multi.h>
@@ -101,11 +103,117 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 }
 #endif
 
+static struct wlr_backend *attempt_headless_backend(
+		struct wl_display *display) {
+	struct wlr_backend *backend = wlr_headless_backend_create(display);
+	if (backend == NULL) {
+		return NULL;
+	}
+
+	size_t outputs = parse_outputs_env("WLR_HEADLESS_OUTPUTS");
+	for (size_t i = 0; i < outputs; ++i) {
+		wlr_headless_add_output(backend, 1280, 720);
+	}
+
+	return backend;
+}
+
+static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
+		struct wlr_backend *backend, struct wlr_session *session) {
+	int gpus[8];
+	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
+	struct wlr_backend *primary_drm = NULL;
+	wlr_log(L_INFO, "Found %zu GPUs", num_gpus);
+
+	for (size_t i = 0; i < num_gpus; ++i) {
+		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
+			gpus[i], primary_drm);
+		if (!drm) {
+			wlr_log(L_ERROR, "Failed to open DRM device %d", gpus[i]);
+			continue;
+		}
+
+		if (!primary_drm) {
+			primary_drm = drm;
+		}
+
+		wlr_multi_backend_add(backend, drm);
+	}
+
+	return primary_drm;
+}
+
+static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
+		struct wlr_backend *backend, struct wlr_session **session,
+		const char *name) {
+	if (strcmp(name, "wayland") == 0) {
+		return attempt_wl_backend(display);
+#ifdef WLR_HAS_X11_BACKEND
+	} else if (strcmp(name, "x11") == 0) {
+		return attempt_x11_backend(display, NULL);
+#endif
+	} else if (strcmp(name, "headless") == 0) {
+		return attempt_headless_backend(display);
+	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
+		// DRM and libinput need a session
+		*session = wlr_session_create(display);
+		if (!*session) {
+			wlr_log(L_ERROR, "failed to start a session");
+			return NULL;
+		}
+
+		if (strcmp(name, "libinput") == 0) {
+			return wlr_libinput_backend_create(display, *session);
+		} else {
+			return attempt_drm_backend(display, backend, *session);
+		}
+	}
+
+	wlr_log(L_ERROR, "unrecognized backend '%s'", name);
+	return NULL;
+}
+
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	if (!backend) {
 		wlr_log(L_ERROR, "could not allocate multibackend");
 		return NULL;
+	}
+
+	struct wlr_session *session = NULL;
+
+	char *names = getenv("WLR_BACKENDS");
+	if (names) {
+		names = strdup(names);
+		if (names == NULL) {
+			wlr_log(L_ERROR, "allocation failed");
+			wlr_backend_destroy(backend);
+			return NULL;
+		}
+
+		char *saveptr;
+		char *name = strtok_r(names, ",", &saveptr);
+		while (name != NULL) {
+			struct wlr_backend *subbackend =
+				attempt_backend_by_name(display, backend, &session, name);
+			if (subbackend == NULL) {
+				wlr_log(L_ERROR, "failed to start backend '%s'", name);
+				wlr_backend_destroy(backend);
+				wlr_session_destroy(session);
+				return NULL;
+			}
+
+			if (!wlr_multi_backend_add(backend, subbackend)) {
+				wlr_log(L_ERROR, "failed to add backend '%s'", name);
+				wlr_backend_destroy(backend);
+				wlr_session_destroy(session);
+				return NULL;
+			}
+
+			name = strtok_r(NULL, ",", &saveptr);
+		}
+
+		return backend;
 	}
 
 	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
@@ -130,7 +238,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 #endif
 
 	// Attempt DRM+libinput
-	struct wlr_session *session = wlr_session_create(display);
+	session = wlr_session_create(display);
 	if (!session) {
 		wlr_log(L_ERROR, "Failed to start a DRM session");
 		wlr_backend_destroy(backend);
@@ -138,40 +246,21 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	}
 
 	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session);
-	if (libinput) {
-		wlr_multi_backend_add(backend, libinput);
-	} else {
+	if (!libinput) {
 		wlr_log(L_ERROR, "Failed to start libinput backend");
 		wlr_backend_destroy(backend);
 		wlr_session_destroy(session);
 		return NULL;
 	}
+	wlr_multi_backend_add(backend, libinput);
 
-	int gpus[8];
-	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
-	struct wlr_backend *primary_drm = NULL;
-	wlr_log(L_INFO, "Found %zu GPUs", num_gpus);
-
-	for (size_t i = 0; i < num_gpus; ++i) {
-		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
-			gpus[i], primary_drm);
-		if (!drm) {
-			wlr_log(L_ERROR, "Failed to open DRM device");
-			continue;
-		}
-
-		if (!primary_drm) {
-			primary_drm = drm;
-		}
-
-		wlr_multi_backend_add(backend, drm);
-	}
-
+	struct wlr_backend *primary_drm =
+		attempt_drm_backend(display, backend, session);
 	if (!primary_drm) {
 		wlr_log(L_ERROR, "Failed to open any DRM device");
 		wlr_backend_destroy(libinput);
-		wlr_session_destroy(session);
 		wlr_backend_destroy(backend);
+		wlr_session_destroy(session);
 		return NULL;
 	}
 
