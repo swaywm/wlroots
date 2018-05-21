@@ -6,6 +6,7 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -162,6 +163,8 @@ void wlr_output_schedule_frame(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
+bool wlr_output_export_dmabuf(struct wlr_output *output,
+	struct wlr_dmabuf_buffer_attribs *attribs);
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);

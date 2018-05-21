@@ -254,6 +254,26 @@ static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return 0;
 }
 
+static bool drm_connector_export_dmabuf(struct wlr_output *output,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+
+	if (!drm->session->active) {
+		return false;
+	}
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+	struct wlr_drm_surface *surf = &plane->surf;
+
+	export_drm_bo(surf->back, attribs);
+	return true;
+}
+
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
@@ -742,6 +762,7 @@ static const struct wlr_output_impl output_impl = {
 	.swap_buffers = drm_connector_swap_buffers,
 	.set_gamma = drm_connector_set_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
+	.export_dmabuf = drm_connector_export_dmabuf,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

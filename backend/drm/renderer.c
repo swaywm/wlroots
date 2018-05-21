@@ -160,6 +160,19 @@ void post_drm_surface(struct wlr_drm_surface *surf) {
 	}
 }
 
+void export_drm_bo(struct gbm_bo *bo,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	memset(attribs, 0, sizeof(struct wlr_dmabuf_buffer_attribs));
+	attribs->n_planes = 1;
+	attribs->width = gbm_bo_get_width(bo);
+	attribs->height = gbm_bo_get_height(bo);
+	attribs->format = gbm_bo_get_format(bo);
+	attribs->offset[0] = 0;
+	attribs->stride[0] = gbm_bo_get_stride_for_plane(bo, 0);
+	attribs->modifier[0] = DRM_FORMAT_MOD_LINEAR;
+	attribs->fd[0] = gbm_bo_get_fd(bo);
+}
+
 struct tex {
 	struct wlr_egl *egl;
 	EGLImageKHR img;
@@ -186,16 +199,8 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 		return NULL;
 	}
 
-	struct wlr_dmabuf_buffer_attribs attribs = {
-		.n_planes = 1,
-		.width = gbm_bo_get_width(bo),
-		.height = gbm_bo_get_height(bo),
-		.format = gbm_bo_get_format(bo),
-	};
-	attribs.offset[0] = 0;
-	attribs.stride[0] = gbm_bo_get_stride_for_plane(bo, 0);
-	attribs.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-	attribs.fd[0] = gbm_bo_get_fd(bo);
+	struct wlr_dmabuf_buffer_attribs attribs;
+	export_drm_bo(bo, &attribs);
 
 	tex->tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
 	if (tex->tex == NULL) {

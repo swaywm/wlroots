@@ -560,6 +560,14 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
+bool wlr_output_export_dmabuf(struct wlr_output *output,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	if (!output->impl->export_dmabuf) {
+		return false;
+	}
+	return output->impl->export_dmabuf(output, attribs);
+}
+
 void wlr_output_update_needs_swap(struct wlr_output *output) {
 	output->needs_swap = true;
 	wlr_signal_emit_safe(&output->events.needs_swap, output);
