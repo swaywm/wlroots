@@ -158,9 +158,9 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	return r->impl->format_supported(r, fmt);
 }
 
-void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
-		struct wl_display *display) {
-	if (wl_display_init_shm(display)) {
+void wlr_renderer_init_wl_display(struct wlr_renderer *r,
+		struct wl_display *wl_display) {
+	if (wl_display_init_shm(wl_display)) {
 		wlr_log(L_ERROR, "Failed to initialize shm");
 		return;
 	}
@@ -173,9 +173,14 @@ void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
 	}
 
 	for (size_t i = 0; i < len; ++i) {
+		// These formats are already added by default
 		if (formats[i] != WL_SHM_FORMAT_ARGB8888 &&
 				formats[i] != WL_SHM_FORMAT_XRGB8888) {
-			wl_display_add_shm_format(display, formats[i]);
+			wl_display_add_shm_format(wl_display, formats[i]);
 		}
+	}
+
+	if (r->impl->init_wl_display) {
+		r->impl->init_wl_display(r, wl_display);
 	}
 }

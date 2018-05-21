@@ -304,6 +304,15 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	return wlr_gles2_texture_from_dmabuf(renderer->egl, attribs);
 }
 
+static void gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
+		struct wl_display *wl_display) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+	if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
+		wlr_log(L_INFO, "failed to bind wl_display to EGL");
+	}
+}
+
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
@@ -345,6 +354,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_pixels = gles2_texture_from_pixels,
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
+	.init_wl_display = gles2_init_wl_display,
 };
 
 void push_gles2_marker(const char *file, const char *func) {

@@ -177,7 +177,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wlr_log(L_ERROR, "Could not initialize EGL");
 		goto error_egl;
 	}
-	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
 	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
 	if (backend->renderer == NULL) {
