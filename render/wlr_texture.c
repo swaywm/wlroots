@@ -54,3 +54,11 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 	return texture->impl->write_pixels(texture, wl_fmt, stride, width, height,
 		src_x, src_y, dst_x, dst_y, data);
 }
+
+bool wlr_texture_to_dmabuf(struct wlr_texture *texture,
+		struct wlr_dmabuf_buffer_attribs *attribs) {
+	if (!texture->impl->to_dmabuf) {
+		return false;
+	}
+	return texture->impl->to_dmabuf(texture, attribs);
+}
