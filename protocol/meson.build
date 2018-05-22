@@ -39,8 +39,9 @@ protocols = [
 	'screenshooter.xml',
 	'server-decoration.xml',
 	'virtual-keyboard-unstable-v1.xml',
-	'wlr-layer-shell-unstable-v1.xml',
+	'wlr-export-dmabuf-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
+	'wlr-layer-shell-unstable-v1.xml',
 ]
 
 client_protocols = [

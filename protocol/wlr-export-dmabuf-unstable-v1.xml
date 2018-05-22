@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="wlr_export_dmabuf_unstable_v1">
+
+  <copyright>
+    Copyright © 2018 Rostislav Pehlivanov
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="a frame ready for readout">
+    An interface to capture surfaces in an efficient way.
+    Overall usage:
+
+    1.) client registers with zwlr_screencontent_manager_v1
+    2.) server sends client info about surfaces via "receive_surface_info"
+    3.) client subscribes to capture a surface via the "capture" requests
+    4.) server sends client events via the "zwlr_screencontent_frame" interface
+    5.) client finishes and informs server via the "frame_destroy" event
+    6.) client optionally resubscribes via repeating steps 3.) through 5.)
+  </description>
+
+  <interface name="zwlr_export_dmabuf_frame_v1" version="1">
+    <description summary="a frame ready for readout">
+      This object represents a frame which is ready to have its resources
+      fetched and used.
+
+      The receive callback shall be called first, followed by either the
+      "dma_object" callback once per object or the "dma_layer" callback,
+      once per layer. The "dma_plane" callback shall only be called after
+      the "dma_layer" callback corresponding to the layer the plane belongs
+      to has been called. Finally, the "ready" event is called to indicate that
+      all the data has been made available for readout, as well as the time
+      at which presentation happened at.
+      The ownership of the frame is passed to the client, who's responsible for
+      destroying it via the "destroy" event once finished.
+      The data the API describes has been based off of what
+      VASurfaceAttribExternalBuffers contains.
+      All frames are read-only and may not be written into or altered.
+    </description>
+
+    <enum name="frame_flags">
+      <description summary="frame flags">
+        Special flags that must be respected by the client.
+        Transient frames indicate short lifetime frames (such as swapchain
+        images from external clients). Clients are advised to copy them and do
+        all processing outside of the "ready" event.
+      </description>
+      <entry name="transient" value="1" since="1"/>
+    </enum>
+
+    <event name="frame">
+      <description summary="main callback">
+        Main callback supplying the client with information about the frame,
+        as well as an object to serve as context for destruction. Always called
+        first before any other events.
+
+        The "transform" argument describes the orientation needed to be applied
+        to correctly orient the buffer. For example, a buffer rotated by 90
+        degrees will have a value of "3" here, corresponding to the need to
+        apply a 270 degree transpose to correctly present the buffer.
+      </description>
+      <arg name="width" type="uint"
+           summary="frame width, scaling factor included"/>
+      <arg name="height" type="uint"
+           summary="frame height, scaling factor included"/>
+      <arg name="scale" type="uint"
+           summary="current scaling factor of the client"/>
+      <arg name="transform" type="uint"
+           summary="transform needed to correct the orientation, has the same
+                    values as wl_output::transform"/>
+      <arg name="flags" type="uint"
+           summary="flags which indicate properties (invert, interlacing),
+                    has the same values as zwp_linux_buffer_params_v1:flags"/>
+      <arg name="frame_flags" type="uint" enum="frame_flags"
+           summary="indicates special frame features"/>
+      <arg name="mod_high" type="uint"
+           summary="drm format modifier, high"/>
+      <arg name="mod_low" type="uint"
+           summary="drm format modifier, low"/>
+      <arg name="num_objects" type="uint"
+           summary="indicates how many objects (FDs) the frame has (max 4)"/>
+      <arg name="num_layers" type="uint"
+           summary="indicates how many layers the frame has (max 4)"/>
+    </event>
+    <event name="dma_object">
+      <description summary="object receiving callback">
+        Callback which serves to supply the client with the file descriptors
+        containing the data for each object.
+      </description>
+      <arg name="index" type="uint"
+           summary="index of the current object"/>
+      <arg name="fd" type="fd"
+           summary="fd of the current object"/>
+      <arg name="size" type="uint"
+           summary="size in bytes for the current object"/>
+    </event>
+    <event name="dma_layer">
+      <description summary="layer receiving callback">
+        Callback which serves to supply the client with information on what's
+        contained in each file descriptor and how its laid out.
+        Will be called after the main receive event, once per layer.
+      </description>
+      <arg name="index" type="uint"
+           summary="index of the current plane"/>
+      <arg name="format" type="uint"
+           summary="format of the layer (DRM_FORMAT_*)"/>
+      <arg name="num_planes" type="uint"
+           summary="number of planes in the current layer (max 4)"/>
+    </event>
+    <event name="dma_plane">
+      <description summary="plane info receiving callback">
+        Callback which supplies the client with plane information for each
+        layer.
+      </description>
+      <arg name="index" type="uint"
+           summary="index of the current plane"/>
+      <arg name="layer_index" type="uint"
+           summary="index of the current layer"/>
+      <arg name="object_index" type="uint"
+           summary="index of the object the plane applies to"/>
+      <arg name="offset" type="uint"
+           summary="starting point for the data in the object's fd"/>
+      <arg name="stride" type="uint"
+           summary="line size in bytes"/>
+    </event>
+    <event name="ready">
+      <description summary="indicates frame is available for reading">
+        Called as soon as the frame is presented, indicating it is available
+        for reading.
+        The timestamp is expressed as tv_sec_hi, tv_sec_lo, tv_nsec triples,
+        each component being an unsigned 32-bit value. Whole seconds are in
+        tv_sec which is a 64-bit value combined from tv_sec_hi and tv_sec_lo,
+        and the additional fractional part in tv_nsec as nanoseconds. Hence,
+        for valid timestamps tv_nsec must be in [0, 999999999].
+        The seconds part may have an arbitrary offset at start.
+      </description>
+      <arg name="tv_sec_hi" type="uint"
+           summary="high 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_sec_lo" type="uint"
+           summary="low 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_nsec" type="uint"
+           summary="nanoseconds part of the timestamp"/>
+    </event>
+    <event name="abort">
+      <description summary="indicates the frame is no longer valid">
+        If the frame is no longer valid after the "frame" event has been called,
+        this callback will be used to inform the client to scrap the frame.
+        Source is still valid for as long as the subscription function does not
+        return NULL.
+        This may get called if for instance the surface is in the process of
+        resizing.
+      </description>
+    </event>
+
+    <request name="destroy" type="destructor">
+      <description summary="delete this object, used or not">
+        Unreferences the frame, allowing it to be reused. Must be called as soon
+        as its no longer used.
+      </description>
+    </request>
+  </interface>
+
+  <interface name="zwlr_export_dmabuf_manager_v1" version="1">
+    <description summary="manager to inform clients and begin capturing">
+      This object is a manager which informs clients about capturable windows
+      and is able to create callbacks from which to begin to receive content
+      from. The "title" argument in the "surface_info" event shall be used
+      to provide a user-readable identifier such as a window title or
+      program name.
+    </description>
+
+    <event name="surface_info">
+      <description summary="get valid surfaces for capture">
+        This will be called whenever a surface that's able to be captured
+        appears.
+      </description>
+      <arg name="title" type="string"
+           summary="window title or an identifier"/>
+      <arg name="id" type="uint"
+           summary="an identifier to create a context with"/>
+    </event>
+    <event name="surface_unavailable">
+      <description summary="notifies of a surface being unavailable to capture">
+        Called if a surface becomes unavailable to capture, for example if has
+        been closed.
+      </description>
+      <arg name="id" type="uint"
+           summary="an identifier of the surface"/>
+    </event>
+
+    <request name="capture_client">
+      <description summary="subscribe to start capturing">
+        Request to start capturing from a surface with a given id.
+        If an ID becomes unavailable, a NULL will be returned.
+      </description>
+      <arg name="frame" type="new_id"
+           interface="zwlr_export_dmabuf_frame_v1"/>
+      <arg name="id" type="uint"
+           summary="an identifier to start capturing from"/>
+      <arg name="overlay_cursor" type="int"
+           summary="overlay custom client hardware cursor on top of the frame"/>
+    </request>
+    <request name="capture_output">
+      <description summary="subscribe to start capturing">
+        Request to start capturing from an entire wl_output.
+        If an output becomes unavailable, a NULL will be returned.
+      </description>
+      <arg name="frame" type="new_id"
+           interface="zwlr_export_dmabuf_frame_v1"/>
+      <arg name="out" type="object" interface="wl_output" allow-null="false"/>
+    </request>
+  </interface>
+</protocol>
