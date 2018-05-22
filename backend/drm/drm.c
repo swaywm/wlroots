@@ -270,8 +270,7 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	struct wlr_drm_plane *plane = crtc->primary;
 	struct wlr_drm_surface *surf = &plane->surf;
 
-	export_drm_bo(surf->back, attribs);
-	return true;
+	return export_drm_bo(surf->back, attribs);
 }
 
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
