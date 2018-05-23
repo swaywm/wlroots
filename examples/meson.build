@@ -38,3 +38,9 @@ executable(
 	'input-inhibitor.c',
 	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
 )
+
+executable(
+	'text-input',
+	'text-input.c',
+	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
+)

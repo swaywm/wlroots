@@ -13,6 +13,8 @@
 #include "rootston/desktop.h"
 #include "rootston/xcursor.h"
 
+#include <wlr/types/wlr_input_method.h>
+
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
 	struct roots_cursor *cursor = calloc(1, sizeof(struct roots_cursor));
 	if (!cursor) {
@@ -273,7 +275,9 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			}
 			break;
 		case WLR_BUTTON_PRESSED:
-			roots_seat_set_focus(seat, view);
+			if (!view || !view->special || view->features.focusable) {
+				roots_seat_set_focus(seat, view);
+			}
 			if (surface && wlr_surface_is_layer_surface(surface)) {
 				struct wlr_layer_surface *layer =
 					wlr_layer_surface_from_wlr_surface(surface);

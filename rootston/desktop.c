@@ -11,6 +11,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_input_inhibitor.h>
+#include <wlr/types/wlr_input_method.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -22,6 +23,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
+#include "rootston/input_method.h"
 #include "rootston/layers.h"
 #include "rootston/seat.h"
 #include "rootston/server.h"
@@ -205,6 +207,21 @@ void view_arrange_maximized(struct roots_view *view) {
 			sizeof(struct wlr_box));
 	usable_area.x += output_box->x;
 	usable_area.y += output_box->y;
+
+	struct roots_view *frameview;
+	wl_list_for_each_reverse(frameview, &view->desktop->views, link) {
+		if (frameview->features.frame_output != output) {
+			continue;
+		}
+		switch (frameview->features.frame) {
+		case ROOTS_FRAME_BOTTOM:
+			usable_area.height -= frameview->height;
+			break;
+		case ROOTS_FRAME_NONE:
+			// unreachable
+			break;
+		}
+	}
 
 	view_move_resize(view, usable_area.x, usable_area.y,
 			usable_area.width, usable_area.height);
@@ -535,6 +552,34 @@ void view_update_position(struct roots_view *view, double x, double y) {
 	view_damage_whole(view);
 }
 
+void view_set_anchor_position(struct roots_view *view,
+		struct roots_output *output, uint32_t width, uint32_t height) {
+	if (!(view->special && view->features.frame != ROOTS_FRAME_NONE)) {
+		return;
+	}
+
+	view->features.frame_output = output->wlr_output;
+
+	struct wlr_box *output_box =
+		wlr_output_layout_get_box(view->desktop->layout, output->wlr_output);
+
+	double x = view->x;
+	double y = view->y;
+	switch (view->features.frame) {
+	case ROOTS_FRAME_BOTTOM:
+		x = output_box->x + (output_box->width - width) / 2;
+		y = output_box->y + output_box->height - height;
+		break;
+	default:
+		break;
+	}
+
+	view_damage_whole(view);
+	view->x = x;
+	view->y = y;
+	view_damage_whole(view);
+}
+
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
 	if (view->width == width && view->height == height) {
 		return;
@@ -593,6 +638,10 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
 #endif
+	case ROOTS_INPUT_PANEL_VIEW: // FIXME?
+		_surface = wlr_surface_surface_at(view->wlr_surface,
+			view_sx, view_sy, &_sx, &_sy);
+		break;
 	}
 	if (_surface != NULL) {
 		*sx = _sx;
@@ -865,6 +914,21 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->linux_dmabuf = wlr_linux_dmabuf_create(server->wl_display,
 		server->renderer);
+
+	desktop->text_input = wlr_text_input_manager_create(server->wl_display);
+
+	desktop->input_panel = wlr_input_panel_create(server->wl_display);
+	wl_signal_add(&desktop->input_panel->events.new_surface,
+		&desktop->input_panel_surface);
+	desktop->input_panel_surface.notify = handle_input_panel_surface;
+	desktop->input_method = wlr_input_method_create(server->wl_display,
+		input_method_check_credentials, &desktop->input_method_pid);
+	wl_signal_add(&desktop->input_method->events.new_context,
+		&desktop->input_method_context);
+	desktop->input_method_context.notify = handle_input_method_context;
+	desktop->input_method_context_destroy.notify =
+		handle_input_method_context_destroy;
+	input_method_manage_process(desktop);
 	return desktop;
 }
 

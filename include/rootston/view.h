@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_input_method.h>
 
 struct roots_wl_shell_surface {
 	struct roots_view *view;
@@ -70,6 +71,14 @@ struct roots_xwayland_surface {
 	struct wl_listener surface_commit;
 };
 
+struct roots_input_panel_surface {
+	struct roots_view *view;
+
+	struct wl_listener destroy;
+
+	struct wl_listener surface_commit;
+};
+
 enum roots_view_type {
 	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
@@ -77,6 +86,12 @@ enum roots_view_type {
 #ifdef WLR_HAS_XWAYLAND
 	ROOTS_XWAYLAND_VIEW,
 #endif
+	ROOTS_INPUT_PANEL_VIEW,
+};
+
+enum roots_special_frame {
+	ROOTS_FRAME_NONE = 0, // don't be a frame
+	ROOTS_FRAME_BOTTOM, // become a frame on the bottom of the screen
 };
 
 struct roots_view {
@@ -91,6 +106,13 @@ struct roots_view {
 	bool decorated;
 	int border_width;
 	int titlebar_height;
+
+	bool special; // marks special "system" feature set
+	struct {
+		bool focusable;
+		enum roots_special_frame frame;
+		struct wlr_output *frame_output;
+	} features;
 
 	bool maximized;
 	struct roots_output *fullscreen_output;
@@ -115,6 +137,7 @@ struct roots_view {
 #ifdef WLR_HAS_XWAYLAND
 		struct wlr_xwayland_surface *xwayland_surface;
 #endif
+		struct wlr_input_panel_surface *input_panel_surface;
 	};
 	union {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
@@ -123,6 +146,7 @@ struct roots_view {
 #ifdef WLR_HAS_XWAYLAND
 		struct roots_xwayland_surface *roots_xwayland_surface;
 #endif
+		struct roots_input_panel_surface *roots_input_panel_surface;
 	};
 
 	struct wlr_surface *wlr_surface;

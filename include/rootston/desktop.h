@@ -1,5 +1,6 @@
 #ifndef ROOTSTON_DESKTOP_H
 #define ROOTSTON_DESKTOP_H
+
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/config.h>
@@ -14,6 +15,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_screenshooter.h>
+#include <wlr/types/wlr_text_input.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -51,6 +53,10 @@ struct roots_desktop {
 	struct wlr_input_inhibit_manager *input_inhibit;
 	struct wlr_linux_dmabuf *linux_dmabuf;
 	struct wlr_layer_shell *layer_shell;
+	struct wlr_text_input_manager *text_input;
+	struct wlr_input_panel *input_panel; // TODO: per-seat
+	struct wlr_input_method *input_method; // TODO: per-seat
+	pid_t input_method_pid;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
@@ -58,6 +64,9 @@ struct roots_desktop {
 	struct wl_listener xdg_shell_surface;
 	struct wl_listener wl_shell_surface;
 	struct wl_listener layer_shell_surface;
+	struct wl_listener input_panel_surface;
+	struct wl_listener input_method_context;
+	struct wl_listener input_method_context_destroy;
 	struct wl_listener decoration_new;
 	struct wl_listener input_inhibit_activate;
 	struct wl_listener input_inhibit_deactivate;
@@ -86,6 +95,8 @@ void view_activate(struct roots_view *view, bool activate);
 void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);
 void view_update_position(struct roots_view *view, double x, double y);
+void view_set_anchor_position(struct roots_view *view,
+	struct roots_output *output, uint32_t width, uint32_t height);
 void view_update_size(struct roots_view *view, uint32_t width, uint32_t height);
 void view_initial_focus(struct roots_view *view);
 void view_map(struct roots_view *view, struct wlr_surface *surface);

@@ -400,13 +400,16 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	wl_list_init(&config->bindings);
 
 	int c;
-	while ((c = getopt(argc, argv, "C:E:hD")) != -1) {
+	while ((c = getopt(argc, argv, "C:E:K:hD")) != -1) {
 		switch (c) {
 		case 'C':
 			config->config_path = strdup(optarg);
 			break;
 		case 'E':
 			config->startup_cmd = strdup(optarg);
+			break;
+		case 'K':
+			config->im_cmd = strdup(optarg);
 			break;
 		case 'D':
 			config->debug_damage_tracking = true;

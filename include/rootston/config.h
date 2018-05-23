@@ -70,6 +70,7 @@ struct roots_config {
 
 	char *config_path;
 	char *startup_cmd;
+	char *im_cmd;
 	bool debug_damage_tracking;
 };
 

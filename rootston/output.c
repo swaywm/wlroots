@@ -89,6 +89,9 @@ static void view_for_each_surface(struct roots_view *view,
 		wlr_surface_for_each_surface(view->wlr_surface, iterator, user_data);
 		break;
 #endif
+	case ROOTS_INPUT_PANEL_VIEW: // FIXME? used non-wlr_ before
+		wlr_surface_for_each_surface(view->wlr_surface, iterator, user_data);
+		break;
 	}
 }
 
@@ -332,6 +335,9 @@ static bool has_standalone_surface(struct roots_view *view) {
 	case ROOTS_XWAYLAND_VIEW:
 		return wl_list_empty(&view->xwayland_surface->children);
 #endif
+	case ROOTS_INPUT_PANEL_VIEW:
+		printf("Stub: has_standalone_surface on ROOTS_INPUT_PANEL_VIEV returns true\n");
+		return true;
 	}
 	return true;
 }

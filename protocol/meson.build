@@ -33,11 +33,13 @@ protocols = [
 	[wl_protocol_dir, 'unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
 	[wl_protocol_dir, 'unstable/xdg-output/xdg-output-unstable-v1.xml'],
+	[wl_protocol_dir, 'unstable/input-method/input-method-unstable-v1.xml'],
 	'gamma-control.xml',
 	'gtk-primary-selection.xml',
 	'idle.xml',
 	'screenshooter.xml',
 	'server-decoration.xml',
+	'text-input-unstable-v3.xml',
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
 ]
@@ -48,6 +50,7 @@ client_protocols = [
 	[wl_protocol_dir, 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml'],
 	'idle.xml',
 	'screenshooter.xml',
+	'text-input-unstable-v3.xml',
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
 ]
