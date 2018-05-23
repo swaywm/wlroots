@@ -38,6 +38,12 @@ struct wlr_dmabuf_buffer {
 };
 
 /**
+ * Closes all file descriptors in the DMA-BUF attributes.
+ */
+void wlr_dmabuf_buffer_attribs_finish(
+	struct wlr_dmabuf_buffer_attribs *attribs);
+
+/**
  * Returns true if the given resource was created via the linux-dmabuf
  * buffer protocol, false otherwise
  */

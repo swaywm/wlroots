@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output.h>
 #include "wlr-export-dmabuf-unstable-v1-protocol.h"
+#include <wlr/util/log.h>
 
 #define EXPORT_DMABUF_MANAGER_VERSION 1
 
@@ -31,6 +32,7 @@ static void frame_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_export_dmabuf_frame_v1 *frame = frame_from_resource(resource);
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_swap_buffers.link);
+	wlr_dmabuf_buffer_attribs_finish(&frame->attribs);
 	free(frame);
 }
 
@@ -80,6 +82,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 	}
 	frame->manager = manager;
 	frame->output = output;
+	wl_list_init(&frame->output_swap_buffers.link);
 
 	uint32_t version = wl_resource_get_version(manager_resource);
 	frame->resource = wl_resource_create(client,
@@ -93,9 +96,8 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	wl_list_insert(&manager->frames, &frame->link);
 
-	struct wlr_dmabuf_buffer_attribs attribs;
-	if (!wlr_output_export_dmabuf(output, &attribs)) {
-		wl_list_init(&frame->output_swap_buffers.link);
+	struct wlr_dmabuf_buffer_attribs *attribs = &frame->attribs;
+	if (!wlr_output_export_dmabuf(output, attribs)) {
 		// TODO: abort reason
 		zwlr_export_dmabuf_frame_v1_send_abort(frame->resource, 0);
 		return;
@@ -104,28 +106,29 @@ static void manager_handle_capture_output(struct wl_client *client,
 	// TODO: multiple layers support
 
 	uint32_t frame_flags = 0;
-	uint32_t mod_high = attribs.modifier[0] >> 32;
-	uint32_t mod_low = attribs.modifier[0] & 0xFFFFFFFF;
+	uint32_t mod_high = attribs->modifier[0] >> 32;
+	uint32_t mod_low = attribs->modifier[0] & 0xFFFFFFFF;
 
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
 		output->width, output->height, output->scale, output->transform,
-		attribs.flags, frame_flags, mod_high, mod_low, attribs.n_planes, 1);
+		attribs->flags, frame_flags, mod_high, mod_low, attribs->n_planes, 1);
 
 	zwlr_export_dmabuf_frame_v1_send_layer(frame->resource, 0,
-		attribs.format, 1);
+		attribs->format, 1);
 
-	for (int i = 0; i < attribs.n_planes; ++i) {
+	for (int i = 0; i < attribs->n_planes; ++i) {
 		// TODO: what to do if the kernel doesn't support seek on buffer
-		off_t size = lseek(attribs.fd[i], 0, SEEK_END);
+		off_t size = lseek(attribs->fd[i], 0, SEEK_END);
 
 		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
-			attribs.fd[i], size);
+			attribs->fd[i], size);
 		zwlr_export_dmabuf_frame_v1_send_plane(frame->resource, i, 0, i,
-			attribs.offset[i], attribs.stride[i]);
+			attribs->offset[i], attribs->stride[i]);
 	}
 
-	frame->output_swap_buffers.notify = frame_output_handle_swap_buffers;
+	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_signal_add(&output->events.swap_buffers, &frame->output_swap_buffers);
+	frame->output_swap_buffers.notify = frame_output_handle_swap_buffers;
 }
 
 static const struct zwlr_export_dmabuf_manager_v1_interface manager_impl = {
