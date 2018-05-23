@@ -198,8 +198,8 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 		return;
 	}
 
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	if (egl->wl_display && eglUnbindWaylandDisplayWL) {
+	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	if (egl->wl_display && egl->egl_exts.bind_wayland_display) {
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
