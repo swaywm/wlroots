@@ -467,7 +467,12 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	wlr_signal_emit_safe(&output->events.swap_buffers, damage);
+	struct wlr_output_event_swap_buffers event = {
+		.output = output,
+		.when = when,
+		.damage = damage,
+	};
+	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);

@@ -82,7 +82,7 @@ struct wlr_output {
 	struct {
 		struct wl_signal frame;
 		struct wl_signal needs_swap;
-		struct wl_signal swap_buffers;
+		struct wl_signal swap_buffers; // wlr_output_event_swap_buffers
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal scale;
@@ -106,6 +106,12 @@ struct wlr_output {
 	struct wl_listener display_destroy;
 
 	void *data;
+};
+
+struct wlr_output_event_swap_buffers {
+	struct wlr_output *output;
+	struct timespec *when;
+	pixman_region32_t *damage;
 };
 
 struct wlr_surface;

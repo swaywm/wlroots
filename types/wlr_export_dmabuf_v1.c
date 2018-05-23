@@ -30,7 +30,23 @@ static const struct zwlr_export_dmabuf_frame_v1_interface frame_impl = {
 static void frame_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_export_dmabuf_frame_v1 *frame = frame_from_resource(resource);
 	wl_list_remove(&frame->link);
+	wl_list_remove(&frame->output_swap_buffers.link);
 	free(frame);
+}
+
+static void frame_output_handle_swap_buffers(struct wl_listener *listener,
+		void *data) {
+	struct wlr_export_dmabuf_frame_v1 *frame =
+		wl_container_of(listener, frame, output_swap_buffers);
+	struct wlr_output_event_swap_buffers *event = data;
+
+	wl_list_remove(&frame->output_swap_buffers.link);
+	wl_list_init(&frame->output_swap_buffers.link);
+
+	uint32_t tv_sec_hi = event->when->tv_sec << 32;
+	uint32_t tv_sec_lo = event->when->tv_sec & 0xFFFFFFFF;
+	zwlr_export_dmabuf_frame_v1_send_ready(frame->resource,
+		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 }
 
 
@@ -87,7 +103,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	uint32_t frame_flags = 0;
 	uint32_t mod_high = attribs.modifier[0] >> 32;
-	uint32_t mod_low = attribs.modifier[0];
+	uint32_t mod_low = attribs.modifier[0] & 0xFFFFFFFF;
 
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
 		output->width, output->height, output->scale, output->transform,
@@ -106,9 +122,8 @@ static void manager_handle_capture_output(struct wl_client *client,
 			attribs.offset[i], attribs.stride[i]);
 	}
 
-	// TODO: wait for the frame to be ready
-	// TODO: timestamps
-	zwlr_export_dmabuf_frame_v1_send_ready(frame->resource, 0, 0, 0);
+	frame->output_swap_buffers.notify = frame_output_handle_swap_buffers;
+	wl_signal_add(&output->events.swap_buffers, &frame->output_swap_buffers);
 }
 
 static const struct zwlr_export_dmabuf_manager_v1_interface manager_impl = {

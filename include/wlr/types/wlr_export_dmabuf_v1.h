@@ -11,6 +11,8 @@ struct wlr_export_dmabuf_frame_v1 {
 	struct wl_list link;
 
 	struct wlr_output *output;
+
+	struct wl_listener output_swap_buffers;
 };
 
 struct wlr_export_dmabuf_manager_v1 {
