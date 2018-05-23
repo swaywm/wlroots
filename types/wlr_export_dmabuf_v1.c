@@ -61,13 +61,13 @@ static struct wlr_export_dmabuf_manager_v1 *manager_from_resource(
 
 static void manager_handle_capture_client(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
-		uint32_t client_id, int32_t overlay_cursor) {
+		int32_t overlay_cursor, uint32_t client_id) {
 	// TODO
 }
 
 static void manager_handle_capture_output(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
-		struct wl_resource *output_resource) {
+		int32_t overlay_cursor, struct wl_resource *output_resource) {
 	struct wlr_export_dmabuf_manager_v1 *manager =
 		manager_from_resource(manager_resource);
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
@@ -95,7 +95,9 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	struct wlr_dmabuf_buffer_attribs attribs;
 	if (!wlr_output_export_dmabuf(output, &attribs)) {
-		zwlr_export_dmabuf_frame_v1_send_abort(frame->resource);
+		wl_list_init(&frame->output_swap_buffers.link);
+		// TODO: abort reason
+		zwlr_export_dmabuf_frame_v1_send_abort(frame->resource, 0);
 		return;
 	}
 
@@ -109,16 +111,16 @@ static void manager_handle_capture_output(struct wl_client *client,
 		output->width, output->height, output->scale, output->transform,
 		attribs.flags, frame_flags, mod_high, mod_low, attribs.n_planes, 1);
 
-	zwlr_export_dmabuf_frame_v1_send_dma_layer(frame->resource, 0,
+	zwlr_export_dmabuf_frame_v1_send_layer(frame->resource, 0,
 		attribs.format, 1);
 
 	for (int i = 0; i < attribs.n_planes; ++i) {
 		// TODO: what to do if the kernel doesn't support seek on buffer
 		off_t size = lseek(attribs.fd[i], 0, SEEK_END);
 
-		zwlr_export_dmabuf_frame_v1_send_dma_object(frame->resource, i,
+		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
 			attribs.fd[i], size);
-		zwlr_export_dmabuf_frame_v1_send_dma_plane(frame->resource, i, 0, i,
+		zwlr_export_dmabuf_frame_v1_send_plane(frame->resource, i, 0, i,
 			attribs.offset[i], attribs.stride[i]);
 	}
 

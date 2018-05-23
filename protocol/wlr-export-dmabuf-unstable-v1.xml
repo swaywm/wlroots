@@ -24,7 +24,7 @@
     DEALINGS IN THE SOFTWARE.
   </copyright>
 
-  <description summary="a frame ready for readout">
+  <description summary="a protocol for low overhead screen content capturing">
     An interface to capture surfaces in an efficient way.
     Overall usage:
 
@@ -41,28 +41,27 @@
       This object represents a frame which is ready to have its resources
       fetched and used.
 
-      The receive callback shall be called first, followed by either the
-      "dma_object" callback once per object or the "dma_layer" callback,
-      once per layer. The "dma_plane" callback shall only be called after
-      the "dma_layer" callback corresponding to the layer the plane belongs
-      to has been called. Finally, the "ready" event is called to indicate that
-      all the data has been made available for readout, as well as the time
-      at which presentation happened at.
-      The ownership of the frame is passed to the client, who's responsible for
-      destroying it via the "destroy" event once finished.
+      The receive callback shall be called first, followed by the "object"
+      callback once per dmabuf object or the "layer" callback, once per dmabuf
+      layer. The "plane" callback shall only be called after the "layer"
+      callback corresponding to the layer the plane belongs to has been called
+      Finally, the "ready" event is called to indicate that all the data has
+      been made available for readout, as well as the time at which presentation
+      happened at. The ownership of the frame is passed to the client, who's
+      responsible for destroying it via the "destroy" event once finished.
       The data the API describes has been based off of what
       VASurfaceAttribExternalBuffers contains.
       All frames are read-only and may not be written into or altered.
     </description>
 
-    <enum name="frame_flags">
+    <enum name="flags">
       <description summary="frame flags">
         Special flags that must be respected by the client.
         Transient frames indicate short lifetime frames (such as swapchain
         images from external clients). Clients are advised to copy them and do
         all processing outside of the "ready" event.
       </description>
-      <entry name="transient" value="1" since="1"/>
+      <entry name="transient" value="0x1" since="1"/>
     </enum>
 
     <event name="frame">
@@ -85,10 +84,10 @@
       <arg name="transform" type="uint"
            summary="transform needed to correct the orientation, has the same
                     values as wl_output::transform"/>
-      <arg name="flags" type="uint"
+      <arg name="buffer_flags" type="uint"
            summary="flags which indicate properties (invert, interlacing),
                     has the same values as zwp_linux_buffer_params_v1:flags"/>
-      <arg name="frame_flags" type="uint" enum="frame_flags"
+      <arg name="flags" type="uint" enum="flags"
            summary="indicates special frame features"/>
       <arg name="mod_high" type="uint"
            summary="drm format modifier, high"/>
@@ -99,7 +98,7 @@
       <arg name="num_layers" type="uint"
            summary="indicates how many layers the frame has (max 4)"/>
     </event>
-    <event name="dma_object">
+    <event name="object">
       <description summary="object receiving callback">
         Callback which serves to supply the client with the file descriptors
         containing the data for each object.
@@ -111,7 +110,7 @@
       <arg name="size" type="uint"
            summary="size in bytes for the current object"/>
     </event>
-    <event name="dma_layer">
+    <event name="layer">
       <description summary="layer receiving callback">
         Callback which serves to supply the client with information on what's
         contained in each file descriptor and how its laid out.
@@ -124,7 +123,7 @@
       <arg name="num_planes" type="uint"
            summary="number of planes in the current layer (max 4)"/>
     </event>
-    <event name="dma_plane">
+    <event name="plane">
       <description summary="plane info receiving callback">
         Callback which supplies the client with plane information for each
         layer.
@@ -158,6 +157,21 @@
       <arg name="tv_nsec" type="uint"
            summary="nanoseconds part of the timestamp"/>
     </event>
+
+    <enum name="abort_reason">
+      <description summary="abort reason">
+        Indicates reason for aborting the frame.
+      </description>
+      <entry name="invalid_source" value="0" since="1"
+             summary="invalid source, will not produce any (more) frames"/>
+      <entry name="resizing" value="1" since="1"
+             summary="source started being resized, this frame must be dropped,
+                      but source is still able to be captured"/>
+      <entry name="security" value="2" since="1"
+             summary="this frame must be dropped as sensitive data was present,
+                      however future capture may still succeed"/>
+    </enum>
+
     <event name="abort">
       <description summary="indicates the frame is no longer valid">
         If the frame is no longer valid after the "frame" event has been called,
@@ -167,6 +181,8 @@
         This may get called if for instance the surface is in the process of
         resizing.
       </description>
+      <arg name="reason" type="uint" enum="abort_reason"
+           summary="indicates a reason for aborting this frame capture"/>
     </event>
 
     <request name="destroy" type="destructor">
@@ -208,23 +224,29 @@
     <request name="capture_client">
       <description summary="subscribe to start capturing">
         Request to start capturing from a surface with a given id.
-        If an ID becomes unavailable, a NULL will be returned.
       </description>
       <arg name="frame" type="new_id"
            interface="zwlr_export_dmabuf_frame_v1"/>
+      <arg name="overlay_cursor" type="int"
+           summary="include custom client hardware cursor on top of the frame"/>
       <arg name="id" type="uint"
            summary="an identifier to start capturing from"/>
-      <arg name="overlay_cursor" type="int"
-           summary="overlay custom client hardware cursor on top of the frame"/>
     </request>
     <request name="capture_output">
       <description summary="subscribe to start capturing">
         Request to start capturing from an entire wl_output.
-        If an output becomes unavailable, a NULL will be returned.
       </description>
       <arg name="frame" type="new_id"
            interface="zwlr_export_dmabuf_frame_v1"/>
-      <arg name="out" type="object" interface="wl_output" allow-null="false"/>
+      <arg name="overlay_cursor" type="int"
+           summary="include custom client hardware cursor on top of the frame"/>
+      <arg name="output" type="object" interface="wl_output"/>
+    </request>
+    <request name="destroy" type="destructor">
+      <description summary="destroy the manager">
+        All objects created by the manager will still remain valid, until their
+        appropriate destroy request has been called.
+      </description>
     </request>
   </interface>
 </protocol>
