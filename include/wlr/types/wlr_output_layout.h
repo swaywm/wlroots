@@ -66,9 +66,6 @@ struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int lx, int ly);
 
-void wlr_output_layout_move(struct wlr_output_layout *layout,
-		struct wlr_output *output, int lx, int ly);
-
 void wlr_output_layout_remove(struct wlr_output_layout *layout,
 		struct wlr_output *output);
 
