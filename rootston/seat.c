@@ -798,6 +798,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 	if (view == NULL) {
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		wlr_seat_keyboard_clear_focus(seat->seat);
 		return;
 	}
 
