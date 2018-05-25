@@ -79,6 +79,8 @@ struct wlr_event_tablet_tool_axis {
 	uint32_t updated_axes;
 	// From 0..1
 	double x, y;
+	// Relative to last event
+	double dx, dy;
 	double pressure;
 	double distance;
 	double tilt_x, tilt_y;

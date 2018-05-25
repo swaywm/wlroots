@@ -104,14 +104,21 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 static void handle_tablet_tool_position(struct roots_cursor *cursor,
 		struct roots_tablet_tool *tool,
 		struct wlr_tablet_tool_tool *tool_tool,
-		bool change_x, bool change_y, double x, double y,
-		uint32_t time) {
+		bool change_x, bool change_y,
+		double x, double y, double dx, double dy) {
 	if (!change_x && !change_y) {
 		return;
 	}
 
-	wlr_cursor_warp_absolute(cursor->cursor, tool->device,
-		change_x ? x : NAN, change_y ? y : NAN);
+	switch (tool_tool->type) {
+	case WLR_TABLET_TOOL_TYPE_MOUSE:
+		// They are 0 either way when they weren't modified
+		wlr_cursor_move(cursor->cursor, tool->device, dx, dy);
+		break;
+	default:
+		wlr_cursor_warp_absolute(cursor->cursor, tool->device,
+			change_x ? x : NAN, change_y ? y : NAN);
+	}
 
 	double sx, sy;
 	struct roots_view *view = NULL;
@@ -159,7 +166,7 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	handle_tablet_tool_position(cursor, event->device->data, event->tool,
 		event->updated_axes & WLR_TABLET_TOOL_AXIS_X,
 		event->updated_axes & WLR_TABLET_TOOL_AXIS_Y,
-		event->x, event->y, event->time_msec);
+		event->x, event->y, event->dx, event->dy);
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_PRESSURE) {
 		wlr_send_tablet_v2_tablet_tool_pressure(roots_tool->tablet_v2_tool, event->pressure);
@@ -271,7 +278,7 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 	}
 
 	handle_tablet_tool_position(cursor, event->device->data, event->tool,
-		true, true, event->x, event->y, event->time_msec);
+		true, true, event->x, event->y, 0, 0);
 }
 
 static void handle_request_set_cursor(struct wl_listener *listener,

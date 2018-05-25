@@ -204,10 +204,12 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	if (libinput_event_tablet_tool_x_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_X;
 		wlr_event.x = libinput_event_tablet_tool_get_x_transformed(tevent, 1);
+		wlr_event.dx = libinput_event_tablet_tool_get_dx(tevent);
 	}
 	if (libinput_event_tablet_tool_y_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_Y;
 		wlr_event.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1);
+		wlr_event.dy = libinput_event_tablet_tool_get_dy(tevent);
 	}
 	if (libinput_event_tablet_tool_pressure_has_changed(tevent)) {
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_PRESSURE;
