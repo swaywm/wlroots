@@ -114,7 +114,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 		attribs->flags, frame_flags, mod_high, mod_low, attribs->n_planes, 1);
 
 	zwlr_export_dmabuf_frame_v1_send_layer(frame->resource, 0,
-		attribs->format, 1);
+		attribs->format, attribs->n_planes);
 
 	for (int i = 0; i < attribs->n_planes; ++i) {
 		// TODO: what to do if the kernel doesn't support seek on buffer
