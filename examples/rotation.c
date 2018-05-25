@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
 	};
 	wl_list_init(&state.outputs);
 
-	struct wlr_backend *wlr = wlr_backend_autocreate(display);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
 	if (!wlr) {
 		exit(1);
 	}

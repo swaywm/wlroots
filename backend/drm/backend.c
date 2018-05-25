@@ -114,7 +114,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent) {
+		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent,
+		wlr_renderer_create_func_t create_renderer_func) {
 	assert(display && session && gpu_fd >= 0);
 	assert(!parent || wlr_backend_is_drm(parent));
 
@@ -161,7 +162,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	if (!init_drm_renderer(drm, &drm->renderer)) {
+	if (!init_drm_renderer(drm, &drm->renderer, create_renderer_func)) {
 		wlr_log(L_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}

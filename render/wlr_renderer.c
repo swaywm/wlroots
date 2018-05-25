@@ -4,6 +4,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
@@ -178,4 +179,20 @@ void wlr_renderer_init_wl_shm(struct wlr_renderer *r,
 			wl_display_add_shm_format(display, formats[i]);
 		}
 	}
+}
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
+		EGLenum platform, void *remote_display, EGLint *config_attribs, EGLint visual_id) {
+
+	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visual_id)) {
+		wlr_log(L_ERROR, "Could not initialize EGL");
+		return NULL;
+	}
+
+	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
+	if (!renderer) {
+		wlr_egl_finish(egl);
+	}
+
+	return renderer;
 }

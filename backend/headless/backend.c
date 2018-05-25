@@ -78,7 +78,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&backend->backend);
 }
 
-struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
+struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
+		wlr_renderer_create_func_t create_renderer_func) {
 	wlr_log(L_INFO, "Creating headless backend");
 
 	struct wlr_headless_backend *backend =
@@ -101,16 +102,18 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE,
 	};
-	bool ok = wlr_egl_init(&backend->egl, EGL_PLATFORM_SURFACELESS_MESA, NULL,
-		(EGLint *)config_attribs, 0);
-	if (!ok) {
-		free(backend);
-		return NULL;
+
+	if (!create_renderer_func) {
+		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
-	if (backend->renderer == NULL) {
+	backend->renderer = create_renderer_func(&backend->egl, EGL_PLATFORM_SURFACELESS_MESA,
+		NULL, (EGLint*)config_attribs, 0);
+
+	if (!backend->renderer) {
 		wlr_log(L_ERROR, "Failed to create renderer");
+		free(backend);
+		return NULL;
 	}
 
 	backend->display_destroy.notify = handle_display_destroy;

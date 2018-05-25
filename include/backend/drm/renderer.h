@@ -5,6 +5,7 @@
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 
 struct wlr_drm_backend;
@@ -32,7 +33,7 @@ struct wlr_drm_surface {
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-	struct wlr_drm_renderer *renderer);
+	struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_render);
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool init_drm_surface(struct wlr_drm_surface *surf,

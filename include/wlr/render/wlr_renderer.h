@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <wayland-server-protocol.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
 
@@ -15,6 +16,9 @@ struct wlr_renderer {
 		struct wl_signal destroy;
 	} events;
 };
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platform,
+	void *remote_display, EGLint *config_attribs, EGLint visual_id);
 
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
 void wlr_renderer_end(struct wlr_renderer *r);

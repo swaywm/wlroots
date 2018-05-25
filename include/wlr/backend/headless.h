@@ -9,7 +9,8 @@
  * Creates a headless backend. A headless backend has no outputs or inputs by
  * default.
  */
-struct wlr_backend *wlr_headless_backend_create(struct wl_display *display);
+struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
+	wlr_renderer_create_func_t create_renderer_func);
 /**
  * Create a new headless output backed by an in-memory EGL framebuffer. You can
  * read pixels from this framebuffer via wlr_renderer_read_pixels but it is

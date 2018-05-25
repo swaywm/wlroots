@@ -152,7 +152,7 @@ int main() {
 		.last_frame = { 0 },
 		.display = display
 	};
-	struct wlr_backend *wlr = wlr_backend_autocreate(display);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
 	if (!wlr) {
 		exit(1);
 	}
