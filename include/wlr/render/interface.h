@@ -49,6 +49,8 @@ struct wlr_renderer_impl {
 	struct wlr_texture *(*texture_from_dmabuf)(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_buffer_attribs *attribs);
 	void (*destroy)(struct wlr_renderer *renderer);
+	void (*init_wl_display)(struct wlr_renderer *renderer,
+		struct wl_display *wl_display);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
