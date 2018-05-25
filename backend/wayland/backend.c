@@ -139,7 +139,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
-		const char *remote) {
+		const char *remote, wlr_renderer_create_func_t create_renderer_func) {
 	wlr_log(L_INFO, "Creating wayland backend");
 
 	struct wlr_wl_backend *backend = calloc(1, sizeof(struct wlr_wl_backend));
@@ -174,14 +174,14 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		EGL_ALPHA_SIZE, 1,
 		EGL_NONE,
 	};
-	if (!wlr_egl_init(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
-			backend->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888)) {
-		wlr_log(L_ERROR, "Could not initialize EGL");
-		goto error_egl;
-	}
-	wlr_egl_bind_display(&backend->egl, backend->local_display);
 
-	backend->renderer = wlr_gles2_renderer_create(&backend->egl);
+	if (!create_renderer_func) {
+		create_renderer_func = wlr_renderer_autocreate;
+	}
+
+	backend->renderer = create_renderer_func(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
+		backend->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
+
 	if (backend->renderer == NULL) {
 		wlr_log(L_ERROR, "Could not create renderer");
 		goto error_renderer;
@@ -193,8 +193,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	return &backend->backend;
 
 error_renderer:
-	wlr_egl_finish(&backend->egl);
-error_egl:
 	wl_registry_destroy(backend->registry);
 error_registry:
 	wl_display_disconnect(backend->remote_display);

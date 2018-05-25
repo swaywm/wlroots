@@ -16,7 +16,8 @@
  * to NULL for the default behaviour (WAYLAND_DISPLAY env variable or wayland-0
  * default)
  */
-struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote);
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote,
+	wlr_renderer_create_func_t create_renderer_func);
 
 /**
  * Adds a new output to this backend. You may remove outputs by destroying them.

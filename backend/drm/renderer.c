@@ -19,29 +19,28 @@
 #endif
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-		struct wlr_drm_renderer *renderer) {
+		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
 		wlr_log(L_ERROR, "Failed to create GBM device");
 		return false;
 	}
 
-	if (!wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA, renderer->gbm,
-			NULL, GBM_FORMAT_ARGB8888)) {
-		goto error_gbm;
+	if (!create_renderer_func) {
+		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	renderer->wlr_rend = wlr_gles2_renderer_create(&renderer->egl);
+	renderer->wlr_rend = create_renderer_func(&renderer->egl,
+		EGL_PLATFORM_GBM_MESA, renderer->gbm, NULL, GBM_FORMAT_ARGB8888);
+
 	if (!renderer->wlr_rend) {
-		wlr_log(L_ERROR, "Failed to create WLR renderer");
-		goto error_egl;
+		wlr_log(L_ERROR, "Failed to create EGL/WLR renderer");
+		goto error_gbm;
 	}
 
 	renderer->fd = drm->fd;
 	return true;
 
-error_egl:
-	wlr_egl_finish(&renderer->egl);
 error_gbm:
 	gbm_device_destroy(renderer->gbm);
 	return false;

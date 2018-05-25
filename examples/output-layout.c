@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
 	state.layout = wlr_output_layout_create();
 	clock_gettime(CLOCK_MONOTONIC, &state.ts_last);
 
-	struct wlr_backend *wlr = wlr_backend_autocreate(display);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
 	if (!wlr) {
 		exit(1);
 	}
