@@ -102,8 +102,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 		zwlr_export_dmabuf_frame_v1_send_abort(frame->resource, 0);
 		return;
 	}
-
-	// TODO: multiple layers support
+	assert(attribs->n_planes > 0);
 
 	uint32_t frame_flags = 0;
 	uint32_t mod_high = attribs->modifier[0] >> 32;
