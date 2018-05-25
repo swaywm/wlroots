@@ -15,13 +15,14 @@
 #include <wlr/util/log.h>
 #include "tablet-unstable-v2-protocol.h"
 
+#define TABLET_MANAGER_VERSION 1
+
 struct wlr_tablet_manager_client_v2 {
 	struct wl_list link;
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_tablet_manager_v2 *manager;
 
-	struct wl_listener client_destroy;
 	struct wl_list tablet_seats; // wlr_tablet_seat_client_v2::link
 };
 
@@ -154,7 +155,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	struct wlr_tablet_seat_v2 *tablet_seat =
 		get_or_create_tablet_seat(manager->manager, seat->seat);
 
-	if (!tablet_seat) {// This can only happen when we ran out of memory
+	if (!tablet_seat) { // This can only happen when we ran out of memory
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
@@ -167,7 +168,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	}
 
 	seat_client->resource =
-		wl_resource_create(wl_client, &zwp_tablet_seat_v2_interface, 1, id);
+		wl_resource_create(wl_client, &zwp_tablet_seat_v2_interface, TABLET_MANAGER_VERSION, id);
 	if (seat_client->resource == NULL) {
 		free(seat_client);
 		wl_client_post_no_memory(wl_client);
@@ -190,7 +191,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	wl_list_insert(&manager->tablet_seats, &seat_client->client_link);
 	wl_list_insert(&tablet_seat->clients, &seat_client->seat_link);
 
-	// We need to emmit the devices allready on the seat
+	// We need to emit the devices allready on the seat
 	struct wlr_tablet_v2_tablet *tablet_pos;
 	wl_list_for_each(tablet_pos, &tablet_seat->tablets, link) {
 		add_tablet_client(seat_client, tablet_pos);
@@ -232,7 +233,6 @@ static void wlr_tablet_manager_v2_destroy(struct wl_resource *resource) {
 	}
 
 	wl_list_remove(&client->link);
-	//wl_list_remove(&client->client_destroy.link);
 
 	free(client);
 	wl_resource_set_user_data(resource, NULL);
@@ -299,7 +299,8 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 	wl_display_add_destroy_listener(display, &tablet->display_destroy);
 
 	tablet->wl_global = wl_global_create(display,
-		&zwp_tablet_manager_v2_interface, 1, tablet, tablet_v2_bind);
+		&zwp_tablet_manager_v2_interface, TABLET_MANAGER_VERSION,
+		tablet, tablet_v2_bind);
 	if (tablet->wl_global == NULL) {
 		free(tablet);
 		return NULL;
