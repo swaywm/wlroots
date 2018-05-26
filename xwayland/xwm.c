@@ -187,7 +187,7 @@ static void xwm_set_net_active_window(struct wlr_xwm *xwm,
 }
 
 static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
-		xcb_client_message_data_t *data) {
+		xcb_client_message_data_t *data, uint32_t event_mask) {
 	struct wlr_xwm *xwm = surface->xwm;
 
 	xcb_client_message_event_t event = {
@@ -202,7 +202,7 @@ static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
 	xcb_send_event(xwm->xcb_conn,
 		0, // propagate
 		surface->window_id,
-		XCB_EVENT_MASK_NO_EVENT,
+		event_mask,
 		(const char *)&event);
 	xcb_flush(xwm->xcb_conn);
 }
@@ -221,7 +221,8 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 	xcb_client_message_data_t message_data = { 0 };
 	message_data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
 	message_data.data32[1] = XCB_TIME_CURRENT_TIME;
-	xwm_send_wm_message(xsurface, &message_data);
+	xwm_send_wm_message(xsurface, &message_data,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
 
 	xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 		xsurface->window_id, XCB_CURRENT_TIME);
@@ -1266,7 +1267,7 @@ void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 		xcb_client_message_data_t message_data = {0};
 		message_data.data32[0] = xwm->atoms[WM_DELETE_WINDOW];
 		message_data.data32[1] = XCB_CURRENT_TIME;
-		xwm_send_wm_message(xsurface, &message_data);
+		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_NO_EVENT);
 	} else {
 		xcb_kill_client(xwm->xcb_conn, xsurface->window_id);
 		xcb_flush(xwm->xcb_conn);
@@ -1665,7 +1666,7 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface) {
 	data.data32[1] = XCB_CURRENT_TIME;
 	data.data32[2] = surface->window_id;
 
-	xwm_send_wm_message(surface, &data);
+	xwm_send_wm_message(surface, &data, XCB_EVENT_MASK_NO_EVENT);
 
 	wl_event_source_timer_update(surface->ping_timer,
 		surface->xwm->ping_timeout);
