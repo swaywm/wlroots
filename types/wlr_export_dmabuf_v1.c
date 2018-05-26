@@ -61,12 +61,6 @@ static struct wlr_export_dmabuf_manager_v1 *manager_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void manager_handle_capture_client(struct wl_client *client,
-		struct wl_resource *manager_resource, uint32_t id,
-		int32_t overlay_cursor, uint32_t client_id) {
-	// TODO
-}
-
 static void manager_handle_capture_output(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		int32_t overlay_cursor, struct wl_resource *output_resource) {
@@ -98,30 +92,27 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	struct wlr_dmabuf_buffer_attribs *attribs = &frame->attribs;
 	if (!wlr_output_export_dmabuf(output, attribs)) {
-		// TODO: abort reason
-		zwlr_export_dmabuf_frame_v1_send_abort(frame->resource, 0);
+		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
+			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
 		return;
 	}
 	assert(attribs->n_planes > 0);
 
-	uint32_t frame_flags = 0;
+	uint32_t frame_flags = ZWLR_EXPORT_DMABUF_FRAME_V1_FLAGS_TRANSIENT;
 	uint32_t mod_high = attribs->modifier[0] >> 32;
 	uint32_t mod_low = attribs->modifier[0] & 0xFFFFFFFF;
 
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
-		output->width, output->height, output->scale, output->transform,
-		attribs->flags, frame_flags, mod_high, mod_low, attribs->n_planes, 1);
-
-	zwlr_export_dmabuf_frame_v1_send_layer(frame->resource, 0,
-		attribs->format, attribs->n_planes);
+		output->width, output->height, 0, 0, attribs->flags, frame_flags,
+		attribs->format, mod_high, mod_low, attribs->n_planes,
+		attribs->n_planes);
 
 	for (int i = 0; i < attribs->n_planes; ++i) {
-		// TODO: what to do if the kernel doesn't support seek on buffer
 		off_t size = lseek(attribs->fd[i], 0, SEEK_END);
 
 		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
 			attribs->fd[i], size);
-		zwlr_export_dmabuf_frame_v1_send_plane(frame->resource, i, 0, i,
+		zwlr_export_dmabuf_frame_v1_send_plane(frame->resource, i, i,
 			attribs->offset[i], attribs->stride[i]);
 	}
 
@@ -131,7 +122,6 @@ static void manager_handle_capture_output(struct wl_client *client,
 }
 
 static const struct zwlr_export_dmabuf_manager_v1_interface manager_impl = {
-	.capture_client = manager_handle_capture_client,
 	.capture_output = manager_handle_capture_output,
 };
 
