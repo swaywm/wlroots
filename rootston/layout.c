@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <wlr/util/log.h>
+#include "rootston/output.h"
 #include "rootston/layout.h"
 
 static struct roots_layout_rule *get_rule(struct roots_layout *layout, char *name) {
