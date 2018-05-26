@@ -59,7 +59,20 @@ struct wlr_keyboard {
 	} repeat_info;
 
 	struct {
+		/**
+		 * The `key` event signals with a `wlr_event_keyboard_key` event that a
+		 * key has been pressed or released on the keyboard. This event is
+		 * emitted before the xkb state of the keyboard has been updated
+		 * (including modifiers).
+		 */
 		struct wl_signal key;
+
+		/**
+		 * The `modifiers` event signals that the modifier state of the
+		 * `wlr_keyboard` has been updated. At this time, you can read the
+		 * modifier state of the `wlr_keyboard` and handle the updated state by
+		 * sending it to clients.
+		 */
 		struct wl_signal modifiers;
 		struct wl_signal keymap;
 		struct wl_signal repeat_info;
