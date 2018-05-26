@@ -31,7 +31,7 @@ static void surface_handle_buffer_destroy(struct wl_listener *listener,
 
 static void surface_state_release_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {
-		wl_resource_post_event(state->buffer, WL_BUFFER_RELEASE);
+		wl_buffer_send_release(state->buffer);
 		surface_state_reset_buffer(state);
 	}
 }
