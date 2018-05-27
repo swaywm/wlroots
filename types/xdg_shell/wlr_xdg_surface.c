@@ -472,8 +472,7 @@ void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface) {
 
 static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
 		double *popup_sx, double *popup_sy) {
-	struct wlr_xdg_surface *parent =
-		wlr_xdg_surface_from_wlr_surface(popup->parent);
+	struct wlr_xdg_surface *parent = popup->parent;
 	*popup_sx = parent->geometry.x + popup->geometry.x -
 		popup->base->geometry.x;
 	*popup_sy = parent->geometry.y + popup->geometry.y -

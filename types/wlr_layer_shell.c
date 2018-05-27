@@ -141,7 +141,7 @@ static void layer_surface_handle_get_popup(struct wl_client *client,
 
 	assert(popup_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
 	struct wlr_xdg_popup *popup = popup_surface->popup;
-	popup->parent = parent->surface;
+	popup->parent = wlr_xdg_surface_from_wlr_surface(parent->surface);
 	wl_list_insert(&parent->popups, &popup->link);
 	wlr_signal_emit_safe(&parent->events.new_popup, popup);
 }
