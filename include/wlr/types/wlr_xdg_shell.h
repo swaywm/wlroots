@@ -86,6 +86,7 @@ enum wlr_xdg_surface_role {
 
 struct wlr_xdg_toplevel_state {
 	bool maximized, fullscreen, resizing, activated;
+	uint32_t tiled; // enum wlr_edges
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
@@ -245,6 +246,14 @@ uint32_t wlr_xdg_toplevel_set_fullscreen(struct wlr_xdg_surface *surface,
  */
 uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 		bool resizing);
+
+/**
+ * Request that this toplevel surface consider itself in a tiled layout and some
+ * edges are adjacent to another part of the tiling grid. `tiled_edges` is a
+ * bitfield of `enum wlr_edges`. Returns the associated configure serial.
+ */
+uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
+		uint32_t tiled_edges);
 
 /**
  * Request that this xdg surface closes.

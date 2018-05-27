@@ -3,7 +3,7 @@
 #include "types/wlr_xdg_shell.h"
 #include "util/signal.h"
 
-#define WM_BASE_VERSION 1
+#define WM_BASE_VERSION 2
 
 static const struct xdg_wm_base_interface xdg_shell_impl;
 

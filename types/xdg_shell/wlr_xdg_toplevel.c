@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/util/log.h>
+#include <wlr/util/edges.h>
 #include "types/wlr_xdg_shell.h"
 #include "util/signal.h"
 
@@ -20,6 +21,8 @@ void handle_xdg_toplevel_ack_configure(
 		configure->toplevel_state->resizing;
 	surface->toplevel->current.activated =
 		configure->toplevel_state->activated;
+	surface->toplevel->current.tiled =
+		configure->toplevel_state->tiled;
 }
 
 bool compare_xdg_surface_toplevel_state(struct wlr_xdg_toplevel *state) {
@@ -58,6 +61,9 @@ bool compare_xdg_surface_toplevel_state(struct wlr_xdg_toplevel *state) {
 	if (state->server_pending.resizing != configured.state.resizing) {
 		return false;
 	}
+	if (state->server_pending.tiled != configured.state.tiled) {
+		return false;
+	}
 
 	if (state->server_pending.width == configured.width &&
 			state->server_pending.height == configured.height) {
@@ -83,11 +89,10 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	}
 	*configure->toplevel_state = surface->toplevel->server_pending;
 
-	uint32_t *s;
 	struct wl_array states;
 	wl_array_init(&states);
 	if (surface->toplevel->server_pending.maximized) {
-		s = wl_array_add(&states, sizeof(uint32_t));
+		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
 			goto error_out;
@@ -95,7 +100,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		*s = XDG_TOPLEVEL_STATE_MAXIMIZED;
 	}
 	if (surface->toplevel->server_pending.fullscreen) {
-		s = wl_array_add(&states, sizeof(uint32_t));
+		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
 			goto error_out;
@@ -103,7 +108,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		*s = XDG_TOPLEVEL_STATE_FULLSCREEN;
 	}
 	if (surface->toplevel->server_pending.resizing) {
-		s = wl_array_add(&states, sizeof(uint32_t));
+		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
 			goto error_out;
@@ -111,12 +116,51 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		*s = XDG_TOPLEVEL_STATE_RESIZING;
 	}
 	if (surface->toplevel->server_pending.activated) {
-		s = wl_array_add(&states, sizeof(uint32_t));
+		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
 			goto error_out;
 		}
 		*s = XDG_TOPLEVEL_STATE_ACTIVATED;
+	}
+	if (surface->toplevel->server_pending.tiled) {
+		if (wl_resource_get_version(surface->resource) >=
+				XDG_TOPLEVEL_STATE_TILED_LEFT_SINCE_VERSION) {
+			const struct {
+				enum wlr_edges edge;
+				enum xdg_toplevel_state state;
+			} tiled[] = {
+				{ WLR_EDGE_LEFT, XDG_TOPLEVEL_STATE_TILED_LEFT },
+				{ WLR_EDGE_RIGHT, XDG_TOPLEVEL_STATE_TILED_RIGHT },
+				{ WLR_EDGE_TOP, XDG_TOPLEVEL_STATE_TILED_TOP },
+				{ WLR_EDGE_BOTTOM, XDG_TOPLEVEL_STATE_TILED_BOTTOM },
+			};
+
+			for (size_t i = 0; i < sizeof(tiled)/sizeof(tiled[0]); ++i) {
+				if ((surface->toplevel->server_pending.tiled &
+						tiled[i].edge) == 0) {
+					continue;
+				}
+
+				uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
+				if (!s) {
+					wlr_log(L_ERROR,
+						"Could not allocate state for tiled xdg_toplevel");
+					goto error_out;
+				}
+				*s = tiled[i].state;
+			}
+		} else if (!surface->toplevel->server_pending.maximized) {
+			// This version doesn't support tiling, best we can do is make the
+			// toplevel maximized
+			uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
+			if (!s) {
+				wlr_log(L_ERROR,
+					"Could not allocate state for maximized xdg_toplevel");
+				goto error_out;
+			}
+			*s = XDG_TOPLEVEL_STATE_MAXIMIZED;
+		}
 	}
 
 	uint32_t width = surface->toplevel->server_pending.width;
@@ -476,6 +520,14 @@ uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.resizing = resizing;
+
+	return schedule_xdg_surface_configure(surface);
+}
+
+uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
+		uint32_t tiled) {
+	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
+	surface->toplevel->server_pending.tiled = tiled;
 
 	return schedule_xdg_surface_configure(surface);
 }
