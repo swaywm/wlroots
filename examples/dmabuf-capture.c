@@ -35,7 +35,6 @@ struct capture_context {
 
 	/* Target */
 	struct wl_output *target_output;
-	uint32_t target_client;
 
 	/* Main frame callback */
 	struct zwlr_export_dmabuf_frame_v1 *frame_callback;
@@ -80,10 +79,10 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 static void output_handle_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	if (flags & WL_OUTPUT_MODE_CURRENT) {
-	    struct wayland_output *output = data;
-	    output->width     = width;
-	    output->height    = height;
-	    output->framerate = (AVRational){ refresh, 1000 };
+		struct wayland_output *output = data;
+		output->width     = width;
+		output->height    = height;
+		output->framerate = (AVRational){ refresh, 1000 };
 	}
 }
 
@@ -494,11 +493,10 @@ static int set_hwframe_ctx(struct capture_context *ctx,
 	frames_ctx->sw_format = ctx->avctx->pix_fmt;
 	frames_ctx->width     = ctx->avctx->width;
 	frames_ctx->height    = ctx->avctx->height;
-	frames_ctx->initial_pool_size = 16;
 
 	av_hwframe_constraints_free(&cst);
 
-	if ((err = av_hwframe_ctx_init(ctx->mapped_frames_ref)) < 0) {
+	if ((err = av_hwframe_ctx_init(ctx->mapped_frames_ref))) {
 		av_log(ctx, AV_LOG_ERROR, "Failed to initialize hw frame context: %s!\n",
 				av_err2str(err));
 		av_buffer_unref(&ctx->mapped_frames_ref);
@@ -695,19 +693,6 @@ static int init(struct capture_context *ctx) {
 	return 0;
 }
 
-static void print_capturable_surfaces(struct capture_context *ctx) {
-
-	struct wayland_output *o, *tmp_o;
-	wl_list_for_each_reverse_safe(o, tmp_o, &ctx->output_list, link) {
-		ctx->target_output = o->output; /* Default is first, whatever */
-		av_log(ctx, AV_LOG_INFO, "Capturable output: %s Model: %s:\n",
-				o->make, o->model);
-	}
-
-	av_log(ctx, AV_LOG_INFO, "Capturing from output: %s!\n",
-			find_output(ctx, ctx->target_output, 0)->model);
-}
-
 static void uninit(struct capture_context *ctx);
 
 int main(int argc, char *argv[]) {
@@ -723,17 +708,38 @@ int main(int argc, char *argv[]) {
 	if (err)
 		goto end;
 
-	print_capturable_surfaces(&ctx);
+	struct wayland_output *o, *tmp_o;
+	wl_list_for_each_reverse_safe(o, tmp_o, &ctx.output_list, link) {
+		printf("Capturable output: %s Model: %s: ID: %i\n",
+				o->make, o->model, o->id);
+	}
 
-	ctx.hw_device_type = av_hwdevice_find_type_by_name("vaapi");
-	ctx.hardware_device = "/dev/dri/renderD128";
+	if (argc != 8) {
+		printf("Invalid number of arguments! Usage and example:\n"
+				"./dmabuf-capture <source id> <hardware device type> <device> "
+				"<encoder name> <pixel format> <bitrate in Mbps> <file path>\n"
+				"./dmabuf-capture 0 vaapi /dev/dri/renderD129 libx264 nv12 12 "
+				"dmabuf_recording_01.mkv\n");
+		return 1;
+    }
 
-	ctx.encoder_name = "libx264";
-	ctx.software_format = av_get_pix_fmt("nv12");
+	const int o_id = strtol(argv[1], NULL, 10);
+	o = find_output(&ctx, NULL, o_id);
+	if (!o) {
+		printf("Unable to find output with ID %i!\n", o_id);
+		return 1;
+	}
+
+	ctx.target_output = o->output;
+	ctx.hw_device_type = av_hwdevice_find_type_by_name(argv[2]);
+	ctx.hardware_device = argv[3];
+
+	ctx.encoder_name = argv[4];
+	ctx.software_format = av_get_pix_fmt(argv[5]);
+	ctx.out_bitrate = strtof(argv[6], NULL);
+	ctx.out_filename = argv[7];
+
 	av_dict_set(&ctx.encoder_opts, "preset", "veryfast", 0);
-
-	ctx.out_filename = "dmabuf_recording_01.mkv";
-	ctx.out_bitrate = 29.2f; /* Mbps */
 
 	err = main_loop(&ctx);
 	if (err)
