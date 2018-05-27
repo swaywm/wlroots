@@ -55,7 +55,7 @@ struct wlr_xdg_popup {
 
 	struct wl_resource *resource;
 	bool committed;
-	struct wlr_surface *parent;
+	struct wlr_xdg_surface *parent;
 	struct wlr_seat *seat;
 
 	// Position of the popup relative to the upper left corner of the window

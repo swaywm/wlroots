@@ -252,7 +252,7 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 		wlr_xdg_positioner_get_geometry(&positioner->attrs);
 
 	if (parent) {
-		xdg_surface->popup->parent = parent->surface;
+		xdg_surface->popup->parent = wlr_xdg_surface_from_wlr_surface(parent->surface);
 		wl_list_insert(&parent->popups, &xdg_surface->popup->link);
 		wlr_signal_emit_safe(&parent->events.new_popup, xdg_surface->popup);
 	}
@@ -311,12 +311,11 @@ void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
 
 void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
 		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
-	struct wlr_xdg_surface *parent =
-		wlr_xdg_surface_from_wlr_surface(popup->parent);
+	struct wlr_xdg_surface *parent = popup->parent;
 	while (parent != NULL && parent->role == WLR_XDG_SURFACE_ROLE_POPUP) {
 		popup_sx += parent->popup->geometry.x;
 		popup_sy += parent->popup->geometry.y;
-		parent = wlr_xdg_surface_from_wlr_surface(parent->popup->parent);
+		parent = parent->popup->parent;
 	}
 	assert(parent);
 
