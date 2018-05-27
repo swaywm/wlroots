@@ -1,6 +1,10 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
 
+libavutil = dependency('libavutil')
+libavcodec = dependency('libavcodec')
+libavformat = dependency('libavformat')
+
 executable('simple', 'simple.c', dependencies: wlroots)
 executable('pointer', 'pointer.c', dependencies: wlroots)
 executable('touch', 'touch.c', 'cat.c', dependencies: wlroots)
@@ -37,4 +41,10 @@ executable(
 	'input-inhibitor',
 	'input-inhibitor.c',
 	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
+)
+
+executable(
+	'dmabuf-capture',
+	'dmabuf-capture.c',
+	dependencies: [wayland_client, wlr_protos, libavutil, libavcodec, libavformat]
 )
