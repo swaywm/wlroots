@@ -9,7 +9,7 @@
 #include <wlr/util/log.h>
 
 static bool colored = true;
-static log_importance_t log_importance = L_ERROR;
+static enum wlr_log_importance log_importance = L_ERROR;
 
 static const char *verbosity_colors[] = {
 	[L_SILENT] = "",
@@ -18,7 +18,7 @@ static const char *verbosity_colors[] = {
 	[L_DEBUG ] = "\x1B[1;30m",
 };
 
-static void log_stderr(log_importance_t verbosity, const char *fmt,
+static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 		va_list args) {
 	if (verbosity > log_importance) {
 		return;
@@ -47,9 +47,9 @@ static void log_stderr(log_importance_t verbosity, const char *fmt,
 	fprintf(stderr, "\n");
 }
 
-static log_callback_t log_callback = log_stderr;
+static wlr_log_func_t log_callback = log_stderr;
 
-void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
+void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback) {
 	if (verbosity < L_LAST) {
 		log_importance = verbosity;
 	}
@@ -58,11 +58,11 @@ void wlr_log_init(log_importance_t verbosity, log_callback_t callback) {
 	}
 }
 
-void _wlr_vlog(log_importance_t verbosity, const char *fmt, va_list args) {
+void _wlr_vlog(enum wlr_log_importance verbosity, const char *fmt, va_list args) {
 	log_callback(verbosity, fmt, args);
 }
 
-void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
+void _wlr_log(enum wlr_log_importance verbosity, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	log_callback(verbosity, fmt, args);
@@ -74,8 +74,8 @@ void _wlr_log(log_importance_t verbosity, const char *fmt, ...) {
 // e.g. '/src/build/wlroots/backend/wayland/backend.c' and
 // '../backend/wayland/backend.c' will both be stripped to
 // 'backend/wayland/backend.c'
-const char *wlr_strip_path(const char *filepath) {
-	static int srclen = sizeof(WLR_SRC_DIR);
+const char *_wlr_strip_path(const char *filepath) {
+	static size_t srclen = sizeof(WLR_SRC_DIR);
 	if (strstr(filepath, WLR_SRC_DIR) == filepath) {
 		filepath += srclen;
 	} else if (*filepath == '.') {

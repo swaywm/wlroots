@@ -46,7 +46,7 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 	return false;
 }
 
-static log_importance_t egl_log_importance_to_wlr(EGLint type) {
+static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type) {
 	switch (type) {
 	case EGL_DEBUG_MSG_CRITICAL_KHR: return L_ERROR;
 	case EGL_DEBUG_MSG_ERROR_KHR:    return L_ERROR;

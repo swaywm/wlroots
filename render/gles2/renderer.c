@@ -374,7 +374,7 @@ void pop_gles2_marker(void) {
 	}
 }
 
-static log_importance_t gles2_log_importance_to_wlr(GLenum type) {
+static enum wlr_log_importance gles2_log_importance_to_wlr(GLenum type) {
 	switch (type) {
 	case GL_DEBUG_TYPE_ERROR_KHR:               return L_ERROR;
 	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_KHR: return L_DEBUG;
