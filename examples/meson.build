@@ -1,9 +1,9 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
 
-libavutil = dependency('libavutil')
-libavcodec = dependency('libavcodec')
-libavformat = dependency('libavformat')
+libavutil = dependency('libavutil', required: false)
+libavcodec = dependency('libavcodec', required: false)
+libavformat = dependency('libavformat', required: false)
 
 executable('simple', 'simple.c', dependencies: wlroots)
 executable('pointer', 'pointer.c', dependencies: wlroots)
@@ -43,8 +43,10 @@ executable(
 	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
 )
 
-executable(
-	'dmabuf-capture',
-	'dmabuf-capture.c',
-	dependencies: [wayland_client, wlr_protos, libavutil, libavcodec, libavformat]
-)
+if libavutil.found() and libavcodec.found() and libavformat.found()
+	executable(
+		'dmabuf-capture',
+		'dmabuf-capture.c',
+		dependencies: [wayland_client, wlr_protos, libavutil, libavcodec, libavformat]
+	)
+endif
