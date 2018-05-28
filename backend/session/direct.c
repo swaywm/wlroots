@@ -37,7 +37,7 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 
 	int fd = direct_ipc_open(session->sock, path);
 	if (fd < 0) {
-		wlr_log(L_ERROR, "Failed to open %s: %s%s", path, strerror(-fd),
+		wlr_log(WLR_ERROR, "Failed to open %s: %s%s", path, strerror(-fd),
 			fd == -EINVAL ? "; is another display server running?" : "");
 		return fd;
 	}
@@ -60,7 +60,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
-		wlr_log_errno(L_ERROR, "Stat failed");
+		wlr_log_errno(WLR_ERROR, "Stat failed");
 		close(fd);
 		return;
 	}
@@ -92,7 +92,7 @@ static void direct_session_destroy(struct wlr_session *base) {
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
 	if (errno) {
-		wlr_log(L_ERROR, "Failed to restore tty");
+		wlr_log(WLR_ERROR, "Failed to restore tty");
 	}
 
 	direct_ipc_finish(session->sock, session->child);
@@ -140,13 +140,13 @@ static int vt_handler(int signo, void *data) {
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
 	int fd = dup(STDIN_FILENO);
 	if (fd == -1) {
-		wlr_log_errno(L_ERROR, "Cannot open tty");
+		wlr_log_errno(WLR_ERROR, "Cannot open tty");
 		return false;
 	}
 
 	struct stat st;
 	if (fstat(fd, &st) == -1 || major(st.st_rdev) != TTY_MAJOR || minor(st.st_rdev) == 0) {
-		wlr_log(L_ERROR, "Not running from a virtual terminal");
+		wlr_log(WLR_ERROR, "Not running from a virtual terminal");
 		goto error;
 	}
 
@@ -155,12 +155,12 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 
 	ret = ioctl(fd, KDGETMODE, &kd_mode);
 	if (ret) {
-		wlr_log_errno(L_ERROR, "Failed to get tty mode");
+		wlr_log_errno(WLR_ERROR, "Failed to get tty mode");
 		goto error;
 	}
 
 	if (kd_mode != KD_TEXT) {
-		wlr_log(L_ERROR,
+		wlr_log(WLR_ERROR,
 			"tty already in graphics mode; is another display server running?");
 		goto error;
 	}
@@ -169,17 +169,17 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 	ioctl(fd, VT_WAITACTIVE, tty);
 
 	if (ioctl(fd, KDGKBMODE, &old_kbmode)) {
-		wlr_log_errno(L_ERROR, "Failed to read keyboard mode");
+		wlr_log_errno(WLR_ERROR, "Failed to read keyboard mode");
 		goto error;
 	}
 
 	if (ioctl(fd, KDSKBMODE, K_OFF)) {
-		wlr_log_errno(L_ERROR, "Failed to set keyboard mode");
+		wlr_log_errno(WLR_ERROR, "Failed to set keyboard mode");
 		goto error;
 	}
 
 	if (ioctl(fd, KDSETMODE, KD_GRAPHICS)) {
-		wlr_log_errno(L_ERROR, "Failed to set graphics mode on tty");
+		wlr_log_errno(WLR_ERROR, "Failed to set graphics mode on tty");
 		goto error;
 	}
 
@@ -190,7 +190,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 	};
 
 	if (ioctl(fd, VT_SETMODE, &mode) < 0) {
-		wlr_log(L_ERROR, "Failed to take control of tty");
+		wlr_log(WLR_ERROR, "Failed to take control of tty");
 		goto error;
 	}
 
@@ -215,7 +215,7 @@ error:
 static struct wlr_session *direct_session_create(struct wl_display *disp) {
 	struct direct_session *session = calloc(1, sizeof(*session));
 	if (!session) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 
@@ -234,7 +234,7 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 		seat = "seat0";
 	}
 
-	wlr_log(L_INFO, "Successfully loaded direct session");
+	wlr_log(WLR_INFO, "Successfully loaded direct session");
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.impl = &session_direct;

@@ -41,11 +41,11 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
  */
 static bool backend_start(struct wlr_backend *_backend) {
 	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
-	wlr_log(L_INFO, "Initializating wayland backend");
+	wlr_log(WLR_INFO, "Initializating wayland backend");
 
 	poll_wl_registry(backend);
 	if (!backend->compositor || !backend->shell) {
-		wlr_log_errno(L_ERROR, "Could not obtain retrieve required globals");
+		wlr_log_errno(WLR_ERROR, "Could not obtain retrieve required globals");
 		return false;
 	}
 
@@ -140,11 +140,11 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		const char *remote, wlr_renderer_create_func_t create_renderer_func) {
-	wlr_log(L_INFO, "Creating wayland backend");
+	wlr_log(WLR_INFO, "Creating wayland backend");
 
 	struct wlr_wl_backend *backend = calloc(1, sizeof(struct wlr_wl_backend));
 	if (!backend) {
-		wlr_log(L_ERROR, "Allocation failed: %s", strerror(errno));
+		wlr_log(WLR_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
@@ -156,13 +156,13 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	backend->remote_display = wl_display_connect(remote);
 	if (!backend->remote_display) {
-		wlr_log_errno(L_ERROR, "Could not connect to remote display");
+		wlr_log_errno(WLR_ERROR, "Could not connect to remote display");
 		goto error_connect;
 	}
 
 	backend->registry = wl_display_get_registry(backend->remote_display);
 	if (backend->registry == NULL) {
-		wlr_log_errno(L_ERROR, "Could not obtain reference to remote registry");
+		wlr_log_errno(WLR_ERROR, "Could not obtain reference to remote registry");
 		goto error_registry;
 	}
 
@@ -183,7 +183,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		backend->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
 
 	if (backend->renderer == NULL) {
-		wlr_log(L_ERROR, "Could not create renderer");
+		wlr_log(WLR_ERROR, "Could not create renderer");
 		goto error_renderer;
 	}
 

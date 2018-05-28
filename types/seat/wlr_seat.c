@@ -19,7 +19,7 @@ static void seat_handle_get_pointer(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_POINTER)) {
-		wlr_log(L_ERROR, "Client sent get_pointer on seat without the "
+		wlr_log(WLR_ERROR, "Client sent get_pointer on seat without the "
 			"pointer capability");
 		return;
 	}
@@ -33,7 +33,7 @@ static void seat_handle_get_keyboard(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wlr_log(L_ERROR, "Client sent get_keyboard on seat without the "
+		wlr_log(WLR_ERROR, "Client sent get_keyboard on seat without the "
 			"keyboard capability");
 		return;
 	}
@@ -47,7 +47,7 @@ static void seat_handle_get_touch(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_TOUCH)) {
-		wlr_log(L_ERROR, "Client sent get_touch on seat without the "
+		wlr_log(WLR_ERROR, "Client sent get_touch on seat without the "
 			"touch capability");
 		return;
 	}

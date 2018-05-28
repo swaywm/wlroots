@@ -22,7 +22,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
-		wlr_log(L_ERROR, "Failed to create GBM device");
+		wlr_log(WLR_ERROR, "Failed to create GBM device");
 		return false;
 	}
 
@@ -34,7 +34,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		EGL_PLATFORM_GBM_MESA, renderer->gbm, NULL, GBM_FORMAT_ARGB8888);
 
 	if (!renderer->wlr_rend) {
-		wlr_log(L_ERROR, "Failed to create EGL/WLR renderer");
+		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
 		goto error_gbm;
 	}
 
@@ -83,13 +83,13 @@ bool init_drm_surface(struct wlr_drm_surface *surf,
 	surf->gbm = gbm_surface_create(renderer->gbm, width, height,
 		format, GBM_BO_USE_RENDERING | flags);
 	if (!surf->gbm) {
-		wlr_log_errno(L_ERROR, "Failed to create GBM surface");
+		wlr_log_errno(WLR_ERROR, "Failed to create GBM surface");
 		goto error_zero;
 	}
 
 	surf->egl = wlr_egl_create_surface(&renderer->egl, surf->gbm);
 	if (surf->egl == EGL_NO_SURFACE) {
-		wlr_log(L_ERROR, "Failed to create EGL surface");
+		wlr_log(WLR_ERROR, "Failed to create EGL surface");
 		goto error_gbm;
 	}
 

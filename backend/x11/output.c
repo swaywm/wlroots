@@ -134,7 +134,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
-		wlr_log(L_ERROR, "Failed to create EGL surface");
+		wlr_log(WLR_ERROR, "Failed to create EGL surface");
 		free(output);
 		return NULL;
 	}

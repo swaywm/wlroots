@@ -7,11 +7,11 @@
 #include <string.h>
 
 enum wlr_log_importance {
-	L_SILENT,
-	L_ERROR,
-	L_INFO,
-	L_DEBUG,
-	L_LAST,
+	WLR_SILENT,
+	WLR_ERROR,
+	WLR_INFO,
+	WLR_DEBUG,
+	WLR_LOG_IMPORTANCE_LAST,
 };
 
 typedef void (*wlr_log_func_t)(enum wlr_log_importance importance,

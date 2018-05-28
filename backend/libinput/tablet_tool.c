@@ -13,7 +13,7 @@ struct wlr_tablet_tool *create_libinput_tablet_tool(
 	assert(libinput_dev);
 	struct wlr_tablet_tool *wlr_tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
 	if (!wlr_tablet_tool) {
-		wlr_log(L_ERROR, "Unable to allocate wlr_tablet_tool");
+		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
 		return NULL;
 	}
 	wlr_tablet_tool_init(wlr_tablet_tool, NULL);
@@ -25,7 +25,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	struct libinput_event_tablet_tool *tevent =
@@ -78,7 +78,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	struct libinput_event_tablet_tool *tevent =
@@ -104,7 +104,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	handle_tablet_tool_axis(event, libinput_dev);
@@ -130,7 +130,7 @@ void handle_tablet_tool_button(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	handle_tablet_tool_axis(event, libinput_dev);

@@ -50,7 +50,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 			wlr_tablet_pad_destroy(dev->tablet_pad);
 			break;
 		default:
-			wlr_log(L_DEBUG, "Warning: leaking memory %p %p %d",
+			wlr_log(WLR_DEBUG, "Warning: leaking memory %p %p %d",
 					dev->_device, dev, dev->type);
 			break;
 		}

@@ -186,7 +186,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 		rules.options = getenv("XKB_DEFAULT_OPTIONS");
 		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
-			wlr_log(L_ERROR, "Failed to create XKB context");
+			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
 		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
@@ -220,14 +220,14 @@ int main(int argc, char *argv[]) {
 			} else if (strcmp(optarg, "flipped-270") == 0) {
 				transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
 			} else {
-				wlr_log(L_ERROR, "got unknown transform value: %s", optarg);
+				wlr_log(WLR_ERROR, "got unknown transform value: %s", optarg);
 			}
 			break;
 		default:
 			break;
 		}
 	}
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
 		.display = display,
@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
 
 	state.renderer = wlr_backend_get_renderer(wlr);
 	if (!state.renderer) {
-		wlr_log(L_ERROR, "Could not start compositor, OOM");
+		wlr_log(WLR_ERROR, "Could not start compositor, OOM");
 		wlr_backend_destroy(wlr);
 		exit(EXIT_FAILURE);
 	}
@@ -256,12 +256,12 @@ int main(int argc, char *argv[]) {
 		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
 	if (!state.cat_texture) {
-		wlr_log(L_ERROR, "Could not start compositor, OOM");
+		wlr_log(WLR_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
 
 	if (!wlr_backend_start(wlr)) {
-		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_log(WLR_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);
 		exit(1);
 	}

@@ -166,7 +166,7 @@ uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 	struct wlr_touch_point *point =
 		touch_point_create(seat, touch_id, surface, sx, sy);
 	if (!point) {
-		wlr_log(L_ERROR, "could not create touch point");
+		wlr_log(WLR_ERROR, "could not create touch point");
 		return 0;
 	}
 
@@ -246,7 +246,7 @@ void wlr_seat_touch_point_focus(struct wlr_seat *seat,
 	assert(surface);
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch point focus for unknown touch point");
+		wlr_log(WLR_ERROR, "got touch point focus for unknown touch point");
 		return;
 	}
 	struct wlr_surface *focus = point->focus_surface;
@@ -262,7 +262,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 		int32_t touch_id) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch point focus for unknown touch point");
+		wlr_log(WLR_ERROR, "got touch point focus for unknown touch point");
 		return;
 	}
 
@@ -274,7 +274,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch down for unknown touch point");
+		wlr_log(WLR_ERROR, "got touch down for unknown touch point");
 		return 0;
 	}
 
@@ -295,7 +295,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_id) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch up for unknown touch point");
+		wlr_log(WLR_ERROR, "got touch up for unknown touch point");
 		return;
 	}
 
@@ -314,7 +314,7 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 		double sx, double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
-		wlr_log(L_ERROR, "got touch motion for unknown touch point");
+		wlr_log(WLR_ERROR, "got touch motion for unknown touch point");
 		return;
 	}
 

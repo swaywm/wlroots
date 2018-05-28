@@ -210,7 +210,7 @@ static void xdg_surface_handle_destroy(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface = xdg_surface_from_resource(resource);
 
 	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE) {
-		wlr_log(L_ERROR, "Tried to destroy an xdg_surface before its role "
+		wlr_log(WLR_ERROR, "Tried to destroy an xdg_surface before its role "
 			"object");
 		return;
 	}
@@ -444,7 +444,7 @@ struct wlr_xdg_surface_v6 *create_xdg_surface_v6(
 	wlr_surface_set_role_committed(xdg_surface->surface,
 		handle_surface_committed, xdg_surface);
 
-	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
+	wlr_log(WLR_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);
 	wl_list_insert(&client->surfaces, &xdg_surface->link);
 

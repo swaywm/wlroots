@@ -172,7 +172,7 @@ static bool surface_update_size(struct wlr_surface *surface,
 		state->buffer_width = dmabuf->attributes.width;
 		state->buffer_height = dmabuf->attributes.height;
 	} else {
-		wlr_log(L_ERROR, "Unknown buffer handle attached");
+		wlr_log(WLR_ERROR, "Unknown buffer handle attached");
 		state->buffer_width = 0;
 		state->buffer_height = 0;
 	}
@@ -390,7 +390,7 @@ static void surface_apply_damage(struct wlr_surface *surface,
 				wlr_texture_from_dmabuf(surface->renderer, &dmabuf->attributes);
 		} else {
 			surface->texture = NULL;
-			wlr_log(L_ERROR, "Unknown buffer handle attached");
+			wlr_log(WLR_ERROR, "Unknown buffer handle attached");
 		}
 	}
 
@@ -669,7 +669,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_resource_set_implementation(surface->resource, &surface_interface,
 		surface, surface_handle_resource_destroy);
 
-	wlr_log(L_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
+	wlr_log(WLR_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
 
 	surface->renderer = renderer;
 

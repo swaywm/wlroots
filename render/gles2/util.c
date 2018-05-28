@@ -28,10 +28,10 @@ bool _gles2_flush_errors(const char *file, int line) {
 		failure = true;
 		if (err == GL_OUT_OF_MEMORY) {
 			// The OpenGL context is now undefined
-			_wlr_log(L_ERROR, "[%s:%d] Fatal GL error: out of memory", file, line);
+			_wlr_log(WLR_ERROR, "[%s:%d] Fatal GL error: out of memory", file, line);
 			exit(1);
 		} else {
-			_wlr_log(L_ERROR, "[%s:%d] GL error %d %s", file, line, err, gles2_strerror(err));
+			_wlr_log(WLR_ERROR, "[%s:%d] GL error %d %s", file, line, err, gles2_strerror(err));
 		}
 	}
 	return failure;

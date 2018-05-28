@@ -192,13 +192,13 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	struct wlr_session *session = wlr_session_create(display);
 	if (!session) {
-		wlr_log(L_ERROR, "Failed to start a DRM session");
+		wlr_log(WLR_ERROR, "Failed to start a DRM session");
 		return NULL;
 	}
 
 	int gpu = wlr_session_find_gpu(session);
 	if (gpu == -1) {
-		wlr_log(L_ERROR, "Failed to open DRM device");
+		wlr_log(WLR_ERROR, "Failed to open DRM device");
 		goto error_session;
 	}
 

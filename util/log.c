@@ -9,13 +9,13 @@
 #include <wlr/util/log.h>
 
 static bool colored = true;
-static enum wlr_log_importance log_importance = L_ERROR;
+static enum wlr_log_importance log_importance = WLR_ERROR;
 
 static const char *verbosity_colors[] = {
-	[L_SILENT] = "",
-	[L_ERROR ] = "\x1B[1;31m",
-	[L_INFO  ] = "\x1B[1;34m",
-	[L_DEBUG ] = "\x1B[1;30m",
+	[WLR_SILENT] = "",
+	[WLR_ERROR ] = "\x1B[1;31m",
+	[WLR_INFO  ] = "\x1B[1;34m",
+	[WLR_DEBUG ] = "\x1B[1;30m",
 };
 
 static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
@@ -33,7 +33,8 @@ static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 	strftime(buffer, sizeof(buffer), "%F %T - ", tm_info);
 	fprintf(stderr, "%s", buffer);
 
-	unsigned c = (verbosity < L_LAST) ? verbosity : L_LAST - 1;
+	enum wlr_log_importance c = (verbosity < WLR_LOG_IMPORTANCE_LAST) ?
+		verbosity : WLR_LOG_IMPORTANCE_LAST - 1;
 
 	if (colored && isatty(STDERR_FILENO)) {
 		fprintf(stderr, "%s", verbosity_colors[c]);
@@ -50,7 +51,7 @@ static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 static wlr_log_func_t log_callback = log_stderr;
 
 void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback) {
-	if (verbosity < L_LAST) {
+	if (verbosity < WLR_LOG_IMPORTANCE_LAST) {
 		log_importance = verbosity;
 	}
 	if (callback) {
