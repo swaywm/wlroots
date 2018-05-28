@@ -48,13 +48,13 @@ struct capture_context {
 	AVBufferRef *drm_device_ref;
 	AVBufferRef *drm_frames_ref;
 
-    AVBufferRef *mapped_device_ref;
-    AVBufferRef *mapped_frames_ref;
+	AVBufferRef *mapped_device_ref;
+	AVBufferRef *mapped_frames_ref;
 
-    AVFormatContext *avf;
-    AVCodecContext *avctx;
+	AVFormatContext *avf;
+	AVCodecContext *avctx;
 
-    int64_t start_pts;
+	int64_t start_pts;
 
 	/* Config */
 	enum AVPixelFormat software_format;
@@ -136,7 +136,7 @@ static struct wayland_output *find_output(struct capture_context *ctx,
 	wl_list_for_each_safe(output, tmp, &ctx->output_list, link)
 		if ((output->output == out) || (output->id == id))
 			return output;
-    return NULL;
+	return NULL;
 }
 
 static void registry_handle_remove(void *data, struct wl_registry *reg,
@@ -328,7 +328,7 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 
 	AVHWFramesContext *mapped_hwfc;
 	mapped_hwfc = (AVHWFramesContext *)ctx->mapped_frames_ref->data;
-    mapped_frame->format = mapped_hwfc->format;
+	mapped_frame->format = mapped_hwfc->format;
 
 	/* Set frame hardware context referencce */
 	mapped_frame->hw_frames_ctx = av_buffer_ref(ctx->mapped_frames_ref);
@@ -339,8 +339,8 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 
 	err = av_hwframe_map(mapped_frame, f, 0);
 	if (err) {
-	    av_log(ctx, AV_LOG_ERROR, "Error mapping: %s!\n", av_err2str(err));
-	    goto end;
+		av_log(ctx, AV_LOG_ERROR, "Error mapping: %s!\n", av_err2str(err));
+		goto end;
 	}
 
 	AVFrame *enc_input = mapped_frame;
@@ -369,7 +369,7 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	do {
 		err = avcodec_send_frame(ctx->avctx, enc_input);
 
-        av_frame_free(&enc_input);
+		av_frame_free(&enc_input);
 
 		if (err) {
 			av_log(ctx, AV_LOG_ERROR, "Error encoding: %s!\n", av_err2str(err));
@@ -473,12 +473,12 @@ static int init_lavu_hwcontext(struct capture_context *ctx) {
 static int set_hwframe_ctx(struct capture_context *ctx,
 		AVBufferRef *hw_device_ctx)
 {
-    AVHWFramesContext *frames_ctx = NULL;
-    int err = 0;
+	AVHWFramesContext *frames_ctx = NULL;
+	int err = 0;
 
-    if (!(ctx->mapped_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
-        return AVERROR(ENOMEM);
-    }
+	if (!(ctx->mapped_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
+		return AVERROR(ENOMEM);
+	}
 
 	AVHWFramesConstraints *cst =
 			av_hwdevice_get_hwframe_constraints(ctx->mapped_device_ref, NULL);
@@ -512,7 +512,7 @@ static int set_hwframe_ctx(struct capture_context *ctx,
 		}
 	}
 
-    return err;
+	return err;
 }
 
 static int init_encoding(struct capture_context *ctx) {
@@ -521,79 +521,79 @@ static int init_encoding(struct capture_context *ctx) {
 	/* lavf init */
 	err = avformat_alloc_output_context2(&ctx->avf, NULL,
 			NULL, ctx->out_filename);
-    if (err) {
-        av_log(ctx, AV_LOG_ERROR, "Unable to init lavf context!\n");
-        return err;
-    }
+	if (err) {
+		av_log(ctx, AV_LOG_ERROR, "Unable to init lavf context!\n");
+		return err;
+	}
 
-    AVStream *st = avformat_new_stream(ctx->avf, NULL);
-    if (!st) {
-        av_log(ctx, AV_LOG_ERROR, "Unable to alloc stream!\n");
-        return 1;
-    }
+	AVStream *st = avformat_new_stream(ctx->avf, NULL);
+	if (!st) {
+		av_log(ctx, AV_LOG_ERROR, "Unable to alloc stream!\n");
+		return 1;
+	}
 
 	/* Find encoder */
-    AVCodec *out_codec = avcodec_find_encoder_by_name(ctx->encoder_name);
-    if (!out_codec) {
-        av_log(ctx, AV_LOG_ERROR, "Codec not found (not compiled in lavc?)!\n");
-        return AVERROR(EINVAL);
-    }
-    ctx->avf->oformat->video_codec = out_codec->id;
-    ctx->is_software_encoder = !(out_codec->capabilities & AV_CODEC_CAP_HARDWARE);
+	AVCodec *out_codec = avcodec_find_encoder_by_name(ctx->encoder_name);
+	if (!out_codec) {
+		av_log(ctx, AV_LOG_ERROR, "Codec not found (not compiled in lavc?)!\n");
+		return AVERROR(EINVAL);
+	}
+	ctx->avf->oformat->video_codec = out_codec->id;
+	ctx->is_software_encoder = !(out_codec->capabilities & AV_CODEC_CAP_HARDWARE);
 
 	ctx->avctx = avcodec_alloc_context3(out_codec);
-    if (!ctx->avctx)
-        return 1;
+	if (!ctx->avctx)
+		return 1;
 
-    ctx->avctx->opaque            = ctx;
-    ctx->avctx->bit_rate          = (int)ctx->out_bitrate*1000000.0f;
-    ctx->avctx->pix_fmt           = ctx->software_format;
-    ctx->avctx->time_base         = (AVRational){ 1, 1000 };
-    ctx->avctx->compression_level = 7;
-    ctx->avctx->width             = find_output(ctx, ctx->target_output, 0)->width;
-    ctx->avctx->height            = find_output(ctx, ctx->target_output, 0)->height;
+	ctx->avctx->opaque            = ctx;
+	ctx->avctx->bit_rate          = (int)ctx->out_bitrate*1000000.0f;
+	ctx->avctx->pix_fmt           = ctx->software_format;
+	ctx->avctx->time_base         = (AVRational){ 1, 1000 };
+	ctx->avctx->compression_level = 7;
+	ctx->avctx->width             = find_output(ctx, ctx->target_output, 0)->width;
+	ctx->avctx->height            = find_output(ctx, ctx->target_output, 0)->height;
 
 	if (ctx->avf->oformat->flags & AVFMT_GLOBALHEADER)
 		ctx->avctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
 	st->id             = 0;
-    st->time_base      = ctx->avctx->time_base;
-    st->avg_frame_rate = find_output(ctx, ctx->target_output, 0)->framerate;
+	st->time_base      = ctx->avctx->time_base;
+	st->avg_frame_rate = find_output(ctx, ctx->target_output, 0)->framerate;
 
-    /* Init hw frames context */
-    err = set_hwframe_ctx(ctx, ctx->mapped_device_ref);
-    if (err)
-	    return err;
+	/* Init hw frames context */
+	err = set_hwframe_ctx(ctx, ctx->mapped_device_ref);
+	if (err)
+		return err;
 
 	err = avcodec_open2(ctx->avctx, out_codec, &ctx->encoder_opts);
 	if (err) {
-        av_log(ctx, AV_LOG_ERROR, "Cannot open encoder: %s!\n",
-        		av_err2str(err));
-        return err;
-    }
+		av_log(ctx, AV_LOG_ERROR, "Cannot open encoder: %s!\n",
+				av_err2str(err));
+		return err;
+	}
 
 	if (avcodec_parameters_from_context(st->codecpar, ctx->avctx) < 0) {
-        av_log(ctx, AV_LOG_ERROR, "Couldn't copy codec params: %s!\n",
-        		av_err2str(err));
-        return err;
-    }
+		av_log(ctx, AV_LOG_ERROR, "Couldn't copy codec params: %s!\n",
+				av_err2str(err));
+		return err;
+	}
 
-    /* Debug print */
-    av_dump_format(ctx->avf, 0, ctx->out_filename, 1);
+	/* Debug print */
+	av_dump_format(ctx->avf, 0, ctx->out_filename, 1);
 
-    /* Open for writing */
-    err = avio_open(&ctx->avf->pb, ctx->out_filename, AVIO_FLAG_WRITE);
-    if (err) {
-        av_log(ctx, AV_LOG_ERROR, "Couldn't open %s: %s!\n", ctx->out_filename,
-        		av_err2str(err));
-        return err;
-    }
+	/* Open for writing */
+	err = avio_open(&ctx->avf->pb, ctx->out_filename, AVIO_FLAG_WRITE);
+	if (err) {
+		av_log(ctx, AV_LOG_ERROR, "Couldn't open %s: %s!\n", ctx->out_filename,
+				av_err2str(err));
+		return err;
+	}
 
 	err = avformat_write_header(ctx->avf, NULL);
-    if (err) {
-        av_log(ctx, AV_LOG_ERROR, "Couldn't write header: %s!\n", av_err2str(err));
-        return err;
-    }
+	if (err) {
+		av_log(ctx, AV_LOG_ERROR, "Couldn't write header: %s!\n", av_err2str(err));
+		return err;
+	}
 
 	return err;
 }
@@ -608,12 +608,12 @@ void on_quit_signal(int signo) {
 static int main_loop(struct capture_context *ctx) {
 	int err;
 
-    q_ctx = ctx;
+	q_ctx = ctx;
 
-    if (signal(SIGINT, on_quit_signal) == SIG_ERR) {
+	if (signal(SIGINT, on_quit_signal) == SIG_ERR) {
 		av_log(ctx, AV_LOG_ERROR, "Unable to install signal handler!\n");
-        return AVERROR(EINVAL);
-    }
+		return AVERROR(EINVAL);
+	}
 
 	err = init_lavu_hwcontext(ctx);
 	if (err)
@@ -627,11 +627,11 @@ static int main_loop(struct capture_context *ctx) {
 	register_cb(ctx);
 
 	while (!ctx->err && ctx->quit < 2) {
-	    while (wl_display_prepare_read(ctx->display) != 0) {
+		while (wl_display_prepare_read(ctx->display) != 0) {
 			wl_display_dispatch_pending(ctx->display);
 		}
 
-        wl_display_flush(ctx->display);
+		wl_display_flush(ctx->display);
 
 		struct pollfd fds[1] = {
 			{ .fd = wl_display_get_fd(ctx->display), .events = POLLIN },
@@ -649,7 +649,7 @@ static int main_loop(struct capture_context *ctx) {
 		}
 
 		if (fds[0].revents & POLLIN) {
-		    if (wl_display_read_events(ctx->display) < 0) {
+			if (wl_display_read_events(ctx->display) < 0) {
 				av_log(ctx, AV_LOG_ERROR, "Failed to read Wayland events!\n");
 				break;
 			}
@@ -658,13 +658,13 @@ static int main_loop(struct capture_context *ctx) {
 	}
 
 	err = av_write_trailer(ctx->avf);
-    if (err) {
-        av_log(ctx, AV_LOG_ERROR, "Error writing trailer: %s!\n",
-        		av_err2str(err));
-        return err;
-    }
+	if (err) {
+		av_log(ctx, AV_LOG_ERROR, "Error writing trailer: %s!\n",
+				av_err2str(err));
+		return err;
+	}
 
-    av_log(ctx, AV_LOG_INFO, "Wrote trailer!\n");
+	av_log(ctx, AV_LOG_INFO, "Wrote trailer!\n");
 
 	return ctx->err;
 }
@@ -679,7 +679,7 @@ static int init(struct capture_context *ctx) {
 	wl_list_init(&ctx->output_list);
 
 	ctx->registry = wl_display_get_registry(ctx->display);
-    wl_registry_add_listener(ctx->registry, &registry_listener, ctx);
+	wl_registry_add_listener(ctx->registry, &registry_listener, ctx);
 
 	wl_display_roundtrip(ctx->display);
 	wl_display_dispatch(ctx->display);
@@ -721,7 +721,7 @@ int main(int argc, char *argv[]) {
 				"./dmabuf-capture 0 vaapi /dev/dri/renderD129 libx264 nv12 12 "
 				"dmabuf_recording_01.mkv\n");
 		return 1;
-    }
+	}
 
 	const int o_id = strtol(argv[1], NULL, 10);
 	o = find_output(&ctx, NULL, o_id);
@@ -759,9 +759,9 @@ static void uninit(struct capture_context *ctx) {
 		zwlr_export_dmabuf_manager_v1_destroy(ctx->export_manager);
 
 	av_buffer_unref(&ctx->drm_frames_ref);
-    av_buffer_unref(&ctx->drm_device_ref);
-    av_buffer_unref(&ctx->mapped_frames_ref);
-    av_buffer_unref(&ctx->mapped_device_ref);
+	av_buffer_unref(&ctx->drm_device_ref);
+	av_buffer_unref(&ctx->mapped_frames_ref);
+	av_buffer_unref(&ctx->mapped_device_ref);
 
 	av_dict_free(&ctx->encoder_opts);
 
