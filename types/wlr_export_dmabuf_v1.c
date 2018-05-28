@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output.h>
@@ -89,6 +90,12 @@ static void manager_handle_capture_output(struct wl_client *client,
 		frame_handle_resource_destroy);
 
 	wl_list_insert(&manager->frames, &frame->link);
+
+	if (!output->impl->export_dmabuf) {
+		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
+			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERNAMENT);
+		return;
+	}
 
 	struct wlr_dmabuf_buffer_attribs *attribs = &frame->attribs;
 	if (!wlr_output_export_dmabuf(output, attribs)) {
