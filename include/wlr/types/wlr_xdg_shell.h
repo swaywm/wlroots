@@ -17,9 +17,8 @@ struct wlr_xdg_shell {
 		/**
 		 * The `new_surface` event signals that a client has requested to
 		 * create a new shell surface. At this point, the surface is ready to
-		 * be configured but not ready to be managed by the compositor by
-		 * adding it to a list of views. The surface will be ready to be
-		 * managed on the `map` event.
+		 * be configured but is not mapped or ready receive input events. The
+		 * surface will be ready to be managed on the `map` event.
 		 */
 		struct wl_signal new_surface;
 	} events;
