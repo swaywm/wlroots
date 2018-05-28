@@ -229,13 +229,6 @@ static struct wlr_output_layout_output *output_layout_output_create(
 	return l_output;
 }
 
-// Adapted from wl_list_for_each
-// Starts with wlr_ to avoid name conflicts
-#define wlr_wl_list_for_each_offset(pos, head, member, offset)			\
-	for (pos = wl_container_of((offset)->member.next, pos, member);	\
-	     &pos->member != (head);										\
-	     pos = wl_container_of(pos->member.next, pos, member))
-
 void relocate_output_with_children(struct wlr_output_layout *layout,
 		struct wlr_output_layout_output *output,
 		struct wl_list *ref) {
@@ -248,7 +241,10 @@ void relocate_output_with_children(struct wlr_output_layout *layout,
 		return;
 	}
 
-	wlr_wl_list_for_each_offset(child_output, &layout->outputs, link, output) {
+	for (child_output = wl_container_of((output)->link.next, output, link);
+			&output->link != &layout->outputs;
+			child_output =
+				wl_container_of((child_output)->link.next, output, link)) {
 		while (child_output->reference != parent_output) {
 			if (parent_output == output) {
 				goto move_outputs;
@@ -265,8 +261,6 @@ move_outputs:
 	output->link.prev = ref;
 	ref->next = &output->link;
 }
-
-#undef wlr_wl_list_for_each_offset
 
 void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int lx, int ly) {
