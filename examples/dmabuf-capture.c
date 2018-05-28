@@ -1,18 +1,16 @@
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 199309L
+#include <libavformat/avformat.h>
+#include <libavutil/display.h>
+#include <libavutil/hwcontext_drm.h>
+#include <libavutil/pixdesc.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <signal.h>
-
 #include "wlr-export-dmabuf-unstable-v1-client-protocol.h"
-
-#include <libavformat/avformat.h>
-#include <libavutil/pixdesc.h>
-#include <libavutil/display.h>
-#include <libavutil/hwcontext_drm.h>
 
 struct wayland_output {
 	struct wl_list link;
@@ -72,7 +70,7 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t subpixel, const char *make, const char *model,
 		int32_t transform) {
 	struct wayland_output *output = data;
-	output->make  = av_strdup(make);
+	output->make = av_strdup(make);
 	output->model = av_strdup(model);
 }
 
@@ -80,8 +78,8 @@ static void output_handle_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	if (flags & WL_OUTPUT_MODE_CURRENT) {
 		struct wayland_output *output = data;
-		output->width     = width;
-		output->height    = height;
+		output->width = width;
+		output->height = height;
 		output->framerate = (AVRational){ refresh, 1000 };
 	}
 }
@@ -96,10 +94,10 @@ static void output_handle_scale(void* data, struct wl_output *wl_output,
 }
 
 static const struct wl_output_listener output_listener = {
-	output_handle_geometry,
-	output_handle_mode,
-	output_handle_done,
-	output_handle_scale,
+	.geometry = output_handle_geometry,
+	.mode = output_handle_mode,
+	.done = output_handle_done,
+	.scale = output_handle_scale,
 };
 
 static void registry_handle_add(void *data, struct wl_registry *reg,
@@ -109,7 +107,7 @@ static void registry_handle_add(void *data, struct wl_registry *reg,
 	if (!strcmp(interface, wl_output_interface.name)) {
 		struct wayland_output *output = av_mallocz(sizeof(*output));
 
-		output->id     = id;
+		output->id = id;
 		output->output = wl_registry_bind(reg, id, &wl_output_interface, 1);
 
 		wl_output_add_listener(output->output, &output_listener, output);
@@ -117,8 +115,8 @@ static void registry_handle_add(void *data, struct wl_registry *reg,
 	}
 
 	if (!strcmp(interface, zwlr_export_dmabuf_manager_v1_interface.name)) {
-			ctx->export_manager = wl_registry_bind(reg, id,
-					&zwlr_export_dmabuf_manager_v1_interface, 1);
+		ctx->export_manager = wl_registry_bind(reg, id,
+				&zwlr_export_dmabuf_manager_v1_interface, 1);
 	}
 }
 
@@ -127,15 +125,16 @@ static void remove_output(struct wayland_output *out) {
 	av_free(out->make);
 	av_free(out->model);
 	av_free(out);
-	return;
 }
 
 static struct wayland_output *find_output(struct capture_context *ctx,
 		struct wl_output *out, uint32_t id) {
 	struct wayland_output *output, *tmp;
-	wl_list_for_each_safe(output, tmp, &ctx->output_list, link)
-		if ((output->output == out) || (output->id == id))
+	wl_list_for_each_safe(output, tmp, &ctx->output_list, link) {
+		if ((output->output == out) || (output->id == id)) {
 			return output;
+		}
+	}
 	return NULL;
 }
 
@@ -145,8 +144,8 @@ static void registry_handle_remove(void *data, struct wl_registry *reg,
 }
 
 static const struct wl_registry_listener registry_listener = {
-	registry_handle_add,
-	registry_handle_remove,
+	.global = registry_handle_add,
+	.global_remove = registry_handle_remove,
 };
 
 static void frame_free(void *opaque, uint8_t *data) {
@@ -192,7 +191,7 @@ static void frame_start(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 
 	/* Set base frame properties */
 	ctx->current_frame = f;
-	f->width  = width;
+	f->width = width;
 	f->height = height;
 	f->format = AV_PIX_FMT_DRM_PRIME;
 
@@ -219,7 +218,7 @@ static void frame_object(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	AVFrame *f = ctx->current_frame;
 	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)f->data[0];
 
-	desc->objects[index].fd   = fd;
+	desc->objects[index].fd = fd;
 	desc->objects[index].size = size;
 }
 
@@ -231,8 +230,8 @@ static void frame_plane(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)f->data[0];
 
 	desc->layers[0].planes[index].object_index = object_index;
-	desc->layers[0].planes[index].offset       = offset;
-	desc->layers[0].planes[index].pitch        = stride;
+	desc->layers[0].planes[index].offset = offset;
+	desc->layers[0].planes[index].pitch = stride;
 }
 
 static const uint32_t pixfmt_to_drm_map[] = {
@@ -278,10 +277,10 @@ static int attach_drm_frames_ref(struct capture_context *ctx, AVFrame *f,
 
 	hwfc = (AVHWFramesContext*)ctx->drm_frames_ref->data;
 
-	hwfc->format    = f->format;
+	hwfc->format = f->format;
 	hwfc->sw_format = sw_format;
-	hwfc->width     = f->width;
-	hwfc->height    = f->height;
+	hwfc->width = f->width;
+	hwfc->height = f->height;
 
 	err = av_hwframe_ctx_init(ctx->drm_frames_ref);
 	if (err) {
@@ -421,30 +420,31 @@ static void frame_cancel(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	struct capture_context *ctx = data;
 	av_log(ctx, AV_LOG_WARNING, "Frame cancelled!\n");
 	av_frame_free(&ctx->current_frame);
-	if (reason != ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERNAMENT)
+	if (reason == ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERNAMENT) {
+		av_log(ctx, AV_LOG_ERROR, "Permanent failure, exiting\n");
+		ctx->err = 1;
+	} else {
 		register_cb(ctx);
+	}
 }
 
 static const struct zwlr_export_dmabuf_frame_v1_listener frame_listener = {
-	frame_start,
-	frame_object,
-	frame_plane,
-	frame_ready,
-	frame_cancel,
+	.frame = frame_start,
+	.object = frame_object,
+	.plane = frame_plane,
+	.ready = frame_ready,
+	.cancel = frame_cancel,
 };
 
-static void register_cb(struct capture_context *ctx)
-{
-	ctx->frame_callback =
-		zwlr_export_dmabuf_manager_v1_capture_output(ctx->export_manager, 0,
-				ctx->target_output);
+static void register_cb(struct capture_context *ctx) {
+	ctx->frame_callback = zwlr_export_dmabuf_manager_v1_capture_output(
+			ctx->export_manager, 0, ctx->target_output);
 
 	zwlr_export_dmabuf_frame_v1_add_listener(ctx->frame_callback,
 			&frame_listener, ctx);
 }
 
 static int init_lavu_hwcontext(struct capture_context *ctx) {
-
 	/* DRM hwcontext */
 	ctx->drm_device_ref = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_DRM);
 	if (!ctx->drm_device_ref)
@@ -471,8 +471,7 @@ static int init_lavu_hwcontext(struct capture_context *ctx) {
 }
 
 static int set_hwframe_ctx(struct capture_context *ctx,
-		AVBufferRef *hw_device_ctx)
-{
+		AVBufferRef *hw_device_ctx) {
 	AVHWFramesContext *frames_ctx = NULL;
 	int err = 0;
 
@@ -489,10 +488,10 @@ static int set_hwframe_ctx(struct capture_context *ctx,
 	}
 
 	frames_ctx = (AVHWFramesContext *)(ctx->mapped_frames_ref->data);
-	frames_ctx->format    = cst->valid_hw_formats[0];
+	frames_ctx->format = cst->valid_hw_formats[0];
 	frames_ctx->sw_format = ctx->avctx->pix_fmt;
-	frames_ctx->width     = ctx->avctx->width;
-	frames_ctx->height    = ctx->avctx->height;
+	frames_ctx->width = ctx->avctx->width;
+	frames_ctx->height = ctx->avctx->height;
 
 	av_hwframe_constraints_free(&cst);
 
@@ -545,25 +544,27 @@ static int init_encoding(struct capture_context *ctx) {
 	if (!ctx->avctx)
 		return 1;
 
-	ctx->avctx->opaque            = ctx;
-	ctx->avctx->bit_rate          = (int)ctx->out_bitrate*1000000.0f;
-	ctx->avctx->pix_fmt           = ctx->software_format;
-	ctx->avctx->time_base         = (AVRational){ 1, 1000 };
+	ctx->avctx->opaque = ctx;
+	ctx->avctx->bit_rate = (int)ctx->out_bitrate*1000000.0f;
+	ctx->avctx->pix_fmt = ctx->software_format;
+	ctx->avctx->time_base = (AVRational){ 1, 1000 };
 	ctx->avctx->compression_level = 7;
-	ctx->avctx->width             = find_output(ctx, ctx->target_output, 0)->width;
-	ctx->avctx->height            = find_output(ctx, ctx->target_output, 0)->height;
+	ctx->avctx->width = find_output(ctx, ctx->target_output, 0)->width;
+	ctx->avctx->height = find_output(ctx, ctx->target_output, 0)->height;
 
-	if (ctx->avf->oformat->flags & AVFMT_GLOBALHEADER)
+	if (ctx->avf->oformat->flags & AVFMT_GLOBALHEADER) {
 		ctx->avctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	}
 
-	st->id             = 0;
-	st->time_base      = ctx->avctx->time_base;
+	st->id = 0;
+	st->time_base = ctx->avctx->time_base;
 	st->avg_frame_rate = find_output(ctx, ctx->target_output, 0)->framerate;
 
 	/* Init hw frames context */
 	err = set_hwframe_ctx(ctx, ctx->mapped_device_ref);
-	if (err)
+	if (err) {
 		return err;
+	}
 
 	err = avcodec_open2(ctx->avctx, out_codec, &ctx->encoder_opts);
 	if (err) {
@@ -616,45 +617,21 @@ static int main_loop(struct capture_context *ctx) {
 	}
 
 	err = init_lavu_hwcontext(ctx);
-	if (err)
+	if (err) {
 		return err;
+	}
 
 	err = init_encoding(ctx);
-	if (err)
+	if (err) {
 		return err;
+	}
 
 	/* Start the frame callback */
 	register_cb(ctx);
 
-	while (!ctx->err && ctx->quit < 2) {
-		while (wl_display_prepare_read(ctx->display) != 0) {
-			wl_display_dispatch_pending(ctx->display);
-		}
-
-		wl_display_flush(ctx->display);
-
-		struct pollfd fds[1] = {
-			{ .fd = wl_display_get_fd(ctx->display), .events = POLLIN },
-		};
-
-		poll(fds, 1, -1);
-
-		if (!(fds[0].revents & POLLIN)) {
-			wl_display_cancel_read(ctx->display);
-		}
-
-		if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-			av_log(ctx, AV_LOG_ERROR, "Error occurred on the display fd!\n");
-			break;
-		}
-
-		if (fds[0].revents & POLLIN) {
-			if (wl_display_read_events(ctx->display) < 0) {
-				av_log(ctx, AV_LOG_ERROR, "Failed to read Wayland events!\n");
-				break;
-			}
-			wl_display_dispatch_pending(ctx->display);
-		}
+	while (wl_display_dispatch(ctx->display) != -1 && !ctx->err &&
+			ctx->quit < 2) {
+		// This space intentionally left blank
 	}
 
 	err = av_write_trailer(ctx->avf);
@@ -705,8 +682,9 @@ int main(int argc, char *argv[]) {
 	});
 
 	err = init(&ctx);
-	if (err)
+	if (err) {
 		goto end;
+	}
 
 	struct wayland_output *o, *tmp_o;
 	wl_list_for_each_reverse_safe(o, tmp_o, &ctx.output_list, link) {
@@ -742,8 +720,9 @@ int main(int argc, char *argv[]) {
 	av_dict_set(&ctx.encoder_opts, "preset", "veryfast", 0);
 
 	err = main_loop(&ctx);
-	if (err)
+	if (err) {
 		goto end;
+	}
 
 end:
 	uninit(&ctx);
@@ -752,11 +731,13 @@ end:
 
 static void uninit(struct capture_context *ctx) {
 	struct wayland_output *output, *tmp_o;
-	wl_list_for_each_safe(output, tmp_o, &ctx->output_list, link)
+	wl_list_for_each_safe(output, tmp_o, &ctx->output_list, link) {
 		remove_output(output);
+	}
 
-	if (ctx->export_manager)
+	if (ctx->export_manager) {
 		zwlr_export_dmabuf_manager_v1_destroy(ctx->export_manager);
+	}
 
 	av_buffer_unref(&ctx->drm_frames_ref);
 	av_buffer_unref(&ctx->drm_device_ref);
