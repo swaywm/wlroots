@@ -46,7 +46,7 @@ endif
 # Avoid wl_buffer deprecation warnings
 add_project_arguments('-DWL_HIDE_DEPRECATED', language: 'c')
 
-wayland_server = dependency('wayland-server')
+wayland_server = dependency('wayland-server', version: '>=1.15')
 wayland_client = dependency('wayland-client')
 wayland_egl    = dependency('wayland-egl')
 wayland_protos = dependency('wayland-protocols', version: '>=1.14')
