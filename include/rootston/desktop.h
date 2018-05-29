@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_screenshooter.h>
+#include <wlr/types/wlr_virtual_keyboard_v1.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -51,6 +52,7 @@ struct roots_desktop {
 	struct wlr_input_inhibit_manager *input_inhibit;
 	struct wlr_linux_dmabuf *linux_dmabuf;
 	struct wlr_layer_shell *layer_shell;
+	struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
@@ -61,6 +63,7 @@ struct roots_desktop {
 	struct wl_listener decoration_new;
 	struct wl_listener input_inhibit_activate;
 	struct wl_listener input_inhibit_deactivate;
+	struct wl_listener virtual_keyboard_new;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
