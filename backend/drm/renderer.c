@@ -186,15 +186,15 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 		return NULL;
 	}
 
-	struct wlr_dmabuf_buffer_attribs attribs = {
+	struct wlr_dmabuf_attributes attribs = {
 		.n_planes = 1,
 		.width = gbm_bo_get_width(bo),
 		.height = gbm_bo_get_height(bo),
 		.format = gbm_bo_get_format(bo),
+		.modifier = DRM_FORMAT_MOD_LINEAR,
 	};
 	attribs.offset[0] = 0;
 	attribs.stride[0] = gbm_bo_get_stride_for_plane(bo, 0);
-	attribs.modifier[0] = DRM_FORMAT_MOD_LINEAR;
 	attribs.fd[0] = gbm_bo_get_fd(bo);
 
 	tex->tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);

@@ -4,6 +4,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>

@@ -5,7 +5,7 @@
 #include <EGL/eglext.h>
 #include <stdint.h>
 #include <wayland-server-protocol.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/render/dmabuf.h>
 
 struct wlr_renderer;
 struct wlr_texture_impl;
@@ -33,7 +33,7 @@ struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
  * Create a new texture from a DMA-BUF. The returned texture is immutable.
  */
 struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
-	struct wlr_dmabuf_buffer_attribs *attribs);
+	struct wlr_dmabuf_attributes *attribs);
 
 /**
  * Get the texture width and height.
