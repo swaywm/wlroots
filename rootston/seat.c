@@ -652,8 +652,8 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
 
-	if (seat_view == seat->cursor->pointer_view) {
-		seat->cursor->pointer_view = NULL;
+	if (seat_view == seat->cursor->deco_view) {
+		seat->cursor->deco_view = NULL;
 	}
 
 	wl_list_remove(&seat_view->view_unmap.link);
