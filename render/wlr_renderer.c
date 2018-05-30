@@ -136,11 +136,11 @@ int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *r, int format,
 }
 
 bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *r,
-		struct wlr_dmabuf_buffer *dmabuf) {
+		struct wlr_dmabuf_attributes *attribs) {
 	if (!r->impl->check_import_dmabuf) {
 		return false;
 	}
-	return r->impl->check_import_dmabuf(r, dmabuf);
+	return r->impl->check_import_dmabuf(r, attribs);
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
