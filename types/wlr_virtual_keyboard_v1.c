@@ -231,6 +231,16 @@ struct wlr_virtual_keyboard_manager_v1*
 
 void wlr_virtual_keyboard_manager_v1_destroy(
 		struct wlr_virtual_keyboard_manager_v1 *manager) {
+	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
+	struct wl_resource *resource, *resource_tmp;
+	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
+		wl_resource_destroy(resource);
+	}
+	struct wlr_virtual_keyboard_v1 *keyboard, *keyboard_tmp;
+	wl_list_for_each_safe(keyboard, keyboard_tmp, &manager->virtual_keyboards,
+			link) {
+		wl_resource_destroy(keyboard->resource);
+	}
 	free(manager);
 }
