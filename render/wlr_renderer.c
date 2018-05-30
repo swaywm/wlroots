@@ -135,14 +135,6 @@ int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *r, int format,
 	return r->impl->get_dmabuf_modifiers(r, format, modifiers);
 }
 
-bool wlr_renderer_check_import_dmabuf(struct wlr_renderer *r,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (!r->impl->check_import_dmabuf) {
-		return false;
-	}
-	return r->impl->check_import_dmabuf(r, attribs);
-}
-
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
@@ -187,8 +179,8 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
-		EGLenum platform, void *remote_display, EGLint *config_attribs, EGLint visual_id) {
-
+		EGLenum platform, void *remote_display, EGLint *config_attribs,
+		EGLint visual_id) {
 	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visual_id)) {
 		wlr_log(L_ERROR, "Could not initialize EGL");
 		return NULL;

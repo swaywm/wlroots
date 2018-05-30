@@ -121,6 +121,19 @@ static void buffer_handle_resource_destroy(struct wl_resource *buffer_resource) 
 	linux_dmabuf_buffer_destroy(buffer);
 }
 
+static bool check_import_dmabuf(struct wlr_dmabuf_buffer *buffer) {
+	struct wlr_texture *texture =
+		wlr_texture_from_dmabuf(buffer->renderer, &buffer->attributes);
+	if (texture == NULL) {
+		return false;
+	}
+
+	// We can import the image, good. No need to keep it since wlr_surface will
+	// import it again on commit.
+	wlr_texture_destroy(texture);
+	return true;
+}
+
 static void params_create_common(struct wl_client *client,
 		struct wl_resource *params_resource, uint32_t buffer_id, int32_t width,
 		int32_t height, uint32_t format, uint32_t flags) {
@@ -229,8 +242,7 @@ static void params_create_common(struct wl_client *client,
 	}
 
 	/* Check if dmabuf is usable */
-	if (!wlr_renderer_check_import_dmabuf(buffer->renderer,
-			&buffer->attributes)) {
+	if (!check_import_dmabuf(buffer)) {
 		goto err_failed;
 	}
 
