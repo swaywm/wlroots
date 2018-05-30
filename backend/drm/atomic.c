@@ -17,7 +17,7 @@ static void atomic_begin(struct wlr_drm_crtc *crtc, struct atomic *atom) {
 	if (!crtc->atomic) {
 		crtc->atomic = drmModeAtomicAlloc();
 		if (!crtc->atomic) {
-			wlr_log_errno(L_ERROR, "Allocation failed");
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
 			atom->failed = true;
 			return;
 		}
@@ -35,7 +35,7 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 
 	uint32_t flags = DRM_MODE_ATOMIC_TEST_ONLY | DRM_MODE_ATOMIC_NONBLOCK;
 	if (drmModeAtomicCommit(drm_fd, atom->req, flags, NULL)) {
-		wlr_log_errno(L_ERROR, "Atomic test failed");
+		wlr_log_errno(WLR_ERROR, "Atomic test failed");
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
 		return false;
 	}
@@ -51,13 +51,13 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 
 	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, conn);
 	if (ret) {
-		wlr_log_errno(L_ERROR, "%s: Atomic commit failed (%s)",
+		wlr_log_errno(WLR_ERROR, "%s: Atomic commit failed (%s)",
 			conn->output.name, modeset ? "modeset" : "pageflip");
 
 		// Try to commit without new changes
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
 		if (drmModeAtomicCommit(drm_fd, atom->req, flags, conn)) {
-			wlr_log_errno(L_ERROR,
+			wlr_log_errno(WLR_ERROR,
 				"%s: Atomic commit without new changes failed (%s)",
 				conn->output.name, modeset ? "modeset" : "pageflip");
 		}
@@ -70,7 +70,7 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 
 static inline void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t val) {
 	if (!atom->failed && drmModeAtomicAddProperty(atom->req, id, prop, val) < 0) {
-		wlr_log_errno(L_ERROR, "Failed to add atomic DRM property");
+		wlr_log_errno(WLR_ERROR, "Failed to add atomic DRM property");
 		atom->failed = true;
 	}
 }
@@ -105,7 +105,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 
 		if (drmModeCreatePropertyBlob(drm->fd, mode, sizeof(*mode), &crtc->mode_id)) {
-			wlr_log_errno(L_ERROR, "Unable to create property blob");
+			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 			return false;
 		}
 	}
@@ -219,7 +219,7 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 
 	if (drmModeCreatePropertyBlob(drm->fd, gamma,
 				sizeof(struct drm_color_lut) * size, &crtc->gamma_lut)) {
-		wlr_log_errno(L_ERROR, "Unable to create property blob");
+		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 		return false;
 	}
 
@@ -239,7 +239,7 @@ static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 
 	if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
 			   &gamma_lut_size)) {
-		wlr_log(L_ERROR, "Unable to get gamma lut size");
+		wlr_log(WLR_ERROR, "Unable to get gamma lut size");
 		return 0;
 	}
 

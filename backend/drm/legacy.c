@@ -12,13 +12,13 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 	if (mode) {
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
 				&conn->id, 1, mode)) {
-			wlr_log_errno(L_ERROR, "%s: Failed to set CRTC", conn->output.name);
+			wlr_log_errno(WLR_ERROR, "%s: Failed to set CRTC", conn->output.name);
 			return false;
 		}
 	}
 
 	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, conn)) {
-		wlr_log_errno(L_ERROR, "%s: Failed to page flip", conn->output.name);
+		wlr_log_errno(WLR_ERROR, "%s: Failed to page flip", conn->output.name);
 		return false;
 	}
 
@@ -47,7 +47,7 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 
 	if (drmModeSetCursor(drm->fd, crtc->id, gbm_bo_get_handle(bo).u32,
 			plane->surf.width, plane->surf.height)) {
-		wlr_log_errno(L_DEBUG, "Failed to set hardware cursor");
+		wlr_log_errno(WLR_DEBUG, "Failed to set hardware cursor");
 		return false;
 	}
 

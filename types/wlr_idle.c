@@ -199,7 +199,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 		free(idle);
 		return NULL;
 	}
-	wlr_log(L_DEBUG, "idle manager created");
+	wlr_log(WLR_DEBUG, "idle manager created");
 	return idle;
 }
 

@@ -270,7 +270,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, desktop, xwayland_surface);
 
 	struct wlr_xwayland_surface *surface = data;
-	wlr_log(L_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
+	wlr_log(WLR_DEBUG, "new xwayland surface: title=%s, class=%s, instance=%s",
 		surface->title, surface->class, surface->instance);
 	wlr_xwayland_surface_ping(surface);
 

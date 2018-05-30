@@ -13,7 +13,7 @@ struct wlr_pointer *create_libinput_pointer(
 	assert(libinput_dev);
 	struct wlr_pointer *wlr_pointer = calloc(1, sizeof(struct wlr_pointer));
 	if (!wlr_pointer) {
-		wlr_log(L_ERROR, "Unable to allocate wlr_pointer");
+		wlr_log(WLR_ERROR, "Unable to allocate wlr_pointer");
 		return NULL;
 	}
 	wlr_pointer_init(wlr_pointer, NULL);
@@ -25,7 +25,7 @@ void handle_pointer_motion(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
+		wlr_log(WLR_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
 	struct libinput_event_pointer *pevent =
@@ -44,7 +44,7 @@ void handle_pointer_motion_abs(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
+		wlr_log(WLR_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
 	struct libinput_event_pointer *pevent =
@@ -63,7 +63,7 @@ void handle_pointer_button(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
+		wlr_log(WLR_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
 	struct libinput_event_pointer *pevent =
@@ -89,7 +89,7 @@ void handle_pointer_axis(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a pointer event for a device with no pointers?");
+		wlr_log(WLR_DEBUG, "Got a pointer event for a device with no pointers?");
 		return;
 	}
 	struct libinput_event_pointer *pevent =

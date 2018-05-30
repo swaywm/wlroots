@@ -23,7 +23,7 @@ static void xwm_selection_send_notify(struct wlr_xwm *xwm,
 		.property = success ? req->property : XCB_ATOM_NONE,
 	};
 
-	wlr_log(L_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
+	wlr_log(WLR_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
 		"requestor=%d selection=%d target=%d property=%d", req->requestor,
 		req->time, req->requestor, req->selection, req->target,
 		selection_notify.property);
@@ -82,7 +82,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	if (transfer->source_data.size < INCR_CHUNK_SIZE) {
 		p = wl_array_add(&transfer->source_data, INCR_CHUNK_SIZE);
 		if (p == NULL) {
-			wlr_log(L_ERROR, "Could not allocate selection source_data");
+			wlr_log(WLR_ERROR, "Could not allocate selection source_data");
 			goto error_out;
 		}
 	} else {
@@ -92,17 +92,17 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	size_t available = transfer->source_data.alloc - current;
 	ssize_t len = read(fd, p, available);
 	if (len == -1) {
-		wlr_log(L_ERROR, "read error from data source: %m");
+		wlr_log(WLR_ERROR, "read error from data source: %m");
 		goto error_out;
 	}
 
-	wlr_log(L_DEBUG, "read %zd bytes (available %zu, mask 0x%x)", len,
+	wlr_log(WLR_DEBUG, "read %zd bytes (available %zu, mask 0x%x)", len,
 		available, mask);
 
 	transfer->source_data.size = current + len;
 	if (transfer->source_data.size >= INCR_CHUNK_SIZE) {
 		if (!transfer->incr) {
-			wlr_log(L_DEBUG, "got %zu bytes, starting incr",
+			wlr_log(WLR_DEBUG, "got %zu bytes, starting incr",
 				transfer->source_data.size);
 
 			size_t incr_chunk_size = INCR_CHUNK_SIZE;
@@ -119,37 +119,37 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 			xwm_selection_transfer_remove_source(transfer);
 			xwm_selection_send_notify(xwm, &transfer->request, true);
 		} else if (transfer->property_set) {
-			wlr_log(L_DEBUG, "got %zu bytes, waiting for property delete",
+			wlr_log(WLR_DEBUG, "got %zu bytes, waiting for property delete",
 				transfer->source_data.size);
 
 			transfer->flush_property_on_delete = true;
 			xwm_selection_transfer_remove_source(transfer);
 		} else {
-			wlr_log(L_DEBUG, "got %zu bytes, property deleted, setting new "
+			wlr_log(WLR_DEBUG, "got %zu bytes, property deleted, setting new "
 				"property", transfer->source_data.size);
 			xwm_selection_flush_source_data(transfer);
 		}
 	} else if (len == 0 && !transfer->incr) {
-		wlr_log(L_DEBUG, "non-incr transfer complete");
+		wlr_log(WLR_DEBUG, "non-incr transfer complete");
 		xwm_selection_flush_source_data(transfer);
 		xwm_selection_send_notify(xwm, &transfer->request, true);
 		xwm_selection_transfer_destroy_outgoing(transfer);
 	} else if (len == 0 && transfer->incr) {
-		wlr_log(L_DEBUG, "incr transfer complete");
+		wlr_log(WLR_DEBUG, "incr transfer complete");
 
 		transfer->flush_property_on_delete = true;
 		if (transfer->property_set) {
-			wlr_log(L_DEBUG, "got %zu bytes, waiting for property delete",
+			wlr_log(WLR_DEBUG, "got %zu bytes, waiting for property delete",
 				transfer->source_data.size);
 		} else {
-			wlr_log(L_DEBUG, "got %zu bytes, property deleted, setting new "
+			wlr_log(WLR_DEBUG, "got %zu bytes, property deleted, setting new "
 				"property", transfer->source_data.size);
 			xwm_selection_flush_source_data(transfer);
 		}
 		xwm_selection_transfer_remove_source(transfer);
 		xwm_selection_transfer_close_source_fd(transfer);
 	} else {
-		wlr_log(L_DEBUG, "nothing happened, buffered the bytes");
+		wlr_log(WLR_DEBUG, "nothing happened, buffered the bytes");
 	}
 
 	return 1;
@@ -161,11 +161,11 @@ error_out:
 }
 
 void xwm_send_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
-	wlr_log(L_DEBUG, "property deleted");
+	wlr_log(WLR_DEBUG, "property deleted");
 
 	transfer->property_set = false;
 	if (transfer->flush_property_on_delete) {
-		wlr_log(L_DEBUG, "setting new property, %zu bytes",
+		wlr_log(WLR_DEBUG, "setting new property, %zu bytes",
 			transfer->source_data.size);
 		transfer->flush_property_on_delete = false;
 		int length = xwm_selection_flush_source_data(transfer);
@@ -211,7 +211,7 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		}
 	}
 
-	wlr_log(L_DEBUG, "not sending selection: no selection source available");
+	wlr_log(WLR_DEBUG, "not sending selection: no selection source available");
 }
 
 static void xwm_selection_transfer_start_outgoing(
@@ -256,7 +256,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	struct wl_array *mime_types =
 		xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
-		wlr_log(L_ERROR, "not sending selection: no MIME type list available");
+		wlr_log(WLR_ERROR, "not sending selection: no MIME type list available");
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
@@ -271,7 +271,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		}
 	}
 	if (!found) {
-		wlr_log(L_ERROR, "not sending selection: "
+		wlr_log(WLR_ERROR, "not sending selection: "
 			"requested an unsupported MIME type %s", mime_type);
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
@@ -280,7 +280,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	struct wlr_xwm_selection_transfer *transfer =
 		calloc(1, sizeof(struct wlr_xwm_selection_transfer));
 	if (transfer == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return;
 	}
 	transfer->selection = selection;
@@ -289,7 +289,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 
 	int p[2];
 	if (pipe(p) == -1) {
-		wlr_log(L_ERROR, "pipe() failed: %m");
+		wlr_log(WLR_ERROR, "pipe() failed: %m");
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
@@ -300,7 +300,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 
 	transfer->source_fd = p[0];
 
-	wlr_log(L_DEBUG, "Sending Wayland selection %u to Xwayland window with "
+	wlr_log(WLR_DEBUG, "Sending Wayland selection %u to Xwayland window with "
 		"MIME type %s, target %u", req->target, mime_type, req->target);
 	xwm_selection_source_send(selection, mime_type, p[1]);
 
@@ -319,7 +319,7 @@ static void xwm_selection_send_targets(struct wlr_xwm_selection *selection,
 	struct wl_array *mime_types =
 		xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
-		wlr_log(L_ERROR, "not sending selection targets: "
+		wlr_log(WLR_ERROR, "not sending selection targets: "
 			"no selection source available");
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
@@ -364,7 +364,7 @@ static void xwm_selection_send_timestamp(struct wlr_xwm_selection *selection,
 
 void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		xcb_selection_request_event_t *req) {
-	wlr_log(L_DEBUG, "XCB_SELECTION_REQUEST (time=%u owner=%u, requestor=%u "
+	wlr_log(WLR_DEBUG, "XCB_SELECTION_REQUEST (time=%u owner=%u, requestor=%u "
 		"selection=%u, target=%u, property=%u)",
 		req->time, req->owner, req->requestor, req->selection, req->target,
 		req->property);
@@ -380,19 +380,19 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, req->selection);
 	if (selection == NULL) {
-		wlr_log(L_DEBUG, "received selection request for unknown selection");
+		wlr_log(WLR_DEBUG, "received selection request for unknown selection");
 		return;
 	}
 
 	if (selection->window != req->owner) {
-		wlr_log(L_DEBUG, "received selection request with invalid owner");
+		wlr_log(WLR_DEBUG, "received selection request with invalid owner");
 		return;
 	}
 
 	// No xwayland surface focused, deny access to clipboard
 	if (xwm->focus_surface == NULL && xwm->drag_focus == NULL) {
 		char *selection_name = xwm_get_atom_name(xwm, selection->atom);
-		wlr_log(L_DEBUG, "denying read access to selection %u (%s): "
+		wlr_log(WLR_DEBUG, "denying read access to selection %u (%s): "
 			"no xwayland surface focused", selection->atom, selection_name);
 		free(selection_name);
 		xwm_selection_send_notify(xwm, req, false);
@@ -409,7 +409,7 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		// Send data
 		char *mime_type = xwm_mime_type_from_atom(xwm, req->target);
 		if (mime_type == NULL) {
-			wlr_log(L_ERROR, "ignoring selection request: unknown atom %u",
+			wlr_log(WLR_ERROR, "ignoring selection request: unknown atom %u",
 				req->target);
 			xwm_selection_send_notify(xwm, req, false);
 			return;

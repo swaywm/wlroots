@@ -22,7 +22,7 @@ static bool multi_backend_start(struct wlr_backend *wlr_backend) {
 	struct subbackend_state *sub;
 	wl_list_for_each(sub, &backend->backends, link) {
 		if (!wlr_backend_start(sub->backend)) {
-			wlr_log(L_ERROR, "Failed to initialize backend.");
+			wlr_log(WLR_ERROR, "Failed to initialize backend.");
 			return false;
 		}
 	}
@@ -81,7 +81,7 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
 	if (!backend) {
-		wlr_log(L_ERROR, "Backend allocation failed");
+		wlr_log(WLR_ERROR, "Backend allocation failed");
 		return NULL;
 	}
 
@@ -144,14 +144,14 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 		multi_backend_get_renderer(&multi->backend);
 	struct wlr_renderer *backend_renderer = wlr_backend_get_renderer(backend);
 	if (multi_renderer != NULL && backend_renderer != NULL) {
-		wlr_log(L_ERROR, "Could not add backend: multiple renderers at the "
+		wlr_log(WLR_ERROR, "Could not add backend: multiple renderers at the "
 			"same time aren't supported");
 		return false;
 	}
 
 	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
 	if (sub == NULL) {
-		wlr_log(L_ERROR, "Could not add backend: allocation failed");
+		wlr_log(WLR_ERROR, "Could not add backend: allocation failed");
 		return false;
 	}
 	wl_list_insert(&multi->backends, &sub->link);

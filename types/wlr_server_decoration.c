@@ -103,7 +103,7 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 		&server_decoration_impl, decoration,
 		server_decoration_destroy_resource);
 
-	wlr_log(L_DEBUG, "new server_decoration %p (res %p)", decoration,
+	wlr_log(WLR_DEBUG, "new server_decoration %p (res %p)", decoration,
 		decoration->resource);
 
 	wl_signal_init(&decoration->events.destroy);

@@ -55,7 +55,7 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 		(struct wlr_wl_output *)wlr_output;
 
 	if (output->frame_callback != NULL) {
-		wlr_log(L_ERROR, "Skipping buffer swap");
+		wlr_log(WLR_ERROR, "Skipping buffer swap");
 		return false;
 	}
 
@@ -250,7 +250,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	struct wlr_wl_output *output;
 	if (!(output = calloc(sizeof(struct wlr_wl_output), 1))) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_wl_output");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_wl_output");
 		return NULL;
 	}
 	wlr_output_init(&output->wlr_output, &backend->backend, &output_impl,
@@ -267,20 +267,20 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *_backend) {
 
 	output->surface = wl_compositor_create_surface(backend->compositor);
 	if (!output->surface) {
-		wlr_log_errno(L_ERROR, "Could not create output surface");
+		wlr_log_errno(WLR_ERROR, "Could not create output surface");
 		goto error;
 	}
 	wl_surface_set_user_data(output->surface, output);
 	output->xdg_surface =
 		zxdg_shell_v6_get_xdg_surface(backend->shell, output->surface);
 	if (!output->xdg_surface) {
-		wlr_log_errno(L_ERROR, "Could not get xdg surface");
+		wlr_log_errno(WLR_ERROR, "Could not get xdg surface");
 		goto error;
 	}
 	output->xdg_toplevel =
 		zxdg_surface_v6_get_toplevel(output->xdg_surface);
 	if (!output->xdg_toplevel) {
-		wlr_log_errno(L_ERROR, "Could not get xdg toplevel");
+		wlr_log_errno(WLR_ERROR, "Could not get xdg toplevel");
 		goto error;
 	}
 

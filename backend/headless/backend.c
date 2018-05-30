@@ -11,7 +11,7 @@
 static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
 		(struct wlr_headless_backend *)wlr_backend;
-	wlr_log(L_INFO, "Starting headless backend");
+	wlr_log(WLR_INFO, "Starting headless backend");
 
 	struct wlr_headless_output *output;
 	wl_list_for_each(output, &backend->outputs, link) {
@@ -80,12 +80,12 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		wlr_renderer_create_func_t create_renderer_func) {
-	wlr_log(L_INFO, "Creating headless backend");
+	wlr_log(WLR_INFO, "Creating headless backend");
 
 	struct wlr_headless_backend *backend =
 		calloc(1, sizeof(struct wlr_headless_backend));
 	if (!backend) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_headless_backend");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
 		return NULL;
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
@@ -111,7 +111,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		NULL, (EGLint*)config_attribs, 0);
 
 	if (!backend->renderer) {
-		wlr_log(L_ERROR, "Failed to create renderer");
+		wlr_log(WLR_ERROR, "Failed to create renderer");
 		free(backend);
 		return NULL;
 	}

@@ -196,11 +196,11 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_wl_shell_surface *surface = data;
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-		wlr_log(L_DEBUG, "new wl shell popup");
+		wlr_log(WLR_DEBUG, "new wl shell popup");
 		return;
 	}
 
-	wlr_log(L_DEBUG, "new wl shell surface: title=%s, class=%s",
+	wlr_log(WLR_DEBUG, "new wl shell surface: title=%s, class=%s",
 		surface->title, surface->class);
 	wlr_wl_shell_surface_ping(surface);
 

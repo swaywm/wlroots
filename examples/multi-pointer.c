@@ -73,7 +73,7 @@ struct sample_keyboard {
 void configure_cursor(struct wlr_cursor *cursor, struct wlr_input_device *device,
 		 struct sample_state *sample) {
 	struct sample_output *output;
-	wlr_log(L_ERROR, "Configuring cursor %p for device %p", cursor, device);
+	wlr_log(WLR_ERROR, "Configuring cursor %p for device %p", cursor, device);
 
 	// reset mappings
 	wlr_cursor_map_to_output(cursor, NULL);
@@ -237,7 +237,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 		rules.options = getenv("XKB_DEFAULT_OPTIONS");
 		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
-			wlr_log(L_ERROR, "Failed to create XKB context");
+			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
 		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
@@ -277,7 +277,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 }
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
 		.default_color = { 0.25f, 0.25f, 0.25f, 1 },
@@ -303,17 +303,17 @@ int main(int argc, char *argv[]) {
 
 	struct wlr_xcursor_theme *theme = wlr_xcursor_theme_load("default", 16);
 	if (!theme) {
-		wlr_log(L_ERROR, "Failed to load cursor theme");
+		wlr_log(WLR_ERROR, "Failed to load cursor theme");
 		return 1;
 	}
 	state.xcursor = wlr_xcursor_theme_get_cursor(theme, "left_ptr");
 	if (!state.xcursor) {
-		wlr_log(L_ERROR, "Failed to load left_ptr cursor");
+		wlr_log(WLR_ERROR, "Failed to load left_ptr cursor");
 		return 1;
 	}
 
 	if (!wlr_backend_start(wlr)) {
-		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_log(WLR_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);
 		exit(1);
 	}

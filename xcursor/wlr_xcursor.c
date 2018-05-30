@@ -238,12 +238,12 @@ struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size) {
 		load_default_theme(theme);
 	}
 
-	wlr_log(L_DEBUG, "Loaded cursor theme '%s', available cursors:",
+	wlr_log(WLR_DEBUG, "Loaded cursor theme '%s', available cursors:",
 			theme->name);
 	for (size_t i = 0; i < theme->cursor_count; ++i) {
 		struct wlr_xcursor *c = theme->cursors[i];
 		struct wlr_xcursor_image *i = c->images[0];
-		wlr_log(L_DEBUG, "%s (%u images) %dx%d+%d,%d",
+		wlr_log(WLR_DEBUG, "%s (%u images) %dx%d+%d,%d",
 				c->name, c->image_count,
 				i->width, i->height, i->hotspot_x, i->hotspot_y);
 	}

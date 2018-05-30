@@ -197,7 +197,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
-			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
+			wlr_log(WLR_ERROR, "Failed to create wlr_output_layout_output");
 			return;
 		}
 	}
@@ -280,7 +280,7 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 		l_output->state->auto_configured = false;
 		output_layout_reconfigure(layout);
 	} else {
-		wlr_log(L_ERROR, "output not found in this layout: %s", output->name);
+		wlr_log(WLR_ERROR, "output not found in this layout: %s", output->name);
 	}
 }
 
@@ -402,7 +402,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
-			wlr_log(L_ERROR, "Failed to create wlr_output_layout_output");
+			wlr_log(WLR_ERROR, "Failed to create wlr_output_layout_output");
 			return;
 		}
 	}

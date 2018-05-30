@@ -432,7 +432,7 @@ static void seat_add_keyboard(struct roots_seat *seat,
 	struct roots_keyboard *keyboard =
 		roots_keyboard_create(device, seat->input);
 	if (keyboard == NULL) {
-		wlr_log(L_ERROR, "could not allocate keyboard for seat");
+		wlr_log(WLR_ERROR, "could not allocate keyboard for seat");
 		return;
 	}
 
@@ -469,7 +469,7 @@ static void seat_add_pointer(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct roots_pointer *pointer = calloc(sizeof(struct roots_pointer), 1);
 	if (!pointer) {
-		wlr_log(L_ERROR, "could not allocate pointer for seat");
+		wlr_log(WLR_ERROR, "could not allocate pointer for seat");
 		return;
 	}
 
@@ -502,7 +502,7 @@ static void seat_add_touch(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct roots_touch *touch = calloc(sizeof(struct roots_touch), 1);
 	if (!touch) {
-		wlr_log(L_ERROR, "could not allocate touch for seat");
+		wlr_log(WLR_ERROR, "could not allocate touch for seat");
 		return;
 	}
 
@@ -542,7 +542,7 @@ static void seat_add_tablet_tool(struct roots_seat *seat,
 	struct roots_tablet_tool *tablet_tool =
 		calloc(sizeof(struct roots_tablet_tool), 1);
 	if (!tablet_tool) {
-		wlr_log(L_ERROR, "could not allocate tablet_tool for seat");
+		wlr_log(WLR_ERROR, "could not allocate tablet_tool for seat");
 		return;
 	}
 
@@ -597,7 +597,7 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 		seat->cursor->xcursor_manager =
 			wlr_xcursor_manager_create(cursor_theme, ROOTS_XCURSOR_SIZE);
 		if (seat->cursor->xcursor_manager == NULL) {
-			wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+			wlr_log(WLR_ERROR, "Cannot create XCursor manager for theme %s",
 					cursor_theme);
 			return;
 		}
@@ -607,7 +607,7 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 	wl_list_for_each(output, &seat->input->server->desktop->outputs, link) {
 		float scale = output->wlr_output->scale;
 		if (wlr_xcursor_manager_load(seat->cursor->xcursor_manager, scale)) {
-			wlr_log(L_ERROR, "Cannot load xcursor theme for output '%s' "
+			wlr_log(WLR_ERROR, "Cannot load xcursor theme for output '%s' "
 				"with scale %f", output->wlr_output->name, scale);
 		}
 	}
@@ -718,7 +718,7 @@ struct roots_seat_view *roots_seat_view_from_view(
 	if (!found) {
 		seat_view = seat_add_view(seat, view);
 		if (seat_view == NULL) {
-			wlr_log(L_ERROR, "Allocation failed");
+			wlr_log(WLR_ERROR, "Allocation failed");
 			return NULL;
 		}
 	}

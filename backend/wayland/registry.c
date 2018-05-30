@@ -19,7 +19,7 @@ static const struct zxdg_shell_v6_listener xdg_shell_listener = {
 static void registry_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	struct wlr_wl_backend *backend = data;
-	wlr_log(L_DEBUG, "Remote wayland global: %s v%d", interface, version);
+	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%d", interface, version);
 
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		backend->compositor = wl_registry_bind(registry, name,
