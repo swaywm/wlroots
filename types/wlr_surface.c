@@ -4,6 +4,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
@@ -569,7 +570,7 @@ struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
 	return wl_resource_get_user_data(resource);
 }
 
-static struct wlr_surface_state *surface_state_create() {
+static struct wlr_surface_state *surface_state_create(void) {
 	struct wlr_surface_state *state =
 		calloc(1, sizeof(struct wlr_surface_state));
 	if (state == NULL) {

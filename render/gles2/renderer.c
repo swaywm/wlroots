@@ -84,7 +84,7 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	POP_GLES2_DEBUG;
 }
 
-static void draw_quad() {
+static void draw_quad(void) {
 	GLfloat verts[] = {
 		1, 0, // top right
 		0, 0, // top left
@@ -243,9 +243,9 @@ static int gles2_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer,
 }
 
 static bool gles2_check_import_dmabuf(struct wlr_renderer *wlr_renderer,
-		struct wlr_dmabuf_buffer *dmabuf) {
+		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_egl_check_import_dmabuf(renderer->egl, dmabuf);
+	return wlr_egl_check_import_dmabuf(renderer->egl, attribs);
 }
 
 static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
@@ -299,7 +299,7 @@ static struct wlr_texture *gles2_texture_from_wl_drm(
 
 static struct wlr_texture *gles2_texture_from_dmabuf(
 		struct wlr_renderer *wlr_renderer,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
+		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 	return wlr_gles2_texture_from_dmabuf(renderer->egl, attribs);
 }

@@ -149,7 +149,7 @@ static void draw(void) {
 	demo.last_frame = ts;
 }
 
-static void draw_popup() {
+static void draw_popup(void) {
 	static float alpha_mod = -0.01;
 
 	eglMakeCurrent(egl.display, popup_egl_surface, popup_egl_surface, egl.context);
@@ -188,7 +188,7 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 	}
 }
 
-static void popup_destroy() {
+static void popup_destroy(void) {
 	wlr_egl_destroy_surface(&egl, popup_egl_surface);
 	wl_egl_window_destroy(popup_egl_window);
 	xdg_popup_destroy(popup);

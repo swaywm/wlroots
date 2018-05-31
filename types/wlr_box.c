@@ -61,8 +61,8 @@ bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
 	if (wlr_box_empty(box)) {
 		return false;
 	} else {
-		return x >= box->x && x <= box->x + box->width &&
-			y >= box->y && y <= box->y + box->height;
+		return x >= box->x && x < box->x + box->width &&
+			y >= box->y && y < box->y + box->height;
 	}
 }
 

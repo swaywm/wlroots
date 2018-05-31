@@ -35,7 +35,7 @@ struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
 }
 
 struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
+		struct wlr_dmabuf_attributes *attribs) {
 	if (!renderer->impl->texture_from_dmabuf) {
 		return NULL;
 	}
@@ -56,7 +56,7 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 }
 
 bool wlr_texture_to_dmabuf(struct wlr_texture *texture,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
+		struct wlr_dmabuf_attributes *attribs) {
 	if (!texture->impl->to_dmabuf) {
 		return false;
 	}

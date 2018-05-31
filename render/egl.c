@@ -344,9 +344,9 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 }
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_buffer_attribs *attributes) {
+		struct wlr_dmabuf_attributes *attributes) {
 	bool has_modifier = false;
-	if (attributes->modifier[0] != DRM_FORMAT_MOD_INVALID) {
+	if (attributes->modifier != DRM_FORMAT_MOD_INVALID) {
 		if (!egl->egl_exts.dmabuf_import_modifiers) {
 			return NULL;
 		}
@@ -368,7 +368,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		EGLint pitch;
 		EGLint mod_lo;
 		EGLint mod_hi;
-	} attr_names[WLR_LINUX_DMABUF_MAX_PLANES] = {
+	} attr_names[WLR_DMABUF_MAX_PLANES] = {
 		{
 			EGL_DMA_BUF_PLANE0_FD_EXT,
 			EGL_DMA_BUF_PLANE0_OFFSET_EXT,
@@ -405,9 +405,9 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		attribs[atti++] = attributes->stride[i];
 		if (has_modifier) {
 			attribs[atti++] = attr_names[i].mod_lo;
-			attribs[atti++] = attributes->modifier[i] & 0xFFFFFFFF;
+			attribs[atti++] = attributes->modifier & 0xFFFFFFFF;
 			attribs[atti++] = attr_names[i].mod_hi;
-			attribs[atti++] = attributes->modifier[i] >> 32;
+			attribs[atti++] = attributes->modifier >> 32;
 		}
 	}
 	attribs[atti++] = EGL_NONE;
@@ -421,8 +421,8 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 #define DRM_FORMAT_BIG_ENDIAN 0x80000000
 #endif
 bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_buffer *dmabuf) {
-	switch (dmabuf->attributes.format & ~DRM_FORMAT_BIG_ENDIAN) {
+		struct wlr_dmabuf_attributes *attribs) {
+	switch (attribs->format & ~DRM_FORMAT_BIG_ENDIAN) {
 		/* TODO: YUV based formats not yet supported, require multiple
 		 * wlr_create_image_from_dmabuf */
 	case WL_SHM_FORMAT_YUYV:
@@ -435,8 +435,7 @@ bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
 		break;
 	}
 
-	EGLImage egl_image = wlr_egl_create_image_from_dmabuf(egl,
-		&dmabuf->attributes);
+	EGLImage egl_image = wlr_egl_create_image_from_dmabuf(egl, attribs);
 	if (egl_image) {
 		/* We can import the image, good. No need to keep it
 		   since wlr_texture_upload_dmabuf will import it again */
@@ -507,8 +506,8 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 
 bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 		int32_t width, int32_t height, uint32_t flags,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
-	memset(attribs, 0, sizeof(struct wlr_dmabuf_buffer_attribs));
+		struct wlr_dmabuf_attributes *attribs) {
+	memset(attribs, 0, sizeof(struct wlr_dmabuf_attributes));
 
 	if (!egl->egl_exts.dmabuf_export || !eglExportDMABUFImageQueryMESA ||
 			!eglExportDMABUFImageMESA) {
@@ -516,18 +515,14 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 	}
 
 	// Only one set of modifiers is returned for all planes
-	EGLuint64KHR modifiers;
 	if (!eglExportDMABUFImageQueryMESA(egl->display, image,
-			(int *)&attribs->format, &attribs->n_planes, &modifiers)) {
+			(int *)&attribs->format, &attribs->n_planes, &attribs->modifier)) {
 		return false;
 	}
-	if (attribs->n_planes > WLR_LINUX_DMABUF_MAX_PLANES) {
+	if (attribs->n_planes > WLR_DMABUF_MAX_PLANES) {
 		wlr_log(L_ERROR, "EGL returned %d planes, but only %d are supported",
-			attribs->n_planes, WLR_LINUX_DMABUF_MAX_PLANES);
+			attribs->n_planes, WLR_DMABUF_MAX_PLANES);
 		return false;
-	}
-	for (int i = 0; i < attribs->n_planes; ++i) {
-		attribs->modifier[i] = modifiers;
 	}
 
 	if (!eglExportDMABUFImageMESA(egl->display, image, attribs->fd,

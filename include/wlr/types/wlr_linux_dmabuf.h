@@ -1,47 +1,17 @@
 #ifndef WLR_TYPES_WLR_LINUX_DMABUF_H
 #define WLR_TYPES_WLR_LINUX_DMABUF_H
 
-#define WLR_LINUX_DMABUF_MAX_PLANES 4
-
 #include <stdint.h>
 #include <wayland-server-protocol.h>
-
-/* So we don't have to pull in linux specific drm headers */
-#ifndef DRM_FORMAT_MOD_INVALID
-#define DRM_FORMAT_MOD_INVALID ((1ULL<<56) - 1)
-#endif
-
-enum {
-	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_Y_INVERT = 1,
-	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_INTERLACED = 2,
-	WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_BOTTOM_FIRST = 4,
-};
-
-struct wlr_dmabuf_buffer_attribs {
-	/* set via params_add */
-	int n_planes;
-	uint32_t offset[WLR_LINUX_DMABUF_MAX_PLANES];
-	uint32_t stride[WLR_LINUX_DMABUF_MAX_PLANES];
-	uint64_t modifier[WLR_LINUX_DMABUF_MAX_PLANES];
-	int fd[WLR_LINUX_DMABUF_MAX_PLANES];
-	/* set via params_create */
-	int32_t width, height;
-	uint32_t format;
-	uint32_t flags;
-};
+#include <wlr/render/dmabuf.h>
 
 struct wlr_dmabuf_buffer {
 	struct wlr_renderer *renderer;
 	struct wl_resource *buffer_resource;
 	struct wl_resource *params_resource;
-	struct wlr_dmabuf_buffer_attribs attributes;
+	struct wlr_dmabuf_attributes attributes;
+	bool has_modifier;
 };
-
-/**
- * Closes all file descriptors in the DMA-BUF attributes.
- */
-void wlr_dmabuf_buffer_attribs_finish(
-	struct wlr_dmabuf_buffer_attribs *attribs);
 
 /**
  * Returns true if the given resource was created via the linux-dmabuf

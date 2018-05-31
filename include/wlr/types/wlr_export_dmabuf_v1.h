@@ -2,7 +2,7 @@
 #define WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 
 #include <wayland-server.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/render/dmabuf.h>
 
 struct wlr_export_dmabuf_manager_v1;
 
@@ -11,7 +11,7 @@ struct wlr_export_dmabuf_frame_v1 {
 	struct wlr_export_dmabuf_manager_v1 *manager;
 	struct wl_list link;
 
-	struct wlr_dmabuf_buffer_attribs attribs;
+	struct wlr_dmabuf_attributes attribs;
 	struct wlr_output *output;
 
 	struct wl_listener output_swap_buffers;

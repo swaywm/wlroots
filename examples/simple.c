@@ -143,7 +143,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-int main() {
+int main(void) {
 	wlr_log_init(L_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {

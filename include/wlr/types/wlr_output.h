@@ -170,7 +170,7 @@ void wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
 bool wlr_output_export_dmabuf(struct wlr_output *output,
-	struct wlr_dmabuf_buffer_attribs *attribs);
+	struct wlr_dmabuf_attributes *attribs);
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);

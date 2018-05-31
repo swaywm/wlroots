@@ -255,7 +255,7 @@ static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
 }
 
 static bool drm_connector_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
+		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 

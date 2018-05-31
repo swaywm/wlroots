@@ -52,7 +52,6 @@ struct gbm_bo *get_drm_surface_front(struct wlr_drm_surface *surf);
 void post_drm_surface(struct wlr_drm_surface *surf);
 struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 	struct gbm_bo *src);
-bool export_drm_bo(struct gbm_bo *bo,
-	struct wlr_dmabuf_buffer_attribs *attribs);
+bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs);
 
 #endif

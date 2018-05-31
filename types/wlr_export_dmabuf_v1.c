@@ -33,7 +33,7 @@ static void frame_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_export_dmabuf_frame_v1 *frame = frame_from_resource(resource);
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_swap_buffers.link);
-	wlr_dmabuf_buffer_attribs_finish(&frame->attribs);
+	wlr_dmabuf_attributes_finish(&frame->attribs);
 	free(frame);
 }
 
@@ -97,17 +97,16 @@ static void manager_handle_capture_output(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_dmabuf_buffer_attribs *attribs = &frame->attribs;
+	struct wlr_dmabuf_attributes *attribs = &frame->attribs;
 	if (!wlr_output_export_dmabuf(output, attribs)) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
 		return;
 	}
-	assert(attribs->n_planes > 0);
 
 	uint32_t frame_flags = ZWLR_EXPORT_DMABUF_FRAME_V1_FLAGS_TRANSIENT;
-	uint32_t mod_high = attribs->modifier[0] >> 32;
-	uint32_t mod_low = attribs->modifier[0] & 0xFFFFFFFF;
+	uint32_t mod_high = attribs->modifier >> 32;
+	uint32_t mod_low = attribs->modifier & 0xFFFFFFFF;
 
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
 		output->width, output->height, 0, 0, attribs->flags, frame_flags,

@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
 	wl_display_run(display);
 
 	wlr_texture_destroy(state.cat_texture);
-	wlr_renderer_destroy(state.renderer);
 
 	wlr_output_layout_destroy(state.layout);
+	wl_display_destroy(state.display);
 }
