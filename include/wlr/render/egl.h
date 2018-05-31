@@ -68,13 +68,6 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_dmabuf_attributes *attributes);
 
 /**
- * Try to import the given dmabuf. On success return true false otherwise.
- * If this succeeds the dmabuf can be used for rendering on a texture
- */
-bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
-	struct wlr_dmabuf_attributes *attributes);
-
-/**
  * Get the available dmabuf formats
  */
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl, int **formats);

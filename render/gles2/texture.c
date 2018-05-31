@@ -198,6 +198,10 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	return &texture->wlr_texture;
 }
 
+#ifndef DRM_FORMAT_BIG_ENDIAN
+#define DRM_FORMAT_BIG_ENDIAN 0x80000000
+#endif
+
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attribs) {
 	assert(wlr_egl_is_current(egl));
@@ -210,6 +214,18 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		wlr_log(L_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
+	}
+
+	switch (attribs->format & ~DRM_FORMAT_BIG_ENDIAN) {
+	case WL_SHM_FORMAT_YUYV:
+	case WL_SHM_FORMAT_YVYU:
+	case WL_SHM_FORMAT_UYVY:
+	case WL_SHM_FORMAT_VYUY:
+	case WL_SHM_FORMAT_AYUV:
+		// TODO: YUV based formats not yet supported, require multiple images
+		return false;
+	default:
+		break;
 	}
 
 	struct wlr_gles2_texture *texture =

@@ -413,35 +413,6 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 }
 
-#ifndef DRM_FORMAT_BIG_ENDIAN
-#define DRM_FORMAT_BIG_ENDIAN 0x80000000
-#endif
-bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_attributes *attribs) {
-	switch (attribs->format & ~DRM_FORMAT_BIG_ENDIAN) {
-		/* TODO: YUV based formats not yet supported, require multiple
-		 * wlr_create_image_from_dmabuf */
-	case WL_SHM_FORMAT_YUYV:
-	case WL_SHM_FORMAT_YVYU:
-	case WL_SHM_FORMAT_UYVY:
-	case WL_SHM_FORMAT_VYUY:
-	case WL_SHM_FORMAT_AYUV:
-		return false;
-	default:
-		break;
-	}
-
-	EGLImage egl_image = wlr_egl_create_image_from_dmabuf(egl, attribs);
-	if (egl_image) {
-		/* We can import the image, good. No need to keep it
-		   since wlr_texture_upload_dmabuf will import it again */
-		wlr_egl_destroy_image(egl, egl_image);
-		return true;
-	}
-	/* TODO: import yuv dmabufs */
-	return false;
-}
-
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
 	if (!egl->egl_exts.dmabuf_import ||
