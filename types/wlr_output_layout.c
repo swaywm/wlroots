@@ -25,7 +25,7 @@ struct wlr_output_layout_output_state {
 	struct wl_listener output_destroy;
 };
 
-struct wlr_output_layout *wlr_output_layout_create() {
+struct wlr_output_layout *wlr_output_layout_create(void) {
 	struct wlr_output_layout *layout =
 		calloc(1, sizeof(struct wlr_output_layout));
 	if (layout == NULL) {

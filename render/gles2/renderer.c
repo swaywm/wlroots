@@ -84,7 +84,7 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	POP_GLES2_DEBUG;
 }
 
-static void draw_quad() {
+static void draw_quad(void) {
 	GLfloat verts[] = {
 		1, 0, // top right
 		0, 0, // top left
