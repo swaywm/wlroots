@@ -159,6 +159,14 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when);
 
+struct wlr_box;
+/**
+ * Get the bounding box that contains the surface and all subsurfaces in
+ * surface coordinates.
+ * X and y may be negative, if there are subsurfaces with negative position.
+ */
+void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
+
 /**
  * Set a callback for surface commit that runs before all the other callbacks.
  * This is intended for use by the surface role.
