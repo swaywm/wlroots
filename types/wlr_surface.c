@@ -16,6 +16,22 @@
 #define SURFACE_VERSION 4
 #define SUBSURFACE_VERSION 1
 
+static int min(int fst, int snd) {
+	if (fst < snd) {
+		return fst;
+	} else {
+		return snd;
+	}
+}
+
+static int max(int fst, int snd) {
+	if (fst > snd) {
+		return fst;
+	} else {
+		return snd;
+	}
+}
+
 static void surface_state_reset_buffer(struct wlr_surface_state *state) {
 	if (state->buffer) {
 		wl_list_remove(&state->buffer_destroy_listener.link);
@@ -1035,4 +1051,36 @@ static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
 void wlr_surface_for_each_surface(struct wlr_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	surface_for_each_surface(surface, 0, 0, iterator, user_data);
+}
+
+struct bound_acc {
+	int32_t min_x, min_y;
+	int32_t max_x, max_y;
+};
+
+static void handle_bounding_box_surface(struct wlr_surface *surface,
+		int x, int y, void *data) {
+	struct bound_acc *acc = data;
+
+	acc->min_x = min(x, acc->min_x);
+	acc->min_y = min(x, acc->min_y);
+
+	acc->max_x = max(x + surface->current->width, acc->max_x);
+	acc->max_y = max(y + surface->current->height, acc->max_y);
+}
+
+void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box) {
+	struct bound_acc acc = {
+		.min_x = 0,
+		.min_y = 0,
+		.max_x = surface->current->width,
+		.max_y = surface->current->height,
+	};
+
+	wlr_surface_for_each_surface(surface, handle_bounding_box_surface, &acc);
+
+	box->x = acc.min_x;
+	box->y = acc.min_y;
+	box->width = acc.max_x - acc.min_x;
+	box->height = acc.max_y - acc.min_y;
 }

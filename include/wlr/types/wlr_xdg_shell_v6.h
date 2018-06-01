@@ -319,6 +319,15 @@ struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_from_wlr_surface(
 		struct wlr_surface *surface);
 
 /**
+ * Get the surface geometry.
+ * This is either the geometry as set by the client, or defaulted to the bounds
+ * of the surface + the subsurfaces (as specified by the protocol).
+ *
+ * The x and y value can be <0
+ */
+void wlr_xdg_surface_v6_get_geometry(struct wlr_xdg_surface_v6 *surface, struct wlr_box *box);
+
+/**
  * Call `iterator` on each surface in the xdg-surface tree, with the surface's
  * position relative to the root xdg-surface. The function is called from root to
  * leaves (in rendering order).
