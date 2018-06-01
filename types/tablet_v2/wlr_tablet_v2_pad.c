@@ -86,7 +86,7 @@ static void handle_tablet_pad_ring_v2_set_feedback(struct wl_client *client,
 		.serial = serial,
 		.description = description,
 		.index = aux->index
-		};
+	};
 
 	wl_signal_emit(&aux->pad->pad->events.ring_feedback, &evt);
 }
@@ -185,8 +185,11 @@ static struct zwp_tablet_pad_group_v2_interface tablet_pad_group_impl = {
 static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		struct wlr_tablet_pad_client_v2 *client,
 		struct wlr_tablet_pad_group *group, size_t index) {
+
+	int version = wl_resource_get_version(client->resource);
 	client->groups[index] =
-		wl_resource_create(client->client, &zwp_tablet_pad_group_v2_interface, 1, 0);
+		wl_resource_create(client->client, &zwp_tablet_pad_group_v2_interface,
+			version, 0);
 	if (!client->groups[index]) {
 		wl_client_post_no_memory(client->client);
 		return;
@@ -194,6 +197,7 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 	struct tablet_pad_auxiliary_user_data *user_data =
 		calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
 	if (!user_data) {
+		wl_client_post_no_memory(client->client);
 		return;
 	}
 	user_data->pad = client;
@@ -338,6 +342,14 @@ static void handle_wlr_tablet_pad_destroy(struct wl_listener *listener, void *da
 		}
 	}
 
+	struct wlr_tablet_pad_client_v2 *client;
+	struct wlr_tablet_pad_client_v2 *tmp_client;
+	wl_list_for_each_safe(client, tmp_client, &pad->clients, pad_link) {
+		zwp_tablet_pad_v2_send_removed(client->resource);
+		destroy_tablet_pad_v2(client->resource);
+
+	}
+
 	wl_list_remove(&pad->clients);
 	wl_list_remove(&pad->link);
 	wl_list_remove(&pad->pad_destroy.link);
@@ -437,9 +449,6 @@ uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 
 	pad->current_client = pad_client;
 
-	/* Pre-increment keeps 0 clean. wraparound would be after 2^32
-	 * proximity_in. Someone wants to do the math how long that would take?
-	 */
 	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
 
 	zwp_tablet_pad_v2_send_enter(pad_client->resource, serial,

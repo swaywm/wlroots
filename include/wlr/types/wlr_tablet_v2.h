@@ -38,7 +38,7 @@ struct wlr_tablet_v2_tablet {
 struct wlr_tablet_v2_tablet_tool {
 	struct wl_list link; // wlr_tablet_seat_v2::tablets
 	struct wlr_tablet_tool_tool *wlr_tool;
-	struct wl_list clients; // wlr_tablet_tool_client_v2::tablet_link
+	struct wl_list clients; // wlr_tablet_tool_client_v2::tool_link
 
 	struct wl_listener tool_destroy;
 
@@ -62,7 +62,7 @@ struct wlr_tablet_v2_tablet_pad {
 	struct wl_list link; // wlr_tablet_seat_v2::pads
 	struct wlr_tablet_pad *wlr_pad;
 	struct wlr_input_device *wlr_device;
-	struct wl_list clients; // wlr_tablet_pad_client_v2::tablet_link
+	struct wl_list clients; // wlr_tablet_pad_client_v2::pad_link
 
 	size_t group_count;
 	uint32_t *groups;

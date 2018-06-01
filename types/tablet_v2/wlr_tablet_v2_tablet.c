@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "tablet-unstable-v2-protocol.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <types/wlr_tablet_v2.h>
@@ -10,6 +9,8 @@
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
+
+#include "tablet-unstable-v2-protocol.h"
 
 void destroy_tablet_v2(struct wl_resource *resource) {
 	struct wlr_tablet_client_v2 *tablet = tablet_client_from_resource(resource);
@@ -92,9 +93,12 @@ void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 
+	int version = wl_resource_get_version(seat->resource);
 	client->resource =
-		wl_resource_create(seat->wl_client, &zwp_tablet_v2_interface, 1, 0);
+		wl_resource_create(seat->wl_client, &zwp_tablet_v2_interface,
+			version, 0);
 	if (!client->resource) {
+		wl_resource_post_no_memory(seat->resource);
 		free(client);
 		return;
 	}
