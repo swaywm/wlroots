@@ -1063,7 +1063,7 @@ static void handle_bounding_box_surface(struct wlr_surface *surface,
 	struct bound_acc *acc = data;
 
 	acc->min_x = min(x, acc->min_x);
-	acc->min_y = min(x, acc->min_y);
+	acc->min_y = min(y, acc->min_y);
 
 	acc->max_x = max(x + surface->current->width, acc->max_x);
 	acc->max_y = max(y + surface->current->height, acc->max_y);
