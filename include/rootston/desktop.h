@@ -26,6 +26,7 @@
 #include "rootston/config.h"
 #include "rootston/output.h"
 #include "rootston/view.h"
+#include "rootston/layout.h"
 
 struct roots_desktop {
 	struct wl_list views; // roots_view::link
@@ -35,8 +36,8 @@ struct roots_desktop {
 
 	struct roots_server *server;
 	struct roots_config *config;
+	struct roots_layout *layout;
 
-	struct wlr_output_layout *layout;
 	struct wlr_xcursor_manager *xcursor_manager;
 
 	struct wlr_compositor *compositor;

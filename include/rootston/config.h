@@ -10,13 +10,24 @@ struct roots_output_config {
 	char *name;
 	bool enable;
 	enum wl_output_transform transform;
-	int x, y;
 	float scale;
 	struct wl_list link;
 	struct {
 		int width, height;
 		float refresh_rate;
 	} mode;
+};
+
+struct roots_layout_config {
+	struct wl_list rules;
+};
+
+struct roots_layout_rule_config {
+	char *output_name;
+	struct wl_list link;
+	enum wlr_output_layout_output_configuration configuration;
+	char *reference_output;
+	int x, y;
 };
 
 struct roots_device_config {
@@ -68,6 +79,7 @@ struct roots_config {
 	struct wl_list keyboards;
 	struct wl_list cursors;
 
+	struct roots_layout_config layout;
 	char *config_path;
 	char *startup_cmd;
 	bool debug_damage_tracking;

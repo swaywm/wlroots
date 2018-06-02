@@ -392,14 +392,14 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 		struct roots_seat *seat = input_last_active_seat(input);
 		assert(seat); // Technically speaking we should handle this case
 		struct wlr_output *output =
-			wlr_output_layout_output_at(desktop->layout,
+			wlr_output_layout_output_at(desktop->layout->wlr_layout,
 					seat->cursor->cursor->x,
 					seat->cursor->cursor->y);
 		if (!output) {
 			wlr_log(L_ERROR, "Couldn't find output at (%.0f,%.0f)",
 				seat->cursor->cursor->x,
 				seat->cursor->cursor->y);
-			output = wlr_output_layout_get_center_output(desktop->layout);
+			output = wlr_output_layout_get_center_output(desktop->layout->wlr_layout);
 		}
 		if (output) {
 			layer_surface->output = output;

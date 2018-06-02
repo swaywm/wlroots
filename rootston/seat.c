@@ -215,7 +215,7 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->seat = seat;
 	struct wlr_cursor *wlr_cursor = seat->cursor->cursor;
 	struct roots_desktop *desktop = seat->input->server->desktop;
-	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout);
+	wlr_cursor_attach_output_layout(wlr_cursor, desktop->layout->wlr_layout);
 
 	roots_seat_configure_cursor(seat);
 	roots_seat_configure_xcursor(seat);
@@ -762,7 +762,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 			if (output->fullscreen_view &&
 					output->fullscreen_view != view &&
 					wlr_output_layout_intersects(
-						desktop->layout,
+						desktop->layout->wlr_layout,
 						output->wlr_output, &box)) {
 				view_set_fullscreen(output->fullscreen_view,
 						false, NULL);

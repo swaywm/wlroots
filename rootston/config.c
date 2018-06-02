@@ -228,6 +228,59 @@ static void config_handle_keyboard(struct roots_config *config,
 	}
 }
 
+static void config_handle_layout(struct roots_config *config, const char *name,
+		const char *value) {
+	struct roots_layout_config *lc = &config->layout;
+
+	char *mod_value = strdup(value);
+	char *strstart = mod_value;
+	char *saveptr;
+	mod_value = strtok_r(mod_value, " ", &saveptr);
+
+	struct roots_layout_rule_config *rule =
+		calloc(1, sizeof(struct roots_layout_rule_config));
+	wl_list_insert(&lc->rules, &rule->link);
+	rule->output_name = strdup(name);
+
+	if (strcmp(mod_value, "fixed") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->x = strtol(mod_value, NULL, 10);
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->y = strtol(mod_value, NULL, 10);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED;
+	} else if (strcmp(mod_value, "left-of") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->reference_output = strdup(mod_value);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_LEFT_OF;
+	} else if (strcmp(mod_value, "right-of") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->reference_output = strdup(mod_value);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_RIGHT_OF;
+	} else if (strcmp(mod_value, "below") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->reference_output = strdup(mod_value);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_BELOW;
+	} else if (strcmp(mod_value, "above") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->reference_output = strdup(mod_value);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_ABOVE;
+	} else if (strcmp(mod_value, "same-as") == 0) {
+		mod_value = strtok_r(NULL, " ", &saveptr);
+		rule->reference_output = strdup(mod_value);
+		rule->configuration =
+			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_SAME_AS;
+	} else {
+		wlr_log(L_ERROR, "got invalid input for layout: %s = %s", name, value);
+	}
+
+	free(strstart);
+}
+
 static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 static const char *keyboard_prefix = "keyboard:";
@@ -280,10 +333,6 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			} else {
 				wlr_log(L_ERROR, "got invalid output enable value: %s", value);
 			}
-		} else if (strcmp(name, "x") == 0) {
-			oc->x = strtol(value, NULL, 10);
-		} else if (strcmp(name, "y") == 0) {
-			oc->y = strtol(value, NULL, 10);
 		} else if (strcmp(name, "scale") == 0) {
 			oc->scale = strtof(value, NULL);
 			assert(oc->scale > 0);
@@ -376,6 +425,8 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 				section, strlen(keyboard_prefix)) == 0) {
 		const char *device_name = section + strlen(keyboard_prefix);
 		config_handle_keyboard(config, device_name, name, value);
+	} else if (strcmp(section, "layout") == 0) {
+		config_handle_layout(config, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
 		add_binding_config(&config->bindings, name, value);
 	} else {
@@ -398,6 +449,7 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	wl_list_init(&config->keyboards);
 	wl_list_init(&config->cursors);
 	wl_list_init(&config->bindings);
+	wl_list_init(&config->layout.rules);
 
 	int c;
 	while ((c = getopt(argc, argv, "C:E:hD")) != -1) {
@@ -498,6 +550,13 @@ void roots_config_destroy(struct roots_config *config) {
 		free(bc->keysyms);
 		free(bc->command);
 		free(bc);
+	}
+
+	struct roots_layout_rule_config *lrc, *lrtmp = NULL;
+	wl_list_for_each_safe(lrc, lrtmp, &config->layout.rules, link) {
+		free(lrc->output_name);
+		free(lrc->reference_output);
+		free(lrc);
 	}
 
 	free(config->config_path);

@@ -61,7 +61,7 @@ static void popup_unconstrain(struct roots_xdg_popup *popup) {
 	}
 
 	struct roots_view *view = popup->view_child.view;
-	struct wlr_output_layout *layout = view->desktop->layout;
+	struct wlr_output_layout *layout = view->desktop->layout->wlr_layout;
 	struct wlr_xdg_popup *wlr_popup = popup->wlr_popup;
 
 	int anchor_lx, anchor_ly;

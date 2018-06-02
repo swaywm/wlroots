@@ -201,8 +201,9 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	get_layout_position(&data->layout, &lx, &ly, surface, sx, sy);
 
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface, output->desktop->layout,
-		output->wlr_output, lx, ly, rotation, &box);
+	bool intersects = surface_intersect_output(surface,
+			output->desktop->layout->wlr_layout, output->wlr_output,
+			lx, ly, rotation, &box);
 	if (!intersects) {
 		return;
 	}
@@ -252,7 +253,8 @@ static void get_decoration_box(struct roots_view *view,
 	double x = sx + view->x;
 	double y = sy + view->y;
 
-	wlr_output_layout_output_coords(output->desktop->layout, wlr_output, &x, &y);
+	wlr_output_layout_output_coords(output->desktop->layout->wlr_layout,
+			wlr_output, &x, &y);
 
 	box->x = x * wlr_output->scale;
 	box->y = y * wlr_output->scale;
@@ -346,7 +348,7 @@ static void surface_send_frame_done(struct wlr_surface *surface, int sx, int sy,
 	double lx, ly;
 	get_layout_position(&data->layout, &lx, &ly, surface, sx, sy);
 
-	if (!surface_intersect_output(surface, output->desktop->layout,
+	if (!surface_intersect_output(surface, output->desktop->layout->wlr_layout,
 			output->wlr_output, lx, ly, rotation, NULL)) {
 		return;
 	}
@@ -403,7 +405,7 @@ static void render_output(struct roots_output *output) {
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
 	const struct wlr_box *output_box =
-		wlr_output_layout_get_box(desktop->layout, wlr_output);
+		wlr_output_layout_get_box(desktop->layout->wlr_layout, wlr_output);
 
 	// Check if we can delegate the fullscreen surface to the output
 	if (output->fullscreen_view != NULL &&
@@ -608,8 +610,9 @@ static void damage_whole_surface(struct wlr_surface *surface, int sx, int sy,
 	wlr_output_transformed_resolution(output->wlr_output, &ow, &oh);
 
 	struct wlr_box box;
-	bool intersects = surface_intersect_output(surface, output->desktop->layout,
-		output->wlr_output, lx, ly, rotation, &box);
+	bool intersects = surface_intersect_output(surface,
+			output->desktop->layout->wlr_layout, output->wlr_output,
+			lx, ly, rotation, &box);
 	if (!intersects) {
 		return;
 	}
@@ -622,7 +625,7 @@ static void damage_whole_surface(struct wlr_surface *surface, int sx, int sy,
 void output_damage_whole_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
 	struct wlr_output_layout_output *layout = wlr_output_layout_get(
-		output->desktop->layout, output->wlr_output);
+		output->desktop->layout->wlr_layout, output->wlr_output);
 	struct damage_data data = { .output = output };
 	surface_for_each_surface(surface, ox + layout->x, oy + layout->y, 0,
 		&data.layout, damage_whole_surface, &data);
@@ -679,7 +682,7 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 	wlr_output_transformed_resolution(wlr_output, &ow, &oh);
 
 	struct wlr_box box;
-	surface_intersect_output(surface, output->desktop->layout,
+	surface_intersect_output(surface, output->desktop->layout->wlr_layout,
 		wlr_output, lx, ly, rotation, &box);
 
 	int center_x = box.x + box.width/2;
@@ -704,7 +707,7 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 void output_damage_from_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
 	struct wlr_output_layout_output *layout = wlr_output_layout_get(
-		output->desktop->layout, output->wlr_output);
+		output->desktop->layout->wlr_layout, output->wlr_output);
 	struct damage_data data = { .output = output };
 	surface_for_each_surface(surface, ox + layout->x, oy + layout->y, 0,
 		&data.layout, damage_from_surface, &data);
@@ -752,6 +755,8 @@ static void output_destroy(struct roots_output *output) {
 	// TODO: cursor
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
+	roots_layout_remove_output(output->desktop->layout, output);
+	roots_layout_reflow(output->desktop->layout);
 
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->destroy.link);
@@ -784,12 +789,14 @@ static void output_damage_handle_destroy(struct wl_listener *listener,
 static void output_handle_mode(struct wl_listener *listener, void *data) {
 	struct roots_output *output =
 		wl_container_of(listener, output, mode);
+	roots_layout_reflow(output->desktop->layout);
 	arrange_layers(output);
 }
 
 static void output_handle_transform(struct wl_listener *listener, void *data) {
 	struct roots_output *output =
 		wl_container_of(listener, output, transform);
+	roots_layout_reflow(output->desktop->layout);
 	arrange_layers(output);
 }
 
@@ -846,13 +853,14 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 			}
 			wlr_output_set_scale(wlr_output, output_config->scale);
 			wlr_output_set_transform(wlr_output, output_config->transform);
-			wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,
-				output_config->y);
+			roots_layout_add_output(desktop->layout, output);
+			roots_layout_reflow(desktop->layout);
 		} else {
 			wlr_output_enable(wlr_output, false);
 		}
 	} else {
-		wlr_output_layout_add_auto(desktop->layout, wlr_output);
+		roots_layout_add_output(desktop->layout, output);
+		roots_layout_reflow(desktop->layout);
 	}
 
 	struct roots_seat *seat;
