@@ -32,11 +32,37 @@ struct wlr_gles2_renderer {
 	const char *exts_str;
 
 	struct {
-		GLuint quad;
-		GLuint ellipse;
-		GLuint tex_rgba;
-		GLuint tex_rgbx;
-		GLuint tex_ext;
+		struct {
+			GLuint program;
+			GLint proj;
+			GLint color;
+		} quad;
+		struct {
+			GLuint program;
+			GLint proj;
+			GLint color;
+		} ellipse;
+		struct {
+			GLuint program;
+			GLint proj;
+			GLint invert_y;
+			GLint tex;
+			GLint alpha;
+		} tex_rgba;
+		struct  {
+			GLuint program;
+			GLint proj;
+			GLint invert_y;
+			GLint tex;
+			GLint alpha;
+		} tex_rgbx;
+		struct  {
+			GLuint program;
+			GLint proj;
+			GLint invert_y;
+			GLint tex;
+			GLint alpha;
+		} tex_ext;
 	} shaders;
 
 	uint32_t viewport_width, viewport_height;
