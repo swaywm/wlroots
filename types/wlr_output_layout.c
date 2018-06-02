@@ -287,6 +287,28 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
+void wlr_output_layout_move(struct wlr_output_layout *layout,
+		struct wlr_output *output, int lx, int ly) {
+	struct wlr_output_layout_output *l_output =
+		wlr_output_layout_get(layout, output);
+
+	if (!l_output) {
+		wlr_log(L_ERROR, "output not found in this layout: %s", output->name);
+		return;
+	}
+
+	if (l_output->configuration !=
+				WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED) {
+		relocate_output_with_children(layout, l_output, &layout->outputs);
+	}
+
+	l_output->x = lx;
+	l_output->y = ly;
+	l_output->configuration = WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED;
+
+	output_layout_reconfigure(layout);
+}
+
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *l_output;
