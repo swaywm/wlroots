@@ -62,6 +62,8 @@ struct wlr_subsurface {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	void *data;
 };
 
 struct wlr_surface {
