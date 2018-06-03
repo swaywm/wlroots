@@ -94,9 +94,6 @@ void roots_seat_destroy(struct roots_seat *seat);
 void roots_seat_add_device(struct roots_seat *seat,
 		struct wlr_input_device *device);
 
-void roots_seat_remove_device(struct roots_seat *seat,
-		struct wlr_input_device *device);
-
 void roots_seat_configure_cursor(struct roots_seat *seat);
 
 void roots_seat_configure_xcursor(struct roots_seat *seat);
