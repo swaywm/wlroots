@@ -144,17 +144,6 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
-	static const EGLint attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-
-	egl->context = eglCreateContext(egl->display, egl->config,
-		EGL_NO_CONTEXT, attribs);
-
-	if (egl->context == EGL_NO_CONTEXT) {
-		wlr_log(L_ERROR, "Failed to create EGL context");
-		goto error;
-	}
-
-	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl->context);
 	egl->exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
 
 	wlr_log(L_INFO, "Using EGL %d.%d", (int)major, (int)minor);
@@ -177,10 +166,50 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	egl->egl_exts.dmabuf_import_modifiers =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
+	print_dmabuf_formats(egl);
 
 	egl->egl_exts.bind_wayland_display =
 		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display");
-	print_dmabuf_formats(egl);
+
+	egl->egl_exts.context_priority =
+		check_egl_ext(egl->exts_str, "EGL_IMG_context_priority");
+
+	size_t atti = 0;
+	EGLint attribs[5];
+	attribs[atti++] = EGL_CONTEXT_CLIENT_VERSION;
+	attribs[atti++] = 2;
+
+	// Try to reschedule all of our rendering to be completed first. If it
+	// fails, it will fallback to the default priority (MEDIUM).
+	if (egl->egl_exts.context_priority) {
+		attribs[atti++] = EGL_CONTEXT_PRIORITY_LEVEL_IMG;
+		attribs[atti++] = EGL_CONTEXT_PRIORITY_HIGH_IMG;
+	}
+
+	attribs[atti++] = EGL_NONE;
+	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
+
+	egl->context = eglCreateContext(egl->display, egl->config,
+		EGL_NO_CONTEXT, attribs);
+	if (egl->context == EGL_NO_CONTEXT) {
+		wlr_log(L_ERROR, "Failed to create EGL context");
+		goto error;
+	}
+
+	if (egl->egl_exts.context_priority) {
+		EGLint priority = EGL_CONTEXT_PRIORITY_MEDIUM_IMG;
+		eglQueryContext(egl->display, egl->context,
+			EGL_CONTEXT_PRIORITY_LEVEL_IMG, &priority);
+		if (priority != EGL_CONTEXT_PRIORITY_HIGH_IMG) {
+			wlr_log(L_INFO, "Failed to obtain a high priority context");
+		}
+	}
+
+	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			egl->context)) {
+		wlr_log(L_ERROR, "Failed to make EGL context current");
+		goto error;
+	}
 
 	return true;
 

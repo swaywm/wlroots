@@ -21,6 +21,7 @@ struct wlr_egl {
 		bool dmabuf_import;
 		bool dmabuf_import_modifiers;
 		bool bind_wayland_display;
+		bool context_priority;
 	} egl_exts;
 
 	struct wl_display *wl_display;
