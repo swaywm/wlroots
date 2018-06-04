@@ -956,7 +956,7 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 	while (wlr_surface_is_subsurface(surface)) {
 		struct wlr_subsurface *subsurface =
 			wlr_subsurface_from_surface(surface);
-		surface = subsurface->surface;
+		surface = subsurface->parent;
 	}
 	return surface;
 }
