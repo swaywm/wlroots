@@ -443,7 +443,7 @@ static bool xdg_popup_v6_unconstrain_slide(struct wlr_xdg_popup_v6 *popup,
 		(popup->positioner.constraint_adjustment &
 		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_X);
 
-	bool slide_y = offset_x &&
+	bool slide_y = offset_y &&
 		(popup->positioner.constraint_adjustment &
 		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
 
@@ -486,7 +486,7 @@ static bool xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 		(popup->positioner.constraint_adjustment &
 		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_X);
 
-	bool resize_y = offset_x &&
+	bool resize_y = offset_y &&
 		(popup->positioner.constraint_adjustment &
 		 ZXDG_POSITIONER_V6_CONSTRAINT_ADJUSTMENT_RESIZE_Y);
 
@@ -498,7 +498,7 @@ static bool xdg_popup_v6_unconstrain_resize(struct wlr_xdg_popup_v6 *popup,
 	}
 
 	xdg_popup_v6_box_constraints(popup, toplevel_sx_box,
-		&offset_y, &offset_y);
+		&offset_x, &offset_y);
 
 	return !offset_x && !offset_y;
 }
