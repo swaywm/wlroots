@@ -805,7 +805,7 @@ static void subsurface_handle_place_above(struct wl_client *client,
 	}
 
 	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(sibling->parent_pending_link.prev,
+	wl_list_insert(&sibling->parent_pending_link,
 		&subsurface->parent_pending_link);
 
 	subsurface->reordered = true;
@@ -832,7 +832,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 	}
 
 	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(&sibling->parent_pending_link,
+	wl_list_insert(sibling->parent_pending_link.prev,
 		&subsurface->parent_pending_link);
 
 	subsurface->reordered = true;
@@ -933,8 +933,8 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
-	wl_list_insert(&parent->subsurfaces, &subsurface->parent_link);
-	wl_list_insert(&parent->subsurface_pending_list,
+	wl_list_insert(parent->subsurfaces.prev, &subsurface->parent_link);
+	wl_list_insert(parent->subsurface_pending_list.prev,
 		&subsurface->parent_pending_link);
 
 	surface->role_data = subsurface;
@@ -971,7 +971,7 @@ bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
+	wl_list_for_each_reverse(subsurface, &surface->subsurfaces, parent_link) {
 		double _sub_x = subsurface->surface->current->subsurface_position.x;
 		double _sub_y = subsurface->surface->current->subsurface_position.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
