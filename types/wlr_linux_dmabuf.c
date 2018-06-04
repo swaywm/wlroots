@@ -101,7 +101,8 @@ static void params_add(struct wl_client *client,
 	if (buffer->has_modifier && modifier != buffer->attributes.modifier) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
-			"sent modifier %lu for plane %u, expected modifier %lu like other planes",
+			"sent modifier %" PRIu64 " for plane %u, expected"
+			" modifier %" PRIu64 " like other planes",
 			modifier, plane_idx, buffer->attributes.modifier);
 		close(fd);
 		return;
