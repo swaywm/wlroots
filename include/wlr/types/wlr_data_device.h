@@ -94,6 +94,8 @@ struct wlr_drag_icon {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener seat_client_destroy;
+
+	void *data;
 };
 
 struct wlr_drag {
