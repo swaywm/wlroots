@@ -60,6 +60,12 @@ static void seat_client_handle_resource_destroy(
 		struct wl_resource *seat_resource) {
 	struct wlr_seat_client *client =
 		wlr_seat_client_from_resource(seat_resource);
+
+	wl_list_remove(wl_resource_get_link(seat_resource));
+	if (!wl_list_empty(&client->wl_resources)) {
+		return;
+	}
+
 	wlr_signal_emit_safe(&client->events.destroy, client);
 
 	if (client == client->seat->pointer_state.focused_client) {
@@ -108,34 +114,43 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 	struct wlr_seat *wlr_seat = _wlr_seat;
 	assert(client && wlr_seat);
 
-	struct wlr_seat_client *seat_client =
-		calloc(1, sizeof(struct wlr_seat_client));
-	if (seat_client == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	seat_client->wl_resource =
+	struct wl_resource *wl_resource =
 		wl_resource_create(client, &wl_seat_interface, version, id);
-	if (seat_client->wl_resource == NULL) {
-		free(seat_client);
+	if (wl_resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-	seat_client->client = client;
-	seat_client->seat = wlr_seat;
-	wl_list_init(&seat_client->pointers);
-	wl_list_init(&seat_client->keyboards);
-	wl_list_init(&seat_client->touches);
-	wl_list_init(&seat_client->data_devices);
-	wl_list_init(&seat_client->primary_selection_devices);
-	wl_resource_set_implementation(seat_client->wl_resource, &seat_impl,
-		seat_client, seat_client_handle_resource_destroy);
-	wl_list_insert(&wlr_seat->clients, &seat_client->link);
-	if (version >= WL_SEAT_NAME_SINCE_VERSION) {
-		wl_seat_send_name(seat_client->wl_resource, wlr_seat->name);
+
+	struct wlr_seat_client *seat_client =
+		wlr_seat_client_for_wl_client(wlr_seat, client);
+	if (seat_client == NULL) {
+		seat_client = calloc(1, sizeof(struct wlr_seat_client));
+		if (seat_client == NULL) {
+			wl_resource_destroy(wl_resource);
+			wl_client_post_no_memory(client);
+			return;
+		}
+
+		seat_client->client = client;
+		seat_client->seat = wlr_seat;
+		wl_list_init(&seat_client->wl_resources);
+		wl_list_init(&seat_client->pointers);
+		wl_list_init(&seat_client->keyboards);
+		wl_list_init(&seat_client->touches);
+		wl_list_init(&seat_client->data_devices);
+		wl_list_init(&seat_client->primary_selection_devices);
+		wl_signal_init(&seat_client->events.destroy);
+
+		wl_list_insert(&wlr_seat->clients, &seat_client->link);
 	}
-	wl_seat_send_capabilities(seat_client->wl_resource, wlr_seat->capabilities);
-	wl_signal_init(&seat_client->events.destroy);
+
+	wl_resource_set_implementation(wl_resource, &seat_impl,
+		seat_client, seat_client_handle_resource_destroy);
+	wl_list_insert(&seat_client->wl_resources, wl_resource_get_link(wl_resource));
+	if (version >= WL_SEAT_NAME_SINCE_VERSION) {
+		wl_seat_send_name(wl_resource, wlr_seat->name);
+	}
+	wl_seat_send_capabilities(wl_resource, wlr_seat->capabilities);
 }
 
 void wlr_seat_destroy(struct wlr_seat *seat) {
@@ -160,8 +175,11 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
-		// will destroy other resources as well
-		wl_resource_destroy(client->wl_resource);
+		struct wl_resource *resource, *next_resource;
+		wl_resource_for_each_safe(resource, next_resource, &client->wl_resources) {
+			// will destroy other resources as well
+			wl_resource_destroy(resource);
+		}
 	}
 
 	wl_global_destroy(seat->wl_global);
@@ -308,7 +326,10 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 			}
 		}
 
-		wl_seat_send_capabilities(client->wl_resource, capabilities);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &client->wl_resources) {
+			wl_seat_send_capabilities(resource, capabilities);
+		}
 	}
 }
 
@@ -317,7 +338,10 @@ void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name) {
 	wlr_seat->name = strdup(name);
 	struct wlr_seat_client *client;
 	wl_list_for_each(client, &wlr_seat->clients, link) {
-		wl_seat_send_name(client->wl_resource, name);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &client->wl_resources) {
+			wl_seat_send_name(resource, name);
+		}
 	}
 }
 
