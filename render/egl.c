@@ -155,11 +155,17 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
+	egl->egl_exts.image_base =
+		check_egl_ext(egl->exts_str, "EGL_KHR_image_base")
+		&& eglCreateImageKHR && eglDestroyImageKHR;
+
 	egl->egl_exts.buffer_age =
 		check_egl_ext(egl->exts_str, "EGL_EXT_buffer_age");
 	egl->egl_exts.swap_buffers_with_damage =
-		check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") ||
-		check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage");
+		(check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") &&
+			eglSwapBuffersWithDamageEXT) ||
+		(check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage") &&
+			eglSwapBuffersWithDamageKHR);
 
 	egl->egl_exts.dmabuf_import =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import");
@@ -169,7 +175,9 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	print_dmabuf_formats(egl);
 
 	egl->egl_exts.bind_wayland_display =
-		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display");
+		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display")
+		&& eglBindWaylandDisplayWL && eglUnbindWaylandDisplayWL
+		&& eglQueryWaylandBufferWL;
 
 	egl->egl_exts.context_priority =
 		check_egl_ext(egl->exts_str, "EGL_IMG_context_priority");
@@ -228,7 +236,8 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	}
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	if (egl->wl_display && egl->egl_exts.bind_wayland_display) {
+	if (egl->wl_display) {
+		assert(egl->egl_exts.bind_wayland_display);
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
@@ -251,7 +260,7 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
-	if (!eglDestroyImageKHR) {
+	if (!egl->egl_exts.image_base) {
 		return false;
 	}
 	if (!image) {
@@ -341,7 +350,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data, EGLint *fmt, int *width, int *height,
 		bool *inverted_y) {
-	if (!eglQueryWaylandBufferWL || !eglCreateImageKHR) {
+	if (!egl->egl_exts.bind_wayland_display || !egl->egl_exts.image_base) {
 		return NULL;
 	}
 
@@ -370,6 +379,10 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attributes) {
+	if (!egl->egl_exts.image_base) {
+		return NULL;
+	}
+
 	bool has_modifier = false;
 	if (attributes->modifier != DRM_FORMAT_MOD_INVALID) {
 		if (!egl->egl_exts.dmabuf_import_modifiers) {
@@ -445,7 +458,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
 	if (!egl->egl_exts.dmabuf_import ||
-		!egl->egl_exts.dmabuf_import_modifiers) {
+			!egl->egl_exts.dmabuf_import_modifiers) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
@@ -473,7 +486,7 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		int format, uint64_t **modifiers) {
 	if (!egl->egl_exts.dmabuf_import ||
-		!egl->egl_exts.dmabuf_import_modifiers) {
+			!egl->egl_exts.dmabuf_import_modifiers) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
