@@ -11,8 +11,8 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	// find the closest x point
 	if (x < box->x) {
 		*dest_x = box->x;
-	} else if (x > box->x + box->width) {
-		*dest_x = box->x + box->width;
+	} else if (x >= box->x + box->width) {
+		*dest_x = box->x + box->width - 1;
 	} else {
 		*dest_x = x;
 	}
@@ -20,8 +20,8 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	// find closest y point
 	if (y < box->y) {
 		*dest_y = box->y;
-	} else if (y > box->y + box->height) {
-		*dest_y = box->y + box->height;
+	} else if (y >= box->y + box->height) {
+		*dest_y = box->y + box->height - 1;
 	} else {
 		*dest_y = y;
 	}
@@ -46,8 +46,8 @@ bool wlr_box_intersection(const struct wlr_box *box_a,
 
 	int x1 = fmax(box_a->x, box_b->x);
 	int y1 = fmax(box_a->y, box_b->y);
-	int x2 = fmin(box_a->x + box_a->width, box_b->x + box_b->width);
-	int y2 = fmin(box_a->y + box_a->height, box_b->y + box_b->height);
+	int x2 = fmin(box_a->x + box_a->width - 1, box_b->x + box_b->width - 1);
+	int y2 = fmin(box_a->y + box_a->height - 1, box_b->y + box_b->height - 1);
 
 	dest->x = x1;
 	dest->y = y1;
