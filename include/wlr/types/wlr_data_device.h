@@ -88,7 +88,7 @@ struct wlr_drag_icon {
 	int32_t sx, sy;
 
 	struct {
-		struct wl_signal map; // emitted when mapped or unmapped
+		struct wl_signal unmap;
 		struct wl_signal destroy;
 	} events;
 

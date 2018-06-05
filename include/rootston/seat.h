@@ -58,7 +58,7 @@ struct roots_drag_icon {
 	double x, y;
 
 	struct wl_listener surface_commit;
-	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener destroy;
 };
 
