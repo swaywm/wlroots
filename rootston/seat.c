@@ -263,6 +263,13 @@ static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,
 	roots_drag_icon_damage_whole(icon);
 }
 
+static void roots_drag_icon_handle_map(struct wl_listener *listener,
+		void *data) {
+	struct roots_drag_icon *icon =
+		wl_container_of(listener, icon, map);
+	roots_drag_icon_damage_whole(icon);
+}
+
 static void roots_drag_icon_handle_unmap(struct wl_listener *listener,
 		void *data) {
 	struct roots_drag_icon *icon =
@@ -299,6 +306,8 @@ static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
 	wl_signal_add(&wlr_drag_icon->surface->events.commit, &icon->surface_commit);
 	icon->unmap.notify = roots_drag_icon_handle_unmap;
 	wl_signal_add(&wlr_drag_icon->events.unmap, &icon->unmap);
+	icon->map.notify = roots_drag_icon_handle_map;
+	wl_signal_add(&wlr_drag_icon->events.map, &icon->map);
 	icon->destroy.notify = roots_drag_icon_handle_destroy;
 	wl_signal_add(&wlr_drag_icon->events.destroy, &icon->destroy);
 
