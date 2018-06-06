@@ -239,46 +239,76 @@ static void config_handle_layout(struct roots_config *config, const char *name,
 
 	struct roots_layout_rule_config *rule =
 		calloc(1, sizeof(struct roots_layout_rule_config));
-	wl_list_insert(&lc->rules, &rule->link);
-	rule->output_name = strdup(name);
 
 	if (strcmp(mod_value, "fixed") == 0) {
 		mod_value = strtok_r(NULL, ",", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->x = strtol(mod_value, NULL, 10);
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->y = strtol(mod_value, NULL, 10);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED;
+
 	} else if (strcmp(mod_value, "left-of") == 0) {
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->reference_output = strdup(mod_value);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_LEFT_OF;
 	} else if (strcmp(mod_value, "right-of") == 0) {
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->reference_output = strdup(mod_value);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_RIGHT_OF;
 	} else if (strcmp(mod_value, "below") == 0) {
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->reference_output = strdup(mod_value);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_BELOW;
 	} else if (strcmp(mod_value, "above") == 0) {
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->reference_output = strdup(mod_value);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_ABOVE;
 	} else if (strcmp(mod_value, "same-as") == 0) {
 		mod_value = strtok_r(NULL, " ", &saveptr);
+		if (!mod_value) {
+			goto invalid_config;
+		}
 		rule->reference_output = strdup(mod_value);
 		rule->configuration =
 			WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_SAME_AS;
 	} else {
-		wlr_log(L_ERROR, "got invalid input for layout: %s = %s", name, value);
+		goto invalid_config;
 	}
 
+	rule->output_name = strdup(name);
+	wl_list_insert(&lc->rules, &rule->link);
+
 	free(strstart);
+
+	return;
+
+invalid_config:
+	wlr_log(L_ERROR, "got invalid config for layout: %s = %s", name, value);
+	free(strstart);
+	free(rule);
 }
 
 static const char *output_prefix = "output:";
