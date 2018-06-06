@@ -46,8 +46,8 @@ bool wlr_box_intersection(const struct wlr_box *box_a,
 
 	int x1 = fmax(box_a->x, box_b->x);
 	int y1 = fmax(box_a->y, box_b->y);
-	int x2 = fmin(box_a->x + box_a->width - 1, box_b->x + box_b->width - 1);
-	int y2 = fmin(box_a->y + box_a->height - 1, box_b->y + box_b->height - 1);
+	int x2 = fmin(box_a->x + box_a->width, box_b->x + box_b->width);
+	int y2 = fmin(box_a->y + box_a->height, box_b->y + box_b->height);
 
 	dest->x = x1;
 	dest->y = y1;
