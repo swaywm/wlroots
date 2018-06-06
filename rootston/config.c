@@ -243,7 +243,7 @@ static void config_handle_layout(struct roots_config *config, const char *name,
 	rule->output_name = strdup(name);
 
 	if (strcmp(mod_value, "fixed") == 0) {
-		mod_value = strtok_r(NULL, " ", &saveptr);
+		mod_value = strtok_r(NULL, ",", &saveptr);
 		rule->x = strtol(mod_value, NULL, 10);
 		mod_value = strtok_r(NULL, " ", &saveptr);
 		rule->y = strtol(mod_value, NULL, 10);

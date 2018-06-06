@@ -18,7 +18,7 @@ rotate = 90
 # Output position configuration
 [layout]
 # Put the output with name VGA-1 at (0,0)
-VGA-1 = fixed 0 0
+VGA-1 = fixed 0,0
 # Put the output with name VGA-2 to the left of the output with name VGA-1
 VGA-2 = left-of VGA-1
 # Other possibilities include : right-of, above, below, mirror
