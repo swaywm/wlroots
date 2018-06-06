@@ -111,50 +111,40 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 		int max_x_y = INT_MIN;
 
 		struct wlr_box *box = output_layout_output_get_box(l_output);
+		struct wlr_box *ref_box;
 
 		switch(l_output->configuration) {
 		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED:
 			break;
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_LEFT_OF: {
-				struct wlr_box *ref_box =
-					output_layout_output_get_box(l_output->reference);
-				l_output->x = ref_box->x - box->width;
-				l_output->y = ref_box->y;
-				break;
-			}
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_RIGHT_OF: {
-				struct wlr_box *ref_box =
-					output_layout_output_get_box(l_output->reference);
-				l_output->x = ref_box->x + ref_box->width;
-				l_output->y = ref_box->y;
-				break;
-			}
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_BELOW: {
-				struct wlr_box *ref_box =
-					output_layout_output_get_box(l_output->reference);
-				l_output->x = ref_box->x;
-				l_output->y = ref_box->y + box->height;
-				break;
-			}
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_ABOVE: {
-				struct wlr_box *ref_box =
-					output_layout_output_get_box(l_output->reference);
-				l_output->x = ref_box->x;
-				l_output->y = ref_box->y - ref_box->height;
-				break;
-			}
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_SAME_AS: {
-				struct wlr_box *ref_box =
-					output_layout_output_get_box(l_output->reference);
-				l_output->x = ref_box->x;
-				l_output->y = ref_box->y;
-				break;
-			}
-		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_AUTO: {
-				l_output->x = max_x;
-				l_output->y = max_x_y;
-				break;
-			}
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_LEFT_OF:
+			ref_box =output_layout_output_get_box(l_output->reference);
+			l_output->x = ref_box->x - box->width;
+			l_output->y = ref_box->y;
+			break;
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_RIGHT_OF:
+			ref_box =output_layout_output_get_box(l_output->reference);
+			l_output->x = ref_box->x + ref_box->width;
+			l_output->y = ref_box->y;
+			break;
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_BELOW:
+			ref_box =output_layout_output_get_box(l_output->reference);
+			l_output->x = ref_box->x;
+			l_output->y = ref_box->y + box->height;
+			break;
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_ABOVE:
+			ref_box =output_layout_output_get_box(l_output->reference);
+			l_output->x = ref_box->x;
+			l_output->y = ref_box->y - ref_box->height;
+			break;
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_SAME_AS:
+			ref_box =output_layout_output_get_box(l_output->reference);
+			l_output->x = ref_box->x;
+			l_output->y = ref_box->y;
+			break;
+		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_AUTO:
+			l_output->x = max_x;
+			l_output->y = max_x_y;
+			break;
 		}
 
 		if (max_x < l_output->x + box->width) {
@@ -233,33 +223,36 @@ void relocate_output_with_children(struct wlr_output_layout *layout,
 		struct wlr_output_layout_output *output,
 		struct wl_list *ref) {
 
-	struct wlr_output_layout_output *child_output;
-	struct wlr_output_layout_output *parent_output =
-		output;
-
 	if (output->link.prev == ref) {
 		return;
 	}
 
-	for (child_output = wl_container_of((output)->link.next, output, link);
-			&output->link != &layout->outputs;
-			child_output =
-				wl_container_of((child_output)->link.next, output, link)) {
+	struct wlr_output_layout_output *child_output, *tmp;
+	struct wlr_output_layout_output *parent_output =
+		output;
+	bool started = false;
+
+	wl_list_for_each_safe(child_output, tmp,
+			&layout->outputs, link) {
+		if (!started) {
+			if (child_output == parent_output) {
+				started = true;
+				wl_list_remove(&child_output->link);
+				wl_list_insert(ref, &child_output->link);
+			}
+			continue;
+		}
+
 		while (child_output->reference != parent_output) {
 			if (parent_output == output) {
-				goto move_outputs;
+				return;
 			}
 			parent_output = parent_output->reference;
 		}
-	}
 
-move_outputs:
-	ref->next->prev = child_output->link.prev; // A->prev = B
-	child_output->link.prev->next = ref->next; // B->next = A
-	child_output->link.prev = output->link.prev;
-	output->link.prev->next = &child_output->link;
-	output->link.prev = ref;
-	ref->next = &output->link;
+		wl_list_remove(&child_output->link);
+		wl_list_insert(&parent_output->link, &child_output->link);
+	}
 }
 
 void wlr_output_layout_add(struct wlr_output_layout *layout,
