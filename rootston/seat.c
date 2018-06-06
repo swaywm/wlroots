@@ -260,6 +260,7 @@ static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,
 		void *data) {
 	struct roots_drag_icon *icon =
 		wl_container_of(listener, icon, surface_commit);
+	roots_drag_icon_update_position(icon);
 	roots_drag_icon_damage_whole(icon);
 }
 
@@ -312,6 +313,8 @@ static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
 	wl_signal_add(&wlr_drag_icon->events.destroy, &icon->destroy);
 
 	wl_list_insert(&seat->drag_icons, &icon->link);
+
+	roots_drag_icon_update_position(icon);
 }
 
 void roots_drag_icon_update_position(struct roots_drag_icon *icon) {

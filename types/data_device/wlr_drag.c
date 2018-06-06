@@ -100,12 +100,12 @@ static void drag_set_focus(struct wlr_drag *drag,
 
 static void drag_icon_set_mapped(struct wlr_drag_icon *icon, bool mapped) {
 	if (mapped && !icon->mapped) {
+		icon->mapped = true;
 		wlr_signal_emit_safe(&icon->events.map, icon);
 	} else if (!mapped && icon->mapped) {
+		icon->mapped = false;
 		wlr_signal_emit_safe(&icon->events.unmap, icon);
 	}
-
-	icon->mapped = mapped;
 }
 
 static void drag_end(struct wlr_drag *drag) {
