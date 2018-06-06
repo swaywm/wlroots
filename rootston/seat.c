@@ -261,7 +261,6 @@ static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,
 	struct roots_drag_icon *icon =
 		wl_container_of(listener, icon, surface_commit);
 	roots_drag_icon_update_position(icon);
-	roots_drag_icon_damage_whole(icon);
 }
 
 static void roots_drag_icon_handle_map(struct wl_listener *listener,
