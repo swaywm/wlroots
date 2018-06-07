@@ -18,12 +18,11 @@ struct wlr_egl {
 	struct {
 		bool bind_wayland_display;
 		bool buffer_age;
-		bool context_priority;
 		bool dmabuf_import_modifiers;
 		bool dmabuf_import;
 		bool image_base;
 		bool swap_buffers_with_damage;
-	} egl_exts;
+	} exts;
 
 	struct wl_display *wl_display;
 };

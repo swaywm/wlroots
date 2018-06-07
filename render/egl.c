@@ -7,10 +7,6 @@
 #include <wlr/util/log.h>
 #include "glapi.h"
 
-// Extension documentation
-// https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_image_base.txt.
-// https://cgit.freedesktop.org/mesa/mesa/tree/docs/specs/WL_bind_wayland_display.spec
-
 static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 		EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
@@ -61,27 +57,27 @@ static void egl_log(EGLenum error, const char *command, EGLint msg_type,
 	_wlr_log(egl_log_importance_to_wlr(msg_type), "[EGL] %s: %s", command, msg);
 }
 
-static bool check_egl_ext(const char *egl_exts, const char *ext) {
+static bool check_egl_ext(const char *exts, const char *ext) {
 	size_t extlen = strlen(ext);
-	const char *end = egl_exts + strlen(egl_exts);
+	const char *end = exts + strlen(exts);
 
-	while (egl_exts < end) {
-		if (*egl_exts == ' ') {
-			egl_exts++;
+	while (exts < end) {
+		if (*exts == ' ') {
+			exts++;
 			continue;
 		}
-		size_t n = strcspn(egl_exts, " ");
-		if (n == extlen && strncmp(ext, egl_exts, n) == 0) {
+		size_t n = strcspn(exts, " ");
+		if (n == extlen && strncmp(ext, exts, n) == 0) {
 			return true;
 		}
-		egl_exts += n;
+		exts += n;
 	}
 	return false;
 }
 
 static void print_dmabuf_formats(struct wlr_egl *egl) {
 	/* Avoid log msg if extension is not present */
-	if (!egl->egl_exts.dmabuf_import_modifiers) {
+	if (!egl->exts.dmabuf_import_modifiers) {
 		return;
 	}
 
@@ -150,36 +146,31 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->exts_str);
 	wlr_log(L_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 
-	if (!check_egl_ext(egl->exts_str, "EGL_KHR_image_base")) {
-		wlr_log(L_ERROR, "Required EGL_KHR_image_base extension not supported");
-		goto error;
-	}
-
-	egl->egl_exts.image_base =
+	egl->exts.image_base =
 		check_egl_ext(egl->exts_str, "EGL_KHR_image_base")
 		&& eglCreateImageKHR && eglDestroyImageKHR;
 
-	egl->egl_exts.buffer_age =
+	egl->exts.buffer_age =
 		check_egl_ext(egl->exts_str, "EGL_EXT_buffer_age");
-	egl->egl_exts.swap_buffers_with_damage =
+	egl->exts.swap_buffers_with_damage =
 		(check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") &&
 			eglSwapBuffersWithDamageEXT) ||
 		(check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage") &&
 			eglSwapBuffersWithDamageKHR);
 
-	egl->egl_exts.dmabuf_import =
+	egl->exts.dmabuf_import =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import");
-	egl->egl_exts.dmabuf_import_modifiers =
+	egl->exts.dmabuf_import_modifiers =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
 	print_dmabuf_formats(egl);
 
-	egl->egl_exts.bind_wayland_display =
+	egl->exts.bind_wayland_display =
 		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display")
 		&& eglBindWaylandDisplayWL && eglUnbindWaylandDisplayWL
 		&& eglQueryWaylandBufferWL;
 
-	egl->egl_exts.context_priority =
+	bool ext_context_priority =
 		check_egl_ext(egl->exts_str, "EGL_IMG_context_priority");
 
 	size_t atti = 0;
@@ -187,9 +178,13 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	attribs[atti++] = EGL_CONTEXT_CLIENT_VERSION;
 	attribs[atti++] = 2;
 
+	// On DRM, request a high priority context if possible
+	bool request_high_priority = ext_context_priority &&
+		platform == EGL_PLATFORM_GBM_MESA;
+
 	// Try to reschedule all of our rendering to be completed first. If it
 	// fails, it will fallback to the default priority (MEDIUM).
-	if (egl->egl_exts.context_priority) {
+	if (request_high_priority) {
 		attribs[atti++] = EGL_CONTEXT_PRIORITY_LEVEL_IMG;
 		attribs[atti++] = EGL_CONTEXT_PRIORITY_HIGH_IMG;
 	}
@@ -204,12 +199,14 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
-	if (egl->egl_exts.context_priority) {
+	if (request_high_priority) {
 		EGLint priority = EGL_CONTEXT_PRIORITY_MEDIUM_IMG;
 		eglQueryContext(egl->display, egl->context,
 			EGL_CONTEXT_PRIORITY_LEVEL_IMG, &priority);
 		if (priority != EGL_CONTEXT_PRIORITY_HIGH_IMG) {
 			wlr_log(L_INFO, "Failed to obtain a high priority context");
+		} else {
+			wlr_log(L_DEBUG, "Obtained high priority context");
 		}
 	}
 
@@ -237,7 +234,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
-		assert(egl->egl_exts.bind_wayland_display);
+		assert(egl->exts.bind_wayland_display);
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
@@ -247,7 +244,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!egl->egl_exts.bind_wayland_display) {
+	if (!egl->exts.bind_wayland_display) {
 		return false;
 	}
 
@@ -260,7 +257,7 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
-	if (!egl->egl_exts.image_base) {
+	if (!egl->exts.image_base) {
 		return false;
 	}
 	if (!image) {
@@ -281,7 +278,7 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 }
 
 static int egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
-	if (!egl->egl_exts.buffer_age) {
+	if (!egl->exts.buffer_age) {
 		return -1;
 	}
 
@@ -316,7 +313,7 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
 	EGLBoolean ret;
-	if (damage != NULL && egl->egl_exts.swap_buffers_with_damage) {
+	if (damage != NULL && egl->exts.swap_buffers_with_damage) {
 		int nrects;
 		pixman_box32_t *rects =
 			pixman_region32_rectangles(damage, &nrects);
@@ -350,7 +347,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data, EGLint *fmt, int *width, int *height,
 		bool *inverted_y) {
-	if (!egl->egl_exts.bind_wayland_display || !egl->egl_exts.image_base) {
+	if (!egl->exts.bind_wayland_display || !egl->exts.image_base) {
 		return NULL;
 	}
 
@@ -379,13 +376,13 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attributes) {
-	if (!egl->egl_exts.image_base) {
+	if (!egl->exts.image_base) {
 		return NULL;
 	}
 
 	bool has_modifier = false;
 	if (attributes->modifier != DRM_FORMAT_MOD_INVALID) {
-		if (!egl->egl_exts.dmabuf_import_modifiers) {
+		if (!egl->exts.dmabuf_import_modifiers) {
 			return NULL;
 		}
 		has_modifier = true;
@@ -457,8 +454,8 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
-	if (!egl->egl_exts.dmabuf_import ||
-			!egl->egl_exts.dmabuf_import_modifiers) {
+	if (!egl->exts.dmabuf_import ||
+			!egl->exts.dmabuf_import_modifiers) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
@@ -485,8 +482,8 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		int format, uint64_t **modifiers) {
-	if (!egl->egl_exts.dmabuf_import ||
-			!egl->egl_exts.dmabuf_import_modifiers) {
+	if (!egl->exts.dmabuf_import ||
+			!egl->exts.dmabuf_import_modifiers) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
