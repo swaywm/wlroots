@@ -89,7 +89,7 @@ enum wlr_key_state {
 struct wlr_event_keyboard_key {
 	uint32_t time_msec;
 	uint32_t keycode;
-	bool update_state;
+	bool update_state; // if backend doesn't update modifiers on its own
 	enum wlr_key_state state;
 };
 

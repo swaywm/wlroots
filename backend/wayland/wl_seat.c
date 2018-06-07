@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <wayland-client.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -169,12 +170,51 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 	// TODO: set keymap
 }
 
+static uint32_t get_current_time_msec() {
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	return now.tv_nsec / 1000;
+}
+
 static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	struct wlr_input_device *dev = data;
+
+	uint32_t time = get_current_time_msec();
+
+	uint32_t *keycode_ptr;
+	wl_array_for_each(keycode_ptr, keys) {
+		struct wlr_event_keyboard_key event = {
+			.keycode = *keycode_ptr,
+			.state = WLR_KEY_PRESSED,
+			.time_msec = time,
+			.update_state = false,
+		};
+		wlr_keyboard_notify_key(dev->keyboard, &event);
+	}
 }
 
 static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface) {
+	struct wlr_input_device *dev = data;
+
+	uint32_t time = get_current_time_msec();
+
+	uint32_t pressed[dev->keyboard->num_keycodes];
+	memcpy(pressed, dev->keyboard->keycodes,
+		dev->keyboard->num_keycodes * sizeof(uint32_t));
+
+	for (size_t i = 0; i < sizeof(pressed)/sizeof(pressed[0]); ++i) {
+		uint32_t keycode = pressed[i];
+
+		struct wlr_event_keyboard_key event = {
+			.keycode = keycode,
+			.state = WLR_KEY_RELEASED,
+			.time_msec = time,
+			.update_state = false,
+		};
+		wlr_keyboard_notify_key(dev->keyboard, &event);
+	}
 }
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
