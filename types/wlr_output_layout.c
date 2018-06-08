@@ -105,10 +105,10 @@ static struct wlr_box *output_layout_output_get_box(
 static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 
 	struct wlr_output_layout_output *l_output;
+	int max_x = INT_MIN;
+	int max_x_y = 0;
 
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		int max_x = INT_MIN;
-		int max_x_y = INT_MIN;
 
 		struct wlr_box *box = output_layout_output_get_box(l_output);
 		struct wlr_box *ref_box;
@@ -142,12 +142,15 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 			l_output->y = ref_box->y;
 			break;
 		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_AUTO:
+			if (max_x == INT_MIN) {
+				max_x = 0;
+			}
 			l_output->x = max_x;
 			l_output->y = max_x_y;
 			break;
 		}
 
-		if (max_x < l_output->x + box->width) {
+		if (max_x < (l_output->x + box->width)) {
 			max_x = l_output->x + box->width;
 			max_x_y = l_output->y;
 		}
@@ -497,6 +500,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		wl_list_remove(&l_output->link);
 	}
 
+	l_output->configuration = WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_AUTO;
 	wl_list_insert(layout->outputs.prev, &l_output->link); // Insert at end
 	output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
