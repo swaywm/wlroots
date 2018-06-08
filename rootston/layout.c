@@ -132,11 +132,25 @@ void roots_layout_remove_output(struct roots_layout *layout,
 	}
 }
 
+/*
+ * roots_layout_reflow makes sure that outputs that could not be properly
+ * configured, do not cause gaps or overlaps. First the extents of the
+ * outputs that are fully configured are calculated. These include outputs
+ * that have no active reference and are not fixed, and their children.
+ * The remaining unconfigured outputs are placed to the right of the fully
+ * configured outputs, taking into account that the unconfigred outputs
+ * can have children.
+ */
 void roots_layout_reflow(struct roots_layout *layout) {
 	int max_x = INT_MIN;
 	int max_x_y = 0;
+	// Configured is always initialized before use, since the first output
+	// in the layout is always fixed (rootston specifc, since it does not
+	// use auto outputs)
 	bool configured;
 
+	// XXX: requires specific ordering of the outputs in layout->outputs,
+	// specifically, output must follow their reference immediately.
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->wlr_layout->outputs, link) {
 		if (l_output->configuration ==

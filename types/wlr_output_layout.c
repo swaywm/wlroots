@@ -117,6 +117,8 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 		struct wlr_box *box = output_layout_output_get_box(l_output);
 		struct wlr_box *ref_box;
 
+		// Requires the outputs to be ordered such that outputs follow
+		// immediately after their parents
 		switch(l_output->configuration) {
 		case WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED:
 			break;
