@@ -44,12 +44,9 @@ struct wlr_output_layout *wlr_output_layout_create(void) {
 	return layout;
 }
 
-static void output_layout_output_destroy(
+static void output_detach_children(
 		struct wlr_output_layout_output *l_output) {
-	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
-
 	struct wlr_output_layout_output *l_output_rel;
-
 	wl_list_for_each(l_output_rel, &l_output->state->layout->outputs, link) {
 		if (l_output_rel->reference == l_output) {
 			l_output_rel->reference = NULL;
@@ -57,6 +54,13 @@ static void output_layout_output_destroy(
 				WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED;
 		}
 	}
+}
+
+static void output_layout_output_destroy(
+		struct wlr_output_layout_output *l_output) {
+	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
+
+	output_detach_children(l_output);
 
 	wlr_output_destroy_global(l_output->output);
 	wl_list_remove(&l_output->state->mode.link);
@@ -488,15 +492,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 			return;
 		}
 	} else {
-		struct wlr_output_layout_output *l_output_rel;
-
-		wl_list_for_each(l_output_rel, &layout->outputs, link) {
-			if (l_output_rel->reference == l_output) {
-				l_output_rel->reference = NULL;
-				l_output_rel->configuration =
-					WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED;
-			}
-		}
+		output_detach_children(l_output);
 		wl_list_remove(&l_output->link);
 	}
 
