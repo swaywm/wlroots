@@ -243,6 +243,17 @@ static void drm_connector_set_gamma(struct wlr_output *output,
 
 }
 
+static bool drm_connector_get_gamma(struct wlr_output *output,
+		uint16_t *r, uint16_t *g, uint16_t *b) {
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
+
+	if (conn->crtc) {
+		return drm->iface->crtc_get_gamma(drm, conn->crtc, r, g, b);
+	}
+	return false;
+}
+
 static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
@@ -762,6 +773,7 @@ static const struct wlr_output_impl output_impl = {
 	.set_gamma = drm_connector_set_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
+	.get_gamma = drm_connector_get_gamma,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

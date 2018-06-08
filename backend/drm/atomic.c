@@ -246,11 +246,18 @@ static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 	return (uint32_t)gamma_lut_size;
 }
 
+static bool atomic_crtc_get_gamma(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b) {
+	/* FIXME: use atomic interface */
+	return legacy_iface.crtc_get_gamma(drm, crtc, r, g, b);
+}
+
 const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
 	.crtc_move_cursor = atomic_crtc_move_cursor,
 	.crtc_set_gamma = atomic_crtc_set_gamma,
+	.crtc_get_gamma = atomic_crtc_get_gamma,
 	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };
