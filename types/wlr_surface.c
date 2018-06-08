@@ -394,6 +394,10 @@ static void surface_apply_damage(struct wlr_surface *surface,
 		}
 
 		wl_shm_buffer_end_access(buf);
+
+		// We've uploaded the wl_shm_buffer data to the GPU, we won't access the
+		// wl_buffer anymore
+		surface_state_release_buffer(surface->current);
 	} else if (invalid_buffer || reupload_buffer) {
 		wlr_texture_destroy(surface->texture);
 
@@ -409,9 +413,10 @@ static void surface_apply_damage(struct wlr_surface *surface,
 			surface->texture = NULL;
 			wlr_log(L_ERROR, "Unknown buffer handle attached");
 		}
-	}
 
-	surface_state_release_buffer(surface->current);
+		// Don't release the wl_buffer yet: since the texture is shared with the
+		// client, we'll access the wl_buffer when rendering
+	}
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
