@@ -190,7 +190,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	}
 
 	attribs[atti++] = EGL_NONE;
-	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
+	assert(atti <= sizeof(attribs)/sizeof(attribs[0]));
 
 	egl->context = eglCreateContext(egl->display, egl->config,
 		EGL_NO_CONTEXT, attribs);
