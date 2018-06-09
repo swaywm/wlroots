@@ -210,7 +210,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	if (!egl->exts.dmabuf_import) {
+	if (!egl->exts.image_dmabuf_import_ext) {
 		wlr_log(L_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;

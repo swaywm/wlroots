@@ -77,7 +77,7 @@ static bool check_egl_ext(const char *exts, const char *ext) {
 
 static void print_dmabuf_formats(struct wlr_egl *egl) {
 	/* Avoid log msg if extension is not present */
-	if (!egl->exts.dmabuf_import_modifiers) {
+	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
 		return;
 	}
 
@@ -146,27 +146,27 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	wlr_log(L_INFO, "Supported EGL extensions: %s", egl->exts_str);
 	wlr_log(L_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 
-	egl->exts.image_base =
+	egl->exts.image_base_khr =
 		check_egl_ext(egl->exts_str, "EGL_KHR_image_base")
 		&& eglCreateImageKHR && eglDestroyImageKHR;
 
-	egl->exts.buffer_age =
+	egl->exts.buffer_age_ext =
 		check_egl_ext(egl->exts_str, "EGL_EXT_buffer_age");
-	egl->exts.swap_buffers_with_damage =
+	egl->exts.swap_buffers_with_damage_ext =
 		(check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") &&
 			eglSwapBuffersWithDamageEXT);
 	egl->exts.swap_buffers_with_damage_khr =
 		(check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage") &&
 			eglSwapBuffersWithDamageKHR);
 
-	egl->exts.dmabuf_import =
+	egl->exts.image_dmabuf_import_ext =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import");
-	egl->exts.dmabuf_import_modifiers =
+	egl->exts.image_dmabuf_import_modifiers_ext =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
 	print_dmabuf_formats(egl);
 
-	egl->exts.bind_wayland_display =
+	egl->exts.bind_wayland_display_wl =
 		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display")
 		&& eglBindWaylandDisplayWL && eglUnbindWaylandDisplayWL
 		&& eglQueryWaylandBufferWL;
@@ -235,7 +235,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
-		assert(egl->exts.bind_wayland_display);
+		assert(egl->exts.bind_wayland_display_wl);
 		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
@@ -245,7 +245,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!egl->exts.bind_wayland_display) {
+	if (!egl->exts.bind_wayland_display_wl) {
 		return false;
 	}
 
@@ -258,7 +258,7 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
-	if (!egl->exts.image_base) {
+	if (!egl->exts.image_base_khr) {
 		return false;
 	}
 	if (!image) {
@@ -279,7 +279,7 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 }
 
 static int egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
-	if (!egl->exts.buffer_age) {
+	if (!egl->exts.buffer_age_ext) {
 		return -1;
 	}
 
@@ -314,7 +314,7 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
 	EGLBoolean ret;
-	if (damage != NULL && (egl->exts.swap_buffers_with_damage ||
+	if (damage != NULL && (egl->exts.swap_buffers_with_damage_ext ||
 				egl->exts.swap_buffers_with_damage_khr)) {
 		int nrects;
 		pixman_box32_t *rects =
@@ -327,7 +327,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 			egl_damage[4*i + 3] = rects[i].y2 - rects[i].y1;
 		}
 
-		if (egl->exts.swap_buffers_with_damage) {
+		if (egl->exts.swap_buffers_with_damage_ext) {
 			ret = eglSwapBuffersWithDamageEXT(egl->display, surface, egl_damage,
 				nrects);
 		} else {
@@ -348,7 +348,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *data, EGLint *fmt, int *width, int *height,
 		bool *inverted_y) {
-	if (!egl->exts.bind_wayland_display || !egl->exts.image_base) {
+	if (!egl->exts.bind_wayland_display_wl || !egl->exts.image_base_khr) {
 		return NULL;
 	}
 
@@ -377,13 +377,13 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attributes) {
-	if (!egl->exts.image_base) {
+	if (!egl->exts.image_base_khr) {
 		return NULL;
 	}
 
 	bool has_modifier = false;
 	if (attributes->modifier != DRM_FORMAT_MOD_INVALID) {
-		if (!egl->exts.dmabuf_import_modifiers) {
+		if (!egl->exts.image_dmabuf_import_modifiers_ext) {
 			return NULL;
 		}
 		has_modifier = true;
@@ -455,8 +455,8 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
-	if (!egl->exts.dmabuf_import ||
-			!egl->exts.dmabuf_import_modifiers) {
+	if (!egl->exts.image_dmabuf_import_ext ||
+			!egl->exts.image_dmabuf_import_modifiers_ext) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
@@ -483,8 +483,8 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		int format, uint64_t **modifiers) {
-	if (!egl->exts.dmabuf_import ||
-			!egl->exts.dmabuf_import_modifiers) {
+	if (!egl->exts.image_dmabuf_import_ext ||
+			!egl->exts.image_dmabuf_import_modifiers_ext) {
 		wlr_log(L_DEBUG, "dmabuf extension not present");
 		return -1;
 	}
