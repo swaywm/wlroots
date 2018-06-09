@@ -154,7 +154,8 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		check_egl_ext(egl->exts_str, "EGL_EXT_buffer_age");
 	egl->exts.swap_buffers_with_damage =
 		(check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") &&
-			eglSwapBuffersWithDamageEXT) ||
+			eglSwapBuffersWithDamageEXT);
+	egl->exts.swap_buffers_with_damage_khr =
 		(check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage") &&
 			eglSwapBuffersWithDamageKHR);
 
@@ -313,7 +314,8 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
 	EGLBoolean ret;
-	if (damage != NULL && egl->exts.swap_buffers_with_damage) {
+	if (damage != NULL && (egl->exts.swap_buffers_with_damage ||
+				egl->exts.swap_buffers_with_damage_khr)) {
 		int nrects;
 		pixman_box32_t *rects =
 			pixman_region32_rectangles(damage, &nrects);
@@ -325,8 +327,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 			egl_damage[4*i + 3] = rects[i].y2 - rects[i].y1;
 		}
 
-		assert(eglSwapBuffersWithDamageEXT || eglSwapBuffersWithDamageKHR);
-		if (eglSwapBuffersWithDamageEXT) {
+		if (egl->exts.swap_buffers_with_damage) {
 			ret = eglSwapBuffersWithDamageEXT(egl->display, surface, egl_damage,
 				nrects);
 		} else {

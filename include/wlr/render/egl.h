@@ -22,6 +22,7 @@ struct wlr_egl {
 		bool dmabuf_import;
 		bool image_base;
 		bool swap_buffers_with_damage;
+		bool swap_buffers_with_damage_khr;
 	} exts;
 
 	struct wl_display *wl_display;
