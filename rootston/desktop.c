@@ -550,6 +550,23 @@ void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) 
 	view_damage_whole(view);
 }
 
+void view_update_decorated(struct roots_view *view, bool decorated) {
+	if (view->decorated == decorated) {
+		return;
+	}
+
+	view_damage_whole(view);
+	view->decorated = decorated;
+	if (decorated) {
+		view->border_width = 4;
+		view->titlebar_height = 12;
+	} else {
+		view->border_width = 0;
+		view->titlebar_height = 0;
+	}
+	view_damage_whole(view);
+}
+
 static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
 	if (view->type == ROOTS_WL_SHELL_VIEW &&
@@ -881,6 +898,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->virtual_keyboard_new.notify = handle_virtual_keyboard;
 
 	desktop->screencopy = wlr_screencopy_manager_v1_create(server->wl_display);
+
+	desktop->xdg_decoration_manager =
+		wlr_xdg_decoration_manager_v1_create(server->wl_display);
+	wl_signal_add(&desktop->xdg_decoration_manager->events.new_toplevel_decoration,
+		&desktop->xdg_toplevel_decoration);
+	desktop->xdg_toplevel_decoration.notify = handle_xdg_toplevel_decoration;
 
 	return desktop;
 }

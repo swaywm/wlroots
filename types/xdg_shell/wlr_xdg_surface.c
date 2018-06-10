@@ -111,6 +111,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	struct wlr_xdg_surface_configure *configure, *tmp;
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		if (configure->serial < serial) {
+			wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 			xdg_surface_configure_destroy(configure);
 		} else if (configure->serial == serial) {
 			found = true;
@@ -140,6 +141,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	surface->configured = true;
 	surface->configure_serial = serial;
 
+	wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 	xdg_surface_configure_destroy(configure);
 }
 
@@ -157,6 +159,7 @@ static void surface_send_configure(void *user_data) {
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
 	configure->serial = surface->configure_next_serial;
+	configure->surface = surface;
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
@@ -174,26 +177,15 @@ static void surface_send_configure(void *user_data) {
 		break;
 	}
 
+	wlr_signal_emit_safe(&surface->events.configure, configure);
+
 	xdg_surface_send_configure(surface->resource, configure->serial);
 }
 
-uint32_t schedule_xdg_surface_configure(
-		struct wlr_xdg_surface *surface) {
+static uint32_t schedule_configure(struct wlr_xdg_surface *surface,
+		bool pending_same) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
-	bool pending_same = false;
-
-	switch (surface->role) {
-	case WLR_XDG_SURFACE_ROLE_NONE:
-		assert(0 && "not reached");
-		break;
-	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-		pending_same =
-			compare_xdg_surface_toplevel_state(surface->toplevel);
-		break;
-	case WLR_XDG_SURFACE_ROLE_POPUP:
-		break;
-	}
 
 	if (surface->configure_idle != NULL) {
 		if (!pending_same) {
@@ -216,6 +208,27 @@ uint32_t schedule_xdg_surface_configure(
 			surface_send_configure, surface);
 		return surface->configure_next_serial;
 	}
+}
+
+uint32_t schedule_xdg_surface_configure(struct wlr_xdg_surface *surface) {
+	bool pending_same = false;
+
+	switch (surface->role) {
+	case WLR_XDG_SURFACE_ROLE_NONE:
+		assert(0 && "not reached");
+		break;
+	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
+		pending_same = compare_xdg_surface_toplevel_state(surface->toplevel);
+		break;
+	case WLR_XDG_SURFACE_ROLE_POPUP:
+		break;
+	}
+
+	return schedule_configure(surface, pending_same);
+}
+
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
+	return schedule_configure(surface, false);
 }
 
 static void xdg_surface_handle_get_popup(struct wl_client *client,
@@ -401,6 +414,8 @@ struct wlr_xdg_surface *create_xdg_surface(
 	wl_signal_init(&xdg_surface->events.new_popup);
 	wl_signal_init(&xdg_surface->events.map);
 	wl_signal_init(&xdg_surface->events.unmap);
+	wl_signal_init(&xdg_surface->events.configure);
+	wl_signal_init(&xdg_surface->events.ack_configure);
 
 	wl_signal_add(&xdg_surface->surface->events.destroy,
 		&xdg_surface->surface_destroy);

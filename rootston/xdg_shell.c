@@ -263,6 +263,7 @@ static void destroy(struct roots_view *view) {
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
 	wl_list_remove(&roots_xdg_surface->request_maximize.link);
 	wl_list_remove(&roots_xdg_surface->request_fullscreen.link);
+	roots_xdg_surface->view->xdg_surface->data = NULL;
 	free(roots_xdg_surface);
 }
 
@@ -437,6 +438,7 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 		&roots_surface->request_fullscreen);
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
+	surface->data = roots_surface;
 
 	struct roots_view *view = view_create(desktop);
 	if (!view) {
@@ -462,4 +464,72 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	if (surface->toplevel->client_pending.fullscreen) {
 		view_set_fullscreen(view, true, NULL);
 	}
+}
+
+
+
+static void decoration_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, destroy);
+
+	view_update_decorated(decoration->surface->view, false);
+	wl_list_remove(&decoration->destroy.link);
+	wl_list_remove(&decoration->request_mode.link);
+	wl_list_remove(&decoration->surface_commit.link);
+	free(decoration);
+}
+
+static void decoration_handle_request_mode(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, request_mode);
+
+	enum wlr_xdg_toplevel_decoration_v1_mode mode =
+		decoration->wlr_decoration->client_pending_mode;
+	if (mode == WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE) {
+		mode = WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
+	}
+	wlr_xdg_toplevel_decoration_v1_set_mode(decoration->wlr_decoration, mode);
+}
+
+static void decoration_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct roots_xdg_toplevel_decoration *decoration =
+		wl_container_of(listener, decoration, surface_commit);
+
+	bool decorated = decoration->wlr_decoration->current_mode ==
+		WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+	view_update_decorated(decoration->surface->view, decorated);
+}
+
+void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, xdg_toplevel_decoration);
+	struct wlr_xdg_toplevel_decoration_v1 *wlr_decoration = data;
+
+	wlr_log(WLR_DEBUG, "new xdg toplevel decoration");
+
+	struct roots_xdg_surface *xdg_surface = wlr_decoration->surface->data;
+	assert(xdg_surface != NULL);
+	struct wlr_xdg_surface *wlr_xdg_surface = xdg_surface->view->xdg_surface;
+
+	struct roots_xdg_toplevel_decoration *decoration =
+		calloc(1, sizeof(struct roots_xdg_toplevel_decoration));
+	if (decoration == NULL) {
+		return;
+	}
+	decoration->wlr_decoration = wlr_decoration;
+	decoration->surface = xdg_surface;
+
+	decoration->destroy.notify = decoration_handle_destroy;
+	wl_signal_add(&wlr_decoration->events.destroy, &decoration->destroy);
+	decoration->request_mode.notify = decoration_handle_request_mode;
+	wl_signal_add(&wlr_decoration->events.request_mode,
+		&decoration->request_mode);
+	decoration->surface_commit.notify = decoration_handle_surface_commit;
+	wl_signal_add(&wlr_xdg_surface->surface->events.commit,
+		&decoration->surface_commit);
+
+	decoration_handle_request_mode(&decoration->request_mode, wlr_decoration);
 }

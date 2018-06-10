@@ -66,3 +66,9 @@ if libpng.found()
 		dependencies: [wayland_client, wlr_protos, wlroots, libpng]
 	)
 endif
+
+executable(
+	'toplevel-decoration',
+	'toplevel-decoration.c',
+	dependencies: [wayland_client, wlr_protos, wlroots]
+)
