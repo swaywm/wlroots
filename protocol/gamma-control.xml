@@ -64,12 +64,31 @@
 
         <request name="reset_gamma"/>
 
+        <request name="get_gamma">
+          <description summary="Request gamma ramps">
+            Request the current gamma ramps which will be reported by the
+            gamma event.
+          </description>
+        </request>
+
         <event name="gamma_size">
           <description summary="Report size of gamma ramps">
             Reports the number of uint16_t elements in each gamma ramp
             for each color.
           </description>
           <arg name="size" type="uint"/>
+        </event>
+
+        <event name="gamma">
+          <description summary="current gamma ramps">
+            The gamma event reports the current gamma ramps of an output. It
+            is sent once when the gamma controller for an output is created or
+            when requested via the get_gamme request.
+          </description>
+
+          <arg name="red" type="array"/>
+          <arg name="green" type="array"/>
+          <arg name="blue" type="array"/>
         </event>
     </interface>
 </protocol>
