@@ -105,8 +105,9 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 	return buffer;
 }
 
-void wlr_buffer_ref(struct wlr_buffer *buffer) {
+struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer) {
 	buffer->n_refs++;
+	return buffer;
 }
 
 void wlr_buffer_unref(struct wlr_buffer *buffer) {

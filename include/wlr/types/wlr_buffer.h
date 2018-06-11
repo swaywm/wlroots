@@ -36,7 +36,7 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 /**
  * Reference the buffer.
  */
-void wlr_buffer_ref(struct wlr_buffer *buffer);
+struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer);
 /**
  * Unreference the buffer. After this call, `buffer` may not be accessed
  * anymore.
