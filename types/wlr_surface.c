@@ -332,7 +332,6 @@ static void surface_apply_damage(struct wlr_surface *surface,
 		// NULL commit
 		wlr_buffer_unref(surface->buffer);
 		surface->buffer = NULL;
-		surface->texture = NULL;
 		return;
 	}
 
@@ -362,7 +361,6 @@ static void surface_apply_damage(struct wlr_surface *surface,
 
 	wlr_buffer_unref(surface->buffer);
 	surface->buffer = NULL;
-	surface->texture = NULL;
 
 	struct wlr_buffer *buffer = wlr_buffer_create(surface->renderer, resource);
 	if (buffer == NULL) {
@@ -371,7 +369,6 @@ static void surface_apply_damage(struct wlr_surface *surface,
 	}
 
 	surface->buffer = buffer;
-	surface->texture = buffer->texture;
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
@@ -660,8 +657,15 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	return surface;
 }
 
+struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface) {
+	if (surface->buffer == NULL) {
+		return NULL;
+	}
+	return surface->buffer->texture;
+}
+
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
-	return surface->texture != NULL;
+	return wlr_surface_get_texture(surface) != NULL;
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
