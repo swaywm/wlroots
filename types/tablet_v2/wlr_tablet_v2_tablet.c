@@ -93,7 +93,7 @@ void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 
-	int version = wl_resource_get_version(seat->resource);
+	uint32_t version = wl_resource_get_version(seat->resource);
 	client->resource =
 		wl_resource_create(seat->wl_client, &zwp_tablet_v2_interface,
 			version, 0);

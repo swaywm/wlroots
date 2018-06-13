@@ -1,15 +1,16 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
+#include <libinput.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <wayland-server.h>
-#include <wlr/config.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_layer_shell.h>
-#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_tablet_v2.h>
+#include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/cursor.h"
 #include "rootston/input.h"
@@ -17,7 +18,6 @@
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
 
-#include <libinput.h>
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
@@ -169,27 +169,33 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 		event->x, event->y, event->dx, event->dy);
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_PRESSURE) {
-		wlr_send_tablet_v2_tablet_tool_pressure(roots_tool->tablet_v2_tool, event->pressure);
+		wlr_send_tablet_v2_tablet_tool_pressure(
+			roots_tool->tablet_v2_tool, event->pressure);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_DISTANCE) {
-		wlr_send_tablet_v2_tablet_tool_distance(roots_tool->tablet_v2_tool, event->distance);
+		wlr_send_tablet_v2_tablet_tool_distance(
+			roots_tool->tablet_v2_tool, event->distance);
 	}
 
 	if (event->updated_axes & (WLR_TABLET_TOOL_AXIS_TILT_X | WLR_TABLET_TOOL_AXIS_TILT_Y)) {
-		wlr_send_tablet_v2_tablet_tool_tilt(roots_tool->tablet_v2_tool, event->tilt_x, event->tilt_y);
+		wlr_send_tablet_v2_tablet_tool_tilt(
+			roots_tool->tablet_v2_tool, event->tilt_x, event->tilt_y);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_ROTATION) {
-		wlr_send_tablet_v2_tablet_tool_rotation(roots_tool->tablet_v2_tool, event->rotation);
+		wlr_send_tablet_v2_tablet_tool_rotation(
+			roots_tool->tablet_v2_tool, event->rotation);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_SLIDER) {
-		wlr_send_tablet_v2_tablet_tool_slider(roots_tool->tablet_v2_tool, event->slider);
+		wlr_send_tablet_v2_tablet_tool_slider(
+			roots_tool->tablet_v2_tool, event->slider);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_WHEEL) {
-		wlr_send_tablet_v2_tablet_tool_wheel(roots_tool->tablet_v2_tool, event->wheel_delta, 0);
+		wlr_send_tablet_v2_tablet_tool_wheel(
+			roots_tool->tablet_v2_tool, event->wheel_delta, 0);
 	}
 }
 
@@ -246,7 +252,7 @@ static void handle_tablet_tool_set_cursor(struct wl_listener *listener, void *da
 		.hotspot_y = evt->hotspot_y,
 		.serial = evt->serial,
 		.seat_client = evt->seat_client,
-		};
+	};
 
 	roots_cursor_handle_request_set_cursor(tool->seat->cursor, &event);
 }
@@ -271,7 +277,8 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
 
 		roots_tool->set_cursor.notify = handle_tablet_tool_set_cursor;
-		wl_signal_add(&roots_tool->tablet_v2_tool->events.set_cursor, &roots_tool->set_cursor);
+		wl_signal_add(&roots_tool->tablet_v2_tool->events.set_cursor,
+			&roots_tool->set_cursor);
 
 		wl_list_init(&roots_tool->link);
 		wl_list_init(&roots_tool->tool_link);
@@ -651,7 +658,7 @@ static void handle_pointer_destroy(struct wl_listener *listener, void *data) {
 
 static void seat_add_pointer(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	struct roots_pointer *pointer = calloc(sizeof(struct roots_pointer), 1);
+	struct roots_pointer *pointer = calloc(1, sizeof(struct roots_pointer));
 	if (!pointer) {
 		wlr_log(WLR_ERROR, "could not allocate pointer for seat");
 		return;
@@ -684,7 +691,7 @@ static void handle_touch_destroy(struct wl_listener *listener, void *data) {
 
 static void seat_add_touch(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	struct roots_touch *touch = calloc(sizeof(struct roots_touch), 1);
+	struct roots_touch *touch = calloc(1, sizeof(struct roots_touch));
 	if (!touch) {
 		wlr_log(WLR_ERROR, "could not allocate touch for seat");
 		return;
@@ -743,8 +750,8 @@ static void attach_tablet_pad(struct roots_tablet_pad *pad,
 	wl_list_remove(&pad->tablet_link);
 	wl_list_insert(&tool->pads, &pad->tablet_link);
 
-	wl_signal_add(&tool->device->events.destroy,
-		&pad->tablet_destroy);
+	pad->tablet_destroy.notify = handle_pad_tool_destroy;
+	wl_signal_add(&tool->device->events.destroy, &pad->tablet_destroy);
 }
 
 static void handle_tablet_pad_attach(struct wl_listener *listener, void *data) {
@@ -794,7 +801,7 @@ static void handle_tablet_pad_button(struct wl_listener *listener, void *data) {
 static void seat_add_tablet_pad(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct roots_tablet_pad *tablet_pad =
-		calloc(sizeof(struct roots_tablet_pad), 1);
+		calloc(1, sizeof(struct roots_tablet_pad));
 	if (!tablet_pad) {
 		wlr_log(WLR_ERROR, "could not allocate tablet_pad for seat");
 		return;
@@ -809,8 +816,6 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 	tablet_pad->device_destroy.notify = handle_tablet_pad_destroy;
 	wl_signal_add(&tablet_pad->device->events.destroy,
 		&tablet_pad->device_destroy);
-
-	tablet_pad->tablet_destroy.notify = handle_pad_tool_destroy;
 
 	tablet_pad->attach.notify = handle_tablet_pad_attach;
 	wl_signal_add(&tablet_pad->device->tablet_pad->events.attach_tablet, &tablet_pad->attach);
@@ -869,7 +874,7 @@ static void handle_tablet_tool_destroy(struct wl_listener *listener,
 static void seat_add_tablet_tool(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct roots_tablet_tool *tablet_tool =
-		calloc(sizeof(struct roots_tablet_tool), 1);
+		calloc(1, sizeof(struct roots_tablet_tool));
 	if (!tablet_tool) {
 		wlr_log(WLR_ERROR, "could not allocate tablet_tool for seat");
 		return;
