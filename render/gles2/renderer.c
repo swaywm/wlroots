@@ -118,18 +118,22 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_texture *texture =
 		get_gles2_texture_in_context(wlr_texture);
 
-	GLuint prog = 0;
+	struct wlr_gles2_tex_shader *shader = NULL;
 	GLenum target = 0;
+
 	switch (texture->type) {
 	case WLR_GLES2_TEXTURE_GLTEX:
 	case WLR_GLES2_TEXTURE_WL_DRM_GL:
-		prog = texture->has_alpha ? renderer->shaders.tex_rgba :
-			renderer->shaders.tex_rgbx;
+		if (texture->has_alpha) {
+			shader = &renderer->shaders.tex_rgba;
+		} else {
+			shader = &renderer->shaders.tex_rgbx;
+		}
 		target = GL_TEXTURE_2D;
 		break;
 	case WLR_GLES2_TEXTURE_WL_DRM_EXT:
 	case WLR_GLES2_TEXTURE_DMABUF:
-		prog = renderer->shaders.tex_ext;
+		shader = &renderer->shaders.tex_ext;
 		target = GL_TEXTURE_EXTERNAL_OES;
 		break;
 	}
@@ -149,11 +153,12 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glUseProgram(prog);
+	glUseProgram(shader->program);
 
-	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
-	glUniform1i(1, texture->inverted_y);
-	glUniform1f(3, alpha);
+	glUniformMatrix3fv(shader->proj, 1, GL_FALSE, transposition);
+	glUniform1i(shader->invert_y, texture->inverted_y);
+	glUniform1i(shader->tex, 0);
+	glUniform1f(shader->alpha, alpha);
 
 	draw_quad();
 
@@ -173,9 +178,10 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	wlr_matrix_transpose(transposition, matrix);
 
 	PUSH_GLES2_DEBUG;
-	glUseProgram(renderer->shaders.quad);
-	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
-	glUniform4f(1, color[0], color[1], color[2], color[3]);
+	glUseProgram(renderer->shaders.quad.program);
+
+	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, transposition);
+	glUniform4f(renderer->shaders.quad.color, color[0], color[1], color[2], color[3]);
 	draw_quad();
 	POP_GLES2_DEBUG;
 }
@@ -191,9 +197,10 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 	wlr_matrix_transpose(transposition, matrix);
 
 	PUSH_GLES2_DEBUG;
-	glUseProgram(renderer->shaders.ellipse);
-	glUniformMatrix3fv(0, 1, GL_FALSE, transposition);
-	glUniform4f(1, color[0], color[1], color[2], color[3]);
+	glUseProgram(renderer->shaders.ellipse.program);
+
+	glUniformMatrix3fv(renderer->shaders.ellipse.proj, 1, GL_FALSE, transposition);
+	glUniform4f(renderer->shaders.ellipse.color, color[0], color[1], color[2], color[3]);
 	draw_quad();
 	POP_GLES2_DEBUG;
 }
@@ -313,11 +320,11 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
 	PUSH_GLES2_DEBUG;
-	glDeleteProgram(renderer->shaders.quad);
-	glDeleteProgram(renderer->shaders.ellipse);
-	glDeleteProgram(renderer->shaders.tex_rgba);
-	glDeleteProgram(renderer->shaders.tex_rgbx);
-	glDeleteProgram(renderer->shaders.tex_ext);
+	glDeleteProgram(renderer->shaders.quad.program);
+	glDeleteProgram(renderer->shaders.ellipse.program);
+	glDeleteProgram(renderer->shaders.tex_rgba.program);
+	glDeleteProgram(renderer->shaders.tex_rgbx.program);
+	glDeleteProgram(renderer->shaders.tex_ext.program);
 	POP_GLES2_DEBUG;
 
 	if (glDebugMessageCallbackKHR) {
@@ -486,31 +493,53 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	PUSH_GLES2_DEBUG;
 
-	renderer->shaders.quad = link_program(quad_vertex_src, quad_fragment_src);
-	if (!renderer->shaders.quad) {
+	GLuint prog;
+	renderer->shaders.quad.program = prog =
+		link_program(quad_vertex_src, quad_fragment_src);
+	if (!renderer->shaders.quad.program) {
 		goto error;
 	}
-	renderer->shaders.ellipse =
+	renderer->shaders.quad.proj = glGetUniformLocation(prog, "proj");
+	renderer->shaders.quad.color = glGetUniformLocation(prog, "color");
+
+	renderer->shaders.ellipse.program = prog =
 		link_program(quad_vertex_src, ellipse_fragment_src);
-	if (!renderer->shaders.ellipse) {
+	if (!renderer->shaders.ellipse.program) {
 		goto error;
 	}
-	renderer->shaders.tex_rgba =
+	renderer->shaders.ellipse.proj = glGetUniformLocation(prog, "proj");
+	renderer->shaders.ellipse.color = glGetUniformLocation(prog, "color");
+
+	renderer->shaders.tex_rgba.program = prog =
 		link_program(tex_vertex_src, tex_fragment_src_rgba);
-	if (!renderer->shaders.tex_rgba) {
+	if (!renderer->shaders.tex_rgba.program) {
 		goto error;
 	}
-	renderer->shaders.tex_rgbx =
+	renderer->shaders.tex_rgba.proj = glGetUniformLocation(prog, "proj");
+	renderer->shaders.tex_rgba.invert_y = glGetUniformLocation(prog, "invert_y");
+	renderer->shaders.tex_rgba.tex = glGetUniformLocation(prog, "tex");
+	renderer->shaders.tex_rgba.alpha = glGetUniformLocation(prog, "alpha");
+
+	renderer->shaders.tex_rgbx.program = prog =
 		link_program(tex_vertex_src, tex_fragment_src_rgbx);
-	if (!renderer->shaders.tex_rgbx) {
+	if (!renderer->shaders.tex_rgbx.program) {
 		goto error;
 	}
+	renderer->shaders.tex_rgbx.proj = glGetUniformLocation(prog, "proj");
+	renderer->shaders.tex_rgbx.invert_y = glGetUniformLocation(prog, "invert_y");
+	renderer->shaders.tex_rgbx.tex = glGetUniformLocation(prog, "tex");
+	renderer->shaders.tex_rgbx.alpha = glGetUniformLocation(prog, "alpha");
+
 	if (glEGLImageTargetTexture2DOES) {
-		renderer->shaders.tex_ext =
+		renderer->shaders.tex_ext.program = prog =
 			link_program(tex_vertex_src, tex_fragment_src_external);
-		if (!renderer->shaders.tex_ext) {
+		if (!renderer->shaders.tex_ext.program) {
 			goto error;
 		}
+		renderer->shaders.tex_ext.proj = glGetUniformLocation(prog, "proj");
+		renderer->shaders.tex_ext.invert_y = glGetUniformLocation(prog, "invert_y");
+		renderer->shaders.tex_ext.tex = glGetUniformLocation(prog, "tex");
+		renderer->shaders.tex_ext.alpha = glGetUniformLocation(prog, "alpha");
 	}
 
 	POP_GLES2_DEBUG;
@@ -518,11 +547,11 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	return &renderer->wlr_renderer;
 
 error:
-	glDeleteProgram(renderer->shaders.quad);
-	glDeleteProgram(renderer->shaders.ellipse);
-	glDeleteProgram(renderer->shaders.tex_rgba);
-	glDeleteProgram(renderer->shaders.tex_rgbx);
-	glDeleteProgram(renderer->shaders.tex_ext);
+	glDeleteProgram(renderer->shaders.quad.program);
+	glDeleteProgram(renderer->shaders.ellipse.program);
+	glDeleteProgram(renderer->shaders.tex_rgba.program);
+	glDeleteProgram(renderer->shaders.tex_rgbx.program);
+	glDeleteProgram(renderer->shaders.tex_ext.program);
 
 	POP_GLES2_DEBUG;
 
