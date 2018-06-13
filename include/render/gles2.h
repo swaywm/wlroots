@@ -25,6 +25,14 @@ struct wlr_gles2_pixel_format {
 	bool has_alpha;
 };
 
+struct wlr_gles2_tex_shader {
+	GLuint program;
+	GLint proj;
+	GLint invert_y;
+	GLint tex;
+	GLint alpha;
+};
+
 struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
@@ -42,27 +50,9 @@ struct wlr_gles2_renderer {
 			GLint proj;
 			GLint color;
 		} ellipse;
-		struct {
-			GLuint program;
-			GLint proj;
-			GLint invert_y;
-			GLint tex;
-			GLint alpha;
-		} tex_rgba;
-		struct  {
-			GLuint program;
-			GLint proj;
-			GLint invert_y;
-			GLint tex;
-			GLint alpha;
-		} tex_rgbx;
-		struct  {
-			GLuint program;
-			GLint proj;
-			GLint invert_y;
-			GLint tex;
-			GLint alpha;
-		} tex_ext;
+		struct wlr_gles2_tex_shader tex_rgba;
+		struct wlr_gles2_tex_shader tex_rgbx;
+		struct wlr_gles2_tex_shader tex_ext;
 	} shaders;
 
 	uint32_t viewport_width, viewport_height;

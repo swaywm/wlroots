@@ -118,38 +118,22 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_texture *texture =
 		get_gles2_texture_in_context(wlr_texture);
 
-	GLuint prog = 0;
+	struct wlr_gles2_tex_shader *shader = NULL;
 	GLenum target = 0;
-	GLint proj_loc = 0;
-	GLint invert_y_loc = 0;
-	GLint tex_loc = 0;
-	GLint alpha_loc = 0;
 
 	switch (texture->type) {
 	case WLR_GLES2_TEXTURE_GLTEX:
 	case WLR_GLES2_TEXTURE_WL_DRM_GL:
 		if (texture->has_alpha) {
-			prog = renderer->shaders.tex_rgba.program;
-			proj_loc = renderer->shaders.tex_rgba.proj;
-			invert_y_loc = renderer->shaders.tex_rgba.invert_y;
-			tex_loc = renderer->shaders.tex_rgba.tex;
-			alpha_loc = renderer->shaders.tex_rgba.alpha;
+			shader = &renderer->shaders.tex_rgba;
 		} else {
-			prog = renderer->shaders.tex_rgbx.program;
-			proj_loc = renderer->shaders.tex_rgbx.proj;
-			invert_y_loc = renderer->shaders.tex_rgbx.invert_y;
-			tex_loc = renderer->shaders.tex_rgbx.tex;
-			alpha_loc = renderer->shaders.tex_rgbx.alpha;
+			shader = &renderer->shaders.tex_rgbx;
 		}
 		target = GL_TEXTURE_2D;
 		break;
 	case WLR_GLES2_TEXTURE_WL_DRM_EXT:
 	case WLR_GLES2_TEXTURE_DMABUF:
-		prog = renderer->shaders.tex_ext.program;
-		proj_loc = renderer->shaders.tex_ext.proj;
-		invert_y_loc = renderer->shaders.tex_ext.invert_y;
-		tex_loc = renderer->shaders.tex_ext.tex;
-		alpha_loc = renderer->shaders.tex_ext.alpha;
+		shader = &renderer->shaders.tex_ext;
 		target = GL_TEXTURE_EXTERNAL_OES;
 		break;
 	}
@@ -169,12 +153,12 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glUseProgram(prog);
+	glUseProgram(shader->program);
 
-	glUniformMatrix3fv(proj_loc, 1, GL_FALSE, transposition);
-	glUniform1i(invert_y_loc, texture->inverted_y);
-	glUniform1f(alpha_loc, alpha);
-	glUniform1i(tex_loc, 0);
+	glUniformMatrix3fv(shader->proj, 1, GL_FALSE, transposition);
+	glUniform1i(shader->invert_y, texture->inverted_y);
+	glUniform1i(shader->tex, 0);
+	glUniform1f(shader->alpha, alpha);
 
 	draw_quad();
 
