@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/input.h>
 #include <linux/kd.h>
 #include <linux/major.h>
@@ -76,30 +77,39 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 
 static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	struct direct_session *session = wl_container_of(base, session, base);
+
+	// Only seat0 has VTs associated with it
+	if (strcmp(session->base.seat, "seat0") != 0) {
+		return true;
+	}
+
 	return ioctl(session->tty_fd, VT_ACTIVATE, (int)vt) == 0;
 }
 
 static void direct_session_destroy(struct wlr_session *base) {
 	struct direct_session *session = wl_container_of(base, session, base);
-	struct vt_mode mode = {
-		.mode = VT_AUTO,
-	};
 
-	errno = 0;
+	if (strcmp(session->base.seat, "seat0") == 0) {
+		struct vt_mode mode = {
+			.mode = VT_AUTO,
+		};
+		errno = 0;
 
-	ioctl(session->tty_fd, KDSKBMODE, session->old_kbmode);
-	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
-	ioctl(session->tty_fd, VT_SETMODE, &mode);
+		ioctl(session->tty_fd, KDSKBMODE, session->old_kbmode);
+		ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
+		ioctl(session->tty_fd, VT_SETMODE, &mode);
 
-	if (errno) {
-		wlr_log(L_ERROR, "Failed to restore tty");
+		if (errno) {
+			wlr_log(L_ERROR, "Failed to restore tty");
+		}
+
+		wl_event_source_remove(session->vt_source);
+		close(session->tty_fd);
 	}
 
 	direct_ipc_finish(session->sock, session->child);
 	close(session->sock);
 
-	wl_event_source_remove(session->vt_source);
-	close(session->tty_fd);
 	free(session);
 }
 
@@ -138,19 +148,19 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	int fd = dup(STDIN_FILENO);
+	int fd = open("/dev/tty", O_RDWR);
 	if (fd == -1) {
-		wlr_log_errno(L_ERROR, "Cannot open tty");
+		wlr_log_errno(L_ERROR, "Cannot open /dev/tty");
 		return false;
 	}
 
-	struct stat st;
-	if (fstat(fd, &st) == -1 || major(st.st_rdev) != TTY_MAJOR || minor(st.st_rdev) == 0) {
-		wlr_log(L_ERROR, "Not running from a virtual terminal");
+	struct vt_stat vt_stat;
+	if (ioctl(fd, VT_GETSTATE, &vt_stat)) {
+		wlr_log_errno(L_ERROR, "Could not get current tty number");
 		goto error;
 	}
 
-	int tty = minor(st.st_rdev);
+	int tty = vt_stat.v_active;
 	int ret, kd_mode, old_kbmode;
 
 	ret = ioctl(fd, KDGETMODE, &kd_mode);
@@ -224,20 +234,24 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 		goto error_session;
 	}
 
-	if (!setup_tty(session, disp)) {
-		goto error_ipc;
-	}
-
-	// XXX: Is it okay to trust the environment like this?
 	const char *seat = getenv("XDG_SEAT");
 	if (!seat) {
 		seat = "seat0";
 	}
 
-	wlr_log(L_INFO, "Successfully loaded direct session");
+	if (strcmp(seat, "seat0") == 0) {
+		if (!setup_tty(session, disp)) {
+			goto error_ipc;
+		}
+	} else {
+		session->base.vtnr = 0;
+		session->tty_fd = -1;
+	}
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.impl = &session_direct;
+
+	wlr_log(L_INFO, "Successfully loaded direct session");
 	return &session->base;
 
 error_ipc:
