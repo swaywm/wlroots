@@ -8,8 +8,15 @@
  * A client buffer.
  */
 struct wlr_buffer {
-	struct wl_resource *resource; // can be NULL
-	struct wlr_texture *texture; // can be NULL
+	/**
+	 * The buffer resource, if any. Will be NULL if the client destroys it.
+	 */
+	struct wl_resource *resource;
+	/**
+	 * The buffer's texture, if any. A buffer will not have a texture if the
+	 * client destroys the buffer before it has been released.
+	 */
+	struct wlr_texture *texture;
 	bool released;
 	size_t n_refs;
 

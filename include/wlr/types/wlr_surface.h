@@ -69,8 +69,13 @@ struct wlr_subsurface {
 struct wlr_surface {
 	struct wl_resource *resource;
 	struct wlr_renderer *renderer;
+	/**
+	 * The surface's buffer, if any. A surface has an attached buffer when it
+	 * commits with a non-null buffer in its pending state. A surface will not
+	 * have a buffer if it has never committed one, has committed a null buffer,
+	 * or something went wrong with uploading the buffer.
+	 */
 	struct wlr_buffer *buffer;
-	struct wlr_texture *texture;
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
@@ -124,6 +129,13 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
  * committed a null buffer, or something went wrong with uploading the buffer.
  */
 bool wlr_surface_has_buffer(struct wlr_surface *surface);
+
+/**
+ * Get the texture of the buffer currently attached to this surface. Returns
+ * NULL if no buffer is currently attached or if something went wrong with
+ * uploading the buffer.
+ */
+struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
 
 /**
  * Create a new subsurface resource with the provided new ID. If `resource_list`
