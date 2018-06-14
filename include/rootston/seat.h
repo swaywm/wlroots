@@ -89,13 +89,10 @@ struct roots_tablet_tool {
 	struct wl_listener tip;
 	struct wl_listener button;
 	struct wl_list link;
-
-	struct wl_list pads; // struct roots_tablet_pad::tablet_link
 };
 
 struct roots_tablet_pad {
 	struct wl_list link;
-	struct wl_list tablet_link;
 	struct wlr_tablet_v2_tablet_pad *tablet_v2_pad;
 
 	struct roots_seat *seat;

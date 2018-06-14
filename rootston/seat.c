@@ -719,7 +719,6 @@ static void handle_tablet_pad_destroy(struct wl_listener *listener,
 	wl_list_remove(&tablet_pad->tablet_destroy.link);
 	wl_list_remove(&tablet_pad->attach.link);
 	wl_list_remove(&tablet_pad->link);
-	wl_list_remove(&tablet_pad->tablet_link);
 
 	wl_list_remove(&tablet_pad->button.link);
 	wl_list_remove(&tablet_pad->strip.link);
@@ -734,8 +733,6 @@ static void handle_pad_tool_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, pad, tablet_destroy);
 
 	pad->tablet = NULL;
-	wl_list_remove(&pad->tablet_link);
-	wl_list_init(&pad->tablet_link);
 
 	wl_list_remove(&pad->tablet_destroy.link);
 	wl_list_init(&pad->tablet_destroy.link);
@@ -747,8 +744,6 @@ static void attach_tablet_pad(struct roots_tablet_pad *pad,
 		pad->device->name, tool->device->name);
 
 	pad->tablet = tool;
-	wl_list_remove(&pad->tablet_link);
-	wl_list_insert(&tool->pads, &pad->tablet_link);
 
 	pad->tablet_destroy.notify = handle_pad_tool_destroy;
 	wl_signal_add(&tool->device->events.destroy, &pad->tablet_destroy);
@@ -810,7 +805,6 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 	device->data = tablet_pad;
 	tablet_pad->device = device;
 	tablet_pad->seat = seat;
-	wl_list_init(&tablet_pad->tablet_link);
 	wl_list_insert(&seat->tablet_pads, &tablet_pad->link);
 
 	tablet_pad->device_destroy.notify = handle_tablet_pad_destroy;
@@ -865,7 +859,6 @@ static void handle_tablet_tool_destroy(struct wl_listener *listener,
 	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet_tool->device);
 	wl_list_remove(&tablet_tool->device_destroy.link);
 	wl_list_remove(&tablet_tool->link);
-	wl_list_remove(&tablet_tool->pads);
 	free(tablet_tool);
 
 	seat_update_capabilities(seat);
@@ -883,7 +876,6 @@ static void seat_add_tablet_tool(struct roots_seat *seat,
 	device->data = tablet_tool;
 	tablet_tool->device = device;
 	tablet_tool->seat = seat;
-	wl_list_init(&tablet_tool->pads);
 	wl_list_insert(&seat->tablet_tools, &tablet_tool->link);
 
 	tablet_tool->device_destroy.notify = handle_tablet_tool_destroy;
