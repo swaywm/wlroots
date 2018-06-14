@@ -43,11 +43,12 @@ static void buffer_resource_handle_destroy(struct wl_listener *listener,
 	wl_list_init(&buffer->resource_destroy.link);
 	buffer->resource = NULL;
 
-	if (!buffer->released) {
-		// The texture becomes invalid
-		wlr_texture_destroy(buffer->texture);
-		buffer->texture = NULL;
-	}
+	// At this point, if the wl_buffer comes from linux-dmabuf or wl_drm, we
+	// still haven't released it (ie. we'll read it in the future) but the
+	// client destroyed it. Reading the texture itself should be fine because
+	// we still hold a reference to the DMA-BUF via the texture. However the
+	// client could decide to re-use the same DMA-BUF for something else, in
+	// which case we'll read garbage. We decide to accept this risk.
 }
 
 struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
@@ -80,6 +81,10 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_buffer *dmabuf =
 			wlr_dmabuf_buffer_from_buffer_resource(resource);
 		texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
+
+		// We have imported the DMA-BUF, but we need to prevent the client from
+		// re-using the same DMA-BUF for the next frames, so we don't release
+		// the buffer yet.
 	} else {
 		wlr_log(L_ERROR, "Cannot upload texture: unknown buffer type");
 		return NULL;
