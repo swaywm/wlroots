@@ -27,7 +27,11 @@
     </copyright>
 
     <interface name="gamma_control_manager" version="1">
-        <request name="destroy" type="destructor"/>
+        <request name="destroy" type="destructor">
+          <description summary="Destroy gamma control manager">
+            This request destroys the gamma control manager.
+          </description>
+        </request>
 
         <request name="get_gamma_control">
             <arg name="id" type="new_id" interface="gamma_control"/>
@@ -40,9 +44,19 @@
             <entry name="invalid_gamma" value="0"/>
         </enum>
 
-        <request name="destroy" type="destructor"/>
+        <request name="destroy" type="destructor">
+          <description summary="Destroy gamma control">
+            This request destroys the gamma control.
+          </description>
+        </request>
 
         <request name="set_gamma">
+          <description summary="Set gamma ramps">
+	    Request to set the current gamma ramps of an output. The arraays
+	    contain uint16_t values. Each array represents the color ramp for
+	    one color (red, green and blue). All arrays must have the same
+            size.
+          </description>
             <arg name="red" type="array"/>
             <arg name="green" type="array"/>
             <arg name="blue" type="array"/>
@@ -51,7 +65,11 @@
         <request name="reset_gamma"/>
 
         <event name="gamma_size">
-            <arg name="size" type="uint"/>
+          <description summary="Report size of gamma ramps">
+            Reports the number of uint16_t elements in each gamma ramp
+            for each color.
+          </description>
+          <arg name="size" type="uint"/>
         </event>
     </interface>
 </protocol>
