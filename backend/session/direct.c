@@ -79,7 +79,7 @@ static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
 	// Only seat0 has VTs associated with it
-	if (strcmp(session->base.seat, "seat0") == 0) {
+	if (strcmp(session->base.seat, "seat0") != 0) {
 		return true;
 	}
 
