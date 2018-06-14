@@ -109,6 +109,11 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	struct logind_session *session = wl_container_of(base, session, base);
 
+	// Only seat0 has VTs associated with it
+	if (strcmp(session->base.seat, "seat0") != 0) {
+		return true;
+	}
+
 	int ret;
 	sd_bus_message *msg = NULL;
 	sd_bus_error error = SD_BUS_ERROR_NULL;
