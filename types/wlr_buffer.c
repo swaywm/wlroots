@@ -97,6 +97,7 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 
 	struct wlr_buffer *buffer = calloc(1, sizeof(struct wlr_buffer));
 	if (buffer == NULL) {
+		wlr_texture_destroy(texture);
 		return NULL;
 	}
 	buffer->resource = resource;
