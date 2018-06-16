@@ -13,14 +13,14 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-static struct wlr_tablet_tool_impl tool_impl;
+static struct wlr_tablet_impl tablet_impl;
 
-static bool tablet_tool_is_libinput(struct wlr_tablet_tool *tool) {
-	return tool->impl == &tool_impl;
+static bool tablet_is_libinput(struct wlr_tablet *tablet) {
+	return tablet->impl == &tablet_impl;
 }
 
 struct wlr_libinput_tablet_tool {
-	struct wlr_tablet_tool_tool wlr_tool;
+	struct wlr_tablet_tool wlr_tool;
 
 	struct libinput_tablet_tool *libinput_tool;
 
@@ -38,7 +38,7 @@ struct tablet_tool_list_elem {
 };
 
 struct wlr_libinput_tablet {
-	struct wlr_tablet_tool wlr_tool;
+	struct wlr_tablet wlr_tablet;
 
 	struct wl_list tools; // tablet_tool_list_elem::link
 };
@@ -51,10 +51,10 @@ static void destroy_tool_tool(struct wlr_libinput_tablet_tool *tool) {
 }
 
 
-static void destroy_tablet_tool(struct wlr_tablet_tool *tool) {
-	assert(tablet_tool_is_libinput(tool));
+static void destroy_tablet(struct wlr_tablet *wlr_tablet) {
+	assert(tablet_is_libinput(wlr_tablet));
 	struct wlr_libinput_tablet *tablet =
-		wl_container_of(tool, tablet, wlr_tool);
+		wl_container_of(wlr_tablet, tablet, wlr_tablet);
 
 	struct tablet_tool_list_elem *pos;
 	struct tablet_tool_list_elem *tmp;
@@ -71,29 +71,29 @@ static void destroy_tablet_tool(struct wlr_tablet_tool *tool) {
 	free(tablet);
 }
 
-static struct wlr_tablet_tool_impl tool_impl = {
-	.destroy = destroy_tablet_tool,
+static struct wlr_tablet_impl tablet_impl = {
+	.destroy = destroy_tablet,
 };
 
-struct wlr_tablet_tool *create_libinput_tablet_tool(
+struct wlr_tablet *create_libinput_tablet(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
-	struct wlr_libinput_tablet *libinput_tablet_tool =
+	struct wlr_libinput_tablet *libinput_tablet =
 		calloc(1, sizeof(struct wlr_libinput_tablet));
-	if (!libinput_tablet_tool) {
+	if (!libinput_tablet) {
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
 		return NULL;
 	}
-	struct wlr_tablet_tool *wlr_tablet_tool = &libinput_tablet_tool->wlr_tool;
+	struct wlr_tablet *wlr_tablet = &libinput_tablet->wlr_tablet;
 
-	wlr_list_init(&wlr_tablet_tool->paths);
+	wlr_list_init(&wlr_tablet->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
-	wlr_list_push(&wlr_tablet_tool->paths, strdup(udev_device_get_syspath(udev)));
-	wlr_tablet_tool->name = strdup(libinput_device_get_name(libinput_dev));
-	wl_list_init(&libinput_tablet_tool->tools);
+	wlr_list_push(&wlr_tablet->paths, strdup(udev_device_get_syspath(udev)));
+	wlr_tablet->name = strdup(libinput_device_get_name(libinput_dev));
+	wl_list_init(&libinput_tablet->tools);
 
-	wlr_tablet_tool_init(wlr_tablet_tool, &tool_impl);
-	return wlr_tablet_tool;
+	wlr_tablet_init(wlr_tablet, &tablet_impl);
+	return wlr_tablet;
 }
 
 static enum wlr_tablet_tool_type wlr_type_from_libinput_type(
@@ -154,11 +154,11 @@ static struct wlr_libinput_tablet_tool *get_wlr_tablet_tool(
 }
 
 static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
-		struct wlr_tablet_tool *wlr_dev) {
-	assert(tablet_tool_is_libinput(wlr_dev));
-	struct tablet_tool_list_elem *pos;
-	struct wlr_libinput_tablet *tablet = wl_container_of(wlr_dev, tablet, wlr_tool);
+		struct wlr_tablet *wlr_dev) {
+	assert(tablet_is_libinput(wlr_dev));
+	struct wlr_libinput_tablet *tablet = wl_container_of(wlr_dev, tablet, wlr_tablet);
 
+	struct tablet_tool_list_elem *pos;
 	wl_list_for_each(pos, &tablet->tools, link) {
 		if (pos->tool == tool) { // We already have a ref
 			// XXX: We *could* optimize the tool to the front of
@@ -173,7 +173,8 @@ static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 
 	struct tablet_tool_list_elem *new =
 		calloc(1, sizeof(struct tablet_tool_list_elem));
-	if (!new) {// TODO: Should we at least log?
+	if (!new) {
+		wlr_log(WLR_ERROR, "Failed to allocate memory for tracking tablet tool");
 		return;
 	}
 
@@ -195,7 +196,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	struct wlr_event_tablet_tool_axis wlr_event = { 0 };
 	struct wlr_libinput_tablet_tool *tool = get_wlr_tablet_tool(
 		libinput_event_tablet_tool_get_tool(tevent));
-	ensure_tool_reference(tool, wlr_dev->tablet_tool);
+	ensure_tool_reference(tool, wlr_dev->tablet);
 
 	wlr_event.device = wlr_dev;
 	wlr_event.tool = &tool->wlr_tool;
@@ -239,7 +240,7 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_WHEEL;
 		wlr_event.wheel_delta = libinput_event_tablet_tool_get_wheel_delta(tevent);
 	}
-	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.axis, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet->events.axis, &wlr_event);
 }
 
 void handle_tablet_tool_proximity(struct libinput_event *event,
@@ -255,7 +256,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	struct wlr_event_tablet_tool_proximity wlr_event = { 0 };
 	struct wlr_libinput_tablet_tool *tool = get_wlr_tablet_tool(
 		libinput_event_tablet_tool_get_tool(tevent));
-	ensure_tool_reference(tool, wlr_dev->tablet_tool);
+	ensure_tool_reference(tool, wlr_dev->tablet);
 
 	wlr_event.tool = &tool->wlr_tool;
 	wlr_event.device = wlr_dev;
@@ -269,7 +270,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_IN;
 		break;
 	}
-	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.proximity, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet->events.proximity, &wlr_event);
 
 	if (libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN) {
 		handle_tablet_tool_axis(event, libinput_dev);
@@ -281,9 +282,9 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 			libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT) {
 		// The tool isn't unique, it can't be on multiple tablets
 		assert(tool->pad_refs == 1);
-		assert(tablet_tool_is_libinput(wlr_dev->tablet_tool));
+		assert(tablet_is_libinput(wlr_dev->tablet));
 		struct wlr_libinput_tablet *tablet =
-			wl_container_of(wlr_dev->tablet_tool, tablet, wlr_tool);
+			wl_container_of(wlr_dev->tablet, tablet, wlr_tablet);
 		struct tablet_tool_list_elem *pos;
 		struct tablet_tool_list_elem *tmp;
 
@@ -313,7 +314,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 	struct wlr_event_tablet_tool_tip wlr_event = { 0 };
 	struct wlr_libinput_tablet_tool *tool = get_wlr_tablet_tool(
 		libinput_event_tablet_tool_get_tool(tevent));
-	ensure_tool_reference(tool, wlr_dev->tablet_tool);
+	ensure_tool_reference(tool, wlr_dev->tablet);
 
 	wlr_event.device = wlr_dev;
 	wlr_event.tool = &tool->wlr_tool;
@@ -327,7 +328,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		wlr_event.state = WLR_TABLET_TOOL_TIP_DOWN;
 		break;
 	}
-	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.tip, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet->events.tip, &wlr_event);
 }
 
 void handle_tablet_tool_button(struct libinput_event *event,
@@ -344,7 +345,7 @@ void handle_tablet_tool_button(struct libinput_event *event,
 	struct wlr_event_tablet_tool_button wlr_event = { 0 };
 	struct wlr_libinput_tablet_tool *tool = get_wlr_tablet_tool(
 		libinput_event_tablet_tool_get_tool(tevent));
-	ensure_tool_reference(tool, wlr_dev->tablet_tool);
+	ensure_tool_reference(tool, wlr_dev->tablet);
 
 	wlr_event.device = wlr_dev;
 	wlr_event.tool = &tool->wlr_tool;
@@ -359,5 +360,5 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		wlr_event.state = WLR_BUTTON_PRESSED;
 		break;
 	}
-	wlr_signal_emit_safe(&wlr_dev->tablet_tool->events.button, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->tablet->events.button, &wlr_event);
 }

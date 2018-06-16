@@ -3,12 +3,12 @@
 
 #include <wlr/types/wlr_tablet_tool.h>
 
-struct wlr_tablet_tool_impl {
-	void (*destroy)(struct wlr_tablet_tool *tool);
+struct wlr_tablet_impl {
+	void (*destroy)(struct wlr_tablet *tablet);
 };
 
-void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
-		struct wlr_tablet_tool_impl *impl);
-void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool);
+void wlr_tablet_init(struct wlr_tablet *tablet,
+		struct wlr_tablet_impl *impl);
+void wlr_tablet_destroy(struct wlr_tablet *tablet);
 
 #endif

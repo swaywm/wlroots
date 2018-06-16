@@ -103,7 +103,7 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 
 static void handle_tablet_tool_position(struct roots_cursor *cursor,
 		struct roots_tablet_tool *tool,
-		struct wlr_tablet_tool_tool *tool_tool,
+		struct wlr_tablet_tool *tool_tool,
 		bool change_x, bool change_y,
 		double x, double y, double dx, double dy) {
 	if (!change_x && !change_y) {
@@ -264,7 +264,7 @@ static void handle_tool_proximity(struct wl_listener *listener, void *data) {
 	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
 	struct wlr_event_tablet_tool_proximity *event = data;
 
-	struct wlr_tablet_tool_tool *tool = event->tool;
+	struct wlr_tablet_tool *tool = event->tool;
 	if (!tool->data) {
 		struct roots_tablet_tool_tool *roots_tool =
 			calloc(1, sizeof(struct roots_tablet_tool_tool));

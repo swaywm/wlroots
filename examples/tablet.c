@@ -326,11 +326,11 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 		tstate->destroy.notify = tablet_tool_destroy_notify;
 		wl_signal_add(&device->events.destroy, &tstate->destroy);
 		tstate->axis.notify = tablet_tool_axis_notify;
-		wl_signal_add(&device->tablet_tool->events.axis, &tstate->axis);
+		wl_signal_add(&device->tablet->events.axis, &tstate->axis);
 		tstate->proximity.notify = tablet_tool_proximity_notify;
-		wl_signal_add(&device->tablet_tool->events.proximity, &tstate->proximity);
+		wl_signal_add(&device->tablet->events.proximity, &tstate->proximity);
 		tstate->button.notify = tablet_tool_button_notify;
-		wl_signal_add(&device->tablet_tool->events.button, &tstate->button);
+		wl_signal_add(&device->tablet->events.button, &tstate->button);
 		wl_list_insert(&sample->tablet_tools, &tstate->link);
 		break;
 	default:

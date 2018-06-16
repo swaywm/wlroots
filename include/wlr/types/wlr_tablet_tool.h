@@ -15,13 +15,13 @@ enum wlr_tablet_tool_type {
 	WLR_TABLET_TOOL_TYPE_ERASER,	/**< Eraser */
 	WLR_TABLET_TOOL_TYPE_BRUSH,	/**< A paintbrush-like tool */
 	WLR_TABLET_TOOL_TYPE_PENCIL,	/**< Physical drawing tool, e.g.
-				             Wacom Inking Pen */
+	                                     Wacom Inking Pen */
 	WLR_TABLET_TOOL_TYPE_AIRBRUSH,	/**< An airbrush-like tool */
 	WLR_TABLET_TOOL_TYPE_MOUSE,	/**< A mouse bound to the tablet */
 	WLR_TABLET_TOOL_TYPE_LENS,	/**< A mouse tool with a lens */
 };
 
-struct wlr_tablet_tool_tool {
+struct wlr_tablet_tool {
 	enum wlr_tablet_tool_type type;
 	uint64_t hardware_serial;
 	uint64_t hardware_wacom;
@@ -41,10 +41,10 @@ struct wlr_tablet_tool_tool {
 	void *data;
 };
 
-struct wlr_tablet_tool_impl;
+struct wlr_tablet_impl;
 
-struct wlr_tablet_tool {
-	struct wlr_tablet_tool_impl *impl;
+struct wlr_tablet {
+	struct wlr_tablet_impl *impl;
 
 	struct {
 		struct wl_signal axis;
@@ -73,7 +73,7 @@ enum wlr_tablet_tool_axes {
 
 struct wlr_event_tablet_tool_axis {
 	struct wlr_input_device *device;
-	struct wlr_tablet_tool_tool *tool;
+	struct wlr_tablet_tool *tool;
 
 	uint32_t time_msec;
 	uint32_t updated_axes;
@@ -96,7 +96,7 @@ enum wlr_tablet_tool_proximity_state {
 
 struct wlr_event_tablet_tool_proximity {
 	struct wlr_input_device *device;
-	struct wlr_tablet_tool_tool *tool;
+	struct wlr_tablet_tool *tool;
 	uint32_t time_msec;
 	// From 0..1
 	double x, y;
@@ -110,7 +110,7 @@ enum wlr_tablet_tool_tip_state {
 
 struct wlr_event_tablet_tool_tip {
 	struct wlr_input_device *device;
-	struct wlr_tablet_tool_tool *tool;
+	struct wlr_tablet_tool *tool;
 	uint32_t time_msec;
 	// From 0..1
 	double x, y;
@@ -119,7 +119,7 @@ struct wlr_event_tablet_tool_tip {
 
 struct wlr_event_tablet_tool_button {
 	struct wlr_input_device *device;
-	struct wlr_tablet_tool_tool *tool;
+	struct wlr_tablet_tool *tool;
 	uint32_t time_msec;
 	uint32_t button;
 	enum wlr_button_state state;

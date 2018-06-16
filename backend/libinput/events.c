@@ -130,8 +130,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->tablet_tool = create_libinput_tablet_tool(libinput_dev);
-		if (!wlr_dev->tablet_tool) {
+		wlr_dev->tablet = create_libinput_tablet(libinput_dev);
+		if (!wlr_dev->tablet) {
 			free(wlr_dev);
 			goto fail;
 		}

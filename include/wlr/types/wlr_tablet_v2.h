@@ -26,7 +26,7 @@ struct wlr_tablet_manager_v2 {
 
 struct wlr_tablet_v2_tablet {
 	struct wl_list link; // wlr_tablet_seat_v2::tablets
-	struct wlr_tablet_tool *wlr_tool;
+	struct wlr_tablet *wlr_tablet;
 	struct wlr_input_device *wlr_device;
 	struct wl_list clients; // wlr_tablet_client_v2::tablet_link
 
@@ -37,7 +37,7 @@ struct wlr_tablet_v2_tablet {
 
 struct wlr_tablet_v2_tablet_tool {
 	struct wl_list link; // wlr_tablet_seat_v2::tablets
-	struct wlr_tablet_tool_tool *wlr_tool;
+	struct wlr_tablet_tool *wlr_tool;
 	struct wl_list clients; // wlr_tablet_tool_client_v2::tool_link
 
 	struct wl_listener tool_destroy;
@@ -105,7 +105,7 @@ struct wlr_tablet_v2_tablet_pad *wlr_tablet_pad_create(
 struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 	struct wlr_tablet_manager_v2 *manager,
 	struct wlr_seat *wlr_seat,
-	struct wlr_tablet_tool_tool *wlr_tool);
+	struct wlr_tablet_tool *wlr_tool);
 
 struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display);
 void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager);

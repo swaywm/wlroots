@@ -59,13 +59,13 @@ struct wlr_tablet_v2_tablet *wlr_tablet_create(
 	if (!seat) {
 		return NULL;
 	}
-	struct wlr_tablet_tool *tool = wlr_device->tablet_tool;
+	struct wlr_tablet *wlr_tablet = wlr_device->tablet;
 	struct wlr_tablet_v2_tablet *tablet = calloc(1, sizeof(struct wlr_tablet_v2_tablet));
 	if (!tablet) {
 		return NULL;
 	}
 
-	tablet->wlr_tool = tool;
+	tablet->wlr_tablet = wlr_tablet;
 	tablet->wlr_device = wlr_device;
 	wl_list_init(&tablet->clients);
 
@@ -107,14 +107,15 @@ void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat,
 	zwp_tablet_seat_v2_send_tablet_added(seat->resource, client->resource);
 
 	// Send the expected events
-	if (tablet->wlr_tool->name) {
-		zwp_tablet_v2_send_name(client->resource, tablet->wlr_tool->name);
+	if (tablet->wlr_tablet->name) {
+		zwp_tablet_v2_send_name(client->resource,
+			tablet->wlr_tablet->name);
 	}
 	zwp_tablet_v2_send_id(client->resource,
 		tablet->wlr_device->vendor, tablet->wlr_device->product);
-	for (size_t i = 0; i < tablet->wlr_tool->paths.length; ++i) {
+	for (size_t i = 0; i < tablet->wlr_tablet->paths.length; ++i) {
 		zwp_tablet_v2_send_path(client->resource,
-			tablet->wlr_tool->paths.items[i]);
+			tablet->wlr_tablet->paths.items[i]);
 	}
 	zwp_tablet_v2_send_done(client->resource);
 

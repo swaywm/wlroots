@@ -39,7 +39,7 @@ struct wlr_input_device {
 		struct wlr_keyboard *keyboard;
 		struct wlr_pointer *pointer;
 		struct wlr_touch *touch;
-		struct wlr_tablet_tool *tablet_tool;
+		struct wlr_tablet *tablet;
 		struct wlr_tablet_pad *tablet_pad;
 	};
 

@@ -551,19 +551,19 @@ static struct wlr_cursor_device *cursor_device_create(
 		wl_signal_add(&device->touch->events.cancel, &c_device->touch_cancel);
 		c_device->touch_cancel.notify = handle_touch_cancel;
 	} else if (device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wl_signal_add(&device->tablet_tool->events.tip,
+		wl_signal_add(&device->tablet->events.tip,
 			&c_device->tablet_tool_tip);
 		c_device->tablet_tool_tip.notify = handle_tablet_tool_tip;
 
-		wl_signal_add(&device->tablet_tool->events.proximity,
+		wl_signal_add(&device->tablet->events.proximity,
 			&c_device->tablet_tool_proximity);
 		c_device->tablet_tool_proximity.notify = handle_tablet_tool_proximity;
 
-		wl_signal_add(&device->tablet_tool->events.axis,
+		wl_signal_add(&device->tablet->events.axis,
 			&c_device->tablet_tool_axis);
 		c_device->tablet_tool_axis.notify = handle_tablet_tool_axis;
 
-		wl_signal_add(&device->tablet_tool->events.button,
+		wl_signal_add(&device->tablet->events.button,
 			&c_device->tablet_tool_button);
 		c_device->tablet_tool_button.notify = handle_tablet_tool_button;
 	}

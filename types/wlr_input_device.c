@@ -44,7 +44,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 			wlr_touch_destroy(dev->touch);
 			break;
 		case WLR_INPUT_DEVICE_TABLET_TOOL:
-			wlr_tablet_tool_destroy(dev->tablet_tool);
+			wlr_tablet_destroy(dev->tablet);
 			break;
 		case WLR_INPUT_DEVICE_TABLET_PAD:
 			wlr_tablet_pad_destroy(dev->tablet_pad);

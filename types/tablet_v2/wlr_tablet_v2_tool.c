@@ -192,7 +192,7 @@ static void handle_wlr_tablet_tool_destroy(struct wl_listener *listener, void *d
 struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
-		struct wlr_tablet_tool_tool *wlr_tool) {
+		struct wlr_tablet_tool *wlr_tool) {
 	struct wlr_tablet_seat_v2 *seat = get_or_create_tablet_seat(manager, wlr_seat);
 	if (!seat) {
 		return NULL;
