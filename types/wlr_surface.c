@@ -325,19 +325,12 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void surface_apply_damage(struct wlr_surface *surface,
-		bool invalid_buffer) {
+static void surface_apply_damage(struct wlr_surface *surface) {
 	struct wl_resource *resource = surface->current->buffer;
 	if (resource == NULL) {
 		// NULL commit
 		wlr_buffer_unref(surface->buffer);
 		surface->buffer = NULL;
-		return;
-	}
-
-	if (surface->buffer != NULL && !surface->buffer->released &&
-			!invalid_buffer) {
-		// The buffer is still the same, no need to re-upload
 		return;
 	}
 
@@ -376,7 +369,9 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 
 	surface_move_state(surface, surface->pending, surface->current);
 
-	surface_apply_damage(surface, invalid_buffer);
+	if (invalid_buffer) {
+		surface_apply_damage(surface);
+	}
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
