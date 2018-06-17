@@ -163,8 +163,7 @@ static void frame_free(void *opaque, uint8_t *data) {
 static void frame_start(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 		uint32_t width, uint32_t height, uint32_t offset_x, uint32_t offset_y,
 		uint32_t buffer_flags, uint32_t flags, uint32_t format,
-		uint32_t mod_high, uint32_t mod_low, uint32_t num_objects,
-		uint32_t num_planes) {
+		uint32_t mod_high, uint32_t mod_low, uint32_t num_objects) {
 	struct capture_context *ctx = data;
 	int err = 0;
 
@@ -180,7 +179,6 @@ static void frame_start(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 
 	desc->nb_layers = 1;
 	desc->layers[0].format = format;
-	desc->layers[0].nb_planes = num_planes;
 
 	/* Allocate a frame */
 	AVFrame *f = av_frame_alloc();
@@ -213,25 +211,18 @@ fail:
 }
 
 static void frame_object(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
-		uint32_t index, int32_t fd, uint32_t size) {
+		uint32_t index, int32_t fd, uint32_t size, uint32_t offset,
+		uint32_t stride, uint32_t plane_index) {
 	struct capture_context *ctx = data;
 	AVFrame *f = ctx->current_frame;
 	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)f->data[0];
 
 	desc->objects[index].fd = fd;
 	desc->objects[index].size = size;
-}
 
-static void frame_plane(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
-		uint32_t index, uint32_t object_index,
-		uint32_t offset, uint32_t stride) {
-	struct capture_context *ctx = data;
-	AVFrame *f = ctx->current_frame;
-	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)f->data[0];
-
-	desc->layers[0].planes[index].object_index = object_index;
-	desc->layers[0].planes[index].offset = offset;
-	desc->layers[0].planes[index].pitch = stride;
+	desc->layers[0].planes[plane_index].object_index = index;
+	desc->layers[0].planes[plane_index].offset = offset;
+	desc->layers[0].planes[plane_index].pitch = stride;
 }
 
 static const uint32_t pixfmt_to_drm_map[] = {
@@ -311,13 +302,17 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	struct capture_context *ctx = data;
 	AVFrame *f = ctx->current_frame;
 	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)f->data[0];
+	enum AVPixelFormat pix_fmt = drm_fmt_to_pixfmt(desc->layers[0].format);
 	int err = 0;
 
 	/* Attach the hardware frame context to the frame */
-	err = attach_drm_frames_ref(ctx, f, drm_fmt_to_pixfmt(desc->layers[0].format));
+	err = attach_drm_frames_ref(ctx, f, pix_fmt);
 	if (err) {
 		goto end;
 	}
+
+	/* TODO: support multiplane stuff */
+	desc->layers[0].nb_planes = av_pix_fmt_count_planes(pix_fmt);
 
 	AVFrame *mapped_frame = av_frame_alloc();
 	if (!mapped_frame) {
@@ -431,7 +426,6 @@ static void frame_cancel(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 static const struct zwlr_export_dmabuf_frame_v1_listener frame_listener = {
 	.frame = frame_start,
 	.object = frame_object,
-	.plane = frame_plane,
 	.ready = frame_ready,
 	.cancel = frame_cancel,
 };
