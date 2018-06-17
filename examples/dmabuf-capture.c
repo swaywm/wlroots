@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libdrm/drm_fourcc.h>
 #include "wlr-export-dmabuf-unstable-v1-client-protocol.h"
 
 struct wayland_output {
@@ -225,25 +226,19 @@ static void frame_object(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	desc->layers[0].planes[plane_index].pitch = stride;
 }
 
-static const uint32_t pixfmt_to_drm_map[] = {
-	[AV_PIX_FMT_NV12] = WL_SHM_FORMAT_NV12,
-	[AV_PIX_FMT_BGRA] = WL_SHM_FORMAT_ARGB8888,
-	[AV_PIX_FMT_BGR0] = WL_SHM_FORMAT_XRGB8888,
-	[AV_PIX_FMT_RGBA] = WL_SHM_FORMAT_ABGR8888,
-	[AV_PIX_FMT_RGB0] = WL_SHM_FORMAT_XBGR8888,
-	[AV_PIX_FMT_ABGR] = WL_SHM_FORMAT_RGBA8888,
-	[AV_PIX_FMT_0BGR] = WL_SHM_FORMAT_RGBX8888,
-	[AV_PIX_FMT_ARGB] = WL_SHM_FORMAT_BGRA8888,
-	[AV_PIX_FMT_0RGB] = WL_SHM_FORMAT_BGRX8888,
-};
-
 static enum AVPixelFormat drm_fmt_to_pixfmt(uint32_t fmt) {
-	for (enum AVPixelFormat i = 0; i < AV_PIX_FMT_NB; i++) {
-		if (pixfmt_to_drm_map[i] == fmt) {
-			return i;
-		}
-	}
-	return AV_PIX_FMT_NONE;
+	switch (fmt) {
+	case DRM_FORMAT_NV12: return AV_PIX_FMT_NV12;
+	case DRM_FORMAT_ARGB8888: return AV_PIX_FMT_BGRA;
+	case DRM_FORMAT_XRGB8888: return AV_PIX_FMT_BGR0;
+	case DRM_FORMAT_ABGR8888: return AV_PIX_FMT_RGBA;
+	case DRM_FORMAT_XBGR8888: return AV_PIX_FMT_RGB0;
+	case DRM_FORMAT_RGBA8888: return AV_PIX_FMT_ABGR;
+	case DRM_FORMAT_RGBX8888: return AV_PIX_FMT_0BGR;
+	case DRM_FORMAT_BGRA8888: return AV_PIX_FMT_ARGB;
+	case DRM_FORMAT_BGRX8888: return AV_PIX_FMT_0RGB;
+	default: return AV_PIX_FMT_NONE;
+	};
 }
 
 static int attach_drm_frames_ref(struct capture_context *ctx, AVFrame *f,
