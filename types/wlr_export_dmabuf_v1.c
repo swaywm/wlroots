@@ -93,7 +93,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	if (!output->impl->export_dmabuf) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
-			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERNAMENT);
+			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT);
 		return;
 	}
 
@@ -110,16 +110,13 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
 		output->width, output->height, 0, 0, attribs->flags, frame_flags,
-		attribs->format, mod_high, mod_low, attribs->n_planes,
-		attribs->n_planes);
+		attribs->format, mod_high, mod_low, attribs->n_planes);
 
 	for (int i = 0; i < attribs->n_planes; ++i) {
 		off_t size = lseek(attribs->fd[i], 0, SEEK_END);
 
 		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
-			attribs->fd[i], size);
-		zwlr_export_dmabuf_frame_v1_send_plane(frame->resource, i, i,
-			attribs->offset[i], attribs->stride[i]);
+			attribs->fd[i], size, attribs->offset[i], attribs->stride[i], i);
 	}
 
 	wl_list_remove(&frame->output_swap_buffers.link);

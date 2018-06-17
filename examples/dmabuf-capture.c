@@ -415,7 +415,7 @@ static void frame_cancel(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	struct capture_context *ctx = data;
 	av_log(ctx, AV_LOG_WARNING, "Frame cancelled!\n");
 	av_frame_free(&ctx->current_frame);
-	if (reason == ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERNAMENT) {
+	if (reason == ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT) {
 		av_log(ctx, AV_LOG_ERROR, "Permanent failure, exiting\n");
 		ctx->err = 1;
 	} else {
