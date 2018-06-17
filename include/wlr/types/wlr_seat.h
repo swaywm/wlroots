@@ -13,11 +13,11 @@
  * managed by wlr_seat; some may be NULL.
  */
 struct wlr_seat_client {
-	struct wl_resource *wl_resource;
 	struct wl_client *client;
 	struct wlr_seat *seat;
 
 	// lists of wl_resource
+	struct wl_list wl_resources;
 	struct wl_list pointers;
 	struct wl_list keyboards;
 	struct wl_list touches;

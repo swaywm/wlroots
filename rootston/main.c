@@ -72,6 +72,9 @@ int main(int argc, char **argv) {
 	}
 
 	wl_display_run(server.wl_display);
+#ifdef WLR_HAS_XWAYLAND
+	wlr_xwayland_destroy(server.desktop->xwayland);
+#endif
 	wl_display_destroy_clients(server.wl_display);
 	wl_display_destroy(server.wl_display);
 	return 0;

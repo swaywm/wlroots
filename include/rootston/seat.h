@@ -59,6 +59,7 @@ struct roots_drag_icon {
 
 	struct wl_listener surface_commit;
 	struct wl_listener map;
+	struct wl_listener unmap;
 	struct wl_listener destroy;
 };
 
@@ -92,9 +93,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name);
 void roots_seat_destroy(struct roots_seat *seat);
 
 void roots_seat_add_device(struct roots_seat *seat,
-		struct wlr_input_device *device);
-
-void roots_seat_remove_device(struct roots_seat *seat,
 		struct wlr_input_device *device);
 
 void roots_seat_configure_cursor(struct roots_seat *seat);

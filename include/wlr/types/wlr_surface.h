@@ -62,12 +62,20 @@ struct wlr_subsurface {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	void *data;
 };
 
 struct wlr_surface {
 	struct wl_resource *resource;
 	struct wlr_renderer *renderer;
-	struct wlr_texture *texture;
+	/**
+	 * The surface's buffer, if any. A surface has an attached buffer when it
+	 * commits with a non-null buffer in its pending state. A surface will not
+	 * have a buffer if it has never committed one, has committed a null buffer,
+	 * or something went wrong with uploading the buffer.
+	 */
+	struct wlr_buffer *buffer;
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
@@ -123,6 +131,13 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 bool wlr_surface_has_buffer(struct wlr_surface *surface);
 
 /**
+ * Get the texture of the buffer currently attached to this surface. Returns
+ * NULL if no buffer is currently attached or if something went wrong with
+ * uploading the buffer.
+ */
+struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
+
+/**
  * Create a new subsurface resource with the provided new ID. If `resource_list`
  * is non-NULL, adds the subsurface's resource to the list.
  */
@@ -158,6 +173,14 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when);
+
+struct wlr_box;
+/**
+ * Get the bounding box that contains the surface and all subsurfaces in
+ * surface coordinates.
+ * X and y may be negative, if there are subsurfaces with negative position.
+ */
+void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
 
 /**
  * Set a callback for surface commit that runs before all the other callbacks.

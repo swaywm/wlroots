@@ -30,8 +30,6 @@ struct wlr_renderer_impl {
 		struct wl_resource *resource);
 	void (*wl_drm_buffer_get_size)(struct wlr_renderer *renderer,
 		struct wl_resource *buffer, int *width, int *height);
-	bool (*check_import_dmabuf)(struct wlr_renderer *renderer,
-		struct wlr_dmabuf_attributes *attribs);
 	int (*get_dmabuf_formats)(struct wlr_renderer *renderer, int **formats);
 	int (*get_dmabuf_modifiers)(struct wlr_renderer *renderer, int format,
 		uint64_t **modifiers);

@@ -20,6 +20,7 @@ lib_wlr_types = static_library(
 		'xdg_shell_v6/wlr_xdg_surface_v6.c',
 		'xdg_shell_v6/wlr_xdg_toplevel_v6.c',
 		'wlr_box.c',
+		'wlr_buffer.c',
 		'wlr_compositor.c',
 		'wlr_cursor.c',
 		'wlr_export_dmabuf_v1.c',
