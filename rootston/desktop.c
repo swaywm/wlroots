@@ -114,9 +114,9 @@ static void view_update_output(const struct roots_view *view,
 	struct roots_output *output;
 	wl_list_for_each(output, &desktop->outputs, link) {
 		bool intersected = before != NULL && wlr_output_layout_intersects(
-			desktop->layout, output->wlr_output, before);
-		bool intersects = wlr_output_layout_intersects(desktop->layout,
-			output->wlr_output, &box);
+			desktop->layout->wlr_layout, output->wlr_output, before);
+		bool intersects = wlr_output_layout_intersects(
+				desktop->layout->wlr_layout, output->wlr_output, &box);
 		if (intersected && !intersects) {
 			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
 		}
@@ -185,12 +185,12 @@ static struct wlr_output *view_get_output(struct roots_view *view) {
 	view_get_box(view, &view_box);
 
 	double output_x, output_y;
-	wlr_output_layout_closest_point(view->desktop->layout, NULL,
+	wlr_output_layout_closest_point(view->desktop->layout->wlr_layout, NULL,
 		view->x + (double)view_box.width/2,
 		view->y + (double)view_box.height/2,
 		&output_x, &output_y);
-	return wlr_output_layout_output_at(view->desktop->layout, output_x,
-		output_y);
+	return wlr_output_layout_output_at(view->desktop->layout->wlr_layout,
+			output_x, output_y);
 }
 
 void view_arrange_maximized(struct roots_view *view) {
@@ -200,7 +200,7 @@ void view_arrange_maximized(struct roots_view *view) {
 	struct wlr_output *output = view_get_output(view);
 	struct roots_output *roots_output = output->data;
 	struct wlr_box *output_box =
-		wlr_output_layout_get_box(view->desktop->layout, output);
+		wlr_output_layout_get_box(view->desktop->layout->wlr_layout, output);
 	struct wlr_box usable_area;
 	memcpy(&usable_area, &roots_output->usable_area,
 			sizeof(struct wlr_box));
@@ -275,7 +275,7 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 		view->saved.height = view_box.height;
 
 		struct wlr_box *output_box =
-			wlr_output_layout_get_box(view->desktop->layout, output);
+			wlr_output_layout_get_box(view->desktop->layout->wlr_layout, output);
 		view_move_resize(view, output_box->x, output_box->y, output_box->width,
 			output_box->height);
 		view_rotate(view, 0);
@@ -333,7 +333,7 @@ bool view_center(struct roots_view *view) {
 	}
 
 	struct wlr_output *output =
-		wlr_output_layout_output_at(desktop->layout,
+		wlr_output_layout_output_at(desktop->layout->wlr_layout,
 				seat->cursor->cursor->x,
 				seat->cursor->cursor->y);
 	if (!output) {
@@ -342,7 +342,7 @@ bool view_center(struct roots_view *view) {
 	}
 
 	const struct wlr_output_layout_output *l_output =
-		wlr_output_layout_get(desktop->layout, output);
+		wlr_output_layout_get(desktop->layout->wlr_layout, output);
 
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
@@ -616,7 +616,7 @@ static struct roots_view *desktop_view_at(struct roots_desktop *desktop,
 		double lx, double ly, struct wlr_surface **surface,
 		double *sx, double *sy) {
 	struct wlr_output *wlr_output =
-		wlr_output_layout_output_at(desktop->layout, lx, ly);
+		wlr_output_layout_output_at(desktop->layout->wlr_layout, lx, ly);
 	if (wlr_output != NULL) {
 		struct roots_output *output =
 			desktop_output_from_wlr_output(desktop, wlr_output);
@@ -661,7 +661,7 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 		struct roots_view **view) {
 	struct wlr_surface *surface = NULL;
 	struct wlr_output *wlr_output =
-		wlr_output_layout_output_at(desktop->layout, lx, ly);
+		wlr_output_layout_output_at(desktop->layout->wlr_layout, lx, ly);
 	struct roots_output *roots_output = NULL;
 	double ox = lx, oy = ly;
 	if (view) {
@@ -670,7 +670,7 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 
 	if (wlr_output) {
 		roots_output = wlr_output->data;
-		wlr_output_layout_output_coords(desktop->layout, wlr_output, &ox, &oy);
+		wlr_output_layout_output_coords(desktop->layout->wlr_layout, wlr_output, &ox, &oy);
 
 		if ((surface = layer_surface_at(roots_output,
 					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
@@ -712,13 +712,13 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, desktop, layout_change);
 
 	struct wlr_output *center_output =
-		wlr_output_layout_get_center_output(desktop->layout);
+		wlr_output_layout_get_center_output(desktop->layout->wlr_layout);
 	if (center_output == NULL) {
 		return;
 	}
 
 	struct wlr_box *center_output_box =
-		wlr_output_layout_get_box(desktop->layout, center_output);
+		wlr_output_layout_get_box(desktop->layout->wlr_layout, center_output);
 	double center_x = center_output_box->x + center_output_box->width/2;
 	double center_y = center_output_box->y + center_output_box->height/2;
 
@@ -727,7 +727,8 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 		struct wlr_box box;
 		view_get_box(view, &box);
 
-		if (wlr_output_layout_intersects(desktop->layout, NULL, &box)) {
+		if (wlr_output_layout_intersects(desktop->layout->wlr_layout, NULL,
+					&box)) {
 			continue;
 		}
 
@@ -772,10 +773,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->server = server;
 	desktop->config = config;
 
-	desktop->layout = wlr_output_layout_create();
-	wlr_xdg_output_manager_create(server->wl_display, desktop->layout);
+	desktop->layout = roots_layout_create(&config->layout);
+	wlr_xdg_output_manager_create(server->wl_display, desktop->layout->wlr_layout);
 	desktop->layout_change.notify = handle_layout_change;
-	wl_signal_add(&desktop->layout->events.change, &desktop->layout_change);
+	wl_signal_add(&desktop->layout->wlr_layout->events.change, &desktop->layout_change);
 
 	desktop->compositor = wlr_compositor_create(server->wl_display,
 		server->renderer);

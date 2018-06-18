@@ -23,10 +23,24 @@ struct wlr_output_layout {
 
 struct wlr_output_layout_output_state;
 
+enum wlr_output_layout_output_configuration {
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_FIXED,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_AUTO,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_LEFT_OF,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_RIGHT_OF,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_BELOW,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_ABOVE,
+	WLR_OUTPUT_LAYOUT_OUTPUT_CONFIGURATION_RELATIVE_SAME_AS,
+};
+
 struct wlr_output_layout_output {
 	struct wlr_output *output;
 	int x, y;
+	enum wlr_output_layout_output_configuration configuration;
+	struct wlr_output_layout_output *reference;
+
 	struct wl_list link;
+
 	struct wlr_output_layout_output_state *state;
 
 	struct {
@@ -88,15 +102,27 @@ struct wlr_box *wlr_output_layout_get_box(
 		struct wlr_output_layout *layout, struct wlr_output *reference);
 
 /**
-* Add an auto configured output to the layout. This will place the output in a
-* sensible location in the layout. The coordinates of the output in the layout
-* may adjust dynamically when the layout changes. If the output is already in
-* the layout, it will become auto configured. If the position of the output is
-* set such as with `wlr_output_layout_move()`, the output will become manually
-* configured.
-*/
+ * Add an auto configured output to the layout. This will place the output in a
+ * sensible location in the layout. The coordinates of the output in the layout
+ * may adjust dynamically when the layout changes. If the output is already in
+ * the layout, it will become auto configured. Relative layouts are not supported
+ * with this kind of output.
+ */
 void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output);
+
+
+/**
+ * Add an auto configured output to the layout relative to another output.
+ * This will place the relative output next to the border of the reference
+ * output. The output layout will adjust dynamically to keep the relative
+ * output in this position when the absolute output changes coordinates.
+ * If the position of the relative output is set to absolute coordinates,
+ * it will become manually configured.
+*/
+void wlr_output_layout_add_relative(struct wlr_output_layout *layout,
+		struct wlr_output *output, struct wlr_output *reference,
+		enum wlr_output_layout_output_configuration configuration);
 
 /**
  * Get the output closest to the center of the layout extents.
