@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -129,7 +130,10 @@ static void communicate(int sock) {
 	struct msg msg;
 	int drm_fd = -1;
 	bool running = true;
+	fd_set masteredFds;
+	int maxFd = -1;
 
+	FD_ZERO(&masteredFds);
 	while (running && recv_msg(sock, &drm_fd, &msg, sizeof(msg)) >= 0) {
 		switch (msg.type) {
 		case MSG_OPEN:
@@ -158,18 +162,24 @@ static void communicate(int sock) {
 				ret = errno;
 			}
 error:
+			if (ret == 0) {
+				FD_SET(fd, &masteredFds);
+				maxFd = fd > maxFd ? fd : maxFd;
+			} else {
+				close(fd);
+			}
 			send_msg(sock, ret ? -1 : fd, &ret, sizeof(ret));
-			close(fd);
-
 			break;
 
 		case MSG_SETMASTER:
+			FD_SET(fd, &masteredFds);
+			maxFd = fd > maxFd ? fd : maxFd;
 			drmSetMaster(drm_fd);
-			close(drm_fd);
 			send_msg(sock, -1, NULL, 0);
 			break;
 
 		case MSG_DROPMASTER:
+			FD_CLR(fd, &masteredFds);
 			drmDropMaster(drm_fd);
 			close(drm_fd);
 			send_msg(sock, -1, NULL, 0);
@@ -181,7 +191,12 @@ error:
 			break;
 		}
 	}
-
+	for (int fd=0; fd<maxFd; fd++) {
+		if (FD_ISSET(fd, &masteredFds)) {
+			drmDropMaster(fd);
+			close(fd);
+		}
+	}
 	close(sock);
 }
 
