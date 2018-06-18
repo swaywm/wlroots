@@ -130,10 +130,10 @@ static void communicate(int sock) {
 	struct msg msg;
 	int drm_fd = -1;
 	bool running = true;
-	fd_set masteredFds;
-	int maxFd = -1;
+	fd_set mastered_fds;
+	int max_fd = -1;
 
-	FD_ZERO(&masteredFds);
+	FD_ZERO(&mastered_fds);
 	while (running && recv_msg(sock, &drm_fd, &msg, sizeof(msg)) >= 0) {
 		switch (msg.type) {
 		case MSG_OPEN:
@@ -163,8 +163,8 @@ static void communicate(int sock) {
 			}
 error:
 			if (ret == 0) {
-				FD_SET(fd, &masteredFds);
-				maxFd = fd > maxFd ? fd : maxFd;
+				FD_SET(fd, &mastered_fds);
+				max_fd = fd > max_fd ? fd : max_fd;
 			} else {
 				close(fd);
 			}
@@ -172,14 +172,14 @@ error:
 			break;
 
 		case MSG_SETMASTER:
-			FD_SET(fd, &masteredFds);
-			maxFd = fd > maxFd ? fd : maxFd;
+			FD_SET(fd, &mastered_fds);
+			max_fd = fd > max_fd ? fd : max_fd;
 			drmSetMaster(drm_fd);
 			send_msg(sock, -1, NULL, 0);
 			break;
 
 		case MSG_DROPMASTER:
-			FD_CLR(fd, &masteredFds);
+			FD_CLR(fd, &mastered_fds);
 			drmDropMaster(drm_fd);
 			close(drm_fd);
 			send_msg(sock, -1, NULL, 0);
@@ -191,8 +191,8 @@ error:
 			break;
 		}
 	}
-	for (int fd=0; fd<maxFd; fd++) {
-		if (FD_ISSET(fd, &masteredFds)) {
+	for (int fd = 0; fd < max_fd; fd++) {
+		if (FD_ISSET(fd, &mastered_fds)) {
 			drmDropMaster(fd);
 			close(fd);
 		}
