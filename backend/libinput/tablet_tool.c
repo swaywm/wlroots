@@ -43,7 +43,7 @@ struct wlr_libinput_tablet {
 	struct wl_list tools; // tablet_tool_list_elem::link
 };
 
-static void destroy_tool_tool(struct wlr_libinput_tablet_tool *tool) {
+static void destroy_tool(struct wlr_libinput_tablet_tool *tool) {
 	wlr_signal_emit_safe(&tool->wlr_tool.events.destroy, &tool->wlr_tool);
 	libinput_tablet_tool_ref(tool->libinput_tool);
 	libinput_tablet_tool_set_user_data(tool->libinput_tool, NULL);
@@ -64,7 +64,7 @@ static void destroy_tablet(struct wlr_tablet *wlr_tablet) {
 		free(pos);
 
 		if (--tool->pad_refs == 0) {
-			destroy_tool_tool(tool);
+			destroy_tool(tool);
 		}
 	}
 
@@ -296,7 +296,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 			}
 		}
 
-		destroy_tool_tool(tool);
+		destroy_tool(tool);
 	}
 }
 
