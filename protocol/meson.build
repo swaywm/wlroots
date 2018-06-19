@@ -42,6 +42,7 @@ protocols = [
 	'wlr-export-dmabuf-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
 	'wlr-layer-shell-unstable-v1.xml',
+	'wlr-screencopy-unstable-v1.xml',
 ]
 
 client_protocols = [
@@ -51,8 +52,9 @@ client_protocols = [
 	'idle.xml',
 	'screenshooter.xml',
 	'wlr-export-dmabuf-unstable-v1.xml',
-	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
+	'wlr-layer-shell-unstable-v1.xml',
+	'wlr-screencopy-unstable-v1.xml',
 ]
 
 wl_protos_src = []

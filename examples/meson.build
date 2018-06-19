@@ -56,3 +56,9 @@ if libavutil.found() and libavcodec.found() and libavformat.found()
 				libavformat, wlroots, threads ]
 	)
 endif
+
+executable(
+	'screencopy',
+	'screencopy.c',
+	dependencies: [wayland_client, wlr_protos, wlroots]
+)

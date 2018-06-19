@@ -875,6 +875,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->virtual_keyboard->events.new_virtual_keyboard,
 		&desktop->virtual_keyboard_new);
 	desktop->virtual_keyboard_new.notify = handle_virtual_keyboard;
+
+	desktop->screencopy = wlr_screencopy_manager_v1_create(server->wl_display);
+
 	return desktop;
 }
 
