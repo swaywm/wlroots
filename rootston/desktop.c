@@ -341,14 +341,14 @@ bool view_center(struct roots_view *view) {
 		return false;
 	}
 
-	const struct wlr_output_layout_output *l_output =
-		wlr_output_layout_get(desktop->layout, output);
+	struct wlr_box *layout_box =
+        wlr_output_layout_get_box(desktop->layout, output);
 
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	double view_x = (double)(width - box.width) / 2 + l_output->x;
-	double view_y = (double)(height - box.height) / 2 + l_output->y;
+	double view_x = (double)(width - box.width) / 2 + layout_box->x;
+	double view_y = (double)(height - box.height) / 2 + layout_box->y;
 	view_move(view, view_x, view_y);
 
 	return true;

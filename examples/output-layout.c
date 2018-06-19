@@ -76,10 +76,10 @@ static void animate_cat(struct sample_state *sample,
 
 	if (ur_collision && ul_collision && ll_collision && lr_collision) {
 		// oops we went off the screen somehow
-		struct wlr_output_layout_output *l_output =
-			wlr_output_layout_get(sample->layout, output);
-		sample->x_offs = l_output->x + 20;
-		sample->y_offs = l_output->y + 20;
+		struct wlr_box *box =
+			wlr_output_layout_get_box(sample->layout, output);
+		sample->x_offs = box->x + 20;
+		sample->y_offs = box->y + 20;
 	} else if (ur_collision && ul_collision) {
 		sample->y_vel = fabs(sample->y_vel);
 	} else if (lr_collision && ll_collision) {

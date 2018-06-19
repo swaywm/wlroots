@@ -621,10 +621,10 @@ static void damage_whole_surface(struct wlr_surface *surface, int sx, int sy,
 
 void output_damage_whole_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
-	struct wlr_output_layout_output *layout = wlr_output_layout_get(
-		output->desktop->layout, output->wlr_output);
+	struct wlr_box *box =
+        wlr_output_layout_get_box(output->desktop->layout, output->wlr_output);
 	struct damage_data data = { .output = output };
-	surface_for_each_surface(surface, ox + layout->x, oy + layout->y, 0,
+	surface_for_each_surface(surface, ox + box->x, oy + box->y, 0,
 		&data.layout, damage_whole_surface, &data);
 }
 
@@ -703,10 +703,10 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 
 void output_damage_from_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
-	struct wlr_output_layout_output *layout = wlr_output_layout_get(
-		output->desktop->layout, output->wlr_output);
+	struct wlr_box *box =
+        wlr_output_layout_get_box(output->desktop->layout, output->wlr_output);
 	struct damage_data data = { .output = output };
-	surface_for_each_surface(surface, ox + layout->x, oy + layout->y, 0,
+	surface_for_each_surface(surface, ox + box->x, oy + box->y, 0,
 		&data.layout, damage_from_surface, &data);
 }
 
