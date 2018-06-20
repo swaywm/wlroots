@@ -115,21 +115,6 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 		return;
 	}
 
-	if (seat->seat->pointer_state.button_count > 0 &&
-			cursor->pointer_view != NULL &&
-			cursor->pointer_view->wlr_surface ==
-				seat->seat->pointer_state.focused_surface) {
-		sx = cursor->cursor->x - cursor->pointer_view->x;
-		sy = cursor->cursor->y - cursor->pointer_view->y;
-		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
-
-		struct roots_drag_icon *drag_icon;
-		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
-			roots_drag_icon_update_position(drag_icon);
-		}
-		return;
-	}
-
 	if (cursor->cursor_client != client) {
 		wlr_xcursor_manager_set_cursor_image(cursor->xcursor_manager,
 			cursor->default_xcursor, cursor->cursor);
@@ -148,13 +133,11 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 			cursor->deco_view = seat_view;
 			seat_view_deco_motion(seat_view, sx, sy);
 		}
-		cursor->pointer_view = view;
 	} else {
 		if (cursor->deco_view) {
 			seat_view_deco_leave(cursor->deco_view);
 			cursor->deco_view = NULL;
 		}
-		cursor->pointer_view = NULL;
 	}
 
 	if (surface) {
@@ -249,20 +232,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	struct roots_view *view;
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			lx, ly, &sx, &sy, &view);
-
-	if (!is_touch && cursor->pointer_view && cursor->pointer_view != view) {
-		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
-
-		if (seat->seat->pointer_state.button_count == 0) {
-			if (surface != NULL) {
-				wlr_seat_pointer_enter(seat->seat, surface, sx, sy);
-			} else {
-				wlr_seat_pointer_clear_focus(seat->seat);
-			}
-			cursor->pointer_view = NULL;
-		}
-		return;
-	}
 
 	if (state == WLR_BUTTON_PRESSED && view &&
 			roots_seat_has_meta_pressed(seat)) {

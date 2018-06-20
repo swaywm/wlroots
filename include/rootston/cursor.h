@@ -28,7 +28,6 @@ struct roots_cursor {
 	uint32_t resize_edges;
 
 	struct roots_seat_view *deco_view;
-	struct roots_view *pointer_view;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
