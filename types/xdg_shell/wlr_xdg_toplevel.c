@@ -40,7 +40,7 @@ bool compare_xdg_surface_toplevel_state(struct wlr_xdg_toplevel *state) {
 		// last configure is actually the current state, just use it
 		configured.state = state->current;
 		configured.width = state->base->surface->current->width;
-		configured.height = state->base->surface->current->width;
+		configured.height = state->base->surface->current->height;
 	} else {
 		struct wlr_xdg_surface_configure *configure =
 			wl_container_of(state->base->configure_list.prev, configure, link);
