@@ -403,11 +403,6 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->y = cursor->y - cursor->hotspot_y;
 	box->width = cursor->width;
 	box->height = cursor->height;
-
-	if (cursor->surface != NULL) {
-		box->x += cursor->surface->current->sx * cursor->output->scale;
-		box->y += cursor->surface->current->sy * cursor->output->scale;
-	}
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
@@ -780,6 +775,8 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
 	cursor->width = cursor->surface->current->width * cursor->output->scale;
 	cursor->height = cursor->surface->current->height * cursor->output->scale;
+	cursor->x += cursor->surface->current->sx * cursor->output->scale;
+	cursor->y += cursor->surface->current->sy * cursor->output->scale;
 
 	if (output_cursor_attempt_hardware(cursor)) {
 		struct timespec now;
