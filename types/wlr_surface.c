@@ -67,7 +67,7 @@ static void surface_attach(struct wl_client *client,
 		struct wl_resource *buffer, int32_t sx, int32_t sy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	surface->pending->invalid |= WLR_SURFACE_INVALID_BUFFER;
+	surface->pending->committed |= WLR_SURFACE_STATE_BUFFER;
 	surface->pending->sx = sx;
 	surface->pending->sy = sy;
 	surface_state_set_buffer(surface->pending, buffer);
@@ -80,7 +80,7 @@ static void surface_damage(struct wl_client *client,
 	if (width < 0 || height < 0) {
 		return;
 	}
-	surface->pending->invalid |= WLR_SURFACE_INVALID_SURFACE_DAMAGE;
+	surface->pending->committed |= WLR_SURFACE_STATE_SURFACE_DAMAGE;
 	pixman_region32_union_rect(&surface->pending->surface_damage,
 		&surface->pending->surface_damage,
 		x, y, width, height);
@@ -106,17 +106,17 @@ static void surface_frame(struct wl_client *client,
 	wl_list_insert(surface->pending->frame_callback_list.prev,
 		wl_resource_get_link(callback_resource));
 
-	surface->pending->invalid |= WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST;
+	surface->pending->committed |= WLR_SURFACE_STATE_FRAME_CALLBACK_LIST;
 }
 
 static void surface_set_opaque_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-	if ((surface->pending->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
+	if ((surface->pending->committed & WLR_SURFACE_STATE_OPAQUE_REGION)) {
 		pixman_region32_clear(&surface->pending->opaque);
 	}
-	surface->pending->invalid |= WLR_SURFACE_INVALID_OPAQUE_REGION;
+	surface->pending->committed |= WLR_SURFACE_STATE_OPAQUE_REGION;
 	if (region_resource) {
 		pixman_region32_t *region = wlr_region_from_resource(region_resource);
 		pixman_region32_copy(&surface->pending->opaque, region);
@@ -128,7 +128,7 @@ static void surface_set_opaque_region(struct wl_client *client,
 static void surface_set_input_region(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-	surface->pending->invalid |= WLR_SURFACE_INVALID_INPUT_REGION;
+	surface->pending->committed |= WLR_SURFACE_STATE_INPUT_REGION;
 	if (region_resource) {
 		pixman_region32_t *region = wlr_region_from_resource(region_resource);
 		pixman_region32_copy(&surface->pending->input, region);
@@ -159,9 +159,9 @@ static bool surface_update_size(struct wlr_surface *surface,
 	int height = state->buffer_height / scale;
 
 	if (transform == WL_OUTPUT_TRANSFORM_90 ||
-		transform == WL_OUTPUT_TRANSFORM_270 ||
-		transform == WL_OUTPUT_TRANSFORM_FLIPPED_90 ||
-		transform == WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+			transform == WL_OUTPUT_TRANSFORM_270 ||
+			transform == WL_OUTPUT_TRANSFORM_FLIPPED_90 ||
+			transform == WL_OUTPUT_TRANSFORM_FLIPPED_270) {
 		int tmp = width;
 		width = height;
 		height = tmp;
@@ -195,15 +195,15 @@ static void surface_move_state(struct wlr_surface *surface,
 	int oldw = state->width;
 	int oldh = state->height;
 
-	if ((next->invalid & WLR_SURFACE_INVALID_SCALE)) {
+	if ((next->committed & WLR_SURFACE_STATE_SCALE)) {
 		state->scale = next->scale;
 		update_size = true;
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_TRANSFORM)) {
+	if ((next->committed & WLR_SURFACE_STATE_TRANSFORM)) {
 		state->transform = next->transform;
 		update_size = true;
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER)) {
+	if ((next->committed & WLR_SURFACE_STATE_BUFFER)) {
 		surface_state_set_buffer(state, next->buffer);
 		surface_state_reset_buffer(next);
 		state->sx = next->sx;
@@ -213,7 +213,7 @@ static void surface_move_state(struct wlr_surface *surface,
 	if (update_size) {
 		update_damage = surface_update_size(surface, state);
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_SURFACE_DAMAGE)) {
+	if ((next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE)) {
 		pixman_region32_intersect_rect(&next->surface_damage,
 			&next->surface_damage, 0, 0, state->width, state->height);
 		pixman_region32_union(&state->surface_damage, &state->surface_damage,
@@ -221,7 +221,7 @@ static void surface_move_state(struct wlr_surface *surface,
 		pixman_region32_clear(&next->surface_damage);
 		update_damage = true;
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER_DAMAGE)) {
+	if ((next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE)) {
 		pixman_region32_intersect_rect(&next->buffer_damage,
 			&next->buffer_damage, 0, 0, state->buffer_width,
 			state->buffer_height);
@@ -256,15 +256,15 @@ static void surface_move_state(struct wlr_surface *surface,
 		pixman_region32_fini(&buffer_damage);
 		pixman_region32_fini(&surface_damage);
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
+	if ((next->committed & WLR_SURFACE_STATE_OPAQUE_REGION)) {
 		// TODO: process buffer
 		pixman_region32_clear(&next->opaque);
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
+	if ((next->committed & WLR_SURFACE_STATE_INPUT_REGION)) {
 		// TODO: process buffer
 		pixman_region32_copy(&state->input, &next->input);
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_SUBSURFACE_POSITION)) {
+	if ((next->committed & WLR_SURFACE_STATE_SUBSURFACE_POSITION)) {
 		// Subsurface has moved
 		int dx = state->subsurface_position.x - next->subsurface_position.x;
 		int dy = state->subsurface_position.y - next->subsurface_position.y;
@@ -281,14 +281,14 @@ static void surface_move_state(struct wlr_surface *surface,
 				&state->surface_damage, 0, 0, state->width, state->height);
 		}
 	}
-	if ((next->invalid & WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST)) {
+	if ((next->committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST)) {
 		wl_list_insert_list(&state->frame_callback_list,
 			&next->frame_callback_list);
 		wl_list_init(&next->frame_callback_list);
 	}
 
-	state->invalid |= next->invalid;
-	next->invalid = 0;
+	state->committed |= next->committed;
+	next->committed = 0;
 }
 
 static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
@@ -350,7 +350,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	bool invalid_buffer = surface->pending->invalid & WLR_SURFACE_INVALID_BUFFER;
+	bool invalid_buffer = surface->pending->committed & WLR_SURFACE_STATE_BUFFER;
 
 	surface_move_state(surface, surface->pending, surface->current);
 
@@ -375,7 +375,6 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		surface->role_committed(surface, surface->role_data);
 	}
 
-	// TODO: add the invalid bitfield to this callback
 	wlr_signal_emit_safe(&surface->events.commit, surface);
 
 	pixman_region32_clear(&surface->current->surface_damage);
@@ -412,7 +411,7 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 			surface_move_state(surface, subsurface->cached, surface->pending);
 			surface_commit_pending(surface);
 			subsurface->has_cache = false;
-			subsurface->cached->invalid = 0;
+			subsurface->cached->committed = 0;
 		}
 
 		struct wlr_subsurface *tmp;
@@ -467,7 +466,7 @@ static void surface_commit(struct wl_client *client,
 static void surface_set_buffer_transform(struct wl_client *client,
 		struct wl_resource *resource, int transform) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-	surface->pending->invalid |= WLR_SURFACE_INVALID_TRANSFORM;
+	surface->pending->committed |= WLR_SURFACE_STATE_TRANSFORM;
 	surface->pending->transform = transform;
 }
 
@@ -475,7 +474,7 @@ static void surface_set_buffer_scale(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t scale) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-	surface->pending->invalid |= WLR_SURFACE_INVALID_SCALE;
+	surface->pending->committed |= WLR_SURFACE_STATE_SCALE;
 	surface->pending->scale = scale;
 }
 
@@ -487,7 +486,7 @@ static void surface_damage_buffer(struct wl_client *client,
 	if (width < 0 || height < 0) {
 		return;
 	}
-	surface->pending->invalid |= WLR_SURFACE_INVALID_BUFFER_DAMAGE;
+	surface->pending->committed |= WLR_SURFACE_STATE_BUFFER_DAMAGE;
 	pixman_region32_union_rect(&surface->pending->buffer_damage,
 		&surface->pending->buffer_damage,
 		x, y, width, height);
@@ -697,7 +696,7 @@ static void subsurface_handle_set_position(struct wl_client *client,
 	}
 
 	struct wlr_surface *surface = subsurface->surface;
-	surface->pending->invalid |= WLR_SURFACE_INVALID_SUBSURFACE_POSITION;
+	surface->pending->committed |= WLR_SURFACE_STATE_SUBSURFACE_POSITION;
 	surface->pending->subsurface_position.x = x;
 	surface->pending->subsurface_position.y = y;
 }

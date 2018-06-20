@@ -8,18 +8,21 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
-#define WLR_SURFACE_INVALID_BUFFER 1
-#define WLR_SURFACE_INVALID_SURFACE_DAMAGE 2
-#define WLR_SURFACE_INVALID_BUFFER_DAMAGE 4
-#define WLR_SURFACE_INVALID_OPAQUE_REGION 8
-#define WLR_SURFACE_INVALID_INPUT_REGION 16
-#define WLR_SURFACE_INVALID_TRANSFORM 32
-#define WLR_SURFACE_INVALID_SCALE 64
-#define WLR_SURFACE_INVALID_SUBSURFACE_POSITION 128
-#define WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST 256
+enum wlr_surface_state_field {
+	WLR_SURFACE_STATE_BUFFER = 1,
+	WLR_SURFACE_STATE_SURFACE_DAMAGE = 2,
+	WLR_SURFACE_STATE_BUFFER_DAMAGE = 2,
+	WLR_SURFACE_STATE_OPAQUE_REGION = 8,
+	WLR_SURFACE_STATE_INPUT_REGION = 16,
+	WLR_SURFACE_STATE_TRANSFORM = 32,
+	WLR_SURFACE_STATE_SCALE = 64,
+	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 128,
+	WLR_SURFACE_STATE_SUBSURFACE_POSITION = 256,
+};
 
 struct wlr_surface_state {
-	uint32_t invalid;
+	uint32_t committed; // enum wlr_surface_state_field
+
 	struct wl_resource *buffer;
 	struct wl_listener buffer_destroy_listener;
 	int32_t sx, sy;
@@ -27,14 +30,14 @@ struct wlr_surface_state {
 	pixman_region32_t opaque, input;
 	enum wl_output_transform transform;
 	int32_t scale;
-	int width, height;
-	int buffer_width, buffer_height;
+	struct wl_list frame_callback_list; // wl_resource
 
 	struct {
 		int32_t x, y;
 	} subsurface_position;
 
-	struct wl_list frame_callback_list; // wl_surface.frame
+	int width, height; // in surface-local coordinates
+	int buffer_width, buffer_height;
 };
 
 struct wlr_subsurface {
