@@ -56,7 +56,7 @@ struct wlr_cursor_state {
 	struct wl_listener layout_destroy;
 };
 
-struct wlr_cursor *wlr_cursor_create() {
+struct wlr_cursor *wlr_cursor_create(void) {
 	struct wlr_cursor *cur = calloc(1, sizeof(struct wlr_cursor));
 	if (!cur) {
 		wlr_log(L_ERROR, "Failed to allocate wlr_cursor");

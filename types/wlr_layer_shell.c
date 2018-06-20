@@ -176,7 +176,9 @@ static void layer_surface_unmap(struct wlr_layer_surface *surface) {
 }
 
 static void layer_surface_destroy(struct wlr_layer_surface *surface) {
-	layer_surface_unmap(surface);
+	if (surface->configured && surface->mapped) {
+		layer_surface_unmap(surface);
+	}
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
 	wl_list_remove(&surface->surface_destroy_listener.link);

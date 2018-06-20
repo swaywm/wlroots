@@ -189,7 +189,8 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	struct roots_output *output = data->output;
 	float rotation = data->layout.rotation;
 
-	if (!wlr_surface_has_buffer(surface)) {
+	struct wlr_texture *texture = wlr_surface_get_texture(surface);
+	if (texture == NULL) {
 		return;
 	}
 
@@ -230,8 +231,7 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_texture_with_matrix(renderer, surface->texture, matrix,
-			data->alpha);
+		wlr_render_texture_with_matrix(renderer, texture, matrix, data->alpha);
 	}
 
 damage_finish:

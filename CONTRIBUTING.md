@@ -96,7 +96,7 @@ not use GNU extensions.
 Brackets always go on the same line, including in functions.
 Always include brackets for if/while/for, even if it's a single statement.
 ```c
-void function() {
+void function(void) {
 	if (condition1) {
 		do_thing1();
 	}

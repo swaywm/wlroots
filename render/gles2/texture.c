@@ -198,18 +198,34 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	return &texture->wlr_texture;
 }
 
+#ifndef DRM_FORMAT_BIG_ENDIAN
+#define DRM_FORMAT_BIG_ENDIAN 0x80000000
+#endif
+
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_buffer_attribs *attribs) {
+		struct wlr_dmabuf_attributes *attribs) {
 	assert(wlr_egl_is_current(egl));
 
 	if (!glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
-	if (!egl->egl_exts.dmabuf_import) {
+	if (!egl->exts.image_dmabuf_import_ext) {
 		wlr_log(L_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
+	}
+
+	switch (attribs->format & ~DRM_FORMAT_BIG_ENDIAN) {
+	case WL_SHM_FORMAT_YUYV:
+	case WL_SHM_FORMAT_YVYU:
+	case WL_SHM_FORMAT_UYVY:
+	case WL_SHM_FORMAT_VYUY:
+	case WL_SHM_FORMAT_AYUV:
+		// TODO: YUV based formats not yet supported, require multiple images
+		return false;
+	default:
+		break;
 	}
 
 	struct wlr_gles2_texture *texture =
@@ -225,7 +241,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	texture->type = WLR_GLES2_TEXTURE_DMABUF;
 	texture->has_alpha = true;
 	texture->inverted_y =
-		(attribs->flags & WLR_DMABUF_BUFFER_ATTRIBS_FLAGS_Y_INVERT) != 0;
+		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
 	texture->image = wlr_egl_create_image_from_dmabuf(egl, attribs);
 	if (texture->image == NULL) {

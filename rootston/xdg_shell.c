@@ -132,15 +132,10 @@ static void get_size(const struct roots_view *view, struct wlr_box *box) {
 	assert(view->type == ROOTS_XDG_SHELL_VIEW);
 	struct wlr_xdg_surface *surface = view->xdg_surface;
 
-	if (surface->geometry.width > 0 && surface->geometry.height > 0) {
-		box->width = surface->geometry.width;
-		box->height = surface->geometry.height;
-	} else if (view->wlr_surface != NULL) {
-		box->width = view->wlr_surface->current->width;
-		box->height = view->wlr_surface->current->height;
-	} else {
-		box->width = box->height = 0;
-	}
+	struct wlr_box geo_box;
+	wlr_xdg_surface_get_geometry(surface, &geo_box);
+	box->width = geo_box.width;
+	box->height = geo_box.height;
 }
 
 static void activate(struct roots_view *view, bool active) {

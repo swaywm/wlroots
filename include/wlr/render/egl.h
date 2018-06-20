@@ -6,7 +6,7 @@
 #include <pixman.h>
 #include <stdbool.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/render/dmabuf.h>
 
 struct wlr_egl {
 	EGLDisplay display;
@@ -16,12 +16,14 @@ struct wlr_egl {
 	const char *exts_str;
 
 	struct {
-		bool buffer_age;
-		bool swap_buffers_with_damage;
-		bool dmabuf_import;
-		bool dmabuf_import_modifiers;
-		bool bind_wayland_display;
-	} egl_exts;
+		bool bind_wayland_display_wl;
+		bool buffer_age_ext;
+		bool image_dmabuf_import_modifiers_ext;
+		bool image_dmabuf_import_ext;
+		bool image_base_khr;
+		bool swap_buffers_with_damage_ext;
+		bool swap_buffers_with_damage_khr;
+	} exts;
 
 	struct wl_display *wl_display;
 };
@@ -65,14 +67,7 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
  * of the dmabuf with wlr_egl_check_import_dmabuf once first.
  */
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
-	struct wlr_dmabuf_buffer_attribs *attributes);
-
-/**
- * Try to import the given dmabuf. On success return true false otherwise.
- * If this succeeds the dmabuf can be used for rendering on a texture
- */
-bool wlr_egl_check_import_dmabuf(struct wlr_egl *egl,
-	struct wlr_dmabuf_buffer *dmabuf);
+	struct wlr_dmabuf_attributes *attributes);
 
 /**
  * Get the available dmabuf formats

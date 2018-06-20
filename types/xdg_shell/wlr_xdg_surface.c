@@ -251,6 +251,13 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 		return;
 	}
 
+	if (width <= 0 || height <= 0) {
+		wlr_log(L_ERROR, "Client tried to set invalid geometry");
+		//XXX: Switch to the proper error value once available
+		wl_resource_post_error(resource, -1, "Tried to set invalid xdg-surface geometry");
+		return;
+	}
+
 	surface->has_next_geometry = true;
 	surface->next_geometry.height = height;
 	surface->next_geometry.width = width;
@@ -474,9 +481,11 @@ static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
 		double *popup_sx, double *popup_sy) {
 	struct wlr_xdg_surface *parent =
 		wlr_xdg_surface_from_wlr_surface(popup->parent);
-	*popup_sx = parent->geometry.x + popup->geometry.x -
+	struct wlr_box parent_geo;
+	wlr_xdg_surface_get_geometry(parent, &parent_geo);
+	*popup_sx = parent_geo.x + popup->geometry.x -
 		popup->base->geometry.x;
-	*popup_sy = parent->geometry.y + popup->geometry.y -
+	*popup_sy = parent_geo.y + popup->geometry.y -
 		popup->base->geometry.y;
 }
 
@@ -545,4 +554,14 @@ static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	xdg_surface_for_each_surface(surface, 0, 0, iterator, user_data);
+}
+
+void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface, struct wlr_box *box) {
+	wlr_surface_get_extends(surface->surface, box);
+	/* The client never set the geometry */
+	if (!surface->geometry.width) {
+		return;
+	}
+
+	wlr_box_intersection(&surface->geometry, box, box);
 }
