@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
 #include "xdg-output-unstable-v1-protocol.h"
+#include "types/wlr_output_layout.h"
 
 #define OUTPUT_MANAGER_VERSION 2
 

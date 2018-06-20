@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "types/wlr_output_layout.h"
 
 struct wlr_cursor_device {
 	struct wlr_cursor *cursor;

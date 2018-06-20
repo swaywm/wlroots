@@ -21,19 +21,6 @@ struct wlr_output_layout {
 	void *data;
 };
 
-struct wlr_output_layout_output_state;
-
-struct wlr_output_layout_output {
-	struct wlr_output *output;
-	int x, y;
-	struct wl_list link;
-	struct wlr_output_layout_output_state *state;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
-};
-
 /**
  * Creates a wlr_output_layout, which can be used to describing outputs in
  * physical space relative to one another, and perform various useful operations
@@ -42,9 +29,6 @@ struct wlr_output_layout_output {
 struct wlr_output_layout *wlr_output_layout_create();
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);
-
-struct wlr_output_layout_output *wlr_output_layout_get(
-		struct wlr_output_layout *layout, struct wlr_output *reference);
 
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double lx, double ly);
