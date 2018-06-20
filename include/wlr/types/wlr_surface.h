@@ -79,9 +79,6 @@ struct wlr_surface {
 	struct wlr_surface_state *current, *pending;
 	const char *role; // the lifetime-bound role or null
 
-	float buffer_to_surface_matrix[9];
-	float surface_to_buffer_matrix[9];
-
 	struct {
 		struct wl_signal commit;
 		struct wl_signal new_subsurface;
