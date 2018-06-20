@@ -8,11 +8,6 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
-struct wlr_frame_callback {
-	struct wl_resource *resource;
-	struct wl_list link;
-};
-
 #define WLR_SURFACE_INVALID_BUFFER 1
 #define WLR_SURFACE_INVALID_SURFACE_DAMAGE 2
 #define WLR_SURFACE_INVALID_BUFFER_DAMAGE 4
