@@ -86,40 +86,25 @@ static void surface_damage(struct wl_client *client,
 		x, y, width, height);
 }
 
-static struct wlr_frame_callback *frame_callback_from_resource(
-		struct wl_resource *resource) {
-	assert(wl_resource_instance_of(resource, &wl_callback_interface, NULL));
-	return wl_resource_get_user_data(resource);
-}
-
 static void callback_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_frame_callback *cb = frame_callback_from_resource(resource);
-	wl_list_remove(&cb->link);
-	free(cb);
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void surface_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	struct wlr_frame_callback *cb =
-		calloc(1, sizeof(struct wlr_frame_callback));
-	if (cb == NULL) {
+	struct wl_resource *callback_resource = wl_resource_create(client,
+		&wl_callback_interface, CALLBACK_VERSION, callback);
+	if (callback_resource == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
-
-	cb->resource = wl_resource_create(client, &wl_callback_interface,
-		CALLBACK_VERSION, callback);
-	if (cb->resource == NULL) {
-		free(cb);
-		wl_resource_post_no_memory(resource);
-		return;
-	}
-	wl_resource_set_implementation(cb->resource, NULL, cb,
+	wl_resource_set_implementation(callback_resource, NULL, NULL,
 		callback_handle_resource_destroy);
 
-	wl_list_insert(surface->pending->frame_callback_list.prev, &cb->link);
+	wl_list_insert(surface->pending->frame_callback_list.prev,
+		wl_resource_get_link(callback_resource));
 
 	surface->pending->invalid |= WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST;
 }
@@ -549,9 +534,9 @@ static struct wlr_surface_state *surface_state_create(void) {
 
 static void surface_state_destroy(struct wlr_surface_state *state) {
 	surface_state_reset_buffer(state);
-	struct wlr_frame_callback *cb, *tmp;
-	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
-		wl_resource_destroy(cb->resource);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &state->frame_callback_list) {
+		wl_resource_destroy(resource);
 	}
 
 	pixman_region32_fini(&state->surface_damage);
@@ -965,11 +950,11 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when) {
-	struct wlr_frame_callback *cb, *cnext;
-	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
-			link) {
-		wl_callback_send_done(cb->resource, timespec_to_msec(when));
-		wl_resource_destroy(cb->resource);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp,
+			&surface->current->frame_callback_list) {
+		wl_callback_send_done(resource, timespec_to_msec(when));
+		wl_resource_destroy(resource);
 	}
 }
 
