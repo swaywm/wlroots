@@ -130,7 +130,7 @@ static void communicate(int sock) {
 	int drm_fd = -1;
 	bool running = true;
 
-	while (running && recv_msg(sock, &drm_fd, &msg, sizeof(msg)) >= 0) {
+	while (running && recv_msg(sock, &drm_fd, &msg, sizeof(msg)) > 0) {
 		switch (msg.type) {
 		case MSG_OPEN:
 			errno = 0;
