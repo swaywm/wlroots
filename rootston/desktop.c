@@ -199,13 +199,13 @@ void view_arrange_maximized(struct roots_view *view) {
 
 	struct wlr_output *output = view_get_output(view);
 	struct roots_output *roots_output = output->data;
-	struct wlr_box *output_box =
-		wlr_output_layout_get_box(view->desktop->layout, output);
+	struct wlr_box output_box;
+	wlr_output_layout_get_box(view->desktop->layout, output, &output_box);
 	struct wlr_box usable_area;
 	memcpy(&usable_area, &roots_output->usable_area,
 			sizeof(struct wlr_box));
-	usable_area.x += output_box->x;
-	usable_area.y += output_box->y;
+	usable_area.x += output_box.x;
+	usable_area.y += output_box.y;
 
 	view_move_resize(view, usable_area.x, usable_area.y,
 			usable_area.width, usable_area.height);
@@ -274,10 +274,10 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 		view->saved.width = view_box.width;
 		view->saved.height = view_box.height;
 
-		struct wlr_box *output_box =
-			wlr_output_layout_get_box(view->desktop->layout, output);
-		view_move_resize(view, output_box->x, output_box->y, output_box->width,
-			output_box->height);
+		struct wlr_box output_box;
+		wlr_output_layout_get_box(view->desktop->layout, output, &output_box);
+		view_move_resize(view, output_box.x, output_box.y, output_box.width,
+			output_box.height);
 		view_rotate(view, 0);
 
 		roots_output->fullscreen_view = view;
@@ -341,14 +341,14 @@ bool view_center(struct roots_view *view) {
 		return false;
 	}
 
-	struct wlr_box *layout_box =
-        wlr_output_layout_get_box(desktop->layout, output);
+	struct wlr_box layout_box;
+	wlr_output_layout_get_box(desktop->layout, output, &layout_box);
 
 	int width, height;
 	wlr_output_effective_resolution(output, &width, &height);
 
-	double view_x = (double)(width - box.width) / 2 + layout_box->x;
-	double view_y = (double)(height - box.height) / 2 + layout_box->y;
+	double view_x = (double)(width - box.width) / 2 + layout_box.x;
+	double view_y = (double)(height - box.height) / 2 + layout_box.y;
 	view_move(view, view_x, view_y);
 
 	return true;
@@ -717,10 +717,10 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	struct wlr_box *center_output_box =
-		wlr_output_layout_get_box(desktop->layout, center_output);
-	double center_x = center_output_box->x + center_output_box->width/2;
-	double center_y = center_output_box->y + center_output_box->height/2;
+	struct wlr_box center_output_box;
+	wlr_output_layout_get_box(desktop->layout, center_output, &center_output_box);
+	double center_x = center_output_box.x + center_output_box.width/2;
+	double center_y = center_output_box.y + center_output_box.height/2;
 
 	struct roots_view *view;
 	wl_list_for_each(view, &desktop->views, link) {

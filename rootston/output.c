@@ -402,8 +402,8 @@ static void render_output(struct roots_output *output) {
 
 	float clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
-	const struct wlr_box *output_box =
-		wlr_output_layout_get_box(desktop->layout, wlr_output);
+	struct wlr_box output_box;
+	wlr_output_layout_get_box(desktop->layout, wlr_output, &output_box);
 
 	// Check if we can delegate the fullscreen surface to the output
 	if (output->fullscreen_view != NULL &&
@@ -413,10 +413,10 @@ static void render_output(struct roots_output *output) {
 		// Make sure the view is centered on screen
 		struct wlr_box view_box;
 		view_get_box(view, &view_box);
-		double view_x = (double)(output_box->width - view_box.width) / 2 +
-			output_box->x;
-		double view_y = (double)(output_box->height - view_box.height) / 2 +
-			output_box->y;
+		double view_x = (double)(output_box.width - view_box.width) / 2 +
+			output_box.x;
+		double view_y = (double)(output_box.height - view_box.height) / 2 +
+			output_box.y;
 		view_move(view, view_x, view_y);
 
 		if (has_standalone_surface(view)) {
@@ -468,9 +468,9 @@ static void render_output(struct roots_output *output) {
 		wlr_renderer_clear(renderer, clear_color);
 	}
 
-	render_layer(output, output_box, &data,
+	render_layer(output, &output_box, &data,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]);
-	render_layer(output, output_box, &data,
+	render_layer(output, &output_box, &data,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]);
 
 	// If a view is fullscreen on this output, render it
@@ -502,7 +502,7 @@ static void render_output(struct roots_output *output) {
 			render_view(view, &data);
 		}
 		// Render top layer above shell views
-		render_layer(output, output_box, &data,
+		render_layer(output, &output_box, &data,
 				&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
 	}
 
@@ -511,7 +511,7 @@ static void render_output(struct roots_output *output) {
 	drag_icons_for_each_surface(server->input, render_surface, &data.layout,
 		&data);
 
-	render_layer(output, output_box, &data,
+	render_layer(output, &output_box, &data,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
 renderer_end:
@@ -621,10 +621,10 @@ static void damage_whole_surface(struct wlr_surface *surface, int sx, int sy,
 
 void output_damage_whole_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
-	struct wlr_box *box =
-        wlr_output_layout_get_box(output->desktop->layout, output->wlr_output);
+	struct wlr_box box;
+	wlr_output_layout_get_box(output->desktop->layout, output->wlr_output, &box);
 	struct damage_data data = { .output = output };
-	surface_for_each_surface(surface, ox + box->x, oy + box->y, 0,
+	surface_for_each_surface(surface, ox + box.x, oy + box.y, 0,
 		&data.layout, damage_whole_surface, &data);
 }
 
@@ -703,10 +703,10 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 
 void output_damage_from_local_surface(struct roots_output *output,
 		struct wlr_surface *surface, double ox, double oy, float rotation) {
-	struct wlr_box *box =
-        wlr_output_layout_get_box(output->desktop->layout, output->wlr_output);
+	struct wlr_box box;
+	wlr_output_layout_get_box(output->desktop->layout, output->wlr_output, &box);
 	struct damage_data data = { .output = output };
-	surface_for_each_surface(surface, ox + box->x, oy + box->y, 0,
+	surface_for_each_surface(surface, ox + box.x, oy + box.y, 0,
 		&data.layout, damage_from_surface, &data);
 }
 

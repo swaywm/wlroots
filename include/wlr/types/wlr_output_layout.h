@@ -82,10 +82,11 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 /**
  * Get the box of the layout for the given reference output in layout
  * coordinates. If `reference` is NULL, the box will be for the extents of the
- * entire layout.
+ * entire layout. Returns false if the reference output is present and not in
+ * the layout or there are no outputs in the layout.
  */
-struct wlr_box *wlr_output_layout_get_box(
-		struct wlr_output_layout *layout, struct wlr_output *reference);
+bool wlr_output_layout_get_box(struct wlr_output_layout *layout,
+		struct wlr_output *reference, struct wlr_box *box);
 
 /**
 * Add an auto configured output to the layout. This will place the output in a

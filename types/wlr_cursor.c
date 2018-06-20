@@ -203,46 +203,51 @@ static void cursor_warp_unchecked(struct wlr_cursor *cur,
  * Absolute movement for touch and pen devices will be relative to this box and
  * pointer movement will be constrained to this box.
  *
- * If none of these are set, returns NULL and absolute movement should be
+ * If none of these are set, returns false and absolute movement should be
  * relative to the extents of the layout.
  */
-static struct wlr_box *get_mapping(struct wlr_cursor *cur,
-		struct wlr_input_device *dev) {
+static bool get_mapping(struct wlr_cursor *cur,
+		struct wlr_input_device *dev, struct wlr_box *box) {
 	assert(cur->state->layout);
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 
 	if (c_device) {
 		if (c_device->mapped_box) {
-			return c_device->mapped_box;
+			memcpy(box, c_device->mapped_box, sizeof(struct wlr_box));
+			return true;
 		}
-		if (c_device->mapped_output) {
-			return wlr_output_layout_get_box(cur->state->layout,
-				c_device->mapped_output);
+		if (c_device->mapped_output &&
+				wlr_output_layout_get_box(cur->state->layout,
+					c_device->mapped_output, box)) {
+			return true;
 		}
 	}
 
 	if (cur->state->mapped_box) {
-		return cur->state->mapped_box;
-	}
-	if (cur->state->mapped_output) {
-		return wlr_output_layout_get_box(cur->state->layout,
-			cur->state->mapped_output);
+		memcpy(box, cur->state->mapped_box, sizeof(struct wlr_box));
+		return true;
 	}
 
-	return NULL;
+	if (cur->state->mapped_output &&
+			wlr_output_layout_get_box(cur->state->layout,
+				cur->state->mapped_output, box)) {
+		return true;
+	}
+
+	return false;
 }
 
 bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 		double lx, double ly) {
 	assert(cur->state->layout);
 
+	struct wlr_box mapping;
 	bool result = false;
-	struct wlr_box *mapping = get_mapping(cur, dev);
-	if (mapping) {
-		result = wlr_box_contains_point(mapping, lx, ly);
+	if (get_mapping(cur, dev, &mapping)) {
+		result = wlr_box_contains_point(&mapping, lx, ly);
 	} else {
-		result = wlr_output_layout_contains_point(cur->state->layout, NULL,
-			lx, ly);
+		result =
+			wlr_output_layout_contains_point(cur->state->layout, NULL, lx, ly);
 	}
 
 	if (result) {
@@ -254,9 +259,9 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 
 static void cursor_warp_closest(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, double lx, double ly) {
-	struct wlr_box *mapping = get_mapping(cur, dev);
-	if (mapping) {
-		wlr_box_closest_point(mapping, lx, ly, &lx, &ly);
+	struct wlr_box mapping;
+	if (get_mapping(cur, dev, &mapping)) {
+		wlr_box_closest_point(&mapping, lx, ly, &lx, &ly);
 	} else {
 		wlr_output_layout_closest_point(cur->state->layout, NULL, lx, ly,
 			&lx, &ly);
@@ -270,13 +275,17 @@ void wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
 		double *lx, double *ly) {
 	assert(cur->state->layout);
 
-	struct wlr_box *mapping = get_mapping(cur, dev);
-	if (!mapping) {
-		mapping = wlr_output_layout_get_box(cur->state->layout, NULL);
+	struct wlr_box mapping;
+	if (!get_mapping(cur, dev, &mapping) &&
+			!wlr_output_layout_get_box(cur->state->layout, NULL, &mapping)) {
+		// no outputs in the layout
+		*lx = 0;
+		*ly = 0;
+		return;
 	}
 
-	*lx = !isnan(x) ? mapping->width * x + mapping->x : cur->x;
-	*ly = !isnan(y) ? mapping->height * y + mapping->y : cur->y;
+	*lx = !isnan(x) ? mapping.width * x + mapping.x : cur->x;
+	*ly = !isnan(y) ? mapping.height * y + mapping.y : cur->y;
 }
 
 void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
