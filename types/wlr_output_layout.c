@@ -37,12 +37,11 @@ static void output_layout_output_destroy(
 		struct wlr_output_layout_output *l_output) {
 	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
 	wlr_output_destroy_global(l_output->output);
-	wl_list_remove(&l_output->state->mode.link);
-	wl_list_remove(&l_output->state->scale.link);
-	wl_list_remove(&l_output->state->transform.link);
-	wl_list_remove(&l_output->state->output_destroy.link);
+	wl_list_remove(&l_output->mode.link);
+	wl_list_remove(&l_output->scale.link);
+	wl_list_remove(&l_output->transform.link);
+	wl_list_remove(&l_output->output_destroy.link);
 	wl_list_remove(&l_output->link);
-	free(l_output->state);
 	free(l_output);
 }
 
@@ -88,7 +87,7 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 	// in the layout
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (l_output->state->auto_configured) {
+		if (l_output->auto_configured) {
 			continue;
 		}
 
@@ -107,7 +106,7 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 	}
 
 	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (!l_output->state->auto_configured) {
+		if (!l_output->auto_configured) {
 			continue;
 		}
 		struct wlr_box box;
@@ -125,28 +124,28 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 }
 
 static void handle_output_mode(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, mode);
-	output_layout_reconfigure(state->layout);
+	struct wlr_output_layout_output *l_output =
+		wl_container_of(listener, l_output, mode);
+	output_layout_reconfigure(l_output->layout);
 }
 
 static void handle_output_scale(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, scale);
-	output_layout_reconfigure(state->layout);
+	struct wlr_output_layout_output *l_output =
+		wl_container_of(listener, l_output, scale);
+	output_layout_reconfigure(l_output->layout);
 }
 
 static void handle_output_transform(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, transform);
-	output_layout_reconfigure(state->layout);
+	struct wlr_output_layout_output *l_output =
+		wl_container_of(listener, l_output, transform);
+	output_layout_reconfigure(l_output->layout);
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, output_destroy);
-	struct wlr_output_layout *layout = state->layout;
-	output_layout_output_destroy(state->l_output);
+	struct wlr_output_layout_output *l_output =
+		wl_container_of(listener, l_output, output_destroy);
+	struct wlr_output_layout *layout = l_output->layout;
+	output_layout_output_destroy(l_output);
 	output_layout_reconfigure(layout);
 }
 
@@ -157,25 +156,20 @@ static struct wlr_output_layout_output *output_layout_output_create(
 	if (l_output == NULL) {
 		return NULL;
 	}
-	l_output->state = calloc(1, sizeof(struct wlr_output_layout_output_state));
-	if (l_output->state == NULL) {
-		free(l_output);
-		return NULL;
-	}
-	l_output->state->l_output = l_output;
-	l_output->state->layout = layout;
+
+	l_output->layout = layout;
 	l_output->output = output;
 	wl_signal_init(&l_output->events.destroy);
 	wl_list_insert(&layout->outputs, &l_output->link);
 
-	wl_signal_add(&output->events.mode, &l_output->state->mode);
-	l_output->state->mode.notify = handle_output_mode;
-	wl_signal_add(&output->events.scale, &l_output->state->scale);
-	l_output->state->scale.notify = handle_output_scale;
-	wl_signal_add(&output->events.transform, &l_output->state->transform);
-	l_output->state->transform.notify = handle_output_transform;
-	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
-	l_output->state->output_destroy.notify = handle_output_destroy;
+	wl_signal_add(&output->events.mode, &l_output->mode);
+	l_output->mode.notify = handle_output_mode;
+	wl_signal_add(&output->events.scale, &l_output->scale);
+	l_output->scale.notify = handle_output_scale;
+	wl_signal_add(&output->events.transform, &l_output->transform);
+	l_output->transform.notify = handle_output_transform;
+	wl_signal_add(&output->events.destroy, &l_output->output_destroy);
+	l_output->output_destroy.notify = handle_output_destroy;
 
 	return l_output;
 }
@@ -193,7 +187,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	}
 	l_output->x = lx;
 	l_output->y = ly;
-	l_output->state->auto_configured = false;
+	l_output->auto_configured = false;
 	output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
@@ -275,7 +269,7 @@ void wlr_output_layout_move(struct wlr_output_layout *layout,
 	if (l_output) {
 		l_output->x = lx;
 		l_output->y = ly;
-		l_output->state->auto_configured = false;
+		l_output->auto_configured = false;
 		output_layout_reconfigure(layout);
 	} else {
 		wlr_log(L_ERROR, "output not found in this layout: %s", output->name);
@@ -414,7 +408,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		}
 	}
 
-	l_output->state->auto_configured = true;
+	l_output->auto_configured = true;
 	output_layout_reconfigure(layout);
 	wlr_output_create_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
