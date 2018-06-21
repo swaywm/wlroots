@@ -17,7 +17,6 @@ enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_TRANSFORM = 32,
 	WLR_SURFACE_STATE_SCALE = 64,
 	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 128,
-	WLR_SURFACE_STATE_SUBSURFACE_POSITION = 256,
 };
 
 struct wlr_surface_state {
@@ -32,36 +31,8 @@ struct wlr_surface_state {
 	int32_t scale;
 	struct wl_list frame_callback_list; // wl_resource
 
-	struct {
-		int32_t x, y;
-	} subsurface_position;
-
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
-};
-
-struct wlr_subsurface {
-	struct wl_resource *resource;
-	struct wlr_surface *surface;
-	struct wlr_surface *parent;
-
-	struct wlr_surface_state *cached;
-	bool has_cache;
-
-	bool synchronized;
-	bool reordered;
-
-	struct wl_list parent_link;
-	struct wl_list parent_pending_link;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener parent_destroy;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
-
-	void *data;
 };
 
 struct wlr_surface {
@@ -93,6 +64,36 @@ struct wlr_surface {
 	struct wl_list subsurface_pending_list;
 
 	struct wl_listener renderer_destroy;
+
+	void *data;
+};
+
+struct wlr_subsurface_state {
+	int32_t x, y;
+};
+
+struct wlr_subsurface {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wlr_surface *parent;
+
+	struct wlr_subsurface_state current, pending;
+
+	struct wlr_surface_state *cached;
+	bool has_cache;
+
+	bool synchronized;
+	bool reordered;
+
+	struct wl_list parent_link;
+	struct wl_list parent_pending_link;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener parent_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 
 	void *data;
 };
