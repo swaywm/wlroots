@@ -23,7 +23,6 @@ struct wlr_surface_state {
 	uint32_t committed; // enum wlr_surface_state_field
 
 	struct wl_resource *buffer;
-	struct wl_listener buffer_destroy_listener;
 	int32_t sx, sy;
 	pixman_region32_t surface_damage, buffer_damage;
 	pixman_region32_t opaque, input;
@@ -33,6 +32,8 @@ struct wlr_surface_state {
 
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
+
+	struct wl_listener buffer_destroy_listener;
 };
 
 struct wlr_surface {
@@ -45,7 +46,12 @@ struct wlr_surface {
 	 * or something went wrong with uploading the buffer.
 	 */
 	struct wlr_buffer *buffer;
-	struct wlr_surface_state *current, *pending;
+	/**
+	 * `current` contains the current, committed surface state. `pending`
+	 * accumulates state changes from the client between commits and shouldn't
+	 * be accessed by the compositor directly.
+	 */
+	struct wlr_surface_state current, pending;
 	const char *role; // the lifetime-bound role or null
 
 	struct {
@@ -79,7 +85,7 @@ struct wlr_subsurface {
 
 	struct wlr_subsurface_state current, pending;
 
-	struct wlr_surface_state *cached;
+	struct wlr_surface_state cached;
 	bool has_cache;
 
 	bool synchronized;

@@ -69,8 +69,8 @@ enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx,
 		return ROOTS_DECO_PART_NONE;
 	}
 
-	int sw = view->wlr_surface->current->width;
-	int sh = view->wlr_surface->current->height;
+	int sw = view->wlr_surface->current.width;
+	int sh = view->wlr_surface->current.height;
 	int bw = view->border_width;
 	int titlebar_h = view->titlebar_height;
 
@@ -558,7 +558,7 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 	double view_sx = lx - view->x;
 	double view_sy = ly - view->y;
 
-	struct wlr_surface_state *state = view->wlr_surface->current;
+	struct wlr_surface_state *state = &view->wlr_surface->current;
 	struct wlr_box box = {
 		.x = 0, .y = 0,
 		.width = state->width, .height = state->height,

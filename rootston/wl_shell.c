@@ -158,8 +158,8 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 	view_apply_damage(view);
 
-	int width = wlr_surface->current->width;
-	int height = wlr_surface->current->height;
+	int width = wlr_surface->current.width;
+	int height = wlr_surface->current.height;
 	view_update_size(view, width, height);
 
 	double x = view->x;
@@ -236,8 +236,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view->type = ROOTS_WL_SHELL_VIEW;
-	view->width = surface->surface->current->width;
-	view->height = surface->surface->current->height;
+	view->width = surface->surface->current.width;
+	view->height = surface->surface->current.height;
 
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
