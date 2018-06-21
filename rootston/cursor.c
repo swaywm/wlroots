@@ -256,10 +256,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			lx, ly, &sx, &sy, &view);
 
-	if (cursor->mode != ROOTS_CURSOR_GRABBED) {
-		cursor->grabbed_view = view;
-	}
-
 	if (state == WLR_BUTTON_PRESSED && view &&
 			roots_seat_has_meta_pressed(seat)) {
 		roots_seat_set_focus(seat, view);
@@ -287,41 +283,51 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			roots_seat_begin_rotate(seat, view);
 			break;
 		}
+
+		if (!is_touch) {
+			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		}
 	} else {
+		if (cursor->mode != ROOTS_CURSOR_GRABBED) {
+			cursor->grabbed_view = view;
+		}
+
 		if (view && !surface && cursor->deco_view) {
 			seat_view_deco_button(cursor->deco_view,
 					sx, sy, button, state);
+		}
+
+		if (cursor->mode == ROOTS_CURSOR_PASSTHROUGH) {
+			switch (state) {
+				case WLR_BUTTON_RELEASED:
+					if (!is_touch) {
+						roots_cursor_update_position(cursor, time);
+					}
+					break;
+				case WLR_BUTTON_PRESSED:
+					if (view) {
+						roots_seat_set_focus(seat, view);
+					}
+					if (surface && wlr_surface_is_layer_surface(surface)) {
+						struct wlr_layer_surface *layer =
+							wlr_layer_surface_from_wlr_surface(surface);
+						if (layer->current.keyboard_interactive) {
+							roots_seat_set_focus_layer(seat, layer);
+						}
+					}
+					break;
+			}
 		}
 
 		if (!is_touch) {
 			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 		}
 
-		if (cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-			if (cursor->mode != ROOTS_CURSOR_GRABBED ||
-					seat->seat->pointer_state.button_count == 0) {
-				cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-			}
-		}
-
-		switch (state) {
-		case WLR_BUTTON_RELEASED:
-			if (!is_touch) {
-				roots_cursor_update_position(cursor, time);
-			}
-			break;
-		case WLR_BUTTON_PRESSED:
-			if (view) {
-				roots_seat_set_focus(seat, view);
-			}
-			if (surface && wlr_surface_is_layer_surface(surface)) {
-				struct wlr_layer_surface *layer =
-					wlr_layer_surface_from_wlr_surface(surface);
-				if (layer->current.keyboard_interactive) {
-					roots_seat_set_focus_layer(seat, layer);
-				}
-			}
-			break;
+		if (cursor->mode != ROOTS_CURSOR_PASSTHROUGH &&
+				(cursor->mode != ROOTS_CURSOR_GRABBED ||
+				seat->seat->pointer_state.button_count == 0)) {
+			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+			cursor->grabbed_view = NULL;
 		}
 	}
 }
