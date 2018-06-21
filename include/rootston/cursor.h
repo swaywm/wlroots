@@ -8,6 +8,7 @@ enum roots_cursor_mode {
 	ROOTS_CURSOR_MOVE = 1,
 	ROOTS_CURSOR_RESIZE = 2,
 	ROOTS_CURSOR_ROTATE = 3,
+	ROOTS_CURSOR_GRABBED = 4,
 };
 
 struct roots_cursor {
@@ -28,6 +29,7 @@ struct roots_cursor {
 	uint32_t resize_edges;
 
 	struct roots_seat_view *deco_view;
+	struct roots_view *grabbed_view;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;

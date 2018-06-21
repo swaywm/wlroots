@@ -1013,6 +1013,7 @@ void roots_seat_end_compositor_grab(struct roots_seat *seat) {
 		case ROOTS_CURSOR_ROTATE:
 			view->rotation = cursor->view_rotation;
 			break;
+		case ROOTS_CURSOR_GRABBED:
 		case ROOTS_CURSOR_PASSTHROUGH:
 			break;
 	}

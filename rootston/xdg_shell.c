@@ -47,7 +47,15 @@ static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
 	struct roots_xdg_popup *popup =
 		wl_container_of(listener, popup, new_popup);
 	struct wlr_xdg_popup *wlr_popup = data;
-	popup_create(popup->view_child.view, wlr_popup);
+
+	struct roots_seat *seat =
+		input_seat_from_wlr_seat(popup->view_child.view->desktop->server->input, wlr_popup->seat);
+
+	if (seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+		wlr_xdg_surface_send_close(wlr_popup->base);
+	} else {
+		popup_create(popup->view_child.view, wlr_popup);
+	}
 }
 
 static void popup_unconstrain(struct roots_xdg_popup *popup) {

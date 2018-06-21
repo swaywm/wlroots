@@ -31,7 +31,8 @@ void roots_cursor_destroy(struct roots_cursor *cursor) {
 	// TODO
 }
 
-static void seat_view_deco_motion(struct roots_seat_view *view, double deco_sx, double deco_sy) {
+static void seat_view_deco_motion(struct roots_seat_view *view,
+		double deco_sx, double deco_sy) {
 	struct roots_cursor *cursor = view->seat->cursor;
 
 	double sx = deco_sx;
@@ -153,13 +154,35 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	}
 }
 
+static void roots_grabbed_cursor(struct roots_cursor *cursor,
+		uint32_t time) {
+	struct roots_seat *seat = cursor->seat;
+	struct roots_view *view = cursor->grabbed_view;
+	double sx = cursor->cursor->x - view->x;
+	double sy = cursor->cursor->y - view->y;
+	if (view && view->wlr_surface) {
+		wlr_seat_pointer_notify_enter(seat->seat, view->wlr_surface, sx, sy);
+		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+	}
+}
+
 static void roots_cursor_update_position(
 		struct roots_cursor *cursor, uint32_t time) {
 	struct roots_seat *seat = cursor->seat;
 	struct roots_view *view;
+
+	if (cursor->mode == ROOTS_CURSOR_PASSTHROUGH &&
+			seat->seat->pointer_state.button_count > 0 &&
+			cursor->grabbed_view) {
+		cursor->mode = ROOTS_CURSOR_GRABBED;
+	}
+
 	switch (cursor->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
 		roots_passthrough_cursor(cursor, time);
+		break;
+	case ROOTS_CURSOR_GRABBED:
+		roots_grabbed_cursor(cursor, time);
 		break;
 	case ROOTS_CURSOR_MOVE:
 		view = roots_seat_get_focus(seat);
@@ -233,6 +256,10 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			lx, ly, &sx, &sy, &view);
 
+	if (cursor->mode != ROOTS_CURSOR_GRABBED) {
+		cursor->grabbed_view = view;
+	}
+
 	if (state == WLR_BUTTON_PRESSED && view &&
 			roots_seat_has_meta_pressed(seat)) {
 		roots_seat_set_focus(seat, view);
@@ -266,9 +293,15 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 					sx, sy, button, state);
 		}
 
-		if (state == WLR_BUTTON_RELEASED &&
-				cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		if (!is_touch) {
+			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		}
+
+		if (cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+			if (cursor->mode != ROOTS_CURSOR_GRABBED ||
+					seat->seat->pointer_state.button_count == 0) {
+				cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+			}
 		}
 
 		switch (state) {
@@ -290,10 +323,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			}
 			break;
 		}
-	}
-
-	if (!is_touch) {
-		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 	}
 }
 
