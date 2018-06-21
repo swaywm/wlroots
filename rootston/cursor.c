@@ -173,7 +173,8 @@ static void roots_cursor_update_position(
 
 	if (cursor->mode == ROOTS_CURSOR_PASSTHROUGH &&
 			seat->seat->pointer_state.button_count > 0 &&
-			cursor->grabbed_view) {
+			cursor->grabbed_view &&
+			!wlr_seat_pointer_has_grab(seat->seat)) {
 		cursor->mode = ROOTS_CURSOR_GRABBED;
 	}
 
