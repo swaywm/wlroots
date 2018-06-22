@@ -21,6 +21,7 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 		void *_data) {
 	struct wlr_screencopy_frame_v1 *frame =
 		wl_container_of(listener, frame, output_swap_buffers);
+	struct wlr_output_event_swap_buffers *event = _data;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
@@ -51,7 +52,10 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 		return;
 	}
 
-	zwlr_screencopy_frame_v1_send_ready(frame->resource);
+	uint32_t tv_sec_hi = event->when->tv_sec >> 32;
+	uint32_t tv_sec_lo = event->when->tv_sec & 0xFFFFFFFF;
+	zwlr_screencopy_frame_v1_send_ready(frame->resource,
+		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 
 	// TODO: make frame resource inert
 }
@@ -134,7 +138,7 @@ static struct wlr_screencopy_manager_v1 *manager_from_resource(
 
 static void manager_handle_capture_output(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
-		struct wl_resource *output_resource) {
+		int32_t overlay_cursor, struct wl_resource *output_resource) {
 	struct wlr_screencopy_manager_v1 *manager =
 		manager_from_resource(manager_resource);
 	struct wlr_output *output = wlr_output_from_resource(output_resource);

@@ -113,7 +113,8 @@ static void frame_handle_buffer(void *data,
 }
 
 static void frame_handle_ready(void *data,
-		struct zwlr_screencopy_frame_v1 *frame) {
+		struct zwlr_screencopy_frame_v1 *frame, uint32_t tv_sec_hi,
+		uint32_t tv_sec_lo, uint32_t tv_nsec) {
 	buffer_copy_done = true;
 }
 
@@ -217,7 +218,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	struct zwlr_screencopy_frame_v1 *frame =
-		zwlr_screencopy_manager_v1_capture_output(screencopy_manager, output);
+		zwlr_screencopy_manager_v1_capture_output(screencopy_manager, 0, output);
 	zwlr_screencopy_frame_v1_add_listener(frame, &frame_listener, NULL);
 
 	while (!buffer_copy_done) {

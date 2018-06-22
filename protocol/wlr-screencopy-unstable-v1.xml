@@ -26,6 +26,15 @@
   <description summary="screen content capturing on client buffers">
     This protocol allows clients to ask the compositor to copy part of the
     screen content to a client buffer.
+
+    Warning! The protocol described in this file is experimental and
+    backward incompatible changes may be made. Backward compatible changes
+    may be added together with the corresponding interface version bump.
+    Backward incompatible changes are done by bumping the version number in
+    the protocol and interface names and resetting the interface version.
+    Once the protocol is to be declared stable, the 'z' prefix and the
+    version number in the protocol and interface names are removed and the
+    interface version number is reset.
   </description>
 
   <interface name="zwlr_screencopy_manager_v1" version="1">
@@ -36,9 +45,11 @@
 
     <request name="capture_output">
       <description summary="start capturing">
-        Request to start capturing from the given output.
+        Capture the next frame of a an entire output.
       </description>
       <arg name="frame" type="new_id" interface="zwlr_screencopy_frame_v1"/>
+      <arg name="overlay_cursor" type="int"
+        summary="include custom client hardware cursor on top of the frame"/>
       <arg name="output" type="object" interface="wl_output"/>
     </request>
 
@@ -52,8 +63,17 @@
 
   <interface name="zwlr_screencopy_frame_v1" version="1">
     <description summary="a frame ready for copy">
-      This object represents a frame which is ready to have its resources
-      fetched and used.
+      This object represents a single frame.
+
+      When created, a "buffer" event will be sent. The client will then be able
+      to send a "copy" request. If the capture is successful, the compositor
+      will finally a "ready" event.
+
+      If the capture failed, the "failed" event is sent. This can happen anytime
+      before the "ready" event.
+
+      Once either a "ready" or a "failed" event is received, the client should
+      destroy the frame.
     </description>
 
     <enum name="flags" bitfield="true">
@@ -99,23 +119,37 @@
     <event name="ready">
       <description summary="indicates frame is available for reading">
         Called as soon as the frame is copied, indicating it is available
-        for reading.
+        for reading. This event includes the time at which presentation happened
+        at.
 
-        Upon receiving this event, the client should destroy the object.
+        The timestamp is expressed as tv_sec_hi, tv_sec_lo, tv_nsec triples,
+        each component being an unsigned 32-bit value. Whole seconds are in
+        tv_sec which is a 64-bit value combined from tv_sec_hi and tv_sec_lo,
+        and the additional fractional part in tv_nsec as nanoseconds. Hence,
+        for valid timestamps tv_nsec must be in [0, 999999999]. The seconds part
+        may have an arbitrary offset at start.
+
+        After receiving this event, the client should destroy the object.
       </description>
+      <arg name="tv_sec_hi" type="uint"
+           summary="high 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_sec_lo" type="uint"
+           summary="low 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_nsec" type="uint"
+           summary="nanoseconds part of the timestamp"/>
     </event>
 
     <event name="failed">
       <description summary="frame copy failed">
         This event indicates that the attempted frame copy has failed.
 
-        Upon receiving this event, the client should destroy the object.
+        After receiving this event, the client should destroy the object.
       </description>
     </event>
 
     <request name="destroy" type="destructor">
       <description summary="delete this object, used or not">
-        Destroys the frame.
+        Destroys the frame. This request can be sent at any time by the client.
       </description>
     </request>
   </interface>
