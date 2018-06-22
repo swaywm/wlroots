@@ -74,6 +74,34 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
+		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+
+	if (!texture->image) {
+		assert(texture->type == WLR_GLES2_TEXTURE_GLTEX);
+
+		if (!eglCreateImageKHR) {
+			return false;
+		}
+
+		texture->image = eglCreateImageKHR(texture->egl->display,
+			texture->egl->context, EGL_GL_TEXTURE_2D_KHR,
+			(EGLClientBuffer)(uintptr_t)texture->gl_tex, NULL);
+		if (texture->image == EGL_NO_IMAGE_KHR) {
+			return false;
+		}
+	}
+
+	uint32_t flags = 0;
+	if (texture->inverted_y) {
+		flags |= WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
+	}
+
+	return wlr_egl_export_image_to_dmabuf(texture->egl, texture->image,
+		texture->width, texture->height, flags, attribs);
+}
+
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	if (wlr_texture == NULL) {
 		return;
@@ -102,6 +130,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.get_size = gles2_texture_get_size,
 	.write_pixels = gles2_texture_write_pixels,
+	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
 };
 

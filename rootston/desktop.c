@@ -7,9 +7,10 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_gamma_control.h>
-#include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
 #include <wlr/types/wlr_linux_dmabuf.h>
@@ -18,9 +19,9 @@
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_xdg_output.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
 #include "rootston/layers.h"
 #include "rootston/seat.h"
@@ -845,6 +846,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
 		server->wl_display);
 	desktop->screenshooter = wlr_screenshooter_create(server->wl_display);
+	desktop->export_dmabuf_manager_v1 =
+		wlr_export_dmabuf_manager_v1_create(server->wl_display);
 	desktop->server_decoration_manager =
 		wlr_server_decoration_manager_create(server->wl_display);
 	wlr_server_decoration_manager_set_default_mode(

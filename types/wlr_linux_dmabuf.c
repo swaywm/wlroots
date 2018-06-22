@@ -52,11 +52,7 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_buffer_resource(
 }
 
 static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_buffer *buffer) {
-	for (int i = 0; i < buffer->attributes.n_planes; i++) {
-		close(buffer->attributes.fd[i]);
-		buffer->attributes.fd[i] = -1;
-	}
-	buffer->attributes.n_planes = 0;
+	wlr_dmabuf_attributes_finish(&buffer->attributes);
 	free(buffer);
 }
 

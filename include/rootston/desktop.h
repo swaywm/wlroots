@@ -45,6 +45,7 @@ struct roots_desktop {
 	struct wlr_xdg_shell *xdg_shell;
 	struct wlr_gamma_control_manager *gamma_control_manager;
 	struct wlr_screenshooter *screenshooter;
+	struct wlr_export_dmabuf_manager_v1 *export_dmabuf_manager_v1;
 	struct wlr_server_decoration_manager *server_decoration_manager;
 	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;

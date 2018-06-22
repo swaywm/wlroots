@@ -164,6 +164,11 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	egl->exts.image_dmabuf_import_modifiers_ext =
 		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
 		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
+
+	egl->exts.image_dma_buf_export_mesa =
+		check_egl_ext(egl->exts_str, "EGL_MESA_image_dma_buf_export") &&
+		eglExportDMABUFImageQueryMESA && eglExportDMABUFImageMESA;
+
 	print_dmabuf_formats(egl);
 
 	egl->exts.bind_wayland_display_wl =
@@ -509,6 +514,37 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		return -1;
 	}
 	return num;
+}
+
+bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
+		int32_t width, int32_t height, uint32_t flags,
+		struct wlr_dmabuf_attributes *attribs) {
+	memset(attribs, 0, sizeof(struct wlr_dmabuf_attributes));
+
+	if (!egl->exts.image_dma_buf_export_mesa) {
+		return false;
+	}
+
+	// Only one set of modifiers is returned for all planes
+	if (!eglExportDMABUFImageQueryMESA(egl->display, image,
+			(int *)&attribs->format, &attribs->n_planes, &attribs->modifier)) {
+		return false;
+	}
+	if (attribs->n_planes > WLR_DMABUF_MAX_PLANES) {
+		wlr_log(L_ERROR, "EGL returned %d planes, but only %d are supported",
+			attribs->n_planes, WLR_DMABUF_MAX_PLANES);
+		return false;
+	}
+
+	if (!eglExportDMABUFImageMESA(egl->display, image, attribs->fd,
+			(EGLint *)attribs->stride, (EGLint *)attribs->offset)) {
+		return false;
+	}
+
+	attribs->width = width;
+	attribs->height = height;
+	attribs->flags = flags;
+	return true;
 }
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {

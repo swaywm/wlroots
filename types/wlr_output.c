@@ -467,7 +467,12 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	wlr_signal_emit_safe(&output->events.swap_buffers, damage);
+	struct wlr_output_event_swap_buffers event = {
+		.output = output,
+		.when = when,
+		.damage = damage,
+	};
+	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
@@ -558,6 +563,14 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 		return 0;
 	}
 	return output->impl->get_gamma_size(output);
+}
+
+bool wlr_output_export_dmabuf(struct wlr_output *output,
+		struct wlr_dmabuf_attributes *attribs) {
+	if (!output->impl->export_dmabuf) {
+		return false;
+	}
+	return output->impl->export_dmabuf(output, attribs);
 }
 
 void wlr_output_update_needs_swap(struct wlr_output *output) {

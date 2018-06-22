@@ -1,6 +1,8 @@
 #ifndef WLR_RENDER_DMABUF_H
 #define WLR_RENDER_DMABUF_H
 
+#include <stdint.h>
+
 // So we don't have to pull in linux specific drm headers
 #ifndef DRM_FORMAT_MOD_INVALID
 #define DRM_FORMAT_MOD_INVALID ((1ULL<<56) - 1)
@@ -25,5 +27,10 @@ struct wlr_dmabuf_attributes {
 	uint32_t stride[WLR_DMABUF_MAX_PLANES];
 	int fd[WLR_DMABUF_MAX_PLANES];
 };
+
+/**
+ * Closes all file descriptors in the DMA-BUF attributes.
+ */
+void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs);
 
 #endif
