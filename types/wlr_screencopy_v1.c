@@ -43,14 +43,17 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 
 	wl_shm_buffer_begin_access(buffer);
 	void *data = wl_shm_buffer_get_data(buffer);
-	bool ok = wlr_renderer_read_pixels(renderer, fmt, stride, width, height,
-		0, 0, 0, 0, data);
+	uint32_t flags = 0;
+	bool ok = wlr_renderer_read_pixels(renderer, fmt, &flags, stride,
+		width, height, 0, 0, 0, 0, data);
 	wl_shm_buffer_end_access(buffer);
 
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
 		return;
 	}
+
+	zwlr_screencopy_frame_v1_send_flags(frame->resource, flags);
 
 	uint32_t tv_sec_hi = event->when->tv_sec >> 32;
 	uint32_t tv_sec_lo = event->when->tv_sec & 0xFFFFFFFF;
@@ -172,7 +175,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 	frame->height = output->height;
 	// TODO: don't send zero
 	zwlr_screencopy_frame_v1_send_buffer(frame->resource,
-		frame->width, frame->height, 0, 0, 0);
+		frame->width, frame->height, 0, 0);
 }
 
 static void manager_handle_destroy(struct wl_client *client,

@@ -76,10 +76,6 @@
       destroy the frame.
     </description>
 
-    <enum name="flags" bitfield="true">
-      <entry name="y_invert" value="1" summary="contents are y-inverted"/>
-    </enum>
-
     <event name="buffer">
       <description summary="buffer information">
         Provides information about the frame's buffer. This event is sent once
@@ -91,7 +87,6 @@
       </description>
       <arg name="width" type="uint" summary="buffer width"/>
       <arg name="height" type="uint" summary="buffer height"/>
-      <arg name="flags" type="uint" enum="flags" summary="buffer flags"/>
       <arg name="format" type="uint" summary="preferred DRM_FORMAT"/>
       <arg name="stride" type="uint" summary="preferred stride"/>
     </event>
@@ -115,6 +110,18 @@
       <entry name="invalid_dimensions" value="2"
         summary="invalid width or height"/>
     </enum>
+
+    <enum name="flags" bitfield="true">
+      <entry name="y_invert" value="1" summary="contents are y-inverted"/>
+    </enum>
+
+    <event name="flags">
+      <description summary="frame flags">
+        Provides flags about the frame. This event is sent once before the
+        "ready" event.
+      </description>
+      <arg name="flags" type="uint" enum="flags" summary="frame flags"/>
+    </event>
 
     <event name="ready">
       <description summary="indicates frame is available for reading">

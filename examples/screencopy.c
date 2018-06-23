@@ -45,6 +45,7 @@ static struct {
 	struct wl_buffer *wl_buffer;
 	void *data;
 	int width, height, stride;
+	bool y_invert;
 } buffer;
 bool buffer_copy_done = false;
 
@@ -99,7 +100,7 @@ static struct wl_buffer *create_shm_buffer(int width, int height,
 
 static void frame_handle_buffer(void *data,
 		struct zwlr_screencopy_frame_v1 *frame, uint32_t width, uint32_t height,
-		uint32_t flags, uint32_t format, uint32_t stride) {
+		uint32_t format, uint32_t stride) {
 	buffer.width = width;
 	buffer.height = height;
 	buffer.wl_buffer =
@@ -110,6 +111,11 @@ static void frame_handle_buffer(void *data,
 	}
 
 	zwlr_screencopy_frame_v1_copy(frame, buffer.wl_buffer);
+}
+
+static void frame_handle_flags(void *data,
+		struct zwlr_screencopy_frame_v1 *frame, uint32_t flags) {
+	buffer.y_invert = flags & ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT;
 }
 
 static void frame_handle_ready(void *data,
@@ -126,6 +132,7 @@ static void frame_handle_failed(void *data,
 
 static const struct zwlr_screencopy_frame_v1_listener frame_listener = {
 	.buffer = frame_handle_buffer,
+	.flags = frame_handle_flags,
 	.ready = frame_handle_ready,
 	.failed = frame_handle_failed,
 };
@@ -153,8 +160,8 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
-static void write_image(const char *filename, int width, int height, int stride,
-		void *data) {
+static void write_image(char *filename, int width, int height, int stride,
+		bool y_invert, void *data) {
 	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
 	sprintf(size, "%dx%d+0", width, height);
 
@@ -183,10 +190,19 @@ static void write_image(const char *filename, int width, int height, int stride,
 			exit(EXIT_FAILURE);
 		}
 		close(fd[0]);
+
 		// We requested WL_SHM_FORMAT_XRGB8888 in little endian, so that's BGRA
 		// in big endian.
-		execlp("convert", "convert", "-depth", "8", "-size", size, "bgra:-",
-			"-alpha", "opaque", filename, NULL);
+		char *argv[11] = {"convert", "-depth", "8", "-size", size, "bgra:-",
+			"-alpha", "opaque", filename, NULL};
+		if (y_invert) {
+			argv[8] = "-flip";
+			argv[9] = filename;
+			argv[10] = NULL;
+		}
+
+		execvp("convert", argv);
+
 		fprintf(stderr, "cannot execute convert\n");
 		exit(EXIT_FAILURE);
 	}
@@ -221,12 +237,12 @@ int main(int argc, char *argv[]) {
 		zwlr_screencopy_manager_v1_capture_output(screencopy_manager, 0, output);
 	zwlr_screencopy_frame_v1_add_listener(frame, &frame_listener, NULL);
 
-	while (!buffer_copy_done) {
-		wl_display_roundtrip(display);
+	while (!buffer_copy_done && wl_display_dispatch(display) != -1) {
+		// This space is intentionally left blank
 	}
 
 	write_image("wayland-screenshot.png", buffer.width, buffer.height,
-		buffer.stride, buffer.data);
+		buffer.stride, buffer.y_invert, buffer.data);
 	wl_buffer_destroy(buffer.wl_buffer);
 
 	return EXIT_SUCCESS;
