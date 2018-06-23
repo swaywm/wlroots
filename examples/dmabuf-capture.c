@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include <libdrm/drm_fourcc.h>
 #include "wlr-export-dmabuf-unstable-v1-client-protocol.h"
 
@@ -22,6 +24,15 @@ struct wayland_output {
 	int width;
 	int height;
 	AVRational framerate;
+};
+
+struct fifo_buffer {
+	AVFrame **queued_frames;
+	int num_queued_frames;
+	int max_queued_frames;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
+	pthread_mutex_t cond_lock;
 };
 
 struct capture_context {
@@ -40,18 +51,20 @@ struct capture_context {
 
 	/* If something happens during capture */
 	int err;
-	int quit;
+	bool quit;
 
 	/* FFmpeg specific parts */
+	pthread_t vid_thread;
 	AVFrame *current_frame;
+	AVFormatContext *avf;
+	AVCodecContext *avctx;
 	AVBufferRef *drm_device_ref;
 	AVBufferRef *drm_frames_ref;
-
 	AVBufferRef *mapped_device_ref;
 	AVBufferRef *mapped_frames_ref;
 
-	AVFormatContext *avf;
-	AVCodecContext *avctx;
+	/* Sync stuff */
+	struct fifo_buffer vid_frames;
 
 	int64_t start_pts;
 
@@ -65,6 +78,69 @@ struct capture_context {
 	char *encoder_name;
 	float out_bitrate;
 };
+
+static int init_fifo(struct fifo_buffer *buf, int max_queued_frames) {
+	pthread_mutex_init(&buf->lock, NULL);
+	pthread_cond_init(&buf->cond, NULL);
+	pthread_mutex_init(&buf->cond_lock, NULL);
+	buf->num_queued_frames = 0;
+	buf->max_queued_frames = max_queued_frames;
+	buf->queued_frames = av_mallocz(buf->max_queued_frames * sizeof(AVFrame));
+	return !buf->queued_frames ? AVERROR(ENOMEM) : 0;
+}
+
+static int get_fifo_size(struct fifo_buffer *buf) {
+	pthread_mutex_lock(&buf->lock);
+	int ret = buf->num_queued_frames;
+	pthread_mutex_unlock(&buf->lock);
+	return ret;
+}
+
+static int push_to_fifo(struct fifo_buffer *buf, AVFrame *f) {
+	int ret;
+	pthread_mutex_lock(&buf->lock);
+	if ((buf->num_queued_frames + 1) > buf->max_queued_frames) {
+		av_frame_free(&f);
+		ret = 1;
+	} else {
+		buf->queued_frames[buf->num_queued_frames++] = f;
+		ret = 0;
+	}
+	pthread_mutex_unlock(&buf->lock);
+	pthread_cond_signal(&buf->cond);
+	return ret;
+}
+
+static AVFrame *pop_from_fifo(struct fifo_buffer *buf) {
+	pthread_mutex_lock(&buf->lock);
+
+	if (!buf->num_queued_frames) {
+		pthread_mutex_unlock(&buf->lock);
+		pthread_cond_wait(&buf->cond, &buf->cond_lock);
+		pthread_mutex_lock(&buf->lock);
+	}
+
+	AVFrame *rf = buf->queued_frames[0];
+	for (int i = 1; i < buf->num_queued_frames; i++) {
+		buf->queued_frames[i - 1] = buf->queued_frames[i];
+	}
+	buf->num_queued_frames--;
+	buf->queued_frames[buf->num_queued_frames] = NULL;
+
+	pthread_mutex_unlock(&buf->lock);
+	return rf;
+}
+
+static void free_fifo(struct fifo_buffer *buf) {
+	pthread_mutex_lock(&buf->lock);
+	if (buf->num_queued_frames) {
+		for (int i = 0; i < buf->num_queued_frames; i++) {
+			av_frame_free(&buf->queued_frames[i]);
+		}
+	}
+	av_freep(&buf->queued_frames);
+	pthread_mutex_unlock(&buf->lock);
+}
 
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t x, int32_t y, int32_t phys_width, int32_t phys_height,
@@ -300,6 +376,16 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	enum AVPixelFormat pix_fmt = drm_fmt_to_pixfmt(desc->layers[0].format);
 	int err = 0;
 
+	/* Timestamp, nanoseconds timebase */
+	f->pts = ((((uint64_t)tv_sec_hi) << 32) | tv_sec_lo) * 1000000000 + tv_nsec;
+
+	if (!ctx->start_pts) {
+		ctx->start_pts = f->pts;
+	}
+
+	f->pts = av_rescale_q(f->pts - ctx->start_pts, (AVRational){ 1, 1000000000 },
+			ctx->avctx->time_base);
+
 	/* Attach the hardware frame context to the frame */
 	err = attach_drm_frames_ref(ctx, f, pix_fmt);
 	if (err) {
@@ -318,6 +404,7 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 	AVHWFramesContext *mapped_hwfc;
 	mapped_hwfc = (AVHWFramesContext *)ctx->mapped_frames_ref->data;
 	mapped_frame->format = mapped_hwfc->format;
+	mapped_frame->pts = f->pts;
 
 	/* Set frame hardware context referencce */
 	mapped_frame->hw_frames_ctx = av_buffer_ref(ctx->mapped_frames_ref);
@@ -332,33 +419,68 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 		goto end;
 	}
 
-	AVFrame *enc_input = mapped_frame;
-
-	if (ctx->is_software_encoder) {
-		AVFrame *soft_frame = av_frame_alloc();
-		av_hwframe_transfer_data(soft_frame, mapped_frame, 0);
-		av_frame_free(&mapped_frame);
-		enc_input = soft_frame;
+	if (push_to_fifo(&ctx->vid_frames, mapped_frame)) {
+		av_log(ctx, AV_LOG_WARNING, "Dropped frame!\n");
 	}
 
-	/* Nanoseconds */
-	enc_input->pts = (((uint64_t)tv_sec_hi) << 32) | tv_sec_lo;
-	enc_input->pts *= 1000000000;
-	enc_input->pts += tv_nsec;
-
-	if (!ctx->start_pts) {
-		ctx->start_pts = enc_input->pts;
+	if (!ctx->quit && !ctx->err) {
+		register_cb(ctx);
 	}
 
-	enc_input->pts -= ctx->start_pts;
+end:
+	ctx->err = err;
+	av_frame_free(&ctx->current_frame);
+}
 
-	enc_input->pts = av_rescale_q(enc_input->pts, (AVRational){ 1, 1000000000 },
-			ctx->avctx->time_base);
+static void frame_cancel(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
+		uint32_t reason) {
+	struct capture_context *ctx = data;
+	av_log(ctx, AV_LOG_WARNING, "Frame cancelled!\n");
+	av_frame_free(&ctx->current_frame);
+	if (reason == ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT) {
+		av_log(ctx, AV_LOG_ERROR, "Permanent failure, exiting\n");
+		ctx->err = true;
+	} else {
+		register_cb(ctx);
+	}
+}
+
+static const struct zwlr_export_dmabuf_frame_v1_listener frame_listener = {
+	.frame = frame_start,
+	.object = frame_object,
+	.ready = frame_ready,
+	.cancel = frame_cancel,
+};
+
+static void register_cb(struct capture_context *ctx) {
+	ctx->frame_callback = zwlr_export_dmabuf_manager_v1_capture_output(
+			ctx->export_manager, 0, ctx->target_output);
+
+	zwlr_export_dmabuf_frame_v1_add_listener(ctx->frame_callback,
+			&frame_listener, ctx);
+}
+
+void *vid_encode_thread(void *arg) {
+	int err = 0;
+	struct capture_context *ctx = arg;
 
 	do {
-		err = avcodec_send_frame(ctx->avctx, enc_input);
+		AVFrame *f = NULL;
+		if (get_fifo_size(&ctx->vid_frames) || !ctx->quit) {
+			f = pop_from_fifo(&ctx->vid_frames);
+		}
 
-		av_frame_free(&enc_input);
+		if (ctx->is_software_encoder && f) {
+			AVFrame *soft_frame = av_frame_alloc();
+			av_hwframe_transfer_data(soft_frame, f, 0);
+			soft_frame->pts = f->pts;
+			av_frame_free(&f);
+			f = soft_frame;
+		}
+
+		err = avcodec_send_frame(ctx->avctx, f);
+
+		av_frame_free(&f);
 
 		if (err) {
 			av_log(ctx, AV_LOG_ERROR, "Error encoding: %s!\n", av_err2str(err));
@@ -374,7 +496,6 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 				break;
 			} else if (ret == AVERROR_EOF) {
 				av_log(ctx, AV_LOG_INFO, "Encoder flushed!\n");
-				ctx->quit = 2;
 				goto end;
 			} else if (ret) {
 				av_log(ctx, AV_LOG_ERROR, "Error encoding: %s!\n",
@@ -394,43 +515,17 @@ static void frame_ready(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
 				goto end;
 			}
 		};
-	} while (ctx->quit);
 
-	av_log(NULL, AV_LOG_INFO, "Encoded frame %i!\n", ctx->avctx->frame_number);
+		av_log(ctx, AV_LOG_INFO, "Encoded frame %i (%i in queue)\n",
+				ctx->avctx->frame_number, get_fifo_size(&ctx->vid_frames));
 
-	register_cb(ctx);
+	} while (!ctx->err);
 
 end:
-	ctx->err = err;
-	av_frame_free(&ctx->current_frame);
-}
-
-static void frame_cancel(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
-		uint32_t reason) {
-	struct capture_context *ctx = data;
-	av_log(ctx, AV_LOG_WARNING, "Frame cancelled!\n");
-	av_frame_free(&ctx->current_frame);
-	if (reason == ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT) {
-		av_log(ctx, AV_LOG_ERROR, "Permanent failure, exiting\n");
-		ctx->err = 1;
-	} else {
-		register_cb(ctx);
+	if (!ctx->err) {
+		ctx->err = err;
 	}
-}
-
-static const struct zwlr_export_dmabuf_frame_v1_listener frame_listener = {
-	.frame = frame_start,
-	.object = frame_object,
-	.ready = frame_ready,
-	.cancel = frame_cancel,
-};
-
-static void register_cb(struct capture_context *ctx) {
-	ctx->frame_callback = zwlr_export_dmabuf_manager_v1_capture_output(
-			ctx->export_manager, 0, ctx->target_output);
-
-	zwlr_export_dmabuf_frame_v1_add_listener(ctx->frame_callback,
-			&frame_listener, ctx);
+	return NULL;
 }
 
 static int init_lavu_hwcontext(struct capture_context *ctx) {
@@ -592,7 +687,8 @@ struct capture_context *q_ctx = NULL;
 
 void on_quit_signal(int signo) {
 	printf("\r");
-	q_ctx->quit = 1;
+	av_log(q_ctx, AV_LOG_WARNING, "Quitting!\n");
+	q_ctx->quit = true;
 }
 
 static int main_loop(struct capture_context *ctx) {
@@ -615,13 +711,21 @@ static int main_loop(struct capture_context *ctx) {
 		return err;
 	}
 
+	/* Start video encoding thread */
+	err = init_fifo(&ctx->vid_frames, 16);
+	if (err) {
+		return err;
+	}
+	pthread_create(&ctx->vid_thread, NULL, vid_encode_thread, ctx);
+
 	/* Start the frame callback */
 	register_cb(ctx);
 
-	while (wl_display_dispatch(ctx->display) != -1 && !ctx->err &&
-			ctx->quit < 2) {
-		// This space intentionally left blank
-	}
+	/* Run capture */
+	while (wl_display_dispatch(ctx->display) != -1 && !ctx->err && !ctx->quit);
+
+	/* Join with encoder thread */
+	pthread_join(ctx->vid_thread, NULL);
 
 	err = av_write_trailer(ctx->avf);
 	if (err) {
@@ -727,6 +831,8 @@ static void uninit(struct capture_context *ctx) {
 	if (ctx->export_manager) {
 		zwlr_export_dmabuf_manager_v1_destroy(ctx->export_manager);
 	}
+
+	free_fifo(&ctx->vid_frames);
 
 	av_buffer_unref(&ctx->drm_frames_ref);
 	av_buffer_unref(&ctx->drm_device_ref);
