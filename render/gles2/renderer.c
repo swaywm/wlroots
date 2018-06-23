@@ -253,7 +253,8 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt, uint32_t *flags, uint32_t stride,
 		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
 		uint32_t dst_x, uint32_t dst_y, void *data) {
-	gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -266,13 +267,15 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	// Make sure any pending drawing is finished before we try to read it
 	glFinish();
 
+	glGetError(); // Clear the error flag
+
 	unsigned char *p = data + dst_y * stride;
 	uint32_t pack_stride = width * fmt->bpp / 8;
 	if (pack_stride == stride && dst_x == 0 && flags != NULL) {
 		// Under these particular conditions, we can read the pixels with only
 		// one glReadPixels call
-		glReadPixels(src_x, src_y, width, height, fmt->gl_format,
-			fmt->gl_type, p);
+		glReadPixels(src_x, renderer->viewport_height - height - src_y,
+			width, height, fmt->gl_format, fmt->gl_type, p);
 		*flags = WLR_RENDERER_READ_PIXELS_Y_INVERT;
 	} else {
 		// Unfortunately GLES2 doesn't support GL_PACK_*, so we have to read
@@ -288,7 +291,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	POP_GLES2_DEBUG;
 
-	return true;
+	return (glGetError() == GL_NO_ERROR);
 }
 
 static bool gles2_format_supported(struct wlr_renderer *wlr_renderer,

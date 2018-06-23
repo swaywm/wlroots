@@ -43,14 +43,37 @@
       source.
     </description>
 
+    <enum name="error">
+      <entry name="invalid_output_region" value="0"
+        summary="tried to capture an invalid output region"/>
+    </enum>
+
     <request name="capture_output">
-      <description summary="start capturing">
-        Capture the next frame of a an entire output.
+      <description summary="capture an output">
+        Capture the next frame of an entire output.
       </description>
       <arg name="frame" type="new_id" interface="zwlr_screencopy_frame_v1"/>
       <arg name="overlay_cursor" type="int"
-        summary="include custom client hardware cursor on top of the frame"/>
+        summary="composite cursor onto the frame"/>
       <arg name="output" type="object" interface="wl_output"/>
+    </request>
+
+    <request name="capture_output_region">
+      <description summary="capture an output's region">
+        Capture the next frame of an output's region.
+
+        The region is given in output logical coordinates, see
+        xdg_output.logical_size. Trying to capture a region spanning outside the
+        output extents is a protocol error.
+      </description>
+      <arg name="frame" type="new_id" interface="zwlr_screencopy_frame_v1"/>
+      <arg name="overlay_cursor" type="int"
+        summary="composite cursor onto the frame"/>
+      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
     </request>
 
     <request name="destroy" type="destructor">

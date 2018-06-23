@@ -18,7 +18,7 @@ struct wlr_screencopy_frame_v1 {
 	struct wlr_screencopy_manager_v1 *manager;
 	struct wl_list link;
 
-	int32_t width, height;
+	struct wlr_box buffer_box;
 
 	struct wl_shm_buffer *buffer;
 
