@@ -329,6 +329,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 				seat->seat->pointer_state.button_count == 0)) {
 			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 			cursor->grabbed_view = NULL;
+			roots_cursor_update_position(cursor, time);
 		}
 	}
 }
