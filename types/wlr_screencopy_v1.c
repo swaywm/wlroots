@@ -17,6 +17,17 @@ static struct wlr_screencopy_frame_v1 *frame_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
+	if (frame == NULL) {
+		return;
+	}
+	wl_list_remove(&frame->link);
+	wl_list_remove(&frame->output_swap_buffers.link);
+	// Make the frame resource inert
+	wl_resource_set_user_data(frame->resource, NULL);
+	free(frame);
+}
+
 static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 		void *_data) {
 	struct wlr_screencopy_frame_v1 *frame =
@@ -48,6 +59,7 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		frame_destroy(frame);
 		return;
 	}
 
@@ -58,13 +70,17 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 	zwlr_screencopy_frame_v1_send_ready(frame->resource,
 		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 
-	// TODO: make frame resource inert
+	frame_destroy(frame);
 }
 
 static void frame_handle_copy(struct wl_client *client,
 		struct wl_resource *frame_resource,
 		struct wl_resource *buffer_resource) {
 	struct wlr_screencopy_frame_v1 *frame = frame_from_resource(frame_resource);
+	if (frame == NULL) {
+		return;
+	}
+
 	struct wlr_output *output = frame->output;
 
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
@@ -119,9 +135,7 @@ static const struct zwlr_screencopy_frame_v1_interface frame_impl = {
 
 static void frame_handle_resource_destroy(struct wl_resource *frame_resource) {
 	struct wlr_screencopy_frame_v1 *frame = frame_from_resource(frame_resource);
-	wl_list_remove(&frame->link);
-	wl_list_remove(&frame->output_swap_buffers.link);
-	free(frame);
+	frame_destroy(frame);
 }
 
 
