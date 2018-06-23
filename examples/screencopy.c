@@ -44,10 +44,23 @@ static struct wl_output *output = NULL;
 static struct {
 	struct wl_buffer *wl_buffer;
 	void *data;
+	enum wl_shm_format format;
 	int width, height, stride;
 	bool y_invert;
 } buffer;
 bool buffer_copy_done = false;
+
+// wl_shm_format describes little-endian formats, ImageMagick uses big-endian
+// formats.
+static const struct {
+	enum wl_shm_format wl_format;
+	char *str_format;
+} formats[] = {
+	{WL_SHM_FORMAT_XRGB8888, "BGRA"},
+	{WL_SHM_FORMAT_ARGB8888, "BGRA"},
+	{WL_SHM_FORMAT_XBGR8888, "RGBA"},
+	{WL_SHM_FORMAT_ABGR8888, "RGBA"},
+};
 
 static int backingfile(off_t size) {
 	char template[] = "/tmp/wlroots-shared-XXXXXX";
@@ -69,9 +82,8 @@ static int backingfile(off_t size) {
 	return fd;
 }
 
-static struct wl_buffer *create_shm_buffer(int width, int height,
-		int *stride_out, void **data_out) {
-	int stride = width * 4;
+static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
+		int width, int height, int stride, void **data_out) {
 	int size = stride * height;
 
 	int fd = backingfile(size);
@@ -90,21 +102,22 @@ static struct wl_buffer *create_shm_buffer(int width, int height,
 	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 	close(fd);
 	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-		stride, WL_SHM_FORMAT_XRGB8888);
+		stride, fmt);
 	wl_shm_pool_destroy(pool);
 
 	*data_out = data;
-	*stride_out = stride;
 	return buffer;
 }
 
 static void frame_handle_buffer(void *data,
-		struct zwlr_screencopy_frame_v1 *frame, uint32_t width, uint32_t height,
-		uint32_t format, uint32_t stride) {
+		struct zwlr_screencopy_frame_v1 *frame, uint32_t format,
+		uint32_t width, uint32_t height, uint32_t stride) {
+	buffer.format = format;
 	buffer.width = width;
 	buffer.height = height;
+	buffer.stride = stride;
 	buffer.wl_buffer =
-		create_shm_buffer(width, height, &buffer.stride, &buffer.data);
+		create_shm_buffer(format, width, height, stride, &buffer.data);
 	if (buffer.wl_buffer == NULL) {
 		fprintf(stderr, "failed to create buffer\n");
 		exit(EXIT_FAILURE);
@@ -160,10 +173,25 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
-static void write_image(char *filename, int width, int height, int stride,
-		bool y_invert, void *data) {
+static void write_image(char *filename, enum wl_shm_format wl_fmt, int width,
+		int height, int stride, bool y_invert, void *data) {
 	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
 	sprintf(size, "%dx%d+0", width, height);
+
+	const char *fmt_str = NULL;
+	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); ++i) {
+		if (formats[i].wl_format == wl_fmt) {
+			fmt_str = formats[i].str_format;
+			break;
+		}
+	}
+	if (fmt_str == NULL) {
+		fprintf(stderr, "unsupported format %"PRIu32"\n", wl_fmt);
+		exit(EXIT_FAILURE);
+	}
+	char convert[strlen(fmt_str) + 3];
+	memcpy(convert, fmt_str, strlen(fmt_str) + 1);
+	strcat(convert, ":-");
 
 	int fd[2];
 	if (pipe(fd) != 0) {
@@ -191,9 +219,7 @@ static void write_image(char *filename, int width, int height, int stride,
 		}
 		close(fd[0]);
 
-		// We requested WL_SHM_FORMAT_XRGB8888 in little endian, so that's BGRA
-		// in big endian.
-		char *argv[11] = {"convert", "-depth", "8", "-size", size, "bgra:-",
+		char *argv[11] = {"convert", "-depth", "8", "-size", size, convert,
 			"-alpha", "opaque", filename, NULL};
 		if (y_invert) {
 			argv[8] = "-flip";
@@ -241,8 +267,8 @@ int main(int argc, char *argv[]) {
 		// This space is intentionally left blank
 	}
 
-	write_image("wayland-screenshot.png", buffer.width, buffer.height,
-		buffer.stride, buffer.y_invert, buffer.data);
+	write_image("wayland-screenshot.png", buffer.format, buffer.width,
+		buffer.height, buffer.stride, buffer.y_invert, buffer.data);
 	wl_buffer_destroy(buffer.wl_buffer);
 
 	return EXIT_SUCCESS;

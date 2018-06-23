@@ -43,11 +43,6 @@
       source.
     </description>
 
-    <enum name="error">
-      <entry name="invalid_output_region" value="0"
-        summary="tried to capture an invalid output region"/>
-    </enum>
-
     <request name="capture_output">
       <description summary="capture an output">
         Capture the next frame of an entire output.
@@ -63,8 +58,8 @@
         Capture the next frame of an output's region.
 
         The region is given in output logical coordinates, see
-        xdg_output.logical_size. Trying to capture a region spanning outside the
-        output extents is a protocol error.
+        xdg_output.logical_size. The region will be clipped to the output's
+        extents.
       </description>
       <arg name="frame" type="new_id" interface="zwlr_screencopy_frame_v1"/>
       <arg name="overlay_cursor" type="int"
@@ -90,7 +85,7 @@
 
       When created, a "buffer" event will be sent. The client will then be able
       to send a "copy" request. If the capture is successful, the compositor
-      will finally a "ready" event.
+      will send a "flags" followed by a "ready" event.
 
       If the capture failed, the "failed" event is sent. This can happen anytime
       before the "ready" event.
@@ -104,14 +99,13 @@
         Provides information about the frame's buffer. This event is sent once
         as soon as the frame is created.
 
-        The client should then create a buffer with the provided width and
-        height, and send a copy request. It can optionally create a buffer with
-        the preferred format and stride.
+        The client should then create a buffer with the provided attributes, and
+        send a "copy" request.
       </description>
+      <arg name="format" type="uint" summary="buffer format"/>
       <arg name="width" type="uint" summary="buffer width"/>
       <arg name="height" type="uint" summary="buffer height"/>
-      <arg name="format" type="uint" summary="preferred DRM_FORMAT"/>
-      <arg name="stride" type="uint" summary="preferred stride"/>
+      <arg name="stride" type="uint" summary="buffer stride"/>
     </event>
 
     <request name="copy">
@@ -120,8 +114,8 @@
         correct size, see zwlr_screencopy_frame_v1.buffer. The buffer needs to
         have a supported format.
 
-        If the frame is successfully copied, a ready event is sent. Otherwise,
-        an abort event is sent.
+        If the frame is successfully copied, a "flags" and a "ready" events are
+        sent. Otherwise, a "failed" event is sent.
       </description>
       <arg name="buffer" type="object" interface="wl_buffer"/>
     </request>
@@ -129,9 +123,8 @@
     <enum name="error">
       <entry name="already_used" value="0"
         summary="the object has already been used to copy a wl_buffer"/>
-      <entry name="invalid_format" value="1" summary="format not supported"/>
-      <entry name="invalid_dimensions" value="2"
-        summary="invalid width or height"/>
+      <entry name="invalid_buffer" value="1"
+        summary="buffer attributes are invalid"/>
     </enum>
 
     <enum name="flags" bitfield="true">

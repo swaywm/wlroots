@@ -28,8 +28,8 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_list_init(&frame->output_swap_buffers.link);
 
-	int x = frame->buffer_box.x;
-	int y = frame->buffer_box.y;
+	int x = frame->box.x;
+	int y = frame->box.y;
 
 	struct wl_shm_buffer *buffer = frame->buffer;
 	assert(buffer != NULL);
@@ -66,27 +66,24 @@ static void frame_handle_copy(struct wl_client *client,
 		struct wl_resource *buffer_resource) {
 	struct wlr_screencopy_frame_v1 *frame = frame_from_resource(frame_resource);
 	struct wlr_output *output = frame->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
 	if (buffer == NULL) {
-		zwlr_screencopy_frame_v1_send_failed(frame_resource);
+		wl_resource_post_error(frame->resource,
+			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
+			"unsupported buffer type");
 		return;
 	}
 
 	enum wl_shm_format fmt = wl_shm_buffer_get_format(buffer);
-	if (!wlr_renderer_format_supported(renderer, fmt)) {
+	int32_t width = wl_shm_buffer_get_width(buffer);
+	int32_t height = wl_shm_buffer_get_height(buffer);
+	int32_t stride = wl_shm_buffer_get_stride(buffer);
+	if (fmt != frame->format || width != frame->box.width ||
+			height != frame->box.height || stride != frame->stride) {
 		wl_resource_post_error(frame->resource,
-			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_FORMAT,
-			"unsupported format %"PRIu32, fmt);
-		return;
-	}
-
-	if (frame->buffer_box.width != wl_shm_buffer_get_width(buffer) ||
-			frame->buffer_box.height != wl_shm_buffer_get_height(buffer)) {
-		wl_resource_post_error(frame->resource,
-			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_DIMENSIONS,
-			"invalid width or height");
+			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
+			"invalid buffer attributes");
 		return;
 	}
 
@@ -165,7 +162,6 @@ static void capture_output(struct wl_client *client,
 		return;
 	}
 	frame->manager = manager;
-
 	frame->output = output;
 
 	frame->resource = wl_resource_create(client,
@@ -182,10 +178,11 @@ static void capture_output(struct wl_client *client,
 
 	wl_list_init(&frame->output_swap_buffers.link);
 
-	frame->buffer_box = buffer_box;
-	zwlr_screencopy_frame_v1_send_buffer(frame->resource,
-		frame->buffer_box.width, frame->buffer_box.height,
-		WL_SHM_FORMAT_XRGB8888, 4 * frame->buffer_box.width);
+	frame->format = WL_SHM_FORMAT_XRGB8888;
+	frame->box = buffer_box;
+	frame->stride = 4 * buffer_box.width;
+	zwlr_screencopy_frame_v1_send_buffer(frame->resource, frame->format,
+		buffer_box.width, buffer_box.height, frame->stride);
 }
 
 static void manager_handle_capture_output(struct wl_client *client,

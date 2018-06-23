@@ -18,7 +18,9 @@ struct wlr_screencopy_frame_v1 {
 	struct wlr_screencopy_manager_v1 *manager;
 	struct wl_list link;
 
-	struct wlr_box buffer_box;
+	enum wl_shm_format format;
+	struct wlr_box box;
+	int stride;
 
 	struct wl_shm_buffer *buffer;
 
