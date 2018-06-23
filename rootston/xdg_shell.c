@@ -397,13 +397,20 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_surface *surface = data;
 	assert(surface->role != WLR_XDG_SURFACE_ROLE_NONE);
 
-	if (surface->role == WLR_XDG_SURFACE_ROLE_POPUP) {
-		wlr_log(L_DEBUG, "new xdg popup");
-		return;
-	}
-
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, xdg_shell_surface);
+
+	if (surface->role == WLR_XDG_SURFACE_ROLE_POPUP) {
+		wlr_log(L_DEBUG, "new xdg popup");
+		struct roots_seat *seat =
+			input_seat_from_wlr_seat(desktop->server->input, surface->popup->seat);
+		if (seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH &&
+				seat->seat->pointer_state.button_count > 1) {
+			wlr_log(L_DEBUG, "denying this xdg popup because the compositor has a grab");
+			wlr_xdg_surface_send_close(surface);
+		}
+		return;
+	}
 
 	wlr_log(L_DEBUG, "new xdg toplevel: title=%s, app_id=%s",
 		surface->toplevel->title, surface->toplevel->app_id);
