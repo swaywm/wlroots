@@ -275,9 +275,7 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_toplevel_v6_move_event *e = data;
 	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
 	// TODO verify event serial
-	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-		return;
-	}
+	assert(seat);
 	roots_seat_begin_move(seat, view);
 }
 
@@ -290,9 +288,6 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 	// TODO verify event serial
 	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
 	assert(seat);
-	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-		return;
-	}
 	roots_seat_begin_resize(seat, view, e->edges);
 }
 

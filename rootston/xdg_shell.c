@@ -274,7 +274,7 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_toplevel_move_event *e = data;
 	struct roots_seat *seat = input_seat_from_wlr_seat(input, e->seat->seat);
 	// TODO verify event serial
-	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
+	if (!seat) {
 		return;
 	}
 	roots_seat_begin_move(seat, view);
