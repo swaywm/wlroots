@@ -23,6 +23,7 @@ struct wlr_screencopy_frame_v1 {
 	int stride;
 
 	struct wl_shm_buffer *buffer;
+	struct wl_listener buffer_destroy;
 
 	struct wlr_output *output;
 	struct wl_listener output_swap_buffers;

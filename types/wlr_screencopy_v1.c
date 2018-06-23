@@ -23,6 +23,7 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_swap_buffers.link);
+	wl_list_remove(&frame->buffer_destroy.link);
 	// Make the frame resource inert
 	wl_resource_set_user_data(frame->resource, NULL);
 	free(frame);
@@ -73,6 +74,14 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 	frame_destroy(frame);
 }
 
+static void frame_handle_buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_screencopy_frame_v1 *frame =
+		wl_container_of(listener, frame, buffer_destroy);
+	zwlr_screencopy_frame_v1_send_failed(frame->resource);
+	frame_destroy(frame);
+}
+
 static void frame_handle_copy(struct wl_client *client,
 		struct wl_resource *frame_resource,
 		struct wl_resource *buffer_resource) {
@@ -116,11 +125,12 @@ static void frame_handle_copy(struct wl_client *client,
 	wl_signal_add(&output->events.swap_buffers, &frame->output_swap_buffers);
 	frame->output_swap_buffers.notify = frame_handle_output_swap_buffers;
 
+	wl_resource_add_destroy_listener(buffer_resource, &frame->buffer_destroy);
+	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
+
 	// Schedule a buffer swap
 	output->needs_swap = true;
 	wlr_output_schedule_frame(output);
-
-	// TODO: listen to buffer destroy
 }
 
 static void frame_handle_destroy(struct wl_client *client,
