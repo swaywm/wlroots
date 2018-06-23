@@ -137,6 +137,9 @@ struct wlr_seat_pointer_state {
 	uint32_t grab_serial;
 	uint32_t grab_time;
 
+	double sx;
+	double sy;
+
 	struct wl_listener surface_destroy;
 };
 

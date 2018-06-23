@@ -660,7 +660,7 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 
 	if (seat_view->view == roots_seat_get_focus(seat)) {
 		seat->has_focus = false;
-		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+		roots_cursor_set_mode(seat->cursor, ROOTS_CURSOR_PASSTHROUGH, NULL);
 	}
 
 	if (seat_view == seat->cursor->deco_view) {
@@ -937,7 +937,7 @@ void roots_seat_cycle_focus(struct roots_seat *seat) {
 
 void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 	struct roots_cursor *cursor = seat->cursor;
-	cursor->mode = ROOTS_CURSOR_MOVE;
+	roots_cursor_set_mode(cursor, ROOTS_CURSOR_MOVE, view->wlr_surface);
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
 	if (view->maximized) {
@@ -957,7 +957,7 @@ void roots_seat_begin_move(struct roots_seat *seat, struct roots_view *view) {
 void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 		uint32_t edges) {
 	struct roots_cursor *cursor = seat->cursor;
-	cursor->mode = ROOTS_CURSOR_RESIZE;
+	roots_cursor_set_mode(cursor, ROOTS_CURSOR_RESIZE, view->wlr_surface);
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
 	if (view->maximized) {
@@ -984,7 +984,7 @@ void roots_seat_begin_resize(struct roots_seat *seat, struct roots_view *view,
 
 void roots_seat_begin_rotate(struct roots_seat *seat, struct roots_view *view) {
 	struct roots_cursor *cursor = seat->cursor;
-	cursor->mode = ROOTS_CURSOR_ROTATE;
+	roots_cursor_set_mode(cursor, ROOTS_CURSOR_ROTATE, view->wlr_surface);
 	cursor->offs_x = cursor->cursor->x;
 	cursor->offs_y = cursor->cursor->y;
 	cursor->view_rotation = view->rotation;
@@ -1018,7 +1018,7 @@ void roots_seat_end_compositor_grab(struct roots_seat *seat) {
 			break;
 	}
 
-	cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
+	roots_cursor_set_mode(cursor, ROOTS_CURSOR_PASSTHROUGH, NULL);
 }
 
 struct roots_seat *input_last_active_seat(struct roots_input *input) {

@@ -157,12 +157,18 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 static void roots_grabbed_cursor(struct roots_cursor *cursor,
 		uint32_t time) {
 	struct roots_seat *seat = cursor->seat;
-	struct roots_view *view = cursor->grabbed_view;
-	double sx = cursor->cursor->x - view->x;
-	double sy = cursor->cursor->y - view->y;
-	if (view && view->wlr_surface) {
-		wlr_seat_pointer_notify_enter(seat->seat, view->wlr_surface, sx, sy);
-		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+	struct wlr_surface *grabbed_surface = cursor->grabbed_surface;
+	if (grabbed_surface != NULL) {
+		double sx = seat->seat->pointer_state.sx;
+		double sy = seat->seat->pointer_state.sy;
+		double dx = cursor->cursor->x - cursor->offs_x;
+		double dy = cursor->cursor->y - cursor->offs_y;
+
+		cursor->offs_x = cursor->cursor->x;
+		cursor->offs_y = cursor->cursor->y;
+
+		wlr_seat_pointer_notify_enter(seat->seat, grabbed_surface, sx + dx, sy + dy);
+		wlr_seat_pointer_notify_motion(seat->seat, time, sx + dx, sy + dy);
 	}
 }
 
@@ -173,9 +179,11 @@ static void roots_cursor_update_position(
 
 	if (cursor->mode == ROOTS_CURSOR_PASSTHROUGH &&
 			seat->seat->pointer_state.button_count > 0 &&
-			cursor->grabbed_view &&
+			seat->seat->pointer_state.focused_surface != NULL &&
 			!wlr_seat_pointer_has_grab(seat->seat)) {
-		cursor->mode = ROOTS_CURSOR_GRABBED;
+		roots_cursor_set_mode(cursor,
+			ROOTS_CURSOR_GRABBED,
+			seat->seat->pointer_state.focused_surface);
 	}
 
 	switch (cursor->mode) {
@@ -289,16 +297,15 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			wlr_seat_pointer_notify_button(seat->seat, time, button, state);
 		}
 	} else {
-		if (cursor->mode != ROOTS_CURSOR_GRABBED) {
-			cursor->grabbed_view = view;
-		}
-
 		if (view && !surface && cursor->deco_view) {
 			seat_view_deco_button(cursor->deco_view,
 					sx, sy, button, state);
 		}
 
 		if (cursor->mode == ROOTS_CURSOR_PASSTHROUGH) {
+			cursor->offs_x = cursor->cursor->x;
+			cursor->offs_y = cursor->cursor->y;
+
 			switch (state) {
 				case WLR_BUTTON_RELEASED:
 					if (!is_touch) {
@@ -327,8 +334,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 		if (cursor->mode != ROOTS_CURSOR_PASSTHROUGH &&
 				(cursor->mode != ROOTS_CURSOR_GRABBED ||
 				seat->seat->pointer_state.button_count == 0)) {
-			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
-			cursor->grabbed_view = NULL;
+			roots_cursor_set_mode(cursor, ROOTS_CURSOR_PASSTHROUGH, NULL);
 			roots_cursor_update_position(cursor, time);
 		}
 	}
@@ -478,4 +484,29 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 	wlr_cursor_set_surface(cursor->cursor, event->surface, event->hotspot_x,
 		event->hotspot_y);
 	cursor->cursor_client = event->seat_client->client;
+}
+
+static void handle_grabbed_surface_destroy(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, grabbed_surface_destroy);
+	roots_cursor_set_mode(cursor, ROOTS_CURSOR_PASSTHROUGH, NULL);
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	roots_cursor_update_position(cursor, now.tv_nsec / 1000);
+}
+
+void roots_cursor_set_mode(struct roots_cursor *cursor,
+		enum roots_cursor_mode mode, struct wlr_surface *grabbed_surface) {
+	if (cursor->grabbed_surface != NULL) {
+		wl_list_remove(&cursor->grabbed_surface_destroy.link);
+		cursor->grabbed_surface = NULL;
+	}
+
+	if (grabbed_surface != NULL) {
+		cursor->grabbed_surface = grabbed_surface;
+		cursor->grabbed_surface_destroy.notify = handle_grabbed_surface_destroy;
+		wl_signal_add(&grabbed_surface->events.destroy, &cursor->grabbed_surface_destroy);
+	}
+
+	cursor->mode = mode;
 }

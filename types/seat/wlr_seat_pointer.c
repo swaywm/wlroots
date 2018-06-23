@@ -284,6 +284,8 @@ void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->enter(grab, surface, sx, sy);
+	wlr_seat->pointer_state.sx = sx;
+	wlr_seat->pointer_state.sy = sy;
 }
 
 void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
@@ -291,6 +293,8 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->motion(grab, time, sx, sy);
+	wlr_seat->pointer_state.sx = sx;
+	wlr_seat->pointer_state.sy = sy;
 }
 
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,

@@ -27,6 +27,7 @@
 #include "rootston/server.h"
 #include "rootston/view.h"
 #include "rootston/virtual_keyboard.h"
+#include "rootston/util.h"
 #include "rootston/xcursor.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 

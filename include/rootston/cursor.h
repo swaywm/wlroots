@@ -23,13 +23,15 @@ struct roots_cursor {
 	struct wlr_xcursor_manager *xcursor_manager;
 	struct wlr_seat *wl_seat;
 	struct wl_client *cursor_client;
-	int offs_x, offs_y;
+	double offs_x, offs_y;
 	int view_x, view_y, view_width, view_height;
 	float view_rotation;
 	uint32_t resize_edges;
 
 	struct roots_seat_view *deco_view;
-	struct roots_view *grabbed_view;
+
+	struct wlr_surface *grabbed_surface;
+	struct wl_listener grabbed_surface_destroy;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
@@ -79,5 +81,8 @@ void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_request_set_cursor_event *event);
+
+void roots_cursor_set_mode(struct roots_cursor *cursor,
+		enum roots_cursor_mode mode, struct wlr_surface *grabbed_surface);
 
 #endif
