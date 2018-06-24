@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include "wlr/types/wlr_input_inhibitor.h"
 #include "wlr-input-inhibitor-unstable-v1-protocol.h"
+#include "util/signal.h"
 
 static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_implementation;
 static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation;
@@ -26,7 +27,7 @@ static void input_inhibit_manager_deactivate(
 	}
 	manager->active_client = NULL;
 	manager->active_inhibitor = NULL;
-	wl_signal_emit(&manager->events.deactivate, manager);
+	wlr_signal_emit_safe(&manager->events.deactivate, manager);
 }
 
 static void input_inhibitor_destroy(struct wl_client *client,
@@ -70,7 +71,7 @@ static void inhibit_manager_get_inhibitor(struct wl_client *client,
 	manager->active_client = client;
 	manager->active_inhibitor = wl_resource;
 
-	wl_signal_emit(&manager->events.activate, manager);
+	wlr_signal_emit_safe(&manager->events.activate, manager);
 }
 
 static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_implementation = {
