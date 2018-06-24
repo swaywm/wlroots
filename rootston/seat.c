@@ -825,10 +825,8 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	view_activate(view, true);
 	seat->has_focus = true;
 
-	// We want to unconditionally send keyboard input to the view we are
-	// focusing here, so cancel any existing grabs.
-	struct wlr_seat_keyboard_grab *curr_grab = seat->seat->keyboard_state.grab;
-	curr_grab->interface->cancel(curr_grab);
+	// An existing keyboard grab might try to deny setting focus, so cancel it
+	wlr_seat_keyboard_end_grab(seat->seat);
 
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (keyboard != NULL) {
