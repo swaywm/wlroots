@@ -18,9 +18,10 @@ struct wlr_egl {
 	struct {
 		bool bind_wayland_display_wl;
 		bool buffer_age_ext;
-		bool image_dmabuf_import_modifiers_ext;
-		bool image_dmabuf_import_ext;
 		bool image_base_khr;
+		bool image_dma_buf_export_mesa;
+		bool image_dmabuf_import_ext;
+		bool image_dmabuf_import_modifiers_ext;
 		bool swap_buffers_with_damage_ext;
 		bool swap_buffers_with_damage_khr;
 	} exts;
@@ -79,6 +80,10 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl, int **formats);
  */
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	uint64_t **modifiers);
+
+bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
+	int32_t width, int32_t height, uint32_t flags,
+	struct wlr_dmabuf_attributes *attribs);
 
 /**
  * Destroys an EGL image created with the given wlr_egl.

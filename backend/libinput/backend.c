@@ -55,8 +55,8 @@ static bool backend_start(struct wlr_backend *_backend) {
 		return false;
 	}
 
-	// TODO: Let user customize seat used
-	if (libinput_udev_assign_seat(backend->libinput_context, "seat0") != 0) {
+	if (libinput_udev_assign_seat(backend->libinput_context,
+			backend->session->seat) != 0) {
 		wlr_log(L_ERROR, "Failed to assign libinput seat");
 		return false;
 	}

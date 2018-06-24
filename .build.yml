@@ -1,15 +1,16 @@
 image: archlinux
 packages:
-  - meson
-  - wayland
-  - wayland-protocols
-  - mesa
+  - clang
+  - ffmpeg
+  - libcap
   - libinput
   - libxkbcommon
-  - xcb-util-image
-  - libcap
+  - mesa
+  - meson
   - pixman
-  - clang
+  - wayland
+  - wayland-protocols
+  - xcb-util-image
 sources:
   - https://github.com/swaywm/wlroots
 tasks:

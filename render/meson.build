@@ -9,6 +9,7 @@ glapi = custom_target('glapi',
 lib_wlr_render = static_library(
 	'wlr_render',
 	files(
+		'dmabuf.c',
 		'egl.c',
 		'gles2/pixel_format.c',
 		'gles2/renderer.c',

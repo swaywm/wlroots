@@ -367,7 +367,8 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	if (!wlr_surface_has_buffer(surface)) {
+	struct wlr_texture *texture = wlr_surface_get_texture(surface);
+	if (texture == NULL) {
 		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 1});
 		return;
 	}
@@ -386,8 +387,7 @@ static void output_fullscreen_surface_render(struct wlr_output *output,
 	for (int i = 0; i < nrects; ++i) {
 		output_scissor(output, &rects[i]);
 		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 1});
-		wlr_render_texture_with_matrix(surface->renderer, surface->texture,
-			matrix, 1.0f);
+		wlr_render_texture_with_matrix(surface->renderer, texture, matrix, 1.0f);
 	}
 	wlr_renderer_scissor(renderer, NULL);
 
@@ -418,7 +418,7 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
-		texture = cursor->surface->texture;
+		texture = wlr_surface_get_texture(cursor->surface);
 	}
 	if (texture == NULL) {
 		return;
@@ -467,7 +467,12 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	wlr_signal_emit_safe(&output->events.swap_buffers, damage);
+	struct wlr_output_event_swap_buffers event = {
+		.output = output,
+		.when = when,
+		.damage = damage,
+	};
+	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
@@ -558,6 +563,14 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 		return 0;
 	}
 	return output->impl->get_gamma_size(output);
+}
+
+bool wlr_output_export_dmabuf(struct wlr_output *output,
+		struct wlr_dmabuf_attributes *attribs) {
+	if (!output->impl->export_dmabuf) {
+		return false;
+	}
+	return output->impl->export_dmabuf(output, attribs);
 }
 
 void wlr_output_update_needs_swap(struct wlr_output *output) {
@@ -700,7 +713,7 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 	enum wl_output_transform transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
-		texture = cursor->surface->texture;
+		texture = wlr_surface_get_texture(cursor->surface);
 		scale = cursor->surface->current->scale;
 		transform = cursor->surface->current->transform;
 	}

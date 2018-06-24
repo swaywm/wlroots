@@ -1,10 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
@@ -44,13 +43,6 @@ static void surface_handle_buffer_destroy(struct wl_listener *listener,
 	struct wlr_surface_state *state =
 		wl_container_of(listener, state, buffer_destroy_listener);
 	surface_state_reset_buffer(state);
-}
-
-static void surface_state_release_buffer(struct wlr_surface_state *state) {
-	if (state->buffer) {
-		wl_buffer_send_release(state->buffer);
-		surface_state_reset_buffer(state);
-	}
 }
 
 static void surface_state_set_buffer(struct wlr_surface_state *state,
@@ -94,40 +86,25 @@ static void surface_damage(struct wl_client *client,
 		x, y, width, height);
 }
 
-static struct wlr_frame_callback *frame_callback_from_resource(
-		struct wl_resource *resource) {
-	assert(wl_resource_instance_of(resource, &wl_callback_interface, NULL));
-	return wl_resource_get_user_data(resource);
-}
-
 static void callback_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_frame_callback *cb = frame_callback_from_resource(resource);
-	wl_list_remove(&cb->link);
-	free(cb);
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void surface_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	struct wlr_frame_callback *cb =
-		calloc(1, sizeof(struct wlr_frame_callback));
-	if (cb == NULL) {
+	struct wl_resource *callback_resource = wl_resource_create(client,
+		&wl_callback_interface, CALLBACK_VERSION, callback);
+	if (callback_resource == NULL) {
 		wl_resource_post_no_memory(resource);
 		return;
 	}
-
-	cb->resource = wl_resource_create(client, &wl_callback_interface,
-		CALLBACK_VERSION, callback);
-	if (cb->resource == NULL) {
-		free(cb);
-		wl_resource_post_no_memory(resource);
-		return;
-	}
-	wl_resource_set_implementation(cb->resource, NULL, cb,
+	wl_resource_set_implementation(callback_resource, NULL, NULL,
 		callback_handle_resource_destroy);
 
-	wl_list_insert(surface->pending->frame_callback_list.prev, &cb->link);
+	wl_list_insert(surface->pending->frame_callback_list.prev,
+		wl_resource_get_link(callback_resource));
 
 	surface->pending->invalid |= WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST;
 }
@@ -175,24 +152,8 @@ static bool surface_update_size(struct wlr_surface *surface,
 	int scale = state->scale;
 	enum wl_output_transform transform = state->transform;
 
-	struct wl_shm_buffer *buf = wl_shm_buffer_get(state->buffer);
-	if (buf != NULL) {
-		state->buffer_width = wl_shm_buffer_get_width(buf);
-		state->buffer_height = wl_shm_buffer_get_height(buf);
-	} else if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer,
-			state->buffer)) {
-		wlr_renderer_wl_drm_buffer_get_size(surface->renderer, state->buffer,
-			&state->buffer_width, &state->buffer_height);
-	} else if (wlr_dmabuf_resource_is_buffer(state->buffer)) {
-		struct wlr_dmabuf_buffer *dmabuf =
-			wlr_dmabuf_buffer_from_buffer_resource(state->buffer);
-		state->buffer_width = dmabuf->attributes.width;
-		state->buffer_height = dmabuf->attributes.height;
-	} else {
-		wlr_log(L_ERROR, "Unknown buffer handle attached");
-		state->buffer_width = 0;
-		state->buffer_height = 0;
-	}
+	wlr_buffer_get_resource_size(state->buffer, surface->renderer,
+		&state->buffer_width, &state->buffer_height);
 
 	int width = state->buffer_width / scale;
 	int height = state->buffer_height / scale;
@@ -243,7 +204,6 @@ static void surface_move_state(struct wlr_surface *surface,
 		update_size = true;
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_BUFFER)) {
-		surface_state_release_buffer(state);
 		surface_state_set_buffer(state, next->buffer);
 		surface_state_reset_buffer(next);
 		state->sx = next->sx;
@@ -350,92 +310,53 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void surface_apply_damage(struct wlr_surface *surface,
-		bool invalid_buffer, bool reupload_buffer) {
+static void surface_apply_damage(struct wlr_surface *surface) {
 	struct wl_resource *resource = surface->current->buffer;
 	if (resource == NULL) {
+		// NULL commit
+		wlr_buffer_unref(surface->buffer);
+		surface->buffer = NULL;
 		return;
 	}
 
-	struct wl_shm_buffer *buf = wl_shm_buffer_get(resource);
-	if (buf != NULL) {
-		wl_shm_buffer_begin_access(buf);
+	if (surface->buffer != NULL && surface->buffer->released) {
+		pixman_region32_t damage;
+		pixman_region32_init(&damage);
+		pixman_region32_copy(&damage, &surface->current->buffer_damage);
+		pixman_region32_intersect_rect(&damage, &damage, 0, 0,
+			surface->current->buffer_width, surface->current->buffer_height);
 
-		enum wl_shm_format fmt = wl_shm_buffer_get_format(buf);
-		int32_t stride = wl_shm_buffer_get_stride(buf);
-		int32_t width = wl_shm_buffer_get_width(buf);
-		int32_t height = wl_shm_buffer_get_height(buf);
-		void *data = wl_shm_buffer_get_data(buf);
+		struct wlr_buffer *updated_buffer =
+			wlr_buffer_apply_damage(surface->buffer, resource, &damage);
 
-		if (surface->texture == NULL || reupload_buffer) {
-			wlr_texture_destroy(surface->texture);
-			surface->texture = wlr_texture_from_pixels(surface->renderer, fmt,
-				stride, width, height, data);
-		} else {
-			pixman_region32_t damage;
-			pixman_region32_init(&damage);
-			pixman_region32_copy(&damage, &surface->current->buffer_damage);
-			pixman_region32_intersect_rect(&damage, &damage, 0, 0,
-				surface->current->buffer_width,
-				surface->current->buffer_height);
+		pixman_region32_fini(&damage);
 
-			int n;
-			pixman_box32_t *rects = pixman_region32_rectangles(&damage, &n);
-			for (int i = 0; i < n; ++i) {
-				pixman_box32_t *r = &rects[i];
-				if (!wlr_texture_write_pixels(surface->texture, fmt, stride,
-						r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
-						r->x1, r->y1, data)) {
-					break;
-				}
-			}
-
-			pixman_region32_fini(&damage);
+		if (updated_buffer != NULL) {
+			surface->buffer = updated_buffer;
+			return;
 		}
-
-		wl_shm_buffer_end_access(buf);
-
-		// We've uploaded the wl_shm_buffer data to the GPU, we won't access the
-		// wl_buffer anymore
-		surface_state_release_buffer(surface->current);
-	} else if (invalid_buffer || reupload_buffer) {
-		wlr_texture_destroy(surface->texture);
-
-		if (wlr_renderer_resource_is_wl_drm_buffer(surface->renderer, resource)) {
-			surface->texture =
-				wlr_texture_from_wl_drm(surface->renderer, resource);
-		} else if (wlr_dmabuf_resource_is_buffer(resource)) {
-			struct wlr_dmabuf_buffer *dmabuf =
-				wlr_dmabuf_buffer_from_buffer_resource(resource);
-			surface->texture =
-				wlr_texture_from_dmabuf(surface->renderer, &dmabuf->attributes);
-		} else {
-			surface->texture = NULL;
-			wlr_log(L_ERROR, "Unknown buffer handle attached");
-		}
-
-		// Don't release the wl_buffer yet: since the texture is shared with the
-		// client, we'll access the wl_buffer when rendering
 	}
+
+	wlr_buffer_unref(surface->buffer);
+	surface->buffer = NULL;
+
+	struct wlr_buffer *buffer = wlr_buffer_create(surface->renderer, resource);
+	if (buffer == NULL) {
+		wlr_log(L_ERROR, "Failed to upload buffer");
+		return;
+	}
+
+	surface->buffer = buffer;
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	int32_t oldw = surface->current->buffer_width;
-	int32_t oldh = surface->current->buffer_height;
-
 	bool invalid_buffer = surface->pending->invalid & WLR_SURFACE_INVALID_BUFFER;
-	bool null_buffer_commit = invalid_buffer && surface->pending->buffer == NULL;
 
 	surface_move_state(surface, surface->pending, surface->current);
 
-	if (null_buffer_commit) {
-		wlr_texture_destroy(surface->texture);
-		surface->texture = NULL;
+	if (invalid_buffer) {
+		surface_apply_damage(surface);
 	}
-
-	bool reupload_buffer = oldw != surface->current->buffer_width ||
-		oldh != surface->current->buffer_height;
-	surface_apply_damage(surface, invalid_buffer, reupload_buffer);
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
@@ -613,9 +534,9 @@ static struct wlr_surface_state *surface_state_create(void) {
 
 static void surface_state_destroy(struct wlr_surface_state *state) {
 	surface_state_reset_buffer(state);
-	struct wlr_frame_callback *cb, *tmp;
-	wl_list_for_each_safe(cb, tmp, &state->frame_callback_list, link) {
-		wl_resource_destroy(cb->resource);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &state->frame_callback_list) {
+		wl_resource_destroy(resource);
 	}
 
 	pixman_region32_fini(&state->surface_damage);
@@ -657,10 +578,9 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(surface->resource));
 
 	wl_list_remove(&surface->renderer_destroy.link);
-	wlr_texture_destroy(surface->texture);
 	surface_state_destroy(surface->pending);
 	surface_state_destroy(surface->current);
-
+	wlr_buffer_unref(surface->buffer);
 	free(surface);
 }
 
@@ -717,8 +637,15 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	return surface;
 }
 
+struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface) {
+	if (surface->buffer == NULL) {
+		return NULL;
+	}
+	return surface->buffer->texture;
+}
+
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
-	return surface->texture != NULL;
+	return wlr_surface_get_texture(surface) != NULL;
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
@@ -1023,11 +950,11 @@ static inline int64_t timespec_to_msec(const struct timespec *a) {
 
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when) {
-	struct wlr_frame_callback *cb, *cnext;
-	wl_list_for_each_safe(cb, cnext, &surface->current->frame_callback_list,
-			link) {
-		wl_callback_send_done(cb->resource, timespec_to_msec(when));
-		wl_resource_destroy(cb->resource);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp,
+			&surface->current->frame_callback_list) {
+		wl_callback_send_done(resource, timespec_to_msec(when));
+		wl_resource_destroy(resource);
 	}
 }
 

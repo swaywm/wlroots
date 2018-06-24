@@ -23,6 +23,8 @@ struct wlr_output_impl {
 	void (*set_gamma)(struct wlr_output *output,
 		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 	uint32_t (*get_gamma_size)(struct wlr_output *output);
+	bool (*export_dmabuf)(struct wlr_output *output,
+		struct wlr_dmabuf_attributes *attribs);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
