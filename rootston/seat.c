@@ -825,6 +825,9 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	view_activate(view, true);
 	seat->has_focus = true;
 
+	// An existing keyboard grab might try to deny setting focus, so cancel it
+	wlr_seat_keyboard_end_grab(seat->seat);
+
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
 	if (keyboard != NULL) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
