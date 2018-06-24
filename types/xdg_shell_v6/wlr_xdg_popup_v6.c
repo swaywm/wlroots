@@ -23,6 +23,7 @@ static void xdg_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
 	}
 
 	wlr_seat_pointer_end_grab(grab->seat);
+	wlr_seat_keyboard_end_grab(grab->seat);
 }
 
 static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
@@ -88,7 +89,7 @@ static void xdg_keyboard_grab_modifiers(struct wlr_seat_keyboard_grab *grab,
 }
 
 static void xdg_keyboard_grab_cancel(struct wlr_seat_keyboard_grab *grab) {
-	wlr_seat_keyboard_end_grab(grab->seat);
+	wlr_seat_pointer_end_grab(grab->seat);
 }
 
 static const struct wlr_keyboard_grab_interface xdg_keyboard_grab_impl = {
