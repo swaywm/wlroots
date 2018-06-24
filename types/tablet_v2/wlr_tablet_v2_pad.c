@@ -86,7 +86,7 @@ static void handle_tablet_pad_ring_v2_set_feedback(struct wl_client *client,
 		.serial = serial,
 		.description = description,
 		.index = aux->index
-	};
+		};
 
 	wl_signal_emit(&aux->pad->pad->events.ring_feedback, &evt);
 }
@@ -221,12 +221,17 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		struct tablet_pad_auxiliary_user_data *user_data =
 			calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
 		if (!user_data) {
-			continue;
+			wl_client_post_no_memory(client->client);
+			return;
 		}
 		user_data->pad = client;
 		user_data->index = strip;
 		client->strips[strip] =
 			wl_resource_create(client->client, &zwp_tablet_pad_strip_v2_interface, 1, 0);
+		if (!client->strips[strip]) {
+			wl_client_post_no_memory(client->client);
+			return;
+		}
 		wl_resource_set_implementation(client->strips[strip],
 			&tablet_pad_strip_impl, user_data, destroy_tablet_pad_strip_v2);
 		zwp_tablet_pad_group_v2_send_strip(client->groups[index], client->strips[strip]);
@@ -238,12 +243,17 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		struct tablet_pad_auxiliary_user_data *user_data =
 			calloc(1, sizeof(struct tablet_pad_auxiliary_user_data));
 		if (!user_data) {
-			continue;
+			wl_client_post_no_memory(client->client);
+			return;
 		}
 		user_data->pad = client;
 		user_data->index = ring;
 		client->rings[ring] =
 			wl_resource_create(client->client, &zwp_tablet_pad_ring_v2_interface, 1, 0);
+		if (!client->rings[ring]) {
+			wl_client_post_no_memory(client->client);
+			return;
+		}
 		wl_resource_set_implementation(client->rings[ring],
 			&tablet_pad_ring_impl, user_data, destroy_tablet_pad_ring_v2);
 		zwp_tablet_pad_group_v2_send_ring(client->groups[index], client->rings[ring]);
@@ -262,14 +272,14 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 	}
 	client->pad = pad;
 
-	client->groups = calloc(sizeof(int), wl_list_length(&pad->wlr_pad->groups));
+	client->groups = calloc(wl_list_length(&pad->wlr_pad->groups), sizeof(struct wl_resource*));
 	if (!client->groups) {
 		wl_client_post_no_memory(seat->wl_client);
 		free(client);
 		return;
 	}
 
-	client->rings = calloc(sizeof(struct wl_resource*), pad->wlr_pad->ring_count);
+	client->rings = calloc(pad->wlr_pad->ring_count, sizeof(struct wl_resource*));
 	if (!client->rings) {
 		wl_client_post_no_memory(seat->wl_client);
 		free(client->groups);
@@ -277,7 +287,7 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 
-	client->strips = calloc(sizeof(struct wl_resource*), pad->wlr_pad->strip_count);
+	client->strips = calloc(pad->wlr_pad->strip_count, sizeof(struct wl_resource*));
 	if (!client->strips) {
 		wl_client_post_no_memory(seat->wl_client);
 		free(client->groups);

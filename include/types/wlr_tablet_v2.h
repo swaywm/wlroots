@@ -26,7 +26,7 @@ struct wlr_tablet_seat_client_v2 {
 	struct wl_resource *resource;
 
 	struct wlr_tablet_manager_client_v2 *client;
-	struct wlr_seat_client *seat;
+	struct wlr_seat_client *seat_client;
 
 	struct wl_listener seat_client_destroy;
 
@@ -85,7 +85,7 @@ struct wlr_tablet_tool_client_v2 *tablet_tool_client_from_resource(struct wl_res
 void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat, struct wlr_tablet_v2_tablet_tool *tool);
 
 struct wlr_tablet_seat_client_v2 *tablet_seat_client_from_resource(struct wl_resource *resource);
-void wlr_tablet_seat_client_v2_destroy(struct wl_resource *resource);
+void tablet_seat_client_v2_destroy(struct wl_resource *resource);
 struct wlr_tablet_seat_v2 *get_or_create_tablet_seat(
 	struct wlr_tablet_manager_v2 *manager,
 	struct wlr_seat *wlr_seat);

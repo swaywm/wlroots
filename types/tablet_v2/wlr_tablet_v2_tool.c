@@ -28,7 +28,7 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 	if (surface_resource != NULL) {
 		surface = wlr_surface_from_resource(surface_resource);
 		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
-				surface_resource, WL_POINTER_ERROR_ROLE)) {
+				surface_resource, ZWP_TABLET_TOOL_V2_ERROR_ROLE)) {
 			return;
 		}
 	}
@@ -38,7 +38,7 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 		.serial = serial,
 		.hotspot_x = hotspot_x,
 		.hotspot_y = hotspot_y,
-		.seat_client = tool->seat->seat,
+		.seat_client = tool->seat->seat_client,
 		};
 
 	wl_signal_emit(&tool->tool->events.set_cursor, &evt);
@@ -476,10 +476,10 @@ void wlr_send_tablet_v2_tablet_tool_button(
 }
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
-	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks) {
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees, int32_t clicks) {
 	if (tool->current_client) {
 		zwp_tablet_tool_v2_send_wheel(tool->current_client->resource,
-			clicks, delta);
+			clicks, degrees);
 
 		queue_tool_frame(tool->current_client);
 	}

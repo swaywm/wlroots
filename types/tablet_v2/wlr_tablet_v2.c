@@ -36,7 +36,7 @@ static void handle_wlr_seat_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_tablet_seat_client_v2 *client;
 	struct wlr_tablet_seat_client_v2 *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, seat_link) {
-		wlr_tablet_seat_client_v2_destroy(client->resource);
+		tablet_seat_client_v2_destroy(client->resource);
 	}
 }
 
@@ -94,7 +94,7 @@ struct wlr_tablet_seat_client_v2 *tablet_seat_client_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-void wlr_tablet_seat_client_v2_destroy(struct wl_resource *resource) {
+void tablet_seat_client_v2_destroy(struct wl_resource *resource) {
 	struct wlr_tablet_seat_client_v2 *seat = tablet_seat_client_from_resource(resource);
 	if (!seat) {
 		return;
@@ -129,7 +129,7 @@ void wlr_tablet_seat_client_v2_destroy(struct wl_resource *resource) {
 static void handle_seat_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_tablet_seat_client_v2 *seat =
 		wl_container_of(listener, seat, seat_client_destroy);
-	wlr_tablet_seat_client_v2_destroy(seat->resource);
+	tablet_seat_client_v2_destroy(seat->resource);
 }
 
 static void tablet_manager_destroy(struct wl_client *client,
@@ -148,7 +148,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 		 * destruction, without allocations or advertising things
 		 */
 		wl_resource_set_implementation(seat_resource, &seat_impl, NULL,
-			wlr_tablet_seat_client_v2_destroy);
+			tablet_seat_client_v2_destroy);
 		return;
 	}
 	struct wlr_seat_client *seat = wlr_seat_client_from_resource(seat_resource);
@@ -175,10 +175,10 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 		return;
 	}
 	wl_resource_set_implementation(seat_client->resource, &seat_impl, seat_client,
-		wlr_tablet_seat_client_v2_destroy);
+		tablet_seat_client_v2_destroy);
 
 
-	seat_client->seat = seat;
+	seat_client->seat_client = seat;
 	seat_client->client = manager;
 	seat_client->wl_client = wl_client;
 	wl_list_init(&seat_client->tools);
@@ -229,7 +229,7 @@ static void wlr_tablet_manager_v2_destroy(struct wl_resource *resource) {
 	struct wlr_tablet_seat_client_v2 *pos;
 	struct wlr_tablet_seat_client_v2 *tmp;
 	wl_list_for_each_safe(pos, tmp, &client->tablet_seats, client_link) {
-		wlr_tablet_seat_client_v2_destroy(pos->resource);
+		tablet_seat_client_v2_destroy(pos->resource);
 	}
 
 	wl_list_remove(&client->link);

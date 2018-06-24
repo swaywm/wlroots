@@ -137,7 +137,7 @@ void wlr_send_tablet_v2_tablet_tool_slider(
 	struct wlr_tablet_v2_tablet_tool *tool, double position);
 
 void wlr_send_tablet_v2_tablet_tool_wheel(
-	struct wlr_tablet_v2_tablet_tool *tool, double delta, int32_t clicks);
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees, int32_t clicks);
 
 void wlr_send_tablet_v2_tablet_tool_proximity_out(
 	struct wlr_tablet_v2_tablet_tool *tool);
