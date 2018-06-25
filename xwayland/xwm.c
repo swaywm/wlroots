@@ -294,6 +294,12 @@ static void xwayland_surface_destroy(
 	wl_list_remove(&xsurface->link);
 	wl_list_remove(&xsurface->parent_link);
 
+	struct wlr_xwayland_surface *child, *next;
+	wl_list_for_each_safe(child, next, &xsurface->children, parent_link) {
+		wl_list_remove(&child->parent_link);
+		wl_list_init(&child->parent_link);
+	}
+
 	if (xsurface->surface_id) {
 		wl_list_remove(&xsurface->unpaired_link);
 	}

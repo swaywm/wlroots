@@ -100,6 +100,12 @@ void destroy_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface) {
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
+	struct wlr_xdg_popup_v6 *popup_state, *next;
+	wl_list_for_each_safe(popup_state, next, &surface->popups, link) {
+		zxdg_popup_v6_send_popup_done(popup_state->resource);
+		destroy_xdg_popup_v6(popup_state->base);
+	}
+
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		destroy_xdg_toplevel_v6(surface);
