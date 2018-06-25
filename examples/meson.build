@@ -47,6 +47,7 @@ if libavutil.found() and libavcodec.found() and libavformat.found()
 	executable(
 		'dmabuf-capture',
 		'dmabuf-capture.c',
-		dependencies: [wayland_client, wlr_protos, libavutil, libavcodec, libavformat, wlroots]
+		dependencies: [wayland_client, wlr_protos, libavutil, libavcodec,
+				libavformat, wlroots, threads ]
 	)
 endif
