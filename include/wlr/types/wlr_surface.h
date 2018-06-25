@@ -33,6 +33,7 @@ struct wlr_surface_state {
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
 	int sx, sy; // in surface-local coordinates
+	pixman_region32_t damage; // in buffer-local coordinates
 
 	struct wl_listener buffer_destroy_listener;
 };

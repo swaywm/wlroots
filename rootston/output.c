@@ -146,6 +146,9 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
 
+	ox += surface->current.sx;
+	oy += surface->current.sy;
+
 	if (box != NULL) {
 		box->x = ox * wlr_output->scale;
 		box->y = oy * wlr_output->scale;
@@ -694,8 +697,9 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current.surface_damage);
-	wlr_region_scale(&damage, &damage, wlr_output->scale);
+	pixman_region32_copy(&damage, &surface->current.damage);
+	wlr_region_scale(&damage, &damage,
+		wlr_output->scale / (float)surface->current.scale);
 	if (ceil(wlr_output->scale) > surface->current.scale) {
 		// When scaling up a surface, it'll become blurry so we need to
 		// expand the damage region
