@@ -64,12 +64,12 @@ static void surface_destroy(struct wl_client *client,
 
 static void surface_attach(struct wl_client *client,
 		struct wl_resource *resource,
-		struct wl_resource *buffer, int32_t sx, int32_t sy) {
+		struct wl_resource *buffer, int32_t dx, int32_t dy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
 	surface->pending.committed |= WLR_SURFACE_STATE_BUFFER;
-	surface->pending.sx = sx;
-	surface->pending.sy = sy;
+	surface->pending.dx = dx;
+	surface->pending.dy = dy;
 	surface_state_set_buffer(&surface->pending, buffer);
 }
 
@@ -203,9 +203,14 @@ static void surface_move_state(struct wlr_surface *surface,
 	if ((next->committed & WLR_SURFACE_STATE_BUFFER)) {
 		surface_state_set_buffer(state, next->buffer);
 		surface_state_reset_buffer(next);
-		state->sx = next->sx;
-		state->sy = next->sy;
+		state->dx = next->dx;
+		state->dy = next->dy;
+		next->dx = next->dy = 0;
+		state->sx += state->dx;
+		state->sy += state->dy;
 		update_size = true;
+	} else {
+		state->dx = state->dy = 0;
 	}
 	if (update_size) {
 		update_damage = surface_update_size(surface, state);
