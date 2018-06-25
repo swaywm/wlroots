@@ -229,9 +229,9 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 	}
 
 	if (seat->primary_selection_source) {
+		wl_list_remove(&seat->primary_selection_source_destroy.link);
 		seat->primary_selection_source->cancel(seat->primary_selection_source);
 		seat->primary_selection_source = NULL;
-		wl_list_remove(&seat->primary_selection_source_destroy.link);
 	}
 
 	seat->primary_selection_source = source;
