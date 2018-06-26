@@ -1,9 +1,10 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
 
-libavutil = dependency('libavutil', required: false)
-libavcodec = dependency('libavcodec', required: false)
-libavformat = dependency('libavformat', required: false)
+# These versions correspond to ffmpeg 4.0
+libavutil = dependency('libavutil', version: '>=56.14.100', required: false)
+libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false)
+libavformat = dependency('libavformat', version: '>=58.12.100', required: false)
 
 if not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
     libavutil = disabler()
