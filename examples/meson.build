@@ -5,6 +5,10 @@ libavutil = dependency('libavutil', required: false)
 libavcodec = dependency('libavcodec', required: false)
 libavformat = dependency('libavformat', required: false)
 
+if not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
+    libavutil = disabler()
+endif
+
 executable('simple', 'simple.c', dependencies: wlroots)
 executable('pointer', 'pointer.c', dependencies: wlroots)
 executable('touch', 'touch.c', 'cat.c', dependencies: wlroots)
