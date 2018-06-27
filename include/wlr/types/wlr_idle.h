@@ -17,6 +17,7 @@ struct wlr_idle {
 	struct wl_global *wl_global;
 	struct wl_list idle_timers; // wlr_idle_timeout::link
 	struct wl_event_loop *event_loop;
+	bool enabled;
 
 	struct wl_listener display_destroy;
 	struct {
@@ -33,6 +34,7 @@ struct wlr_idle_timeout {
 
 	struct wl_event_source *idle_source;
 	bool idle_state;
+	bool enabled;
 	uint32_t timeout; // milliseconds
 
 	struct wl_listener input_listener;
@@ -50,4 +52,11 @@ void wlr_idle_destroy(struct wlr_idle *idle);
  * compositor when there is an user activity event on that seat.
  */
 void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat);
+
+/**
+ * Enable or disable timers for a given idle resource by seat.
+ * Passing a NULL seat means update timers for all seats.
+ */
+void wlr_idle_set_enabled(struct wlr_idle *idle, struct wlr_seat *seat,
+	bool enabled);
 #endif
