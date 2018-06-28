@@ -26,23 +26,30 @@ wlr_idle_inhibitor_v1_from_resource(struct wl_resource *resource) {
 	return wl_resource_get_user_data(resource);
 }
 
-static void idle_inhibitor_destroy(struct wl_resource *resource) {
-	struct wlr_idle_inhibitor_v1 *inhibitor =
-		wlr_idle_inhibitor_v1_from_resource(resource);
+static void idle_inhibitor_v1_destroy(struct wlr_idle_inhibitor_v1 *inhibitor) {
+	if (!inhibitor) {
+		return;
+	}
 
 	wlr_signal_emit_safe(&inhibitor->events.destroy, inhibitor->surface);
 
+	wl_resource_set_user_data(inhibitor->resource, NULL);
 	wl_list_remove(&inhibitor->link);
 	wl_list_remove(&inhibitor->surface_destroy.link);
 	free(inhibitor);
+}
+
+static void idle_inhibitor_v1_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_idle_inhibitor_v1 *inhibitor =
+		wlr_idle_inhibitor_v1_from_resource(resource);
+	idle_inhibitor_v1_destroy(inhibitor);
 }
 
 static void idle_inhibitor_handle_surface_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_idle_inhibitor_v1 *inhibitor =
 		wl_container_of(listener, inhibitor, surface_destroy);
-
-	wl_resource_destroy(inhibitor->resource);
+	idle_inhibitor_v1_destroy(inhibitor);
 }
 
 static void idle_inhibitor_v1_handle_destroy(struct wl_client *client,
@@ -54,7 +61,7 @@ static const struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl = {
 	.destroy = idle_inhibitor_v1_handle_destroy,
 };
 
-static void manager_create_inhibitor(struct wl_client *client,
+static void manager_handle_create_inhibitor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
@@ -85,25 +92,25 @@ static void manager_create_inhibitor(struct wl_client *client,
 
 
 	wl_resource_set_implementation(wl_resource, &idle_inhibitor_impl,
-		inhibitor, idle_inhibitor_destroy);
+		inhibitor, idle_inhibitor_v1_handle_resource_destroy);
 
 	wl_list_insert(&manager->inhibitors, &inhibitor->link);
 	wlr_signal_emit_safe(&manager->events.new_inhibitor, inhibitor);
 }
 
-
-static void idle_inhibit_manager_v1_destroy(struct wl_resource *resource) {
+static void idle_inhibit_manager_v1_handle_resource_destroy(
+		struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void manager_destroy(struct wl_client *client,
+static void manager_handle_destroy(struct wl_client *client,
 		struct wl_resource *manager_resource) {
 	wl_resource_destroy(manager_resource);
 }
 
 static const struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl = {
-	.destroy = manager_destroy,
-	.create_inhibitor = manager_create_inhibitor,
+	.destroy = manager_handle_destroy,
+	.create_inhibitor = manager_handle_create_inhibitor,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -128,7 +135,7 @@ static void idle_inhibit_bind(struct wl_client *wl_client, void *data,
 	wl_list_insert(&idle_inhibit->wl_resources, wl_resource_get_link(wl_resource));
 
 	wl_resource_set_implementation(wl_resource, &idle_inhibit_impl,
-		idle_inhibit, idle_inhibit_manager_v1_destroy);
+		idle_inhibit, idle_inhibit_manager_v1_handle_resource_destroy);
 	wlr_log(L_DEBUG, "idle_inhibit bound");
 }
 
@@ -142,13 +149,13 @@ void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *idle_inhibi
 	struct wlr_idle_inhibitor_v1 *inhibitor;
 	struct wlr_idle_inhibitor_v1 *tmp;
 	wl_list_for_each_safe(inhibitor, tmp, &idle_inhibit->inhibitors, link) {
-		wl_resource_destroy(inhibitor->resource);
+		idle_inhibitor_v1_destroy(inhibitor);
 	}
 
 	struct wl_resource *resource;
 	struct wl_resource *tmp_resource;
 	wl_resource_for_each_safe(resource, tmp_resource, &idle_inhibit->wl_resources) {
-		wl_resource_destroy(inhibitor->resource);
+		wl_resource_destroy(resource);
 	}
 
 	wl_global_destroy(idle_inhibit->global);
