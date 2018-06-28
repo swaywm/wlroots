@@ -146,8 +146,8 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
 
-	ox += surface->current.sx;
-	oy += surface->current.sy;
+	ox += surface->sx;
+	oy += surface->sy;
 
 	if (box != NULL) {
 		box->x = ox * wlr_output->scale;
@@ -695,9 +695,14 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 	int center_x = box.x + box.width/2;
 	int center_y = box.y + box.height/2;
 
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(surface->current.transform);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current.damage);
+	pixman_region32_copy(&damage, &surface->buffer_damage);
+	wlr_region_transform(&damage, &damage, transform,
+		surface->current.buffer_width, surface->current.buffer_height);
 	wlr_region_scale(&damage, &damage,
 		wlr_output->scale / (float)surface->current.scale);
 	if (ceil(wlr_output->scale) > surface->current.scale) {

@@ -32,8 +32,6 @@ struct wlr_surface_state {
 
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
-	int sx, sy; // in surface-local coordinates
-	pixman_region32_t damage; // in buffer-local coordinates
 
 	struct wl_listener buffer_destroy_listener;
 };
@@ -48,6 +46,21 @@ struct wlr_surface {
 	 * or something went wrong with uploading the buffer.
 	 */
 	struct wlr_buffer *buffer;
+	/**
+	 * The buffer position, in surface-local units.
+	 */
+	int sx, sy;
+	/**
+	 * The last commit's buffer damage, in buffer-local coordinates. This
+	 * contains both the damage accumulated by the client via
+	 * `wlr_surface_state.surface_damage` and `wlr_surface_state.buffer_damage`.
+	 * If the buffer has changed its size or moved, the whole buffer is
+	 * damaged.
+	 *
+	 * This region needs to be scaled and transformed into output coordinates,
+	 * just like the buffer's texture.
+	 */
+	pixman_region32_t buffer_damage;
 	/**
 	 * `current` contains the current, committed surface state. `pending`
 	 * accumulates state changes from the client between commits and shouldn't

@@ -405,8 +405,8 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->height = cursor->height;
 
 	if (cursor->surface != NULL) {
-		box->x += cursor->surface->current.sx * cursor->output->scale;
-		box->y += cursor->surface->current.sy * cursor->output->scale;
+		box->x += cursor->surface->sx * cursor->output->scale;
+		box->y += cursor->surface->sy * cursor->output->scale;
 	}
 }
 
