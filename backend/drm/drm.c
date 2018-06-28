@@ -566,6 +566,33 @@ error_conn:
 	return false;
 }
 
+bool wlr_drm_connector_add_mode(struct wlr_output *output,
+		const drmModeModeInfo *modeinfo) {
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+
+	assert(modeinfo);
+	if (modeinfo->type != DRM_MODE_TYPE_USERDEF) {
+		return false;
+	}
+
+	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
+	if (!mode) {
+		return false;
+	}
+	memcpy(&mode->drm_mode, modeinfo, sizeof(*modeinfo));
+
+	mode->wlr_mode.width = mode->drm_mode.hdisplay;
+	mode->wlr_mode.height = mode->drm_mode.vdisplay;
+	mode->wlr_mode.refresh = mode->drm_mode.vrefresh;
+
+	wlr_log(L_INFO, "Registered custom mode "
+			"%"PRId32"x%"PRId32"@%"PRId32,
+			mode->wlr_mode.width, mode->wlr_mode.height,
+			mode->wlr_mode.refresh);
+	wl_list_insert(&conn->output.modes, &mode->wlr_mode.link);
+	return true;
+}
+
 static void drm_connector_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	output->transform = transform;
