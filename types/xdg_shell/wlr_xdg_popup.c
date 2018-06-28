@@ -152,6 +152,9 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 		wlr_xdg_surface_from_popup_resource(resource);
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
+	if (!surface) {
+		return;
+	}
 
 	if (surface->popup->committed) {
 		wl_resource_post_error(surface->popup->resource,
