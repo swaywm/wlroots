@@ -334,9 +334,9 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		return;
 	}
 
-	wl_resource_set_user_data(subsurface->resource, NULL);
-
 	…
+
+	wl_resource_set_user_data(subsurface->resource, NULL);
 	free(subsurface);
 }
 
