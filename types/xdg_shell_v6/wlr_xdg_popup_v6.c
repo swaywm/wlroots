@@ -214,7 +214,7 @@ static void xdg_popup_handle_destroy(struct wl_client *client,
 	struct wlr_xdg_surface_v6 *surface =
 		xdg_surface_from_xdg_popup_resource(resource);
 
-	if (!wl_list_empty(&surface->popups)) {
+	if (surface && !wl_list_empty(&surface->popups)) {
 		wl_resource_post_error(surface->client->resource,
 			ZXDG_SHELL_V6_ERROR_NOT_THE_TOPMOST_POPUP,
 			"xdg_popup was destroyed while it was not the topmost popup");
