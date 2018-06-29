@@ -214,15 +214,24 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 			XCB_INPUT_FOCUS_POINTER_ROOT,
 			XCB_NONE, XCB_CURRENT_TIME);
 		return;
-	} else if (xsurface->override_redirect) {
+	}
+
+	if (xsurface->override_redirect) {
 		return;
 	}
 
 	xcb_client_message_data_t message_data = { 0 };
 	message_data.data32[0] = xwm->atoms[WM_TAKE_FOCUS];
 	message_data.data32[1] = XCB_TIME_CURRENT_TIME;
-	xwm_send_wm_message(xsurface, &message_data,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
+
+	if (xsurface->hints && !xsurface->hints->input) {
+		// if the surface doesn't allow the focus request, we will send him
+		// only the take focus event. It will get the focus by itself.
+		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_NO_EVENT);
+		return;
+	}
+
+	xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
 
 	xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 		xsurface->window_id, XCB_CURRENT_TIME);
