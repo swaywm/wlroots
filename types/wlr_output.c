@@ -558,6 +558,14 @@ void wlr_output_set_gamma(struct wlr_output *output,
 	}
 }
 
+bool wlr_output_get_gamma(struct wlr_output *output,
+	uint16_t *r, uint16_t *g, uint16_t *b) {
+	if (output->impl->get_gamma) {
+		return output->impl->get_gamma(output, r, g, b);
+	}
+	return false;
+}
+
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	if (!output->impl->get_gamma_size) {
 		return 0;

@@ -33,6 +33,9 @@ struct wlr_drm_interface {
 	// Get the gamma lut size of a crtc
 	uint32_t (*crtc_get_gamma_size)(struct wlr_drm_backend *drm,
 			struct wlr_drm_crtc *crtc);
+	// Get the gamma lut of a crtc
+	bool (*crtc_get_gamma)(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b);
 };
 
 extern const struct wlr_drm_interface atomic_iface;

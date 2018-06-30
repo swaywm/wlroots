@@ -66,6 +66,48 @@ static void gamma_control_set_gamma(struct wl_client *client,
 	wlr_output_set_gamma(gamma_control->output, size, r, g, b);
 }
 
+
+static void send_gamma(struct wlr_gamma_control *gamma_control) {
+	uint32_t size;
+	struct wl_array red, green, blue;
+
+	wl_array_init(&red);
+	wl_array_init(&green);
+	wl_array_init(&blue);
+
+	size = wlr_output_get_gamma_size(gamma_control->output);
+	if (!wl_array_add(&red, size * sizeof(uint16_t))) {
+		goto error_out;
+	}
+	if (!wl_array_add(&green, size * sizeof(uint16_t))) {
+		goto error_out;
+	}
+	if (!wl_array_add(&blue, size * sizeof(uint16_t))) {
+		goto error_out;
+	}
+	wlr_output_get_gamma(gamma_control->output, red.data, green.data, blue.data);
+	gamma_control_send_gamma(gamma_control->resource,
+		&red, &green, &blue);
+
+ out:
+	wl_array_release (&red);
+	wl_array_release (&green);
+	wl_array_release (&blue);
+	return;
+
+error_out:
+	wl_resource_post_no_memory(gamma_control->resource);
+	goto out;
+}
+
+
+static void gamma_control_get_gamma(struct wl_client *client,
+		struct wl_resource *gamma_control_resource) {
+	struct wlr_gamma_control *gamma_control =
+		gamma_control_from_resource(gamma_control_resource);
+	send_gamma (gamma_control);
+}
+
 static void gamma_control_reset_gamma(struct wl_client *client,
 		struct wl_resource *gamma_control_resource) {
 	// TODO
@@ -74,6 +116,7 @@ static void gamma_control_reset_gamma(struct wl_client *client,
 static const struct gamma_control_interface gamma_control_impl = {
 	.destroy = resource_destroy,
 	.set_gamma = gamma_control_set_gamma,
+	.get_gamma = gamma_control_get_gamma,
 	.reset_gamma = gamma_control_reset_gamma,
 };
 
@@ -125,6 +168,8 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 
 	gamma_control_send_gamma_size(gamma_control->resource,
 		wlr_output_get_gamma_size(output));
+
+	send_gamma (gamma_control);
 }
 
 static const struct gamma_control_manager_interface gamma_control_manager_impl = {
