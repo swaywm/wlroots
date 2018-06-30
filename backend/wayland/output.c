@@ -220,7 +220,7 @@ static void xdg_toplevel_handle_configure(void *data, struct zxdg_toplevel_v6 *x
 	struct wlr_wl_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
-	if (width == 0 && height == 0) {
+	if (width == 0 || height == 0) {
 		return;
 	}
 	// loop over states for maximized etc?
