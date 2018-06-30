@@ -144,6 +144,7 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
 	wl_signal_init(&kb->events.repeat_info);
+	kb->keymap_fd = -1;
 
 	// Sane defaults
 	kb->repeat_info.rate = 25;
@@ -156,7 +157,9 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	}
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
-	close(kb->keymap_fd);
+	if (kb->keymap_fd >= 0) {
+		close(kb->keymap_fd);
+	}
 	if (kb->impl && kb->impl->destroy) {
 		kb->impl->destroy(kb);
 	} else {
@@ -212,7 +215,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	keymap_str = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
 	kb->keymap_size = strlen(keymap_str) + 1;
-	if (kb->keymap_fd) {
+	if (kb->keymap_fd >= 0) {
 		close(kb->keymap_fd);
 	}
 	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
@@ -228,6 +231,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	}
 	strcpy(ptr, keymap_str);
 	free(keymap_str);
+	munmap(ptr, kb->keymap_size);
 
 	for (size_t i = 0; i < kb->num_keycodes; ++i) {
 		xkb_keycode_t keycode = kb->keycodes[i] + 8;
@@ -244,7 +248,10 @@ err:
 	kb->xkb_state = NULL;
 	xkb_keymap_unref(keymap);
 	kb->keymap = NULL;
-	close(kb->keymap_fd);
+	if (kb->keymap_fd >= 0) {
+		close(kb->keymap_fd);
+		kb->keymap_fd = -1;
+	}
 	free(keymap_str);
 }
 
