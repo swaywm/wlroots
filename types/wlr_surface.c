@@ -395,7 +395,7 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 		if (!wlr_surface_is_subsurface(subsurface->parent)) {
 			break;
 		}
-		subsurface = wlr_subsurface_from_surface(subsurface->parent);
+		subsurface = wlr_subsurface_from_wlr_surface(subsurface->parent);
 	}
 
 	return false;
@@ -451,7 +451,7 @@ static void surface_commit(struct wl_client *client,
 
 	if (wlr_surface_is_subsurface(surface)) {
 		struct wlr_subsurface *subsurface =
-			wlr_subsurface_from_surface(surface);
+			wlr_subsurface_from_wlr_surface(surface);
 		subsurface_commit(subsurface);
 		return;
 	}
@@ -887,7 +887,7 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 	while (wlr_surface_is_subsurface(surface)) {
 		struct wlr_subsurface *subsurface =
-			wlr_subsurface_from_surface(surface);
+			wlr_subsurface_from_wlr_surface(surface);
 		surface = subsurface->parent;
 	}
 	return surface;

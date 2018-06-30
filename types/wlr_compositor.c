@@ -17,7 +17,7 @@ bool wlr_surface_is_subsurface(struct wlr_surface *surface) {
 		strcmp(surface->role, subsurface_role) == 0;
 }
 
-struct wlr_subsurface *wlr_subsurface_from_surface(
+struct wlr_subsurface *wlr_subsurface_from_wlr_surface(
 		struct wlr_surface *surface) {
 	assert(wlr_surface_is_subsurface(surface));
 	return (struct wlr_subsurface *)surface->role_data;
@@ -57,7 +57,7 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 	}
 
 	if (wlr_surface_is_subsurface(surface) &&
-			wlr_subsurface_from_surface(surface) != NULL) {
+			wlr_subsurface_from_wlr_surface(surface) != NULL) {
 		wl_resource_post_error(resource,
 			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
 			"%s%d: wl_surface@%d is already a sub-surface",
