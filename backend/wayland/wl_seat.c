@@ -38,10 +38,8 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
+	assert(output);
 	struct wlr_wl_pointer *pointer = output_get_pointer(output);
-	if (output == NULL) {
-		return;
-	}
 
 	output->enter_serial = serial;
 	backend->current_pointer = pointer;
@@ -56,6 +54,7 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
+	assert(output);
 	output->enter_serial = 0;
 
 	if (backend->current_pointer == NULL ||

@@ -84,6 +84,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 		&zwlr_export_dmabuf_frame_v1_interface, version, id);
 	if (frame->resource == NULL) {
 		wl_client_post_no_memory(client);
+		free(frame);
 		return;
 	}
 	wl_resource_set_implementation(frame->resource, &frame_impl, frame,

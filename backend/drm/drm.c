@@ -973,7 +973,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 }
 
 void restore_drm_outputs(struct wlr_drm_backend *drm) {
-	uint64_t to_close = (1 << wl_list_length(&drm->outputs)) - 1;
+	uint64_t to_close = (1L << wl_list_length(&drm->outputs)) - 1;
 
 	struct wlr_drm_connector *conn;
 	wl_list_for_each(conn, &drm->outputs, link) {

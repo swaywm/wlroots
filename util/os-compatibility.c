@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "util/os-compatibility.h"
@@ -61,6 +62,7 @@ int create_tmpfile_cloexec(char *tmpname)
 {
 	int fd;
 
+	mode_t prev_umask = umask(0066);
 #ifdef HAVE_MKOSTEMP
 	fd = mkostemp(tmpname, O_CLOEXEC);
 	if (fd >= 0)
@@ -72,6 +74,7 @@ int create_tmpfile_cloexec(char *tmpname)
 		unlink(tmpname);
 	}
 #endif
+	umask(prev_umask);
 
 	return fd;
 }

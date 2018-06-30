@@ -486,8 +486,8 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_intersect(&render_damage, &render_damage, damage);
 	}
 
+	struct timespec now;
 	if (when == NULL) {
-		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		when = &now;
 	}
