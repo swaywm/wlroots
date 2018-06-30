@@ -381,12 +381,6 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 		layer_surface->client_pending.margin.bottom,
 		layer_surface->client_pending.margin.left);
 
-	struct roots_layer_surface *roots_surface =
-		calloc(1, sizeof(struct roots_layer_surface));
-	if (!roots_surface) {
-		return;
-	}
-
 	if (!layer_surface->output) {
 		struct roots_input *input = desktop->server->input;
 		struct roots_seat *seat = input_last_active_seat(input);
@@ -407,6 +401,12 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 			wlr_layer_surface_close(layer_surface);
 			return;
 		}
+	}
+
+	struct roots_layer_surface *roots_surface =
+		calloc(1, sizeof(struct roots_layer_surface));
+	if (!roots_surface) {
+		return;
 	}
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
