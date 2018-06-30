@@ -1,6 +1,8 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
 
+libpng = dependency('libpng', required: false)
+
 # These versions correspond to ffmpeg 4.0
 libavutil = dependency('libavutil', version: '>=56.14.100', required: false)
 libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false)
@@ -57,8 +59,10 @@ if libavutil.found() and libavcodec.found() and libavformat.found()
 	)
 endif
 
-executable(
-	'screencopy',
-	'screencopy.c',
-	dependencies: [wayland_client, wlr_protos, wlroots]
-)
+if libpng.found()
+	executable(
+		'screencopy',
+		'screencopy.c',
+		dependencies: [wayland_client, wlr_protos, wlroots, libpng]
+	)
+endif

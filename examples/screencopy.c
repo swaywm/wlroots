@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <png.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +37,11 @@
 #include <unistd.h>
 #include <wayland-client-protocol.h>
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
+
+struct format {
+	enum wl_shm_format wl_format;
+	bool is_bgr;
+};
 
 static struct wl_shm *shm = NULL;
 static struct zwlr_screencopy_manager_v1 *screencopy_manager = NULL;
@@ -50,16 +56,13 @@ static struct {
 } buffer;
 bool buffer_copy_done = false;
 
-// wl_shm_format describes little-endian formats, ImageMagick uses big-endian
-// formats.
-static const struct {
-	enum wl_shm_format wl_format;
-	char *str_format;
-} formats[] = {
-	{WL_SHM_FORMAT_XRGB8888, "BGRA"},
-	{WL_SHM_FORMAT_ARGB8888, "BGRA"},
-	{WL_SHM_FORMAT_XBGR8888, "RGBA"},
-	{WL_SHM_FORMAT_ABGR8888, "RGBA"},
+// wl_shm_format describes little-endian formats, libpng uses big-endian
+// formats (so Wayland's ABGR is libpng's RGBA).
+static const struct format formats[] = {
+	{WL_SHM_FORMAT_XRGB8888, true},
+	{WL_SHM_FORMAT_ARGB8888, true},
+	{WL_SHM_FORMAT_XBGR8888, false},
+	{WL_SHM_FORMAT_ABGR8888, false},
 };
 
 static int backingfile(off_t size) {
@@ -156,8 +159,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 		output = wl_registry_bind(registry, name, &wl_output_interface, 1);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
-	} else if (strcmp(interface, zwlr_screencopy_manager_v1_interface.name)
-			== 0) {
+	} else if (strcmp(interface,
+			zwlr_screencopy_manager_v1_interface.name) == 0) {
 		screencopy_manager = wl_registry_bind(registry, name,
 			&zwlr_screencopy_manager_v1_interface, 1);
 	}
@@ -174,64 +177,56 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 static void write_image(char *filename, enum wl_shm_format wl_fmt, int width,
-		int height, int stride, bool y_invert, void *data) {
-	char size[10 + 1 + 10 + 2 + 1]; // int32_t are max 10 digits
-	sprintf(size, "%dx%d+0", width, height);
-
-	const char *fmt_str = NULL;
+		int height, int stride, bool y_invert, png_bytep data) {
+	const struct format *fmt = NULL;
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); ++i) {
 		if (formats[i].wl_format == wl_fmt) {
-			fmt_str = formats[i].str_format;
+			fmt = &formats[i];
 			break;
 		}
 	}
-	if (fmt_str == NULL) {
+	if (fmt == NULL) {
 		fprintf(stderr, "unsupported format %"PRIu32"\n", wl_fmt);
 		exit(EXIT_FAILURE);
 	}
-	char convert[strlen(fmt_str) + 3];
-	memcpy(convert, fmt_str, strlen(fmt_str) + 1);
-	strcat(convert, ":-");
 
-	int fd[2];
-	if (pipe(fd) != 0) {
-		fprintf(stderr, "cannot create pipe: %s\n", strerror(errno));
+	FILE *f = fopen(filename, "wb");
+	if (f == NULL) {
+		fprintf(stderr, "failed to open output file\n");
 		exit(EXIT_FAILURE);
 	}
 
-	pid_t child = fork();
-	if (child < 0) {
-		fprintf(stderr, "fork() failed\n");
-		exit(EXIT_FAILURE);
-	} else if (child != 0) {
-		close(fd[0]);
-		if (write(fd[1], data, stride * height) < 0) {
-			fprintf(stderr, "write() failed: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		close(fd[1]);
-		waitpid(child, NULL, 0);
-	} else {
-		close(fd[1]);
-		if (dup2(fd[0], 0) != 0) {
-			fprintf(stderr, "cannot dup the pipe\n");
-			exit(EXIT_FAILURE);
-		}
-		close(fd[0]);
+	png_structp png =
+		png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	png_infop info = png_create_info_struct(png);
 
-		char *argv[11] = {"convert", "-depth", "8", "-size", size, convert,
-			"-alpha", "opaque", filename, NULL};
+	png_init_io(png, f);
+
+	png_set_IHDR(png, info, width, height, 8, PNG_COLOR_TYPE_RGBA,
+		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
+		PNG_FILTER_TYPE_DEFAULT);
+
+	if (fmt->is_bgr) {
+		png_set_bgr(png);
+	}
+
+	png_write_info(png, info);
+
+	for (size_t i = 0; i < (size_t)height; ++i) {
+		png_bytep row;
 		if (y_invert) {
-			argv[8] = "-flip";
-			argv[9] = filename;
-			argv[10] = NULL;
+			row = data + (height - i - 1) * stride;
+		} else {
+			row = data + i * stride;
 		}
-
-		execvp("convert", argv);
-
-		fprintf(stderr, "cannot execute convert\n");
-		exit(EXIT_FAILURE);
+		png_write_row(png, row);
 	}
+
+	png_write_end(png, NULL);
+
+	png_destroy_write_struct(&png, &info);
+
+	fclose(f);
 }
 
 int main(int argc, char *argv[]) {
