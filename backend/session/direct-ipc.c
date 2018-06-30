@@ -159,7 +159,9 @@ static void communicate(int sock) {
 			}
 error:
 			send_msg(sock, ret ? -1 : fd, &ret, sizeof(ret));
-			close(fd);
+			if (fd >= 0) {
+				close(fd);
+			}
 
 			break;
 
