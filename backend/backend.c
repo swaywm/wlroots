@@ -203,6 +203,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 				wlr_log(L_ERROR, "failed to start backend '%s'", name);
 				wlr_backend_destroy(backend);
 				wlr_session_destroy(session);
+				free(names);
 				return NULL;
 			}
 
@@ -210,12 +211,14 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 				wlr_log(L_ERROR, "failed to add backend '%s'", name);
 				wlr_backend_destroy(backend);
 				wlr_session_destroy(session);
+				free(names);
 				return NULL;
 			}
 
 			name = strtok_r(NULL, ",", &saveptr);
 		}
 
+		free(names);
 		return backend;
 	}
 
