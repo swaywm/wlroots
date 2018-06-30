@@ -245,13 +245,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->xlib_conn = XOpenDisplay(x11_display);
 	if (!x11->xlib_conn) {
 		wlr_log(L_ERROR, "Failed to open X connection");
-		return NULL;
+		goto error_x11;
 	}
 
 	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
 	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
 		wlr_log(L_ERROR, "Failed to open xcb connection");
-		goto error_x11;
+		goto error_display;
 	}
 
 	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
@@ -262,7 +262,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
 	if (!x11->event_source) {
 		wlr_log(L_ERROR, "Could not create event source");
-		goto error_x11;
+		goto error_display;
 	}
 
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
@@ -291,8 +291,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 error_event:
 	wl_event_source_remove(x11->event_source);
-error_x11:
+error_display:
 	XCloseDisplay(x11->xlib_conn);
+error_x11:
 	free(x11);
 	return NULL;
 }
