@@ -291,7 +291,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	POP_GLES2_DEBUG;
 
-	return (glGetError() == GL_NO_ERROR);
+	return glGetError() == GL_NO_ERROR;
 }
 
 static bool gles2_format_supported(struct wlr_renderer *wlr_renderer,
