@@ -50,6 +50,7 @@ lib_wlr_types = static_library(
 		'wlr_wl_shell.c',
 		'wlr_xcursor_manager.c',
 		'wlr_xdg_output.c',
+		'wlr_screencopy_v1.c',
 	),
 	include_directories: wlr_inc,
 	dependencies: [pixman, xkbcommon, wayland_server, wlr_protos],
