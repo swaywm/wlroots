@@ -166,12 +166,6 @@ static void surface_state_finalize(struct wlr_surface *surface,
 	pixman_region32_intersect_rect(&state->buffer_damage,
 		&state->buffer_damage, 0, 0, state->buffer_width,
 		state->buffer_height);
-
-	pixman_region32_intersect_rect(&state->opaque, &state->opaque,
-		0, 0, state->width, state->height);
-
-	pixman_region32_intersect_rect(&state->input, &state->input,
-		0, 0, state->width, state->height);
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
