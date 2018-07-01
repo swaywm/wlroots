@@ -32,28 +32,28 @@ static int max(int fst, int snd) {
 }
 
 static void surface_state_reset_buffer(struct wlr_surface_state *state) {
-	if (state->buffer) {
-		wl_list_remove(&state->buffer_destroy_listener.link);
-		state->buffer = NULL;
+	if (state->buffer_resource) {
+		wl_list_remove(&state->buffer_destroy.link);
+		state->buffer_resource = NULL;
 	}
 }
 
 static void surface_handle_buffer_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_surface_state *state =
-		wl_container_of(listener, state, buffer_destroy_listener);
+		wl_container_of(listener, state, buffer_destroy);
 	surface_state_reset_buffer(state);
 }
 
 static void surface_state_set_buffer(struct wlr_surface_state *state,
-		struct wl_resource *buffer) {
+		struct wl_resource *buffer_resource) {
 	surface_state_reset_buffer(state);
 
-	state->buffer = buffer;
-	if (buffer) {
-		wl_resource_add_destroy_listener(buffer,
-			&state->buffer_destroy_listener);
-		state->buffer_destroy_listener.notify = surface_handle_buffer_destroy;
+	state->buffer_resource = buffer_resource;
+	if (buffer_resource != NULL) {
+		wl_resource_add_destroy_listener(buffer_resource,
+			&state->buffer_destroy);
+		state->buffer_destroy.notify = surface_handle_buffer_destroy;
 	}
 }
 
@@ -142,9 +142,9 @@ static void surface_set_input_region(struct wl_client *client,
 static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
-		if (state->buffer != NULL) {
-			wlr_buffer_get_resource_size(state->buffer, surface->renderer,
-				&state->buffer_width, &state->buffer_height);
+		if (state->buffer_resource != NULL) {
+			wlr_buffer_get_resource_size(state->buffer_resource,
+				surface->renderer, &state->buffer_width, &state->buffer_height);
 		} else {
 			state->buffer_width = state->buffer_height = 0;
 		}
@@ -258,7 +258,7 @@ static void surface_state_move(struct wlr_surface_state *state,
 	surface_state_copy(state, next);
 
 	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
-		surface_state_set_buffer(state, next->buffer);
+		surface_state_set_buffer(state, next->buffer_resource);
 		surface_state_reset_buffer(next);
 		next->dx = next->dy = 0;
 	}
@@ -296,7 +296,7 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 }
 
 static void surface_apply_damage(struct wlr_surface *surface) {
-	struct wl_resource *resource = surface->current.buffer;
+	struct wl_resource *resource = surface->current.buffer_resource;
 	if (resource == NULL) {
 		// NULL commit
 		wlr_buffer_unref(surface->buffer);

@@ -22,7 +22,7 @@ enum wlr_surface_state_field {
 struct wlr_surface_state {
 	uint32_t committed; // enum wlr_surface_state_field
 
-	struct wl_resource *buffer;
+	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
 	pixman_region32_t surface_damage, buffer_damage;
 	pixman_region32_t opaque, input;
@@ -33,7 +33,7 @@ struct wlr_surface_state {
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
 
-	struct wl_listener buffer_destroy_listener;
+	struct wl_listener buffer_destroy;
 };
 
 struct wlr_surface {
