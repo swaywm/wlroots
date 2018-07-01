@@ -536,9 +536,34 @@ static void xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
 	}
 }
 
+static void xdg_surface_v6_for_each_popup(struct wlr_xdg_surface_v6 *surface,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct wlr_xdg_popup_v6 *popup_state;
+	wl_list_for_each(popup_state, &surface->popups, link) {
+		struct wlr_xdg_surface_v6 *popup = popup_state->base;
+		if (!popup->configured) {
+			continue;
+		}
+
+		double popup_sx, popup_sy;
+		xdg_popup_v6_get_position(popup_state, &popup_sx, &popup_sy);
+		iterator(popup->surface, x + popup_sx, y + popup_sy, user_data);
+
+		xdg_surface_v6_for_each_popup(popup,
+			x + popup_sx,
+			y + popup_sy,
+			iterator, user_data);
+	}
+}
+
 void wlr_xdg_surface_v6_for_each_surface(struct wlr_xdg_surface_v6 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	xdg_surface_v6_for_each_surface(surface, 0, 0, iterator, user_data);
+}
+
+void wlr_xdg_surface_v6_for_each_popup(struct wlr_xdg_surface_v6 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	xdg_surface_v6_for_each_popup(surface, 0, 0, iterator, user_data);
 }
 
 void wlr_xdg_surface_v6_get_geometry(struct wlr_xdg_surface_v6 *surface, struct wlr_box *box) {
