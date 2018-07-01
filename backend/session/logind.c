@@ -104,6 +104,7 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
+	close(fd);
 }
 
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
