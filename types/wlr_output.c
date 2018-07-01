@@ -403,11 +403,6 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	box->y = cursor->y - cursor->hotspot_y;
 	box->width = cursor->width;
 	box->height = cursor->height;
-
-	if (cursor->surface != NULL) {
-		box->x += cursor->surface->sx * cursor->output->scale;
-		box->y += cursor->surface->sy * cursor->output->scale;
-	}
 }
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
@@ -771,20 +766,28 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	return true;
 }
 
-static void output_cursor_commit(struct wlr_output_cursor *cursor) {
+static void output_cursor_commit(struct wlr_output_cursor *cursor,
+		bool update_hotspot) {
 	if (cursor->output->hardware_cursor != cursor) {
 		output_cursor_damage_whole(cursor);
 	}
 
+	struct wlr_surface *surface = cursor->surface;
+	assert(surface != NULL);
+
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
-	cursor->enabled = wlr_surface_has_buffer(cursor->surface);
-	cursor->width = cursor->surface->current.width * cursor->output->scale;
-	cursor->height = cursor->surface->current.height * cursor->output->scale;
+	cursor->enabled = wlr_surface_has_buffer(surface);
+	cursor->width = surface->current.width * cursor->output->scale;
+	cursor->height = surface->current.height * cursor->output->scale;
+	if (update_hotspot) {
+		cursor->hotspot_x -= surface->current.dx * cursor->output->scale;
+		cursor->hotspot_y -= surface->current.dy * cursor->output->scale;
+	}
 
 	if (output_cursor_attempt_hardware(cursor)) {
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
-		wlr_surface_send_frame_done(cursor->surface, &now);
+		wlr_surface_send_frame_done(surface, &now);
 		return;
 	}
 
@@ -794,9 +797,9 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor) {
 
 static void output_cursor_handle_commit(struct wl_listener *listener,
 		void *data) {
-	struct wlr_output_cursor *cursor = wl_container_of(listener, cursor,
-		surface_commit);
-	output_cursor_commit(cursor);
+	struct wlr_output_cursor *cursor =
+		wl_container_of(listener, cursor, surface_commit);
+	output_cursor_commit(cursor, true);
 }
 
 static void output_cursor_handle_destroy(struct wl_listener *listener,
@@ -842,7 +845,7 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
-		output_cursor_commit(cursor);
+		output_cursor_commit(cursor, false);
 
 		cursor->visible = false;
 		output_cursor_update_visible(cursor);
