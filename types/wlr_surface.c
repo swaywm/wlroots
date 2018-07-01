@@ -142,8 +142,12 @@ static void surface_set_input_region(struct wl_client *client,
 static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
-		wlr_buffer_get_resource_size(state->buffer, surface->renderer,
-			&state->buffer_width, &state->buffer_height);
+		if (state->buffer != NULL) {
+			wlr_buffer_get_resource_size(state->buffer, surface->renderer,
+				&state->buffer_width, &state->buffer_height);
+		} else {
+			state->buffer_width = state->buffer_height = 0;
+		}
 	}
 
 	int width = state->buffer_width / state->scale;
