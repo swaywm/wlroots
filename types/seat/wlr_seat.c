@@ -168,9 +168,9 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		seat->selection_source = NULL;
 	}
 	if (seat->primary_selection_source) {
+		wl_list_remove(&seat->primary_selection_source_destroy.link);
 		seat->primary_selection_source->cancel(seat->primary_selection_source);
 		seat->primary_selection_source = NULL;
-		wl_list_remove(&seat->primary_selection_source_destroy.link);
 	}
 
 	struct wlr_seat_client *client, *tmp;
