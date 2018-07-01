@@ -64,9 +64,10 @@ struct wlr_surface {
 	/**
 	 * `current` contains the current, committed surface state. `pending`
 	 * accumulates state changes from the client between commits and shouldn't
-	 * be accessed by the compositor directly.
+	 * be accessed by the compositor directly. `previous` contains the state of
+	 * the previous commit.
 	 */
-	struct wlr_surface_state current, pending;
+	struct wlr_surface_state current, pending, previous;
 	const char *role; // the lifetime-bound role or null
 
 	struct {

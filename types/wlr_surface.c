@@ -339,6 +339,7 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 	surface_update_damage(&surface->buffer_damage,
 		&surface->current, &surface->pending);
 
+	surface_state_move(&surface->previous, &surface->current);
 	surface_state_move(&surface->current, &surface->pending);
 
 	if (invalid_buffer) {
@@ -548,6 +549,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(&surface->renderer_destroy.link);
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
+	surface_state_finish(&surface->previous);
 	pixman_region32_fini(&surface->buffer_damage);
 	wlr_buffer_unref(surface->buffer);
 	free(surface);
@@ -586,6 +588,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 
 	surface_state_init(&surface->current);
 	surface_state_init(&surface->pending);
+	surface_state_init(&surface->previous);
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
@@ -792,16 +795,13 @@ static void subsurface_role_committed(struct wlr_surface *surface, void *data) {
 			dy = tmp;
 		}
 
-		// TODO: take the previous size
 		pixman_region32_union_rect(&surface->buffer_damage,
 			&surface->buffer_damage,
-			dx * surface->current.scale, dy * surface->current.scale,
-			surface->current.width,
-			surface->current.height);
+			dx * surface->previous.scale, dy * surface->previous.scale,
+			surface->previous.width, surface->previous.height);
 		pixman_region32_union_rect(&surface->buffer_damage,
 			&surface->buffer_damage, 0, 0,
-			surface->pending.width,
-			surface->pending.height);
+			surface->current.width, surface->current.height);
 	}
 }
 
