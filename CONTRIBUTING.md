@@ -236,7 +236,7 @@ error_session:
 ## Wayland protocol implementation
 
 Each protocol generally lives in a file with the same name, usually containing
-at leats one struct for each interface in the protocol. For instance,
+at least one struct for each interface in the protocol. For instance,
 `xdg_shell` lives in `types/wlr_xdg_shell.h` and has a `wlr_xdg_surface` struct.
 
 ### Globals

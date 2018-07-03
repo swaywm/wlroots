@@ -228,13 +228,12 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 		// if the surface doesn't allow the focus request, we will send him
 		// only the take focus event. It will get the focus by itself.
 		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_NO_EVENT);
-		return;
+	} else {
+		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
+
+		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			xsurface->window_id, XCB_CURRENT_TIME);
 	}
-
-	xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
-
-	xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-		xsurface->window_id, XCB_CURRENT_TIME);
 
 	uint32_t values[1];
 	values[0] = XCB_STACK_MODE_ABOVE;
