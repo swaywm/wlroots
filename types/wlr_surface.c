@@ -809,10 +809,10 @@ static void subsurface_role_committed(struct wlr_surface *surface, void *data) {
 		pixman_region32_union_rect(&surface->buffer_damage,
 			&surface->buffer_damage,
 			dx * surface->previous.scale, dy * surface->previous.scale,
-			surface->previous.width, surface->previous.height);
+			surface->previous.buffer_width, surface->previous.buffer_height);
 		pixman_region32_union_rect(&surface->buffer_damage,
 			&surface->buffer_damage, 0, 0,
-			surface->current.width, surface->current.height);
+			surface->current.buffer_width, surface->current.buffer_height);
 	}
 }
 
