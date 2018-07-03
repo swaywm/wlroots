@@ -258,6 +258,7 @@ static void surface_move_state(struct wlr_surface *surface,
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_OPAQUE_REGION)) {
 		// TODO: process buffer
+		pixman_region32_copy(&state->opaque, &next->opaque);
 		pixman_region32_clear(&next->opaque);
 	}
 	if ((next->invalid & WLR_SURFACE_INVALID_INPUT_REGION)) {
