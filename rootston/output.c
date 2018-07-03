@@ -16,6 +16,7 @@
 #include "rootston/layers.h"
 #include "rootston/output.h"
 #include "rootston/server.h"
+#include "backend/drm/drm.h"
 
 /**
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
@@ -841,6 +842,17 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 		roots_config_get_output(config, wlr_output);
 	if (output_config) {
 		if (output_config->enable) {
+			struct roots_output_mode_config *mode_config;
+
+			if (wlr_output_is_drm(wlr_output)) {
+				wl_list_for_each(mode_config, &output_config->modes, link) {
+					wlr_drm_connector_add_mode(wlr_output, &mode_config->info);
+				}
+			} else {
+				if (!wl_list_empty(&output_config->modes)) {
+					wlr_log(L_ERROR, "Can only add modes for DRM backend");
+				}
+			}
 			if (output_config->mode.width) {
 				set_mode(wlr_output, output_config);
 			}

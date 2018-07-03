@@ -1,10 +1,16 @@
 #ifndef ROOTSTON_CONFIG_H
 #define ROOTSTON_CONFIG_H
 
+#include <xf86drmMode.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_output_layout.h>
 
 #define ROOTS_CONFIG_DEFAULT_SEAT_NAME "seat0"
+
+struct roots_output_mode_config {
+	drmModeModeInfo info;
+	struct wl_list link;
+};
 
 struct roots_output_config {
 	char *name;
@@ -17,6 +23,7 @@ struct roots_output_config {
 		int width, height;
 		float refresh_rate;
 	} mode;
+	struct wl_list modes;
 };
 
 struct roots_device_config {

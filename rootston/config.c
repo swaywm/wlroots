@@ -116,6 +116,51 @@ static uint32_t parse_modifier(const char *symname) {
 	}
 }
 
+static bool parse_modeline(const char *s, drmModeModeInfo *mode) {
+	char hsync[16];
+	char vsync[16];
+	float fclock;
+
+	mode->type = DRM_MODE_TYPE_USERDEF;
+
+	if (sscanf(s, "%f %hd %hd %hd %hd %hd %hd %hd %hd %15s %15s",
+		   &fclock,
+		   &mode->hdisplay,
+		   &mode->hsync_start,
+		   &mode->hsync_end,
+		   &mode->htotal,
+		   &mode->vdisplay,
+		   &mode->vsync_start,
+		   &mode->vsync_end,
+		   &mode->vtotal, hsync, vsync) != 11) {
+		return false;
+	}
+
+	mode->clock = fclock * 1000;
+	mode->vrefresh = mode->clock * 1000.0 * 1000.0
+		/ mode->htotal / mode->vtotal;
+	if (strcasecmp(hsync, "+hsync") == 0) {
+		mode->flags |= DRM_MODE_FLAG_PHSYNC;
+	} else if (strcasecmp(hsync, "-hsync") == 0) {
+		mode->flags |= DRM_MODE_FLAG_NHSYNC;
+	} else {
+		return false;
+	}
+
+	if (strcasecmp(vsync, "+vsync") == 0) {
+		mode->flags |= DRM_MODE_FLAG_PVSYNC;
+	} else if (strcasecmp(vsync, "-vsync") == 0) {
+		mode->flags |= DRM_MODE_FLAG_NVSYNC;
+	} else {
+		return false;
+	}
+
+	snprintf(mode->name, sizeof(mode->name), "%dx%d@%d",
+		 mode->hdisplay, mode->vdisplay, mode->vrefresh / 1000);
+
+	return true;
+}
+
 void add_binding_config(struct wl_list *bindings, const char* combination,
 		const char* command) {
 	struct roots_binding_config *bc =
@@ -269,6 +314,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 			oc->scale = 1;
 			oc->enable = true;
+			wl_list_init(&oc->modes);
 			wl_list_insert(&config->outputs, &oc->link);
 		}
 
@@ -322,6 +368,15 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 			wlr_log(L_DEBUG, "Configured output %s with mode %dx%d@%f",
 					oc->name, oc->mode.width, oc->mode.height,
 					oc->mode.refresh_rate);
+		} else if (strcmp(name, "modeline") == 0) {
+			struct roots_output_mode_config *mode = calloc(1, sizeof(*mode));
+
+			if (parse_modeline(value, &mode->info)) {
+				wl_list_insert(&oc->modes, &mode->link);
+			} else {
+				free(mode);
+				wlr_log(L_ERROR, "Invalid modeline: %s", value);
+			}
 		}
 	} else if (strncmp(cursor_prefix, section, strlen(cursor_prefix)) == 0) {
 		const char *seat_name = section + strlen(cursor_prefix);
@@ -459,6 +514,10 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 void roots_config_destroy(struct roots_config *config) {
 	struct roots_output_config *oc, *otmp = NULL;
 	wl_list_for_each_safe(oc, otmp, &config->outputs, link) {
+		struct roots_output_mode_config *omc, *omctmp = NULL;
+		wl_list_for_each_safe(omc, omctmp, &oc->modes, link) {
+			free(omc);
+		}
 		free(oc->name);
 		free(oc);
 	}
