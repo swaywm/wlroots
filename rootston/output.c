@@ -517,6 +517,13 @@ static void render_output(struct roots_output *output) {
 renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
 	wlr_renderer_end(renderer);
+
+	if (server->config->debug_damage_tracking) {
+		int width, height;
+		wlr_output_transformed_resolution(wlr_output, &width, &height);
+		pixman_region32_union_rect(&damage, &damage, 0, 0, width, height);
+	}
+
 	if (!wlr_output_damage_swap_buffers(output->damage, &now, &damage)) {
 		goto damage_finish;
 	}
