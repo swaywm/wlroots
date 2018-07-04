@@ -175,10 +175,18 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
-		struct wl_resource *resource, *next_resource;
-		wl_resource_for_each_safe(resource, next_resource, &client->wl_resources) {
+		struct wl_resource *resource, *next;
+		/* wl_resource_for_each_safe isn't safe to use here, because the last
+		 * wl_resource_destroy will also destroy the head we cannot do the last
+		 * 'next' update that usually is harmless here.
+		 * Work around this by breaking one step ahead
+		 */
+		wl_resource_for_each_safe(resource, next, &client->wl_resources) {
 			// will destroy other resources as well
 			wl_resource_destroy(resource);
+			if (wl_resource_get_link(next) == &client->wl_resources) {
+				break;
+			}
 		}
 	}
 
