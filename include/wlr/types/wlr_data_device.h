@@ -5,13 +5,13 @@
 #include <wlr/types/wlr_seat.h>
 
 extern const struct
-wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
+	wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
 
 extern const struct
-wlr_keyboard_grab_interface wlr_data_device_keyboard_drag_interface;
+	wlr_keyboard_grab_interface wlr_data_device_keyboard_drag_interface;
 
 extern const struct
-wlr_touch_grab_interface wlr_data_device_touch_drag_interface;
+	wlr_touch_grab_interface wlr_data_device_touch_drag_interface;
 
 struct wlr_data_device_manager {
 	struct wl_global *global;
@@ -223,5 +223,9 @@ void wlr_data_source_dnd_finish(struct wlr_data_source *source);
  */
 void wlr_data_source_dnd_action(struct wlr_data_source *source,
 	enum wl_data_device_manager_dnd_action action);
+
+struct wlr_drag *wlr_seat_client_start_grab(struct wlr_seat_client *client,
+	struct wlr_data_source *source, struct wlr_surface *icon_surface,
+	struct wlr_touch_point *point);
 
 #endif

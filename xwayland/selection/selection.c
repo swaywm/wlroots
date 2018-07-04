@@ -289,6 +289,11 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 	struct wlr_xwm *xwm = wl_container_of(listener, xwm, seat_start_drag);
 	struct wlr_drag *drag = data;
 
+	if (drag && (drag->source == NULL ||
+			data_source_is_xwayland(drag->source))) {
+		return;
+	}
+
 	xwm_selection_set_owner(&xwm->dnd_selection, drag != NULL);
 	xwm_seat_handle_start_drag(xwm, drag);
 }

@@ -1,6 +1,8 @@
 #ifndef XWAYLAND_SELECTION_H
 #define XWAYLAND_SELECTION_H
 
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <xcb/xfixes.h>
 
 #define INCR_CHUNK_SIZE (64 * 1024)
@@ -39,6 +41,18 @@ struct wlr_xwm_selection {
 	struct wl_list outgoing;
 };
 
+struct wlr_xwayland_data_source {
+	struct wlr_data_source base;
+	struct wlr_xwm_selection *selection;
+	struct wl_array mime_types_atoms;
+};
+
+struct wlr_xwayland_primary_selection_source {
+	struct wlr_primary_selection_source base;
+	struct wlr_xwm_selection *selection;
+	struct wl_array mime_types_atoms;
+};
+
 void xwm_selection_transfer_remove_source(
 	struct wlr_xwm_selection_transfer *transfer);
 void xwm_selection_transfer_close_source_fd(
@@ -63,8 +77,14 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 bool data_source_is_xwayland(struct wlr_data_source *wlr_source);
 bool primary_selection_source_is_xwayland(
 	struct wlr_primary_selection_source *wlr_source);
+struct wlr_xwayland_data_source *xwayland_data_source_create(
+	struct wlr_xwm_selection *selection);
+struct wlr_xwayland_data_source *xwayland_data_source_from_wlr_data_source(
+	struct wlr_data_source *wlr_source);
 
 void xwm_seat_handle_start_drag(struct wlr_xwm *xwm, struct wlr_drag *drag);
+int xwm_dnd_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
+	xcb_xfixes_selection_notify_event_t *event);
 
 void xwm_selection_init(struct wlr_xwm *xwm);
 void xwm_selection_finish(struct wlr_xwm *xwm);

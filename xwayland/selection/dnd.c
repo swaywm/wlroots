@@ -37,26 +37,31 @@ static enum wl_data_device_manager_dnd_action
 	return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
 }
 
-static void xwm_dnd_send_event(struct wlr_xwm *xwm, xcb_atom_t type,
-		xcb_client_message_data_t *data) {
-	struct wlr_xwayland_surface *dest = xwm->drag_focus;
-	assert(dest != NULL);
-
+static void xwm_dnd_send_event(struct wlr_xwm *xwm, xcb_window_t dest,
+		xcb_atom_t type, xcb_client_message_data_t *data) {
 	xcb_client_message_event_t event = {
 		.response_type = XCB_CLIENT_MESSAGE,
 		.format = 32,
 		.sequence = 0,
-		.window = dest->window_id,
+		.window = dest,
 		.type = type,
 		.data = *data,
 	};
 
 	xcb_send_event(xwm->xcb_conn,
 		0, // propagate
-		dest->window_id,
+		dest,
 		XCB_EVENT_MASK_NO_EVENT,
 		(const char *)&event);
 	xcb_flush(xwm->xcb_conn);
+}
+
+static void xwm_dnd_send_event_to_focus(struct wlr_xwm *xwm, xcb_atom_t type,
+		xcb_client_message_data_t *data) {
+	struct wlr_xwayland_surface *dest = xwm->drag_focus;
+	assert(dest != NULL);
+
+	xwm_dnd_send_event(xwm, dest->window_id, type, data);
 }
 
 static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
@@ -102,7 +107,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 			n, targets);
 	}
 
-	xwm_dnd_send_event(xwm, xwm->atoms[DND_ENTER], &data);
+	xwm_dnd_send_event_to_focus(xwm, xwm->atoms[DND_ENTER], &data);
 }
 
 static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
@@ -117,7 +122,22 @@ static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 	data.data32[4] =
 		data_device_manager_dnd_action_to_atom(xwm, drag->source->actions);
 
-	xwm_dnd_send_event(xwm, xwm->atoms[DND_POSITION], &data);
+	xwm_dnd_send_event_to_focus(xwm, xwm->atoms[DND_POSITION], &data);
+}
+
+static void xwm_dnd_send_status(struct wlr_xwm *xwm, xcb_window_t source_window,
+		enum wl_data_device_manager_dnd_action action) {
+	uint32_t flags = 1 << 1; // Opt-in for XdndPosition messages
+	if (action != WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE) {
+		flags |= 1 << 0; // We accept the drop
+	}
+
+	xcb_client_message_data_t data = { 0 };
+	data.data32[0] = xwm->dnd_window;
+	data.data32[1] = flags;
+	data.data32[4] = data_device_manager_dnd_action_to_atom(xwm, action);
+
+	xwm_dnd_send_event(xwm, source_window, xwm->atoms[DND_STATUS], &data);
 }
 
 static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
@@ -130,7 +150,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 	data.data32[0] = xwm->dnd_window;
 	data.data32[2] = time;
 
-	xwm_dnd_send_event(xwm, xwm->atoms[DND_DROP], &data);
+	xwm_dnd_send_event_to_focus(xwm, xwm->atoms[DND_DROP], &data);
 }
 
 static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
@@ -142,7 +162,7 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	xcb_client_message_data_t data = { 0 };
 	data.data32[0] = xwm->dnd_window;
 
-	xwm_dnd_send_event(xwm, xwm->atoms[DND_LEAVE], &data);
+	xwm_dnd_send_event_to_focus(xwm, xwm->atoms[DND_LEAVE], &data);
 }
 
 /*static void xwm_dnd_send_finished(struct wlr_xwm *xwm) {
@@ -160,79 +180,310 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 			drag->source->current_dnd_action);
 	}
 
-	xwm_dnd_send_event(xwm, xwm->atoms[DND_FINISHED], &data);
+	xwm_dnd_send_event_to_focus(xwm, xwm->atoms[DND_FINISHED], &data);
 }*/
+
+/**
+ * Handle a status message for an outgoing DnD operation.
+ */
+static void xwm_handle_dnd_status(struct wlr_xwm *xwm,
+		xcb_client_message_data_t *data) {
+	if (xwm->drag == NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+			"there's no drag");
+		return;
+	}
+
+	xcb_window_t target_window = data->data32[0];
+	bool accepted = data->data32[1] & 1;
+	xcb_atom_t action_atom = data->data32[4];
+
+	if (xwm->drag_focus == NULL ||
+			target_window != xwm->drag_focus->window_id) {
+		wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+			"it doesn't match the current drag focus window ID");
+		return;
+	}
+
+	enum wl_data_device_manager_dnd_action action =
+		data_device_manager_dnd_action_from_atom(xwm, action_atom);
+
+	struct wlr_drag *drag = xwm->drag;
+	assert(drag != NULL);
+
+	drag->source->accepted = accepted;
+	wlr_data_source_dnd_action(drag->source, action);
+
+	wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
+		target_window, accepted, action);
+}
+
+/**
+ * Handle a finish message for an outgoing DnD operation.
+ */
+static void xwm_handle_dnd_finished(struct wlr_xwm *xwm,
+		xcb_client_message_data_t *data) {
+	// This should only happen after the drag has ended, but before the drag
+	// source is destroyed
+	if (xwm->seat == NULL || xwm->seat->drag_source == NULL ||
+			xwm->drag != NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
+			"there's no finished drag");
+		return;
+	}
+
+	struct wlr_data_source *source = xwm->seat->drag_source;
+
+	xcb_window_t target_window = data->data32[0];
+	bool performed = data->data32[1] & 1;
+	xcb_atom_t action_atom = data->data32[2];
+
+	if (xwm->drag_focus == NULL ||
+			target_window != xwm->drag_focus->window_id) {
+		wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
+			"it doesn't match the finished drag focus window ID");
+		return;
+	}
+
+	enum wl_data_device_manager_dnd_action action =
+		data_device_manager_dnd_action_from_atom(xwm, action_atom);
+
+	if (performed) {
+		wlr_data_source_dnd_finish(source);
+	}
+
+	wlr_log(L_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
+		target_window, performed, action);
+}
+
+static bool xwm_add_atom_to_mime_types(struct wlr_xwm *xwm,
+		struct wl_array *mime_types, struct wl_array *mime_types_atoms,
+		xcb_atom_t atom) {
+	char *mime_type = xwm_mime_type_from_atom(xwm, atom);
+	if (mime_type == NULL) {
+		return false;
+	}
+
+	char **mime_type_ptr =
+		wl_array_add(mime_types, sizeof(*mime_type_ptr));
+	if (mime_type_ptr == NULL) {
+		return false;
+	}
+	*mime_type_ptr = mime_type;
+
+	xcb_atom_t *mime_type_atom_ptr =
+		wl_array_add(mime_types_atoms, sizeof(*mime_type_atom_ptr));
+	if (mime_type_atom_ptr == NULL) {
+		return false;
+	}
+	*mime_type_atom_ptr = atom;
+
+	return true;
+}
+
+static bool xwm_dnd_get_mime_types(struct wlr_xwm *xwm,
+		struct wl_array *mime_types, struct wl_array *mime_types_atoms,
+		xcb_window_t source) {
+	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
+		1, // delete
+		source,
+		xwm->atoms[DND_TYPE_LIST],
+		XCB_GET_PROPERTY_TYPE_ANY,
+		0, // offset
+		0x1fffffff // length
+		);
+
+	xcb_get_property_reply_t *reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+	if (reply == NULL) {
+		return false;
+	}
+	if (reply->type != XCB_ATOM_ATOM || reply->value_len == 0) {
+		wlr_log(L_ERROR, "invalid XdndTypeList property");
+		goto error;
+	}
+
+	xcb_atom_t *atoms = xcb_get_property_value(reply);
+	for (uint32_t i = 0; i < reply->value_len; ++i) {
+		if (!xwm_add_atom_to_mime_types(xwm, mime_types, mime_types_atoms,
+				atoms[i])) {
+			wlr_log(L_ERROR, "failed to add MIME type atom to list");
+			goto error;
+		}
+	}
+
+	free(reply);
+	return true;
+
+error:
+	free(reply);
+	return false;
+}
+
+static void incoming_drag_handle_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xwm *xwm = wl_container_of(listener, xwm, incoming_drag_destroy);
+
+	static const uint32_t values[] = { XCB_STACK_MODE_BELOW };
+	xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
+		XCB_CONFIG_WINDOW_STACK_MODE, values);
+	xcb_unmap_window(xwm->xcb_conn, xwm->dnd_window);
+
+	wl_list_remove(&xwm->incoming_drag_destroy.link);
+	xwm->incoming_drag = NULL;
+}
+
+/**
+ * Handle an enter message for an incoming DnD operation.
+ */
+static void xwm_handle_dnd_enter(struct wlr_xwm *xwm,
+		xcb_client_message_data_t *data) {
+	if (xwm->seat == NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+			"there's no Xwayland seat");
+		return;
+	}
+
+	xcb_window_t source_window = data->data32[0];
+
+	if (source_window != xwm->dnd_selection.owner) {
+		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+			"the source window hasn't set the drag-and-drop selection");
+		return;
+	}
+
+	if (xwm->incoming_drag != NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+			"another xwayland drag is being performed");
+		return;
+	}
+
+	struct wlr_seat *seat = xwm->seat;
+	struct wlr_seat_client *seat_client =
+		wlr_seat_client_for_wl_client(seat, xwm->xwayland->client);
+
+	struct wlr_xwayland_data_source *source =
+		xwayland_data_source_create(&xwm->dnd_selection);
+	if (source == NULL) {
+		return;
+	}
+
+	if ((data->data32[1] & 1) == 0) {
+		// Less than 3 MIME types, those are in the message data
+		for (size_t i = 0; i < 3; ++i) {
+			xcb_atom_t atom = data->data32[2+i];
+			if (atom == XCB_ATOM_NONE) {
+				break;
+			}
+			if (!xwm_add_atom_to_mime_types(xwm, &source->base.mime_types,
+					&source->mime_types_atoms, atom)) {
+				wlr_log(L_ERROR, "failed to add MIME type atom to list");
+				break;
+			}
+		}
+	} else {
+		if (!xwm_dnd_get_mime_types(xwm, &source->base.mime_types,
+				&source->mime_types_atoms, source_window)) {
+			wlr_log(L_ERROR, "failed to add MIME type atom to list");
+		}
+	}
+
+	// TODO: set the icon?
+	xwm->incoming_drag =
+		wlr_seat_client_start_grab(seat_client, &source->base, NULL, NULL);
+	if (xwm->incoming_drag == NULL) {
+		wlr_log(L_ERROR, "could not start grab");
+	}
+
+	wl_signal_add(&xwm->incoming_drag->events.destroy,
+		&xwm->incoming_drag_destroy);
+	xwm->incoming_drag_destroy.notify = incoming_drag_handle_destroy;
+
+	wlr_log(L_DEBUG, "DND_ENTER window=%d", source_window);
+}
+
+/**
+ * Handle a position message for an incoming DnD operation.
+ */
+static void xwm_handle_dnd_position(struct wlr_xwm *xwm,
+		xcb_client_message_data_t *data) {
+	if (xwm->seat == NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndPosition client message because "
+			"there's no Xwayland seat");
+		return;
+	}
+
+	xcb_window_t source_window = data->data32[0];
+	xcb_timestamp_t timestamp = data->data32[3];
+	xcb_atom_t action_atom = data->data32[4];
+
+	if (source_window != xwm->dnd_selection.owner) {
+		wlr_log(L_DEBUG, "ignoring XdndEnter client message because "
+			"the source window hasn't set the drag-and-drop selection");
+		return;
+	}
+
+	if (xwm->incoming_drag == NULL) {
+		wlr_log(L_DEBUG, "ignoring XdndPosition client message because "
+			"no xwayland drag is being performed");
+		return;
+	}
+
+	enum wl_data_device_manager_dnd_action action =
+		data_device_manager_dnd_action_from_atom(xwm, action_atom);
+	xwm->incoming_drag->source->actions = action;
+
+	xwm_dnd_send_status(xwm, source_window,
+		xwm->incoming_drag->source->current_dnd_action);
+
+	wlr_log(L_DEBUG, "DND_POSITION window=%d timestamp=%u action=%d",
+		source_window, timestamp, action);
+}
 
 int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
+	// Outgoing
 	if (ev->type == xwm->atoms[DND_STATUS]) {
-		if (xwm->drag == NULL) {
-			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
-				"there's no drag");
-			return 1;
-		}
-
-		xcb_client_message_data_t *data = &ev->data;
-		xcb_window_t target_window = data->data32[0];
-		bool accepted = data->data32[1] & 1;
-		xcb_atom_t action_atom = data->data32[4];
-
-		if (xwm->drag_focus == NULL ||
-				target_window != xwm->drag_focus->window_id) {
-			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
-				"it doesn't match the current drag focus window ID");
-			return 1;
-		}
-
-		enum wl_data_device_manager_dnd_action action =
-			data_device_manager_dnd_action_from_atom(xwm, action_atom);
-
-		struct wlr_drag *drag = xwm->drag;
-		assert(drag != NULL);
-
-		drag->source->accepted = accepted;
-		wlr_data_source_dnd_action(drag->source, action);
-
-		wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
-			target_window, accepted, action);
+		xwm_handle_dnd_status(xwm, &ev->data);
 		return 1;
 	} else if (ev->type == xwm->atoms[DND_FINISHED]) {
-		// This should only happen after the drag has ended, but before the drag
-		// source is destroyed
-		if (xwm->seat == NULL || xwm->seat->drag_source == NULL ||
-				xwm->drag != NULL) {
-			wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
-				"there's no finished drag");
-			return 1;
-		}
-
-		struct wlr_data_source *source = xwm->seat->drag_source;
-
-		xcb_client_message_data_t *data = &ev->data;
-		xcb_window_t target_window = data->data32[0];
-		bool performed = data->data32[1] & 1;
-		xcb_atom_t action_atom = data->data32[2];
-
-		if (xwm->drag_focus == NULL ||
-				target_window != xwm->drag_focus->window_id) {
-			wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
-				"it doesn't match the finished drag focus window ID");
-			return 1;
-		}
-
-		enum wl_data_device_manager_dnd_action action =
-			data_device_manager_dnd_action_from_atom(xwm, action_atom);
-
-		if (performed) {
-			wlr_data_source_dnd_finish(source);
-		}
-
-		wlr_log(L_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
-			target_window, performed, action);
+		xwm_handle_dnd_finished(xwm, &ev->data);
 		return 1;
-	} else {
-		return 0;
 	}
+
+	// Incoming
+	if (ev->type == xwm->atoms[DND_ENTER]) {
+		xwm_handle_dnd_enter(xwm, &ev->data);
+		return 1;
+	} else if (ev->type == xwm->atoms[DND_POSITION]) {
+		xwm_handle_dnd_position(xwm, &ev->data);
+		return 1;
+	}
+
+	return 0;
+}
+
+int xwm_dnd_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
+		xcb_xfixes_selection_notify_event_t *event) {
+	assert(event->selection == xwm->atoms[DND_SELECTION]);
+	struct wlr_xwm_selection *selection = &xwm->dnd_selection;
+
+	selection->owner = event->owner;
+
+	if (event->owner != XCB_ATOM_NONE) {
+		wlr_log(L_INFO, "start grab");
+
+		xcb_map_window(xwm->xcb_conn, xwm->dnd_window);
+		static const uint32_t values[] = { XCB_STACK_MODE_ABOVE };
+		xcb_configure_window(xwm->xcb_conn, xwm->dnd_window,
+			XCB_CONFIG_WINDOW_STACK_MODE, values);
+
+		// Let's wait for the DND_ENTER message
+	} else {
+		wlr_log(L_INFO, "end grab");
+	}
+
+	return 1;
 }
 
 static void seat_handle_drag_focus(struct wl_listener *listener, void *data) {

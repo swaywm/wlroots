@@ -174,12 +174,6 @@ static void source_send(struct wlr_xwm_selection *selection,
 	transfer->source_fd = fd;
 }
 
-struct x11_data_source {
-	struct wlr_data_source base;
-	struct wlr_xwm_selection *selection;
-	struct wl_array mime_types_atoms;
-};
-
 static const struct wlr_data_source_impl data_source_impl;
 
 bool data_source_is_xwayland(
@@ -187,16 +181,16 @@ bool data_source_is_xwayland(
 	return wlr_source->impl == &data_source_impl;
 }
 
-static struct x11_data_source *data_source_from_wlr_data_source(
+struct wlr_xwayland_data_source *xwayland_data_source_from_wlr_data_source(
 		struct wlr_data_source *wlr_source) {
 	assert(data_source_is_xwayland(wlr_source));
-	return (struct x11_data_source *)wlr_source;
+	return (struct wlr_xwayland_data_source *)wlr_source;
 }
 
 static void data_source_send(struct wlr_data_source *wlr_source,
 		const char *mime_type, int32_t fd) {
-	struct x11_data_source *source =
-		data_source_from_wlr_data_source(wlr_source);
+	struct wlr_xwayland_data_source *source =
+		xwayland_data_source_from_wlr_data_source(wlr_source);
 	struct wlr_xwm_selection *selection = source->selection;
 
 	source_send(selection, &wlr_source->mime_types, &source->mime_types_atoms,
@@ -204,22 +198,32 @@ static void data_source_send(struct wlr_data_source *wlr_source,
 }
 
 static void data_source_cancel(struct wlr_data_source *wlr_source) {
-	struct x11_data_source *source =
-		data_source_from_wlr_data_source(wlr_source);
+	struct wlr_xwayland_data_source *source =
+		xwayland_data_source_from_wlr_data_source(wlr_source);
 	wlr_data_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }
 
+struct wlr_xwayland_data_source *xwayland_data_source_create(
+		struct wlr_xwm_selection *selection) {
+	struct wlr_xwayland_data_source *source =
+		calloc(1, sizeof(struct wlr_xwayland_data_source));
+	if (source == NULL) {
+		wlr_log(L_ERROR, "allocation failed");
+		return NULL;
+	}
+	wlr_data_source_init(&source->base, &data_source_impl);
+
+	source->selection = selection;
+	wl_array_init(&source->mime_types_atoms);
+
+	return source;
+}
+
 static const struct wlr_data_source_impl data_source_impl = {
 	.send = data_source_send,
 	.cancel = data_source_cancel,
-};
-
-struct x11_primary_selection_source {
-	struct wlr_primary_selection_source base;
-	struct wlr_xwm_selection *selection;
-	struct wl_array mime_types_atoms;
 };
 
 static void primary_selection_source_cancel(
@@ -233,8 +237,8 @@ bool primary_selection_source_is_xwayland(
 static void primary_selection_source_send(
 		struct wlr_primary_selection_source *wlr_source, const char *mime_type,
 		int32_t fd) {
-	struct x11_primary_selection_source *source =
-		(struct x11_primary_selection_source *)wlr_source;
+	struct wlr_xwayland_primary_selection_source *source =
+		(struct wlr_xwayland_primary_selection_source *)wlr_source;
 	struct wlr_xwm_selection *selection = source->selection;
 
 	source_send(selection, &wlr_source->mime_types, &source->mime_types_atoms,
@@ -243,8 +247,8 @@ static void primary_selection_source_send(
 
 static void primary_selection_source_cancel(
 		struct wlr_primary_selection_source *wlr_source) {
-	struct x11_primary_selection_source *source =
-		(struct x11_primary_selection_source *)wlr_source;
+	struct wlr_xwayland_primary_selection_source *source =
+		(struct wlr_xwayland_primary_selection_source *)wlr_source;
 	wlr_primary_selection_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
@@ -332,15 +336,11 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 	struct wlr_xwm *xwm = selection->xwm;
 
 	if (selection == &xwm->clipboard_selection) {
-		struct x11_data_source *source =
-			calloc(1, sizeof(struct x11_data_source));
+		struct wlr_xwayland_data_source *source =
+			xwayland_data_source_create(selection);
 		if (source == NULL) {
 			return;
 		}
-		wlr_data_source_init(&source->base, &data_source_impl);
-
-		source->selection = selection;
-		wl_array_init(&source->mime_types_atoms);
 
 		bool ok = source_get_targets(selection, &source->base.mime_types,
 			&source->mime_types_atoms);
@@ -351,8 +351,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 			wlr_data_source_cancel(&source->base);
 		}
 	} else if (selection == &xwm->primary_selection) {
-		struct x11_primary_selection_source *source =
-			calloc(1, sizeof(struct x11_primary_selection_source));
+		struct wlr_xwayland_primary_selection_source *source =
+			calloc(1, sizeof(struct wlr_xwayland_primary_selection_source));
 		if (source == NULL) {
 			return;
 		}
@@ -371,16 +371,13 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		} else {
 			source->base.cancel(&source->base);
 		}
-	} else if (selection == &xwm->dnd_selection) {
-		// TODO
 	}
 }
 
 void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 		xcb_selection_notify_event_t *event) {
 	wlr_log(L_DEBUG, "XCB_SELECTION_NOTIFY (selection=%u, property=%u, target=%u)",
-		event->selection, event->property,
-		event->target);
+		event->selection, event->property, event->target);
 
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, event->selection);
@@ -410,6 +407,11 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	wlr_log(L_DEBUG, "XCB_XFIXES_SELECTION_NOTIFY (selection=%u, owner=%u)",
 		event->selection, event->owner);
 
+	// Drag'n'drop works differently
+	if (event->selection == xwm->atoms[DND_SELECTION]) {
+		return xwm_dnd_handle_xfixes_selection_notify(xwm, event);
+	}
+
 	struct wlr_xwm_selection *selection =
 		xwm_get_selection(xwm, event->selection);
 	if (selection == NULL) {
@@ -435,28 +437,30 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		}
 
 		selection->owner = XCB_WINDOW_NONE;
-		return 1;
+	} else {
+		selection->owner = event->owner;
+
+		if (event->owner == selection->window) {
+			// This is our selection window.
+			// We have to use XCB_TIME_CURRENT_TIME when we claim the
+			// selection, so grab the actual timestamp here so we can
+			// answer TIMESTAMP conversion requests correctly.
+			selection->timestamp = event->timestamp;
+			return 1;
+		}
+
+		// This is a real X client's selection
+
+		struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
+		transfer->incr = false;
+		// doing this will give a selection notify where we actually handle the sync
+		xcb_convert_selection(xwm->xcb_conn, selection->window,
+			selection->atom,
+			xwm->atoms[TARGETS],
+			xwm->atoms[WL_SELECTION],
+			event->timestamp);
+		xcb_flush(xwm->xcb_conn);
 	}
-
-	selection->owner = event->owner;
-
-	// We have to use XCB_TIME_CURRENT_TIME when we claim the
-	// selection, so grab the actual timestamp here so we can
-	// answer TIMESTAMP conversion requests correctly.
-	if (event->owner == selection->window) {
-		selection->timestamp = event->timestamp;
-		return 1;
-	}
-
-	struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
-	transfer->incr = false;
-	// doing this will give a selection notify where we actually handle the sync
-	xcb_convert_selection(xwm->xcb_conn, selection->window,
-		selection->atom,
-		xwm->atoms[TARGETS],
-		xwm->atoms[WL_SELECTION],
-		event->timestamp);
-	xcb_flush(xwm->xcb_conn);
 
 	return 1;
 }
