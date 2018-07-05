@@ -341,8 +341,8 @@ static void drag_icon_handle_surface_destroy(struct wl_listener *listener,
 static void drag_icon_handle_surface_commit(struct wlr_surface *surface,
 		void *role_data) {
 	struct wlr_drag_icon *icon = role_data;
-	icon->sx += icon->surface->current->sx;
-	icon->sy += icon->surface->current->sy;
+	icon->sx += icon->surface->current.dx;
+	icon->sy += icon->surface->current.dy;
 
 	drag_icon_set_mapped(icon, wlr_surface_has_buffer(surface));
 }

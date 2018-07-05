@@ -44,8 +44,8 @@ struct layout_data {
 static void get_layout_position(struct layout_data *data, double *lx, double *ly,
 		const struct wlr_surface *surface, int sx, int sy) {
 	double _sx = sx, _sy = sy;
-	rotate_child_position(&_sx, &_sy, surface->current->width,
-		surface->current->height, data->width, data->height, data->rotation);
+	rotate_child_position(&_sx, &_sy, surface->current.width,
+		surface->current.height, data->width, data->height, data->rotation);
 	*lx = data->x + _sx;
 	*ly = data->y + _sy;
 }
@@ -55,8 +55,8 @@ static void surface_for_each_surface(struct wlr_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	layout_data->x = lx;
 	layout_data->y = ly;
-	layout_data->width = surface->current->width;
-	layout_data->height = surface->current->height;
+	layout_data->width = surface->current.width;
+	layout_data->height = surface->current.height;
 	layout_data->rotation = rotation;
 
 	wlr_surface_for_each_surface(surface, iterator, user_data);
@@ -67,8 +67,8 @@ static void view_for_each_surface(struct roots_view *view,
 		void *user_data) {
 	layout_data->x = view->x;
 	layout_data->y = view->y;
-	layout_data->width = view->wlr_surface->current->width;
-	layout_data->height = view->wlr_surface->current->height;
+	layout_data->width = view->wlr_surface->current.width;
+	layout_data->height = view->wlr_surface->current.height;
 	layout_data->rotation = view->rotation;
 
 	switch (view->type) {
@@ -146,16 +146,19 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 	double ox = lx, oy = ly;
 	wlr_output_layout_output_coords(output_layout, wlr_output, &ox, &oy);
 
+	ox += surface->sx;
+	oy += surface->sy;
+
 	if (box != NULL) {
 		box->x = ox * wlr_output->scale;
 		box->y = oy * wlr_output->scale;
-		box->width = surface->current->width * wlr_output->scale;
-		box->height = surface->current->height * wlr_output->scale;
+		box->width = surface->current.width * wlr_output->scale;
+		box->height = surface->current.height * wlr_output->scale;
 	}
 
 	struct wlr_box layout_box = {
 		.x = lx, .y = ly,
-		.width = surface->current->width, .height = surface->current->height,
+		.width = surface->current.width, .height = surface->current.height,
 	};
 	wlr_box_rotated_bounds(&layout_box, rotation, &layout_box);
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
@@ -223,7 +226,7 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 
 	float matrix[9];
 	enum wl_output_transform transform =
-		wlr_output_transform_invert(surface->current->transform);
+		wlr_output_transform_invert(surface->current.transform);
 	wlr_matrix_project_box(matrix, &box, transform, rotation,
 		output->wlr_output->transform_matrix);
 
@@ -247,8 +250,8 @@ static void get_decoration_box(struct roots_view *view,
 	double sx = deco_box.x - view->x;
 	double sy = deco_box.y - view->y;
 	rotate_child_position(&sx, &sy, deco_box.width, deco_box.height,
-		view->wlr_surface->current->width,
-		view->wlr_surface->current->height, view->rotation);
+		view->wlr_surface->current.width,
+		view->wlr_surface->current.height, view->rotation);
 	double x = sx + view->x;
 	double y = sy + view->y;
 
@@ -692,15 +695,21 @@ static void damage_from_surface(struct wlr_surface *surface, int sx, int sy,
 	int center_x = box.x + box.width/2;
 	int center_y = box.y + box.height/2;
 
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(surface->current.transform);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current->surface_damage);
-	wlr_region_scale(&damage, &damage, wlr_output->scale);
-	if (ceil(wlr_output->scale) > surface->current->scale) {
+	pixman_region32_copy(&damage, &surface->buffer_damage);
+	wlr_region_transform(&damage, &damage, transform,
+		surface->current.buffer_width, surface->current.buffer_height);
+	wlr_region_scale(&damage, &damage,
+		wlr_output->scale / (float)surface->current.scale);
+	if (ceil(wlr_output->scale) > surface->current.scale) {
 		// When scaling up a surface, it'll become blurry so we need to
 		// expand the damage region
 		wlr_region_expand(&damage, &damage,
-			ceil(wlr_output->scale) - surface->current->scale);
+			ceil(wlr_output->scale) - surface->current.scale);
 	}
 	pixman_region32_translate(&damage, box.x, box.y);
 	wlr_region_rotated_bounds(&damage, &damage, rotation, center_x, center_y);

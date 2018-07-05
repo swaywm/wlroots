@@ -8,57 +8,32 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
-#define WLR_SURFACE_INVALID_BUFFER 1
-#define WLR_SURFACE_INVALID_SURFACE_DAMAGE 2
-#define WLR_SURFACE_INVALID_BUFFER_DAMAGE 4
-#define WLR_SURFACE_INVALID_OPAQUE_REGION 8
-#define WLR_SURFACE_INVALID_INPUT_REGION 16
-#define WLR_SURFACE_INVALID_TRANSFORM 32
-#define WLR_SURFACE_INVALID_SCALE 64
-#define WLR_SURFACE_INVALID_SUBSURFACE_POSITION 128
-#define WLR_SURFACE_INVALID_FRAME_CALLBACK_LIST 256
+enum wlr_surface_state_field {
+	WLR_SURFACE_STATE_BUFFER = 1,
+	WLR_SURFACE_STATE_SURFACE_DAMAGE = 2,
+	WLR_SURFACE_STATE_BUFFER_DAMAGE = 4,
+	WLR_SURFACE_STATE_OPAQUE_REGION = 8,
+	WLR_SURFACE_STATE_INPUT_REGION = 16,
+	WLR_SURFACE_STATE_TRANSFORM = 32,
+	WLR_SURFACE_STATE_SCALE = 64,
+	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 128,
+};
 
 struct wlr_surface_state {
-	uint32_t invalid;
-	struct wl_resource *buffer;
-	struct wl_listener buffer_destroy_listener;
-	int32_t sx, sy;
+	uint32_t committed; // enum wlr_surface_state_field
+
+	struct wl_resource *buffer_resource;
+	int32_t dx, dy; // relative to previous position
 	pixman_region32_t surface_damage, buffer_damage;
 	pixman_region32_t opaque, input;
 	enum wl_output_transform transform;
 	int32_t scale;
-	int width, height;
+	struct wl_list frame_callback_list; // wl_resource
+
+	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
 
-	struct {
-		int32_t x, y;
-	} subsurface_position;
-
-	struct wl_list frame_callback_list; // wl_surface.frame
-};
-
-struct wlr_subsurface {
-	struct wl_resource *resource;
-	struct wlr_surface *surface;
-	struct wlr_surface *parent;
-
-	struct wlr_surface_state *cached;
-	bool has_cache;
-
-	bool synchronized;
-	bool reordered;
-
-	struct wl_list parent_link;
-	struct wl_list parent_pending_link;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener parent_destroy;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
-
-	void *data;
+	struct wl_listener buffer_destroy;
 };
 
 struct wlr_surface {
@@ -71,7 +46,28 @@ struct wlr_surface {
 	 * or something went wrong with uploading the buffer.
 	 */
 	struct wlr_buffer *buffer;
-	struct wlr_surface_state *current, *pending;
+	/**
+	 * The buffer position, in surface-local units.
+	 */
+	int sx, sy;
+	/**
+	 * The last commit's buffer damage, in buffer-local coordinates. This
+	 * contains both the damage accumulated by the client via
+	 * `wlr_surface_state.surface_damage` and `wlr_surface_state.buffer_damage`.
+	 * If the buffer has changed its size or moved, the whole buffer is
+	 * damaged.
+	 *
+	 * This region needs to be scaled and transformed into output coordinates,
+	 * just like the buffer's texture.
+	 */
+	pixman_region32_t buffer_damage;
+	/**
+	 * `current` contains the current, committed surface state. `pending`
+	 * accumulates state changes from the client between commits and shouldn't
+	 * be accessed by the compositor directly. `previous` contains the state of
+	 * the previous commit.
+	 */
+	struct wlr_surface_state current, pending, previous;
 	const char *role; // the lifetime-bound role or null
 
 	struct {
@@ -90,6 +86,36 @@ struct wlr_surface {
 	struct wl_list subsurface_pending_list;
 
 	struct wl_listener renderer_destroy;
+
+	void *data;
+};
+
+struct wlr_subsurface_state {
+	int32_t x, y;
+};
+
+struct wlr_subsurface {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+	struct wlr_surface *parent;
+
+	struct wlr_subsurface_state current, pending;
+
+	struct wlr_surface_state cached;
+	bool has_cache;
+
+	bool synchronized;
+	bool reordered;
+
+	struct wl_list parent_link;
+	struct wl_list parent_pending_link;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener parent_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 
 	void *data;
 };
