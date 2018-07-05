@@ -34,14 +34,11 @@ struct wlr_data_offer *data_source_send_offer(struct wlr_data_source *source,
 	uint32_t version = wl_resource_get_version(
 		wl_resource_from_link(target->data_devices.next));
 
-	struct wlr_data_offer *offer =
-		data_offer_create(target->client, source, version);
-	if (offer == NULL) {
-		return NULL;
-	}
+	struct wlr_data_offer *offer;
 
 	struct wl_resource *target_resource;
 	wl_resource_for_each(target_resource, &target->data_devices) {
+		offer = data_offer_create(target->client, source, version);
 		wl_data_device_send_data_offer(target_resource, offer->resource);
 	}
 

@@ -24,7 +24,7 @@ struct wlr_primary_selection_source {
 	void (*cancel)(struct wlr_primary_selection_source *source);
 
 	// source status
-	struct wlr_primary_selection_offer *offer;
+	struct wl_list offers;
 	struct wlr_seat_client *seat_client;
 
 	struct {
@@ -37,6 +37,9 @@ struct wlr_primary_selection_source {
 struct wlr_primary_selection_offer {
 	struct wl_resource *resource;
 	struct wlr_primary_selection_source *source;
+
+	struct wl_resource *selection_device;
+	struct wl_list link; // wlr_primary_selection_source::offers
 
 	struct wl_listener source_destroy;
 
