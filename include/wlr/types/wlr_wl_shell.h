@@ -69,7 +69,8 @@ struct wlr_wl_shell_surface {
 	char *title;
 	char *class;
 
-	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 
 	struct wlr_wl_shell_surface *parent;
 	struct wl_list popup_link;

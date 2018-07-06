@@ -314,7 +314,8 @@ static void xwayland_surface_destroy(
 
 	if (xsurface->surface) {
 		wl_list_remove(&xsurface->surface_destroy.link);
-		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
+		wl_list_remove(&xsurface->surface_commit.link);
+		xsurface->surface->role_data = NULL;
 	}
 
 	wl_event_source_remove(xsurface->ping_timer);
@@ -640,9 +641,9 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	free(reply);
 }
 
-static void handle_surface_commit(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_xwayland_surface *surface = role_data;
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct wlr_xwayland_surface *surface =
+		wl_container_of(listener, surface, surface_commit);
 
 	if (!surface->mapped && wlr_surface_has_buffer(surface->surface)) {
 		wlr_signal_emit_safe(&surface->events.map, surface);
@@ -678,12 +679,14 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		read_surface_property(xwm, xsurface, props[i]);
 	}
 
-	wlr_surface_set_role(xsurface->surface, wlr_xwayland_surface_role, NULL, 0);
-	wlr_surface_set_role_committed(xsurface->surface, handle_surface_commit,
+	wlr_surface_set_role(xsurface->surface, wlr_xwayland_surface_role, NULL, 0,
 		xsurface);
 
 	xsurface->surface_destroy.notify = handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
+
+	xsurface->surface_commit.notify = handle_surface_commit;
+	wl_signal_add(&surface->events.role_commit, &xsurface->surface_commit);
 }
 
 static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
@@ -701,8 +704,9 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 	}
 
 	if (surface->surface) {
-		wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 		wl_list_remove(&surface->surface_destroy.link);
+		wl_list_remove(&surface->surface_commit.link);
+		surface->surface->role_data = NULL;
 		surface->surface = NULL;
 	}
 }

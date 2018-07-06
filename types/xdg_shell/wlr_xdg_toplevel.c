@@ -450,7 +450,7 @@ static void xdg_toplevel_handle_resource_destroy(struct wl_resource *resource) {
 void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 		uint32_t id) {
 	if (wlr_surface_set_role(xdg_surface->surface, XDG_TOPLEVEL_ROLE,
-			xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE)) {
+			xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE, xdg_surface)) {
 		return;
 	}
 

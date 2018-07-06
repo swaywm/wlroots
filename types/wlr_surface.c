@@ -370,8 +370,8 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		}
 	}
 
-	if (surface->role_committed) {
-		surface->role_committed(surface, surface->role_data);
+	if (surface->role) {
+		wlr_signal_emit_safe(&surface->events.role_commit, surface);
 	}
 
 	wlr_signal_emit_safe(&surface->events.commit, surface);
@@ -535,6 +535,7 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wl_list_remove(&subsurface->surface_destroy.link);
+	wl_list_remove(&subsurface->surface_commit.link);
 	surface_state_finish(&subsurface->cached);
 
 	if (subsurface->parent) {
@@ -604,6 +605,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
+	wl_signal_init(&surface->events.role_commit);
 	wl_list_init(&surface->subsurfaces);
 	wl_list_init(&surface->subsurface_pending_list);
 	pixman_region32_init(&surface->buffer_damage);
@@ -633,14 +635,16 @@ bool wlr_surface_has_buffer(struct wlr_surface *surface) {
 }
 
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
-		struct wl_resource *error_resource, uint32_t error_code) {
+		struct wl_resource *error_resource, uint32_t error_code,
+		void *role_data) {
 	assert(role);
 
 	if (surface->role == NULL ||
 			surface->role == role ||
 			strcmp(surface->role, role) == 0) {
+		assert(surface->role_data == NULL);
 		surface->role = role;
-
+		surface->role_data = role_data;
 		return 0;
 	}
 
@@ -649,7 +653,6 @@ int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
 		role,
 		wl_resource_get_id(surface->resource),
 		surface->role);
-
 	return -1;
 }
 
@@ -788,8 +791,11 @@ static const struct wl_subsurface_interface subsurface_implementation = {
 	.set_desync = subsurface_handle_set_desync,
 };
 
-static void subsurface_role_committed(struct wlr_surface *surface, void *data) {
-	struct wlr_subsurface *subsurface = data;
+static void subsurface_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, surface_commit);
+	struct wlr_surface *surface = subsurface->surface;
 
 	if (subsurface->current.x != subsurface->pending.x ||
 			subsurface->current.y != subsurface->pending.y) {
@@ -866,6 +872,9 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 	wl_signal_add(&surface->events.destroy, &subsurface->surface_destroy);
 	subsurface->surface_destroy.notify = subsurface_handle_surface_destroy;
 
+	wl_signal_add(&surface->events.role_commit, &subsurface->surface_commit);
+	subsurface->surface_commit.notify = subsurface_handle_surface_commit;
+
 	// link parent
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
@@ -874,8 +883,7 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 	wl_list_insert(parent->subsurface_pending_list.prev,
 		&subsurface->parent_pending_link);
 
-	wlr_surface_set_role_committed(surface, subsurface_role_committed,
-		subsurface);
+	surface->role_data = subsurface;
 
 	struct wl_list *resource_link = wl_resource_get_link(subsurface->resource);
 	if (resource_list != NULL) {
@@ -962,13 +970,6 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		wl_callback_send_done(resource, timespec_to_msec(when));
 		wl_resource_destroy(resource);
 	}
-}
-
-void wlr_surface_set_role_committed(struct wlr_surface *surface,
-		void (*role_committed)(struct wlr_surface *surface, void *role_data),
-		void *role_data) {
-	surface->role_committed = role_committed;
-	surface->role_data = role_data;
 }
 
 static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
