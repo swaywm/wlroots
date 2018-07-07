@@ -85,9 +85,9 @@ static const struct wl_output_interface output_impl = {
 	.release = output_handle_release,
 };
 
-static void wl_output_bind(struct wl_client *wl_client, void *data,
+static void output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_output *wlr_output = data;
+	struct wlr_output *output = data;
 
 	struct wl_resource *resource = wl_resource_create(wl_client,
 		&wl_output_interface, version, id);
@@ -95,9 +95,9 @@ static void wl_output_bind(struct wl_client *wl_client, void *data,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &output_impl, wlr_output,
+	wl_resource_set_implementation(resource, &output_impl, output,
 		output_handle_resource_destroy);
-	wl_list_insert(&wlr_output->wl_resources, wl_resource_get_link(resource));
+	wl_list_insert(&output->wl_resources, wl_resource_get_link(resource));
 	output_send_to_resource(resource);
 }
 
@@ -105,18 +105,23 @@ void wlr_output_create_global(struct wlr_output *output) {
 	if (output->wl_global != NULL) {
 		return;
 	}
-	struct wl_global *wl_global = wl_global_create(output->display,
-		&wl_output_interface, OUTPUT_VERSION, output, wl_output_bind);
-	output->wl_global = wl_global;
+	output->wl_global = wl_global_create(output->display,
+		&wl_output_interface, OUTPUT_VERSION, output, output_bind);
+	if (output->wl_global == NULL) {
+		wlr_log(L_ERROR, "Failed to allocate wl_output global");
+	}
 }
 
 void wlr_output_destroy_global(struct wlr_output *output) {
 	if (output->wl_global == NULL) {
 		return;
 	}
+	// Make all output resources inert
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &output->wl_resources) {
-		wl_resource_destroy(resource);
+		wl_resource_set_user_data(resource, NULL);
+		wl_list_remove(wl_resource_get_link(resource));
+		wl_list_init(wl_resource_get_link(resource));
 	}
 	wl_global_destroy(output->wl_global);
 	output->wl_global = NULL;
