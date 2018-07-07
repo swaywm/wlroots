@@ -60,6 +60,10 @@ static struct wlr_seat_client *seat_client_from_pointer_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static const struct wlr_surface_role pointer_cursor_surface_role = {
+	.name = "wl_pointer-cursor",
+};
+
 static void pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *pointer_resource, uint32_t serial,
 		struct wl_resource *surface_resource,
@@ -73,8 +77,8 @@ static void pointer_set_cursor(struct wl_client *client,
 	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
 		surface = wlr_surface_from_resource(surface_resource);
-		if (wlr_surface_set_role(surface, "wl_pointer-cursor", surface_resource,
-				WL_POINTER_ERROR_ROLE) < 0) {
+		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
+				surface_resource, WL_POINTER_ERROR_ROLE)) {
 			return;
 		}
 	}
@@ -350,4 +354,8 @@ void seat_client_destroy_pointer(struct wl_resource *resource) {
 		return;
 	}
 	wl_resource_set_user_data(resource, NULL);
+}
+
+bool wlr_surface_is_pointer_cursor(struct wlr_surface *surface) {
+	return surface->role == &pointer_cursor_surface_role;
 }

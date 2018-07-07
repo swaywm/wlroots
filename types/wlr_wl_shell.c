@@ -10,17 +10,16 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
-static const char *wlr_wl_shell_surface_role = "wl-shell-surface";
+static const struct wlr_surface_role shell_surface_role;
 
 bool wlr_surface_is_wl_shell_surface(struct wlr_surface *surface) {
-	return surface->role != NULL &&
-		strcmp(surface->role, wlr_wl_shell_surface_role) == 0;
+	return surface->role == &shell_surface_role;
 }
 
-struct wlr_wl_surface *wlr_wl_shell_surface_from_wlr_surface(
+struct wlr_wl_shell_surface *wlr_wl_shell_surface_from_wlr_surface(
 		struct wlr_surface *surface) {
 	assert(wlr_surface_is_wl_shell_surface(surface));
-	return (struct wlr_wl_surface *)surface->role_data;
+	return (struct wlr_wl_shell_surface *)surface->role_data;
 }
 
 static void shell_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
@@ -446,9 +445,9 @@ static void shell_surface_destroy(struct wlr_wl_shell_surface *surface) {
 	}
 	wl_list_remove(&surface->popup_link);
 
+	surface->surface->role_data = NULL;
 	wl_list_remove(&surface->link);
-	wl_list_remove(&surface->surface_destroy_listener.link);
-	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
+	wl_list_remove(&surface->surface_destroy.link);
 	wl_event_source_remove(surface->ping_timer);
 	free(surface->transient_state);
 	free(surface->title);
@@ -466,12 +465,17 @@ static void shell_surface_resource_destroy(struct wl_resource *resource) {
 static void shell_surface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_shell_surface *surface =
-		wl_container_of(listener, surface, surface_destroy_listener);
+		wl_container_of(listener, surface, surface_destroy);
 	shell_surface_destroy(surface);
 }
-static void handle_surface_committed(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_wl_shell_surface *surface = role_data;
+
+static void shell_surface_role_commit(struct wlr_surface *wlr_surface) {
+	struct wlr_wl_shell_surface *surface =
+		wlr_wl_shell_surface_from_wlr_surface(wlr_surface);
+	if (surface == NULL) {
+		return;
+	}
+
 	if (!surface->configured &&
 			wlr_surface_has_buffer(surface->surface) &&
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_NONE) {
@@ -489,6 +493,11 @@ static void handle_surface_committed(struct wlr_surface *wlr_surface,
 		shell_pointer_grab_maybe_end(&grab->pointer_grab);
 	}
 }
+
+static const struct wlr_surface_role shell_surface_role = {
+	.name = "wl_shell_surface",
+	.commit = shell_surface_role_commit,
+};
 
 static int shell_surface_ping_timeout(void *user_data) {
 	struct wlr_wl_shell_surface *surface = user_data;
@@ -510,10 +519,6 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		struct wl_resource *shell_resource, uint32_t id,
 		struct wl_resource *surface_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
-	if (wlr_surface_set_role(surface, wlr_wl_shell_surface_role,
-			shell_resource, WL_SHELL_ERROR_ROLE)) {
-		return;
-	}
 
 	struct wlr_wl_shell *wl_shell = shell_from_resource(shell_resource);
 	struct wlr_wl_shell_surface *wl_surface =
@@ -522,6 +527,13 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		wl_resource_post_no_memory(shell_resource);
 		return;
 	}
+
+	if (!wlr_surface_set_role(surface, &shell_surface_role, wl_surface,
+			shell_resource, WL_SHELL_ERROR_ROLE)) {
+		free(wl_surface);
+		return;
+	}
+
 	wl_list_init(&wl_surface->grab_link);
 	wl_list_init(&wl_surface->popup_link);
 	wl_list_init(&wl_surface->popups);
@@ -557,12 +569,8 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 	wl_signal_init(&wl_surface->events.set_class);
 
 	wl_signal_add(&wl_surface->surface->events.destroy,
-		&wl_surface->surface_destroy_listener);
-	wl_surface->surface_destroy_listener.notify =
-		shell_surface_handle_surface_destroy;
-
-	wlr_surface_set_role_committed(surface, handle_surface_committed,
-		wl_surface);
+		&wl_surface->surface_destroy);
+	wl_surface->surface_destroy.notify = shell_surface_handle_surface_destroy;
 
 	struct wl_display *display = wl_client_get_display(client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);

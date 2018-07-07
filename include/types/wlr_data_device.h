@@ -13,6 +13,8 @@ struct wlr_client_data_source {
 	struct wl_resource *resource;
 };
 
+extern const struct wlr_surface_role drag_icon_surface_role;
+
 struct wlr_data_offer *data_offer_create(struct wl_client *client,
 	struct wlr_data_source *source, uint32_t version);
 void data_offer_update_action(struct wlr_data_offer *offer);

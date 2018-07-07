@@ -370,8 +370,8 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		}
 	}
 
-	if (surface->role_committed) {
-		surface->role_committed(surface, surface->role_data);
+	if (surface->role && surface->role->commit) {
+		surface->role->commit(surface);
 	}
 
 	wlr_signal_emit_safe(&surface->events.commit, surface);
@@ -632,25 +632,25 @@ bool wlr_surface_has_buffer(struct wlr_surface *surface) {
 	return wlr_surface_get_texture(surface) != NULL;
 }
 
-int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
+bool wlr_surface_set_role(struct wlr_surface *surface,
+		const struct wlr_surface_role *role, void *role_data,
 		struct wl_resource *error_resource, uint32_t error_code) {
-	assert(role);
+	assert(role != NULL);
 
-	if (surface->role == NULL ||
-			surface->role == role ||
-			strcmp(surface->role, role) == 0) {
-		surface->role = role;
-
-		return 0;
+	if (surface->role != NULL && surface->role != role) {
+		if (error_resource != NULL) {
+			wl_resource_post_error(error_resource, error_code,
+				"Cannot assign role %s to wl_surface@%d, already has role %s\n",
+				role->name, wl_resource_get_id(surface->resource),
+				surface->role->name);
+		}
+		return false;
 	}
 
-	wl_resource_post_error(error_resource, error_code,
-		"Cannot assign role %s to wl_surface@%d, already has role %s\n",
-		role,
-		wl_resource_get_id(surface->resource),
-		surface->role);
-
-	return -1;
+	assert(surface->role_data == NULL);
+	surface->role = role;
+	surface->role_data = role_data;
+	return true;
 }
 
 static const struct wl_subsurface_interface subsurface_implementation;
@@ -788,8 +788,12 @@ static const struct wl_subsurface_interface subsurface_implementation = {
 	.set_desync = subsurface_handle_set_desync,
 };
 
-static void subsurface_role_committed(struct wlr_surface *surface, void *data) {
-	struct wlr_subsurface *subsurface = data;
+static void subsurface_role_commit(struct wlr_surface *surface) {
+	struct wlr_subsurface *subsurface =
+		wlr_subsurface_from_wlr_surface(surface);
+	if (subsurface == NULL) {
+		return;
+	}
 
 	if (subsurface->current.x != subsurface->pending.x ||
 			subsurface->current.y != subsurface->pending.y) {
@@ -815,6 +819,11 @@ static void subsurface_role_committed(struct wlr_surface *surface, void *data) {
 			surface->current.buffer_width, surface->current.buffer_height);
 	}
 }
+
+const struct wlr_surface_role subsurface_role = {
+	.name = "wl_subsurface",
+	.commit = subsurface_role_commit,
+};
 
 static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 		void *data) {
@@ -874,8 +883,7 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 	wl_list_insert(parent->subsurface_pending_list.prev,
 		&subsurface->parent_pending_link);
 
-	wlr_surface_set_role_committed(surface, subsurface_role_committed,
-		subsurface);
+	surface->role_data = subsurface;
 
 	struct wl_list *resource_link = wl_resource_get_link(subsurface->resource);
 	if (resource_list != NULL) {
@@ -962,13 +970,6 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		wl_callback_send_done(resource, timespec_to_msec(when));
 		wl_resource_destroy(resource);
 	}
-}
-
-void wlr_surface_set_role_committed(struct wlr_surface *surface,
-		void (*role_committed)(struct wlr_surface *surface, void *role_data),
-		void *role_data) {
-	surface->role_committed = role_committed;
-	surface->role_data = role_data;
 }
 
 static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,

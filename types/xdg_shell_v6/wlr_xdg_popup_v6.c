@@ -249,6 +249,11 @@ void handle_xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface) {
 	}
 }
 
+const struct wlr_surface_role xdg_popup_v6_surface_role = {
+	.name = "xdg_popup_v6",
+	.commit = handle_xdg_surface_v6_committed,
+};
+
 void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 		struct wlr_xdg_surface_v6 *parent,
 		struct wlr_xdg_positioner_v6_resource *positioner, int32_t id) {
@@ -260,8 +265,8 @@ void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 		return;
 	}
 
-	if (wlr_surface_set_role(xdg_surface->surface, XDG_POPUP_V6_ROLE,
-			xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
+	if (!wlr_surface_set_role(xdg_surface->surface, &xdg_popup_v6_surface_role,
+			xdg_surface, xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
 		return;
 	}
 

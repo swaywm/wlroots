@@ -10,8 +10,8 @@ struct wlr_xdg_positioner_v6_resource {
 	struct wlr_xdg_positioner_v6 attrs;
 };
 
-#define XDG_TOPLEVEL_V6_ROLE "xdg_toplevel_v6"
-#define XDG_POPUP_V6_ROLE "xdg_popup_v6"
+extern const struct wlr_surface_role xdg_toplevel_v6_surface_role;
+extern const struct wlr_surface_role xdg_popup_v6_surface_role;
 
 uint32_t schedule_xdg_surface_v6_configure(struct wlr_xdg_surface_v6 *surface);
 struct wlr_xdg_surface_v6 *create_xdg_surface_v6(
@@ -19,6 +19,7 @@ struct wlr_xdg_surface_v6 *create_xdg_surface_v6(
 	uint32_t id);
 void unmap_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface);
 void destroy_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface);
+void handle_xdg_surface_v6_committed(struct wlr_surface *wlr_surface);
 
 void create_xdg_positioner_v6(struct wlr_xdg_client_v6 *client, uint32_t id);
 struct wlr_xdg_positioner_v6_resource *get_xdg_positioner_v6_from_resource(
