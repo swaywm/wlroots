@@ -3,6 +3,7 @@
 #endif
 
 #include "tablet-unstable-v2-protocol.h"
+#include "util/array.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <types/wlr_tablet_v2.h>
@@ -231,25 +232,8 @@ struct wlr_tablet_tool_client_v2 *tablet_tool_client_from_resource(struct wl_res
 
 
 /* Actual protocol foo */
-// https://www.geeksforgeeks.org/move-zeroes-end-array/
-static size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
-	size_t count = 0;
 
-	for (size_t i = 0; i < n; i++) {
-		if (arr[i] != 0) {
-			arr[count++] = arr[i];
-		}
-	}
-
-	size_t ret = count;
-
-	while (count < n) {
-		arr[count++] = 0;
-	}
-
-	return ret;
-}
-
+// Button 0 is KEY_RESERVED in input-event-codes on linux (and freebsd)
 static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 		uint32_t button, enum zwp_tablet_pad_v2_button_state state) {
 	bool found = false;
@@ -261,11 +245,16 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 		}
 	}
 
-	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found &&
-			tool->num_buttons < WLR_TABLET_V2_TOOL_BUTTONS_CAP) {
-		i = tool->num_buttons++;
-		tool->pressed_buttons[i] = button;
-		tool->pressed_serials[i] = -1;
+	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found) {
+		if (tool->num_buttons < WLR_TABLET_V2_TOOL_BUTTONS_CAP) {
+			i = tool->num_buttons++;
+			tool->pressed_buttons[i] = button;
+			tool->pressed_serials[i] = -1;
+		} else {
+			i = -1;
+			wlr_log(WLR_ERROR, "You pressed more than %d tablet tool buttons. This is currently not supporte by wlroots. Please report this with a description of your tablet, since this is either a bug, or fancy hardware",
+			        WLR_TABLET_V2_TOOL_BUTTONS_CAP);
+		}
 	} else {
 		i = -1;
 	}
