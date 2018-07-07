@@ -163,7 +163,8 @@ struct wlr_xdg_surface {
 	struct wlr_box next_geometry;
 	struct wlr_box geometry;
 
-	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 
 	struct {
 		struct wl_signal destroy;

@@ -261,7 +261,7 @@ void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
 	}
 
 	if (wlr_surface_set_role(xdg_surface->surface, XDG_POPUP_V6_ROLE,
-			xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE)) {
+			xdg_surface->resource, ZXDG_SHELL_V6_ERROR_ROLE, xdg_surface)) {
 		return;
 	}
 

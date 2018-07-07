@@ -181,9 +181,9 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 	}
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 	wl_resource_set_user_data(surface->resource, NULL);
-	wl_list_remove(&surface->surface_destroy_listener.link);
-	wl_list_init(&surface->surface_destroy_listener.link);
-	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
+	wl_list_remove(&surface->surface_destroy.link);
+	wl_list_remove(&surface->surface_commit.link);
+	surface->surface->role_data = NULL;
 	wl_list_remove(&surface->link);
 	free(surface->namespace);
 	free(surface);
@@ -251,9 +251,9 @@ void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
 	zwlr_layer_surface_v1_send_closed(surface->resource);
 }
 
-static void handle_surface_committed(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_layer_surface *surface = role_data;
+static void handle_surface_commit(struct wl_listener *listener, void *data) {
+	struct wlr_layer_surface *surface =
+		wl_container_of(listener, surface, surface_commit);
 
 	if (surface->closed) {
 		// Ignore commits after the compositor has closed it
@@ -305,10 +305,10 @@ static void handle_surface_committed(struct wlr_surface *wlr_surface,
 	}
 }
 
-static void handle_surface_destroyed(struct wl_listener *listener,
+static void handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_layer_surface *layer_surface =
-		wl_container_of(listener, layer_surface, surface_destroy_listener);
+		wl_container_of(listener, layer_surface, surface_destroy);
 	layer_surface_destroy(layer_surface);
 }
 
@@ -322,15 +322,16 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	struct wlr_surface *wlr_surface =
 		wlr_surface_from_resource(surface_resource);
 
-	if (wlr_surface_set_role(wlr_surface, zwlr_layer_surface_role,
-			client_resource, ZWLR_LAYER_SHELL_V1_ERROR_ROLE)) {
-		return;
-	}
-
 	struct wlr_layer_surface *surface =
 		calloc(1, sizeof(struct wlr_layer_surface));
 	if (surface == NULL) {
 		wl_client_post_no_memory(wl_client);
+		return;
+	}
+
+	if (wlr_surface_set_role(wlr_surface, zwlr_layer_surface_role,
+			client_resource, ZWLR_LAYER_SHELL_V1_ERROR_ROLE, surface)) {
+		free(surface);
 		return;
 	}
 
@@ -366,17 +367,16 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 
 	wl_list_init(&surface->configure_list);
 	wl_list_init(&surface->popups);
-
 	wl_signal_init(&surface->events.destroy);
-	wl_signal_add(&surface->surface->events.destroy,
-		&surface->surface_destroy_listener);
-	surface->surface_destroy_listener.notify = handle_surface_destroyed;
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.new_popup);
 
-	wlr_surface_set_role_committed(surface->surface,
-		handle_surface_committed, surface);
+	wl_signal_add(&surface->surface->events.destroy, &surface->surface_destroy);
+	surface->surface_destroy.notify = handle_surface_destroy;
+
+	wl_signal_add(&surface->surface->events.commit, &surface->surface_commit);
+	surface->surface_commit.notify = handle_surface_commit;
 
 	wlr_log(L_DEBUG, "new layer_surface %p (res %p)",
 			surface, surface->resource);

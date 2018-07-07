@@ -224,7 +224,7 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 	}
 
 	if (wlr_surface_set_role(xdg_surface->surface, XDG_POPUP_ROLE,
-			xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE)) {
+			xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE, xdg_surface)) {
 		return;
 	}
 

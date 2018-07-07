@@ -74,7 +74,7 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 	}
 
 	if (wlr_surface_set_role(surface, subsurface_role, resource,
-				WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE) < 0) {
+			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE, NULL) < 0) {
 		return;
 	}
 

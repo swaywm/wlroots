@@ -58,8 +58,8 @@ static void data_device_start_drag(struct wl_client *client,
 		icon = wlr_surface_from_resource(icon_resource);
 	}
 	if (icon) {
-		if (wlr_surface_set_role(icon, "wl_data_device-icon",
-					icon_resource, WL_DATA_DEVICE_ERROR_ROLE) < 0) {
+		if (wlr_surface_set_role(icon, "wl_data_device-icon", icon_resource,
+				WL_DATA_DEVICE_ERROR_ROLE, NULL) < 0) {
 			return;
 		}
 	}

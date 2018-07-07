@@ -294,9 +294,10 @@ static void xdg_surface_handle_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
-static void handle_surface_committed(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_xdg_surface *surface = role_data;
+static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface *surface =
+		wl_container_of(listener, surface, surface_commit);
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
@@ -346,7 +347,7 @@ static void handle_surface_committed(struct wlr_surface *wlr_surface,
 static void xdg_surface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_surface *xdg_surface =
-		wl_container_of(listener, xdg_surface, surface_destroy_listener);
+		wl_container_of(listener, xdg_surface, surface_destroy);
 	destroy_xdg_surface(xdg_surface);
 }
 
@@ -391,12 +392,12 @@ struct wlr_xdg_surface *create_xdg_surface(
 	wl_signal_init(&xdg_surface->events.unmap);
 
 	wl_signal_add(&xdg_surface->surface->events.destroy,
-		&xdg_surface->surface_destroy_listener);
-	xdg_surface->surface_destroy_listener.notify =
-		xdg_surface_handle_surface_destroy;
+		&xdg_surface->surface_destroy);
+	xdg_surface->surface_destroy.notify = xdg_surface_handle_surface_destroy;
 
-	wlr_surface_set_role_committed(xdg_surface->surface,
-		handle_surface_committed, xdg_surface);
+	wl_signal_add(&xdg_surface->surface->events.role_commit,
+		&xdg_surface->surface_commit);
+	xdg_surface->surface_commit.notify = xdg_surface_handle_surface_commit;
 
 	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);
@@ -434,9 +435,10 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
+	surface->surface->role_data = NULL;
 	wl_list_remove(&surface->link);
-	wl_list_remove(&surface->surface_destroy_listener.link);
-	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
+	wl_list_remove(&surface->surface_destroy.link);
+	wl_list_remove(&surface->surface_commit.link);
 	free(surface);
 }
 

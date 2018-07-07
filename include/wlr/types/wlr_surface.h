@@ -69,16 +69,16 @@ struct wlr_surface {
 	 */
 	struct wlr_surface_state current, pending, previous;
 	const char *role; // the lifetime-bound role or null
+	void *role_data; // role-specific data
 
 	struct {
 		struct wl_signal commit;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
-	} events;
 
-	// surface commit callback for the role that runs before all others
-	void (*role_committed)(struct wlr_surface *surface, void *role_data);
-	void *role_data;
+		// surface commit callback for the role that runs before all others
+		struct wl_signal role_commit;
+	} events;
 
 	struct wl_list subsurfaces; // wlr_subsurface::parent_link
 
@@ -111,6 +111,7 @@ struct wlr_subsurface {
 	struct wl_list parent_pending_link;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 	struct wl_listener parent_destroy;
 
 	struct {
@@ -138,7 +139,8 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
  * role cannot be set.
  */
 int wlr_surface_set_role(struct wlr_surface *surface, const char *role,
-		struct wl_resource *error_resource, uint32_t error_code);
+		struct wl_resource *error_resource, uint32_t error_code,
+		void *role_data);
 
 /**
  * Whether or not this surface currently has an attached buffer. A surface has
@@ -199,14 +201,6 @@ struct wlr_box;
  * X and y may be negative, if there are subsurfaces with negative position.
  */
 void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
-
-/**
- * Set a callback for surface commit that runs before all the other callbacks.
- * This is intended for use by the surface role.
- */
-void wlr_surface_set_role_committed(struct wlr_surface *surface,
-		void (*role_committed)(struct wlr_surface *surface, void *role_data),
-		void *role_data);
 
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 
