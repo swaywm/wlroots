@@ -806,7 +806,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
 
-	if (wl_list_length(&wlr_output->modes) > 0) {
+	if (!wl_list_empty(&wlr_output->modes)) {
 		struct wlr_output_mode *mode =
 			wl_container_of((&wlr_output->modes)->prev, mode, link);
 		wlr_output_set_mode(wlr_output, mode);
