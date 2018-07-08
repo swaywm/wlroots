@@ -20,7 +20,7 @@
  * the compositor should begin rendering the surface.
  */
 struct wlr_layer_shell {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list client_resources; // wl_resource
 	struct wl_list surfaces; // wl_layer_surface
 

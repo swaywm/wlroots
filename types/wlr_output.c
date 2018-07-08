@@ -97,34 +97,34 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(resource, &output_impl, output,
 		output_handle_resource_destroy);
-	wl_list_insert(&output->wl_resources, wl_resource_get_link(resource));
+	wl_list_insert(&output->resources, wl_resource_get_link(resource));
 	output_send_to_resource(resource);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
-	if (output->wl_global != NULL) {
+	if (output->global != NULL) {
 		return;
 	}
-	output->wl_global = wl_global_create(output->display,
+	output->global = wl_global_create(output->display,
 		&wl_output_interface, OUTPUT_VERSION, output, output_bind);
-	if (output->wl_global == NULL) {
+	if (output->global == NULL) {
 		wlr_log(L_ERROR, "Failed to allocate wl_output global");
 	}
 }
 
 void wlr_output_destroy_global(struct wlr_output *output) {
-	if (output->wl_global == NULL) {
+	if (output->global == NULL) {
 		return;
 	}
 	// Make all output resources inert
 	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &output->wl_resources) {
+	wl_resource_for_each_safe(resource, tmp, &output->resources) {
 		wl_resource_set_user_data(resource, NULL);
 		wl_list_remove(wl_resource_get_link(resource));
 		wl_list_init(wl_resource_get_link(resource));
 	}
-	wl_global_destroy(output->wl_global);
-	output->wl_global = NULL;
+	wl_global_destroy(output->global);
+	output->global = NULL;
 }
 
 void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
@@ -188,7 +188,7 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	output->refresh = refresh;
 
 	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->wl_resources) {
+	wl_resource_for_each(resource, &output->resources) {
 		output_send_current_mode_to_resource(resource);
 	}
 
@@ -202,7 +202,7 @@ void wlr_output_set_transform(struct wlr_output *output,
 
 	// TODO: only send geometry and done
 	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->wl_resources) {
+	wl_resource_for_each(resource, &output->resources) {
 		output_send_to_resource(resource);
 	}
 
@@ -220,7 +220,7 @@ void wlr_output_set_position(struct wlr_output *output, int32_t lx,
 
 	// TODO: only send geometry and done
 	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->wl_resources) {
+	wl_resource_for_each(resource, &output->resources) {
 		output_send_to_resource(resource);
 	}
 }
@@ -234,7 +234,7 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 
 	// TODO: only send mode and done
 	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->wl_resources) {
+	wl_resource_for_each(resource, &output->resources) {
 		output_send_to_resource(resource);
 	}
 
@@ -260,7 +260,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	wl_list_init(&output->cursors);
-	wl_list_init(&output->wl_resources);
+	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.needs_swap);
 	wl_signal_init(&output->events.swap_buffers);

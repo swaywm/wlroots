@@ -16,7 +16,7 @@
  */
 
 struct wlr_idle_inhibit_manager_v1 {
-	struct wl_list wl_resources; // wl_resource_get_link
+	struct wl_list resources; // wl_resource_get_link
 	struct wl_list inhibitors; // wlr_idle_inhibit_inhibitor_v1::link
 	struct wl_global *global;
 	

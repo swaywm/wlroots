@@ -3,7 +3,7 @@
 #include <wayland-server.h>
 
 struct wlr_input_inhibit_manager {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_client *active_client;
 	struct wl_resource *active_inhibitor;
 

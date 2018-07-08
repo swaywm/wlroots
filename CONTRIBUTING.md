@@ -248,8 +248,8 @@ listener. Example:
 
 ```c
 struct wlr_compositor {
-	struct wl_global *wl_global;
-	struct wl_list wl_resources;
+	struct wl_global *global;
+	struct wl_list resources;
 	…
 
 	struct wl_listener display_destroy;

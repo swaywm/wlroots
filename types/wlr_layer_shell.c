@@ -434,13 +434,13 @@ struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
 	wl_list_init(&layer_shell->client_resources);
 	wl_list_init(&layer_shell->surfaces);
 
-	struct wl_global *wl_global = wl_global_create(display,
+	struct wl_global *global = wl_global_create(display,
 		&zwlr_layer_shell_v1_interface, 1, layer_shell, layer_shell_bind);
-	if (!wl_global) {
+	if (!global) {
 		free(layer_shell);
 		return NULL;
 	}
-	layer_shell->wl_global = wl_global;
+	layer_shell->global = global;
 
 	wl_signal_init(&layer_shell->events.new_surface);
 
@@ -459,7 +459,7 @@ void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell) {
 		wl_resource_destroy(client);
 	}
 	wl_list_remove(&layer_shell->display_destroy.link);
-	wl_global_destroy(layer_shell->wl_global);
+	wl_global_destroy(layer_shell->global);
 	free(layer_shell);
 }
 

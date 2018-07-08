@@ -14,7 +14,7 @@
 
 
 struct wlr_idle {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list idle_timers; // wlr_idle_timeout::link
 	struct wl_event_loop *event_loop;
 	bool enabled;

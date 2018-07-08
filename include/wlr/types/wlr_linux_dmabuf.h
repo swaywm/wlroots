@@ -35,9 +35,9 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
 
 /* the protocol interface */
 struct wlr_linux_dmabuf {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wlr_renderer *renderer;
-	struct wl_list wl_resources;
+	struct wl_list resources;
 
 	struct {
 		struct wl_signal destroy;

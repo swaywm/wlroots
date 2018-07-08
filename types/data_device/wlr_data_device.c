@@ -227,7 +227,7 @@ static void data_device_manager_bind(struct wl_client *client,
 	wl_resource_set_implementation(resource, &data_device_manager_impl,
 		manager, data_device_manager_handle_resource_destroy);
 
-	wl_list_insert(&manager->wl_resources, wl_resource_get_link(resource));
+	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
@@ -238,7 +238,7 @@ void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
 	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &manager->wl_resources) {
+	wl_resource_for_each_safe(resource, tmp, &manager->resources) {
 		wl_resource_destroy(resource);
 	}
 	wl_resource_for_each_safe(resource, tmp, &manager->data_sources) {
@@ -262,7 +262,7 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		return NULL;
 	}
 
-	wl_list_init(&manager->wl_resources);
+	wl_list_init(&manager->resources);
 	wl_list_init(&manager->data_sources);
 	wl_signal_init(&manager->events.destroy);
 

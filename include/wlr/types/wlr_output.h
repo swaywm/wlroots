@@ -53,8 +53,8 @@ struct wlr_output {
 	struct wlr_backend *backend;
 	struct wl_display *display;
 
-	struct wl_global *wl_global;
-	struct wl_list wl_resources;
+	struct wl_global *global;
+	struct wl_list resources;
 
 	char name[24];
 	char make[48];

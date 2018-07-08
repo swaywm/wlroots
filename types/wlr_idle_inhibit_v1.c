@@ -132,7 +132,7 @@ static void idle_inhibit_bind(struct wl_client *wl_client, void *data,
 		return;
 	}
 
-	wl_list_insert(&idle_inhibit->wl_resources, wl_resource_get_link(wl_resource));
+	wl_list_insert(&idle_inhibit->resources, wl_resource_get_link(wl_resource));
 
 	wl_resource_set_implementation(wl_resource, &idle_inhibit_impl,
 		idle_inhibit, idle_inhibit_manager_v1_handle_resource_destroy);
@@ -154,7 +154,7 @@ void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *idle_inhibi
 
 	struct wl_resource *resource;
 	struct wl_resource *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &idle_inhibit->wl_resources) {
+	wl_resource_for_each_safe(resource, tmp_resource, &idle_inhibit->resources) {
 		wl_resource_destroy(resource);
 	}
 
@@ -170,7 +170,7 @@ struct wlr_idle_inhibit_manager_v1 *wlr_idle_inhibit_v1_create(struct wl_display
 		return NULL;
 	}
 
-	wl_list_init(&idle_inhibit->wl_resources);
+	wl_list_init(&idle_inhibit->resources);
 	wl_list_init(&idle_inhibit->inhibitors);
 	idle_inhibit->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &idle_inhibit->display_destroy);

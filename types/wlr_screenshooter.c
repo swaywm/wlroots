@@ -177,7 +177,7 @@ void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
 	wl_list_for_each_safe(screenshot, tmp, &screenshooter->screenshots, link) {
 		screenshot_destroy(screenshot);
 	}
-	wl_global_destroy(screenshooter->wl_global);
+	wl_global_destroy(screenshooter->global);
 	free(screenshooter);
 }
 
@@ -199,9 +199,9 @@ struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
 	screenshooter->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &screenshooter->display_destroy);
 
-	screenshooter->wl_global = wl_global_create(display,
+	screenshooter->global = wl_global_create(display,
 		&orbital_screenshooter_interface, 1, screenshooter, screenshooter_bind);
-	if (screenshooter->wl_global == NULL) {
+	if (screenshooter->global == NULL) {
 		free(screenshooter);
 		return NULL;
 	}
