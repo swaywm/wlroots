@@ -51,6 +51,10 @@ static void gamma_control_set_gamma(struct wl_client *client,
 	struct wlr_gamma_control *gamma_control =
 		gamma_control_from_resource(gamma_control_resource);
 
+	if (gamma_control == NULL) {
+		return;
+	}
+
 	if (red->size != green->size || red->size != blue->size) {
 		wl_resource_post_error(gamma_control_resource,
 			GAMMA_CONTROL_ERROR_INVALID_GAMMA,
