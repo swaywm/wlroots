@@ -22,15 +22,14 @@ static void output_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void output_send_details(struct wl_resource *resource,
-		struct wlr_output_layout_output *layout_output) {
-	struct wlr_output *output = layout_output->output;
-	zxdg_output_v1_send_logical_position(resource,
-			layout_output->x, layout_output->y);
+static void output_send_details(struct wlr_xdg_output *xdg_output,
+		struct wl_resource *resource) {
+	struct wlr_output *output = xdg_output->layout_output->output;
 
-	int width, height;
-	wlr_output_effective_resolution(layout_output->output, &width, &height);
-	zxdg_output_v1_send_logical_size(resource, width, height);
+	zxdg_output_v1_send_logical_position(resource,
+		xdg_output->x, xdg_output->y);
+	zxdg_output_v1_send_logical_size(resource,
+		xdg_output->width, xdg_output->height);
 
 	uint32_t version = wl_resource_get_version(resource);
 	if (version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
@@ -44,6 +43,32 @@ static void output_send_details(struct wl_resource *resource,
 	}
 
 	zxdg_output_v1_send_done(resource);
+}
+
+static void output_update(struct wlr_xdg_output *xdg_output) {
+	struct wlr_output_layout_output *layout_output = xdg_output->layout_output;
+	bool updated = false;
+
+	if (layout_output->x != xdg_output->x || layout_output->y != xdg_output->y) {
+		xdg_output->x = layout_output->x;
+		xdg_output->y = layout_output->y;
+		updated = true;
+	}
+
+	int width, height;
+	wlr_output_effective_resolution(layout_output->output, &width, &height);
+	if (xdg_output->width != width || xdg_output->height != height) {
+		xdg_output->width = width;
+		xdg_output->height = height;
+		updated = true;
+	}
+
+	if (updated) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &xdg_output->resources) {
+			output_send_details(xdg_output, resource);
+		}
+	}
 }
 
 static void output_destroy(struct wlr_xdg_output *output) {
@@ -70,7 +95,7 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *output_resource) {
 	assert(wl_resource_instance_of(resource, &zxdg_output_manager_v1_interface,
-			&output_manager_implementation));
+		&output_manager_implementation));
 
 	struct wlr_xdg_output_manager *manager =
 		wl_resource_get_user_data(resource);
@@ -97,10 +122,12 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(xdg_output_resource, &output_implementation,
-			NULL, output_handle_resource_destroy);
-	output_send_details(xdg_output_resource, layout_output);
+		NULL, output_handle_resource_destroy);
+
 	wl_list_insert(&xdg_output->resources,
-			wl_resource_get_link(xdg_output_resource));
+		wl_resource_get_link(xdg_output_resource));
+
+	output_send_details(xdg_output, xdg_output_resource);
 }
 
 static const struct zxdg_output_manager_v1_interface
@@ -125,7 +152,7 @@ static void output_manager_bind(struct wl_client *wl_client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &output_manager_implementation,
-			manager, output_manager_handle_resource_destroy);
+		manager, output_manager_handle_resource_destroy);
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
@@ -146,16 +173,14 @@ static void add_output(struct wlr_xdg_output_manager *manager,
 	output->destroy.notify = handle_output_destroy;
 	wl_signal_add(&layout_output->events.destroy, &output->destroy);
 	wl_list_insert(&manager->outputs, &output->link);
+	output_update(output);
 }
 
 static void output_manager_send_details(
 		struct wlr_xdg_output_manager *manager) {
 	struct wlr_xdg_output *output;
 	wl_list_for_each(output, &manager->outputs, link) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->resources) {
-			output_send_details(resource, output->layout_output);
-		}
+		output_update(output);
 	}
 }
 

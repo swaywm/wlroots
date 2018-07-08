@@ -10,6 +10,9 @@ struct wlr_xdg_output {
 
 	struct wlr_output_layout_output *layout_output;
 
+	int32_t x, y;
+	int32_t width, height;
+
 	struct wl_listener destroy;
 };
 
