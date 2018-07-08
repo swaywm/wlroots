@@ -6,8 +6,8 @@
 #include <wlr/types/wlr_seat.h>
 
 struct wlr_wl_shell {
-	struct wl_global *wl_global;
-	struct wl_list wl_resources;
+	struct wl_global *global;
+	struct wl_list resources;
 	struct wl_list surfaces;
 	struct wl_list popup_grabs;
 	uint32_t ping_timeout;

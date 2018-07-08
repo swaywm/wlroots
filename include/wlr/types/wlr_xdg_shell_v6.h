@@ -7,7 +7,7 @@
 #include "xdg-shell-unstable-v6-protocol.h"
 
 struct wlr_xdg_shell_v6 {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list clients;
 	struct wl_list popup_grabs;
 	uint32_t ping_timeout;

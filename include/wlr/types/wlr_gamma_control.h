@@ -4,7 +4,7 @@
 #include <wayland-server.h>
 
 struct wlr_gamma_control_manager {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list controls; // wlr_gamma_control::link
 
 	struct wl_listener display_destroy;

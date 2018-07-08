@@ -160,7 +160,7 @@ void wlr_gamma_control_manager_destroy(
 	wl_list_for_each_safe(gamma_control, tmp, &manager->controls, link) {
 		gamma_control_destroy(gamma_control);
 	}
-	wl_global_destroy(manager->wl_global);
+	wl_global_destroy(manager->global);
 	free(manager);
 }
 
@@ -177,14 +177,14 @@ struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(
 	if (!manager) {
 		return NULL;
 	}
-	struct wl_global *wl_global = wl_global_create(display,
+	struct wl_global *global = wl_global_create(display,
 		&gamma_control_manager_interface, 1, manager,
 		gamma_control_manager_bind);
-	if (!wl_global) {
+	if (!global) {
 		free(manager);
 		return NULL;
 	}
-	manager->wl_global = wl_global;
+	manager->global = global;
 
 	wl_list_init(&manager->controls);
 

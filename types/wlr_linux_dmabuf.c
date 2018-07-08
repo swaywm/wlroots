@@ -438,7 +438,7 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
 		linux_dmabuf, linux_dmabuf_resource_destroy);
-	wl_list_insert(&linux_dmabuf->wl_resources, wl_resource_get_link(resource));
+	wl_list_insert(&linux_dmabuf->resources, wl_resource_get_link(resource));
 
 	if (version >= ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
 		linux_dmabuf_send_modifiers(linux_dmabuf, resource);
@@ -456,11 +456,11 @@ void wlr_linux_dmabuf_destroy(struct wlr_linux_dmabuf *linux_dmabuf) {
 	wl_list_remove(&linux_dmabuf->renderer_destroy.link);
 
 	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &linux_dmabuf->wl_resources) {
+	wl_resource_for_each_safe(resource, tmp, &linux_dmabuf->resources) {
 		wl_resource_destroy(resource);
 	}
 
-	wl_global_destroy(linux_dmabuf->wl_global);
+	wl_global_destroy(linux_dmabuf->global);
 	free(linux_dmabuf);
 }
 
@@ -486,13 +486,13 @@ struct wlr_linux_dmabuf *wlr_linux_dmabuf_create(struct wl_display *display,
 	}
 	linux_dmabuf->renderer = renderer;
 
-	wl_list_init(&linux_dmabuf->wl_resources);
+	wl_list_init(&linux_dmabuf->resources);
 	wl_signal_init(&linux_dmabuf->events.destroy);
 
-	linux_dmabuf->wl_global =
+	linux_dmabuf->global =
 		wl_global_create(display, &zwp_linux_dmabuf_v1_interface,
 			LINUX_DMABUF_VERSION, linux_dmabuf, linux_dmabuf_bind);
-	if (!linux_dmabuf->wl_global) {
+	if (!linux_dmabuf->global) {
 		wlr_log(L_ERROR, "could not create linux dmabuf v1 wl global");
 		free(linux_dmabuf);
 		return NULL;

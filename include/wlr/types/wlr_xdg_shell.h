@@ -6,7 +6,7 @@
 #include "xdg-shell-protocol.h"
 
 struct wlr_xdg_shell {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list clients;
 	struct wl_list popup_grabs;
 	uint32_t ping_timeout;

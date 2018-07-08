@@ -62,7 +62,7 @@ static void seat_client_handle_resource_destroy(
 		wlr_seat_client_from_resource(seat_resource);
 
 	wl_list_remove(wl_resource_get_link(seat_resource));
-	if (!wl_list_empty(&client->wl_resources)) {
+	if (!wl_list_empty(&client->resources)) {
 		return;
 	}
 
@@ -133,7 +133,7 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 
 		seat_client->client = client;
 		seat_client->seat = wlr_seat;
-		wl_list_init(&seat_client->wl_resources);
+		wl_list_init(&seat_client->resources);
 		wl_list_init(&seat_client->pointers);
 		wl_list_init(&seat_client->keyboards);
 		wl_list_init(&seat_client->touches);
@@ -146,7 +146,7 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 
 	wl_resource_set_implementation(wl_resource, &seat_impl,
 		seat_client, seat_client_handle_resource_destroy);
-	wl_list_insert(&seat_client->wl_resources, wl_resource_get_link(wl_resource));
+	wl_list_insert(&seat_client->resources, wl_resource_get_link(wl_resource));
 	if (version >= WL_SEAT_NAME_SINCE_VERSION) {
 		wl_seat_send_name(wl_resource, wlr_seat->name);
 	}
@@ -181,16 +181,16 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		 * 'next' update that usually is harmless here.
 		 * Work around this by breaking one step ahead
 		 */
-		wl_resource_for_each_safe(resource, next, &client->wl_resources) {
+		wl_resource_for_each_safe(resource, next, &client->resources) {
 			// will destroy other resources as well
 			wl_resource_destroy(resource);
-			if (wl_resource_get_link(next) == &client->wl_resources) {
+			if (wl_resource_get_link(next) == &client->resources) {
 				break;
 			}
 		}
 	}
 
-	wl_global_destroy(seat->wl_global);
+	wl_global_destroy(seat->global);
 	free(seat->pointer_state.default_grab);
 	free(seat->keyboard_state.default_grab);
 	free(seat->touch_state.default_grab);
@@ -258,9 +258,9 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	seat->touch_state.seat = seat;
 	wl_list_init(&seat->touch_state.touch_points);
 
-	seat->wl_global = wl_global_create(display, &wl_seat_interface,
+	seat->global = wl_global_create(display, &wl_seat_interface,
 		SEAT_VERSION, seat, seat_handle_bind);
-	if (seat->wl_global == NULL) {
+	if (seat->global == NULL) {
 		free(touch_grab);
 		free(pointer_grab);
 		free(keyboard_grab);
@@ -335,7 +335,7 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 		}
 
 		struct wl_resource *resource;
-		wl_resource_for_each(resource, &client->wl_resources) {
+		wl_resource_for_each(resource, &client->resources) {
 			wl_seat_send_capabilities(resource, capabilities);
 		}
 	}
@@ -347,7 +347,7 @@ void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name) {
 	struct wlr_seat_client *client;
 	wl_list_for_each(client, &wlr_seat->clients, link) {
 		struct wl_resource *resource;
-		wl_resource_for_each(resource, &client->wl_resources) {
+		wl_resource_for_each(resource, &client->resources) {
 			wl_seat_send_name(resource, name);
 		}
 	}

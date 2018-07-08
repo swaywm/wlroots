@@ -113,7 +113,7 @@ void wlr_input_inhibit_manager_destroy(
 				manager->active_inhibitor);
 	}
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->wl_global);
+	wl_global_destroy(manager->global);
 	free(manager);
 }
 
@@ -132,10 +132,10 @@ struct wlr_input_inhibit_manager *wlr_input_inhibit_manager_create(
 		return NULL;
 	}
 
-	manager->wl_global = wl_global_create(display,
+	manager->global = wl_global_create(display,
 			&zwlr_input_inhibit_manager_v1_interface,
 			1, manager, inhibit_manager_bind);
-	if (manager->wl_global == NULL){
+	if (manager->global == NULL){
 		wl_list_remove(&manager->display_destroy.link);
 		free(manager);
 		return NULL;

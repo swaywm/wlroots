@@ -420,7 +420,7 @@ void wlr_primary_selection_device_manager_destroy(
 		return;
 	}
 	wl_list_remove(&manager->display_destroy.link);
-	// TODO: free wl_resources
+	// TODO: free resources
 	wl_global_destroy(manager->global);
 	free(manager);
 }

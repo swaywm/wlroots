@@ -192,7 +192,7 @@ void wlr_idle_destroy(struct wlr_idle *idle) {
 	wl_list_for_each_safe(timer, tmp, &idle->idle_timers, link) {
 		idle_timeout_destroy(timer);
 	}
-	wl_global_destroy(idle->wl_global);
+	wl_global_destroy(idle->global);
 	free(idle);
 }
 
@@ -219,9 +219,9 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 	idle->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &idle->display_destroy);
 
-	idle->wl_global = wl_global_create(display, &org_kde_kwin_idle_interface,
+	idle->global = wl_global_create(display, &org_kde_kwin_idle_interface,
 				1, idle, idle_bind);
-	if (idle->wl_global == NULL){
+	if (idle->global == NULL){
 		wl_list_remove(&idle->display_destroy.link);
 		free(idle);
 		return NULL;

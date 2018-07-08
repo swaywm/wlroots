@@ -596,7 +596,7 @@ static void shell_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(wl_resource, &shell_impl, wl_shell,
 		shell_destroy);
-	wl_list_insert(&wl_shell->wl_resources, wl_resource_get_link(wl_resource));
+	wl_list_insert(&wl_shell->resources, wl_resource_get_link(wl_resource));
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -611,14 +611,14 @@ struct wlr_wl_shell *wlr_wl_shell_create(struct wl_display *display) {
 		return NULL;
 	}
 	wl_shell->ping_timeout = 10000;
-	struct wl_global *wl_global = wl_global_create(display, &wl_shell_interface,
+	struct wl_global *global = wl_global_create(display, &wl_shell_interface,
 		1, wl_shell, shell_bind);
-	if (!wl_global) {
+	if (!global) {
 		free(wl_shell);
 		return NULL;
 	}
-	wl_shell->wl_global = wl_global;
-	wl_list_init(&wl_shell->wl_resources);
+	wl_shell->global = global;
+	wl_list_init(&wl_shell->resources);
 	wl_list_init(&wl_shell->surfaces);
 	wl_list_init(&wl_shell->popup_grabs);
 	wl_signal_init(&wl_shell->events.new_surface);
@@ -635,12 +635,12 @@ void wlr_wl_shell_destroy(struct wlr_wl_shell *wlr_wl_shell) {
 	}
 	wl_list_remove(&wlr_wl_shell->display_destroy.link);
 	struct wl_resource *resource = NULL, *temp = NULL;
-	wl_resource_for_each_safe(resource, temp, &wlr_wl_shell->wl_resources) {
+	wl_resource_for_each_safe(resource, temp, &wlr_wl_shell->resources) {
 		// shell_destroy will remove the resource from the list
 		wl_resource_destroy(resource);
 	}
 	// TODO: destroy surfaces
-	wl_global_destroy(wlr_wl_shell->wl_global);
+	wl_global_destroy(wlr_wl_shell->global);
 	free(wlr_wl_shell);
 }
 

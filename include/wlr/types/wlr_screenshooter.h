@@ -4,7 +4,7 @@
 #include <wayland-server.h>
 
 struct wlr_screenshooter {
-	struct wl_global *wl_global;
+	struct wl_global *global;
 	struct wl_list screenshots; // wlr_screenshot::link
 
 	struct wl_listener display_destroy;

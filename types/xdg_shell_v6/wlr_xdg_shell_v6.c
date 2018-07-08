@@ -147,13 +147,13 @@ struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display) {
 	wl_list_init(&xdg_shell->clients);
 	wl_list_init(&xdg_shell->popup_grabs);
 
-	struct wl_global *wl_global = wl_global_create(display,
+	struct wl_global *global = wl_global_create(display,
 		&zxdg_shell_v6_interface, SHELL_VERSION, xdg_shell, xdg_shell_bind);
-	if (!wl_global) {
+	if (!global) {
 		free(xdg_shell);
 		return NULL;
 	}
-	xdg_shell->wl_global = wl_global;
+	xdg_shell->global = global;
 
 	wl_signal_init(&xdg_shell->events.new_surface);
 
@@ -168,6 +168,6 @@ void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell) {
 		return;
 	}
 	wl_list_remove(&xdg_shell->display_destroy.link);
-	wl_global_destroy(xdg_shell->wl_global);
+	wl_global_destroy(xdg_shell->global);
 	free(xdg_shell);
 }
