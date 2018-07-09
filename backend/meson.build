@@ -44,9 +44,9 @@ else
 	backend_files += files('session/direct.c')
 endif
 
-if conf_data.get('WLR_HAS_SYSTEMD', false)
+if logind.found()
 	backend_files += files('session/logind.c')
-	backend_deps += systemd
+	backend_deps += logind
 endif
 
 if conf_data.get('WLR_HAS_X11_BACKEND', false)
@@ -56,11 +56,6 @@ if conf_data.get('WLR_HAS_X11_BACKEND', false)
 		'x11/output.c',
 	)
 	backend_deps += xcb_xkb
-endif
-
-if conf_data.get('WLR_HAS_ELOGIND', false)
-	backend_files += files('session/logind.c')
-	backend_deps += elogind
 endif
 
 lib_wlr_backend = static_library(
