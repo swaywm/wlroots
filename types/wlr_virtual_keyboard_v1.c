@@ -139,7 +139,7 @@ static void virtual_keyboard_manager_create_virtual_keyboard(
 
 	struct wlr_keyboard* keyboard = calloc(1, sizeof(struct wlr_keyboard));
 	if (!keyboard) {
-		wlr_log(L_ERROR, "Cannot allocate wlr_keyboard");
+		wlr_log(WLR_ERROR, "Cannot allocate wlr_keyboard");
 		free(virtual_keyboard);
 		wl_client_post_no_memory(client);
 		return;

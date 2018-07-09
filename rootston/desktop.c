@@ -757,7 +757,7 @@ static void input_inhibit_deactivate(struct wl_listener *listener, void *data) {
 
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
-	wlr_log(L_DEBUG, "Initializing roots desktop");
+	wlr_log(WLR_DEBUG, "Initializing roots desktop");
 
 	struct roots_desktop *desktop = calloc(1, sizeof(struct roots_desktop));
 	if (desktop == NULL) {
@@ -816,7 +816,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->xcursor_manager = wlr_xcursor_manager_create(cursor_theme,
 		ROOTS_XCURSOR_SIZE);
 	if (desktop->xcursor_manager == NULL) {
-		wlr_log(L_ERROR, "Cannot create XCursor manager for theme %s",
+		wlr_log(WLR_ERROR, "Cannot create XCursor manager for theme %s",
 			cursor_theme);
 		free(desktop);
 		return NULL;
@@ -830,7 +830,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
 
 		if (wlr_xcursor_manager_load(desktop->xcursor_manager, 1)) {
-			wlr_log(L_ERROR, "Cannot load XWayland XCursor theme");
+			wlr_log(WLR_ERROR, "Cannot load XWayland XCursor theme");
 		}
 		struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
 			desktop->xcursor_manager, cursor_default, 1);

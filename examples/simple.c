@@ -37,7 +37,7 @@ struct sample_keyboard {
 };
 
 void output_frame_notify(struct wl_listener *listener, void *data) {
-	wlr_log(L_DEBUG, "Output removed");
+	wlr_log(WLR_DEBUG, "Output removed");
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
 	struct sample_state *sample = sample_output->sample;
 	struct timespec now;
@@ -131,7 +131,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 		rules.options = getenv("XKB_DEFAULT_OPTIONS");
 		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
-			wlr_log(L_ERROR, "Failed to create XKB context");
+			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
 		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
@@ -144,7 +144,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 }
 
 int main(void) {
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
 		.color = { 1.0, 0.0, 0.0 },
@@ -163,7 +163,7 @@ int main(void) {
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
 	if (!wlr_backend_start(wlr)) {
-		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_log(WLR_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);
 		exit(1);
 	}

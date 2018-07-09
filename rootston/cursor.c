@@ -429,7 +429,7 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 	}
 	if (event->seat_client->client != focused_client ||
 			cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
-		wlr_log(L_DEBUG, "Denying request to set cursor from unfocused client");
+		wlr_log(WLR_DEBUG, "Denying request to set cursor from unfocused client");
 		return;
 	}
 

@@ -86,12 +86,12 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		// re-using the same DMA-BUF for the next frames, so we don't release
 		// the buffer yet.
 	} else {
-		wlr_log(L_ERROR, "Cannot upload texture: unknown buffer type");
+		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
 		return NULL;
 	}
 
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Failed to upload texture");
+		wlr_log(WLR_ERROR, "Failed to upload texture");
 		return NULL;
 	}
 

@@ -50,7 +50,7 @@ void handle_keyboard_key(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_KEYBOARD, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(L_DEBUG, "Got a keyboard event for a device with no keyboards?");
+		wlr_log(WLR_DEBUG, "Got a keyboard event for a device with no keyboards?");
 		return;
 	}
 	struct libinput_event_keyboard *kbevent =

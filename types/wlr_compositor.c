@@ -111,7 +111,7 @@ static void subcompositor_init(struct wlr_subcompositor *subcompositor,
 		&wl_subcompositor_interface, SUBCOMPOSITOR_VERSION, subcompositor,
 		subcompositor_bind);
 	if (subcompositor->global == NULL) {
-		wlr_log_errno(L_ERROR, "Could not allocate subcompositor global");
+		wlr_log_errno(WLR_ERROR, "Could not allocate subcompositor global");
 		return;
 	}
 	wl_list_init(&subcompositor->resources);
@@ -218,7 +218,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	struct wlr_compositor *compositor =
 		calloc(1, sizeof(struct wlr_compositor));
 	if (!compositor) {
-		wlr_log_errno(L_ERROR, "Could not allocate wlr compositor");
+		wlr_log_errno(WLR_ERROR, "Could not allocate wlr compositor");
 		return NULL;
 	}
 
@@ -226,7 +226,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		COMPOSITOR_VERSION, compositor, compositor_bind);
 	if (!compositor->global) {
 		free(compositor);
-		wlr_log_errno(L_ERROR, "Could not allocate compositor global");
+		wlr_log_errno(WLR_ERROR, "Could not allocate compositor global");
 		return NULL;
 	}
 	compositor->renderer = renderer;

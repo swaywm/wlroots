@@ -378,7 +378,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	wlr_surface_set_role_committed(surface->surface,
 		handle_surface_committed, surface);
 
-	wlr_log(L_DEBUG, "new layer_surface %p (res %p)",
+	wlr_log(WLR_DEBUG, "new layer_surface %p (res %p)",
 			surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
 		&layer_surface_implementation, surface, layer_surface_resource_destroy);

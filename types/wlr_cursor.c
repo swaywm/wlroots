@@ -59,13 +59,13 @@ struct wlr_cursor_state {
 struct wlr_cursor *wlr_cursor_create(void) {
 	struct wlr_cursor *cur = calloc(1, sizeof(struct wlr_cursor));
 	if (!cur) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_cursor");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_cursor");
 		return NULL;
 	}
 
 	cur->state = calloc(1, sizeof(struct wlr_cursor_state));
 	if (!cur->state) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_state");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_cursor_state");
 		free(cur);
 		return NULL;
 	}
@@ -514,7 +514,7 @@ static struct wlr_cursor_device *cursor_device_create(
 	struct wlr_cursor_device *c_device =
 		calloc(1, sizeof(struct wlr_cursor_device));
 	if (!c_device) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_device");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_cursor_device");
 		return NULL;
 	}
 
@@ -578,7 +578,7 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
 			dev->type != WLR_INPUT_DEVICE_TOUCH &&
 			dev->type != WLR_INPUT_DEVICE_TABLET_TOOL) {
-		wlr_log(L_ERROR, "only device types of pointer, touch or tablet tool"
+		wlr_log(WLR_ERROR, "only device types of pointer, touch or tablet tool"
 				"are supported");
 		return;
 	}
@@ -623,14 +623,14 @@ static void layout_add(struct wlr_cursor_state *state,
 	struct wlr_cursor_output_cursor *output_cursor =
 		calloc(1, sizeof(struct wlr_cursor_output_cursor));
 	if (output_cursor == NULL) {
-		wlr_log(L_ERROR, "Failed to allocate wlr_cursor_output_cursor");
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_cursor_output_cursor");
 		return;
 	}
 	output_cursor->cursor = state->cursor;
 
 	output_cursor->output_cursor = wlr_output_cursor_create(l_output->output);
 	if (output_cursor->output_cursor == NULL) {
-		wlr_log(L_ERROR, "Failed to create wlr_output_cursor");
+		wlr_log(WLR_ERROR, "Failed to create wlr_output_cursor");
 		free(output_cursor);
 		return;
 	}
@@ -698,7 +698,7 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_output *output) {
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 	if (!c_device) {
-		wlr_log(L_ERROR, "Cannot map device \"%s\" to output"
+		wlr_log(WLR_ERROR, "Cannot map device \"%s\" to output"
 			"(not found in this cursor)", dev->name);
 		return;
 	}
@@ -709,7 +709,7 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 void wlr_cursor_map_to_region(struct wlr_cursor *cur,
 		struct wlr_box *box) {
 	if (box && wlr_box_empty(box)) {
-		wlr_log(L_ERROR, "cannot map cursor to an empty region");
+		wlr_log(WLR_ERROR, "cannot map cursor to an empty region");
 		return;
 	}
 
@@ -719,14 +719,14 @@ void wlr_cursor_map_to_region(struct wlr_cursor *cur,
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, struct wlr_box *box) {
 	if (box && wlr_box_empty(box)) {
-		wlr_log(L_ERROR, "cannot map device \"%s\" input to an empty region",
+		wlr_log(WLR_ERROR, "cannot map device \"%s\" input to an empty region",
 			dev->name);
 		return;
 	}
 
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 	if (!c_device) {
-		wlr_log(L_ERROR, "Cannot map device \"%s\" to geometry (not found in"
+		wlr_log(WLR_ERROR, "Cannot map device \"%s\" to geometry (not found in"
 			"this cursor)", dev->name);
 		return;
 	}

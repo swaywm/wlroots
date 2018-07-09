@@ -31,7 +31,7 @@ static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 
 	fd = socket(PF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (fd < 0) {
-		wlr_log_errno(L_DEBUG, "Failed to create socket %c%s",
+		wlr_log_errno(WLR_DEBUG, "Failed to create socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
 		return -1;
@@ -42,14 +42,14 @@ static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	}
 	if (bind(fd, (struct sockaddr*)addr, size) < 0) {
 		rc = errno;
-		wlr_log_errno(L_DEBUG, "Failed to bind socket %c%s",
+		wlr_log_errno(WLR_DEBUG, "Failed to bind socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
 		goto cleanup;
 	}
 	if (listen(fd, 1) < 0) {
 		rc = errno;
-		wlr_log_errno(L_DEBUG, "Failed to listen to socket %c%s",
+		wlr_log_errno(WLR_DEBUG, "Failed to listen to socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
 		goto cleanup;
@@ -160,7 +160,7 @@ int open_display_sockets(int socks[2]) {
 	}
 
 	if (display > 32) {
-		wlr_log(L_ERROR, "No display available in the first 33");
+		wlr_log(WLR_ERROR, "No display available in the first 33");
 		return -1;
 	}
 

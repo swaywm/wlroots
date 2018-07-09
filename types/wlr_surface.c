@@ -333,7 +333,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 
 	struct wlr_buffer *buffer = wlr_buffer_create(surface->renderer, resource);
 	if (buffer == NULL) {
-		wlr_log(L_ERROR, "Failed to upload buffer");
+		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
 	}
 
@@ -593,7 +593,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_resource_set_implementation(surface->resource, &surface_interface,
 		surface, surface_handle_resource_destroy);
 
-	wlr_log(L_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
+	wlr_log(WLR_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
 
 	surface->renderer = renderer;
 

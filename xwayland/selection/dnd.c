@@ -167,7 +167,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	if (ev->type == xwm->atoms[DND_STATUS]) {
 		if (xwm->drag == NULL) {
-			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+			wlr_log(WLR_DEBUG, "ignoring XdndStatus client message because "
 				"there's no drag");
 			return 1;
 		}
@@ -179,7 +179,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 
 		if (xwm->drag_focus == NULL ||
 				target_window != xwm->drag_focus->window_id) {
-			wlr_log(L_DEBUG, "ignoring XdndStatus client message because "
+			wlr_log(WLR_DEBUG, "ignoring XdndStatus client message because "
 				"it doesn't match the current drag focus window ID");
 			return 1;
 		}
@@ -193,7 +193,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		drag->source->accepted = accepted;
 		wlr_data_source_dnd_action(drag->source, action);
 
-		wlr_log(L_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
+		wlr_log(WLR_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
 			target_window, accepted, action);
 		return 1;
 	} else if (ev->type == xwm->atoms[DND_FINISHED]) {
@@ -201,7 +201,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		// source is destroyed
 		if (xwm->seat == NULL || xwm->seat->drag_source == NULL ||
 				xwm->drag != NULL) {
-			wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
+			wlr_log(WLR_DEBUG, "ignoring XdndFinished client message because "
 				"there's no finished drag");
 			return 1;
 		}
@@ -215,7 +215,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 
 		if (xwm->drag_focus == NULL ||
 				target_window != xwm->drag_focus->window_id) {
-			wlr_log(L_DEBUG, "ignoring XdndFinished client message because "
+			wlr_log(WLR_DEBUG, "ignoring XdndFinished client message because "
 				"it doesn't match the finished drag focus window ID");
 			return 1;
 		}
@@ -227,7 +227,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 			wlr_data_source_dnd_finish(source);
 		}
 
-		wlr_log(L_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
+		wlr_log(WLR_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
 			target_window, performed, action);
 		return 1;
 	} else {
@@ -289,7 +289,7 @@ static void seat_handle_drag_drop(struct wl_listener *listener, void *data) {
 		return; // No xwayland surface focused
 	}
 
-	wlr_log(L_DEBUG, "Wayland drag dropped over an Xwayland window");
+	wlr_log(WLR_DEBUG, "Wayland drag dropped over an Xwayland window");
 	xwm_dnd_send_drop(xwm, event->time);
 }
 
@@ -299,7 +299,7 @@ static void seat_handle_drag_destroy(struct wl_listener *listener, void *data) {
 	// Don't reset drag focus yet because the target will read the drag source
 	// right after
 	if (xwm->drag_focus != NULL && !xwm->drag->source->accepted) {
-		wlr_log(L_DEBUG, "Wayland drag cancelled over an Xwayland window");
+		wlr_log(WLR_DEBUG, "Wayland drag cancelled over an Xwayland window");
 		xwm_dnd_send_leave(xwm);
 	}
 

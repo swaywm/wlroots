@@ -115,7 +115,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		const char *shell_cmd = command + strlen(exec_prefix);
 		pid_t pid = fork();
 		if (pid < 0) {
-			wlr_log(L_ERROR, "cannot execute binding command: fork() failed");
+			wlr_log(WLR_ERROR, "cannot execute binding command: fork() failed");
 			return;
 		} else if (pid == 0) {
 			execl("/bin/sh", "/bin/sh", "-c", shell_cmd, (void *)NULL);
@@ -126,7 +126,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 			view_maximize(focus, !focus->maximized);
 		}
 	} else if (strcmp(command, "nop") == 0) {
-		wlr_log(L_DEBUG, "nop command");
+		wlr_log(WLR_DEBUG, "nop command");
 	} else if (strcmp(command, "toggle_outputs") == 0) {
 		outputs_enabled = !outputs_enabled;
 		struct roots_output *output;
@@ -134,7 +134,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 			wlr_output_enable(output->wlr_output, outputs_enabled);
 		}
 	} else {
-		wlr_log(L_ERROR, "unknown binding command: %s", command);
+		wlr_log(WLR_ERROR, "unknown binding command: %s", command);
 	}
 }
 
@@ -369,7 +369,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 	rules.options = config->options;
 	struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (context == NULL) {
-		wlr_log(L_ERROR, "Cannot create XKB context");
+		wlr_log(WLR_ERROR, "Cannot create XKB context");
 		return NULL;
 	}
 
@@ -377,7 +377,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 		XKB_KEYMAP_COMPILE_NO_FLAGS);
 	if (keymap == NULL) {
 		xkb_context_unref(context);
-		wlr_log(L_ERROR, "Cannot create XKB keymap");
+		wlr_log(WLR_ERROR, "Cannot create XKB keymap");
 		return NULL;
 	}
 

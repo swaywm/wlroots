@@ -109,7 +109,7 @@ void *main_loop(void *data) {
 }
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 
 	if (parse_args(argc, argv) != 0) {
 		return -1;

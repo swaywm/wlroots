@@ -236,7 +236,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 		rules.options = getenv("XKB_DEFAULT_OPTIONS");
 		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
-			wlr_log(L_ERROR, "Failed to create XKB context");
+			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
 		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
@@ -250,7 +250,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
 		.x_vel = 500,
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 		cat_tex.pixel_data);
 
 	if (!wlr_backend_start(wlr)) {
-		wlr_log(L_ERROR, "Failed to start backend");
+		wlr_log(WLR_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);
 		exit(1);
 	}

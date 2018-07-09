@@ -258,7 +258,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
-		wlr_log(L_ERROR, "Cannot read pixels: unsupported pixel format");
+		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format");
 		return false;
 	}
 
@@ -325,7 +325,7 @@ static void gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 	if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
-		wlr_log(L_INFO, "failed to bind wl_display to EGL");
+		wlr_log(WLR_INFO, "failed to bind wl_display to EGL");
 	}
 }
 
@@ -389,18 +389,18 @@ void pop_gles2_marker(void) {
 	}
 }
 
-static log_importance_t gles2_log_importance_to_wlr(GLenum type) {
+static enum wlr_log_importance gles2_log_importance_to_wlr(GLenum type) {
 	switch (type) {
-	case GL_DEBUG_TYPE_ERROR_KHR:               return L_ERROR;
-	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_KHR: return L_DEBUG;
-	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_KHR:  return L_ERROR;
-	case GL_DEBUG_TYPE_PORTABILITY_KHR:         return L_DEBUG;
-	case GL_DEBUG_TYPE_PERFORMANCE_KHR:         return L_DEBUG;
-	case GL_DEBUG_TYPE_OTHER_KHR:               return L_DEBUG;
-	case GL_DEBUG_TYPE_MARKER_KHR:              return L_DEBUG;
-	case GL_DEBUG_TYPE_PUSH_GROUP_KHR:          return L_DEBUG;
-	case GL_DEBUG_TYPE_POP_GROUP_KHR:           return L_DEBUG;
-	default:                                    return L_DEBUG;
+	case GL_DEBUG_TYPE_ERROR_KHR:               return WLR_ERROR;
+	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_KHR: return WLR_DEBUG;
+	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_KHR:  return WLR_ERROR;
+	case GL_DEBUG_TYPE_PORTABILITY_KHR:         return WLR_DEBUG;
+	case GL_DEBUG_TYPE_PERFORMANCE_KHR:         return WLR_DEBUG;
+	case GL_DEBUG_TYPE_OTHER_KHR:               return WLR_DEBUG;
+	case GL_DEBUG_TYPE_MARKER_KHR:              return WLR_DEBUG;
+	case GL_DEBUG_TYPE_PUSH_GROUP_KHR:          return WLR_DEBUG;
+	case GL_DEBUG_TYPE_POP_GROUP_KHR:           return WLR_DEBUG;
+	default:                                    return WLR_DEBUG;
 	}
 }
 
@@ -490,9 +490,9 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
 	renderer->exts_str = (const char*) glGetString(GL_EXTENSIONS);
-	wlr_log(L_INFO, "Using %s", glGetString(GL_VERSION));
-	wlr_log(L_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
-	wlr_log(L_INFO, "Supported GLES2 extensions: %s", renderer->exts_str);
+	wlr_log(WLR_INFO, "Using %s", glGetString(GL_VERSION));
+	wlr_log(WLR_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
+	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", renderer->exts_str);
 
 	if (glDebugMessageCallbackKHR && glDebugMessageControlKHR) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);

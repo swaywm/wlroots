@@ -108,7 +108,7 @@ void wlr_output_create_global(struct wlr_output *output) {
 	output->global = wl_global_create(output->display,
 		&wl_output_interface, OUTPUT_VERSION, output, output_bind);
 	if (output->global == NULL) {
-		wlr_log(L_ERROR, "Failed to allocate wl_output global");
+		wlr_log(WLR_ERROR, "Failed to allocate wl_output global");
 	}
 }
 
@@ -459,7 +459,7 @@ surface_damage_finish:
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	if (output->frame_pending) {
-		wlr_log(L_ERROR, "Tried to swap buffers when a frame is pending");
+		wlr_log(WLR_ERROR, "Tried to swap buffers when a frame is pending");
 		return false;
 	}
 	if (output->idle_frame != NULL) {
@@ -766,7 +766,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	wlr_log(L_DEBUG, "Falling back to software cursor");
+	wlr_log(WLR_DEBUG, "Falling back to software cursor");
 	output_cursor_damage_whole(cursor);
 	return true;
 }
