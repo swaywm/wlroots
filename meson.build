@@ -3,7 +3,7 @@ project(
 	'c',
 	version: '0.0.1',
 	license: 'MIT',
-	meson_version: '>=0.44.0',
+	meson_version: '>=0.47.0',
 	default_options: [
 		'c_std=c11',
 		'warning_level=2',
@@ -58,30 +58,25 @@ libinput       = dependency('libinput', version: '>=1.7.0')
 xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
-libcap         = dependency('libcap', required: get_option('enable-libcap') == 'true')
-systemd        = dependency('libsystemd', required: get_option('enable-systemd') == 'true')
-elogind        = dependency('libelogind', required: get_option('enable-elogind') == 'true')
+libcap         = dependency('libcap', required: get_option('libcap'))
+logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'))
 math           = cc.find_library('m', required: false)
 
 exclude_headers = []
 wlr_parts = []
 wlr_deps = []
 
-if libcap.found() and get_option('enable-libcap') != 'false'
+if libcap.found()
 	conf_data.set('WLR_HAS_LIBCAP', true)
 	wlr_deps += libcap
 endif
 
-if systemd.found() and get_option('enable-systemd') != 'false'
-	conf_data.set('WLR_HAS_SYSTEMD', true)
-	wlr_deps += systemd
+if logind.found()
+	conf_data.set('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
+	wlr_deps += logind
 endif
 
-if elogind.found() and get_option('enable-elogind') != 'false'
-	conf_data.set('WLR_HAS_ELOGIND', true)
-endif
-
-if get_option('enable-x11_backend') or get_option('enable-xwayland')
+if not (get_option('x11-backend').disabled() and get_option('xwayland').disabled())
 	xcb            = dependency('xcb')
 	xcb_composite  = dependency('xcb-composite')
 	xcb_xfixes     = dependency('xcb-xfixes')
@@ -89,9 +84,9 @@ if get_option('enable-x11_backend') or get_option('enable-xwayland')
 	xcb_render     = dependency('xcb-render')
 	x11_xcb        = dependency('x11-xcb')
 
-	xcb_icccm      = dependency('xcb-icccm', required: false)
-	xcb_xkb        = dependency('xcb-xkb', required: false)
-	xcb_errors     = dependency('xcb-errors', required: get_option('enable-xcb_errors') == 'true')
+	xcb_errors     = dependency('xcb-errors', required: get_option('xcb-errors'))
+	xcb_icccm      = dependency('xcb-icccm', required: get_option('xcb-icccm'))
+	xcb_xkb        = dependency('xcb-xkb', required: get_option('xcb-xkb'))
 
 	if xcb_icccm.found()
 		conf_data.set('WLR_HAS_XCB_ICCCM', true)
@@ -101,7 +96,7 @@ if get_option('enable-x11_backend') or get_option('enable-xwayland')
 		conf_data.set('WLR_HAS_XCB_XKB', true)
 	endif
 
-	if xcb_errors.found() and get_option('enable-xcb_errors') != 'false'
+	if xcb_errors.found()
 		conf_data.set('WLR_HAS_XCB_ERRORS', true)
 	endif
 
@@ -114,11 +109,11 @@ else
 	add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
 endif
 
-if get_option('enable-x11_backend')
+if not get_option('x11-backend').disabled()
 	conf_data.set('WLR_HAS_X11_BACKEND', true)
 endif
 
-if get_option('enable-xwayland')
+if not get_option('xwayland').disabled()
 	subdir('xwayland')
 	wlr_parts += [lib_wlr_xwayland]
 	conf_data.set('WLR_HAS_XWAYLAND', true)
@@ -129,7 +124,6 @@ endif
 includedir = get_option('includedir')
 exclude_headers += 'meson.build'
 install_subdir('include/wlr', install_dir: includedir, exclude_files: exclude_headers)
-
 
 subdir('include')
 subdir('protocol')
@@ -182,7 +176,6 @@ wlroots = declare_dependency(
 	include_directories: wlr_inc,
 )
 
-
 summary = [
 	'',
 	'----------------',
@@ -192,7 +185,8 @@ summary = [
 	'     systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
 	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
 	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
-	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
+	' x11-backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
+	'     xcb-xkb: @0@'.format(conf_data.get('WLR_HAS_XCB_XKB', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
 	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
 	'----------------',
@@ -200,12 +194,11 @@ summary = [
 ]
 message('\n'.join(summary))
 
-
-if get_option('enable-rootston')
+if get_option('rootston')
 	subdir('rootston')
 endif
 
-if get_option('enable-examples')
+if get_option('examples')
 	subdir('examples')
 endif
 
