@@ -419,7 +419,8 @@ static void xdg_toplevel_handle_resource_destroy(struct wl_resource *resource) {
 
 const struct wlr_surface_role xdg_toplevel_v6_surface_role = {
 	.name = "xdg_toplevel_v6",
-	.commit = handle_xdg_surface_v6_committed,
+	.commit = handle_xdg_surface_v6_commit,
+	.precommit = handle_xdg_surface_v6_precommit,
 };
 
 void create_xdg_toplevel_v6(struct wlr_xdg_surface_v6 *xdg_surface,

@@ -251,7 +251,8 @@ void handle_xdg_surface_v6_popup_committed(struct wlr_xdg_surface_v6 *surface) {
 
 const struct wlr_surface_role xdg_popup_v6_surface_role = {
 	.name = "xdg_popup_v6",
-	.commit = handle_xdg_surface_v6_committed,
+	.commit = handle_xdg_surface_v6_commit,
+	.precommit = handle_xdg_surface_v6_precommit,
 };
 
 void create_xdg_popup_v6(struct wlr_xdg_surface_v6 *xdg_surface,
