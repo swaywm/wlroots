@@ -26,7 +26,7 @@ DECL_FMT='extern %s %s;'
 DEFN_FMT='%s %s;'
 LOADER_FMT='%s = (%s)eglGetProcAddress("%s");'
 CHECK_FMT='if (!%s) {
-	wlr_log(L_ERROR, "Unable to load %s");
+	wlr_log(WLR_ERROR, "Unable to load %s");
 	return false;
 }'
 

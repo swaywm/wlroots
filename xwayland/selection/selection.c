@@ -114,7 +114,7 @@ static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
 int xwm_handle_selection_event(struct wlr_xwm *xwm,
 		xcb_generic_event_t *event) {
 	if (xwm->seat == NULL) {
-		wlr_log(L_DEBUG, "not handling selection events: "
+		wlr_log(WLR_DEBUG, "not handling selection events: "
 			"no seat assigned to xwayland");
 		return 0;
 	}

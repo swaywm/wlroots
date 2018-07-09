@@ -157,14 +157,14 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		struct wl_display *wl_display) {
 	if (wl_display_init_shm(wl_display)) {
-		wlr_log(L_ERROR, "Failed to initialize shm");
+		wlr_log(WLR_ERROR, "Failed to initialize shm");
 		return;
 	}
 
 	size_t len;
 	const enum wl_shm_format *formats = wlr_renderer_get_formats(r, &len);
 	if (formats == NULL) {
-		wlr_log(L_ERROR, "Failed to initialize shm: cannot get formats");
+		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
 		return;
 	}
 
@@ -185,7 +185,7 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 		EGLenum platform, void *remote_display, EGLint *config_attribs,
 		EGLint visual_id) {
 	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visual_id)) {
-		wlr_log(L_ERROR, "Could not initialize EGL");
+		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
 

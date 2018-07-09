@@ -83,7 +83,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 
 	configure->toplevel_state = malloc(sizeof(*configure->toplevel_state));
 	if (configure->toplevel_state == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		wl_resource_post_no_memory(surface->toplevel->resource);
 		return;
 	}
@@ -94,7 +94,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	if (surface->toplevel->server_pending.maximized) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for maximized xdg_toplevel");
+			wlr_log(WLR_ERROR, "Could not allocate state for maximized xdg_toplevel");
 			goto error_out;
 		}
 		*s = XDG_TOPLEVEL_STATE_MAXIMIZED;
@@ -102,7 +102,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	if (surface->toplevel->server_pending.fullscreen) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
+			wlr_log(WLR_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
 			goto error_out;
 		}
 		*s = XDG_TOPLEVEL_STATE_FULLSCREEN;
@@ -110,7 +110,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	if (surface->toplevel->server_pending.resizing) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for resizing xdg_toplevel");
+			wlr_log(WLR_ERROR, "Could not allocate state for resizing xdg_toplevel");
 			goto error_out;
 		}
 		*s = XDG_TOPLEVEL_STATE_RESIZING;
@@ -118,7 +118,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	if (surface->toplevel->server_pending.activated) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
-			wlr_log(L_ERROR, "Could not allocate state for activated xdg_toplevel");
+			wlr_log(WLR_ERROR, "Could not allocate state for activated xdg_toplevel");
 			goto error_out;
 		}
 		*s = XDG_TOPLEVEL_STATE_ACTIVATED;
@@ -144,7 +144,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 
 				uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 				if (!s) {
-					wlr_log(L_ERROR,
+					wlr_log(WLR_ERROR,
 						"Could not allocate state for tiled xdg_toplevel");
 					goto error_out;
 				}
@@ -155,7 +155,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 			// toplevel maximized
 			uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 			if (!s) {
-				wlr_log(L_ERROR,
+				wlr_log(WLR_ERROR,
 					"Could not allocate state for maximized xdg_toplevel");
 				goto error_out;
 			}
@@ -267,7 +267,7 @@ static void xdg_toplevel_handle_show_window_menu(struct wl_client *client,
 	}
 
 	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
-		wlr_log(L_DEBUG, "invalid serial for grab");
+		wlr_log(WLR_DEBUG, "invalid serial for grab");
 		return;
 	}
 
@@ -298,7 +298,7 @@ static void xdg_toplevel_handle_move(struct wl_client *client,
 	}
 
 	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
-		wlr_log(L_DEBUG, "invalid serial for grab");
+		wlr_log(WLR_DEBUG, "invalid serial for grab");
 		return;
 	}
 
@@ -327,7 +327,7 @@ static void xdg_toplevel_handle_resize(struct wl_client *client,
 	}
 
 	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
-		wlr_log(L_DEBUG, "invalid serial for grab");
+		wlr_log(WLR_DEBUG, "invalid serial for grab");
 		return;
 	}
 

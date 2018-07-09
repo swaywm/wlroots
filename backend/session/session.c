@@ -36,7 +36,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 
 	const char *action = udev_device_get_action(udev_dev);
 
-	wlr_log(L_DEBUG, "udev event for %s (%s)",
+	wlr_log(WLR_DEBUG, "udev event for %s (%s)",
 		udev_device_get_sysname(udev_dev), action);
 
 	if (!action || strcmp(action, "change") != 0) {
@@ -73,7 +73,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	}
 
 	if (!session) {
-		wlr_log(L_ERROR, "Failed to load session backend");
+		wlr_log(WLR_ERROR, "Failed to load session backend");
 		return NULL;
 	}
 
@@ -83,13 +83,13 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 
 	session->udev = udev_new();
 	if (!session->udev) {
-		wlr_log_errno(L_ERROR, "Failed to create udev context");
+		wlr_log_errno(WLR_ERROR, "Failed to create udev context");
 		goto error_session;
 	}
 
 	session->mon = udev_monitor_new_from_netlink(session->udev, "udev");
 	if (!session->mon) {
-		wlr_log_errno(L_ERROR, "Failed to create udev monitor");
+		wlr_log_errno(WLR_ERROR, "Failed to create udev monitor");
 		goto error_udev;
 	}
 
@@ -102,7 +102,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	session->udev_event = wl_event_loop_add_fd(event_loop, fd,
 		WL_EVENT_READABLE, udev_event, session);
 	if (!session->udev_event) {
-		wlr_log_errno(L_ERROR, "Failed to create udev event source");
+		wlr_log_errno(WLR_ERROR, "Failed to create udev event source");
 		goto error_mon;
 	}
 
@@ -142,13 +142,13 @@ int wlr_session_open_file(struct wlr_session *session, const char *path) {
 
 	struct wlr_device *dev = malloc(sizeof(*dev));
 	if (!dev) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		goto error;
 	}
 
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
-		wlr_log_errno(L_ERROR, "Stat failed");
+		wlr_log_errno(WLR_ERROR, "Stat failed");
 		goto error;
 	}
 
@@ -173,7 +173,7 @@ static struct wlr_device *find_device(struct wlr_session *session, int fd) {
 		}
 	}
 
-	wlr_log(L_ERROR, "Tried to use fd %d not opened by session", fd);
+	wlr_log(WLR_ERROR, "Tried to use fd %d not opened by session", fd);
 	assert(0);
 }
 
@@ -240,7 +240,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 		size_t ret_len, int ret[static ret_len], const char *str) {
 	char *gpus = strdup(str);
 	if (!gpus) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return 0;
 	}
 
@@ -254,7 +254,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 
 		ret[i] = open_if_kms(session, ptr);
 		if (ret[i] < 0) {
-			wlr_log(L_ERROR, "Unable to open %s as DRM device", ptr);
+			wlr_log(WLR_ERROR, "Unable to open %s as DRM device", ptr);
 		} else {
 			++i;
 		}
@@ -281,7 +281,7 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 
 	struct udev_enumerate *en = udev_enumerate_new(session->udev);
 	if (!en) {
-		wlr_log(L_ERROR, "Failed to create udev enumeration");
+		wlr_log(WLR_ERROR, "Failed to create udev enumeration");
 		return -1;
 	}
 

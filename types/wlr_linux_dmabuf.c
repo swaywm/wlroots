@@ -481,7 +481,7 @@ struct wlr_linux_dmabuf *wlr_linux_dmabuf_create(struct wl_display *display,
 	struct wlr_linux_dmabuf *linux_dmabuf =
 		calloc(1, sizeof(struct wlr_linux_dmabuf));
 	if (linux_dmabuf == NULL) {
-		wlr_log(L_ERROR, "could not create simple dmabuf manager");
+		wlr_log(WLR_ERROR, "could not create simple dmabuf manager");
 		return NULL;
 	}
 	linux_dmabuf->renderer = renderer;
@@ -493,7 +493,7 @@ struct wlr_linux_dmabuf *wlr_linux_dmabuf_create(struct wl_display *display,
 		wl_global_create(display, &zwp_linux_dmabuf_v1_interface,
 			LINUX_DMABUF_VERSION, linux_dmabuf, linux_dmabuf_bind);
 	if (!linux_dmabuf->global) {
-		wlr_log(L_ERROR, "could not create linux dmabuf v1 wl global");
+		wlr_log(WLR_ERROR, "could not create linux dmabuf v1 wl global");
 		free(linux_dmabuf);
 		return NULL;
 	}

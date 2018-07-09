@@ -275,7 +275,7 @@ static struct wlr_wl_input_device *create_wl_input_device(
 	struct wlr_wl_input_device *dev =
 		calloc(1, sizeof(struct wlr_wl_input_device));
 	if (dev == NULL) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 	dev->backend = backend;
@@ -331,7 +331,7 @@ void create_wl_pointer(struct wl_pointer *wl_pointer,
 
 	struct wlr_wl_pointer *pointer = calloc(1, sizeof(struct wlr_wl_pointer));
 	if (pointer == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return;
 	}
 	pointer->wl_pointer = wl_pointer;
@@ -344,7 +344,7 @@ void create_wl_pointer(struct wl_pointer *wl_pointer,
 		create_wl_input_device(backend, WLR_INPUT_DEVICE_POINTER);
 	if (dev == NULL) {
 		free(pointer);
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return;
 	}
 	pointer->input_device = dev;
@@ -363,7 +363,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	assert(backend->seat == wl_seat);
 
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
-		wlr_log(L_DEBUG, "seat %p offered pointer", (void*) wl_seat);
+		wlr_log(WLR_DEBUG, "seat %p offered pointer", (void*) wl_seat);
 
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
 		backend->pointer = wl_pointer;
@@ -376,18 +376,18 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wl_pointer_add_listener(wl_pointer, &pointer_listener, backend);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wlr_log(L_DEBUG, "seat %p offered keyboard", (void*) wl_seat);
+		wlr_log(WLR_DEBUG, "seat %p offered keyboard", (void*) wl_seat);
 		struct wlr_wl_input_device *dev = create_wl_input_device(backend,
 			WLR_INPUT_DEVICE_KEYBOARD);
 		if (dev == NULL) {
-			wlr_log(L_ERROR, "Allocation failed");
+			wlr_log(WLR_ERROR, "Allocation failed");
 			return;
 		}
 		struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 		wlr_dev->keyboard = calloc(1, sizeof(struct wlr_keyboard));
 		if (!wlr_dev->keyboard) {
 			free(dev);
-			wlr_log(L_ERROR, "Allocation failed");
+			wlr_log(WLR_ERROR, "Allocation failed");
 			return;
 		}
 		wlr_keyboard_init(wlr_dev->keyboard, NULL);

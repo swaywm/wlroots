@@ -79,11 +79,11 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	const char *name = libinput_device_get_name(libinput_dev);
 	struct wl_list *wlr_devices = calloc(1, sizeof(struct wl_list));
 	if (!wlr_devices) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return;
 	}
 	wl_list_init(wlr_devices);
-	wlr_log(L_DEBUG, "Added %s [%d:%d]", name, vendor, product);
+	wlr_log(WLR_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
 	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
@@ -166,7 +166,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	return;
 
 fail:
-	wlr_log(L_ERROR, "Could not allocate new device");
+	wlr_log(WLR_ERROR, "Could not allocate new device");
 	struct wlr_input_device *dev, *tmp_dev;
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
 		free(dev);
@@ -180,7 +180,7 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
-	wlr_log(L_DEBUG, "Removing %s [%d:%d]", name, vendor, product);
+	wlr_log(WLR_DEBUG, "Removing %s [%d:%d]", name, vendor, product);
 	if (!wlr_devices) {
 		return;
 	}
@@ -261,7 +261,7 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		handle_tablet_pad_strip(event, libinput_dev);
 		break;
 	default:
-		wlr_log(L_DEBUG, "Unknown libinput event %d", event_type);
+		wlr_log(WLR_DEBUG, "Unknown libinput event %d", event_type);
 		break;
 	}
 }

@@ -3,6 +3,7 @@ WLROOTS_0_0_0 {
 		wlr_*;
 		_wlr_log;
 		_wlr_vlog;
+		_wlr_strip_path;
 	local:
 		wlr_signal_emit_safe;
 		*;

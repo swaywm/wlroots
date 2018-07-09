@@ -244,13 +244,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	x11->xlib_conn = XOpenDisplay(x11_display);
 	if (!x11->xlib_conn) {
-		wlr_log(L_ERROR, "Failed to open X connection");
+		wlr_log(WLR_ERROR, "Failed to open X connection");
 		goto error_x11;
 	}
 
 	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
 	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
-		wlr_log(L_ERROR, "Failed to open xcb connection");
+		wlr_log(WLR_ERROR, "Failed to open xcb connection");
 		goto error_display;
 	}
 
@@ -261,7 +261,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
 	if (!x11->event_source) {
-		wlr_log(L_ERROR, "Could not create event source");
+		wlr_log(WLR_ERROR, "Could not create event source");
 		goto error_display;
 	}
 
@@ -275,7 +275,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		x11->xlib_conn, NULL, x11->screen->root_visual);
 
 	if (x11->renderer == NULL) {
-		wlr_log(L_ERROR, "Failed to create renderer");
+		wlr_log(WLR_ERROR, "Failed to create renderer");
 		goto error_event;
 	}
 

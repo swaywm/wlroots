@@ -200,7 +200,7 @@ static void write_image(const char *filename, int width, int height,
 }
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(L_DEBUG, NULL);
+	wlr_log_init(WLR_DEBUG, NULL);
 
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {

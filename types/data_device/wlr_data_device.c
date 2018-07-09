@@ -258,7 +258,7 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 	struct wlr_data_device_manager *manager =
 		calloc(1, sizeof(struct wlr_data_device_manager));
 	if (manager == NULL) {
-		wlr_log(L_ERROR, "could not create data device manager");
+		wlr_log(WLR_ERROR, "could not create data device manager");
 		return NULL;
 	}
 
@@ -270,7 +270,7 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		wl_global_create(display, &wl_data_device_manager_interface,
 			DATA_DEVICE_MANAGER_VERSION, manager, data_device_manager_bind);
 	if (!manager->global) {
-		wlr_log(L_ERROR, "could not create data device manager wl_global");
+		wlr_log(WLR_ERROR, "could not create data device manager wl_global");
 		free(manager);
 		return NULL;
 	}

@@ -65,7 +65,7 @@ static size_t parse_outputs_env(const char *name) {
 	char *end;
 	int outputs = (int)strtol(outputs_str, &end, 10);
 	if (*end || outputs < 0) {
-		wlr_log(L_ERROR, "%s specified with invalid integer, ignoring", name);
+		wlr_log(WLR_ERROR, "%s specified with invalid integer, ignoring", name);
 		return 1;
 	}
 
@@ -125,13 +125,13 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 	int gpus[8];
 	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
 	struct wlr_backend *primary_drm = NULL;
-	wlr_log(L_INFO, "Found %zu GPUs", num_gpus);
+	wlr_log(WLR_INFO, "Found %zu GPUs", num_gpus);
 
 	for (size_t i = 0; i < num_gpus; ++i) {
 		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
 			gpus[i], primary_drm, create_renderer_func);
 		if (!drm) {
-			wlr_log(L_ERROR, "Failed to open DRM device %d", gpus[i]);
+			wlr_log(WLR_ERROR, "Failed to open DRM device %d", gpus[i]);
 			continue;
 		}
 
@@ -160,7 +160,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		// DRM and libinput need a session
 		*session = wlr_session_create(display);
 		if (!*session) {
-			wlr_log(L_ERROR, "failed to start a session");
+			wlr_log(WLR_ERROR, "failed to start a session");
 			return NULL;
 		}
 
@@ -171,7 +171,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		}
 	}
 
-	wlr_log(L_ERROR, "unrecognized backend '%s'", name);
+	wlr_log(WLR_ERROR, "unrecognized backend '%s'", name);
 	return NULL;
 }
 
@@ -179,7 +179,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_renderer_create_func_t create_renderer_func) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	if (!backend) {
-		wlr_log(L_ERROR, "could not allocate multibackend");
+		wlr_log(WLR_ERROR, "could not allocate multibackend");
 		return NULL;
 	}
 
@@ -189,7 +189,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	if (names) {
 		names = strdup(names);
 		if (names == NULL) {
-			wlr_log(L_ERROR, "allocation failed");
+			wlr_log(WLR_ERROR, "allocation failed");
 			wlr_backend_destroy(backend);
 			return NULL;
 		}
@@ -200,7 +200,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 			struct wlr_backend *subbackend =
 				attempt_backend_by_name(display, backend, &session, name, create_renderer_func);
 			if (subbackend == NULL) {
-				wlr_log(L_ERROR, "failed to start backend '%s'", name);
+				wlr_log(WLR_ERROR, "failed to start backend '%s'", name);
 				wlr_backend_destroy(backend);
 				wlr_session_destroy(session);
 				free(names);
@@ -208,7 +208,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 			}
 
 			if (!wlr_multi_backend_add(backend, subbackend)) {
-				wlr_log(L_ERROR, "failed to add backend '%s'", name);
+				wlr_log(WLR_ERROR, "failed to add backend '%s'", name);
 				wlr_backend_destroy(backend);
 				wlr_session_destroy(session);
 				free(names);
@@ -247,14 +247,14 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	// Attempt DRM+libinput
 	session = wlr_session_create(display);
 	if (!session) {
-		wlr_log(L_ERROR, "Failed to start a DRM session");
+		wlr_log(WLR_ERROR, "Failed to start a DRM session");
 		wlr_backend_destroy(backend);
 		return NULL;
 	}
 
 	struct wlr_backend *libinput = wlr_libinput_backend_create(display, session);
 	if (!libinput) {
-		wlr_log(L_ERROR, "Failed to start libinput backend");
+		wlr_log(WLR_ERROR, "Failed to start libinput backend");
 		wlr_backend_destroy(backend);
 		wlr_session_destroy(session);
 		return NULL;
@@ -264,7 +264,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	struct wlr_backend *primary_drm =
 		attempt_drm_backend(display, backend, session, create_renderer_func);
 	if (!primary_drm) {
-		wlr_log(L_ERROR, "Failed to open any DRM device");
+		wlr_log(WLR_ERROR, "Failed to open any DRM device");
 		wlr_backend_destroy(libinput);
 		wlr_backend_destroy(backend);
 		wlr_session_destroy(session);

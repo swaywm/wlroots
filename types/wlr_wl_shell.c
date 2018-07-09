@@ -118,7 +118,7 @@ static struct wlr_wl_shell_surface *shell_surface_from_resource(
 
 static void shell_surface_protocol_pong(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
-	wlr_log(L_DEBUG, "got shell surface pong");
+	wlr_log(WLR_DEBUG, "got shell surface pong");
 	struct wlr_wl_shell_surface *surface = shell_surface_from_resource(resource);
 	if (surface->ping_serial != serial) {
 		return;
@@ -135,7 +135,7 @@ static void shell_surface_protocol_move(struct wl_client *client,
 	struct wlr_seat_client *seat = wlr_seat_client_from_resource(seat_resource);
 
 	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
-		wlr_log(L_DEBUG, "invalid serial for grab");
+		wlr_log(WLR_DEBUG, "invalid serial for grab");
 		return;
 	}
 
@@ -197,7 +197,7 @@ static void shell_surface_protocol_resize(struct wl_client *client,
 	struct wlr_seat_client *seat = wlr_seat_client_from_resource(seat_resource);
 
 	if (!wlr_seat_validate_grab_serial(seat->seat, serial)) {
-		wlr_log(L_DEBUG, "invalid serial for grab");
+		wlr_log(WLR_DEBUG, "invalid serial for grab");
 		return;
 	}
 
@@ -226,7 +226,7 @@ static void shell_surface_set_state(struct wlr_wl_shell_surface *surface,
 
 static void shell_surface_protocol_set_toplevel(struct wl_client *client,
 		struct wl_resource *resource) {
-	wlr_log(L_DEBUG, "got shell surface toplevel");
+	wlr_log(WLR_DEBUG, "got shell surface toplevel");
 	struct wlr_wl_shell_surface *surface = shell_surface_from_resource(resource);
 	shell_surface_set_state(surface, WLR_WL_SHELL_SURFACE_STATE_TOPLEVEL, NULL,
 		NULL);
@@ -262,7 +262,7 @@ static struct wlr_wl_shell_surface *shell_find_shell_surface(
 static void shell_surface_protocol_set_transient(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *parent_resource,
 		int32_t x, int32_t y, enum wl_shell_surface_transient flags) {
-	wlr_log(L_DEBUG, "got shell surface transient");
+	wlr_log(WLR_DEBUG, "got shell surface transient");
 	struct wlr_wl_shell_surface *surface = shell_surface_from_resource(resource);
 	struct wlr_surface *parent = wlr_surface_from_resource(parent_resource);
 	// TODO: check if parent_resource == NULL?
@@ -392,7 +392,7 @@ static void shell_surface_protocol_set_maximized(struct wl_client *client,
 
 static void shell_surface_protocol_set_title(struct wl_client *client,
 		struct wl_resource *resource, const char *title) {
-	wlr_log(L_DEBUG, "new shell surface title: %s", title);
+	wlr_log(WLR_DEBUG, "new shell surface title: %s", title);
 	struct wlr_wl_shell_surface *surface = shell_surface_from_resource(resource);
 
 	char *tmp = strdup(title);
@@ -408,7 +408,7 @@ static void shell_surface_protocol_set_title(struct wl_client *client,
 
 static void shell_surface_protocol_set_class(struct wl_client *client,
 		struct wl_resource *resource, const char *class) {
-	wlr_log(L_DEBUG, "new shell surface class: %s", class);
+	wlr_log(WLR_DEBUG, "new shell surface class: %s", class);
 	struct wlr_wl_shell_surface *surface = shell_surface_from_resource(resource);
 
 	char *tmp = strdup(class);
@@ -542,7 +542,7 @@ static void shell_protocol_get_shell_surface(struct wl_client *client,
 		&shell_surface_impl, wl_surface,
 		shell_surface_resource_destroy);
 
-	wlr_log(L_DEBUG, "new wl_shell %p (res %p)", wl_surface,
+	wlr_log(WLR_DEBUG, "new wl_shell %p (res %p)", wl_surface,
 		wl_surface->resource);
 
 	wl_signal_init(&wl_surface->events.destroy);

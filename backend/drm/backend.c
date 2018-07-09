@@ -70,7 +70,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_session *session = data;
 
 	if (session->active) {
-		wlr_log(L_INFO, "DRM fd resumed");
+		wlr_log(WLR_INFO, "DRM fd resumed");
 		scan_drm_connectors(drm);
 
 		struct wlr_drm_connector *conn;
@@ -92,7 +92,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 				conn->cursor_y);
 		}
 	} else {
-		wlr_log(L_INFO, "DRM fd paused");
+		wlr_log(WLR_INFO, "DRM fd paused");
 	}
 }
 
@@ -101,7 +101,7 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, drm, drm_invalidated);
 
 	char *name = drmGetDeviceNameFromFd2(drm->fd);
-	wlr_log(L_DEBUG, "%s invalidated", name);
+	wlr_log(WLR_DEBUG, "%s invalidated", name);
 	free(name);
 
 	scan_drm_connectors(drm);
@@ -121,13 +121,13 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	char *name = drmGetDeviceNameFromFd2(gpu_fd);
 	drmVersion *version = drmGetVersion(gpu_fd);
-	wlr_log(L_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
+	wlr_log(WLR_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
 	free(name);
 	drmFreeVersion(version);
 
 	struct wlr_drm_backend *drm = calloc(1, sizeof(struct wlr_drm_backend));
 	if (!drm) {
-		wlr_log_errno(L_ERROR, "Allocation failed");
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 	wlr_backend_init(&drm->backend, &backend_impl);
@@ -147,7 +147,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
 		WL_EVENT_READABLE, handle_drm_event, NULL);
 	if (!drm->drm_event) {
-		wlr_log(L_ERROR, "Failed to create DRM event source");
+		wlr_log(WLR_ERROR, "Failed to create DRM event source");
 		goto error_fd;
 	}
 
@@ -163,7 +163,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	if (!init_drm_renderer(drm, &drm->renderer, create_renderer_func)) {
-		wlr_log(L_ERROR, "Failed to initialize renderer");
+		wlr_log(WLR_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}
 

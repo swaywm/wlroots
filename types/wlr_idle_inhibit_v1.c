@@ -136,7 +136,7 @@ static void idle_inhibit_bind(struct wl_client *wl_client, void *data,
 
 	wl_resource_set_implementation(wl_resource, &idle_inhibit_impl,
 		idle_inhibit, idle_inhibit_manager_v1_handle_resource_destroy);
-	wlr_log(L_DEBUG, "idle_inhibit bound");
+	wlr_log(WLR_DEBUG, "idle_inhibit bound");
 }
 
 void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *idle_inhibit) {
@@ -186,7 +186,7 @@ struct wlr_idle_inhibit_manager_v1 *wlr_idle_inhibit_v1_create(struct wl_display
 		return NULL;
 	}
 
-	wlr_log(L_DEBUG, "idle_inhibit manager created");
+	wlr_log(WLR_DEBUG, "idle_inhibit manager created");
 
 	return idle_inhibit;
 }

@@ -252,7 +252,7 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 	}
 
 	if (width <= 0 || height <= 0) {
-		wlr_log(L_ERROR, "Client tried to set invalid geometry");
+		wlr_log(WLR_ERROR, "Client tried to set invalid geometry");
 		//XXX: Switch to the proper error value once available
 		wl_resource_post_error(resource, -1, "Tried to set invalid xdg-surface geometry");
 		return;
@@ -270,7 +270,7 @@ static void xdg_surface_handle_destroy(struct wl_client *client,
 	struct wlr_xdg_surface *surface = wlr_xdg_surface_from_resource(resource);
 
 	if (surface->role != WLR_XDG_SURFACE_ROLE_NONE) {
-		wlr_log(L_ERROR, "Tried to destroy an xdg_surface before its role "
+		wlr_log(WLR_ERROR, "Tried to destroy an xdg_surface before its role "
 			"object");
 		return;
 	}
@@ -398,7 +398,7 @@ struct wlr_xdg_surface *create_xdg_surface(
 	wlr_surface_set_role_committed(xdg_surface->surface,
 		handle_surface_committed, xdg_surface);
 
-	wlr_log(L_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
+	wlr_log(WLR_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);
 	wl_resource_set_implementation(xdg_surface->resource,
 		&xdg_surface_implementation, xdg_surface,

@@ -32,7 +32,7 @@ static bool have_permissions(void) {
 	cap_flag_value_t val;
 
 	if (!cap || cap_get_flag(cap, CAP_SYS_ADMIN, CAP_PERMITTED, &val) || val != CAP_SET) {
-		wlr_log(L_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
+		wlr_log(WLR_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
 		cap_free(cap);
 		return false;
 	}
@@ -44,7 +44,7 @@ static bool have_permissions(void) {
 static bool have_permissions(void) {
 #ifdef __linux__
 	if (geteuid() != 0) {
-		wlr_log(L_ERROR, "Do not have root privileges; cannot become DRM master");
+		wlr_log(WLR_ERROR, "Do not have root privileges; cannot become DRM master");
 		return false;
 	}
 #endif
@@ -229,13 +229,13 @@ int direct_ipc_init(pid_t *pid_out) {
 
 	int sock[2];
 	if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sock) < 0) {
-		wlr_log_errno(L_ERROR, "Failed to create socket pair");
+		wlr_log_errno(WLR_ERROR, "Failed to create socket pair");
 		return -1;
 	}
 
 	pid_t pid = fork();
 	if (pid < 0) {
-		wlr_log_errno(L_ERROR, "Fork failed");
+		wlr_log_errno(WLR_ERROR, "Fork failed");
 		close(sock[0]);
 		close(sock[1]);
 		return -1;

@@ -13,7 +13,7 @@ void handle_virtual_keyboard(struct wl_listener *listener, void *data) {
 	struct roots_seat *seat = input_seat_from_wlr_seat(desktop->server->input,
 		keyboard->seat);
 	if (!seat) {
-		wlr_log(L_ERROR, "could not find roots seat");
+		wlr_log(WLR_ERROR, "could not find roots seat");
 		return;
 	}
 

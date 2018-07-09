@@ -55,7 +55,7 @@ static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	wl_shm_buffer_end_access(shm_buffer);
 
 	if (!ok) {
-		wlr_log(L_ERROR, "Cannot read pixels");
+		wlr_log(WLR_ERROR, "Cannot read pixels");
 		goto cleanup;
 	}
 
@@ -85,26 +85,26 @@ static void screenshooter_shoot(struct wl_client *client,
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	if (renderer == NULL) {
-		wlr_log(L_ERROR, "Backend doesn't have a renderer");
+		wlr_log(WLR_ERROR, "Backend doesn't have a renderer");
 		return;
 	}
 
 	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(buffer_resource);
 	if (shm_buffer == NULL) {
-		wlr_log(L_ERROR, "Invalid buffer: not a shared memory buffer");
+		wlr_log(WLR_ERROR, "Invalid buffer: not a shared memory buffer");
 		return;
 	}
 
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	if (width < output->width || height < output->height) {
-		wlr_log(L_ERROR, "Invalid buffer: too small");
+		wlr_log(WLR_ERROR, "Invalid buffer: too small");
 		return;
 	}
 
 	uint32_t format = wl_shm_buffer_get_format(shm_buffer);
 	if (!wlr_renderer_format_supported(renderer, format)) {
-		wlr_log(L_ERROR, "Invalid buffer: unsupported format");
+		wlr_log(WLR_ERROR, "Invalid buffer: unsupported format");
 		return;
 	}
 
@@ -129,7 +129,7 @@ static void screenshooter_shoot(struct wl_client *client,
 		handle_screenshot_resource_destroy);
 	wl_list_insert(&screenshooter->screenshots, &screenshot->link);
 
-	wlr_log(L_DEBUG, "new screenshot %p (res %p)", screenshot,
+	wlr_log(WLR_DEBUG, "new screenshot %p (res %p)", screenshot,
 		screenshot->resource);
 
 	struct screenshot_state *state = calloc(1, sizeof(struct screenshot_state));

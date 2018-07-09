@@ -44,13 +44,13 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		get_gles2_texture_in_context(wlr_texture);
 
 	if (texture->type != WLR_GLES2_TEXTURE_GLTEX) {
-		wlr_log(L_ERROR, "Cannot write pixels to immutable texture");
+		wlr_log(WLR_ERROR, "Cannot write pixels to immutable texture");
 		return false;
 	}
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
-		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
+		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return false;
 	}
 
@@ -141,14 +141,14 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
-		wlr_log(L_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
+		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return NULL;
 	}
 
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
@@ -183,7 +183,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);
@@ -212,7 +212,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		texture->has_alpha = true;
 		break;
 	default:
-		wlr_log(L_ERROR, "Invalid or unsupported EGL buffer format");
+		wlr_log(WLR_ERROR, "Invalid or unsupported EGL buffer format");
 		free(texture);
 		return NULL;
 	}
@@ -240,7 +240,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	}
 
 	if (!egl->exts.image_dmabuf_import_ext) {
-		wlr_log(L_ERROR, "Cannot create DMA-BUF texture: EGL extension "
+		wlr_log(WLR_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
 	}
@@ -260,7 +260,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
-		wlr_log(L_ERROR, "Allocation failed");
+		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl);

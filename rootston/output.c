@@ -758,9 +758,9 @@ static void set_mode(struct wlr_output *output,
 		}
 	}
 	if (!best) {
-		wlr_log(L_ERROR, "Configured mode for %s not available", output->name);
+		wlr_log(WLR_ERROR, "Configured mode for %s not available", output->name);
 	} else {
-		wlr_log(L_DEBUG, "Assigning configured mode to %s", output->name);
+		wlr_log(WLR_DEBUG, "Assigning configured mode to %s", output->name);
 		wlr_output_set_mode(output, best);
 	}
 }
@@ -817,8 +817,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	struct roots_input *input = desktop->server->input;
 	struct roots_config *config = desktop->config;
 
-	wlr_log(L_DEBUG, "Output '%s' added", wlr_output->name);
-	wlr_log(L_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
+	wlr_log(WLR_DEBUG, "Output '%s' added", wlr_output->name);
+	wlr_log(WLR_DEBUG, "'%s %s %s' %"PRId32"mm x %"PRId32"mm", wlr_output->make,
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
 
@@ -866,7 +866,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 				}
 			} else {
 				if (!wl_list_empty(&output_config->modes)) {
-					wlr_log(L_ERROR, "Can only add modes for DRM backend");
+					wlr_log(WLR_ERROR, "Can only add modes for DRM backend");
 				}
 			}
 			if (output_config->mode.width) {

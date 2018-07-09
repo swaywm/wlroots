@@ -154,7 +154,7 @@ void wlr_idle_set_enabled(struct wlr_idle *idle, struct wlr_seat *seat,
 	if (idle->enabled == enabled) {
 		return;
 	}
-	wlr_log(L_DEBUG, "%s idle timers for %s",
+	wlr_log(WLR_DEBUG, "%s idle timers for %s",
 		enabled ? "Enabling" : "Disabling",
 		seat ? seat->name : "all seats");
 	idle->enabled = enabled;
@@ -226,7 +226,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 		free(idle);
 		return NULL;
 	}
-	wlr_log(L_DEBUG, "idle manager created");
+	wlr_log(WLR_DEBUG, "idle manager created");
 	return idle;
 }
 

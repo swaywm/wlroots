@@ -113,7 +113,7 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wlr_log(L_DEBUG, "new gamma_control %p (res %p)", gamma_control,
+	wlr_log(WLR_DEBUG, "new gamma_control %p (res %p)", gamma_control,
 		gamma_control->resource);
 	wl_resource_set_implementation(gamma_control->resource,
 		&gamma_control_impl, gamma_control, gamma_control_destroy_resource);
