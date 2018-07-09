@@ -46,8 +46,9 @@ static void frame_output_handle_swap_buffers(struct wl_listener *listener,
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_list_init(&frame->output_swap_buffers.link);
 
-	uint32_t tv_sec_hi = event->when->tv_sec >> 32;
-	uint32_t tv_sec_lo = event->when->tv_sec & 0xFFFFFFFF;
+	time_t tv_sec = event->when->tv_sec;
+	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
+	uint32_t tv_sec_lo = tv_sec & 0xFFFFFFFF;
 	zwlr_export_dmabuf_frame_v1_send_ready(frame->resource,
 		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 }

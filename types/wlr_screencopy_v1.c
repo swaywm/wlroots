@@ -66,8 +66,9 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 
 	zwlr_screencopy_frame_v1_send_flags(frame->resource, flags);
 
-	uint32_t tv_sec_hi = event->when->tv_sec >> 32;
-	uint32_t tv_sec_lo = event->when->tv_sec & 0xFFFFFFFF;
+	time_t tv_sec = event->when->tv_sec;
+	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
+	uint32_t tv_sec_lo = tv_sec & 0xFFFFFFFF;
 	zwlr_screencopy_frame_v1_send_ready(frame->resource,
 		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 
