@@ -6,9 +6,8 @@
 #include "util/signal.h"
 
 bool wlr_surface_is_xdg_surface_v6(struct wlr_surface *surface) {
-	return surface->role != NULL &&
-		(strcmp(surface->role, XDG_TOPLEVEL_V6_ROLE) == 0 ||
-		strcmp(surface->role, XDG_POPUP_V6_ROLE) == 0);
+	return surface->role == &xdg_toplevel_v6_surface_role ||
+		surface->role == &xdg_popup_v6_surface_role;
 }
 
 struct wlr_xdg_surface_v6 *wlr_xdg_surface_v6_from_wlr_surface(
@@ -119,9 +118,10 @@ void destroy_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface) {
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
+	surface->surface->role_data = NULL;
 	wl_list_remove(&surface->link);
-	wl_list_remove(&surface->surface_destroy_listener.link);
-	wlr_surface_set_role_committed(surface->surface, NULL, NULL);
+	wl_list_remove(&surface->surface_destroy.link);
+	wl_list_remove(&surface->surface_commit.link);
 	free(surface);
 }
 
@@ -347,18 +347,34 @@ void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface) {
 static void xdg_surface_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_surface_v6 *xdg_surface =
-		wl_container_of(listener, xdg_surface, surface_destroy_listener);
+		wl_container_of(listener, xdg_surface, surface_destroy);
 	destroy_xdg_surface_v6(xdg_surface);
 }
 
-static void handle_surface_committed(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_xdg_surface_v6 *surface = role_data;
+static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface_v6 *surface =
+		wl_container_of(listener, surface, surface_commit);
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
 			ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
 			"xdg_surface has never been configured");
+		return;
+	}
+
+	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
+		wl_resource_post_error(surface->resource,
+			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
+			"xdg_surface must have a role");
+		return;
+	}
+}
+
+void handle_xdg_surface_v6_committed(struct wlr_surface *wlr_surface) {
+	struct wlr_xdg_surface_v6 *surface =
+		wlr_xdg_surface_v6_from_wlr_surface(wlr_surface);
+	if (surface == NULL) {
 		return;
 	}
 
@@ -372,10 +388,7 @@ static void handle_surface_committed(struct wlr_surface *wlr_surface,
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_V6_ROLE_NONE:
-		wl_resource_post_error(surface->resource,
-			ZXDG_SURFACE_V6_ERROR_NOT_CONSTRUCTED,
-			"xdg_surface must have a role");
-		break;
+		assert(false);
 	case WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL:
 		handle_xdg_surface_v6_toplevel_committed(surface);
 		break;
@@ -449,12 +462,12 @@ struct wlr_xdg_surface_v6 *create_xdg_surface_v6(
 	wl_signal_init(&xdg_surface->events.unmap);
 
 	wl_signal_add(&xdg_surface->surface->events.destroy,
-		&xdg_surface->surface_destroy_listener);
-	xdg_surface->surface_destroy_listener.notify =
-		xdg_surface_handle_surface_destroy;
+		&xdg_surface->surface_destroy);
+	xdg_surface->surface_destroy.notify = xdg_surface_handle_surface_destroy;
 
-	wlr_surface_set_role_committed(xdg_surface->surface,
-		handle_surface_committed, xdg_surface);
+	wl_signal_add(&xdg_surface->surface->events.commit,
+		&xdg_surface->surface_commit);
+	xdg_surface->surface_commit.notify = xdg_surface_handle_surface_commit;
 
 	wlr_log(WLR_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);

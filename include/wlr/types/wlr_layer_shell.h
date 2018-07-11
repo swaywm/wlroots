@@ -76,7 +76,7 @@ struct wlr_layer_surface {
 	struct wlr_layer_surface_state server_pending;
 	struct wlr_layer_surface_state current;
 
-	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_destroy;
 
 	struct {
 		struct wl_signal destroy;

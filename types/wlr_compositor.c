@@ -10,11 +10,10 @@
 #define COMPOSITOR_VERSION 4
 #define SUBCOMPOSITOR_VERSION 1
 
-static const char *subsurface_role = "wl_subsurface";
+extern const struct wlr_surface_role subsurface_role;
 
 bool wlr_surface_is_subsurface(struct wlr_surface *surface) {
-	return surface->role != NULL &&
-		strcmp(surface->role, subsurface_role) == 0;
+	return surface->role == &subsurface_role;
 }
 
 struct wlr_subsurface *wlr_subsurface_from_wlr_surface(
@@ -73,8 +72,8 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	if (wlr_surface_set_role(surface, subsurface_role, resource,
-				WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE) < 0) {
+	if (!wlr_surface_set_role(surface, &subsurface_role, NULL,
+			resource, WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE)) {
 		return;
 	}
 

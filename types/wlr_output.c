@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
@@ -816,7 +817,8 @@ static void output_cursor_handle_destroy(struct wl_listener *listener,
 
 void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (surface && strcmp(surface->role, "wl_pointer-cursor") != 0) {
+	if (surface && !wlr_surface_is_pointer_cursor(surface)) {
+		wlr_log(L_ERROR, "Tried to set a cursor surface with invalid role");
 		return;
 	}
 

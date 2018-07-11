@@ -69,7 +69,7 @@ struct wlr_wl_shell_surface {
 	char *title;
 	char *class;
 
-	struct wl_listener surface_destroy_listener;
+	struct wl_listener surface_destroy;
 
 	struct wlr_wl_shell_surface *parent;
 	struct wl_list popup_link;
@@ -152,7 +152,7 @@ struct wlr_surface *wlr_wl_shell_surface_surface_at(
 
 bool wlr_surface_is_wl_shell_surface(struct wlr_surface *surface);
 
-struct wlr_wl_surface *wlr_wl_shell_surface_from_wlr_surface(
+struct wlr_wl_shell_surface *wlr_wl_shell_surface_from_wlr_surface(
 		struct wlr_surface *surface);
 
 /**

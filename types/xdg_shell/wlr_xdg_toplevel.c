@@ -447,10 +447,15 @@ static void xdg_toplevel_handle_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
+const struct wlr_surface_role xdg_toplevel_surface_role = {
+	.name = "xdg_toplevel",
+	.commit = handle_xdg_surface_committed,
+};
+
 void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 		uint32_t id) {
-	if (wlr_surface_set_role(xdg_surface->surface, XDG_TOPLEVEL_ROLE,
-			xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE)) {
+	if (!wlr_surface_set_role(xdg_surface->surface, &xdg_toplevel_surface_role,
+			xdg_surface, xdg_surface->resource, XDG_WM_BASE_ERROR_ROLE)) {
 		return;
 	}
 

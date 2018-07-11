@@ -79,11 +79,10 @@ const char *atom_map[ATOM_LAST] = {
 	"XdndActionPrivate",
 };
 
-const char *wlr_xwayland_surface_role = "wlr_xwayland_surface";
+static const struct wlr_surface_role xwayland_surface_role;
 
 bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface) {
-	return surface->role != NULL &&
-		strcmp(surface->role, wlr_xwayland_surface_role) == 0;
+	return surface->role == &xwayland_surface_role;
 }
 
 struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(
@@ -314,7 +313,7 @@ static void xwayland_surface_destroy(
 
 	if (xsurface->surface) {
 		wl_list_remove(&xsurface->surface_destroy.link);
-		wlr_surface_set_role_committed(xsurface->surface, NULL, NULL);
+		xsurface->surface->role_data = NULL;
 	}
 
 	wl_event_source_remove(xsurface->ping_timer);
@@ -640,15 +639,23 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	free(reply);
 }
 
-static void handle_surface_commit(struct wlr_surface *wlr_surface,
-		void *role_data) {
-	struct wlr_xwayland_surface *surface = role_data;
+static void xwayland_surface_role_commit(struct wlr_surface *wlr_surface) {
+	assert(wlr_surface->role == &xwayland_surface_role);
+	struct wlr_xwayland_surface *surface = wlr_surface->role_data;
+	if (surface == NULL) {
+		return;
+	}
 
 	if (!surface->mapped && wlr_surface_has_buffer(surface->surface)) {
 		wlr_signal_emit_safe(&surface->events.map, surface);
 		surface->mapped = true;
 	}
 }
+
+static const struct wlr_surface_role xwayland_surface_role = {
+	.name = "wlr_xwayland_surface",
+	.commit = xwayland_surface_role_commit,
+};
 
 static void handle_surface_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_surface *surface =
@@ -658,6 +665,12 @@ static void handle_surface_destroy(struct wl_listener *listener, void *data) {
 
 static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface, struct wlr_surface *surface) {
+	if (!wlr_surface_set_role(surface, &xwayland_surface_role, xsurface,
+			NULL, 0)) {
+		wlr_log(L_ERROR, "Failed to set xwayland surface role");
+		return;
+	}
+
 	xsurface->surface = surface;
 
 	// read all surface properties
@@ -678,10 +691,6 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		read_surface_property(xwm, xsurface, props[i]);
 	}
 
-	wlr_surface_set_role(xsurface->surface, wlr_xwayland_surface_role, NULL, 0);
-	wlr_surface_set_role_committed(xsurface->surface, handle_surface_commit,
-		xsurface);
-
 	xsurface->surface_destroy.notify = handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &xsurface->surface_destroy);
 }
@@ -701,8 +710,8 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 	}
 
 	if (surface->surface) {
-		wlr_surface_set_role_committed(surface->surface, NULL, NULL);
 		wl_list_remove(&surface->surface_destroy.link);
+		surface->surface->role_data = NULL;
 		surface->surface = NULL;
 	}
 }
