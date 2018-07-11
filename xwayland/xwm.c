@@ -667,7 +667,7 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface, struct wlr_surface *surface) {
 	if (!wlr_surface_set_role(surface, &xwayland_surface_role, xsurface,
 			NULL, 0)) {
-		wlr_log(L_ERROR, "Failed to set xwayland surface role");
+		wlr_log(WLR_ERROR, "Failed to set xwayland surface role");
 		return;
 	}
 
