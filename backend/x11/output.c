@@ -47,8 +47,16 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 	output_set_refresh(&output->wlr_output, refresh);
 
 	const uint32_t values[] = { width, height };
-	xcb_configure_window(x11->xcb_conn, output->win,
+	xcb_void_cookie_t cookie = xcb_configure_window_checked(x11->xcb_conn, output->win,
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
+
+	xcb_generic_error_t *error;
+	if ((error = xcb_request_check(x11->xcb_conn, cookie))) {
+		wlr_log(WLR_ERROR, "Could not set window size to %dx%d\n", width, height);
+		free(error);
+		return false;
+	}
+
 	return true;
 }
 
