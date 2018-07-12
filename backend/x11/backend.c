@@ -258,12 +258,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	int fd = xcb_get_file_descriptor(x11->xcb_conn);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
+	uint32_t events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
 	if (!x11->event_source) {
 		wlr_log(WLR_ERROR, "Could not create event source");
 		goto error_display;
 	}
+	wl_event_source_check(x11->event_source);
 
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
 
