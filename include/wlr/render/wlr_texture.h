@@ -41,6 +41,11 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 void wlr_texture_get_size(struct wlr_texture *texture, int *width, int *height);
 
 /**
+ * Returns true if this texture is using a fully opaque format.
+ */
+bool wlr_texture_is_opaque(struct wlr_texture *texture);
+
+/**
  * Update a texture with raw pixels. The texture must be mutable.
  */
 bool wlr_texture_write_pixels(struct wlr_texture *texture,

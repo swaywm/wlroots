@@ -36,6 +36,11 @@ static void gles2_texture_get_size(struct wlr_texture *wlr_texture, int *width,
 	*height = texture->height;
 }
 
+static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	return !texture->has_alpha;
+}
+
 static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
@@ -129,6 +134,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 static const struct wlr_texture_impl texture_impl = {
 	.get_size = gles2_texture_get_size,
+	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
 	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
