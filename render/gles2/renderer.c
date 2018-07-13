@@ -25,7 +25,8 @@ static struct wlr_gles2_renderer *gles2_get_renderer(
 static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	assert(wlr_egl_is_current(renderer->egl));
+	bool current = wlr_egl_is_current(renderer->egl);
+	assert(current);
 	return renderer;
 }
 
