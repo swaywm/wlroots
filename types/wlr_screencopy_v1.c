@@ -202,6 +202,7 @@ static void capture_output(struct wl_client *client,
 	wl_list_insert(&manager->frames, &frame->link);
 
 	wl_list_init(&frame->output_swap_buffers.link);
+	wl_list_init(&frame->buffer_destroy.link);
 
 	frame->format = WL_SHM_FORMAT_XRGB8888;
 	frame->box = buffer_box;
