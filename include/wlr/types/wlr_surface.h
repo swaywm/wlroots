@@ -67,6 +67,12 @@ struct wlr_surface {
 	 */
 	pixman_region32_t buffer_damage;
 	/**
+	 * The current opaque region, in surface-local coordinates. It is clipped to
+	 * the surface bounds. If the surface's buffer is using a fully opaque
+	 * format, this is set to the whole surface.
+	 */
+	pixman_region32_t opaque_region;
+	/**
 	 * `current` contains the current, committed surface state. `pending`
 	 * accumulates state changes from the client between commits and shouldn't
 	 * be accessed by the compositor directly. `previous` contains the state of
