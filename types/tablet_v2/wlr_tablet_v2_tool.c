@@ -12,8 +12,8 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
-static const struct wlr_surface_role pointer_cursor_surface_role = {
-	.name = "wl_pointer-cursor",
+static const struct wlr_surface_role tablet_tool_cursor_surface_role = {
+	.name = "wp_tablet_tool-cursor",
 };
 
 static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
@@ -28,7 +28,7 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 	struct wlr_surface *surface = NULL;
 	if (surface_resource != NULL) {
 		surface = wlr_surface_from_resource(surface_resource);
-		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
+		if (!wlr_surface_set_role(surface, &tablet_tool_cursor_surface_role, NULL,
 				surface_resource, ZWP_TABLET_TOOL_V2_ERROR_ROLE)) {
 			return;
 		}
@@ -241,8 +241,15 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 	for (; i < tool->num_buttons; ++i) {
 		if (tool->pressed_buttons[i] == button) {
 			found = true;
+			wlr_log(WLR_DEBUG, "Found the button \\o/: %u", button);
 			break;
+
 		}
+	}
+
+	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && found) {
+		/* Already have the button saved, durr */
+		return -1;
 	}
 
 	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED && !found) {
@@ -255,10 +262,9 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 			wlr_log(WLR_ERROR, "You pressed more than %d tablet tool buttons. This is currently not supporte by wlroots. Please report this with a description of your tablet, since this is either a bug, or fancy hardware",
 			        WLR_TABLET_V2_TOOL_BUTTONS_CAP);
 		}
-	} else {
-		i = -1;
 	}
 	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
+		wlr_log(WLR_DEBUG, "Removed the button \\o/: %u", button);
 		tool->pressed_buttons[i] = 0;
 		tool->pressed_serials[i] = 0;
 		tool->num_buttons = push_zeroes_to_end(tool->pressed_buttons, WLR_TABLET_V2_TOOL_BUTTONS_CAP);

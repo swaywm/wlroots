@@ -16,47 +16,6 @@ struct tablet_pad_auxiliary_user_data {
 	size_t index;
 };
 
-void destroy_tablet_pad_v2(struct wl_resource *resource) {
-	struct wlr_tablet_pad_client_v2 *pad =
-		tablet_pad_client_from_resource(resource);
-
-	if (!pad) {
-		return;
-	}
-
-	wl_list_remove(&pad->seat_link);
-	wl_list_remove(&pad->pad_link);
-
-	/* This isn't optimal, if the client destroys the resources in another
-	 * order, it will be disconnected.
-	 * But this makes things *way* easier for us, and (untested) I doubt
-	 * clients will destroy it in another order.
-	 */
-	for (size_t i = 0; i < pad->group_count; ++i) {
-		if (pad->groups[i]) {
-			wl_resource_destroy(pad->groups[i]);
-		}
-	}
-	free(pad->groups);
-
-	for (size_t i = 0; i < pad->ring_count; ++i) {
-		if (pad->rings[i]) {
-			wl_resource_destroy(pad->rings[i]);
-		}
-	}
-	free(pad->rings);
-
-	for (size_t i = 0; i < pad->strip_count; ++i) {
-		if (pad->strips[i]) {
-			wl_resource_destroy(pad->strips[i]);
-		}
-	}
-	free(pad->strips);
-
-	free(pad);
-	wl_resource_set_user_data(resource, NULL);
-}
-
 static void handle_tablet_pad_v2_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -170,6 +129,47 @@ static void destroy_tablet_pad_group_v2(struct wl_resource *resource) {
 
 	aux->pad->groups[aux->index] = NULL;
 	free(aux);
+	wl_resource_set_user_data(resource, NULL);
+}
+
+void destroy_tablet_pad_v2(struct wl_resource *resource) {
+	struct wlr_tablet_pad_client_v2 *pad =
+		tablet_pad_client_from_resource(resource);
+
+	if (!pad) {
+		return;
+	}
+
+	wl_list_remove(&pad->seat_link);
+	wl_list_remove(&pad->pad_link);
+
+	/* This isn't optimal, if the client destroys the resources in another
+	 * order, it will be disconnected.
+	 * But this makes things *way* easier for us, and (untested) I doubt
+	 * clients will destroy it in another order.
+	 */
+	for (size_t i = 0; i < pad->group_count; ++i) {
+		if (pad->groups[i]) {
+			destroy_tablet_pad_group_v2(pad->groups[i]);
+		}
+	}
+	free(pad->groups);
+
+	for (size_t i = 0; i < pad->ring_count; ++i) {
+		if (pad->rings[i]) {
+			destroy_tablet_pad_ring_v2(pad->rings[i]);
+		}
+	}
+	free(pad->rings);
+
+	for (size_t i = 0; i < pad->strip_count; ++i) {
+		if (pad->strips[i]) {
+			destroy_tablet_pad_strip_v2(pad->strips[i]);
+		}
+	}
+	free(pad->strips);
+
+	free(pad);
 	wl_resource_set_user_data(resource, NULL);
 }
 
@@ -321,9 +321,11 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 	}
 	size_t i = 0;
 	struct wlr_tablet_pad_group *group;
+	client->group_count = pad->group_count;
 	wl_list_for_each(group, &pad->wlr_pad->groups, link) {
 		add_tablet_pad_group(pad, client, group, i++);
 	}
+
 	zwp_tablet_pad_v2_send_done(client->resource);
 
 	wl_list_insert(&seat->pads, &client->seat_link);
@@ -334,30 +336,11 @@ static void handle_wlr_tablet_pad_destroy(struct wl_listener *listener, void *da
 	struct wlr_tablet_v2_tablet_pad *pad =
 		wl_container_of(listener, pad, pad_destroy);
 
-	struct wlr_tablet_pad_client_v2 *pos;
-	struct wlr_tablet_pad_client_v2 *tmp;
-	wl_list_for_each_safe(pos, tmp, &pad->clients, pad_link) {
-		zwp_tablet_pad_v2_send_removed(pos->resource);
-
-		for (size_t i = 0; i < pos->group_count; ++i) {
-			destroy_tablet_pad_group_v2(pos->groups[i]);
-		}
-
-		for (size_t i = 0; i < pos->strip_count; ++i) {
-			destroy_tablet_pad_strip_v2(pos->strips[i]);
-		}
-
-		for (size_t i = 0; i < pos->ring_count; ++i) {
-			destroy_tablet_pad_ring_v2(pos->rings[i]);
-		}
-	}
-
 	struct wlr_tablet_pad_client_v2 *client;
 	struct wlr_tablet_pad_client_v2 *tmp_client;
 	wl_list_for_each_safe(client, tmp_client, &pad->clients, pad_link) {
 		zwp_tablet_pad_v2_send_removed(client->resource);
 		destroy_tablet_pad_v2(client->resource);
-
 	}
 
 	wl_list_remove(&pad->clients);

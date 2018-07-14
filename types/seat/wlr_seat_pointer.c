@@ -355,7 +355,3 @@ void seat_client_destroy_pointer(struct wl_resource *resource) {
 	}
 	wl_resource_set_user_data(resource, NULL);
 }
-
-bool wlr_surface_is_pointer_cursor(struct wlr_surface *surface) {
-	return surface->role == &pointer_cursor_surface_role;
-}

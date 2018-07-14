@@ -817,11 +817,6 @@ static void output_cursor_handle_destroy(struct wl_listener *listener,
 
 void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y) {
-	if (surface && !wlr_surface_is_pointer_cursor(surface)) {
-		wlr_log(WLR_ERROR, "Tried to set a cursor surface with invalid role");
-		return;
-	}
-
 	hotspot_x *= cursor->output->scale;
 	hotspot_y *= cursor->output->scale;
 
