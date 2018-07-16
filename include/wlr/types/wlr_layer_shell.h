@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server.h>
+#include <wlr/protocol/wlr-layer-shell-unstable-v1-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
-#include "wlr-layer-shell-unstable-v1-protocol.h"
 
 /**
  * wlr_layer_shell allows clients to arrange themselves in "layers" on the

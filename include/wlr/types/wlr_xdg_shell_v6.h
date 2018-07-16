@@ -2,9 +2,9 @@
 #define WLR_TYPES_WLR_XDG_SHELL_V6_H
 
 #include <wayland-server.h>
+#include <wlr/protocol/xdg-shell-unstable-v6-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_seat.h>
-#include "xdg-shell-unstable-v6-protocol.h"
 
 struct wlr_xdg_shell_v6 {
 	struct wl_global *global;
