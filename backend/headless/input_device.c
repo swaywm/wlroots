@@ -60,12 +60,12 @@ struct wlr_input_device *wlr_headless_add_input_device(
 		wlr_touch_init(wlr_device->touch, NULL);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
-		wlr_device->tablet_tool = calloc(1, sizeof(struct wlr_tablet_tool));
-		if (wlr_device->tablet_tool == NULL) {
-			wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_tool");
+		wlr_device->tablet = calloc(1, sizeof(struct wlr_tablet));
+		if (wlr_device->tablet == NULL) {
+			wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet");
 			goto error;
 		}
-		wlr_tablet_tool_init(wlr_device->tablet_tool, NULL);
+		wlr_tablet_init(wlr_device->tablet, NULL);
 		break;
 	case WLR_INPUT_DEVICE_TABLET_PAD:
 		wlr_device->tablet_pad = calloc(1, sizeof(struct wlr_tablet_pad));

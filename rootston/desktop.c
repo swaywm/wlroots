@@ -22,6 +22,8 @@
 #include <wlr/types/wlr_xdg_output.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_output.h>
+#include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "rootston/layers.h"
 #include "rootston/seat.h"
@@ -800,6 +802,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->layer_shell->events.new_surface,
 		&desktop->layer_shell_surface);
 	desktop->layer_shell_surface.notify = handle_layer_shell_surface;
+
+	desktop->tablet_v2 = wlr_tablet_v2_create(server->wl_display);
 
 #ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;

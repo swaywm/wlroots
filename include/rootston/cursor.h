@@ -40,6 +40,8 @@ struct roots_cursor {
 
 	struct wl_listener tool_axis;
 	struct wl_listener tool_tip;
+	struct wl_listener tool_proximity;
+	struct wl_listener tool_button;
 
 	struct wl_listener request_set_cursor;
 };

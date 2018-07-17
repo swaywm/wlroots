@@ -4,22 +4,26 @@
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_tool.h>
 
-void wlr_tablet_tool_init(struct wlr_tablet_tool *tool,
-		struct wlr_tablet_tool_impl *impl) {
-	tool->impl = impl;
-	wl_signal_init(&tool->events.axis);
-	wl_signal_init(&tool->events.proximity);
-	wl_signal_init(&tool->events.tip);
-	wl_signal_init(&tool->events.button);
+void wlr_tablet_init(struct wlr_tablet *tablet,
+		struct wlr_tablet_impl *impl) {
+	tablet->impl = impl;
+	wl_signal_init(&tablet->events.axis);
+	wl_signal_init(&tablet->events.proximity);
+	wl_signal_init(&tablet->events.tip);
+	wl_signal_init(&tablet->events.button);
 }
 
-void wlr_tablet_tool_destroy(struct wlr_tablet_tool *tool) {
-	if (!tool) {
+void wlr_tablet_destroy(struct wlr_tablet *tablet) {
+	if (!tablet) {
 		return;
 	}
-	if (tool->impl && tool->impl->destroy) {
-		tool->impl->destroy(tool);
+
+	wlr_list_for_each(&tablet->paths, free);
+	wlr_list_finish(&tablet->paths);
+
+	if (tablet->impl && tablet->impl->destroy) {
+		tablet->impl->destroy(tablet);
 	} else {
-		free(tool);
+		free(tablet);
 	}
 }

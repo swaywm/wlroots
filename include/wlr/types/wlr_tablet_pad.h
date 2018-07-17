@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_list.h>
 
 /*
  * NOTE: the wlr tablet pad implementation does not currently support tablets
@@ -20,9 +21,32 @@ struct wlr_tablet_pad {
 		struct wl_signal button;
 		struct wl_signal ring;
 		struct wl_signal strip;
+		struct wl_signal attach_tablet; //struct wlr_tablet_tool
 	} events;
 
+	size_t button_count;
+	size_t ring_count;
+	size_t strip_count;
+
+	struct wl_list groups; // wlr_tablet_pad_group::link
+	struct wlr_list paths; // char *
+
 	void *data;
+};
+
+struct wlr_tablet_pad_group {
+	struct wl_list link;
+
+	size_t button_count;
+	unsigned int *buttons;
+
+	size_t strip_count;
+	unsigned int *strips;
+
+	size_t ring_count;
+	unsigned int *rings;
+
+	unsigned int mode_count;
 };
 
 struct wlr_event_tablet_pad_button {
@@ -30,6 +54,7 @@ struct wlr_event_tablet_pad_button {
 	uint32_t button;
 	enum wlr_button_state state;
 	unsigned int mode;
+	unsigned int group;
 };
 
 enum wlr_tablet_pad_ring_source {

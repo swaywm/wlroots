@@ -1,4 +1,8 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <assert.h>
+#include <string.h>
 #include <libinput.h>
 #include <stdlib.h>
 #include <wlr/backend/session.h>
@@ -8,6 +12,60 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
+// FIXME: Decide on how to alloc/count here
+static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
+		struct libinput_device *device, unsigned int index) {
+	struct libinput_tablet_pad_mode_group *li_group =
+		libinput_device_tablet_pad_get_mode_group(device, index);
+	struct wlr_tablet_pad_group *group =
+		calloc(1, sizeof(struct wlr_tablet_pad_group));
+	if (!group) {
+		return;
+	}
+
+	for (size_t i = 0; i < pad->ring_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_ring(li_group, i)) {
+			++group->ring_count;
+		}
+	}
+	group->rings = calloc(sizeof(int), group->ring_count);
+	size_t ring = 0;
+	for (size_t i = 0; i < pad->ring_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_ring(li_group, i)) {
+			group->rings[ring++] = i;
+		}
+	}
+
+	for (size_t i = 0; i < pad->strip_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_strip(li_group, i)) {
+			++group->strip_count;
+		}
+	}
+	group->strips = calloc(sizeof(int), group->strip_count);
+	size_t strip = 0;
+	for (size_t i = 0; i < pad->strip_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_strip(li_group, i)) {
+			group->strips[strip++] = i;
+		}
+	}
+
+	for (size_t i = 0; i < pad->button_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_button(li_group, i)) {
+			++group->button_count;
+		}
+	}
+	group->buttons = calloc(sizeof(int), group->button_count);
+	size_t button = 0;
+	for (size_t i = 0; i < pad->button_count; ++i) {
+		if (libinput_tablet_pad_mode_group_has_button(li_group, i)) {
+			group->buttons[button++] = i;
+		}
+	}
+
+	group->mode_count = libinput_tablet_pad_mode_group_get_num_modes(li_group);
+	wl_list_insert(&pad->groups, &group->link);
+}
+
 struct wlr_tablet_pad *create_libinput_tablet_pad(
 		struct libinput_device *libinput_dev) {
 	assert(libinput_dev);
@@ -16,6 +74,24 @@ struct wlr_tablet_pad *create_libinput_tablet_pad(
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_pad");
 		return NULL;
 	}
+
+	wlr_tablet_pad->button_count =
+		libinput_device_tablet_pad_get_num_buttons(libinput_dev);
+	wlr_tablet_pad->ring_count =
+		libinput_device_tablet_pad_get_num_rings(libinput_dev);
+	wlr_tablet_pad->strip_count =
+		libinput_device_tablet_pad_get_num_strips(libinput_dev);
+
+	wlr_list_init(&wlr_tablet_pad->paths);
+	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
+	wlr_list_push(&wlr_tablet_pad->paths, strdup(udev_device_get_syspath(udev)));
+
+	wl_list_init(&wlr_tablet_pad->groups);
+	int groups = libinput_device_tablet_pad_get_num_mode_groups(libinput_dev);
+	for (int i = 0; i < groups; ++i) {
+		add_pad_group_from_libinput(wlr_tablet_pad, libinput_dev, i);
+	}
+
 	wlr_tablet_pad_init(wlr_tablet_pad, NULL);
 	return wlr_tablet_pad;
 }
@@ -35,6 +111,8 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		usec_to_msec(libinput_event_tablet_pad_get_time_usec(pevent));
 	wlr_event.button = libinput_event_tablet_pad_get_button_number(pevent);
 	wlr_event.mode = libinput_event_tablet_pad_get_mode(pevent);
+	wlr_event.group = libinput_tablet_pad_mode_group_get_index(
+		libinput_event_tablet_pad_get_mode_group(pevent));
 	switch (libinput_event_tablet_pad_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
 		wlr_event.state = WLR_BUTTON_PRESSED;

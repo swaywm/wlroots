@@ -1,12 +1,15 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
+#include <libinput.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <wayland-server.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
 #include "rootston/cursor.h"
@@ -14,6 +17,7 @@
 #include "rootston/keyboard.h"
 #include "rootston/seat.h"
 #include "rootston/xcursor.h"
+
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
@@ -97,13 +101,102 @@ static void handle_touch_motion(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_touch_motion(cursor, event);
 }
 
+static void handle_tablet_tool_position(struct roots_cursor *cursor,
+		struct roots_tablet *tablet,
+		struct wlr_tablet_tool *tool,
+		bool change_x, bool change_y,
+		double x, double y, double dx, double dy) {
+	if (!change_x && !change_y) {
+		return;
+	}
+
+	switch (tool->type) {
+	case WLR_TABLET_TOOL_TYPE_MOUSE:
+		// They are 0 either way when they weren't modified
+		wlr_cursor_move(cursor->cursor, tablet->device, dx, dy);
+		break;
+	default:
+		wlr_cursor_warp_absolute(cursor->cursor, tablet->device,
+			change_x ? x : NAN, change_y ? y : NAN);
+	}
+
+	double sx, sy;
+	struct roots_view *view = NULL;
+	struct roots_seat *seat = cursor->seat;
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	struct wlr_surface *surface = desktop_surface_at(desktop,
+			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
+	struct roots_tablet_tool *roots_tool = tool->data;
+	
+	if (!surface) {
+		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		/* XXX: TODO: Fallback pointer semantics */
+		return;
+	}
+	
+	if (!wlr_surface_accepts_tablet_v2(tablet->tablet_v2, surface)) {
+		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		/* XXX: TODO: Fallback pointer semantics */
+		return;
+	}
+
+	wlr_send_tablet_v2_tablet_tool_proximity_in(roots_tool->tablet_v2_tool,
+		tablet->tablet_v2, surface);
+
+	wlr_send_tablet_v2_tablet_tool_motion(roots_tool->tablet_v2_tool, sx, sy);
+}
+
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
 	struct roots_cursor *cursor =
 		wl_container_of(listener, cursor, tool_axis);
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
 	struct wlr_event_tablet_tool_axis *event = data;
-	roots_cursor_handle_tool_axis(cursor, event);
+	struct roots_tablet_tool *roots_tool = event->tool->data;
+
+	if (!roots_tool) { // Should this be an assert?
+		wlr_log(WLR_DEBUG, "Tool Axis, before proximity");
+		return;
+	}
+
+	/**
+	 * We need to handle them ourselves, not pass it into the cursor
+	 * without any consideration
+	 */
+	handle_tablet_tool_position(cursor, event->device->data, event->tool,
+		event->updated_axes & WLR_TABLET_TOOL_AXIS_X,
+		event->updated_axes & WLR_TABLET_TOOL_AXIS_Y,
+		event->x, event->y, event->dx, event->dy);
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_PRESSURE) {
+		wlr_send_tablet_v2_tablet_tool_pressure(
+			roots_tool->tablet_v2_tool, event->pressure);
+	}
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_DISTANCE) {
+		wlr_send_tablet_v2_tablet_tool_distance(
+			roots_tool->tablet_v2_tool, event->distance);
+	}
+
+	if (event->updated_axes & (WLR_TABLET_TOOL_AXIS_TILT_X | WLR_TABLET_TOOL_AXIS_TILT_Y)) {
+		wlr_send_tablet_v2_tablet_tool_tilt(
+			roots_tool->tablet_v2_tool, event->tilt_x, event->tilt_y);
+	}
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_ROTATION) {
+		wlr_send_tablet_v2_tablet_tool_rotation(
+			roots_tool->tablet_v2_tool, event->rotation);
+	}
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_SLIDER) {
+		wlr_send_tablet_v2_tablet_tool_slider(
+			roots_tool->tablet_v2_tool, event->slider);
+	}
+
+	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_WHEEL) {
+		wlr_send_tablet_v2_tablet_tool_wheel(
+			roots_tool->tablet_v2_tool, event->wheel_delta, 0);
+	}
 }
 
 static void handle_tool_tip(struct wl_listener *listener, void *data) {
@@ -112,7 +205,87 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
 	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
 	struct wlr_event_tablet_tool_tip *event = data;
-	roots_cursor_handle_tool_tip(cursor, event);
+	struct roots_tablet_tool *roots_tool = event->tool->data;
+
+	if (event->state == WLR_TABLET_TOOL_TIP_DOWN) {
+		wlr_send_tablet_v2_tablet_tool_down(roots_tool->tablet_v2_tool);
+	} else {
+		wlr_send_tablet_v2_tablet_tool_up(roots_tool->tablet_v2_tool);
+	}
+}
+
+static void handle_tablet_tool_destroy(struct wl_listener *listener, void *data) {
+	struct roots_tablet_tool *tool =
+		wl_container_of(listener, tool, tool_destroy);
+	
+	wl_list_remove(&tool->link);
+	wl_list_remove(&tool->tool_link);
+
+	wl_list_remove(&tool->tool_destroy.link);
+	wl_list_remove(&tool->set_cursor.link);
+
+	free(tool);
+}
+
+static void handle_tool_button(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_button);
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
+	struct wlr_event_tablet_tool_button *event = data;
+	struct roots_tablet_tool *roots_tool = event->tool->data;
+
+	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool,
+		(enum zwp_tablet_pad_v2_button_state)event->button,
+		(enum zwp_tablet_pad_v2_button_state)event->state);
+}
+
+static void handle_tablet_tool_set_cursor(struct wl_listener *listener, void *data) {
+	struct roots_tablet_tool *tool =
+		wl_container_of(listener, tool, set_cursor);
+	struct wlr_tablet_v2_event_cursor *evt = data;
+
+
+	struct wlr_seat_pointer_request_set_cursor_event event = {
+		.surface = evt->surface,
+		.hotspot_x = evt->hotspot_x,
+		.hotspot_y = evt->hotspot_y,
+		.serial = evt->serial,
+		.seat_client = evt->seat_client,
+	};
+
+	roots_cursor_handle_request_set_cursor(tool->seat->cursor, &event);
+}
+
+static void handle_tool_proximity(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, tool_proximity);
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
+	struct wlr_event_tablet_tool_proximity *event = data;
+
+	struct wlr_tablet_tool *tool = event->tool;
+	if (!tool->data) {
+		struct roots_tablet_tool *roots_tool =
+			calloc(1, sizeof(struct roots_tablet_tool));
+		roots_tool->seat = cursor->seat;
+		tool->data = roots_tool;
+		roots_tool->tablet_v2_tool =
+			wlr_tablet_tool_create(desktop->tablet_v2,
+				cursor->seat->seat, tool);
+		roots_tool->tool_destroy.notify = handle_tablet_tool_destroy;
+		wl_signal_add(&tool->events.destroy, &roots_tool->tool_destroy);
+
+		roots_tool->set_cursor.notify = handle_tablet_tool_set_cursor;
+		wl_signal_add(&roots_tool->tablet_v2_tool->events.set_cursor,
+			&roots_tool->set_cursor);
+
+		wl_list_init(&roots_tool->link);
+		wl_list_init(&roots_tool->tool_link);
+	}
+
+	handle_tablet_tool_position(cursor, event->device->data, event->tool,
+		true, true, event->x, event->y, 0, 0);
 }
 
 static void handle_request_set_cursor(struct wl_listener *listener,
@@ -164,7 +337,7 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 
 	struct roots_pointer *pointer;
 	struct roots_touch *touch;
-	struct roots_tablet_tool *tablet_tool;
+	struct roots_tablet *tablet;
 	struct roots_output *output;
 
 	// reset mappings
@@ -175,8 +348,8 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 	wl_list_for_each(touch, &seat->touch, link) {
 		seat_reset_device_mappings(seat, touch->device);
 	}
-	wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
-		seat_reset_device_mappings(seat, tablet_tool->device);
+	wl_list_for_each(tablet, &seat->tablets, link) {
+		seat_reset_device_mappings(seat, tablet->device);
 	}
 
 	// configure device to output mappings
@@ -196,8 +369,8 @@ void roots_seat_configure_cursor(struct roots_seat *seat) {
 			seat_set_device_output_mappings(seat, pointer->device,
 				output->wlr_output);
 		}
-		wl_list_for_each(tablet_tool, &seat->tablet_tools, link) {
-			seat_set_device_output_mappings(seat, tablet_tool->device,
+		wl_list_for_each(tablet, &seat->tablets, link) {
+			seat_set_device_output_mappings(seat, tablet->device,
 				output->wlr_output);
 		}
 		wl_list_for_each(touch, &seat->touch, link) {
@@ -250,6 +423,12 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.tablet_tool_tip, &seat->cursor->tool_tip);
 	seat->cursor->tool_tip.notify = handle_tool_tip;
+
+	wl_signal_add(&wlr_cursor->events.tablet_tool_proximity, &seat->cursor->tool_proximity);
+	seat->cursor->tool_proximity.notify = handle_tool_proximity;
+
+	wl_signal_add(&wlr_cursor->events.tablet_tool_button, &seat->cursor->tool_button);
+	seat->cursor->tool_button.notify = handle_tool_button;
 
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 		&seat->cursor->request_set_cursor);
@@ -375,7 +554,8 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->keyboards);
 	wl_list_init(&seat->pointers);
 	wl_list_init(&seat->touch);
-	wl_list_init(&seat->tablet_tools);
+	wl_list_init(&seat->tablets);
+	wl_list_init(&seat->tablet_pads);
 	wl_list_init(&seat->views);
 	wl_list_init(&seat->drag_icons);
 
@@ -409,7 +589,7 @@ static void seat_update_capabilities(struct roots_seat *seat) {
 	if (!wl_list_empty(&seat->keyboards)) {
 		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 	}
-	if (!wl_list_empty(&seat->pointers) || !wl_list_empty(&seat->tablet_tools)) {
+	if (!wl_list_empty(&seat->pointers) || !wl_list_empty(&seat->tablets)) {
 		caps |= WL_SEAT_CAPABILITY_POINTER;
 	}
 	if (!wl_list_empty(&seat->touch)) {
@@ -478,7 +658,7 @@ static void handle_pointer_destroy(struct wl_listener *listener, void *data) {
 
 static void seat_add_pointer(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	struct roots_pointer *pointer = calloc(sizeof(struct roots_pointer), 1);
+	struct roots_pointer *pointer = calloc(1, sizeof(struct roots_pointer));
 	if (!pointer) {
 		wlr_log(WLR_ERROR, "could not allocate pointer for seat");
 		return;
@@ -511,7 +691,7 @@ static void handle_touch_destroy(struct wl_listener *listener, void *data) {
 
 static void seat_add_touch(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	struct roots_touch *touch = calloc(sizeof(struct roots_touch), 1);
+	struct roots_touch *touch = calloc(1, sizeof(struct roots_touch));
 	if (!touch) {
 		wlr_log(WLR_ERROR, "could not allocate touch for seat");
 		return;
@@ -529,45 +709,201 @@ static void seat_add_touch(struct roots_seat *seat,
 	roots_seat_configure_cursor(seat);
 }
 
-static void seat_add_tablet_pad(struct roots_seat *seat,
-		struct wlr_input_device *device) {
-	// TODO
+static void handle_tablet_pad_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_tablet_pad *tablet_pad =
+		wl_container_of(listener, tablet_pad, device_destroy);
+	struct roots_seat *seat = tablet_pad->seat;
+
+	wl_list_remove(&tablet_pad->device_destroy.link);
+	wl_list_remove(&tablet_pad->tablet_destroy.link);
+	wl_list_remove(&tablet_pad->attach.link);
+	wl_list_remove(&tablet_pad->link);
+
+	wl_list_remove(&tablet_pad->button.link);
+	wl_list_remove(&tablet_pad->strip.link);
+	wl_list_remove(&tablet_pad->ring.link);
+	free(tablet_pad);
+
+	seat_update_capabilities(seat);
 }
 
-static void handle_tablet_tool_destroy(struct wl_listener *listener,
-		void *data) {
-	struct roots_tablet_tool *tablet_tool =
-		wl_container_of(listener, tablet_tool, device_destroy);
-	struct roots_seat *seat = tablet_tool->seat;
+static void handle_pad_tool_destroy(struct wl_listener *listener, void *data) {
+	struct roots_tablet_pad *pad =
+		wl_container_of(listener, pad, tablet_destroy);
 
-	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet_tool->device);
-	wl_list_remove(&tablet_tool->device_destroy.link);
-	wl_list_remove(&tablet_tool->link);
-	free(tablet_tool);
+	pad->tablet = NULL;
+
+	wl_list_remove(&pad->tablet_destroy.link);
+	wl_list_init(&pad->tablet_destroy.link);
+}
+
+static void attach_tablet_pad(struct roots_tablet_pad *pad,
+		struct roots_tablet *tool) {
+	wlr_log(WLR_DEBUG, "Attaching tablet pad \"%s\" to tablet tool \"%s\"",
+		pad->device->name, tool->device->name);
+
+	pad->tablet = tool;
+
+	pad->tablet_destroy.notify = handle_pad_tool_destroy;
+	wl_signal_add(&tool->device->events.destroy, &pad->tablet_destroy);
+}
+
+static void handle_tablet_pad_attach(struct wl_listener *listener, void *data) {
+	struct roots_tablet_pad *pad =
+		wl_container_of(listener, pad, attach);
+	struct wlr_tablet_tool *wlr_tool = data;
+	struct roots_tablet *tool = wlr_tool->data;
+
+	attach_tablet_pad(pad, tool);
+}
+
+static void handle_tablet_pad_ring(struct wl_listener *listener, void *data) {
+	struct roots_tablet_pad *pad =
+		wl_container_of(listener, pad, ring);
+	struct wlr_event_tablet_pad_ring *event = data;
+
+	wlr_send_tablet_v2_tablet_pad_ring(pad->tablet_v2_pad,
+		event->ring, event->position,
+		event->source == WLR_TABLET_PAD_RING_SOURCE_FINGER,
+		event->time_msec);
+}
+
+static void handle_tablet_pad_strip(struct wl_listener *listener, void *data) {
+	struct roots_tablet_pad *pad =
+		wl_container_of(listener, pad, strip);
+	struct wlr_event_tablet_pad_strip *event = data;
+
+	wlr_send_tablet_v2_tablet_pad_strip(pad->tablet_v2_pad,
+		event->strip, event->position,
+		event->source == WLR_TABLET_PAD_STRIP_SOURCE_FINGER,
+		event->time_msec);
+}
+
+static void handle_tablet_pad_button(struct wl_listener *listener, void *data) {
+	struct roots_tablet_pad *pad =
+		wl_container_of(listener, pad, button);
+	struct wlr_event_tablet_pad_button *event = data;
+
+	wlr_send_tablet_v2_tablet_pad_mode(pad->tablet_v2_pad,
+		event->group, event->mode, event->time_msec);
+
+	wlr_send_tablet_v2_tablet_pad_button(pad->tablet_v2_pad,
+		event->button, event->time_msec,
+		(enum zwp_tablet_pad_v2_button_state)event->state);
+}
+
+static void seat_add_tablet_pad(struct roots_seat *seat,
+		struct wlr_input_device *device) {
+	struct roots_tablet_pad *tablet_pad =
+		calloc(1, sizeof(struct roots_tablet_pad));
+	if (!tablet_pad) {
+		wlr_log(WLR_ERROR, "could not allocate tablet_pad for seat");
+		return;
+	}
+
+	device->data = tablet_pad;
+	tablet_pad->device = device;
+	tablet_pad->seat = seat;
+	wl_list_insert(&seat->tablet_pads, &tablet_pad->link);
+
+	tablet_pad->device_destroy.notify = handle_tablet_pad_destroy;
+	wl_signal_add(&tablet_pad->device->events.destroy,
+		&tablet_pad->device_destroy);
+
+	tablet_pad->attach.notify = handle_tablet_pad_attach;
+	wl_signal_add(&tablet_pad->device->tablet_pad->events.attach_tablet, &tablet_pad->attach);
+
+	tablet_pad->button.notify = handle_tablet_pad_button;
+	wl_signal_add(&tablet_pad->device->tablet_pad->events.button, &tablet_pad->button);
+
+	tablet_pad->strip.notify = handle_tablet_pad_strip;
+	wl_signal_add(&tablet_pad->device->tablet_pad->events.strip, &tablet_pad->strip);
+
+	tablet_pad->ring.notify = handle_tablet_pad_ring;
+	wl_signal_add(&tablet_pad->device->tablet_pad->events.ring, &tablet_pad->ring);
+
+	struct roots_desktop *desktop = seat->input->server->desktop;
+	tablet_pad->tablet_v2_pad =
+		wlr_tablet_pad_create(desktop->tablet_v2, seat->seat, device);
+
+	/* Search for a sibling tablet */
+	if (!wlr_input_device_is_libinput(device)) {
+		/* We can only do this on libinput devices */
+		return;
+	}
+
+	struct libinput_device_group *group =
+		libinput_device_get_device_group(wlr_libinput_get_device_handle(device));
+	struct roots_tablet *tool;
+	wl_list_for_each(tool, &seat->tablets, link) {
+		if (!wlr_input_device_is_libinput(tool->device)) {
+			continue;
+		}
+
+		struct libinput_device *li_dev =
+			wlr_libinput_get_device_handle(tool->device);
+		if (libinput_device_get_device_group(li_dev) == group) {
+			attach_tablet_pad(tablet_pad, tool);
+			break;
+		}
+	}
+}
+
+static void handle_tablet_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_tablet *tablet =
+		wl_container_of(listener, tablet, device_destroy);
+	struct roots_seat *seat = tablet->seat;
+
+	wlr_cursor_detach_input_device(seat->cursor->cursor, tablet->device);
+	wl_list_remove(&tablet->device_destroy.link);
+	wl_list_remove(&tablet->link);
+	free(tablet);
 
 	seat_update_capabilities(seat);
 }
 
 static void seat_add_tablet_tool(struct roots_seat *seat,
 		struct wlr_input_device *device) {
-	struct roots_tablet_tool *tablet_tool =
-		calloc(sizeof(struct roots_tablet_tool), 1);
-	if (!tablet_tool) {
-		wlr_log(WLR_ERROR, "could not allocate tablet_tool for seat");
+	struct roots_tablet *tablet =
+		calloc(1, sizeof(struct roots_tablet));
+	if (!tablet) {
+		wlr_log(WLR_ERROR, "could not allocate tablet for seat");
 		return;
 	}
 
-	device->data = tablet_tool;
-	tablet_tool->device = device;
-	tablet_tool->seat = seat;
-	wl_list_insert(&seat->tablet_tools, &tablet_tool->link);
+	device->data = tablet;
+	tablet->device = device;
+	tablet->seat = seat;
+	wl_list_insert(&seat->tablets, &tablet->link);
 
-	tablet_tool->device_destroy.notify = handle_tablet_tool_destroy;
-	wl_signal_add(&tablet_tool->device->events.destroy,
-		&tablet_tool->device_destroy);
+	tablet->device_destroy.notify = handle_tablet_destroy;
+	wl_signal_add(&tablet->device->events.destroy,
+		&tablet->device_destroy);
 
 	wlr_cursor_attach_input_device(seat->cursor->cursor, device);
 	roots_seat_configure_cursor(seat);
+
+	struct roots_desktop *desktop = seat->input->server->desktop;
+
+	tablet->tablet_v2 =
+		wlr_tablet_create(desktop->tablet_v2, seat->seat, device);
+
+	struct libinput_device_group *group =
+		libinput_device_get_device_group(wlr_libinput_get_device_handle(device));
+	struct roots_tablet_pad *pad;
+	wl_list_for_each(pad, &seat->tablet_pads, link) {
+		if (!wlr_input_device_is_libinput(pad->device)) {
+			continue;
+		}
+
+		struct libinput_device *li_dev =
+			wlr_libinput_get_device_handle(pad->device);
+		if (libinput_device_get_device_group(li_dev) == group) {
+			attach_tablet_pad(pad, tablet);
+		}
+	}
 }
 
 void roots_seat_add_device(struct roots_seat *seat,
@@ -833,6 +1169,13 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			keyboard->keycodes, keyboard->num_keycodes,
 			&keyboard->modifiers);
+		/* FIXME: Move this to a better place */
+		struct roots_tablet_pad *pad;
+		wl_list_for_each(pad, &seat->tablet_pads, link) {
+			if (pad->tablet) {
+				wlr_send_tablet_v2_tablet_pad_enter(pad->tablet_v2_pad, pad->tablet->tablet_v2, view->wlr_surface);
+			}
+		}
 	} else {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			NULL, 0, NULL);
