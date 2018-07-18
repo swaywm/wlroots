@@ -241,8 +241,7 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 		XCB_CONFIG_WINDOW_STACK_MODE, values);
 }
 
-
-void xwm_surface_activate(struct wlr_xwm *xwm,
+static void xwm_surface_activate(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface) {
 	if (xwm->focus_surface == xsurface ||
 			(xsurface && xsurface->override_redirect)) {
