@@ -150,6 +150,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_parent;
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
+		struct wl_signal set_override_redirect;
 		struct wl_signal ping_timeout;
 	} events;
 
@@ -199,9 +200,6 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 	struct wlr_seat *seat);
-
-bool wlr_xwayland_surface_is_unmanaged(
-	const struct wlr_xwayland_surface *surface);
 
 bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface);
 
