@@ -127,13 +127,13 @@ static void handle_tablet_tool_position(struct roots_cursor *cursor,
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
 	struct roots_tablet_tool *roots_tool = tool->data;
-	
+
 	if (!surface) {
 		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
 		/* XXX: TODO: Fallback pointer semantics */
 		return;
 	}
-	
+
 	if (!wlr_surface_accepts_tablet_v2(tablet->tablet_v2, surface)) {
 		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
 		/* XXX: TODO: Fallback pointer semantics */
@@ -217,7 +217,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 static void handle_tablet_tool_destroy(struct wl_listener *listener, void *data) {
 	struct roots_tablet_tool *tool =
 		wl_container_of(listener, tool, tool_destroy);
-	
+
 	wl_list_remove(&tool->link);
 	wl_list_remove(&tool->tool_link);
 
@@ -1124,7 +1124,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 #ifdef WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
-			wlr_xwayland_surface_is_unmanaged(view->xwayland_surface)) {
+			view->xwayland_surface->override_redirect) {
 		return;
 	}
 #endif

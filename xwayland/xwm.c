@@ -154,6 +154,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_parent);
 	wl_signal_init(&surface->events.set_pid);
 	wl_signal_init(&surface->events.set_window_type);
+	wl_signal_init(&surface->events.set_override_redirect);
 	wl_signal_init(&surface->events.ping_timeout);
 
 	xcb_get_geometry_reply_t *geometry_reply =
@@ -764,9 +765,7 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		xcb_configure_notify_event_t *ev) {
-	struct wlr_xwayland_surface *xsurface =
-		lookup_surface(xwm, ev->window);
-
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
 	}
@@ -775,6 +774,11 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 	xsurface->y = ev->y;
 	xsurface->width = ev->width;
 	xsurface->height = ev->height;
+
+	if (xsurface->override_redirect != ev->override_redirect) {
+		xsurface->override_redirect = ev->override_redirect;
+		wlr_signal_emit_safe(&xsurface->events.set_override_redirect, xsurface);
+	}
 }
 
 #define ICCCM_WITHDRAWN_STATE	0
@@ -814,6 +818,15 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 static void xwm_handle_map_notify(struct wlr_xwm *xwm,
 		xcb_map_notify_event_t *ev) {
 	wlr_log(WLR_DEBUG, "XCB_MAP_NOTIFY (%u)", ev->window);
+	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
+	if (!xsurface) {
+		return;
+	}
+
+	if (xsurface->override_redirect != ev->override_redirect) {
+		xsurface->override_redirect = ev->override_redirect;
+		wlr_signal_emit_safe(&xsurface->events.set_override_redirect, xsurface);
+	}
 }
 
 static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
@@ -1652,30 +1665,6 @@ bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 
 	for (size_t i = 0; i < num_atoms; ++i) {
 		if (atom == atoms[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool wlr_xwayland_surface_is_unmanaged(
-		const struct wlr_xwayland_surface *surface) {
-	static enum atom_name needles[] = {
-		NET_WM_WINDOW_TYPE_COMBO,
-		NET_WM_WINDOW_TYPE_DND,
-		NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
-		NET_WM_WINDOW_TYPE_MENU,
-		NET_WM_WINDOW_TYPE_NOTIFICATION,
-		NET_WM_WINDOW_TYPE_POPUP_MENU,
-		NET_WM_WINDOW_TYPE_SPLASH,
-		NET_WM_WINDOW_TYPE_TOOLTIP,
-		NET_WM_WINDOW_TYPE_UTILITY,
-	};
-
-	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
-		if (xwm_atoms_contains(surface->xwm, surface->window_type,
-				surface->window_type_len, needles[i])) {
 			return true;
 		}
 	}
