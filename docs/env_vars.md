@@ -12,6 +12,8 @@ wlroots specific
   wayland, x11, headless)
 * *WLR_WL_OUTPUTS*: when using the wayland backend specifies the number of outputs
 * *WLR_X11_OUTPUTS*: when using the X11 backend specifies the number of outputs
+* *WLR_HEADLESS_OUTPUTS*: when using the headless backend specifies the number
+  of outputs
 
 rootston specific
 ------------------
