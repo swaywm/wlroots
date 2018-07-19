@@ -10,6 +10,14 @@
 /* This can probably be even lower,the tools don't have a lot of buttons */
 #define WLR_TABLET_V2_TOOL_BUTTONS_CAP 16
 
+struct wlr_tablet_pad_v2_grab_interface;
+
+struct wlr_tablet_pad_v2_grab {
+	const struct wlr_tablet_pad_v2_grab_interface *interface;
+	struct wlr_tablet_v2_tablet_pad *pad;
+	void *data;
+};
+
 struct wlr_tablet_client_v2;
 struct wlr_tablet_tool_client_v2;
 struct wlr_tablet_pad_client_v2;
@@ -70,6 +78,8 @@ struct wlr_tablet_v2_tablet_pad {
 	struct wl_listener pad_destroy;
 
 	struct wlr_tablet_pad_client_v2 *current_client;
+	struct wlr_tablet_pad_v2_grab *grab;
+	struct wlr_tablet_pad_v2_grab default_grab;
 
 	struct {
 		struct wl_signal button_feedback; // struct wlr_tablet_v2_event_feedback
@@ -155,7 +165,7 @@ void wlr_send_tablet_v2_tablet_pad_button(
 	struct wlr_tablet_v2_tablet_pad *pad, size_t button,
 	uint32_t time, enum zwp_tablet_pad_v2_button_state state);
 
-void wlr_send_tablet_v2_tablet_pad_strip( struct wlr_tablet_v2_tablet_pad *pad,
+void wlr_send_tablet_v2_tablet_pad_strip(struct wlr_tablet_v2_tablet_pad *pad,
 	uint32_t strip, double position, bool finger, uint32_t time);
 void wlr_send_tablet_v2_tablet_pad_ring(struct wlr_tablet_v2_tablet_pad *pad,
 	uint32_t ring, double position, bool finger, uint32_t time);
@@ -165,6 +175,56 @@ uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pa
 
 uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad,
 	size_t group, uint32_t mode, uint32_t time);
+
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_enter(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface);
+
+void wlr_tablet_v2_tablet_pad_notify_button(
+	struct wlr_tablet_v2_tablet_pad *pad, size_t button,
+	uint32_t time, enum zwp_tablet_pad_v2_button_state state);
+
+void wlr_tablet_v2_tablet_pad_notify_strip(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	uint32_t strip, double position, bool finger, uint32_t time);
+void wlr_tablet_v2_tablet_pad_notify_ring(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	uint32_t ring, double position, bool finger, uint32_t time);
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_leave(
+	struct wlr_tablet_v2_tablet_pad *pad, struct wlr_surface *surface);
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_mode(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	size_t group, uint32_t mode, uint32_t time);
+
+struct wlr_tablet_pad_v2_grab_interface {
+	uint32_t (*enter)(
+		struct wlr_tablet_pad_v2_grab *grab,
+		struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface);
+
+	void (*button)(struct wlr_tablet_pad_v2_grab *grab,size_t button,
+		uint32_t time, enum zwp_tablet_pad_v2_button_state state);
+
+	void (*strip)(struct wlr_tablet_pad_v2_grab *grab,
+		uint32_t strip, double position, bool finger, uint32_t time);
+	void (*ring)(struct wlr_tablet_pad_v2_grab *grab,
+		uint32_t ring, double position, bool finger, uint32_t time);
+
+	uint32_t (*leave)(struct wlr_tablet_pad_v2_grab *grab,
+		struct wlr_surface *surface);
+
+	uint32_t (*mode)(struct wlr_tablet_pad_v2_grab *grab,
+		size_t group, uint32_t mode, uint32_t time);
+
+	void (*cancel)(struct wlr_tablet_pad_v2_grab *grab);
+};
+
+void wlr_tablet_v2_end_grab(struct wlr_tablet_v2_tablet_pad *pad);
+void wlr_tablet_v2_start_grab(struct wlr_tablet_v2_tablet_pad *pad, struct wlr_tablet_pad_v2_grab *grab);
 
 bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
 	struct wlr_surface *surface);

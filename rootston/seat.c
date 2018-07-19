@@ -763,7 +763,7 @@ static void handle_tablet_pad_ring(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, pad, ring);
 	struct wlr_event_tablet_pad_ring *event = data;
 
-	wlr_send_tablet_v2_tablet_pad_ring(pad->tablet_v2_pad,
+	wlr_tablet_v2_tablet_pad_notify_ring(pad->tablet_v2_pad,
 		event->ring, event->position,
 		event->source == WLR_TABLET_PAD_RING_SOURCE_FINGER,
 		event->time_msec);
@@ -774,7 +774,7 @@ static void handle_tablet_pad_strip(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, pad, strip);
 	struct wlr_event_tablet_pad_strip *event = data;
 
-	wlr_send_tablet_v2_tablet_pad_strip(pad->tablet_v2_pad,
+	wlr_tablet_v2_tablet_pad_notify_strip(pad->tablet_v2_pad,
 		event->strip, event->position,
 		event->source == WLR_TABLET_PAD_STRIP_SOURCE_FINGER,
 		event->time_msec);
@@ -785,10 +785,10 @@ static void handle_tablet_pad_button(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, pad, button);
 	struct wlr_event_tablet_pad_button *event = data;
 
-	wlr_send_tablet_v2_tablet_pad_mode(pad->tablet_v2_pad,
+	wlr_tablet_v2_tablet_pad_notify_mode(pad->tablet_v2_pad,
 		event->group, event->mode, event->time_msec);
 
-	wlr_send_tablet_v2_tablet_pad_button(pad->tablet_v2_pad,
+	wlr_tablet_v2_tablet_pad_notify_button(pad->tablet_v2_pad,
 		event->button, event->time_msec,
 		(enum zwp_tablet_pad_v2_button_state)event->state);
 }
@@ -1173,7 +1173,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		struct roots_tablet_pad *pad;
 		wl_list_for_each(pad, &seat->tablet_pads, link) {
 			if (pad->tablet) {
-				wlr_send_tablet_v2_tablet_pad_enter(pad->tablet_v2_pad, pad->tablet->tablet_v2, view->wlr_surface);
+				wlr_tablet_v2_tablet_pad_notify_enter(pad->tablet_v2_pad, pad->tablet->tablet_v2, view->wlr_surface);
 			}
 		}
 	} else {
