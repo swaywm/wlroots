@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
 #include "util/signal.h"
@@ -20,13 +20,13 @@ static const struct wl_buffer_interface buffer_impl = {
 	.destroy = buffer_handle_destroy,
 };
 
-bool wlr_dmabuf_resource_is_buffer(struct wl_resource *buffer_resource) {
+bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *buffer_resource) {
 	if (!wl_resource_instance_of(buffer_resource, &wl_buffer_interface,
 			&buffer_impl)) {
 		return false;
 	}
 
-	struct wlr_dmabuf_buffer *buffer =
+	struct wlr_dmabuf_v1_buffer *buffer =
 		wl_resource_get_user_data(buffer_resource);
 	if (buffer && buffer->buffer_resource && !buffer->params_resource &&
 			buffer->buffer_resource == buffer_resource) {
@@ -36,12 +36,12 @@ bool wlr_dmabuf_resource_is_buffer(struct wl_resource *buffer_resource) {
 	return false;
 }
 
-struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_buffer_resource(
+struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
 		struct wl_resource *buffer_resource) {
 	assert(wl_resource_instance_of(buffer_resource, &wl_buffer_interface,
 		&buffer_impl));
 
-	struct wlr_dmabuf_buffer *buffer =
+	struct wlr_dmabuf_v1_buffer *buffer =
 		wl_resource_get_user_data(buffer_resource);
 	assert(buffer);
 	assert(buffer->buffer_resource);
@@ -51,7 +51,7 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_buffer_resource(
 	return buffer;
 }
 
-static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_buffer *buffer) {
+static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_v1_buffer *buffer) {
 	wlr_dmabuf_attributes_finish(&buffer->attributes);
 	free(buffer);
 }
@@ -65,8 +65,8 @@ static void params_add(struct wl_client *client,
 		struct wl_resource *params_resource, int32_t fd,
 		uint32_t plane_idx, uint32_t offset, uint32_t stride,
 		uint32_t modifier_hi, uint32_t modifier_lo) {
-	struct wlr_dmabuf_buffer *buffer =
-		wlr_dmabuf_buffer_from_params_resource(params_resource);
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
 
 	if (!buffer) {
 		wl_resource_post_error(params_resource,
@@ -113,12 +113,12 @@ static void params_add(struct wl_client *client,
 }
 
 static void buffer_handle_resource_destroy(struct wl_resource *buffer_resource) {
-	struct wlr_dmabuf_buffer *buffer =
-		wlr_dmabuf_buffer_from_buffer_resource(buffer_resource);
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
 	linux_dmabuf_buffer_destroy(buffer);
 }
 
-static bool check_import_dmabuf(struct wlr_dmabuf_buffer *buffer) {
+static bool check_import_dmabuf(struct wlr_dmabuf_v1_buffer *buffer) {
 	struct wlr_texture *texture =
 		wlr_texture_from_dmabuf(buffer->renderer, &buffer->attributes);
 	if (texture == NULL) {
@@ -140,8 +140,8 @@ static void params_create_common(struct wl_client *client,
 			"params was already used to create a wl_buffer");
 		return;
 	}
-	struct wlr_dmabuf_buffer *buffer =
-		wlr_dmabuf_buffer_from_params_resource(params_resource);
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
 
 	/* Switch the linux_dmabuf_buffer object from params resource to
 	 * eventually wl_buffer resource. */
@@ -302,13 +302,13 @@ static const struct zwp_linux_buffer_params_v1_interface
 	.create_immed = params_create_immed,
 };
 
-struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
+struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_params_resource(
 		struct wl_resource *params_resource) {
 	assert(wl_resource_instance_of(params_resource,
 		&zwp_linux_buffer_params_v1_interface,
 		&linux_buffer_params_impl));
 
-	struct wlr_dmabuf_buffer *buffer =
+	struct wlr_dmabuf_v1_buffer *buffer =
 		wl_resource_get_user_data(params_resource);
 	assert(buffer);
 	assert(buffer->params_resource);
@@ -319,24 +319,24 @@ struct wlr_dmabuf_buffer *wlr_dmabuf_buffer_from_params_resource(
 }
 
 static void handle_params_destroy(struct wl_resource *params_resource) {
-	/* Check for NULL since wlr_dmabuf_buffer_from_params_resource will choke */
+	/* Check for NULL since wlr_dmabuf_v1_buffer_from_params_resource will choke */
 	if (!wl_resource_get_user_data(params_resource)) {
 		return;
 	}
 
-	struct wlr_dmabuf_buffer *buffer =
-		wlr_dmabuf_buffer_from_params_resource(params_resource);
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
 	linux_dmabuf_buffer_destroy(buffer);
 }
 
 static void linux_dmabuf_create_params(struct wl_client *client,
 		struct wl_resource *linux_dmabuf_resource,
 		uint32_t params_id) {
-	struct wlr_linux_dmabuf *linux_dmabuf =
-		wlr_linux_dmabuf_from_resource(linux_dmabuf_resource);
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
+		wlr_linux_dmabuf_v1_from_resource(linux_dmabuf_resource);
 
 	uint32_t version = wl_resource_get_version(linux_dmabuf_resource);
-	struct wlr_dmabuf_buffer *buffer = calloc(1, sizeof *buffer);
+	struct wlr_dmabuf_v1_buffer *buffer = calloc(1, sizeof *buffer);
 	if (!buffer) {
 		goto err;
 	}
@@ -372,17 +372,17 @@ static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl = {
 	.create_params = linux_dmabuf_create_params,
 };
 
-struct wlr_linux_dmabuf *wlr_linux_dmabuf_from_resource(
+struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwp_linux_dmabuf_v1_interface,
 			&linux_dmabuf_impl));
 
-	struct wlr_linux_dmabuf *dmabuf = wl_resource_get_user_data(resource);
+	struct wlr_linux_dmabuf_v1 *dmabuf = wl_resource_get_user_data(resource);
 	assert(dmabuf);
 	return dmabuf;
 }
 
-static void linux_dmabuf_send_modifiers(struct wlr_linux_dmabuf *linux_dmabuf,
+static void linux_dmabuf_send_modifiers(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 		struct wl_resource *resource) {
 	struct wlr_renderer *renderer = linux_dmabuf->renderer;
 	/*
@@ -428,7 +428,7 @@ static void linux_dmabuf_resource_destroy(struct wl_resource *resource) {
 
 static void linux_dmabuf_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_linux_dmabuf *linux_dmabuf = data;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf = data;
 
 	struct wl_resource *resource = wl_resource_create(client,
 		&zwp_linux_dmabuf_v1_interface, version, id);
@@ -445,7 +445,7 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	}
 }
 
-void wlr_linux_dmabuf_destroy(struct wlr_linux_dmabuf *linux_dmabuf) {
+void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 	if (!linux_dmabuf) {
 		return;
 	}
@@ -465,21 +465,21 @@ void wlr_linux_dmabuf_destroy(struct wlr_linux_dmabuf *linux_dmabuf) {
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_linux_dmabuf *linux_dmabuf =
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		wl_container_of(listener, linux_dmabuf, display_destroy);
-	wlr_linux_dmabuf_destroy(linux_dmabuf);
+	wlr_linux_dmabuf_v1_destroy(linux_dmabuf);
 }
 
 static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_linux_dmabuf *linux_dmabuf =
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		wl_container_of(listener, linux_dmabuf, renderer_destroy);
-	wlr_linux_dmabuf_destroy(linux_dmabuf);
+	wlr_linux_dmabuf_v1_destroy(linux_dmabuf);
 }
 
-struct wlr_linux_dmabuf *wlr_linux_dmabuf_create(struct wl_display *display,
+struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
-	struct wlr_linux_dmabuf *linux_dmabuf =
-		calloc(1, sizeof(struct wlr_linux_dmabuf));
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
+		calloc(1, sizeof(struct wlr_linux_dmabuf_v1));
 	if (linux_dmabuf == NULL) {
 		wlr_log(WLR_ERROR, "could not create simple dmabuf manager");
 		return NULL;

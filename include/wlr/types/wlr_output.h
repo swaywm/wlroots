@@ -6,7 +6,7 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/render/dmabuf.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
