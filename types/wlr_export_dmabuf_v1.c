@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/types/wlr_output.h>
 #include "wlr-export-dmabuf-unstable-v1-protocol.h"
 #include <wlr/util/log.h>

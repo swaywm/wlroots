@@ -8,7 +8,7 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
@@ -52,7 +52,7 @@ struct roots_desktop {
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
 	struct wlr_input_inhibit_manager *input_inhibit;
-	struct wlr_linux_dmabuf *linux_dmabuf;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf;
 	struct wlr_layer_shell *layer_shell;
 	struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard;
 	struct wlr_screencopy_manager_v1 *screencopy;

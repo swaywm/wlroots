@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
-#include <wlr/types/wlr_buffer.h>
-#include <wlr/types/wlr_linux_dmabuf.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 
 bool wlr_resource_is_buffer(struct wl_resource *resource) {
@@ -21,9 +21,9 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
 			resource)) {
 		wlr_renderer_wl_drm_buffer_get_size(renderer, resource,
 			width, height);
-	} else if (wlr_dmabuf_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_buffer *dmabuf =
-			wlr_dmabuf_buffer_from_buffer_resource(resource);
+	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
+		struct wlr_dmabuf_v1_buffer *dmabuf =
+			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
 		*width = dmabuf->attributes.width;
 		*height = dmabuf->attributes.height;
 	} else {
@@ -77,9 +77,9 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		released = true;
 	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
 		texture = wlr_texture_from_wl_drm(renderer, resource);
-	} else if (wlr_dmabuf_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_buffer *dmabuf =
-			wlr_dmabuf_buffer_from_buffer_resource(resource);
+	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
+		struct wlr_dmabuf_v1_buffer *dmabuf =
+			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
 		texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
 
 		// We have imported the DMA-BUF, but we need to prevent the client from
