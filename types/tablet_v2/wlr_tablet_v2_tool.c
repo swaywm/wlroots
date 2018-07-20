@@ -12,6 +12,8 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
+static const struct wlr_tablet_tool_v2_grab_interface default_tool_interface;
+
 static const struct wlr_surface_role tablet_tool_cursor_surface_role = {
 	.name = "wp_tablet_tool-cursor",
 };
@@ -206,6 +208,9 @@ struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 
 	tool->wlr_tool = wlr_tool;
 	wl_list_init(&tool->clients);
+	tool->default_grab.tool = tool;
+	tool->default_grab.interface = &default_tool_interface;
+	tool->grab = &tool->default_grab;
 
 
 	tool->tool_destroy.notify = handle_wlr_tablet_tool_destroy;
@@ -512,3 +517,179 @@ void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool) {
 	}
 }
 
+
+void wlr_tablet_v2_tablet_tool_notify_proximity_in(
+	struct wlr_tablet_v2_tablet_tool *tool,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface) {
+	if (tool->grab->interface->proximity_in) {
+		tool->grab->interface->proximity_in(tool->grab, tablet, surface);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_down(struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->grab->interface->down) {
+		tool->grab->interface->down(tool->grab);
+	}
+}
+void wlr_tablet_v2_tablet_tool_notify_up(struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->grab->interface->up) {
+		tool->grab->interface->up(tool->grab);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_motion(
+	struct wlr_tablet_v2_tablet_tool *tool, double x, double y) {
+	if (tool->grab->interface->motion) {
+		tool->grab->interface->motion(tool->grab, x, y);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_pressure(
+	struct wlr_tablet_v2_tablet_tool *tool, double pressure) {
+	if (tool->grab->interface->pressure) {
+		tool->grab->interface->pressure(tool->grab, pressure);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_distance(
+	struct wlr_tablet_v2_tablet_tool *tool, double distance) {
+	if (tool->grab->interface->distance) {
+		tool->grab->interface->distance(tool->grab, distance);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_tilt(
+	struct wlr_tablet_v2_tablet_tool *tool, double x, double y) {
+	if (tool->grab->interface->tilt) {
+		tool->grab->interface->tilt(tool->grab, x, y);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_rotation(
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees) {
+	if (tool->grab->interface->rotation) {
+		tool->grab->interface->rotation(tool->grab, degrees);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_slider(
+	struct wlr_tablet_v2_tablet_tool *tool, double position) {
+	if (tool->grab->interface->slider) {
+		tool->grab->interface->slider(tool->grab, position);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_wheel(
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees, int32_t clicks) {
+	if (tool->grab->interface->wheel) {
+		tool->grab->interface->wheel(tool->grab, degrees, clicks);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_proximity_out(
+	struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->grab->interface->proximity_out) {
+		tool->grab->interface->proximity_out(tool->grab);
+	}
+}
+
+void wlr_tablet_v2_tablet_tool_notify_button(
+	struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
+	enum zwp_tablet_pad_v2_button_state state) {
+	if (tool->grab->interface->button) {
+		tool->grab->interface->button(tool->grab, button, state);
+	}
+}
+
+void wlr_tablet_tool_v2_start_grab(struct wlr_tablet_v2_tablet_tool *tool, struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_tablet_tool_v2_end_grab(tool);
+	tool->grab = grab;
+}
+
+void wlr_tablet_tool_v2_end_grab(struct wlr_tablet_v2_tablet_tool *tool) {
+	if (tool->grab->interface->cancel) {
+		tool->grab->interface->cancel(tool->grab);
+	}
+	tool->grab = &tool->default_grab;
+}
+
+
+static void default_tool_proximity_in(
+	struct wlr_tablet_tool_v2_grab *grab,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface) {
+	wlr_send_tablet_v2_tablet_tool_proximity_in(grab->tool, tablet, surface);
+}
+
+static void default_tool_down(struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_send_tablet_v2_tablet_tool_down(grab->tool);
+}
+static void default_tool_up(struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_send_tablet_v2_tablet_tool_up(grab->tool);
+}
+
+static void default_tool_motion(
+	struct wlr_tablet_tool_v2_grab *grab, double x, double y) {
+	wlr_send_tablet_v2_tablet_tool_motion(grab->tool, x, y);
+}
+
+static void default_tool_pressure(
+	struct wlr_tablet_tool_v2_grab *grab, double pressure) {
+	wlr_send_tablet_v2_tablet_tool_pressure(grab->tool, pressure);
+}
+
+static void default_tool_distance(
+	struct wlr_tablet_tool_v2_grab *grab, double distance) {
+	wlr_send_tablet_v2_tablet_tool_distance(grab->tool, distance);
+}
+
+static void default_tool_tilt(
+	struct wlr_tablet_tool_v2_grab *grab, double x, double y) {
+	wlr_send_tablet_v2_tablet_tool_tilt(grab->tool, x, y);
+}
+
+static void default_tool_rotation(
+	struct wlr_tablet_tool_v2_grab *grab, double degrees) {
+	wlr_send_tablet_v2_tablet_tool_rotation(grab->tool, degrees);
+}
+
+static void default_tool_slider(
+	struct wlr_tablet_tool_v2_grab *grab, double position) {
+	wlr_send_tablet_v2_tablet_tool_slider(grab->tool, position);
+}
+
+static void default_tool_wheel(
+	struct wlr_tablet_tool_v2_grab *grab, double degrees, int32_t clicks) {
+	wlr_send_tablet_v2_tablet_tool_wheel(grab->tool, degrees, clicks);
+}
+
+static void default_tool_proximity_out(struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_send_tablet_v2_tablet_tool_proximity_out(grab->tool);
+}
+
+static void default_tool_button(
+	struct wlr_tablet_tool_v2_grab *grab, uint32_t button,
+	enum zwp_tablet_pad_v2_button_state state) {
+	wlr_send_tablet_v2_tablet_tool_button(grab->tool, button, state);
+}
+
+static void default_tool_cancel(struct wlr_tablet_tool_v2_grab *grab) {
+	/* Do nothing. Default grab can't be canceled */
+}
+
+static const struct wlr_tablet_tool_v2_grab_interface default_tool_interface = {
+	.proximity_in = default_tool_proximity_in,
+	.down = default_tool_down,
+	.up = default_tool_up,
+	.motion = default_tool_motion,
+	.pressure = default_tool_pressure,
+	.distance = default_tool_distance,
+	.tilt = default_tool_tilt,
+	.rotation = default_tool_rotation,
+	.slider = default_tool_slider,
+	.wheel = default_tool_wheel,
+	.proximity_out = default_tool_proximity_out,
+	.button = default_tool_button,
+	.cancel = default_tool_cancel,
+};

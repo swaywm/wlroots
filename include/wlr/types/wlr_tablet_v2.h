@@ -18,6 +18,14 @@ struct wlr_tablet_pad_v2_grab {
 	void *data;
 };
 
+struct wlr_tablet_tool_v2_grab_interface;
+
+struct wlr_tablet_tool_v2_grab {
+	const struct wlr_tablet_tool_v2_grab_interface *interface;
+	struct wlr_tablet_v2_tablet_tool *tool;
+	void *data;
+};
+
 struct wlr_tablet_client_v2;
 struct wlr_tablet_tool_client_v2;
 struct wlr_tablet_pad_client_v2;
@@ -53,6 +61,9 @@ struct wlr_tablet_v2_tablet_tool {
 	struct wlr_tablet_tool_client_v2 *current_client;
 	struct wlr_surface *focused_surface;
 	struct wl_listener surface_destroy;
+
+	struct wlr_tablet_tool_v2_grab *grab;
+	struct wlr_tablet_tool_v2_grab default_grab;
 
 	uint32_t proximity_serial;
 	bool is_down;
@@ -155,6 +166,79 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 void wlr_send_tablet_v2_tablet_tool_button(
 	struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
 	enum zwp_tablet_pad_v2_button_state state);
+
+
+
+void wlr_tablet_v2_tablet_tool_notify_proximity_in(
+	struct wlr_tablet_v2_tablet_tool *tool,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface);
+
+void wlr_tablet_v2_tablet_tool_notify_down(struct wlr_tablet_v2_tablet_tool *tool);
+void wlr_tablet_v2_tablet_tool_notify_up(struct wlr_tablet_v2_tablet_tool *tool);
+
+void wlr_tablet_v2_tablet_tool_notify_motion(
+	struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
+
+void wlr_tablet_v2_tablet_tool_notify_pressure(
+	struct wlr_tablet_v2_tablet_tool *tool, double pressure);
+
+void wlr_tablet_v2_tablet_tool_notify_distance(
+	struct wlr_tablet_v2_tablet_tool *tool, double distance);
+
+void wlr_tablet_v2_tablet_tool_notify_tilt(
+	struct wlr_tablet_v2_tablet_tool *tool, double x, double y);
+
+void wlr_tablet_v2_tablet_tool_notify_rotation(
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees);
+
+void wlr_tablet_v2_tablet_tool_notify_slider(
+	struct wlr_tablet_v2_tablet_tool *tool, double position);
+
+void wlr_tablet_v2_tablet_tool_notify_wheel(
+	struct wlr_tablet_v2_tablet_tool *tool, double degrees, int32_t clicks);
+
+void wlr_tablet_v2_tablet_tool_notify_proximity_out(
+	struct wlr_tablet_v2_tablet_tool *tool);
+
+void wlr_tablet_v2_tablet_tool_notify_button(
+	struct wlr_tablet_v2_tablet_tool *tool, uint32_t button,
+	enum zwp_tablet_pad_v2_button_state state);
+
+
+struct wlr_tablet_tool_v2_grab_interface {
+	void (*proximity_in)(
+		struct wlr_tablet_tool_v2_grab *grab,
+		struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface);
+
+	void (*down)(struct wlr_tablet_tool_v2_grab *grab);
+	void (*up)(struct wlr_tablet_tool_v2_grab *grab);
+
+	void (*motion)(struct wlr_tablet_tool_v2_grab *grab, double x, double y);
+
+	void (*pressure)(struct wlr_tablet_tool_v2_grab *grab, double pressure);
+
+	void (*distance)(struct wlr_tablet_tool_v2_grab *grab, double distance);
+
+	void (*tilt)(struct wlr_tablet_tool_v2_grab *grab, double x, double y);
+
+	void (*rotation)(struct wlr_tablet_tool_v2_grab *grab, double degrees);
+
+	void (*slider)(struct wlr_tablet_tool_v2_grab *grab, double position);
+
+	void (*wheel)(struct wlr_tablet_tool_v2_grab *grab, double degrees, int32_t clicks);
+
+	void (*proximity_out)(struct wlr_tablet_tool_v2_grab *grab);
+
+	void (*button)(
+		struct wlr_tablet_tool_v2_grab *grab, uint32_t button,
+		enum zwp_tablet_pad_v2_button_state state);
+	void (*cancel)(struct wlr_tablet_tool_v2_grab *grab);
+};
+
+void wlr_tablet_tool_v2_start_grab(struct wlr_tablet_v2_tablet_tool *tool, struct wlr_tablet_tool_v2_grab *grab);
+void wlr_tablet_tool_v2_end_grab(struct wlr_tablet_v2_tablet_tool *tool);
 
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 	struct wlr_tablet_v2_tablet_pad *pad,

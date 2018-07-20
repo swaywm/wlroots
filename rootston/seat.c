@@ -129,21 +129,21 @@ static void handle_tablet_tool_position(struct roots_cursor *cursor,
 	struct roots_tablet_tool *roots_tool = tool->data;
 	
 	if (!surface) {
-		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		wlr_tablet_v2_tablet_tool_notify_proximity_out(roots_tool->tablet_v2_tool);
 		/* XXX: TODO: Fallback pointer semantics */
 		return;
 	}
 	
 	if (!wlr_surface_accepts_tablet_v2(tablet->tablet_v2, surface)) {
-		wlr_send_tablet_v2_tablet_tool_proximity_out(roots_tool->tablet_v2_tool);
+		wlr_tablet_v2_tablet_tool_notify_proximity_out(roots_tool->tablet_v2_tool);
 		/* XXX: TODO: Fallback pointer semantics */
 		return;
 	}
 
-	wlr_send_tablet_v2_tablet_tool_proximity_in(roots_tool->tablet_v2_tool,
+	wlr_tablet_v2_tablet_tool_notify_proximity_in(roots_tool->tablet_v2_tool,
 		tablet->tablet_v2, surface);
 
-	wlr_send_tablet_v2_tablet_tool_motion(roots_tool->tablet_v2_tool, sx, sy);
+	wlr_tablet_v2_tablet_tool_notify_motion(roots_tool->tablet_v2_tool, sx, sy);
 }
 
 static void handle_tool_axis(struct wl_listener *listener, void *data) {
@@ -169,32 +169,32 @@ static void handle_tool_axis(struct wl_listener *listener, void *data) {
 		event->x, event->y, event->dx, event->dy);
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_PRESSURE) {
-		wlr_send_tablet_v2_tablet_tool_pressure(
+		wlr_tablet_v2_tablet_tool_notify_pressure(
 			roots_tool->tablet_v2_tool, event->pressure);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_DISTANCE) {
-		wlr_send_tablet_v2_tablet_tool_distance(
+		wlr_tablet_v2_tablet_tool_notify_distance(
 			roots_tool->tablet_v2_tool, event->distance);
 	}
 
 	if (event->updated_axes & (WLR_TABLET_TOOL_AXIS_TILT_X | WLR_TABLET_TOOL_AXIS_TILT_Y)) {
-		wlr_send_tablet_v2_tablet_tool_tilt(
+		wlr_tablet_v2_tablet_tool_notify_tilt(
 			roots_tool->tablet_v2_tool, event->tilt_x, event->tilt_y);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_ROTATION) {
-		wlr_send_tablet_v2_tablet_tool_rotation(
+		wlr_tablet_v2_tablet_tool_notify_rotation(
 			roots_tool->tablet_v2_tool, event->rotation);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_SLIDER) {
-		wlr_send_tablet_v2_tablet_tool_slider(
+		wlr_tablet_v2_tablet_tool_notify_slider(
 			roots_tool->tablet_v2_tool, event->slider);
 	}
 
 	if (event->updated_axes & WLR_TABLET_TOOL_AXIS_WHEEL) {
-		wlr_send_tablet_v2_tablet_tool_wheel(
+		wlr_tablet_v2_tablet_tool_notify_wheel(
 			roots_tool->tablet_v2_tool, event->wheel_delta, 0);
 	}
 }
@@ -208,9 +208,9 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 	struct roots_tablet_tool *roots_tool = event->tool->data;
 
 	if (event->state == WLR_TABLET_TOOL_TIP_DOWN) {
-		wlr_send_tablet_v2_tablet_tool_down(roots_tool->tablet_v2_tool);
+		wlr_tablet_v2_tablet_tool_notify_down(roots_tool->tablet_v2_tool);
 	} else {
-		wlr_send_tablet_v2_tablet_tool_up(roots_tool->tablet_v2_tool);
+		wlr_tablet_v2_tablet_tool_notify_up(roots_tool->tablet_v2_tool);
 	}
 }
 
@@ -235,7 +235,7 @@ static void handle_tool_button(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_button *event = data;
 	struct roots_tablet_tool *roots_tool = event->tool->data;
 
-	wlr_send_tablet_v2_tablet_tool_button(roots_tool->tablet_v2_tool,
+	wlr_tablet_v2_tablet_tool_notify_button(roots_tool->tablet_v2_tool,
 		(enum zwp_tablet_pad_v2_button_state)event->button,
 		(enum zwp_tablet_pad_v2_button_state)event->state);
 }
