@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <wlr/config.h>
 #include "util/os-compatibility.h"
 
 int os_fd_set_cloexec(int fd) {
