@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #ifdef __linux__

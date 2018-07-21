@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
+#include <wlr/config.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
