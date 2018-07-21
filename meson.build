@@ -130,6 +130,10 @@ else
 	exclude_headers += 'xwayland.h'
 endif
 
+if cc.has_header_symbol('fcntl.h', 'posix_fallocate', prefix: '#define _POSIX_C_SOURCE 200112L')
+	conf_data.set('WLR_HAS_POSIX_FALLOCATE', true)
+endif
+
 includedir = get_option('includedir')
 exclude_headers += 'meson.build'
 install_subdir('include/wlr', install_dir: includedir, exclude_files: exclude_headers)
