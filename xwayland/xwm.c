@@ -4,7 +4,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wlr/config.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>

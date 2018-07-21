@@ -13,10 +13,7 @@
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/config.h>
 #include <wlr/util/log.h>
-
-/* WLR_HAS_X11_BACKEND needs to be after wlr/config.h */
 #ifdef WLR_HAS_X11_BACKEND
 #include <wlr/backend/x11.h>
 #endif
