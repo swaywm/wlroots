@@ -8,7 +8,6 @@
 #include <string.h>
 #include <wayland-server.h>
 #include <types/wlr_tablet_v2.h>
-#include <wlr/config.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_v2.h>

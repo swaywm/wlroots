@@ -25,6 +25,10 @@ add_project_arguments(
 	'-I@0@'.format(meson.build_root()),
 	language: 'c',
 )
+add_project_arguments(
+	'-include@0@'.format(join_paths(meson.build_root(), 'include', 'wlr', 'config.h')),
+	language: 'c',
+)
 add_project_link_arguments(
 	'-Wl,-rpath,@0@'.format(meson.build_root()),
 	language: 'c',
