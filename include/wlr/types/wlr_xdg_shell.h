@@ -1,9 +1,9 @@
 #ifndef WLR_TYPES_WLR_XDG_SHELL_H
 #define WLR_TYPES_WLR_XDG_SHELL_H
+#include <wayland-server.h>
+#include <wlr/protocol/xdg-shell-protocol.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_seat.h>
-#include <wayland-server.h>
-#include "xdg-shell-protocol.h"
 
 struct wlr_xdg_shell {
 	struct wl_global *global;
