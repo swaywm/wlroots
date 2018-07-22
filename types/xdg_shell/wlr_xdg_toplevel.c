@@ -234,6 +234,7 @@ static void xdg_toplevel_handle_set_title(struct wl_client *client,
 
 	free(surface->toplevel->title);
 	surface->toplevel->title = tmp;
+	wlr_signal_emit_safe(&surface->toplevel->events.set_title, surface);
 }
 
 static void xdg_toplevel_handle_set_app_id(struct wl_client *client,
@@ -249,6 +250,7 @@ static void xdg_toplevel_handle_set_app_id(struct wl_client *client,
 
 	free(surface->toplevel->app_id);
 	surface->toplevel->app_id = tmp;
+	wlr_signal_emit_safe(&surface->toplevel->events.set_app_id, surface);
 }
 
 static void xdg_toplevel_handle_show_window_menu(struct wl_client *client,
@@ -471,6 +473,8 @@ void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 	wl_signal_init(&xdg_surface->toplevel->events.request_resize);
 	wl_signal_init(&xdg_surface->toplevel->events.request_show_window_menu);
 	wl_signal_init(&xdg_surface->toplevel->events.set_parent);
+	wl_signal_init(&xdg_surface->toplevel->events.set_title);
+	wl_signal_init(&xdg_surface->toplevel->events.set_app_id);
 
 	xdg_surface->role = WLR_XDG_SURFACE_ROLE_TOPLEVEL;
 	xdg_surface->toplevel->base = xdg_surface;
