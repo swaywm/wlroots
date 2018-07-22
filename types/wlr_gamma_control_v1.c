@@ -1,13 +1,14 @@
 #include <assert.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
-#include "wlr-gamma-control-unstable-v1-protocol.h"
 #include "util/signal.h"
+#include "wlr-gamma-control-unstable-v1-protocol.h"
 
 #define GAMMA_CONTROL_MANAGER_V1_VERSION 1
 
@@ -25,6 +26,12 @@ static void gamma_control_destroy(struct wlr_gamma_control_v1 *gamma_control) {
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
 	wl_list_remove(&gamma_control->link);
 	free(gamma_control);
+}
+
+static void gamma_control_send_failed(
+		struct wlr_gamma_control_v1 *gamma_control) {
+	zwlr_gamma_control_v1_send_failed(gamma_control->resource);
+	gamma_control_destroy(gamma_control);
 }
 
 static const struct zwlr_gamma_control_v1_interface gamma_control_impl;
@@ -54,8 +61,7 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	struct wlr_gamma_control_v1 *gamma_control =
 		gamma_control_from_resource(gamma_control_resource);
 	if (gamma_control == NULL) {
-		close(fd);
-		return;
+		goto error_fd;
 	}
 
 	uint32_t ramp_size = wlr_output_get_gamma_size(gamma_control->output);
@@ -64,29 +70,34 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	off_t fd_size = lseek(fd, 0, SEEK_END);
 	// Skip checks if kernel does no support seek on buffer
 	if (fd_size != -1 && (size_t)fd_size != table_size) {
-		close(fd);
 		wl_resource_post_error(gamma_control_resource,
 			ZWLR_GAMMA_CONTROL_V1_ERROR_INVALID_GAMMA,
 			"The gamma ramps don't have the correct size");
-		return;
+		goto error_fd;
 	}
 	lseek(fd, 0, SEEK_SET);
+
+	int fd_flags = fcntl(fd, F_GETFL, 0);
+	if (fd_flags == -1) {
+		gamma_control_send_failed(gamma_control);
+		goto error_fd;
+	}
+	if (fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK) == -1) {
+		gamma_control_send_failed(gamma_control);
+		goto error_fd;
+	}
 
 	// Use the heap since gamma tables can be large
 	uint16_t *table = malloc(table_size);
 	if (table == NULL) {
-		close(fd);
 		wl_resource_post_no_memory(gamma_control_resource);
-		return;
+		goto error_fd;
 	}
 
 	ssize_t n_read = read(fd, table, table_size);
-	close(fd);
 	if (n_read == -1 || (size_t)n_read != table_size) {
-		free(table);
-		zwlr_gamma_control_v1_send_failed(gamma_control->resource);
-		gamma_control_destroy(gamma_control);
-		return;
+		gamma_control_send_failed(gamma_control);
+		goto error_table;
 	}
 
 	uint16_t *r = table;
@@ -94,12 +105,18 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	uint16_t *b = table + 2 * ramp_size;
 
 	bool ok = wlr_output_set_gamma(gamma_control->output, ramp_size, r, g, b);
-	free(table);
 	if (!ok) {
-		zwlr_gamma_control_v1_send_failed(gamma_control->resource);
-		gamma_control_destroy(gamma_control);
-		return;
+		gamma_control_send_failed(gamma_control);
+		goto error_table;
 	}
+
+	free(table);
+	return;
+
+error_table:
+	free(table);
+error_fd:
+	close(fd);
 }
 
 static const struct zwlr_gamma_control_v1_interface gamma_control_impl = {
