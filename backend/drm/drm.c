@@ -231,7 +231,7 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 static void fill_empty_gamma_table(uint32_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
 	for (uint32_t i = 0; i < size; ++i) {
-		uint16_t val = (uint32_t)0xffff * (uint32_t)i / (uint32_t)(size - 1);
+		uint16_t val = (uint32_t)0xffff * i / (size - 1);
 		r[i] = g[i] = b[i] = val;
 	}
 }
