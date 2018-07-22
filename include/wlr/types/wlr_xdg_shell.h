@@ -119,6 +119,8 @@ struct wlr_xdg_toplevel {
 		struct wl_signal request_resize;
 		struct wl_signal request_show_window_menu;
 		struct wl_signal set_parent;
+		struct wl_signal set_title;
+		struct wl_signal set_app_id;
 	} events;
 };
 
