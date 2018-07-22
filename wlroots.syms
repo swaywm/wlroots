@@ -1,4 +1,4 @@
-WLROOTS_0_0_0 {
+{
 	global:
 		wlr_*;
 		_wlr_log;
