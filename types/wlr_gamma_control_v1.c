@@ -20,7 +20,7 @@ static void gamma_control_destroy(struct wlr_gamma_control_v1 *gamma_control) {
 	if (gamma_control == NULL) {
 		return;
 	}
-	// TODO: reset gamma table
+	wlr_output_set_gamma(gamma_control->output, 0, NULL, NULL, NULL);
 	wl_resource_set_user_data(gamma_control->resource, NULL);
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
 	wl_list_remove(&gamma_control->link);
