@@ -174,7 +174,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
  * it is a no-op.
  */
 void wlr_output_schedule_frame(struct wlr_output *output);
-void wlr_output_set_gamma(struct wlr_output *output,
+bool wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
 uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
 bool wlr_output_export_dmabuf(struct wlr_output *output,

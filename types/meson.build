@@ -25,6 +25,7 @@ lib_wlr_types = static_library(
 		'wlr_cursor.c',
 		'wlr_export_dmabuf_v1.c',
 		'wlr_gamma_control.c',
+		'wlr_gamma_control_v1.c',
 		'wlr_idle_inhibit_v1.c',
 		'wlr_idle.c',
 		'wlr_input_device.c',

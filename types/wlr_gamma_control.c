@@ -25,7 +25,7 @@ static void gamma_control_destroy(struct wlr_gamma_control *gamma_control) {
 
 static const struct gamma_control_interface gamma_control_impl;
 
-struct wlr_gamma_control *gamma_control_from_resource(
+static struct wlr_gamma_control *gamma_control_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &gamma_control_interface,
 		&gamma_control_impl));
@@ -83,7 +83,7 @@ static const struct gamma_control_interface gamma_control_impl = {
 
 static const struct gamma_control_manager_interface gamma_control_manager_impl;
 
-struct wlr_gamma_control_manager *gamma_control_manager_from_resource(
+static struct wlr_gamma_control_manager *gamma_control_manager_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &gamma_control_manager_interface,
 		&gamma_control_manager_impl));

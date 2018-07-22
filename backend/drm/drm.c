@@ -228,19 +228,19 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 	return true;
 }
 
-static void drm_connector_set_gamma(struct wlr_output *output,
+static bool drm_connector_set_gamma(struct wlr_output *output,
 		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	bool ok;
 
+	bool ok = false;
 	if (conn->crtc) {
 		ok = drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
 		if (ok) {
 			wlr_output_update_needs_swap(output);
 		}
 	}
-
+	return ok;
 }
 
 static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
