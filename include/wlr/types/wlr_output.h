@@ -182,6 +182,8 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
  * Sets the gamma table for this output. `r`, `g` and `b` are gamma ramps for
  * red, green and blue. `size` is the length of the ramps and must not exceed
  * the value returned by `wlr_output_get_gamma_size`.
+ *
+ * Providing zero-sized ramps resets the gamma table.
  */
 bool wlr_output_set_gamma(struct wlr_output *output,
 	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
