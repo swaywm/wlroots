@@ -148,7 +148,7 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 	gamma_control->output_destroy_listener.notify =
 		gamma_control_handle_output_destroy;
 
-	wl_list_insert(&manager->controls, &gamma_control->link);
+	wl_list_init(&gamma_control->link);
 
 	if (!output->impl->set_gamma) {
 		zwlr_gamma_control_v1_send_failed(gamma_control->resource);
@@ -165,6 +165,8 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 		}
 	}
 
+	wl_list_remove(&gamma_control->link);
+	wl_list_insert(&manager->controls, &gamma_control->link);
 	zwlr_gamma_control_v1_send_gamma_size(gamma_control->resource,
 		wlr_output_get_gamma_size(output));
 }
