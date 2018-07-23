@@ -56,6 +56,7 @@ client_protocols = [
 	'idle.xml',
 	'screenshooter.xml',
 	'wlr-export-dmabuf-unstable-v1.xml',
+	'wlr-gamma-control-unstable-v1.xml',
 	'wlr-input-inhibitor-unstable-v1.xml',
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-screencopy-unstable-v1.xml',

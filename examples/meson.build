@@ -50,6 +50,12 @@ executable(
 	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
 )
 
+executable(
+	'gamma-control',
+	'gamma-control.c',
+	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
+)
+
 if libavutil.found() and libavcodec.found() and libavformat.found()
 	executable(
 		'dmabuf-capture',
