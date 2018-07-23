@@ -693,3 +693,139 @@ static const struct wlr_tablet_tool_v2_grab_interface default_tool_interface = {
 	.button = default_tool_button,
 	.cancel = default_tool_cancel,
 };
+
+struct implicit_grab_state {
+	struct wlr_surface *original;
+	bool released;
+
+	struct wlr_surface *focused;
+	struct wlr_tablet_v2_tablet *tablet;
+};
+
+static void check_and_release_implicit_grab(struct wlr_tablet_tool_v2_grab *grab) {
+	struct implicit_grab_state *state = grab->data;
+	/* Still button or tip pressed. We should hold the grab */
+	if (grab->tool->is_down || grab->tool->num_buttons > 0 || state->released) {
+		return;
+	}
+
+	state->released = true;
+
+	/* We should still focus the same surface. Do nothing */
+	if (state->original == state->focused) {
+		wlr_tablet_tool_v2_end_grab(grab->tool);
+		return;
+	}
+
+	wlr_send_tablet_v2_tablet_tool_proximity_out(grab->tool);
+	if (state->focused) {
+		wlr_send_tablet_v2_tablet_tool_proximity_in(grab->tool,
+			state->tablet, state->focused);
+	}
+
+	wlr_tablet_tool_v2_end_grab(grab->tool);
+}
+
+static void implicit_tool_proximity_in(
+	struct wlr_tablet_tool_v2_grab *grab,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface) {
+
+	/* As long as we got an implicit grab, proximity won't change
+	 * But should track the currently focused surface to change to it when
+	 * the grab is released.
+	 */
+	struct implicit_grab_state *state = grab->data;
+	state->focused = surface;
+	state->tablet = tablet;
+}
+
+static void implicit_tool_proximity_out(struct wlr_tablet_tool_v2_grab *grab) {
+	struct implicit_grab_state *state = grab->data;
+	state->focused = NULL;
+}
+
+static void implicit_tool_down(struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_send_tablet_v2_tablet_tool_down(grab->tool);
+}
+
+static void implicit_tool_up(struct wlr_tablet_tool_v2_grab *grab) {
+	wlr_send_tablet_v2_tablet_tool_up(grab->tool);
+	check_and_release_implicit_grab(grab);
+}
+
+/* Only send the motion event, when we are over the surface for now */
+static void implicit_tool_motion(
+	struct wlr_tablet_tool_v2_grab *grab, double x, double y) {
+	struct implicit_grab_state *state = grab->data;
+	if (state->focused != state->original) {
+		return;
+	}
+
+	wlr_send_tablet_v2_tablet_tool_motion(grab->tool, x, y);
+}
+
+
+static void implicit_tool_button(
+	struct wlr_tablet_tool_v2_grab *grab, uint32_t button,
+	enum zwp_tablet_pad_v2_button_state state) {
+	wlr_send_tablet_v2_tablet_tool_button(grab->tool, button, state);
+	check_and_release_implicit_grab(grab);
+}
+
+static void implicit_tool_cancel(struct wlr_tablet_tool_v2_grab *grab) {
+	check_and_release_implicit_grab(grab);
+	free(grab->data);
+	free(grab);
+}
+
+const struct wlr_tablet_tool_v2_grab_interface implicit_tool_interface = {
+	.proximity_in = implicit_tool_proximity_in,
+	.down = implicit_tool_down,
+	.up = implicit_tool_up,
+	.motion = implicit_tool_motion,
+	.pressure = default_tool_pressure,
+	.distance = default_tool_distance,
+	.tilt = default_tool_tilt,
+	.rotation = default_tool_rotation,
+	.slider = default_tool_slider,
+	.wheel = default_tool_wheel,
+	.proximity_out = implicit_tool_proximity_out,
+	.button = implicit_tool_button,
+	.cancel = implicit_tool_cancel,
+};
+
+static bool tool_has_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool) {
+	return tool->grab->interface == &implicit_tool_interface;
+}
+
+void wlr_tablet_tool_v2_start_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool) {
+	/* Durr */
+	if (tool_has_implicit_grab(tool) || !tool->focused_surface) {
+		return;
+	}
+
+	/* No current implicit grab */
+	if (!(tool->is_down || tool->num_buttons > 0)) {
+		return;
+	}
+
+	struct wlr_tablet_tool_v2_grab *grab =
+		calloc(1, sizeof(struct wlr_tablet_tool_v2_grab));
+	if (!grab) {
+		return;
+	}
+
+	grab->interface = &implicit_tool_interface;
+	grab->tool = tool;
+	struct implicit_grab_state *state = calloc(1, sizeof(struct implicit_grab_state));
+	if (!state) {
+		free(grab);
+		return;
+	}
+
+	state->original = tool->focused_surface;
+	grab->data = state;
+
+	wlr_tablet_tool_v2_start_grab(tool, grab);
+}

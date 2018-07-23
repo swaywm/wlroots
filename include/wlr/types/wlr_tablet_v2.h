@@ -240,6 +240,9 @@ struct wlr_tablet_tool_v2_grab_interface {
 void wlr_tablet_tool_v2_start_grab(struct wlr_tablet_v2_tablet_tool *tool, struct wlr_tablet_tool_v2_grab *grab);
 void wlr_tablet_tool_v2_end_grab(struct wlr_tablet_v2_tablet_tool *tool);
 
+void wlr_tablet_tool_v2_start_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool);
+
+
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 	struct wlr_tablet_v2_tablet_pad *pad,
 	struct wlr_tablet_v2_tablet *tablet,

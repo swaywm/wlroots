@@ -209,6 +209,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
 
 	if (event->state == WLR_TABLET_TOOL_TIP_DOWN) {
 		wlr_tablet_v2_tablet_tool_notify_down(roots_tool->tablet_v2_tool);
+		wlr_tablet_tool_v2_start_implicit_grab(roots_tool->tablet_v2_tool);
 	} else {
 		wlr_tablet_v2_tablet_tool_notify_up(roots_tool->tablet_v2_tool);
 	}
