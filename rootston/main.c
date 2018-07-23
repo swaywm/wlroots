@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
 #include <assert.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
@@ -15,6 +16,11 @@
 struct roots_server server = { 0 };
 
 int main(int argc, char **argv) {
+	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+		wlr_log_errno(WLR_ERROR, "Unable to install SIGCHLD handler");
+		return 1;
+	}
+
 	wlr_log_init(WLR_DEBUG, NULL);
 	server.config = roots_config_create_from_args(argc, argv);
 	server.wl_display = wl_display_create();
