@@ -389,11 +389,11 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 		if (tool->is_down) {
 			zwp_tablet_tool_v2_send_up(tool->current_client->resource);
 		}
-		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
 		if (tool->current_client->frame_source) {
 			wl_event_source_remove(tool->current_client->frame_source);
 			send_tool_frame(tool->current_client);
 		}
+		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
 
 		tool->current_client = NULL;
 		tool->focused_surface = NULL;

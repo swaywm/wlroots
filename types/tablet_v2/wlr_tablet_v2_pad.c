@@ -476,9 +476,9 @@ void wlr_send_tablet_v2_tablet_pad_button(
 
 void wlr_send_tablet_v2_tablet_pad_strip(struct wlr_tablet_v2_tablet_pad *pad,
 		uint32_t strip, double position, bool finger, uint32_t time) {
-	if (!pad->current_client &&
-			pad->current_client->strips &&
-			pad->current_client->strips[strip]) {
+	if (!pad->current_client ||
+			!pad->current_client->strips ||
+			!pad->current_client->strips[strip]) {
 		return;
 	}
 	struct wl_resource *resource = pad->current_client->strips[strip];
