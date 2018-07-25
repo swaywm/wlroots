@@ -115,7 +115,12 @@ static void fill_gamma_table(uint16_t *table, uint32_t ramp_size,
 	uint16_t *b = table + 2 * ramp_size;
 	for (uint32_t i = 0; i < ramp_size; ++i) {
 		double val = (double)i / (ramp_size - 1);
-		val = contrast * pow(val, 1.0 / gamma) + brightness;
+		val = contrast * pow(val, 1.0 / gamma) + (1 - brightness);
+		if (val > 1.0) {
+			val = 1.0;
+		} else if (val < 0.0) {
+			val = 0.0;
+		}
 		r[i] = g[i] = b[i] = (uint16_t)(UINT16_MAX * val);
 	}
 }
@@ -123,13 +128,13 @@ static void fill_gamma_table(uint16_t *table, uint32_t ramp_size,
 static const char usage[] = "usage: gamma-control [options]\n"
 	"  -h          show this help message\n"
 	"  -c <value>  set contrast (default: 1)\n"
-	"  -b <value>  set brightness (default: 0)\n"
+	"  -b <value>  set brightness (default: 1)\n"
 	"  -g <value>  set gamma (default: 1)\n";
 
 int main(int argc, char *argv[]) {
 	wl_list_init(&outputs);
 
-	double contrast = 1, brightness = 0, gamma = 1;
+	double contrast = 1, brightness = 1, gamma = 1;
 	int opt;
 	while ((opt = getopt(argc, argv, "hc:b:g:")) != -1) {
 		switch (opt) {
