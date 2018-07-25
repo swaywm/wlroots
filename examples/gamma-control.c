@@ -115,7 +115,7 @@ static void fill_gamma_table(uint16_t *table, uint32_t ramp_size,
 	uint16_t *b = table + 2 * ramp_size;
 	for (uint32_t i = 0; i < ramp_size; ++i) {
 		double val = (double)i / (ramp_size - 1);
-		val = contrast * pow(val, 1.0 / gamma) + (1 - brightness);
+		val = contrast * pow(val, 1.0 / gamma) + (brightness - 1);
 		if (val > 1.0) {
 			val = 1.0;
 		} else if (val < 0.0) {
