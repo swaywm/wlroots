@@ -360,9 +360,13 @@ static void surface_update_opaque_region(struct wlr_surface *surface) {
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	bool invalid_buffer = surface->pending.committed & WLR_SURFACE_STATE_BUFFER;
-
 	surface_state_finalize(surface, &surface->pending);
+
+	if (surface->role && surface->role->precommit) {
+		surface->role->precommit(surface);
+	}
+
+	bool invalid_buffer = surface->pending.committed & WLR_SURFACE_STATE_BUFFER;
 
 	surface->sx += surface->pending.dx;
 	surface->sy += surface->pending.dy;

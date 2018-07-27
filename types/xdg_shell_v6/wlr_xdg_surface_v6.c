@@ -371,7 +371,7 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
-void handle_xdg_surface_v6_committed(struct wlr_surface *wlr_surface) {
+void handle_xdg_surface_v6_commit(struct wlr_surface *wlr_surface) {
 	struct wlr_xdg_surface_v6 *surface =
 		wlr_xdg_surface_v6_from_wlr_surface(wlr_surface);
 	if (surface == NULL) {
@@ -407,9 +407,21 @@ void handle_xdg_surface_v6_committed(struct wlr_surface *wlr_surface) {
 		surface->mapped = true;
 		wlr_signal_emit_safe(&surface->events.map, surface);
 	}
-	if (surface->configured && !wlr_surface_has_buffer(surface->surface) &&
-			surface->mapped) {
-		unmap_xdg_surface_v6(surface);
+}
+
+void handle_xdg_surface_v6_precommit(struct wlr_surface *wlr_surface) {
+	struct wlr_xdg_surface_v6 *surface =
+		wlr_xdg_surface_v6_from_wlr_surface(wlr_surface);
+	if (surface == NULL) {
+		return;
+	}
+
+	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
+			wlr_surface->pending.buffer_resource == NULL) {
+		// This is a NULL commit
+		if (surface->configured && surface->mapped) {
+			unmap_xdg_surface_v6(surface);
+		}
 	}
 }
 
