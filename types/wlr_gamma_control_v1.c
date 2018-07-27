@@ -99,6 +99,8 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 		gamma_control_send_failed(gamma_control);
 		goto error_table;
 	}
+	close(fd);
+	fd = -1;
 
 	uint16_t *r = table;
 	uint16_t *g = table + ramp_size;
@@ -109,8 +111,8 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 		gamma_control_send_failed(gamma_control);
 		goto error_table;
 	}
-
 	free(table);
+
 	return;
 
 error_table:
