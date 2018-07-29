@@ -67,22 +67,15 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	uint32_t ramp_size = wlr_output_get_gamma_size(gamma_control->output);
 	size_t table_size = ramp_size * 3 * sizeof(uint16_t);
 
-	off_t fd_size = lseek(fd, 0, SEEK_END);
-	// Skip checks if kernel does no support seek on buffer
-	if (fd_size != -1 && (size_t)fd_size != table_size) {
-		wl_resource_post_error(gamma_control_resource,
-			ZWLR_GAMMA_CONTROL_V1_ERROR_INVALID_GAMMA,
-			"The gamma ramps don't have the correct size");
-		goto error_fd;
-	}
-	lseek(fd, 0, SEEK_SET);
-
+	// Refuse to block when reading
 	int fd_flags = fcntl(fd, F_GETFL, 0);
 	if (fd_flags == -1) {
+		wlr_log_errno(WLR_ERROR, "failed to get FD flags");
 		gamma_control_send_failed(gamma_control);
 		goto error_fd;
 	}
 	if (fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK) == -1) {
+		wlr_log_errno(WLR_ERROR, "failed to set FD flags");
 		gamma_control_send_failed(gamma_control);
 		goto error_fd;
 	}
@@ -95,8 +88,14 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	}
 
 	ssize_t n_read = read(fd, table, table_size);
-	if (n_read == -1 || (size_t)n_read != table_size) {
+	if (n_read < 0) {
+		wlr_log_errno(WLR_ERROR, "failed to read gamma table");
 		gamma_control_send_failed(gamma_control);
+		goto error_table;
+	} else if ((size_t)n_read != table_size) {
+		wl_resource_post_error(gamma_control_resource,
+			ZWLR_GAMMA_CONTROL_V1_ERROR_INVALID_GAMMA,
+			"The gamma ramps don't have the correct size");
 		goto error_table;
 	}
 	close(fd);
