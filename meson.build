@@ -29,6 +29,10 @@ add_project_link_arguments(
 	'-Wl,-rpath,@0@'.format(meson.build_root()),
 	language: 'c',
 )
+add_project_arguments(
+	'-DWLR_USE_UNSTABLE',
+	language: 'c',
+)
 
 conf_data = configuration_data()
 

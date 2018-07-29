@@ -1,3 +1,11 @@
+/*
+ * This an unstable interface of wlroots. No guarantees are made regarding the
+ * future consistency of this API.
+ */
+#ifndef WLR_USE_UNSTABLE
+#error "Add -DWLR_USE_UNSTABLE to enable unstable wlroots features"
+#endif
+
 #ifndef WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 #define WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 
@@ -19,7 +27,7 @@ struct wlr_idle_inhibit_manager_v1 {
 	struct wl_list resources; // wl_resource_get_link
 	struct wl_list inhibitors; // wlr_idle_inhibit_inhibitor_v1::link
 	struct wl_global *global;
-	
+
 	struct wl_listener display_destroy;
 
 	struct {
