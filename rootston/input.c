@@ -1,5 +1,7 @@
+#define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/config.h>
@@ -125,4 +127,17 @@ bool input_view_has_focus(struct roots_input *input, struct roots_view *view) {
 	}
 
 	return false;
+}
+
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+void input_update_cursor_focus(struct roots_input *input) {
+	struct roots_seat *seat;
+	struct timespec now;
+	wl_list_for_each(seat, &input->seats, link) {
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		roots_cursor_update_position(seat->cursor, timespec_to_msec(&now));
+	}
 }

@@ -32,4 +32,6 @@ struct roots_seat *input_get_seat(struct roots_input *input, char *name);
 
 struct roots_seat *input_last_active_seat(struct roots_input *input);
 
+void input_update_cursor_focus(struct roots_input *input);
+
 #endif

@@ -80,4 +80,7 @@ void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 		struct wlr_seat_pointer_request_set_cursor_event *event);
 
+void roots_cursor_update_position(struct roots_cursor *cursor,
+		uint32_t time);
+
 #endif

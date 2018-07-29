@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
+#include "rootston/cursor.h"
 #include "rootston/desktop.h"
 #include "rootston/input.h"
 #include "rootston/server.h"
@@ -33,6 +34,7 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data) {
 static void popup_handle_map(struct wl_listener *listener, void *data) {
 	struct roots_xdg_popup *popup = wl_container_of(listener, popup, map);
 	view_damage_whole(popup->view_child.view);
+	input_update_cursor_focus(popup->view_child.view->desktop->server->input);
 }
 
 static void popup_handle_unmap(struct wl_listener *listener, void *data) {
