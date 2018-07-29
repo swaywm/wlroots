@@ -209,4 +209,29 @@ struct wlr_xwayland_surface *wlr_xwayland_surface_from_wlr_surface(
 
 void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface);
 
+/** Metric to guess if an OR window should "receive" focus
+ *
+ * In the pure X setups, window managers usually straight up ignore override
+ * redirect windows, and never touch them. (we have to handle them for mapping)
+ *
+ * When such a window wants to receive keyboard input (e.g. rofi/dzen) it will
+ * use mechanics we don't support (sniffing/grabbing input).
+ * [Sadly this is unrelated to xwayland-keyboard-grab]
+ *
+ * To still support these windows, while keeping general OR semantics as is, we
+ * need to hand a subset of windows focus.
+ * The dirty truth is, we need to hand focus to any Xwayland window, though
+ * pretending this window has focus makes it easier to handle unmap.
+ *
+ * This function provides a handy metric based on the window type to guess if
+ * the OR window wants focus.
+ * It's probably not perfect, nor exactly intended but works in practice.
+ *
+ * Returns: true if the window should receive focus
+ *          false if it should be ignored
+ */
+bool wlr_xwayland_or_surface_wants_focus(
+	const struct wlr_xwayland_surface *surface);
+
+
 #endif
