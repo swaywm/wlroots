@@ -1703,3 +1703,27 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface) {
 		surface->xwm->ping_timeout);
 	surface->pinging = true;
 }
+
+bool wlr_xwayland_or_surface_wants_focus(
+		const struct wlr_xwayland_surface *surface) {
+	bool ret = true;
+	static enum atom_name needles[] = {
+		NET_WM_WINDOW_TYPE_COMBO,
+		NET_WM_WINDOW_TYPE_DND,
+		NET_WM_WINDOW_TYPE_DROPDOWN_MENU,
+		NET_WM_WINDOW_TYPE_MENU,
+		NET_WM_WINDOW_TYPE_NOTIFICATION,
+		NET_WM_WINDOW_TYPE_POPUP_MENU,
+		NET_WM_WINDOW_TYPE_SPLASH,
+		NET_WM_WINDOW_TYPE_TOOLTIP,
+		NET_WM_WINDOW_TYPE_UTILITY,
+	};
+	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
+		if (xwm_atoms_contains(surface->xwm, surface->window_type,
+				surface->window_type_len, needles[i])) {
+			ret = false;
+		}
+	}
+
+	return ret;
+}
