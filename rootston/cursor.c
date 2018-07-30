@@ -101,6 +101,7 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 
 static void roots_passthrough_cursor(struct roots_cursor *cursor,
 		uint32_t time) {
+	bool focus_changed;
 	double sx, sy;
 	struct roots_view *view = NULL;
 	struct roots_seat *seat = cursor->seat;
@@ -136,8 +137,11 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	}
 
 	if (surface) {
+		focus_changed = (seat->seat->pointer_state.focused_surface != surface);
 		wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
-		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+		if (!focus_changed) {
+			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+		}
 	} else {
 		wlr_seat_pointer_clear_focus(seat->seat);
 	}
@@ -148,8 +152,8 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	}
 }
 
-static void roots_cursor_update_position(
-		struct roots_cursor *cursor, uint32_t time) {
+void roots_cursor_update_position(struct roots_cursor *cursor,
+		uint32_t time) {
 	struct roots_seat *seat = cursor->seat;
 	struct roots_view *view;
 	switch (cursor->mode) {
@@ -266,13 +270,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 			cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		}
 
-		switch (state) {
-		case WLR_BUTTON_RELEASED:
-			if (!is_touch) {
-				roots_cursor_update_position(cursor, time);
-			}
-			break;
-		case WLR_BUTTON_PRESSED:
+		if (state == WLR_BUTTON_PRESSED) {
 			if (view) {
 				roots_seat_set_focus(seat, view);
 			}
@@ -283,7 +281,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 					roots_seat_set_focus_layer(seat, layer);
 				}
 			}
-			break;
 		}
 	}
 

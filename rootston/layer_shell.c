@@ -291,7 +291,10 @@ static void handle_map(struct wl_listener *listener, void *data) {
 static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer = wl_container_of(
 			listener, layer, unmap);
+	struct wlr_output *wlr_output = layer->layer_surface->output;
+	struct roots_output *output = wlr_output->data;
 	unmap(layer->layer_surface);
+	input_update_cursor_focus(output->desktop->server->input);
 }
 
 static void popup_handle_map(struct wl_listener *listener, void *data) {
@@ -303,6 +306,7 @@ static void popup_handle_map(struct wl_listener *listener, void *data) {
 	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
 	output_damage_whole_local_surface(output, popup->wlr_popup->base->surface,
 		ox, oy, 0);
+	input_update_cursor_focus(output->desktop->server->input);
 }
 
 static void popup_handle_unmap(struct wl_listener *listener, void *data) {

@@ -423,6 +423,7 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 	view_child_init(&subsurface->view_child, view, wlr_subsurface->surface);
 	subsurface->destroy.notify = subsurface_handle_destroy;
 	wl_signal_add(&wlr_subsurface->events.destroy, &subsurface->destroy);
+	input_update_cursor_focus(view->desktop->server->input);
 	return subsurface;
 }
 
@@ -468,6 +469,7 @@ void view_map(struct roots_view *view, struct wlr_surface *surface) {
 
 	wl_list_insert(&view->desktop->views, &view->link);
 	view_damage_whole(view);
+	input_update_cursor_focus(view->desktop->server->input);
 }
 
 void view_unmap(struct roots_view *view) {
