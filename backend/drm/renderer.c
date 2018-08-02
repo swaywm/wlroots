@@ -238,7 +238,7 @@ struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 	assert(tex);
 
 	float mat[9];
-	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
 	struct wlr_renderer *renderer = dest->renderer->wlr_rend;
 	wlr_renderer_begin(renderer, dest->width, dest->height);
