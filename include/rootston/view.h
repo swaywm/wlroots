@@ -4,6 +4,7 @@
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
@@ -188,6 +189,14 @@ struct roots_xdg_popup {
 	struct wl_listener map;
 	struct wl_listener unmap;
 	struct wl_listener new_popup;
+};
+
+struct roots_xdg_toplevel_decoration {
+	struct wlr_xdg_toplevel_decoration_v1 *wlr_decoration;
+	struct roots_xdg_surface *surface;
+	struct wl_listener destroy;
+	struct wl_listener request_mode;
+	struct wl_listener surface_commit;
 };
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box);

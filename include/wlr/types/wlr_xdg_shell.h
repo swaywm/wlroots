@@ -133,6 +133,7 @@ struct wlr_xdg_toplevel {
 };
 
 struct wlr_xdg_surface_configure {
+	struct wlr_xdg_surface *surface;
 	struct wl_list link; // wlr_xdg_surface::configure_list
 	uint32_t serial;
 
@@ -196,6 +197,10 @@ struct wlr_xdg_surface {
 		 * surface has been hidden or is about to be destroyed.
 		 */
 		struct wl_signal unmap;
+
+		// for protocol extensions
+		struct wl_signal configure; // wlr_xdg_surface_configure
+		struct wl_signal ack_configure; // wlr_xdg_surface_configure
 	} events;
 
 	void *data;
@@ -233,6 +238,8 @@ void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
 struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 		struct wl_resource *resource);
 struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
+		struct wl_resource *resource);
+struct wlr_xdg_surface *wlr_xdg_surface_from_toplevel_resource(
 		struct wl_resource *resource);
 
 struct wlr_box wlr_xdg_positioner_get_geometry(
@@ -360,7 +367,8 @@ struct wlr_xdg_surface *wlr_xdg_surface_from_wlr_surface(
  *
  * The x and y value can be <0
  */
-void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface, struct wlr_box *box);
+void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
+		struct wlr_box *box);
 
 /**
  * Call `iterator` on each surface and popup in the xdg-surface tree, with the
@@ -368,7 +376,13 @@ void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface, struct wlr_bo
  * from root to leaves (in rendering order).
  */
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
-	wlr_surface_iterator_func_t iterator, void *user_data);
+		wlr_surface_iterator_func_t iterator, void *user_data);
+
+/**
+ * Schedule a surface configuration. This should only be called by protocols
+ * extending the shell.
+ */
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
 
 /**
  * Call `iterator` on each popup in the xdg-surface tree, with the popup's
