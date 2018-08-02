@@ -199,12 +199,16 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
 		uint32_t size) {
-	struct drm_color_lut gamma[size];
-
 	// Fallback to legacy gamma interface when gamma properties are not available
 	// (can happen on older intel gpu's that support gamma but not degamma)
 	if (crtc->props.gamma_lut == 0) {
 		return legacy_iface.crtc_set_gamma(drm, crtc, r, g, b, size);
+	}
+
+	struct drm_color_lut *gamma = malloc(size * sizeof(struct drm_color_lut));
+	if (gamma == NULL) {
+		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
+		return false;
 	}
 
 	for (uint32_t i = 0; i < size; i++) {
@@ -218,10 +222,12 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	}
 
 	if (drmModeCreatePropertyBlob(drm->fd, gamma,
-				sizeof(struct drm_color_lut) * size, &crtc->gamma_lut)) {
+			size * sizeof(struct drm_color_lut), &crtc->gamma_lut)) {
+		free(gamma);
 		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 		return false;
 	}
+	free(gamma);
 
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
