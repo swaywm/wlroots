@@ -184,6 +184,14 @@ struct wlr_xwayland_resize_event {
 	uint32_t edges;
 };
 
+/** Create an Xwayland server.
+ *
+ * The server supports a lazy mode in which Xwayland is only started when a
+ * client tries to connect.
+ *
+ * Note: wlr_xwayland will setup a global SIGUSR1 handler on the compositor
+ * process.
+ */
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor, bool lazy);
 
