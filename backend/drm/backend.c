@@ -51,7 +51,12 @@ static void backend_destroy(struct wlr_backend *backend) {
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
-	return drm->renderer.wlr_rend;
+
+	if (drm->parent) {
+		return drm->parent->renderer.wlr_rend;
+	} else {
+		return drm->renderer.wlr_rend;
+	}
 }
 
 static struct wlr_backend_impl backend_impl = {

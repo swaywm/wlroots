@@ -143,7 +143,7 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	struct wlr_renderer *multi_renderer =
 		multi_backend_get_renderer(&multi->backend);
 	struct wlr_renderer *backend_renderer = wlr_backend_get_renderer(backend);
-	if (multi_renderer != NULL && backend_renderer != NULL) {
+	if (multi_renderer != NULL && backend_renderer != NULL && multi_renderer != backend_renderer) {
 		wlr_log(WLR_ERROR, "Could not add backend: multiple renderers at the "
 			"same time aren't supported");
 		return false;
