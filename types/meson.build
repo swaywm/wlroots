@@ -57,5 +57,5 @@ lib_wlr_types = static_library(
 		'wlr_screencopy_v1.c',
 	),
 	include_directories: wlr_inc,
-	dependencies: [pixman, xkbcommon, wayland_server, wlr_protos],
+	dependencies: [pixman, xkbcommon, wayland_server, wlr_protos, libinput],
 )
