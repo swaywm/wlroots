@@ -199,7 +199,7 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_output_manager *manager =
-		wl_container_of(listener, manager, layout_change);
+		wl_container_of(listener, manager, layout_destroy);
 	wlr_xdg_output_manager_destroy(manager);
 }
 
