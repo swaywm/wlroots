@@ -628,7 +628,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		bool update_texture) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
-	struct wlr_drm_renderer *renderer = &drm->renderer;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -654,13 +653,16 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
 		h = ret ? 64 : h;
 
+		struct wlr_drm_renderer *renderer =
+			drm->parent ? &drm->parent->renderer : &drm->renderer;
+
 		if (!init_drm_surface(&plane->surf, renderer, w, h,
 				GBM_FORMAT_ARGB8888, 0)) {
 			wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
 
-		plane->cursor_bo = gbm_bo_create(renderer->gbm, w, h,
+		plane->cursor_bo = gbm_bo_create(drm->renderer.gbm, w, h,
 			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
 		if (!plane->cursor_bo) {
 			wlr_log_errno(WLR_ERROR, "Failed to create cursor bo");

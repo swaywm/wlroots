@@ -116,7 +116,7 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 	struct wlr_gles2_texture *texture =
-		get_gles2_texture_in_context(wlr_texture);
+		gles2_get_texture(wlr_texture);
 
 	struct wlr_gles2_tex_shader *shader = NULL;
 	GLenum target = 0;
@@ -213,7 +213,7 @@ static const enum wl_shm_format *gles2_renderer_formats(
 static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *resource) {
 	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+		gles2_get_renderer(wlr_renderer);
 
 	if (!eglQueryWaylandBufferWL) {
 		return false;
@@ -227,7 +227,7 @@ static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
 static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *buffer, int *width, int *height) {
 	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+		gles2_get_renderer(wlr_renderer);
 
 	if (!eglQueryWaylandBufferWL) {
 		return;
@@ -323,7 +323,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 static void gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
 	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+		gles2_get_renderer(wlr_renderer);
 	if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
 		wlr_log(WLR_INFO, "failed to bind wl_display to EGL");
 	}

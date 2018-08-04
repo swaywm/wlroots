@@ -188,46 +188,29 @@ bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
 	return true;
 }
 
-struct tex {
-	struct wlr_egl *egl;
-	EGLImageKHR img;
-	struct wlr_texture *tex;
-};
-
-static void free_eglimage(struct gbm_bo *bo, void *data) {
-	struct tex *tex = data;
-
-	wlr_egl_destroy_image(tex->egl, tex->img);
-	wlr_texture_destroy(tex->tex);
-	free(tex);
+static void free_tex(struct gbm_bo *bo, void *data) {
+	struct wlr_texture *tex = data;
+	wlr_texture_destroy(tex);
 }
 
 static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 		struct gbm_bo *bo) {
-	struct tex *tex = gbm_bo_get_user_data(bo);
-	if (tex != NULL) {
-		return tex->tex;
-	}
-
-	tex = calloc(1, sizeof(struct tex));
-	if (tex == NULL) {
-		return NULL;
+	struct wlr_texture *tex = gbm_bo_get_user_data(bo);
+	if (tex) {
+		return tex;
 	}
 
 	struct wlr_dmabuf_attributes attribs;
 	if (!export_drm_bo(bo, &attribs)) {
-		free(tex);
 		return NULL;
 	}
 
-	tex->tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
-	if (tex->tex == NULL) {
-		free(tex);
-		return NULL;
+	tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
+	if (tex) {
+		gbm_bo_set_user_data(bo, tex, free_tex);
 	}
 
-	gbm_bo_set_user_data(bo, tex, free_eglimage);
-	return tex->tex;
+	return tex;
 }
 
 struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
@@ -238,7 +221,7 @@ struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 	assert(tex);
 
 	float mat[9];
-	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_FLIPPED_180);
+	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
 	struct wlr_renderer *renderer = dest->renderer->wlr_rend;
 	wlr_renderer_begin(renderer, dest->width, dest->height);
