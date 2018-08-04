@@ -183,7 +183,14 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	wlr_seat->pointer_state.focused_client = client;
 	wlr_seat->pointer_state.focused_surface = surface;
 
-	// TODO: send focus change event
+	struct wlr_seat_pointer_focus_change_event event = {
+		.seat = wlr_seat,
+		.new_surface = surface,
+		.old_surface = focused_surface,
+		.sx = sx,
+		.sy = sy,
+	};
+	wlr_signal_emit_safe(&wlr_seat->pointer_state.events.focus_change, &event);
 }
 
 void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {

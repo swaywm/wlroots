@@ -146,6 +146,10 @@ struct wlr_seat_pointer_state {
 	uint32_t grab_time;
 
 	struct wl_listener surface_destroy;
+
+	struct {
+		struct wl_signal focus_change;
+	} events;
 };
 
 // TODO: May be useful to be able to simulate keyboard input events
@@ -164,6 +168,10 @@ struct wlr_seat_keyboard_state {
 
 	struct wlr_seat_keyboard_grab *grab;
 	struct wlr_seat_keyboard_grab *default_grab;
+
+	struct {
+		struct wl_signal focus_change;
+	} events;
 };
 
 struct wlr_seat_touch_state {
@@ -236,6 +244,20 @@ struct wlr_seat_pointer_request_set_cursor_event {
 	struct wlr_surface *surface;
 	uint32_t serial;
 	int32_t hotspot_x, hotspot_y;
+};
+
+struct wlr_seat_pointer_focus_change_event {
+	struct wlr_seat *seat;
+	struct wlr_surface *old_surface, *new_surface;
+	double sx, sy;
+};
+
+struct wlr_seat_keyboard_focus_change_event {
+	struct wlr_seat *seat;
+	struct wlr_surface *old_surface, *new_surface;
+	size_t num_keycodes;
+	uint32_t *keycodes;
+	struct wlr_keyboard_modifiers *modifiers;
 };
 
 /**
