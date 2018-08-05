@@ -27,6 +27,23 @@
 #include "util/signal.h"
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
+	if (drm->parent) {
+		uint64_t cap;
+		if (drmGetCap(drm->fd, DRM_CAP_PRIME, &cap) ||
+				!(cap & DRM_PRIME_CAP_IMPORT)) {
+			wlr_log(WLR_ERROR,
+				"PRIME import not supported on secondary GPU");
+			return false;
+		}
+
+		if (drmGetCap(drm->parent->fd, DRM_CAP_PRIME, &cap) ||
+				!(cap & DRM_PRIME_CAP_EXPORT)) {
+			wlr_log(WLR_ERROR,
+				"PRIME export not supported on primary GPU");
+			return false;
+		}
+	}
+
 	if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
 		wlr_log(WLR_ERROR, "DRM universal planes unsupported");
 		return false;
