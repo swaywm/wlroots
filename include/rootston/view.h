@@ -39,6 +39,8 @@ struct roots_xdg_surface_v6 {
 	uint32_t pending_move_resize_configure_serial;
 };
 
+struct roots_xdg_toplevel_decoration;
+
 struct roots_xdg_surface {
 	struct roots_view *view;
 
@@ -54,6 +56,8 @@ struct roots_xdg_surface {
 	struct wl_listener surface_commit;
 
 	uint32_t pending_move_resize_configure_serial;
+
+	struct roots_xdg_toplevel_decoration *xdg_toplevel_decoration;
 };
 
 struct roots_xwayland_surface {

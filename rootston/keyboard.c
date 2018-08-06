@@ -133,6 +133,21 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		wl_list_for_each(output, &keyboard->input->server->desktop->outputs, link) {
 			wlr_output_enable(output->wlr_output, outputs_enabled);
 		}
+	} else if (strcmp(command, "toggle_decoration_mode") == 0) {
+		struct roots_view *focus = roots_seat_get_focus(seat);
+		if (focus != NULL && focus->type == ROOTS_XDG_SHELL_VIEW) {
+			struct roots_xdg_toplevel_decoration *decoration =
+				focus->roots_xdg_surface->xdg_toplevel_decoration;
+			if (decoration != NULL) {
+				enum wlr_xdg_toplevel_decoration_v1_mode mode =
+					decoration->wlr_decoration->current_mode;
+				mode = mode == WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
+					? WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
+					: WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+				wlr_xdg_toplevel_decoration_v1_set_mode(
+					decoration->wlr_decoration, mode);
+			}
+		}
 	} else {
 		wlr_log(WLR_ERROR, "unknown binding command: %s", command);
 	}
