@@ -475,6 +475,7 @@ static void decoration_handle_destroy(struct wl_listener *listener,
 	struct roots_xdg_toplevel_decoration *decoration =
 		wl_container_of(listener, decoration, destroy);
 
+	decoration->surface->xdg_toplevel_decoration = NULL;
 	view_update_decorated(decoration->surface->view, false);
 	wl_list_remove(&decoration->destroy.link);
 	wl_list_remove(&decoration->request_mode.link);
@@ -523,6 +524,7 @@ void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data) {
 	}
 	decoration->wlr_decoration = wlr_decoration;
 	decoration->surface = xdg_surface;
+	xdg_surface->xdg_toplevel_decoration = decoration;
 
 	decoration->destroy.notify = decoration_handle_destroy;
 	wl_signal_add(&wlr_decoration->events.destroy, &decoration->destroy);
