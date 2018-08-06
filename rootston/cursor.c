@@ -125,16 +125,22 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	if (view) {
 		struct roots_seat_view *seat_view =
 			roots_seat_view_from_view(seat, view);
-		if (cursor->pointer_view && (surface ||
-					seat_view != cursor->pointer_view)) {
+
+		if (cursor->pointer_view &&
+				!cursor->wlr_surface && (surface || seat_view != cursor->pointer_view)) {
 			seat_view_deco_leave(cursor->pointer_view);
-			cursor->pointer_view = NULL;
 		}
+
+		cursor->pointer_view = seat_view;
+
 		if (!surface) {
-			cursor->pointer_view = seat_view;
 			seat_view_deco_motion(seat_view, sx, sy);
 		}
+	} else {
+		cursor->pointer_view = NULL;
 	}
+
+	cursor->wlr_surface = surface;
 
 	if (surface) {
 		focus_changed = (seat->seat->pointer_state.focused_surface != surface);
@@ -262,7 +268,7 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	} else {
 		if (view && !surface && cursor->pointer_view) {
 			seat_view_deco_button(cursor->pointer_view,
-					sx, sy, button, state);
+				sx, sy, button, state);
 		}
 
 		if (state == WLR_BUTTON_RELEASED &&
