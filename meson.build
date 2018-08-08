@@ -56,6 +56,8 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 libcap         = dependency('libcap', required: get_option('libcap'))
 logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
+vulkan         = dependency('vulkan', required: get_option('vulkan'))
+glslang        = find_program('glslangValidator', required: get_option('vulkan'))
 math           = cc.find_library('m', required: false)
 
 wlr_parts = []
@@ -69,6 +71,11 @@ endif
 if logind.found()
 	conf_data.set('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
 	wlr_deps += logind
+endif
+
+if vulkan.found() and glslang.found()
+	conf_data.set('WLR_HAS_VULKAN', true)
+	wlr_deps += vulkan
 endif
 
 if cc.has_header_symbol('fcntl.h', 'posix_fallocate', prefix: '#define _POSIX_C_SOURCE 200112L')
@@ -149,6 +156,7 @@ summary = [
 	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
 	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
+	'      vulkan: @0@'.format(conf_data.get('WLR_HAS_VULKAN', false)),
 	'----------------',
 	''
 ]
