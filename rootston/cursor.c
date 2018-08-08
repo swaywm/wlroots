@@ -336,7 +336,7 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 
 	double sx, sy;
 	struct wlr_surface *surface = desktop_surface_at(
-			desktop, lx, ly, &sx, &sy, NULL);
+		desktop, lx, ly, &sx, &sy, NULL);
 
 	uint32_t serial = 0;
 	if (surface && roots_seat_allow_input(cursor->seat, surface->resource)) {

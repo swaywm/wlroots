@@ -887,10 +887,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_input_inhibit_manager_create(server->wl_display);
 	desktop->input_inhibit_activate.notify = input_inhibit_activate;
 	wl_signal_add(&desktop->input_inhibit->events.activate,
-			&desktop->input_inhibit_activate);
+		&desktop->input_inhibit_activate);
 	desktop->input_inhibit_deactivate.notify = input_inhibit_deactivate;
 	wl_signal_add(&desktop->input_inhibit->events.deactivate,
-			&desktop->input_inhibit_deactivate);
+		&desktop->input_inhibit_deactivate);
 
 	desktop->virtual_keyboard = wlr_virtual_keyboard_manager_v1_create(
 		server->wl_display);
