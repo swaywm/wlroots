@@ -220,17 +220,9 @@ static int open_if_kms(struct wlr_session *restrict session, const char *restric
 		goto out_fd;
 	}
 
-	if (res->count_crtcs <= 0 || res->count_connectors <= 0 ||
-		res->count_encoders <= 0) {
-
-		goto out_res;
-	}
-
 	drmModeFreeResources(res);
 	return fd;
 
-out_res:
-	drmModeFreeResources(res);
 out_fd:
 	wlr_session_close_file(session, fd);
 	return -1;
