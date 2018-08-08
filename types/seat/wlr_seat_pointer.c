@@ -53,7 +53,7 @@ static void pointer_send_frame(struct wl_resource *resource) {
 
 static const struct wl_pointer_interface pointer_impl;
 
-static struct wlr_seat_client *seat_client_from_pointer_resource(
+struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_pointer_interface,
 		&pointer_impl));
@@ -69,7 +69,7 @@ static void pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *surface_resource,
 		int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_seat_client *seat_client =
-		seat_client_from_pointer_resource(pointer_resource);
+		wlr_seat_client_from_pointer_resource(pointer_resource);
 	if (seat_client == NULL) {
 		return;
 	}
@@ -146,7 +146,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->pointers) {
-			if (seat_client_from_pointer_resource(resource) == NULL) {
+			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
 				continue;
 			}
 
@@ -160,7 +160,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		uint32_t serial = wl_display_next_serial(wlr_seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->pointers) {
-			if (seat_client_from_pointer_resource(resource) == NULL) {
+			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
 				continue;
 			}
 
@@ -206,7 +206,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
-		if (seat_client_from_pointer_resource(resource) == NULL) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -226,7 +226,7 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 	uint32_t serial = wl_display_next_serial(wlr_seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
-		if (seat_client_from_pointer_resource(resource) == NULL) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -246,7 +246,7 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
-		if (seat_client_from_pointer_resource(resource) == NULL) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -356,7 +356,7 @@ void seat_client_create_pointer(struct wlr_seat_client *seat_client,
 
 void seat_client_destroy_pointer(struct wl_resource *resource) {
 	struct wlr_seat_client *seat_client =
-		seat_client_from_pointer_resource(resource);
+		wlr_seat_client_from_pointer_resource(resource);
 	if (seat_client == NULL) {
 		return;
 	}

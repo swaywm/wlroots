@@ -568,6 +568,9 @@ bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
 
 struct wlr_seat_client *wlr_seat_client_from_resource(
-		struct wl_resource *resource);
+	struct wl_resource *resource);
+
+struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
+	struct wl_resource *resource);
 
 #endif
