@@ -84,4 +84,6 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 void roots_cursor_update_position(struct roots_cursor *cursor,
 		uint32_t time);
 
+void roots_cursor_update_focus(struct roots_cursor *cursor);
+
 #endif

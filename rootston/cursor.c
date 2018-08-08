@@ -100,7 +100,7 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 }
 
 static void roots_passthrough_cursor(struct roots_cursor *cursor,
-		uint32_t time) {
+		int64_t time) {
 	bool focus_changed;
 	double sx, sy;
 	struct roots_view *view = NULL;
@@ -108,11 +108,13 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	struct wlr_surface *surface = desktop_surface_at(desktop,
 			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
+
 	struct wl_client *client = NULL;
 	if (surface) {
 		client = wl_resource_get_client(surface->resource);
 	}
-	if (surface && !roots_seat_allow_input(cursor->seat, surface->resource)) {
+
+	if (surface && !roots_seat_allow_input(seat, surface->resource)) {
 		return;
 	}
 
@@ -145,7 +147,7 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	if (surface) {
 		focus_changed = (seat->seat->pointer_state.focused_surface != surface);
 		wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
-		if (!focus_changed) {
+		if (!focus_changed && time > 0) {
 			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
 		}
 	} else {
@@ -156,6 +158,10 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	wl_list_for_each(drag_icon, &seat->drag_icons, link) {
 		roots_drag_icon_update_position(drag_icon);
 	}
+}
+
+void roots_cursor_update_focus(struct roots_cursor *cursor) {
+	roots_passthrough_cursor(cursor, -1);
 }
 
 void roots_cursor_update_position(struct roots_cursor *cursor,

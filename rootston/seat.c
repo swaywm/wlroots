@@ -1186,6 +1186,8 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			NULL, 0, NULL);
 	}
+
+	roots_cursor_update_focus(seat->cursor);
 }
 
 /**
@@ -1220,6 +1222,8 @@ void roots_seat_set_focus_layer(struct roots_seat *seat,
 		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			NULL, 0, NULL);
 	}
+
+	roots_cursor_update_focus(seat->cursor);
 }
 
 void roots_seat_set_exclusive_client(struct roots_seat *seat,
