@@ -300,13 +300,6 @@ uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
 void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
 
 /**
- * Compute the popup position in its parent's surface-local coordinate system.
- * This aborts if called for popups whose parent is not an xdg_surface.
- */
-void wlr_xdg_surface_popup_get_position(struct wlr_xdg_surface *surface,
-		double *popup_sx, double *popup_sy);
-
-/**
  * Get the geometry for this positioner based on the anchor rect, gravity, and
  * size of this positioner.
  */
