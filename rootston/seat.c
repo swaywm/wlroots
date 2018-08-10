@@ -567,6 +567,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		free(seat);
 		return NULL;
 	}
+	seat->seat->data = seat;
 
 	roots_seat_init_cursor(seat);
 	if (!seat->cursor) {
