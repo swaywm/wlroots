@@ -190,11 +190,17 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
-	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-		ev->height, output->wlr_output.refresh);
+	// ignore events that set an invalid size:
+	if (ev->width > 0 && ev->height > 0) {
+		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+			ev->height, output->wlr_output.refresh);
 
-	// Move the pointer to its new location
-	update_x11_pointer_position(output, output->x11->time);
+		// Move the pointer to its new location
+		update_x11_pointer_position(output, output->x11->time);
+	} else {
+		wlr_log(WLR_DEBUG,"Ignoring X11 configure event for height=%d, width=%d",
+			ev->width, ev->height);
+	}
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
