@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/backend/multi.h>
@@ -84,6 +85,39 @@ static void pressed_keysyms_update(xkb_keysym_t *pressed_keysyms,
 	}
 }
 
+static void double_fork_shell_cmd(const char *shell_cmd) {
+	pid_t pid = fork();
+	if (pid < 0) {
+		wlr_log(WLR_ERROR, "cannot execute binding command: fork() failed");
+		return;
+	}
+
+	if (pid == 0) {
+		pid = fork();
+		if (pid == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", shell_cmd, NULL);
+			_exit(EXIT_FAILURE);
+		} else {
+			_exit(pid == -1);
+		}
+	}
+
+	int status;
+	while (waitpid(pid, &status, 0) < 0) {
+		if (errno == EINTR) {
+			continue;
+		}
+		wlr_log_errno(WLR_ERROR, "waitpid() on first child failed");
+		return;
+	}
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		return;
+	}
+
+	wlr_log(WLR_ERROR, "first child failed to fork command");
+}
+
 static const char *exec_prefix = "exec ";
 
 static bool outputs_enabled = true;
@@ -113,13 +147,7 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 		}
 	} else if (strncmp(exec_prefix, command, strlen(exec_prefix)) == 0) {
 		const char *shell_cmd = command + strlen(exec_prefix);
-		pid_t pid = fork();
-		if (pid < 0) {
-			wlr_log(WLR_ERROR, "cannot execute binding command: fork() failed");
-			return;
-		} else if (pid == 0) {
-			execl("/bin/sh", "/bin/sh", "-c", shell_cmd, (void *)NULL);
-		}
+		double_fork_shell_cmd(shell_cmd);
 	} else if (strcmp(command, "maximize") == 0) {
 		struct roots_view *focus = roots_seat_get_focus(seat);
 		if (focus != NULL) {
