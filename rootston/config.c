@@ -506,6 +506,7 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 		add_binding_config(&config->bindings, "Logo+Shift+E", "exit");
 		add_binding_config(&config->bindings, "Ctrl+q", "close");
 		add_binding_config(&config->bindings, "Alt+Tab", "next_window");
+		add_binding_config(&config->bindings, "Logo+Escape", "break_pointer_constraint");
 		struct roots_keyboard_config *kc =
 			calloc(1, sizeof(struct roots_keyboard_config));
 		kc->meta_key = WLR_MODIFIER_LOGO;

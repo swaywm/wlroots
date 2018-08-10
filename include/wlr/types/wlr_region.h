@@ -10,8 +10,7 @@
 #define WLR_TYPES_WLR_REGION_H
 
 #include <pixman.h>
-
-struct wl_resource;
+#include <wayland-server-protocol.h>
 
 /*
  * Creates a new region resource with the provided new ID. If `resource_list` is

@@ -16,7 +16,7 @@ struct roots_input {
 
 	struct wl_listener new_input;
 
-	struct wl_list seats;
+	struct wl_list seats; // roots_seat::link
 };
 
 struct roots_input *input_create(struct roots_server *server,

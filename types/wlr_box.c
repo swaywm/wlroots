@@ -143,3 +143,12 @@ void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 	dest->y = floor(fmin(y1, y2));
 	dest->height = ceil(fmax(y1, y2) - fmin(y1, y2));
 }
+
+void wlr_box_from_pixman_box32(const pixman_box32_t box, struct wlr_box *dest) {
+	*dest = (struct wlr_box){
+		.x = box.x1,
+		.y = box.y1,
+		.width = box.x2 - box.x1,
+		.height = box.y2 - box.y1,
+	};
+}

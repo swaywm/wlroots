@@ -56,6 +56,7 @@ struct roots_desktop {
 	struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard;
 	struct wlr_screencopy_manager_v1 *screencopy;
 	struct wlr_tablet_manager_v2 *tablet_v2;
+	struct wlr_pointer_constraints_v1 *pointer_constraints;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
@@ -67,6 +68,8 @@ struct roots_desktop {
 	struct wl_listener input_inhibit_activate;
 	struct wl_listener input_inhibit_deactivate;
 	struct wl_listener virtual_keyboard_new;
+	struct wl_listener constraint_create;
+	struct wl_listener constraint_destroy;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;

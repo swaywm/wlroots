@@ -8,6 +8,7 @@
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
@@ -175,6 +176,13 @@ static void keyboard_binding_execute(struct roots_keyboard *keyboard,
 				wlr_xdg_toplevel_decoration_v1_set_mode(
 					decoration->wlr_decoration, mode);
 			}
+		}
+	} else if (strcmp(command, "break_pointer_constraint") == 0) {
+		struct wl_list *list =
+			&keyboard->input->seats;
+		struct roots_seat *seat;
+		wl_list_for_each(seat, list, link) {
+			roots_cursor_constrain(seat->cursor, NULL, NAN, NAN);
 		}
 	} else {
 		wlr_log(WLR_ERROR, "unknown binding command: %s", command);

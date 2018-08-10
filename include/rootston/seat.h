@@ -10,7 +10,7 @@ struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
 	struct roots_cursor *cursor;
-	struct wl_list link;
+	struct wl_list link; // roots_input::seats
 
 	// coordinates of the first touch point if it exists
 	int32_t touch_id;

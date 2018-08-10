@@ -252,7 +252,7 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	return result;
 }
 
-static void cursor_warp_closest(struct wlr_cursor *cur,
+void wlr_cursor_warp_closest(struct wlr_cursor *cur,
 		struct wlr_input_device *dev, double lx, double ly) {
 	struct wlr_box *mapping = get_mapping(cur, dev);
 	if (mapping) {
@@ -286,7 +286,7 @@ void wlr_cursor_warp_absolute(struct wlr_cursor *cur,
 	double lx, ly;
 	wlr_cursor_absolute_to_layout_coords(cur, dev, x, y, &lx, &ly);
 
-	cursor_warp_closest(cur, dev, lx, ly);
+	wlr_cursor_warp_closest(cur, dev, lx, ly);
 }
 
 void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
@@ -296,7 +296,7 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double lx = !isnan(delta_x) ? cur->x + delta_x : cur->x;
 	double ly = !isnan(delta_y) ? cur->y + delta_y : cur->y;
 
-	cursor_warp_closest(cur, dev, lx, ly);
+	wlr_cursor_warp_closest(cur, dev, lx, ly);
 }
 
 void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,

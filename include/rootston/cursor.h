@@ -1,6 +1,7 @@
 #ifndef ROOTSTON_CURSOR_H
 #define ROOTSTON_CURSOR_H
 
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include "rootston/seat.h"
 
 enum roots_cursor_mode {
@@ -13,6 +14,9 @@ enum roots_cursor_mode {
 struct roots_cursor {
 	struct roots_seat *seat;
 	struct wlr_cursor *cursor;
+
+	struct wlr_pointer_constraint_v1 *active_constraint;
+	pixman_region32_t confine; // invalid if active_constraint == NULL
 
 	const char *default_xcursor;
 
@@ -45,6 +49,10 @@ struct roots_cursor {
 	struct wl_listener tool_button;
 
 	struct wl_listener request_set_cursor;
+
+	struct wl_listener focus_change;
+
+	struct wl_listener constraint_commit;
 };
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat);
@@ -81,9 +89,17 @@ void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 	struct wlr_seat_pointer_request_set_cursor_event *event);
 
+void roots_cursor_handle_focus_change(struct roots_cursor *cursor,
+	struct wlr_seat_pointer_focus_change_event *event);
+
+void roots_cursor_handle_constraint_commit(struct roots_cursor *cursor);
+
 void roots_cursor_update_position(struct roots_cursor *cursor,
 	uint32_t time);
 
 void roots_cursor_update_focus(struct roots_cursor *cursor);
+
+void roots_cursor_constrain(struct roots_cursor *cursor,
+	struct wlr_pointer_constraint_v1 *constraint, double sx, double sy);
 
 #endif

@@ -1,9 +1,12 @@
 #define _XOPEN_SOURCE 700
+#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
+#include <wlr/util/region.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
@@ -11,6 +14,7 @@
 #endif
 #include "rootston/cursor.h"
 #include "rootston/desktop.h"
+#include "rootston/view.h"
 #include "rootston/xcursor.h"
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat) {
@@ -303,15 +307,86 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 
 void roots_cursor_handle_motion(struct roots_cursor *cursor,
 		struct wlr_event_pointer_motion *event) {
-	wlr_cursor_move(cursor->cursor, event->device,
-			event->delta_x, event->delta_y);
+	double dx = event->delta_x;
+	double dy = event->delta_y;
+
+	if (cursor->active_constraint) {
+		struct roots_view *view = cursor->pointer_view->view;
+		assert(view);
+
+		double center_x = view->x + view->width / 2.;
+		double center_y = view->y + view->height / 2.;
+
+		double lx1 = cursor->cursor->x;
+		double ly1 = cursor->cursor->y;
+
+		double lx2 = lx1 + dx;
+		double ly2 = ly1 + dy;
+
+		// Optimization for most common case.
+		// This also makes sure that we don't encounter
+		// precision bugs in the most common case.
+		if (view->rotation == 0.0) {
+			double sx1 = lx1 - view->x;
+			double sy1 = ly1 - view->y;
+
+			double sx2 = lx2 - view->x;
+			double sy2 = ly2 - view->y;
+
+			double sx2_confined, sy2_confined;
+			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2, &sx2_confined, &sy2_confined)) {
+				return;
+			}
+
+			dx = sx2_confined - sx1;
+			dy = sy2_confined - sy1;
+		} else {
+			assert(false);
+			double c = cos(view->rotation);
+			double s = sin(view->rotation);
+
+			double sx1 = c * (lx1 - center_x) - s * (ly1 - center_y) + view->width / 2.;
+			double sy1 = s * (lx1 - center_x) + c * (ly1 - center_y) + view->height / 2.;
+
+			double sx2 = c * (lx2 - center_x) - s * (ly2 - center_y) + view->width / 2.;
+			double sy2 = s * (lx2 - center_x) + c * (ly2 - center_y) + view->height / 2.;
+
+			double sx2_confined, sy2_confined;
+			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2, &sx2_confined, &sy2_confined)) {
+				return;
+			}
+
+			// avoid NaNs
+			double fraction = (sx2 - sx1) > (sy2 - sy1) ?
+				(sx2_confined - sx1) / (sx2 - sx1) :
+				(sy2_confined - sy1) / (sy2 - sy1);
+
+			dx *= fraction;
+			dy *= fraction;
+		}
+	}
+
+	wlr_cursor_move(cursor->cursor, event->device, dx, dy);
 	roots_cursor_update_position(cursor, event->time_msec);
 }
 
 void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 		struct wlr_event_pointer_motion_absolute *event) {
-	wlr_cursor_warp_absolute(cursor->cursor,
-			event->device, event->x, event->y);
+	double lx, ly;
+	wlr_cursor_absolute_to_layout_coords(cursor->cursor, event->device, event->x,
+		event->y, &lx, &ly);
+
+	if (cursor->pointer_view) {
+		struct roots_view *view = cursor->pointer_view->view;
+
+		if (cursor->active_constraint &&
+				!pixman_region32_contains_point(&cursor->confine,
+					lx - view->x, ly - view->y, NULL)) {
+			return;
+		}
+	}
+
+	wlr_cursor_warp_closest(cursor->cursor, event->device, lx, ly);
 	roots_cursor_update_position(cursor, event->time_msec);
 }
 
@@ -405,18 +480,34 @@ void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
 
 void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 		struct wlr_event_tablet_tool_axis *event) {
+	double x = NAN, y = NAN;
 	if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X) &&
 			(event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		wlr_cursor_warp_absolute(cursor->cursor, event->device,
-			event->x, event->y);
-		roots_cursor_update_position(cursor, event->time_msec);
+		x = event->x;
+		y = event->y;
 	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_X)) {
-		wlr_cursor_warp_absolute(cursor->cursor, event->device, event->x, -1);
-		roots_cursor_update_position(cursor, event->time_msec);
+		x = event->x;
 	} else if ((event->updated_axes & WLR_TABLET_TOOL_AXIS_Y)) {
-		wlr_cursor_warp_absolute(cursor->cursor, event->device, -1, event->y);
-		roots_cursor_update_position(cursor, event->time_msec);
+		y = event->y;
 	}
+
+	double lx, ly;
+	wlr_cursor_absolute_to_layout_coords(cursor->cursor, event->device,
+		x, y, &lx, &ly);
+
+
+	if (cursor->pointer_view) {
+		struct roots_view *view = cursor->pointer_view->view;
+
+		if (cursor->active_constraint &&
+				!pixman_region32_contains_point(&cursor->confine,
+					lx - view->x, ly - view->y, NULL)) {
+			return;
+		}
+	}
+
+	wlr_cursor_warp_closest(cursor->cursor, event->device, lx, ly);
+	roots_cursor_update_position(cursor, event->time_msec);
 }
 
 void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
@@ -445,4 +536,103 @@ void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
 	wlr_cursor_set_surface(cursor->cursor, event->surface, event->hotspot_x,
 		event->hotspot_y);
 	cursor->cursor_client = event->seat_client->client;
+}
+
+void roots_cursor_handle_focus_change(struct roots_cursor *cursor,
+		struct wlr_seat_pointer_focus_change_event *event) {
+	double sx = event->sx;
+	double sy = event->sy;
+
+	double lx = cursor->cursor->x;
+	double ly = cursor->cursor->y;
+
+	wlr_log(WLR_DEBUG, "entered surface %p, lx: %f, ly: %f, sx: %f, sy: %f",
+		event->new_surface, lx, ly, sx, sy);
+
+	roots_cursor_constrain(cursor,
+		wlr_pointer_constraints_v1_constraint_for_surface(
+			cursor->seat->input->server->desktop->pointer_constraints,
+			event->new_surface, cursor->seat->seat),
+		sx, sy);
+}
+
+void roots_cursor_handle_constraint_commit(struct roots_cursor *cursor) {
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+
+	struct roots_view *view;
+	double sx, sy;
+	struct wlr_surface *surface = desktop_surface_at(desktop,
+			cursor->cursor->x, cursor->cursor->y, &sx, &sy, &view);
+	// This should never happen but views move around right when they're
+	// created from (0, 0) to their actual coordinates.
+	if (surface != cursor->active_constraint->surface) {
+		roots_cursor_update_focus(cursor);
+	} else {
+		roots_cursor_constrain(cursor, cursor->active_constraint, sx, sy);
+	}
+}
+
+void roots_cursor_constrain(struct roots_cursor *cursor,
+		struct wlr_pointer_constraint_v1 *constraint, double sx, double sy) {
+	if (cursor->active_constraint != constraint) {
+		wlr_log(WLR_DEBUG, "roots_cursor_constrain(%p, %p)", cursor, constraint);
+		wlr_log(WLR_DEBUG, "cursor->active_constraint: %p", cursor->active_constraint);
+
+		if (cursor->active_constraint) {
+			wlr_pointer_constraint_v1_send_deactivated(cursor->active_constraint);
+			if (cursor->constraint_commit.link.next) {
+				wl_list_remove(&cursor->constraint_commit.link);
+			}
+		}
+
+		cursor->active_constraint = constraint;
+
+		if (!constraint) {
+			return;
+		}
+
+		wlr_pointer_constraint_v1_send_activated(constraint);
+		wl_signal_add(&constraint->surface->events.commit,
+			&cursor->constraint_commit);
+	} else if (constraint == NULL) {
+		return;
+	}
+
+	pixman_region32_clear(&cursor->confine);
+
+	pixman_region32_t *region = &constraint->region;
+
+	if (!pixman_region32_contains_point(region, sx, sy, NULL)) {
+		// Warp into region if possible
+		int nboxes;
+		pixman_box32_t *boxes = pixman_region32_rectangles(region, &nboxes);
+		if (nboxes > 0) {
+			struct roots_view *view = cursor->pointer_view->view;
+
+			double sx = (boxes[0].x1 + boxes[0].x2) / 2.;
+			double sy = (boxes[0].y1 + boxes[0].y2) / 2.;
+
+			double lx, ly;
+			if (view->rotation == 0.0) {
+				lx = sx + view->x;
+				ly = sy + view->y;
+			} else {
+				double c = cos(view->rotation);
+				double s = sin(view->rotation);
+
+				double center_x = view->width / 2.;
+				double center_y = view->height / 2.;
+
+				lx = c * (sx - center_x) - s * (sy - center_y) + center_x + view->x;
+				ly = s * (sx - center_x) + c * (sy - center_y) + center_y + view->y;
+			}
+
+			wlr_cursor_warp_closest(cursor->cursor, NULL, lx, ly);
+		}
+	}
+
+	// A locked pointer will result in an empty region, thus disallowing all movement
+	if (constraint->type == WLR_POINTER_CONSTRAINT_V1_CONFINED) {
+		pixman_region32_copy(&cursor->confine, region);
+	}
 }

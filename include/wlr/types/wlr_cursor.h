@@ -91,6 +91,18 @@ bool wlr_cursor_warp(struct wlr_cursor *cur, struct wlr_input_device *dev,
 void wlr_cursor_absolute_to_layout_coords(struct wlr_cursor *cur,
 	struct wlr_input_device *dev, double x, double y, double *lx, double *ly);
 
+
+/**
+ * Warp the cursor to the given x and y coordinates. If the given point is out
+ * of the layout boundaries or constraints, the closest point will be used.
+ * If one coordinate is NAN, it will be ignored.
+ *
+ * `dev` may be passed to respect device mapping constraints. If `dev` is NULL,
+ * device mapping constraints will be ignored.
+ */
+void wlr_cursor_warp_closest(struct wlr_cursor *cur,
+	struct wlr_input_device *dev, double x, double y);
+
 /**
  * Warp the cursor to the given x and y in absolute 0..1 coordinates. If the
  * given point is out of the layout boundaries or constraints, the closest point
