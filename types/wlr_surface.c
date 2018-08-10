@@ -113,9 +113,6 @@ static void surface_set_opaque_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-	if ((surface->pending.committed & WLR_SURFACE_STATE_OPAQUE_REGION)) {
-		pixman_region32_clear(&surface->pending.opaque);
-	}
 	surface->pending.committed |= WLR_SURFACE_STATE_OPAQUE_REGION;
 	if (region_resource) {
 		pixman_region32_t *region = wlr_region_from_resource(region_resource);
@@ -126,7 +123,8 @@ static void surface_set_opaque_region(struct wl_client *client,
 }
 
 static void surface_set_input_region(struct wl_client *client,
-		struct wl_resource *resource, struct wl_resource *region_resource) {
+		struct wl_resource *resource,
+		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 	surface->pending.committed |= WLR_SURFACE_STATE_INPUT_REGION;
 	if (region_resource) {
@@ -353,9 +351,14 @@ static void surface_update_opaque_region(struct wlr_surface *surface) {
 		return;
 	}
 
-	pixman_region32_copy(&surface->opaque_region, &surface->current.opaque);
 	pixman_region32_intersect_rect(&surface->opaque_region,
-		&surface->opaque_region,
+		&surface->current.opaque,
+		0, 0, surface->current.width, surface->current.height);
+}
+
+static void surface_update_input_region(struct wlr_surface *surface) {
+	pixman_region32_intersect_rect(&surface->input_region,
+		&surface->current.input,
 		0, 0, surface->current.width, surface->current.height);
 }
 
@@ -380,6 +383,7 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		surface_apply_damage(surface);
 	}
 	surface_update_opaque_region(surface);
+	surface_update_input_region(surface);
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
@@ -587,6 +591,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	surface_state_finish(&surface->previous);
 	pixman_region32_fini(&surface->buffer_damage);
 	pixman_region32_fini(&surface->opaque_region);
+	pixman_region32_fini(&surface->input_region);
 	wlr_buffer_unref(surface->buffer);
 	free(surface);
 }
@@ -633,6 +638,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_list_init(&surface->subsurface_pending_list);
 	pixman_region32_init(&surface->buffer_damage);
 	pixman_region32_init(&surface->opaque_region);
+	pixman_region32_init(&surface->input_region);
 
 	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
 	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
