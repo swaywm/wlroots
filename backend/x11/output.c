@@ -140,7 +140,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	output->win = xcb_generate_id(x11->xcb_conn);
 	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
-		x11->screen->root, wlr_output->width, wlr_output->height, 1024, 768, 1,
+		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
