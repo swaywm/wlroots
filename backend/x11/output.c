@@ -121,6 +121,9 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
+	wlr_output->width = 1024;
+	wlr_output->height = 768;
+
 	output_set_refresh(&output->wlr_output, 0);
 
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%d",
@@ -137,8 +140,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	output->win = xcb_generate_id(x11->xcb_conn);
 	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
-		x11->screen->root, 0, 0, 1024, 768, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		x11->screen->root_visual, mask, values);
+		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
+		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
@@ -187,11 +190,17 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
-	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-		ev->height, output->wlr_output.refresh);
+	// ignore events that set an invalid size:
+	if (ev->width > 0 && ev->height > 0) {
+		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+			ev->height, output->wlr_output.refresh);
 
-	// Move the pointer to its new location
-	update_x11_pointer_position(output, output->x11->time);
+		// Move the pointer to its new location
+		update_x11_pointer_position(output, output->x11->time);
+	} else {
+		wlr_log(WLR_DEBUG,"Ignoring X11 configure event for height=%d, width=%d",
+			ev->width, ev->height);
+	}
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
