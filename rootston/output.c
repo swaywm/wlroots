@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+#include <wlr/backend/drm.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_compositor.h>
@@ -16,7 +17,6 @@
 #include "rootston/layers.h"
 #include "rootston/output.h"
 #include "rootston/server.h"
-#include "backend/drm/drm.h"
 
 /**
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
