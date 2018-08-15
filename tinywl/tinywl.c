@@ -220,6 +220,9 @@ static struct tinywl_view *desktop_view_at(
 }
 
 static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
+	if (view == NULL) {
+		return;
+	}
 	struct tinywl_server *server = view->server;
 	struct wlr_seat *seat = server->seat;
 	struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
@@ -286,15 +289,13 @@ static void process_cursor_motion(struct tinywl_server *server, uint32_t time) {
 
 	double sx, sy;
 	struct wlr_seat *seat = server->seat;
-	struct wlr_surface *surface;
+	struct wlr_surface *surface = NULL;
 	struct tinywl_view *view = desktop_view_at(server,
 			server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 	if (!view) {
 		wlr_xcursor_manager_set_cursor_image(
 				server->cursor_mgr, "left_ptr", server->cursor);
-		return;
 	}
-
 	if (surface) {
 		bool focus_changed = seat->pointer_state.focused_surface != surface;
 		wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
@@ -308,7 +309,7 @@ static void process_cursor_motion(struct tinywl_server *server, uint32_t time) {
 
 static void server_cursor_motion(struct wl_listener *listener, void *data) {
 	struct tinywl_server *server =
-		wl_container_of(listener, server, cursor_motion_absolute);
+		wl_container_of(listener, server, cursor_motion);
 	struct wlr_event_pointer_motion *event = data;
 	wlr_cursor_move(server->cursor, event->device,
 			event->delta_x, event->delta_y);
@@ -400,7 +401,9 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	wlr_output_make_current(output->wlr_output, NULL);
+	if (!wlr_output_make_current(output->wlr_output, NULL)) {
+		return;
+	}
 	int width, height;
 	wlr_output_effective_resolution(output->wlr_output, &width, &height);
 	wlr_renderer_begin(renderer, width, height);
@@ -423,14 +426,20 @@ static void output_frame(struct wl_listener *listener, void *data) {
 				render_surface, &rdata);
 	}
 
-	wlr_output_swap_buffers(output->wlr_output, NULL, NULL);
 	wlr_renderer_end(renderer);
+	wlr_output_swap_buffers(output->wlr_output, NULL, NULL);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
 	struct tinywl_server *server =
 		wl_container_of(listener, server, new_output);
 	struct wlr_output *wlr_output = data;
+
+	if (!wl_list_empty(&wlr_output->modes)) {
+		struct wlr_output_mode *mode =
+			wl_container_of(wlr_output->modes.prev, mode, link);
+		wlr_output_set_mode(wlr_output, mode);
+	}
 
 	struct tinywl_output *output =
 		calloc(1, sizeof(struct tinywl_output));
@@ -529,6 +538,7 @@ static void server_new_xdg_surface(struct wl_listener *listener, void *data) {
 }
 
 int main(int argc, char *argv[]) {
+	wlr_log_init(WLR_DEBUG, NULL);
 	char *startup_cmd = NULL;
 
 	int c;
