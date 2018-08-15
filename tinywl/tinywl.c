@@ -370,7 +370,7 @@ static void render_surface(struct wlr_surface *surface,
 		return;
 	}
 
-	double ox, oy;
+	double ox = 0, oy = 0;
 	wlr_output_layout_output_coords(
 			view->server->output_layout, output, &ox, &oy);
 	ox += view->x + sx, oy += view->y + sy;
