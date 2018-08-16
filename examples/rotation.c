@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200112L
-#define _XOPEN_SOURCE 500
 #include <GLES2/gl2.h>
 #include <getopt.h>
 #include <math.h>

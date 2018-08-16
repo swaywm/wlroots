@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
