@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200112L
-#define _XOPEN_SOURCE 500
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
