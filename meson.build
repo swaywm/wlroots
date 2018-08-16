@@ -250,6 +250,6 @@ if git.found()
 			build_by_default: true,
 			input: all_files,
 			output: 'tags',
-			command: [ctags.path(), '-o', 'tags'] + all_files)
+			command: [ctags.path(), '-f', 'tags'] + all_files)
 	endif
 endif
