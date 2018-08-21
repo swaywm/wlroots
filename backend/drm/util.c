@@ -144,6 +144,9 @@ const char *conn_get_name(uint32_t type_id) {
 	case DRM_MODE_CONNECTOR_eDP:         return "eDP";
 	case DRM_MODE_CONNECTOR_VIRTUAL:     return "Virtual";
 	case DRM_MODE_CONNECTOR_DSI:         return "DSI";
+#ifdef DRM_MODE_CONNECTOR_DPI
+	case DRM_MODE_CONNECTOR_DPI:         return "DPI";
+#endif
 	default:                             return "Unknown";
 	}
 }
