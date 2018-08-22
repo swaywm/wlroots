@@ -99,7 +99,7 @@ static void virtual_keyboard_destroy_resource(struct wl_resource *resource) {
 		virtual_keyboard_from_resource(resource);
 	wlr_signal_emit_safe(&keyboard->events.destroy, keyboard);
 	wl_list_remove(&keyboard->link);
-	wlr_keyboard_destroy(keyboard->input_device.keyboard);
+	wlr_input_device_destroy(&keyboard->input_device);
 	free(keyboard);
 }
 
