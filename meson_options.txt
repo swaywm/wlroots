@@ -1,6 +1,3 @@
-option('enable-libcap', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Enable support for capabilities')
-option('enable-systemd', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Enable support for logind')
-option('enable-elogind', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Enable support for logind')
 option('enable-xcb_errors', type: 'combo', choices: ['auto', 'true', 'false'], value: 'auto', description: 'Use xcb-errors util library')
 option('enable-xwayland', type: 'boolean', value: true, description: 'Enable support X11 applications')
 option('enable-x11_backend', type: 'boolean', value: true, description: 'Enable X11 backend')
