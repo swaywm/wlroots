@@ -18,7 +18,7 @@ so_version = ['0', '0', '0']
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 add_project_arguments(
-	'-DWLR_SRC_DIR="@0@"'.format(meson.source_root()),
+	'-DWLR_SRC_DIR="@0@"'.format(meson.current_source_dir()),
 	language: 'c',
 )
 add_project_arguments(
