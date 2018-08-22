@@ -161,13 +161,11 @@ summary = [
 message('\n'.join(summary))
 
 
-if get_option('enable-rootston')
-	subdir('rootston')
-endif
-
 if get_option('enable-examples')
 	subdir('examples')
 endif
+
+subdir('rootston')
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(

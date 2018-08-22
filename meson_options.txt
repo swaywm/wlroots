@@ -1,4 +1,3 @@
-option('enable-rootston', type: 'boolean', value: true, description: 'Build the rootston example compositor')
 option('enable-examples', type: 'boolean', value: true, description: 'Build example applications')
 option('libcap', type: 'feature', value: 'auto', description: 'Enable support for rootless session via capabilities (cap_sys_admin)')
 option('logind', type: 'feature', value: 'auto', description: 'Enable support for rootless session via logind')

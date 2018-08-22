@@ -11,8 +11,8 @@ sources = [
 	'seat.c',
 	'virtual_keyboard.c',
 	'wl_shell.c',
-	'xdg_shell_v6.c',
 	'xdg_shell.c',
+	'xdg_shell_v6.c',
 ]
 
 if conf_data.get('WLR_HAS_XWAYLAND', false)
@@ -20,5 +20,8 @@ if conf_data.get('WLR_HAS_XWAYLAND', false)
 endif
 
 executable(
-	'rootston', sources, dependencies: [wlroots, wlr_protos, pixman]
+	'rootston',
+	sources,
+	dependencies: [wlroots, wlr_protos, pixman],
+	build_by_default: get_option('rootston'),
 )
