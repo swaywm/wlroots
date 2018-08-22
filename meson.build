@@ -80,54 +80,14 @@ if logind.found()
 	wlr_deps += logind
 endif
 
-if get_option('enable-x11_backend') or get_option('enable-xwayland')
-	xcb            = dependency('xcb')
-	xcb_composite  = dependency('xcb-composite')
-	xcb_xfixes     = dependency('xcb-xfixes')
-	xcb_image      = dependency('xcb-image')
-	xcb_render     = dependency('xcb-render')
-	x11_xcb        = dependency('x11-xcb')
-
-	xcb_icccm      = dependency('xcb-icccm', required: false)
-	xcb_xkb        = dependency('xcb-xkb', required: false)
-	xcb_errors     = dependency('xcb-errors', required: get_option('enable-xcb_errors') == 'true')
-
-	if xcb_icccm.found()
-		conf_data.set('WLR_HAS_XCB_ICCCM', true)
-	endif
-
-	if xcb_xkb.found()
-		conf_data.set('WLR_HAS_XCB_XKB', true)
-	endif
-
-	if xcb_errors.found() and get_option('enable-xcb_errors') != 'false'
-		conf_data.set('WLR_HAS_XCB_ERRORS', true)
-	endif
-
-	wlr_deps += [
-		xcb,
-		xcb_composite,
-		x11_xcb,
-	]
-else
-	add_project_arguments('-DMESA_EGL_NO_X11_HEADERS', language: 'c')
-endif
-
-if get_option('enable-x11_backend')
-	conf_data.set('WLR_HAS_X11_BACKEND', true)
-endif
-
-if get_option('enable-xwayland')
-	subdir('xwayland')
-	wlr_parts += [lib_wlr_xwayland]
-	conf_data.set('WLR_HAS_XWAYLAND', true)
-else
-	exclude_headers += 'xwayland.h'
-endif
-
 if cc.has_header_symbol('fcntl.h', 'posix_fallocate', prefix: '#define _POSIX_C_SOURCE 200112L')
 	conf_data.set('WLR_HAS_POSIX_FALLOCATE', true)
 endif
+
+subdir('protocol')
+subdir('render')
+subdir('backend')
+subdir('xwayland')
 
 includedir = get_option('includedir')
 exclude_headers += 'meson.build'
@@ -135,9 +95,6 @@ install_subdir('include/wlr', install_dir: includedir, exclude_files: exclude_he
 
 
 subdir('include')
-subdir('protocol')
-subdir('render')
-subdir('backend')
 subdir('types')
 subdir('util')
 subdir('xcursor')
