@@ -110,7 +110,7 @@ static void handle_keyboard_repeat_info(struct wl_listener *listener,
 static void handle_keyboard_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_seat_keyboard_state *state =
 		wl_container_of(listener, state, keyboard_destroy);
-	state->keyboard = NULL;
+	wlr_seat_set_keyboard(state->seat, NULL);
 }
 
 void wlr_seat_set_keyboard(struct wlr_seat *seat,
