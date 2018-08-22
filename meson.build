@@ -134,6 +134,7 @@ lib_wlr = library(
 	include_directories: wlr_inc,
 	install: true,
 	link_args : symbols_flag,
+	link_depends: symbols_file,
 )
 
 wlroots = declare_dependency(
