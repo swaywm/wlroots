@@ -76,8 +76,11 @@ foreach p : client_protocols
 	wl_protos_headers += wayland_scanner_client.process(xml)
 endforeach
 
-lib_wl_protos = static_library('wl_protos', wl_protos_src + wl_protos_headers,
-	dependencies: [wayland_client]) # for the include directory
+lib_wl_protos = static_library(
+	'wl_protos',
+	wl_protos_src + wl_protos_headers,
+	dependencies: wayland_client.partial_dependency(includes: true),
+)
 
 wlr_protos = declare_dependency(
 	link_with: lib_wl_protos,
