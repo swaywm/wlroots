@@ -22,21 +22,13 @@ add_project_arguments(
 	language: 'c',
 )
 add_project_arguments(
-	'-I@0@'.format(meson.build_root()),
-	language: 'c',
-)
-add_project_link_arguments(
-	'-Wl,-rpath,@0@'.format(meson.build_root()),
-	language: 'c',
-)
-add_project_arguments(
 	'-DWLR_USE_UNSTABLE',
 	language: 'c',
 )
 
 conf_data = configuration_data()
 
-wlr_inc = include_directories('include')
+wlr_inc = include_directories('.', 'include')
 
 cc = meson.get_compiler('c')
 
