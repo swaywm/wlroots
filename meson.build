@@ -58,7 +58,6 @@ libcap         = dependency('libcap', required: get_option('libcap'))
 logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'))
 math           = cc.find_library('m', required: false)
 
-exclude_headers = []
 wlr_parts = []
 wlr_deps = []
 
@@ -78,18 +77,14 @@ endif
 
 subdir('protocol')
 subdir('render')
+
 subdir('backend')
-subdir('xwayland')
-
-includedir = get_option('includedir')
-exclude_headers += 'meson.build'
-install_subdir('include/wlr', install_dir: includedir, exclude_files: exclude_headers)
-
-
-subdir('include')
 subdir('types')
 subdir('util')
 subdir('xcursor')
+subdir('xwayland')
+
+subdir('include')
 
 wlr_parts += [
 	lib_wl_protos,

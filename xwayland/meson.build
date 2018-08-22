@@ -13,7 +13,6 @@ xwayland_optional = [
 foreach lib : xwayland_required
 	dep = dependency(lib, required: get_option('xwayland'))
 	if not dep.found()
-		exclude_headers += 'xwayland.h'
 		subdir_done()
 	endif
 
