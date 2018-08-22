@@ -1,80 +1,102 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
-
 libpng = dependency('libpng', required: false)
-
 # These versions correspond to ffmpeg 4.0
 libavutil = dependency('libavutil', version: '>=56.14.100', required: false)
 libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false)
 libavformat = dependency('libavformat', version: '>=58.12.100', required: false)
 
+# Small hack until https://github.com/mesonbuild/meson/pull/3386/ is merged
+foreach dep : ['libpng', 'libavutil', 'libavcodec', 'libavformat']
+	if not get_variable(dep).found()
+		set_variable(dep, disabler())
+	endif
+endforeach
+
 if not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
-    libavutil = disabler()
+	libavutil = disabler()
 endif
 
-executable('simple', 'simple.c', dependencies: wlroots)
-executable('pointer', 'pointer.c', dependencies: wlroots)
-executable('touch', 'touch.c', 'cat.c', dependencies: wlroots)
-executable('tablet', 'tablet.c', dependencies: wlroots)
-executable('rotation', 'rotation.c', 'cat.c', dependencies: wlroots)
-executable('multi-pointer', 'multi-pointer.c', dependencies: wlroots)
-executable('output-layout', 'output-layout.c', 'cat.c', dependencies: wlroots)
+examples = {
+	'simple': {
+		'src': 'simple.c',
+		'dep': wlroots,
+	},
+	'pointer': {
+		'src': 'pointer.c',
+		'dep': wlroots,
+	},
+	'touch': {
+		'src': ['touch.c', 'cat.c'],
+		'dep': wlroots,
+	},
+	'tablet': {
+		'src': 'tablet.c',
+		'dep': wlroots,
+	},
+	'rotation': {
+		'src': ['rotation.c', 'cat.c'],
+		'dep': wlroots,
+	},
+	'multi-pointer': {
+		'src': 'multi-pointer.c',
+		'dep': wlroots,
+	},
+	'output-layout': {
+		'src': ['output-layout.c', 'cat.c'],
+		'dep': wlroots,
+	},
+	'screenshot': {
+		'src': 'screenshot.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
+	'idle': {
+		'src': 'idle.c',
+		'dep': [wayland_client, wlr_protos, wlroots, threads],
+	},
+	'idle-inhibit': {
+		'src': 'idle-inhibit.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
+	'layer-shell': {
+		'src': 'layer-shell.c',
+		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
+	},
+	'input-inhibitor': {
+		'src': 'input-inhibitor.c',
+		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
+	},
+	'gamma-control': {
+		'src': 'gamma-control.c',
+		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
+	},
+	'dmabuf-capture': {
+		'src': 'dmabuf-capture.c',
+		'dep': [
+			libavcodec,
+			libavformat,
+			libavutil,
+			threads,
+			wayland_client,
+			wlr_protos,
+			wlroots,
+		],
+	},
+	'screencopy': {
+		'src': 'screencopy.c',
+		'dep': [libpng, wayland_client, wlr_protos, wlroots],
+	},
+	'toplevel-decoration': {
+		'src': 'toplevel-decoration.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
+}
 
-executable(
-	'screenshot',
-	'screenshot.c',
-	dependencies: [wayland_client, wlr_protos, wlroots]
-)
-
-executable(
-	'idle',
-	'idle.c',
-	dependencies: [wayland_client, wlr_protos, wlroots, threads]
-)
-
-executable(
-	'idle-inhibit',
-	'idle-inhibit.c',
-	dependencies: [wayland_client, wlr_protos, wlroots, threads]
-)
-
-executable(
-	'layer-shell',
-	'layer-shell.c',
-	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
-)
-
-executable(
-	'input-inhibitor',
-	'input-inhibitor.c',
-	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
-)
-
-executable(
-	'gamma-control',
-	'gamma-control.c',
-	dependencies: [wayland_cursor, wayland_client, wlr_protos, wlroots]
-)
-
-if libavutil.found() and libavcodec.found() and libavformat.found()
+foreach name, info : examples
 	executable(
-		'dmabuf-capture',
-		'dmabuf-capture.c',
-		dependencies: [wayland_client, wlr_protos, libavutil, libavcodec,
-				libavformat, wlroots, threads ]
+		name,
+		info.get('src'),
+		dependencies: info.get('dep'),
+		build_by_default: get_option('examples'),
 	)
-endif
-
-if libpng.found()
-	executable(
-		'screencopy',
-		'screencopy.c',
-		dependencies: [wayland_client, wlr_protos, wlroots, libpng]
-	)
-endif
-
-executable(
-	'toplevel-decoration',
-	'toplevel-decoration.c',
-	dependencies: [wayland_client, wlr_protos, wlroots]
-)
+endforeach

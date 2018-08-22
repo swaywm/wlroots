@@ -160,11 +160,7 @@ summary = [
 ]
 message('\n'.join(summary))
 
-
-if get_option('enable-examples')
-	subdir('examples')
-endif
-
+subdir('examples')
 subdir('rootston')
 
 pkgconfig = import('pkgconfig')
