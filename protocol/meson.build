@@ -10,24 +10,6 @@ else
 	wayland_scanner = find_program('wayland-scanner', native: true)
 endif
 
-wayland_scanner_server = generator(
-	wayland_scanner,
-	output: '@BASENAME@-protocol.h',
-	arguments: ['server-header', '@INPUT@', '@OUTPUT@'],
-)
-
-wayland_scanner_code = generator(
-	wayland_scanner,
-	output: '@BASENAME@-protocol.c',
-	arguments: ['private-code', '@INPUT@', '@OUTPUT@'],
-)
-
-wayland_scanner_client = generator(
-	wayland_scanner,
-	output: '@BASENAME@-client-protocol.h',
-	arguments: ['client-header', '@INPUT@', '@OUTPUT@'],
-)
-
 protocols = [
 	[wl_protocol_dir, 'stable/xdg-shell/xdg-shell.xml'],
 	[wl_protocol_dir, 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml'],
@@ -68,13 +50,28 @@ wl_protos_headers = []
 
 foreach p : protocols
 	xml = join_paths(p)
-	wl_protos_src += wayland_scanner_code.process(xml)
-	wl_protos_headers += wayland_scanner_server.process(xml)
+	wl_protos_src += custom_target(
+		xml.underscorify() + '_server_c',
+		input: xml,
+		output: '@BASENAME@-protocol.c',
+		command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+	)
+	wl_protos_headers += custom_target(
+		xml.underscorify() + '_server_h',
+		input: xml,
+		output: '@BASENAME@-protocol.h',
+		command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
+	)
 endforeach
 
 foreach p : client_protocols
 	xml = join_paths(p)
-	wl_protos_headers += wayland_scanner_client.process(xml)
+	wl_protos_headers += custom_target(
+		xml.underscorify() + '_client_h',
+		input: xml,
+		output: '@BASENAME@-client-protocol.h',
+		command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+	)
 endforeach
 
 lib_wl_protos = static_library(
