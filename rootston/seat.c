@@ -16,6 +16,7 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/seat.h"
+#include "rootston/text_input.h"
 #include "rootston/xcursor.h"
 
 
@@ -605,6 +606,8 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		return NULL;
 	}
 
+	roots_input_method_relay_init(seat, &seat->im_relay);
+
 	wl_list_insert(&input->seats, &seat->link);
 
 	seat->new_drag_icon.notify = roots_seat_handle_new_drag_icon;
@@ -1182,6 +1185,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (view == NULL) {
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 		wlr_seat_keyboard_clear_focus(seat->seat);
+		roots_input_method_relay_set_focus(&seat->im_relay, NULL);
 		return;
 	}
 
@@ -1220,6 +1224,8 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (seat->cursor) {
 		roots_cursor_update_focus(seat->cursor);
 	}
+
+	roots_input_method_relay_set_focus(&seat->im_relay, view->wlr_surface);
 }
 
 /**

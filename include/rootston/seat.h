@@ -5,6 +5,7 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/layers.h"
+#include "rootston/text_input.h"
 
 struct roots_seat {
 	struct roots_input *input;
@@ -18,6 +19,8 @@ struct roots_seat {
 
 	// If the focused layer is set, views cannot receive keyboard focus
 	struct wlr_layer_surface_v1 *focused_layer;
+
+	struct roots_input_method_relay im_relay;
 
 	// If non-null, only this client can receive input events
 	struct wl_client *exclusive_client;

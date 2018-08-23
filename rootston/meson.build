@@ -9,6 +9,7 @@ sources = [
 	'main.c',
 	'output.c',
 	'seat.c',
+	'text_input.c',
 	'virtual_keyboard.c',
 	'wl_shell.c',
 	'xdg_shell.c',
