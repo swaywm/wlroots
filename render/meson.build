@@ -4,7 +4,7 @@ glapi = custom_target(
 	'glapi',
 	input: 'glapi.txt',
 	output: ['@BASENAME@.c', '@BASENAME@.h'],
-	command: [glgen, '@INPUT@', '@OUTPUT0@', '@OUTPUT1@'],
+	command: [glgen, '@INPUT@', '@OUTDIR@'],
 )
 
 lib_wlr_render = static_library(
