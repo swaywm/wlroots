@@ -1,4 +1,3 @@
-backend_parts = []
 backend_files = files(
 	'backend.c',
 	'drm/atomic.c',
@@ -45,17 +44,28 @@ else
 	backend_files += files('session/direct.c')
 endif
 
-if logind.found()
+if conf_data.get('WLR_HAS_SYSTEMD', false)
 	backend_files += files('session/logind.c')
-	backend_deps += logind
+	backend_deps += systemd
 endif
 
-subdir('x11')
+if conf_data.get('WLR_HAS_X11_BACKEND', false)
+	backend_files += files(
+		'x11/backend.c',
+		'x11/input_device.c',
+		'x11/output.c',
+	)
+	backend_deps += xcb_xkb
+endif
+
+if conf_data.get('WLR_HAS_ELOGIND', false)
+	backend_files += files('session/logind.c')
+	backend_deps += elogind
+endif
 
 lib_wlr_backend = static_library(
 	'wlr_backend',
 	backend_files,
 	include_directories: wlr_inc,
-	link_whole: backend_parts,
 	dependencies: backend_deps,
 )
