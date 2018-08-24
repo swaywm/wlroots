@@ -7,16 +7,15 @@
 # to fail if it can't load the function. You'll need to check if that function
 # is NULL before using it.
 
-if [ $# -ne 3 ]; then
+if [ $# -ne 2 ]; then
 	exit 1
 fi
 
 SPEC=$1
-OUT_C=$2
-OUT_H=$3
+OUTDIR=$2
 
 BASE=$(basename "$SPEC" .txt)
-INCLUDE_GUARD=$(printf %s "$OUT_H" | tr -c [:alnum:] _ | tr [:lower:] [:upper:])
+INCLUDE_GUARD=$(printf %s_%s_H "$OUTDIR" "$BASE" | tr -c [:alnum:] _ | tr [:lower:] [:upper:])
 
 DECL=""
 DEFN=""
@@ -56,9 +55,9 @@ while read -r COMMAND; do
 	if [ $OPTIONAL -eq 0 ]; then
 		LOADER="$LOADER$(printf "\n$CHECK_FMT" "$COMMAND" "$COMMAND")"
 	fi
-done < $SPEC
+done < "$SPEC"
 
-cat > $OUT_H << EOF
+cat > "$OUTDIR/$BASE.h" << EOF
 #ifndef $INCLUDE_GUARD
 #define $INCLUDE_GUARD
 
@@ -66,7 +65,6 @@ cat > $OUT_H << EOF
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <EGL/eglmesaext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -76,9 +74,9 @@ $DECL
 #endif
 EOF
 
-cat > $OUT_C << EOF
+cat > "$OUTDIR/$BASE.c" << EOF
 #include <wlr/util/log.h>
-#include "$OUT_H"
+#include "$BASE.h"
 $DEFN
 
 bool load_$BASE(void) {

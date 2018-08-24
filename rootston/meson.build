@@ -11,12 +11,17 @@ sources = [
 	'seat.c',
 	'virtual_keyboard.c',
 	'wl_shell.c',
-	'xdg_shell_v6.c',
 	'xdg_shell.c',
+	'xdg_shell_v6.c',
 ]
-if get_option('enable-xwayland')
-	sources += ['xwayland.c']
+
+if conf_data.get('WLR_HAS_XWAYLAND', false)
+	sources += 'xwayland.c'
 endif
+
 executable(
-	'rootston', sources, dependencies: [wlroots, wlr_protos, pixman]
+	'rootston',
+	sources,
+	dependencies: [wlroots, wlr_protos, pixman],
+	build_by_default: get_option('rootston'),
 )
