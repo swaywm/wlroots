@@ -66,7 +66,6 @@ cat > $OUT_H << EOF
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <EGL/eglmesaext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
