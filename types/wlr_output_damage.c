@@ -101,12 +101,13 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	free(output_damage);
 }
 
-bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
-		bool *needs_swap, pixman_region32_t *damage) {
+bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
+		struct wlr_renderer *renderer, bool *needs_swap,
+		pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
 
 	int buffer_age = -1;
-	if (!wlr_output_make_current(output, &buffer_age)) {
+	if (!wlr_renderer_begin_output(renderer, output, &buffer_age)) {
 		return false;
 	}
 

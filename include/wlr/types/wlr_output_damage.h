@@ -13,6 +13,7 @@
 #include <time.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/render/wlr_renderer.h>
 
 /**
  * Damage tracking requires to keep track of previous frames' damage. To allow
@@ -59,8 +60,8 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
  * `wlr_output_damage_swap_buffers` needs to be called. The region of the output
  * that needs to be repainted is added to `damage`.
  */
-bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
-	bool *needs_swap, pixman_region32_t *damage);
+bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
+	struct wlr_renderer *renderer, bool *needs_swap, pixman_region32_t *damage);
 /**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL.

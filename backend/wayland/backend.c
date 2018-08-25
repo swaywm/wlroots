@@ -1,6 +1,4 @@
 #include <assert.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,7 +6,6 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
@@ -97,7 +94,6 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wl_event_source_remove(backend->remote_display_src);
 	}
 	wlr_renderer_destroy(backend->renderer);
-	wlr_egl_finish(&backend->egl);
 	if (backend->pointer) {
 		wl_pointer_destroy(backend->pointer);
 	}
@@ -172,22 +168,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_registry;
 	}
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	backend->renderer = create_renderer_func(&backend->egl, EGL_PLATFORM_WAYLAND_EXT,
-		backend->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
-
+	backend->renderer = create_renderer_func(&backend->backend);
 	if (backend->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Could not create renderer");
 		goto error_renderer;

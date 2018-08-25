@@ -40,17 +40,9 @@ static struct wl_callback_listener frame_listener = {
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
-	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+	wlr_render_surface_resize(output->render_surface, width, height);
 	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 	return true;
-}
-
-static bool output_make_current(struct wlr_output *wlr_output,
-		int *buffer_age) {
-	struct wlr_wl_output *output =
-		get_wl_output_from_output(wlr_output);
-	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-		buffer_age);
 }
 
 static bool output_swap_buffers(struct wlr_output *wlr_output,
@@ -66,8 +58,7 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	if (!wlr_egl_swap_buffers(&output->backend->egl,
-			output->egl_surface, damage)) {
+	if (!wlr_render_surface_swap_buffers(output->render_surface, damage)) {
 		return false;
 	}
 
@@ -119,16 +110,13 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		output->cursor.width = width;
 		output->cursor.height = height;
 
-		if (output->cursor.egl_window == NULL) {
-			output->cursor.egl_window =
-				wl_egl_window_create(surface, width, height);
+		if (output->cursor.render_surface == NULL) {
+			output->cursor.render_surface = wlr_renderer_create_render_surface(
+				backend->renderer, surface, width, height);
+		} else {
+			wlr_render_surface_resize(output->cursor.render_surface,
+				width, height);
 		}
-		wl_egl_window_resize(output->cursor.egl_window, width, height, 0, 0);
-
-		EGLSurface egl_surface =
-			wlr_egl_create_surface(&backend->egl, output->cursor.egl_window);
-
-		wlr_egl_make_current(&backend->egl, egl_surface, NULL);
 
 		struct wlr_box cursor_box = {
 			.width = width,
@@ -141,13 +129,13 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
 
-		wlr_renderer_begin(backend->renderer, width, height);
+		wlr_renderer_begin(backend->renderer, output->cursor.render_surface,
+			NULL);
 		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
 		wlr_renderer_end(backend->renderer);
 
-		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
-		wlr_egl_destroy_surface(&backend->egl, egl_surface);
+		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -165,9 +153,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
-	if (output->cursor.egl_window != NULL) {
-		wl_egl_window_destroy(output->cursor.egl_window);
-	}
+	wlr_render_surface_destroy(output->cursor.render_surface);
 	if (output->cursor.surface) {
 		wl_surface_destroy(output->cursor.surface);
 	}
@@ -176,8 +162,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 		wl_callback_destroy(output->frame_callback);
 	}
 
-	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
-	wl_egl_window_destroy(output->egl_window);
+	wlr_render_surface_destroy(output->render_surface);
 	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
 	zxdg_surface_v6_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
@@ -210,15 +195,21 @@ static void output_schedule_frame(struct wlr_output *wlr_output) {
 	wl_surface_commit(output->surface);
 }
 
+static struct wlr_render_surface *output_get_render_surface(
+		struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output = (struct wlr_wl_output *)wlr_output;
+	return output->render_surface;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
 	.schedule_frame = output_schedule_frame,
+	.get_render_surface = output_get_render_surface
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {
@@ -249,7 +240,7 @@ static void xdg_toplevel_handle_configure(void *data,
 		return;
 	}
 	// loop over states for maximized etc?
-	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+	wlr_render_surface_resize(output->render_surface, width, height);
 	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 }
 
@@ -321,28 +312,20 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			&xdg_toplevel_listener, output);
 	wl_surface_commit(output->surface);
 
-	output->egl_window = wl_egl_window_create(output->surface,
-			wlr_output->width, wlr_output->height);
-	output->egl_surface = wlr_egl_create_surface(&backend->egl,
-		output->egl_window);
+	output->render_surface = wlr_renderer_create_render_surface(
+		backend->renderer, output->surface, wlr_output->width,
+		wlr_output->height);
 
 	wl_display_roundtrip(output->backend->remote_display);
 
-	// start rendering loop per callbacks by rendering first frame
-	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-			NULL)) {
-		goto error;
-	}
-
-	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(backend->renderer, output->render_surface, NULL);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	if (!wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface,
-			NULL)) {
+	if (!wlr_render_surface_swap_buffers(output->render_surface, NULL)) {
 		goto error;
 	}
 

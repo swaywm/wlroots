@@ -1,12 +1,8 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <drm_mode.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <errno.h>
 #include <gbm.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +12,6 @@
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -221,12 +216,6 @@ static struct wlr_drm_connector *get_drm_connector_from_output(
 		struct wlr_output *wlr_output) {
 	assert(wlr_output_is_drm(wlr_output));
 	return (struct wlr_drm_connector *)wlr_output;
-}
-
-static bool drm_connector_make_current(struct wlr_output *output,
-		int *buffer_age) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
 static bool drm_connector_swap_buffers(struct wlr_output *output,
@@ -585,7 +574,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		crtc->cursor = plane;
 	}
 
-	if (!plane->surf.gbm) {
+	if (!plane->surf.render_surface) {
 		int ret;
 		uint64_t w, h;
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
@@ -662,8 +651,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		make_drm_surface_current(&plane->surf, NULL);
-
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
 		struct wlr_box cursor_box = { .width = width, .height = height };
@@ -671,13 +658,12 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
 
-		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
+		wlr_renderer_begin(rend, plane->surf.render_surface, NULL);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
-		wlr_renderer_end(rend);
-
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, NULL, bo_stride,
 			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
+		wlr_renderer_end(rend);
 
 		swap_drm_surface_buffers(&plane->surf, NULL);
 
@@ -781,6 +767,12 @@ static void drm_connector_destroy(struct wlr_output *output) {
 	free(conn);
 }
 
+static struct wlr_render_surface *drm_connector_get_render_surface(
+		struct wlr_output *output) {
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	return conn->crtc->primary->surf.render_surface;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.enable = enable_drm_connector,
 	.set_mode = drm_connector_set_mode,
@@ -788,12 +780,12 @@ static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
-	.make_current = drm_connector_make_current,
 	.swap_buffers = drm_connector_swap_buffers,
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
 	.schedule_frame = drm_connector_schedule_frame,
+	.get_render_surface = drm_connector_get_render_surface,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {
@@ -1236,10 +1228,10 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
-	post_drm_surface(&conn->crtc->primary->surf);
-	if (drm->parent) {
-		post_drm_surface(&conn->crtc->primary->mgpu_surf);
-	}
+	// post_drm_surface(&conn->crtc->primary->surf);
+	// if (drm->parent) {
+	// 	post_drm_surface(&conn->crtc->primary->mgpu_surf);
+	// }
 
 	struct timespec present_time = {
 		.tv_sec = tv_sec,

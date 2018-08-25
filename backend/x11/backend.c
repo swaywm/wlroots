@@ -12,8 +12,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
@@ -207,7 +206,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wlr_renderer_destroy(x11->renderer);
-	wlr_egl_finish(&x11->egl);
 
 	if (x11->cursor) {
 		xcb_free_cursor(x11->xcb_conn, x11->cursor);
@@ -282,8 +280,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_X11_KHR,
-		x11->xlib_conn, NULL, x11->screen->root_visual);
+	x11->renderer = create_renderer_func(&x11->backend);
 
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");

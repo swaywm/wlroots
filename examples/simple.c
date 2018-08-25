@@ -10,6 +10,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -18,6 +19,7 @@ struct sample_state {
 	struct wl_listener new_output;
 	struct wl_listener new_input;
 	struct timespec last_frame;
+	struct wlr_renderer *renderer;
 	float color[3];
 	int dec;
 };
@@ -56,7 +58,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->dec = inc;
 	}
 
-	wlr_output_make_current(sample_output->output, NULL);
+	wlr_renderer_begin_output(sample->renderer, sample_output->output, NULL);
 
 	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -165,10 +167,12 @@ int main(void) {
 		.last_frame = { 0 },
 		.display = display
 	};
-	struct wlr_backend *backend = wlr_backend_autocreate(display, NULL);
+	struct wlr_backend *backend = wlr_backend_autocreate(display,
+		wlr_gles2_renderer_create);
 	if (!backend) {
 		exit(1);
 	}
+	state.renderer = wlr_backend_get_renderer(backend);
 	wl_signal_add(&backend->events.new_output, &state.new_output);
 	state.new_output.notify = new_output_notify;
 	wl_signal_add(&backend->events.new_input, &state.new_input);

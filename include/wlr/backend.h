@@ -28,8 +28,8 @@ struct wlr_backend {
 	} events;
 };
 
-typedef struct wlr_renderer *(*wlr_renderer_create_func_t)(struct wlr_egl *egl, EGLenum platform,
-	void *remote_display, EGLint *config_attribs, EGLint visual_id);
+typedef struct wlr_renderer *(*wlr_renderer_create_func_t)(
+	struct wlr_backend *backend);
 /**
  * Automatically initializes the most suitable backend given the environment.
  * Will always return a multibackend. The backend is created but not started.

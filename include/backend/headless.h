@@ -8,7 +8,6 @@
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
-	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
 	struct wl_display *display;
 	struct wl_list outputs;
@@ -23,7 +22,7 @@ struct wlr_headless_output {
 	struct wlr_headless_backend *backend;
 	struct wl_list link;
 
-	void *egl_surface;
+	struct wlr_render_surface *render_surface;
 	struct wl_event_source *frame_timer;
 	int frame_delay; // ms
 };

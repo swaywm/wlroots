@@ -7,7 +7,6 @@
 #include <wlr/backend/x11.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
 
@@ -23,7 +22,7 @@ struct wlr_x11_output {
 	struct wl_list link; // wlr_x11_backend::outputs
 
 	xcb_window_t win;
-	EGLSurface surf;
+	struct wlr_render_surface *render_surface;
 
 	struct wlr_pointer pointer;
 	struct wlr_input_device pointer_dev;
@@ -47,7 +46,6 @@ struct wlr_x11_backend {
 	struct wlr_keyboard keyboard;
 	struct wlr_input_device keyboard_dev;
 
-	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
 	struct wl_event_source *event_source;
 

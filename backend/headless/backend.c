@@ -1,9 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "glapi.h"
@@ -62,7 +61,6 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
 	wlr_renderer_destroy(backend->renderer);
-	wlr_egl_finish(&backend->egl);
 	free(backend);
 }
 
@@ -100,22 +98,11 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 	wl_list_init(&backend->outputs);
 	wl_list_init(&backend->input_devices);
 
-	static const EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-		EGL_ALPHA_SIZE, 0,
-		EGL_BLUE_SIZE, 8,
-		EGL_GREEN_SIZE, 8,
-		EGL_RED_SIZE, 8,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_NONE,
-	};
-
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	backend->renderer = create_renderer_func(&backend->egl,
-		EGL_PLATFORM_SURFACELESS_MESA, NULL, (EGLint*)config_attribs, 0);
+	backend->renderer = create_renderer_func(&backend->backend);
 	if (!backend->renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		free(backend);

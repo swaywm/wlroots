@@ -1,13 +1,21 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <wlr/render/gles2.h>
+#include <wlr/config.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+
+#ifdef WLR_HAS_VULKAN
+	#include <wlr/render/vulkan.h>
+#endif
+
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -20,6 +28,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->formats);
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
+	assert(impl->create_render_surface);
 	renderer->impl = impl;
 
 	wl_signal_init(&renderer->events.destroy);
@@ -38,8 +47,15 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 }
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
-	r->impl->begin(r, width, height);
+bool wlr_renderer_begin(struct wlr_renderer *r,
+		struct wlr_render_surface *rs, int *buffer_age) {
+	return r->impl->begin(r, rs, buffer_age);
+}
+
+bool wlr_renderer_begin_output(struct wlr_renderer *r,
+		struct wlr_output *output, int *buffer_age) {
+	return wlr_renderer_begin(r, output->impl->get_render_surface(output),
+		buffer_age);
 }
 
 void wlr_renderer_end(struct wlr_renderer *r) {
@@ -186,18 +202,22 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 }
 
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
-		EGLenum platform, void *remote_display, EGLint *config_attribs,
-		EGLint visual_id) {
-	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visual_id)) {
-		wlr_log(WLR_ERROR, "Could not initialize EGL");
-		return NULL;
+struct wlr_render_surface *wlr_renderer_create_render_surface(
+		struct wlr_renderer *r, void *handle, uint32_t width, uint32_t height) {
+	return r->impl->create_render_surface(r, handle, width, height);
+}
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	struct wlr_renderer *renderer;
+	if ((renderer = wlr_gles2_renderer_create(backend))) {
+		return renderer;
 	}
 
-	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
-	if (!renderer) {
-		wlr_egl_finish(egl);
+#ifdef WLR_HAS_VULKAN
+	if ((renderer = wlr_vk_renderer_create(backend))) {
+		return renderer;
 	}
+#endif
 
-	return renderer;
+	return NULL;
 }

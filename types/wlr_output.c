@@ -251,7 +251,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
-	assert(impl->make_current && impl->swap_buffers && impl->transform);
+	assert(impl->get_render_surface && impl->swap_buffers && impl->transform);
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}
@@ -334,10 +334,6 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 	wlr_output_transformed_resolution(output, width, height);
 	*width /= output->scale;
 	*height /= output->scale;
-}
-
-bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
-	return output->impl->make_current(output, buffer_age);
 }
 
 static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {

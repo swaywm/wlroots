@@ -11,9 +11,10 @@
 
 #include <stdint.h>
 #include <wayland-server-protocol.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/wlr_render_surface.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_output.h>
 
 enum wlr_renderer_read_pixels_flags {
 	WLR_RENDERER_READ_PIXELS_Y_INVERT = 1,
@@ -29,10 +30,12 @@ struct wlr_renderer {
 	} events;
 };
 
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platform,
-	void *remote_display, EGLint *config_attribs, EGLint visual_id);
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend);
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
+bool wlr_renderer_begin(struct wlr_renderer *r,
+	struct wlr_render_surface *render_surface, int *buffer_age);
+bool wlr_renderer_begin_output(struct wlr_renderer *r,
+	struct wlr_output *output, int *buffer_age);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
@@ -98,7 +101,7 @@ int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
 	uint64_t **modifiers);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
- * bytes.
+ * bytes. May be delayed until wlr_renderer_end is called.
  *
  * If `flags` is not NULl, the caller indicates that it accepts frame flags
  * defined in `enum wlr_renderer_read_pixels_flags`.
@@ -113,6 +116,8 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	enum wl_shm_format fmt);
 void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
+struct wlr_render_surface *wlr_renderer_create_render_surface(
+	struct wlr_renderer *r, void *handle, uint32_t width, uint32_t height);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */

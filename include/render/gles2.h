@@ -14,6 +14,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/wlr_render_surface.h>
 #include <wlr/util/log.h>
 
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
@@ -35,8 +36,9 @@ struct wlr_gles2_tex_shader {
 
 struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
+	struct wlr_backend *backend;
 
-	struct wlr_egl *egl;
+	struct wlr_egl egl;
 	const char *exts_str;
 
 	struct {
@@ -82,6 +84,18 @@ struct wlr_gles2_texture {
 		GLuint gl_tex;
 		struct wl_resource *wl_drm;
 	};
+};
+
+struct wlr_gles2_render_surface {
+	struct wlr_render_surface render_surface;
+	struct wlr_gles2_renderer *renderer;
+	struct wl_egl_window *egl_window;
+	struct gbm_surface *gbm_surface;
+	void* handle;
+
+	EGLSurface surface;
+	uint32_t width;
+	uint32_t height;
 };
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(

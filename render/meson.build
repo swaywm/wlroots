@@ -16,14 +16,15 @@ wlr_render_src = files(
 	'gles2/texture.c',
 	'gles2/util.c',
 	'wlr_renderer.c',
-	'wlr_texture.c'
+	'wlr_texture.c',
+	'wlr_render_surface.c',
 )
 
 wlr_render_deps = [egl, glesv2, pixman, wayland_server]
 wlr_render_inc = [wlr_inc]
 
 # vulkan
-if conf_data.get('WLR_HAS_X11_BACKEND', false)
+if conf_data.get('WLR_HAS_VULKAN', false)
 	subdir('vulkan/shaders')
 	wlr_render_deps += [vulkan]
 	wlr_render_src += files(

@@ -9,19 +9,18 @@
 #ifndef WLR_RENDER_INTERFACE_H
 #define WLR_RENDER_INTERFACE_H
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <stdbool.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/wlr_render_surface.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_renderer_impl {
-	void (*begin)(struct wlr_renderer *renderer, uint32_t width,
-		uint32_t height);
+	bool (*begin)(struct wlr_renderer *renderer,
+		struct wlr_render_surface *render_surface, int *buffer_age);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
@@ -57,6 +56,9 @@ struct wlr_renderer_impl {
 	void (*destroy)(struct wlr_renderer *renderer);
 	void (*init_wl_display)(struct wlr_renderer *renderer,
 		struct wl_display *wl_display);
+	struct wlr_render_surface *(*create_render_surface)(
+		struct wlr_renderer *renderer, void *handle,
+		uint32_t width, uint32_t height);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
@@ -76,5 +78,16 @@ struct wlr_texture_impl {
 
 void wlr_texture_init(struct wlr_texture *texture,
 	const struct wlr_texture_impl *impl);
+
+struct wlr_render_surface_impl {
+	bool (*swap_buffers)(struct wlr_render_surface *surface,
+			pixman_region32_t *damage);
+	void (*resize)(struct wlr_render_surface *surface, unsigned width,
+			unsigned height);
+	void (*destroy)(struct wlr_render_surface *surface);
+};
+
+void wlr_render_surface_init(struct wlr_render_surface *surface,
+	const struct wlr_render_surface_impl *impl);
 
 #endif

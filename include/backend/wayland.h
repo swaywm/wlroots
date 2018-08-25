@@ -3,11 +3,9 @@
 
 #include <stdbool.h>
 #include <wayland-client.h>
-#include <wayland-egl.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wlr/backend/wayland.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 
@@ -19,7 +17,6 @@ struct wlr_wl_backend {
 	struct wl_display *local_display;
 	struct wl_list devices;
 	struct wl_list outputs;
-	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
 	size_t requested_outputs;
 	struct wl_listener local_display_destroy;
@@ -46,14 +43,13 @@ struct wlr_wl_output {
 	struct wl_callback *frame_callback;
 	struct zxdg_surface_v6 *xdg_surface;
 	struct zxdg_toplevel_v6 *xdg_toplevel;
-	struct wl_egl_window *egl_window;
-	EGLSurface egl_surface;
+	struct wlr_render_surface *render_surface;
 
 	uint32_t enter_serial;
 
 	struct {
 		struct wl_surface *surface;
-		struct wl_egl_window *egl_window;
+		struct wlr_render_surface *render_surface;
 		int32_t hotspot_x, hotspot_y;
 		int32_t width, height;
 	} cursor;

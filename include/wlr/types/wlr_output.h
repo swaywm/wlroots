@@ -52,7 +52,7 @@ struct wlr_output_impl;
  * displays part of the compositor space.
  *
  * Compositors should listen to the `frame` event to render an output. They
- * should call `wlr_output_make_current`, render and then call
+ * should call `wlr_renderer_begin(_output)`, render and then call
  * `wlr_output_swap_buffers`. No rendering should happen outside a `frame` event
  * handler.
  */
@@ -190,13 +190,6 @@ void wlr_output_transformed_resolution(struct wlr_output *output,
  */
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
-/**
- * Makes the output rendering context current.
- *
- * `buffer_age` is set to the drawing buffer age in number of frames or -1 if
- * unknown. This is useful for damage tracking.
- */
-bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
 /**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL. If the compositor doesn't support damage tracking, set `damage` to

@@ -26,7 +26,6 @@ struct wlr_output_impl {
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
 	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
-	bool (*make_current)(struct wlr_output *output, int *buffer_age);
 	bool (*swap_buffers)(struct wlr_output *output, pixman_region32_t *damage);
 	bool (*set_gamma)(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b);
@@ -34,6 +33,7 @@ struct wlr_output_impl {
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
 	void (*schedule_frame)(struct wlr_output *output);
+	struct wlr_render_surface *(*get_render_surface)(struct wlr_output *output);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,

@@ -4,6 +4,8 @@
 #include <string.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_render_surface.h>
 #include <wlr/util/log.h>
 #include "backend/x11.h"
 #include "util/signal.h"
@@ -83,26 +85,15 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
-	wlr_egl_destroy_surface(&x11->egl, output->surf);
 	xcb_destroy_window(x11->xcb_conn, output->win);
 	xcb_flush(x11->xcb_conn);
 	free(output);
 }
 
-static bool output_make_current(struct wlr_output *wlr_output,
-		int *buffer_age) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	struct wlr_x11_backend *x11 = output->x11;
-
-	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
-}
-
 static bool output_swap_buffers(struct wlr_output *wlr_output,
 		pixman_region32_t *damage) {
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	if (!wlr_egl_swap_buffers(&x11->egl, output->surf, damage)) {
+	if (!wlr_render_surface_swap_buffers(output->render_surface, damage)) {
 		return false;
 	}
 
@@ -110,12 +101,18 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	return true;
 }
 
+static struct wlr_render_surface *output_get_render_surface(
+		struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+	return output->render_surface;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
+	.get_render_surface = output_get_render_surface,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
@@ -144,6 +141,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		wl_list_length(&x11->outputs) + 1);
 	parse_xcb_setup(wlr_output, x11->xcb_conn);
 
+	uint32_t width = wlr_output->width;
+	uint32_t height = wlr_output->height;
 	uint32_t mask = XCB_CW_EVENT_MASK;
 	uint32_t values[] = {
 		XCB_EVENT_MASK_EXPOSURE |
@@ -154,12 +153,13 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	output->win = xcb_generate_id(x11->xcb_conn);
 	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
-		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
+		x11->screen->root, 0, 0, width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		x11->screen->root_visual, mask, values);
 
-	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
-	if (!output->surf) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
+	output->render_surface = wlr_renderer_create_render_surface(
+		x11->renderer, &output->win, width, height);
+	if (!output->render_surface) {
+		wlr_log(WLR_ERROR, "Failed to create render surface");
 		free(output);
 		return NULL;
 	}

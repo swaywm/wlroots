@@ -1,6 +1,4 @@
 #include <assert.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
@@ -14,37 +12,16 @@ static struct wlr_headless_output *headless_output_from_output(
 	return (struct wlr_headless_output *)wlr_output;
 }
 
-static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
-		unsigned int height) {
-	EGLint attribs[] = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
-
-	EGLSurface surf = eglCreatePbufferSurface(egl->display, egl->config, attribs);
-	if (surf == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		return EGL_NO_SURFACE;
-	}
-	return surf;
-}
-
 static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		int32_t height, int32_t refresh) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	struct wlr_headless_backend *backend = output->backend;
 
 	if (refresh <= 0) {
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 
-	wlr_egl_destroy_surface(&backend->egl, output->egl_surface);
-
-	output->egl_surface = egl_create_surface(&backend->egl, width, height);
-	if (output->egl_surface == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to recreate EGL surface");
-		wlr_output_destroy(wlr_output);
-		return false;
-	}
-
+	wlr_render_surface_resize(output->render_surface, width, height);
 	output->frame_delay = 1000000 / refresh;
 
 	wlr_output_update_custom_mode(&output->wlr_output, width, height, refresh);
@@ -58,16 +35,21 @@ static void output_transform(struct wlr_output *wlr_output,
 	output->wlr_output.transform = transform;
 }
 
-static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
+static struct wlr_render_surface *output_get_render_surface(
+		struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-		buffer_age);
+	return output->render_surface;
 }
 
 static bool output_swap_buffers(struct wlr_output *wlr_output,
 		pixman_region32_t *damage) {
-	// Nothing needs to be done for pbuffers
+	struct wlr_headless_output *output =
+		(struct wlr_headless_output *)wlr_output;
+	if (!wlr_render_surface_swap_buffers(output->render_surface, NULL)) {
+		return false;
+	}
+
 	wlr_output_send_present(wlr_output, NULL);
 	return true;
 }
@@ -79,8 +61,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wl_list_remove(&output->link);
 
 	wl_event_source_remove(output->frame_timer);
-
-	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
+	wlr_render_surface_destroy(output->render_surface);
 	free(output);
 }
 
@@ -88,7 +69,7 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
+	.get_render_surface = output_get_render_surface,
 	.swap_buffers = output_swap_buffers,
 };
 
@@ -119,9 +100,10 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	output->egl_surface = egl_create_surface(&backend->egl, width, height);
-	if (output->egl_surface == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
+	output->render_surface = wlr_renderer_create_render_surface(
+		backend->renderer, NULL, width, height);
+	if (!output->render_surface) {
+		wlr_log(WLR_ERROR, "Failed to create wlr_render_surface");
 		goto error;
 	}
 
@@ -131,12 +113,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",
 		wl_list_length(&backend->outputs) + 1);
 
-	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-			NULL)) {
-		goto error;
-	}
-
-	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(backend->renderer, output->render_surface, NULL);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 
