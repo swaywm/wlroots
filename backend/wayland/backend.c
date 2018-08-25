@@ -6,7 +6,6 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/wayland.h"
 #include "util/signal.h"

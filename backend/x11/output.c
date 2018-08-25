@@ -208,6 +208,8 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 	if (ev->width > 0 && ev->height > 0) {
 		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
 			ev->height, output->wlr_output.refresh);
+		wlr_render_surface_resize(output->render_surface,
+			ev->width, ev->height);
 
 		// Move the pointer to its new location
 		update_x11_pointer_position(output, output->x11->time);

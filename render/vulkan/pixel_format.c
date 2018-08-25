@@ -2,7 +2,7 @@
 #include "render/vulkan.h"
 
 // reversed endianess, as in opengl
-static const struct wlr_vulkan_pixel_format formats[] = {
+static const struct wlr_vk_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
 		.bpp = 32,
@@ -36,7 +36,7 @@ static const enum wl_shm_format wl_formats[] = {
 	WL_SHM_FORMAT_XBGR8888,
 };
 
-const struct wlr_vulkan_pixel_format *get_vulkan_format_from_wl(
+const struct wlr_vk_pixel_format *get_vulkan_format_from_wl(
 		enum wl_shm_format fmt) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
 		if (formats[i].wl_format == fmt) {

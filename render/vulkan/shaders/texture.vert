@@ -7,7 +7,7 @@ layout(set = 0, binding = 0, row_major) uniform UBO {
 	mat4 mat;
 } ubo;
 
-layout(location = 1) out vec2 uv;
+layout(location = 0) out vec2 uv;
 
 const vec2[] values = {
 	{-1, -1}, // 4 outlining points ...

@@ -78,63 +78,82 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	return false;
 }
 
-static bool init_instance(struct wlr_vulkan *vulkan, unsigned int ext_count,
-		const char **exts, bool debug) {
-	uint32_t ecount = 0;
-	VkResult res = vkEnumerateInstanceExtensionProperties(NULL, &ecount, NULL);
-	if ((res != VK_SUCCESS) || (ecount == 0)) {
-		wlr_vulkan_error("Could not enumerate instance extensions (1)", res);
-		return false;
-	}
-
-	VkExtensionProperties *eprops = calloc(ecount, sizeof(VkExtensionProperties));
-	if (!eprops) {
-		wlr_log(WLR_ERROR, "allocation failed");
-		return false;
-	}
-
-	res = vkEnumerateInstanceExtensionProperties(NULL, &ecount, eprops);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Could not enumerate instance extensions (2)", res);
-		free(eprops);
-		return false;
-	}
-
-	int ext_off = 1 + debug;
-	const char *extensions[ext_count + ext_off];
-	memcpy(extensions + ext_off, exts, ext_count * sizeof(*exts));
-	extensions[ext_off - 1] = VK_KHR_SURFACE_EXTENSION_NAME;
-	if (debug) {
-		extensions[0] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-	}
-
-	const char* const* ext_start = extensions;
-	bool debug_utils_found = true;
-
-	for(size_t i = 0; i < ext_count + 1; ++i) {
+// Returns the name of the first extension that could not be found or NULL.
+static const char *find_extensions(const VkExtensionProperties *avail,
+		unsigned availc, const char **req, unsigned reqc) {
+	// check if all required extensions are supported
+	for(size_t i = 0; i < reqc; ++i) {
 		bool found = false;
-		for(size_t j = 0; j < ext_count; ++j) {
-			if (strcmp(eprops[j].extensionName, extensions[i]) == 0) {
+		for(size_t j = 0; j < availc; ++j) {
+			if (!strcmp(avail[j].extensionName, req[i])) {
 				found = true;
 				break;
 			}
 		}
 
 		if (!found) {
-			wlr_log(WLR_ERROR, "Could not find extension %s", extensions[i]);
-			if (debug && i == 0) { // debug utils, not critical
-				debug_utils_found = false;
-				++ext_start;
-				--ext_off;
-				continue;
-			}
-
-			free(eprops);
-			return false;
+			return req[i];
 		}
 	}
 
-	free(eprops);
+	return NULL;
+}
+
+static bool init_instance(struct wlr_vulkan *vulkan,
+		unsigned int req_extc, const char **req_exts, bool debug) {
+	uint32_t avail_extc = 0;
+	VkResult res;
+	res = vkEnumerateInstanceExtensionProperties(NULL, &avail_extc, NULL);
+	if ((res != VK_SUCCESS) || (avail_extc == 0)) {
+		wlr_vulkan_error("Could not enumerate instance extensions (1)", res);
+		return false;
+	}
+
+	VkExtensionProperties *avail_ext_props =
+		calloc(avail_extc, sizeof(VkExtensionProperties));
+	if (!avail_ext_props) {
+		wlr_log(WLR_ERROR, "allocation failed");
+		return false;
+	}
+
+	res = vkEnumerateInstanceExtensionProperties(NULL, &avail_extc,
+		avail_ext_props);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("Could not enumerate instance extensions (2)", res);
+		free(avail_ext_props);
+		return false;
+	}
+
+	// output all extensions
+	for(size_t j = 0; j < avail_extc; ++j) {
+		wlr_log(WLR_INFO, "Vulkan Instance extensions %s",
+			avail_ext_props[j].extensionName);
+	}
+
+	// try to find required/optional ones
+	bool debug_utils_found = debug;
+	unsigned extension_count = req_extc + 1 + debug;
+	const char *extensions[extension_count];
+	memcpy(extensions, req_exts, req_extc * sizeof(*req_exts));
+	extensions[req_extc + 0] = VK_KHR_SURFACE_EXTENSION_NAME;
+	if (debug) {
+		const char *name = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+		extensions[req_extc + 1] = name;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1)) {
+			debug_utils_found = false;
+			extension_count--;
+		}
+	}
+
+	const char *missing = find_extensions(avail_ext_props, avail_extc,
+		extensions, extension_count);
+	if (missing) {
+		wlr_log(WLR_ERROR, "Instance extension %s unsupported", missing);
+		free(avail_ext_props);
+		return NULL;
+	}
+
+	free(avail_ext_props);
 
 	// TODO: use compositor version and name provided somewhere?
 	VkApplicationInfo application_info = {0};
@@ -143,15 +162,15 @@ static bool init_instance(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	application_info.applicationVersion = 1;
 	application_info.pEngineName = "wlroots";
 	application_info.engineVersion = WLR_VERSION_NUM;
-	application_info.apiVersion = VK_MAKE_VERSION(1,0,0);
+	application_info.apiVersion = VK_MAKE_VERSION(1,1,0);
 
 	const char *layer_name = "VK_LAYER_LUNARG_standard_validation";
 
 	VkInstanceCreateInfo instance_info = {0};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pApplicationInfo = &application_info;
-	instance_info.enabledExtensionCount = ext_count + ext_off;
-	instance_info.ppEnabledExtensionNames = ext_start;
+	instance_info.enabledExtensionCount = extension_count;
+	instance_info.ppEnabledExtensionNames = extensions;
 	instance_info.enabledLayerCount = debug;
 	instance_info.ppEnabledLayerNames = &layer_name;
 
@@ -171,11 +190,11 @@ static bool init_instance(struct wlr_vulkan *vulkan, unsigned int ext_count,
 
 		if(vulkan->api.createDebugUtilsMessengerEXT) {
 			VkDebugUtilsMessageSeverityFlagsEXT severity =
+				// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-				VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 			VkDebugUtilsMessageTypeFlagsEXT types =
-				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+				// VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 
@@ -199,18 +218,70 @@ static bool init_instance(struct wlr_vulkan *vulkan, unsigned int ext_count,
 static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		const char **exts) {
 	// TODO: don't just choose the first device
+	// query one based on
+	//  - user preference (env variables/config)
+	//  - supported presenting caps
+	//  - supported extensions
+	//  - (as default, when both ok) integrated vs dedicated
 	uint32_t num_devs = 1;
-	VkResult ret = vkEnumeratePhysicalDevices(vulkan->instance, &num_devs,
+	VkResult res;
+	res = vkEnumeratePhysicalDevices(vulkan->instance, &num_devs,
 		&vulkan->phdev);
-	if (ret != VK_SUCCESS || !vulkan->phdev) {
+	if (res != VK_SUCCESS || !vulkan->phdev) {
 		wlr_log(WLR_ERROR, "Could not retrieve physical device");
 		return false;
 	}
 
+	unsigned extension_count = ext_count + 1u;
+	const char *extensions[extension_count];
+	memcpy(extensions, exts, ext_count * sizeof(*exts));
+	extensions[ext_count + 0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+
+	// check for extensions
+	uint32_t avail_extc = 0;
+	res = vkEnumerateDeviceExtensionProperties(vulkan->phdev, NULL,
+		&avail_extc, NULL);
+	if ((res != VK_SUCCESS) || (avail_extc == 0)) {
+		wlr_vulkan_error("Could not enumerate device extensions (1)", res);
+		return false;
+	}
+
+	VkExtensionProperties *avail_ext_props =
+		calloc(avail_extc, sizeof(VkExtensionProperties));
+	if (!avail_ext_props) {
+		wlr_log(WLR_ERROR, "allocation failed");
+		return false;
+	}
+
+	res = vkEnumerateDeviceExtensionProperties(vulkan->phdev, NULL,
+		&avail_extc, avail_ext_props);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("Could not enumerate device extensions (2)", res);
+		free(avail_ext_props);
+		return false;
+	}
+
+	// output all extensions
+	for(size_t j = 0; j < avail_extc; ++j) {
+		wlr_log(WLR_INFO, "Vulkan Device extension %s",
+			avail_ext_props[j].extensionName);
+	}
+
+	const char *missing = find_extensions(avail_ext_props, avail_extc,
+		extensions, extension_count);
+	if (missing) {
+		wlr_log(WLR_ERROR, "Device extension %s unsupported", missing);
+		free(avail_ext_props);
+		return NULL;
+	}
+
+	free(avail_ext_props);
+
+	// queue families
 	uint32_t qfam_count;
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan->phdev, &qfam_count, NULL);
 	VkQueueFamilyProperties *queue_props = calloc(qfam_count,
-		sizeof(queue_props));
+		sizeof(*queue_props));
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan->phdev, &qfam_count,
 		queue_props);
 
@@ -236,34 +307,23 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		present_queue_info
 	};
 
-	const char *extensions[ext_count + 3];
-	extensions[0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-	extensions[1] = VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME;
-	extensions[2] = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
-	memcpy(extensions + 3, exts, ext_count * sizeof(*exts));
-
 	VkDeviceCreateInfo dev_info = {0};
 	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	dev_info.queueCreateInfoCount = one_queue ? 1 : 2;
 	dev_info.pQueueCreateInfos = queue_infos;
-	dev_info.enabledExtensionCount = ext_count + 3;
+	dev_info.enabledExtensionCount = extension_count;
 	dev_info.ppEnabledExtensionNames = extensions;
 
-	ret = vkCreateDevice(vulkan->phdev, &dev_info, NULL, &vulkan->dev);
-	if (ret != VK_SUCCESS){
+	res = vkCreateDevice(vulkan->phdev, &dev_info, NULL, &vulkan->dev);
+	if (res != VK_SUCCESS){
 		wlr_log(WLR_ERROR, "Failed to create vulkan device");
 		return false;
 	}
 
 	vkGetDeviceQueue(vulkan->dev, vulkan->graphics_queue_fam, 0,
 		&vulkan->graphics_queue);
-	if (one_queue) {
-		vulkan->present_queue = vulkan->graphics_queue;
-	} else {
-		vkGetDeviceQueue(vulkan->dev, vulkan->present_queue_fam, 0,
-			&vulkan->present_queue);
-	}
-
+	vkGetDeviceQueue(vulkan->dev, vulkan->present_queue_fam, 0,
+		&vulkan->present_queue);
 	return true;
 }
 
@@ -273,7 +333,6 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		return;
 	}
 
-	VkCommandBuffer cmd_bufs[swapchain->image_count];
 	for(uint32_t i = 0; i < swapchain->image_count; i++) {
 		struct wlr_vk_swapchain_buffer *buf = &swapchain->buffers[i];
 		if(buf->framebuffer) {
@@ -283,14 +342,7 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		if(buf->image_view) {
 			vkDestroyImageView(vulkan->dev, buf->image_view, NULL);
 		}
-
-		if(buf->cmdbuf) {
-			cmd_bufs[i] = buf->cmdbuf;
-		}
 	}
-
-	vkFreeCommandBuffers(vulkan->dev, swapchain->renderer->command_pool,
-		swapchain->image_count, cmd_bufs);
 
 	swapchain->image_count = 0;
 	free(swapchain->buffers);
@@ -323,19 +375,6 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		return false;
 	}
 
-	VkCommandBuffer cmd_bufs[swapchain->image_count];
-	VkCommandBufferAllocateInfo cmd_buf_info = {0};
-	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmd_buf_info.commandPool = renderer->command_pool;
-	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	cmd_buf_info.commandBufferCount = swapchain->image_count;
-
-	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info, cmd_bufs);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
-		return false;
-	}
-
 	for (uint32_t i = 0; i < swapchain->image_count; i++) {
 		struct wlr_vk_swapchain_buffer *buf = &swapchain->buffers[i];
 
@@ -356,7 +395,7 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		view_info.flags = 0;
 		view_info.image = images[i];
 
-		buf[i].image = images[i];
+		buf->image = images[i];
 		res = vkCreateImageView(vulkan->dev, &view_info, NULL,
 			&swapchain->buffers[i].image_view);
 		if (res != VK_SUCCESS) {
@@ -374,13 +413,11 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		fb_info.layers = 1;
 
 		res = vkCreateFramebuffer(vulkan->dev, &fb_info, NULL,
-			&buf[i].framebuffer);
+			&buf->framebuffer);
 		if (res != VK_SUCCESS) {
 			wlr_vulkan_error("vkCreateFramebuffer", res);
 			return false;
 		}
-
-		buf->cmdbuf = cmd_bufs[i];
 	}
 
 	return true;
@@ -397,20 +434,22 @@ void wlr_vk_swapchain_destroy(struct wlr_vk_swapchain *swapchain) {
 		vkDestroySwapchainKHR(vulkan->dev, swapchain->swapchain, NULL);
 	}
 
+	if (swapchain->cb) {
+		vkFreeCommandBuffers(vulkan->dev, swapchain->renderer->command_pool,
+			1u, &swapchain->cb);
+	}
+
 	free(swapchain);
 }
 
-struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
+bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
+		struct wlr_vk_renderer *renderer,
 		VkSurfaceKHR surface, uint32_t width, uint32_t height, bool vsync) {
+
 	VkResult res;
 	struct wlr_vulkan *vulkan = renderer->vulkan;
-	struct wlr_vk_swapchain *swapchain;
-	if (!(swapchain = calloc(1, sizeof(*swapchain)))) {
-		wlr_log(WLR_ERROR, "Failed to allocate wlr_swapchain");
-		return NULL;
-	}
-
 	swapchain->renderer = renderer;
+	swapchain->surface = surface;
 
 	VkSwapchainCreateInfoKHR info = {0};
 	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -506,13 +545,14 @@ struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
 		pref_image_count = caps.maxImageCount;
 	}
 
-	// Find the transformation of the surface
+	// transformation
 	VkSurfaceTransformFlagBitsKHR transform =
 		VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	if (!(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)) {
 		transform = caps.currentTransform;
 	}
 
+	// alpha
 	VkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	VkCompositeAlphaFlagBitsKHR alpha_flags[] = {
 		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -528,13 +568,24 @@ struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
 		}
 	}
 
-	info.minImageCount = pref_image_count;
+	// usage
+	assert(caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	if(caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+		swapchain->readable = true;
+		info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	} else {
+		wlr_log(WLR_INFO, "Created swapchain will not be readable");
+	}
+
+	// create
+	info.minImageCount = pref_image_count;
 	info.preTransform = transform;
 	info.imageArrayLayers = 1;
 	info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	info.clipped = VK_TRUE;
 	info.compositeAlpha = alpha;
+	swapchain->create_info = info;
 
 	res = vkCreateSwapchainKHR(vulkan->dev, &info, NULL, &swapchain->swapchain);
 	if (res != VK_SUCCESS || !swapchain->swapchain) {
@@ -542,6 +593,19 @@ struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
 		return NULL;
 	}
 
+	// command buffer
+	VkCommandBufferAllocateInfo cmd_buf_info = {0};
+	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmd_buf_info.commandPool = renderer->command_pool;
+	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmd_buf_info.commandBufferCount = 1u;
+	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info, &swapchain->cb);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		return false;
+	}
+
+	// buffers
 	if (!init_swapchain_buffers(swapchain)) {
 		goto error;
 	}
@@ -551,6 +615,22 @@ struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
 error:
 	wlr_vk_swapchain_destroy(swapchain);
 	return NULL;
+}
+
+struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
+		VkSurfaceKHR surface, uint32_t width, uint32_t height, bool vsync) {
+	struct wlr_vk_swapchain *sc;
+	if (!(sc = calloc(1, sizeof(*sc)))) {
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_swapchain");
+		return NULL;
+	}
+
+	if (!wlr_vk_swapchain_init(sc, renderer, surface, width, height, vsync)) {
+		wlr_vk_swapchain_destroy(sc);
+		return NULL;
+	}
+
+	return sc;
 }
 
 static uint32_t clamp(uint32_t val, uint32_t low, uint32_t high) {

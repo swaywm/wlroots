@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200112L
-#include <GLES2/gl2.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +10,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/render/gles2.h>
+#include <wlr/render/vulkan.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -58,11 +58,19 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->dec = inc;
 	}
 
-	wlr_renderer_begin_output(sample->renderer, sample_output->output, NULL);
+	if (!wlr_renderer_begin_output(sample->renderer, sample_output->output, NULL)) {
+		wlr_log(WLR_DEBUG, "renderer_being_output failed");
+		return;
+	}
 
-	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
+	float clear_color[4] = {
+		sample->color[0],
+		sample->color[1],
+		sample->color[2],
+		1.f
+	};
+	wlr_renderer_clear(sample->renderer, clear_color);
+	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(sample_output->output, NULL, NULL);
 	sample->last_frame = now;
 }
@@ -168,10 +176,11 @@ int main(void) {
 		.display = display
 	};
 	struct wlr_backend *backend = wlr_backend_autocreate(display,
-		wlr_gles2_renderer_create);
+		wlr_vk_renderer_create);
 	if (!backend) {
 		exit(1);
 	}
+
 	state.renderer = wlr_backend_get_renderer(backend);
 	wl_signal_add(&backend->events.new_output, &state.new_output);
 	state.new_output.notify = new_output_notify;

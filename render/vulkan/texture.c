@@ -11,20 +11,20 @@
 
 static const struct wlr_texture_impl texture_impl;
 
-struct wlr_vulkan_texture *vulkan_get_texture(struct wlr_texture *wlr_texture) {
+struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture) {
 	assert(wlr_texture->impl == &texture_impl);
-	return (struct wlr_vulkan_texture *)wlr_texture;
+	return (struct wlr_vk_texture *)wlr_texture;
 }
 
 static void vulkan_texture_get_size(struct wlr_texture *wlr_texture, int *width,
 		int *height) {
-	struct wlr_vulkan_texture *texture = vulkan_get_texture(wlr_texture);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	*width = texture->width;
 	*height = texture->height;
 }
 
 static bool vulkan_texture_is_opaque(struct wlr_texture *wlr_texture) {
-	struct wlr_vulkan_texture *texture = vulkan_get_texture(wlr_texture);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	return !texture->has_alpha;
 }
 
@@ -33,7 +33,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
 		uint32_t dst_y, const void *vdata) {
 	VkResult res;
-	struct wlr_vulkan_texture *texture = vulkan_get_texture(wlr_texture);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	if(texture->format->wl_format != wl_fmt) {
 		wlr_log(WLR_ERROR, "vulkan_texture_write_pixels cannot change format");
 		return false;
@@ -77,7 +77,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 static bool vulkan_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 		struct wlr_dmabuf_attributes *attribs) {
-	// struct wlr_vulkan_texture *texture = vulkan_get_texture(wlr_texture);
+	// struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	return false;
 }
 
@@ -86,7 +86,7 @@ static void vulkan_texture_destroy(struct wlr_texture *wlr_texture) {
 		return;
 	}
 
-	struct wlr_vulkan_texture *texture = vulkan_get_texture(wlr_texture);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	struct wlr_vulkan *vulkan = texture->vulkan;
 	if(texture->image_view) {
 		vkDestroyImageView(vulkan->dev, texture->image_view, NULL);
@@ -111,19 +111,18 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = vulkan_texture_destroy,
 };
 
-struct wlr_texture *wlr_vulkan_texture_from_pixels(struct wlr_vulkan *vulkan,
+struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vulkan *vulkan,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
 	VkResult res;
-	const struct wlr_vulkan_pixel_format *fmt =
-		get_vulkan_format_from_wl(wl_fmt);
+	const struct wlr_vk_pixel_format *fmt = get_vulkan_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return NULL;
 	}
 
-	struct wlr_vulkan_texture *texture =
-		calloc(1, sizeof(struct wlr_vulkan_texture));
+	struct wlr_vk_texture *texture =
+		calloc(1, sizeof(struct wlr_vk_texture));
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;

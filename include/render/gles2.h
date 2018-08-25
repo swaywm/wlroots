@@ -89,9 +89,15 @@ struct wlr_gles2_texture {
 struct wlr_gles2_render_surface {
 	struct wlr_render_surface render_surface;
 	struct wlr_gles2_renderer *renderer;
-	struct wl_egl_window *egl_window;
-	struct gbm_surface *gbm_surface;
+
+	// needed e.g. for resizing the surface
+	// x11: xcb_window_t
+	// wayland: wl_surface*
+	// dummy: NULL
+	// drm: wlr_drm_surface*
 	void* handle;
+	struct gbm_surface *gbm_surface; // only for drm
+	struct wl_egl_window *egl_window; // only for wayland
 
 	EGLSurface surface;
 	uint32_t width;

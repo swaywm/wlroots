@@ -136,6 +136,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		wlr_renderer_end(backend->renderer);
 
 		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
+		wlr_log(WLR_ERROR, "set cursor");
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
