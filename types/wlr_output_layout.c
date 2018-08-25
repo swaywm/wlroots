@@ -430,15 +430,20 @@ struct wlr_output *wlr_output_layout_get_center_output(
 	return wlr_output_layout_output_at(layout, dest_x, dest_y);
 }
 
+enum distance_selection_method {
+	NEAREST,
+	FARTHEST
+};
 
-struct wlr_output *wlr_output_layout_adjacent_output(
+struct wlr_output *wlr_output_layout_output_in_direction(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
-		struct wlr_output *reference, double ref_lx, double ref_ly) {
+		struct wlr_output *reference, double ref_lx, double ref_ly, 
+		enum distance_selection_method distance_method) {
 	assert(reference);
 
 	struct wlr_box *ref_box = wlr_output_layout_get_box(layout, reference);
 
-	double min_distance = DBL_MAX;
+	double min_distance = (distance_method == NEAREST) ? DBL_MAX : DBL_MIN;
 	struct wlr_output *closest_output = NULL;
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
@@ -471,10 +476,28 @@ struct wlr_output *wlr_output_layout_adjacent_output(
 			ref_lx, ref_ly, &x, &y);
 		double distance =
 			(x - ref_lx) * (x - ref_lx) + (y - ref_ly) * (y - ref_ly);
-		if (distance < min_distance) {
+
+		if ((distance_method == NEAREST)
+				? distance < min_distance
+				: distance > min_distance) {
 			min_distance = distance;
 			closest_output = l_output->output;
 		}
 	}
 	return closest_output;
 }
+
+struct wlr_output *wlr_output_layout_adjacent_output(
+		struct wlr_output_layout *layout, enum wlr_direction direction,
+		struct wlr_output *reference, double ref_lx, double ref_ly) {
+	return wlr_output_layout_output_in_direction(layout, direction, 
+			reference, ref_lx, ref_ly, NEAREST);
+}
+
+struct wlr_output *wlr_output_layout_farthest_output(
+		struct wlr_output_layout *layout, enum wlr_direction direction,
+		struct wlr_output *reference, double ref_lx, double ref_ly) {
+	return wlr_output_layout_output_in_direction(layout, direction, 
+			reference, ref_lx, ref_ly, FARTHEST);
+}
+
