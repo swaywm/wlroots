@@ -5,6 +5,7 @@ install_headers(
 	'wlr_cursor.h',
 	'wlr_data_device.h',
 	'wlr_export_dmabuf_v1.h',
+	'wlr_foreign_toplevel_management_v1.h',
 	'wlr_gamma_control_v1.h',
 	'wlr_gamma_control.h',
 	'wlr_gtk_primary_selection.h',
