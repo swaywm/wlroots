@@ -126,5 +126,8 @@ enum wlr_direction {
 struct wlr_output *wlr_output_layout_adjacent_output(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
 		struct wlr_output *reference, double ref_lx, double ref_ly);
+struct wlr_output *wlr_output_layout_farthest_output(
+		struct wlr_output_layout *layout, enum wlr_direction direction,
+		struct wlr_output *reference, double ref_lx, double ref_ly);
 
 #endif
