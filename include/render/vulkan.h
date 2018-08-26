@@ -40,7 +40,8 @@ struct wlr_vulkan {
 	} api;
 };
 
-// One buffer (image texture + command buffer) of a swapchain.
+// One buffer of a swapchain.
+// Add a VkCommandBuffer when we don't record every frame anymore.
 struct wlr_vk_swapchain_buffer {
 	VkImage image;
 	VkImageView image_view;
@@ -58,10 +59,6 @@ struct wlr_vk_swapchain {
 	bool readable;
 	uint32_t image_count;
 	struct wlr_vk_swapchain_buffer* buffers;
-
-	// should be moved to swapchain buffer when records are not needed
-	// every frame
-	VkCommandBuffer cb;
 };
 
 // Vulkan renderer on top of wlr_vulkan able to render onto swapchains.
@@ -81,10 +78,7 @@ struct wlr_vk_renderer {
 	VkDeviceMemory memory;
 	VkBuffer ubo;
 
-	VkSemaphore acquire;
-	VkSemaphore present;
 	struct wlr_vk_render_surface *current;
-	uint32_t current_id;
 
 	// struct wl_global *wl_drm;
 };
@@ -99,23 +93,34 @@ struct wlr_vk_pixel_format {
 struct wlr_vk_render_surface {
 	struct wlr_render_surface render_surface;
 	struct wlr_vk_renderer *renderer;
-	VkSurfaceKHR surface;
-	struct wlr_vk_swapchain swapchain;
 	uint32_t width;
 	uint32_t height;
+	VkCommandBuffer cb; // the currently recorded cb
 };
 
-struct wlr_vk_drm_render_surface {
-	struct wlr_render_surface render_surface;
-	struct wlr_vk_renderer *renderer;
+// wlr_vk_render_surface using a VkSurfaceKHR and swapchain
+struct wlr_vk_swapchain_render_surface {
+	struct wlr_vk_render_surface vk_render_surface;
+	VkSurfaceKHR surface;
+	struct wlr_vk_swapchain swapchain;
+	uint32_t current_id;
 
-	struct buffer {
+	VkSemaphore acquire; // signaled when image was acquire
+	VkSemaphore present; // signaled when rendering finished
+};
+
+// wlr_vk_render_surface using a custom swapchain based on gbm_bo's.
+struct wlr_vk_drm_render_surface {
+	struct wlr_vk_render_surface vk_render_surface;
+	struct wlr_drm_surface *drm_surface;
+	struct wlr_vk_drm_buffer {
 		struct gbm_bo *bo;
+		VkDeviceMemory memory; // imported; using the bo
 		struct wlr_vk_swapchain_buffer buffer;
 	} buffers[2];
 
-	struct buffer *front;
-	struct buffer *back;
+	struct wlr_vk_drm_buffer *front; // currently presented, not renderable
+	struct wlr_vk_drm_buffer *back; // to be rendered to in current/next frame
 };
 
 // Creates a swapchain for the given surface.
@@ -124,7 +129,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		uint32_t width, uint32_t height, bool vsync);
 bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 		uint32_t width, uint32_t height);
-void wlr_vk_swapchain_destroy(struct wlr_vk_swapchain *swapchain);
+void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain);
 
 // Initializes a wlr_vulkan state. This will require
 // the given extensions and fail if they cannot be found.

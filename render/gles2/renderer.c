@@ -86,7 +86,7 @@ static bool gles2_render_surface_init(struct wlr_gles2_render_surface *rs) {
 		struct gbm_device *gbm = surf->renderer->gbm;
 		surf->flags |= GBM_BO_USE_RENDERING;
 		rs->gbm_surface = gbm_surface_create(gbm, rs->width, rs->height,
-			GBM_FORMAT_ARGB8888, surf->flags);
+			GBM_FORMAT_ARGB8888, surf->flags | GBM_BO_USE_RENDERING);
 		if (!rs->gbm_surface) {
 			wlr_log_errno(WLR_ERROR, "Failed to create GBM surface");
 			goto error;

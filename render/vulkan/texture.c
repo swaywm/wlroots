@@ -136,6 +136,9 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vulkan *vulkan,
 	texture->has_alpha = fmt->has_alpha;
 
 	// image
+	// TODO: using linear image layout on host visible memory
+	// is probably really a performance hit. Use staging copy
+	// buffers, optimal layout and deviceLocal memory instead.
 	VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 	VkImageCreateInfo img_info = {0};
 	img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

@@ -232,10 +232,11 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		return false;
 	}
 
-	unsigned extension_count = ext_count + 1u;
+	unsigned extension_count = ext_count + 2u;
 	const char *extensions[extension_count];
 	memcpy(extensions, exts, ext_count * sizeof(*exts));
 	extensions[ext_count + 0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	extensions[ext_count + 1] = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
 
 	// check for extensions
 	uint32_t avail_extc = 0;
@@ -423,7 +424,7 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 	return true;
 }
 
-void wlr_vk_swapchain_destroy(struct wlr_vk_swapchain *swapchain) {
+void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
 	if (!swapchain || !swapchain->renderer) {
 		return;
 	}
@@ -433,13 +434,6 @@ void wlr_vk_swapchain_destroy(struct wlr_vk_swapchain *swapchain) {
 	if (swapchain->swapchain) {
 		vkDestroySwapchainKHR(vulkan->dev, swapchain->swapchain, NULL);
 	}
-
-	if (swapchain->cb) {
-		vkFreeCommandBuffers(vulkan->dev, swapchain->renderer->command_pool,
-			1u, &swapchain->cb);
-	}
-
-	free(swapchain);
 }
 
 bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
@@ -615,22 +609,6 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 error:
 	wlr_vk_swapchain_destroy(swapchain);
 	return NULL;
-}
-
-struct wlr_vk_swapchain *wlr_swapchain_create(struct wlr_vk_renderer *renderer,
-		VkSurfaceKHR surface, uint32_t width, uint32_t height, bool vsync) {
-	struct wlr_vk_swapchain *sc;
-	if (!(sc = calloc(1, sizeof(*sc)))) {
-		wlr_log(WLR_ERROR, "Failed to allocate wlr_swapchain");
-		return NULL;
-	}
-
-	if (!wlr_vk_swapchain_init(sc, renderer, surface, width, height, vsync)) {
-		wlr_vk_swapchain_destroy(sc);
-		return NULL;
-	}
-
-	return sc;
 }
 
 static uint32_t clamp(uint32_t val, uint32_t low, uint32_t high) {
