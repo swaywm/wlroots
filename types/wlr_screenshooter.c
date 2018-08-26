@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/util/log.h>
 #include "screenshooter-protocol.h"
+#include "util/signal.h"
 
 static struct wlr_screenshot *screenshot_from_resource(
 		struct wl_resource *resource) {
@@ -177,6 +178,7 @@ void wlr_screenshooter_destroy(struct wlr_screenshooter *screenshooter) {
 	wl_list_for_each_safe(screenshot, tmp, &screenshooter->screenshots, link) {
 		screenshot_destroy(screenshot);
 	}
+	wlr_signal_emit_safe(&screenshooter->events.destroy, screenshooter);
 	wl_global_destroy(screenshooter->global);
 	free(screenshooter);
 }

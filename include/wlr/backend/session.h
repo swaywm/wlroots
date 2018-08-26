@@ -39,6 +39,10 @@ struct wlr_session {
 	struct wl_list devices;
 
 	struct wl_listener display_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 /*

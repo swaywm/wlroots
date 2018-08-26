@@ -30,6 +30,7 @@ struct wlr_idle {
 	struct wl_listener display_destroy;
 	struct {
 		struct wl_signal activity_notify;
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

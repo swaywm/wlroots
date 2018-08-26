@@ -18,6 +18,10 @@ struct wlr_screencopy_manager_v1 {
 
 	struct wl_listener display_destroy;
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 

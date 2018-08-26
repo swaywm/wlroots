@@ -34,6 +34,10 @@ struct wlr_xdg_output_manager {
 	struct wl_listener layout_add;
 	struct wl_listener layout_change;
 	struct wl_listener layout_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(

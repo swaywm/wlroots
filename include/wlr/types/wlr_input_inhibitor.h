@@ -20,6 +20,7 @@ struct wlr_input_inhibit_manager {
 	struct {
 		struct wl_signal activate;   // struct wlr_input_inhibit_manager *
 		struct wl_signal deactivate; // struct wlr_input_inhibit_manager *
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

@@ -29,6 +29,10 @@ struct wlr_tablet_manager_v2 {
 
 	struct wl_listener display_destroy;
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 

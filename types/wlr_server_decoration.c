@@ -167,12 +167,13 @@ void wlr_server_decoration_manager_destroy(
 	if (manager == NULL) {
 		return;
 	}
-	wl_list_remove(&manager->display_destroy.link);
 	struct wlr_server_decoration *decoration, *tmp_decoration;
 	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
 			link) {
 		server_decoration_destroy(decoration);
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
 	struct wl_resource *resource, *tmp_resource;
 	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
 		server_decoration_manager_destroy_resource(resource);

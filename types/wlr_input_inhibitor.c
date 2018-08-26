@@ -112,6 +112,7 @@ void wlr_input_inhibit_manager_destroy(
 		input_inhibitor_destroy(manager->active_client,
 				manager->active_inhibitor);
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
 	free(manager);

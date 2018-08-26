@@ -187,6 +187,7 @@ void wlr_idle_destroy(struct wlr_idle *idle) {
 	if (!idle) {
 		return;
 	}
+	wlr_signal_emit_safe(&idle->events.destroy, idle);
 	wl_list_remove(&idle->display_destroy.link);
 	struct wlr_idle_timeout *timer, *tmp;
 	wl_list_for_each_safe(timer, tmp, &idle->idle_timers, link) {

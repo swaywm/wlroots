@@ -17,6 +17,10 @@ struct wlr_primary_selection_device_manager {
 
 	struct wl_listener display_destroy;
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 

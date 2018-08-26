@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_xdg_output.h>
 #include <wlr/util/log.h>
 #include "xdg-output-unstable-v1-protocol.h"
+#include "util/signal.h"
 
 #define OUTPUT_MANAGER_VERSION 2
 
@@ -245,6 +246,7 @@ void wlr_xdg_output_manager_destroy(struct wlr_xdg_output_manager *manager) {
 	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
 		wl_resource_destroy(resource);
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->layout_add.link);
 	wl_list_remove(&manager->layout_change.link);
 	wl_list_remove(&manager->layout_destroy.link);
