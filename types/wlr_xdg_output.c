@@ -228,6 +228,8 @@ struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(
 		add_output(manager, layout_output);
 	}
 
+	wl_signal_init(&manager->events.destroy);
+
 	manager->layout_add.notify = handle_layout_add;
 	wl_signal_add(&layout->events.add, &manager->layout_add);
 	manager->layout_change.notify = handle_layout_change;

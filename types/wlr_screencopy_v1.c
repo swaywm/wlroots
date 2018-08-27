@@ -296,6 +296,8 @@ struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 	wl_list_init(&manager->resources);
 	wl_list_init(&manager->frames);
 
+	wl_signal_init(&manager->events.destroy);
+
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 

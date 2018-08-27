@@ -223,6 +223,7 @@ struct wlr_virtual_keyboard_manager_v1*
 	wl_list_init(&manager->virtual_keyboards);
 
 	wl_signal_init(&manager->events.new_virtual_keyboard);
+	wl_signal_init(&manager->events.destroy);
 	manager->global = wl_global_create(display,
 		&zwp_virtual_keyboard_manager_v1_interface, 1, manager,
 		virtual_keyboard_manager_bind);

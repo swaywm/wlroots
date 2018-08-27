@@ -408,6 +408,8 @@ struct wlr_primary_selection_device_manager *
 		return NULL;
 	}
 
+	wl_signal_init(&manager->events.destroy);
+
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 

@@ -449,6 +449,7 @@ struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
 	layer_shell->global = global;
 
 	wl_signal_init(&layer_shell->events.new_surface);
+	wl_signal_init(&layer_shell->events.destroy);
 
 	layer_shell->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &layer_shell->display_destroy);

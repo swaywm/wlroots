@@ -275,6 +275,7 @@ struct wlr_xdg_decoration_manager_v1 *
 	wl_list_init(&manager->resources);
 	wl_list_init(&manager->decorations);
 	wl_signal_init(&manager->events.new_toplevel_decoration);
+	wl_signal_init(&manager->events.destroy);
 
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);

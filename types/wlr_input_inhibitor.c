@@ -144,6 +144,7 @@ struct wlr_input_inhibit_manager *wlr_input_inhibit_manager_create(
 
 	wl_signal_init(&manager->events.activate);
 	wl_signal_init(&manager->events.deactivate);
+	wl_signal_init(&manager->events.destroy);
 
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);

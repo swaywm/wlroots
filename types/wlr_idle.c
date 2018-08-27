@@ -209,6 +209,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 	}
 	wl_list_init(&idle->idle_timers);
 	wl_signal_init(&idle->events.activity_notify);
+	wl_signal_init(&idle->events.destroy);
 	idle->enabled = true;
 
 	idle->event_loop = wl_display_get_event_loop(display);

@@ -176,6 +176,7 @@ struct wlr_idle_inhibit_manager_v1 *wlr_idle_inhibit_v1_create(struct wl_display
 	idle_inhibit->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &idle_inhibit->display_destroy);
 	wl_signal_init(&idle_inhibit->events.new_inhibitor);
+	wl_signal_init(&idle_inhibit->events.destroy);
 
 	idle_inhibit->global = wl_global_create(display,
 		&zwp_idle_inhibit_manager_v1_interface, 1,
