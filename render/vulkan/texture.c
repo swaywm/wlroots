@@ -6,7 +6,7 @@
 #include <wlr/util/log.h>
 #include <render/vulkan.h>
 
-#define vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
+#define wlr_vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
 	vulkan_strerror(res), res, ##__VA_ARGS__)
 
 static const struct wlr_texture_impl texture_impl;
@@ -46,7 +46,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 	void* vmap;
 	res = vkMapMemory(vulkan->dev, texture->memory, 0, byte_size, 0, &vmap);
 	if(res != VK_SUCCESS) {
-		vulkan_error("vkMapMemory", res);
+		wlr_vulkan_error("vkMapMemory", res);
 		return false;
 	}
 
@@ -154,7 +154,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vulkan *vulkan,
 	img_info.usage = usage;
 	res = vkCreateImage(vulkan->dev, &img_info, NULL, &texture->image);
 	if (res != VK_SUCCESS) {
-		vulkan_error("vkCreateImage failed", res);
+		wlr_vulkan_error("vkCreateImage failed", res);
 		goto error;
 	}
 
@@ -177,7 +177,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vulkan *vulkan,
 	res = vkCreateImageView(vulkan->dev, &view_info, NULL,
 		&texture->image_view);
 	if (res != VK_SUCCESS) {
-		vulkan_error("vkCreateImageView failed", res);
+		wlr_vulkan_error("vkCreateImageView failed", res);
 		goto error;
 	}
 
@@ -192,13 +192,13 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vulkan *vulkan,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, mem_reqs.memoryTypeBits);
 	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &texture->memory);
 	if (res != VK_SUCCESS) {
-		vulkan_error("vkAllocatorMemory failed", res);
+		wlr_vulkan_error("vkAllocatorMemory failed", res);
 		goto error;
 	}
 
 	res = vkBindImageMemory(vulkan->dev, texture->image, texture->memory, 0);
 	if (res != VK_SUCCESS) {
-		vulkan_error("vkBindMemory failed", res);
+		wlr_vulkan_error("vkBindMemory failed", res);
 		goto error;
 	}
 

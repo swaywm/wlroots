@@ -7,12 +7,6 @@
 #include <wlr/util/log.h>
 #include <wlr/version.h>
 
-// #define WLR_VK_PROC_DEV(dev, name) PFN_vk##name fp##name =
-// 	(PFN_vk##name) vkGetDeviceProcAddr(dev, "vk" #name);
-//
-// #define WLR_VK_PROC_INI(ini, name) PFN_vk##name fp##name =
-// 	(PFN_vk##name) vkGetInstanceProcAddr(ini, "vk" #name);
-
 #define wlr_vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
 	vulkan_strerror(res), res, ##__VA_ARGS__)
 
@@ -48,6 +42,9 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT type,
 		const VkDebugUtilsMessengerCallbackDataEXT* debug_data,
 		void* data) {
+
+	((void) type);
+	((void) data);
 
 	enum wlr_log_importance importance;
 	switch(severity) {
@@ -180,6 +177,7 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 		return false;
 	}
 
+	// debug callback
 	if (debug_utils_found) {
 		vulkan->api.createDebugUtilsMessengerEXT =
 			(PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
@@ -221,13 +219,13 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	// query one based on
 	//  - user preference (env variables/config)
 	//  - supported presenting caps
-	//  - supported extensions
+	//  - supported extensions, external memory import properties
 	//  - (as default, when both ok) integrated vs dedicated
 	uint32_t num_devs = 1;
 	VkResult res;
 	res = vkEnumeratePhysicalDevices(vulkan->instance, &num_devs,
 		&vulkan->phdev);
-	if (res != VK_SUCCESS || !vulkan->phdev) {
+	if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || !vulkan->phdev) {
 		wlr_log(WLR_ERROR, "Could not retrieve physical device");
 		return false;
 	}
@@ -325,6 +323,20 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		&vulkan->graphics_queue);
 	vkGetDeviceQueue(vulkan->dev, vulkan->present_queue_fam, 0,
 		&vulkan->present_queue);
+
+	// load api
+	vulkan->api.getMemoryFdPropertiesKHR =
+		(PFN_vkGetMemoryFdPropertiesKHR) vkGetDeviceProcAddr(
+				vulkan->dev, "vkGetMemoryFdPropertiesKHR");
+	if (!vulkan->api.getMemoryFdPropertiesKHR) {
+		wlr_log(WLR_ERROR, "Failed to retrieve required dev function pointers");
+		return false;
+	}
+
+	// TODO: query external memory/image stuff
+	// should probably be up at phdev selection
+	// vkGetPhysicalDeviceImageFormatProperties2(vulkan->phdev, ...);
+
 	return true;
 }
 
@@ -587,18 +599,6 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		return NULL;
 	}
 
-	// command buffer
-	VkCommandBufferAllocateInfo cmd_buf_info = {0};
-	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmd_buf_info.commandPool = renderer->command_pool;
-	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info, &swapchain->cb);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
-		return false;
-	}
-
 	// buffers
 	if (!init_swapchain_buffers(swapchain)) {
 		goto error;
@@ -607,7 +607,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	return swapchain;
 
 error:
-	wlr_vk_swapchain_destroy(swapchain);
+	wlr_vk_swapchain_finish(swapchain);
 	return NULL;
 }
 

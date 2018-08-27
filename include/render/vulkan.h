@@ -37,6 +37,7 @@ struct wlr_vulkan {
 	struct {
 		PFN_vkCreateDebugUtilsMessengerEXT createDebugUtilsMessengerEXT;
 		PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugUtilsMessengerEXT;
+		PFN_vkGetMemoryFdPropertiesKHR getMemoryFdPropertiesKHR;
 	} api;
 };
 

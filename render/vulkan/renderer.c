@@ -39,12 +39,12 @@ static struct wlr_vk_renderer *vulkan_get_renderer(
 	return (struct wlr_vk_renderer *)wlr_renderer;
 }
 
-static struct wlr_vk_render_surface *vulkan_get_render_surface(
-		struct wlr_render_surface *wlr_rs) {
-	assert(wlr_rs->impl == &swapchain_render_surface_impl ||
-		wlr_rs->impl == &drm_render_surface_impl);
-	return (struct wlr_vk_render_surface *)wlr_rs;
-}
+// static struct wlr_vk_render_surface *vulkan_get_render_surface(
+// 		struct wlr_render_surface *wlr_rs) {
+// 	assert(wlr_rs->impl == &swapchain_render_surface_impl ||
+// 		wlr_rs->impl == &drm_render_surface_impl);
+// 	return (struct wlr_vk_render_surface *)wlr_rs;
+// }
 
 static struct wlr_vk_swapchain_render_surface *
 vulkan_get_render_surface_swapchain(struct wlr_render_surface *wlr_rs) {
@@ -107,7 +107,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	present_info.waitSemaphoreCount = 1;
 	present_info.pWaitSemaphores = &rs->present;
 
-	// TODO: (optionally, when available) use VK_KHR_incremental_present
+	// TODO: (optionally; if available) use VK_KHR_incremental_present
 	// and use the given damage region
 	res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
 	if (res != VK_SUCCESS) {
@@ -169,12 +169,15 @@ static bool drm_swap_buffers(struct wlr_render_surface *wlr_rs,
 	struct wlr_vk_drm_render_surface *rs =
 		vulkan_get_render_surface_drm(wlr_rs);
 
+	rs->drm_surface->front = rs->front->bo;
+	rs->drm_surface->back = rs->back->bo;
+
 	struct wlr_vk_drm_buffer* tmp = rs->front;
 	rs->front = rs->back;
 	rs->back = tmp;
 
-	rs->drm_surface->front = rs->front->bo;
-	rs->drm_surface->back = rs->back->bo;
+	// see swapchain_swap_buffers for why we need this atm
+	vkDeviceWaitIdle(rs->vk_render_surface.renderer->vulkan->dev);
 	return true;
 }
 
@@ -246,7 +249,14 @@ static bool vulkan_begin_swapchain(struct wlr_vk_swapchain_render_surface *rs,
 	struct wlr_vk_renderer *renderer = rs->vk_render_surface.renderer;
 	struct wlr_vulkan *vulkan = renderer->vulkan;
 
-	// TODO: handle (skip) out of date/suboptimal
+	// TODO: better handling (skipping) out of date/suboptimal possible?
+	// the problem is that we can't really do anything ourselves in
+	// this case (the render surface has to be resized).
+	// Returning false makes sense but that requires that all callers
+	// interpret it correctly: not a critical error, just not possible
+	// to render at the moment.
+	// We could ignore the suboptimal return value though and simply
+	// render anyways (might get a scaled frame)
 	VkResult res;
 	uint32_t id;
 	res = vkAcquireNextImageKHR(vulkan->dev, rs->swapchain.swapchain,
@@ -359,12 +369,13 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 
 static bool vulkan_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 		struct wlr_texture *texture, const float matrix[9], float alpha) {
+	// TODO
 	// bind pipeline (if not already bound)
 	// write matrix into ubo, update descriptor set for texture
 	//  even better: every texture has its own descriptor set (with bound image)
 	// render shit
 
-	return true;
+	return false;
 }
 
 static void vulkan_clear(struct wlr_renderer *wlr_renderer,
@@ -387,6 +398,12 @@ static void vulkan_clear(struct wlr_renderer *wlr_renderer,
 
 static void vulkan_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	assert(renderer->current);
+	VkCommandBuffer cb = renderer->current->cb;
+
+	VkRect2D rect = {{box->x, box->y}, {box->width, box->height}};
+	vkCmdSetScissor(cb, 0, 1, &rect);
 }
 
 static bool vulkan_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
@@ -401,14 +418,18 @@ const enum wl_shm_format *vulkan_formats(struct wlr_renderer *wlr_renderer,
 
 static void vulkan_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
+	// TODO
 }
 
 static void vulkan_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
+	// TODO
 }
 
 static void vulkan_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *buffer, int *width, int *height) {
+	*width = 0;
+	*height = 0;
 }
 
 static int vulkan_get_dmabuf_formats(struct wlr_renderer *wlr_renderer,
@@ -464,6 +485,7 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 		struct wlr_vk_renderer *renderer, void *handle,
 		uint32_t width, uint32_t height) {
 	VkResult res;
+	struct wlr_vulkan *vulkan = renderer->vulkan;
 	struct wlr_vk_drm_render_surface *rs = calloc(1, sizeof(*rs));
 	if (!rs) {
 		wlr_log(WLR_ERROR, "Allocation failed");
@@ -476,6 +498,19 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 	rs->drm_surface = (struct wlr_drm_surface *)handle;
 	wlr_render_surface_init(&rs->vk_render_surface.render_surface,
 		&drm_render_surface_impl);
+
+	// command buffer
+	VkCommandBufferAllocateInfo cmd_buf_info = {0};
+	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmd_buf_info.commandPool = renderer->command_pool;
+	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmd_buf_info.commandBufferCount = 1u;
+	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info,
+		&rs->vk_render_surface.cb);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		return false;
+	}
 
 	// initialize buffers
 	for(unsigned i = 0u; i < 2; ++i) {
@@ -498,42 +533,132 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 			goto error;
 		}
 
-		// TODO: load function pointers
-		struct VkMemoryFdPropertiesKHR props = {0};
-		VkExternalMemoryHandleTypeFlagBits htype =
+		// TODO: use queried external properties
+		// TODO: we probably want unorm format here (adapt render pass)
+		// swapped bit order compared to gbm (we used argb)
+		const VkFormat format = VK_FORMAT_B8G8R8A8_SRGB;
+		const VkExternalMemoryHandleTypeFlagBits htype =
 			VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-		vkGetMemoryFdPropertiesKHR(renderer->vulkan->dev,
+
+		VkExternalMemoryImageCreateInfo extimg_info = {0};
+		extimg_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+		extimg_info.handleTypes = htype;
+
+		VkImageCreateInfo img_info = {0};
+		img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		img_info.pNext = &extimg_info;
+		img_info.imageType = VK_IMAGE_TYPE_2D;
+		img_info.format = format;
+		img_info.mipLevels = 1;
+		img_info.arrayLayers = 1;
+		img_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		img_info.tiling = VK_IMAGE_TILING_LINEAR;
+		img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		img_info.extent = (VkExtent3D) { width, height, 1 };
+		img_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+		res = vkCreateImage(vulkan->dev, &img_info, NULL, &buf->buffer.image);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkCreateImage (import)", res);
+			goto error;
+		}
+
+		// allocate memory
+		// we always use dedicated memory anyways
+		VkImageMemoryRequirementsInfo2 mem_reqs_info = {0};
+		mem_reqs_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
+		mem_reqs_info.image = buf->buffer.image;
+
+		VkMemoryRequirements2 mem_reqs = {0};
+		mem_reqs.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		vkGetImageMemoryRequirements2(vulkan->dev, &mem_reqs_info, &mem_reqs);
+
+		// create memory
+		struct VkMemoryFdPropertiesKHR props = {0};
+		props.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
+		vulkan->api.getMemoryFdPropertiesKHR(renderer->vulkan->dev,
 			htype, fd, &props);
 
 		VkImportMemoryFdInfoKHR import_info = {0};
+		import_info.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
 		import_info.fd = fd;
 		import_info.handleType = htype;
 
 		// query fd size, as suggested by vulkan api spec doc
-		off_t buf_size = lseek(fd, 0L, SEEK_END);
-		if (buf_size == (off_t) -1) {
-			wlr_log_errno(WLR_ERROR, "lseek");
-			goto error;
-		}
-
-		lseek(fd, 0L, SEEK_SET);
+		// off_t buf_size = lseek(fd, 0L, SEEK_END);
+		// if (buf_size == (off_t) -1) {
+		// 	wlr_log_errno(WLR_ERROR, "lseek");
+		// 	goto error;
+		// }
+		// lseek(fd, 0L, SEEK_SET);
 
 		VkMemoryAllocateInfo mem_info = {0};
 		mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		mem_info.pNext = &import_info;
-		mem_info.allocationSize = buf_size;
-		mem_info.memoryTypeIndex = props.memoryTypeBits;
+		// mem_info.allocationSize = buf_size;
+		mem_info.allocationSize = mem_reqs.memoryRequirements.size;
+		mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
+			0, props.memoryTypeBits);
 
-		res = vkAllocateMemory(renderer->vulkan->dev, &mem_info,
+		res = vkAllocateMemory(vulkan->dev, &mem_info,
 			NULL, &buf->memory);
 		if (res != VK_SUCCESS) {
 			wlr_vulkan_error("vkAllocateMemory (import)", res);
 			goto error;
 		}
 
-		// TODO: create image and framebuffer
-		// also query everything from VK_KHR_external_memory_capabilities
+		// bind it
+		res = vkBindImageMemory(vulkan->dev, buf->buffer.image,
+			buf->memory, 0);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkBindMemory (imported)", res);
+			goto error;
+		}
+
+		VkImageViewCreateInfo view_info = {0};
+		view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		view_info.pNext = NULL;
+		view_info.format = format;
+		view_info.components.r = VK_COMPONENT_SWIZZLE_R;
+		view_info.components.g = VK_COMPONENT_SWIZZLE_G;
+		view_info.components.b = VK_COMPONENT_SWIZZLE_B;
+		view_info.components.a = VK_COMPONENT_SWIZZLE_A;
+		view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		view_info.subresourceRange.baseMipLevel = 0;
+		view_info.subresourceRange.levelCount = 1;
+		view_info.subresourceRange.baseArrayLayer = 0;
+		view_info.subresourceRange.layerCount = 1;
+		view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		view_info.flags = 0;
+		view_info.image = buf->buffer.image;
+
+		res = vkCreateImageView(vulkan->dev, &view_info, NULL,
+			&buf->buffer.image_view);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkCreateImageView", res);
+			goto error;
+		}
+
+		VkFramebufferCreateInfo fb_info = {0};
+		fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		fb_info.attachmentCount = 1;
+		fb_info.pAttachments = &buf->buffer.image_view;
+		fb_info.renderPass = renderer->render_pass;
+		fb_info.width = width;
+		fb_info.height = height;
+		fb_info.layers = 1;
+
+		res = vkCreateFramebuffer(vulkan->dev, &fb_info, NULL,
+			&buf->buffer.framebuffer);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkCreateFramebuffer", res);
+			goto error;
+		}
 	}
+
+	rs->front = &rs->buffers[0];
+	rs->back = &rs->buffers[1];
 
 	return &rs->vk_render_surface.render_surface;
 
@@ -576,6 +701,18 @@ static struct wlr_render_surface *vulkan_create_render_surface(
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkCreateSemaphore", res);
 		goto error;
+	}
+
+	VkCommandBufferAllocateInfo cmd_buf_info = {0};
+	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmd_buf_info.commandPool = renderer->command_pool;
+	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmd_buf_info.commandBufferCount = 1u;
+	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info,
+		&rs->vk_render_surface.cb);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		return false;
 	}
 
 	wlr_render_surface_init(&rs->vk_render_surface.render_surface,
@@ -695,7 +832,8 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
 	deps[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	deps[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	deps[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT |
+		VK_ACCESS_MEMORY_READ_BIT;
 
 	VkRenderPassCreateInfo rp_info = {0};
 	rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
