@@ -294,6 +294,7 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 		return NULL;
 	}
 
+	wl_signal_init(&tablet->events.destroy);
 	wl_list_init(&tablet->clients);
 	wl_list_init(&tablet->seats);
 

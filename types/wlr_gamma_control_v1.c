@@ -255,6 +255,7 @@ struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
 		return NULL;
 	}
 
+	wl_signal_init(&manager->events.destroy);
 	wl_list_init(&manager->resources);
 	wl_list_init(&manager->controls);
 

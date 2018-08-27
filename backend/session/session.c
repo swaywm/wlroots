@@ -79,6 +79,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 
 	session->active = true;
 	wl_signal_init(&session->session_signal);
+	wl_signal_init(&session->events.destroy);
 	wl_list_init(&session->devices);
 
 	session->udev = udev_new();

@@ -197,6 +197,7 @@ struct wlr_screenshooter *wlr_screenshooter_create(struct wl_display *display) {
 	}
 
 	wl_list_init(&screenshooter->screenshots);
+	wl_signal_init(&screenshooter->events.destroy);
 
 	screenshooter->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &screenshooter->display_destroy);

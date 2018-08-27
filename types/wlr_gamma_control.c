@@ -187,6 +187,7 @@ struct wlr_gamma_control_manager *wlr_gamma_control_manager_create(
 	}
 	manager->global = global;
 
+	wl_signal_init(&manager->events.destroy);
 	wl_list_init(&manager->controls);
 
 	manager->display_destroy.notify = handle_display_destroy;

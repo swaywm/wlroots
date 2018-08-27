@@ -155,6 +155,7 @@ struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display) {
 	xdg_shell->global = global;
 
 	wl_signal_init(&xdg_shell->events.new_surface);
+	wl_signal_init(&xdg_shell->events.destroy);
 
 	xdg_shell->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &xdg_shell->display_destroy);
