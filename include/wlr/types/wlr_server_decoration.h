@@ -45,6 +45,7 @@ struct wlr_server_decoration_manager {
 
 	struct {
 		struct wl_signal new_decoration;
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

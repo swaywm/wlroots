@@ -419,6 +419,7 @@ void wlr_primary_selection_device_manager_destroy(
 	if (manager == NULL) {
 		return;
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	// TODO: free resources
 	wl_global_destroy(manager->global);

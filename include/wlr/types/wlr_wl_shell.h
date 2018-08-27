@@ -24,6 +24,7 @@ struct wlr_wl_shell {
 
 	struct {
 		struct wl_signal new_surface;
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

@@ -10,6 +10,10 @@ struct wlr_gamma_control_manager_v1 {
 
 	struct wl_listener display_destroy;
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 

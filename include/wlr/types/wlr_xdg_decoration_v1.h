@@ -19,6 +19,7 @@ struct wlr_xdg_decoration_manager_v1 {
 
 	struct {
 		struct wl_signal new_toplevel_decoration; // struct wlr_xdg_toplevel_decoration *
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

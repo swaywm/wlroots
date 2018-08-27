@@ -219,11 +219,12 @@ void wlr_gamma_control_manager_v1_destroy(
 	if (!manager) {
 		return;
 	}
-	wl_list_remove(&manager->display_destroy.link);
 	struct wlr_gamma_control_v1 *gamma_control, *tmp;
 	wl_list_for_each_safe(gamma_control, tmp, &manager->controls, link) {
 		wl_resource_destroy(gamma_control->resource);
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
 	struct wl_resource *resource, *resource_tmp;
 	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
 		wl_resource_destroy(resource);

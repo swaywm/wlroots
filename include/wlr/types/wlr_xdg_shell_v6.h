@@ -30,6 +30,7 @@ struct wlr_xdg_shell_v6 {
 		 * surface will be ready to be managed on the `map` event.
 		 */
 		struct wl_signal new_surface;
+		struct wl_signal destroy;
 	} events;
 
 	void *data;

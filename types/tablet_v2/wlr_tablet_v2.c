@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "tablet-unstable-v2-protocol.h"
+#include "util/signal.h"
 
 #define TABLET_MANAGER_VERSION 1
 
@@ -281,6 +282,7 @@ void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
 		wlr_tablet_manager_v2_destroy(pos->resource);
 	}
 
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_global_destroy(manager->wl_global);
 	free(manager);
 }

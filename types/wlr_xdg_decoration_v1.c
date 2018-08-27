@@ -287,6 +287,7 @@ void wlr_xdg_decoration_manager_v1_destroy(
 	if (manager == NULL) {
 		return;
 	}
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	struct wlr_xdg_toplevel_decoration_v1 *decoration, *tmp_decoration;
 	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
