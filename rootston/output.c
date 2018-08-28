@@ -474,7 +474,7 @@ static void render_output(struct roots_output *output) {
 	bool needs_swap;
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	if (!wlr_output_damage_make_current(output->damage, &needs_swap, &damage)) {
+	if (!wlr_output_damage_begin(output->damage, renderer, &needs_swap, &damage)) {
 		return;
 	}
 
@@ -490,8 +490,7 @@ static void render_output(struct roots_output *output) {
 		goto damage_finish;
 	}
 
-	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
-
+	wlr_renderer_begin_output(renderer, output->wlr_output);
 	if (!pixman_region32_not_empty(&damage)) {
 		// Output isn't damaged but needs buffer swap
 		goto renderer_end;
@@ -555,6 +554,7 @@ static void render_output(struct roots_output *output) {
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
 renderer_end:
+	wlr_output_render_contents(output->wlr_output, data.when, &damage);
 	wlr_renderer_scissor(renderer, NULL);
 	wlr_renderer_end(renderer);
 
@@ -564,7 +564,7 @@ renderer_end:
 		pixman_region32_union_rect(&damage, &damage, 0, 0, width, height);
 	}
 
-	if (!wlr_output_damage_swap_buffers(output->damage, &now, &damage)) {
+	if (!wlr_output_damage_swap_buffers(output->damage, data.when, &damage)) {
 		goto damage_finish;
 	}
 	output->last_frame = desktop->last_frame = now;

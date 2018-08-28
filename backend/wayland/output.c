@@ -129,14 +129,12 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
 
-		wlr_renderer_begin(backend->renderer, output->cursor.render_surface,
-			NULL);
+		wlr_renderer_begin(backend->renderer, output->cursor.render_surface);
 		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
 		wlr_renderer_end(backend->renderer);
 
 		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
-		wlr_log(WLR_ERROR, "set cursor");
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -319,7 +317,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 
 	wl_display_roundtrip(output->backend->remote_display);
 
-	wlr_renderer_begin(backend->renderer, output->render_surface, NULL);
+	wlr_renderer_begin(backend->renderer, output->render_surface);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 

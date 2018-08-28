@@ -18,9 +18,12 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/render/dmabuf.h>
 
+struct gbm_device;
+struct wl_surface;
+
 struct wlr_renderer_impl {
 	bool (*begin)(struct wlr_renderer *renderer,
-		struct wlr_render_surface *render_surface, int *buffer_age);
+		struct wlr_render_surface *render_surface);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
@@ -80,6 +83,7 @@ void wlr_texture_init(struct wlr_texture *texture,
 	const struct wlr_texture_impl *impl);
 
 struct wlr_render_surface_impl {
+	int (*buffer_age)(struct wlr_render_surface *surface);
 	bool (*swap_buffers)(struct wlr_render_surface *surface,
 			pixman_region32_t *damage);
 	void (*resize)(struct wlr_render_surface *surface, unsigned width,

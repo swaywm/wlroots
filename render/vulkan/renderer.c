@@ -10,7 +10,7 @@
 #include <wlr/util/log.h>
 #include <wlr/render/vulkan.h>
 #include <render/vulkan.h>
-// #include "wayland-drm-server-protocol.h"
+// #include "wayland-offscreen-server-protocol.h"
 
 #include <wlr/backend/x11.h>
 #include <backend/x11.h>
@@ -31,10 +31,9 @@
 
 static const struct wlr_renderer_impl renderer_impl;
 static const struct wlr_render_surface_impl swapchain_render_surface_impl;
-static const struct wlr_render_surface_impl drm_render_surface_impl;
+static const struct wlr_render_surface_impl offscreen_render_surface_impl;
 
-static struct wlr_vk_renderer *vulkan_get_renderer(
-		struct wlr_renderer *wlr_renderer) {
+struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer->impl == &renderer_impl);
 	return (struct wlr_vk_renderer *)wlr_renderer;
 }
@@ -42,7 +41,7 @@ static struct wlr_vk_renderer *vulkan_get_renderer(
 // static struct wlr_vk_render_surface *vulkan_get_render_surface(
 // 		struct wlr_render_surface *wlr_rs) {
 // 	assert(wlr_rs->impl == &swapchain_render_surface_impl ||
-// 		wlr_rs->impl == &drm_render_surface_impl);
+// 		wlr_rs->impl == &offscreen_render_surface_impl);
 // 	return (struct wlr_vk_render_surface *)wlr_rs;
 // }
 
@@ -52,10 +51,10 @@ vulkan_get_render_surface_swapchain(struct wlr_render_surface *wlr_rs) {
 	return (struct wlr_vk_swapchain_render_surface *)wlr_rs;
 }
 
-static struct wlr_vk_drm_render_surface *
-vulkan_get_render_surface_drm(struct wlr_render_surface *wlr_rs) {
-	assert(wlr_rs->impl == &drm_render_surface_impl);
-	return (struct wlr_vk_drm_render_surface *)wlr_rs;
+static struct wlr_vk_offscreen_render_surface *
+vulkan_get_render_surface_offscreen(struct wlr_render_surface *wlr_rs) {
+	assert(wlr_rs->impl == &offscreen_render_surface_impl);
+	return (struct wlr_vk_offscreen_render_surface *)wlr_rs;
 }
 
 static bool vulkan_render_surface_is_swapchain(
@@ -63,9 +62,9 @@ static bool vulkan_render_surface_is_swapchain(
 	return wlr_rs->impl == &swapchain_render_surface_impl;
 }
 
-static bool vulkan_render_surface_is_drm(
+static bool vulkan_render_surface_is_offscreen(
 		struct wlr_render_surface *wlr_rs) {
-	return wlr_rs->impl == &drm_render_surface_impl;
+	return wlr_rs->impl == &offscreen_render_surface_impl;
 }
 
 // util
@@ -157,39 +156,62 @@ static void swapchain_render_surface_destroy(struct wlr_render_surface *wlr_rs) 
 	free(rs);
 }
 
+static int swapchain_render_surface_buffer_age(struct wlr_render_surface *wlr_rs) {
+	// TODO: in vulkan we can't know the next buffer that will be
+	// used by the swapchain. The swapchain design simply doesn't
+	// allow in _any_ way to completely skip frames based on buffer
+	// age. But we could at least use a correct damage region when
+	// wlr_renderer_begin would again return a buffer_age value (for
+	// cases like this: where we only can determine the buffer age
+	// when starting to render)
+	//
+	// struct wlr_vk_swapchain_render_surface *rs =
+	// 	vulkan_get_render_surface_swapchain(wlr_rs);
+	// *buffer_age = rs->swapchain.buffers[???].age;
+	return -1;
+}
+
 static const struct wlr_render_surface_impl swapchain_render_surface_impl = {
+	.buffer_age = swapchain_render_surface_buffer_age,
 	.destroy = swapchain_render_surface_destroy,
 	.swap_buffers = swapchain_swap_buffers,
 	.resize = swapchain_render_surface_resize,
 };
 
-// drm render surface
-static bool drm_swap_buffers(struct wlr_render_surface *wlr_rs,
+// offscreen render surface
+static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 		pixman_region32_t *damage) {
-	struct wlr_vk_drm_render_surface *rs =
-		vulkan_get_render_surface_drm(wlr_rs);
+	struct wlr_vk_offscreen_render_surface *rs =
+		vulkan_get_render_surface_offscreen(wlr_rs);
 
-	rs->drm_surface->front = rs->front->bo;
-	rs->drm_surface->back = rs->back->bo;
-
-	struct wlr_vk_drm_buffer* tmp = rs->front;
+	struct wlr_vk_offscreen_buffer* tmp = rs->front;
 	rs->front = rs->back;
+	rs->front->age = 2;
 	rs->back = tmp;
+	rs->drm_surface->front = rs->front->bo;
 
 	// see swapchain_swap_buffers for why we need this atm
 	vkDeviceWaitIdle(rs->vk_render_surface.renderer->vulkan->dev);
 	return true;
 }
 
-static void drm_render_surface_resize(struct wlr_render_surface *wlr_rs,
+// TODO
+// static void offscreen_render_surface_destroy_buffer(
+// 		struct wlr_vk_offscreen_render_surface *wlr_rs) {
+// 	struct wlr_vk_offscreen_render_surface *rs =
+// 		vulkan_get_render_surface_offscreen(wlr_rs);
+//
+// }
+
+static void offscreen_render_surface_resize(struct wlr_render_surface *wlr_rs,
 		uint32_t width, uint32_t height) {
 	// TODO: recreate all images and buffers
 }
 
-static void drm_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
+static void offscreen_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
 	// TODO: destroy buffers
-	struct wlr_vk_drm_render_surface *rs =
-		vulkan_get_render_surface_drm(wlr_rs);
+	struct wlr_vk_offscreen_render_surface *rs =
+		vulkan_get_render_surface_offscreen(wlr_rs);
 	struct wlr_vk_renderer *renderer = rs->vk_render_surface.renderer;
 	if (rs->vk_render_surface.cb) {
 		vkFreeCommandBuffers(renderer->vulkan->dev, renderer->command_pool,
@@ -199,10 +221,20 @@ static void drm_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
 	free(rs);
 }
 
-static const struct wlr_render_surface_impl drm_render_surface_impl = {
-	.destroy = drm_render_surface_destroy,
-	.swap_buffers = drm_swap_buffers,
-	.resize = drm_render_surface_resize,
+static int offscreen_render_surface_buffer_age(struct wlr_render_surface *wlr_rs) {
+	struct wlr_vk_offscreen_render_surface *rs =
+		vulkan_get_render_surface_offscreen(wlr_rs);
+
+	// is always 2 once the buffer was used since we have only 2 buffers
+	// we always swap
+	return rs->back->age;
+}
+
+static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
+	.buffer_age = offscreen_render_surface_buffer_age,
+	.destroy = offscreen_render_surface_destroy,
+	.swap_buffers = offscreen_swap_buffers,
+	.resize = offscreen_render_surface_resize,
 };
 
 // renderer
@@ -231,12 +263,8 @@ static void vulkan_begin_rp(struct wlr_vk_render_surface *rs,
 	vkCmdSetScissor(cb, 0, 1, &rect);
 }
 
-static bool vulkan_begin_drm(struct wlr_vk_drm_render_surface *rs,
-		int *buffer_age) {
+static bool vulkan_begin_offscreen(struct wlr_vk_offscreen_render_surface *rs) {
 	struct wlr_vk_renderer *renderer = rs->vk_render_surface.renderer;
-	if (buffer_age) {
-		*buffer_age = 2;
-	}
 
 	vulkan_begin_rp(&rs->vk_render_surface, rs->vk_render_surface.cb,
 		rs->back->buffer.framebuffer);
@@ -244,8 +272,7 @@ static bool vulkan_begin_drm(struct wlr_vk_drm_render_surface *rs,
 	return true;
 }
 
-static bool vulkan_begin_swapchain(struct wlr_vk_swapchain_render_surface *rs,
-		int *buffer_age) {
+static bool vulkan_begin_swapchain(struct wlr_vk_swapchain_render_surface *rs) {
 	struct wlr_vk_renderer *renderer = rs->vk_render_surface.renderer;
 	struct wlr_vulkan *vulkan = renderer->vulkan;
 
@@ -267,16 +294,11 @@ static bool vulkan_begin_swapchain(struct wlr_vk_swapchain_render_surface *rs,
 	}
 
 	// track buffer age
+	// NOTE: currently never used, see comment in
+	// swapchain_render_surface_buffer_age
 	assert(id < rs->swapchain.image_count);
 	for(unsigned i = 0; i < rs->swapchain.image_count; ++i) {
 		if(i == id) {
-			if (buffer_age) {
-				// TODO: we currently don't support it correctly
-				// see render pass creation, we'd need load_op load
-				// and a manual image layout transition...
-				// *buffer_age = rs->swapchain.buffers[i].age;
-				*buffer_age = -1;
-			}
 			rs->swapchain.buffers[i].age = 1;
 		} else {
 			++rs->swapchain.buffers[i].age;
@@ -293,20 +315,19 @@ static bool vulkan_begin_swapchain(struct wlr_vk_swapchain_render_surface *rs,
 }
 
 static bool vulkan_begin(struct wlr_renderer *wlr_renderer,
-		struct wlr_render_surface *wlr_rs, int *buffer_age) {
+		struct wlr_render_surface *wlr_rs) {
 	if (vulkan_render_surface_is_swapchain(wlr_rs)) {
 		return vulkan_begin_swapchain(
-			vulkan_get_render_surface_swapchain(wlr_rs), buffer_age);
-	} else if (vulkan_render_surface_is_drm(wlr_rs)) {
-		return vulkan_begin_drm(
-			vulkan_get_render_surface_drm(wlr_rs), buffer_age);
+			vulkan_get_render_surface_swapchain(wlr_rs));
+	} else if (vulkan_render_surface_is_offscreen(wlr_rs)) {
+		return vulkan_begin_offscreen(vulkan_get_render_surface_offscreen(wlr_rs));
 	}
 
 	wlr_log(WLR_ERROR, "Invalid render surface");
 	return false;
 }
 
-static void vulkan_end_drm(struct wlr_vk_drm_render_surface *rs) {
+static void vulkan_end_offscreen(struct wlr_vk_offscreen_render_surface *rs) {
 	struct wlr_vk_renderer *renderer = rs->vk_render_surface.renderer;
 	VkCommandBuffer cb = rs->vk_render_surface.cb;
 	vkCmdEndRenderPass(cb);
@@ -359,23 +380,49 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	if (vulkan_render_surface_is_swapchain(&renderer->current->render_surface)) {
 		vulkan_end_swapchain(vulkan_get_render_surface_swapchain(
 			&renderer->current->render_surface));
-	} else if (vulkan_render_surface_is_drm(&renderer->current->render_surface)) {
-		vulkan_end_drm(vulkan_get_render_surface_drm(
+	} else if (vulkan_render_surface_is_offscreen(&renderer->current->render_surface)) {
+		vulkan_end_offscreen(vulkan_get_render_surface_offscreen(
 			&renderer->current->render_surface));
 	} else {
 		wlr_log(WLR_ERROR, "Invalid render surface");
 	}
+
+	renderer->current = NULL;
 }
 
 static bool vulkan_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *texture, const float matrix[9], float alpha) {
-	// TODO
-	// bind pipeline (if not already bound)
-	// write matrix into ubo, update descriptor set for texture
-	//  even better: every texture has its own descriptor set (with bound image)
-	// render shit
+		struct wlr_texture *wlr_texture, const float matrix[9], float alpha) {
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	assert(renderer->current);
+	VkCommandBuffer cb = renderer->current->cb;
 
-	return false;
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
+
+	// TODO: alpha
+	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		renderer->pipeline);
+	vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		renderer->pipeline_layout, 0, 1, &texture->ds, 0, NULL);
+
+	float mat4[4][4] = {0};
+	mat4[0][0] = matrix[0];
+	mat4[0][1] = matrix[1];
+	mat4[0][3] = matrix[2];
+
+	mat4[1][0] = matrix[3];
+	mat4[1][1] = matrix[4];
+	mat4[1][3] = matrix[5];
+
+	mat4[2][2] = 1.f;
+	mat4[3][3] = 1.f;
+
+	wlr_log(WLR_DEBUG, "%f %f\n", mat4[0][0], mat4[1][1]);
+
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16, mat4);
+	vkCmdDraw(cb, 4, 1, 0, 0);
+
+	return true;
 }
 
 static void vulkan_clear(struct wlr_renderer *wlr_renderer,
@@ -402,7 +449,11 @@ static void vulkan_scissor(struct wlr_renderer *wlr_renderer,
 	assert(renderer->current);
 	VkCommandBuffer cb = renderer->current->cb;
 
-	VkRect2D rect = {{box->x, box->y}, {box->width, box->height}};
+	VkRect2D rect = {{0, 0}, {renderer->current->width, renderer->current->height}};
+	if (box) {
+		rect = (VkRect2D) {{box->x, box->y}, {box->width, box->height}};
+	}
+
 	vkCmdSetScissor(cb, 0, 1, &rect);
 }
 
@@ -458,7 +509,7 @@ static struct wlr_texture *vulkan_texture_from_pixels(
 		struct wlr_renderer *wlr_renderer, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	return wlr_vk_texture_from_pixels(renderer->vulkan, wl_fmt, stride,
+	return wlr_vk_texture_from_pixels(renderer, wl_fmt, stride,
 		width, height, data);
 }
 
@@ -474,19 +525,58 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(
 }
 
 static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
-	// TODO
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vulkan *vulkan = renderer->vulkan;
+	if (!vulkan) {
+		return;
+	}
+
+	if (renderer->pipeline) {
+		vkDestroyPipeline(vulkan->dev, renderer->pipeline, NULL);
+	}
+
+	if (renderer->pipeline_layout) {
+		vkDestroyPipelineLayout(vulkan->dev, renderer->pipeline_layout, NULL);
+	}
+
+	if (renderer->descriptor_set_layout) {
+		vkDestroyDescriptorSetLayout(vulkan->dev,
+			renderer->descriptor_set_layout, NULL);
+	}
+
+	if (renderer->sampler) {
+		vkDestroySampler(vulkan->dev, renderer->sampler, NULL);
+	}
+
+	if (renderer->render_pass) {
+		vkDestroyRenderPass(vulkan->dev, renderer->render_pass, NULL);
+	}
+
+	if (renderer->command_pool) {
+		vkDestroyCommandPool(vulkan->dev, renderer->command_pool, NULL);
+	}
+
+	if (renderer->descriptor_pool) {
+		vkDestroyDescriptorPool(vulkan->dev, renderer->descriptor_pool, NULL);
+	}
+
+	wlr_vulkan_destroy(renderer->vulkan);
+	free(renderer);
 }
 
 static void vulkan_init_wl_display(struct wlr_renderer* wlr_renderer,
 		struct wl_display* wl_display) {
+	// TODO
+	// probably have to implement wl_offscreen ourselves since mesa
+	// still depends on it
 }
 
-static struct wlr_render_surface *vulkan_create_drm_render_surface(
+static struct wlr_render_surface *vulkan_create_offscreen_render_surface(
 		struct wlr_vk_renderer *renderer, void *handle,
 		uint32_t width, uint32_t height) {
 	VkResult res;
 	struct wlr_vulkan *vulkan = renderer->vulkan;
-	struct wlr_vk_drm_render_surface *rs = calloc(1, sizeof(*rs));
+	struct wlr_vk_offscreen_render_surface *rs = calloc(1, sizeof(*rs));
 	if (!rs) {
 		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
@@ -497,7 +587,7 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 	rs->vk_render_surface.height = height;
 	rs->drm_surface = (struct wlr_drm_surface *)handle;
 	wlr_render_surface_init(&rs->vk_render_surface.render_surface,
-		&drm_render_surface_impl);
+		&offscreen_render_surface_impl);
 
 	// command buffer
 	VkCommandBufferAllocateInfo cmd_buf_info = {0};
@@ -513,8 +603,11 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 	}
 
 	// initialize buffers
+	// implementation notes: we currently create buffers with
+	// gbm and then import them to vulkan. Creating images with vulkan
+	// and then importing them as gbm bo is probably possible as well.
 	for(unsigned i = 0u; i < 2; ++i) {
-		struct wlr_vk_drm_buffer *buf = &rs->buffers[i];
+		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
 
 		// we currently need gbm_bo_use_linear to import it into
 		// vulkan with linear layout. Could probably be solved
@@ -584,14 +677,6 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 		import_info.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
 		import_info.fd = fd;
 		import_info.handleType = htype;
-
-		// query fd size, as suggested by vulkan api spec doc
-		// off_t buf_size = lseek(fd, 0L, SEEK_END);
-		// if (buf_size == (off_t) -1) {
-		// 	wlr_log_errno(WLR_ERROR, "lseek");
-		// 	goto error;
-		// }
-		// lseek(fd, 0L, SEEK_SET);
 
 		VkMemoryAllocateInfo mem_info = {0};
 		mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -663,7 +748,7 @@ static struct wlr_render_surface *vulkan_create_drm_render_surface(
 	return &rs->vk_render_surface.render_surface;
 
 error:
-	drm_render_surface_destroy(&rs->vk_render_surface.render_surface);
+	offscreen_render_surface_destroy(&rs->vk_render_surface.render_surface);
 	return NULL;
 }
 
@@ -674,7 +759,7 @@ static struct wlr_render_surface *vulkan_create_render_surface(
 	VkResult res;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	if (wlr_backend_is_drm(renderer->backend)) {
-		return vulkan_create_drm_render_surface(renderer, handle,
+		return vulkan_create_offscreen_render_surface(renderer, handle,
 			width, height);
 	}
 
@@ -753,9 +838,6 @@ static struct wlr_render_surface *vulkan_create_render_surface(
 		return &rs->vk_render_surface.render_surface;
 	}
 
-	free(rs);
-	return NULL;
-
 error:
 	wlr_render_surface_destroy(&rs->vk_render_surface.render_surface);
 	return NULL;
@@ -784,6 +866,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.create_render_surface = vulkan_create_render_surface,
 };
 
+// returns false on error
+// cleanup is done by destroying the renderer
 static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	// util
 	VkDevice dev = renderer->vulkan->dev;
@@ -847,7 +931,7 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	res = vkCreateRenderPass(dev, &rp_info, NULL, &renderer->render_pass);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create render pass", res);
-		goto error;
+		return false;
 	}
 
 	// sampler
@@ -860,7 +944,6 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler_info.maxAnisotropy = 1.f;
-	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
 	sampler_info.minLod = 0.f;
 	sampler_info.maxLod = 0.25f;
 	sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
@@ -868,41 +951,44 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	res = vkCreateSampler(dev, &sampler_info, NULL, &renderer->sampler);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create sampler", res);
-		goto error;
+		return false;
 	}
 
 	// layouts
 	// descriptor set
-	VkDescriptorSetLayoutBinding ds_bindings[2] = {{
-		0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-		VK_SHADER_STAGE_VERTEX_BIT, NULL,
-	}, {
-		1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+	VkDescriptorSetLayoutBinding ds_bindings[1] = {{
+		0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
 		VK_SHADER_STAGE_FRAGMENT_BIT, &renderer->sampler
 	}};
 
 	VkDescriptorSetLayoutCreateInfo ds_info = {0};
 	ds_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	ds_info.bindingCount = 2;
+	ds_info.bindingCount = 1;
 	ds_info.pBindings = ds_bindings;
 
 	res = vkCreateDescriptorSetLayout(dev, &ds_info, NULL,
 		&renderer->descriptor_set_layout);
 	if (res != VK_SUCCESS) {
 		wlr_log(WLR_ERROR, "Failed to create descriptor set layout: %d", res);
-		goto error;
+		return false;
 	}
 
 	// pipeline layout
+	VkPushConstantRange pc_range = {0};
+	pc_range.size = sizeof(float) * 16; // mat4, see texture.vert
+	pc_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
 	VkPipelineLayoutCreateInfo pl_info = {0};
 	pl_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pl_info.setLayoutCount = 1;
 	pl_info.pSetLayouts = &renderer->descriptor_set_layout;
+	pl_info.pushConstantRangeCount = 1;
+	pl_info.pPushConstantRanges = &pc_range;
 
 	res = vkCreatePipelineLayout(dev, &pl_info, NULL, &renderer->pipeline_layout);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create pipeline layout", res);
-		goto error;
+		return false;
 	}
 
 	// pipeline shader frag
@@ -911,11 +997,13 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	frag_info.codeSize = sizeof(texture_frag_data);
 	frag_info.pCode = texture_frag_data;
 
-	VkShaderModule frag_module;
+	VkShaderModule frag_module = NULL;
+	VkShaderModule vert_module = NULL;
+
 	res = vkCreateShaderModule(dev, &frag_info, NULL, &frag_module);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create fragment shader module", res);
-		goto error;
+		goto cleanup_shaders;
 	}
 
 	// vert
@@ -924,11 +1012,10 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	vert_info.codeSize = sizeof(texture_vert_data);
 	vert_info.pCode = texture_vert_data;
 
-	VkShaderModule vert_module;
 	res = vkCreateShaderModule(dev, &vert_info, NULL, &vert_module);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create vertex shader module", res);
-		goto error;
+		goto cleanup_shaders;
 	}
 
 	VkPipelineShaderStageCreateInfo stages[2] = {{
@@ -1011,13 +1098,21 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 		&renderer->pipeline);
 	if(res != VK_SUCCESS) {
 		wlr_log(WLR_ERROR, "failed to create vulkan pipelines: %d", res);
-		goto error;
+		goto cleanup_shaders;
 	}
 
+	vkDestroyShaderModule(dev, frag_module, NULL);
+	vkDestroyShaderModule(dev, vert_module, NULL);
 	return true;
 
-error:
-	// TODO: cleanup
+cleanup_shaders:
+	if (frag_module) {
+		vkDestroyShaderModule(dev, frag_module, NULL);
+	}
+
+	if (vert_module) {
+		vkDestroyShaderModule(dev, vert_module, NULL);
+	}
 	return false;
 }
 
@@ -1026,10 +1121,10 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	int ini_ext_count;
 	const char **ini_exts;
 
-	// TODO: when getting a drm backend, we should use the same gpu as
+	// TODO: when getting a offscreen backend, we should use the same gpu as
 	// the backend. Not sure if there is a reliable (or even mesa)
 	// way to detect if a VkPhysicalDevice is the same as a gbm_device
-	// (or drm fd) though.
+	// (or offscreen fd) though.
 	if (!backend_extensions(backend, &ini_ext_count, &ini_exts)) {
 		wlr_log(WLR_ERROR, "Unsupported backend in vulkan renderer");
 		return NULL;
@@ -1053,17 +1148,41 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	renderer->vulkan = vulkan;
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
-	VkCommandPoolCreateInfo pool_info = {0};
-	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	pool_info.queueFamilyIndex = vulkan->graphics_queue_fam;
-	res = vkCreateCommandPool(vulkan->dev, &pool_info, NULL,
+	// command pool
+	VkCommandPoolCreateInfo cpool_info = {0};
+	cpool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	cpool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	cpool_info.queueFamilyIndex = vulkan->graphics_queue_fam;
+	res = vkCreateCommandPool(vulkan->dev, &cpool_info, NULL,
 		&renderer->command_pool);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkCreateCommandPool", res);
 		goto error;
 	}
 
+	// descriptor pool
+	// TODO: at the moment we just allocate one large pool but it might
+	// run out. We need dynamic pool creation/allocation algorithm with
+	// a list of managed (usage tracked) descriptor pool
+	VkDescriptorPoolSize pool_size = {0};
+	pool_size.descriptorCount = 100;
+	pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+	VkDescriptorPoolCreateInfo dpool_info = {0};
+	dpool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	dpool_info.maxSets = 100;
+	dpool_info.poolSizeCount = 1;
+	dpool_info.pPoolSizes = &pool_size;
+	dpool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+	res = vkCreateDescriptorPool(vulkan->dev, &dpool_info, NULL,
+		&renderer->descriptor_pool);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkCreateDescriptorPool", res);
+		goto error;
+	}
+
+	// init renderpass, pipeline etc
 	if (!init_pipeline(renderer)) {
 		wlr_log(WLR_ERROR, "Could not init vulkan pipeline");
 		goto error;

@@ -1,7 +1,7 @@
 #include <vulkan/vulkan.h>
 #include "render/vulkan.h"
 
-// reversed endianess, as in opengl
+// reversed endianess
 static const struct wlr_vk_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,

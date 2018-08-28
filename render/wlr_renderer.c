@@ -48,14 +48,18 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 }
 
 bool wlr_renderer_begin(struct wlr_renderer *r,
-		struct wlr_render_surface *rs, int *buffer_age) {
-	return r->impl->begin(r, rs, buffer_age);
+		struct wlr_render_surface *rs) {
+	return r->impl->begin(r, rs);
 }
 
 bool wlr_renderer_begin_output(struct wlr_renderer *r,
-		struct wlr_output *output, int *buffer_age) {
-	return wlr_renderer_begin(r, output->impl->get_render_surface(output),
-		buffer_age);
+		struct wlr_output *output) {
+	struct wlr_render_surface *s = output->impl->get_render_surface(output);
+	if (!s) {
+		wlr_log(WLR_ERROR, "wlr_output has no render_surface");
+		return false;
+	}
+	return wlr_renderer_begin(r, s);
 }
 
 void wlr_renderer_end(struct wlr_renderer *r) {

@@ -87,7 +87,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
 	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin_output(sample->renderer, wlr_output);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	float distance = 0.8f * (1 - sample->distance);

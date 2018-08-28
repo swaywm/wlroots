@@ -59,6 +59,8 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 	xcb_void_cookie_t cookie = xcb_configure_window_checked(
 		x11->xcb_conn, output->win,
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
+	wlr_render_surface_resize(output->render_surface,
+		width, height);
 
 	xcb_generic_error_t *error;
 	if ((error = xcb_request_check(x11->xcb_conn, cookie))) {

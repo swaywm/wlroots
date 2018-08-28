@@ -113,7 +113,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%d",
 		wl_list_length(&backend->outputs) + 1);
 
-	wlr_renderer_begin(backend->renderer, output->render_surface, NULL);
+	wlr_renderer_begin(backend->renderer, output->render_surface);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 

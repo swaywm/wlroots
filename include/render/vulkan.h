@@ -12,7 +12,7 @@
 // State (e.g. image texture) associates with a surface.
 struct wlr_vk_texture {
 	struct wlr_texture wlr_texture;
-	struct wlr_vulkan *vulkan;
+	struct wlr_vk_renderer *renderer;
 	VkDeviceMemory memory;
 	VkImage image;
 	VkImageView image_view;
@@ -20,6 +20,8 @@ struct wlr_vk_texture {
 	uint32_t width;
 	uint32_t height;
 	bool has_alpha;
+	VkDescriptorSet ds;
+	VkSubresourceLayout subres_layout;
 };
 
 // Central vulkan state
@@ -67,21 +69,16 @@ struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
 	struct wlr_backend *backend;
 	struct wlr_vulkan *vulkan;
+
+	VkCommandPool command_pool;
+	VkRenderPass render_pass;
 	VkSampler sampler;
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
-	VkRenderPass render_pass;
-
 	VkPipeline pipeline;
-	VkCommandPool command_pool;
-	VkDescriptorSet descriptor_set;
 	VkDescriptorPool descriptor_pool;
-	VkDeviceMemory memory;
-	VkBuffer ubo;
 
 	struct wlr_vk_render_surface *current;
-
-	// struct wl_global *wl_drm;
 };
 
 struct wlr_vk_pixel_format {
@@ -110,18 +107,21 @@ struct wlr_vk_swapchain_render_surface {
 	VkSemaphore present; // signaled when rendering finished
 };
 
-// wlr_vk_render_surface using a custom swapchain based on gbm_bo's.
-struct wlr_vk_drm_render_surface {
+// wlr_vk_render_surface implementing an own offscreen swapchain
+// might be created with a gbm device, allowing it to return a gbm_bo
+// for the current front buffer
+struct wlr_vk_offscreen_render_surface {
 	struct wlr_vk_render_surface vk_render_surface;
 	struct wlr_drm_surface *drm_surface;
-	struct wlr_vk_drm_buffer {
-		struct gbm_bo *bo;
-		VkDeviceMemory memory; // imported; using the bo
+	struct wlr_vk_offscreen_buffer {
+		struct gbm_bo *bo; // optional
+		VkDeviceMemory memory;
 		struct wlr_vk_swapchain_buffer buffer;
+		int age;// initially 0, then always 2 (to track never used buffers)
 	} buffers[2];
 
-	struct wlr_vk_drm_buffer *front; // currently presented, not renderable
-	struct wlr_vk_drm_buffer *back; // to be rendered to in current/next frame
+	struct wlr_vk_offscreen_buffer *front; // presented, not renderable
+	struct wlr_vk_offscreen_buffer *back; // rendered to in current/next frame
 };
 
 // Creates a swapchain for the given surface.
@@ -149,6 +149,7 @@ const enum wl_shm_format *get_vulkan_formats(size_t *len);
 const struct wlr_vk_pixel_format *get_vulkan_format_from_wl(
 	enum wl_shm_format fmt);
 
+struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer);
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 const char *vulkan_strerror(VkResult err);
 

@@ -25,7 +25,7 @@
 /**
  * Tracks damage for an output.
  *
- * When a `frame` event is emitted, `wlr_output_damage_make_current` should be
+ * When a `frame` event is emitted, `wlr_output_damage_begin` should be
  * called. If necessary, the output should be repainted and
  * `wlr_output_damage_swap_buffers` should be called. No rendering should happen
  * outside a `frame` event handler.

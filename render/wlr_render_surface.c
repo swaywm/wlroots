@@ -10,6 +10,14 @@ void wlr_render_surface_init(struct wlr_render_surface *surface,
 	surface->impl = impl;
 }
 
+int wlr_render_surface_get_buffer_age(struct wlr_render_surface *surface) {
+	if (!surface->impl->buffer_age) {
+		return -1;
+	}
+
+	return surface->impl->buffer_age(surface);
+}
+
 void wlr_render_surface_destroy(struct wlr_render_surface *surface) {
 	if (!surface) {
 		return;

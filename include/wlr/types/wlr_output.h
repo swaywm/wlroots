@@ -191,6 +191,14 @@ void wlr_output_transformed_resolution(struct wlr_output *output,
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
 /**
+ * Renders the outputs own contents like fullscreen surface or software
+ * cursor. Must only be called between begin and end of the backends
+ * renderer. 'when' specifies when surface_done is sent to the
+ * fullscreen surfaces.
+ */
+void wlr_output_render_contents(struct wlr_output *output,
+	struct timespec *when, pixman_region32_t *damage);
+/**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL. If the compositor doesn't support damage tracking, set `damage` to
  * NULL.
@@ -244,6 +252,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	double x, double y);
 void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
+struct wlr_render_surface *wlr_output_get_render_surface(
+	struct wlr_output *output);
 
 
 /**

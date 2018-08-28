@@ -47,8 +47,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->session_signal.link);
 	wl_list_remove(&drm->drm_invalidated.link);
 
-	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
+	finish_drm_resources(drm);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
 	free(drm);

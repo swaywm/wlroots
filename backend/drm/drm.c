@@ -335,7 +335,7 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	struct wlr_drm_plane *plane = crtc->primary;
 	struct wlr_drm_surface *surf = &plane->surf;
 
-	return export_drm_bo(surf->back, attribs);
+	return export_drm_bo(surf->front, attribs);
 }
 
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
@@ -658,7 +658,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
 
-		wlr_renderer_begin(rend, plane->surf.render_surface, NULL);
+		wlr_renderer_begin(rend, plane->surf.render_surface);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, NULL, bo_stride,

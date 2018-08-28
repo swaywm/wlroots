@@ -106,10 +106,11 @@ bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
 		pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
 
-	int buffer_age = -1;
-	if (!wlr_renderer_begin_output(renderer, output, &buffer_age)) {
+	struct wlr_render_surface *surf = wlr_output_get_render_surface(output);
+	if (!surf) {
 		return false;
 	}
+	int buffer_age = wlr_render_surface_get_buffer_age(surf);
 
 	// Check if we can use damage tracking
 	if (buffer_age <= 0 || buffer_age - 1 > WLR_OUTPUT_DAMAGE_PREVIOUS_LEN) {

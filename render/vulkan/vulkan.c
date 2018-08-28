@@ -11,6 +11,10 @@
 	vulkan_strerror(res), res, ##__VA_ARGS__)
 
 void wlr_vulkan_destroy(struct wlr_vulkan *vulkan) {
+	if (!vulkan) {
+		return;
+	}
+
 	if (vulkan->dev) {
 		vkDestroyDevice(vulkan->dev, NULL);
 	}
@@ -43,7 +47,6 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		const VkDebugUtilsMessengerCallbackDataEXT* debug_data,
 		void* data) {
 
-	((void) type);
 	((void) data);
 
 	enum wlr_log_importance importance;
@@ -56,6 +59,10 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
 			importance = WLR_INFO;
 			break;
+	}
+
+	if(type == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+		importance = WLR_DEBUG;
 	}
 
 	wlr_log(importance, "%s", debug_data->pMessage);
@@ -161,15 +168,21 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	application_info.engineVersion = WLR_VERSION_NUM;
 	application_info.apiVersion = VK_MAKE_VERSION(1,1,0);
 
-	const char *layer_name = "VK_LAYER_LUNARG_standard_validation";
+	// standard_validation: reports error in api usage to debug callback
+	// renderdoc: allows to capture (and debug!) frames with renderdoc
+	const char* layers[] = {
+		"VK_LAYER_LUNARG_standard_validation",
+		"VK_LAYER_RENDERDOC_Capture"
+	};
+	unsigned layer_count = debug * (sizeof(layers) / sizeof(layers[0]));
 
 	VkInstanceCreateInfo instance_info = {0};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pApplicationInfo = &application_info;
 	instance_info.enabledExtensionCount = extension_count;
 	instance_info.ppEnabledExtensionNames = extensions;
-	instance_info.enabledLayerCount = debug;
-	instance_info.ppEnabledLayerNames = &layer_name;
+	instance_info.enabledLayerCount = layer_count;
+	instance_info.ppEnabledLayerNames = layers;
 
 	res = vkCreateInstance(&instance_info, NULL, &vulkan->instance);
 	if (res != VK_SUCCESS) {
@@ -188,11 +201,11 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 
 		if(vulkan->api.createDebugUtilsMessengerEXT) {
 			VkDebugUtilsMessageSeverityFlagsEXT severity =
-				// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 			VkDebugUtilsMessageTypeFlagsEXT types =
-				// VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 
@@ -446,6 +459,8 @@ void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
 	if (swapchain->swapchain) {
 		vkDestroySwapchainKHR(vulkan->dev, swapchain->swapchain, NULL);
 	}
+
+	memset(swapchain, 0, sizeof(*swapchain));
 }
 
 bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,

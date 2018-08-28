@@ -32,10 +32,16 @@ struct wlr_renderer {
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend);
 
+/**
+ * Starts rendering on the given render_surface.
+ * Call wlr_renderer_end when finished rendering
+ * Only between such a begin and end can the renderer be used
+ * for rendering.
+ */
 bool wlr_renderer_begin(struct wlr_renderer *r,
-	struct wlr_render_surface *render_surface, int *buffer_age);
+	struct wlr_render_surface *render_surface);
 bool wlr_renderer_begin_output(struct wlr_renderer *r,
-	struct wlr_output *output, int *buffer_age);
+	struct wlr_output *output);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**

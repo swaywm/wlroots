@@ -176,7 +176,7 @@ int main(void) {
 		.display = display
 	};
 	struct wlr_backend *backend = wlr_backend_autocreate(display,
-		wlr_vk_renderer_create);
+		wlr_gles2_renderer_create);
 	if (!backend) {
 		exit(1);
 	}

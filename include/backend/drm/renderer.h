@@ -25,8 +25,7 @@ struct wlr_drm_surface {
 	uint32_t height;
 
 	struct wlr_render_surface *render_surface;
-	struct gbm_bo *front;
-	struct gbm_bo *back;
+	struct gbm_bo *front; // the currently displayed bo
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,

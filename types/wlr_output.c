@@ -462,6 +462,38 @@ surface_damage_finish:
 	pixman_region32_fini(&surface_damage);
 }
 
+void wlr_output_render_contents(struct wlr_output *output,
+		struct timespec *when, pixman_region32_t *damage) {
+
+	int width, height;
+	wlr_output_transformed_resolution(output, &width, &height);
+
+	pixman_region32_t render_damage;
+	pixman_region32_init(&render_damage);
+	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
+		width, height);
+	if (damage != NULL) {
+		// Damage tracking supported
+		pixman_region32_intersect(&render_damage, &render_damage, damage);
+	}
+
+	if (pixman_region32_not_empty(&render_damage)) {
+		if (output->fullscreen_surface != NULL) {
+			output_fullscreen_surface_render(output, output->fullscreen_surface,
+				when, &render_damage);
+		}
+
+		struct wlr_output_cursor *cursor;
+		wl_list_for_each(cursor, &output->cursors, link) {
+			if (!cursor->enabled || !cursor->visible ||
+					output->hardware_cursor == cursor) {
+				continue;
+			}
+			output_cursor_render(cursor, when, &render_damage);
+		}
+	}
+}
+
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	if (output->frame_pending) {
@@ -489,22 +521,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	if (when == NULL) {
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		when = &now;
-	}
-
-	if (pixman_region32_not_empty(&render_damage)) {
-		if (output->fullscreen_surface != NULL) {
-			output_fullscreen_surface_render(output, output->fullscreen_surface,
-				when, &render_damage);
-		}
-
-		struct wlr_output_cursor *cursor;
-		wl_list_for_each(cursor, &output->cursors, link) {
-			if (!cursor->enabled || !cursor->visible ||
-					output->hardware_cursor == cursor) {
-				continue;
-			}
-			output_cursor_render(cursor, when, &render_damage);
-		}
 	}
 
 	struct wlr_output_event_swap_buffers event = {
@@ -995,6 +1011,10 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	free(cursor);
 }
 
+struct wlr_render_surface *wlr_output_get_render_surface(
+		struct wlr_output *output) {
+	return output->impl->get_render_surface(output);
+}
 
 enum wl_output_transform wlr_output_transform_invert(
 		enum wl_output_transform tr) {

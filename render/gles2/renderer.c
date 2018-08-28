@@ -40,24 +40,16 @@ static struct wlr_gles2_render_surface *gles2_get_render_surface(
 }
 
 static void gles2_render_surface_finish(struct wlr_gles2_render_surface *rs) {
+	wlr_egl_destroy_surface(&rs->renderer->egl, rs->surface);
 	if (rs->egl_window) {
 		wl_egl_window_destroy(rs->egl_window);
 	} else if (rs->gbm_surface) {
 		struct wlr_drm_surface *surf = (struct wlr_drm_surface *) rs->handle;
 		if (surf->front) {
-			if (surf->front) {
-				gbm_surface_release_buffer(rs->gbm_surface, surf->front);
-				surf->front = NULL;
-			}
-			if (surf->back) {
-				gbm_surface_release_buffer(rs->gbm_surface, surf->back);
-				surf->back = NULL;
-			}
+			gbm_surface_release_buffer(rs->gbm_surface, surf->front);
 		}
 		gbm_surface_destroy(rs->gbm_surface);
 	}
-
-	wlr_egl_destroy_surface(&rs->renderer->egl, rs->surface);
 }
 
 static bool gles2_render_surface_init(struct wlr_gles2_render_surface *rs) {
@@ -68,9 +60,7 @@ static bool gles2_render_surface_init(struct wlr_gles2_render_surface *rs) {
 		EGLint attribs[] = {EGL_WIDTH, rs->width, EGL_HEIGHT, rs->height, EGL_NONE};
 		rs->surface = eglCreatePbufferSurface(renderer->egl.display,
 			renderer->egl.config, attribs);
-	}
-
-	if (wlr_backend_is_x11(backend)) {
+	} else if (wlr_backend_is_x11(backend)) {
 		rs->surface = wlr_egl_create_surface(&rs->renderer->egl, rs->handle);
 	} else if(wlr_backend_is_wl(backend)) {
 		struct wl_surface *wl_surface = (struct wl_surface *)rs->handle;
@@ -119,8 +109,7 @@ static bool gles2_swap_buffers(struct wlr_render_surface *wlr_rs,
 		}
 
 		bool r = wlr_egl_swap_buffers(&rs->renderer->egl, rs->surface, damage);
-		surf->front = surf->back;
-		surf->back = gbm_surface_lock_front_buffer(rs->gbm_surface);
+		surf->front = gbm_surface_lock_front_buffer(rs->gbm_surface);
 		return r;
 	}
 
@@ -134,15 +123,16 @@ static void gles2_render_surface_resize(struct wlr_render_surface *wlr_rs,
 		return;
 	}
 
+	rs->width = width;
+	rs->height = height;
 	if (rs->egl_window) {
 		wl_egl_window_resize(rs->egl_window, width, height, 0, 0);
-		return;
 	}
 
-	gles2_render_surface_finish(rs);
-	rs->width = width;
-	rs->height = width;
-	gles2_render_surface_init(rs);
+	if (rs->gbm_surface) {
+		gles2_render_surface_finish(rs);
+		gles2_render_surface_init(rs);
+	}
 }
 
 static void gles2_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
@@ -151,8 +141,19 @@ static void gles2_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
 	free(wlr_rs);
 }
 
+static int gles2_render_surface_buffer_age(struct wlr_render_surface *wlr_rs) {
+	struct wlr_gles2_render_surface *rs = gles2_get_render_surface(wlr_rs);
+	int ret = -1;
+	if (!wlr_egl_make_current(&rs->renderer->egl, rs->surface,
+			&ret)) {
+		wlr_log(WLR_ERROR, "Failed to make egl current");
+		return false;
+	}
+	return ret;
+}
 
 static const struct wlr_render_surface_impl render_surface_impl = {
+	.buffer_age = gles2_render_surface_buffer_age,
 	.destroy = gles2_render_surface_destroy,
 	.swap_buffers = gles2_swap_buffers,
 	.resize = gles2_render_surface_resize,
@@ -208,14 +209,14 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 }
 
 static bool gles2_begin(struct wlr_renderer *wlr_renderer,
-		struct wlr_render_surface *rs, int *buffer_age) {
+		struct wlr_render_surface *rs) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 	struct wlr_gles2_render_surface *render_surface =
 		gles2_get_render_surface(rs);
 
 	if (!wlr_egl_make_current(&renderer->egl, render_surface->surface,
-			buffer_age)) {
+			NULL)) {
 		wlr_log(WLR_ERROR, "Failed to make egl current");
 		return false;
 	}
@@ -538,6 +539,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 		glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
+	wlr_egl_finish(&renderer->egl);
 	free(renderer);
 }
 
@@ -704,7 +706,9 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	renderer->backend = backend;
 
 	if (!gles2_renderer_init_egl(renderer, backend)) {
-		goto error_egl;
+		wlr_egl_finish(&renderer->egl);
+		free(renderer);
+		return NULL;
 	}
 
 	wlr_egl_make_current(&renderer->egl, EGL_NO_SURFACE, NULL);
@@ -782,9 +786,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	return &renderer->wlr_renderer;
 
 error:
-	wlr_egl_finish(&renderer->egl);
-
-error_egl:
 	glDeleteProgram(renderer->shaders.quad.program);
 	glDeleteProgram(renderer->shaders.ellipse.program);
 	glDeleteProgram(renderer->shaders.tex_rgba.program);
@@ -798,6 +799,7 @@ error_egl:
 		glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
+	wlr_egl_finish(&renderer->egl);
 	free(renderer);
 	return NULL;
 }
