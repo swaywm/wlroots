@@ -201,7 +201,9 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		uint32_t size) {
 	// Fallback to legacy gamma interface when gamma properties are not available
 	// (can happen on older intel gpu's that support gamma but not degamma)
-	if (crtc->props.gamma_lut == 0) {
+	// TEMP: This is broken on AMDGPU. Always fallback to legacy until they get
+	// it fixed. Ref https://bugs.freedesktop.org/show_bug.cgi?id=107459
+	if (crtc->props.gamma_lut == 0 || true) {
 		return legacy_iface.crtc_set_gamma(drm, crtc, r, g, b, size);
 	}
 
