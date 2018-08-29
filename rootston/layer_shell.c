@@ -1,6 +1,12 @@
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
@@ -73,7 +79,32 @@ static void apply_exclusive(struct wlr_box *usable_area,
 	}
 }
 
-static void arrange_layer(struct wlr_output *output, struct wl_list *list,
+static void update_cursors(struct roots_layer_surface *roots_surface,
+		struct wl_list *seats /* struct roots_seat */) {
+	struct roots_seat *seat;
+	wl_list_for_each(seat, seats, link) {
+		double sx, sy;
+
+		struct wlr_surface *surface = desktop_surface_at(
+			seat->input->server->desktop,
+			seat->cursor->cursor->x, seat->cursor->cursor->y, &sx, &sy, NULL);
+
+		if (surface == roots_surface->layer_surface->surface) {
+			struct timespec time;
+			if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
+				roots_cursor_update_position(seat->cursor,
+					time.tv_sec * 1000 + time.tv_nsec / 1000000);
+			} else {
+				wlr_log(WLR_ERROR, "Failed to get time, not updating"
+					"position. Errno: %s\n", strerror(errno));
+			}
+		}
+	}
+}
+
+static void arrange_layer(struct wlr_output *output,
+		struct wl_list *seats /* struct *roots_seat */,
+		struct wl_list *list /* struct *roots_layer_surface */,
 		struct wlr_box *usable_area, bool exclusive) {
 	struct roots_layer_surface *roots_surface;
 	struct wlr_box full_area = { 0 };
@@ -143,12 +174,25 @@ static void arrange_layer(struct wlr_output *output, struct wl_list *list,
 			wlr_layer_surface_close(layer);
 			continue;
 		}
+
 		// Apply
+		struct wlr_box old_geo = roots_surface->geo;
 		roots_surface->geo = box;
 		apply_exclusive(usable_area, state->anchor, state->exclusive_zone,
 				state->margin.top, state->margin.right,
 				state->margin.bottom, state->margin.left);
 		wlr_layer_surface_configure(layer, box.width, box.height);
+
+		// Having a cursor newly end up over the moved layer will not
+		// automatically send a motion event to the surface. The event needs to
+		// be synthesized.
+		// Only update layer surfaces which kept their size (and so buffers) the
+		// same, because those with resized buffers will be handled separately.
+
+		if (roots_surface->geo.x != old_geo.x
+				|| roots_surface->geo.y != old_geo.y) {
+			update_cursors(roots_surface, seats);
+		}
 	}
 }
 
@@ -158,16 +202,16 @@ void arrange_layers(struct roots_output *output) {
 			&usable_area.width, &usable_area.height);
 
 	// Arrange exclusive surfaces from top->bottom
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
 			&usable_area, true);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
 			&usable_area, true);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
 			&usable_area, true);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
 			&usable_area, true);
 	memcpy(&output->usable_area, &usable_area, sizeof(struct wlr_box));
@@ -180,16 +224,16 @@ void arrange_layers(struct roots_output *output) {
 	}
 
 	// Arrange non-exlusive surfaces from top->bottom
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY],
 			&usable_area, false);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
 			&usable_area, false);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM],
 			&usable_area, false);
-	arrange_layer(output->wlr_output,
+	arrange_layer(output->wlr_output, &output->desktop->server->input->seats,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND],
 			&usable_area, false);
 
@@ -238,6 +282,20 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 		struct roots_output *output = wlr_output->data;
 		struct wlr_box old_geo = layer->geo;
 		arrange_layers(output);
+
+		// Cursor changes which happen as a consequence of resizing a layer
+		// surface are applied in arrange_layers. Because the resize happens
+		// before the underlying surface changes, it will only receive a cursor
+		// update if the new cursor position crosses the *old* sized surface in
+		// the *new* layer surface.
+		// Another cursor move event is needed when the surface actually
+		// changes.
+		struct wlr_surface *surface = layer_surface->surface;
+		if (surface->previous.width != surface->current.width ||
+				surface->previous.height != surface->current.height) {
+			update_cursors(layer, &output->desktop->server->input->seats);
+		}
+
 		if (memcmp(&old_geo, &layer->geo, sizeof(struct wlr_box)) != 0) {
 			output_damage_whole_local_surface(output, layer_surface->surface,
 					old_geo.x, old_geo.y, 0);
