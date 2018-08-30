@@ -142,6 +142,7 @@ static void communicate(int sock) {
 				goto error;
 			}
 
+#ifndef __FreeBSD__
 			struct stat st;
 			if (fstat(fd, &st) < 0) {
 				ret = errno;
@@ -157,6 +158,19 @@ static void communicate(int sock) {
 			if (maj == DRM_MAJOR && drmSetMaster(fd)) {
 				ret = errno;
 			}
+#else
+			if (strncmp(msg.path, "/dev/drm/", 9) &&
+				strncmp(msg.path, "/dev/input/event", 16)) {
+
+				ret = ENOTSUP;
+				goto error;
+			}
+
+			if (strncmp(msg.path, "/dev/drm/", 9) == 0 && drmSetMaster(fd)) {
+				ret = errno;
+			}
+#endif
+
 error:
 			send_msg(sock, ret ? -1 : fd, &ret, sizeof(ret));
 			if (fd >= 0) {
@@ -193,8 +207,11 @@ int direct_ipc_open(int sock, const char *path) {
 
 	send_msg(sock, -1, &msg, sizeof(msg));
 
-	int fd, err;
-	recv_msg(sock, &fd, &err, sizeof(err));
+	int fd, err, ret;
+	int retry = 0;
+	do {
+		ret = recv_msg(sock, &fd, &err, sizeof(err));
+	} while (ret == 0 && retry++ < 3);
 
 	return err ? -err : fd;
 }

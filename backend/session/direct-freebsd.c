@@ -40,12 +40,6 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 		return fd;
 	}
 
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		close(fd);
-		return -errno;
-	}
-
 	return fd;
 }
 
@@ -57,6 +51,20 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 		wlr_log_errno(WLR_ERROR, "Stat failed");
 		close(fd);
 		return;
+	}
+
+	char *name;
+	name = devname(st.st_rdev, S_IFCHR);
+	if (name == NULL) {
+		wlr_log_errno(WLR_ERROR, "Failed to get device name");
+		close(fd);
+		return;
+	}
+
+	if (strncmp(name, "drm/", 4) == 0) {
+		direct_ipc_dropmaster(session->sock, fd);
+	} else if (strncmp(name, "input/event", 11)) {
+		ioctl(fd, EVIOCREVOKE, 0);
 	}
 
 	close(fd);
@@ -79,6 +87,8 @@ static void direct_session_destroy(struct wlr_session *base) {
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
+	ioctl(session->tty_fd, VT_ACTIVATE, 1);
+
 	if (errno) {
 		wlr_log(WLR_ERROR, "Failed to restore tty");
 	}
@@ -97,9 +107,29 @@ static int vt_handler(int signo, void *data) {
 	if (session->base.active) {
 		session->base.active = false;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
+
+		char *name;
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			name = devname(dev->dev, S_IFCHR);
+			if (name != NULL && strncmp(name, "drm/", 4) == 0) {
+				direct_ipc_dropmaster(session->sock, dev->fd);
+			}
+		}
+
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
+
+		char *name;
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->base.devices, link) {
+			name = devname(dev->dev, S_IFCHR);
+			if (name != NULL && strncmp(name, "drm/", 4) == 0) {
+				direct_ipc_setmaster(session->sock, dev->fd);
+			}
+		}
+
 		session->base.active = true;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
