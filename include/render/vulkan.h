@@ -24,7 +24,7 @@ struct wlr_vk_texture {
 	VkSubresourceLayout subres_layout;
 };
 
-// Central vulkan state
+// Central vulkan state: instance, device, extensions, api
 struct wlr_vulkan {
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT messenger;
@@ -41,6 +41,14 @@ struct wlr_vulkan {
 		PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugUtilsMessengerEXT;
 		PFN_vkGetMemoryFdPropertiesKHR getMemoryFdPropertiesKHR;
 	} api;
+
+	// which optional extensions could be loaded
+	struct {
+		bool wayland;
+		bool xcb;
+		bool import_dma;
+		bool export_dma;
+	} extensions;
 };
 
 // One buffer of a swapchain.
@@ -50,6 +58,7 @@ struct wlr_vk_swapchain_buffer {
 	VkImageView image_view;
 	VkFramebuffer framebuffer;
 	int age;
+	bool layout_changed;
 };
 
 // Vulkan swapchain with retrieved buffers and rendering data.
@@ -79,6 +88,16 @@ struct wlr_vk_renderer {
 	VkDescriptorPool descriptor_pool;
 
 	struct wlr_vk_render_surface *current;
+	struct {
+		uint32_t stride;
+		uint32_t width;
+		uint32_t height;
+		uint32_t src_x;
+		uint32_t src_y;
+		uint32_t dst_x;
+		uint32_t dst_y;
+		void *data;
+	} read_pixels;
 };
 
 struct wlr_vk_pixel_format {
@@ -89,19 +108,17 @@ struct wlr_vk_pixel_format {
 };
 
 struct wlr_vk_render_surface {
-	struct wlr_render_surface render_surface;
+	struct wlr_render_surface rs;
 	struct wlr_vk_renderer *renderer;
-	uint32_t width;
-	uint32_t height;
 	VkCommandBuffer cb; // the currently recorded cb
 };
 
 // wlr_vk_render_surface using a VkSurfaceKHR and swapchain
 struct wlr_vk_swapchain_render_surface {
-	struct wlr_vk_render_surface vk_render_surface;
+	struct wlr_vk_render_surface vk_rs;
 	VkSurfaceKHR surface;
 	struct wlr_vk_swapchain swapchain;
-	uint32_t current_id;
+	uint32_t current_id; // current or last rendered buffer id
 
 	VkSemaphore acquire; // signaled when image was acquire
 	VkSemaphore present; // signaled when rendering finished
@@ -111,20 +128,20 @@ struct wlr_vk_swapchain_render_surface {
 // might be created with a gbm device, allowing it to return a gbm_bo
 // for the current front buffer
 struct wlr_vk_offscreen_render_surface {
-	struct wlr_vk_render_surface vk_render_surface;
-	struct wlr_drm_surface *drm_surface;
+	struct wlr_vk_render_surface vk_rs;
+	struct gbm_device *gbm_dev;
+	uint32_t flags;
+
 	struct wlr_vk_offscreen_buffer {
 		struct gbm_bo *bo; // optional
 		VkDeviceMemory memory;
 		struct wlr_vk_swapchain_buffer buffer;
-		int age;// initially 0, then always 2 (to track never used buffers)
 	} buffers[2];
 
 	struct wlr_vk_offscreen_buffer *front; // presented, not renderable
 	struct wlr_vk_offscreen_buffer *back; // rendered to in current/next frame
 };
 
-// Creates a swapchain for the given surface.
 bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		struct wlr_vk_renderer *renderer, VkSurfaceKHR surface,
 		uint32_t width, uint32_t height, bool vsync);
@@ -142,6 +159,11 @@ struct wlr_vulkan *wlr_vulkan_create(
 		bool debug);
 
 void wlr_vulkan_destroy(struct wlr_vulkan *vulkan);
+
+// Tries to find any memory bit for the given vulkan device that
+// supports the given flags and is set in req_bits (e.g. if memory
+// type 2 is ok, (req_bits & (1 << 2)) must not be null.
+// Set req_bits to 0xFFFFFFFF to allow all types.
 int wlr_vulkan_find_mem_type(struct wlr_vulkan *vulkan,
 	VkMemoryPropertyFlags flags, uint32_t req_bits);
 
@@ -151,7 +173,41 @@ const struct wlr_vk_pixel_format *get_vulkan_format_from_wl(
 
 struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer);
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
+struct wlr_vk_render_surface *vulkan_get_render_surface(
+		struct wlr_render_surface *wlr_rs);
+
+// render_surface api
+struct wlr_render_surface *vulkan_render_surface_create_headless(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height);
+struct wlr_render_surface *vulkan_render_surface_create_xcb(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	void *xcb_connection, uint32_t xcb_window);
+struct wlr_render_surface *vulkan_render_surface_create_wl(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	struct wl_display *disp, struct wl_surface *surf);
+struct wlr_render_surface *vulkan_render_surface_create_gbm(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	struct gbm_device *gbm_dev, uint32_t flags);
+
+VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
+	VkCommandBuffer cb);
+bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
+	VkCommandBuffer cb);
+bool vulkan_render_surface_readable(struct wlr_vk_render_surface *rs);
+void vulkan_render_surface_read_pixels(struct wlr_vk_render_surface *rs,
+	uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
+
+
+// util
 const char *vulkan_strerror(VkResult err);
+void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
+		VkImageLayout ol, VkPipelineStageFlags srcs, VkAccessFlags srca,
+		VkImageLayout nl, VkPipelineStageFlags dsts, VkAccessFlags dsta);
+
+#define wlr_vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
+	vulkan_strerror(res), res, ##__VA_ARGS__)
+
 
 #endif
 

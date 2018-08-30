@@ -83,10 +83,10 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
 	atomic_add(atom, id, props->src_y, 0);
-	atomic_add(atom, id, props->src_w, (uint64_t)plane->surf.width << 16);
-	atomic_add(atom, id, props->src_h, (uint64_t)plane->surf.height << 16);
-	atomic_add(atom, id, props->crtc_w, plane->surf.width);
-	atomic_add(atom, id, props->crtc_h, plane->surf.height);
+	atomic_add(atom, id, props->src_w, (uint64_t)plane->surf->width << 16);
+	atomic_add(atom, id, props->src_h, (uint64_t)plane->surf->height << 16);
+	atomic_add(atom, id, props->crtc_w, plane->surf->width);
+	atomic_add(atom, id, props->crtc_h, plane->surf->height);
 	atomic_add(atom, id, props->fb_id, fb_id);
 	atomic_add(atom, id, props->crtc_id, crtc_id);
 	if (set_crtc_xy) {

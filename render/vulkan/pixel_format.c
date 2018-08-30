@@ -6,25 +6,25 @@ static const struct wlr_vk_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
 		.bpp = 32,
-		.vk_format = VK_FORMAT_B8G8R8A8_UNORM,
+		.vk_format = VK_FORMAT_B8G8R8A8_SRGB,
 		.has_alpha = true,
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XRGB8888,
 		.bpp = 32,
-		.vk_format = VK_FORMAT_B8G8R8A8_UNORM,
+		.vk_format = VK_FORMAT_B8G8R8A8_SRGB,
 		.has_alpha = false,
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XBGR8888,
 		.bpp = 32,
-		.vk_format = VK_FORMAT_R8G8B8A8_UNORM,
+		.vk_format = VK_FORMAT_R8G8B8A8_SRGB,
 		.has_alpha = false,
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_ABGR8888,
 		.bpp = 32,
-		.vk_format = VK_FORMAT_R8G8B8A8_UNORM,
+		.vk_format = VK_FORMAT_R8G8B8A8_SRGB,
 		.has_alpha = true,
 	},
 };

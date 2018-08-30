@@ -8,10 +8,12 @@
 #include <wlr/backend/multi.h>
 #include <wlr/config.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/render/vulkan.h>
 #include <wlr/util/log.h>
 #include "rootston/config.h"
 #include "rootston/server.h"
+
+#include <wlr/render/vulkan.h>
+#include <wlr/render/gles2.h>
 
 struct roots_server server = { 0 };
 

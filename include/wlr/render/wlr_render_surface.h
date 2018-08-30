@@ -12,9 +12,27 @@
 #include <stdbool.h>
 #include <pixman.h>
 
+struct wlr_renderer;
+struct wl_display;
+struct wl_surface;
+
 struct wlr_render_surface {
 	const struct wlr_render_surface_impl *impl;
+	uint32_t width;
+	uint32_t height;
 };
+
+struct wlr_render_surface *wlr_render_surface_create_headless(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height);
+struct wlr_render_surface *wlr_render_surface_create_gbm(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	void *gbm_device, uint32_t gbm_use_flags);
+struct wlr_render_surface *wlr_render_surface_create_xcb(
+	struct wlr_renderer *renderer,
+	uint32_t width, uint32_t height, void *xcb_connection, uint32_t window);
+struct wlr_render_surface *wlr_render_surface_create_wl(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	struct wl_display *disp, struct wl_surface *surf);
 
 /**
  * Returns the buffer age of the back buffer (the one that is rendered

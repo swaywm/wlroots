@@ -59,9 +59,20 @@ struct wlr_renderer_impl {
 	void (*destroy)(struct wlr_renderer *renderer);
 	void (*init_wl_display)(struct wlr_renderer *renderer,
 		struct wl_display *wl_display);
-	struct wlr_render_surface *(*create_render_surface)(
-		struct wlr_renderer *renderer, void *handle,
-		uint32_t width, uint32_t height);
+
+	struct wlr_render_surface *(*render_surface_create_gbm)(
+		struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+		struct gbm_device *device, uint32_t use_flags);
+	struct wlr_render_surface *(*render_surface_create_headless)(
+		struct wlr_renderer *renderer, uint32_t width, uint32_t height);
+	struct wlr_render_surface *(*render_surface_create_xcb)(
+		struct wlr_renderer *renderer,
+		uint32_t width, uint32_t height,
+		void *xcb_connection, uint32_t window);
+	struct wlr_render_surface *(*render_surface_create_wl)(
+		struct wlr_renderer *renderer,
+		uint32_t width, uint32_t height,
+		struct wl_display *disp, struct wl_surface *surf);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
@@ -89,6 +100,7 @@ struct wlr_render_surface_impl {
 	void (*resize)(struct wlr_render_surface *surface, unsigned width,
 			unsigned height);
 	void (*destroy)(struct wlr_render_surface *surface);
+	struct gbm_bo *(*get_bo)(struct wlr_render_surface *surface);
 };
 
 void wlr_render_surface_init(struct wlr_render_surface *surface,

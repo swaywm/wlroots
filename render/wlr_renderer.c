@@ -28,7 +28,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->formats);
 	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
-	assert(impl->create_render_surface);
 	renderer->impl = impl;
 
 	wl_signal_init(&renderer->events.destroy);
@@ -204,11 +203,6 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	if (r->impl->init_wl_display) {
 		r->impl->init_wl_display(r, wl_display);
 	}
-}
-
-struct wlr_render_surface *wlr_renderer_create_render_surface(
-		struct wlr_renderer *r, void *handle, uint32_t width, uint32_t height) {
-	return r->impl->create_render_surface(r, handle, width, height);
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {

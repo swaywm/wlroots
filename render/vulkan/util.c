@@ -48,3 +48,20 @@ const char *vulkan_strerror(VkResult err) {
 	}
 	#undef STR
 }
+
+void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
+		VkImageLayout ol, VkPipelineStageFlags srcs, VkAccessFlags srca,
+		VkImageLayout nl, VkPipelineStageFlags dsts, VkAccessFlags dsta) {
+	VkImageMemoryBarrier barrier = {0};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = ol;
+	barrier.newLayout = nl;
+	barrier.image = img;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.srcAccessMask = srca;
+	barrier.dstAccessMask = dsta;
+
+	vkCmdPipelineBarrier(cb, srcs, dsts, 0, 0, NULL, 0, NULL, 1, &barrier);
+}

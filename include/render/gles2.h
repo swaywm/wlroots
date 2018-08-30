@@ -87,21 +87,19 @@ struct wlr_gles2_texture {
 };
 
 struct wlr_gles2_render_surface {
-	struct wlr_render_surface render_surface;
+	struct wlr_render_surface rs;
 	struct wlr_gles2_renderer *renderer;
-
-	// needed e.g. for resizing the surface
-	// x11: xcb_window_t
-	// wayland: wl_surface*
-	// dummy: NULL
-	// drm: wlr_drm_surface*
-	void* handle;
-	struct gbm_surface *gbm_surface; // only for drm
-	struct wl_egl_window *egl_window; // only for wayland
-
 	EGLSurface surface;
-	uint32_t width;
-	uint32_t height;
+	struct wl_egl_window *egl_window; // only for wayland
+};
+
+struct wlr_gles2_gbm_render_surface {
+	struct wlr_gles2_render_surface gles2_rs;
+	struct gbm_device *gbm_dev;
+	uint32_t flags;
+
+	struct gbm_surface *gbm_surface;
+	struct gbm_bo *front_bo;
 };
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
@@ -110,6 +108,22 @@ const enum wl_shm_format *get_gles2_formats(size_t *len);
 
 struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
+struct wlr_gles2_renderer *gles2_get_renderer(
+	struct wlr_renderer *wlr_renderer);
+struct wlr_gles2_render_surface *get_gles2_render_surface(
+	struct wlr_render_surface *wlr_rs);
+
+struct wlr_render_surface *gles2_render_surface_create_headless(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height);
+struct wlr_render_surface *gles2_render_surface_create_xcb(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	void *xcb_connection, uint32_t xcb_window);
+struct wlr_render_surface *gles2_render_surface_create_wl(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	struct wl_display *disp, struct wl_surface *surf);
+struct wlr_render_surface *gles2_render_surface_create_gbm(
+	struct wlr_renderer *renderer, uint32_t width, uint32_t height,
+	struct gbm_device *gbm_dev, uint32_t flags);
 
 void push_gles2_marker(const char *file, const char *func);
 void pop_gles2_marker(void);

@@ -158,8 +158,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		x11->screen->root, 0, 0, width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		x11->screen->root_visual, mask, values);
 
-	output->render_surface = wlr_renderer_create_render_surface(
-		x11->renderer, &output->win, width, height);
+	output->render_surface = wlr_render_surface_create_xcb(
+		x11->renderer, width, height, x11->xcb_conn, output->win);
 	if (!output->render_surface) {
 		wlr_log(WLR_ERROR, "Failed to create render surface");
 		free(output);

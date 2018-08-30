@@ -16,7 +16,8 @@
 #endif
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
+		struct wlr_drm_renderer *renderer,
+		wlr_renderer_create_func_t create_renderer_func) {
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
@@ -50,69 +51,32 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 	gbm_device_destroy(renderer->gbm);
 }
 
-bool init_drm_surface(struct wlr_drm_surface *surf,
+bool init_drm_render_surface(struct wlr_render_surface **surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		uint32_t format, uint32_t flags) {
-	if (surf->width == width && surf->height == height) {
-		return true;
+		uint32_t flags) {
+	if (*surf) {
+		wlr_render_surface_resize(*surf, width, height);
 	}
 
-	surf->renderer = renderer;
-	surf->width = width;
-	surf->height = height;
-	surf->flags = flags;
-	surf->front = NULL;
-
-	if (!surf->render_surface) {
-		surf->render_surface = wlr_renderer_create_render_surface(
-			renderer->wlr_rend, surf, width, height);
-		if (!surf->render_surface) {
-			memset(surf, 0, sizeof(*surf));
-			return false;
-		}
-	} else {
-		wlr_render_surface_resize(surf->render_surface, width, height);
-	}
-
-	return true;
+	*surf = wlr_render_surface_create_gbm(
+		renderer->wlr_rend, width, height, renderer->gbm, flags);
+	return (*surf);
 }
 
-void finish_drm_surface(struct wlr_drm_surface *surf) {
-	if (!surf || !surf->renderer) {
-		return;
+struct gbm_bo *get_render_surface_front(struct wlr_renderer *renderer,
+		struct wlr_render_surface *surf) {
+	struct gbm_bo *front = wlr_render_surface_get_bo(surf);
+	if (front) {
+		return front;
 	}
 
-	if (surf->render_surface) {
-		wlr_render_surface_destroy(surf->render_surface);
-	}
-
-	memset(surf, 0, sizeof(*surf));
-}
-
-struct gbm_bo *swap_drm_surface_buffers(struct wlr_drm_surface *surf,
-		pixman_region32_t *damage) {
-	wlr_render_surface_swap_buffers(surf->render_surface, damage);
-	return surf->front;
-}
-
-struct gbm_bo *get_drm_surface_front(struct wlr_drm_surface *surf) {
-	if (surf->front) {
-		return surf->front;
-	}
-
-	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
-	wlr_renderer_begin(renderer, surf->render_surface);
+	wlr_renderer_begin(renderer, surf);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
 	wlr_renderer_end(renderer);
-	return swap_drm_surface_buffers(surf, NULL);
-}
 
-// void post_drm_surface(struct wlr_drm_surface *surf) {
-// 	if (surf->front) {
-// 		gbm_surface_release_buffer(surf->gbm, surf->front);
-// 		surf->front = NULL;
-// 	}
-// }
+	wlr_render_surface_swap_buffers(surf, NULL);
+	return wlr_render_surface_get_bo(surf);
+}
 
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
 	memset(attribs, 0, sizeof(struct wlr_dmabuf_attributes));
@@ -167,39 +131,37 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	return tex;
 }
 
-struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
-		struct gbm_bo *src) {
-	struct wlr_texture *tex = get_tex_for_bo(dest->renderer, src);
+struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_renderer *renderer,
+		struct wlr_render_surface *dest, struct gbm_bo *src) {
+	struct wlr_texture *tex = get_tex_for_bo(renderer, src);
 	assert(tex);
 
 	float mat[9];
 	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
-	struct wlr_renderer *renderer = dest->renderer->wlr_rend;
-	wlr_renderer_begin(renderer, dest->render_surface);
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
-	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
-	wlr_renderer_end(renderer);
+	wlr_renderer_begin(renderer->wlr_rend, dest);
+	wlr_renderer_clear(renderer->wlr_rend, (float[]){ 0.0, 0.0, 0.0, 1.0 });
+	wlr_render_texture_with_matrix(renderer->wlr_rend, tex, mat, 1.0f);
+	wlr_renderer_end(renderer->wlr_rend);
 
-	return swap_drm_surface_buffers(dest, NULL);
+	wlr_render_surface_swap_buffers(dest, NULL);
+	return wlr_render_surface_get_bo(dest);
 }
 
 bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
-		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format) {
+		struct wlr_drm_backend *drm, int32_t width, uint32_t height) {
 	if (!drm->parent) {
-		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			format, GBM_BO_USE_SCANOUT);
+		return init_drm_render_surface(&plane->surf, &drm->renderer,
+			width, height, GBM_BO_USE_SCANOUT);
 	}
 
-	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, format, GBM_BO_USE_LINEAR)) {
+	if (!init_drm_render_surface(&plane->surf, &drm->parent->renderer,
+			width, height, GBM_BO_USE_LINEAR)) {
 		return false;
 	}
 
-	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, format, GBM_BO_USE_SCANOUT)) {
-		finish_drm_surface(&plane->surf);
+	if (!init_drm_render_surface(&plane->mgpu_surf, &drm->renderer,
+			width, height, GBM_BO_USE_SCANOUT)) {
 		return false;
 	}
 

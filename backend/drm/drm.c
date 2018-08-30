@@ -232,9 +232,10 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = swap_drm_surface_buffers(&plane->surf, damage);
+	wlr_render_surface_swap_buffers(plane->surf, damage);
+	struct gbm_bo *bo = wlr_render_surface_get_bo(plane->surf);
 	if (drm->parent) {
-		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
+		bo = copy_drm_surface_mgpu(&drm->renderer, plane->mgpu_surf, bo);
 	}
 	uint32_t fb_id = get_fb_for_bo(bo);
 
@@ -333,9 +334,13 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
-	struct wlr_drm_surface *surf = &plane->surf;
+	struct gbm_bo *bo = wlr_render_surface_get_bo(plane->surf);
+	if (!bo) {
+		wlr_log(WLR_ERROR, "Failed to retrieve gbm_bo from render_surface");
+		return NULL;
+	}
 
-	return export_drm_bo(surf->front, attribs);
+	return export_drm_bo(bo, attribs);
 }
 
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
@@ -353,8 +358,8 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = get_drm_surface_front(
-		drm->parent ? &plane->mgpu_surf : &plane->surf);
+	struct gbm_bo *bo = wlr_render_surface_get_bo(
+		drm->parent ? plane->mgpu_surf : plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
@@ -468,9 +473,9 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 
 				changed_outputs[crtc_res[i]] = true;
 				if (*old) {
-					finish_drm_surface(&(*old)->surf);
+					wlr_render_surface_destroy((*old)->surf);
 				}
-				finish_drm_surface(&new->surf);
+				wlr_render_surface_destroy(new->surf);
 				*old = new;
 			}
 		}
@@ -499,7 +504,7 @@ static bool drm_connector_set_mode(struct wlr_output *output,
 		conn->output.name, mode->width, mode->height, mode->refresh);
 
 	if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-			mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
+			mode->width, mode->height)) {
 		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 		return false;
 	}
@@ -574,7 +579,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		crtc->cursor = plane;
 	}
 
-	if (!plane->surf.render_surface) {
+	struct wlr_drm_renderer *renderer =
+		drm->parent ? &drm->parent->renderer : &drm->renderer;
+	if (!plane->surf) {
 		int ret;
 		uint64_t w, h;
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
@@ -582,11 +589,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
 		h = ret ? 64 : h;
 
-		struct wlr_drm_renderer *renderer =
-			drm->parent ? &drm->parent->renderer : &drm->renderer;
-
-		if (!init_drm_surface(&plane->surf, renderer, w, h,
-				GBM_FORMAT_ARGB8888, 0)) {
+		if (!init_drm_render_surface(&plane->surf, renderer, w, h, 0)) {
 			wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
@@ -599,12 +602,12 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
-	wlr_matrix_projection(plane->matrix, plane->surf.width,
-		plane->surf.height, output->transform);
+	wlr_matrix_projection(plane->matrix, plane->surf->width,
+		plane->surf->height, output->transform);
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
 	wlr_box_transform(&hotspot, wlr_output_transform_invert(output->transform),
-		plane->surf.width, plane->surf.height, &hotspot);
+		plane->surf->width, plane->surf->height, &hotspot);
 
 	if (plane->cursor_hotspot_x != hotspot.x ||
 			plane->cursor_hotspot_y != hotspot.y) {
@@ -634,9 +637,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		width = width * output->scale / scale;
 		height = height * output->scale / scale;
 
-		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
+		if (width > (int)plane->surf->width || height > (int)plane->surf->height) {
 			wlr_log(WLR_ERROR, "Cursor too large (max %dx%d)",
-				(int)plane->surf.width, (int)plane->surf.height);
+				(int)plane->surf->width, (int)plane->surf->height);
 			return false;
 		}
 
@@ -651,24 +654,26 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
+		struct wlr_renderer *rend = renderer->wlr_rend;
 
 		struct wlr_box cursor_box = { .width = width, .height = height };
 
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
 
-		wlr_renderer_begin(rend, plane->surf.render_surface);
+		if (!wlr_renderer_begin(rend, plane->surf)) {
+			gbm_bo_unmap(plane->cursor_bo, bo_data);
+			return false;
+		}
+
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, NULL, bo_stride,
-			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
+			plane->surf->width, plane->surf->height, 0, 0, 0, 0, bo_data);
 		wlr_renderer_end(rend);
 
-		swap_drm_surface_buffers(&plane->surf, NULL);
-
+		wlr_render_surface_swap_buffers(plane->surf, NULL);
 		gbm_bo_unmap(plane->cursor_bo, bo_data);
-
 		plane->cursor_enabled = true;
 	}
 
@@ -770,7 +775,7 @@ static void drm_connector_destroy(struct wlr_output *output) {
 static struct wlr_render_surface *drm_connector_get_render_surface(
 		struct wlr_output *output) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	return conn->crtc->primary->surf.render_surface;
+	return conn->crtc->primary->surf;
 }
 
 static const struct wlr_output_impl output_impl = {
@@ -826,7 +831,7 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 			continue;
 		}
 
-		finish_drm_surface(&plane->surf);
+		wlr_render_surface_destroy(plane->surf);
 		conn->crtc->planes[type] = NULL;
 	}
 
@@ -951,7 +956,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		}
 
 		if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-				mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
+				mode->width, mode->height)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 			drm_connector_cleanup(conn);
 			break;
@@ -1228,6 +1233,7 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
+	// TODO: required here or enough if done in renderer on next frame?
 	// post_drm_surface(&conn->crtc->primary->surf);
 	// if (drm->parent) {
 	// 	post_drm_surface(&conn->crtc->primary->mgpu_surf);
@@ -1315,8 +1321,8 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 					continue;
 				}
 
-				finish_drm_surface(&crtc->planes[i]->surf);
-				finish_drm_surface(&crtc->planes[i]->mgpu_surf);
+				wlr_render_surface_destroy(crtc->planes[i]->surf);
+				wlr_render_surface_destroy(crtc->planes[i]->mgpu_surf);
 				if (crtc->planes[i]->id == 0) {
 					free(crtc->planes[i]);
 					crtc->planes[i] = NULL;

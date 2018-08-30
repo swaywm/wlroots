@@ -23,8 +23,8 @@ struct wlr_drm_plane {
 
 	uint32_t possible_crtcs;
 
-	struct wlr_drm_surface surf;
-	struct wlr_drm_surface mgpu_surf;
+	struct wlr_render_surface *surf;
+	struct wlr_render_surface *mgpu_surf;
 
 	// Only used by cursor
 	float matrix[9];

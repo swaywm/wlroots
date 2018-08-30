@@ -12,6 +12,7 @@ wlr_render_src = files(
 	'egl.c',
 	'gles2/pixel_format.c',
 	'gles2/renderer.c',
+	'gles2/render_surface.c',
 	'gles2/shaders.c',
 	'gles2/texture.c',
 	'gles2/util.c',
@@ -32,6 +33,7 @@ if conf_data.get('WLR_HAS_VULKAN', false)
 		'vulkan/vulkan.c',
 		'vulkan/texture.c',
 		'vulkan/pixel_format.c',
+		'vulkan/render_surface.c',
 		'vulkan/util.c',
 	)
 

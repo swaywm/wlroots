@@ -122,8 +122,6 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	enum wl_shm_format fmt);
 void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
-struct wlr_render_surface *wlr_renderer_create_render_surface(
-	struct wlr_renderer *r, void *handle, uint32_t width, uint32_t height);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */

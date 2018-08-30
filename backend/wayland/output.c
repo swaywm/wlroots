@@ -111,8 +111,9 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		output->cursor.height = height;
 
 		if (output->cursor.render_surface == NULL) {
-			output->cursor.render_surface = wlr_renderer_create_render_surface(
-				backend->renderer, surface, width, height);
+			output->cursor.render_surface = wlr_render_surface_create_wl(
+				backend->renderer, width, height, backend->remote_display,
+				surface);
 		} else {
 			wlr_render_surface_resize(output->cursor.render_surface,
 				width, height);
@@ -129,12 +130,22 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
 
-		wlr_renderer_begin(backend->renderer, output->cursor.render_surface);
+		if (!wlr_renderer_begin(backend->renderer, output->cursor.render_surface)) {
+			wlr_log(WLR_ERROR, "rendering the cursor failed");
+			return false;
+		}
+
 		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
 		wlr_renderer_end(backend->renderer);
 
 		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
+
+		// TODO without this the call above may block indefinitely on
+		// the gles renderer (since eglSwapBuffers probably waits upon
+		// the compositor; therefore creating a deadlock)
+		wlr_render_surface_destroy(output->cursor.render_surface);
+		output->cursor.render_surface = NULL;
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -311,9 +322,9 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			&xdg_toplevel_listener, output);
 	wl_surface_commit(output->surface);
 
-	output->render_surface = wlr_renderer_create_render_surface(
-		backend->renderer, output->surface, wlr_output->width,
-		wlr_output->height);
+	output->render_surface = wlr_render_surface_create_wl(
+		backend->renderer, wlr_output->width,
+		wlr_output->height, backend->remote_display, output->surface);
 
 	wl_display_roundtrip(output->backend->remote_display);
 

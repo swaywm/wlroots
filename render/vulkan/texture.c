@@ -6,9 +6,6 @@
 #include <wlr/util/log.h>
 #include <render/vulkan.h>
 
-#define wlr_vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
-	vulkan_strerror(res), res, ##__VA_ARGS__)
-
 static const struct wlr_texture_impl texture_impl;
 
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture) {
@@ -168,7 +165,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	img_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	img_info.tiling = VK_IMAGE_TILING_LINEAR;
 	img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	img_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 	img_info.extent = (VkExtent3D) { width, height, 1 };
 	img_info.usage = usage;
 	res = vkCreateImage(vulkan->dev, &img_info, NULL, &texture->image);
@@ -218,7 +215,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 		goto error;
 	}
 
-	// layout of pixel writing
+	// layout for pixel writing
 	VkImageSubresource subres = {0};
 	subres.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	vkGetImageSubresourceLayout(vulkan->dev, texture->image,
@@ -249,13 +246,49 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	ds_write.pImageInfo = &ds_img_info;
 
 	vkUpdateDescriptorSets(vulkan->dev, 1, &ds_write, 0, NULL);
-
-	// TODO: change image layout
 	// write data
 	if (!vulkan_texture_write_pixels(&texture->wlr_texture, wl_fmt, stride,
 			width, height, 0, 0, 0, 0, data)) {
 		goto error;
 	}
+
+	// change image layout
+	VkCommandBuffer cb;
+	VkCommandBufferAllocateInfo cmd_buf_info = {0};
+	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmd_buf_info.commandPool = renderer->command_pool;
+	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmd_buf_info.commandBufferCount = 1u;
+	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info, &cb);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		goto error;
+	}
+
+	VkCommandBufferBeginInfo begin_info = {0};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	vkBeginCommandBuffer(cb, &begin_info);
+	vulkan_change_layout(cb, texture->image,
+		VK_IMAGE_LAYOUT_PREINITIALIZED, VK_PIPELINE_STAGE_HOST_BIT,
+		VK_ACCESS_HOST_WRITE_BIT,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+	vkEndCommandBuffer(cb);
+
+	VkSubmitInfo submit_info = {0};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.pCommandBuffers = &cb;
+	submit_info.commandBufferCount = 1;
+
+	res = vkQueueSubmit(vulkan->graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+	if (res != VK_SUCCESS) {
+		vkFreeCommandBuffers(vulkan->dev, renderer->command_pool, 1u, &cb);
+		wlr_vulkan_error("vkQueueSubmit", res);
+		goto error;
+	}
+
+	vkDeviceWaitIdle(vulkan->dev);
+	vkFreeCommandBuffers(vulkan->dev, renderer->command_pool,
+		1u, &cb);
 
 	return &texture->wlr_texture;
 

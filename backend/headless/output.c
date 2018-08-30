@@ -100,8 +100,8 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	output->render_surface = wlr_renderer_create_render_surface(
-		backend->renderer, NULL, width, height);
+	output->render_surface = wlr_render_surface_create_headless(
+		backend->renderer, width, height);
 	if (!output->render_surface) {
 		wlr_log(WLR_ERROR, "Failed to create wlr_render_surface");
 		goto error;

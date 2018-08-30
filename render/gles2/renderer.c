@@ -25,139 +25,12 @@
 #include "render/gles2.h"
 
 static const struct wlr_renderer_impl renderer_impl;
-static const struct wlr_render_surface_impl render_surface_impl;
 
-static struct wlr_gles2_renderer *gles2_get_renderer(
+struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer->impl == &renderer_impl);
 	return (struct wlr_gles2_renderer *)wlr_renderer;
 }
-
-static struct wlr_gles2_render_surface *gles2_get_render_surface(
-		struct wlr_render_surface *wlr_rs) {
-	assert(wlr_rs->impl == &render_surface_impl);
-	return (struct wlr_gles2_render_surface *)wlr_rs;
-}
-
-static void gles2_render_surface_finish(struct wlr_gles2_render_surface *rs) {
-	wlr_egl_destroy_surface(&rs->renderer->egl, rs->surface);
-	if (rs->egl_window) {
-		wl_egl_window_destroy(rs->egl_window);
-	} else if (rs->gbm_surface) {
-		struct wlr_drm_surface *surf = (struct wlr_drm_surface *) rs->handle;
-		if (surf->front) {
-			gbm_surface_release_buffer(rs->gbm_surface, surf->front);
-		}
-		gbm_surface_destroy(rs->gbm_surface);
-	}
-}
-
-static bool gles2_render_surface_init(struct wlr_gles2_render_surface *rs) {
-	struct wlr_gles2_renderer *renderer = rs->renderer;
-	struct wlr_backend *backend = renderer->backend;
-
-	if (wlr_backend_is_headless(backend) || !rs->handle) {
-		EGLint attribs[] = {EGL_WIDTH, rs->width, EGL_HEIGHT, rs->height, EGL_NONE};
-		rs->surface = eglCreatePbufferSurface(renderer->egl.display,
-			renderer->egl.config, attribs);
-	} else if (wlr_backend_is_x11(backend)) {
-		rs->surface = wlr_egl_create_surface(&rs->renderer->egl, rs->handle);
-	} else if(wlr_backend_is_wl(backend)) {
-		struct wl_surface *wl_surface = (struct wl_surface *)rs->handle;
-		rs->egl_window = wl_egl_window_create(wl_surface, rs->width, rs->height);
-		if (!rs->egl_window) {
-			wlr_log(WLR_ERROR, "wl_egl_window_create failed");
-			goto error;
-		}
-
-		rs->surface = wlr_egl_create_surface(&renderer->egl, rs->egl_window);
-	} else if(wlr_backend_is_drm(backend)) {
-		struct wlr_drm_surface *surf = (struct wlr_drm_surface *)rs->handle;
-		struct gbm_device *gbm = surf->renderer->gbm;
-		surf->flags |= GBM_BO_USE_RENDERING;
-		rs->gbm_surface = gbm_surface_create(gbm, rs->width, rs->height,
-			GBM_FORMAT_ARGB8888, surf->flags | GBM_BO_USE_RENDERING);
-		if (!rs->gbm_surface) {
-			wlr_log_errno(WLR_ERROR, "Failed to create GBM surface");
-			goto error;
-		}
-
-		rs->surface = wlr_egl_create_surface(&renderer->egl, rs->gbm_surface);
-	} else {
-		goto error;
-	}
-
-	if (rs->surface == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		goto error;
-	}
-
-	return true;
-
-error:
-	gles2_render_surface_finish(rs);
-	return false;
-}
-
-static bool gles2_swap_buffers(struct wlr_render_surface *wlr_rs,
-		pixman_region32_t *damage) {
-	struct wlr_gles2_render_surface *rs = gles2_get_render_surface(wlr_rs);
-	if (rs->gbm_surface) {
-		struct wlr_drm_surface *surf = (struct wlr_drm_surface *) rs->handle;
-		if (surf->front) {
-			gbm_surface_release_buffer(rs->gbm_surface, surf->front);
-		}
-
-		bool r = wlr_egl_swap_buffers(&rs->renderer->egl, rs->surface, damage);
-		surf->front = gbm_surface_lock_front_buffer(rs->gbm_surface);
-		return r;
-	}
-
-	return wlr_egl_swap_buffers(&rs->renderer->egl, rs->surface, damage);
-}
-
-static void gles2_render_surface_resize(struct wlr_render_surface *wlr_rs,
-		uint32_t width, uint32_t height) {
-	struct wlr_gles2_render_surface *rs = gles2_get_render_surface(wlr_rs);
-	if (width == rs->width && height == rs->height) {
-		return;
-	}
-
-	rs->width = width;
-	rs->height = height;
-	if (rs->egl_window) {
-		wl_egl_window_resize(rs->egl_window, width, height, 0, 0);
-	}
-
-	if (rs->gbm_surface) {
-		gles2_render_surface_finish(rs);
-		gles2_render_surface_init(rs);
-	}
-}
-
-static void gles2_render_surface_destroy(struct wlr_render_surface *wlr_rs) {
-	struct wlr_gles2_render_surface *rs = gles2_get_render_surface(wlr_rs);
-	gles2_render_surface_finish(rs);
-	free(wlr_rs);
-}
-
-static int gles2_render_surface_buffer_age(struct wlr_render_surface *wlr_rs) {
-	struct wlr_gles2_render_surface *rs = gles2_get_render_surface(wlr_rs);
-	int ret = -1;
-	if (!wlr_egl_make_current(&rs->renderer->egl, rs->surface,
-			&ret)) {
-		wlr_log(WLR_ERROR, "Failed to make egl current");
-		return false;
-	}
-	return ret;
-}
-
-static const struct wlr_render_surface_impl render_surface_impl = {
-	.buffer_age = gles2_render_surface_buffer_age,
-	.destroy = gles2_render_surface_destroy,
-	.swap_buffers = gles2_swap_buffers,
-	.resize = gles2_render_surface_resize,
-};
 
 static bool gles2_renderer_init_egl(struct wlr_gles2_renderer *renderer,
 		struct wlr_backend *backend) {
@@ -213,7 +86,7 @@ static bool gles2_begin(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 	struct wlr_gles2_render_surface *render_surface =
-		gles2_get_render_surface(rs);
+		get_gles2_render_surface(rs);
 
 	if (!wlr_egl_make_current(&renderer->egl, render_surface->surface,
 			NULL)) {
@@ -223,8 +96,8 @@ static bool gles2_begin(struct wlr_renderer *wlr_renderer,
 
 	PUSH_GLES2_DEBUG;
 
-	int width = render_surface->width;
-	int height = render_surface->height;
+	int width = render_surface->rs.width;
+	int height = render_surface->rs.height;
 
 	glViewport(0, 0, width, height);
 	renderer->viewport_width = width;
@@ -543,30 +416,6 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	free(renderer);
 }
 
-static struct wlr_render_surface *gles2_create_render_surface(
-		struct wlr_renderer *wlr_renderer,
-		void *handle, unsigned width, unsigned height) {
-
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	struct wlr_gles2_render_surface *rs = calloc(1, sizeof(*rs));
-	if (!rs) {
-		wlr_log(WLR_ERROR, "Allocation failed");
-		return NULL;
-	}
-
-	rs->renderer = renderer;
-	rs->width = width;
-	rs->height = height;
-	rs->handle = handle;
-
-	wlr_render_surface_init(&rs->render_surface, &render_surface_impl);
-	if (!gles2_render_surface_init(rs)) {
-		return NULL;
-	}
-
-	return &rs->render_surface;
-}
-
 static const struct wlr_renderer_impl renderer_impl = {
 	.destroy = gles2_destroy,
 	.begin = gles2_begin,
@@ -587,7 +436,10 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
-	.create_render_surface = gles2_create_render_surface,
+	.render_surface_create_wl = gles2_render_surface_create_wl,
+	.render_surface_create_xcb = gles2_render_surface_create_xcb,
+	.render_surface_create_headless = gles2_render_surface_create_headless,
+	.render_surface_create_gbm = gles2_render_surface_create_gbm,
 };
 
 void push_gles2_marker(const char *file, const char *func) {
