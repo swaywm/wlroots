@@ -20,31 +20,31 @@ endif
 examples = {
 	'simple': {
 		'src': 'simple.c',
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'pointer': {
 		'src': 'pointer.c',
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'tablet': {
 		'src': 'tablet.c',
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'rotation': {
 		'src': ['rotation.c', 'cat.c'],
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'multi-pointer': {
 		'src': 'multi-pointer.c',
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'output-layout': {
 		'src': ['output-layout.c', 'cat.c'],
-		'dep': wlroots,
+		'dep': [wlroots],
 	},
 	'screenshot': {
 		'src': 'screenshot.c',
@@ -93,10 +93,18 @@ examples = {
 }
 
 foreach name, info : examples
-	executable(
-		name,
-		info.get('src'),
-		dependencies: info.get('dep'),
-		build_by_default: get_option('examples'),
-	)
+	all_dep_found = true
+	foreach d : info.get('dep')
+		all_dep_found = all_dep_found and d.found()
+	endforeach
+	if all_dep_found
+		executable(
+			name,
+			info.get('src'),
+			dependencies: info.get('dep'),
+			build_by_default: get_option('examples'),
+		)
+	else
+		warning('Dependencies not satisfied for ' + name)
+	endif
 endforeach
