@@ -480,9 +480,16 @@ static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 		vulkan_get_render_surface_offscreen(wlr_rs);
 
 	struct wlr_vk_offscreen_buffer* tmp = rs->front;
+	assert(rs->back);
+
 	rs->front = rs->back;
 	rs->front->buffer.age = 2;
 	rs->back = tmp;
+	if (!rs->back) {
+		int id = rs->front == &rs->buffers[0] ? 1 : 0;
+		rs->back = &rs->buffers[id];
+	}
+
 	return true;
 }
 
@@ -818,7 +825,7 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 		}
 	}
 
-	rs->front = &rs->buffers[0];
+	rs->front = NULL;
 	rs->back = &rs->buffers[1];
 
 	return &rs->vk_rs.rs;
