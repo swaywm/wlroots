@@ -25,8 +25,10 @@ static struct wlr_gles2_gbm_render_surface *get_gles2_gbm_render_surface(
 
 static void gles2_render_surface_finish(struct wlr_gles2_render_surface *rs) {
 	wlr_egl_destroy_surface(&rs->renderer->egl, rs->surface);
+	rs->surface = NULL;
 	if (rs->egl_window) {
 		wl_egl_window_destroy(rs->egl_window);
+		rs->egl_window = NULL;
 	}
 }
 

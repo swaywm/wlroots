@@ -21,6 +21,8 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 	struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_render);
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
+struct gbm_bo *get_drm_render_surface_front(struct wlr_renderer *renderer,
+		struct wlr_render_surface *surf);
 bool init_drm_render_surface(struct wlr_render_surface **surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 		uint32_t flags);

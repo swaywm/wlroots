@@ -46,6 +46,20 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 
 	((void) data);
 
+	// some of the warnings are not helpful
+	static const char *const ignored[] = {
+		// warning if clear is used before any other command
+		"UNASSIGNED-CoreValidation-DrawState-ClearCmdBeforeDraw"
+	};
+
+	if (debug_data->pMessageIdName) {
+		for(unsigned i = 0; i < sizeof(ignored) / sizeof(ignored[0]); ++i) {
+			if (!strcmp(debug_data->pMessageIdName, ignored[i])) {
+				return false;
+			}
+		}
+	}
+
 	enum wlr_log_importance importance;
 	switch(severity) {
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
@@ -58,11 +72,8 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 			break;
 	}
 
-	if(type == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
-		importance = WLR_DEBUG;
-	}
-
-	wlr_log(importance, "%s", debug_data->pMessage);
+	wlr_log(importance, "%s (%s)", debug_data->pMessage,
+		debug_data->pMessageIdName);
 	if (debug_data->queueLabelCount > 0) {
 		const char* name = debug_data->pQueueLabels[0].pLabelName;
 		if (name) {
@@ -166,10 +177,10 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	application_info.apiVersion = VK_MAKE_VERSION(1,1,0);
 
 	// standard_validation: reports error in api usage to debug callback
-	// renderdoc: allows to capture (and debug!) frames with renderdoc
+	// renderdoc: allows to capture (and debug) frames with renderdoc
 	const char* layers[] = {
 		"VK_LAYER_LUNARG_standard_validation",
-		// "VK_LAYER_RENDERDOC_Capture"
+		// "VK_LAYER_RENDERDOC_Capture",
 	};
 	unsigned layer_count = debug * (sizeof(layers) / sizeof(layers[0]));
 
@@ -198,11 +209,11 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 
 		if(vulkan->api.createDebugUtilsMessengerEXT) {
 			VkDebugUtilsMessageSeverityFlagsEXT severity =
-				VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+				// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 			VkDebugUtilsMessageTypeFlagsEXT types =
-				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+				// VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 

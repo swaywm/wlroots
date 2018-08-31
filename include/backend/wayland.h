@@ -52,6 +52,10 @@ struct wlr_wl_output {
 		struct wlr_render_surface *render_surface;
 		int32_t hotspot_x, hotspot_y;
 		int32_t width, height;
+
+		struct wl_callback *frame;
+		struct wlr_texture *pending; // the texture to render the next frame
+		bool clear; // whether to clear cursor next frame (when !pending)
 	} cursor;
 };
 

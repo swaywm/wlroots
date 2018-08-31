@@ -37,6 +37,74 @@ static struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
 };
 
+static struct wl_callback_listener cursor_frame_listener;
+static bool output_render_cursor(struct wlr_wl_output *output,
+		struct wlr_texture *texture) {
+
+	assert(!output->cursor.frame);
+	output->cursor.frame = wl_surface_frame(output->cursor.surface);
+	wl_callback_add_listener(output->cursor.frame, &cursor_frame_listener,
+		output);
+
+	if (texture) {
+		struct wlr_renderer *renderer = output->backend->renderer;
+		if (output->cursor.render_surface == NULL) {
+			output->cursor.render_surface = wlr_render_surface_create_wl(
+				renderer, output->cursor.width, output->cursor.height,
+				output->backend->remote_display, output->cursor.surface);
+		} else {
+			wlr_render_surface_resize(output->cursor.render_surface,
+				output->cursor.width, output->cursor.height);
+		}
+
+		struct wlr_box cursor_box = {
+			.width = output->cursor.width,
+			.height = output->cursor.height,
+		};
+
+		float projection[9];
+		wlr_matrix_projection(projection, output->cursor.width,
+			output->cursor.height, output->wlr_output.transform);
+
+		float matrix[9];
+		wlr_matrix_project_box(matrix, &cursor_box, output->wlr_output.transform,
+			0, projection);
+
+		if (!wlr_renderer_begin(renderer, output->cursor.render_surface)) {
+			wlr_log(WLR_ERROR, "rendering the cursor failed");
+			return false;
+		}
+
+		wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
+		wlr_renderer_end(renderer);
+		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
+	} else {
+		wl_surface_attach(output->cursor.surface, NULL, 0, 0);
+		wl_surface_commit(output->cursor.surface);
+	}
+
+	update_wl_output_cursor(output);
+	return true;
+}
+
+static void cursor_frame_callback(void *data, struct wl_callback *cb,
+		uint32_t time) {
+	struct wlr_wl_output *output = data;
+	wl_callback_destroy(cb);
+	output->cursor.frame = NULL;
+
+	if (output->cursor.pending || output->cursor.clear) {
+		output_render_cursor(output, output->cursor.pending);
+		output->cursor.pending = NULL;
+		output->cursor.clear = false;
+	}
+}
+
+static struct wl_callback_listener cursor_frame_listener = {
+	.done = cursor_frame_callback
+};
+
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
@@ -99,7 +167,6 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		output->cursor.surface =
 			wl_compositor_create_surface(backend->compositor);
 	}
-	struct wl_surface *surface = output->cursor.surface;
 
 	if (texture != NULL) {
 		int width, height;
@@ -109,49 +176,16 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 
 		output->cursor.width = width;
 		output->cursor.height = height;
-
-		if (output->cursor.render_surface == NULL) {
-			output->cursor.render_surface = wlr_render_surface_create_wl(
-				backend->renderer, width, height, backend->remote_display,
-				surface);
-		} else {
-			wlr_render_surface_resize(output->cursor.render_surface,
-				width, height);
-		}
-
-		struct wlr_box cursor_box = {
-			.width = width,
-			.height = height,
-		};
-
-		float projection[9];
-		wlr_matrix_projection(projection, width, height, wlr_output->transform);
-
-		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
-
-		if (!wlr_renderer_begin(backend->renderer, output->cursor.render_surface)) {
-			wlr_log(WLR_ERROR, "rendering the cursor failed");
-			return false;
-		}
-
-		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
-		wlr_renderer_end(backend->renderer);
-
-		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
-
-		// TODO without this the call above may block indefinitely on
-		// the gles renderer (since eglSwapBuffers probably waits upon
-		// the compositor; therefore creating a deadlock)
-		wlr_render_surface_destroy(output->cursor.render_surface);
-		output->cursor.render_surface = NULL;
-	} else {
-		wl_surface_attach(surface, NULL, 0, 0);
-		wl_surface_commit(surface);
 	}
 
-	update_wl_output_cursor(output);
+	if (output->cursor.frame) {
+		wlr_log(WLR_DEBUG, "waiting frame");
+		output->cursor.pending = texture;
+		output->cursor.clear = !texture;
+		return true;
+	}
+
+	output_render_cursor(output, texture);
 	return true;
 }
 

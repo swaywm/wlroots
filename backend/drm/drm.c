@@ -334,7 +334,8 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
-	struct gbm_bo *bo = wlr_render_surface_get_bo(plane->surf);
+	struct gbm_bo *bo = get_drm_render_surface_front(drm->renderer.wlr_rend,
+		plane->surf);
 	if (!bo) {
 		wlr_log(WLR_ERROR, "Failed to retrieve gbm_bo from render_surface");
 		return NULL;
@@ -358,7 +359,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = wlr_render_surface_get_bo(
+	struct gbm_bo *bo = get_drm_render_surface_front(drm->renderer.wlr_rend,
 		drm->parent ? plane->mgpu_surf : plane->surf);
 	uint32_t fb_id = get_fb_for_bo(bo);
 

@@ -171,6 +171,16 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	swapchain->renderer = renderer;
 	swapchain->surface = surface;
 
+	// check if we can present on the given device
+	VkBool32 supported;
+	res = vkGetPhysicalDeviceSurfaceSupportKHR(vulkan->phdev,
+		vulkan->present_queue_fam, surface, &supported);
+	if (res != VK_SUCCESS || !supported) {
+		wlr_vulkan_error("invalid phdev/present queue for swapchain", res);
+		return NULL;
+	}
+
+	// swapchain create info
 	VkSwapchainCreateInfoKHR info = {0};
 	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	info.surface = surface;
@@ -218,10 +228,19 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	// free choice
 	info.imageFormat = formats[0].format;
 	info.imageColorSpace = formats[0].colorSpace;
-
 	if (formats_count == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
-		info.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+		info.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	} else {
+		for(unsigned i = 0; i < formats_count; ++i) {
+			if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
+				info.imageFormat = formats[i].format;
+				info.imageColorSpace = formats[i].colorSpace;
+				break;
+			}
+		}
 	}
+
+	wlr_log(WLR_DEBUG, "using swapchain format %d", info.imageFormat);
 
 	free(formats);
 
@@ -272,13 +291,13 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		transform = caps.currentTransform;
 	}
 
-	// alpha
+	// use alpha if possible
 	VkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	VkCompositeAlphaFlagBitsKHR alpha_flags[] = {
-		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
 		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
 	};
 
 	for (int i = 0; i < 4; ++i) {
@@ -691,7 +710,7 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 		// TODO: use queried external properties
 		// TODO: do we need unorm format here? clear up srgb usage
 		// swapped bit order compared to gbm (we used argb)
-		const VkFormat format = VK_FORMAT_B8G8R8A8_SRGB;
+		const VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
 		const VkExternalMemoryHandleTypeFlagBits htype =
 			VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
 
@@ -722,13 +741,8 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 
 		// allocate memory
 		// we always use dedicated memory anyways
-		VkImageMemoryRequirementsInfo2 mem_reqs_info = {0};
-		mem_reqs_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
-		mem_reqs_info.image = buf->buffer.image;
-
-		VkMemoryRequirements2 mem_reqs = {0};
-		mem_reqs.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-		vkGetImageMemoryRequirements2(vulkan->dev, &mem_reqs_info, &mem_reqs);
+		VkMemoryRequirements mem_reqs = {0};
+		vkGetImageMemoryRequirements(vulkan->dev, buf->buffer.image, &mem_reqs);
 
 		// create memory
 		struct VkMemoryFdPropertiesKHR props = {0};
@@ -744,8 +758,7 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 		VkMemoryAllocateInfo mem_info = {0};
 		mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		mem_info.pNext = &import_info;
-		// mem_info.allocationSize = buf_size;
-		mem_info.allocationSize = mem_reqs.memoryRequirements.size;
+		mem_info.allocationSize = mem_reqs.size;
 		mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
 			0, props.memoryTypeBits);
 
@@ -1042,28 +1055,7 @@ void vulkan_render_surface_read_pixels(struct wlr_vk_render_surface *rs,
 	data += dst_y * stride;
 	data += dst_x * bytespp;
 
-	// TODO: why do we have to swap the pixels here? that really hurts
-	// performance... swapping from |a||r|g|b| to |b|g|r|a| (byte order)
-
-	// memcpy(data, vmap, stride * height);
-	for(unsigned y = 0; y < height; ++y) {
-		char *smap = map;
-		char *sdata = data;
-		for(unsigned x = 0; x < width; ++x) {
-			uint32_t pixel = *(uint32_t*) map;
-			pixel = ((pixel>>24)&0xff) |
-					((pixel<<8)&0xff0000) |
-					((pixel>>8)&0xff00) |
-					((pixel<<24)&0xff000000);
-			// pixel |= (0xff000000); // make the whole cursor opaque
-			*(uint32_t*) data = pixel;
-			data += bytespp;
-			map += bytespp;
-		}
-
-		map = smap + stride;
-		data = sdata + stride;
-	}
+	memcpy(data, map, stride * height);
 
 clean:
 	if (vmap) {

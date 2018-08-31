@@ -63,7 +63,7 @@ bool init_drm_render_surface(struct wlr_render_surface **surf,
 	return (*surf);
 }
 
-struct gbm_bo *get_render_surface_front(struct wlr_renderer *renderer,
+struct gbm_bo *get_drm_render_surface_front(struct wlr_renderer *renderer,
 		struct wlr_render_surface *surf) {
 	struct gbm_bo *front = wlr_render_surface_get_bo(surf);
 	if (front) {

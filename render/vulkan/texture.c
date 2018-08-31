@@ -204,6 +204,10 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	view_info.components.g = VK_COMPONENT_SWIZZLE_G;
 	view_info.components.b = VK_COMPONENT_SWIZZLE_B;
 	view_info.components.a = VK_COMPONENT_SWIZZLE_A;
+	if (!fmt->has_alpha) {
+		view_info.components.a = VK_COMPONENT_SWIZZLE_ONE;
+	}
+
 	view_info.subresourceRange = (VkImageSubresourceRange) {
 		VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
 	};
@@ -271,7 +275,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	vulkan_change_layout(cb, texture->image,
 		VK_IMAGE_LAYOUT_PREINITIALIZED, VK_PIPELINE_STAGE_HOST_BIT,
 		VK_ACCESS_HOST_WRITE_BIT,
-		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+		VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
 	vkEndCommandBuffer(cb);
 
 	VkSubmitInfo submit_info = {0};

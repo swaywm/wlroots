@@ -284,6 +284,7 @@ static struct wlr_texture *vulkan_texture_from_pixels(
 
 static struct wlr_texture *vulkan_texture_from_wl_drm(
 		struct wlr_renderer *wlr_renderer, struct wl_resource *data) {
+	wlr_log(WLR_ERROR, "vulkan wl_drm support not implemented");
 	return NULL;
 }
 
@@ -374,17 +375,16 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	VkDevice dev = renderer->vulkan->dev;
 	VkResult res;
 
-	// TODO: correct formats (from swapchain), loading
+	// TODO: we just assume here that all swapchains/surfaces support
+	// b8g8r8a8
 	// renderpass
 	VkAttachmentDescription attachment = {0};
-	attachment.format = VK_FORMAT_B8G8R8A8_SRGB;
+	attachment.format = VK_FORMAT_B8G8R8A8_UNORM;
 	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-	// attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	// attachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
 	attachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
@@ -544,6 +544,9 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+	blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 	blend_attachment.colorWriteMask =
 		VK_COLOR_COMPONENT_R_BIT |
 		VK_COLOR_COMPONENT_G_BIT |
@@ -620,7 +623,7 @@ cleanup_shaders:
 struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	bool debug = true;
 	int ini_ext_count;
-	const char **ini_exts;
+	const char **ini_exts = NULL;
 
 	// TODO: when getting a offscreen backend, we should use the same gpu as
 	// the backend. Not sure if there is a reliable (or even mesa)
