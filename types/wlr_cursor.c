@@ -332,7 +332,7 @@ static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 
 static void apply_output_transform(double *x, double *y,
 		enum wl_output_transform transform) {
-	double dx, dy;
+	double dx = 0.0, dy = 0.0;
 	double width = 1.0, height = 1.0;
 
 	switch (transform) {
