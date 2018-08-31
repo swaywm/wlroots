@@ -25,4 +25,4 @@ tasks:
       ninja
   - clang: |
       cd wlroots/build-clang
-      ninja
+      ninja scan-build
