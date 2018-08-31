@@ -20,6 +20,7 @@ struct wlr_backend_impl {
 	struct wlr_renderer *(*get_renderer)(struct wlr_backend *backend);
 	struct wlr_session *(*get_session)(struct wlr_backend *backend);
 	clockid_t (*get_presentation_clock)(struct wlr_backend *backend);
+	bool (*init_egl)(struct wlr_backend *backend, struct wlr_egl *egl);
 };
 
 /**

@@ -100,6 +100,7 @@ struct wlr_gles2_gbm_render_surface {
 
 	struct gbm_surface *gbm_surface;
 	struct gbm_bo *front_bo;
+	struct gbm_bo *old_front_bo;
 };
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(

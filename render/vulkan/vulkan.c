@@ -2,10 +2,18 @@
 #include <stdint.h>
 #include <math.h>
 #include <assert.h>
-#include <vulkan/vulkan.h>
 #include <render/vulkan.h>
 #include <wlr/util/log.h>
 #include <wlr/version.h>
+#include <wlr/config.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_wayland.h>
+
+#ifdef WLR_HAS_X11_BACKEND
+	#include <xcb/xcb.h>
+	#include <vulkan/vulkan_xcb.h>
+#endif
 
 void wlr_vulkan_destroy(struct wlr_vulkan *vulkan) {
 	if (!vulkan) {
@@ -49,7 +57,8 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	// some of the warnings are not helpful
 	static const char *const ignored[] = {
 		// warning if clear is used before any other command
-		"UNASSIGNED-CoreValidation-DrawState-ClearCmdBeforeDraw"
+		"UNASSIGNED-CoreValidation-DrawState-ClearCmdBeforeDraw",
+		"UNASSIGNED-CoreValidation-Shader-OutputNotConsumed",
 	};
 
 	if (debug_data->pMessageIdName) {
@@ -143,31 +152,51 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	}
 
 	// try to find required/optional ones
-	bool debug_utils_found = debug;
-	unsigned extension_count = req_extc + 1 + debug;
-	const char *extensions[extension_count];
-	memcpy(extensions, req_exts, req_extc * sizeof(*req_exts));
-	extensions[req_extc + 0] = VK_KHR_SURFACE_EXTENSION_NAME;
-	if (debug) {
-		const char *name = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-		extensions[req_extc + 1] = name;
-		if (find_extensions(avail_ext_props, avail_extc, &name, 1)) {
-			debug_utils_found = false;
-			extension_count--;
-		}
-	}
-
 	const char *missing = find_extensions(avail_ext_props, avail_extc,
-		extensions, extension_count);
+		req_exts, req_extc);
 	if (missing) {
 		wlr_log(WLR_ERROR, "Instance extension %s unsupported", missing);
 		free(avail_ext_props);
-		return NULL;
+		return false;
+	}
+
+	bool debug_utils_found = false;
+	unsigned last_ext = req_extc - 1;
+	const char *extensions[req_extc + 4];
+	memcpy(extensions, req_exts, req_extc * sizeof(*req_exts));
+
+	const char *name = VK_KHR_SURFACE_EXTENSION_NAME;
+	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+		extensions[++last_ext] = name;
+
+		name = VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			extensions[++last_ext] = name;
+			vulkan->extensions.wayland = true;
+		}
+
+#ifdef WLR_HAS_X11_BACKEND
+		name = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			extensions[++last_ext] = name;
+			vulkan->extensions.xcb = true;
+		}
+#endif
+	} else {
+		wlr_log(WLR_INFO, "vk_khr_surface not supported");
+	}
+
+	if (debug) {
+		const char *name = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			debug_utils_found = true;
+			extensions[++last_ext] = name;
+		}
 	}
 
 	free(avail_ext_props);
 
-	// TODO: use compositor version and name provided somewhere?
+	// NOTE: we could use a compositor name, version provided to us here
 	VkApplicationInfo application_info = {0};
 	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	application_info.pApplicationName = "wlroots-compositor";
@@ -178,6 +207,8 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 
 	// standard_validation: reports error in api usage to debug callback
 	// renderdoc: allows to capture (and debug) frames with renderdoc
+	//   renderdoc has problems with some extensions we use atm so
+	//   does not work
 	const char* layers[] = {
 		"VK_LAYER_LUNARG_standard_validation",
 		// "VK_LAYER_RENDERDOC_Capture",
@@ -187,7 +218,7 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	VkInstanceCreateInfo instance_info = {0};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pApplicationInfo = &application_info;
-	instance_info.enabledExtensionCount = extension_count;
+	instance_info.enabledExtensionCount = last_ext + 1;
 	instance_info.ppEnabledExtensionNames = extensions;
 	instance_info.enabledLayerCount = layer_count;
 	instance_info.ppEnabledLayerNames = layers;
@@ -251,12 +282,6 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		return false;
 	}
 
-	unsigned extension_count = ext_count + 2u;
-	const char *extensions[extension_count];
-	memcpy(extensions, exts, ext_count * sizeof(*exts));
-	extensions[ext_count + 0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-	extensions[ext_count + 1] = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
-
 	// check for extensions
 	uint32_t avail_extc = 0;
 	res = vkEnumerateDeviceExtensionProperties(vulkan->phdev, NULL,
@@ -288,11 +313,43 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	}
 
 	const char *missing = find_extensions(avail_ext_props, avail_extc,
-		extensions, extension_count);
+		exts, ext_count);
 	if (missing) {
 		wlr_log(WLR_ERROR, "Device extension %s unsupported", missing);
 		free(avail_ext_props);
 		return NULL;
+	}
+
+	unsigned last_ext = ext_count - 1;
+	const char *extensions[ext_count + 2u];
+	memcpy(extensions, exts, ext_count * sizeof(*exts));
+
+	const char *name = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+		extensions[++last_ext] = name;
+	} else {
+		wlr_log(WLR_INFO, "vk_khr_swapchain extension not supported");
+		vulkan->extensions.wayland = false;
+		vulkan->extensions.xcb = false;
+	}
+
+	name = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
+	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+		extensions[++last_ext] = name;
+		vulkan->extensions.external_mem_fd = true;
+
+		name = VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			extensions[++last_ext] = name;
+			vulkan->extensions.dmabuf = true;
+		} else {
+			wlr_log(WLR_INFO, "vk dmabuf extension not supported");
+			vulkan->extensions.dmabuf = false;
+		}
+	} else {
+		wlr_log(WLR_INFO, "vk_khr_external_memory_fd extension not supported");
+		vulkan->extensions.external_mem_fd = false;
+		vulkan->extensions.dmabuf = false;
 	}
 
 	free(avail_ext_props);
@@ -331,7 +388,7 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	dev_info.queueCreateInfoCount = one_queue ? 1 : 2;
 	dev_info.pQueueCreateInfos = queue_infos;
-	dev_info.enabledExtensionCount = extension_count;
+	dev_info.enabledExtensionCount = last_ext + 1;
 	dev_info.ppEnabledExtensionNames = extensions;
 
 	res = vkCreateDevice(vulkan->phdev, &dev_info, NULL, &vulkan->dev);

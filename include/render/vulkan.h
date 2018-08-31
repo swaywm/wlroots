@@ -46,8 +46,8 @@ struct wlr_vulkan {
 	struct {
 		bool wayland;
 		bool xcb;
-		bool import_dma;
-		bool export_dma;
+		bool external_mem_fd;
+		bool dmabuf;
 	} extensions;
 };
 
@@ -84,10 +84,14 @@ struct wlr_vk_renderer {
 	VkSampler sampler;
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
-	VkPipeline pipeline;
 	VkDescriptorPool descriptor_pool;
+	VkPipeline tex_pipe;
+	VkPipeline quad_pipe;
+	VkPipeline ellipse_pipe;
 
 	struct wlr_vk_render_surface *current;
+	VkRect2D scissor; // needed for clearing
+
 	struct {
 		uint32_t stride;
 		uint32_t width;
@@ -98,6 +102,13 @@ struct wlr_vk_renderer {
 		uint32_t dst_y;
 		void *data;
 	} read_pixels;
+
+	struct {
+		VkCommandBuffer cb;
+		VkBuffer buffer;
+		VkDeviceMemory memory;
+		size_t size;
+	} staging;
 };
 
 struct wlr_vk_pixel_format {
@@ -136,10 +147,21 @@ struct wlr_vk_offscreen_render_surface {
 		struct gbm_bo *bo; // optional
 		VkDeviceMemory memory;
 		struct wlr_vk_swapchain_buffer buffer;
-	} buffers[2];
+	} buffers[3];
 
-	struct wlr_vk_offscreen_buffer *front; // presented, not renderable
-	struct wlr_vk_offscreen_buffer *back; // rendered to in current/next frame
+	// we have 3 different buffers:
+	// - one to render to that is currently not read/presented (back)
+	// - one on which rendering has finished but it might not be the
+	//   frontbuffer since pageflip didn't complete yet
+	// - the buffer that was the front buffer the last time we
+	//   swapped buffers and so may still be presented if pageflip
+	//   didn't complete yet
+	// We only assume that when we swap buffers, the previous pageflip
+	// has completed and therefore (old) front can be rendererd to again
+	// (making it the back buffer again).
+	struct wlr_vk_offscreen_buffer *back; // currently or soon rendered
+	struct wlr_vk_offscreen_buffer *front; // rendering finished, presenting
+	struct wlr_vk_offscreen_buffer *old_front; // old presented
 };
 
 bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
@@ -170,6 +192,9 @@ int wlr_vulkan_find_mem_type(struct wlr_vulkan *vulkan,
 const enum wl_shm_format *get_vulkan_formats(size_t *len);
 const struct wlr_vk_pixel_format *get_vulkan_format_from_wl(
 	enum wl_shm_format fmt);
+
+VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *renderer,
+	size_t size);
 
 struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer);
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);

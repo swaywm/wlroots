@@ -9,15 +9,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
-
-#include <wlr/backend/x11.h>
-#include <backend/x11.h>
-#include <wlr/backend/wayland.h>
-#include <backend/wayland.h>
-#include <wayland-egl.h>
-#include <wlr/backend/drm.h>
-#include <backend/drm/drm.h>
-#include <wlr/backend/headless.h>
+#include <wlr/backend/interface.h>
 
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -30,48 +22,6 @@ struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer->impl == &renderer_impl);
 	return (struct wlr_gles2_renderer *)wlr_renderer;
-}
-
-static bool gles2_renderer_init_egl(struct wlr_gles2_renderer *renderer,
-		struct wlr_backend *backend) {
-
-	if (wlr_backend_is_x11(backend)) {
-		struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
-		return wlr_egl_init(&renderer->egl, EGL_PLATFORM_X11_KHR,
-			x11->xlib_conn, NULL, x11->screen->root_visual);
-	} else if (wlr_backend_is_wl(backend)) {
-		static EGLint config_attribs[] = {
-			EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-			EGL_RED_SIZE, 1,
-			EGL_GREEN_SIZE, 1,
-			EGL_BLUE_SIZE, 1,
-			EGL_ALPHA_SIZE, 1,
-			EGL_NONE,
-		};
-
-		struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
-		return wlr_egl_init(&renderer->egl, EGL_PLATFORM_WAYLAND_EXT,
-			wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
-	} else if (wlr_backend_is_drm(backend)) {
-		struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
-		return wlr_egl_init(&renderer->egl, EGL_PLATFORM_GBM_MESA,
-			drm->renderer.gbm, NULL, GBM_FORMAT_ARGB8888);
-	} else if (wlr_backend_is_headless(backend)) {
-		static const EGLint config_attribs[] = {
-			EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-			EGL_ALPHA_SIZE, 0,
-			EGL_BLUE_SIZE, 8,
-			EGL_GREEN_SIZE, 8,
-			EGL_RED_SIZE, 8,
-			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-			EGL_NONE,
-		};
-		return wlr_egl_init(&renderer->egl, EGL_PLATFORM_SURFACELESS_MESA,
-			NULL, (EGLint*) config_attribs, 0);
-	}
-
-	wlr_log(WLR_ERROR, "unsupported backend for gles2");
-	return false;
 }
 
 static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
@@ -557,7 +507,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 	renderer->backend = backend;
 
-	if (!gles2_renderer_init_egl(renderer, backend)) {
+	struct wlr_egl *egl = &renderer->egl;
+	if (!backend->impl->init_egl || !backend->impl->init_egl(backend, egl)) {
 		wlr_egl_finish(&renderer->egl);
 		free(renderer);
 		return NULL;

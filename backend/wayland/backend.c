@@ -123,10 +123,26 @@ static struct wlr_renderer *backend_get_renderer(
 	return backend->renderer;
 }
 
+static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
+	static EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 1,
+		EGL_NONE,
+	};
+
+	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
+	return wlr_egl_init(egl, EGL_PLATFORM_WAYLAND_EXT,
+		wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.init_egl = backend_init_egl,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {

@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	assert(server.config && server.wl_display && server.wl_event_loop);
 
 	server.backend = wlr_backend_autocreate(server.wl_display,
-		wlr_gles2_renderer_create);
+		wlr_vk_renderer_create);
 	if (server.backend == NULL) {
 		wlr_log(WLR_ERROR, "could not start backend");
 		return 1;

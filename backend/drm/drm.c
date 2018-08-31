@@ -742,7 +742,7 @@ static void drm_connector_schedule_frame(struct wlr_output *output) {
 		return;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
-	struct gbm_bo *bo = plane->surf.back;
+	struct gbm_bo *bo = wlr_render_surface_get_bo(plane->surf);
 	if (!bo) {
 		// We haven't swapped buffers yet -- can't do a pageflip
 		wlr_output_send_frame(output);

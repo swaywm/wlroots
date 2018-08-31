@@ -11,19 +11,10 @@
 #include <wlr/render/vulkan.h>
 #include <render/vulkan.h>
 
-#include <wlr/backend/x11.h>
-#include <backend/x11.h>
-#include <vulkan/vulkan_xcb.h>
-#include <wlr/backend/wayland.h>
-#include <backend/wayland.h>
-#include <vulkan/vulkan_wayland.h>
-#include <wlr/backend/drm.h>
-#include <backend/drm/drm.h>
-#include <backend/drm/renderer.h>
-#include <wlr/backend/headless.h>
-
-#include "shaders/texture.vert.h"
+#include "shaders/common.vert.h"
 #include "shaders/texture.frag.h"
+#include "shaders/quad.frag.h"
+#include "shaders/ellipse.frag.h"
 
 static const struct wlr_renderer_impl renderer_impl;
 
@@ -32,28 +23,83 @@ struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer) {
 	return (struct wlr_vk_renderer *)wlr_renderer;
 }
 
+// renderer
 // util
-static bool backend_extensions(struct wlr_backend *backend,
-		int *count, const char*** exts) {
-	if(wlr_backend_is_headless(backend) || wlr_backend_is_drm(backend)) {
-		*count = 0;
-		*exts = NULL;
-	} else if(wlr_backend_is_x11(backend)) {
-		static const char* req[] = { VK_KHR_XCB_SURFACE_EXTENSION_NAME };
-		*exts = req;
-		*count = sizeof(req) / sizeof(req[0]);
-	} else if(wlr_backend_is_wl(backend)) {
-		static const char* req[] = { VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME };
-		*exts = req;
-		*count = sizeof(req) / sizeof(req[0]);
-	} else {
-		return false;
-	}
+static void mat3_to_mat4(const float mat3[9], float mat4[4][4]) {
+	memset(mat4, 0, sizeof(float) * 16);
+	mat4[0][0] = mat3[0];
+	mat4[0][1] = mat3[1];
+	mat4[0][3] = mat3[2];
 
-	return true;
+	mat4[1][0] = mat3[3];
+	mat4[1][1] = mat3[4];
+	mat4[1][3] = mat3[5];
+
+	mat4[2][2] = 1.f;
+	mat4[3][3] = 1.f;
 }
 
-// renderer
+static void vulkan_destroy_staging(struct wlr_vk_renderer *r) {
+	if (r->staging.buffer) {
+		vkDestroyBuffer(r->vulkan->dev, r->staging.buffer, NULL);
+		r->staging.buffer = VK_NULL_HANDLE;
+	}
+	if (r->staging.memory) {
+		vkFreeMemory(r->vulkan->dev, r->staging.memory, NULL);
+		r->staging.memory = VK_NULL_HANDLE;
+	}
+}
+
+VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *r,
+		size_t size) {
+	if (r->staging.size >= size) {
+		return r->staging.buffer;
+	}
+
+	size *= 2;
+	size_t min = 32 * 1024;
+	size = size < min ? min : size;
+
+	struct wlr_vulkan *vulkan = r->vulkan;
+	vulkan_destroy_staging(r);
+
+	VkResult res;
+	VkBufferCreateInfo buf_info = {0};
+	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buf_info.size = size;
+	buf_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	res = vkCreateBuffer(vulkan->dev, &buf_info, NULL, &r->staging.buffer);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkCreateBuffer", res);
+		return VK_NULL_HANDLE;
+	}
+
+	VkMemoryRequirements mem_reqs;
+	vkGetBufferMemoryRequirements(vulkan->dev, r->staging.buffer, &mem_reqs);
+
+	VkMemoryAllocateInfo mem_info = {0};
+	mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mem_info.allocationSize = mem_reqs.size;
+	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, mem_reqs.memoryTypeBits);
+	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &r->staging.memory);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocatorMemory", res);
+		return VK_NULL_HANDLE;
+	}
+
+	res = vkBindBufferMemory(vulkan->dev, r->staging.buffer,
+		r->staging.memory, 0);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkBindBufferMemory", res);
+		return VK_NULL_HANDLE;
+	}
+
+	return r->staging.buffer;
+}
+
+// interface implementation
 static bool vulkan_begin(struct wlr_renderer *wlr_renderer,
 		struct wlr_render_surface *wlr_rs) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
@@ -75,15 +121,14 @@ static bool vulkan_begin(struct wlr_renderer *wlr_renderer,
 	uint32_t width = rs->rs.width;
 	uint32_t height = rs->rs.height;
 	VkRect2D rect = {{0, 0}, {width, height}};
-	VkClearValue clear_value = {0};
+	renderer->scissor = rect;
 
 	VkRenderPassBeginInfo rp_info = {0};
 	rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	rp_info.renderArea = rect;
 	rp_info.renderPass = renderer->render_pass;
 	rp_info.framebuffer = fb;
-	rp_info.clearValueCount = 1;
-	rp_info.pClearValues = &clear_value;
+	rp_info.clearValueCount = 0;
 	vkCmdBeginRenderPass(cb, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport vp = {0.f, 0.f, (float) width, (float) height, 0.f, 1.f};
@@ -113,11 +158,11 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	vkDeviceWaitIdle(renderer->vulkan->dev);
 
 	// execute the pending read_pixels operation
-	// TODO: really not performant implemented. This command will submit
+	// TODO: really not performant implemented. This will submit
 	// its own command buffer, again waiting for it. Either change
 	// wlr api (since we already need some hacks and have only limited
 	// read pixels support, e.g. only one per frame) or make this read_pixels
-	// use this command buffer submission.
+	// use the just submitted command buffer submission.
 	if (renderer->read_pixels.data) {
 		vulkan_render_surface_read_pixels(
 			renderer->current, renderer->read_pixels.stride,
@@ -140,28 +185,18 @@ static bool vulkan_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 
-	// TODO: alpha
-	(void) alpha;
-
 	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		renderer->pipeline);
+		renderer->tex_pipe);
 	vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		renderer->pipeline_layout, 0, 1, &texture->ds, 0, NULL);
 
 	float mat4[4][4] = {0};
-	mat4[0][0] = matrix[0];
-	mat4[0][1] = matrix[1];
-	mat4[0][3] = matrix[2];
-
-	mat4[1][0] = matrix[3];
-	mat4[1][1] = matrix[4];
-	mat4[1][3] = matrix[5];
-
-	mat4[2][2] = 1.f;
-	mat4[3][3] = 1.f;
-
+	mat3_to_mat4(matrix, mat4);
 	vkCmdPushConstants(cb, renderer->pipeline_layout,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16, mat4);
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_FRAGMENT_BIT, 16 * sizeof(float), sizeof(float),
+		&alpha);
 	vkCmdDraw(cb, 4, 1, 0, 0);
 
 	return true;
@@ -179,8 +214,7 @@ static void vulkan_clear(struct wlr_renderer *wlr_renderer,
 	memcpy(&att.clearValue.color.float32, color, 4 * sizeof(float));
 
 	VkClearRect rect = {0};
-	rect.rect.extent.width = renderer->current->rs.width;
-	rect.rect.extent.height = renderer->current->rs.height;
+	rect.rect = renderer->scissor;
 	rect.layerCount = 1;
 	vkCmdClearAttachments(cb, 1, &att, 1, &rect);
 }
@@ -198,6 +232,7 @@ static void vulkan_scissor(struct wlr_renderer *wlr_renderer,
 		rect = (VkRect2D) {{box->x, box->y}, {box->width, box->height}};
 	}
 
+	renderer->scissor = rect;
 	vkCmdSetScissor(cb, 0, 1, &rect);
 }
 
@@ -213,12 +248,40 @@ const enum wl_shm_format *vulkan_formats(struct wlr_renderer *wlr_renderer,
 
 static void vulkan_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
-	// TODO
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	assert(renderer->current);
+	VkCommandBuffer cb = renderer->current->cb;
+
+	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		renderer->quad_pipe);
+
+	float mat4[4][4] = {0};
+	mat3_to_mat4(matrix, mat4);
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16, mat4);
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_FRAGMENT_BIT, 16 * sizeof(float), sizeof(float) * 4,
+		color);
+	vkCmdDraw(cb, 4, 1, 0, 0);
 }
 
 static void vulkan_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
-	// TODO
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	assert(renderer->current);
+	VkCommandBuffer cb = renderer->current->cb;
+
+	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		renderer->ellipse_pipe);
+
+	float mat4[4][4] = {0};
+	mat3_to_mat4(matrix, mat4);
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16, mat4);
+	vkCmdPushConstants(cb, renderer->pipeline_layout,
+		VK_SHADER_STAGE_FRAGMENT_BIT, 16 * sizeof(float), sizeof(float) * 4,
+		color);
+	vkCmdDraw(cb, 4, 1, 0, 0);
 }
 
 static void vulkan_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
@@ -242,6 +305,8 @@ static bool vulkan_read_pixels(struct wlr_renderer *wlr_renderer,
 		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
 		uint32_t dst_x, uint32_t dst_y, void *data) {
 
+	// vulkan has (0,0) is top left corner by default
+	(void) flags;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	assert(renderer->current);
 
@@ -254,9 +319,6 @@ static bool vulkan_read_pixels(struct wlr_renderer *wlr_renderer,
 		wlr_log(WLR_ERROR, "unsupported format");
 		return false;
 	}
-
-	// TODO: something to respect for us?
-	(void) flags;
 
 	renderer->read_pixels.stride = stride;
 	renderer->read_pixels.width = width;
@@ -302,42 +364,41 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 		return;
 	}
 
-	if (renderer->pipeline) {
-		vkDestroyPipeline(vulkan->dev, renderer->pipeline, NULL);
+	vulkan_destroy_staging(renderer);
+	if (renderer->tex_pipe) {
+		vkDestroyPipeline(vulkan->dev, renderer->tex_pipe, NULL);
 	}
-
+	if (renderer->quad_pipe) {
+		vkDestroyPipeline(vulkan->dev, renderer->quad_pipe, NULL);
+	}
+	if (renderer->ellipse_pipe) {
+		vkDestroyPipeline(vulkan->dev, renderer->ellipse_pipe, NULL);
+	}
 	if (renderer->pipeline_layout) {
 		vkDestroyPipelineLayout(vulkan->dev, renderer->pipeline_layout, NULL);
 	}
-
 	if (renderer->descriptor_set_layout) {
 		vkDestroyDescriptorSetLayout(vulkan->dev,
 			renderer->descriptor_set_layout, NULL);
 	}
-
 	if (renderer->sampler) {
 		vkDestroySampler(vulkan->dev, renderer->sampler, NULL);
 	}
-
 	if (renderer->render_pass) {
 		vkDestroyRenderPass(vulkan->dev, renderer->render_pass, NULL);
 	}
-
 	if (renderer->command_pool) {
 		vkDestroyCommandPool(vulkan->dev, renderer->command_pool, NULL);
 	}
-
 	if (renderer->descriptor_pool) {
 		vkDestroyDescriptorPool(vulkan->dev, renderer->descriptor_pool, NULL);
 	}
-
 	wlr_vulkan_destroy(renderer->vulkan);
 	free(renderer);
 }
 
 static void vulkan_init_wl_display(struct wlr_renderer* wlr_renderer,
 		struct wl_display* wl_display) {
-	// TODO
 	// probably have to implement wl_offscreen ourselves since mesa
 	// still depends on it
 }
@@ -370,13 +431,12 @@ static const struct wlr_renderer_impl renderer_impl = {
 
 // returns false on error
 // cleanup is done by destroying the renderer
-static bool init_pipeline(struct wlr_vk_renderer *renderer) {
+static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	// util
 	VkDevice dev = renderer->vulkan->dev;
 	VkResult res;
 
-	// TODO: we just assume here that all swapchains/surfaces support
-	// b8g8r8a8
+	// TODO: we just assume here that all swapchains/surfaces support b8g8r8a8
 	// renderpass
 	VkAttachmentDescription attachment = {0};
 	attachment.format = VK_FORMAT_B8G8R8A8_UNORM;
@@ -475,16 +535,20 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	}
 
 	// pipeline layout
-	VkPushConstantRange pc_range = {0};
-	pc_range.size = sizeof(float) * 16; // mat4, see texture.vert
-	pc_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	VkPushConstantRange pc_ranges[2] = {0};
+	pc_ranges[0].size = sizeof(float) * 16; // mat4, see texture.vert
+	pc_ranges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	pc_ranges[1].offset = sizeof(float) * 16;
+	pc_ranges[1].size = sizeof(float) * 4; // alpha or color
+	pc_ranges[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkPipelineLayoutCreateInfo pl_info = {0};
 	pl_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pl_info.setLayoutCount = 1;
 	pl_info.pSetLayouts = &renderer->descriptor_set_layout;
-	pl_info.pushConstantRangeCount = 1;
-	pl_info.pPushConstantRanges = &pc_range;
+	pl_info.pushConstantRangeCount = 2;
+	pl_info.pPushConstantRanges = pc_ranges;
 
 	res = vkCreatePipelineLayout(dev, &pl_info, NULL, &renderer->pipeline_layout);
 	if (res != VK_SUCCESS) {
@@ -492,39 +556,68 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 		return false;
 	}
 
-	// pipeline shader frag
-	VkShaderModuleCreateInfo frag_info = {0};
-	frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	frag_info.codeSize = sizeof(texture_frag_data);
-	frag_info.pCode = texture_frag_data;
-
-	VkShaderModule frag_module = NULL;
+	// shaders
+	VkShaderModule tex_frag_module = NULL;
+	VkShaderModule quad_frag_module = NULL;
+	VkShaderModule ellipse_frag_module = NULL;
 	VkShaderModule vert_module = NULL;
 
-	res = vkCreateShaderModule(dev, &frag_info, NULL, &frag_module);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create fragment shader module", res);
-		goto cleanup_shaders;
-	}
-
-	// vert
-	VkShaderModuleCreateInfo vert_info = {0};
-	vert_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	vert_info.codeSize = sizeof(texture_vert_data);
-	vert_info.pCode = texture_vert_data;
-
-	res = vkCreateShaderModule(dev, &vert_info, NULL, &vert_module);
+	// common vert
+	VkShaderModuleCreateInfo sinfo = {0};
+	sinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	sinfo.codeSize = sizeof(common_vert_data);
+	sinfo.pCode = common_vert_data;
+	res = vkCreateShaderModule(dev, &sinfo, NULL, &vert_module);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create vertex shader module", res);
 		goto cleanup_shaders;
 	}
 
-	VkPipelineShaderStageCreateInfo stages[2] = {{
+	VkPipelineShaderStageCreateInfo vert_stage = {
 		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		NULL, 0, VK_SHADER_STAGE_VERTEX_BIT, vert_module, "main", NULL
-	}, {
+	};
+
+	// tex frag
+	sinfo.codeSize = sizeof(texture_frag_data);
+	sinfo.pCode = texture_frag_data;
+	res = vkCreateShaderModule(dev, &sinfo, NULL, &tex_frag_module);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("Failed to create tex fragment shader module", res);
+		goto cleanup_shaders;
+	}
+
+	// quad frag
+	sinfo.codeSize = sizeof(quad_frag_data);
+	sinfo.pCode = quad_frag_data;
+	res = vkCreateShaderModule(dev, &sinfo, NULL, &quad_frag_module);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("Failed to create quad fragment shader module", res);
+		goto cleanup_shaders;
+	}
+
+	// ellipse frag
+	sinfo.codeSize = sizeof(ellipse_frag_data);
+	sinfo.pCode = ellipse_frag_data;
+	res = vkCreateShaderModule(dev, &sinfo, NULL, &ellipse_frag_module);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("Failed to create ellipse fragment shader module", res);
+		goto cleanup_shaders;
+	}
+
+	VkPipelineShaderStageCreateInfo tex_stages[2] = {vert_stage, {
 		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-		NULL, 0, VK_SHADER_STAGE_FRAGMENT_BIT, frag_module, "main", NULL
+		NULL, 0, VK_SHADER_STAGE_FRAGMENT_BIT, tex_frag_module, "main", NULL
+	}};
+
+	VkPipelineShaderStageCreateInfo quad_stages[2] = {vert_stage, {
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		NULL, 0, VK_SHADER_STAGE_FRAGMENT_BIT, quad_frag_module, "main", NULL
+	}};
+
+	VkPipelineShaderStageCreateInfo ellipse_stages[2] = {vert_stage, {
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		NULL, 0, VK_SHADER_STAGE_FRAGMENT_BIT, ellipse_frag_module, "main", NULL
 	}};
 
 	// info
@@ -579,41 +672,58 @@ static bool init_pipeline(struct wlr_vk_renderer *renderer) {
 	VkPipelineVertexInputStateCreateInfo vertex = {0};
 	vertex.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-	VkGraphicsPipelineCreateInfo pinfo = {0};
-	pinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pinfo.layout = renderer->pipeline_layout;
-	pinfo.renderPass = renderer->render_pass;
-	pinfo.subpass = 0;
-	pinfo.stageCount = 2;
-	pinfo.pStages = stages;
+	VkGraphicsPipelineCreateInfo pinfos[3] = {0};
+	pinfos[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pinfos[0].layout = renderer->pipeline_layout;
+	pinfos[0].renderPass = renderer->render_pass;
+	pinfos[0].subpass = 0;
+	pinfos[0].stageCount = 2;
+	pinfos[0].pStages = tex_stages;
 
-	pinfo.pInputAssemblyState = &assembly;
-	pinfo.pRasterizationState = &rasterization;
-	pinfo.pColorBlendState = &blend;
-	pinfo.pMultisampleState = &multisample;
-	pinfo.pViewportState = &viewport;
-	pinfo.pDynamicState = &dynamic;
-	pinfo.pVertexInputState = &vertex;
+	pinfos[0].pInputAssemblyState = &assembly;
+	pinfos[0].pRasterizationState = &rasterization;
+	pinfos[0].pColorBlendState = &blend;
+	pinfos[0].pMultisampleState = &multisample;
+	pinfos[0].pViewportState = &viewport;
+	pinfos[0].pDynamicState = &dynamic;
+	pinfos[0].pVertexInputState = &vertex;
+
+	pinfos[1] = pinfos[0];
+	pinfos[1].pStages = quad_stages;
+
+	pinfos[2] = pinfos[0];
+	pinfos[2].pStages = ellipse_stages;
 
 	// NOTE: use could use a cache here for faster loading
 	// store it somewhere like $XDG_CACHE_HOME/wlroots/vk_pipe_cache
 	VkPipelineCache cache = VK_NULL_HANDLE;
-	res = vkCreateGraphicsPipelines(dev, cache, 1, &pinfo, NULL,
-		&renderer->pipeline);
+	VkPipeline pipes[3] = {0};
+	res = vkCreateGraphicsPipelines(dev, cache, 3, pinfos, NULL, pipes);
 	if(res != VK_SUCCESS) {
 		wlr_log(WLR_ERROR, "failed to create vulkan pipelines: %d", res);
 		goto cleanup_shaders;
 	}
 
-	vkDestroyShaderModule(dev, frag_module, NULL);
+	renderer->tex_pipe = pipes[0];
+	renderer->quad_pipe = pipes[1];
+	renderer->ellipse_pipe = pipes[2];
+
+	vkDestroyShaderModule(dev, tex_frag_module, NULL);
+	vkDestroyShaderModule(dev, quad_frag_module, NULL);
+	vkDestroyShaderModule(dev, ellipse_frag_module, NULL);
 	vkDestroyShaderModule(dev, vert_module, NULL);
 	return true;
 
 cleanup_shaders:
-	if (frag_module) {
-		vkDestroyShaderModule(dev, frag_module, NULL);
+	if (tex_frag_module) {
+		vkDestroyShaderModule(dev, tex_frag_module, NULL);
 	}
-
+	if (quad_frag_module) {
+		vkDestroyShaderModule(dev, quad_frag_module, NULL);
+	}
+	if (ellipse_frag_module) {
+		vkDestroyShaderModule(dev, ellipse_frag_module, NULL);
+	}
 	if (vert_module) {
 		vkDestroyShaderModule(dev, vert_module, NULL);
 	}
@@ -622,20 +732,12 @@ cleanup_shaders:
 
 struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	bool debug = true;
-	int ini_ext_count;
-	const char **ini_exts = NULL;
 
-	// TODO: when getting a offscreen backend, we should use the same gpu as
-	// the backend. Not sure if there is a reliable (or even mesa)
+	// TODO: when getting a drm backend, we should use the same gpu as
+	// the backend. Not sure if there is a reliable (or even mesa-only)
 	// way to detect if a VkPhysicalDevice is the same as a gbm_device
 	// (or offscreen fd) though.
-	if (!backend_extensions(backend, &ini_ext_count, &ini_exts)) {
-		wlr_log(WLR_ERROR, "Unsupported backend in vulkan renderer");
-		return NULL;
-	}
-
-	struct wlr_vulkan *vulkan = wlr_vulkan_create(
-		ini_ext_count, ini_exts, 0, NULL, debug);
+	struct wlr_vulkan *vulkan = wlr_vulkan_create(0, NULL, 0, NULL, debug);
 	if (!vulkan) {
 		wlr_log(WLR_ERROR, "Failed to initialize vulkan");
 		return NULL;
@@ -667,14 +769,16 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	// descriptor pool
 	// TODO: at the moment we just allocate one large pool but it might
 	// run out. We need dynamic pool creation/allocation algorithm with
-	// a list of managed (usage tracked) descriptor pool
+	// a list of managed (usage tracked) descriptor pool.
+	// Can't handle more than 500 textures at the moment
+	unsigned count = 500;
 	VkDescriptorPoolSize pool_size = {0};
-	pool_size.descriptorCount = 100;
+	pool_size.descriptorCount = count;
 	pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
 	VkDescriptorPoolCreateInfo dpool_info = {0};
 	dpool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	dpool_info.maxSets = 100;
+	dpool_info.maxSets = count;
 	dpool_info.poolSizeCount = 1;
 	dpool_info.pPoolSizes = &pool_size;
 	dpool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -686,8 +790,21 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 		goto error;
 	}
 
+	// staging command buffer
+	VkCommandBufferAllocateInfo cmd_buf_info = {0};
+	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmd_buf_info.commandPool = renderer->command_pool;
+	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmd_buf_info.commandBufferCount = 1u;
+	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info,
+		&renderer->staging.cb);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		goto error;
+	}
+
 	// init renderpass, pipeline etc
-	if (!init_pipeline(renderer)) {
+	if (!init_pipelines(renderer)) {
 		wlr_log(WLR_ERROR, "Could not init vulkan pipeline");
 		goto error;
 	}

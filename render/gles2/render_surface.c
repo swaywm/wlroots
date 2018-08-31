@@ -96,8 +96,11 @@ static bool gles2_gbm_render_surface_init(
 static void gles2_gbm_render_surface_finish(
 		struct wlr_gles2_gbm_render_surface *rs) {
 	if (rs->gbm_surface) {
-		if (rs->front_bo) {
+		if (rs->old_front_bo) {
 			gbm_surface_release_buffer(rs->gbm_surface, rs->front_bo);
+		}
+		if (rs->front_bo) {
+			gbm_surface_release_buffer(rs->gbm_surface, rs->old_front_bo);
 		}
 		gbm_surface_destroy(rs->gbm_surface);
 	}
@@ -117,12 +120,13 @@ static bool gles2_gbm_render_surface_swap_buffers(
 	struct wlr_gles2_gbm_render_surface *rs =
 		get_gles2_gbm_render_surface(wlr_rs);
 	assert(rs->gbm_surface);
-	if (rs->front_bo) {
-		gbm_surface_release_buffer(rs->gbm_surface, rs->front_bo);
+	if (rs->old_front_bo) {
+		gbm_surface_release_buffer(rs->gbm_surface, rs->old_front_bo);
 	}
 
 	struct wlr_egl *egl = &rs->gles2_rs.renderer->egl;
 	bool r = wlr_egl_swap_buffers(egl, rs->gles2_rs.surface, damage);
+	rs->old_front_bo = rs->front_bo;
 	rs->front_bo = gbm_surface_lock_front_buffer(rs->gbm_surface);
 	return r;
 }

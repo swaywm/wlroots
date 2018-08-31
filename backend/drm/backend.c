@@ -70,11 +70,19 @@ static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 	return drm->clock;
 }
 
+static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
+	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	assert(drm->renderer.gbm);
+	return wlr_egl_init(egl, EGL_PLATFORM_GBM_MESA,
+		drm->renderer.gbm, NULL, GBM_FORMAT_ARGB8888);
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
+	.init_egl = backend_init_egl,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {

@@ -255,20 +255,8 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 			width, height, 0, 0, 0, 0, data)) {
 		goto error;
 	}
-
 	// change image layout
-	VkCommandBuffer cb;
-	VkCommandBufferAllocateInfo cmd_buf_info = {0};
-	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmd_buf_info.commandPool = renderer->command_pool;
-	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info, &cb);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
-		goto error;
-	}
-
+	VkCommandBuffer cb = renderer->staging.cb;
 	VkCommandBufferBeginInfo begin_info = {0};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	vkBeginCommandBuffer(cb, &begin_info);
@@ -291,9 +279,6 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	}
 
 	vkDeviceWaitIdle(vulkan->dev);
-	vkFreeCommandBuffers(vulkan->dev, renderer->command_pool,
-		1u, &cb);
-
 	return &texture->wlr_texture;
 
 error:

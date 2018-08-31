@@ -222,10 +222,17 @@ static struct wlr_renderer *backend_get_renderer(
 	return x11->renderer;
 }
 
+static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
+	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	return wlr_egl_init(egl, EGL_PLATFORM_X11_KHR,
+		x11->xlib_conn, NULL, x11->screen->root_visual);
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.init_egl = backend_init_egl,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {

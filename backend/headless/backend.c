@@ -71,10 +71,25 @@ static struct wlr_renderer *backend_get_renderer(
 	return backend->renderer;
 }
 
+static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
+	static const EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+		EGL_ALPHA_SIZE, 0,
+		EGL_BLUE_SIZE, 8,
+		EGL_GREEN_SIZE, 8,
+		EGL_RED_SIZE, 8,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_NONE,
+	};
+	return wlr_egl_init(egl, EGL_PLATFORM_SURFACELESS_MESA,
+		NULL, (EGLint*) config_attribs, 0);
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.init_egl = backend_init_egl,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
