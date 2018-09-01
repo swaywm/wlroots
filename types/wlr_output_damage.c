@@ -112,6 +112,10 @@ bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
 	}
 	int buffer_age = wlr_render_surface_get_buffer_age(surf);
 
+	// whether we need a swap does not depend on the buffer age
+	*needs_swap = output->needs_swap ||
+		pixman_region32_not_empty(&output_damage->current);
+
 	// Check if we can use damage tracking
 	if (buffer_age <= 0 || buffer_age - 1 > WLR_OUTPUT_DAMAGE_PREVIOUS_LEN) {
 		int width, height;
@@ -138,7 +142,6 @@ bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
 		}
 	}
 
-	*needs_swap = output->needs_swap || pixman_region32_not_empty(damage);
 	return true;
 }
 
