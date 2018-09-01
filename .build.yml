@@ -11,6 +11,8 @@ packages:
   - wayland
   - wayland-protocols
   - xcb-util-image
+  - glslang
+  - vulkan-icd-loader
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
