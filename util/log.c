@@ -85,3 +85,7 @@ const char *_wlr_strip_path(const char *filepath) {
 	}
 	return filepath;
 }
+
+enum wlr_log_importance wlr_log_get_verbosity(void) {
+	return log_importance;
+}
