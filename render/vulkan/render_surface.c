@@ -331,6 +331,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		&formats_count, formats);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("failed retrieve surface formats", res);
+		free(formats);
 		return NULL;
 	}
 
@@ -376,6 +377,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	res = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->phdev, surface,
 		&present_mode_count, present_modes);
 	if (res != VK_SUCCESS || present_mode_count == 0) {
+		free(present_modes);
 		wlr_vulkan_error("Failed to retrieve surface present modes", res);
 		return NULL;
 	}

@@ -465,6 +465,12 @@ surface_damage_finish:
 void wlr_output_render_contents(struct wlr_output *output,
 		struct timespec *when, pixman_region32_t *damage) {
 
+	struct timespec now;
+	if (when == NULL) {
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		when = &now;
+	}
+
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 

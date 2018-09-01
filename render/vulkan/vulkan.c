@@ -372,6 +372,7 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	vulkan->graphics_queue_fam = find_queue_family(queue_props, qfam_count,
 		VK_QUEUE_GRAPHICS_BIT);
 	vulkan->present_queue_fam = vulkan->graphics_queue_fam;
+	free(queue_props);
 
 	bool one_queue = (vulkan->present_queue_fam == vulkan->graphics_queue_fam);
 
