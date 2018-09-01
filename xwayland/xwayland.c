@@ -74,6 +74,7 @@ static int fill_arg(char ***argv, const char *fmt, ...) {
 	return len;
 }
 
+_Noreturn
 static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 	if (unset_cloexec(wlr_xwayland->x_fd[0]) ||
 			unset_cloexec(wlr_xwayland->x_fd[1]) ||
@@ -123,9 +124,26 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 		wlr_xwayland->wl_fd[1], wlr_xwayland->display, wlr_xwayland->x_fd[0],
 		wlr_xwayland->x_fd[1], wlr_xwayland->wm_fd[1]);
 
-	// TODO: close stdout/err depending on log level
+	// Closes stdout/stderr depending on log verbosity
+	enum wlr_log_importance verbosity = wlr_log_get_verbosity();
+	int devnull = open("/dev/null", O_WRONLY | O_CREAT, 0666);
+	if (devnull < 0) {
+		wlr_log_errno(WLR_ERROR, "XWayland: failed to open /dev/null");
+		_exit(EXIT_FAILURE);
+	}
+	if (verbosity < WLR_INFO) {
+		dup2(devnull, STDOUT_FILENO);
+	}
+	if (verbosity < WLR_ERROR) {
+		dup2(devnull, STDERR_FILENO);
+	}
 
+	// This returns if and only if the call fails
 	execvp("Xwayland", argv);
+
+	wlr_log_errno(WLR_ERROR, "failed to exec Xwayland");
+	close(devnull);
+	_exit(EXIT_FAILURE);
 }
 
 static void xwayland_finish_server(struct wlr_xwayland *wlr_xwayland) {
@@ -346,8 +364,6 @@ static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland) {
 		sigprocmask(SIG_BLOCK, &sigset, NULL);
 		if ((pid = fork()) == 0) {
 			exec_xwayland(wlr_xwayland);
-			wlr_log_errno(WLR_ERROR, "failed to exec Xwayland");
-			_exit(EXIT_FAILURE);
 		}
 		if (pid < 0) {
 			wlr_log_errno(WLR_ERROR, "second fork failed");
