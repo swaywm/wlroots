@@ -169,11 +169,11 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 
 	for(uint32_t i = 0; i < swapchain->image_count; i++) {
 		struct wlr_vk_swapchain_buffer *buf = &swapchain->buffers[i];
-		if(buf->framebuffer) {
+		if (buf->framebuffer) {
 			vkDestroyFramebuffer(vulkan->dev, buf->framebuffer, NULL);
 		}
 
-		if(buf->image_view) {
+		if (buf->image_view) {
 			vkDestroyImageView(vulkan->dev, buf->image_view, NULL);
 		}
 	}
@@ -316,7 +316,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	uint32_t formats_count;
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->phdev, surface,
 		&formats_count, NULL);
-	if(res != VK_SUCCESS || formats_count == 0) {
+	if (res != VK_SUCCESS || formats_count == 0) {
 		wlr_vulkan_error("failed retrieve surface formats", res);
 		return NULL;
 	}
@@ -329,7 +329,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->phdev, surface,
 		&formats_count, formats);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("failed retrieve surface formats", res);
 		return NULL;
 	}
@@ -420,7 +420,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	// usage
 	assert(caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	if(caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+	if (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
 		swapchain->readable = true;
 		info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	} else {
@@ -463,13 +463,13 @@ bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 	VkSurfaceCapabilitiesKHR caps;
 	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan->phdev,
 		swapchain->surface, &caps);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to retrieve surface caps", res);
 		return false;
 	}
 
 	VkExtent2D ex = caps.currentExtent;
-	if(ex.width == 0xFFFFFFFF && ex.height == 0xFFFFFFFF) {
+	if (ex.width == 0xFFFFFFFF && ex.height == 0xFFFFFFFF) {
 		swapchain->create_info.imageExtent.width = clamp(width,
 			caps.minImageExtent.width, caps.maxImageExtent.width);
 		swapchain->create_info.imageExtent.height = clamp(height,
@@ -481,12 +481,12 @@ bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 	swapchain->create_info.oldSwapchain = swapchain->swapchain;
 	res = vkCreateSwapchainKHR(vulkan->dev, &swapchain->create_info, NULL,
 		&swapchain->swapchain);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkCreateSwapchainKHR", res);
 		return false;
 	}
 
-	if(swapchain->create_info.oldSwapchain) {
+	if (swapchain->create_info.oldSwapchain) {
 		vkDestroySwapchainKHR(vulkan->dev, swapchain->create_info.oldSwapchain,
 			NULL);
 		swapchain->create_info.oldSwapchain = VK_NULL_HANDLE;
@@ -972,7 +972,7 @@ struct wlr_render_surface *vulkan_render_surface_create_xcb(
 	info.window = xcb_window;
 	VkResult res = vkCreateXcbSurfaceKHR(renderer->vulkan->instance, &info,
 		NULL, &surf);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create x11 vk surface", res);
 		return NULL;
 	}
@@ -1000,7 +1000,7 @@ struct wlr_render_surface *vulkan_render_surface_create_wl(
 	info.surface = wl_surface;
 	VkResult res = vkCreateWaylandSurfaceKHR(renderer->vulkan->instance,
 		&info, NULL, &surf);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("Failed to create wl vk surface", res);
 		return NULL;
 	}

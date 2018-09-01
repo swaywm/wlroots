@@ -36,10 +36,10 @@ void wlr_vulkan_destroy(struct wlr_vulkan *vulkan) {
 	free(vulkan);
 }
 
-static int find_queue_family(const VkQueueFamilyProperties* props,
+static int find_queue_family(const VkQueueFamilyProperties *props,
 		uint32_t prop_count, VkQueueFlags flags) {
 	for(unsigned i = 0; i < prop_count; ++i) {
-		if((props[i].queueFlags & flags) == flags) {
+		if ((props[i].queueFlags & flags) == flags) {
 			return i;
 		}
 	}
@@ -49,8 +49,8 @@ static int find_queue_family(const VkQueueFamilyProperties* props,
 
 static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT type,
-		const VkDebugUtilsMessengerCallbackDataEXT* debug_data,
-		void* data) {
+		const VkDebugUtilsMessengerCallbackDataEXT *debug_data,
+		void *data) {
 
 	((void) data);
 
@@ -84,7 +84,7 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	wlr_log(importance, "%s (%s)", debug_data->pMessage,
 		debug_data->pMessageIdName);
 	if (debug_data->queueLabelCount > 0) {
-		const char* name = debug_data->pQueueLabels[0].pLabelName;
+		const char *name = debug_data->pQueueLabels[0].pLabelName;
 		if (name) {
 			wlr_log(importance, "    last label '%s'", name);
 		}
@@ -209,7 +209,7 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	// renderdoc: allows to capture (and debug) frames with renderdoc
 	//   renderdoc has problems with some extensions we use atm so
 	//   does not work
-	const char* layers[] = {
+	const char *layers[] = {
 		"VK_LAYER_LUNARG_standard_validation",
 		// "VK_LAYER_RENDERDOC_Capture",
 	};
@@ -238,7 +238,7 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 			(PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
 					vulkan->instance, "vkDestroyDebugUtilsMessengerEXT");
 
-		if(vulkan->api.createDebugUtilsMessengerEXT) {
+		if (vulkan->api.createDebugUtilsMessengerEXT) {
 			VkDebugUtilsMessageSeverityFlagsEXT severity =
 				// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |

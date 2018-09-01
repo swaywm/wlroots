@@ -169,7 +169,7 @@ static void gles2_gbm_render_surface_destroy(
 }
 
 static bool gles2_gbm_render_surface_swap_buffers(
-		struct wlr_render_surface *wlr_rs, pixman_region32_t* damage) {
+		struct wlr_render_surface *wlr_rs, pixman_region32_t *damage) {
 	struct wlr_gles2_gbm_render_surface *rs =
 		gles2_get_render_surface_gbm(wlr_rs);
 	assert(rs->gbm_surface);

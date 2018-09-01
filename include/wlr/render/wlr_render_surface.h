@@ -53,7 +53,7 @@ int wlr_render_surface_get_buffer_age(struct wlr_render_surface *surface);
  * Note that this is only available for render surfaces initialized
  * with a gbm_device.
  */
-struct gbm_bo* wlr_render_surface_get_bo(struct wlr_render_surface* surface);
+struct gbm_bo *wlr_render_surface_get_bo(struct wlr_render_surface *surface);
 
 /**
  * Reads the pixels rendered sine the last swap_buffers into data.

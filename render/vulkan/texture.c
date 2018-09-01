@@ -31,7 +31,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t dst_y, const void *vdata) {
 	VkResult res;
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
-	if(texture->format->wl_format != wl_fmt) {
+	if (texture->format->wl_format != wl_fmt) {
 		wlr_log(WLR_ERROR, "vulkan_texture_write_pixels cannot change format");
 		return false;
 	}
@@ -47,15 +47,15 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 	unsigned map_size = texture->subres_layout.offset +
 		texture->height * img_stride;
 
-	void* vmap;
+	void *vmap;
 	res = vkMapMemory(vulkan->dev, texture->memory, 0, map_size, 0, &vmap);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkMapMemory", res);
 		return false;
 	}
 
-	char* map = (char*) vmap;
-	char* data = (char*) vdata;
+	char *map = (char*) vmap;
+	char *data = (char*) vdata;
 	map += texture->subres_layout.offset;
 	map += dst_x * bytespp + dst_y * img_stride;
 	data += src_x * bytespp + dst_y * stride;
@@ -65,7 +65,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 	assert(dst_x + width <= texture->width);
 	assert(dst_y + height <= texture->height);
 
-	if(src_x == 0 && width == texture->width && stride == img_stride) {
+	if (src_x == 0 && width == texture->width && stride == img_stride) {
 		memcpy(map, data, stride * height);
 	} else {
 		for(unsigned i = 0; i < height; ++i) {
@@ -102,15 +102,15 @@ static void vulkan_texture_destroy(struct wlr_texture *wlr_texture) {
 			texture->renderer->descriptor_pool, 1, &texture->ds);
 	}
 
-	if(texture->image_view) {
+	if (texture->image_view) {
 		vkDestroyImageView(vulkan->dev, texture->image_view, NULL);
 	}
 
-	if(texture->image) {
+	if (texture->image) {
 		vkDestroyImage(vulkan->dev, texture->image, NULL);
 	}
 
-	if(texture->memory) {
+	if (texture->memory) {
 		vkFreeMemory(vulkan->dev, texture->memory, NULL);
 	}
 

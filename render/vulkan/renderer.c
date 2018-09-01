@@ -350,8 +350,8 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	free(renderer);
 }
 
-static void vulkan_init_wl_display(struct wlr_renderer* wlr_renderer,
-		struct wl_display* wl_display) {
+static void vulkan_init_wl_display(struct wlr_renderer *wlr_renderer,
+		struct wl_display *wl_display) {
 	// probably have to implement wl_offscreen ourselves since mesa
 	// still depends on it
 }
@@ -651,7 +651,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	VkPipelineCache cache = VK_NULL_HANDLE;
 	VkPipeline pipes[3] = {0};
 	res = vkCreateGraphicsPipelines(dev, cache, 3, pinfos, NULL, pipes);
-	if(res != VK_SUCCESS) {
+	if (res != VK_SUCCESS) {
 		wlr_log(WLR_ERROR, "failed to create vulkan pipelines: %d", res);
 		goto cleanup_shaders;
 	}
