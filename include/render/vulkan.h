@@ -93,17 +93,6 @@ struct wlr_vk_renderer {
 	VkRect2D scissor; // needed for clearing
 
 	struct {
-		uint32_t stride;
-		uint32_t width;
-		uint32_t height;
-		uint32_t src_x;
-		uint32_t src_y;
-		uint32_t dst_x;
-		uint32_t dst_y;
-		void *data;
-	} read_pixels;
-
-	struct {
 		VkCommandBuffer cb;
 		VkBuffer buffer;
 		VkDeviceMemory memory;
@@ -218,10 +207,6 @@ VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 	VkCommandBuffer cb);
 bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
 	VkCommandBuffer cb);
-bool vulkan_render_surface_readable(struct wlr_vk_render_surface *rs);
-void vulkan_render_surface_read_pixels(struct wlr_vk_render_surface *rs,
-	uint32_t stride, uint32_t width, uint32_t height,
-	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
 
 
 // util

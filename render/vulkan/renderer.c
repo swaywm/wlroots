@@ -157,23 +157,7 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	// implicit synchronization overhead and mess of opengl drivers)
 	vkDeviceWaitIdle(renderer->vulkan->dev);
 
-	// execute the pending read_pixels operation
-	// TODO: really not performant implemented. This will submit
-	// its own command buffer, again waiting for it. Either change
-	// wlr api (since we already need some hacks and have only limited
-	// read pixels support, e.g. only one per frame) or make this read_pixels
-	// use the just submitted command buffer submission.
-	if (renderer->read_pixels.data) {
-		vulkan_render_surface_read_pixels(
-			renderer->current, renderer->read_pixels.stride,
-			renderer->read_pixels.width, renderer->read_pixels.height,
-			renderer->read_pixels.src_x, renderer->read_pixels.src_y,
-			renderer->read_pixels.dst_x, renderer->read_pixels.dst_y,
-			renderer->read_pixels.data);
-	}
-
 clean:
-	renderer->read_pixels.data = NULL;
 	renderer->current = NULL;
 }
 
@@ -300,37 +284,6 @@ static int vulkan_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer,
 	return 0;
 }
 
-static bool vulkan_read_pixels(struct wlr_renderer *wlr_renderer,
-		enum wl_shm_format wl_fmt, uint32_t *flags, uint32_t stride,
-		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
-		uint32_t dst_x, uint32_t dst_y, void *data) {
-
-	// vulkan has (0,0) is top left corner by default
-	(void) flags;
-	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	assert(renderer->current);
-
-	if (!vulkan_render_surface_readable(renderer->current)) {
-		wlr_log(WLR_ERROR, "wlr_vk_render_surface not readable");
-		return false;
-	}
-
-	if (wl_fmt != WL_SHM_FORMAT_ARGB8888 && wl_fmt != WL_SHM_FORMAT_XRGB8888) {
-		wlr_log(WLR_ERROR, "unsupported format");
-		return false;
-	}
-
-	renderer->read_pixels.stride = stride;
-	renderer->read_pixels.width = width;
-	renderer->read_pixels.height = height;
-	renderer->read_pixels.src_x = src_x;
-	renderer->read_pixels.src_y = src_y;
-	renderer->read_pixels.dst_x = dst_x;
-	renderer->read_pixels.dst_y = dst_y;
-	renderer->read_pixels.data = data;
-	return true;
-}
-
 static bool vulkan_format_supported(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt) {
 	return get_vulkan_format_from_wl(wl_fmt) != NULL;
@@ -416,7 +369,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.wl_drm_buffer_get_size = vulkan_wl_drm_buffer_get_size,
 	.get_dmabuf_formats = vulkan_get_dmabuf_formats,
 	.get_dmabuf_modifiers = vulkan_get_dmabuf_modifiers,
-	.read_pixels = vulkan_read_pixels,
 	.format_supported = vulkan_format_supported,
 	.texture_from_pixels = vulkan_texture_from_pixels,
 	.texture_from_wl_drm = vulkan_texture_from_wl_drm,

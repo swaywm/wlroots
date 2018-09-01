@@ -50,6 +50,115 @@ static bool vulkan_render_surface_is_swapchain(
 // 	return wlr_rs->impl == &offscreen_render_surface_impl;
 // }
 
+static bool vulkan_read_pixels(struct wlr_render_surface *wlr_rs,
+		enum wl_shm_format wl_fmt, uint32_t *flags, uint32_t stride,
+		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
+		uint32_t dst_x, uint32_t dst_y, void *vdata) {
+	struct wlr_vk_render_surface *rs = vulkan_get_render_surface(wlr_rs);
+
+	// vulkan has (0,0) is top left corner by default
+	(void) flags;
+
+	if (wl_fmt != WL_SHM_FORMAT_ARGB8888 && wl_fmt != WL_SHM_FORMAT_XRGB8888) {
+		wlr_log(WLR_ERROR, "unsupported format");
+		return false;
+	}
+
+	VkResult res;
+	VkImage read;
+
+	// TODO: instead of this switch, we could make this a util function
+	// and give each implementation an own wrapper that checks and
+	// passes correct image to this util func
+	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
+		struct wlr_vk_swapchain_render_surface *srs =
+			vulkan_get_render_surface_swapchain(&rs->rs);
+		if (!srs->swapchain.readable) {
+			wlr_log(WLR_ERROR, "cannot read pixels from swapchain image");
+			return false;
+		}
+		read = srs->swapchain.buffers[srs->current_id].image;
+	} else {
+		struct wlr_vk_offscreen_render_surface *ors =
+			vulkan_get_render_surface_offscreen(&rs->rs);
+		read = ors->back->buffer.image;
+	}
+
+	struct wlr_vk_renderer *renderer = rs->renderer;
+	struct wlr_vulkan *vulkan = renderer->vulkan;
+
+	uint32_t bytespp = 4u; // always using argb (bgra as vulkan format)
+	size_t bsize = stride * height;
+
+	VkBuffer staging = wlr_vk_renderer_get_staging_buffer(renderer,	bsize);
+	if (!staging) {
+		wlr_log(WLR_ERROR, "Failed to create staging buffer");
+		return false;
+	}
+
+	VkCommandBuffer cb = renderer->staging.cb;
+	VkDeviceMemory memory = renderer->staging.memory;
+
+	// record command buffer
+	VkCommandBufferBeginInfo begin_info = {0};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	vkBeginCommandBuffer(cb, &begin_info);
+
+	vulkan_change_layout(cb, read,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_ACCESS_TRANSFER_READ_BIT);
+
+	VkBufferImageCopy copy = {0};
+	copy.imageExtent = (VkExtent3D) {width, height, 1};
+	copy.imageOffset = (VkOffset3D) {src_x, src_y, 0};
+	copy.bufferRowLength = stride / bytespp;
+	copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	copy.imageSubresource.layerCount = 1;
+	vkCmdCopyImageToBuffer(cb, read, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		staging, 1, &copy);
+
+	vulkan_change_layout(cb, read,
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_ACCESS_TRANSFER_READ_BIT,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		0);
+	vkEndCommandBuffer(cb);
+
+	// submit reading command
+	VkSubmitInfo submit_info = {0};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.pCommandBuffers = &cb;
+	submit_info.commandBufferCount = 1;
+
+	res = vkQueueSubmit(vulkan->graphics_queue, 1,
+		&submit_info, VK_NULL_HANDLE);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkQueueSubmit", res);
+		return false;
+	}
+
+	// TODO: when wlroots has a rendering model working better for vulkan
+	// we only will only want to wait on _this_ submission (use fence)
+	vkDeviceWaitIdle(vulkan->dev);
+
+	// read staging buffer into data
+	void *vmap;
+	res = vkMapMemory(vulkan->dev, memory, 0, bsize, 0, &vmap);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkMapMemory", res);
+		return false;
+	}
+
+	char *map = (char *)vmap;
+	char *data = (char *)vdata;
+	data += dst_y * stride;
+	data += dst_x * bytespp;
+	memcpy(data, map, stride * height);
+	vkUnmapMemory(vulkan->dev, memory);
+	return true;
+}
+
 
 // swapchain
 static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
@@ -482,6 +591,7 @@ static const struct wlr_render_surface_impl swapchain_render_surface_impl = {
 	.destroy = swapchain_render_surface_destroy,
 	.swap_buffers = swapchain_swap_buffers,
 	.resize = swapchain_render_surface_resize,
+	.read_pixels = vulkan_read_pixels,
 };
 
 // offscreen render surface
@@ -738,6 +848,7 @@ static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
 	.swap_buffers = offscreen_swap_buffers,
 	.resize = offscreen_render_surface_resize,
 	.get_bo = offscreen_render_surface_get_bo,
+	.read_pixels = vulkan_read_pixels,
 };
 
 
@@ -804,6 +915,9 @@ error:
 
 struct wlr_render_surface *vulkan_render_surface_create_headless(
 		struct wlr_renderer *wlr_renderer, uint32_t width, uint32_t height) {
+	// TODO: probably best to use custom implementation for headless
+	// since we don't actually need 3 buffers.
+
 	VkResult res;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	struct wlr_vulkan *vulkan = renderer->vulkan;
@@ -1021,105 +1135,4 @@ bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
 	}
 
 	return true;
-}
-
-bool vulkan_render_surface_readable(struct wlr_vk_render_surface *rs) {
-	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
-		struct wlr_vk_swapchain_render_surface *srs =
-			vulkan_get_render_surface_swapchain(&rs->rs);
-		return srs->swapchain.readable;
-	}
-
-	return true;
-}
-
-void vulkan_render_surface_read_pixels(struct wlr_vk_render_surface *rs,
-		uint32_t stride, uint32_t width, uint32_t height, uint32_t src_x,
-		uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *vdata) {
-
-	VkResult res;
-	VkImage read;
-	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
-		struct wlr_vk_swapchain_render_surface *srs =
-			vulkan_get_render_surface_swapchain(&rs->rs);
-		assert(srs->swapchain.readable);
-		read = srs->swapchain.buffers[srs->current_id].image;
-	} else {
-		struct wlr_vk_offscreen_render_surface *ors =
-			vulkan_get_render_surface_offscreen(&rs->rs);
-		read = ors->back->buffer.image;
-	}
-
-	struct wlr_vk_renderer *renderer = rs->renderer;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
-
-	uint32_t bytespp = 4u; // always using argb (bgra as vulkan format)
-	size_t bsize = stride * height;
-
-	VkBuffer staging = wlr_vk_renderer_get_staging_buffer(renderer,	bsize);
-	if (!staging) {
-		wlr_log(WLR_ERROR, "Failed to create staging buffer");
-		return;
-	}
-
-	VkCommandBuffer cb = renderer->staging.cb;
-	VkDeviceMemory memory = renderer->staging.memory;
-
-	// record command buffer
-	VkCommandBufferBeginInfo begin_info = {0};
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkBeginCommandBuffer(cb, &begin_info);
-
-	vulkan_change_layout(cb, read,
-		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
-		VK_ACCESS_TRANSFER_READ_BIT);
-
-	VkBufferImageCopy copy = {0};
-	copy.imageExtent = (VkExtent3D) {width, height, 1};
-	copy.imageOffset = (VkOffset3D) {src_x, src_y, 0};
-	copy.bufferRowLength = stride / bytespp;
-	copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	copy.imageSubresource.layerCount = 1;
-	vkCmdCopyImageToBuffer(cb, read, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		staging, 1, &copy);
-
-	vulkan_change_layout(cb, read,
-		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
-		VK_ACCESS_TRANSFER_READ_BIT,
-		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		0);
-	vkEndCommandBuffer(cb);
-
-	// submit reading command
-	VkSubmitInfo submit_info = {0};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pCommandBuffers = &cb;
-	submit_info.commandBufferCount = 1;
-
-	res = vkQueueSubmit(vulkan->graphics_queue, 1,
-		&submit_info, VK_NULL_HANDLE);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueueSubmit", res);
-		return;
-	}
-
-	// TODO: when wlroots has a rendering model working better for vulkan
-	// we only will only want to wait on _this_ submission (use fence)
-	vkDeviceWaitIdle(vulkan->dev);
-
-	// read staging buffer into data
-	void *vmap;
-	res = vkMapMemory(vulkan->dev, memory, 0, bsize, 0, &vmap);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkMapMemory", res);
-		return;
-	}
-
-	char *map = (char *)vmap;
-	char *data = (char *)vdata;
-	data += dst_y * stride;
-	data += dst_x * bytespp;
-	memcpy(data, map, stride * height);
-	vkUnmapMemory(vulkan->dev, memory);
 }

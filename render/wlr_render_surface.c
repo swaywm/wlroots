@@ -95,3 +95,15 @@ struct gbm_bo* wlr_render_surface_get_bo(struct wlr_render_surface* surface) {
 	return surface->impl->get_bo(surface);
 }
 
+bool wlr_render_surface_read_pixels(struct wlr_render_surface *r,
+		enum wl_shm_format fmt, uint32_t *flags, uint32_t stride,
+		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
+		uint32_t dst_x, uint32_t dst_y, void *data) {
+	if (!r->impl->read_pixels) {
+		return false;
+	}
+	return r->impl->read_pixels(r, fmt, flags, stride, width, height,
+		src_x, src_y, dst_x, dst_y, data);
+}
+
+

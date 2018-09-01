@@ -39,7 +39,6 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 		wl_container_of(listener, frame, output_swap_buffers);
 	struct wlr_output_event_swap_buffers *event = _data;
 	struct wlr_output *output = frame->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_list_init(&frame->output_swap_buffers.link);
@@ -57,8 +56,15 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 
 	wl_shm_buffer_begin_access(buffer);
 	void *data = wl_shm_buffer_get_data(buffer);
+	struct wlr_render_surface *rs = wlr_output_get_render_surface(output);
+	if (!rs) {
+		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		frame_destroy(frame);
+		return;
+	}
+
 	uint32_t flags = 0;
-	bool ok = wlr_renderer_read_pixels(renderer, fmt, &flags, stride,
+	bool ok = wlr_render_surface_read_pixels(rs, fmt, &flags, stride,
 		width, height, x, y, 0, 0, data);
 	wl_shm_buffer_end_access(buffer);
 

@@ -669,9 +669,11 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
-		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, NULL, bo_stride,
-			plane->surf->width, plane->surf->height, 0, 0, 0, 0, bo_data);
 		wlr_renderer_end(rend);
+
+		wlr_render_surface_read_pixels(plane->surf, WL_SHM_FORMAT_ARGB8888, NULL,
+			bo_stride, plane->surf->width, plane->surf->height, 0, 0, 0, 0,
+			bo_data);
 
 		wlr_render_surface_swap_buffers(plane->surf, NULL);
 		gbm_bo_unmap(plane->cursor_bo, bo_data);

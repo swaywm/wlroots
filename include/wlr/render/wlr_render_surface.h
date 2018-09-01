@@ -9,8 +9,13 @@
 #ifndef WLR_TYPES_WLR_RENDER_SURFACE_H
 #define WLR_TYPES_WLR_RENDER_SURFACE_H
 
+#include <wayland-server-protocol.h>
 #include <stdbool.h>
 #include <pixman.h>
+
+enum wlr_renderer_read_pixels_flags {
+	WLR_RENDERER_READ_PIXELS_Y_INVERT = 1,
+};
 
 struct wlr_renderer;
 struct wl_display;
@@ -49,6 +54,18 @@ int wlr_render_surface_get_buffer_age(struct wlr_render_surface *surface);
  * with a gbm_device.
  */
 struct gbm_bo* wlr_render_surface_get_bo(struct wlr_render_surface* surface);
+
+/**
+ * Reads the pixels rendered sine the last swap_buffers into data.
+ * `stride` is in bytes.
+ * Must not be called during rendering on this render_surface.
+ * If `flags` is not NULl, the caller indicates that it accepts frame flags
+ * defined in `enum wlr_renderer_read_pixels_flags`.
+ */
+bool wlr_render_surface_read_pixels(struct wlr_render_surface *r,
+	enum wl_shm_format fmt, uint32_t *flags, uint32_t stride,
+	uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
+	uint32_t dst_x, uint32_t dst_y, void *data);
 
 void wlr_render_surface_destroy(struct wlr_render_surface *surface);
 void wlr_render_surface_resize(struct wlr_render_surface *surface,

@@ -42,7 +42,6 @@ static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	struct screenshot_state *state = wl_container_of(listener, state,
 		frame_listener);
 	struct wlr_output *output = state->screenshot->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	struct wl_shm_buffer *shm_buffer = state->shm_buffer;
 
 	enum wl_shm_format format = wl_shm_buffer_get_format(shm_buffer);
@@ -51,7 +50,13 @@ static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 	wl_shm_buffer_begin_access(shm_buffer);
 	void *data = wl_shm_buffer_get_data(shm_buffer);
-	bool ok = wlr_renderer_read_pixels(renderer, format, NULL, stride,
+	struct wlr_render_surface *rs = wlr_output_get_render_surface(output);
+	if (!rs) {
+		wlr_log(WLR_ERROR, "output has not render surface");
+		goto cleanup;
+	}
+
+	bool ok = wlr_render_surface_read_pixels(rs, format, NULL, stride,
 		width, height, 0, 0, 0, 0, data);
 	wl_shm_buffer_end_access(shm_buffer);
 

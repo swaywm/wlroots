@@ -91,6 +91,7 @@ struct wlr_gles2_render_surface {
 	struct wlr_gles2_renderer *renderer;
 	EGLSurface surface;
 	struct wl_egl_window *egl_window; // only for wayland
+	bool pbuffer; // whether this is a pbuffer rs
 };
 
 struct wlr_gles2_gbm_render_surface {
@@ -111,7 +112,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
 struct wlr_gles2_renderer *gles2_get_renderer(
 	struct wlr_renderer *wlr_renderer);
-struct wlr_gles2_render_surface *get_gles2_render_surface(
+struct wlr_gles2_render_surface *gles2_get_render_surface(
 	struct wlr_render_surface *wlr_rs);
 
 struct wlr_render_surface *gles2_render_surface_create_headless(

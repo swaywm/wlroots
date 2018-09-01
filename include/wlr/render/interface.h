@@ -43,10 +43,6 @@ struct wlr_renderer_impl {
 	int (*get_dmabuf_formats)(struct wlr_renderer *renderer, int **formats);
 	int (*get_dmabuf_modifiers)(struct wlr_renderer *renderer, int format,
 		uint64_t **modifiers);
-	bool (*read_pixels)(struct wlr_renderer *renderer, enum wl_shm_format fmt,
-		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
-		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
-		void *data);
 	bool (*format_supported)(struct wlr_renderer *renderer,
 		enum wl_shm_format fmt);
 	struct wlr_texture *(*texture_from_pixels)(struct wlr_renderer *renderer,
@@ -94,13 +90,17 @@ void wlr_texture_init(struct wlr_texture *texture,
 	const struct wlr_texture_impl *impl);
 
 struct wlr_render_surface_impl {
-	int (*buffer_age)(struct wlr_render_surface *surface);
-	bool (*swap_buffers)(struct wlr_render_surface *surface,
+	int (*buffer_age)(struct wlr_render_surface *rs);
+	bool (*swap_buffers)(struct wlr_render_surface *rs,
 			pixman_region32_t *damage);
-	void (*resize)(struct wlr_render_surface *surface, unsigned width,
+	void (*resize)(struct wlr_render_surface *rs, unsigned width,
 			unsigned height);
-	void (*destroy)(struct wlr_render_surface *surface);
-	struct gbm_bo *(*get_bo)(struct wlr_render_surface *surface);
+	void (*destroy)(struct wlr_render_surface *rs);
+	struct gbm_bo *(*get_bo)(struct wlr_render_surface *rs);
+	bool (*read_pixels)(struct wlr_render_surface *rs, enum wl_shm_format fmt,
+		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		void *data);
 };
 
 void wlr_render_surface_init(struct wlr_render_surface *surface,
