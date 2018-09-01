@@ -388,7 +388,8 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	VkDevice dev = renderer->vulkan->dev;
 	VkResult res;
 
-	// TODO: we just assume here that all swapchains/surfaces support b8g8r8a8
+	// TODO: better to use a format we know we can create swapchains for
+	// although bgra8 is usually supported, it might not be
 	// renderpass
 	VkAttachmentDescription attachment = {0};
 	attachment.format = VK_FORMAT_B8G8R8A8_UNORM;

@@ -350,7 +350,14 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		}
 	}
 
-	wlr_log(WLR_DEBUG, "using swapchain format %d", info.imageFormat);
+	// TODO: see renderpass creation in renderer.c
+	// since we have to create the renderpass _before_ surfaces/swapchains
+	// and use b8g8r8a8 format there, we fail if it is no available
+	if (info.imageFormat != VK_FORMAT_B8G8R8A8_UNORM) {
+		wlr_log(WLR_ERROR, "can't create swapchain with b8g8r8a8 format");
+		free(formats);
+		return NULL;
+	}
 
 	free(formats);
 
@@ -676,6 +683,7 @@ static bool offscreen_render_surface_init_buffers(
 		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
 
 		// TODO: use queried external memory/image properties
+		// (see end of init_device)
 		const VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
 
 		VkImageCreateInfo img_info = {0};
@@ -827,7 +835,7 @@ static void offscreen_render_surface_resize(struct wlr_render_surface *wlr_rs,
 static int offscreen_render_surface_buffer_age(
 		struct wlr_render_surface *wlr_rs) {
 	// TODO: there are some (minor) visual glitches when using
-	// correct buffer_age
+	// correct buffer_age, so we don't support it at the moment
 	return -1;
 
 	// struct wlr_vk_offscreen_render_surface *rs =
@@ -916,7 +924,7 @@ error:
 struct wlr_render_surface *vulkan_render_surface_create_headless(
 		struct wlr_renderer *wlr_renderer, uint32_t width, uint32_t height) {
 	// TODO: probably best to use custom implementation for headless
-	// since we don't actually need 3 buffers.
+	// since we don't actually need multiple buffers.
 
 	VkResult res;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);

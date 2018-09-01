@@ -54,10 +54,12 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 
 	((void) data);
 
-	// some of the warnings are not helpful
+	// we ignore some of the non-helpful warnings
 	static const char *const ignored[] = {
-		// warning if clear is used before any other command
+		// if clear is used before any other command
 		"UNASSIGNED-CoreValidation-DrawState-ClearCmdBeforeDraw",
+		// notifies us that shader output is not consumed since
+		// we use the shared vertex buffer with uv output
 		"UNASSIGNED-CoreValidation-Shader-OutputNotConsumed",
 	};
 
@@ -273,6 +275,7 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	//  - supported presenting caps
 	//  - supported extensions, external memory import properties
 	//  - (as default, when both ok) integrated vs dedicated
+	//  - when on drm backend match it with the gbm device
 	uint32_t num_devs = 1;
 	VkResult res;
 	res = vkEnumeratePhysicalDevices(vulkan->instance, &num_devs,
@@ -362,7 +365,10 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan->phdev, &qfam_count,
 		queue_props);
 
-	// TODO: choose present queue family based on created surface(s)?
+	// TODO: choose present queue family based on created surface(s)
+	// the problem at the moment is that we have to create the renderer
+	// before there are any outputs so would probably need (at least slight)
+	// wlr changes
 	vulkan->graphics_queue_fam = find_queue_family(queue_props, qfam_count,
 		VK_QUEUE_GRAPHICS_BIT);
 	vulkan->present_queue_fam = vulkan->graphics_queue_fam;
@@ -411,8 +417,11 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		return false;
 	}
 
-	// TODO: query external memory/image stuff
-	// should probably be up at phdev selection
+	// TODO: query external memory/image stuff to be used for vulkan gbm
+	// render surface. At the moment we just assume there that
+	// bgra8 works for our needs
+	// should probably be already done at phdev selection (or only if
+	// we already know that we might have to create gbm surfaces?)
 	// vkGetPhysicalDeviceImageFormatProperties2(vulkan->phdev, ...);
 
 	return true;

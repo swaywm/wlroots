@@ -36,7 +36,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		return false;
 	}
 
-	// TODO: we might have to resize the image
+	// TODO: is it possible that the texture is resized with this call?
 	assert(width <= texture->width && height <= texture->height);
 
 	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
@@ -155,6 +155,8 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	// TODO: using linear image layout on host visible memory
 	// is probably really a performance hit. Use staging copy
 	// buffers, optimal layout and deviceLocal memory instead.
+	// (needs deferred uploading logic, _without_ waiting for device everytime
+	// we upload pixels)
 	VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 	VkImageCreateInfo img_info = {0};
 	img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

@@ -9,7 +9,7 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/render/interface.h>
 
-// State (e.g. image texture) associates with a surface.
+// State (e.g. image texture) associated with a surface.
 struct wlr_vk_texture {
 	struct wlr_texture wlr_texture;
 	struct wlr_vk_renderer *renderer;
@@ -42,7 +42,7 @@ struct wlr_vulkan {
 		PFN_vkGetMemoryFdPropertiesKHR getMemoryFdPropertiesKHR;
 	} api;
 
-	// which optional extensions could be loaded
+	// which optional extensions are available
 	struct {
 		bool wayland;
 		bool xcb;
@@ -51,7 +51,7 @@ struct wlr_vulkan {
 	} extensions;
 };
 
-// One buffer of a swapchain.
+// One buffer of a swapchain (VkSwapchainKHR or custom).
 // Add a VkCommandBuffer when we don't record every frame anymore.
 struct wlr_vk_swapchain_buffer {
 	VkImage image;
@@ -73,7 +73,7 @@ struct wlr_vk_swapchain {
 	struct wlr_vk_swapchain_buffer* buffers;
 };
 
-// Vulkan renderer on top of wlr_vulkan able to render onto swapchains.
+// Vulkan wlr_renderer implementation on top of wlr_vulkan.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
 	struct wlr_backend *backend;
@@ -110,7 +110,7 @@ struct wlr_vk_pixel_format {
 struct wlr_vk_render_surface {
 	struct wlr_render_surface rs;
 	struct wlr_vk_renderer *renderer;
-	VkCommandBuffer cb; // the currently recorded cb
+	VkCommandBuffer cb; // the cb being currently recorded
 };
 
 // wlr_vk_render_surface using a VkSurfaceKHR and swapchain
@@ -140,34 +140,31 @@ struct wlr_vk_offscreen_render_surface {
 
 	// we have 3 different buffers:
 	// - one to render to that is currently not read/presented (back)
-	// - one on which rendering has finished but it might not be the
-	//   frontbuffer since pageflip didn't complete yet
+	// - one on which rendering has finished and that was swapped
+	//   and is formally the front buffer
 	// - the buffer that was the front buffer the last time we
-	//   swapped buffers and so may still be presented if pageflip
-	//   didn't complete yet
-	// We only assume that when we swap buffers, the previous pageflip
-	// has completed and therefore (old) front can be rendererd to again
-	// (making it the back buffer again).
+	//   swapped buffers (before front) but might still be read,
+	//   so cannot yet be used for rendering
 	struct wlr_vk_offscreen_buffer *back; // currently or soon rendered
 	struct wlr_vk_offscreen_buffer *front; // rendering finished, presenting
 	struct wlr_vk_offscreen_buffer *old_front; // old presented
 };
 
 bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
-		struct wlr_vk_renderer *renderer, VkSurfaceKHR surface,
-		uint32_t width, uint32_t height, bool vsync);
+	struct wlr_vk_renderer *renderer, VkSurfaceKHR surface,
+	uint32_t width, uint32_t height, bool vsync);
 bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
-		uint32_t width, uint32_t height);
+	uint32_t width, uint32_t height);
 void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain);
 
 // Initializes a wlr_vulkan state. This will require
 // the given extensions and fail if they cannot be found.
-// Will automatically require the swapchain and surface base extensions.
+// Will automatically try to find all extensions needed.
 // param debug: Whether to enable debug layers and create a debug callback.
 struct wlr_vulkan *wlr_vulkan_create(
-		unsigned ini_ext_count, const char **ini_exts,
-		unsigned dev_ext_count, const char **dev_exts,
-		bool debug);
+	unsigned ini_ext_count, const char **ini_exts,
+	unsigned dev_ext_count, const char **dev_exts,
+	bool debug);
 
 void wlr_vulkan_destroy(struct wlr_vulkan *vulkan);
 
@@ -188,7 +185,7 @@ VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *renderer,
 struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer);
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 struct wlr_vk_render_surface *vulkan_get_render_surface(
-		struct wlr_render_surface *wlr_rs);
+	struct wlr_render_surface *wlr_rs);
 
 // render_surface api
 struct wlr_render_surface *vulkan_render_surface_create_headless(
@@ -208,16 +205,14 @@ VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
 	VkCommandBuffer cb);
 
-
 // util
 const char *vulkan_strerror(VkResult err);
 void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
-		VkImageLayout ol, VkPipelineStageFlags srcs, VkAccessFlags srca,
-		VkImageLayout nl, VkPipelineStageFlags dsts, VkAccessFlags dsta);
+	VkImageLayout ol, VkPipelineStageFlags srcs, VkAccessFlags srca,
+	VkImageLayout nl, VkPipelineStageFlags dsts, VkAccessFlags dsta);
 
 #define wlr_vulkan_error(fmt, res, ...) wlr_log(WLR_ERROR, fmt ": %s (%d)", \
 	vulkan_strerror(res), res, ##__VA_ARGS__)
-
 
 #endif
 

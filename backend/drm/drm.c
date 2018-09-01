@@ -1237,6 +1237,10 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	// TODO: required here or enough if done in renderer on next frame?
+	// we could notify our render_surface at this point that the
+	// old front buffer can be used for rendering again.
+	// might lead to less buffers begin used/created
+	// add something like wlr_render_surface_release_bo?
 	// post_drm_surface(&conn->crtc->primary->surf);
 	// if (drm->parent) {
 	// 	post_drm_surface(&conn->crtc->primary->mgpu_surf);
