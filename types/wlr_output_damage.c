@@ -101,9 +101,8 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	free(output_damage);
 }
 
-bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
-		struct wlr_renderer *renderer, bool *needs_swap,
-		pixman_region32_t *damage) {
+bool wlr_output_damage_get(struct wlr_output_damage *output_damage,
+		bool *needs_swap, pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
 
 	struct wlr_render_surface *surf = wlr_output_get_render_surface(output);

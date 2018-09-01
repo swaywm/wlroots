@@ -25,7 +25,7 @@
 /**
  * Tracks damage for an output.
  *
- * When a `frame` event is emitted, `wlr_output_damage_begin` should be
+ * When a `frame` event is emitted, `wlr_output_damage_get` should be
  * called. If necessary, the output should be repainted and
  * `wlr_output_damage_swap_buffers` should be called. No rendering should happen
  * outside a `frame` event handler.
@@ -60,8 +60,8 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
  * `wlr_output_damage_swap_buffers` needs to be called. The region of the output
  * that needs to be repainted is added to `damage`.
  */
-bool wlr_output_damage_begin(struct wlr_output_damage *output_damage,
-	struct wlr_renderer *renderer, bool *needs_swap, pixman_region32_t *damage);
+bool wlr_output_damage_get(struct wlr_output_damage *output_damage,
+	bool *needs_swap, pixman_region32_t *damage);
 /**
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL.

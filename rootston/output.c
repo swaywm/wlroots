@@ -474,7 +474,7 @@ static void render_output(struct roots_output *output) {
 	bool needs_swap;
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	if (!wlr_output_damage_begin(output->damage, renderer, &needs_swap, &damage)) {
+	if (!wlr_output_damage_get(output->damage, &needs_swap, &damage)) {
 		return;
 	}
 
