@@ -564,7 +564,7 @@ static bool drm_connector_set_mode(struct wlr_output *output,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		wlr_log(WLR_ERROR, "Unable to match %s with a CRTC", conn->output.name);
-		goto error_conn;
+		return false;
 	}
 	wlr_log(WLR_DEBUG, "%s: crtc=%td ovr=%td pri=%td cur=%td", conn->output.name,
 		crtc - drm->crtcs,
@@ -864,11 +864,13 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	size_t seen_len = wl_list_length(&drm->outputs);
+	size_t drm_outputs_len = wl_list_length(&drm->outputs);
 	// +1 so length can never be 0, which is undefined behaviour.
 	// Last element isn't used.
-	bool seen[seen_len + 1];
-	memset(seen, 0, sizeof(seen));
+	bool seen[drm_outputs_len + 1];
+	memset(seen, false, sizeof(seen));
+	size_t new_outputs_len = 0;
+	struct wlr_drm_connector *new_outputs[drm_outputs_len + 1];
 
 	for (int i = 0; i < res->count_connectors; ++i) {
 		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
@@ -974,13 +976,10 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_output_update_enabled(&wlr_conn->output, true);
+			wlr_output_update_enabled(&wlr_conn->output, wlr_conn->crtc != NULL);
 
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
-			wlr_log(WLR_INFO, "Sending modesetting signal for '%s'",
-				wlr_conn->output.name);
-			wlr_signal_emit_safe(&drm->backend.events.new_output,
-				&wlr_conn->output);
+			new_outputs[new_outputs_len++] = wlr_conn;
 		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->output.name);
@@ -999,7 +998,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	size_t index = wl_list_length(&drm->outputs);
 	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
 		index--;
-		if (index >= seen_len || seen[index]) {
+		if (index >= drm_outputs_len || seen[index]) {
 			continue;
 		}
 
@@ -1010,6 +1009,15 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		wl_event_source_remove(conn->retry_pageflip);
 		wl_list_remove(&conn->link);
 		free(conn);
+	}
+
+	for (size_t i = 0; i < new_outputs_len; ++i) {
+		struct wlr_drm_connector *conn = new_outputs[i];
+
+		wlr_log(WLR_INFO, "Requesting modeset for '%s'",
+			conn->output.name);
+		wlr_signal_emit_safe(&drm->backend.events.new_output,
+			&conn->output);
 	}
 }
 
