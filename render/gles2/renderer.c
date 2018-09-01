@@ -33,8 +33,7 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 
 static bool gles2_begin(struct wlr_renderer *wlr_renderer,
 		struct wlr_render_surface *rs) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 	struct wlr_gles2_render_surface *render_surface =
 		gles2_get_render_surface(rs);
 
