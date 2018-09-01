@@ -36,8 +36,8 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		return false;
 	}
 
-	// TODO: is it possible that the texture is resized with this call?
-	assert(width <= texture->width && height <= texture->height);
+	assert(width <= texture->width && height <= texture->height &&
+		src_x >= 0 && src_y >= 0);
 
 	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
 	unsigned img_stride = texture->subres_layout.rowPitch;
