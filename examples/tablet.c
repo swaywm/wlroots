@@ -1,5 +1,4 @@
 #define _XOPEN_SOURCE 600
-#include <GLES2/gl2.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,8 +85,11 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin_output(sample->renderer, wlr_output);
+	if (!wlr_renderer_begin_output(sample->renderer, wlr_output)) {
+		wlr_log(WLR_ERROR, "failed to start rendering");
+		return;
+	}
+
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	float distance = 0.8f * (1 - sample->distance);

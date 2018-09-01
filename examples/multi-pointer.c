@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
 #include <assert.h>
-#include <GLES2/gl2.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +10,6 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -25,6 +23,7 @@
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_xcursor *xcursor;
+	struct wlr_renderer *renderer;
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
@@ -94,12 +93,13 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = output->sample;
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output, NULL);
+	if (!wlr_renderer_begin_output(sample->renderer, wlr_output)) {
+		wlr_log(WLR_ERROR, "failed to start rendering");
+		return;
+	}
 
-	glClearColor(sample->clear_color[0], sample->clear_color[1],
-		sample->clear_color[2], sample->clear_color[3]);
-	glClear(GL_COLOR_BUFFER_BIT);
-
+	wlr_renderer_clear(sample->renderer, sample->clear_color);
+	wlr_renderer_end(sample->renderer);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
@@ -297,6 +297,7 @@ int main(int argc, char *argv[]) {
 	wl_list_init(&state.pointers);
 	wl_list_init(&state.outputs);
 
+	state.renderer = wlr_backend_get_renderer(wlr);
 	state.layout = wlr_output_layout_create();
 
 	wl_signal_add(&wlr->events.new_output, &state.new_output);

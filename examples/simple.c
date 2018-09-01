@@ -7,10 +7,9 @@
 #include <wayland-server.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render/vulkan.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -58,8 +57,8 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->dec = inc;
 	}
 
-	if (!wlr_renderer_begin_output(sample->renderer, sample_output->output, NULL)) {
-		wlr_log(WLR_DEBUG, "renderer_being_output failed");
+	if (!wlr_renderer_begin_output(sample->renderer, sample_output->output)) {
+		wlr_log(WLR_DEBUG, "failed to start rendering");
 		return;
 	}
 
@@ -175,8 +174,7 @@ int main(void) {
 		.last_frame = { 0 },
 		.display = display
 	};
-	struct wlr_backend *backend = wlr_backend_autocreate(display,
-		wlr_gles2_renderer_create);
+	struct wlr_backend *backend = wlr_backend_autocreate(display, NULL);
 	if (!backend) {
 		exit(1);
 	}

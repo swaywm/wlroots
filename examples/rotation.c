@@ -60,8 +60,11 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
+	if (!wlr_renderer_begin_output(sample->renderer, wlr_output)) {
+		wlr_log(WLR_DEBUG, "failed to start rendering");
+		return;
+	}
+
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	for (int y = -128 + (int)sample_output->y_offs; y < height; y += 128) {

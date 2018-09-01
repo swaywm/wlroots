@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
-#include <GLES2/gl2.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -116,8 +115,10 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
+	if (!wlr_renderer_begin_output(sample->renderer, wlr_output)) {
+		wlr_log(WLR_DEBUG, "failed to start rendering");
+		return;
+	}
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);

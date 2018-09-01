@@ -196,6 +196,33 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 	struct wlr_renderer *renderer;
+	char *name = getenv("WLR_RENDERER");
+	if (name) {
+#ifdef WLR_HAS_VULKAN
+		if (strcmp(name, "vulkan") == 0) {
+			if ((renderer = wlr_vk_renderer_create(backend))) {
+				return renderer;
+			} else {
+				wlr_log(WLR_ERROR, "failed to create vulkan renderer");
+				return NULL;
+			}
+		}
+#endif
+
+		if (strcmp(name, "gles2") == 0) {
+			if ((renderer = wlr_gles2_renderer_create(backend))) {
+				return renderer;
+			}
+		} else {
+			wlr_log(WLR_ERROR, "failed to create gles2 renderer");
+			return NULL;
+		}
+
+		wlr_log(WLR_ERROR, "unrecognized renderer %s", name);
+		return NULL;
+	}
+
+	// Default creation: try gles2 renderer, otherwise vulkan
 	if ((renderer = wlr_gles2_renderer_create(backend))) {
 		return renderer;
 	}

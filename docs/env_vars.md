@@ -18,6 +18,8 @@ wlroots specific
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
   logind/systemd, direct)
+* *WLR_RENDERER*: name of the renderer to use by default (in renderer_autocreate)
+  (available renderers: gles2, vulkan)
 
 rootston specific
 ------------------
