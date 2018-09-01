@@ -52,9 +52,9 @@ struct wlr_output_impl;
  * displays part of the compositor space.
  *
  * Compositors should listen to the `frame` event to render an output. They
- * should call `wlr_renderer_begin(_output)`, render and then call
- * `wlr_output_swap_buffers`. No rendering should happen outside a `frame` event
- * handler.
+ * should call `wlr_renderer_begin_output`, render, `wlr_renderer_end` and
+ * then call `wlr_output_swap_buffers`.
+ * No rendering should happen outside a `frame` event handler.
  */
 struct wlr_output {
 	const struct wlr_output_impl *impl;

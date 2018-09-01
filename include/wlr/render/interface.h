@@ -92,9 +92,9 @@ void wlr_texture_init(struct wlr_texture *texture,
 struct wlr_render_surface_impl {
 	int (*buffer_age)(struct wlr_render_surface *rs);
 	bool (*swap_buffers)(struct wlr_render_surface *rs,
-			pixman_region32_t *damage);
+		pixman_region32_t *damage);
 	void (*resize)(struct wlr_render_surface *rs, unsigned width,
-			unsigned height);
+		unsigned height);
 	void (*destroy)(struct wlr_render_surface *rs);
 	struct gbm_bo *(*get_bo)(struct wlr_render_surface *rs);
 	bool (*read_pixels)(struct wlr_render_surface *rs, enum wl_shm_format fmt,

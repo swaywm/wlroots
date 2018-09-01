@@ -69,8 +69,8 @@ bool wlr_render_surface_read_pixels(struct wlr_render_surface *r,
 
 void wlr_render_surface_destroy(struct wlr_render_surface *surface);
 void wlr_render_surface_resize(struct wlr_render_surface *surface,
-		uint32_t width, uint32_t height);
+	uint32_t width, uint32_t height);
 bool wlr_render_surface_swap_buffers(struct wlr_render_surface *surface,
-		pixman_region32_t *damage);
+	pixman_region32_t *damage);
 
 #endif
