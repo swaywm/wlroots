@@ -128,6 +128,9 @@ void destroy_xdg_surface_v6(struct wlr_xdg_surface_v6 *surface) {
 static void xdg_surface_handle_get_toplevel(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_xdg_surface_v6 *xdg_surface = xdg_surface_from_resource(resource);
+	if (!xdg_surface) {
+		return;
+	}
 	create_xdg_toplevel_v6(xdg_surface, id);
 }
 
@@ -141,6 +144,9 @@ static void xdg_surface_handle_get_popup(struct wl_client *wl_client,
 		xdg_surface_from_resource(parent_resource);
 	struct wlr_xdg_positioner_v6_resource *positioner =
 		get_xdg_positioner_v6_from_resource(positioner_resource);
+	if (!xdg_surface || !parent) {
+		return;
+	}
 
 	create_xdg_popup_v6(xdg_surface, parent, positioner, id);
 }
@@ -148,6 +154,9 @@ static void xdg_surface_handle_get_popup(struct wl_client *wl_client,
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	struct wlr_xdg_surface_v6 *surface = xdg_surface_from_resource(resource);
+	if (!surface) {
+		return;
+	}
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
 		wl_resource_post_error(surface->resource,
@@ -196,6 +205,9 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 		struct wl_resource *resource, int32_t x, int32_t y, int32_t width,
 		int32_t height) {
 	struct wlr_xdg_surface_v6 *surface = xdg_surface_from_resource(resource);
+	if (!surface) {
+		return;
+	}
 
 	if (surface->role == WLR_XDG_SURFACE_V6_ROLE_NONE) {
 		wl_resource_post_error(surface->resource,
@@ -220,6 +232,9 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 static void xdg_surface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface_v6 *surface = xdg_surface_from_resource(resource);
+	if (!surface) {
+		return;
+	}
 
 	if (surface->role != WLR_XDG_SURFACE_V6_ROLE_NONE) {
 		wlr_log(WLR_ERROR, "Tried to destroy an xdg_surface before its role "
