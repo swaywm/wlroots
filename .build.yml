@@ -13,6 +13,7 @@ packages:
   - xcb-util-image
   - glslang
   - vulkan-icd-loader
+  - vulkan-headers
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
