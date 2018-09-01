@@ -16,4 +16,6 @@
 
 #mesondefine WLR_HAS_POSIX_FALLOCATE
 
+#mesondefine WLR_HAS_VULKAN
+
 #endif

@@ -212,10 +212,10 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 		if (strcmp(name, "gles2") == 0) {
 			if ((renderer = wlr_gles2_renderer_create(backend))) {
 				return renderer;
+			} else {
+				wlr_log(WLR_ERROR, "failed to create gles2 renderer");
+				return NULL;
 			}
-		} else {
-			wlr_log(WLR_ERROR, "failed to create gles2 renderer");
-			return NULL;
 		}
 
 		wlr_log(WLR_ERROR, "unrecognized renderer %s", name);
