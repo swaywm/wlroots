@@ -14,7 +14,6 @@
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell.h>
-#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
@@ -892,9 +891,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->input_inhibit_deactivate.notify = input_inhibit_deactivate;
 	wl_signal_add(&desktop->input_inhibit->events.deactivate,
 			&desktop->input_inhibit_deactivate);
-
-	desktop->linux_dmabuf = wlr_linux_dmabuf_v1_create(server->wl_display,
-		server->renderer);
 
 	desktop->virtual_keyboard = wlr_virtual_keyboard_manager_v1_create(
 		server->wl_display);

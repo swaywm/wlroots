@@ -1,10 +1,11 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_matrix.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
@@ -174,6 +175,10 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 				formats[i] != WL_SHM_FORMAT_XRGB8888) {
 			wl_display_add_shm_format(wl_display, formats[i]);
 		}
+	}
+
+	if (r->impl->texture_from_dmabuf) {
+		wlr_linux_dmabuf_v1_create(wl_display, r);
 	}
 
 	if (r->impl->init_wl_display) {
