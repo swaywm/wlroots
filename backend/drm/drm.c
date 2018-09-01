@@ -344,7 +344,8 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 void enable_drm_connector(struct wlr_output *output, bool enable) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
-	if (conn->state != WLR_DRM_CONN_CONNECTED) {
+	if (conn->state != WLR_DRM_CONN_CONNECTED
+			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
 		return;
 	}
 
