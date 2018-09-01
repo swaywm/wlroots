@@ -36,8 +36,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		return false;
 	}
 
-	assert(width <= texture->width && height <= texture->height &&
-		src_x >= 0 && src_y >= 0);
+	assert(width <= texture->width && height <= texture->height);
 
 	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
 	unsigned img_stride = texture->subres_layout.rowPitch;
