@@ -148,6 +148,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.request_resize);
 	wl_signal_init(&surface->events.request_maximize);
 	wl_signal_init(&surface->events.request_fullscreen);
+	wl_signal_init(&surface->events.request_activate);
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.set_class);
@@ -1096,6 +1097,15 @@ static void xwm_handle_wm_protocols_message(struct wlr_xwm *xwm,
 	}
 }
 
+static void xwm_handle_net_active_window_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
+	if (surface == NULL) {
+		return;
+	}
+	wlr_signal_emit_safe(&surface->events.request_activate, surface);
+}
+
 static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	wlr_log(WLR_DEBUG, "XCB_CLIENT_MESSAGE (%u)", ev->window);
@@ -1108,6 +1118,8 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xwm_handle_net_wm_moveresize_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[WM_PROTOCOLS]) {
 		xwm_handle_wm_protocols_message(xwm, ev);
+	} else if (ev->type == xwm->atoms[_NET_ACTIVE_WINDOW]) {
+		xwm_handle_net_active_window_message(xwm, ev);
 	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
 		char *type_name = xwm_get_atom_name(xwm, ev->type);
 		wlr_log(WLR_DEBUG, "unhandled x11 client message %u (%s)", ev->type,
