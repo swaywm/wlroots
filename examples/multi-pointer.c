@@ -330,6 +330,11 @@ int main(int argc, char *argv[]) {
 		cursor_destroy(cursor);
 	}
 
+	struct sample_pointer *pointer, *tmp_pointer;
+	wl_list_for_each_safe(pointer, tmp_pointer, &state.pointers, link) {
+		free(pointer);
+	}
+
 	wlr_xcursor_theme_destroy(theme);
 	wlr_output_layout_destroy(state.layout);
 }
