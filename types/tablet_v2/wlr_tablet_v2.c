@@ -163,7 +163,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 
 	struct wlr_tablet_seat_client_v2 *seat_client =
 		calloc(1, sizeof(struct wlr_tablet_seat_client_v2));
-	if (tablet_seat == NULL) {
+	if (seat_client == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
