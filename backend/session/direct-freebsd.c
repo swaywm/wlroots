@@ -23,6 +23,7 @@ const struct session_impl session_direct;
 struct direct_session {
 	struct wlr_session base;
 	int tty_fd;
+	int old_tty;
 	int old_kbmode;
 	int sock;
 	pid_t child;
@@ -87,7 +88,7 @@ static void direct_session_destroy(struct wlr_session *base) {
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
-	ioctl(session->tty_fd, VT_ACTIVATE, 1);
+	ioctl(session->tty_fd, VT_ACTIVATE, session->old_tty);
 
 	if (errno) {
 		wlr_log(WLR_ERROR, "Failed to restore tty");
@@ -138,9 +139,13 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	int fd = -1, tty = -1, tty0_fd = -1;
+	int fd = -1, tty = -1, tty0_fd = -1, old_tty = 1;
 	if ((tty0_fd = open("/dev/ttyv0", O_RDWR | O_CLOEXEC)) < 0) {
 		wlr_log_errno(WLR_ERROR, "Could not open /dev/ttyv0 to find a free vt");
+		goto error;
+	}
+	if (ioctl(tty0_fd, VT_GETACTIVE, &old_tty) != 0) {
+		wlr_log_errno(WLR_ERROR, "Could not get active vt");
 		goto error;
 	}
 	if (ioctl(tty0_fd, VT_OPENQRY, &tty) != 0) {
@@ -198,13 +203,16 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 
 	session->base.vtnr = tty;
 	session->tty_fd = fd;
+	session->old_tty = old_tty;
 	session->old_kbmode = old_kbmode;
 
 	return true;
 
 error:
-	// Drop back to tty 1, better than hanging in a useless blank console
-	ioctl(fd, VT_ACTIVATE, 1);
+	// In case we could not get the last active one, drop back to tty 1,
+	// better than hanging in a useless blank console. Otherwise activate the
+	// last active.
+	ioctl(fd, VT_ACTIVATE, old_tty);
 	close(fd);
 	return false;
 }
