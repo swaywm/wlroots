@@ -239,15 +239,21 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
-		wlr_keyboard_set_keymap(device->keyboard, xkb_map_new_from_names(context,
-					&rules, XKB_KEYMAP_COMPILE_NO_FLAGS));
+		struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+			XKB_KEYMAP_COMPILE_NO_FLAGS);
+		if (!keymap) {
+			wlr_log(WLR_ERROR, "Failed to create XKB keymap");
+			exit(1);
+		}
+		wlr_keyboard_set_keymap(device->keyboard, keymap);
+		xkb_keymap_unref(keymap);
 		xkb_context_unref(context);
 		break;
 	case WLR_INPUT_DEVICE_POINTER:;
-	   	struct sample_cursor *cursor = calloc(1, sizeof(struct sample_cursor));
+		struct sample_cursor *cursor = calloc(1, sizeof(struct sample_cursor));
 		struct sample_pointer *pointer = calloc(1, sizeof(struct sample_pointer));
 		pointer->device = device;
-	   	cursor->sample = sample;
+		cursor->sample = sample;
 		cursor->device = device;
 
 		cursor->cursor = wlr_cursor_create();
