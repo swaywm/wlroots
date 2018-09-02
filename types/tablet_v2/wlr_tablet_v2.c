@@ -283,6 +283,7 @@ void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
 	}
 
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->wl_global);
 	free(manager);
 }
