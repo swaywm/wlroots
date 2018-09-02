@@ -864,13 +864,13 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	size_t drm_outputs_len = wl_list_length(&drm->outputs);
+	size_t seen_len = wl_list_length(&drm->outputs);
 	// +1 so length can never be 0, which is undefined behaviour.
 	// Last element isn't used.
-	bool seen[drm_outputs_len + 1];
+	bool seen[seen_len + 1];
 	memset(seen, false, sizeof(seen));
 	size_t new_outputs_len = 0;
-	struct wlr_drm_connector *new_outputs[drm_outputs_len + 1];
+	struct wlr_drm_connector *new_outputs[res->count_connectors + 1];
 
 	for (int i = 0; i < res->count_connectors; ++i) {
 		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
@@ -998,7 +998,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	size_t index = wl_list_length(&drm->outputs);
 	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
 		index--;
-		if (index >= drm_outputs_len || seen[index]) {
+		if (index >= seen_len || seen[index]) {
 			continue;
 		}
 
