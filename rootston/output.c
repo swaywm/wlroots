@@ -822,12 +822,6 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 		wlr_output->model, wlr_output->serial, wlr_output->phys_width,
 		wlr_output->phys_height);
 
-	if (!wl_list_empty(&wlr_output->modes)) {
-		struct wlr_output_mode *mode =
-			wl_container_of((&wlr_output->modes)->prev, mode, link);
-		wlr_output_set_mode(wlr_output, mode);
-	}
-
 	struct roots_output *output = calloc(1, sizeof(struct roots_output));
 	clock_gettime(CLOCK_MONOTONIC, &output->last_frame);
 	output->desktop = desktop;
@@ -856,22 +850,28 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
+
+	if ((!output_config || output_config->enable) && !wl_list_empty(&wlr_output->modes)) {
+		struct wlr_output_mode *mode =
+			wl_container_of(wlr_output->modes.prev, mode, link);
+		wlr_output_set_mode(wlr_output, mode);
+	}
+
 	if (output_config) {
 		if (output_config->enable) {
-			struct roots_output_mode_config *mode_config;
-
 			if (wlr_output_is_drm(wlr_output)) {
+				struct roots_output_mode_config *mode_config;
 				wl_list_for_each(mode_config, &output_config->modes, link) {
 					wlr_drm_connector_add_mode(wlr_output, &mode_config->info);
 				}
-			} else {
-				if (!wl_list_empty(&output_config->modes)) {
-					wlr_log(WLR_ERROR, "Can only add modes for DRM backend");
-				}
+			} else if (!wl_list_empty(&output_config->modes)) {
+				wlr_log(WLR_ERROR, "Can only add modes for DRM backend");
 			}
+
 			if (output_config->mode.width) {
 				set_mode(wlr_output, output_config);
 			}
+
 			wlr_output_set_scale(wlr_output, output_config->scale);
 			wlr_output_set_transform(wlr_output, output_config->transform);
 			wlr_output_layout_add(desktop->layout, wlr_output, output_config->x,

@@ -10,6 +10,7 @@
 #define WLR_TYPES_WLR_SCREENCOPY_V1_H
 
 #include <wayland-server.h>
+#include <wlr/types/wlr_box.h>
 
 struct wlr_screencopy_manager_v1 {
 	struct wl_global *global;

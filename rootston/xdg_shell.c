@@ -507,8 +507,6 @@ static void decoration_handle_surface_commit(struct wl_listener *listener,
 }
 
 void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data) {
-	struct roots_desktop *desktop =
-		wl_container_of(listener, desktop, xdg_toplevel_decoration);
 	struct wlr_xdg_toplevel_decoration_v1 *wlr_decoration = data;
 
 	wlr_log(WLR_DEBUG, "new xdg toplevel decoration");

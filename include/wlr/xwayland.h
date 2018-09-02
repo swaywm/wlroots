@@ -138,6 +138,7 @@ struct wlr_xwayland_surface {
 	struct wl_event_source *ping_timer;
 
 	// _NET_WM_STATE
+	bool modal;
 	bool fullscreen;
 	bool maximized_vert, maximized_horz;
 
@@ -150,6 +151,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal request_resize;
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;
+		struct wl_signal request_activate;
 
 		struct wl_signal map;
 		struct wl_signal unmap;

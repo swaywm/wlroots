@@ -28,7 +28,7 @@ static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 			++group->ring_count;
 		}
 	}
-	group->rings = calloc(sizeof(int), group->ring_count);
+	group->rings = calloc(sizeof(unsigned int), group->ring_count);
 	size_t ring = 0;
 	for (size_t i = 0; i < pad->ring_count; ++i) {
 		if (libinput_tablet_pad_mode_group_has_ring(li_group, i)) {
@@ -41,7 +41,7 @@ static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 			++group->strip_count;
 		}
 	}
-	group->strips = calloc(sizeof(int), group->strip_count);
+	group->strips = calloc(sizeof(unsigned int), group->strip_count);
 	size_t strip = 0;
 	for (size_t i = 0; i < pad->strip_count; ++i) {
 		if (libinput_tablet_pad_mode_group_has_strip(li_group, i)) {
@@ -54,7 +54,7 @@ static void add_pad_group_from_libinput(struct wlr_tablet_pad *pad,
 			++group->button_count;
 		}
 	}
-	group->buttons = calloc(sizeof(int), group->button_count);
+	group->buttons = calloc(sizeof(unsigned int), group->button_count);
 	size_t button = 0;
 	for (size_t i = 0; i < pad->button_count; ++i) {
 		if (libinput_tablet_pad_mode_group_has_button(li_group, i)) {
