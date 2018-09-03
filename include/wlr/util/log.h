@@ -35,6 +35,8 @@ typedef void (*wlr_log_func_t)(enum wlr_log_importance importance,
 
 // Will log all messages less than or equal to `verbosity`
 // If `callback` is NULL, wlr will use its default logger.
+// The function can be called multiple times to update the verbosity or
+// callback function.
 void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback);
 
 // Returns the log verbosity provided to wlr_log_init
