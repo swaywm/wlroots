@@ -116,6 +116,7 @@ struct wlr_xwayland_surface {
 	char *title;
 	char *class;
 	char *instance;
+	char *role;
 	pid_t pid;
 	bool has_utf8_title;
 
@@ -157,6 +158,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal unmap;
 		struct wl_signal set_title;
 		struct wl_signal set_class;
+		struct wl_signal set_role;
 		struct wl_signal set_parent;
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
