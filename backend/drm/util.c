@@ -298,6 +298,9 @@ size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 		size_t num_res, const uint32_t res[static restrict num_res],
 		uint32_t out[static restrict num_res]) {
 	uint32_t solution[num_res];
+	for (size_t i = 0; i < num_res; ++i) {
+		solution[i] = UNMATCHED;
+	}
 
 	struct match_state st = {
 		.num_objs = num_objs,
