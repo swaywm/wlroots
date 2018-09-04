@@ -515,6 +515,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	struct wlr_vk_swapchain_render_surface *rs =
 		vulkan_get_render_surface_swapchain(wlr_rs);
 	struct wlr_vk_renderer *renderer = rs->vk_rs.renderer;
+
 	VkResult res;
 	bool success = true;
 
@@ -716,8 +717,7 @@ static bool offscreen_render_surface_init_buffers(
 			// vulkan with linear layout. Could probably be solved
 			// with the (future) vulkan modifiers extension
 			buf->bo = gbm_bo_create(rs->gbm_dev,
-				width, height, GBM_FORMAT_ARGB8888,
-				rs->flags | GBM_BO_USE_RENDERING | GBM_BO_USE_LINEAR);
+				width, height, GBM_FORMAT_ARGB8888, rs->flags);
 			if (!buf->bo) {
 				wlr_log(WLR_ERROR, "Failed to create gbm_bo");
 				return false;
@@ -836,20 +836,19 @@ static void offscreen_render_surface_resize(struct wlr_render_surface *wlr_rs,
 
 static int offscreen_render_surface_buffer_age(
 		struct wlr_render_surface *wlr_rs) {
-	// TODO: there are some (minor) visual glitches when using
-	// correct buffer_age, so we don't support it at the moment
-	return -1;
-
-	// struct wlr_vk_offscreen_render_surface *rs =
-	// 	vulkan_get_render_surface_offscreen(wlr_rs);
-	// return rs->back->buffer.age;
+	struct wlr_vk_offscreen_render_surface *rs =
+		vulkan_get_render_surface_offscreen(wlr_rs);
+	return rs->back->buffer.age;
 }
 
 static struct gbm_bo *offscreen_render_surface_get_bo(
 		struct wlr_render_surface *wlr_rs) {
 	struct wlr_vk_offscreen_render_surface *rs =
 		vulkan_get_render_surface_offscreen(wlr_rs);
-	return rs->front ? rs->front->bo : NULL;
+
+	// TODO: We delay by one frame here since that avoids/reduces glitches.
+	// We can avoid this when using explicit fencing.
+	return rs->old_front ? rs->old_front->bo : rs->front ? rs->front->bo : NULL;
 }
 
 static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
@@ -860,7 +859,6 @@ static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
 	.get_bo = offscreen_render_surface_get_bo,
 	.read_pixels = vulkan_read_pixels,
 };
-
 
 // swapchain render surface
 static struct wlr_render_surface *swapchain_render_surface_create(

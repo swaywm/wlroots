@@ -82,7 +82,8 @@ VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *r,
 	mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
 	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, mem_reqs.memoryTypeBits);
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mem_reqs.memoryTypeBits);
 	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &r->staging.memory);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkAllocatorMemory", res);
@@ -143,6 +144,7 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	assert(renderer->current);
 	VkCommandBuffer cb = renderer->current->cb;
+
 
 	vkCmdEndRenderPass(cb);
 	vkEndCommandBuffer(cb);
@@ -425,11 +427,12 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 		VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 		VK_ACCESS_SHADER_READ_BIT;
 
-	deps[1].srcSubpass = 1;
+	deps[1].srcSubpass = 0;
 	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-	deps[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	deps[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT |
+		VK_PIPELINE_STAGE_HOST_BIT;
 	deps[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT |
 		VK_ACCESS_MEMORY_READ_BIT;
 

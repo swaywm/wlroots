@@ -183,7 +183,8 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
     mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
 	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, mem_reqs.memoryTypeBits);
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT , mem_reqs.memoryTypeBits);
 	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &texture->memory);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkAllocatorMemory failed", res);
@@ -279,7 +280,8 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 		goto error;
 	}
 
-	vkDeviceWaitIdle(vulkan->dev);
+	// TODO: causes rather large delay here
+	vkDeviceWaitIdle(renderer->vulkan->dev);
 	return &texture->wlr_texture;
 
 error:
