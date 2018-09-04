@@ -836,9 +836,12 @@ static void offscreen_render_surface_resize(struct wlr_render_surface *wlr_rs,
 
 static int offscreen_render_surface_buffer_age(
 		struct wlr_render_surface *wlr_rs) {
-	struct wlr_vk_offscreen_render_surface *rs =
-		vulkan_get_render_surface_offscreen(wlr_rs);
-	return rs->back->buffer.age;
+	// struct wlr_vk_offscreen_render_surface *rs =
+	// 	vulkan_get_render_surface_offscreen(wlr_rs);
+	// return rs->back->buffer.age;
+
+	// TODO: reduces flickering
+	return -1;
 }
 
 static struct gbm_bo *offscreen_render_surface_get_bo(
@@ -846,9 +849,9 @@ static struct gbm_bo *offscreen_render_surface_get_bo(
 	struct wlr_vk_offscreen_render_surface *rs =
 		vulkan_get_render_surface_offscreen(wlr_rs);
 
-	// TODO: We delay by one frame here since that avoids/reduces glitches.
-	// We can avoid this when using explicit fencing.
-	return rs->old_front ? rs->old_front->bo : rs->front ? rs->front->bo : NULL;
+	// TODO: we need explicit fencing to synchronise this correctly
+	// this way, flickering is to be expected
+	return rs->front ? rs->front->bo : NULL;
 }
 
 static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
