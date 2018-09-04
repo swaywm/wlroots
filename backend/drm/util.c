@@ -247,10 +247,16 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 	 * Attempt to use the current solution first, to try and avoid
 	 * recalculating everything
 	 */
-
 	if (st->orig[i] != UNMATCHED && !is_taken(i, st->res, st->orig[i])) {
 		st->res[i] = st->orig[i];
 		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
+			return true;
+		}
+	}
+	if (st->orig[i] == UNMATCHED) {
+		st->res[i] = UNMATCHED;
+		match_obj_(st, skips, score, replaced, i + 1);
+		if (st->exit_early) {
 			return true;
 		}
 	}
