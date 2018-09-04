@@ -265,25 +265,26 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		++replaced;
 	}
 
-	bool is_best = false;
-	for (st->res[i] = 0; st->res[i] < st->num_objs; ++st->res[i]) {
+	bool has_best = false;
+	for (size_t candidate = 0; candidate < st->num_objs; ++candidate) {
 		// We tried this earlier
-		if (st->res[i] == st->orig[i]) {
+		if (candidate == st->orig[i]) {
 			continue;
 		}
 
 		// Not compatible
-		if (!(st->objs[st->res[i]] & (1 << i))) {
+		if (!(st->objs[candidate] & (1 << i))) {
 			continue;
 		}
 
 		// Already taken
-		if (is_taken(i, st->res, st->res[i])) {
+		if (is_taken(i, st->res, candidate)) {
 			continue;
 		}
 
+		st->res[i] = candidate;
 		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
-			is_best = true;
+			has_best = true;
 		}
 
 		if (st->exit_early) {
@@ -291,7 +292,7 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		}
 	}
 
-	if (is_best) {
+	if (has_best) {
 		return true;
 	}
 
