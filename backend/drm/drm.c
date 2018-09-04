@@ -835,6 +835,8 @@ void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		}
 
 		drm_connector_start_renderer(conn);
+
+		wlr_output_damage_whole(&conn->output);
 	}
 }
 
