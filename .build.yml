@@ -20,7 +20,7 @@ tasks:
   - setup: |
       mkdir wlroots/build-{gcc,clang}
       cd wlroots/build-gcc
-      CC=gcc meson ..
+      CC=gcc meson .. -Dvulkan=enabled
       cd ../build-clang
       CC=clang meson ..
   - gcc: |

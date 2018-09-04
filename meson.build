@@ -74,6 +74,7 @@ if logind.found()
 endif
 
 if vulkan.found() and glslang.found()
+	warning('The vulkan renderer is in an early experimental state')
 	conf_data.set('WLR_HAS_VULKAN', true)
 	wlr_deps += vulkan
 endif

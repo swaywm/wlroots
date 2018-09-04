@@ -222,16 +222,10 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 		return NULL;
 	}
 
-	// Default creation: try gles2 renderer, otherwise vulkan
+	// Default: gles2
 	if ((renderer = wlr_gles2_renderer_create(backend))) {
 		return renderer;
 	}
-
-#ifdef WLR_HAS_VULKAN
-	if ((renderer = wlr_vk_renderer_create(backend))) {
-		return renderer;
-	}
-#endif
 
 	return NULL;
 }

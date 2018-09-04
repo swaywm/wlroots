@@ -689,6 +689,9 @@ cleanup_shaders:
 struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	bool debug = true;
 
+	wlr_log(WLR_ERROR, "The vulkan renderer is only experimental and "
+		"not expected to be ready for daliy use");
+
 	// TODO: when getting a drm backend, we should use the same gpu as
 	// the backend. Not sure if there is a reliable (or even mesa-only)
 	// way to detect if a VkPhysicalDevice is the same as a gbm_device

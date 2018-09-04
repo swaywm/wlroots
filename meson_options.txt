@@ -5,7 +5,7 @@ option('xcb-errors', type: 'feature', value: 'auto', description: 'Use xcb-error
 option('xcb-icccm', type: 'feature', value: 'auto', description: 'Use xcb-icccm util library')
 option('xcb-xkb', type: 'feature', value: 'auto', description: 'Use xcb-xkb util library')
 option('xwayland', type: 'feature', value: 'auto', description: 'Enable support for X11 applications')
-option('vulkan', type: 'feature', value: 'auto', description: 'Enable support for vulkan')
+option('vulkan', type: 'feature', value: 'disabled', description: 'Enable support for vulkan (experimental)')
 option('x11-backend', type: 'feature', value: 'auto', description: 'Enable X11 backend')
 option('rootston', type: 'boolean', value: true, description: 'Build the rootston example compositor')
 option('examples', type: 'boolean', value: true, description: 'Build example applications')
