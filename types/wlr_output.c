@@ -768,7 +768,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		return true;
 	}
 
-	wlr_log(WLR_DEBUG, "Falling back to software cursor");
+	wlr_log(WLR_DEBUG, "Falling back to software cursor on output '%s'",
+		cursor->output->name);
 	output_cursor_damage_whole(cursor);
 	return true;
 }

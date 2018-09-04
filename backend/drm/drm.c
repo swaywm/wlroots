@@ -712,6 +712,9 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 		return;
 	}
 
+	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
+		conn->crtc - drm->crtcs, conn->output.name);
+
 	for (size_t type = 0; type < 3; ++type) {
 		struct wlr_drm_plane *plane = conn->crtc->planes[type];
 		if (plane == NULL) {
