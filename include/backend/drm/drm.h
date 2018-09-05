@@ -119,6 +119,7 @@ struct wlr_drm_connector {
 	struct wlr_output output;
 
 	enum wlr_drm_connector_state state;
+	struct wlr_output_mode *desired_mode;
 	uint32_t id;
 
 	struct wlr_drm_crtc *crtc;

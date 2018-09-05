@@ -228,9 +228,6 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 			st->replaced = replaced;
 			memcpy(st->best, st->res, sizeof(st->best[0]) * st->num_res);
 
-			if (st->score == st->num_objs && st->replaced == 0) {
-				st->exit_early = true;
-			}
 			st->exit_early = (st->score == st->num_res - skips
 					|| st->score == st->num_objs)
 					&& st->replaced == 0;
@@ -250,10 +247,16 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 	 * Attempt to use the current solution first, to try and avoid
 	 * recalculating everything
 	 */
-
 	if (st->orig[i] != UNMATCHED && !is_taken(i, st->res, st->orig[i])) {
 		st->res[i] = st->orig[i];
 		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
+			return true;
+		}
+	}
+	if (st->orig[i] == UNMATCHED) {
+		st->res[i] = UNMATCHED;
+		match_obj_(st, skips, score, replaced, i + 1);
+		if (st->exit_early) {
 			return true;
 		}
 	}
@@ -262,25 +265,26 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		++replaced;
 	}
 
-	bool is_best = false;
-	for (st->res[i] = 0; st->res[i] < st->num_objs; ++st->res[i]) {
+	bool has_best = false;
+	for (size_t candidate = 0; candidate < st->num_objs; ++candidate) {
 		// We tried this earlier
-		if (st->res[i] == st->orig[i]) {
+		if (candidate == st->orig[i]) {
 			continue;
 		}
 
 		// Not compatible
-		if (!(st->objs[st->res[i]] & (1 << i))) {
+		if (!(st->objs[candidate] & (1 << i))) {
 			continue;
 		}
 
 		// Already taken
-		if (is_taken(i, st->res, st->res[i])) {
+		if (is_taken(i, st->res, candidate)) {
 			continue;
 		}
 
+		st->res[i] = candidate;
 		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
-			is_best = true;
+			has_best = true;
 		}
 
 		if (st->exit_early) {
@@ -288,7 +292,7 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		}
 	}
 
-	if (is_best) {
+	if (has_best) {
 		return true;
 	}
 
@@ -301,6 +305,9 @@ size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 		size_t num_res, const uint32_t res[static restrict num_res],
 		uint32_t out[static restrict num_res]) {
 	uint32_t solution[num_res];
+	for (size_t i = 0; i < num_res; ++i) {
+		solution[i] = UNMATCHED;
+	}
 
 	struct match_state st = {
 		.num_objs = num_objs,
