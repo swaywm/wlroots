@@ -110,7 +110,7 @@ static void arrange_layer(struct wlr_output *output,
 	struct wlr_box full_area = { 0 };
 	wlr_output_effective_resolution(output,
 			&full_area.width, &full_area.height);
-	wl_list_for_each(roots_surface, list, link) {
+	wl_list_for_each_reverse(roots_surface, list, link) {
 		struct wlr_layer_surface *layer = roots_surface->layer_surface;
 		struct wlr_layer_surface_state *state = &layer->current;
 		if (exclusive != (state->exclusive_zone > 0)) {
