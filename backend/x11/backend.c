@@ -163,6 +163,8 @@ static bool backend_start(struct wlr_backend *backend) {
 					0,
 					0,
 					0);
+
+				free(reply);
 			}
 		}
 #endif

@@ -24,6 +24,7 @@ const char *atom_map[ATOM_LAST] = {
 	"WM_HINTS",
 	"WM_NORMAL_HINTS",
 	"WM_SIZE_HINTS",
+	"WM_WINDOW_ROLE",
 	"_MOTIF_WM_HINTS",
 	"UTF8_STRING",
 	"WM_S0",
@@ -152,6 +153,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.set_class);
+	wl_signal_init(&surface->events.set_role);
 	wl_signal_init(&surface->events.set_title);
 	wl_signal_init(&surface->events.set_parent);
 	wl_signal_init(&surface->events.set_pid);
@@ -327,6 +329,7 @@ static void xwayland_surface_destroy(
 	free(xsurface->title);
 	free(xsurface->class);
 	free(xsurface->instance);
+	free(xsurface->role);
 	free(xsurface->window_type);
 	free(xsurface->protocols);
 	free(xsurface->hints);
@@ -363,6 +366,28 @@ static void read_surface_class(struct wlr_xwm *xwm,
 	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance,
 		surface->class);
 	wlr_signal_emit_safe(&surface->events.set_class, surface);
+}
+
+static void read_surface_role(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface,
+		xcb_get_property_reply_t *reply) {
+	if (reply->type != XCB_ATOM_STRING &&
+			reply->type != xwm->atoms[UTF8_STRING]) {
+		return;
+	}
+
+	size_t len = xcb_get_property_value_length(reply);
+	char *role = xcb_get_property_value(reply);
+
+	free(xsurface->role);
+	if (len > 0) {
+		xsurface->role = strndup(role, len);
+	} else {
+		xsurface->role = NULL;
+	}
+
+	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_WINDOW_ROLE: %s", xsurface->role);
+	wlr_signal_emit_safe(&xsurface->events.set_role, xsurface);
 }
 
 static void read_surface_title(struct wlr_xwm *xwm,
@@ -638,6 +663,8 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_normal_hints(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
 		read_surface_motif_hints(xwm, xsurface, reply);
+	} else if (property == xwm->atoms[WM_WINDOW_ROLE]) {
+		read_surface_role(xwm, xsurface, reply);
 	} else {
 		char *prop_name = xwm_get_atom_name(xwm, property);
 		wlr_log(WLR_DEBUG, "unhandled X11 property %u (%s) for window %u",

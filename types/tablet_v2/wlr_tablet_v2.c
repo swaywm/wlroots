@@ -163,7 +163,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 
 	struct wlr_tablet_seat_client_v2 *seat_client =
 		calloc(1, sizeof(struct wlr_tablet_seat_client_v2));
-	if (tablet_seat == NULL) {
+	if (seat_client == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
@@ -283,6 +283,7 @@ void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
 	}
 
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->wl_global);
 	free(manager);
 }
@@ -294,13 +295,6 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 		return NULL;
 	}
 
-	wl_signal_init(&tablet->events.destroy);
-	wl_list_init(&tablet->clients);
-	wl_list_init(&tablet->seats);
-
-	tablet->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &tablet->display_destroy);
-
 	tablet->wl_global = wl_global_create(display,
 		&zwp_tablet_manager_v2_interface, TABLET_MANAGER_VERSION,
 		tablet, tablet_v2_bind);
@@ -308,6 +302,13 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {
 		free(tablet);
 		return NULL;
 	}
+
+	wl_signal_init(&tablet->events.destroy);
+	wl_list_init(&tablet->clients);
+	wl_list_init(&tablet->seats);
+
+	tablet->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &tablet->display_destroy);
 
 	return tablet;
 }
