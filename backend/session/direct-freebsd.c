@@ -15,6 +15,7 @@
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
 #include "backend/session/direct-ipc.h"
 #include "util/signal.h"
 
@@ -47,24 +48,11 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 static void direct_session_close(struct wlr_session *base, int fd) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		wlr_log_errno(WLR_ERROR, "Stat failed");
-		close(fd);
-		return;
-	}
-
-	char *name;
-	name = devname(st.st_rdev, S_IFCHR);
-	if (name == NULL) {
-		wlr_log_errno(WLR_ERROR, "Failed to get device name");
-		close(fd);
-		return;
-	}
-
-	if (strncmp(name, "drm/", 4) == 0) {
+	int ev;
+	struct drm_version dv = {0};
+	if (ioctl(fd, DRM_IOCTL_VERSION, &dv) == 0) {
 		direct_ipc_dropmaster(session->sock, fd);
-	} else if (strncmp(name, "input/event", 11)) {
+	} else if (ioctl(fd, EVIOCGVERSION, &ev) == 0) {
 		ioctl(fd, EVIOCREVOKE, 0);
 	}
 
@@ -104,16 +92,15 @@ static void direct_session_destroy(struct wlr_session *base) {
 
 static int vt_handler(int signo, void *data) {
 	struct direct_session *session = data;
+	struct drm_version dv = {0};
+	struct wlr_device *dev;
 
 	if (session->base.active) {
 		session->base.active = false;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
 
-		char *name;
-		struct wlr_device *dev;
 		wl_list_for_each(dev, &session->base.devices, link) {
-			name = devname(dev->dev, S_IFCHR);
-			if (name != NULL && strncmp(name, "drm/", 4) == 0) {
+			if (ioctl(dev->fd, DRM_IOCTL_VERSION, &dv) == 0) {
 				direct_ipc_dropmaster(session->sock, dev->fd);
 			}
 		}
@@ -122,11 +109,8 @@ static int vt_handler(int signo, void *data) {
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
 
-		char *name;
-		struct wlr_device *dev;
 		wl_list_for_each(dev, &session->base.devices, link) {
-			name = devname(dev->dev, S_IFCHR);
-			if (name != NULL && strncmp(name, "drm/", 4) == 0) {
+			if (ioctl(dev->fd, DRM_IOCTL_VERSION, &dv) == 0) {
 				direct_ipc_setmaster(session->sock, dev->fd);
 			}
 		}

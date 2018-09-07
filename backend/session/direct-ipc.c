@@ -3,6 +3,7 @@
 #define __BSD_VISIBLE 1
 #define INPUT_MAJOR 0
 #endif
+#include <dev/evdev/input.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -159,14 +160,15 @@ static void communicate(int sock) {
 				ret = errno;
 			}
 #else
-			if (strncmp(msg.path, "/dev/drm/", 9) &&
-				strncmp(msg.path, "/dev/input/event", 16)) {
-
+			int ev;
+			struct drm_version dv = {0};
+			if (ioctl(fd, EVIOCGVERSION, &ev) == -1 &&
+					ioctl(fd, DRM_IOCTL_VERSION, &dv) == -1) {
 				ret = ENOTSUP;
 				goto error;
 			}
 
-			if (strncmp(msg.path, "/dev/drm/", 9) == 0 && drmSetMaster(fd)) {
+			if (dv.version_major != 0 && drmSetMaster(fd)) {
 				ret = errno;
 			}
 #endif
