@@ -502,16 +502,16 @@ void roots_drag_icon_update_position(struct roots_drag_icon *icon) {
 	struct roots_seat *seat = icon->seat;
 	struct wlr_cursor *cursor = seat->cursor->cursor;
 	if (wlr_icon->is_pointer) {
-		icon->x = cursor->x + wlr_icon->sx;
-		icon->y = cursor->y + wlr_icon->sy;
+		icon->x = cursor->x;
+		icon->y = cursor->y;
 	} else {
 		struct wlr_touch_point *point =
 			wlr_seat_touch_get_point(seat->seat, wlr_icon->touch_id);
 		if (point == NULL) {
 			return;
 		}
-		icon->x = seat->touch_x + wlr_icon->sx;
-		icon->y = seat->touch_y + wlr_icon->sy;
+		icon->x = seat->touch_x;
+		icon->y = seat->touch_y;
 	}
 
 	roots_drag_icon_damage_whole(icon);

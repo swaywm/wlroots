@@ -345,9 +345,6 @@ static void drag_icon_surface_role_commit(struct wlr_surface *surface) {
 		return;
 	}
 
-	icon->sx += icon->surface->current.dx;
-	icon->sy += icon->surface->current.dy;
-
 	drag_icon_set_mapped(icon, wlr_surface_has_buffer(surface));
 }
 
