@@ -406,6 +406,10 @@ static bool xwayland_start_server_lazy(struct wlr_xwayland *wlr_xwayland) {
 }
 
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland) {
+	if (!wlr_xwayland) {
+		return;
+	}
+
 	wlr_xwayland_set_seat(wlr_xwayland, NULL);
 	xwayland_finish_server(wlr_xwayland);
 	xwayland_finish_display(wlr_xwayland);
