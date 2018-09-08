@@ -12,7 +12,7 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
-static const struct wlr_tablet_tool_v2_grab_interface default_tool_interface;
+static const struct wlr_tablet_tool_v2_grab_interface default_tool_grab_interface;
 
 static const struct wlr_surface_role tablet_tool_cursor_surface_role = {
 	.name = "wp_tablet_tool-cursor",
@@ -209,7 +209,7 @@ struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 	tool->wlr_tool = wlr_tool;
 	wl_list_init(&tool->clients);
 	tool->default_grab.tool = tool;
-	tool->default_grab.interface = &default_tool_interface;
+	tool->default_grab.interface = &default_tool_grab_interface;
 	tool->grab = &tool->default_grab;
 
 
@@ -602,7 +602,8 @@ void wlr_tablet_v2_tablet_tool_notify_button(
 	}
 }
 
-void wlr_tablet_tool_v2_start_grab(struct wlr_tablet_v2_tablet_tool *tool, struct wlr_tablet_tool_v2_grab *grab) {
+void wlr_tablet_tool_v2_start_grab(struct wlr_tablet_v2_tablet_tool *tool,
+		struct wlr_tablet_tool_v2_grab *grab) {
 	wlr_tablet_tool_v2_end_grab(tool);
 	tool->grab = grab;
 }
@@ -630,7 +631,7 @@ static void default_tool_up(struct wlr_tablet_tool_v2_grab *grab) {
 }
 
 static void default_tool_motion(
-	struct wlr_tablet_tool_v2_grab *grab, double x, double y) {
+		struct wlr_tablet_tool_v2_grab *grab, double x, double y) {
 	wlr_send_tablet_v2_tablet_tool_motion(grab->tool, x, y);
 }
 
@@ -678,7 +679,8 @@ static void default_tool_cancel(struct wlr_tablet_tool_v2_grab *grab) {
 	/* Do nothing. Default grab can't be canceled */
 }
 
-static const struct wlr_tablet_tool_v2_grab_interface default_tool_interface = {
+static const struct wlr_tablet_tool_v2_grab_interface
+		default_tool_grab_interface = {
 	.proximity_in = default_tool_proximity_in,
 	.down = default_tool_down,
 	.up = default_tool_up,
@@ -779,7 +781,8 @@ static void implicit_tool_cancel(struct wlr_tablet_tool_v2_grab *grab) {
 	free(grab);
 }
 
-const struct wlr_tablet_tool_v2_grab_interface implicit_tool_interface = {
+static const struct wlr_tablet_tool_v2_grab_interface
+		implicit_tool_grab_interface = {
 	.proximity_in = implicit_tool_proximity_in,
 	.down = implicit_tool_down,
 	.up = implicit_tool_up,
@@ -796,11 +799,11 @@ const struct wlr_tablet_tool_v2_grab_interface implicit_tool_interface = {
 };
 
 static bool tool_has_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool) {
-	return tool->grab->interface == &implicit_tool_interface;
+	return tool->grab->interface == &implicit_tool_grab_interface;
 }
 
-void wlr_tablet_tool_v2_start_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool) {
-	/* Durr */
+void wlr_tablet_tool_v2_start_implicit_grab(
+		struct wlr_tablet_v2_tablet_tool *tool) {
 	if (tool_has_implicit_grab(tool) || !tool->focused_surface) {
 		return;
 	}
@@ -816,7 +819,7 @@ void wlr_tablet_tool_v2_start_implicit_grab(struct wlr_tablet_v2_tablet_tool *to
 		return;
 	}
 
-	grab->interface = &implicit_tool_interface;
+	grab->interface = &implicit_tool_grab_interface;
 	grab->tool = tool;
 	struct implicit_grab_state *state = calloc(1, sizeof(struct implicit_grab_state));
 	if (!state) {

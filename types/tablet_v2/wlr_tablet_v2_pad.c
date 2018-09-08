@@ -11,7 +11,7 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
-static struct wlr_tablet_pad_v2_grab_interface default_pad_interface;
+static struct wlr_tablet_pad_v2_grab_interface default_pad_grab_interface;
 
 struct tablet_pad_auxiliary_user_data {
 	struct wlr_tablet_pad_client_v2 *pad;
@@ -368,7 +368,7 @@ struct wlr_tablet_v2_tablet_pad *wlr_tablet_pad_create(
 	if (!pad) {
 		return NULL;
 	}
-	pad->default_grab.interface = &default_pad_interface;
+	pad->default_grab.interface = &default_pad_grab_interface;
 	pad->default_grab.pad = pad;
 	pad->grab = &pad->default_grab;
 
@@ -631,10 +631,8 @@ void wlr_tablet_v2_start_grab(struct wlr_tablet_v2_tablet_pad *pad,
 		struct wlr_tablet_pad_v2_grab *prev = pad->grab;
 		grab->pad = pad;
 		pad->grab = grab;
-		if (prev) {
-			if (prev->interface->cancel) {
-				prev->interface->cancel(prev);
-			}
+		if (prev && prev->interface->cancel) {
+			prev->interface->cancel(prev);
 		}
 	}
 }
@@ -685,7 +683,7 @@ static void default_pad_cancel(struct wlr_tablet_pad_v2_grab *grab) {
 	// Do nothing, the default cancel can be ignored.
 }
 
-static struct wlr_tablet_pad_v2_grab_interface default_pad_interface  = {
+static struct wlr_tablet_pad_v2_grab_interface default_pad_grab_interface  = {
 	.enter = default_pad_enter,
 	.button = default_pad_button,
 	.strip = default_pad_strip,
