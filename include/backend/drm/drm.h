@@ -120,6 +120,7 @@ struct wlr_drm_connector {
 
 	enum wlr_drm_connector_state state;
 	struct wlr_output_mode *desired_mode;
+	bool desired_enabled;
 	uint32_t id;
 
 	struct wlr_drm_crtc *crtc;

@@ -223,7 +223,8 @@ struct match_state {
 static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_t replaced, size_t i) {
 	// Finished
 	if (i >= st->num_res) {
-		if (score > st->score || (score == st->score && replaced < st->replaced)) {
+		if (score > st->score ||
+				(score == st->score && replaced < st->replaced)) {
 			st->score = score;
 			st->replaced = replaced;
 			memcpy(st->best, st->res, sizeof(st->best[0]) * st->num_res);
@@ -243,29 +244,33 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		return match_obj_(st, skips + 1, score, replaced, i + 1);
 	}
 
+	bool has_best = false;
+
 	/*
 	 * Attempt to use the current solution first, to try and avoid
 	 * recalculating everything
 	 */
 	if (st->orig[i] != UNMATCHED && !is_taken(i, st->res, st->orig[i])) {
 		st->res[i] = st->orig[i];
-		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
-			return true;
+		size_t obj_score = st->objs[st->res[i]] != 0 ? 1 : 0;
+		if (match_obj_(st, skips, score + obj_score, replaced, i + 1)) {
+			has_best = true;
 		}
 	}
 	if (st->orig[i] == UNMATCHED) {
 		st->res[i] = UNMATCHED;
-		match_obj_(st, skips, score, replaced, i + 1);
-		if (st->exit_early) {
-			return true;
+		if (match_obj_(st, skips, score, replaced, i + 1)) {
+			has_best = true;
 		}
+	}
+	if (st->exit_early) {
+		return true;
 	}
 
 	if (st->orig[i] != UNMATCHED) {
 		++replaced;
 	}
 
-	bool has_best = false;
 	for (size_t candidate = 0; candidate < st->num_objs; ++candidate) {
 		// We tried this earlier
 		if (candidate == st->orig[i]) {
@@ -283,7 +288,8 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 		}
 
 		st->res[i] = candidate;
-		if (match_obj_(st, skips, score + 1, replaced, i + 1)) {
+		size_t obj_score = st->objs[candidate] != 0 ? 1 : 0;
+		if (match_obj_(st, skips, score + obj_score, replaced, i + 1)) {
 			has_best = true;
 		}
 
