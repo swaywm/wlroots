@@ -39,7 +39,10 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 	}
 
 	if (!bo) {
-		drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0);
+		if (drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0)) {
+			wlr_log_errno(WLR_DEBUG, "Failed to clear hardware cursor");
+			return false;
+		}
 		return true;
 	}
 
