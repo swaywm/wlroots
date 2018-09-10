@@ -77,7 +77,7 @@ endforeach
 lib_wl_protos = static_library(
 	'wl_protos',
 	wl_protos_src + wl_protos_headers,
-	dependencies: wayland_client.partial_dependency(includes: true),
+	dependencies: wayland_client.partial_dependency(compile_args: true),
 )
 
 wlr_protos = declare_dependency(
