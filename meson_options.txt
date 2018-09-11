@@ -8,3 +8,4 @@ option('xwayland', type: 'feature', value: 'auto', description: 'Enable support 
 option('x11-backend', type: 'feature', value: 'auto', description: 'Enable X11 backend')
 option('rootston', type: 'boolean', value: true, description: 'Build the rootston example compositor')
 option('examples', type: 'boolean', value: true, description: 'Build example applications')
+option('tags', type: 'boolean', value: true, description: 'Generate ctags and etags')
