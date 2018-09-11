@@ -745,6 +745,7 @@ static void attach_tablet_pad(struct roots_tablet_pad *pad,
 
 	pad->tablet = tool;
 
+	wl_list_remove(&pad->tablet_destroy.link);
 	pad->tablet_destroy.notify = handle_pad_tool_destroy;
 	wl_signal_add(&tool->device->events.destroy, &pad->tablet_destroy);
 }
@@ -812,7 +813,8 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 		&tablet_pad->device_destroy);
 
 	tablet_pad->attach.notify = handle_tablet_pad_attach;
-	wl_signal_add(&tablet_pad->device->tablet_pad->events.attach_tablet, &tablet_pad->attach);
+	wl_signal_add(&tablet_pad->device->tablet_pad->events.attach_tablet,
+		&tablet_pad->attach);
 
 	tablet_pad->button.notify = handle_tablet_pad_button;
 	wl_signal_add(&tablet_pad->device->tablet_pad->events.button, &tablet_pad->button);
@@ -822,6 +824,8 @@ static void seat_add_tablet_pad(struct roots_seat *seat,
 
 	tablet_pad->ring.notify = handle_tablet_pad_ring;
 	wl_signal_add(&tablet_pad->device->tablet_pad->events.ring, &tablet_pad->ring);
+
+	wl_list_init(&tablet_pad->tablet_destroy.link);
 
 	struct roots_desktop *desktop = seat->input->server->desktop;
 	tablet_pad->tablet_v2_pad =
