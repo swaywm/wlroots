@@ -19,9 +19,8 @@ struct wlr_vk_texture {
 	const struct wlr_vk_pixel_format *format;
 	uint32_t width;
 	uint32_t height;
-	bool has_alpha;
 	VkDescriptorSet ds;
-	VkSubresourceLayout subres_layout;
+	uint32_t last_written;
 };
 
 // Central vulkan state: instance, device, extensions, api
@@ -73,6 +72,30 @@ struct wlr_vk_swapchain {
 	struct wlr_vk_swapchain_buffer* buffers;
 };
 
+struct wlr_vk_allocation {
+	VkDeviceSize start;
+	VkDeviceSize size;
+};
+
+// List of suballocated staging buffers.
+// Used to upload to/read from device local images.
+struct wlr_vk_shared_buffer {
+	struct wl_list link;
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	VkDeviceSize buf_size;
+
+	size_t allocs_size;
+	size_t allocs_capacity;
+	struct wlr_vk_allocation *allocs;
+};
+
+// Suballocated range on a buffer.
+struct wlr_vk_buffer_span {
+	struct wlr_vk_shared_buffer *buffer;
+	struct wlr_vk_allocation alloc;
+};
+
 // Vulkan wlr_renderer implementation on top of wlr_vulkan.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
@@ -88,16 +111,22 @@ struct wlr_vk_renderer {
 	VkPipeline tex_pipe;
 	VkPipeline quad_pipe;
 	VkPipeline ellipse_pipe;
+	VkFence fence;
 
 	struct wlr_vk_render_surface *current;
 	VkRect2D scissor; // needed for clearing
 
+	bool linear_shm_images;
 	struct {
 		VkCommandBuffer cb;
-		VkBuffer buffer;
-		VkDeviceMemory memory;
-		size_t size;
-	} staging;
+		VkSemaphore signal;
+
+		bool recording;
+		struct wl_list buffers;
+		uint32_t frame;
+	} stage;
+
+	bool host_images;
 };
 
 struct wlr_vk_pixel_format {
@@ -150,13 +179,6 @@ struct wlr_vk_offscreen_render_surface {
 	struct wlr_vk_offscreen_buffer *old_front; // old presented
 };
 
-bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
-	struct wlr_vk_renderer *renderer, VkSurfaceKHR surface,
-	uint32_t width, uint32_t height, bool vsync);
-bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
-	uint32_t width, uint32_t height);
-void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain);
-
 // Initializes a wlr_vulkan state. This will require
 // the given extensions and fail if they cannot be found.
 // Will automatically try to find all extensions needed.
@@ -179,9 +201,6 @@ const enum wl_shm_format *get_vulkan_formats(size_t *len);
 const struct wlr_vk_pixel_format *get_vulkan_format_from_wl(
 	enum wl_shm_format fmt);
 
-VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *renderer,
-	size_t size);
-
 struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer);
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 struct wlr_vk_render_surface *vulkan_get_render_surface(
@@ -202,10 +221,24 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 
 VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 	VkCommandBuffer cb);
-bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
-	VkCommandBuffer cb);
+void vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
+		VkSemaphore *wait, VkSemaphore *signal);
+
+// stage utility - for uploading/retrieving data
+// Gets an command buffer in recording state which is guaranteed to be
+// executed before the next frame. Call submit_upload_cb to trigger submission
+// manually (costly).
+VkCommandBuffer wlr_vk_record_stage_cb(struct wlr_vk_renderer *renderer);
+bool wlr_vk_submit_stage_wait(struct wlr_vk_renderer *renderer);
+
+// Suballocates a buffer span with the given size that can be mapped
+// and used as staging buffer. The allocation is implicitly released when the
+// stage cb has finished execution.
+struct wlr_vk_buffer_span wlr_vk_get_stage_span(
+	struct wlr_vk_renderer *renderer, VkDeviceSize size);
 
 // util
+size_t wlr_clamp(size_t val, size_t low, size_t high);
 const char *vulkan_strerror(VkResult err);
 void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
 	VkImageLayout ol, VkPipelineStageFlags srcs, VkAccessFlags srca,

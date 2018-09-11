@@ -22,7 +22,7 @@ static void vulkan_texture_get_size(struct wlr_texture *wlr_texture, int *width,
 
 static bool vulkan_texture_is_opaque(struct wlr_texture *wlr_texture) {
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
-	return !texture->has_alpha;
+	return !texture->format->has_alpha;
 }
 
 static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
@@ -31,50 +31,109 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t dst_y, const void *vdata) {
 	VkResult res;
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
+	struct wlr_vk_renderer *renderer = texture->renderer;
+	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
 	if (texture->format->wl_format != wl_fmt) {
 		wlr_log(WLR_ERROR, "vulkan_texture_write_pixels cannot change format");
 		return false;
 	}
 
 	assert(width <= texture->width && height <= texture->height);
+	if (renderer->host_images) { // upload by mapping
+		// layout for pixel writing
+		VkSubresourceLayout subres_layout;
+		VkImageSubresource subres = {0};
+		subres.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		vkGetImageSubresourceLayout(renderer->vulkan->dev, texture->image,
+			&subres, &subres_layout);
 
-	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
-	unsigned img_stride = texture->subres_layout.rowPitch;
-	unsigned bytespp = texture->format->bpp / 8;
+		unsigned img_stride = subres_layout.rowPitch;
+		unsigned bytespp = texture->format->bpp / 8;
 
-	// TODO: only map really filled region
-	unsigned map_size = texture->subres_layout.offset +
-		texture->height * img_stride;
+		unsigned msize = height * img_stride;
+		unsigned moff = subres_layout.offset;
+		moff += dst_x * bytespp + dst_y * img_stride;
 
-	void *vmap;
-	res = vkMapMemory(vulkan->dev, texture->memory, 0, map_size, 0, &vmap);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkMapMemory", res);
-		return false;
-	}
-
-	char *map = (char*) vmap;
-	char *data = (char*) vdata;
-	map += texture->subres_layout.offset;
-	map += dst_x * bytespp + dst_y * img_stride;
-	data += src_x * bytespp + dst_y * stride;
-
-	assert(src_x + width <= texture->width);
-	assert(src_y + height <= texture->height);
-	assert(dst_x + width <= texture->width);
-	assert(dst_y + height <= texture->height);
-
-	if (src_x == 0 && width == texture->width && stride == img_stride) {
-		memcpy(map, data, stride * height);
-	} else {
-		for(unsigned i = 0; i < height; ++i) {
-			memcpy(map, data, bytespp * width);
-			map += img_stride;
-			data += stride;
+		void *vmap;
+		res = vkMapMemory(vulkan->dev, texture->memory, moff, msize, 0, &vmap);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkMapMemory", res);
+			return false;
 		}
-	}
 
-	vkUnmapMemory(vulkan->dev, texture->memory);
+		char *map = (char*) vmap;
+		char *data = (char*) vdata;
+		data += src_x * bytespp + src_y * stride;
+
+		assert(src_x + width <= texture->width);
+		assert(src_y + height <= texture->height);
+		assert(dst_x + width <= texture->width);
+		assert(dst_y + height <= texture->height);
+
+		if (src_x == 0 && width == texture->width && stride == img_stride) {
+			memcpy(map, data, stride * height);
+		} else {
+			for(unsigned i = 0; i < height; ++i) {
+				memcpy(map, data, bytespp * width);
+				map += img_stride;
+				data += stride;
+			}
+		}
+
+		vkUnmapMemory(vulkan->dev, texture->memory);
+	} else { // deferred upload by transer; using staging buffer
+		uint32_t bytespp = 4u; // always using argb (bgra as vulkan format)
+		size_t bsize = stride * height;
+		struct wlr_vk_buffer_span span = wlr_vk_get_stage_span(renderer, bsize);
+		if (!span.buffer || span.alloc.size != bsize) {
+			wlr_log(WLR_ERROR, "Failed to retrieve staging buffer");
+			return false;
+		}
+
+		// write data into staging buffer span
+		void *vmap;
+		res = vkMapMemory(vulkan->dev, span.buffer->memory, span.alloc.start,
+			bsize, 0, &vmap);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkMapMemory", res);
+			return false;
+		}
+
+		char *map = (char *)vmap;
+		char *data = (char *)vdata;
+		data += dst_y * stride;
+		data += dst_x * bytespp;
+		memcpy(map, data, stride * height);
+		vkUnmapMemory(vulkan->dev, span.buffer->memory);
+
+		// record staging cb
+		// will be executed before next frame
+		VkCommandBuffer cb = wlr_vk_record_stage_cb(renderer);
+
+		vulkan_change_layout(cb, texture->image,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT);
+
+		VkBufferImageCopy copy = {0};
+		copy.imageExtent = (VkExtent3D) {width, height, 1};
+		copy.imageOffset = (VkOffset3D) {src_x, src_y, 0};
+		copy.bufferOffset = span.alloc.start;
+		copy.bufferRowLength = stride / bytespp;
+		copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		copy.imageSubresource.layerCount = 1;
+		vkCmdCopyBufferToImage(cb, span.buffer->buffer, texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+		vulkan_change_layout(cb, texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+		texture->last_written = renderer->stage.frame;
+	}
 
 	return true;
 }
@@ -93,6 +152,13 @@ static void vulkan_texture_destroy(struct wlr_texture *wlr_texture) {
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	if (!texture->renderer) {
 		return;
+	}
+
+	// when we recorded a command to fill this image _this_ frame,
+	// it has to be executed before it is destroyed.
+	// We can't simply reset it since it may contain other commands.
+	if (texture->last_written == texture->renderer->stage.frame) {
+		wlr_vk_submit_stage_wait(texture->renderer);
 	}
 
 	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
@@ -148,15 +214,10 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	texture->width = width;
 	texture->height = height;
 	texture->format = fmt;
-	texture->has_alpha = fmt->has_alpha;
 
 	// image
-	// TODO: using linear image layout on host visible memory
-	// is probably really a performance hit. Use staging copy
-	// buffers, optimal layout and deviceLocal memory instead.
-	// (needs deferred uploading logic, _without_ waiting for device everytime
-	// we upload pixels)
-	VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+	unsigned mem_bits = 0xFFFFFFFF;
+
 	VkImageCreateInfo img_info = {0};
 	img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	img_info.imageType = VK_IMAGE_TYPE_2D;
@@ -164,11 +225,25 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	img_info.mipLevels = 1;
 	img_info.arrayLayers = 1;
 	img_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	img_info.tiling = VK_IMAGE_TILING_LINEAR;
 	img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	img_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 	img_info.extent = (VkExtent3D) { width, height, 1 };
-	img_info.usage = usage;
+	img_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+	VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL;
+	if (renderer->host_images) {
+		img_info.tiling = VK_IMAGE_TILING_LINEAR;
+		mem_bits = wlr_vulkan_find_mem_type(vulkan,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mem_bits);
+	} else {
+		img_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+		img_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		mem_bits = wlr_vulkan_find_mem_type(vulkan,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mem_bits);
+		layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	}
+
 	res = vkCreateImage(vulkan->dev, &img_info, NULL, &texture->image);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkCreateImage failed", res);
@@ -182,9 +257,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	VkMemoryAllocateInfo mem_info = {0};
     mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
-	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT , mem_reqs.memoryTypeBits);
+	mem_info.memoryTypeIndex = mem_bits & mem_reqs.memoryTypeBits;
 	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &texture->memory);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkAllocatorMemory failed", res);
@@ -221,12 +294,6 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 		goto error;
 	}
 
-	// layout for pixel writing
-	VkImageSubresource subres = {0};
-	subres.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkGetImageSubresourceLayout(vulkan->dev, texture->image,
-		&subres, &texture->subres_layout);
-
 	// descriptor set
 	VkDescriptorSetAllocateInfo ds_info = {0};
 	ds_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -241,7 +308,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 
 	VkDescriptorImageInfo ds_img_info = {0};
 	ds_img_info.imageView = texture->image_view;
-	ds_img_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	ds_img_info.imageLayout = layout;
 	ds_img_info.sampler = renderer->sampler;
 
 	VkWriteDescriptorSet ds_write = {0};
@@ -252,36 +319,19 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	ds_write.pImageInfo = &ds_img_info;
 
 	vkUpdateDescriptorSets(vulkan->dev, 1, &ds_write, 0, NULL);
+
+	VkCommandBuffer cb = wlr_vk_record_stage_cb(renderer);
+	vulkan_change_layout(cb, texture->image,
+		VK_IMAGE_LAYOUT_PREINITIALIZED, VK_PIPELINE_STAGE_HOST_BIT,
+		VK_ACCESS_HOST_WRITE_BIT,
+		layout, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+
 	// write data
 	if (!vulkan_texture_write_pixels(&texture->wlr_texture, wl_fmt, stride,
 			width, height, 0, 0, 0, 0, data)) {
 		goto error;
 	}
-	// change image layout
-	VkCommandBuffer cb = renderer->staging.cb;
-	VkCommandBufferBeginInfo begin_info = {0};
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkBeginCommandBuffer(cb, &begin_info);
-	vulkan_change_layout(cb, texture->image,
-		VK_IMAGE_LAYOUT_PREINITIALIZED, VK_PIPELINE_STAGE_HOST_BIT,
-		VK_ACCESS_HOST_WRITE_BIT,
-		VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
-	vkEndCommandBuffer(cb);
 
-	VkSubmitInfo submit_info = {0};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pCommandBuffers = &cb;
-	submit_info.commandBufferCount = 1;
-
-	res = vkQueueSubmit(vulkan->graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-	if (res != VK_SUCCESS) {
-		vkFreeCommandBuffers(vulkan->dev, renderer->command_pool, 1u, &cb);
-		wlr_vulkan_error("vkQueueSubmit", res);
-		goto error;
-	}
-
-	// TODO: causes rather large delay here
-	vkDeviceWaitIdle(renderer->vulkan->dev);
 	return &texture->wlr_texture;
 
 error:

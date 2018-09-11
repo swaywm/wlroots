@@ -50,60 +50,32 @@ static bool vulkan_render_surface_is_swapchain(
 // 	return wlr_rs->impl == &offscreen_render_surface_impl;
 // }
 
-static bool vulkan_read_pixels(struct wlr_render_surface *wlr_rs,
-		enum wl_shm_format wl_fmt, uint32_t *flags, uint32_t stride,
-		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
+static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
+		VkImage read, enum wl_shm_format wl_fmt, uint32_t *flags,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y,
 		uint32_t dst_x, uint32_t dst_y, void *vdata) {
-	struct wlr_vk_render_surface *rs = vulkan_get_render_surface(wlr_rs);
-
 	// vulkan has (0,0) is top left corner by default
 	(void) flags;
+	VkResult res;
+	struct wlr_vk_renderer *renderer = rs->renderer;
+	struct wlr_vulkan *vulkan = renderer->vulkan;
 
 	if (wl_fmt != WL_SHM_FORMAT_ARGB8888 && wl_fmt != WL_SHM_FORMAT_XRGB8888) {
 		wlr_log(WLR_ERROR, "unsupported format");
 		return false;
 	}
 
-	VkResult res;
-	VkImage read;
-
-	// TODO: instead of this switch, we could make this a util function
-	// and give each implementation an own wrapper that checks and
-	// passes correct image to this util func
-	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
-		struct wlr_vk_swapchain_render_surface *srs =
-			vulkan_get_render_surface_swapchain(&rs->rs);
-		if (!srs->swapchain.readable) {
-			wlr_log(WLR_ERROR, "cannot read pixels from swapchain image");
-			return false;
-		}
-		read = srs->swapchain.buffers[srs->current_id].image;
-	} else {
-		struct wlr_vk_offscreen_render_surface *ors =
-			vulkan_get_render_surface_offscreen(&rs->rs);
-		read = ors->back->buffer.image;
-	}
-
-	struct wlr_vk_renderer *renderer = rs->renderer;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
-
 	uint32_t bytespp = 4u; // always using argb (bgra as vulkan format)
 	size_t bsize = stride * height;
 
-	VkBuffer staging = wlr_vk_renderer_get_staging_buffer(renderer,	bsize);
-	if (!staging) {
-		wlr_log(WLR_ERROR, "Failed to create staging buffer");
+	struct wlr_vk_buffer_span span = wlr_vk_get_stage_span(renderer, bsize);
+	if (!span.buffer) {
+		wlr_log(WLR_ERROR, "Failed to retrieve staging buffer");
 		return false;
 	}
 
-	VkCommandBuffer cb = renderer->staging.cb;
-	VkDeviceMemory memory = renderer->staging.memory;
-
-	// record command buffer
-	VkCommandBufferBeginInfo begin_info = {0};
-	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkBeginCommandBuffer(cb, &begin_info);
-
+	VkCommandBuffer cb = wlr_vk_record_stage_cb(renderer);
 	vulkan_change_layout(cb, read,
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -112,39 +84,27 @@ static bool vulkan_read_pixels(struct wlr_render_surface *wlr_rs,
 	VkBufferImageCopy copy = {0};
 	copy.imageExtent = (VkExtent3D) {width, height, 1};
 	copy.imageOffset = (VkOffset3D) {src_x, src_y, 0};
+	copy.bufferOffset = span.alloc.start;
 	copy.bufferRowLength = stride / bytespp;
 	copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	copy.imageSubresource.layerCount = 1;
 	vkCmdCopyImageToBuffer(cb, read, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		staging, 1, &copy);
+		span.buffer->buffer, 1, &copy);
 
 	vulkan_change_layout(cb, read,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
 		VK_ACCESS_TRANSFER_READ_BIT,
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 		0);
-	vkEndCommandBuffer(cb);
 
-	// submit reading command
-	VkSubmitInfo submit_info = {0};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pCommandBuffers = &cb;
-	submit_info.commandBufferCount = 1;
-
-	res = vkQueueSubmit(vulkan->graphics_queue, 1,
-		&submit_info, VK_NULL_HANDLE);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueueSubmit", res);
+	if (!wlr_vk_submit_stage_wait(renderer)) {
 		return false;
 	}
 
-	// TODO: when wlroots has a rendering model working better for vulkan
-	// we only will only want to wait on _this_ submission (use fence)
-	vkDeviceWaitIdle(vulkan->dev);
-
 	// read staging buffer into data
 	void *vmap;
-	res = vkMapMemory(vulkan->dev, memory, 0, bsize, 0, &vmap);
+	res = vkMapMemory(vulkan->dev, span.buffer->memory, span.alloc.start,
+		bsize, 0, &vmap);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkMapMemory", res);
 		return false;
@@ -155,7 +115,8 @@ static bool vulkan_read_pixels(struct wlr_render_surface *wlr_rs,
 	data += dst_y * stride;
 	data += dst_x * bytespp;
 	memcpy(data, map, stride * height);
-	vkUnmapMemory(vulkan->dev, memory);
+	vkUnmapMemory(vulkan->dev, span.buffer->memory);
+
 	return true;
 }
 
@@ -256,7 +217,7 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 	return true;
 }
 
-void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
+static void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
 	if (!swapchain || !swapchain->renderer) {
 		return;
 	}
@@ -270,7 +231,7 @@ void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
 	memset(swapchain, 0, sizeof(*swapchain));
 }
 
-bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
+static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		struct wlr_vk_renderer *renderer,
 		VkSurfaceKHR surface, uint32_t width, uint32_t height, bool vsync) {
 
@@ -389,8 +350,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 			if (present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
 				info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 				break;
-			} if ((info.presentMode != VK_PRESENT_MODE_MAILBOX_KHR) &&
-					(present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)) {
+			} else if (present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
 				info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 			}
 		}
@@ -460,11 +420,7 @@ bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	return NULL;
 }
 
-static uint32_t clamp(uint32_t val, uint32_t low, uint32_t high) {
-	return (val < low) ? low : ((val > high) ? high : val);
-}
-
-bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
+static bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 		uint32_t width, uint32_t height) {
 
 	VkResult res;
@@ -479,9 +435,9 @@ bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 
 	VkExtent2D ex = caps.currentExtent;
 	if (ex.width == 0xFFFFFFFF && ex.height == 0xFFFFFFFF) {
-		swapchain->create_info.imageExtent.width = clamp(width,
+		swapchain->create_info.imageExtent.width = wlr_clamp(width,
 			caps.minImageExtent.width, caps.maxImageExtent.width);
-		swapchain->create_info.imageExtent.height = clamp(height,
+		swapchain->create_info.imageExtent.height = wlr_clamp(height,
 			caps.minImageExtent.height, caps.maxImageExtent.height);
 	} else {
 		swapchain->create_info.imageExtent = ex;
@@ -510,6 +466,23 @@ bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 
 // render surface implementations
 // swapchain render surface
+static bool swapchain_read_pixels(struct wlr_render_surface *wlr_rs,
+		enum wl_shm_format wl_fmt, uint32_t *flags,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y,
+		uint32_t dst_x, uint32_t dst_y, void *vdata) {
+	struct wlr_vk_swapchain_render_surface *srs =
+		vulkan_get_render_surface_swapchain(wlr_rs);
+	if (!srs->swapchain.readable) {
+		wlr_log(WLR_ERROR, "cannot read pixels from swapchain image");
+		return false;
+	}
+
+	VkImage read = srs->swapchain.buffers[srs->current_id].image;
+	return vulkan_read_pixels(&srs->vk_rs, read, wl_fmt, flags,
+		stride, width, height, src_x, src_y, dst_x, dst_y, vdata);
+}
+
 static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 		pixman_region32_t *damage) {
 	struct wlr_vk_swapchain_render_surface *rs =
@@ -601,10 +574,22 @@ static const struct wlr_render_surface_impl swapchain_render_surface_impl = {
 	.destroy = swapchain_render_surface_destroy,
 	.swap_buffers = swapchain_swap_buffers,
 	.resize = swapchain_render_surface_resize,
-	.read_pixels = vulkan_read_pixels,
+	.read_pixels = swapchain_read_pixels,
 };
 
 // offscreen render surface
+static bool offscreen_read_pixels(struct wlr_render_surface *wlr_rs,
+		enum wl_shm_format wl_fmt, uint32_t *flags,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y,
+		uint32_t dst_x, uint32_t dst_y, void *vdata) {
+	struct wlr_vk_offscreen_render_surface *ors =
+		vulkan_get_render_surface_offscreen(wlr_rs);
+	VkImage read = ors->back->buffer.image;
+	return vulkan_read_pixels(&ors->vk_rs, read, wl_fmt, flags,
+		stride, width, height, src_x, src_y, dst_x, dst_y, vdata);
+}
+
 static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 		pixman_region32_t *damage) {
 	struct wlr_vk_offscreen_render_surface *rs =
@@ -860,7 +845,7 @@ static const struct wlr_render_surface_impl offscreen_render_surface_impl = {
 	.swap_buffers = offscreen_swap_buffers,
 	.resize = offscreen_render_surface_resize,
 	.get_bo = offscreen_render_surface_get_bo,
-	.read_pixels = vulkan_read_pixels,
+	.read_pixels = offscreen_read_pixels,
 };
 
 // swapchain render surface
@@ -912,7 +897,7 @@ static struct wlr_render_surface *swapchain_render_surface_create(
 		&swapchain_render_surface_impl);
 
 	if (!wlr_vk_swapchain_init(&rs->swapchain, renderer, rs->surface,
-			width, height, true)) {
+			width, height, false)) {
 		wlr_log(WLR_ERROR, "Failed to initialize wlr_vk_swapchain");
 		goto error;
 	}
@@ -1116,34 +1101,14 @@ VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 	return buffer->framebuffer;
 }
 
-bool vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
-		VkCommandBuffer cb) {
-	VkResult res;
-
-	// submit
-	VkPipelineStageFlags stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	VkSubmitInfo submit_info = {0};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pCommandBuffers = &cb;
-	submit_info.commandBufferCount = 1;
+void vulkan_render_surface_end(struct wlr_vk_render_surface *rs,
+		VkSemaphore *wait, VkSemaphore *signal) {
+	*wait = *signal = VK_NULL_HANDLE;
 
 	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
 		struct wlr_vk_swapchain_render_surface *srs =
 			vulkan_get_render_surface_swapchain(&rs->rs);
-
-		submit_info.pWaitSemaphores = &srs->acquire;
-		submit_info.pWaitDstStageMask = &stage;
-		submit_info.waitSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &srs->present;
-		submit_info.signalSemaphoreCount = 1;
+		*wait = srs->acquire;
+		*signal = srs->present;
 	}
-
-	res = vkQueueSubmit(rs->renderer->vulkan->graphics_queue, 1,
-		&submit_info, VK_NULL_HANDLE);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueueSubmit", res);
-		return false;
-	}
-
-	return true;
 }

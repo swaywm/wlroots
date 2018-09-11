@@ -65,3 +65,8 @@ void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
 
 	vkCmdPipelineBarrier(cb, srcs, dsts, 0, 0, NULL, 0, NULL, 1, &barrier);
 }
+
+size_t wlr_clamp(size_t val, size_t low, size_t high) {
+	return (val < low) ? low : ((val > high) ? high : val);
+}
+

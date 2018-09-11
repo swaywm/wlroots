@@ -39,65 +39,214 @@ static void mat3_to_mat4(const float mat3[9], float mat4[4][4]) {
 	mat4[3][3] = 1.f;
 }
 
-static void vulkan_destroy_staging(struct wlr_vk_renderer *r) {
-	if (r->staging.buffer) {
-		vkDestroyBuffer(r->vulkan->dev, r->staging.buffer, NULL);
-		r->staging.buffer = VK_NULL_HANDLE;
+static void shared_buffer_destroy(struct wlr_vk_renderer *r,
+		struct wlr_vk_shared_buffer *buffer) {
+	if (!buffer) {
+		return;
 	}
-	if (r->staging.memory) {
-		vkFreeMemory(r->vulkan->dev, r->staging.memory, NULL);
-		r->staging.memory = VK_NULL_HANDLE;
+
+	if (buffer->allocs_size > 0) {
+		wlr_log(WLR_ERROR, "shared_buffer_finish: %d allocations left",
+			(unsigned) buffer->allocs_size);
+	}
+
+	free(buffer->allocs);
+	if (buffer->buffer) {
+		vkDestroyBuffer(r->vulkan->dev, buffer->buffer, NULL);
+	}
+	if (buffer->memory) {
+		vkFreeMemory(r->vulkan->dev, buffer->memory, NULL);
+	}
+
+	wl_list_remove(&buffer->link);
+	free(buffer);
+}
+
+static void release_stage_allocations(struct wlr_vk_renderer *renderer) {
+	struct wlr_vk_shared_buffer *buf;
+	wl_list_for_each(buf, &renderer->stage.buffers, link) {
+		buf->allocs_size = 0u;
 	}
 }
 
-VkBuffer wlr_vk_renderer_get_staging_buffer(struct wlr_vk_renderer *r,
-		size_t size) {
-	if (r->staging.size >= size) {
-		return r->staging.buffer;
+struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
+		VkDeviceSize size) {
+	// try to find free span
+	// simply greedy allocation algorithm - should be enough for this usecase
+	struct wlr_vk_shared_buffer *buf;
+	wl_list_for_each(buf, &r->stage.buffers, link) {
+		VkDeviceSize start = 0u;
+		if (buf->allocs_size > 0) {
+			struct wlr_vk_allocation *last = &buf->allocs[buf->allocs_size - 1];
+			start = last->start + last->size;
+		}
+
+		assert(start <= buf->buf_size);
+		if (buf->buf_size - start < size) {
+			continue;
+		}
+
+		++buf->allocs_size;
+		if (buf->allocs_size > buf->allocs_capacity) {
+			buf->allocs_capacity = buf->allocs_size * 2;
+			void *allocs = realloc(buf->allocs,
+				buf->allocs_size * sizeof(*buf->allocs));
+			if (!allocs) {
+				wlr_log_errno(WLR_ERROR, "Allocation failed");
+				goto error_alloc;
+			}
+
+			buf->allocs = allocs;
+		}
+
+		struct wlr_vk_allocation *a = &buf->allocs[buf->allocs_size - 1];
+		a->start = start;
+		a->size = size;
+		return (struct wlr_vk_buffer_span) {
+			.buffer = buf,
+			.alloc = *a,
+		};
 	}
 
-	size *= 2;
-	size_t min = 32 * 1024;
-	size = size < min ? min : size;
+	// we didn't find a free buffer - create one
+	// size = clamp(max(size * 2, prev_size * 2), min_size, max_size)
+	const VkDeviceSize min_size = 1024 * 1024; // 1MB
+	const VkDeviceSize max_size = 64 * min_size; // 64MB
 
-	struct wlr_vulkan *vulkan = r->vulkan;
-	vulkan_destroy_staging(r);
+	VkDeviceSize bsize = size * 2;
+	bsize = bsize < min_size ? min_size : bsize;
+	struct wl_list *last_link = r->stage.buffers.prev;
+	if (!wl_list_empty(&r->stage.buffers)) {
+		struct wlr_vk_shared_buffer *prev = wl_container_of(
+			last_link, prev, link);
+		VkDeviceSize last_size = 2 * prev->buf_size;
+		bsize = bsize < last_size ? last_size : bsize;
+	}
+
+	if (bsize > max_size) {
+		wlr_log(WLR_INFO, "vulkan stage buffers have reached max size");
+		bsize = max_size;
+	}
+
+	// create buffer
+	buf = calloc(1, sizeof(*buf));
+	if (!buf) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		goto error_alloc;
+	}
 
 	VkResult res;
 	VkBufferCreateInfo buf_info = {0};
 	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buf_info.size = size;
-	buf_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	buf_info.size = bsize;
+	buf_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	res = vkCreateBuffer(vulkan->dev, &buf_info, NULL, &r->staging.buffer);
+	res = vkCreateBuffer(r->vulkan->dev, &buf_info, NULL, &buf->buffer);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkCreateBuffer", res);
-		return VK_NULL_HANDLE;
+		goto error;
 	}
 
 	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(vulkan->dev, r->staging.buffer, &mem_reqs);
+	vkGetBufferMemoryRequirements(r->vulkan->dev, buf->buffer, &mem_reqs);
 
 	VkMemoryAllocateInfo mem_info = {0};
 	mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
-	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan,
+	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(r->vulkan,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mem_reqs.memoryTypeBits);
-	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &r->staging.memory);
+	res = vkAllocateMemory(r->vulkan->dev, &mem_info, NULL, &buf->memory);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkAllocatorMemory", res);
-		return VK_NULL_HANDLE;
+		goto error;
 	}
 
-	res = vkBindBufferMemory(vulkan->dev, r->staging.buffer,
-		r->staging.memory, 0);
+	res = vkBindBufferMemory(r->vulkan->dev, buf->buffer, buf->memory, 0);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkBindBufferMemory", res);
-		return VK_NULL_HANDLE;
+		goto error;
 	}
 
-	return r->staging.buffer;
+	size_t start_count = 8u;
+	buf->allocs = calloc(start_count, sizeof(*buf->allocs));
+	if (!buf->allocs) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		goto error;
+	}
+
+	wlr_log(WLR_DEBUG, "Created new vk staging buffer of size %lu", bsize);
+	buf->buf_size = bsize;
+	wl_list_insert(last_link, &buf->link);
+
+	buf->allocs_capacity = start_count;
+	buf->allocs_size = 1u;
+	buf->allocs[0].start = 0u;
+	buf->allocs[0].size = size;
+	wlr_log(WLR_DEBUG, "%lu %lu", buf->allocs[0].start, buf->allocs[0].size);
+	return (struct wlr_vk_buffer_span) {
+		.buffer = buf,
+		.alloc = buf->allocs[0],
+	};
+
+error:
+	shared_buffer_destroy(r, buf);
+
+error_alloc:
+	return (struct wlr_vk_buffer_span) {
+		.buffer = NULL,
+		.alloc = (struct wlr_vk_allocation) {0, 0},
+	};
+}
+
+VkCommandBuffer wlr_vk_record_stage_cb(struct wlr_vk_renderer *renderer) {
+	if (!renderer->stage.recording) {
+		VkCommandBufferBeginInfo begin_info = {0};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		vkBeginCommandBuffer(renderer->stage.cb, &begin_info);
+		renderer->stage.recording = true;
+	}
+
+	return renderer->stage.cb;
+}
+
+bool wlr_vk_submit_stage_wait(struct wlr_vk_renderer *renderer) {
+	if (!renderer->stage.recording) {
+		return false;
+	}
+
+	vkEndCommandBuffer(renderer->stage.cb);
+	renderer->stage.recording = false;;
+
+	VkSubmitInfo submit_info = {0};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1u;
+	submit_info.pCommandBuffers = &renderer->stage.cb;
+	VkResult res = vkQueueSubmit(renderer->vulkan->graphics_queue, 1,
+		&submit_info, renderer->fence);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkQueueSubmit", res);
+		return false;
+	}
+
+	res = vkWaitForFences(renderer->vulkan->dev, 1, &renderer->fence, true,
+		UINT64_MAX);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkWaitForFences", res);
+		return false;
+	}
+
+	// NOTE: don't call this here since the caller might still need an
+	// allocation. Will be called next frame.
+	// release_stage_allocations(renderer);
+	res = vkResetFences(renderer->vulkan->dev, 1, &renderer->fence);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkResetFences", res);
+		return false;
+	}
+
+	return true;
 }
 
 // interface implementation
@@ -144,20 +293,82 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	assert(renderer->current);
 	VkCommandBuffer cb = renderer->current->cb;
-
+	VkResult res;
 
 	vkCmdEndRenderPass(cb);
 	vkEndCommandBuffer(cb);
 
-	if (!vulkan_render_surface_end(renderer->current, cb)) {
+	// render semaphores
+	unsigned rwait_count = 0u;
+	unsigned rsignal_count = 0u;
+	VkSemaphore rwait[2] = {renderer->stage.signal, VK_NULL_HANDLE};
+	VkSemaphore rsignal[1] = {0};
+	VkShaderStageFlags rwaitStages[2] = {0};
+
+	unsigned submit_count = 0u;
+	VkSubmitInfo submit_infos[2] = {0};
+
+	vulkan_render_surface_end(renderer->current, &rwait[0], &rsignal[0]);
+	if (rwait[0]) {
+		rwaitStages[rwait_count] = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		++rwait_count;
+	}
+	if (rsignal[0]) {
+		++rsignal_count;
+	}
+
+	if (renderer->stage.recording) {
+		vkEndCommandBuffer(renderer->stage.cb);
+		renderer->stage.recording = false;;
+
+		VkSubmitInfo *stage_sub = &submit_infos[submit_count];
+		stage_sub->sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		stage_sub->commandBufferCount = 1u;
+		stage_sub->pCommandBuffers = &renderer->stage.cb;
+		stage_sub->signalSemaphoreCount = 1;
+		stage_sub->pSignalSemaphores = &renderer->stage.signal;
+		++submit_count;
+
+		rwait[rwait_count] = renderer->stage.signal;
+		rwaitStages[rwait_count] = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+		++rwait_count;
+	}
+
+	VkSubmitInfo *render_sub = &submit_infos[submit_count];
+	render_sub->sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	render_sub->pCommandBuffers = &cb;
+	render_sub->commandBufferCount = 1u;
+	render_sub->waitSemaphoreCount = rwait_count;
+	render_sub->pWaitSemaphores = rwait;
+	render_sub->pWaitDstStageMask = rwaitStages;
+	render_sub->signalSemaphoreCount = rsignal_count;
+	render_sub->pSignalSemaphores = rsignal;
+	++submit_count;
+
+	res = vkQueueSubmit(renderer->vulkan->graphics_queue, submit_count,
+		submit_infos, renderer->fence);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkQueueSubmit", res);
 		goto clean;
 	}
 
-	// :(
 	// sadly this is required due to the current api/rendering model of wlr
 	// ideally we could use gpu and cpu in parallel (_without_ the
 	// implicit synchronization overhead and mess of opengl drivers)
-	vkDeviceWaitIdle(renderer->vulkan->dev);
+	res = vkWaitForFences(renderer->vulkan->dev, 1, &renderer->fence, true,
+		UINT64_MAX);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkWaitForFences", res);
+		goto clean;
+	}
+
+	++renderer->stage.frame;
+	release_stage_allocations(renderer);
+	res = vkResetFences(renderer->vulkan->dev, 1, &renderer->fence);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkResetFences", res);
+		goto clean;
+	}
 
 clean:
 	renderer->current = NULL;
@@ -319,7 +530,18 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 		return;
 	}
 
-	vulkan_destroy_staging(renderer);
+	// stage.cb automatically freed with command pool
+	struct wlr_vk_shared_buffer *buf, *tmp;
+	wl_list_for_each_safe(buf, tmp, &renderer->stage.buffers, link) {
+		shared_buffer_destroy(renderer, buf);
+	}
+
+	if (renderer->stage.signal) {
+		vkDestroySemaphore(vulkan->dev, renderer->stage.signal, NULL);
+	}
+	if (renderer->fence) {
+		vkDestroyFence(vulkan->dev, renderer->fence, NULL);
+	}
 	if (renderer->tex_pipe) {
 		vkDestroyPipeline(vulkan->dev, renderer->tex_pipe, NULL);
 	}
@@ -348,6 +570,7 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	if (renderer->descriptor_pool) {
 		vkDestroyDescriptorPool(vulkan->dev, renderer->descriptor_pool, NULL);
 	}
+
 	wlr_vulkan_destroy(renderer->vulkan);
 	free(renderer);
 }
@@ -709,9 +932,41 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 
+	// Internal configuration, mainly for testing and benchmarking.
+	// Should probably be false in release builds.
+	// When this is set to true, will use linear textures on host visible
+	// memory if possible. This means that no additional staging buffer
+	// upload logic (and memory for those upload buffers) has to be used
+	// and that uploads (e.g. write_pixels) may be faster but rendering
+	// may be considerably slower. Even if set to true, the device
+	// may not support reading from linear textures (see check below).
+	renderer->host_images = false;
+	if (renderer->host_images) {
+		size_t len;
+		VkFormatFeatureFlags features = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+		const enum wl_shm_format *fmts = get_vulkan_formats(&len);
+		VkFormatProperties props;
+		for (size_t i = 0; i < len; ++i) {
+			vkGetPhysicalDeviceFormatProperties(vulkan->phdev,
+				get_vulkan_format_from_wl(fmts[len])->vk_format, &props);
+			if ((props.linearTilingFeatures & features) != features) {
+				wlr_log(WLR_INFO, "Missing features for host images");
+				renderer->host_images = false;
+				break;
+			}
+		}
+	}
+
 	renderer->backend = backend;
 	renderer->vulkan = vulkan;
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
+	wl_list_init(&renderer->stage.buffers);
+
+	// init renderpass, pipeline etc
+	if (!init_pipelines(renderer)) {
+		wlr_log(WLR_ERROR, "Could not init vulkan pipeline");
+		goto error;
+	}
 
 	// command pool
 	VkCommandPoolCreateInfo cpool_info = {0};
@@ -749,6 +1004,15 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 		goto error;
 	}
 
+	VkFenceCreateInfo fence_info = {0};
+	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	res = vkCreateFence(renderer->vulkan->dev, &fence_info, NULL,
+		&renderer->fence);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkCreateFence", res);
+		goto error;
+	}
+
 	// staging command buffer
 	VkCommandBufferAllocateInfo cmd_buf_info = {0};
 	cmd_buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -756,15 +1020,18 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cmd_buf_info.commandBufferCount = 1u;
 	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info,
-		&renderer->staging.cb);
+		&renderer->stage.cb);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkAllocateCommandBuffers", res);
 		goto error;
 	}
 
-	// init renderpass, pipeline etc
-	if (!init_pipelines(renderer)) {
-		wlr_log(WLR_ERROR, "Could not init vulkan pipeline");
+	VkSemaphoreCreateInfo sem_info = {0};
+	sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	res = vkCreateSemaphore(renderer->vulkan->dev, &sem_info, NULL,
+		&renderer->stage.signal);
+	if (res != VK_SUCCESS) {
+		wlr_vulkan_error("vkCreateSemaphore", res);
 		goto error;
 	}
 
