@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #ifdef __FreeBSD__
 #define __BSD_VISIBLE 1
-#define INPUT_MAJOR 0
+#include <dev/evdev/input.h>
 #endif
 #include <errno.h>
 #include <fcntl.h>
@@ -142,6 +142,7 @@ static void communicate(int sock) {
 				goto error;
 			}
 
+#ifndef __FreeBSD__
 			struct stat st;
 			if (fstat(fd, &st) < 0) {
 				ret = errno;
@@ -157,6 +158,20 @@ static void communicate(int sock) {
 			if (maj == DRM_MAJOR && drmSetMaster(fd)) {
 				ret = errno;
 			}
+#else
+			int ev;
+			struct drm_version dv = {0};
+			if (ioctl(fd, EVIOCGVERSION, &ev) == -1 &&
+					ioctl(fd, DRM_IOCTL_VERSION, &dv) == -1) {
+				ret = ENOTSUP;
+				goto error;
+			}
+
+			if (dv.version_major != 0 && drmSetMaster(fd)) {
+				ret = errno;
+			}
+#endif
+
 error:
 			send_msg(sock, ret ? -1 : fd, &ret, sizeof(ret));
 			if (fd >= 0) {
@@ -193,8 +208,11 @@ int direct_ipc_open(int sock, const char *path) {
 
 	send_msg(sock, -1, &msg, sizeof(msg));
 
-	int fd, err;
-	recv_msg(sock, &fd, &err, sizeof(err));
+	int fd, err, ret;
+	int retry = 0;
+	do {
+		ret = recv_msg(sock, &fd, &err, sizeof(err));
+	} while (ret == 0 && retry++ < 3);
 
 	return err ? -err : fd;
 }

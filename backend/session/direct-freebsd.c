@@ -15,6 +15,7 @@
 #include <wayland-server.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
 #include "backend/session/direct-ipc.h"
 #include "util/signal.h"
 
@@ -23,6 +24,7 @@ const struct session_impl session_direct;
 struct direct_session {
 	struct wlr_session base;
 	int tty_fd;
+	int old_tty;
 	int old_kbmode;
 	int sock;
 	pid_t child;
@@ -40,23 +42,18 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 		return fd;
 	}
 
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		close(fd);
-		return -errno;
-	}
-
 	return fd;
 }
 
 static void direct_session_close(struct wlr_session *base, int fd) {
 	struct direct_session *session = wl_container_of(base, session, base);
 
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		wlr_log_errno(WLR_ERROR, "Stat failed");
-		close(fd);
-		return;
+	int ev;
+	struct drm_version dv = {0};
+	if (ioctl(fd, DRM_IOCTL_VERSION, &dv) == 0) {
+		direct_ipc_dropmaster(session->sock, fd);
+	} else if (ioctl(fd, EVIOCGVERSION, &ev) == 0) {
+		ioctl(fd, EVIOCREVOKE, 0);
 	}
 
 	close(fd);
@@ -79,6 +76,8 @@ static void direct_session_destroy(struct wlr_session *base) {
 	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
 	ioctl(session->tty_fd, VT_SETMODE, &mode);
 
+	ioctl(session->tty_fd, VT_ACTIVATE, session->old_tty);
+
 	if (errno) {
 		wlr_log(WLR_ERROR, "Failed to restore tty");
 	}
@@ -93,13 +92,29 @@ static void direct_session_destroy(struct wlr_session *base) {
 
 static int vt_handler(int signo, void *data) {
 	struct direct_session *session = data;
+	struct drm_version dv = {0};
+	struct wlr_device *dev;
 
 	if (session->base.active) {
 		session->base.active = false;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
+
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (ioctl(dev->fd, DRM_IOCTL_VERSION, &dv) == 0) {
+				direct_ipc_dropmaster(session->sock, dev->fd);
+			}
+		}
+
 		ioctl(session->tty_fd, VT_RELDISP, 1);
 	} else {
 		ioctl(session->tty_fd, VT_RELDISP, VT_ACKACQ);
+
+		wl_list_for_each(dev, &session->base.devices, link) {
+			if (ioctl(dev->fd, DRM_IOCTL_VERSION, &dv) == 0) {
+				direct_ipc_setmaster(session->sock, dev->fd);
+			}
+		}
+
 		session->base.active = true;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
@@ -108,9 +123,13 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	int fd = -1, tty = -1, tty0_fd = -1;
+	int fd = -1, tty = -1, tty0_fd = -1, old_tty = 1;
 	if ((tty0_fd = open("/dev/ttyv0", O_RDWR | O_CLOEXEC)) < 0) {
 		wlr_log_errno(WLR_ERROR, "Could not open /dev/ttyv0 to find a free vt");
+		goto error;
+	}
+	if (ioctl(tty0_fd, VT_GETACTIVE, &old_tty) != 0) {
+		wlr_log_errno(WLR_ERROR, "Could not get active vt");
 		goto error;
 	}
 	if (ioctl(tty0_fd, VT_OPENQRY, &tty) != 0) {
@@ -168,13 +187,16 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 
 	session->base.vtnr = tty;
 	session->tty_fd = fd;
+	session->old_tty = old_tty;
 	session->old_kbmode = old_kbmode;
 
 	return true;
 
 error:
-	// Drop back to tty 1, better than hanging in a useless blank console
-	ioctl(fd, VT_ACTIVATE, 1);
+	// In case we could not get the last active one, drop back to tty 1,
+	// better than hanging in a useless blank console. Otherwise activate the
+	// last active.
+	ioctl(fd, VT_ACTIVATE, old_tty);
 	close(fd);
 	return false;
 }
