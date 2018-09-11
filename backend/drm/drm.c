@@ -783,28 +783,32 @@ void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		}
 	}
 
+	struct wlr_drm_connector *connectors[num_outputs];
+	i = 0;
+	wl_list_for_each(conn, &drm->outputs, link) {
+		connectors[i] = conn;
+		i++;
+	}
+
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		if (crtc_res[i] == UNMATCHED) {
+			// De-allocate CRTCs we don't use anymore
+			if (crtc[i] != UNMATCHED) {
+				dealloc_crtc(connectors[crtc[i]]);
+			}
 			continue;
 		}
 
 		if (crtc_res[i] != crtc[i]) {
 			changed_outputs[crtc_res[i]] = true;
 
-			struct wlr_drm_connector *c;
-			size_t pos = 0;
-			wl_list_for_each(c, &drm->outputs, link) {
-				if (pos == crtc_res[i]) {
-					break;
-				}
-				pos++;
-			}
+			struct wlr_drm_connector *conn = connectors[crtc_res[i]];
 
-			dealloc_crtc(c);
-			c->crtc = &drm->crtcs[i];
+			dealloc_crtc(conn);
+			conn->crtc = &drm->crtcs[i];
 
 			wlr_log(WLR_DEBUG, "Assigning CRTC %zu to output %d -> %d '%s'",
-				i, crtc[i], crtc_res[i], c->output.name);
+				i, crtc[i], crtc_res[i], conn->output.name);
 		}
 	}
 
