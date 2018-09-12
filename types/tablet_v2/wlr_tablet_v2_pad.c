@@ -11,6 +11,8 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
+static struct wlr_tablet_pad_v2_grab_interface default_pad_grab_interface;
+
 struct tablet_pad_auxiliary_user_data {
 	struct wlr_tablet_pad_client_v2 *pad;
 	size_t index;
@@ -366,6 +368,9 @@ struct wlr_tablet_v2_tablet_pad *wlr_tablet_pad_create(
 	if (!pad) {
 		return NULL;
 	}
+	pad->default_grab.interface = &default_pad_grab_interface;
+	pad->default_grab.pad = pad;
+	pad->grab = &pad->default_grab;
 
 	pad->group_count = wl_list_length(&wlr_pad->groups);
 	pad->groups = calloc(pad->group_count, sizeof(uint32_t));
@@ -564,3 +569,126 @@ bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
 
 	return false;
 }
+
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_enter(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	struct wlr_tablet_v2_tablet *tablet,
+	struct wlr_surface *surface) {
+	if (pad->grab && pad->grab->interface->enter) {
+		return pad->grab->interface->enter(pad->grab, tablet, surface);
+	}
+
+	return 0;
+}
+
+void wlr_tablet_v2_tablet_pad_notify_button(
+	struct wlr_tablet_v2_tablet_pad *pad, size_t button,
+	uint32_t time, enum zwp_tablet_pad_v2_button_state state) {
+	if (pad->grab && pad->grab->interface->button) {
+		pad->grab->interface->button(pad->grab, button, time, state);
+	}
+}
+
+void wlr_tablet_v2_tablet_pad_notify_strip(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	uint32_t strip, double position, bool finger, uint32_t time) {
+	if (pad->grab && pad->grab->interface->strip) {
+		pad->grab->interface->strip(pad->grab, strip, position, finger, time);
+	}
+}
+
+void wlr_tablet_v2_tablet_pad_notify_ring(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	uint32_t ring, double position, bool finger, uint32_t time) {
+	if (pad->grab && pad->grab->interface->ring) {
+		pad->grab->interface->ring(pad->grab, ring, position, finger, time);
+	}
+}
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_leave(
+	struct wlr_tablet_v2_tablet_pad *pad, struct wlr_surface *surface) {
+	if (pad->grab && pad->grab->interface->leave) {
+		return pad->grab->interface->leave(pad->grab, surface);
+	}
+
+	return 0;
+}
+
+uint32_t wlr_tablet_v2_tablet_pad_notify_mode(
+	struct wlr_tablet_v2_tablet_pad *pad,
+	size_t group, uint32_t mode, uint32_t time) {
+	if (pad->grab && pad->grab->interface->mode) {
+		return pad->grab->interface->mode(pad->grab, group, mode, time);
+	}
+
+	return 0;
+}
+
+void wlr_tablet_v2_start_grab(struct wlr_tablet_v2_tablet_pad *pad,
+		struct wlr_tablet_pad_v2_grab *grab) {
+	if (grab != &pad->default_grab) {
+		struct wlr_tablet_pad_v2_grab *prev = pad->grab;
+		grab->pad = pad;
+		pad->grab = grab;
+		if (prev && prev->interface->cancel) {
+			prev->interface->cancel(prev);
+		}
+	}
+}
+
+void wlr_tablet_v2_end_grab(struct wlr_tablet_v2_tablet_pad *pad) {
+	struct wlr_tablet_pad_v2_grab *grab = pad->grab;
+	if (grab && grab != &pad->default_grab) {
+		pad->grab = &pad->default_grab;
+		if (grab->interface->cancel) {
+			grab->interface->cancel(grab);
+		}
+	}
+}
+
+static uint32_t default_pad_enter(
+		struct wlr_tablet_pad_v2_grab *grab,
+		struct wlr_tablet_v2_tablet *tablet,
+		struct wlr_surface *surface) {
+	return wlr_send_tablet_v2_tablet_pad_enter(grab->pad, tablet, surface);
+}
+
+static void default_pad_button(struct wlr_tablet_pad_v2_grab *grab,size_t button,
+		uint32_t time, enum zwp_tablet_pad_v2_button_state state) {
+	wlr_send_tablet_v2_tablet_pad_button(grab->pad, button, time, state);
+}
+
+static void default_pad_strip(struct wlr_tablet_pad_v2_grab *grab,
+		uint32_t strip, double position, bool finger, uint32_t time) {
+	wlr_send_tablet_v2_tablet_pad_strip(grab->pad, strip, position, finger, time);
+}
+
+static void default_pad_ring(struct wlr_tablet_pad_v2_grab *grab,
+		uint32_t ring, double position, bool finger, uint32_t time) {
+	wlr_send_tablet_v2_tablet_pad_ring(grab->pad, ring, position, finger, time);
+}
+
+static uint32_t default_pad_leave(struct wlr_tablet_pad_v2_grab *grab,
+		struct wlr_surface *surface) {
+	return wlr_send_tablet_v2_tablet_pad_leave(grab->pad, surface);
+}
+
+static uint32_t default_pad_mode(struct wlr_tablet_pad_v2_grab *grab,
+		size_t group, uint32_t mode, uint32_t time) {
+	return wlr_send_tablet_v2_tablet_pad_mode(grab->pad, group, mode, time);
+}
+
+static void default_pad_cancel(struct wlr_tablet_pad_v2_grab *grab) {
+	// Do nothing, the default cancel can be ignored.
+}
+
+static struct wlr_tablet_pad_v2_grab_interface default_pad_grab_interface  = {
+	.enter = default_pad_enter,
+	.button = default_pad_button,
+	.strip = default_pad_strip,
+	.ring = default_pad_ring,
+	.leave = default_pad_leave,
+	.mode = default_pad_mode,
+	.cancel = default_pad_cancel,
+};
