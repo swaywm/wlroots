@@ -35,7 +35,7 @@ install_headers(
 	'wlr_wl_shell.h',
 	'wlr_xcursor_manager.h',
 	'wlr_xdg_decoration_v1.h',
-	'wlr_xdg_output.h',
+	'wlr_xdg_output_v1.h',
 	'wlr_xdg_shell.h',
 	'wlr_xdg_shell_v6.h',
 	subdir: 'wlr/types',

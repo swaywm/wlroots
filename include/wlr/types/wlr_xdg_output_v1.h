@@ -6,13 +6,13 @@
 #error "Add -DWLR_USE_UNSTABLE to enable unstable wlroots features"
 #endif
 
-#ifndef WLR_TYPES_WLR_XDG_OUTPUT_H
-#define WLR_TYPES_WLR_XDG_OUTPUT_H
+#ifndef WLR_TYPES_WLR_XDG_OUTPUT_V1_H
+#define WLR_TYPES_WLR_XDG_OUTPUT_V1_H
 #include <wayland-server.h>
 #include <wlr/types/wlr_output_layout.h>
 
-struct wlr_xdg_output {
-	struct wlr_xdg_output_manager *manager;
+struct wlr_xdg_output_v1 {
+	struct wlr_xdg_output_manager_v1 *manager;
 	struct wl_list resources;
 	struct wl_list link;
 
@@ -24,7 +24,7 @@ struct wlr_xdg_output {
 	struct wl_listener destroy;
 };
 
-struct wlr_xdg_output_manager {
+struct wlr_xdg_output_manager_v1 {
 	struct wl_global *global;
 	struct wl_list resources;
 	struct wlr_output_layout *layout;
@@ -40,8 +40,8 @@ struct wlr_xdg_output_manager {
 	} events;
 };
 
-struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(
+struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
 		struct wl_display *display, struct wlr_output_layout *layout);
-void wlr_xdg_output_manager_destroy(struct wlr_xdg_output_manager *manager);
+void wlr_xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager);
 
 #endif

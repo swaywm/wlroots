@@ -55,7 +55,7 @@ lib_wlr_types = static_library(
 		'wlr_wl_shell.c',
 		'wlr_xcursor_manager.c',
 		'wlr_xdg_decoration_v1.c',
-		'wlr_xdg_output.c',
+		'wlr_xdg_output_v1.c',
 		'wlr_screencopy_v1.c',
 	),
 	include_directories: wlr_inc,

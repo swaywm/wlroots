@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_xdg_output.h>
+#include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/util/log.h>
 #include "xdg-output-unstable-v1-protocol.h"
 #include "util/signal.h"
@@ -23,7 +23,7 @@ static void output_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void output_send_details(struct wlr_xdg_output *xdg_output,
+static void output_send_details(struct wlr_xdg_output_v1 *xdg_output,
 		struct wl_resource *resource) {
 	struct wlr_output *output = xdg_output->layout_output->output;
 
@@ -46,7 +46,7 @@ static void output_send_details(struct wlr_xdg_output *xdg_output,
 	zxdg_output_v1_send_done(resource);
 }
 
-static void output_update(struct wlr_xdg_output *xdg_output) {
+static void output_update(struct wlr_xdg_output_v1 *xdg_output) {
 	struct wlr_output_layout_output *layout_output = xdg_output->layout_output;
 	bool updated = false;
 
@@ -72,7 +72,7 @@ static void output_update(struct wlr_xdg_output *xdg_output) {
 	}
 }
 
-static void output_destroy(struct wlr_xdg_output *output) {
+static void output_destroy(struct wlr_xdg_output_v1 *output) {
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &output->resources) {
 		wl_list_remove(wl_resource_get_link(resource));
@@ -98,7 +98,7 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	assert(wl_resource_instance_of(resource, &zxdg_output_manager_v1_interface,
 		&output_manager_implementation));
 
-	struct wlr_xdg_output_manager *manager =
+	struct wlr_xdg_output_manager_v1 *manager =
 		wl_resource_get_user_data(resource);
 	struct wlr_output_layout *layout = manager->layout;
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
@@ -107,7 +107,7 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 		wlr_output_layout_get(layout, output);
 	assert(layout_output);
 
-	struct wlr_xdg_output *_xdg_output, *xdg_output = NULL;
+	struct wlr_xdg_output_v1 *_xdg_output, *xdg_output = NULL;
 	wl_list_for_each(_xdg_output, &manager->outputs, link) {
 		if (_xdg_output->layout_output == layout_output) {
 			xdg_output = _xdg_output;
@@ -144,7 +144,7 @@ static void output_manager_handle_resource_destroy(
 
 static void output_manager_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_xdg_output_manager *manager = data;
+	struct wlr_xdg_output_manager_v1 *manager = data;
 
 	struct wl_resource *resource = wl_resource_create(wl_client,
 		&zxdg_output_manager_v1_interface, version, id);
@@ -158,13 +158,13 @@ static void output_manager_bind(struct wl_client *wl_client, void *data,
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_output *output = wl_container_of(listener, output, destroy);
+	struct wlr_xdg_output_v1 *output = wl_container_of(listener, output, destroy);
 	output_destroy(output);
 }
 
-static void add_output(struct wlr_xdg_output_manager *manager,
+static void add_output(struct wlr_xdg_output_manager_v1 *manager,
 		struct wlr_output_layout_output *layout_output) {
-	struct wlr_xdg_output *output = calloc(1, sizeof(struct wlr_xdg_output));
+	struct wlr_xdg_output_v1 *output = calloc(1, sizeof(struct wlr_xdg_output_v1));
 	if (output == NULL) {
 		return;
 	}
@@ -178,37 +178,37 @@ static void add_output(struct wlr_xdg_output_manager *manager,
 }
 
 static void output_manager_send_details(
-		struct wlr_xdg_output_manager *manager) {
-	struct wlr_xdg_output *output;
+		struct wlr_xdg_output_manager_v1 *manager) {
+	struct wlr_xdg_output_v1 *output;
 	wl_list_for_each(output, &manager->outputs, link) {
 		output_update(output);
 	}
 }
 
 static void handle_layout_add(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_output_manager *manager =
+	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, layout_add);
 	struct wlr_output_layout_output *layout_output = data;
 	add_output(manager, layout_output);
 }
 
 static void handle_layout_change(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_output_manager *manager =
+	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, layout_change);
 	output_manager_send_details(manager);
 }
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_output_manager *manager =
+	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, layout_destroy);
-	wlr_xdg_output_manager_destroy(manager);
+	wlr_xdg_output_manager_v1_destroy(manager);
 }
 
-struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(
+struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
 		struct wl_display *display, struct wlr_output_layout *layout) {
 	assert(display && layout);
-	struct wlr_xdg_output_manager *manager =
-		calloc(1, sizeof(struct wlr_xdg_output_manager));
+	struct wlr_xdg_output_manager_v1 *manager =
+		calloc(1, sizeof(struct wlr_xdg_output_manager_v1));
 	if (manager == NULL) {
 		return NULL;
 	}
@@ -239,8 +239,8 @@ struct wlr_xdg_output_manager *wlr_xdg_output_manager_create(
 	return manager;
 }
 
-void wlr_xdg_output_manager_destroy(struct wlr_xdg_output_manager *manager) {
-	struct wlr_xdg_output *output, *output_tmp;
+void wlr_xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager) {
+	struct wlr_xdg_output_v1 *output, *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &manager->outputs, link) {
 		output_destroy(output);
 	}
