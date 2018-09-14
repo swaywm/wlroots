@@ -363,14 +363,14 @@ static void render_layer(struct roots_output *output,
 		struct wl_list *layer) {
 	struct roots_layer_surface *roots_surface;
 	wl_list_for_each(roots_surface, layer, link) {
-		struct wlr_layer_surface *layer = roots_surface->layer_surface;
+		struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
 
 		surface_for_each_surface(layer->surface,
 			roots_surface->geo.x + output_layout_box->x,
 			roots_surface->geo.y + output_layout_box->y,
 			0, &data->layout, render_surface, data);
 
-		wlr_layer_surface_for_each_surface(layer, render_surface, data);
+		wlr_layer_surface_v1_for_each_surface(layer, render_surface, data);
 	}
 }
 
@@ -380,7 +380,7 @@ static void layers_send_done(
 	for (size_t i = 0; i < len; ++i) {
 		struct roots_layer_surface *roots_surface;
 		wl_list_for_each(roots_surface, &output->layers[i], link) {
-			struct wlr_layer_surface *layer = roots_surface->layer_surface;
+			struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
 			wlr_surface_send_frame_done(layer->surface, when);
 			struct wlr_xdg_popup *popup;
 			wl_list_for_each(popup, &roots_surface->layer_surface->popups, link) {
