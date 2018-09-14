@@ -720,6 +720,13 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 		transform = cursor->surface->current.transform;
 	}
 
+	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
+	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
+		wlr_log(WLR_DEBUG,
+			"WLR_NO_HARDWARE_CURSORS set, forcing software cursors");
+		return false;
+	}
+
 	struct wlr_output_cursor *hwcur = cursor->output->hardware_cursor;
 	if (cursor->output->impl->set_cursor && (hwcur == NULL || hwcur == cursor)) {
 		// If the cursor was hidden or was a software cursor, the hardware

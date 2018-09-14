@@ -14,6 +14,8 @@ wlroots specific
 * *WLR_X11_OUTPUTS*: when using the X11 backend specifies the number of outputs
 * *WLR_HEADLESS_OUTPUTS*: when using the headless backend specifies the number
   of outputs
+* *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
+  hardware cursors
 
 rootston specific
 ------------------
