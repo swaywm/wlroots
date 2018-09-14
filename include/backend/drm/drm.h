@@ -143,6 +143,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm);
 void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
-void enable_drm_connector(struct wlr_output *output, bool enable);
+bool enable_drm_connector(struct wlr_output *output, bool enable);
 
 #endif

@@ -342,17 +342,17 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 }
 
-void enable_drm_connector(struct wlr_output *output, bool enable) {
+bool enable_drm_connector(struct wlr_output *output, bool enable) {
 	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
 	if (conn->state != WLR_DRM_CONN_CONNECTED
 			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
-		return;
+		return false;
 	}
 
 	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)output->backend;
 	bool ok = drm->iface->conn_enable(drm, conn, enable);
 	if (!ok) {
-		return;
+		return false;
 	}
 
 	if (enable) {
@@ -360,6 +360,7 @@ void enable_drm_connector(struct wlr_output *output, bool enable) {
 	}
 
 	wlr_output_update_enabled(&conn->output, enable);
+	return true;
 }
 
 static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
