@@ -8,7 +8,7 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_idle.h>
-#include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
@@ -1194,7 +1194,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
  * You also cannot alt-tab between layer surfaces and shell surfaces.
  */
 void roots_seat_set_focus_layer(struct roots_seat *seat,
-		struct wlr_layer_surface *layer) {
+		struct wlr_layer_surface_v1 *layer) {
 	if (!layer) {
 		seat->focused_layer = NULL;
 		return;

@@ -17,7 +17,7 @@ struct roots_seat {
 	double touch_x, touch_y;
 
 	// If the focused layer is set, views cannot receive keyboard focus
-	struct wlr_layer_surface *focused_layer;
+	struct wlr_layer_surface_v1 *focused_layer;
 
 	// If non-null, only this client can receive input events
 	struct wl_client *exclusive_client;
@@ -140,7 +140,7 @@ struct roots_view *roots_seat_get_focus(struct roots_seat *seat);
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view);
 
 void roots_seat_set_focus_layer(struct roots_seat *seat,
-		struct wlr_layer_surface *layer);
+		struct wlr_layer_surface_v1 *layer);
 
 void roots_seat_cycle_focus(struct roots_seat *seat);
 

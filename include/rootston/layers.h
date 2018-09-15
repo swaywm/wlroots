@@ -3,10 +3,10 @@
 #include <stdbool.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 
 struct roots_layer_surface {
-	struct wlr_layer_surface *layer_surface;
+	struct wlr_layer_surface_v1 *layer_surface;
 	struct wl_list link;
 
 	struct wl_listener destroy;

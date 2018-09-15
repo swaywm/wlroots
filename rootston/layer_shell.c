@@ -10,7 +10,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
-#include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/util/log.h>
 #include "rootston/desktop.h"
 #include "rootston/layers.h"
@@ -111,8 +111,8 @@ static void arrange_layer(struct wlr_output *output,
 	wlr_output_effective_resolution(output,
 			&full_area.width, &full_area.height);
 	wl_list_for_each_reverse(roots_surface, list, link) {
-		struct wlr_layer_surface *layer = roots_surface->layer_surface;
-		struct wlr_layer_surface_state *state = &layer->current;
+		struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
+		struct wlr_layer_surface_v1_state *state = &layer->current;
 		if (exclusive != (state->exclusive_zone > 0)) {
 			continue;
 		}
@@ -171,7 +171,7 @@ static void arrange_layer(struct wlr_output *output,
 		}
 		if (box.width < 0 || box.height < 0) {
 			// TODO: Bubble up a protocol error?
-			wlr_layer_surface_close(layer);
+			wlr_layer_surface_v1_close(layer);
 			continue;
 		}
 
@@ -181,7 +181,7 @@ static void arrange_layer(struct wlr_output *output,
 		apply_exclusive(usable_area, state->anchor, state->exclusive_zone,
 				state->margin.top, state->margin.right,
 				state->margin.bottom, state->margin.left);
-		wlr_layer_surface_configure(layer, box.width, box.height);
+		wlr_layer_surface_v1_configure(layer, box.width, box.height);
 
 		// Having a cursor newly end up over the moved layer will not
 		// automatically send a motion event to the surface. The event needs to
@@ -270,13 +270,13 @@ static void handle_output_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, layer, output_destroy);
 	layer->layer_surface->output = NULL;
 	wl_list_remove(&layer->output_destroy.link);
-	wlr_layer_surface_close(layer->layer_surface);
+	wlr_layer_surface_v1_close(layer->layer_surface);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_layer_surface *layer =
 		wl_container_of(listener, layer, surface_commit);
-	struct wlr_layer_surface *layer_surface = layer->layer_surface;
+	struct wlr_layer_surface_v1 *layer_surface = layer->layer_surface;
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
@@ -308,7 +308,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void unmap(struct wlr_layer_surface *layer_surface) {
+static void unmap(struct wlr_layer_surface_v1 *layer_surface) {
 	struct roots_layer_surface *layer = layer_surface->data;
 	struct wlr_output *wlr_output = layer_surface->output;
 	if (wlr_output != NULL) {
@@ -337,7 +337,7 @@ static void handle_destroy(struct wl_listener *listener, void *data) {
 }
 
 static void handle_map(struct wl_listener *listener, void *data) {
-	struct wlr_layer_surface *layer_surface = data;
+	struct wlr_layer_surface_v1 *layer_surface = data;
 	struct roots_layer_surface *layer = layer_surface->data;
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
@@ -430,7 +430,7 @@ static void handle_new_popup(struct wl_listener *listener, void *data) {
 }
 
 void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
-	struct wlr_layer_surface *layer_surface = data;
+	struct wlr_layer_surface_v1 *layer_surface = data;
 	struct roots_desktop *desktop =
 		wl_container_of(listener, desktop, layer_shell_surface);
 	wlr_log(WLR_DEBUG, "new layer surface: namespace %s layer %d anchor %d "
@@ -460,7 +460,7 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 		if (output) {
 			layer_surface->output = output;
 		} else {
-			wlr_layer_surface_close(layer_surface);
+			wlr_layer_surface_v1_close(layer_surface);
 			return;
 		}
 	}
@@ -497,7 +497,7 @@ void handle_layer_shell_surface(struct wl_listener *listener, void *data) {
 
 	// Temporarily set the layer's current state to client_pending
 	// So that we can easily arrange it
-	struct wlr_layer_surface_state old_state = layer_surface->current;
+	struct wlr_layer_surface_v1_state old_state = layer_surface->current;
 	layer_surface->current = layer_surface->client_pending;
 
 	arrange_layers(output);

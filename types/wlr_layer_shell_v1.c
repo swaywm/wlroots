@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
-#include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -19,14 +19,14 @@ static void resource_handle_destroy(struct wl_client *client,
 static const struct zwlr_layer_shell_v1_interface layer_shell_implementation;
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation;
 
-static struct wlr_layer_shell *layer_shell_from_resource(
+static struct wlr_layer_shell_v1 *layer_shell_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwlr_layer_shell_v1_interface,
 		&layer_shell_implementation));
 	return wl_resource_get_user_data(resource);
 }
 
-static struct wlr_layer_surface *layer_surface_from_resource(
+static struct wlr_layer_surface_v1 *layer_surface_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwlr_layer_surface_v1_interface,
 		&layer_surface_implementation));
@@ -39,14 +39,14 @@ bool wlr_surface_is_layer_surface(struct wlr_surface *surface) {
 	return surface->role == &layer_surface_role;
 }
 
-struct wlr_layer_surface *wlr_layer_surface_from_wlr_surface(
+struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_wlr_surface(
 		struct wlr_surface *surface) {
 	assert(wlr_surface_is_layer_surface(surface));
-	return (struct wlr_layer_surface *)surface->role_data;
+	return (struct wlr_layer_surface_v1 *)surface->role_data;
 }
 
 static void layer_surface_configure_destroy(
-		struct wlr_layer_surface_configure *configure) {
+		struct wlr_layer_surface_v1_configure *configure) {
 	if (configure == NULL) {
 		return;
 	}
@@ -56,10 +56,10 @@ static void layer_surface_configure_destroy(
 
 static void layer_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 
 	bool found = false;
-	struct wlr_layer_surface_configure *configure, *tmp;
+	struct wlr_layer_surface_v1_configure *configure, *tmp;
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		if (configure->serial < serial) {
 			layer_surface_configure_destroy(configure);
@@ -87,7 +87,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 
 static void layer_surface_handle_set_size(struct wl_client *client,
 		struct wl_resource *resource, uint32_t width, uint32_t height) {
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 	surface->client_pending.desired_width = width;
 	surface->client_pending.desired_height = height;
 }
@@ -104,20 +104,20 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_ANCHOR,
 			"invalid anchor %d", anchor);
 	}
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 	surface->client_pending.anchor = anchor;
 }
 
 static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 		struct wl_resource *resource, int32_t zone) {
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 	surface->client_pending.exclusive_zone = zone;
 }
 
 static void layer_surface_handle_set_margin(
 		struct wl_client *client, struct wl_resource *resource,
 		int32_t top, int32_t right, int32_t bottom, int32_t left) {
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 	surface->client_pending.margin.top = top;
 	surface->client_pending.margin.right = right;
 	surface->client_pending.margin.bottom = bottom;
@@ -127,14 +127,14 @@ static void layer_surface_handle_set_margin(
 static void layer_surface_handle_set_keyboard_interactivity(
 		struct wl_client *client, struct wl_resource *resource,
 		uint32_t interactive) {
-	struct wlr_layer_surface *surface = layer_surface_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 	surface->client_pending.keyboard_interactive = !!interactive;
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
 		struct wl_resource *layer_resource,
 		struct wl_resource *popup_resource) {
-	struct wlr_layer_surface *parent =
+	struct wlr_layer_surface_v1 *parent =
 		layer_surface_from_resource(layer_resource);
 	struct wlr_xdg_surface *popup_surface =
 		wlr_xdg_surface_from_popup_resource(popup_resource);
@@ -157,11 +157,11 @@ static const struct zwlr_layer_surface_v1_interface layer_surface_implementation
 	.get_popup = layer_surface_handle_get_popup,
 };
 
-static void layer_surface_unmap(struct wlr_layer_surface *surface) {
+static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 	// TODO: probably need to ungrab before this event
 	wlr_signal_emit_safe(&surface->events.unmap, surface);
 
-	struct wlr_layer_surface_configure *configure, *tmp;
+	struct wlr_layer_surface_v1_configure *configure, *tmp;
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		layer_surface_configure_destroy(configure);
 	}
@@ -175,7 +175,7 @@ static void layer_surface_unmap(struct wlr_layer_surface *surface) {
 	surface->configure_next_serial = 0;
 }
 
-static void layer_surface_destroy(struct wlr_layer_surface *surface) {
+static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
 	if (surface->configured && surface->mapped) {
 		layer_surface_unmap(surface);
 	}
@@ -189,15 +189,15 @@ static void layer_surface_destroy(struct wlr_layer_surface *surface) {
 }
 
 static void layer_surface_resource_destroy(struct wl_resource *resource) {
-	struct wlr_layer_surface *surface =
+	struct wlr_layer_surface_v1 *surface =
 		layer_surface_from_resource(resource);
 	if (surface != NULL) {
 		layer_surface_destroy(surface);
 	}
 }
 
-static bool layer_surface_state_changed(struct wlr_layer_surface *surface) {
-	struct wlr_layer_surface_state *state;
+static bool layer_surface_state_changed(struct wlr_layer_surface_v1 *surface) {
+	struct wlr_layer_surface_v1_state *state;
 	if (wl_list_empty(&surface->configure_list)) {
 		if (surface->acked_configure) {
 			state = &surface->acked_configure->state;
@@ -207,7 +207,7 @@ static bool layer_surface_state_changed(struct wlr_layer_surface *surface) {
 			state = &surface->current;
 		}
 	} else {
-		struct wlr_layer_surface_configure *configure =
+		struct wlr_layer_surface_v1_configure *configure =
 			wl_container_of(surface->configure_list.prev, configure, link);
 		state = &configure->state;
 	}
@@ -217,15 +217,15 @@ static bool layer_surface_state_changed(struct wlr_layer_surface *surface) {
 	return changed;
 }
 
-void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
+void wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
 		uint32_t width, uint32_t height) {
 	surface->server_pending.actual_width = width;
 	surface->server_pending.actual_height = height;
 	if (layer_surface_state_changed(surface)) {
 		struct wl_display *display =
 			wl_client_get_display(wl_resource_get_client(surface->resource));
-		struct wlr_layer_surface_configure *configure =
-			calloc(1, sizeof(struct wlr_layer_surface_configure));
+		struct wlr_layer_surface_v1_configure *configure =
+			calloc(1, sizeof(struct wlr_layer_surface_v1_configure));
 		if (configure == NULL) {
 			wl_client_post_no_memory(wl_resource_get_client(surface->resource));
 			return;
@@ -241,7 +241,7 @@ void wlr_layer_surface_configure(struct wlr_layer_surface *surface,
 	}
 }
 
-void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
+void wlr_layer_surface_v1_close(struct wlr_layer_surface_v1 *surface) {
 	if (surface->closed) {
 		return;
 	}
@@ -251,8 +251,8 @@ void wlr_layer_surface_close(struct wlr_layer_surface *surface) {
 }
 
 static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
-	struct wlr_layer_surface *surface =
-		wlr_layer_surface_from_wlr_surface(wlr_surface);
+	struct wlr_layer_surface_v1 *surface =
+		wlr_layer_surface_v1_from_wlr_surface(wlr_surface);
 	if (surface == NULL) {
 		return;
 	}
@@ -263,7 +263,7 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 	}
 
 	if (surface->acked_configure) {
-		struct wlr_layer_surface_configure *configure =
+		struct wlr_layer_surface_v1_configure *configure =
 			surface->acked_configure;
 		surface->configured = true;
 		surface->configure_serial = configure->serial;
@@ -314,7 +314,7 @@ static const struct wlr_surface_role layer_surface_role = {
 
 static void handle_surface_destroyed(struct wl_listener *listener,
 		void *data) {
-	struct wlr_layer_surface *layer_surface =
+	struct wlr_layer_surface_v1 *layer_surface =
 		wl_container_of(listener, layer_surface, surface_destroy);
 	layer_surface_destroy(layer_surface);
 }
@@ -324,13 +324,13 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		struct wl_resource *surface_resource,
 		struct wl_resource *output_resource,
 		uint32_t layer, const char *namespace) {
-	struct wlr_layer_shell *shell =
+	struct wlr_layer_shell_v1 *shell =
 		layer_shell_from_resource(client_resource);
 	struct wlr_surface *wlr_surface =
 		wlr_surface_from_resource(surface_resource);
 
-	struct wlr_layer_surface *surface =
-		calloc(1, sizeof(struct wlr_layer_surface));
+	struct wlr_layer_surface_v1 *surface =
+		calloc(1, sizeof(struct wlr_layer_surface_v1));
 	if (surface == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
@@ -397,8 +397,8 @@ static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 
 static void client_handle_destroy(struct wl_resource *resource) {
 	struct wl_client *client = wl_resource_get_client(resource);
-	struct wlr_layer_shell *shell = layer_shell_from_resource(resource);
-	struct wlr_layer_surface *surface, *tmp = NULL;
+	struct wlr_layer_shell_v1 *shell = layer_shell_from_resource(resource);
+	struct wlr_layer_surface_v1 *surface, *tmp = NULL;
 	wl_list_for_each_safe(surface, tmp, &shell->surfaces, link) {
 		if (wl_resource_get_client(surface->resource) == client) {
 			layer_surface_destroy(surface);
@@ -409,7 +409,7 @@ static void client_handle_destroy(struct wl_resource *resource) {
 
 static void layer_shell_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
-	struct wlr_layer_shell *layer_shell = data;
+	struct wlr_layer_shell_v1 *layer_shell = data;
 	assert(wl_client && layer_shell);
 
 	struct wl_resource *resource = wl_resource_create(
@@ -420,24 +420,23 @@ static void layer_shell_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(resource,
 			&layer_shell_implementation, layer_shell, client_handle_destroy);
-	wl_list_insert(&layer_shell->client_resources,
-			wl_resource_get_link(resource));
+	wl_list_insert(&layer_shell->resources, wl_resource_get_link(resource));
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_layer_shell *layer_shell =
+	struct wlr_layer_shell_v1 *layer_shell =
 		wl_container_of(listener, layer_shell, display_destroy);
-	wlr_layer_shell_destroy(layer_shell);
+	wlr_layer_shell_v1_destroy(layer_shell);
 }
 
-struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
-	struct wlr_layer_shell *layer_shell =
-		calloc(1, sizeof(struct wlr_layer_shell));
+struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display) {
+	struct wlr_layer_shell_v1 *layer_shell =
+		calloc(1, sizeof(struct wlr_layer_shell_v1));
 	if (!layer_shell) {
 		return NULL;
 	}
 
-	wl_list_init(&layer_shell->client_resources);
+	wl_list_init(&layer_shell->resources);
 	wl_list_init(&layer_shell->surfaces);
 
 	struct wl_global *global = wl_global_create(display,
@@ -457,13 +456,13 @@ struct wlr_layer_shell *wlr_layer_shell_create(struct wl_display *display) {
 	return layer_shell;
 }
 
-void wlr_layer_shell_destroy(struct wlr_layer_shell *layer_shell) {
+void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell) {
 	if (!layer_shell) {
 		return;
 	}
-	struct wl_resource *client, *tmp;
-	wl_resource_for_each_safe(client, tmp, &layer_shell->client_resources) {
-		wl_resource_destroy(client);
+	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &layer_shell->resources) {
+		wl_resource_destroy(resource);
 	}
 	wlr_signal_emit_safe(&layer_shell->events.destroy, layer_shell);
 	wl_list_remove(&layer_shell->display_destroy.link);
@@ -511,7 +510,7 @@ static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 	}
 }
 
-static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+static void layer_surface_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct layer_surface_iterator_data data = {
 		.user_iterator = iterator,
@@ -537,13 +536,13 @@ static void layer_surface_for_each_surface(struct wlr_layer_surface *surface,
 	}
 }
 
-void wlr_layer_surface_for_each_surface(struct wlr_layer_surface *surface,
+void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
 }
 
-struct wlr_surface *wlr_layer_surface_surface_at(
-		struct wlr_layer_surface *surface, double sx, double sy,
+struct wlr_surface *wlr_layer_surface_v1_surface_at(
+		struct wlr_layer_surface_v1 *surface, double sx, double sy,
 		double *sub_x, double *sub_y) {
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {

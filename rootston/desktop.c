@@ -13,7 +13,7 @@
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
-#include <wlr/types/wlr_layer_shell.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
@@ -667,7 +667,7 @@ static struct wlr_surface *layer_surface_at(struct roots_output *output,
 		double _sx = ox - roots_surface->geo.x;
 		double _sy = oy - roots_surface->geo.y;
 
-		struct wlr_surface *sub = wlr_layer_surface_surface_at(
+		struct wlr_surface *sub = wlr_layer_surface_v1_surface_at(
 			roots_surface->layer_surface, _sx, _sy, sx, sy);
 
 		if (sub) {
@@ -817,7 +817,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->wl_shell_surface);
 	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
-	desktop->layer_shell = wlr_layer_shell_create(server->wl_display);
+	desktop->layer_shell = wlr_layer_shell_v1_create(server->wl_display);
 	wl_signal_add(&desktop->layer_shell->events.new_surface,
 		&desktop->layer_shell_surface);
 	desktop->layer_shell_surface.notify = handle_layer_shell_surface;

@@ -12,7 +12,7 @@ install_headers(
 	'wlr_input_device.h',
 	'wlr_input_inhibitor.h',
 	'wlr_keyboard.h',
-	'wlr_layer_shell.h',
+	'wlr_layer_shell_v1.h',
 	'wlr_linux_dmabuf_v1.h',
 	'wlr_list.h',
 	'wlr_matrix.h',
