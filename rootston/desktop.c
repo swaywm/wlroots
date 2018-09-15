@@ -19,10 +19,10 @@
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
-#include <wlr/types/wlr_xdg_output.h>
+#include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/types/wlr_xdg_output.h>
+#include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "rootston/layers.h"
@@ -795,7 +795,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->config = config;
 
 	desktop->layout = wlr_output_layout_create();
-	wlr_xdg_output_manager_create(server->wl_display, desktop->layout);
+	wlr_xdg_output_manager_v1_create(server->wl_display, desktop->layout);
 	desktop->layout_change.notify = handle_layout_change;
 	wl_signal_add(&desktop->layout->events.change, &desktop->layout_change);
 
