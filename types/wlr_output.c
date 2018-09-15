@@ -142,14 +142,15 @@ static void output_update_matrix(struct wlr_output *output) {
 		output->height, output->transform);
 }
 
-void wlr_output_enable(struct wlr_output *output, bool enable) {
+bool wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->enabled == enable) {
-		return;
+		return true;
 	}
 
 	if (output->impl->enable) {
-		output->impl->enable(output, enable);
+		return output->impl->enable(output, enable);
 	}
+	return false;
 }
 
 bool wlr_output_set_mode(struct wlr_output *output,

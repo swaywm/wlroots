@@ -15,7 +15,7 @@
 #include <wlr/types/wlr_output.h>
 
 struct wlr_output_impl {
-	void (*enable)(struct wlr_output *output, bool enable);
+	bool (*enable)(struct wlr_output *output, bool enable);
 	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
 	bool (*set_custom_mode)(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh);
