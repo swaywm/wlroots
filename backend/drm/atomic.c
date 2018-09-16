@@ -129,6 +129,9 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (crtc == NULL) {
+		return !enable;
+	}
 
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
