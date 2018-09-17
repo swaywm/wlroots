@@ -2,15 +2,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-
-int os_create_anonymous_file(off_t size);
 
 static void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	if (keyboard->xkb_state == NULL) {
@@ -126,7 +122,6 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
 	wl_signal_init(&kb->events.repeat_info);
-	kb->keymap_fd = -1;
 
 	// Sane defaults
 	kb->repeat_info.rate = 25;
@@ -139,9 +134,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	}
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
-	if (kb->keymap_fd >= 0) {
-		close(kb->keymap_fd);
-	}
+	free(kb->keymap_string);
 	if (kb->impl && kb->impl->destroy) {
 		kb->impl->destroy(kb);
 	} else {
@@ -158,8 +151,6 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
-	char *keymap_str = NULL;
-
 	xkb_keymap_unref(kb->keymap);
 	kb->keymap = xkb_keymap_ref(keymap);
 
@@ -194,26 +185,15 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		kb->mod_indexes[i] = xkb_map_mod_get_index(kb->keymap, mod_names[i]);
 	}
 
-	keymap_str = xkb_keymap_get_as_string(kb->keymap,
+	char *tmp_keymap_string = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
-	kb->keymap_size = strlen(keymap_str) + 1;
-	if (kb->keymap_fd >= 0) {
-		close(kb->keymap_fd);
-	}
-	kb->keymap_fd = os_create_anonymous_file(kb->keymap_size);
-	if (kb->keymap_fd < 0) {
-		wlr_log(WLR_ERROR, "creating a keymap file for %zu bytes failed", kb->keymap_size);
+	if (tmp_keymap_string == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get string version of keymap");
 		goto err;
 	}
-	void *ptr = mmap(NULL, kb->keymap_size,
-		PROT_READ | PROT_WRITE, MAP_SHARED, kb->keymap_fd, 0);
-	if (ptr == (void*)-1) {
-		wlr_log(WLR_ERROR, "failed to mmap() %zu bytes", kb->keymap_size);
-		goto err;
-	}
-	strcpy(ptr, keymap_str);
-	free(keymap_str);
-	munmap(ptr, kb->keymap_size);
+	free(kb->keymap_string);
+	kb->keymap_string = tmp_keymap_string;
+	kb->keymap_size = strlen(kb->keymap_string) + 1;
 
 	for (size_t i = 0; i < kb->num_keycodes; ++i) {
 		xkb_keycode_t keycode = kb->keycodes[i] + 8;
@@ -230,11 +210,8 @@ err:
 	kb->xkb_state = NULL;
 	xkb_keymap_unref(keymap);
 	kb->keymap = NULL;
-	if (kb->keymap_fd >= 0) {
-		close(kb->keymap_fd);
-		kb->keymap_fd = -1;
-	}
-	free(keymap_str);
+	free(kb->keymap_string);
+	kb->keymap_string = NULL;
 }
 
 void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
