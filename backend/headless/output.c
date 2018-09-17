@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdlib.h>
@@ -6,6 +7,12 @@
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "util/signal.h"
+
+static struct wlr_headless_output *headless_output_from_output(
+		struct wlr_output *wlr_output) {
+	assert(wlr_output_is_headless(wlr_output));
+	return (struct wlr_headless_output *)wlr_output;
+}
 
 static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 		unsigned int height) {
@@ -22,7 +29,7 @@ static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
 static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		int32_t height, int32_t refresh) {
 	struct wlr_headless_output *output =
-		(struct wlr_headless_output *)wlr_output;
+		headless_output_from_output(wlr_output);
 	struct wlr_headless_backend *backend = output->backend;
 
 	if (refresh <= 0) {
@@ -47,13 +54,13 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 static void output_transform(struct wlr_output *wlr_output,
 		enum wl_output_transform transform) {
 	struct wlr_headless_output *output =
-		(struct wlr_headless_output *)wlr_output;
+		headless_output_from_output(wlr_output);
 	output->wlr_output.transform = transform;
 }
 
 static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
 	struct wlr_headless_output *output =
-		(struct wlr_headless_output *)wlr_output;
+		headless_output_from_output(wlr_output);
 	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
 		buffer_age);
 }
@@ -65,7 +72,7 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
-		(struct wlr_headless_output *)wlr_output;
+		headless_output_from_output(wlr_output);
 
 	wl_list_remove(&output->link);
 
@@ -97,7 +104,7 @@ static int signal_frame(void *data) {
 struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		unsigned int width, unsigned int height) {
 	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
+		headless_backend_from_backend(wlr_backend);
 
 	struct wlr_headless_output *output =
 		calloc(1, sizeof(struct wlr_headless_output));
