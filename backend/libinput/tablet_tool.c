@@ -156,7 +156,8 @@ static struct wlr_libinput_tablet_tool *get_wlr_tablet_tool(
 static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 		struct wlr_tablet *wlr_dev) {
 	assert(tablet_is_libinput(wlr_dev));
-	struct wlr_libinput_tablet *tablet = wl_container_of(wlr_dev, tablet, wlr_tablet);
+	struct wlr_libinput_tablet *tablet =
+		wl_container_of(wlr_dev, tablet, wlr_tablet);
 
 	struct tablet_tool_list_elem *pos;
 	wl_list_for_each(pos, &tablet->tools, link) {
@@ -188,7 +189,8 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG,
+			"Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	struct libinput_event_tablet_tool *tevent =
@@ -248,7 +250,8 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG,
+			"Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	struct libinput_event_tablet_tool *tevent =
@@ -272,14 +275,16 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 	}
 	wlr_signal_emit_safe(&wlr_dev->tablet->events.proximity, &wlr_event);
 
-	if (libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN) {
+	if (libinput_event_tablet_tool_get_proximity_state(tevent) ==
+			LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN) {
 		handle_tablet_tool_axis(event, libinput_dev);
 	}
 
 	// If the tool is not unique, libinput will not find it again after the
 	// proximity out, so we should destroy it
 	if (!tool->unique &&
-			libinput_event_tablet_tool_get_proximity_state(tevent) == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT) {
+			libinput_event_tablet_tool_get_proximity_state(tevent) ==
+			LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT) {
 		// The tool isn't unique, it can't be on multiple tablets
 		assert(tool->pad_refs == 1);
 		assert(tablet_is_libinput(wlr_dev->tablet));
@@ -305,7 +310,8 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG,
+			"Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	handle_tablet_tool_axis(event, libinput_dev);
@@ -336,7 +342,8 @@ void handle_tablet_tool_button(struct libinput_event *event,
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_TABLET_TOOL, libinput_dev);
 	if (!wlr_dev) {
-		wlr_log(WLR_DEBUG, "Got a tablet tool event for a device with no tablet tools?");
+		wlr_log(WLR_DEBUG,
+			"Got a tablet tool event for a device with no tablet tools?");
 		return;
 	}
 	handle_tablet_tool_axis(event, libinput_dev);

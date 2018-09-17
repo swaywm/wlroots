@@ -7,6 +7,12 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
+static struct wlr_libinput_backend *get_libinput_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_libinput(wlr_backend));
+	return (struct wlr_libinput_backend *)wlr_backend;
+}
+
 static int libinput_open_restricted(const char *path,
 		int flags, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
@@ -43,9 +49,9 @@ static void log_libinput(struct libinput *libinput_context,
 	_wlr_vlog(WLR_ERROR, fmt, args);
 }
 
-static bool backend_start(struct wlr_backend *_backend) {
+static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_libinput_backend *backend =
-		(struct wlr_libinput_backend *)_backend;
+		get_libinput_backend_from_backend(wlr_backend);
 	wlr_log(WLR_DEBUG, "Initializing libinput");
 
 	backend->libinput_context = libinput_udev_create_context(&libinput_impl,
@@ -101,7 +107,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		return;
 	}
 	struct wlr_libinput_backend *backend =
-		(struct wlr_libinput_backend *)wlr_backend;
+		get_libinput_backend_from_backend(wlr_backend);
 
 	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
 		struct wl_list *wlr_devices = backend->wlr_device_lists.items[i];
@@ -158,9 +164,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 		struct wlr_session *session) {
-	assert(display && session);
-
-	struct wlr_libinput_backend *backend = calloc(1, sizeof(struct wlr_libinput_backend));
+	struct wlr_libinput_backend *backend =
+		calloc(1, sizeof(struct wlr_libinput_backend));
 	if (!backend) {
 		wlr_log(WLR_ERROR, "Allocation failed: %s", strerror(errno));
 		return NULL;
@@ -187,8 +192,10 @@ error_backend:
 	return NULL;
 }
 
-struct libinput_device *wlr_libinput_get_device_handle(struct wlr_input_device *_dev) {
-	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
+struct libinput_device *wlr_libinput_get_device_handle(
+		struct wlr_input_device *wlr_dev) {
+	struct wlr_libinput_input_device *dev =
+		(struct wlr_libinput_input_device *)wlr_dev;
 	return dev->handle;
 }
 
