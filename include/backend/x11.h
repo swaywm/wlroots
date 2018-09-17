@@ -72,8 +72,10 @@ struct wlr_x11_backend {
 	struct wl_listener display_destroy;
 };
 
-struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
-	xcb_window_t window);
+struct wlr_x11_backend *get_x11_backend_from_backend(
+	struct wlr_backend *wlr_backend);
+struct wlr_x11_output *get_x11_output_from_window_id(
+	struct wlr_x11_backend *x11, xcb_window_t window);
 
 extern const struct wlr_keyboard_impl keyboard_impl;
 extern const struct wlr_pointer_impl pointer_impl;

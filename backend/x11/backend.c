@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -22,8 +23,8 @@
 #include "backend/x11.h"
 #include "util/signal.h"
 
-struct wlr_x11_output *get_x11_output_from_window_id(struct wlr_x11_backend *x11,
-		xcb_window_t window) {
+struct wlr_x11_output *get_x11_output_from_window_id(
+		struct wlr_x11_backend *x11, xcb_window_t window) {
 	struct wlr_x11_output *output;
 	wl_list_for_each(output, &x11->outputs, link) {
 		if (output->win == window) {
@@ -88,8 +89,14 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	return 0;
 }
 
+struct wlr_x11_backend *get_x11_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_x11(wlr_backend));
+	return (struct wlr_x11_backend *)wlr_backend;
+}
+
 static bool backend_start(struct wlr_backend *backend) {
-	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
 
 	struct {
@@ -183,7 +190,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		return;
 	}
 
-	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 
 	struct wlr_x11_output *output, *tmp;
 	wl_list_for_each_safe(output, tmp, &x11->outputs, link) {
@@ -213,7 +220,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
-	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	return x11->renderer;
 }
 
@@ -234,7 +241,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
-		const char *x11_display, wlr_renderer_create_func_t create_renderer_func) {
+		const char *x11_display,
+		wlr_renderer_create_func_t create_renderer_func) {
 	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
 	if (!x11) {
 		return NULL;
