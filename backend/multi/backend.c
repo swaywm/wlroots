@@ -17,8 +17,14 @@ struct subbackend_state {
 	struct wl_list link;
 };
 
+static struct wlr_multi_backend *multi_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_multi(wlr_backend));
+	return (struct wlr_multi_backend *)wlr_backend;
+}
+
 static bool multi_backend_start(struct wlr_backend *wlr_backend) {
-	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
+	struct wlr_multi_backend *backend = multi_backend_from_backend(wlr_backend);
 	struct subbackend_state *sub;
 	wl_list_for_each(sub, &backend->backends, link) {
 		if (!wlr_backend_start(sub->backend)) {
@@ -38,7 +44,7 @@ static void subbackend_state_destroy(struct subbackend_state *sub) {
 }
 
 static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
-	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)wlr_backend;
+	struct wlr_multi_backend *backend = multi_backend_from_backend(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
 
@@ -54,7 +60,8 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 
 static struct wlr_renderer *multi_backend_get_renderer(
 		struct wlr_backend *backend) {
-	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
+	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
+
 	struct subbackend_state *sub;
 	wl_list_for_each(sub, &multi->backends, link) {
 		struct wlr_renderer *rend = wlr_backend_get_renderer(sub->backend);
@@ -132,8 +139,7 @@ static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_ba
 
 bool wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
-	assert(wlr_backend_is_multi(_multi));
-	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+	struct wlr_multi_backend *multi = multi_backend_from_backend(_multi);
 
 	if (multi_backend_get_subbackend(multi, backend)) {
 		// already added
@@ -174,8 +180,7 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 
 void wlr_multi_backend_remove(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
-	assert(wlr_backend_is_multi(_multi));
-	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)_multi;
+	struct wlr_multi_backend *multi = multi_backend_from_backend(_multi);
 
 	struct subbackend_state *sub =
 		multi_backend_get_subbackend(multi, backend);
@@ -187,9 +192,7 @@ void wlr_multi_backend_remove(struct wlr_backend *_multi,
 }
 
 struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
-	assert(wlr_backend_is_multi(_backend));
-
-	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	struct wlr_multi_backend *backend = multi_backend_from_backend(_backend);
 	struct subbackend_state *sub;
 	wl_list_for_each(sub, &backend->backends, link) {
 		if (wlr_backend_is_drm(sub->backend)) {
