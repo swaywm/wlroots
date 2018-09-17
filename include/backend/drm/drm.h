@@ -138,6 +138,8 @@ struct wlr_drm_connector {
 	struct wl_list link;
 };
 
+struct wlr_drm_backend *get_drm_backend_from_backend(
+	struct wlr_backend *wlr_backend);
 bool check_drm_features(struct wlr_drm_backend *drm);
 bool init_drm_resources(struct wlr_drm_backend *drm);
 void finish_drm_resources(struct wlr_drm_backend *drm);
