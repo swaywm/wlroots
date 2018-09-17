@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -33,8 +34,14 @@ struct direct_session {
 	struct wl_event_source *vt_source;
 };
 
+static struct direct_session *direct_session_from_session(
+		struct wlr_session *base) {
+	assert(base->impl == &session_direct);
+	return (struct direct_session *)base;
+}
+
 static int direct_session_open(struct wlr_session *base, const char *path) {
-	struct direct_session *session = wl_container_of(base, session, base);
+	struct direct_session *session = direct_session_from_session(base);
 
 	int fd = direct_ipc_open(session->sock, path);
 	if (fd < 0) {
@@ -57,7 +64,7 @@ static int direct_session_open(struct wlr_session *base, const char *path) {
 }
 
 static void direct_session_close(struct wlr_session *base, int fd) {
-	struct direct_session *session = wl_container_of(base, session, base);
+	struct direct_session *session = direct_session_from_session(base);
 
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
@@ -76,7 +83,7 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 }
 
 static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
-	struct direct_session *session = wl_container_of(base, session, base);
+	struct direct_session *session = direct_session_from_session(base);
 
 	// Only seat0 has VTs associated with it
 	if (strcmp(session->base.seat, "seat0") != 0) {
@@ -87,7 +94,7 @@ static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 }
 
 static void direct_session_destroy(struct wlr_session *base) {
-	struct direct_session *session = wl_container_of(base, session, base);
+	struct direct_session *session = direct_session_from_session(base);
 
 	if (strcmp(session->base.seat, "seat0") == 0) {
 		struct vt_mode mode = {
