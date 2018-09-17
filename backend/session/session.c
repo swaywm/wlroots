@@ -66,10 +66,25 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	struct wlr_session *session = NULL;
-	const struct session_impl **iter;
 
-	for (iter = impls; !session && *iter; ++iter) {
-		session = (*iter)->create(disp);
+	const char *env_wlr_session = getenv("WLR_SESSION");
+	if (env_wlr_session) {
+		if (!strcmp(env_wlr_session, "logind") || !strcmp(env_wlr_session, "systemd")) {
+		#if defined(WLR_HAS_SYSTEMD) || defined(WLR_HAS_ELOGIND)
+			session = session_logind.create(disp);
+		#else
+			wlr_log(WLR_ERROR, "wlroots is not compiled with logind support");
+		#endif
+		} else if (!strcmp(env_wlr_session, "direct")) {
+			session = session_direct.create(disp);
+		} else {
+			wlr_log(WLR_ERROR, "WLR_SESSION has an invalid value: %s", env_wlr_session);
+		}
+	} else {
+		const struct session_impl **iter;
+		for (iter = impls; !session && *iter; ++iter) {
+			session = (*iter)->create(disp);
+		}
 	}
 
 	if (!session) {
