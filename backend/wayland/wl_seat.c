@@ -122,11 +122,11 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
-
+	// This space is intentionally left blank
 }
 
-static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
-		uint32_t axis_source) {
+static void pointer_handle_axis_source(void *data,
+		struct wl_pointer *wl_pointer, uint32_t axis_source) {
 	struct wlr_wl_backend *backend = data;
 	struct wlr_wl_pointer *pointer = backend->current_pointer;
 	if (pointer == NULL) {
@@ -138,11 +138,11 @@ static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer
 
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis) {
-
+	// This space is intentionally left blank
 }
 
-static void pointer_handle_axis_discrete(void *data, struct wl_pointer *wl_pointer,
-		uint32_t axis, int32_t discrete) {
+static void pointer_handle_axis_discrete(void *data,
+		struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete) {
 	struct wlr_wl_backend *backend = data;
 	struct wlr_wl_pointer *pointer = backend->current_pointer;
 	if (pointer == NULL) {
@@ -239,9 +239,9 @@ static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboar
 		mods_locked, group);
 }
 
-static void keyboard_handle_repeat_info(void *data, struct wl_keyboard *wl_keyboard,
-	int32_t rate, int32_t delay) {
-
+static void keyboard_handle_repeat_info(void *data,
+		struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay) {
+	// This space is intentionally left blank
 }
 
 static struct wl_keyboard_listener keyboard_listener = {
@@ -253,8 +253,15 @@ static struct wl_keyboard_listener keyboard_listener = {
 	.repeat_info = keyboard_handle_repeat_info
 };
 
+static struct wlr_wl_input_device *get_wl_input_device_from_input_device(
+		struct wlr_input_device *wlr_dev) {
+	assert(wlr_input_device_is_wl(wlr_dev));
+	return (struct wlr_wl_input_device *)wlr_dev;
+}
+
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {
-	struct wlr_wl_input_device *dev = (struct wlr_wl_input_device *)wlr_dev;
+	struct wlr_wl_input_device *dev =
+		get_wl_input_device_from_input_device(wlr_dev);
 	if (dev->resource) {
 		wl_proxy_destroy(dev->resource);
 	}
@@ -399,7 +406,8 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	}
 }
 
-static void seat_handle_name(void *data, struct wl_seat *wl_seat, const char *name) {
+static void seat_handle_name(void *data, struct wl_seat *wl_seat,
+		const char *name) {
 	struct wlr_wl_backend *backend = data;
 	assert(backend->seat == wl_seat);
 	// Do we need to check if seatName was previously set for name change?
