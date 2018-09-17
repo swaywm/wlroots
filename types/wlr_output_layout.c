@@ -134,10 +134,20 @@ static void output_layout_reconfigure(struct wlr_output_layout *layout) {
 	wlr_signal_emit_safe(&layout->events.change, layout);
 }
 
+static void output_update_global(struct wlr_output *output) {
+	// Don't expose the output if it doesn't have a current mode
+	if (wl_list_empty(&output->modes) || output->current_mode != NULL) {
+		wlr_output_create_global(output);
+	} else {
+		wlr_output_destroy_global(output);
+	}
+}
+
 static void handle_output_mode(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
 		wl_container_of(listener, state, mode);
 	output_layout_reconfigure(state->layout);
+	output_update_global(state->l_output->output);
 }
 
 static void handle_output_scale(struct wl_listener *listener, void *data) {
@@ -205,7 +215,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->y = ly;
 	l_output->state->auto_configured = false;
 	output_layout_reconfigure(layout);
-	wlr_output_create_global(output);
+	output_update_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
@@ -409,7 +419,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 
 	l_output->state->auto_configured = true;
 	output_layout_reconfigure(layout);
-	wlr_output_create_global(output);
+	output_update_global(output);
 	wlr_signal_emit_safe(&layout->events.add, l_output);
 }
 
@@ -437,7 +447,7 @@ enum distance_selection_method {
 
 struct wlr_output *wlr_output_layout_output_in_direction(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
-		struct wlr_output *reference, double ref_lx, double ref_ly, 
+		struct wlr_output *reference, double ref_lx, double ref_ly,
 		enum distance_selection_method distance_method) {
 	assert(reference);
 
@@ -490,14 +500,13 @@ struct wlr_output *wlr_output_layout_output_in_direction(
 struct wlr_output *wlr_output_layout_adjacent_output(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
 		struct wlr_output *reference, double ref_lx, double ref_ly) {
-	return wlr_output_layout_output_in_direction(layout, direction, 
+	return wlr_output_layout_output_in_direction(layout, direction,
 			reference, ref_lx, ref_ly, NEAREST);
 }
 
 struct wlr_output *wlr_output_layout_farthest_output(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
 		struct wlr_output *reference, double ref_lx, double ref_ly) {
-	return wlr_output_layout_output_in_direction(layout, direction, 
+	return wlr_output_layout_output_in_direction(layout, direction,
 			reference, ref_lx, ref_ly, FARTHEST);
 }
-
