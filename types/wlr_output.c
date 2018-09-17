@@ -273,6 +273,13 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
 
+	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
+	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
+		wlr_log(WLR_DEBUG,
+			"WLR_NO_HARDWARE_CURSORS set, forcing software cursors");
+		output->software_cursor_locks = 1;
+	}
+
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
 
@@ -469,13 +476,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	struct wlr_output_event_swap_buffers event = {
-		.output = output,
-		.when = when,
-		.damage = damage,
-	};
-	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
-
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 
@@ -509,6 +509,13 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 			output_cursor_render(cursor, when, &render_damage);
 		}
 	}
+
+	struct wlr_output_event_swap_buffers event = {
+		.output = output,
+		.when = when,
+		.damage = damage,
+	};
+	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
 	// Transform damage into renderer coordinates, ie. upside down
 	enum wl_output_transform transform = wlr_output_transform_compose(
@@ -666,6 +673,32 @@ struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
 	return wl_resource_get_user_data(resource);
 }
 
+static void output_cursor_damage_whole(struct wlr_output_cursor *cursor);
+
+void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
+	if (lock) {
+		++output->software_cursor_locks;
+	} else {
+		assert(output->software_cursor_locks > 0);
+		--output->software_cursor_locks;
+	}
+	wlr_log(WLR_DEBUG, "%s hardware cursors on output '%s' (locks: %d)",
+		lock ? "Disabling" : "Enabling", output->name,
+		output->software_cursor_locks);
+
+	if (output->software_cursor_locks > 0 && output->hardware_cursor != NULL) {
+		assert(output->impl->set_cursor);
+		output->impl->set_cursor(output, NULL, 1,
+			WL_OUTPUT_TRANSFORM_NORMAL, 0, 0, true);
+		output_cursor_damage_whole(output->hardware_cursor);
+		output->hardware_cursor = NULL;
+	}
+
+	// If it's possible to use hardware cursors again, don't switch immediately
+	// since a recorder is likely to lock software cursors for the next frame
+	// again.
+}
+
 
 static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	struct wlr_box box;
@@ -721,10 +754,7 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 		transform = cursor->surface->current.transform;
 	}
 
-	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
-	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
-		wlr_log(WLR_DEBUG,
-			"WLR_NO_HARDWARE_CURSORS set, forcing software cursors");
+	if (cursor->output->software_cursor_locks > 0) {
 		return false;
 	}
 
