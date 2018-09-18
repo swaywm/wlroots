@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 #define WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/render/dmabuf.h>
 
@@ -21,6 +22,8 @@ struct wlr_export_dmabuf_frame_v1 {
 
 	struct wlr_dmabuf_attributes attribs;
 	struct wlr_output *output;
+
+	bool cursor_locked;
 
 	struct wl_listener output_swap_buffers;
 };
