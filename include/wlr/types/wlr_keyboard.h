@@ -50,7 +50,7 @@ struct wlr_keyboard_modifiers {
 struct wlr_keyboard {
 	const struct wlr_keyboard_impl *impl;
 
-	int keymap_fd;
+	char *keymap_string;
 	size_t keymap_size;
 	struct xkb_keymap *keymap;
 	struct xkb_state *xkb_state;
