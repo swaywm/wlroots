@@ -241,7 +241,7 @@ static void region_confine(pixman_region32_t *region, double x1, double y1, doub
 bool wlr_region_confine(pixman_region32_t *region, double x1, double y1, double x2,
 		double y2, double *x2_out, double *y2_out) {
 	pixman_box32_t box;
-	if (pixman_region32_contains_point(region, x1, y1, &box)) {
+	if (pixman_region32_contains_point(region, floor(x1), floor(y1), &box)) {
 		region_confine(region, x1, y1, x2, y2, x2_out, y2_out, box);
 		return true;
 	} else {

@@ -381,7 +381,7 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 
 		if (cursor->active_constraint &&
 				!pixman_region32_contains_point(&cursor->confine,
-					lx - view->x, ly - view->y, NULL)) {
+					floor(lx - view->x), floor(ly - view->y), NULL)) {
 			return;
 		}
 	}
@@ -501,7 +501,7 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 
 		if (cursor->active_constraint &&
 				!pixman_region32_contains_point(&cursor->confine,
-					lx - view->x, ly - view->y, NULL)) {
+					floor(lx - view->x), floor(ly - view->y), NULL)) {
 			return;
 		}
 	}
@@ -602,7 +602,7 @@ void roots_cursor_constrain(struct roots_cursor *cursor,
 
 	pixman_region32_t *region = &constraint->region;
 
-	if (!pixman_region32_contains_point(region, sx, sy, NULL)) {
+	if (!pixman_region32_contains_point(region, floor(sx), floor(sy), NULL)) {
 		// Warp into region if possible
 		int nboxes;
 		pixman_box32_t *boxes = pixman_region32_rectangles(region, &nboxes);
