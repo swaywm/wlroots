@@ -1,4 +1,4 @@
-#include "util/signal.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -7,10 +7,17 @@
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "glapi.h"
+#include "util/signal.h"
+
+struct wlr_headless_backend *headless_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_headless(wlr_backend));
+	return (struct wlr_headless_backend *)wlr_backend;
+}
 
 static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
+		headless_backend_from_backend(wlr_backend);
 	wlr_log(WLR_INFO, "Starting headless backend");
 
 	struct wlr_headless_output *output;
@@ -34,7 +41,7 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 
 static void backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
+		headless_backend_from_backend(wlr_backend);
 	if (!wlr_backend) {
 		return;
 	}
@@ -62,7 +69,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
+		headless_backend_from_backend(wlr_backend);
 	return backend->renderer;
 }
 
@@ -107,9 +114,8 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	backend->renderer = create_renderer_func(&backend->egl, EGL_PLATFORM_SURFACELESS_MESA,
-		NULL, (EGLint*)config_attribs, 0);
-
+	backend->renderer = create_renderer_func(&backend->egl,
+		EGL_PLATFORM_SURFACELESS_MESA, NULL, (EGLint*)config_attribs, 0);
 	if (!backend->renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		free(backend);

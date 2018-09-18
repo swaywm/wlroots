@@ -15,8 +15,14 @@
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
+struct wlr_drm_backend *get_drm_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_drm(wlr_backend));
+	return (struct wlr_drm_backend *)wlr_backend;
+}
+
 static bool backend_start(struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 	scan_drm_connectors(drm);
 	return true;
 }
@@ -26,7 +32,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		return;
 	}
 
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 
 	restore_drm_outputs(drm);
 
@@ -50,7 +56,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 
 	if (drm->parent) {
 		return drm->parent->renderer.wlr_rend;
@@ -141,7 +147,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	wl_list_init(&drm->outputs);
 
 	drm->fd = gpu_fd;
-	drm->parent = (struct wlr_drm_backend *)parent;
+	if (parent != NULL) {
+		drm->parent = get_drm_backend_from_backend(parent);
+	}
 
 	drm->drm_invalidated.notify = drm_invalidated;
 	wlr_session_signal_add(session, gpu_fd, &drm->drm_invalidated);
@@ -187,6 +195,6 @@ error_fd:
 }
 
 struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 	return drm->session;
 }

@@ -37,8 +37,14 @@ struct logind_session {
 	char *path;
 };
 
+static struct logind_session *logind_session_from_session(
+		struct wlr_session *base) {
+	assert(base->impl == &session_logind);
+	return (struct logind_session *)base;
+}
+
 static int logind_take_device(struct wlr_session *base, const char *path) {
-	struct logind_session *session = wl_container_of(base, session, base);
+	struct logind_session *session = logind_session_from_session(base);
 
 	int ret;
 	int fd = -1;
@@ -83,7 +89,7 @@ error:
 }
 
 static void logind_release_device(struct wlr_session *base, int fd) {
-	struct logind_session *session = wl_container_of(base, session, base);
+	struct logind_session *session = logind_session_from_session(base);
 
 	int ret;
 	sd_bus_message *msg = NULL;
@@ -108,7 +114,7 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 }
 
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
-	struct logind_session *session = wl_container_of(base, session, base);
+	struct logind_session *session = logind_session_from_session(base);
 
 	// Only seat0 has VTs associated with it
 	if (strcmp(session->base.seat, "seat0") != 0) {
@@ -212,7 +218,7 @@ static void release_control(struct logind_session *session) {
 }
 
 static void logind_session_destroy(struct wlr_session *base) {
-	struct logind_session *session = wl_container_of(base, session, base);
+	struct logind_session *session = logind_session_from_session(base);
 
 	release_control(session);
 

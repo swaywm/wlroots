@@ -4,6 +4,7 @@
 #include <libinput.h>
 #include <wayland-server-core.h>
 #include <wlr/backend/interface.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_list.h>

@@ -34,4 +34,7 @@ struct wlr_headless_input_device {
 	struct wlr_headless_backend *backend;
 };
 
+struct wlr_headless_backend *headless_backend_from_backend(
+	struct wlr_backend *wlr_backend);
+
 #endif

@@ -9,6 +9,12 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
+struct wlr_libinput_input_device *get_libinput_device_from_device(
+		struct wlr_input_device *wlr_dev) {
+	assert(wlr_input_device_is_libinput(wlr_dev));
+	return (struct wlr_libinput_input_device *)wlr_dev;
+}
+
 struct wlr_input_device *get_appropriate_device(
 		enum wlr_input_device_type desired_type,
 		struct libinput_device *libinput_dev) {
@@ -25,8 +31,9 @@ struct wlr_input_device *get_appropriate_device(
 	return NULL;
 }
 
-static void input_device_destroy(struct wlr_input_device *_dev) {
-	struct wlr_libinput_input_device *dev = (struct wlr_libinput_input_device *)_dev;
+static void input_device_destroy(struct wlr_input_device *wlr_dev) {
+	struct wlr_libinput_input_device *dev =
+		get_libinput_device_from_device(wlr_dev);
 	libinput_device_unref(dev->handle);
 	wl_list_remove(&dev->wlr_input_device.link);
 	free(dev);
@@ -37,16 +44,18 @@ static const struct wlr_input_device_impl input_device_impl = {
 };
 
 static struct wlr_input_device *allocate_device(
-		struct wlr_libinput_backend *backend, struct libinput_device *libinput_dev,
-		struct wl_list *wlr_devices, enum wlr_input_device_type type) {
+		struct wlr_libinput_backend *backend,
+		struct libinput_device *libinput_dev, struct wl_list *wlr_devices,
+		enum wlr_input_device_type type) {
 	int vendor = libinput_device_get_id_vendor(libinput_dev);
 	int product = libinput_device_get_id_product(libinput_dev);
 	const char *name = libinput_device_get_name(libinput_dev);
-	struct wlr_libinput_input_device *wlr_libinput_dev;
-	if (!(wlr_libinput_dev = calloc(1, sizeof(struct wlr_libinput_input_device)))) {
+	struct wlr_libinput_input_device *dev =
+		calloc(1, sizeof(struct wlr_libinput_input_device));
+	if (dev == NULL) {
 		return NULL;
 	}
-	struct wlr_input_device *wlr_dev = &wlr_libinput_dev->wlr_input_device;
+	struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 	libinput_device_get_size(libinput_dev,
 			&wlr_dev->width_mm, &wlr_dev->height_mm);
 	const char *output_name = libinput_device_get_output_name(libinput_dev);
@@ -54,7 +63,7 @@ static struct wlr_input_device *allocate_device(
 		wlr_dev->output_name = strdup(output_name);
 	}
 	wl_list_insert(wlr_devices, &wlr_dev->link);
-	wlr_libinput_dev->handle = libinput_dev;
+	dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	wlr_input_device_init(wlr_dev, type, &input_device_impl,
 			name, vendor, product);
@@ -62,12 +71,11 @@ static struct wlr_input_device *allocate_device(
 }
 
 bool wlr_input_device_is_libinput(struct wlr_input_device *wlr_dev) {
-        return wlr_dev->impl == &input_device_impl;
+	return wlr_dev->impl == &input_device_impl;
 }
 
 static void handle_device_added(struct wlr_libinput_backend *backend,
 		struct libinput_device *libinput_dev) {
-	assert(backend && libinput_dev);
 	/*
 	 * Note: the wlr API exposes only devices with a single capability, because
 	 * that meshes better with how Wayland does things and is a bit simpler.
@@ -85,7 +93,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	wl_list_init(wlr_devices);
 	wlr_log(WLR_DEBUG, "Added %s [%d:%d]", name, vendor, product);
 
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_KEYBOARD);
 		if (!wlr_dev) {
@@ -98,7 +107,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		}
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_POINTER)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_POINTER)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_POINTER);
 		if (!wlr_dev) {
@@ -111,7 +121,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		}
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TOUCH)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_TOUCH)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TOUCH);
 		if (!wlr_dev) {
@@ -124,7 +135,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		}
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_TOOL)) {
+	if (libinput_device_has_capability(libinput_dev,
+			LIBINPUT_DEVICE_CAP_TABLET_TOOL)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TABLET_TOOL);
 		if (!wlr_dev) {
@@ -137,7 +149,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		}
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_PAD)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_TABLET_PAD)) {
 		struct wlr_input_device *wlr_dev = allocate_device(backend,
 				libinput_dev, wlr_devices, WLR_INPUT_DEVICE_TABLET_PAD);
 		if (!wlr_dev) {
@@ -150,14 +163,16 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		}
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_GESTURE)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_GESTURE)) {
 		// TODO
 	}
-	if (libinput_device_has_capability(libinput_dev, LIBINPUT_DEVICE_CAP_SWITCH)) {
+	if (libinput_device_has_capability(
+			libinput_dev, LIBINPUT_DEVICE_CAP_SWITCH)) {
 		// TODO
 	}
 
-	if (wl_list_length(wlr_devices) > 0) {
+	if (!wl_list_empty(wlr_devices)) {
 		libinput_device_set_user_data(libinput_dev, wlr_devices);
 		wlr_list_push(&backend->wlr_device_lists, wlr_devices);
 	} else {
@@ -199,7 +214,6 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 
 void handle_libinput_event(struct wlr_libinput_backend *backend,
 		struct libinput_event *event) {
-	assert(backend && event);
 	struct libinput_device *libinput_dev = libinput_event_get_device(event);
 	enum libinput_event_type event_type = libinput_event_get_type(event);
 	switch (event_type) {

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -18,7 +19,7 @@ bool wlr_input_device_is_headless(struct wlr_input_device *wlr_dev) {
 struct wlr_input_device *wlr_headless_add_input_device(
 		struct wlr_backend *wlr_backend, enum wlr_input_device_type type) {
 	struct wlr_headless_backend *backend =
-		(struct wlr_headless_backend *)wlr_backend;
+		headless_backend_from_backend(wlr_backend);
 
 	struct wlr_headless_input_device *device =
 		calloc(1, sizeof(struct wlr_headless_input_device));

@@ -15,6 +15,12 @@
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 
+struct wlr_wl_backend *get_wl_backend_from_backend(
+		struct wlr_backend *wlr_backend) {
+	assert(wlr_backend_is_wl(wlr_backend));
+	return (struct wlr_wl_backend *)wlr_backend;
+}
+
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *backend = data;
 	int count = 0;
@@ -39,8 +45,8 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
  * compositor and creates surfaces for each output, then registers globals on
  * the specified display.
  */
-static bool backend_start(struct wlr_backend *_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)_backend;
+static bool backend_start(struct wlr_backend *wlr_backend) {
+	struct wlr_wl_backend *backend = get_wl_backend_from_backend(wlr_backend);
 	wlr_log(WLR_INFO, "Initializating wayland backend");
 
 	poll_wl_registry(backend);
@@ -66,7 +72,7 @@ static bool backend_start(struct wlr_backend *_backend) {
 }
 
 static void backend_destroy(struct wlr_backend *wlr_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
+	struct wlr_wl_backend *backend = get_wl_backend_from_backend(wlr_backend);
 	if (backend == NULL) {
 		return;
 	}
@@ -118,7 +124,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
-	struct wlr_wl_backend *backend = (struct wlr_wl_backend *)wlr_backend;
+	struct wlr_wl_backend *backend = get_wl_backend_from_backend(wlr_backend);
 	return backend->renderer;
 }
 
