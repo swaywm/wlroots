@@ -56,7 +56,7 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 libcap         = dependency('libcap', required: get_option('libcap'))
 logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
-vulkan         = dependency('vulkan', required: get_option('vulkan'))
+vulkan         = dependency('vulkan', required: get_option('vulkan'), version: '>=1.1.0')
 glslang        = find_program('glslangValidator', required: get_option('vulkan'))
 math           = cc.find_library('m', required: false)
 

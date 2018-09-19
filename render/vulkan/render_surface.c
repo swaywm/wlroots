@@ -510,8 +510,31 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	present_info.waitSemaphoreCount = 1;
 	present_info.pWaitSemaphores = &rs->present;
 
-	// TODO: (optionally; if available) use VK_KHR_incremental_present
-	// and use the given damage region
+	VkPresentRegionsKHR present_regions = {0};
+	VkPresentRegionKHR present_region = {0};
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
+	VkRectLayerKHR vk_rects[nrects];
+	if (renderer->vulkan->extensions.incremental_present) {
+		for (int i = 0; i < nrects; ++i) {
+			vk_rects[i].layer = 0;
+			vk_rects[i].offset.x = rects[i].x1;
+			vk_rects[i].offset.y = rects[i].y1;
+			vk_rects[i].extent.width = rects[i].x2 - rects[i].x1;
+			vk_rects[i].extent.height = rects[i].y2 - rects[i].y1;
+		}
+
+		present_regions.sType = VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR;
+		present_regions.swapchainCount = 1;
+		present_regions.pRegions = &present_region;
+
+		present_region.pRectangles = vk_rects;
+		present_region.rectangleCount = nrects;
+
+		present_info.pNext = &present_regions;
+		wlr_log(WLR_ERROR, "using incremental present");
+	}
+
 	res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkQueuePresentKHR", res);

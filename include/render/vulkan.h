@@ -47,6 +47,7 @@ struct wlr_vulkan {
 		bool xcb;
 		bool external_mem_fd;
 		bool dmabuf;
+		bool incremental_present;
 	} extensions;
 };
 

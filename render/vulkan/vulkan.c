@@ -355,6 +355,15 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 		vulkan->extensions.dmabuf = false;
 	}
 
+	name = VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME;
+	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+		extensions[++last_ext] = name;
+		vulkan->extensions.incremental_present = true;
+	} else {
+		wlr_log(WLR_INFO, "vk_khr_increment_present extension not supported");
+		vulkan->extensions.incremental_present = false;
+	}
+
 	free(avail_ext_props);
 
 	// queue families
