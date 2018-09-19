@@ -107,6 +107,7 @@ struct wlr_output {
 
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
+	int software_cursor_locks; // number of locks forcing software cursors
 
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
@@ -196,6 +197,14 @@ bool wlr_output_export_dmabuf(struct wlr_output *output,
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
 	struct wlr_surface *surface);
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);
+/**
+ * Locks the output to only use software cursors instead of hardware cursors.
+ * This is useful if hardware cursors need to be temporarily disabled (e.g.
+ * during screen capture). There must be as many unlocks as there have been
+ * locks to restore the original state. There should never be an unlock before
+ * a lock.
+ */
+void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);

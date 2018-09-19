@@ -45,6 +45,7 @@ struct capture_context {
 
 	/* Target */
 	struct wl_output *target_output;
+	bool with_cursor;
 
 	/* Main frame callback */
 	struct zwlr_export_dmabuf_frame_v1 *frame_callback;
@@ -454,7 +455,7 @@ static const struct zwlr_export_dmabuf_frame_v1_listener frame_listener = {
 
 static void register_cb(struct capture_context *ctx) {
 	ctx->frame_callback = zwlr_export_dmabuf_manager_v1_capture_output(
-			ctx->export_manager, 0, ctx->target_output);
+			ctx->export_manager, ctx->with_cursor, ctx->target_output);
 
 	zwlr_export_dmabuf_frame_v1_add_listener(ctx->frame_callback,
 			&frame_listener, ctx);
@@ -802,6 +803,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	ctx.target_output = o->output;
+	ctx.with_cursor = true;
 	ctx.hw_device_type = av_hwdevice_find_type_by_name(argv[2]);
 	ctx.hardware_device = argv[3];
 

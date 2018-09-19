@@ -29,12 +29,24 @@ static const struct zwlr_export_dmabuf_frame_v1_interface frame_impl = {
 	.destroy = frame_handle_destroy,
 };
 
-static void frame_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_export_dmabuf_frame_v1 *frame = frame_from_resource(resource);
+static void frame_destroy(struct wlr_export_dmabuf_frame_v1 *frame) {
+	if (frame == NULL) {
+		return;
+	}
+	if (frame->cursor_locked) {
+		wlr_output_lock_software_cursors(frame->output, false);
+	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wlr_dmabuf_attributes_finish(&frame->attribs);
+	// Make the frame resource inert
+	wl_resource_set_user_data(frame->resource, NULL);
 	free(frame);
+}
+
+static void frame_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_export_dmabuf_frame_v1 *frame = frame_from_resource(resource);
+	frame_destroy(frame);
 }
 
 static void frame_output_handle_swap_buffers(struct wl_listener *listener,
@@ -51,6 +63,7 @@ static void frame_output_handle_swap_buffers(struct wl_listener *listener,
 	uint32_t tv_sec_lo = tv_sec & 0xFFFFFFFF;
 	zwlr_export_dmabuf_frame_v1_send_ready(frame->resource,
 		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
+	frame_destroy(frame);
 }
 
 
@@ -96,6 +109,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 	if (!output->impl->export_dmabuf) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT);
+		frame_destroy(frame);
 		return;
 	}
 
@@ -103,7 +117,13 @@ static void manager_handle_capture_output(struct wl_client *client,
 	if (!wlr_output_export_dmabuf(output, attribs)) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
+		frame_destroy(frame);
 		return;
+	}
+
+	if (overlay_cursor) {
+		wlr_output_lock_software_cursors(frame->output, true);
+		frame->cursor_locked = true;
 	}
 
 	uint32_t frame_flags = ZWLR_EXPORT_DMABUF_FRAME_V1_FLAGS_TRANSIENT;

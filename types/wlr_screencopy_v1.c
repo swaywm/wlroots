@@ -22,6 +22,9 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
+	if (frame->cursor_locked) {
+		wlr_output_lock_software_cursors(frame->output, false);
+	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_list_remove(&frame->buffer_destroy.link);
@@ -133,6 +136,11 @@ static void frame_handle_copy(struct wl_client *client,
 	// Schedule a buffer swap
 	output->needs_swap = true;
 	wlr_output_schedule_frame(output);
+
+	if (frame->overlay_cursor) {
+		wlr_output_lock_software_cursors(output, true);
+		frame->cursor_locked = true;
+	}
 }
 
 static void frame_handle_destroy(struct wl_client *client,
@@ -189,6 +197,7 @@ static void capture_output(struct wl_client *client,
 	}
 	frame->manager = manager;
 	frame->output = output;
+	frame->overlay_cursor = !!overlay_cursor;
 
 	frame->resource = wl_resource_create(client,
 		&zwlr_screencopy_frame_v1_interface, version, id);

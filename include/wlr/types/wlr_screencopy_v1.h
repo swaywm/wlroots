@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_SCREENCOPY_V1_H
 #define WLR_TYPES_WLR_SCREENCOPY_V1_H
 
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
 
@@ -34,6 +35,8 @@ struct wlr_screencopy_frame_v1 {
 	enum wl_shm_format format;
 	struct wlr_box box;
 	int stride;
+
+	bool overlay_cursor, cursor_locked;
 
 	struct wl_shm_buffer *buffer;
 	struct wl_listener buffer_destroy;
