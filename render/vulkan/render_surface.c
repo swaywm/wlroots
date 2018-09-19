@@ -491,6 +491,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 	VkResult res;
 	bool success = true;
+	uint32_t height = rs->vk_rs.rs.height;
 
 	// track buffer age (although only used by layout changing atm)
 	for(unsigned i = 0; i < rs->swapchain.image_count; ++i) {
@@ -502,24 +503,28 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	rs->swapchain.buffers[rs->current_id].age = 1;
 
 	// present
+	uint32_t id = rs->current_id;
 	VkPresentInfoKHR present_info = {0};
 	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &rs->swapchain.swapchain;
-	present_info.pImageIndices = &rs->current_id;
+	present_info.pImageIndices = &id;
 	present_info.waitSemaphoreCount = 1;
 	present_info.pWaitSemaphores = &rs->present;
 
 	VkPresentRegionsKHR present_regions = {0};
 	VkPresentRegionKHR present_region = {0};
-	int nrects;
-	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
-	VkRectLayerKHR vk_rects[nrects];
-	if (renderer->vulkan->extensions.incremental_present) {
+	if (damage && renderer->vulkan->extensions.incremental_present) {
+		int nrects;
+		pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
+		VkRectLayerKHR vk_rects[nrects];
+
+		// we have to flip the y coordinate (from bottom-left origin to
+		// top-left origin as vulkan wants it)
 		for (int i = 0; i < nrects; ++i) {
 			vk_rects[i].layer = 0;
 			vk_rects[i].offset.x = rects[i].x1;
-			vk_rects[i].offset.y = rects[i].y1;
+			vk_rects[i].offset.y = height - rects[i].y2;
 			vk_rects[i].extent.width = rects[i].x2 - rects[i].x1;
 			vk_rects[i].extent.height = rects[i].y2 - rects[i].y1;
 		}
@@ -528,14 +533,15 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 		present_regions.swapchainCount = 1;
 		present_regions.pRegions = &present_region;
 
-		present_region.pRectangles = vk_rects;
 		present_region.rectangleCount = nrects;
+		present_region.pRectangles = vk_rects;
 
 		present_info.pNext = &present_regions;
-		wlr_log(WLR_ERROR, "using incremental present");
+		res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
+	} else {
+		res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
 	}
 
-	res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
 	if (res != VK_SUCCESS) {
 		wlr_vulkan_error("vkQueuePresentKHR", res);
 		success = false;
@@ -544,6 +550,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 clean:
 	renderer->current = NULL;
+	rs->current_id = -1;
 	return success;
 }
 
@@ -578,18 +585,28 @@ static void swapchain_render_surface_destroy(struct wlr_render_surface *wlr_rs) 
 
 static int swapchain_render_surface_buffer_age(
 		struct wlr_render_surface *wlr_rs) {
-	// NOTE: in vulkan we can't know the next buffer that will be
-	// used by the swapchain. The swapchain design simply doesn't
-	// allow in _any_ way to completely skip frames based on buffer
-	// age. But we could at least use a correct damage region when
-	// wlr_renderer_begin would again return a buffer_age value (for
-	// cases like this: where we only can determine the buffer age
-	// when starting to render)
-	//
-	// struct wlr_vk_swapchain_render_surface *rs =
-	// 	vulkan_get_render_surface_swapchain(wlr_rs);
-	// *buffer_age = rs->swapchain.buffers[???].age;
-	return -1;
+	// we can only know the buffer age once we have acquire the next image.
+	// since acquiring and holding images for a long time shouldn't be
+	// a problem (until we render the next time) we do it here.
+	// Since we never render multiple frames in parallel this should not block.
+	struct wlr_vk_swapchain_render_surface *rs =
+		vulkan_get_render_surface_swapchain(wlr_rs);
+	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
+	if (rs->current_id == -1) {
+		VkResult res;
+		uint32_t id;
+		res = vkAcquireNextImageKHR(vulkan->dev, rs->swapchain.swapchain,
+			0xFFFFFFFF, rs->acquire, VK_NULL_HANDLE, &id);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkAcquireNextImageKHR", res);
+			return -1;
+		}
+
+		assert(id < rs->swapchain.image_count);
+		rs->current_id = id;
+	}
+
+	return rs->swapchain.buffers[rs->current_id].age;
 }
 
 static const struct wlr_render_surface_impl swapchain_render_surface_impl = {
@@ -887,6 +904,7 @@ static struct wlr_render_surface *swapchain_render_surface_create(
 	rs->vk_rs.rs.width = width;
 	rs->vk_rs.rs.height = height;
 	rs->surface = surface;
+	rs->current_id = -1;
 
 	VkSemaphoreCreateInfo sem_info = {0};
 	sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1079,34 +1097,19 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 
 VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 		VkCommandBuffer cb) {
-	struct wlr_vk_renderer *renderer = rs->renderer;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
-
 	struct wlr_vk_swapchain_buffer *buffer = NULL;
 	if (vulkan_render_surface_is_swapchain(&rs->rs)) {
+		// calling buffer_age will implicitly acquire the next image,
+		// if not already done so
 		struct wlr_vk_swapchain_render_surface *srs =
 			vulkan_get_render_surface_swapchain(&rs->rs);
-
-		// TODO: better handling (skipping) out of date/suboptimal possible?
-		// the problem is that we can't really do anything ourselves in
-		// this case (the render surface has to be resized).
-		// Returning false makes sense but that requires that all callers
-		// interpret it correctly: not a critical error, just not possible
-		// to render at the moment.
-		// We could ignore the suboptimal return value though and simply
-		// render anyways (might get a scaled frame)
-		VkResult res;
-		uint32_t id;
-		res = vkAcquireNextImageKHR(vulkan->dev, srs->swapchain.swapchain,
-			0xFFFFFFFF, srs->acquire, VK_NULL_HANDLE, &id);
-		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkAcquireNextImageKHR", res);
+		swapchain_render_surface_buffer_age(&rs->rs);
+		if (srs->current_id < 0) {
 			return VK_NULL_HANDLE;
 		}
 
-		assert(id < srs->swapchain.image_count);
-		srs->current_id = id;
-		buffer = &srs->swapchain.buffers[id];
+		assert(srs->current_id < (int) srs->swapchain.image_count);
+		buffer = &srs->swapchain.buffers[srs->current_id];
 	} else {
 		struct wlr_vk_offscreen_render_surface *ors =
 			vulkan_get_render_surface_offscreen(&rs->rs);

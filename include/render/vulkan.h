@@ -148,7 +148,7 @@ struct wlr_vk_swapchain_render_surface {
 	struct wlr_vk_render_surface vk_rs;
 	VkSurfaceKHR surface;
 	struct wlr_vk_swapchain swapchain;
-	uint32_t current_id; // current or last rendered buffer id
+	int current_id; // current or last rendered buffer id
 
 	VkSemaphore acquire; // signaled when image was acquire
 	VkSemaphore present; // signaled when rendering finished
