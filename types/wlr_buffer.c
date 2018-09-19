@@ -87,6 +87,10 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		// the buffer yet.
 	} else {
 		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
+
+		// Instead of just logging the error, also disconnect the client with a
+		// fatal protocol error so that it's clear something went wrong.
+		wl_resource_post_error(resource, 0, "unknown buffer type");
 		return NULL;
 	}
 
