@@ -43,7 +43,7 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor
- * box.
+ * box. The scissor may exceed the bounds of the currently rendered surface.
  */
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
 /**

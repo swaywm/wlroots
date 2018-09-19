@@ -90,7 +90,7 @@ struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 		if (buf->allocs_size > buf->allocs_capacity) {
 			buf->allocs_capacity = buf->allocs_size * 2;
 			void *allocs = realloc(buf->allocs,
-				buf->allocs_size * sizeof(*buf->allocs));
+				buf->allocs_capacity * sizeof(*buf->allocs));
 			if (!allocs) {
 				wlr_log_errno(WLR_ERROR, "Allocation failed");
 				goto error_alloc;
@@ -217,7 +217,7 @@ bool wlr_vk_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 	}
 
 	vkEndCommandBuffer(renderer->stage.cb);
-	renderer->stage.recording = false;;
+	renderer->stage.recording = false;
 
 	VkSubmitInfo submit_info = {0};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -424,11 +424,12 @@ static void vulkan_scissor(struct wlr_renderer *wlr_renderer,
 
 	uint32_t w = renderer->current->rs.width;
 	uint32_t h = renderer->current->rs.height;
-	VkRect2D rect = {{0, 0}, {w, h}};
-	if (box) {
-		rect = (VkRect2D) {{box->x, box->y}, {box->width, box->height}};
+	struct wlr_box dst = {0, 0, w, h};
+	if (box && !wlr_box_intersection(&dst, box, &dst)) {
+		dst = (struct wlr_box) {0, 0, 0, 0}; // empty
 	}
 
+	VkRect2D rect = (VkRect2D) {{dst.x, dst.y}, {dst.width, dst.height}};
 	renderer->scissor = rect;
 	vkCmdSetScissor(cb, 0, 1, &rect);
 }

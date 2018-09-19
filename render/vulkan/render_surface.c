@@ -491,7 +491,8 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 	VkResult res;
 	bool success = true;
-	uint32_t height = rs->vk_rs.rs.height;
+	uint32_t w = rs->vk_rs.rs.width;
+	uint32_t h = rs->vk_rs.rs.height;
 
 	// track buffer age (although only used by layout changing atm)
 	for(unsigned i = 0; i < rs->swapchain.image_count; ++i) {
@@ -514,19 +515,27 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 	VkPresentRegionsKHR present_regions = {0};
 	VkPresentRegionKHR present_region = {0};
-	if (damage && renderer->vulkan->extensions.incremental_present) {
-		int nrects;
-		pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
-		VkRectLayerKHR vk_rects[nrects];
 
-		// we have to flip the y coordinate (from bottom-left origin to
-		// top-left origin as vulkan wants it)
+	int nrects = 1;
+	pixman_box32_t *rects;
+	if (damage && renderer->vulkan->extensions.incremental_present) {
+		rects = pixman_region32_rectangles(damage, &nrects);
+	}
+
+	if (nrects > 0) {
+		VkRectLayerKHR vk_rects[nrects];
+		struct wlr_box bounds = {0, 0, w, h};
+
 		for (int i = 0; i < nrects; ++i) {
+			struct wlr_box b = {rects[i].x1, rects[i].y1,
+				rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1};
+			wlr_box_transform(&b, WL_OUTPUT_TRANSFORM_FLIPPED_180, w, h, &b);
+			if (!wlr_box_intersection(&b, &bounds, &b)) {
+				b = (struct wlr_box) {0, 0, 0, 0}; // empty
+			}
 			vk_rects[i].layer = 0;
-			vk_rects[i].offset.x = rects[i].x1;
-			vk_rects[i].offset.y = height - rects[i].y2;
-			vk_rects[i].extent.width = rects[i].x2 - rects[i].x1;
-			vk_rects[i].extent.height = rects[i].y2 - rects[i].y1;
+			vk_rects[i].offset = (VkOffset2D) {b.x, b.y};
+			vk_rects[i].extent = (VkExtent2D) {b.width, b.height};
 		}
 
 		present_regions.sType = VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR;
@@ -549,7 +558,6 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	}
 
 clean:
-	renderer->current = NULL;
 	rs->current_id = -1;
 	return success;
 }
@@ -558,10 +566,31 @@ static void swapchain_render_surface_resize(struct wlr_render_surface *wlr_rs,
 		uint32_t width, uint32_t height) {
 	struct wlr_vk_swapchain_render_surface *rs =
 		vulkan_get_render_surface_swapchain(wlr_rs);
+	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
 	rs->vk_rs.rs.width = width;
 	rs->vk_rs.rs.height = height;
+
 	if (!wlr_vk_swapchain_resize(&rs->swapchain, width, height)) {
 		wlr_log(WLR_ERROR, "Failed to resize vulkan render surface");
+	}
+
+	// check if we had an acquired image
+	// if so, we have to recreate the acquire semaphore, since it may be in
+	// signaled state and we can't explicitly reset that
+	// althought renderer_begin -> renderer_end -> swap_buffers isn't expected
+	// to be interrupted, we might have already acquired the image in an earlier
+	// buffer_age call.
+	if (rs->current_id != -1) {
+		rs->current_id = -1;
+		vkDestroySemaphore(vulkan->dev, rs->acquire, NULL);
+
+		VkSemaphoreCreateInfo sem_info = {0};
+		sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		VkResult res = vkCreateSemaphore(vulkan->dev, &sem_info, NULL,
+			&rs->acquire);
+		if (res != VK_SUCCESS) {
+			wlr_vulkan_error("vkCreateSemaphore", res);
+		}
 	}
 }
 
@@ -597,7 +626,7 @@ static int swapchain_render_surface_buffer_age(
 		uint32_t id;
 		res = vkAcquireNextImageKHR(vulkan->dev, rs->swapchain.swapchain,
 			0xFFFFFFFF, rs->acquire, VK_NULL_HANDLE, &id);
-		if (res != VK_SUCCESS) {
+		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
 			wlr_vulkan_error("vkAcquireNextImageKHR", res);
 			return -1;
 		}
@@ -1104,7 +1133,7 @@ VkFramebuffer vulkan_render_surface_begin(struct wlr_vk_render_surface *rs,
 		struct wlr_vk_swapchain_render_surface *srs =
 			vulkan_get_render_surface_swapchain(&rs->rs);
 		swapchain_render_surface_buffer_age(&rs->rs);
-		if (srs->current_id < 0) {
+		if (srs->current_id < 0) { // acquiring failed
 			return VK_NULL_HANDLE;
 		}
 
