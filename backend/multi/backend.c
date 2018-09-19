@@ -207,3 +207,13 @@ bool wlr_multi_is_empty(struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
 	return wl_list_length(&backend->backends) < 1;
 }
+
+void wlr_multi_for_each_backend(struct wlr_backend *_backend,
+		void (*callback)(struct wlr_backend *backend, void *data), void *data) {
+	assert(wlr_backend_is_multi(_backend));
+	struct wlr_multi_backend *backend = (struct wlr_multi_backend *)_backend;
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &backend->backends, link) {
+		callback(sub->backend, data);
+	}
+}
