@@ -7,7 +7,7 @@ int wlr_vulkan_find_mem_type(struct wlr_vulkan *vulkan,
 	VkPhysicalDeviceMemoryProperties props;
 	vkGetPhysicalDeviceMemoryProperties(vulkan->phdev, &props);
 
-	for(unsigned i = 0u; i < props.memoryTypeCount; ++i) {
+	for (unsigned i = 0u; i < props.memoryTypeCount; ++i) {
 		if (req_bits & (1 << i)) {
 			if ((props.memoryTypes[i].propertyFlags & flags) == flags)
 				return i;

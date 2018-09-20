@@ -128,7 +128,7 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		return;
 	}
 
-	for(uint32_t i = 0; i < swapchain->image_count; i++) {
+	for (uint32_t i = 0; i < swapchain->image_count; i++) {
 		struct wlr_vk_swapchain_buffer *buf = &swapchain->buffers[i];
 		if (buf->framebuffer) {
 			vkDestroyFramebuffer(vulkan->dev, buf->framebuffer, NULL);
@@ -303,7 +303,7 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	if (formats_count == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
 		info.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 	} else {
-		for(unsigned i = 0; i < formats_count; ++i) {
+		for (unsigned i = 0; i < formats_count; ++i) {
 			if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
 				info.imageFormat = formats[i].format;
 				info.imageColorSpace = formats[i].colorSpace;
@@ -495,7 +495,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	uint32_t h = rs->vk_rs.rs.height;
 
 	// track buffer age (although only used by layout changing atm)
-	for(unsigned i = 0; i < rs->swapchain.image_count; ++i) {
+	for (unsigned i = 0; i < rs->swapchain.image_count; ++i) {
 		if (rs->swapchain.buffers[i].age > 0) {
 			++rs->swapchain.buffers[i].age;
 		}
@@ -671,7 +671,7 @@ static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 	struct wlr_vk_offscreen_buffer *old_front = rs->old_front;
 	if (!old_front) {
-		for(unsigned i = 0; i < 3; ++i) {
+		for (unsigned i = 0; i < 3; ++i) {
 			if (&rs->buffers[i] != rs->front && &rs->buffers[i] != rs->back) {
 				old_front = &rs->buffers[i];
 				break;
@@ -691,7 +691,7 @@ static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 static void offscreen_render_surface_finish_buffers(
 		struct wlr_vk_offscreen_render_surface *rs) {
 	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
-	for(unsigned i = 0; i < 3; ++i) {
+	for (unsigned i = 0; i < 3; ++i) {
 		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
 		if (buf->buffer.framebuffer) {
 			vkDestroyFramebuffer(vulkan->dev, buf->buffer.framebuffer, NULL);
@@ -736,7 +736,7 @@ static bool offscreen_render_surface_init_buffers(
 	// implementation notes: we currently create buffers with
 	// gbm and then import them to vulkan. Creating images with vulkan
 	// and then importing them as gbm bo is probably possible as well.
-	for(unsigned i = 0u; i < 3; ++i) {
+	for (unsigned i = 0u; i < 3; ++i) {
 		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
 
 		// TODO: use queried external memory/image properties

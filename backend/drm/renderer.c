@@ -60,7 +60,7 @@ bool init_drm_render_surface(struct wlr_render_surface **surf,
 
 	*surf = wlr_render_surface_create_gbm(
 		renderer->wlr_rend, width, height, renderer->gbm, flags);
-	return (*surf);
+	return *surf;
 }
 
 struct gbm_bo *get_drm_render_surface_front(struct wlr_renderer *renderer,

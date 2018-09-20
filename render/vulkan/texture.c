@@ -73,7 +73,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		if (src_x == 0 && width == texture->width && stride == img_stride) {
 			memcpy(map, data, stride * height);
 		} else {
-			for(unsigned i = 0; i < height; ++i) {
+			for (unsigned i = 0; i < height; ++i) {
 				memcpy(map, data, bytespp * width);
 				map += img_stride;
 				data += stride;

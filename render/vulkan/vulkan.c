@@ -38,7 +38,7 @@ void wlr_vulkan_destroy(struct wlr_vulkan *vulkan) {
 
 static int find_queue_family(const VkQueueFamilyProperties *props,
 		uint32_t prop_count, VkQueueFlags flags) {
-	for(unsigned i = 0; i < prop_count; ++i) {
+	for (unsigned i = 0; i < prop_count; ++i) {
 		if ((props[i].queueFlags & flags) == flags) {
 			return i;
 		}
@@ -64,7 +64,7 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	};
 
 	if (debug_data->pMessageIdName) {
-		for(unsigned i = 0; i < sizeof(ignored) / sizeof(ignored[0]); ++i) {
+		for (unsigned i = 0; i < sizeof(ignored) / sizeof(ignored[0]); ++i) {
 			if (!strcmp(debug_data->pMessageIdName, ignored[i])) {
 				return false;
 			}
@@ -92,7 +92,7 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		}
 	}
 
-	for(unsigned i = 0; i < debug_data->objectCount; ++i) {
+	for (unsigned i = 0; i < debug_data->objectCount; ++i) {
 		if (debug_data->pObjects[i].pObjectName) {
 			wlr_log(importance, "    involving '%s'", debug_data->pMessage);
 		}
@@ -105,9 +105,9 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 static const char *find_extensions(const VkExtensionProperties *avail,
 		unsigned availc, const char **req, unsigned reqc) {
 	// check if all required extensions are supported
-	for(size_t i = 0; i < reqc; ++i) {
+	for (size_t i = 0; i < reqc; ++i) {
 		bool found = false;
-		for(size_t j = 0; j < availc; ++j) {
+		for (size_t j = 0; j < availc; ++j) {
 			if (!strcmp(avail[j].extensionName, req[i])) {
 				found = true;
 				break;
@@ -148,7 +148,7 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	}
 
 	// output all extensions
-	for(size_t j = 0; j < avail_extc; ++j) {
+	for (size_t j = 0; j < avail_extc; ++j) {
 		wlr_log(WLR_INFO, "Vulkan Instance extensions %s",
 			avail_ext_props[j].extensionName);
 	}
@@ -310,7 +310,7 @@ static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
 	}
 
 	// output all extensions
-	for(size_t j = 0; j < avail_extc; ++j) {
+	for (size_t j = 0; j < avail_extc; ++j) {
 		wlr_log(WLR_INFO, "Vulkan Device extension %s",
 			avail_ext_props[j].extensionName);
 	}
