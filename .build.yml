@@ -22,7 +22,7 @@ tasks:
       cd wlroots/build-gcc
       CC=gcc meson .. -Dvulkan=enabled
       cd ../build-clang
-      CC=clang meson ..
+      CC=clang meson .. -Dvulkan=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja
