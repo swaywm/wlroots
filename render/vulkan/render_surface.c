@@ -516,7 +516,7 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	VkPresentRegionsKHR present_regions = {0};
 	VkPresentRegionKHR present_region = {0};
 
-	int nrects = 1;
+	int nrects = 0;
 	pixman_box32_t *rects;
 	if (damage && renderer->vulkan->extensions.incremental_present) {
 		rects = pixman_region32_rectangles(damage, &nrects);

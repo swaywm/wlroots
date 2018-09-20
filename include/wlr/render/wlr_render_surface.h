@@ -58,7 +58,9 @@ struct gbm_bo *wlr_render_surface_get_bo(struct wlr_render_surface *surface);
 /**
  * Reads the pixels rendered sine the last swap_buffers into data.
  * `stride` is in bytes.
- * Must not be called during rendering on this render_surface.
+ * Must not be called during rendering on this render_surface or after
+ * buffers were swapped so can only happend between renderer_end
+ * and render_surface_swap_buffers.
  * If `flags` is not NULl, the caller indicates that it accepts frame flags
  * defined in `enum wlr_renderer_read_pixels_flags`.
  */
