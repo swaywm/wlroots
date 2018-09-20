@@ -8,10 +8,10 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
+#include <EGL/egl.h>
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
@@ -70,11 +70,17 @@ static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 	return drm->clock;
 }
 
-static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
-	struct wlr_drm_backend *drm = (struct wlr_drm_backend *)backend;
+static bool backend_egl_params(struct wlr_backend *wlr_backend,
+		EGLenum *platform, void **remote_display, const EGLint **config_attribs,
+		EGLint *visualid) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(wlr_backend);
 	assert(drm->renderer.gbm);
-	return wlr_egl_init(egl, EGL_PLATFORM_GBM_MESA,
-		drm->renderer.gbm, NULL, GBM_FORMAT_ARGB8888);
+
+	*config_attribs = NULL;
+	*platform = EGL_PLATFORM_GBM_MESA;
+	*remote_display = drm->renderer.gbm;
+	*visualid = GBM_FORMAT_ARGB8888;
+	return true;
 }
 
 static struct wlr_backend_impl backend_impl = {
@@ -82,7 +88,7 @@ static struct wlr_backend_impl backend_impl = {
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
-	.init_egl = backend_init_egl,
+	.egl_params = backend_egl_params,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {

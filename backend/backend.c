@@ -50,6 +50,17 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	}
 }
 
+bool wlr_backend_egl_params(struct wlr_backend *backend,
+		EGLenum *platform, void **remote_display,
+		const EGLint **config_attribs, EGLint *visualid) {
+	if (backend->impl->egl_params) {
+		return backend->impl->egl_params(backend, platform, remote_display,
+			config_attribs, visualid);
+	}
+
+	return false;
+}
+
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	if (backend->impl->get_renderer) {
 		return backend->impl->get_renderer(backend);

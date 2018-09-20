@@ -447,7 +447,9 @@ extern const GLchar tex_fragment_src_rgba[];
 extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
 
-struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
+struct wlr_renderer *wlr_gles2_renderer_create_for_egl(
+		struct wlr_backend *backend, EGLenum platform, void *remote_display,
+		const EGLint *config_attribs, EGLint visualid) {
 	if (!load_glapi()) {
 		return NULL;
 	}
@@ -461,8 +463,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
 	renderer->backend = backend;
 
 	struct wlr_egl *egl = &renderer->egl;
-	if (!backend->impl->init_egl || !backend->impl->init_egl(backend, egl)) {
-		wlr_egl_finish(&renderer->egl);
+	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visualid)) {
+		wlr_log(WLR_ERROR, "Failed to initialize egl");
 		free(renderer);
 		return NULL;
 	}
@@ -558,4 +560,20 @@ error:
 	wlr_egl_finish(&renderer->egl);
 	free(renderer);
 	return NULL;
+}
+
+struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_backend *backend) {
+	EGLenum platform;
+	void *remote_display;
+	const EGLint *config_attribs;
+	EGLint visualid;
+
+	if (!wlr_backend_egl_params(backend, &platform, &remote_display,
+			&config_attribs, &visualid)) {
+		wlr_log(WLR_ERROR, "Backend does not support egl");
+		return NULL;
+	}
+
+	return wlr_gles2_renderer_create_for_egl(backend, platform, remote_display,
+		config_attribs, visualid);
 }

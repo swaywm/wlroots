@@ -7,8 +7,8 @@
 #include <wlr/util/log.h>
 #include "glapi.h"
 
-static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
-		EGLint visual_id) {
+static bool egl_get_config(EGLDisplay disp, const EGLint *attribs,
+		EGLConfig *out, EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
@@ -97,7 +97,7 @@ static void print_dmabuf_formats(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
-		EGLint *config_attribs, EGLint visual_id) {
+		const EGLint *config_attribs, EGLint visual_id) {
 	if (!load_glapi()) {
 		return false;
 	}

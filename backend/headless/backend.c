@@ -4,6 +4,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <EGL/egl.h>
 #include "backend/headless.h"
 #include "glapi.h"
 #include "util/signal.h"
@@ -71,8 +72,10 @@ static struct wlr_renderer *backend_get_renderer(
 	return backend->renderer;
 }
 
-static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
-	static const EGLint config_attribs[] = {
+static bool backend_egl_params(struct wlr_backend *wlr_backend,
+		EGLenum *platform, void **remote_display, const EGLint **config_attribs,
+		EGLint *visualid) {
+	static const EGLint attribs[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
 		EGL_ALPHA_SIZE, 0,
 		EGL_BLUE_SIZE, 8,
@@ -81,15 +84,19 @@ static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE,
 	};
-	return wlr_egl_init(egl, EGL_PLATFORM_SURFACELESS_MESA,
-		NULL, (EGLint*) config_attribs, 0);
+
+	*config_attribs = attribs;
+	*platform = EGL_PLATFORM_SURFACELESS_MESA;
+	*remote_display = NULL;
+	*visualid = 0;
+	return true;
 }
 
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
-	.init_egl = backend_init_egl,
+	.egl_params = backend_egl_params,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

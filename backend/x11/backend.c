@@ -14,6 +14,7 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
+#include <EGL/egl.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
 #ifdef WLR_HAS_XCB_XKB
@@ -222,17 +223,22 @@ static struct wlr_renderer *backend_get_renderer(
 	return x11->renderer;
 }
 
-static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
-	struct wlr_x11_backend *x11 = (struct wlr_x11_backend *)backend;
-	return wlr_egl_init(egl, EGL_PLATFORM_X11_KHR,
-		x11->xlib_conn, NULL, x11->screen->root_visual);
+static bool backend_egl_params(struct wlr_backend *wlr_backend,
+		EGLenum *platform, void **remote_display, const EGLint **config_attribs,
+		EGLint *visualid) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(wlr_backend);
+	*config_attribs = NULL;
+	*remote_display = x11->xlib_conn;
+	*platform = EGL_PLATFORM_X11_KHR;
+	*visualid = x11->screen->root_visual;
+	return true;
 }
 
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
-	.init_egl = backend_init_egl,
+	.egl_params = backend_egl_params,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {

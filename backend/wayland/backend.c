@@ -7,6 +7,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <EGL/egl.h>
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
@@ -123,8 +124,11 @@ static struct wlr_renderer *backend_get_renderer(
 	return backend->renderer;
 }
 
-static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
-	static EGLint config_attribs[] = {
+static bool backend_egl_params(struct wlr_backend *wlr_backend,
+		EGLenum *platform, void **remote_display, const EGLint **config_attribs,
+		EGLint *visualid) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(wlr_backend);
+	static const EGLint attribs[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_RED_SIZE, 1,
 		EGL_GREEN_SIZE, 1,
@@ -133,16 +137,18 @@ static bool backend_init_egl(struct wlr_backend *backend, struct wlr_egl *egl) {
 		EGL_NONE,
 	};
 
-	struct wlr_wl_backend *wl = (struct wlr_wl_backend *)backend;
-	return wlr_egl_init(egl, EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
+	*config_attribs = attribs;
+	*platform = EGL_PLATFORM_WAYLAND_EXT;
+	*remote_display = wl->remote_display;
+	*visualid = WL_SHM_FORMAT_ARGB8888;
+	return true;
 }
 
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
-	.init_egl = backend_init_egl,
+	.egl_params = backend_egl_params,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
