@@ -184,7 +184,6 @@ struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 	buf->allocs_size = 1u;
 	buf->allocs[0].start = 0u;
 	buf->allocs[0].size = size;
-	wlr_log(WLR_DEBUG, "%lu %lu", buf->allocs[0].start, buf->allocs[0].size);
 	return (struct wlr_vk_buffer_span) {
 		.buffer = buf,
 		.alloc = buf->allocs[0],
