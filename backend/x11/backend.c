@@ -20,6 +20,10 @@
 #ifdef WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
+#ifdef WLR_HAS_VULKAN
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_xcb.h>
+#endif
 #include "backend/x11.h"
 #include "util/signal.h"
 
@@ -234,11 +238,24 @@ static bool backend_egl_params(struct wlr_backend *wlr_backend,
 	return true;
 }
 
+static bool backend_vulkan_queue_check(struct wlr_backend *wlr_backend,
+		uintptr_t vk_physical_device, uint32_t qfam) {
+#ifdef WLR_HAS_VULKAN
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(wlr_backend);
+	VkPhysicalDevice phdev = (VkPhysicalDevice) vk_physical_device;
+	return vkGetPhysicalDeviceXcbPresentationSupportKHR(phdev, qfam,
+		x11->xcb_conn, x11->screen->root_visual);
+#else
+	return false;
+#endif
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.egl_params = backend_egl_params,
+	.vulkan_queue_family_present_support = backend_vulkan_queue_check,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {

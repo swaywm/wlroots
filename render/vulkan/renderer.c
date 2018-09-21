@@ -9,12 +9,29 @@
 #include <wlr/render/interface.h>
 #include <wlr/util/log.h>
 #include <wlr/render/vulkan.h>
+#include <wlr/backend/interface.h>
 #include <render/vulkan.h>
 
 #include "shaders/common.vert.h"
 #include "shaders/texture.frag.h"
 #include "shaders/quad.frag.h"
 #include "shaders/ellipse.frag.h"
+
+// host_images: Internal configuration, mainly for testing and benchmarking.
+// Should be false in release builds.
+// When this is set to true, will use linear textures on host visible
+// memory for shm textures.
+// This means that no additional staging buffer
+// upload logic (and memory for those upload buffers) has to be used
+// and that uploads (e.g. write_pixels) may be faster but rendering
+// may be considerably slower. Even if set to true, the device
+// may not support reading from linear textures (see checks below).
+static const bool use_host_images = false;
+
+static const VkDeviceSize min_stage_size = 1024 * 1024; // 1MB
+static const VkDeviceSize max_stage_size = 64 * min_stage_size; // 64MB
+static const size_t start_descriptor_pool_size = 256u;
+static bool default_debug = true;
 
 static const struct wlr_renderer_impl renderer_impl;
 
@@ -39,6 +56,74 @@ static void mat3_to_mat4(const float mat3[9], float mat4[4][4]) {
 	mat4[3][3] = 1.f;
 }
 
+struct wlr_vk_descriptor_pool *wlr_vk_alloc_texture_ds(
+		struct wlr_vk_renderer *renderer, VkDescriptorSet *ds) {
+	VkResult res;
+	VkDescriptorSetAllocateInfo ds_info = {0};
+	ds_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	ds_info.descriptorSetCount = 1;
+	ds_info.pSetLayouts = &renderer->descriptor_set_layout;
+
+	bool found = false;
+	struct wlr_vk_descriptor_pool *pool;
+	wl_list_for_each(pool, &renderer->descriptor_pools, link) {
+		if (pool->free > 0) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) { // create new pool
+		pool = calloc(1, sizeof(*pool));
+		if (!pool) {
+			wlr_log_errno(WLR_ERROR, "allocation failed");
+			return NULL;
+		}
+
+		size_t count = renderer->last_pool_size;
+		if (!count) {
+			count = start_descriptor_pool_size;
+		}
+
+		pool->free = count;
+		VkDescriptorPoolSize pool_size = {0};
+		pool_size.descriptorCount = count;
+		pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+		VkDescriptorPoolCreateInfo dpool_info = {0};
+		dpool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		dpool_info.maxSets = count;
+		dpool_info.poolSizeCount = 1;
+		dpool_info.pPoolSizes = &pool_size;
+		dpool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+		res = vkCreateDescriptorPool(renderer->dev->dev, &dpool_info, NULL,
+			&pool->pool);
+		if (res != VK_SUCCESS) {
+			wlr_vk_error("vkCreateDescriptorPool", res);
+			free(pool);
+			return NULL;
+		}
+
+		wl_list_insert(&renderer->descriptor_pools, &pool->link);
+	}
+
+	ds_info.descriptorPool = pool->pool;
+	res = vkAllocateDescriptorSets(renderer->dev->dev, &ds_info, ds);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkAllocateDescriptorSets", res);
+		return NULL;
+	}
+
+	return pool;
+}
+
+void wlr_vk_free_ds(struct wlr_vk_renderer *renderer,
+		struct wlr_vk_descriptor_pool *pool, VkDescriptorSet ds) {
+	vkFreeDescriptorSets(renderer->dev->dev, pool->pool, 1, &ds);
+	++pool->free;
+}
+
 static void shared_buffer_destroy(struct wlr_vk_renderer *r,
 		struct wlr_vk_shared_buffer *buffer) {
 	if (!buffer) {
@@ -52,10 +137,10 @@ static void shared_buffer_destroy(struct wlr_vk_renderer *r,
 
 	free(buffer->allocs);
 	if (buffer->buffer) {
-		vkDestroyBuffer(r->vulkan->dev, buffer->buffer, NULL);
+		vkDestroyBuffer(r->dev->dev, buffer->buffer, NULL);
 	}
 	if (buffer->memory) {
-		vkFreeMemory(r->vulkan->dev, buffer->memory, NULL);
+		vkFreeMemory(r->dev->dev, buffer->memory, NULL);
 	}
 
 	wl_list_remove(&buffer->link);
@@ -72,9 +157,10 @@ static void release_stage_allocations(struct wlr_vk_renderer *renderer) {
 struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 		VkDeviceSize size) {
 	// try to find free span
-	// simply greedy allocation algorithm - should be enough for this usecase
+	// simple greedy allocation algorithm - should be enough for this usecase
+	// since all allocations are freed together after the frame
 	struct wlr_vk_shared_buffer *buf;
-	wl_list_for_each(buf, &r->stage.buffers, link) {
+	wl_list_for_each_reverse(buf, &r->stage.buffers, link) {
 		VkDeviceSize start = 0u;
 		if (buf->allocs_size > 0) {
 			struct wlr_vk_allocation *last = &buf->allocs[buf->allocs_size - 1];
@@ -110,22 +196,19 @@ struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 
 	// we didn't find a free buffer - create one
 	// size = clamp(max(size * 2, prev_size * 2), min_size, max_size)
-	const VkDeviceSize min_size = 1024 * 1024; // 1MB
-	const VkDeviceSize max_size = 64 * min_size; // 64MB
-
 	VkDeviceSize bsize = size * 2;
-	bsize = bsize < min_size ? min_size : bsize;
-	struct wl_list *last_link = r->stage.buffers.prev;
+	bsize = bsize < min_stage_size ? min_stage_size : bsize;
 	if (!wl_list_empty(&r->stage.buffers)) {
+		struct wl_list *last_link = r->stage.buffers.prev;
 		struct wlr_vk_shared_buffer *prev = wl_container_of(
 			last_link, prev, link);
 		VkDeviceSize last_size = 2 * prev->buf_size;
 		bsize = bsize < last_size ? last_size : bsize;
 	}
 
-	if (bsize > max_size) {
+	if (bsize > max_stage_size) {
 		wlr_log(WLR_INFO, "vulkan stage buffers have reached max size");
-		bsize = max_size;
+		bsize = max_stage_size;
 	}
 
 	// create buffer
@@ -142,30 +225,30 @@ struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 	buf_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	res = vkCreateBuffer(r->vulkan->dev, &buf_info, NULL, &buf->buffer);
+	res = vkCreateBuffer(r->dev->dev, &buf_info, NULL, &buf->buffer);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateBuffer", res);
+		wlr_vk_error("vkCreateBuffer", res);
 		goto error;
 	}
 
 	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(r->vulkan->dev, buf->buffer, &mem_reqs);
+	vkGetBufferMemoryRequirements(r->dev->dev, buf->buffer, &mem_reqs);
 
 	VkMemoryAllocateInfo mem_info = {0};
 	mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
-	mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(r->vulkan,
+	mem_info.memoryTypeIndex = wlr_vk_find_mem_type(r->dev,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mem_reqs.memoryTypeBits);
-	res = vkAllocateMemory(r->vulkan->dev, &mem_info, NULL, &buf->memory);
+	res = vkAllocateMemory(r->dev->dev, &mem_info, NULL, &buf->memory);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocatorMemory", res);
+		wlr_vk_error("vkAllocatorMemory", res);
 		goto error;
 	}
 
-	res = vkBindBufferMemory(r->vulkan->dev, buf->buffer, buf->memory, 0);
+	res = vkBindBufferMemory(r->dev->dev, buf->buffer, buf->memory, 0);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkBindBufferMemory", res);
+		wlr_vk_error("vkBindBufferMemory", res);
 		goto error;
 	}
 
@@ -178,7 +261,7 @@ struct wlr_vk_buffer_span wlr_vk_get_stage_span(struct wlr_vk_renderer *r,
 
 	wlr_log(WLR_DEBUG, "Created new vk staging buffer of size %lu", bsize);
 	buf->buf_size = bsize;
-	wl_list_insert(last_link, &buf->link);
+	wl_list_insert(&r->stage.buffers, &buf->link);
 
 	buf->allocs_capacity = start_count;
 	buf->allocs_size = 1u;
@@ -222,30 +305,39 @@ bool wlr_vk_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1u;
 	submit_info.pCommandBuffers = &renderer->stage.cb;
-	VkResult res = vkQueueSubmit(renderer->vulkan->graphics_queue, 1,
+	VkResult res = vkQueueSubmit(renderer->graphics_queue.queue, 1,
 		&submit_info, renderer->fence);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueueSubmit", res);
+		wlr_vk_error("vkQueueSubmit", res);
 		return false;
 	}
 
-	res = vkWaitForFences(renderer->vulkan->dev, 1, &renderer->fence, true,
+	res = vkWaitForFences(renderer->dev->dev, 1, &renderer->fence, true,
 		UINT64_MAX);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkWaitForFences", res);
+		wlr_vk_error("vkWaitForFences", res);
 		return false;
 	}
 
-	// NOTE: don't call this here since the caller might still need an
-	// allocation. Will be called next frame.
-	// release_stage_allocations(renderer);
-	res = vkResetFences(renderer->vulkan->dev, 1, &renderer->fence);
+	// NOTE: don't release stage allocations here since they may still be
+	// used for reading. Will be done next frame.
+	res = vkResetFences(renderer->dev->dev, 1, &renderer->fence);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkResetFences", res);
+		wlr_vk_error("vkResetFences", res);
 		return false;
 	}
 
 	return true;
+}
+
+struct wlr_vk_pixel_format_props *wlr_vk_format_from_wl(
+		struct wlr_vk_renderer *renderer, enum wl_shm_format wl_fmt) {
+	for (size_t i = 0; i < renderer->format_count; ++i) {
+		if (renderer->formats[i].format.wl_format == wl_fmt) {
+			return &renderer->formats[i];
+		}
+	}
+	return NULL;
 }
 
 // interface implementation
@@ -344,28 +436,28 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	render_sub->pSignalSemaphores = rsignal;
 	++submit_count;
 
-	res = vkQueueSubmit(renderer->vulkan->graphics_queue, submit_count,
+	res = vkQueueSubmit(renderer->graphics_queue.queue, submit_count,
 		submit_infos, renderer->fence);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueueSubmit", res);
+		wlr_vk_error("vkQueueSubmit", res);
 		goto clean;
 	}
 
 	// sadly this is required due to the current api/rendering model of wlr
 	// ideally we could use gpu and cpu in parallel (_without_ the
 	// implicit synchronization overhead and mess of opengl drivers)
-	res = vkWaitForFences(renderer->vulkan->dev, 1, &renderer->fence, true,
+	res = vkWaitForFences(renderer->dev->dev, 1, &renderer->fence, true,
 		UINT64_MAX);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkWaitForFences", res);
+		wlr_vk_error("vkWaitForFences", res);
 		goto clean;
 	}
 
 	++renderer->stage.frame;
 	release_stage_allocations(renderer);
-	res = vkResetFences(renderer->vulkan->dev, 1, &renderer->fence);
+	res = vkResetFences(renderer->dev->dev, 1, &renderer->fence);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkResetFences", res);
+		wlr_vk_error("vkResetFences", res);
 		goto clean;
 	}
 
@@ -440,7 +532,9 @@ static bool vulkan_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
 
 const enum wl_shm_format *vulkan_formats(struct wlr_renderer *wlr_renderer,
 		size_t *len) {
-	return get_vulkan_formats(len);
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	*len = renderer->format_count;
+	return renderer->wl_formats;
 }
 
 static void vulkan_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
@@ -489,17 +583,20 @@ static void vulkan_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 
 static int vulkan_get_dmabuf_formats(struct wlr_renderer *wlr_renderer,
 		int **formats) {
-	return 0;
+	wlr_log(WLR_ERROR, "vulkan dmabuf not implemented");
+	return -1;
 }
 
 static int vulkan_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer,
 		int format, uint64_t **modifiers) {
-	return 0;
+	wlr_log(WLR_ERROR, "vulkan dmabuf not implemented");
+	return -1;
 }
 
 static bool vulkan_format_supported(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt) {
-	return get_vulkan_format_from_wl(wl_fmt) != NULL;
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	return wlr_vk_format_from_wl(renderer, wl_fmt);
 }
 
 static struct wlr_texture *vulkan_texture_from_pixels(
@@ -525,59 +622,70 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(
 
 static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vulkan *vulkan = renderer->vulkan;
-	if (!vulkan) {
+	struct wlr_vk_device *dev = renderer->dev;
+	if (!dev) {
+		free(renderer);
 		return;
 	}
 
 	// stage.cb automatically freed with command pool
-	struct wlr_vk_shared_buffer *buf, *tmp;
-	wl_list_for_each_safe(buf, tmp, &renderer->stage.buffers, link) {
+	struct wlr_vk_shared_buffer *buf, *tmp_buf;
+	wl_list_for_each_safe(buf, tmp_buf, &renderer->stage.buffers, link) {
 		shared_buffer_destroy(renderer, buf);
 	}
 
+	struct wlr_vk_descriptor_pool *pool, *tmp_pool;
+	wl_list_for_each_safe(pool, tmp_pool, &renderer->descriptor_pools, link) {
+		vkDestroyDescriptorPool(dev->dev, pool->pool, NULL);
+		free(pool);
+	}
+
 	if (renderer->stage.signal) {
-		vkDestroySemaphore(vulkan->dev, renderer->stage.signal, NULL);
+		vkDestroySemaphore(dev->dev, renderer->stage.signal, NULL);
 	}
 	if (renderer->fence) {
-		vkDestroyFence(vulkan->dev, renderer->fence, NULL);
+		vkDestroyFence(dev->dev, renderer->fence, NULL);
 	}
 	if (renderer->tex_pipe) {
-		vkDestroyPipeline(vulkan->dev, renderer->tex_pipe, NULL);
+		vkDestroyPipeline(dev->dev, renderer->tex_pipe, NULL);
 	}
 	if (renderer->quad_pipe) {
-		vkDestroyPipeline(vulkan->dev, renderer->quad_pipe, NULL);
+		vkDestroyPipeline(dev->dev, renderer->quad_pipe, NULL);
 	}
 	if (renderer->ellipse_pipe) {
-		vkDestroyPipeline(vulkan->dev, renderer->ellipse_pipe, NULL);
+		vkDestroyPipeline(dev->dev, renderer->ellipse_pipe, NULL);
 	}
 	if (renderer->pipeline_layout) {
-		vkDestroyPipelineLayout(vulkan->dev, renderer->pipeline_layout, NULL);
+		vkDestroyPipelineLayout(dev->dev, renderer->pipeline_layout, NULL);
 	}
 	if (renderer->descriptor_set_layout) {
-		vkDestroyDescriptorSetLayout(vulkan->dev,
+		vkDestroyDescriptorSetLayout(dev->dev,
 			renderer->descriptor_set_layout, NULL);
 	}
 	if (renderer->sampler) {
-		vkDestroySampler(vulkan->dev, renderer->sampler, NULL);
+		vkDestroySampler(dev->dev, renderer->sampler, NULL);
 	}
 	if (renderer->render_pass) {
-		vkDestroyRenderPass(vulkan->dev, renderer->render_pass, NULL);
+		vkDestroyRenderPass(dev->dev, renderer->render_pass, NULL);
 	}
 	if (renderer->command_pool) {
-		vkDestroyCommandPool(vulkan->dev, renderer->command_pool, NULL);
-	}
-	if (renderer->descriptor_pool) {
-		vkDestroyDescriptorPool(vulkan->dev, renderer->descriptor_pool, NULL);
+		vkDestroyCommandPool(dev->dev, renderer->command_pool, NULL);
 	}
 
-	wlr_vulkan_destroy(renderer->vulkan);
+	struct wlr_vk_instance *ini = dev->instance;
+	if (--dev->renderers == 0) {
+		wlr_vk_device_destroy(dev);
+	}
+
+	if (wl_list_empty(&ini->devices)) {
+		wlr_vk_instance_destroy(ini);
+	}
 	free(renderer);
 }
 
 static void vulkan_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
-	// probably have to implement wl_offscreen ourselves since mesa
+	// probably have to implement wl_drm ourselves since mesa
 	// still depends on it
 }
 
@@ -608,16 +716,14 @@ static const struct wlr_renderer_impl renderer_impl = {
 
 // returns false on error
 // cleanup is done by destroying the renderer
-static bool init_pipelines(struct wlr_vk_renderer *renderer) {
+static bool init_pipelines(struct wlr_vk_renderer *renderer, VkFormat format) {
 	// util
-	VkDevice dev = renderer->vulkan->dev;
+	VkDevice dev = renderer->dev->dev;
 	VkResult res;
 
-	// TODO: better to use a format we know we can create swapchains for
-	// although bgra8 is usually supported, it might not be
 	// renderpass
 	VkAttachmentDescription attachment = {0};
-	attachment.format = VK_FORMAT_B8G8R8A8_UNORM;
+	attachment.format = format;
 	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -670,7 +776,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 
 	res = vkCreateRenderPass(dev, &rp_info, NULL, &renderer->render_pass);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create render pass", res);
+		wlr_vk_error("Failed to create render pass", res);
 		return false;
 	}
 
@@ -690,7 +796,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 
 	res = vkCreateSampler(dev, &sampler_info, NULL, &renderer->sampler);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create sampler", res);
+		wlr_vk_error("Failed to create sampler", res);
 		return false;
 	}
 
@@ -731,7 +837,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 
 	res = vkCreatePipelineLayout(dev, &pl_info, NULL, &renderer->pipeline_layout);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create pipeline layout", res);
+		wlr_vk_error("Failed to create pipeline layout", res);
 		return false;
 	}
 
@@ -748,7 +854,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	sinfo.pCode = common_vert_data;
 	res = vkCreateShaderModule(dev, &sinfo, NULL, &vert_module);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create vertex shader module", res);
+		wlr_vk_error("Failed to create vertex shader module", res);
 		goto cleanup_shaders;
 	}
 
@@ -762,7 +868,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	sinfo.pCode = texture_frag_data;
 	res = vkCreateShaderModule(dev, &sinfo, NULL, &tex_frag_module);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create tex fragment shader module", res);
+		wlr_vk_error("Failed to create tex fragment shader module", res);
 		goto cleanup_shaders;
 	}
 
@@ -771,7 +877,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	sinfo.pCode = quad_frag_data;
 	res = vkCreateShaderModule(dev, &sinfo, NULL, &quad_frag_module);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create quad fragment shader module", res);
+		wlr_vk_error("Failed to create quad fragment shader module", res);
 		goto cleanup_shaders;
 	}
 
@@ -780,7 +886,7 @@ static bool init_pipelines(struct wlr_vk_renderer *renderer) {
 	sinfo.pCode = ellipse_frag_data;
 	res = vkCreateShaderModule(dev, &sinfo, NULL, &ellipse_frag_module);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create ellipse fragment shader module", res);
+		wlr_vk_error("Failed to create ellipse fragment shader module", res);
 		goto cleanup_shaders;
 	}
 
@@ -909,22 +1015,9 @@ cleanup_shaders:
 	return false;
 }
 
-struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
-	bool debug = true;
-
-	wlr_log(WLR_ERROR, "The vulkan renderer is only experimental and "
-		"not expected to be ready for daliy use");
-
-	// TODO: when getting a drm backend, we should use the same gpu as
-	// the backend. Not sure if there is a reliable (or even mesa-only)
-	// way to detect if a VkPhysicalDevice is the same as a gbm_device
-	// (or offscreen fd) though.
-	struct wlr_vulkan *vulkan = wlr_vulkan_create(0, NULL, 0, NULL, debug);
-	if (!vulkan) {
-		wlr_log(WLR_ERROR, "Failed to initialize vulkan");
-		return NULL;
-	}
-
+struct wlr_renderer *wlr_vk_renderer_create_for_device(
+		struct wlr_vk_device *dev, const struct wlr_vk_queue *graphics,
+		const struct wlr_vk_queue *present) {
 	struct wlr_vk_renderer *renderer;
 	VkResult res;
 	if (!(renderer = calloc(1, sizeof(*renderer)))) {
@@ -932,39 +1025,64 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 
-	// Internal configuration, mainly for testing and benchmarking.
-	// Should probably be false in release builds.
-	// When this is set to true, will use linear textures on host visible
-	// memory if possible. This means that no additional staging buffer
-	// upload logic (and memory for those upload buffers) has to be used
-	// and that uploads (e.g. write_pixels) may be faster but rendering
-	// may be considerably slower. Even if set to true, the device
-	// may not support reading from linear textures (see check below).
-	renderer->host_images = false;
-	if (renderer->host_images) {
-		size_t len;
-		VkFormatFeatureFlags features = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
-		const enum wl_shm_format *fmts = get_vulkan_formats(&len);
-		VkFormatProperties props;
-		for (size_t i = 0; i < len; ++i) {
-			vkGetPhysicalDeviceFormatProperties(vulkan->phdev,
-				get_vulkan_format_from_wl(fmts[len])->vk_format, &props);
-			if ((props.linearTilingFeatures & features) != features) {
-				wlr_log(WLR_INFO, "Missing features for host images");
-				renderer->host_images = false;
-				break;
-			}
-		}
-	}
-
-	renderer->backend = backend;
-	renderer->vulkan = vulkan;
+	++dev->renderers;
+	renderer->dev = dev;
+	renderer->present_queue = *present;
+	renderer->graphics_queue = *graphics;
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 	wl_list_init(&renderer->stage.buffers);
+	wl_list_init(&renderer->descriptor_pools);
 
-	// init renderpass, pipeline etc
-	if (!init_pipelines(renderer)) {
-		wlr_log(WLR_ERROR, "Could not init vulkan pipeline");
+	// - check device format support -
+	renderer->host_images = use_host_images;
+	VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+	VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+	VkFormatFeatureFlags req_features = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+	if (renderer->host_images) {
+		tiling = VK_IMAGE_TILING_LINEAR;
+	} else {
+		usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		req_features |= VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+	}
+
+	size_t max_fmts;
+	const struct wlr_vk_pixel_format *fmts = vulkan_get_format_list(&max_fmts);
+	renderer->wl_formats = calloc(max_fmts, sizeof(*renderer->wl_formats));
+	renderer->formats = calloc(max_fmts, sizeof(*renderer->formats));
+	if (!renderer->wl_formats || !renderer->formats) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+		goto error;
+	}
+
+	VkFormatProperties props;
+	for (unsigned i = 0u; i < max_fmts; ++i) {
+		struct wlr_vk_pixel_format_props fprops;
+		fprops.format = fmts[i];
+
+		// format properties
+		vkGetPhysicalDeviceFormatProperties(dev->phdev,
+			fmts[i].vk_format, &props);
+		VkFormatFeatureFlags features = props.optimalTilingFeatures;
+		if (renderer->host_images) {
+			features = props.linearTilingFeatures;
+		}
+
+		if ((features & req_features) != req_features) {
+			continue;
+		}
+
+		if (!wlr_vk_query_format(dev, &fprops, usage, tiling)) {
+			continue;
+		}
+
+		renderer->formats[renderer->format_count] = fprops;
+		renderer->wl_formats[renderer->format_count] = fmts[i].wl_format;
+		++renderer->format_count;
+	}
+
+	// we currently force bgra format on swapchain creation
+	// this could also be deferred until the first render surface is created.
+	if (!init_pipelines(renderer, VK_FORMAT_B8G8R8A8_UNORM)) {
 		goto error;
 	}
 
@@ -972,44 +1090,20 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	VkCommandPoolCreateInfo cpool_info = {0};
 	cpool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	cpool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	cpool_info.queueFamilyIndex = vulkan->graphics_queue_fam;
-	res = vkCreateCommandPool(vulkan->dev, &cpool_info, NULL,
+	cpool_info.queueFamilyIndex = graphics->family;
+	res = vkCreateCommandPool(dev->dev, &cpool_info, NULL,
 		&renderer->command_pool);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateCommandPool", res);
-		goto error;
-	}
-
-	// descriptor pool
-	// TODO: at the moment we just allocate one large pool but it might
-	// run out. We need dynamic pool creation/allocation algorithm with
-	// a list of managed (usage tracked) descriptor pool.
-	// Can't handle more than 500 textures at the moment
-	unsigned count = 500;
-	VkDescriptorPoolSize pool_size = {0};
-	pool_size.descriptorCount = count;
-	pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-	VkDescriptorPoolCreateInfo dpool_info = {0};
-	dpool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	dpool_info.maxSets = count;
-	dpool_info.poolSizeCount = 1;
-	dpool_info.pPoolSizes = &pool_size;
-	dpool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-
-	res = vkCreateDescriptorPool(vulkan->dev, &dpool_info, NULL,
-		&renderer->descriptor_pool);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateDescriptorPool", res);
+		wlr_vk_error("vkCreateCommandPool", res);
 		goto error;
 	}
 
 	VkFenceCreateInfo fence_info = {0};
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	res = vkCreateFence(renderer->vulkan->dev, &fence_info, NULL,
+	res = vkCreateFence(dev->dev, &fence_info, NULL,
 		&renderer->fence);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateFence", res);
+		wlr_vk_error("vkCreateFence", res);
 		goto error;
 	}
 
@@ -1019,19 +1113,19 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	cmd_buf_info.commandPool = renderer->command_pool;
 	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info,
+	res = vkAllocateCommandBuffers(dev->dev, &cmd_buf_info,
 		&renderer->stage.cb);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		wlr_vk_error("vkAllocateCommandBuffers", res);
 		goto error;
 	}
 
 	VkSemaphoreCreateInfo sem_info = {0};
 	sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	res = vkCreateSemaphore(renderer->vulkan->dev, &sem_info, NULL,
+	res = vkCreateSemaphore(dev->dev, &sem_info, NULL,
 		&renderer->stage.signal);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateSemaphore", res);
+		wlr_vk_error("vkCreateSemaphore", res);
 		goto error;
 	}
 
@@ -1040,4 +1134,86 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 error:
 	vulkan_destroy(&renderer->wlr_renderer);
 	return NULL;
+}
+
+struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
+	VkResult res;
+	wlr_log(WLR_ERROR, "The vulkan renderer is only experimental and "
+		"not expected to be ready for daliy use");
+
+	if (!backend->impl->vulkan_queue_family_present_support) {
+		wlr_log(WLR_ERROR, "backend does not support vulkan");
+		return NULL;
+	}
+
+	// NOTE: we could add functionality to allow the compositor passing its
+	// name and version to this function. Just use dummies until then,
+	// shouldn't be relevant to the driver anyways
+	struct wlr_vk_instance *ini = wlr_vk_instance_create(0, NULL,
+		default_debug, "wlroots-compositor", 0);
+	if (!ini) {
+		wlr_log(WLR_ERROR, "creating vulkan instance for renderer failed");
+		return NULL;
+	}
+
+	// TODO: don't just choose the first device
+	// query one based on
+	//  - user preference (env variables/config)
+	//  - supported presenting caps (present qfam found?)
+	//  - supported extensions, external memory import properties
+	//  - (as default, without user preference) integrated vs dedicated
+	//  - when on drm backend match it with the gbm device (probably not
+	//    possible without new vulkan extensions)
+	uint32_t num_devs = 1;
+	VkPhysicalDevice phdev;
+	res = vkEnumeratePhysicalDevices(ini->instance, &num_devs,
+		&phdev);
+	if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || !phdev) {
+		wlr_log(WLR_ERROR, "Could not retrieve physical device");
+		free(ini);
+		return NULL;
+	}
+
+	// queue families
+	uint32_t qfam_count;
+	vkGetPhysicalDeviceQueueFamilyProperties(phdev, &qfam_count, NULL);
+	VkQueueFamilyProperties queue_props[qfam_count];
+	vkGetPhysicalDeviceQueueFamilyProperties(phdev, &qfam_count,
+		queue_props);
+
+	unsigned queue_count = 0u;
+	struct wlr_vk_queue queues[2]; // 0: present, [1: graphics if needed]
+	for (unsigned i = 0u; i < qfam_count; ++i) {
+		bool graphics = queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+		bool present = backend->impl->vulkan_queue_family_present_support(
+			backend, (uintptr_t) phdev, i);
+		if (present) {
+			queue_count = 2u;
+			queues[0].family = i;
+			if (graphics) { // one queue for present & graphics
+				queue_count = 1u;
+				break;
+			}
+		} else if (graphics) {
+			graphics = true;
+			queues[1].family = i;
+		}
+	}
+
+	if (!queue_count) {
+		wlr_log(WLR_ERROR, "unable to find present queue family for backend");
+		free(ini);
+		return NULL;
+	}
+
+	struct wlr_vk_device *dev = wlr_vk_device_create(ini, phdev,
+		0, NULL, queue_count, queues);
+	if (!dev) {
+		wlr_log(WLR_ERROR, "Failed to create vulkan device");
+		free(ini);
+		return NULL;
+	}
+
+	return wlr_vk_renderer_create_for_device(dev, &queues[0],
+		&queues[queue_count - 1]);
 }

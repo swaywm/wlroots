@@ -40,13 +40,9 @@ static struct wl_callback_listener frame_listener = {
 static struct wl_callback_listener cursor_frame_listener;
 static bool output_render_cursor(struct wlr_wl_output *output,
 		struct wlr_texture *texture) {
-
-	assert(!output->cursor.frame);
-	output->cursor.frame = wl_surface_frame(output->cursor.surface);
-	wl_callback_add_listener(output->cursor.frame, &cursor_frame_listener,
-		output);
-
 	if (texture) {
+		assert(!output->cursor.frame);
+
 		struct wlr_renderer *renderer = output->backend->renderer;
 		if (output->cursor.render_surface == NULL) {
 			output->cursor.render_surface = wlr_render_surface_create_wl(
@@ -75,12 +71,20 @@ static bool output_render_cursor(struct wlr_wl_output *output,
 			return false;
 		}
 
+		output->cursor.frame = wl_surface_frame(output->cursor.surface);
+		wl_callback_add_listener(output->cursor.frame, &cursor_frame_listener,
+			output);
+
 		wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
 		wlr_renderer_end(renderer);
 		wlr_render_surface_swap_buffers(output->cursor.render_surface, NULL);
 	} else {
 		wl_surface_attach(output->cursor.surface, NULL, 0, 0);
+		// apparently needed. spec states that "The compositor
+ 		// ignores the parts of the damage that fall outside of the surface"
+		wl_surface_damage_buffer(output->cursor.surface,
+			-INT32_MAX, -INT32_MAX, INT32_MAX, INT32_MAX);
 		wl_surface_commit(output->cursor.surface);
 	}
 
@@ -94,10 +98,9 @@ static void cursor_frame_callback(void *data, struct wl_callback *cb,
 	wl_callback_destroy(cb);
 	output->cursor.frame = NULL;
 
-	if (output->cursor.pending || output->cursor.clear) {
+	if (output->cursor.pending) {
 		output_render_cursor(output, output->cursor.pending);
 		output->cursor.pending = NULL;
-		output->cursor.clear = false;
 	}
 }
 
@@ -169,7 +172,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	}
 
 	if (texture != NULL) {
-		int width, height;
+		int width = 0, height = 0;
 		wlr_texture_get_size(texture, &width, &height);
 		width = width * wlr_output->scale / scale;
 		height = height * wlr_output->scale / scale;
@@ -178,10 +181,8 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		output->cursor.height = height;
 	}
 
-	if (output->cursor.frame) {
-		wlr_log(WLR_DEBUG, "waiting frame");
+	if (texture && output->cursor.frame) {
 		output->cursor.pending = texture;
-		output->cursor.clear = !texture;
 		return true;
 	}
 

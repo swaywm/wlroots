@@ -50,6 +50,10 @@ static bool vulkan_render_surface_is_swapchain(
 // 	return wlr_rs->impl == &offscreen_render_surface_impl;
 // }
 
+static size_t clamp(size_t val, size_t low, size_t high) {
+	return (val < low) ? low : ((val > high) ? high : val);
+}
+
 static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
 		VkImage read, enum wl_shm_format wl_fmt, uint32_t *flags,
 		uint32_t stride, uint32_t width, uint32_t height,
@@ -59,7 +63,7 @@ static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
 	(void) flags;
 	VkResult res;
 	struct wlr_vk_renderer *renderer = rs->renderer;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
+	VkDevice dev = renderer->dev->dev;
 
 	if (wl_fmt != WL_SHM_FORMAT_ARGB8888 && wl_fmt != WL_SHM_FORMAT_XRGB8888) {
 		wlr_log(WLR_ERROR, "unsupported format");
@@ -103,10 +107,10 @@ static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
 
 	// read staging buffer into data
 	void *vmap;
-	res = vkMapMemory(vulkan->dev, span.buffer->memory, span.alloc.start,
+	res = vkMapMemory(dev, span.buffer->memory, span.alloc.start,
 		bsize, 0, &vmap);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkMapMemory", res);
+		wlr_vk_error("vkMapMemory", res);
 		return false;
 	}
 
@@ -115,7 +119,7 @@ static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
 	data += dst_y * stride;
 	data += dst_x * bytespp;
 	memcpy(data, map, stride * height);
-	vkUnmapMemory(vulkan->dev, span.buffer->memory);
+	vkUnmapMemory(dev, span.buffer->memory);
 
 	return true;
 }
@@ -123,7 +127,7 @@ static bool vulkan_read_pixels(struct wlr_vk_render_surface *rs,
 
 // swapchain
 static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
-	struct wlr_vulkan *vulkan = swapchain->renderer->vulkan;
+	VkDevice dev = swapchain->renderer->dev->dev;
 	if (swapchain->image_count == 0) {
 		return;
 	}
@@ -131,11 +135,11 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 	for (uint32_t i = 0; i < swapchain->image_count; i++) {
 		struct wlr_vk_swapchain_buffer *buf = &swapchain->buffers[i];
 		if (buf->framebuffer) {
-			vkDestroyFramebuffer(vulkan->dev, buf->framebuffer, NULL);
+			vkDestroyFramebuffer(dev, buf->framebuffer, NULL);
 		}
 
 		if (buf->image_view) {
-			vkDestroyImageView(vulkan->dev, buf->image_view, NULL);
+			vkDestroyImageView(dev, buf->image_view, NULL);
 		}
 	}
 
@@ -146,21 +150,21 @@ static void destroy_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 	VkResult res;
 	struct wlr_vk_renderer *renderer = swapchain->renderer;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
+	VkDevice dev = renderer->dev->dev;
 
 	destroy_swapchain_buffers(swapchain);
-	res = vkGetSwapchainImagesKHR(vulkan->dev, swapchain->swapchain,
+	res = vkGetSwapchainImagesKHR(dev, swapchain->swapchain,
 		&swapchain->image_count, NULL);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to get swapchain images (1)", res);
+		wlr_vk_error("Failed to get swapchain images (1)", res);
 		return false;
 	}
 
 	VkImage images[swapchain->image_count];
-	res = vkGetSwapchainImagesKHR(vulkan->dev, swapchain->swapchain,
+	res = vkGetSwapchainImagesKHR(dev, swapchain->swapchain,
 		&swapchain->image_count, images);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to get swapchain images (2)", res);
+		wlr_vk_error("Failed to get swapchain images (2)", res);
 		return false;
 	}
 
@@ -190,10 +194,10 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		view_info.image = images[i];
 
 		buf->image = images[i];
-		res = vkCreateImageView(vulkan->dev, &view_info, NULL,
+		res = vkCreateImageView(dev, &view_info, NULL,
 			&swapchain->buffers[i].image_view);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateImageView", res);
+			wlr_vk_error("vkCreateImageView", res);
 			return false;
 		}
 
@@ -206,10 +210,10 @@ static bool init_swapchain_buffers(struct wlr_vk_swapchain *swapchain) {
 		fb_info.height = swapchain->create_info.imageExtent.height;
 		fb_info.layers = 1;
 
-		res = vkCreateFramebuffer(vulkan->dev, &fb_info, NULL,
+		res = vkCreateFramebuffer(dev, &fb_info, NULL,
 			&buf->framebuffer);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateFramebuffer", res);
+			wlr_vk_error("vkCreateFramebuffer", res);
 			return false;
 		}
 	}
@@ -222,10 +226,10 @@ static void wlr_vk_swapchain_finish(struct wlr_vk_swapchain *swapchain) {
 		return;
 	}
 
-	struct wlr_vulkan *vulkan = swapchain->renderer->vulkan;
+	VkDevice dev = swapchain->renderer->dev->dev;
 	destroy_swapchain_buffers(swapchain);
 	if (swapchain->swapchain) {
-		vkDestroySwapchainKHR(vulkan->dev, swapchain->swapchain, NULL);
+		vkDestroySwapchainKHR(dev, swapchain->swapchain, NULL);
 	}
 
 	memset(swapchain, 0, sizeof(*swapchain));
@@ -236,19 +240,16 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		VkSurfaceKHR surface, uint32_t width, uint32_t height, bool vsync) {
 
 	VkResult res;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
 	swapchain->renderer = renderer;
 	swapchain->surface = surface;
+	struct wlr_vk_device *dev = renderer->dev;
 
 	// check if we can present on the given device
-	// NOTE: instead of creating a random present queue and then just
-	// hoping that it works (otherwise failing) we should only
-	// really create the renderer when we have (all?) outputs.
 	VkBool32 supported;
-	res = vkGetPhysicalDeviceSurfaceSupportKHR(vulkan->phdev,
-		vulkan->present_queue_fam, surface, &supported);
+	res = vkGetPhysicalDeviceSurfaceSupportKHR(dev->phdev,
+		swapchain->renderer->present_queue.family, surface, &supported);
 	if (res != VK_SUCCESS || !supported) {
-		wlr_vulkan_error("invalid phdev/present queue for swapchain", res);
+		wlr_vk_error("invalid phdev/present queue for swapchain", res);
 		return NULL;
 	}
 
@@ -258,10 +259,10 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	info.surface = surface;
 
 	VkSurfaceCapabilitiesKHR caps;
-	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan->phdev, surface,
+	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev->phdev, surface,
 		&caps);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("failed retrieve surface caps", res);
+		wlr_vk_error("failed retrieve surface caps", res);
 		return NULL;
 	}
 
@@ -275,10 +276,10 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 
 	// format
 	uint32_t formats_count;
-	res = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->phdev, surface,
+	res = vkGetPhysicalDeviceSurfaceFormatsKHR(dev->phdev, surface,
 		&formats_count, NULL);
 	if (res != VK_SUCCESS || formats_count == 0) {
-		wlr_vulkan_error("failed retrieve surface formats", res);
+		wlr_vk_error("failed retrieve surface formats", res);
 		return NULL;
 	}
 
@@ -288,10 +289,10 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		return NULL;
 	}
 
-	res = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->phdev, surface,
+	res = vkGetPhysicalDeviceSurfaceFormatsKHR(dev->phdev, surface,
 		&formats_count, formats);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("failed retrieve surface formats", res);
+		wlr_vk_error("failed retrieve surface formats", res);
 		free(formats);
 		return NULL;
 	}
@@ -312,9 +313,10 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		}
 	}
 
-	// TODO: see renderpass creation in renderer.c
-	// since we have to create the renderpass _before_ surfaces/swapchains
+	// NOTE: see renderpass creation in renderer.c
+	// since we currently create the renderpass _before_ surfaces/swapchains
 	// and use b8g8r8a8 format there, we fail if it is no available
+	// could defer renderpass creation until first render surface is created
 	if (info.imageFormat != VK_FORMAT_B8G8R8A8_UNORM) {
 		wlr_log(WLR_ERROR, "can't create swapchain with b8g8r8a8 format");
 		free(formats);
@@ -325,7 +327,7 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 
 	// Get available present modes
 	uint32_t present_mode_count;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->phdev, surface,
+	vkGetPhysicalDeviceSurfacePresentModesKHR(dev->phdev, surface,
 		&present_mode_count, NULL);
 
 	VkPresentModeKHR *present_modes =
@@ -335,11 +337,11 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 		return NULL;
 	}
 
-	res = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->phdev, surface,
+	res = vkGetPhysicalDeviceSurfacePresentModesKHR(dev->phdev, surface,
 		&present_mode_count, present_modes);
 	if (res != VK_SUCCESS || present_mode_count == 0) {
 		free(present_modes);
-		wlr_vulkan_error("Failed to retrieve surface present modes", res);
+		wlr_vk_error("Failed to retrieve surface present modes", res);
 		return NULL;
 	}
 
@@ -405,9 +407,9 @@ static bool wlr_vk_swapchain_init(struct wlr_vk_swapchain *swapchain,
 	info.compositeAlpha = alpha;
 	swapchain->create_info = info;
 
-	res = vkCreateSwapchainKHR(vulkan->dev, &info, NULL, &swapchain->swapchain);
+	res = vkCreateSwapchainKHR(dev->dev, &info, NULL, &swapchain->swapchain);
 	if (res != VK_SUCCESS || !swapchain->swapchain) {
-		wlr_vulkan_error("Failed to create vk swapchain", res);
+		wlr_vk_error("Failed to create vk swapchain", res);
 		return NULL;
 	}
 
@@ -424,35 +426,35 @@ static bool wlr_vk_swapchain_resize(struct wlr_vk_swapchain *swapchain,
 		uint32_t width, uint32_t height) {
 
 	VkResult res;
-	struct wlr_vulkan *vulkan = swapchain->renderer->vulkan;
 	VkSurfaceCapabilitiesKHR caps;
-	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan->phdev,
+	struct wlr_vk_device *dev = swapchain->renderer->dev;
+	res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev->phdev,
 		swapchain->surface, &caps);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to retrieve surface caps", res);
+		wlr_vk_error("Failed to retrieve surface caps", res);
 		return false;
 	}
 
 	VkExtent2D ex = caps.currentExtent;
 	if (ex.width == 0xFFFFFFFF && ex.height == 0xFFFFFFFF) {
-		swapchain->create_info.imageExtent.width = wlr_clamp(width,
+		swapchain->create_info.imageExtent.width = clamp(width,
 			caps.minImageExtent.width, caps.maxImageExtent.width);
-		swapchain->create_info.imageExtent.height = wlr_clamp(height,
+		swapchain->create_info.imageExtent.height = clamp(height,
 			caps.minImageExtent.height, caps.maxImageExtent.height);
 	} else {
 		swapchain->create_info.imageExtent = ex;
 	}
 
 	swapchain->create_info.oldSwapchain = swapchain->swapchain;
-	res = vkCreateSwapchainKHR(vulkan->dev, &swapchain->create_info, NULL,
+	res = vkCreateSwapchainKHR(dev->dev, &swapchain->create_info, NULL,
 		&swapchain->swapchain);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateSwapchainKHR", res);
+		wlr_vk_error("vkCreateSwapchainKHR", res);
 		return false;
 	}
 
 	if (swapchain->create_info.oldSwapchain) {
-		vkDestroySwapchainKHR(vulkan->dev, swapchain->create_info.oldSwapchain,
+		vkDestroySwapchainKHR(dev->dev, swapchain->create_info.oldSwapchain,
 			NULL);
 		swapchain->create_info.oldSwapchain = VK_NULL_HANDLE;
 	}
@@ -516,9 +518,13 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 	VkPresentRegionsKHR present_regions = {0};
 	VkPresentRegionKHR present_region = {0};
 
+	bool incremental_present = vulkan_has_extension(
+		renderer->dev->extension_count, renderer->dev->extensions,
+		VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME);
+
 	int nrects = 0;
 	pixman_box32_t *rects;
-	if (damage && renderer->vulkan->extensions.incremental_present) {
+	if (damage && incremental_present) {
 		rects = pixman_region32_rectangles(damage, &nrects);
 	}
 
@@ -546,13 +552,13 @@ static bool swapchain_swap_buffers(struct wlr_render_surface *wlr_rs,
 		present_region.pRectangles = vk_rects;
 
 		present_info.pNext = &present_regions;
-		res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
+		res = vkQueuePresentKHR(renderer->present_queue.queue, &present_info);
 	} else {
-		res = vkQueuePresentKHR(renderer->vulkan->present_queue, &present_info);
+		res = vkQueuePresentKHR(renderer->present_queue.queue, &present_info);
 	}
 
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkQueuePresentKHR", res);
+		wlr_vk_error("vkQueuePresentKHR", res);
 		success = false;
 		goto clean;
 	}
@@ -566,7 +572,7 @@ static void swapchain_render_surface_resize(struct wlr_render_surface *wlr_rs,
 		uint32_t width, uint32_t height) {
 	struct wlr_vk_swapchain_render_surface *rs =
 		vulkan_get_render_surface_swapchain(wlr_rs);
-	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
+	VkDevice dev = rs->vk_rs.renderer->dev->dev;
 	rs->vk_rs.rs.width = width;
 	rs->vk_rs.rs.height = height;
 
@@ -582,14 +588,14 @@ static void swapchain_render_surface_resize(struct wlr_render_surface *wlr_rs,
 	// buffer_age call.
 	if (rs->current_id != -1) {
 		rs->current_id = -1;
-		vkDestroySemaphore(vulkan->dev, rs->acquire, NULL);
+		vkDestroySemaphore(dev, rs->acquire, NULL);
 
 		VkSemaphoreCreateInfo sem_info = {0};
 		sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		VkResult res = vkCreateSemaphore(vulkan->dev, &sem_info, NULL,
+		VkResult res = vkCreateSemaphore(dev, &sem_info, NULL,
 			&rs->acquire);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateSemaphore", res);
+			wlr_vk_error("vkCreateSemaphore", res);
 		}
 	}
 }
@@ -601,11 +607,12 @@ static void swapchain_render_surface_destroy(struct wlr_render_surface *wlr_rs) 
 
 	wlr_vk_swapchain_finish(&rs->swapchain);
 	if (rs->surface) {
-		vkDestroySurfaceKHR(renderer->vulkan->instance, rs->surface, NULL);
+		vkDestroySurfaceKHR(renderer->dev->instance->instance,
+			rs->surface, NULL);
 	}
 
 	if (rs->vk_rs.cb) {
-		vkFreeCommandBuffers(renderer->vulkan->dev, renderer->command_pool,
+		vkFreeCommandBuffers(renderer->dev->dev, renderer->command_pool,
 			1u, &rs->vk_rs.cb);
 	}
 
@@ -620,14 +627,14 @@ static int swapchain_render_surface_buffer_age(
 	// Since we never render multiple frames in parallel this should not block.
 	struct wlr_vk_swapchain_render_surface *rs =
 		vulkan_get_render_surface_swapchain(wlr_rs);
-	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
+	VkDevice dev = rs->vk_rs.renderer->dev->dev;
 	if (rs->current_id == -1) {
 		VkResult res;
 		uint32_t id;
-		res = vkAcquireNextImageKHR(vulkan->dev, rs->swapchain.swapchain,
+		res = vkAcquireNextImageKHR(dev, rs->swapchain.swapchain,
 			0xFFFFFFFF, rs->acquire, VK_NULL_HANDLE, &id);
 		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
-			wlr_vulkan_error("vkAcquireNextImageKHR", res);
+			wlr_vk_error("vkAcquireNextImageKHR", res);
 			return -1;
 		}
 
@@ -690,20 +697,20 @@ static bool offscreen_swap_buffers(struct wlr_render_surface *wlr_rs,
 
 static void offscreen_render_surface_finish_buffers(
 		struct wlr_vk_offscreen_render_surface *rs) {
-	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
+	VkDevice dev = rs->vk_rs.renderer->dev->dev;
 	for (unsigned i = 0; i < 3; ++i) {
 		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
 		if (buf->buffer.framebuffer) {
-			vkDestroyFramebuffer(vulkan->dev, buf->buffer.framebuffer, NULL);
+			vkDestroyFramebuffer(dev, buf->buffer.framebuffer, NULL);
 		}
 		if (buf->buffer.image_view) {
-			vkDestroyImageView(vulkan->dev, buf->buffer.image_view, NULL);
+			vkDestroyImageView(dev, buf->buffer.image_view, NULL);
 		}
 		if (buf->buffer.image) {
-			vkDestroyImage(vulkan->dev, buf->buffer.image, NULL);
+			vkDestroyImage(dev, buf->buffer.image, NULL);
 		}
 		if (buf->memory) {
-			vkFreeMemory(vulkan->dev, buf->memory, NULL);
+			vkFreeMemory(dev, buf->memory, NULL);
 		}
 		if (buf->bo) {
 			gbm_bo_destroy(buf->bo);
@@ -715,9 +722,9 @@ static void offscreen_render_surface_destroy(struct wlr_render_surface *wlr_rs) 
 	struct wlr_vk_offscreen_render_surface *rs =
 		vulkan_get_render_surface_offscreen(wlr_rs);
 	offscreen_render_surface_finish_buffers(rs);
-	struct wlr_vk_renderer *renderer = rs->vk_rs.renderer;
+	VkDevice dev = rs->vk_rs.renderer->dev->dev;
 	if (rs->vk_rs.cb) {
-		vkFreeCommandBuffers(renderer->vulkan->dev, renderer->command_pool,
+		vkFreeCommandBuffers(dev, rs->vk_rs.renderer->command_pool,
 			1u, &rs->vk_rs.cb);
 	}
 
@@ -730,32 +737,63 @@ static bool offscreen_render_surface_init_buffers(
 	VkResult res;
 	uint32_t width = rs->vk_rs.rs.width;
 	uint32_t height = rs->vk_rs.rs.height;
-	struct wlr_vulkan *vulkan = rs->vk_rs.renderer->vulkan;
+	struct wlr_vk_device *dev = rs->vk_rs.renderer->dev;
+
+	const VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
+	VkImageCreateInfo img_info = {0};
+	img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	img_info.imageType = VK_IMAGE_TYPE_2D;
+	img_info.format = format;
+	img_info.mipLevels = 1;
+	img_info.arrayLayers = 1;
+	img_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	img_info.tiling = VK_IMAGE_TILING_LINEAR;
+	img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	img_info.extent = (VkExtent3D) { width, height, 1 };
+	img_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	VkImageViewCreateInfo view_info = {0};
+	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	view_info.format = format;
+	view_info.components.r = VK_COMPONENT_SWIZZLE_R;
+	view_info.components.g = VK_COMPONENT_SWIZZLE_G;
+	view_info.components.b = VK_COMPONENT_SWIZZLE_B;
+	view_info.components.a = VK_COMPONENT_SWIZZLE_A;
+	view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	view_info.subresourceRange.baseMipLevel = 0;
+	view_info.subresourceRange.levelCount = 1;
+	view_info.subresourceRange.baseArrayLayer = 0;
+	view_info.subresourceRange.layerCount = 1;
+	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	view_info.flags = 0;
+
+	VkFramebufferCreateInfo fb_info = {0};
+	fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	fb_info.attachmentCount = 1;
+	fb_info.renderPass = rs->vk_rs.renderer->render_pass;
+	fb_info.width = width;
+	fb_info.height = height;
+	fb_info.layers = 1;
+
+	if (rs->gbm_dev) {
+		struct wlr_vk_pixel_format_props props;
+		props.format = *vulkan_get_format_from_wl(
+			WL_SHM_FORMAT_ARGB8888);
+		const VkExternalMemoryFeatureFlags importable =
+			VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
+		if (!wlr_vk_query_format(dev, &props, img_info.usage,
+				img_info.tiling) || !props.as_dmabuf ||
+				!(props.dma_features & importable)) {
+			wlr_log(WLR_ERROR, "cannot import gbm bo's");
+			return NULL;
+		}
+	}
 
 	// initialize buffers
-	// implementation notes: we currently create buffers with
-	// gbm and then import them to vulkan. Creating images with vulkan
-	// and then importing them as gbm bo is probably possible as well.
 	for (unsigned i = 0u; i < 3; ++i) {
 		struct wlr_vk_offscreen_buffer *buf = &rs->buffers[i];
-
-		// TODO: use queried external memory/image properties
-		// (see end of init_device)
-		const VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
-
-		VkImageCreateInfo img_info = {0};
-		img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		img_info.imageType = VK_IMAGE_TYPE_2D;
-		img_info.format = format;
-		img_info.mipLevels = 1;
-		img_info.arrayLayers = 1;
-		img_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		img_info.tiling = VK_IMAGE_TILING_LINEAR;
-		img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		img_info.extent = (VkExtent3D) { width, height, 1 };
-		img_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-			VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 		VkMemoryAllocateInfo mem_info = {0};
 		unsigned mem_bits = 0xFFFFFFFF;
@@ -790,7 +828,7 @@ static bool offscreen_render_surface_init_buffers(
 
 			struct VkMemoryFdPropertiesKHR props = {0};
 			props.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
-			vulkan->api.getMemoryFdPropertiesKHR(vulkan->dev, htype, fd, &props);
+			dev->api.getMemoryFdPropertiesKHR(dev->dev, htype, fd, &props);
 			mem_bits &= props.memoryTypeBits;
 
 			import_info.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
@@ -799,74 +837,50 @@ static bool offscreen_render_surface_init_buffers(
 			mem_info.pNext = &import_info;
 		}
 
-		res = vkCreateImage(vulkan->dev, &img_info, NULL, &buf->buffer.image);
+		res = vkCreateImage(dev->dev, &img_info, NULL, &buf->buffer.image);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateImage (import)", res);
+			wlr_vk_error("vkCreateImage (import)", res);
 			return false;
 		}
 
 		// allocate memory
 		// we always use dedicated memory anyways
 		VkMemoryRequirements mem_reqs = {0};
-		vkGetImageMemoryRequirements(vulkan->dev, buf->buffer.image, &mem_reqs);
+		vkGetImageMemoryRequirements(dev->dev, buf->buffer.image, &mem_reqs);
 
 		// create memory
 		mem_bits &= mem_reqs.memoryTypeBits;
 		mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		mem_info.allocationSize = mem_reqs.size;
-		mem_info.memoryTypeIndex = wlr_vulkan_find_mem_type(vulkan, 0, mem_bits);
+		mem_info.memoryTypeIndex = wlr_vk_find_mem_type(dev, 0, mem_bits);
 
-		res = vkAllocateMemory(vulkan->dev, &mem_info,
-			NULL, &buf->memory);
+		res = vkAllocateMemory(dev->dev, &mem_info, NULL, &buf->memory);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkAllocateMemory (import)", res);
+			wlr_vk_error("vkAllocateMemory (import)", res);
 			return false;
 		}
 
-		// bind it
-		res = vkBindImageMemory(vulkan->dev, buf->buffer.image,
+		res = vkBindImageMemory(dev->dev, buf->buffer.image,
 			buf->memory, 0);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkBindMemory (imported)", res);
+			wlr_vk_error("vkBindMemory (imported)", res);
 			return false;
 		}
 
-		VkImageViewCreateInfo view_info = {0};
-		view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		view_info.format = format;
-		view_info.components.r = VK_COMPONENT_SWIZZLE_R;
-		view_info.components.g = VK_COMPONENT_SWIZZLE_G;
-		view_info.components.b = VK_COMPONENT_SWIZZLE_B;
-		view_info.components.a = VK_COMPONENT_SWIZZLE_A;
-		view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		view_info.subresourceRange.baseMipLevel = 0;
-		view_info.subresourceRange.levelCount = 1;
-		view_info.subresourceRange.baseArrayLayer = 0;
-		view_info.subresourceRange.layerCount = 1;
-		view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		view_info.flags = 0;
 		view_info.image = buf->buffer.image;
 
-		res = vkCreateImageView(vulkan->dev, &view_info, NULL,
+		res = vkCreateImageView(dev->dev, &view_info, NULL,
 			&buf->buffer.image_view);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateImageView", res);
+			wlr_vk_error("vkCreateImageView", res);
 			return false;
 		}
 
-		VkFramebufferCreateInfo fb_info = {0};
-		fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		fb_info.attachmentCount = 1;
 		fb_info.pAttachments = &buf->buffer.image_view;
-		fb_info.renderPass = rs->vk_rs.renderer->render_pass;
-		fb_info.width = width;
-		fb_info.height = height;
-		fb_info.layers = 1;
-
-		res = vkCreateFramebuffer(vulkan->dev, &fb_info, NULL,
+		res = vkCreateFramebuffer(dev->dev, &fb_info, NULL,
 			&buf->buffer.framebuffer);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkCreateFramebuffer", res);
+			wlr_vk_error("vkCreateFramebuffer", res);
 			return false;
 		}
 	}
@@ -890,21 +904,15 @@ static void offscreen_render_surface_resize(struct wlr_render_surface *wlr_rs,
 
 static int offscreen_render_surface_buffer_age(
 		struct wlr_render_surface *wlr_rs) {
-	// struct wlr_vk_offscreen_render_surface *rs =
-	// 	vulkan_get_render_surface_offscreen(wlr_rs);
-	// return rs->back->buffer.age;
-
-	// TODO: reduces flickering
-	return -1;
+	struct wlr_vk_offscreen_render_surface *rs =
+		vulkan_get_render_surface_offscreen(wlr_rs);
+	return rs->back->buffer.age;
 }
 
 static struct gbm_bo *offscreen_render_surface_get_bo(
 		struct wlr_render_surface *wlr_rs) {
 	struct wlr_vk_offscreen_render_surface *rs =
 		vulkan_get_render_surface_offscreen(wlr_rs);
-
-	// TODO: we need explicit fencing to synchronise this correctly
-	// this way, flickering is to be expected
 	return rs->front ? rs->front->bo : NULL;
 }
 
@@ -922,10 +930,20 @@ static struct wlr_render_surface *swapchain_render_surface_create(
 		struct wlr_vk_renderer *renderer, uint32_t width, uint32_t height,
 		VkSurfaceKHR surface) {
 
+	if (!vulkan_has_extension(renderer->dev->extension_count,
+			renderer->dev->extensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
+		wlr_log(WLR_ERROR, "cannot create swapchain, extension not enabled");
+		vkDestroySurfaceKHR(renderer->dev->instance->instance,
+			surface, NULL);
+		return NULL;
+	}
+
 	VkResult res;
 	struct wlr_vk_swapchain_render_surface *rs = calloc(1, sizeof(*rs));
 	if (!rs) {
 		wlr_log(WLR_ERROR, "Allocation failed");
+		vkDestroySurfaceKHR(renderer->dev->instance->instance,
+			surface, NULL);
 		return NULL;
 	}
 
@@ -937,17 +955,17 @@ static struct wlr_render_surface *swapchain_render_surface_create(
 
 	VkSemaphoreCreateInfo sem_info = {0};
 	sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	res = vkCreateSemaphore(renderer->vulkan->dev, &sem_info, NULL,
+	res = vkCreateSemaphore(renderer->dev->dev, &sem_info, NULL,
 		&rs->acquire);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateSemaphore", res);
+		wlr_vk_error("vkCreateSemaphore", res);
 		goto error;
 	}
 
-	res = vkCreateSemaphore(renderer->vulkan->dev, &sem_info, NULL,
+	res = vkCreateSemaphore(renderer->dev->dev, &sem_info, NULL,
 		&rs->present);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateSemaphore", res);
+		wlr_vk_error("vkCreateSemaphore", res);
 		goto error;
 	}
 
@@ -956,10 +974,10 @@ static struct wlr_render_surface *swapchain_render_surface_create(
 	cmd_buf_info.commandPool = renderer->command_pool;
 	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(renderer->vulkan->dev, &cmd_buf_info,
+	res = vkAllocateCommandBuffers(renderer->dev->dev, &cmd_buf_info,
 		&rs->vk_rs.cb);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		wlr_vk_error("vkAllocateCommandBuffers", res);
 		goto error;
 	}
 
@@ -986,7 +1004,7 @@ struct wlr_render_surface *vulkan_render_surface_create_headless(
 
 	VkResult res;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vulkan *vulkan = renderer->vulkan;
+	struct wlr_vk_device *dev = renderer->dev;
 	struct wlr_vk_offscreen_render_surface *rs = calloc(1, sizeof(*rs));
 	if (!rs) {
 		wlr_log(WLR_ERROR, "Allocation failed");
@@ -1004,10 +1022,10 @@ struct wlr_render_surface *vulkan_render_surface_create_headless(
 	cmd_buf_info.commandPool = renderer->command_pool;
 	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info,
+	res = vkAllocateCommandBuffers(dev->dev, &cmd_buf_info,
 		&rs->vk_rs.cb);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		wlr_vk_error("vkAllocateCommandBuffers", res);
 		return NULL;
 	}
 
@@ -1025,9 +1043,11 @@ struct wlr_render_surface *vulkan_render_surface_create_xcb(
 		void *xcb_connection, uint32_t xcb_window) {
 #ifdef WLR_HAS_X11_BACKEND
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	if (!renderer->vulkan->extensions.xcb) {
+	struct wlr_vk_instance *ini = renderer->dev->instance;
+	if (!vulkan_has_extension(ini->extension_count, ini->extensions,
+			VK_KHR_XCB_SURFACE_EXTENSION_NAME)) {
 		wlr_log(WLR_ERROR, "Can't create xcb render surface since vulkan "
-			"extension is not supported");
+			"extension is not enabled");
 		return NULL;
 	}
 
@@ -1036,10 +1056,10 @@ struct wlr_render_surface *vulkan_render_surface_create_xcb(
 	info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 	info.connection = (xcb_connection_t *)xcb_connection;
 	info.window = xcb_window;
-	VkResult res = vkCreateXcbSurfaceKHR(renderer->vulkan->instance, &info,
-		NULL, &surf);
+	VkResult res = vkCreateXcbSurfaceKHR(renderer->dev->instance->instance,
+		&info, NULL, &surf);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create x11 vk surface", res);
+		wlr_vk_error("Failed to create x11 vk surface", res);
 		return NULL;
 	}
 
@@ -1053,9 +1073,11 @@ struct wlr_render_surface *vulkan_render_surface_create_wl(
 		struct wlr_renderer *wlr_renderer, uint32_t width, uint32_t height,
 		struct wl_display *disp, struct wl_surface *wl_surface) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	if (!renderer->vulkan->extensions.wayland) {
+	struct wlr_vk_instance *ini = renderer->dev->instance;
+	if (!vulkan_has_extension(ini->extension_count, ini->extensions,
+			VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME)) {
 		wlr_log(WLR_ERROR, "Can't create wayland render surface since vulkan "
-			"extension is not supported");
+			"extension is not enabled");
 		return NULL;
 	}
 
@@ -1064,10 +1086,10 @@ struct wlr_render_surface *vulkan_render_surface_create_wl(
 	info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
 	info.display = disp;
 	info.surface = wl_surface;
-	VkResult res = vkCreateWaylandSurfaceKHR(renderer->vulkan->instance,
+	VkResult res = vkCreateWaylandSurfaceKHR(renderer->dev->instance->instance,
 		&info, NULL, &surf);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Failed to create wl vk surface", res);
+		wlr_vk_error("Failed to create wl vk surface", res);
 		return NULL;
 	}
 
@@ -1079,14 +1101,14 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 		struct gbm_device *gbm_dev, uint32_t flags) {
 	VkResult res;
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vulkan *vulkan = renderer->vulkan;
-	if (!vulkan->extensions.dmabuf) {
+	if (!vulkan_has_extension(renderer->dev->extension_count,
+			renderer->dev->extensions,
+			VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME)) {
 		wlr_log(WLR_ERROR, "Can't create gbm render surface since vk dmabuf "
 			"extension is not supported");
 		return NULL;
 	}
 
-	assert(vulkan->extensions.external_mem_fd);
 	struct wlr_vk_offscreen_render_surface *rs = calloc(1, sizeof(*rs));
 	if (!rs) {
 		wlr_log(WLR_ERROR, "Allocation failed");
@@ -1108,10 +1130,10 @@ struct wlr_render_surface *vulkan_render_surface_create_gbm(
 	cmd_buf_info.commandPool = renderer->command_pool;
 	cmd_buf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cmd_buf_info.commandBufferCount = 1u;
-	res = vkAllocateCommandBuffers(vulkan->dev, &cmd_buf_info,
+	res = vkAllocateCommandBuffers(renderer->dev->dev, &cmd_buf_info,
 		&rs->vk_rs.cb);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateCommandBuffers", res);
+		wlr_vk_error("vkAllocateCommandBuffers", res);
 		return NULL;
 	}
 

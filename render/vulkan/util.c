@@ -1,11 +1,11 @@
 #include <vulkan/vulkan.h>
 #include <render/vulkan.h>
 
-int wlr_vulkan_find_mem_type(struct wlr_vulkan *vulkan,
+int wlr_vk_find_mem_type(struct wlr_vk_device *dev,
 		VkMemoryPropertyFlags flags, uint32_t req_bits) {
 
 	VkPhysicalDeviceMemoryProperties props;
-	vkGetPhysicalDeviceMemoryProperties(vulkan->phdev, &props);
+	vkGetPhysicalDeviceMemoryProperties(dev->phdev, &props);
 
 	for (unsigned i = 0u; i < props.memoryTypeCount; ++i) {
 		if (req_bits & (1 << i)) {
@@ -66,7 +66,12 @@ void vulkan_change_layout(VkCommandBuffer cb, VkImage img,
 	vkCmdPipelineBarrier(cb, srcs, dsts, 0, 0, NULL, 0, NULL, 1, &barrier);
 }
 
-size_t wlr_clamp(size_t val, size_t low, size_t high) {
-	return (val < low) ? low : ((val > high) ? high : val);
-}
+bool vulkan_has_extension(unsigned count, const char **exts, const char *find) {
+	for (unsigned i = 0; i < count; ++i) {
+		if (!strcmp(exts[i], find)) {
+			return true;
+		}
+	}
 
+	return false;
+}

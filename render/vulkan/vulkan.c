@@ -15,36 +15,25 @@
 	#include <vulkan/vulkan_xcb.h>
 #endif
 
-void wlr_vulkan_destroy(struct wlr_vulkan *vulkan) {
-	if (!vulkan) {
-		return;
-	}
+// Returns the name of the first extension that could not be found or NULL.
+static const char *find_extensions(const VkExtensionProperties *avail,
+		unsigned availc, const char **req, unsigned reqc) {
+	// check if all required extensions are supported
+	for (size_t i = 0; i < reqc; ++i) {
+		bool found = false;
+		for (size_t j = 0; j < availc; ++j) {
+			if (!strcmp(avail[j].extensionName, req[i])) {
+				found = true;
+				break;
+			}
+		}
 
-	if (vulkan->dev) {
-		vkDestroyDevice(vulkan->dev, NULL);
-	}
-
-	if (vulkan->messenger && vulkan->api.destroyDebugUtilsMessengerEXT) {
-		vulkan->api.destroyDebugUtilsMessengerEXT(vulkan->instance,
-			vulkan->messenger, NULL);
-	}
-
-	if (vulkan->instance) {
-		vkDestroyInstance(vulkan->instance, NULL);
-	}
-
-	free(vulkan);
-}
-
-static int find_queue_family(const VkQueueFamilyProperties *props,
-		uint32_t prop_count, VkQueueFlags flags) {
-	for (unsigned i = 0; i < prop_count; ++i) {
-		if ((props[i].queueFlags & flags) == flags) {
-			return i;
+		if (!found) {
+			return req[i];
 		}
 	}
 
-	return -1;
+	return NULL;
 }
 
 static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -101,108 +90,101 @@ static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	return false;
 }
 
-// Returns the name of the first extension that could not be found or NULL.
-static const char *find_extensions(const VkExtensionProperties *avail,
-		unsigned availc, const char **req, unsigned reqc) {
-	// check if all required extensions are supported
-	for (size_t i = 0; i < reqc; ++i) {
-		bool found = false;
-		for (size_t j = 0; j < availc; ++j) {
-			if (!strcmp(avail[j].extensionName, req[i])) {
-				found = true;
-				break;
-			}
-		}
 
-		if (!found) {
-			return req[i];
-		}
-	}
+// instance
+struct wlr_vk_instance *wlr_vk_instance_create(
+		unsigned ext_count, const char **exts, bool debug,
+		const char *compositor_name, unsigned compositor_version) {
 
-	return NULL;
-}
-
-static bool init_instance(struct wlr_vulkan *vulkan,
-		unsigned int req_extc, const char **req_exts, bool debug) {
+	// query extension support
 	uint32_t avail_extc = 0;
 	VkResult res;
 	res = vkEnumerateInstanceExtensionProperties(NULL, &avail_extc, NULL);
 	if ((res != VK_SUCCESS) || (avail_extc == 0)) {
-		wlr_vulkan_error("Could not enumerate instance extensions (1)", res);
-		return false;
+		wlr_vk_error("Could not enumerate instance extensions (1)", res);
+		return NULL;
 	}
 
-	VkExtensionProperties *avail_ext_props =
-		calloc(avail_extc, sizeof(VkExtensionProperties));
-	if (!avail_ext_props) {
-		wlr_log(WLR_ERROR, "allocation failed");
-		return false;
-	}
-
+	VkExtensionProperties avail_ext_props[avail_extc + 1];
 	res = vkEnumerateInstanceExtensionProperties(NULL, &avail_extc,
 		avail_ext_props);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Could not enumerate instance extensions (2)", res);
-		free(avail_ext_props);
-		return false;
+		wlr_vk_error("Could not enumerate instance extensions (2)", res);
+		return NULL;
 	}
 
-	// output all extensions
 	for (size_t j = 0; j < avail_extc; ++j) {
 		wlr_log(WLR_INFO, "Vulkan Instance extensions %s",
 			avail_ext_props[j].extensionName);
 	}
 
-	// try to find required/optional ones
-	const char *missing = find_extensions(avail_ext_props, avail_extc,
-		req_exts, req_extc);
-	if (missing) {
-		wlr_log(WLR_ERROR, "Instance extension %s unsupported", missing);
-		free(avail_ext_props);
-		return false;
+	// create instance
+	struct wlr_vk_instance *ini = calloc(1, sizeof(*ini));
+	if (!ini) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+		return NULL;
 	}
 
+	wl_list_init(&ini->devices);
 	bool debug_utils_found = false;
-	unsigned last_ext = req_extc - 1;
-	const char *extensions[req_extc + 4];
-	memcpy(extensions, req_exts, req_extc * sizeof(*req_exts));
+	ini->extensions = calloc(6 + ext_count, sizeof(*ini->extensions));
+	if (!ini->extensions) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+		goto error;
+	}
+
+	// find extensions
+	for (unsigned i = 0; i < ext_count; ++i) {
+		if (find_extensions(avail_ext_props, avail_extc, &exts[i], 1)) {
+			wlr_log(WLR_DEBUG, "vulkan instance extension %s not found",
+				exts[i]);
+			continue;
+		}
+
+		ini->extensions[ini->extension_count++] = exts[i];
+	}
 
 	const char *name = VK_KHR_SURFACE_EXTENSION_NAME;
 	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-		extensions[++last_ext] = name;
+		ini->extensions[ini->extension_count++] = name;
 
 		name = VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
 		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-			extensions[++last_ext] = name;
-			vulkan->extensions.wayland = true;
+			ini->extensions[ini->extension_count++] = name;
+		}
+
+		name = VK_KHR_DISPLAY_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			ini->extensions[ini->extension_count++] = name;
+
+			name = VK_EXT_DISPLAY_SURFACE_COUNTER_EXTENSION_NAME;
+			if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+				ini->extensions[ini->extension_count++] = name;
+			}
 		}
 
 #ifdef WLR_HAS_X11_BACKEND
 		name = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
 		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-			extensions[++last_ext] = name;
-			vulkan->extensions.xcb = true;
+			ini->extensions[ini->extension_count++] = name;
 		}
 #endif
 	} else {
-		wlr_log(WLR_INFO, "vk_khr_surface not supported");
+		wlr_log(WLR_DEBUG, "VK_KHR_SURFACE not supported");
 	}
 
 	if (debug) {
 		const char *name = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
 			debug_utils_found = true;
-			extensions[++last_ext] = name;
+			ini->extensions[ini->extension_count++] = name;
 		}
 	}
 
-	free(avail_ext_props);
-
-	// NOTE: we could use a compositor name, version provided to us here
 	VkApplicationInfo application_info = {0};
 	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	application_info.pApplicationName = "wlroots-compositor";
-	application_info.applicationVersion = 1;
+	application_info.pApplicationName = compositor_name;
+	application_info.applicationVersion = compositor_version;
 	application_info.pEngineName = "wlroots";
 	application_info.engineVersion = WLR_VERSION_NUM;
 	application_info.apiVersion = VK_MAKE_VERSION(1,1,0);
@@ -220,27 +202,27 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 	VkInstanceCreateInfo instance_info = {0};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pApplicationInfo = &application_info;
-	instance_info.enabledExtensionCount = last_ext + 1;
-	instance_info.ppEnabledExtensionNames = extensions;
+	instance_info.enabledExtensionCount = ini->extension_count;
+	instance_info.ppEnabledExtensionNames = ini->extensions;
 	instance_info.enabledLayerCount = layer_count;
 	instance_info.ppEnabledLayerNames = layers;
 
-	res = vkCreateInstance(&instance_info, NULL, &vulkan->instance);
+	res = vkCreateInstance(&instance_info, NULL, &ini->instance);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Could not create instance", res);
-		return false;
+		wlr_vk_error("Could not create instance", res);
+		goto error;
 	}
 
 	// debug callback
 	if (debug_utils_found) {
-		vulkan->api.createDebugUtilsMessengerEXT =
+		ini->api.createDebugUtilsMessengerEXT =
 			(PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
-					vulkan->instance, "vkCreateDebugUtilsMessengerEXT");
-		vulkan->api.destroyDebugUtilsMessengerEXT =
+					ini->instance, "vkCreateDebugUtilsMessengerEXT");
+		ini->api.destroyDebugUtilsMessengerEXT =
 			(PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
-					vulkan->instance, "vkDestroyDebugUtilsMessengerEXT");
+					ini->instance, "vkDestroyDebugUtilsMessengerEXT");
 
-		if (vulkan->api.createDebugUtilsMessengerEXT) {
+		if (ini->api.createDebugUtilsMessengerEXT) {
 			VkDebugUtilsMessageSeverityFlagsEXT severity =
 				// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -255,211 +237,199 @@ static bool init_instance(struct wlr_vulkan *vulkan,
 			debug_info.messageSeverity = severity;
 			debug_info.messageType = types;
 			debug_info.pfnUserCallback = &debug_callback;
-			debug_info.pUserData = &vulkan;
+			debug_info.pUserData = ini;
 
-			vulkan->api.createDebugUtilsMessengerEXT(vulkan->instance,
-				&debug_info, NULL, &vulkan->messenger);
+			ini->api.createDebugUtilsMessengerEXT(ini->instance,
+				&debug_info, NULL, &ini->messenger);
 		} else {
 			wlr_log(WLR_ERROR, "vkCreateDebugUtilsMessengerEXT not found");
 		}
 	}
 
-	return true;
+	return ini;
+
+error:
+	wlr_vk_instance_destroy(ini);
+	return NULL;
 }
 
-static bool init_device(struct wlr_vulkan *vulkan, unsigned int ext_count,
-		const char **exts) {
-	// TODO: don't just choose the first device
-	// query one based on
-	//  - user preference (env variables/config)
-	//  - supported presenting caps
-	//  - supported extensions, external memory import properties
-	//  - (as default, when both ok) integrated vs dedicated
-	//  - when on drm backend match it with the gbm device
-	uint32_t num_devs = 1;
-	VkResult res;
-	res = vkEnumeratePhysicalDevices(vulkan->instance, &num_devs,
-		&vulkan->phdev);
-	if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || !vulkan->phdev) {
-		wlr_log(WLR_ERROR, "Could not retrieve physical device");
-		return false;
+void wlr_vk_instance_destroy(struct wlr_vk_instance *ini) {
+	if (!ini) {
+		return;
 	}
+
+	struct wlr_vk_device *dev, *tmp;
+	wl_list_for_each_safe(dev, tmp, &ini->devices, link) {
+		wlr_vk_device_destroy(dev);
+	}
+
+	if (ini->messenger && ini->api.destroyDebugUtilsMessengerEXT) {
+		ini->api.destroyDebugUtilsMessengerEXT(ini->instance,
+			ini->messenger, NULL);
+	}
+
+	if (ini->instance) {
+		vkDestroyInstance(ini->instance, NULL);
+	}
+
+	free(ini->extensions);
+	free(ini);
+}
+
+// device
+struct wlr_vk_device *wlr_vk_device_create(struct wlr_vk_instance *ini,
+		VkPhysicalDevice phdev, unsigned ext_count, const char **exts,
+		unsigned queue_count, struct wlr_vk_queue *queue_families) {
+	VkResult res;
+	const char *name;
 
 	// check for extensions
 	uint32_t avail_extc = 0;
-	res = vkEnumerateDeviceExtensionProperties(vulkan->phdev, NULL,
+	res = vkEnumerateDeviceExtensionProperties(phdev, NULL,
 		&avail_extc, NULL);
 	if ((res != VK_SUCCESS) || (avail_extc == 0)) {
-		wlr_vulkan_error("Could not enumerate device extensions (1)", res);
-		return false;
+		wlr_vk_error("Could not enumerate device extensions (1)", res);
+		return NULL;
 	}
 
-	VkExtensionProperties *avail_ext_props =
-		calloc(avail_extc, sizeof(VkExtensionProperties));
-	if (!avail_ext_props) {
-		wlr_log(WLR_ERROR, "allocation failed");
-		return false;
-	}
-
-	res = vkEnumerateDeviceExtensionProperties(vulkan->phdev, NULL,
+	VkExtensionProperties avail_ext_props[avail_extc + 1];
+	res = vkEnumerateDeviceExtensionProperties(phdev, NULL,
 		&avail_extc, avail_ext_props);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("Could not enumerate device extensions (2)", res);
-		free(avail_ext_props);
-		return false;
+		wlr_vk_error("Could not enumerate device extensions (2)", res);
+		return NULL;
 	}
 
-	// output all extensions
 	for (size_t j = 0; j < avail_extc; ++j) {
 		wlr_log(WLR_INFO, "Vulkan Device extension %s",
 			avail_ext_props[j].extensionName);
 	}
 
-	const char *missing = find_extensions(avail_ext_props, avail_extc,
-		exts, ext_count);
-	if (missing) {
-		wlr_log(WLR_ERROR, "Device extension %s unsupported", missing);
-		free(avail_ext_props);
+	// create device
+	struct wlr_vk_device *dev = calloc(1, sizeof(*dev));
+	if (!dev) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
 		return NULL;
 	}
 
-	unsigned last_ext = ext_count - 1;
-	const char *extensions[ext_count + 2u];
-	memcpy(extensions, exts, ext_count * sizeof(*exts));
+	wl_list_init(&dev->link);
+	dev->phdev = phdev;
+	dev->instance = ini;
+	dev->extensions = calloc(5 + ext_count, sizeof(*ini->extensions));
+	if (!dev->extensions) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+		goto error;
+	}
 
-	const char *name = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	// find extensions
+	for (unsigned i = 0; i < ext_count; ++i) {
+		if (find_extensions(avail_ext_props, avail_extc, &exts[i], 1)) {
+			wlr_log(WLR_DEBUG, "vulkan device extension %s not found",
+				exts[i]);
+			continue;
+		}
+
+		dev->extensions[dev->extension_count++] = exts[i];
+	}
+
+	name = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-		extensions[++last_ext] = name;
+		dev->extensions[dev->extension_count++] = name;
+
+		name = VK_EXT_DISPLAY_CONTROL_EXTENSION_NAME;
+		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
+			dev->extensions[dev->extension_count++] = name;
+		}
 	} else {
-		wlr_log(WLR_INFO, "vk_khr_swapchain extension not supported");
-		vulkan->extensions.wayland = false;
-		vulkan->extensions.xcb = false;
+		wlr_log(WLR_INFO, "VK_KHR_SWAPCHAIN not supported");
 	}
 
 	name = VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
 	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-		extensions[++last_ext] = name;
-		vulkan->extensions.external_mem_fd = true;
+		dev->extensions[dev->extension_count++] = name;
 
 		name = VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME;
 		if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-			extensions[++last_ext] = name;
-			vulkan->extensions.dmabuf = true;
+			dev->extensions[dev->extension_count++] = name;
 		} else {
-			wlr_log(WLR_INFO, "vk dmabuf extension not supported");
-			vulkan->extensions.dmabuf = false;
+			wlr_log(WLR_INFO, "VK_EXT_EXTERNAL_MEMORY_DMA_BUF not supported");
 		}
 	} else {
-		wlr_log(WLR_INFO, "vk_khr_external_memory_fd extension not supported");
-		vulkan->extensions.external_mem_fd = false;
-		vulkan->extensions.dmabuf = false;
+		wlr_log(WLR_INFO, "VK_KHR_EXTERNAL_MEMORY_FD not supported");
 	}
 
 	name = VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME;
 	if (find_extensions(avail_ext_props, avail_extc, &name, 1) == NULL) {
-		extensions[++last_ext] = name;
-		vulkan->extensions.incremental_present = true;
+		dev->extensions[dev->extension_count++] = name;
 	} else {
 		wlr_log(WLR_INFO, "vk_khr_increment_present extension not supported");
-		vulkan->extensions.incremental_present = false;
 	}
 
-	free(avail_ext_props);
+	{
+		float prio = 1.f;
+		VkDeviceQueueCreateInfo qinfos[queue_count];
+		memset(qinfos, 0, sizeof(qinfos));
+		for (unsigned i = 0u; i < queue_count; ++i) {
+			qinfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+			qinfos[i].queueFamilyIndex = queue_families[i].family;
+			qinfos[i].queueCount = 1;
+			qinfos[i].pQueuePriorities = &prio;
+		}
 
-	// queue families
-	uint32_t qfam_count;
-	vkGetPhysicalDeviceQueueFamilyProperties(vulkan->phdev, &qfam_count, NULL);
-	VkQueueFamilyProperties *queue_props = calloc(qfam_count,
-		sizeof(*queue_props));
-	vkGetPhysicalDeviceQueueFamilyProperties(vulkan->phdev, &qfam_count,
-		queue_props);
+		VkDeviceCreateInfo dev_info = {0};
+		dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		dev_info.queueCreateInfoCount = queue_count;
+		dev_info.pQueueCreateInfos = qinfos;
+		dev_info.enabledExtensionCount = dev->extension_count;
+		dev_info.ppEnabledExtensionNames = dev->extensions;
 
-	// TODO: choose present queue family based on created surface(s)
-	// the problem at the moment is that we have to create the renderer
-	// before there are any outputs so would probably need (at least slight)
-	// wlr changes
-	vulkan->graphics_queue_fam = find_queue_family(queue_props, qfam_count,
-		VK_QUEUE_GRAPHICS_BIT);
-	vulkan->present_queue_fam = vulkan->graphics_queue_fam;
-	free(queue_props);
-
-	bool one_queue = (vulkan->present_queue_fam == vulkan->graphics_queue_fam);
-
-	float prio = 1.f;
-	VkDeviceQueueCreateInfo graphics_queue_info = {0};
-	graphics_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	graphics_queue_info.queueFamilyIndex = vulkan->graphics_queue_fam;
-	graphics_queue_info.queueCount = 1;
-	graphics_queue_info.pQueuePriorities = &prio;
-
-	VkDeviceQueueCreateInfo present_queue_info = graphics_queue_info;
-	present_queue_info.queueFamilyIndex = vulkan->present_queue_fam;
-
-	VkDeviceQueueCreateInfo queue_infos[2] = {
-		graphics_queue_info,
-		present_queue_info
-	};
-
-	VkDeviceCreateInfo dev_info = {0};
-	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	dev_info.queueCreateInfoCount = one_queue ? 1 : 2;
-	dev_info.pQueueCreateInfos = queue_infos;
-	dev_info.enabledExtensionCount = last_ext + 1;
-	dev_info.ppEnabledExtensionNames = extensions;
-
-	res = vkCreateDevice(vulkan->phdev, &dev_info, NULL, &vulkan->dev);
-	if (res != VK_SUCCESS){
-		wlr_log(WLR_ERROR, "Failed to create vulkan device");
-		return false;
+		res = vkCreateDevice(phdev, &dev_info, NULL, &dev->dev);
+		if (res != VK_SUCCESS){
+			wlr_log(WLR_ERROR, "Failed to create vulkan device");
+			goto error;
+		}
 	}
 
-	vkGetDeviceQueue(vulkan->dev, vulkan->graphics_queue_fam, 0,
-		&vulkan->graphics_queue);
-	vkGetDeviceQueue(vulkan->dev, vulkan->present_queue_fam, 0,
-		&vulkan->present_queue);
+	for (unsigned i = 0u; i < queue_count; ++i) {
+		vkGetDeviceQueue(dev->dev, queue_families[i].family, 0,
+			&queue_families[i].queue);
+	}
+
+	dev->queue_count = queue_count;
+	dev->queues = calloc(queue_count, sizeof(*dev->queues));
+	if (!dev->queues) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+	}
+
+	memcpy(dev->queues, queue_families, sizeof(*dev->queues) * queue_count);
 
 	// load api
-	vulkan->api.getMemoryFdPropertiesKHR =
+	dev->api.getMemoryFdPropertiesKHR =
 		(PFN_vkGetMemoryFdPropertiesKHR) vkGetDeviceProcAddr(
-				vulkan->dev, "vkGetMemoryFdPropertiesKHR");
-	if (!vulkan->api.getMemoryFdPropertiesKHR) {
+				dev->dev, "vkGetMemoryFdPropertiesKHR");
+	if (!dev->api.getMemoryFdPropertiesKHR) {
 		wlr_log(WLR_ERROR, "Failed to retrieve required dev function pointers");
-		return false;
-	}
-
-	// TODO: query external memory/image stuff to be used for vulkan gbm
-	// render surface. At the moment we just assume there that
-	// bgra8 works for our needs
-	// should probably be already done at phdev selection (or only if
-	// we already know that we might have to create gbm surfaces?)
-	// vkGetPhysicalDeviceImageFormatProperties2(vulkan->phdev, ...);
-
-	return true;
-}
-
-struct wlr_vulkan *wlr_vulkan_create(
-		unsigned int ini_ext_count, const char **ini_exts,
-		unsigned int dev_ext_count, const char **dev_exts,
-		bool debug) {
-	struct wlr_vulkan *vulkan;
-	if (!(vulkan = calloc(1, sizeof(*vulkan)))) {
-		wlr_log_errno(WLR_ERROR, "failed to allocate wlr_vulkan");
-		return NULL;
-	}
-
-	if (!init_instance(vulkan, ini_ext_count, ini_exts, debug)) {
-		wlr_log(WLR_ERROR, "Could not init vulkan instance");
 		goto error;
 	}
 
-	if (!init_device(vulkan, dev_ext_count, dev_exts)) {
-		wlr_log(WLR_ERROR, "Could not init vulkan device");
-		goto error;
-	}
-
-	return vulkan;
+	wl_list_insert(&ini->devices, &dev->link);
+	return dev;
 
 error:
-	wlr_vulkan_destroy(vulkan);
+	wlr_vk_device_destroy(dev);
 	return NULL;
+}
+
+void wlr_vk_device_destroy(struct wlr_vk_device *dev) {
+	if (!dev) {
+		return;
+	}
+
+	if (dev->dev) {
+		vkDestroyDevice(dev->dev, NULL);
+	}
+
+	wl_list_remove(&dev->link);
+	free(dev->extensions);
+	free(dev);
 }

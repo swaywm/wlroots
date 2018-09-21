@@ -32,7 +32,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 	VkResult res;
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	struct wlr_vk_renderer *renderer = texture->renderer;
-	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
+	VkDevice dev = texture->renderer->dev->dev;
 	if (texture->format->wl_format != wl_fmt) {
 		wlr_log(WLR_ERROR, "vulkan_texture_write_pixels cannot change format");
 		return false;
@@ -44,7 +44,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		VkSubresourceLayout subres_layout;
 		VkImageSubresource subres = {0};
 		subres.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		vkGetImageSubresourceLayout(renderer->vulkan->dev, texture->image,
+		vkGetImageSubresourceLayout(dev, texture->image,
 			&subres, &subres_layout);
 
 		unsigned img_stride = subres_layout.rowPitch;
@@ -55,9 +55,9 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		moff += dst_x * bytespp + dst_y * img_stride;
 
 		void *vmap;
-		res = vkMapMemory(vulkan->dev, texture->memory, moff, msize, 0, &vmap);
+		res = vkMapMemory(dev, texture->memory, moff, msize, 0, &vmap);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkMapMemory", res);
+			wlr_vk_error("vkMapMemory", res);
 			return false;
 		}
 
@@ -80,7 +80,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 			}
 		}
 
-		vkUnmapMemory(vulkan->dev, texture->memory);
+		vkUnmapMemory(dev, texture->memory);
 	} else { // deferred upload by transer; using staging buffer
 		uint32_t bytespp = 4u; // always using argb (bgra as vulkan format)
 		size_t bsize = stride * height;
@@ -92,10 +92,10 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 		// write data into staging buffer span
 		void *vmap;
-		res = vkMapMemory(vulkan->dev, span.buffer->memory, span.alloc.start,
+		res = vkMapMemory(dev, span.buffer->memory, span.alloc.start,
 			bsize, 0, &vmap);
 		if (res != VK_SUCCESS) {
-			wlr_vulkan_error("vkMapMemory", res);
+			wlr_vk_error("vkMapMemory", res);
 			return false;
 		}
 
@@ -104,7 +104,7 @@ static bool vulkan_texture_write_pixels(struct wlr_texture *wlr_texture,
 		data += dst_y * stride;
 		data += dst_x * bytespp;
 		memcpy(map, data, stride * height);
-		vkUnmapMemory(vulkan->dev, span.buffer->memory);
+		vkUnmapMemory(dev, span.buffer->memory);
 
 		// record staging cb
 		// will be executed before next frame
@@ -151,6 +151,7 @@ static void vulkan_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	if (!texture->renderer) {
+		free(texture);
 		return;
 	}
 
@@ -161,22 +162,21 @@ static void vulkan_texture_destroy(struct wlr_texture *wlr_texture) {
 		wlr_vk_submit_stage_wait(texture->renderer);
 	}
 
-	struct wlr_vulkan *vulkan = texture->renderer->vulkan;
-	if (texture->ds) {
-		vkFreeDescriptorSets(vulkan->dev,
-			texture->renderer->descriptor_pool, 1, &texture->ds);
+	VkDevice dev = texture->renderer->dev->dev;
+	if (texture->ds && texture->ds_pool) {
+		wlr_vk_free_ds(texture->renderer, texture->ds_pool, texture->ds);
 	}
 
 	if (texture->image_view) {
-		vkDestroyImageView(vulkan->dev, texture->image_view, NULL);
+		vkDestroyImageView(dev, texture->image_view, NULL);
 	}
 
 	if (texture->image) {
-		vkDestroyImage(vulkan->dev, texture->image, NULL);
+		vkDestroyImage(dev, texture->image, NULL);
 	}
 
 	if (texture->memory) {
-		vkFreeMemory(vulkan->dev, texture->memory, NULL);
+		vkFreeMemory(dev, texture->memory, NULL);
 	}
 
 	free(texture);
@@ -194,16 +194,16 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
 	VkResult res;
-	struct wlr_vulkan *vulkan = renderer->vulkan;
+	VkDevice dev = renderer->dev->dev;
 
-	const struct wlr_vk_pixel_format *fmt = get_vulkan_format_from_wl(wl_fmt);
+	const struct wlr_vk_pixel_format_props *fmt =
+		wlr_vk_format_from_wl(renderer, wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return NULL;
 	}
 
-	struct wlr_vk_texture *texture =
-		calloc(1, sizeof(struct wlr_vk_texture));
+	struct wlr_vk_texture *texture = calloc(1, sizeof(struct wlr_vk_texture));
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
@@ -213,7 +213,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	texture->renderer = renderer;
 	texture->width = width;
 	texture->height = height;
-	texture->format = fmt;
+	texture->format = &fmt->format;
 
 	// image
 	unsigned mem_bits = 0xFFFFFFFF;
@@ -221,7 +221,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	VkImageCreateInfo img_info = {0};
 	img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	img_info.imageType = VK_IMAGE_TYPE_2D;
-	img_info.format = fmt->vk_format;
+	img_info.format = texture->format->vk_format;
 	img_info.mipLevels = 1;
 	img_info.arrayLayers = 1;
 	img_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -233,40 +233,40 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL;
 	if (renderer->host_images) {
 		img_info.tiling = VK_IMAGE_TILING_LINEAR;
-		mem_bits = wlr_vulkan_find_mem_type(vulkan,
+		mem_bits = wlr_vk_find_mem_type(renderer->dev,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mem_bits);
 	} else {
 		img_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		img_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		mem_bits = wlr_vulkan_find_mem_type(vulkan,
+		mem_bits = wlr_vk_find_mem_type(renderer->dev,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mem_bits);
 		layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	}
 
-	res = vkCreateImage(vulkan->dev, &img_info, NULL, &texture->image);
+	res = vkCreateImage(dev, &img_info, NULL, &texture->image);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateImage failed", res);
+		wlr_vk_error("vkCreateImage failed", res);
 		goto error;
 	}
 
 	// memory
 	VkMemoryRequirements mem_reqs;
-	vkGetImageMemoryRequirements(vulkan->dev, texture->image, &mem_reqs);
+	vkGetImageMemoryRequirements(dev, texture->image, &mem_reqs);
 
 	VkMemoryAllocateInfo mem_info = {0};
     mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	mem_info.allocationSize = mem_reqs.size;
 	mem_info.memoryTypeIndex = mem_bits & mem_reqs.memoryTypeBits;
-	res = vkAllocateMemory(vulkan->dev, &mem_info, NULL, &texture->memory);
+	res = vkAllocateMemory(dev, &mem_info, NULL, &texture->memory);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocatorMemory failed", res);
+		wlr_vk_error("vkAllocatorMemory failed", res);
 		goto error;
 	}
 
-	res = vkBindImageMemory(vulkan->dev, texture->image, texture->memory, 0);
+	res = vkBindImageMemory(dev, texture->image, texture->memory, 0);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkBindMemory failed", res);
+		wlr_vk_error("vkBindMemory failed", res);
 		goto error;
 	}
 
@@ -274,12 +274,12 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	VkImageViewCreateInfo view_info = {0};
 	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	view_info.format = fmt->vk_format;
+	view_info.format = texture->format->vk_format;
 	view_info.components.r = VK_COMPONENT_SWIZZLE_R;
 	view_info.components.g = VK_COMPONENT_SWIZZLE_G;
 	view_info.components.b = VK_COMPONENT_SWIZZLE_B;
 	view_info.components.a = VK_COMPONENT_SWIZZLE_A;
-	if (!fmt->has_alpha) {
+	if (!texture->format->has_alpha) {
 		view_info.components.a = VK_COMPONENT_SWIZZLE_ONE;
 	}
 
@@ -287,22 +287,17 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 		VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
 	};
 	view_info.image = texture->image;
-	res = vkCreateImageView(vulkan->dev, &view_info, NULL,
+	res = vkCreateImageView(dev, &view_info, NULL,
 		&texture->image_view);
 	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkCreateImageView failed", res);
+		wlr_vk_error("vkCreateImageView failed", res);
 		goto error;
 	}
 
-	// descriptor set
-	VkDescriptorSetAllocateInfo ds_info = {0};
-	ds_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	ds_info.descriptorPool = renderer->descriptor_pool;
-	ds_info.descriptorSetCount = 1;
-	ds_info.pSetLayouts = &renderer->descriptor_set_layout;
-	res = vkAllocateDescriptorSets(vulkan->dev, &ds_info, &texture->ds);
-	if (res != VK_SUCCESS) {
-		wlr_vulkan_error("vkAllocateDescriptorSets", res);
+	// descriptor
+	texture->ds_pool = wlr_vk_alloc_texture_ds(renderer, &texture->ds);
+	if (!texture->ds_pool) {
+		wlr_log(WLR_ERROR, "failed to allocate descriptor");
 		goto error;
 	}
 
@@ -318,7 +313,7 @@ struct wlr_texture *wlr_vk_texture_from_pixels(struct wlr_vk_renderer *renderer,
 	ds_write.dstSet = texture->ds;
 	ds_write.pImageInfo = &ds_img_info;
 
-	vkUpdateDescriptorSets(vulkan->dev, 1, &ds_write, 0, NULL);
+	vkUpdateDescriptorSets(dev, 1, &ds_write, 0, NULL);
 
 	VkCommandBuffer cb = wlr_vk_record_stage_cb(renderer);
 	vulkan_change_layout(cb, texture->image,

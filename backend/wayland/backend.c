@@ -7,7 +7,12 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
+#include <wlr/config.h>
 #include <EGL/egl.h>
+#ifdef WLR_HAS_VULKAN
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_wayland.h>
+#endif
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
@@ -144,11 +149,24 @@ static bool backend_egl_params(struct wlr_backend *wlr_backend,
 	return true;
 }
 
+static bool backend_vulkan_queue_check(struct wlr_backend *wlr_backend,
+		uintptr_t vk_physical_device, uint32_t qfam) {
+#ifdef WLR_HAS_VULKAN
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(wlr_backend);
+	VkPhysicalDevice phdev = (VkPhysicalDevice) vk_physical_device;
+	return vkGetPhysicalDeviceWaylandPresentationSupportKHR(phdev, qfam,
+		wl->remote_display);
+#else
+	return false;
+#endif
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.egl_params = backend_egl_params,
+	.vulkan_queue_family_present_support = backend_vulkan_queue_check,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {

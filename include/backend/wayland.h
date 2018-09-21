@@ -55,7 +55,6 @@ struct wlr_wl_output {
 
 		struct wl_callback *frame;
 		struct wlr_texture *pending; // the texture to render the next frame
-		bool clear; // whether to clear cursor next frame (when !pending)
 	} cursor;
 };
 

@@ -92,11 +92,17 @@ static bool backend_egl_params(struct wlr_backend *wlr_backend,
 	return true;
 }
 
+static bool backend_vulkan_queue_check(struct wlr_backend *wlr_backend,
+		uintptr_t vk_physical_device, uint32_t qfam) {
+	return true;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.egl_params = backend_egl_params,
+	.vulkan_queue_family_present_support = backend_vulkan_queue_check,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
