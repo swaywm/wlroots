@@ -84,7 +84,10 @@ static bool backend_egl_params(struct wlr_backend *wlr_backend,
 }
 
 static bool backend_vulkan_queue_check(struct wlr_backend *wlr_backend,
-		uintptr_t vk_physical_device, uint32_t qfam) {
+		struct wlr_vk_instance *instance, uintptr_t vk_physical_device,
+		uint32_t qfam) {
+	// there is no drm/gbm/kms vulkan wsi so there is no need for
+	// present queues
 	return true;
 }
 

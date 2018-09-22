@@ -14,6 +14,8 @@
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
 
+struct wlr_vk_instance;
+
 struct wlr_backend_impl {
 	bool (*start)(struct wlr_backend *backend);
 	void (*destroy)(struct wlr_backend *backend);
@@ -23,6 +25,7 @@ struct wlr_backend_impl {
 	bool (*egl_params)(struct wlr_backend *backend, EGLenum *platform,
 		void **remote_display, const EGLint **config_attribs, EGLint *visualid);
 	bool (*vulkan_queue_family_present_support)(struct wlr_backend *backend,
+		struct wlr_vk_instance *instance,
 		uintptr_t vk_physical_device, uint32_t queue_family);
 };
 

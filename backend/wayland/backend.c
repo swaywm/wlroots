@@ -10,8 +10,7 @@
 #include <wlr/config.h>
 #include <EGL/egl.h>
 #ifdef WLR_HAS_VULKAN
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_wayland.h>
+#include <wlr/render/vulkan.h>
 #endif
 #include "backend/wayland.h"
 #include "util/signal.h"
@@ -150,12 +149,12 @@ static bool backend_egl_params(struct wlr_backend *wlr_backend,
 }
 
 static bool backend_vulkan_queue_check(struct wlr_backend *wlr_backend,
-		uintptr_t vk_physical_device, uint32_t qfam) {
+		struct wlr_vk_instance *instance, uintptr_t vk_physical_device,
+		uint32_t qfam) {
 #ifdef WLR_HAS_VULKAN
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(wlr_backend);
-	VkPhysicalDevice phdev = (VkPhysicalDevice) vk_physical_device;
-	return vkGetPhysicalDeviceWaylandPresentationSupportKHR(phdev, qfam,
-		wl->remote_display);
+	return wlr_vk_present_queue_supported_wl(instance, vk_physical_device,
+		qfam, wl->remote_display);
 #else
 	return false;
 #endif

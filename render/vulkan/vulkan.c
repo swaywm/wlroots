@@ -433,3 +433,33 @@ void wlr_vk_device_destroy(struct wlr_vk_device *dev) {
 	free(dev->extensions);
 	free(dev);
 }
+
+bool wlr_vk_present_queue_supported_xcb(struct wlr_vk_instance *instance,
+		uintptr_t vk_physical_device, uint32_t qfam,
+		void *xcb_connection, uint32_t visualid) {
+#ifdef WLR_HAS_X11_BACKEND
+	if (!vulkan_has_extension(instance->extension_count, instance->extensions,
+			VK_KHR_XCB_SURFACE_EXTENSION_NAME)) {
+		return false;
+	}
+
+	VkPhysicalDevice phdev = (VkPhysicalDevice) vk_physical_device;
+	return vkGetPhysicalDeviceXcbPresentationSupportKHR(phdev, qfam,
+		xcb_connection, visualid);
+#else
+	return false;
+#endif
+}
+
+bool wlr_vk_present_queue_supported_wl(struct wlr_vk_instance *instance,
+		uintptr_t vk_physical_device, uint32_t qfam,
+		struct wl_display *remote) {
+	if (!vulkan_has_extension(instance->extension_count, instance->extensions,
+			VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME)) {
+		return false;
+	}
+
+	VkPhysicalDevice phdev = (VkPhysicalDevice) vk_physical_device;
+	return vkGetPhysicalDeviceWaylandPresentationSupportKHR(phdev, qfam,
+		remote);
+}

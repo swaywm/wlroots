@@ -1186,7 +1186,7 @@ struct wlr_renderer *wlr_vk_renderer_create(struct wlr_backend *backend) {
 	for (unsigned i = 0u; i < qfam_count; ++i) {
 		bool graphics = queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
 		bool present = backend->impl->vulkan_queue_family_present_support(
-			backend, (uintptr_t) phdev, i);
+			backend, ini, (uintptr_t) phdev, i);
 		if (present) {
 			queue_count = 2u;
 			queues[0].family = i;
