@@ -800,6 +800,7 @@ static bool offscreen_render_surface_init_buffers(
 
 		VkExternalMemoryImageCreateInfo extimg_info = {0};
 		VkImportMemoryFdInfoKHR import_info = {0};
+		VkMemoryDedicatedAllocateInfo ded_info = {0};
 
 		if (rs->gbm_dev) {
 			const VkExternalMemoryHandleTypeFlagBits htype =
@@ -835,6 +836,9 @@ static bool offscreen_render_surface_init_buffers(
 			import_info.fd = fd;
 			import_info.handleType = htype;
 			mem_info.pNext = &import_info;
+
+			ded_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
+			import_info.pNext = &ded_info;
 		}
 
 		res = vkCreateImage(dev->dev, &img_info, NULL, &buf->buffer.image);
@@ -842,6 +846,8 @@ static bool offscreen_render_surface_init_buffers(
 			wlr_vk_error("vkCreateImage (import)", res);
 			return false;
 		}
+
+		ded_info.image = buf->buffer.image;
 
 		// allocate memory
 		// we always use dedicated memory anyways
