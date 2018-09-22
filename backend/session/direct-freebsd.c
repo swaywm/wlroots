@@ -68,32 +68,42 @@ static void direct_session_close(struct wlr_session *base, int fd) {
 
 static bool direct_change_vt(struct wlr_session *base, unsigned vt) {
 	struct direct_session *session = direct_session_from_session(base);
+
+	// Only seat0 has VTs associated with it
+	if (strcmp(session->base.seat, "seat0") != 0) {
+		return true;
+	}
+
 	return ioctl(session->tty_fd, VT_ACTIVATE, (int)vt) == 0;
 }
 
 static void direct_session_destroy(struct wlr_session *base) {
 	struct direct_session *session = direct_session_from_session(base);
-	struct vt_mode mode = {
-		.mode = VT_AUTO,
-	};
 
-	errno = 0;
+	if (strcmp(session->base.seat, "seat0") == 0) {
+		struct vt_mode mode = {
+			.mode = VT_AUTO,
+		};
 
-	ioctl(session->tty_fd, KDSKBMODE, session->old_kbmode);
-	ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
-	ioctl(session->tty_fd, VT_SETMODE, &mode);
+		errno = 0;
 
-	ioctl(session->tty_fd, VT_ACTIVATE, session->old_tty);
+		ioctl(session->tty_fd, KDSKBMODE, session->old_kbmode);
+		ioctl(session->tty_fd, KDSETMODE, KD_TEXT);
+		ioctl(session->tty_fd, VT_SETMODE, &mode);
 
-	if (errno) {
-		wlr_log(WLR_ERROR, "Failed to restore tty");
+		ioctl(session->tty_fd, VT_ACTIVATE, session->old_tty);
+
+		if (errno) {
+			wlr_log(WLR_ERROR, "Failed to restore tty");
+		}
+
+		wl_event_source_remove(session->vt_source);
+		close(session->tty_fd);
 	}
 
 	direct_ipc_finish(session->sock, session->child);
 	close(session->sock);
 
-	wl_event_source_remove(session->vt_source);
-	close(session->tty_fd);
 	free(session);
 }
 
@@ -221,13 +231,23 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 		goto error_session;
 	}
 
-	if (!setup_tty(session, disp)) {
-		goto error_ipc;
+	const char *seat = getenv("XDG_SEAT");
+	if (!seat) {
+		seat = "seat0";
+	}
+
+	if (strcmp(seat, "seat0") == 0) {
+		if (!setup_tty(session, disp)) {
+			goto error_ipc;
+		}
+	} else {
+		session->base.vtnr = 0;
+		session->tty_fd = -1;
 	}
 
 	wlr_log(WLR_INFO, "Successfully loaded direct session");
 
-	snprintf(session->base.seat, sizeof(session->base.seat), "seat0");
+	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.impl = &session_direct;
 	return &session->base;
 
