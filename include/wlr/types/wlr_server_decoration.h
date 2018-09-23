@@ -75,4 +75,7 @@ void wlr_server_decoration_manager_set_default_mode(
 void wlr_server_decoration_manager_destroy(
 	struct wlr_server_decoration_manager *manager);
 
+void wlr_server_decoration_set_mode(
+		struct wlr_server_decoration *decoration, uint32_t mode);
+
 #endif
