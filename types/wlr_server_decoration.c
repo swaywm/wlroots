@@ -122,6 +122,13 @@ static void server_decoration_manager_handle_create(struct wl_client *client,
 	wlr_signal_emit_safe(&manager->events.new_decoration, decoration);
 }
 
+void wlr_server_decoration_set_mode(
+		struct wlr_server_decoration *decoration, uint32_t mode) {
+	decoration->mode = mode;
+	org_kde_kwin_server_decoration_send_mode(decoration->resource,
+		decoration->mode);
+}
+
 static const struct org_kde_kwin_server_decoration_manager_interface
 		server_decoration_manager_impl = {
 	.create = server_decoration_manager_handle_create,
