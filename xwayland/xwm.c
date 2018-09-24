@@ -159,6 +159,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_pid);
 	wl_signal_init(&surface->events.set_window_type);
 	wl_signal_init(&surface->events.set_hints);
+	wl_signal_init(&surface->events.set_decorations);
 	wl_signal_init(&surface->events.set_override_redirect);
 	wl_signal_init(&surface->events.ping_timeout);
 
@@ -594,6 +595,7 @@ static void read_surface_motif_hints(struct wlr_xwm *xwm,
 					WLR_XWAYLAND_SURFACE_DECORATIONS_NO_TITLE;
 			}
 		}
+		wlr_signal_emit_safe(&xsurface->events.set_decorations, xsurface);
 	}
 
 	wlr_log(WLR_DEBUG, "MOTIF_WM_HINTS (%d)", reply->value_len);

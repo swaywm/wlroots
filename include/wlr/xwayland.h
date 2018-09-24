@@ -163,6 +163,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_pid;
 		struct wl_signal set_window_type;
 		struct wl_signal set_hints;
+		struct wl_signal set_decorations;
 		struct wl_signal set_override_redirect;
 		struct wl_signal ping_timeout;
 	} events;
