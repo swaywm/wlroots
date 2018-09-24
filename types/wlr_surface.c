@@ -173,8 +173,11 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		struct wlr_surface_state *previous, struct wlr_surface_state *current) {
 	pixman_region32_clear(buffer_damage);
 
-	if (current->buffer_width != previous->buffer_width ||
-			current->buffer_height != previous->buffer_height ||
+	pixman_region32_t surface_damage;
+	pixman_region32_init(&surface_damage);
+
+	if (current->width != previous->width ||
+			current->height != previous->height ||
 			current->dx != 0 || current->dy != 0) {
 		// Damage the whole surface on resize or move
 		int prev_x = -current->dx;
@@ -185,26 +188,23 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 			prev_y = tmp;
 		}
 
-		pixman_region32_union_rect(buffer_damage, buffer_damage,
-			prev_x * previous->scale, prev_y * previous->scale,
-			previous->buffer_width, previous->buffer_height);
-		pixman_region32_union_rect(buffer_damage, buffer_damage, 0, 0,
-			current->buffer_width, current->buffer_height);
+		pixman_region32_union_rect(&surface_damage, &surface_damage, prev_x,
+			prev_y, previous->width, previous->height);
+		pixman_region32_union_rect(&surface_damage, &surface_damage, 0, 0,
+			current->width, current->height);
 	} else {
 		// Copy over surface damage + buffer damage
 		pixman_region32_union(buffer_damage, buffer_damage,
 			&current->buffer_damage);
-
-		pixman_region32_t surface_damage;
-		pixman_region32_init(&surface_damage);
 		pixman_region32_copy(&surface_damage, &current->surface_damage);
-		wlr_region_transform(&surface_damage, &surface_damage,
-			wlr_output_transform_invert(current->transform),
-			current->width, current->height);
-		wlr_region_scale(&surface_damage, &surface_damage, current->scale);
-		pixman_region32_union(buffer_damage, buffer_damage, &surface_damage);
-		pixman_region32_fini(&surface_damage);
 	}
+
+	wlr_region_transform(&surface_damage, &surface_damage,
+		wlr_output_transform_invert(current->transform),
+		current->width, current->height);
+	wlr_region_scale(&surface_damage, &surface_damage, current->scale);
+	pixman_region32_union(buffer_damage, buffer_damage, &surface_damage);
+	pixman_region32_fini(&surface_damage);
 }
 
 static void surface_state_copy(struct wlr_surface_state *state,
