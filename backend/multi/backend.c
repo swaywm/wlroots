@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <wlr/backend/drm.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
@@ -72,10 +71,17 @@ static struct wlr_renderer *multi_backend_get_renderer(
 	return NULL;
 }
 
+static struct wlr_session *multi_backend_get_session(
+		struct wlr_backend *_backend) {
+	struct wlr_multi_backend *backend = multi_backend_from_backend(_backend);
+	return backend->session;
+}
+
 struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
 	.get_renderer = multi_backend_get_renderer,
+	.get_session = multi_backend_get_session,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -189,17 +195,6 @@ void wlr_multi_backend_remove(struct wlr_backend *_multi,
 		wlr_signal_emit_safe(&multi->events.backend_remove, backend);
 		subbackend_state_destroy(sub);
 	}
-}
-
-struct wlr_session *wlr_multi_get_session(struct wlr_backend *_backend) {
-	struct wlr_multi_backend *backend = multi_backend_from_backend(_backend);
-	struct subbackend_state *sub;
-	wl_list_for_each(sub, &backend->backends, link) {
-		if (wlr_backend_is_drm(sub->backend)) {
-			return wlr_drm_backend_get_session(sub->backend);
-		}
-	}
-	return NULL;
 }
 
 bool wlr_multi_is_empty(struct wlr_backend *_backend) {

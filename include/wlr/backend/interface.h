@@ -17,6 +17,7 @@ struct wlr_backend_impl {
 	bool (*start)(struct wlr_backend *backend);
 	void (*destroy)(struct wlr_backend *backend);
 	struct wlr_renderer *(*get_renderer)(struct wlr_backend *backend);
+	struct wlr_session *(*get_session)(struct wlr_backend *backend);
 };
 
 /**

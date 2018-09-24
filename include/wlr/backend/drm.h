@@ -34,6 +34,4 @@ bool wlr_output_is_drm(struct wlr_output *output);
 typedef struct _drmModeModeInfo drmModeModeInfo;
 bool wlr_drm_connector_add_mode(struct wlr_output *output, const drmModeModeInfo *mode);
 
-struct wlr_session *wlr_drm_backend_get_session(struct wlr_backend *backend);
-
 #endif

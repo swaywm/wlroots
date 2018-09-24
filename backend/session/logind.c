@@ -35,12 +35,41 @@ struct logind_session {
 
 	char *id;
 	char *path;
+
+	// specifies whether a drm device was taken
+	// if so, the session will be (de)activated with the drm fd,
+	// otherwise with the dbus PropertiesChanged on "active" signal
+	bool has_drm;
 };
 
 static struct logind_session *logind_session_from_session(
 		struct wlr_session *base) {
 	assert(base->impl == &session_logind);
 	return (struct logind_session *)base;
+}
+
+static void parse_active(struct logind_session *session,
+		struct sd_bus_message *msg) {
+	int ret;
+	ret = sd_bus_message_enter_container(msg, 'v', "b");
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus active property (1): %s",
+			strerror(-ret));
+		return;
+	}
+
+	bool active;
+	ret = sd_bus_message_read_basic(msg, 'b', &active);
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus active property (2): %s",
+			strerror(-ret));
+		return;
+	}
+
+	if (!session->has_drm) {
+		session->base.active = active;
+		wlr_signal_emit_safe(&session->base.session_signal, session);
+	}
 }
 
 static int logind_take_device(struct wlr_session *base, const char *path) {
@@ -55,6 +84,10 @@ static int logind_take_device(struct wlr_session *base, const char *path) {
 	if (stat(path, &st) < 0) {
 		wlr_log(WLR_ERROR, "Failed to stat '%s'", path);
 		return -1;
+	}
+
+	if (major(st.st_rdev) == DRM_MAJOR) {
+		session->has_drm = true;
 	}
 
 	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
@@ -262,6 +295,7 @@ static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_e
 	}
 
 	if (major == DRM_MAJOR) {
+		assert(session->has_drm);
 		session->base.active = false;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
 	}
@@ -307,6 +341,107 @@ error:
 	return 0;
 }
 
+static int properties_changed(sd_bus_message *msg, void *userdata,
+		sd_bus_error *ret_error) {
+	struct logind_session *session = userdata;
+	int ret = 0;
+
+	// if we have drm fd we don't depend on this
+	if (session->has_drm) {
+		return 0;
+	}
+
+	// PropertiesChanged 1: interface
+	const char *interface;
+	ret = sd_bus_message_read_basic(msg, 's', &interface); // skip path
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (1) %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	if (strcmp(interface, "org.freedesktop.login1.Session") != 0) {
+		// not interesting for us; ignore
+		wlr_log(WLR_DEBUG, "ignoring PropertiesChanged from %s", interface);
+		return 0;
+	}
+
+	// PropertiesChanged 2: changed properties with values
+	ret = sd_bus_message_enter_container(msg, 'a', "{sv}");
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (2) %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	const char *s;
+	while ((ret = sd_bus_message_enter_container(msg, 'e', "sv")) > 0) {
+		ret = sd_bus_message_read_basic(msg, 's', &s);
+		if (ret < 0) {
+			wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (3) %s",
+				strerror(-ret));
+			goto error;
+		}
+
+		if (strcmp(s, "Active") == 0) {
+			parse_active(session, msg);
+			return 0;
+		} else {
+			sd_bus_message_skip(msg, "{sv}");
+		}
+
+		ret = sd_bus_message_exit_container(msg);
+		if (ret < 0) {
+			wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (4) %s",
+				strerror(-ret));
+			goto error;
+		}
+	}
+
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (5) %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	ret = sd_bus_message_exit_container(msg);
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (6) %s",
+			strerror(-ret));
+		goto error;
+	}
+
+	// PropertiesChanged 3: changed properties without values
+	sd_bus_message_enter_container(msg, 'a', "s");
+	while ((ret = sd_bus_message_read_basic(msg, 's', &s)) > 0) {
+		if (strcmp(s, "Active") == 0) {
+			sd_bus_error error = SD_BUS_ERROR_NULL;
+			sd_bus_message *answer = NULL;
+			ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+				session->path, "org.freedesktop.DBus.Properties", "Get",
+				&error, &answer, "ss", "org.freedesktop.login1.Session",
+				"Active");
+			if (ret < 0) {
+				wlr_log(WLR_ERROR, "Failed to get active property: '%s' (%s)",
+					error.message, strerror(ret));
+				goto error;
+			}
+
+			parse_active(session, answer);
+			return 0;
+		}
+	}
+
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged (7) %s",
+			strerror(-ret));
+		goto error;
+	}
+
+error:
+	return 0;
+}
+
 static bool add_signal_matches(struct logind_session *session) {
 	int ret;
 
@@ -333,6 +468,14 @@ static bool add_signal_matches(struct logind_session *session) {
 
 	snprintf(str, sizeof(str), fmt, "Session", "ResumeDevice", session->path);
 	ret = sd_bus_add_match(session->bus, NULL, str, resume_device, session);
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
+		return false;
+	}
+
+	ret = sd_bus_match_signal(session->bus, NULL, "org.freedesktop.login1",
+		session->path, "org.freedesktop.DBus.Properties", "PropertiesChanged",
+		properties_changed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
