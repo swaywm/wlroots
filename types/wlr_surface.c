@@ -170,39 +170,39 @@ static void surface_state_finalize(struct wlr_surface *surface,
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
-		struct wlr_surface_state *previous, struct wlr_surface_state *current) {
+		struct wlr_surface_state *current, struct wlr_surface_state *pending) {
 	pixman_region32_clear(buffer_damage);
 
 	pixman_region32_t surface_damage;
 	pixman_region32_init(&surface_damage);
 
-	if (current->width != previous->width ||
-			current->height != previous->height ||
-			current->dx != 0 || current->dy != 0) {
+	if (pending->width != current->width ||
+			pending->height != current->height ||
+			pending->dx != 0 || pending->dy != 0) {
 		// Damage the whole surface on resize or move
-		int prev_x = -current->dx;
-		int prev_y = -current->dy;
-		if ((previous->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+		int prev_x = -pending->dx;
+		int prev_y = -pending->dy;
+		if ((current->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
 			int tmp = prev_x;
 			prev_x = prev_y;
 			prev_y = tmp;
 		}
 
 		pixman_region32_union_rect(&surface_damage, &surface_damage, prev_x,
-			prev_y, previous->width, previous->height);
+			prev_y, current->width, current->height);
 		pixman_region32_union_rect(&surface_damage, &surface_damage, 0, 0,
-			current->width, current->height);
+			pending->width, pending->height);
 	} else {
 		// Copy over surface damage + buffer damage
 		pixman_region32_union(buffer_damage, buffer_damage,
-			&current->buffer_damage);
-		pixman_region32_copy(&surface_damage, &current->surface_damage);
+			&pending->buffer_damage);
+		pixman_region32_copy(&surface_damage, &pending->surface_damage);
 	}
 
 	wlr_region_transform(&surface_damage, &surface_damage,
-		wlr_output_transform_invert(current->transform),
-		current->width, current->height);
-	wlr_region_scale(&surface_damage, &surface_damage, current->scale);
+		wlr_output_transform_invert(pending->transform),
+		pending->width, pending->height);
+	wlr_region_scale(&surface_damage, &surface_damage, pending->scale);
 	pixman_region32_union(buffer_damage, buffer_damage, &surface_damage);
 	pixman_region32_fini(&surface_damage);
 }
