@@ -301,29 +301,8 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	}
 
 	if (surface->buffer != NULL && surface->buffer->released) {
-		pixman_region32_t damage;
-		pixman_region32_init(&damage);
-		pixman_region32_copy(&damage, &surface->current.buffer_damage);
-
-		pixman_region32_t surface_damage;
-		pixman_region32_init(&surface_damage);
-		pixman_region32_copy(&surface_damage, &surface->current.surface_damage);
-		wlr_region_transform(&surface_damage, &surface_damage,
-			wlr_output_transform_invert(surface->current.transform),
-			surface->current.width, surface->current.height);
-		wlr_region_scale(&surface_damage, &surface_damage,
-			surface->current.scale);
-		pixman_region32_union(&damage, &damage, &surface_damage);
-		pixman_region32_fini(&surface_damage);
-
-		pixman_region32_intersect_rect(&damage, &damage, 0, 0,
-			surface->current.buffer_width, surface->current.buffer_height);
-
 		struct wlr_buffer *updated_buffer =
-			wlr_buffer_apply_damage(surface->buffer, resource, &damage);
-
-		pixman_region32_fini(&damage);
-
+			wlr_buffer_apply_damage(surface->buffer, resource, &surface->buffer_damage);
 		if (updated_buffer != NULL) {
 			surface->buffer = updated_buffer;
 			return;
