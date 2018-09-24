@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
@@ -198,7 +199,8 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		pixman_region32_init(&surface_damage);
 		pixman_region32_copy(&surface_damage, &current->surface_damage);
 		wlr_region_transform(&surface_damage, &surface_damage,
-			current->transform, current->buffer_width, current->buffer_height);
+			wlr_output_transform_invert(current->transform),
+			current->width, current->height);
 		wlr_region_scale(&surface_damage, &surface_damage, current->scale);
 		pixman_region32_union(buffer_damage, buffer_damage, &surface_damage);
 		pixman_region32_fini(&surface_damage);
@@ -307,8 +309,8 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		pixman_region32_init(&surface_damage);
 		pixman_region32_copy(&surface_damage, &surface->current.surface_damage);
 		wlr_region_transform(&surface_damage, &surface_damage,
-			surface->current.transform,
-			surface->current.buffer_width, surface->current.buffer_height);
+			wlr_output_transform_invert(surface->current.transform),
+			surface->current.width, surface->current.height);
 		wlr_region_scale(&surface_damage, &surface_damage,
 			surface->current.scale);
 		pixman_region32_union(&damage, &damage, &surface_damage);
