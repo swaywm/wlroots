@@ -283,7 +283,7 @@ static void pointer_constraints_bind(struct wl_client *client, void *data,
 		return;
 	}
 
-	wl_list_insert(&pointer_constraints->wl_resources, wl_resource_get_link(resource));
+	wl_list_insert(&pointer_constraints->resources, wl_resource_get_link(resource));
 	wl_resource_set_implementation(resource, &pointer_constraints_impl,
 		pointer_constraints, pointer_constraints_destroy);
 }
@@ -304,9 +304,9 @@ struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 		free(pointer_constraints);
 		return NULL;
 	}
-	pointer_constraints->wl_global = wl_global;
+	pointer_constraints->global = wl_global;
 
-	wl_list_init(&pointer_constraints->wl_resources);
+	wl_list_init(&pointer_constraints->resources);
 	wl_list_init(&pointer_constraints->constraints);
 	wl_signal_init(&pointer_constraints->events.constraint_create);
 	wl_signal_init(&pointer_constraints->events.constraint_destroy);
@@ -317,7 +317,7 @@ struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 void wlr_pointer_constraints_v1_destroy(
 		struct wlr_pointer_constraints_v1 *pointer_constraints) {
 	struct wl_resource *resource, *_tmp_res;
-	wl_resource_for_each_safe(resource, _tmp_res, &pointer_constraints->wl_resources) {
+	wl_resource_for_each_safe(resource, _tmp_res, &pointer_constraints->resources) {
 		wl_resource_destroy(resource);
 	}
 
@@ -326,7 +326,7 @@ void wlr_pointer_constraints_v1_destroy(
 		wl_resource_destroy(constraint->resource);
 	}
 
-	wl_global_destroy(pointer_constraints->wl_global);
+	wl_global_destroy(pointer_constraints->global);
 	free(pointer_constraints);
 }
 

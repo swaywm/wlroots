@@ -47,8 +47,8 @@ struct wlr_pointer_constraint_v1 {
 };
 
 struct wlr_pointer_constraints_v1 {
-	struct wl_list wl_resources; // wl_resource_get_link
-	struct wl_global *wl_global;
+	struct wl_list resources; // wl_resource_get_link
+	struct wl_global *global;
 
 	struct {
 		/**
