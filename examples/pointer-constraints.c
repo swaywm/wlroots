@@ -43,17 +43,19 @@ static void draw(void) {
 	eglSwapBuffers(egl.display, egl_surface);
 }
 
-static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32_t serial,
-		uint32_t time, uint32_t button, uint32_t state_w) {
+static void pointer_handle_button(void *data, struct wl_pointer *pointer,
+		uint32_t serial, uint32_t time, uint32_t button, uint32_t state_w) {
 	struct wl_surface *surface = data;
 
 	if (button == BTN_LEFT && state_w == WL_POINTER_BUTTON_STATE_PRESSED) {
 		region_type = (region_type + 1) % REGION_TYPE_MAX;
 
 		if (locked_pointer) {
-			zwp_locked_pointer_v1_set_region(locked_pointer, regions[region_type]);
+			zwp_locked_pointer_v1_set_region(locked_pointer,
+				regions[region_type]);
 		} else if (confined_pointer) {
-			zwp_confined_pointer_v1_set_region(confined_pointer, regions[region_type]);
+			zwp_confined_pointer_v1_set_region(confined_pointer,
+				regions[region_type]);
 		}
 
 		wl_surface_commit(surface);
@@ -149,9 +151,10 @@ static void handle_global(void *data, struct wl_registry *registry,
 		wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
 		seat = wl_registry_bind(registry, name, &wl_seat_interface, version);
-	} else if (strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0) {
+	} else if (strcmp(interface,
+			zwp_pointer_constraints_v1_interface.name) == 0) {
 		pointer_constraints = wl_registry_bind(registry, name,
-				&zwp_pointer_constraints_v1_interface, version);
+			&zwp_pointer_constraints_v1_interface, version);
 	}
 }
 
@@ -225,12 +228,15 @@ int main(int argc, char **argv) {
 
 	if (lock) {
 		locked_pointer = zwp_pointer_constraints_v1_lock_pointer(
-				pointer_constraints, surface, pointer, regions[region_type], lifetime);
+			pointer_constraints, surface, pointer,
+			regions[region_type], lifetime);
 
-		zwp_locked_pointer_v1_set_cursor_position_hint(locked_pointer, wl_fixed_from_int(128), wl_fixed_from_int(128));
+		zwp_locked_pointer_v1_set_cursor_position_hint(locked_pointer,
+			wl_fixed_from_int(128), wl_fixed_from_int(128));
 	} else {
 		confined_pointer = zwp_pointer_constraints_v1_confine_pointer(
-			pointer_constraints, surface, pointer, regions[region_type], lifetime);
+			pointer_constraints, surface, pointer,
+			regions[region_type], lifetime);
 	}
 
 	wl_surface_commit(surface);
@@ -246,9 +252,9 @@ int main(int argc, char **argv) {
 
 	return EXIT_SUCCESS;
 
-	invalid_args: {
-		fprintf(stderr, "pointer-constraints <lock | confine> <oneshot | persistent> "
-			"<no-region | disjoint-rejoin | joint-region>\n");
-		exit(EXIT_FAILURE);
-	}
+invalid_args:
+	fprintf(stderr, "pointer-constraints <lock | confine> "
+		"<oneshot | persistent> "
+		"<no-region | disjoint-rejoin | joint-region>\n");
+	return EXIT_FAILURE;
 }
