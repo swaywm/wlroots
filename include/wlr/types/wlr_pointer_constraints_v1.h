@@ -15,13 +15,18 @@ enum wlr_pointer_constraint_v1_type {
 	WLR_POINTER_CONSTRAINT_V1_CONFINED,
 };
 
+enum wlr_pointer_constraint_v1_state_field {
+	WLR_POINTER_CONSTRAINT_V1_STATE_REGION = 1 << 0,
+	WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT = 1 << 1,
+};
+
 struct wlr_pointer_constraint_v1_state {
-	pixman_region32_t *region;
+	uint32_t committed; // enum wlr_pointer_constraint_v1_state_field
+	pixman_region32_t region;
 
 	// only valid for locked_pointer
 	struct {
 		double x, y;
-		bool valid;
 	} cursor_hint;
 };
 

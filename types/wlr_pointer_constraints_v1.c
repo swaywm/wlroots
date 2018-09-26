@@ -57,15 +57,8 @@ static void pointer_constraint_destroy(struct wlr_pointer_constraint_v1 *constra
 		&constraint->pointer_constraints->events.constraint_destroy,
 		constraint);
 
-	if (constraint->current.region) {
-		pixman_region32_fini(constraint->current.region);
-		free(constraint->current.region);
-	}
-	if (constraint->pending.region &&
-			constraint->current.region != constraint->pending.region) {
-		pixman_region32_fini(constraint->pending.region);
-		free(constraint->pending.region);
-	}
+	pixman_region32_fini(&constraint->current.region);
+	pixman_region32_fini(&constraint->pending.region);
 	pixman_region32_fini(&constraint->region);
 	free(constraint);
 }
@@ -80,24 +73,17 @@ static void pointer_constraint_destroy_resource(struct wl_resource *resource) {
 static void pointer_constraint_set_region(
 		struct wlr_pointer_constraint_v1 *constraint,
 		struct wl_resource *region_resource) {
-	if (constraint->pending.region &&
-			constraint->current.region != constraint->pending.region) {
-		pixman_region32_fini(constraint->pending.region);
-		free(constraint->pending.region);
-	}
+	pixman_region32_clear(&constraint->pending.region);
 
 	if (region_resource) {
-		constraint->pending.region = calloc(1, sizeof(pixman_region32_t));
-		pixman_region32_init(constraint->pending.region);
-
 		pixman_region32_t *region = wlr_region_from_resource(region_resource);
-		pixman_region32_copy(constraint->pending.region, region);
-	} else {
-		constraint->pending.region = NULL;
+		pixman_region32_copy(&constraint->pending.region, region);
 	}
+
+	constraint->pending.committed |= WLR_POINTER_CONSTRAINT_V1_STATE_REGION;
 }
 
-static void pointer_constraint_set_region_wrapper(struct wl_client *client,
+static void pointer_constraint_handle_set_region(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *region_resource) {
 	struct wlr_pointer_constraint_v1 *constraint =
 		pointer_constraint_from_resource(resource);
@@ -112,27 +98,28 @@ static void pointer_constraint_set_cursor_position_hint(struct wl_client *client
 
 	constraint->pending.cursor_hint.x = wl_fixed_to_double(x);
 	constraint->pending.cursor_hint.y = wl_fixed_to_double(y);
-	constraint->pending.cursor_hint.valid = true;
+	constraint->pending.committed |= WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT;
 }
 
 static void pointer_constraint_handle_commit(
 		struct wlr_pointer_constraint_v1 *constraint) {
-	constraint->current.cursor_hint = constraint->pending.cursor_hint;
-
-	if (constraint->current.region != constraint->pending.region) {
-		if (constraint->current.region) {
-			pixman_region32_fini(constraint->current.region);
-			free(constraint->current.region);
-		}
-
-		constraint->current.region = constraint->pending.region;
+	if (constraint->pending.committed &
+			WLR_POINTER_CONSTRAINT_V1_STATE_REGION) {
+		pixman_region32_copy(&constraint->current.region,
+			&constraint->pending.region);
 	}
+	if (constraint->pending.committed &
+			WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT) {
+		constraint->current.cursor_hint = constraint->pending.cursor_hint;
+	}
+	constraint->current.committed |= constraint->pending.committed;
+
+	constraint->pending.committed = 0;
 
 	pixman_region32_clear(&constraint->region);
-
-	if (constraint->current.region) {
+	if (pixman_region32_not_empty(&constraint->current.region)) {
 		pixman_region32_intersect(&constraint->region,
-			&constraint->surface->input_region, constraint->current.region);
+			&constraint->surface->input_region, &constraint->current.region);
 	} else {
 		pixman_region32_copy(&constraint->region,
 			&constraint->surface->input_region);
@@ -162,18 +149,19 @@ static void handle_seat_destroy(struct wl_listener *listener, void *data) {
 
 static const struct zwp_confined_pointer_v1_interface confined_pointer_impl = {
 	.destroy = resource_destroy,
-	.set_region = pointer_constraint_set_region_wrapper,
+	.set_region = pointer_constraint_handle_set_region,
 };
 
 static const struct zwp_locked_pointer_v1_interface locked_pointer_impl = {
 	.destroy = resource_destroy,
-	.set_region = pointer_constraint_set_region_wrapper,
+	.set_region = pointer_constraint_handle_set_region,
 	.set_cursor_position_hint = pointer_constraint_set_cursor_position_hint,
 };
 
 static void pointer_constraint_create(struct wl_client *client,
 		struct wl_resource *pointer_constraints_resource, uint32_t id,
-		struct wl_resource *surface_resource, struct wl_resource *pointer_resource,
+		struct wl_resource *surface_resource,
+		struct wl_resource *pointer_resource,
 		struct wl_resource *region_resource,
 		enum zwp_pointer_constraints_v1_lifetime lifetime,
 		enum wlr_pointer_constraint_v1_type type) {
@@ -181,7 +169,8 @@ static void pointer_constraint_create(struct wl_client *client,
 		pointer_constraints_from_resource(pointer_constraints_resource);
 
 	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
-	struct wlr_seat *seat = wlr_seat_client_from_pointer_resource(pointer_resource)->seat;
+	struct wlr_seat *seat =
+		wlr_seat_client_from_pointer_resource(pointer_resource)->seat;
 
 	if (wlr_pointer_constraints_v1_constraint_for_surface(pointer_constraints,
 			surface, seat)) {
@@ -220,6 +209,9 @@ static void pointer_constraint_create(struct wl_client *client,
 
 	pixman_region32_init(&constraint->region);
 
+	pixman_region32_init(&constraint->pending.region);
+	pixman_region32_init(&constraint->current.region);
+
 	pointer_constraint_set_region(constraint, region_resource);
 	pointer_constraint_handle_commit(constraint);
 
@@ -256,12 +248,14 @@ static void pointer_constraints_lock_pointer(struct wl_client *client,
 static void pointer_constraints_confine_pointer(struct wl_client *client,
 		struct wl_resource *cons_resource, uint32_t id,
 		struct wl_resource *surface, struct wl_resource *pointer,
-		struct wl_resource *region, enum zwp_pointer_constraints_v1_lifetime lifetime) {
+		struct wl_resource *region,
+		enum zwp_pointer_constraints_v1_lifetime lifetime) {
 	pointer_constraint_create(client, cons_resource, id, surface, pointer,
 		region, lifetime, WLR_POINTER_CONSTRAINT_V1_CONFINED);
 }
 
-static const struct zwp_pointer_constraints_v1_interface pointer_constraints_impl = {
+static const struct zwp_pointer_constraints_v1_interface
+		pointer_constraints_impl = {
 	.destroy = resource_destroy,
 	.lock_pointer = pointer_constraints_lock_pointer,
 	.confine_pointer = pointer_constraints_confine_pointer,
@@ -283,7 +277,8 @@ static void pointer_constraints_bind(struct wl_client *client, void *data,
 		return;
 	}
 
-	wl_list_insert(&pointer_constraints->resources, wl_resource_get_link(resource));
+	wl_list_insert(&pointer_constraints->resources,
+		wl_resource_get_link(resource));
 	wl_resource_set_implementation(resource, &pointer_constraints_impl,
 		pointer_constraints, pointer_constraints_destroy);
 }
@@ -317,12 +312,14 @@ struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 void wlr_pointer_constraints_v1_destroy(
 		struct wlr_pointer_constraints_v1 *pointer_constraints) {
 	struct wl_resource *resource, *_tmp_res;
-	wl_resource_for_each_safe(resource, _tmp_res, &pointer_constraints->resources) {
+	wl_resource_for_each_safe(resource, _tmp_res,
+			&pointer_constraints->resources) {
 		wl_resource_destroy(resource);
 	}
 
 	struct wlr_pointer_constraint_v1 *constraint, *_tmp_cons;
-	wl_list_for_each_safe(constraint, _tmp_cons, &pointer_constraints->constraints, link) {
+	wl_list_for_each_safe(constraint, _tmp_cons,
+			&pointer_constraints->constraints, link) {
 		wl_resource_destroy(constraint->resource);
 	}
 
@@ -330,7 +327,8 @@ void wlr_pointer_constraints_v1_destroy(
 	free(pointer_constraints);
 }
 
-struct wlr_pointer_constraint_v1 *wlr_pointer_constraints_v1_constraint_for_surface(
+struct wlr_pointer_constraint_v1 *
+		wlr_pointer_constraints_v1_constraint_for_surface(
 		struct wlr_pointer_constraints_v1 *pointer_constraints,
 		struct wlr_surface *surface, struct wlr_seat *seat) {
 	struct wlr_pointer_constraint_v1 *constraint;
@@ -351,11 +349,13 @@ void wlr_pointer_constraint_v1_send_activated(
 	zwp_confined_pointer_v1_send_confined(constraint->resource);
 }
 
-void wlr_pointer_constraint_v1_send_deactivated(struct wlr_pointer_constraint_v1 *constraint) {
+void wlr_pointer_constraint_v1_send_deactivated(
+		struct wlr_pointer_constraint_v1 *constraint) {
 	if (wl_resource_get_user_data(constraint->resource)) {
 		wlr_log(WLR_DEBUG, "unconstrained %p", constraint);
 		zwp_confined_pointer_v1_send_unconfined(constraint->resource);
-		if (constraint->lifetime == ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT) {
+		if (constraint->lifetime ==
+				ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT) {
 			pointer_constraint_destroy(constraint);
 		}
 	}

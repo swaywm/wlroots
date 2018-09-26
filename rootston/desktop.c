@@ -798,7 +798,9 @@ static void handle_constraint_destroy(
 	struct roots_seat* seat = constraint->seat->data;
 	if (seat->cursor->active_constraint == constraint) {
 		roots_cursor_constrain(seat->cursor, NULL, NAN, NAN);
-		if (constraint->current.cursor_hint.valid && seat->cursor->pointer_view) {
+		if (constraint->current.committed &
+				WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT &&
+				seat->cursor->pointer_view) {
 			double sx = constraint->current.cursor_hint.x;
 			double sy = constraint->current.cursor_hint.y;
 
