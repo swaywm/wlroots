@@ -299,6 +299,14 @@ static void handle_request_set_cursor(struct wl_listener *listener,
 	roots_cursor_handle_request_set_cursor(cursor, event);
 }
 
+static void handle_pointer_focus_change(struct wl_listener *listener,
+		void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, focus_change);
+	struct wlr_seat_pointer_focus_change_event *event = data;
+	roots_cursor_handle_focus_change(cursor, event);
+}
+
 static void seat_reset_device_mappings(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
@@ -434,6 +442,12 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	wl_signal_add(&seat->seat->events.request_set_cursor,
 		&seat->cursor->request_set_cursor);
 	seat->cursor->request_set_cursor.notify = handle_request_set_cursor;
+
+	wl_signal_add(&seat->seat->pointer_state.events.focus_change,
+		&seat->cursor->focus_change);
+	seat->cursor->focus_change.notify = handle_pointer_focus_change;
+
+	wl_list_init(&seat->cursor->constraint_commit.link);
 }
 
 static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,
@@ -567,6 +581,7 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		free(seat);
 		return NULL;
 	}
+	seat->seat->data = seat;
 
 	roots_seat_init_cursor(seat);
 	if (!seat->cursor) {
@@ -1186,6 +1201,10 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		wlr_seat_keyboard_notify_enter(seat->seat, view->wlr_surface,
 			NULL, 0, NULL);
 	}
+
+	if (seat->cursor) {
+		roots_cursor_update_focus(seat->cursor);
+	}
 }
 
 /**
@@ -1219,6 +1238,11 @@ void roots_seat_set_focus_layer(struct roots_seat *seat,
 	} else {
 		wlr_seat_keyboard_notify_enter(seat->seat, layer->surface,
 			NULL, 0, NULL);
+	}
+
+
+	if (seat->cursor) {
+		roots_cursor_update_focus(seat->cursor);
 	}
 }
 

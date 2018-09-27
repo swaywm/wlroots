@@ -146,6 +146,10 @@ struct wlr_seat_pointer_state {
 	uint32_t grab_time;
 
 	struct wl_listener surface_destroy;
+
+	struct {
+		struct wl_signal focus_change; // wlr_seat_pointer_focus_change_event
+	} events;
 };
 
 // TODO: May be useful to be able to simulate keyboard input events
@@ -236,6 +240,12 @@ struct wlr_seat_pointer_request_set_cursor_event {
 	struct wlr_surface *surface;
 	uint32_t serial;
 	int32_t hotspot_x, hotspot_y;
+};
+
+struct wlr_seat_pointer_focus_change_event {
+	struct wlr_seat *seat;
+	struct wlr_surface *old_surface, *new_surface;
+	double sx, sy;
 };
 
 /**
@@ -546,6 +556,9 @@ bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
 
 struct wlr_seat_client *wlr_seat_client_from_resource(
-		struct wl_resource *resource);
+	struct wl_resource *resource);
+
+struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
+	struct wl_resource *resource);
 
 #endif

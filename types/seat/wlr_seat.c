@@ -225,6 +225,8 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	seat->pointer_state.default_grab = pointer_grab;
 	seat->pointer_state.grab = pointer_grab;
 
+	wl_signal_init(&seat->pointer_state.events.focus_change);
+
 	// keyboard state
 	struct wlr_seat_keyboard_grab *keyboard_grab =
 		calloc(1, sizeof(struct wlr_seat_keyboard_grab));

@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_BOX_H
 #define WLR_TYPES_WLR_BOX_H
 
+#include <pixman.h>
 #include <stdbool.h>
 #include <wayland-server.h>
 
@@ -39,5 +40,7 @@ void wlr_box_transform(const struct wlr_box *box,
  */
 void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 	struct wlr_box *dest);
+
+void wlr_box_from_pixman_box32(const pixman_box32_t box, struct wlr_box *dest);
 
 #endif

@@ -28,6 +28,9 @@ struct roots_output {
 	struct wl_listener damage_destroy;
 };
 
+void rotate_child_position(double *sx, double *sy, double sw, double sh,
+	double pw, double ph, float rotation);
+
 void handle_new_output(struct wl_listener *listener, void *data);
 
 struct roots_view;

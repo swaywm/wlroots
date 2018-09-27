@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
@@ -776,6 +777,62 @@ static void input_inhibit_deactivate(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_constraint_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_pointer_constraint *constraint =
+		wl_container_of(listener, constraint, destroy);
+	struct wlr_pointer_constraint_v1 *wlr_constraint = data;
+	struct roots_seat *seat = wlr_constraint->seat->data;
+
+	wl_list_remove(&constraint->destroy.link);
+
+	if (seat->cursor->active_constraint == wlr_constraint) {
+		wl_list_remove(&seat->cursor->constraint_commit.link);
+		wl_list_init(&seat->cursor->constraint_commit.link);
+		seat->cursor->active_constraint = NULL;
+
+		if (wlr_constraint->current.committed &
+				WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT &&
+				seat->cursor->pointer_view) {
+			double sx = wlr_constraint->current.cursor_hint.x;
+			double sy = wlr_constraint->current.cursor_hint.y;
+
+			struct roots_view *view = seat->cursor->pointer_view->view;
+			rotate_child_position(&sx, &sy, 0, 0, view->width, view->height,
+				view->rotation);
+			double lx = view->x + sx;
+			double ly = view->y + sy;
+
+			wlr_cursor_warp(seat->cursor->cursor, NULL, lx, ly);
+		}
+	}
+
+	free(constraint);
+}
+
+static void handle_pointer_constraint(struct wl_listener *listener,
+		void *data) {
+	struct wlr_pointer_constraint_v1 *wlr_constraint = data;
+	struct roots_seat *seat = wlr_constraint->seat->data;
+
+	struct roots_pointer_constraint *constraint =
+		calloc(1, sizeof(struct roots_pointer_constraint));
+	constraint->constraint = wlr_constraint;
+
+	constraint->destroy.notify = handle_constraint_destroy;
+	wl_signal_add(&wlr_constraint->events.destroy, &constraint->destroy);
+
+	double sx, sy;
+	struct wlr_surface *surface = desktop_surface_at(
+		seat->input->server->desktop,
+		seat->cursor->cursor->x, seat->cursor->cursor->y, &sx, &sy, NULL);
+
+	if (surface == wlr_constraint->surface) {
+		assert(!seat->cursor->active_constraint);
+		roots_cursor_constrain(seat->cursor, wlr_constraint, sx, sy);
+	}
+}
+
 struct roots_desktop *desktop_create(struct roots_server *server,
 		struct roots_config *config) {
 	wlr_log(WLR_DEBUG, "Initializing roots desktop");
@@ -887,10 +944,10 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_input_inhibit_manager_create(server->wl_display);
 	desktop->input_inhibit_activate.notify = input_inhibit_activate;
 	wl_signal_add(&desktop->input_inhibit->events.activate,
-			&desktop->input_inhibit_activate);
+		&desktop->input_inhibit_activate);
 	desktop->input_inhibit_deactivate.notify = input_inhibit_deactivate;
 	wl_signal_add(&desktop->input_inhibit->events.deactivate,
-			&desktop->input_inhibit_deactivate);
+		&desktop->input_inhibit_deactivate);
 
 	desktop->virtual_keyboard = wlr_virtual_keyboard_manager_v1_create(
 		server->wl_display);
@@ -905,6 +962,12 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->xdg_decoration_manager->events.new_toplevel_decoration,
 		&desktop->xdg_toplevel_decoration);
 	desktop->xdg_toplevel_decoration.notify = handle_xdg_toplevel_decoration;
+
+	desktop->pointer_constraints =
+		wlr_pointer_constraints_v1_create(server->wl_display);
+	desktop->pointer_constraint.notify = handle_pointer_constraint;
+	wl_signal_add(&desktop->pointer_constraints->events.new_constraint,
+		&desktop->pointer_constraint);
 
 	return desktop;
 }

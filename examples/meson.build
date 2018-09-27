@@ -70,6 +70,10 @@ examples = {
 		'src': 'gamma-control.c',
 		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
 	},
+	'pointer-constraints': {
+		'src': 'pointer-constraints.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
 	'dmabuf-capture': {
 		'src': 'dmabuf-capture.c',
 		'dep': [

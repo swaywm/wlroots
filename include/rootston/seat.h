@@ -10,7 +10,7 @@ struct roots_seat {
 	struct roots_input *input;
 	struct wlr_seat *seat;
 	struct roots_cursor *cursor;
-	struct wl_list link;
+	struct wl_list link; // roots_input::seats
 
 	// coordinates of the first touch point if it exists
 	int32_t touch_id;
@@ -120,6 +120,12 @@ struct roots_tablet_tool {
 
 	struct roots_tablet *current_tablet;
 	struct wl_listener tablet_destroy;
+};
+
+struct roots_pointer_constraint {
+	struct wlr_pointer_constraint_v1 *constraint;
+
+	struct wl_listener destroy;
 };
 
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name);

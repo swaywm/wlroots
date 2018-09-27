@@ -53,9 +53,11 @@ meta-key = Logo
 # - "close" to close the current view
 # - "next_window" to cycle through windows
 # - "alpha" to cycle a window's alpha channel
+# - "break_pointer_constraint" to decline and deactivate all pointer constraints
 [bindings]
 Logo+Shift+e = exit
 Logo+q = close
 Logo+m = maximize
+Logo+Escape = break_pointer_constraint
 Alt+Tab = next_window
 Ctrl+Shift+a = alpha

@@ -1,6 +1,7 @@
 #ifndef ROOTSTON_CURSOR_H
 #define ROOTSTON_CURSOR_H
 
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include "rootston/seat.h"
 
 enum roots_cursor_mode {
@@ -13,6 +14,9 @@ enum roots_cursor_mode {
 struct roots_cursor {
 	struct roots_seat *seat;
 	struct wlr_cursor *cursor;
+
+	struct wlr_pointer_constraint_v1 *active_constraint;
+	pixman_region32_t confine; // invalid if active_constraint == NULL
 
 	const char *default_xcursor;
 
@@ -28,6 +32,7 @@ struct roots_cursor {
 	uint32_t resize_edges;
 
 	struct roots_seat_view *pointer_view;
+	struct wlr_surface *wlr_surface;
 
 	struct wl_listener motion;
 	struct wl_listener motion_absolute;
@@ -44,6 +49,10 @@ struct roots_cursor {
 	struct wl_listener tool_button;
 
 	struct wl_listener request_set_cursor;
+
+	struct wl_listener focus_change;
+
+	struct wl_listener constraint_commit;
 };
 
 struct roots_cursor *roots_cursor_create(struct roots_seat *seat);
@@ -51,36 +60,46 @@ struct roots_cursor *roots_cursor_create(struct roots_seat *seat);
 void roots_cursor_destroy(struct roots_cursor *cursor);
 
 void roots_cursor_handle_motion(struct roots_cursor *cursor,
-		struct wlr_event_pointer_motion *event);
+	struct wlr_event_pointer_motion *event);
 
 void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
-		struct wlr_event_pointer_motion_absolute *event);
+	struct wlr_event_pointer_motion_absolute *event);
 
 void roots_cursor_handle_button(struct roots_cursor *cursor,
-		struct wlr_event_pointer_button *event);
+	struct wlr_event_pointer_button *event);
 
 void roots_cursor_handle_axis(struct roots_cursor *cursor,
-		struct wlr_event_pointer_axis *event);
+	struct wlr_event_pointer_axis *event);
 
 void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
-		struct wlr_event_touch_down *event);
+	struct wlr_event_touch_down *event);
 
 void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
-		struct wlr_event_touch_up *event);
+	struct wlr_event_touch_up *event);
 
 void roots_cursor_handle_touch_motion(struct roots_cursor *cursor,
-		struct wlr_event_touch_motion *event);
+	struct wlr_event_touch_motion *event);
 
 void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
-		struct wlr_event_tablet_tool_axis *event);
+	struct wlr_event_tablet_tool_axis *event);
 
 void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
-		struct wlr_event_tablet_tool_tip *event);
+	struct wlr_event_tablet_tool_tip *event);
 
 void roots_cursor_handle_request_set_cursor(struct roots_cursor *cursor,
-		struct wlr_seat_pointer_request_set_cursor_event *event);
+	struct wlr_seat_pointer_request_set_cursor_event *event);
+
+void roots_cursor_handle_focus_change(struct roots_cursor *cursor,
+	struct wlr_seat_pointer_focus_change_event *event);
+
+void roots_cursor_handle_constraint_commit(struct roots_cursor *cursor);
 
 void roots_cursor_update_position(struct roots_cursor *cursor,
-		uint32_t time);
+	uint32_t time);
+
+void roots_cursor_update_focus(struct roots_cursor *cursor);
+
+void roots_cursor_constrain(struct roots_cursor *cursor,
+	struct wlr_pointer_constraint_v1 *constraint, double sx, double sy);
 
 #endif
