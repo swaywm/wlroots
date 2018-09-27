@@ -346,22 +346,27 @@ struct wlr_pointer_constraint_v1 *
 	return NULL;
 }
 
-// Thankfully zwp_confined_pointer_v1_send_{un,}confined work
-// on both locked and confined pointer constraints.
 void wlr_pointer_constraint_v1_send_activated(
 		struct wlr_pointer_constraint_v1 *constraint) {
 	wlr_log(WLR_DEBUG, "constrained %p", constraint);
-	zwp_confined_pointer_v1_send_confined(constraint->resource);
+	if (constraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED) {
+		zwp_locked_pointer_v1_send_locked(constraint->resource);
+	} else {
+		zwp_confined_pointer_v1_send_confined(constraint->resource);
+	}
 }
 
 void wlr_pointer_constraint_v1_send_deactivated(
 		struct wlr_pointer_constraint_v1 *constraint) {
-	if (wl_resource_get_user_data(constraint->resource)) {
-		wlr_log(WLR_DEBUG, "unconstrained %p", constraint);
+	wlr_log(WLR_DEBUG, "unconstrained %p", constraint);
+	if (constraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED) {
+		zwp_locked_pointer_v1_send_unlocked(constraint->resource);
+	} else {
 		zwp_confined_pointer_v1_send_unconfined(constraint->resource);
-		if (constraint->lifetime ==
-				ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT) {
-			pointer_constraint_destroy(constraint);
-		}
+	}
+
+	if (constraint->lifetime ==
+			ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT) {
+		pointer_constraint_destroy(constraint);
 	}
 }

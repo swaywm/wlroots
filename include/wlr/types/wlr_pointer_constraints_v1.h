@@ -85,6 +85,9 @@ struct wlr_pointer_constraint_v1 *
 
 void wlr_pointer_constraint_v1_send_activated(
 	struct wlr_pointer_constraint_v1 *constraint);
+/**
+ * Deactivate the constraint. May destroy the constraint.
+ */
 void wlr_pointer_constraint_v1_send_deactivated(
 	struct wlr_pointer_constraint_v1 *constraint);
 
