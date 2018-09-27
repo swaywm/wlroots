@@ -777,52 +777,59 @@ static void input_inhibit_deactivate(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void handle_constraint_create(
-		struct wl_listener *listener,
-		struct wlr_pointer_constraint_v1 *constraint) {
-	struct roots_seat* seat = constraint->seat->data;
+static void handle_constraint_destroy(struct wl_listener *listener,
+		void *data) {
+	struct roots_pointer_constraint *constraint =
+		wl_container_of(listener, constraint, destroy);
+	struct wlr_pointer_constraint_v1 *wlr_constraint = data;
+	struct roots_seat *seat = wlr_constraint->seat->data;
 
-	double sx, sy;
-	struct wlr_surface *surface = desktop_surface_at(seat->input->server->desktop,
-		seat->cursor->cursor->x, seat->cursor->cursor->y, &sx, &sy, NULL);
+	wl_list_remove(&constraint->destroy.link);
 
-	if (surface == constraint->surface) {
-		assert(!seat->cursor->active_constraint);
-		roots_cursor_constrain(seat->cursor, constraint, sx, sy);
-	}
-}
+	if (seat->cursor->active_constraint == wlr_constraint) {
+		wl_list_remove(&seat->cursor->constraint_commit.link);
+		wl_list_init(&seat->cursor->constraint_commit.link);
+		seat->cursor->active_constraint = NULL;
 
-static void handle_constraint_destroy(
-		struct wl_listener *listener,
-		struct wlr_pointer_constraint_v1 *constraint) {
-	struct roots_seat* seat = constraint->seat->data;
-	if (seat->cursor->active_constraint == constraint) {
-		roots_cursor_constrain(seat->cursor, NULL, NAN, NAN);
-		if (constraint->current.committed &
+		if (wlr_constraint->current.committed &
 				WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT &&
 				seat->cursor->pointer_view) {
-			double sx = constraint->current.cursor_hint.x;
-			double sy = constraint->current.cursor_hint.y;
+			double sx = wlr_constraint->current.cursor_hint.x;
+			double sy = wlr_constraint->current.cursor_hint.y;
 
 			struct roots_view *view = seat->cursor->pointer_view->view;
-
-			double lx, ly;
-			if (view->rotation == 0.0) {
-				lx = sx + view->x;
-				ly = sy + view->y;
-			} else {
-				double c = cos(view->rotation);
-				double s = sin(view->rotation);
-
-				double center_x = view->width / 2.;
-				double center_y = view->height / 2.;
-
-				lx = c * (sx - center_x) - s * (sy - center_y) + center_x + view->x;
-				ly = s * (sx - center_x) + c * (sy - center_y) + center_y + view->y;
-			}
+			rotate_child_position(&sx, &sy, 0, 0, view->width, view->height,
+				view->rotation);
+			double lx = view->x + sx;
+			double ly = view->y + sy;
 
 			wlr_cursor_warp(seat->cursor->cursor, NULL, lx, ly);
 		}
+	}
+
+	free(constraint);
+}
+
+static void handle_pointer_constraint(struct wl_listener *listener,
+		void *data) {
+	struct wlr_pointer_constraint_v1 *wlr_constraint = data;
+	struct roots_seat *seat = wlr_constraint->seat->data;
+
+	struct roots_pointer_constraint *constraint =
+		calloc(1, sizeof(struct roots_pointer_constraint));
+	constraint->constraint = wlr_constraint;
+
+	constraint->destroy.notify = handle_constraint_destroy;
+	wl_signal_add(&wlr_constraint->events.destroy, &constraint->destroy);
+
+	double sx, sy;
+	struct wlr_surface *surface = desktop_surface_at(
+		seat->input->server->desktop,
+		seat->cursor->cursor->x, seat->cursor->cursor->y, &sx, &sy, NULL);
+
+	if (surface == wlr_constraint->surface) {
+		assert(!seat->cursor->active_constraint);
+		roots_cursor_constrain(seat->cursor, wlr_constraint, sx, sy);
 	}
 }
 
@@ -956,13 +963,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		&desktop->xdg_toplevel_decoration);
 	desktop->xdg_toplevel_decoration.notify = handle_xdg_toplevel_decoration;
 
-	desktop->pointer_constraints = wlr_pointer_constraints_v1_create(server->wl_display);
-	desktop->constraint_destroy.notify = (wl_notify_func_t)handle_constraint_destroy;
-	wl_signal_add(&desktop->pointer_constraints->events.constraint_destroy,
-		&desktop->constraint_destroy);
-	desktop->constraint_create.notify = (wl_notify_func_t)handle_constraint_create;
-	wl_signal_add(&desktop->pointer_constraints->events.constraint_create,
-		&desktop->constraint_create);
+	desktop->pointer_constraints =
+		wlr_pointer_constraints_v1_create(server->wl_display);
+	desktop->pointer_constraint.notify = handle_pointer_constraint;
+	wl_signal_add(&desktop->pointer_constraints->events.new_constraint,
+		&desktop->pointer_constraint);
 
 	return desktop;
 }

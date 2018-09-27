@@ -307,14 +307,6 @@ static void handle_pointer_focus_change(struct wl_listener *listener,
 	roots_cursor_handle_focus_change(cursor, event);
 }
 
-static void handle_constraint_commit(struct wl_listener *listener,
-		void *data) {
-	struct roots_cursor *cursor =
-		wl_container_of(listener, cursor, constraint_commit);
-	assert(cursor->active_constraint->surface == data);
-	roots_cursor_handle_constraint_commit(cursor);
-}
-
 static void seat_reset_device_mappings(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	struct wlr_cursor *cursor = seat->cursor->cursor;
@@ -456,7 +448,6 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 	seat->cursor->focus_change.notify = handle_pointer_focus_change;
 
 	wl_list_init(&seat->cursor->constraint_commit.link);
-	seat->cursor->constraint_commit.notify = handle_constraint_commit;
 }
 
 static void roots_drag_icon_handle_surface_commit(struct wl_listener *listener,

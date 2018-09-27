@@ -68,8 +68,7 @@ struct roots_desktop {
 	struct wl_listener input_inhibit_activate;
 	struct wl_listener input_inhibit_deactivate;
 	struct wl_listener virtual_keyboard_new;
-	struct wl_listener constraint_create;
-	struct wl_listener constraint_destroy;
+	struct wl_listener pointer_constraint;
 
 #ifdef WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;

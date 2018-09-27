@@ -48,6 +48,10 @@ struct wlr_pointer_constraint_v1 {
 
 	struct wl_list link; // wlr_pointer_constraints_v1::constraints
 
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	void *data;
 };
 
@@ -59,15 +63,9 @@ struct wlr_pointer_constraints_v1 {
 		/**
 		 * Called when a new pointer constraint is created.
 		 *
-		 * data: wlr_pointer_constraint_v1*
+		 * data: struct wlr_pointer_constraint_v1 *
 		 */
-		struct wl_signal constraint_create;
-		/**
-		 * Called when a pointer constraint is destroyed.
-		 *
-		 * data: wlr_pointer_constraint_v1*
-		 */
-		struct wl_signal constraint_destroy;
+		struct wl_signal new_constraint;
 	} events;
 
 	struct wl_list constraints; // wlr_pointer_constraint_v1::link
@@ -78,16 +76,16 @@ struct wlr_pointer_constraints_v1 {
 struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 	struct wl_display *display);
 void wlr_pointer_constraints_v1_destroy(
-	struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1);
+	struct wlr_pointer_constraints_v1 *pointer_constraints);
 
-struct wlr_pointer_constraint_v1 *wlr_pointer_constraints_v1_constraint_for_surface(
-	struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1,
+struct wlr_pointer_constraint_v1 *
+	wlr_pointer_constraints_v1_constraint_for_surface(
+	struct wlr_pointer_constraints_v1 *pointer_constraints,
 	struct wlr_surface *surface, struct wlr_seat *seat);
 
 void wlr_pointer_constraint_v1_send_activated(
 	struct wlr_pointer_constraint_v1 *constraint);
 void wlr_pointer_constraint_v1_send_deactivated(
 	struct wlr_pointer_constraint_v1 *constraint);
-
 
 #endif

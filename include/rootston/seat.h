@@ -122,6 +122,12 @@ struct roots_tablet_tool {
 	struct wl_listener tablet_destroy;
 };
 
+struct roots_pointer_constraint {
+	struct wlr_pointer_constraint_v1 *constraint;
+
+	struct wl_listener destroy;
+};
+
 struct roots_seat *roots_seat_create(struct roots_input *input, char *name);
 
 void roots_seat_destroy(struct roots_seat *seat);

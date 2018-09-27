@@ -572,31 +572,44 @@ void roots_cursor_handle_constraint_commit(struct roots_cursor *cursor) {
 	}
 }
 
+static void handle_constraint_commit(struct wl_listener *listener,
+		void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, constraint_commit);
+	assert(cursor->active_constraint->surface == data);
+	roots_cursor_handle_constraint_commit(cursor);
+}
+
 void roots_cursor_constrain(struct roots_cursor *cursor,
 		struct wlr_pointer_constraint_v1 *constraint, double sx, double sy) {
-	if (cursor->active_constraint != constraint) {
-		wlr_log(WLR_DEBUG, "roots_cursor_constrain(%p, %p)", cursor, constraint);
-		wlr_log(WLR_DEBUG, "cursor->active_constraint: %p", cursor->active_constraint);
-
-		if (cursor->active_constraint) {
-			wlr_pointer_constraint_v1_send_deactivated(cursor->active_constraint);
-			if (cursor->constraint_commit.link.next) {
-				wl_list_remove(&cursor->constraint_commit.link);
-			}
-		}
-
-		cursor->active_constraint = constraint;
-
-		if (!constraint) {
-			return;
-		}
-
-		wlr_pointer_constraint_v1_send_activated(constraint);
-		wl_signal_add(&constraint->surface->events.commit,
-			&cursor->constraint_commit);
-	} else if (constraint == NULL) {
+	if (cursor->active_constraint == constraint) {
 		return;
 	}
+
+	wlr_log(WLR_DEBUG, "roots_cursor_constrain(%p, %p)",
+		cursor, constraint);
+	wlr_log(WLR_DEBUG, "cursor->active_constraint: %p",
+		cursor->active_constraint);
+
+	wl_list_remove(&cursor->constraint_commit.link);
+	wl_list_init(&cursor->constraint_commit.link);
+	if (cursor->active_constraint) {
+		wlr_pointer_constraint_v1_send_deactivated(
+			cursor->active_constraint);
+	}
+
+	cursor->active_constraint = constraint;
+
+	if (constraint == NULL) {
+		return;
+	}
+
+	wlr_pointer_constraint_v1_send_activated(constraint);
+
+	wl_list_remove(&cursor->constraint_commit.link);
+	wl_signal_add(&constraint->surface->events.commit,
+		&cursor->constraint_commit);
+	cursor->constraint_commit.notify = handle_constraint_commit;
 
 	pixman_region32_clear(&cursor->confine);
 
@@ -612,20 +625,11 @@ void roots_cursor_constrain(struct roots_cursor *cursor,
 			double sx = (boxes[0].x1 + boxes[0].x2) / 2.;
 			double sy = (boxes[0].y1 + boxes[0].y2) / 2.;
 
-			double lx, ly;
-			if (view->rotation == 0.0) {
-				lx = sx + view->x;
-				ly = sy + view->y;
-			} else {
-				double c = cos(view->rotation);
-				double s = sin(view->rotation);
+			rotate_child_position(&sx, &sy, 0, 0, view->width, view->height,
+				view->rotation);
 
-				double center_x = view->width / 2.;
-				double center_y = view->height / 2.;
-
-				lx = c * (sx - center_x) - s * (sy - center_y) + center_x + view->x;
-				ly = s * (sx - center_x) + c * (sy - center_y) + center_y + view->y;
-			}
+			double lx = view->x + sx;
+			double ly = view->y + sy;
 
 			wlr_cursor_warp_closest(cursor->cursor, NULL, lx, ly);
 		}

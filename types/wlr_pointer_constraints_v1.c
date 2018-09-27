@@ -1,14 +1,13 @@
 #include <assert.h>
 #include <limits.h>
+#include <pixman.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <pixman.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/types/wlr_region.h>
 #include <wlr/util/log.h>
-
 #include "util/signal.h"
 
 static const struct zwp_locked_pointer_v1_interface locked_pointer_impl;
@@ -47,16 +46,13 @@ static void pointer_constraint_destroy(struct wlr_pointer_constraint_v1 *constra
 
 	wlr_log(WLR_DEBUG, "destroying constraint %p", constraint);
 
+	wlr_signal_emit_safe(&constraint->events.destroy, constraint);
+
 	wl_resource_set_user_data(constraint->resource, NULL);
 	wl_list_remove(&constraint->link);
 	wl_list_remove(&constraint->surface_commit.link);
 	wl_list_remove(&constraint->surface_destroy.link);
 	wl_list_remove(&constraint->seat_destroy.link);
-
-	wlr_signal_emit_safe(
-		&constraint->pointer_constraints->events.constraint_destroy,
-		constraint);
-
 	pixman_region32_fini(&constraint->current.region);
 	pixman_region32_fini(&constraint->pending.region);
 	pixman_region32_fini(&constraint->region);
@@ -87,6 +83,9 @@ static void pointer_constraint_handle_set_region(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *region_resource) {
 	struct wlr_pointer_constraint_v1 *constraint =
 		pointer_constraint_from_resource(resource);
+	if (constraint == NULL) {
+		return;
+	}
 
 	pointer_constraint_set_region(constraint, region_resource);
 }
@@ -95,13 +94,16 @@ static void pointer_constraint_set_cursor_position_hint(struct wl_client *client
 		struct wl_resource *resource, wl_fixed_t x, wl_fixed_t y) {
 	struct wlr_pointer_constraint_v1 *constraint =
 		pointer_constraint_from_resource(resource);
+	if (constraint == NULL) {
+		return;
+	}
 
 	constraint->pending.cursor_hint.x = wl_fixed_to_double(x);
 	constraint->pending.cursor_hint.y = wl_fixed_to_double(y);
 	constraint->pending.committed |= WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT;
 }
 
-static void pointer_constraint_handle_commit(
+static void pointer_constraint_commit(
 		struct wlr_pointer_constraint_v1 *constraint) {
 	if (constraint->pending.committed &
 			WLR_POINTER_CONSTRAINT_V1_STATE_REGION) {
@@ -130,7 +132,7 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct wlr_pointer_constraint_v1 *constraint =
 		wl_container_of(listener, constraint, surface_commit);
 
-	pointer_constraint_handle_commit(constraint);
+	pointer_constraint_commit(constraint);
 }
 
 static void handle_surface_destroy(struct wl_listener *listener, void *data) {
@@ -188,7 +190,6 @@ static void pointer_constraint_create(struct wl_client *client,
 	struct wl_resource *resource = locked_pointer ?
 		wl_resource_create(client, &zwp_locked_pointer_v1_interface, version, id) :
 		wl_resource_create(client, &zwp_confined_pointer_v1_interface, version, id);
-
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
@@ -196,6 +197,7 @@ static void pointer_constraint_create(struct wl_client *client,
 
 	struct wlr_pointer_constraint_v1 *constraint = calloc(1, sizeof(*constraint));
 	if (constraint == NULL) {
+		wl_resource_destroy(resource);
 		wl_client_post_no_memory(client);
 		return;
 	}
@@ -207,13 +209,15 @@ static void pointer_constraint_create(struct wl_client *client,
 	constraint->type = type;
 	constraint->pointer_constraints = pointer_constraints;
 
+	wl_signal_init(&constraint->events.destroy);
+
 	pixman_region32_init(&constraint->region);
 
 	pixman_region32_init(&constraint->pending.region);
 	pixman_region32_init(&constraint->current.region);
 
 	pointer_constraint_set_region(constraint, region_resource);
-	pointer_constraint_handle_commit(constraint);
+	pointer_constraint_commit(constraint);
 
 	constraint->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->events.commit, &constraint->surface_commit);
@@ -224,16 +228,18 @@ static void pointer_constraint_create(struct wl_client *client,
 	constraint->seat_destroy.notify = handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &constraint->seat_destroy);
 
-	wl_resource_set_implementation(constraint->resource,
-		locked_pointer ? (void*)&locked_pointer_impl : (void*)&confined_pointer_impl,
-		constraint, pointer_constraint_destroy_resource);
+	void *impl = locked_pointer ?
+		(void *)&locked_pointer_impl : (void *)&confined_pointer_impl;
+	wl_resource_set_implementation(constraint->resource, impl, constraint,
+		pointer_constraint_destroy_resource);
 
 	wlr_log(WLR_DEBUG, "new %s_pointer %p (res %p)",
-		locked_pointer ? "locked" : "confined", constraint, constraint->resource);
+		locked_pointer ? "locked" : "confined",
+		constraint, constraint->resource);
 
 	wl_list_insert(&pointer_constraints->constraints, &constraint->link);
 
-	wlr_signal_emit_safe(&pointer_constraints->events.constraint_create,
+	wlr_signal_emit_safe(&pointer_constraints->events.new_constraint,
 		constraint);
 }
 
@@ -303,8 +309,7 @@ struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 
 	wl_list_init(&pointer_constraints->resources);
 	wl_list_init(&pointer_constraints->constraints);
-	wl_signal_init(&pointer_constraints->events.constraint_create);
-	wl_signal_init(&pointer_constraints->events.constraint_destroy);
+	wl_signal_init(&pointer_constraints->events.new_constraint);
 
 	return pointer_constraints;
 }

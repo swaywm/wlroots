@@ -22,7 +22,7 @@
  * Rotate a child's position relative to a parent. The parent size is (pw, ph),
  * the child position is (*sx, *sy) and its size is (sw, sh).
  */
-static void rotate_child_position(double *sx, double *sy, double sw, double sh,
+void rotate_child_position(double *sx, double *sy, double sw, double sh,
 		double pw, double ph, float rotation) {
 	if (rotation != 0.0) {
 		// Coordinates relative to the center of the subsurface
