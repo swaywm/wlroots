@@ -291,16 +291,6 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		// as it targets seat->keyboard_state.focused_client
 		wlr_seat_keyboard_send_modifiers(seat, modifiers);
 	}
-
-	struct wlr_seat_keyboard_focus_change_event event = {
-		.seat = seat,
-		.new_surface = surface,
-		.old_surface = focused_surface,
-		.num_keycodes = num_keycodes,
-		.keycodes = keycodes,
-		.modifiers = modifiers,
-	};
-	wlr_signal_emit_safe(&seat->keyboard_state.events.focus_change, &event);
 }
 
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
