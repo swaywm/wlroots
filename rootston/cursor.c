@@ -314,19 +314,14 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 		struct roots_view *view = cursor->pointer_view->view;
 		assert(view);
 
-		double center_x = view->x + view->width / 2.;
-		double center_y = view->y + view->height / 2.;
-
-		double lx1 = cursor->cursor->x;
-		double ly1 = cursor->cursor->y;
-
-		double lx2 = lx1 + dx;
-		double ly2 = ly1 + dy;
-
-		// Optimization for most common case.
-		// This also makes sure that we don't encounter
-		// precision bugs in the most common case.
+		// TODO: handle rotated views
 		if (view->rotation == 0.0) {
+			double lx1 = cursor->cursor->x;
+			double ly1 = cursor->cursor->y;
+
+			double lx2 = lx1 + dx;
+			double ly2 = ly1 + dy;
+
 			double sx1 = lx1 - view->x;
 			double sy1 = ly1 - view->y;
 
@@ -334,35 +329,13 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 			double sy2 = ly2 - view->y;
 
 			double sx2_confined, sy2_confined;
-			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2, &sx2_confined, &sy2_confined)) {
+			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2,
+					&sx2_confined, &sy2_confined)) {
 				return;
 			}
 
 			dx = sx2_confined - sx1;
 			dy = sy2_confined - sy1;
-		} else {
-			assert(false);
-			double c = cos(view->rotation);
-			double s = sin(view->rotation);
-
-			double sx1 = c * (lx1 - center_x) - s * (ly1 - center_y) + view->width / 2.;
-			double sy1 = s * (lx1 - center_x) + c * (ly1 - center_y) + view->height / 2.;
-
-			double sx2 = c * (lx2 - center_x) - s * (ly2 - center_y) + view->width / 2.;
-			double sy2 = s * (lx2 - center_x) + c * (ly2 - center_y) + view->height / 2.;
-
-			double sx2_confined, sy2_confined;
-			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2, &sx2_confined, &sy2_confined)) {
-				return;
-			}
-
-			// avoid NaNs
-			double fraction = (sx2 - sx1) > (sy2 - sy1) ?
-				(sx2_confined - sx1) / (sx2 - sx1) :
-				(sy2_confined - sy1) / (sy2 - sy1);
-
-			dx *= fraction;
-			dy *= fraction;
 		}
 	}
 
