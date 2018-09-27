@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
@@ -57,6 +58,7 @@ struct roots_desktop {
 	struct wlr_screencopy_manager_v1 *screencopy;
 	struct wlr_tablet_manager_v2 *tablet_v2;
 	struct wlr_pointer_constraints_v1 *pointer_constraints;
+	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;

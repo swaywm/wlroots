@@ -42,6 +42,7 @@ lib_wlr_types = static_library(
 		'wlr_pointer_constraints_v1.c',
 		'wlr_primary_selection.c',
 		'wlr_region.c',
+		'wlr_relative_pointer_v1.c',
 		'wlr_screenshooter.c',
 		'wlr_server_decoration.c',
 		'wlr_surface.c',
