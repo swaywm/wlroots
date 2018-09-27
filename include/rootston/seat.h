@@ -114,6 +114,7 @@ struct roots_tablet_tool {
 	struct wlr_tablet_v2_tablet_tool *tablet_v2_tool;
 
 	struct roots_seat *seat;
+	double tilt_x, tilt_y;
 
 	struct wl_listener set_cursor;
 	struct wl_listener tool_destroy;
