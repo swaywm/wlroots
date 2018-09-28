@@ -111,7 +111,7 @@ wlr_deps += [
 	math,
 ]
 
-if host_machine.system().startswith('freebsd')
+if host_machine.system() == 'freebsd'
 	override_options = ['b_lundef=false']
 else
 	override_options = []
