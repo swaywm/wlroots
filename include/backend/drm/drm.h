@@ -104,10 +104,14 @@ struct wlr_drm_backend {
 };
 
 enum wlr_drm_connector_state {
+	// Connector is available but no output is plugged in
 	WLR_DRM_CONN_DISCONNECTED,
+	// An output just has been plugged in and is waiting for a modeset
 	WLR_DRM_CONN_NEEDS_MODESET,
 	WLR_DRM_CONN_CLEANUP,
 	WLR_DRM_CONN_CONNECTED,
+	// Connector disappeared, waiting for being destroyed on next page-flip
+	WLR_DRM_CONN_DISAPPEARED,
 };
 
 struct wlr_drm_mode {

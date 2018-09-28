@@ -709,6 +709,7 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
+	drmModeFreeCrtc(conn->old_crtc);
 	wl_event_source_remove(conn->retry_pageflip);
 	wl_list_remove(&conn->link);
 	free(conn);
@@ -1088,10 +1089,11 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		wlr_log(WLR_INFO, "'%s' disappeared", conn->output.name);
 		drm_connector_cleanup(conn);
 
-		drmModeFreeCrtc(conn->old_crtc);
-		wl_event_source_remove(conn->retry_pageflip);
-		wl_list_remove(&conn->link);
-		free(conn);
+		if (conn->pageflip_pending) {
+			conn->state = WLR_DRM_CONN_DISAPPEARED;
+		} else {
+			wlr_output_destroy(&conn->output);
+		}
 	}
 
 	bool changed_outputs[wl_list_length(&drm->outputs)];
@@ -1133,6 +1135,12 @@ static void page_flip_handler(int fd, unsigned seq,
 		get_drm_backend_from_backend(conn->output.backend);
 
 	conn->pageflip_pending = false;
+
+	if (conn->state == WLR_DRM_CONN_DISAPPEARED) {
+		wlr_output_destroy(&conn->output);
+		return;
+	}
+
 	if (conn->state != WLR_DRM_CONN_CONNECTED || conn->crtc == NULL) {
 		return;
 	}
@@ -1193,7 +1201,6 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 
 		drmModeSetCrtc(drm->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
 			&conn->id, 1, &crtc->mode);
-		drmModeFreeCrtc(crtc);
 	}
 }
 
@@ -1248,6 +1255,8 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
 		break;
+	case WLR_DRM_CONN_DISAPPEARED:
+		return; // don't change state
 	}
 
 	conn->state = WLR_DRM_CONN_DISCONNECTED;
