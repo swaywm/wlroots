@@ -12,7 +12,6 @@
 #include <wlr/xwayland.h>
 #include <xcb/composite.h>
 #include <xcb/render.h>
-#include <xcb/xcb_image.h>
 #include <xcb/xfixes.h>
 #include "util/signal.h"
 #include "xwayland/xwm.h"
