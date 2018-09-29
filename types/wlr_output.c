@@ -560,6 +560,17 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
 }
 
+void wlr_output_send_present(struct wlr_output *output, struct timespec *when,
+		unsigned seq, uint32_t flags) {
+	struct wlr_output_event_present event = {
+		.output = output,
+		.when = when,
+		.seq = seq,
+		.flags = flags,
+	};
+	wlr_signal_emit_safe(&output->events.present, &event);
+}
+
 bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
 	if (!output->impl->set_gamma) {

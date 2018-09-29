@@ -1149,8 +1149,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 }
 
 static void page_flip_handler(int fd, unsigned seq,
-		unsigned tv_sec, unsigned tv_usec, void *user) {
-	struct wlr_drm_connector *conn = user;
+		unsigned tv_sec, unsigned tv_usec, void *data) {
+	struct wlr_drm_connector *conn = data;
 	struct wlr_drm_backend *drm =
 		get_drm_backend_from_backend(conn->output.backend);
 
@@ -1169,6 +1169,14 @@ static void page_flip_handler(int fd, unsigned seq,
 	if (drm->parent) {
 		post_drm_surface(&conn->crtc->primary->mgpu_surf);
 	}
+
+	struct timespec present_time = {
+		.tv_sec = tv_sec,
+		.tv_nsec = tv_usec * 1000,
+	};
+	uint32_t present_flags = WLR_OUTPUT_PRESENT_VSYNC |
+		WLR_OUTPUT_PRESENT_HW_CLOCK | WLR_OUTPUT_PRESENT_HW_COMPLETION;
+	wlr_output_send_present(&conn->output, &present_time, seq, present_flags);
 
 	if (drm->session->active) {
 		wlr_output_send_frame(&conn->output);

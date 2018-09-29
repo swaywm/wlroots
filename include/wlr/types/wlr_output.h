@@ -91,6 +91,7 @@ struct wlr_output {
 		struct wl_signal frame;
 		struct wl_signal needs_swap;
 		struct wl_signal swap_buffers; // wlr_output_event_swap_buffers
+		struct wl_signal present; // wlr_output_event_present
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal scale;
@@ -121,6 +122,19 @@ struct wlr_output_event_swap_buffers {
 	struct wlr_output *output;
 	struct timespec *when;
 	pixman_region32_t *damage;
+};
+
+enum wlr_output_present_flag {
+	WLR_OUTPUT_PRESENT_VSYNC = 0x1,
+	WLR_OUTPUT_PRESENT_HW_CLOCK = 0x2,
+	WLR_OUTPUT_PRESENT_HW_COMPLETION = 0x4,
+};
+
+struct wlr_output_event_present {
+	struct wlr_output *output;
+	struct timespec *when;
+	unsigned seq;
+	uint32_t flags; // enum wlr_output_present_flag
 };
 
 struct wlr_surface;
