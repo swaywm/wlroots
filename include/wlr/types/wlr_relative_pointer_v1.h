@@ -17,24 +17,48 @@
  * monitor edge or other pointer barriers).
  */
 
+
+/* A global interface used for getting the relative pointer object for a given
+ * pointer.
+ *
+ * Signals:
+ * - destroy -> struct wlr_relative_pointer_manager_v1 *manager
+ *   :: the manager was destroyed
+ * - new_relative_pointer -> struct wlr_relative_pointer_v1 *relative_pointer
+ *   :: a new relative_pointer was created
+ */
+
 struct wlr_relative_pointer_manager_v1 {
 	struct wl_list resources;
 	struct wl_global *global;
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal get_relative_pointer;
-	} requests;
+		struct wl_signal new_relative_pointer;
+	} events;
 
 	void *data;
 };
 
+
+/* A wp_relative_pointer object is an extension to the wl_pointer interface
+ * used for emitting relative pointer events. It shares the same focus as
+ * wl_pointer objects of the same seat and will only emit events when it has
+ * focus.
+ *
+ * Signals:
+ * - destroy -> struct wlr_relative_pointer_v1 *relative_pointer
+ *   :: the relative_pointer was destroyed
+ */
+
 struct wlr_relative_pointer_v1 {
+	struct wl_client *client;
 	struct wl_resource *resource;
+	struct wl_pointer *pointer;
 
 	struct {
 		struct wl_signal destroy;
-	} destroy;
+	} events;
 
 	void *data;
 };
