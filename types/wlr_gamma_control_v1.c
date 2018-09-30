@@ -189,9 +189,15 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 		wlr_output_get_gamma_size(output));
 }
 
+static void gamma_control_manager_destroy(struct wl_client *client,
+		struct wl_resource *manager_resource) {
+	wl_resource_destroy(manager_resource);
+}
+
 static const struct zwlr_gamma_control_manager_v1_interface
 		gamma_control_manager_impl = {
 	.get_gamma_control = gamma_control_manager_get_gamma_control,
+	.destroy = gamma_control_manager_destroy,
 };
 
 static void gamma_control_manager_handle_resource_destroy(
