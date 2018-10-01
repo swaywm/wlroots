@@ -66,8 +66,14 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
-	return wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface,
-		damage);
+	if (!wlr_egl_swap_buffers(&output->backend->egl,
+			output->egl_surface, damage)) {
+		return false;
+	}
+
+	// TODO: if available, use the presentation-time protocol
+	wlr_output_send_present(wlr_output, NULL, 0, 0);
+	return true;
 }
 
 static void output_transform(struct wlr_output *wlr_output,

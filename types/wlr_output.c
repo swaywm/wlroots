@@ -18,6 +18,8 @@
 
 #define OUTPUT_VERSION 3
 
+#define DEFAULT_PRESENT_CLOCK CLOCK_MONOTONIC
+
 static void output_send_to_resource(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	const uint32_t version = wl_resource_get_version(resource);
@@ -562,6 +564,16 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 
 void wlr_output_send_present(struct wlr_output *output, struct timespec *when,
 		unsigned seq, uint32_t flags) {
+	struct timespec now;
+	if (when == NULL) {
+		if (!clock_gettime(DEFAULT_PRESENT_CLOCK, &now)) {
+			wlr_log_errno(WLR_ERROR, "failed to send output present event: "
+				"failed to read clock");
+			return;
+		}
+		when = &now;
+	}
+
 	struct wlr_output_event_present event = {
 		.output = output,
 		.when = when,
