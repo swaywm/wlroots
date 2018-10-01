@@ -88,9 +88,14 @@ struct wlr_output {
 	float transform_matrix[9];
 
 	struct {
+		// Request to render a frame
 		struct wl_signal frame;
+		// Emitted when buffers need to be swapped (because software cursors or
+		// fullscreen damage or because of backend-specific logic)
 		struct wl_signal needs_swap;
+		// Emitted right before buffer swap
 		struct wl_signal swap_buffers; // wlr_output_event_swap_buffers
+		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
 		struct wl_signal enable;
 		struct wl_signal mode;
