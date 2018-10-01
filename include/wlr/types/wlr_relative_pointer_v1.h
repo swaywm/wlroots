@@ -12,13 +12,15 @@
 #include <wayland-server.h>
 
 
-/* This protocol specifies a set of interfaces used for making clients able to
+/**
+ * This protocol specifies a set of interfaces used for making clients able to
  * receive relative pointer events not obstructed by barriers (such as the
  * monitor edge or other pointer barriers).
  */
 
 
-/* A global interface used for getting the relative pointer object for a given
+/**
+ * A global interface used for getting the relative pointer object for a given
  * pointer.
  *
  * Signals:
@@ -41,7 +43,8 @@ struct wlr_relative_pointer_manager_v1 {
 };
 
 
-/* A wp_relative_pointer object is an extension to the wl_pointer interface
+/**
+ * A wp_relative_pointer object is an extension to the wl_pointer interface
  * used for emitting relative pointer events. It shares the same focus as
  * wl_pointer objects of the same seat and will only emit events when it has
  * focus.
@@ -67,7 +70,6 @@ struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_v1_create(struct wl
 void wlr_relative_pointer_v1_destroy(struct wlr_relative_pointer_manager_v1 *relative_pointer_manager);
 
 void wlr_relative_pointer_v1_send_relative_motion(struct wl_resource *resource,
-	uint64_t time, double dx, double dy, double dx_unaccel, double
-	dy_unaccel);
+	uint64_t time, double dx, double dy, double dx_unaccel, double dy_unaccel);
 
 #endif
