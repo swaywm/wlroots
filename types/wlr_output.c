@@ -565,7 +565,7 @@ void wlr_output_send_present(struct wlr_output *output, struct timespec *when,
 		unsigned seq, uint32_t flags) {
 	struct timespec now;
 	if (when == NULL) {
-		clockid_t clock = wlr_backend_get_present_clock(output->backend);
+		clockid_t clock = wlr_backend_get_presentation_clock(output->backend);
 		errno = 0;
 		if (clock_gettime(clock, &now) != 0) {
 			wlr_log_errno(WLR_ERROR, "failed to send output present event: "

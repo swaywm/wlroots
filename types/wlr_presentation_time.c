@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/backend.h>
 #include "presentation-time-protocol.h"
 #include "util/signal.h"
 
@@ -147,7 +148,7 @@ static void presentation_bind(struct wl_client *client, void *data,
 		presentation_handle_resource_destroy);
 	wl_list_insert(&presentation->resources, wl_resource_get_link(resource));
 
-	wp_presentation_send_clock_id(resource, presentation->clock);
+	wp_presentation_send_clock_id(resource, (uint32_t)presentation->clock);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -156,7 +157,8 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_presentation_destroy(presentation);
 }
 
-struct wlr_presentation *wlr_presentation_create(struct wl_display *display) {
+struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
+		struct wlr_backend *backend) {
 	struct wlr_presentation *presentation =
 		calloc(1, sizeof(struct wlr_presentation));
 	if (presentation == NULL) {
@@ -170,8 +172,7 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display) {
 		return NULL;
 	}
 
-	// TODO: get clock from backend
-	presentation->clock = CLOCK_MONOTONIC;
+	presentation->clock = wlr_backend_get_presentation_clock(backend);
 
 	wl_list_init(&presentation->resources);
 	wl_list_init(&presentation->feedbacks);

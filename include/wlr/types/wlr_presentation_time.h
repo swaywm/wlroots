@@ -47,7 +47,10 @@ struct wlr_presentation_event {
 	uint32_t flags; // wp_presentation_feedback_kind
 };
 
-struct wlr_presentation *wlr_presentation_create(struct wl_display *display);
+struct wlr_backend;
+
+struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
+	struct wlr_backend *backend);
 void wlr_presentation_destroy(struct wlr_presentation *presentation);
 void wlr_presentation_send_surface_presented(
 	struct wlr_presentation *presentation, struct wlr_surface *surface,

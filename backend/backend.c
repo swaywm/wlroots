@@ -64,9 +64,9 @@ struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend) {
 	return NULL;
 }
 
-clockid_t wlr_backend_get_present_clock(struct wlr_backend *backend) {
-	if (backend->impl->get_present_clock) {
-		return backend->impl->get_present_clock(backend);
+clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend) {
+	if (backend->impl->get_presentation_clock) {
+		return backend->impl->get_presentation_clock(backend);
 	}
 	return CLOCK_MONOTONIC;
 }
