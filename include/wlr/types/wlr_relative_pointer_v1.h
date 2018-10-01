@@ -69,7 +69,7 @@ struct wlr_relative_pointer_v1 {
 struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_v1_create(struct wl_display *display);
 void wlr_relative_pointer_v1_destroy(struct wlr_relative_pointer_manager_v1 *relative_pointer_manager);
 
-void wlr_relative_pointer_v1_send_relative_motion(struct wl_resource *resource,
+void wlr_relative_pointer_v1_send_relative_motion(struct wlr_relative_pointer_v1 *relative_pointer,
 	uint64_t time, double dx, double dy, double dx_unaccel, double dy_unaccel);
 
 #endif
