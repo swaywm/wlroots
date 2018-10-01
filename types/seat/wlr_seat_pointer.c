@@ -5,6 +5,7 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 #include "util/signal.h"
@@ -302,6 +303,20 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->motion(grab, time, sx, sy);
+}
+
+void wlr_seat_pointer_notify_relative_motion(struct wlr_seat *wlr_seat,
+	uint64_t time, double dx, double dy, double dx_unaccel, double dy_unaccel) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &client->relative_pointers) {
+		wlr_relative_pointer_v1_send_relative_motion(resource, time, dx, dy,
+			dx_unaccel, dy_unaccel);
+	}
 }
 
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,

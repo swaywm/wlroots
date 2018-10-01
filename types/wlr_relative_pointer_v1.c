@@ -187,3 +187,16 @@ void wlr_relative_pointer_v1_destroy(struct wlr_relative_pointer_manager_v1 *rel
 
 	wlr_log(WLR_DEBUG, "relative_pointer_v1 manager destroyed");
 }
+
+
+void wlr_relative_pointer_v1_send_relative_motion(struct wl_resource *resource,
+	uint64_t time, double dx, double dy, double dx_unaccel, double
+	dy_unaccel)
+{
+	assert(wl_resource_instance_of(resource, &zwp_relative_pointer_v1_interface,
+		&relative_pointer_v1_impl));
+	zwp_relative_pointer_v1_send_relative_motion(resource,
+		(uint32_t) (time >> 32), (uint32_t) time, wl_fixed_from_double(dx),
+		wl_fixed_from_double(dy), wl_fixed_from_double(dx_unaccel),
+		wl_fixed_from_double(dy_unaccel));
+}

@@ -310,6 +310,9 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 	double dx = event->delta_x;
 	double dy = event->delta_y;
 
+	wlr_seat_pointer_notify_relative_motion(cursor->seat->seat, (uint64_t)
+		event->time_msec, dx, dy, dx, dy);
+
 	if (cursor->active_constraint) {
 		struct roots_view *view = cursor->pointer_view->view;
 		assert(view);
@@ -348,6 +351,11 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 	double lx, ly;
 	wlr_cursor_absolute_to_layout_coords(cursor->cursor, event->device, event->x,
 		event->y, &lx, &ly);
+
+	double dx = lx - cursor->cursor->x;
+	double dy = ly - cursor->cursor->y;
+	wlr_seat_pointer_notify_relative_motion(cursor->seat->seat, (uint64_t)
+		event->time_msec, dx, dy, dx, dy);
 
 	if (cursor->pointer_view) {
 		struct roots_view *view = cursor->pointer_view->view;
