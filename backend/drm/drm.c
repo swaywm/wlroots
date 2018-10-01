@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <drm_mode.h>
 #include <EGL/egl.h>
@@ -27,8 +28,8 @@
 #include "util/signal.h"
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
+	uint64_t cap;
 	if (drm->parent) {
-		uint64_t cap;
 		if (drmGetCap(drm->fd, DRM_CAP_PRIME, &cap) ||
 				!(cap & DRM_PRIME_CAP_IMPORT)) {
 			wlr_log(WLR_ERROR,
@@ -51,15 +52,20 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 
 	const char *no_atomic = getenv("WLR_DRM_NO_ATOMIC");
 	if (no_atomic && strcmp(no_atomic, "1") == 0) {
-		wlr_log(WLR_DEBUG, "WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
+		wlr_log(WLR_DEBUG,
+			"WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
 		drm->iface = &legacy_iface;
 	} else if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1)) {
-		wlr_log(WLR_DEBUG, "Atomic modesetting unsupported, using legacy DRM interface");
+		wlr_log(WLR_DEBUG,
+			"Atomic modesetting unsupported, using legacy DRM interface");
 		drm->iface = &legacy_iface;
 	} else {
 		wlr_log(WLR_DEBUG, "Using atomic DRM interface");
 		drm->iface = &atomic_iface;
 	}
+
+	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
+	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
 
 	return true;
 }

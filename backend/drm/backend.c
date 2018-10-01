@@ -65,10 +65,16 @@ static struct wlr_renderer *backend_get_renderer(
 	}
 }
 
+static clockid_t backend_get_present_clock(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	return drm->clock;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_present_clock = backend_get_present_clock,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
