@@ -306,7 +306,8 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 }
 
 void wlr_seat_pointer_notify_relative_motion(struct wlr_seat *wlr_seat,
-	uint64_t time, double dx, double dy, double dx_unaccel, double dy_unaccel) {
+		uint64_t time, double dx, double dy,
+		double dx_unaccel, double dy_unaccel) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
 	if (client == NULL) {
 		return;
