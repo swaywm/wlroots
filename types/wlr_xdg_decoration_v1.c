@@ -156,6 +156,11 @@ static struct wlr_xdg_decoration_manager_v1 *
 	return wl_resource_get_user_data(resource);
 }
 
+static void decoration_manager_handle_destroy(
+		struct wl_client *client, struct wl_resource *manager_resource) {
+	wl_resource_destroy(manager_resource);
+}
+
 static void decoration_manager_handle_get_toplevel_decoration(
 		struct wl_client *client, struct wl_resource *manager_resource,
 		uint32_t id, struct wl_resource *toplevel_resource) {
@@ -229,6 +234,7 @@ static void decoration_manager_handle_get_toplevel_decoration(
 
 static const struct zxdg_decoration_manager_v1_interface
 		decoration_manager_impl = {
+	.destroy = decoration_manager_handle_destroy,
 	.get_toplevel_decoration = decoration_manager_handle_get_toplevel_decoration,
 };
 
