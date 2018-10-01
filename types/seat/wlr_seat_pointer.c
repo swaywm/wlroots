@@ -315,8 +315,15 @@ void wlr_seat_pointer_notify_relative_motion(struct wlr_seat *wlr_seat,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->relative_pointers) {
-		wlr_relative_pointer_v1_send_relative_motion(resource, time, dx, dy,
-			dx_unaccel, dy_unaccel);
+		struct wlr_relative_pointer_v1 *relative_pointer =
+			wl_resource_get_user_data(resource);
+		if (relative_pointer == NULL) {
+			continue;
+		}
+
+		wlr_relative_pointer_v1_send_relative_motion(relative_pointer, time,
+			dx, dy, dx_unaccel, dy_unaccel);
+		pointer_send_frame((struct wl_resource *) relative_pointer->pointer);
 	}
 }
 
