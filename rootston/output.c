@@ -855,7 +855,7 @@ static void output_handle_present(struct wl_listener *listener, void *data) {
 		.output = output->wlr_output,
 		.tv_sec = (uint64_t)output_event->when->tv_sec,
 		.tv_nsec = (uint32_t)output_event->when->tv_nsec,
-		.refresh = 0, // TODO: predict next output vsync delay
+		.refresh = (uint32_t)output_event->refresh,
 		.seq = (uint64_t)output_event->seq,
 		.flags = output_event->flags,
 	};

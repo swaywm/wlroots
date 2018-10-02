@@ -67,8 +67,9 @@ static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) 
 
 static bool output_swap_buffers(struct wlr_output *wlr_output,
 		pixman_region32_t *damage) {
-	wlr_output_send_present(wlr_output, NULL, 0, 0);
-	return true; // No-op
+	// Nothing needs to be done for pbuffers
+	wlr_output_send_present(wlr_output, NULL);
+	return true;
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {

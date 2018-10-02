@@ -42,8 +42,8 @@ static void feedback_send_presented(struct wlr_presentation_feedback *feedback,
 	uint32_t seq_hi = event->seq >> 32;
 	uint32_t seq_lo = event->seq & 0xFFFFFFFF;
 	wp_presentation_feedback_send_presented(feedback->resource,
-		tv_sec_hi, tv_sec_lo, event->tv_nsec, event->refresh, seq_hi, seq_lo,
-		event->flags);
+		tv_sec_hi, tv_sec_lo, event->tv_nsec, event->refresh,
+		seq_hi, seq_lo, event->flags);
 
 	wl_resource_destroy(feedback->resource);
 }

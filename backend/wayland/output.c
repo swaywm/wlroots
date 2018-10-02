@@ -72,7 +72,7 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	}
 
 	// TODO: if available, use the presentation-time protocol
-	wlr_output_send_present(wlr_output, NULL, 0, 0);
+	wlr_output_send_present(wlr_output, NULL);
 	return true;
 }
 

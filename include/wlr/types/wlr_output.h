@@ -130,15 +130,28 @@ struct wlr_output_event_swap_buffers {
 };
 
 enum wlr_output_present_flag {
+	// The presentation was synchronized to the "vertical retrace" by the
+	// display hardware such that tearing does not happen.
 	WLR_OUTPUT_PRESENT_VSYNC = 0x1,
+	// The display hardware provided measurements that the hardware driver
+	// converted into a presentation timestamp.
 	WLR_OUTPUT_PRESENT_HW_CLOCK = 0x2,
+	// The display hardware signalled that it started using the new image
+	// content.
 	WLR_OUTPUT_PRESENT_HW_COMPLETION = 0x4,
+	// The presentation of this update was done zero-copy.
+	WLR_OUTPUT_PRESENT_ZERO_COPY = 0x8,
 };
 
 struct wlr_output_event_present {
 	struct wlr_output *output;
+	// Time when the content update turned into light the first time.
 	struct timespec *when;
+	// Vertical retrace counter. Zero if unavailable.
 	unsigned seq;
+	// Prediction of how many nanoseconds after `when` the very next output
+	// refresh may occur. Zero if unknown.
+	int refresh; // nsec
 	uint32_t flags; // enum wlr_output_present_flag
 };
 

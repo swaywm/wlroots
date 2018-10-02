@@ -1154,6 +1154,10 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	attempt_enable_needs_modeset(drm);
 }
 
+static int mhz_to_nsec(int mhz) {
+	return 1000000000000LL / mhz;
+}
+
 static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, void *data) {
 	struct wlr_drm_connector *conn = data;
@@ -1180,9 +1184,14 @@ static void page_flip_handler(int fd, unsigned seq,
 		.tv_sec = tv_sec,
 		.tv_nsec = tv_usec * 1000,
 	};
-	uint32_t present_flags = WLR_OUTPUT_PRESENT_VSYNC |
-		WLR_OUTPUT_PRESENT_HW_CLOCK | WLR_OUTPUT_PRESENT_HW_COMPLETION;
-	wlr_output_send_present(&conn->output, &present_time, seq, present_flags);
+	struct wlr_output_event_present present_event = {
+		.when = &present_time,
+		.seq = seq,
+		.refresh = mhz_to_nsec(conn->output.refresh),
+		.flags = WLR_OUTPUT_PRESENT_VSYNC | WLR_OUTPUT_PRESENT_HW_CLOCK |
+			WLR_OUTPUT_PRESENT_HW_COMPLETION,
+	};
+	wlr_output_send_present(&conn->output, &present_event);
 
 	if (drm->session->active) {
 		wlr_output_send_frame(&conn->output);
