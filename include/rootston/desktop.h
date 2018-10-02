@@ -4,6 +4,7 @@
 #include <wayland-server.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
@@ -63,6 +64,7 @@ struct roots_desktop {
 	struct wlr_tablet_manager_v2 *tablet_v2;
 	struct wlr_pointer_constraints_v1 *pointer_constraints;
 	struct wlr_presentation *presentation;
+	struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager_v1;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;

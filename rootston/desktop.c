@@ -123,9 +123,17 @@ static void view_update_output(const struct roots_view *view,
 			output->wlr_output, &box);
 		if (intersected && !intersects) {
 			wlr_surface_send_leave(view->wlr_surface, output->wlr_output);
+			if (view->toplevel_handle) {
+				wlr_foreign_toplevel_handle_v1_output_leave(
+					view->toplevel_handle, output->wlr_output);
+			}
 		}
 		if (!intersected && intersects) {
 			wlr_surface_send_enter(view->wlr_surface, output->wlr_output);
+			if (view->toplevel_handle) {
+				wlr_foreign_toplevel_handle_v1_output_enter(
+					view->toplevel_handle, output->wlr_output);
+			}
 		}
 	}
 }
@@ -148,6 +156,11 @@ void view_move(struct roots_view *view, double x, double y) {
 void view_activate(struct roots_view *view, bool activate) {
 	if (view->activate) {
 		view->activate(view, activate);
+	}
+
+	if (view->toplevel_handle) {
+		wlr_foreign_toplevel_handle_v1_set_activated(view->toplevel_handle,
+			activate);
 	}
 }
 
@@ -223,6 +236,11 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 	if (view->maximize) {
 		view->maximize(view, maximized);
+	}
+
+	if (view->toplevel_handle) {
+		wlr_foreign_toplevel_handle_v1_set_maximized(view->toplevel_handle,
+			maximized);
 	}
 
 	if (!view->maximized && maximized) {
@@ -501,6 +519,11 @@ void view_unmap(struct roots_view *view) {
 
 	view->wlr_surface = NULL;
 	view->box.width = view->box.height = 0;
+
+	if (view->toplevel_handle) {
+		wlr_foreign_toplevel_handle_v1_destroy(view->toplevel_handle);
+		view->toplevel_handle = NULL;
+	}
 }
 
 void view_initial_focus(struct roots_view *view) {
@@ -520,6 +543,7 @@ void view_setup(struct roots_view *view) {
 	}
 
 	view_update_output(view, NULL);
+	view_create_foreign_toplevel_handle(view);
 }
 
 void view_apply_damage(struct roots_view *view) {
@@ -573,6 +597,66 @@ void view_update_decorated(struct roots_view *view, bool decorated) {
 		view->titlebar_height = 0;
 	}
 	view_damage_whole(view);
+}
+
+void view_set_title(struct roots_view *view, const char *title) {
+	if (view->toplevel_handle) {
+		wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle, title);
+	}
+}
+
+void view_set_app_id(struct roots_view *view, const char *app_id) {
+	if (view->toplevel_handle) {
+		wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle, app_id);
+	}
+}
+
+static void handle_toplevel_handle_request_maximize(struct wl_listener *listener,
+		void *data) {
+	struct roots_view *view = wl_container_of(listener, view,
+			toplevel_handle_request_maximize);
+	struct wlr_foreign_toplevel_handle_v1_maximized_event *event = data;
+	view_maximize(view, event->maximized);
+}
+
+static void handle_toplevel_handle_request_activate(struct wl_listener *listener,
+		void *data) {
+	struct roots_view *view =
+		wl_container_of(listener, view, toplevel_handle_request_activate);
+	struct wlr_foreign_toplevel_handle_v1_activated_event *event = data;
+
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &view->desktop->server->input->seats, link) {
+		if (event->seat == seat->seat) {
+			roots_seat_set_focus(seat, view);
+		}
+	}
+}
+
+static void handle_toplevel_handle_request_close(struct wl_listener *listener,
+		void *data) {
+	struct roots_view *view =
+		wl_container_of(listener, view, toplevel_handle_request_close);
+	view_close(view);
+}
+
+void view_create_foreign_toplevel_handle(struct roots_view *view) {
+	view->toplevel_handle =
+		wlr_foreign_toplevel_handle_v1_create(
+			view->desktop->foreign_toplevel_manager_v1);
+
+	view->toplevel_handle_request_maximize.notify =
+		handle_toplevel_handle_request_maximize;
+	wl_signal_add(&view->toplevel_handle->events.request_maximize,
+			&view->toplevel_handle_request_maximize);
+	view->toplevel_handle_request_activate.notify =
+		handle_toplevel_handle_request_activate;
+	wl_signal_add(&view->toplevel_handle->events.request_activate,
+			&view->toplevel_handle_request_activate);
+	view->toplevel_handle_request_close.notify =
+		handle_toplevel_handle_request_close;
+	wl_signal_add(&view->toplevel_handle->events.request_close,
+			&view->toplevel_handle_request_close);
 }
 
 static bool view_at(struct roots_view *view, double lx, double ly,
@@ -995,6 +1079,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->presentation =
 		wlr_presentation_create(server->wl_display, server->backend);
+	desktop->foreign_toplevel_manager_v1 =
+		wlr_foreign_toplevel_manager_v1_create(server->wl_display);
 
 	return desktop;
 }

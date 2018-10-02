@@ -203,11 +203,17 @@ static void handle_request_fullscreen(struct wl_listener *listener,
 static void handle_set_title(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, set_title);
+
+	view_set_title(roots_surface->view,
+			roots_surface->view->xwayland_surface->title);
 }
 
 static void handle_set_class(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
-		wl_container_of(listener, roots_surface, set_title);
+		wl_container_of(listener, roots_surface, set_class);
+
+	view_set_app_id(roots_surface->view,
+			roots_surface->view->xwayland_surface->class);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
@@ -262,6 +268,11 @@ static void handle_map(struct wl_listener *listener, void *data) {
 		}
 
 		view_setup(view);
+
+		wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle,
+				view->xwayland_surface->title ?: "none");
+		wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle,
+				view->xwayland_surface->class ?: "none");
 	} else {
 		view_initial_focus(view);
 	}
@@ -273,7 +284,6 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 
 	wl_list_remove(&roots_surface->surface_commit.link);
-
 	view_unmap(view);
 }
 

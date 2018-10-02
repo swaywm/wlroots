@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -18,6 +19,8 @@ struct roots_wl_shell_surface {
 	struct wl_listener request_maximize;
 	struct wl_listener request_fullscreen;
 	struct wl_listener set_state;
+	struct wl_listener set_title;
+	struct wl_listener set_class;
 
 	struct wl_listener surface_commit;
 };
@@ -139,6 +142,11 @@ struct roots_view {
 	struct wlr_surface *wlr_surface;
 	struct wl_list children; // roots_view_child::link
 
+	struct wlr_foreign_toplevel_handle_v1 *toplevel_handle;
+	struct wl_listener toplevel_handle_request_maximize;
+	struct wl_listener toplevel_handle_request_activate;
+	struct wl_listener toplevel_handle_request_close;
+
 	struct wl_listener new_subsurface;
 
 	struct {
@@ -224,6 +232,10 @@ void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);
 void view_teardown(struct roots_view *view);
+
+void view_set_title(struct roots_view *view, const char *title);
+void view_set_app_id(struct roots_view *view, const char *app_id);
+void view_create_foreign_toplevel_handle(struct roots_view *view);
 
 void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
 
