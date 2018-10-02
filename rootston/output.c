@@ -127,6 +127,23 @@ static void drag_icons_for_each_surface(struct roots_input *input,
 	}
 }
 
+static void layer_for_each_surface(struct wl_list *layer,
+		const struct wlr_box *output_layout_box,
+		 wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
+		void *user_data) {
+	struct roots_layer_surface *roots_surface;
+	wl_list_for_each(roots_surface, layer, link) {
+		struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
+
+		layout_data->x = roots_surface->geo.x + output_layout_box->x;
+		layout_data->y = roots_surface->geo.y + output_layout_box->y;
+		layout_data->width = roots_surface->geo.width;
+		layout_data->height = roots_surface->geo.height;
+		layout_data->rotation = 0;
+		wlr_layer_surface_v1_for_each_surface(layer, iterator, user_data);
+	}
+}
+
 
 struct render_data {
 	struct layout_data layout;
@@ -320,6 +337,14 @@ static void render_view(struct roots_view *view, struct render_data *data) {
 	view_for_each_surface(view, &data->layout, render_surface, data);
 }
 
+static void render_layer(struct roots_output *output,
+		const struct wlr_box *output_layout_box, struct render_data *data,
+		struct wl_list *layer) {
+	data->alpha = 1;
+	layer_for_each_surface(layer, output_layout_box, render_surface,
+		&data->layout, data);
+}
+
 static bool has_standalone_surface(struct roots_view *view) {
 	if (!wl_list_empty(&view->wlr_surface->subsurfaces)) {
 		return false;
@@ -356,38 +381,6 @@ static void surface_send_frame_done(struct wlr_surface *surface, int sx, int sy,
 	}
 
 	wlr_surface_send_frame_done(surface, when);
-}
-
-static void render_layer(struct roots_output *output,
-		const struct wlr_box *output_layout_box, struct render_data *data,
-		struct wl_list *layer) {
-	struct roots_layer_surface *roots_surface;
-	wl_list_for_each(roots_surface, layer, link) {
-		struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
-
-		surface_for_each_surface(layer->surface,
-			roots_surface->geo.x + output_layout_box->x,
-			roots_surface->geo.y + output_layout_box->y,
-			0, &data->layout, render_surface, data);
-
-		wlr_layer_surface_v1_for_each_surface(layer, render_surface, data);
-	}
-}
-
-static void layers_send_done(
-		struct roots_output *output, struct timespec *when) {
-	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
-	for (size_t i = 0; i < len; ++i) {
-		struct roots_layer_surface *roots_surface;
-		wl_list_for_each(roots_surface, &output->layers[i], link) {
-			struct wlr_layer_surface_v1 *layer = roots_surface->layer_surface;
-			wlr_surface_send_frame_done(layer->surface, when);
-			struct wlr_xdg_popup *popup;
-			wl_list_for_each(popup, &roots_surface->layer_surface->popups, link) {
-				wlr_surface_send_frame_done(popup->base->surface, when);
-			}
-		}
-	}
 }
 
 static void render_output(struct roots_output *output) {
@@ -563,7 +556,12 @@ damage_finish:
 		drag_icons_for_each_surface(server->input, surface_send_frame_done,
 			&data.layout, &data);
 	}
-	layers_send_done(output, data.when);
+
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		layer_for_each_surface(&output->layers[i], output_box,
+			surface_send_frame_done, &data.layout, &data);
+	}
 }
 
 void output_damage_whole(struct roots_output *output) {
