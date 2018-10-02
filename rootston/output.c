@@ -5,9 +5,10 @@
 #include <time.h>
 #include <wlr/backend/drm.h>
 #include <wlr/config.h>
-#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -784,6 +785,7 @@ static void output_destroy(struct roots_output *output) {
 	wl_list_remove(&output->destroy.link);
 	wl_list_remove(&output->mode.link);
 	wl_list_remove(&output->transform.link);
+	wl_list_remove(&output->present.link);
 	wl_list_remove(&output->damage_frame.link);
 	wl_list_remove(&output->damage_destroy.link);
 	free(output);
@@ -820,6 +822,52 @@ static void output_handle_transform(struct wl_listener *listener, void *data) {
 	arrange_layers(output);
 }
 
+struct presentation_data {
+	struct layout_data layout;
+	struct roots_output *output;
+	struct wlr_presentation_event *event;
+};
+
+static void surface_send_presented(struct wlr_surface *surface, int sx, int sy,
+		void *_data) {
+	struct presentation_data *data = _data;
+	struct roots_output *output = data->output;
+	float rotation = data->layout.rotation;
+
+	double lx, ly;
+	get_layout_position(&data->layout, &lx, &ly, surface, sx, sy);
+
+	if (!surface_intersect_output(surface, output->desktop->layout,
+			output->wlr_output, lx, ly, rotation, NULL)) {
+		return;
+	}
+
+	wlr_presentation_send_surface_presented(output->desktop->presentation,
+		surface, data->event);
+}
+
+static void output_handle_present(struct wl_listener *listener, void *data) {
+	struct roots_output *output =
+		wl_container_of(listener, output, present);
+	struct wlr_output_event_present *output_event = data;
+
+	struct wlr_presentation_event event = {
+		.output = output->wlr_output,
+		.tv_sec = (uint64_t)output_event->when->tv_sec,
+		.tv_nsec = (uint32_t)output_event->when->tv_nsec,
+		.refresh = 0, // TODO: predict next output vsync delay
+		.seq = (uint64_t)output_event->seq,
+		.flags = output_event->flags,
+	};
+
+	struct presentation_data presentation_data = {
+		.output = output,
+		.event = &event,
+	};
+	output_for_each_surface(output, surface_send_presented,
+		&presentation_data.layout, &presentation_data);
+}
+
 void handle_new_output(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = wl_container_of(listener, desktop,
 		new_output);
@@ -847,6 +895,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	wl_signal_add(&wlr_output->events.mode, &output->mode);
 	output->transform.notify = output_handle_transform;
 	wl_signal_add(&wlr_output->events.transform, &output->transform);
+	output->present.notify = output_handle_present;
+	wl_signal_add(&wlr_output->events.present, &output->present);
 
 	output->damage_frame.notify = output_damage_handle_frame;
 	wl_signal_add(&output->damage->events.frame, &output->damage_frame);
