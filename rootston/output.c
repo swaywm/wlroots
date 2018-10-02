@@ -129,7 +129,7 @@ static void drag_icons_for_each_surface(struct roots_input *input,
 
 static void layer_for_each_surface(struct wl_list *layer,
 		const struct wlr_box *output_layout_box,
-		 wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
+		wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
 		void *user_data) {
 	struct roots_layer_surface *roots_surface;
 	wl_list_for_each(roots_surface, layer, link) {
@@ -141,6 +141,48 @@ static void layer_for_each_surface(struct wl_list *layer,
 		layout_data->height = roots_surface->geo.height;
 		layout_data->rotation = 0;
 		wlr_layer_surface_v1_for_each_surface(layer, iterator, user_data);
+	}
+}
+
+static void output_for_each_surface(struct roots_output *output,
+		wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
+		void *user_data) {
+	struct wlr_output *wlr_output = output->wlr_output;
+	struct roots_desktop *desktop = output->desktop;
+	struct roots_server *server = desktop->server;
+
+	const struct wlr_box *output_box =
+		wlr_output_layout_get_box(desktop->layout, wlr_output);
+
+	if (output->fullscreen_view != NULL) {
+		struct roots_view *view = output->fullscreen_view;
+		if (wlr_output->fullscreen_surface == view->wlr_surface) {
+			// The surface is managed by the wlr_output
+			return;
+		}
+
+		view_for_each_surface(view, layout_data, iterator, user_data);
+
+#ifdef WLR_HAS_XWAYLAND
+		if (view->type == ROOTS_XWAYLAND_VIEW) {
+			xwayland_children_for_each_surface(view->xwayland_surface,
+				iterator, layout_data, user_data);
+		}
+#endif
+	} else {
+		struct roots_view *view;
+		wl_list_for_each_reverse(view, &desktop->views, link) {
+			view_for_each_surface(view, layout_data, iterator, user_data);
+		}
+
+		drag_icons_for_each_surface(server->input, iterator,
+			layout_data, user_data);
+	}
+
+	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
+	for (size_t i = 0; i < len; ++i) {
+		layer_for_each_surface(&output->layers[i], output_box,
+			iterator, layout_data, user_data);
 	}
 }
 
@@ -530,38 +572,8 @@ damage_finish:
 	pixman_region32_fini(&damage);
 
 	// Send frame done events to all surfaces
-	if (output->fullscreen_view != NULL) {
-		struct roots_view *view = output->fullscreen_view;
-		if (wlr_output->fullscreen_surface == view->wlr_surface) {
-			// The surface is managed by the wlr_output
-			return;
-		}
-
-		view_for_each_surface(view, &data.layout, surface_send_frame_done,
-			&data);
-
-#ifdef WLR_HAS_XWAYLAND
-		if (view->type == ROOTS_XWAYLAND_VIEW) {
-			xwayland_children_for_each_surface(view->xwayland_surface,
-				surface_send_frame_done, &data.layout, &data);
-		}
-#endif
-	} else {
-		struct roots_view *view;
-		wl_list_for_each_reverse(view, &desktop->views, link) {
-			view_for_each_surface(view, &data.layout, surface_send_frame_done,
-				&data);
-		}
-
-		drag_icons_for_each_surface(server->input, surface_send_frame_done,
-			&data.layout, &data);
-	}
-
-	size_t len = sizeof(output->layers) / sizeof(output->layers[0]);
-	for (size_t i = 0; i < len; ++i) {
-		layer_for_each_surface(&output->layers[i], output_box,
-			surface_send_frame_done, &data.layout, &data);
-	}
+	output_for_each_surface(output, surface_send_frame_done,
+		&data.layout, &data);
 }
 
 void output_damage_whole(struct roots_output *output) {
