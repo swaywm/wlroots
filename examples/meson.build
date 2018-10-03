@@ -81,6 +81,10 @@ examples = {
 		'src': 'pointer-constraints.c',
 		'dep': [wayland_client, wlr_protos, wlroots],
 	},
+	'relative-pointer': {
+		'src': 'relative-pointer-unstable-v1.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
 	'dmabuf-capture': {
 		'src': 'dmabuf-capture.c',
 		'dep': [
