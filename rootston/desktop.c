@@ -1082,7 +1082,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->foreign_toplevel_manager_v1 =
 		wlr_foreign_toplevel_manager_v1_create(server->wl_display);
 	desktop->relative_pointer_manager =
-		wlr_relative_pointer_v1_create(server->wl_display);
+		wlr_relative_pointer_manager_v1_create(server->wl_display);
 
 	return desktop;
 }

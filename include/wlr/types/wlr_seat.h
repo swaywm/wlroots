@@ -27,7 +27,7 @@ struct wlr_seat_client {
 	// lists of wl_resource
 	struct wl_list resources;
 	struct wl_list pointers;
-	struct wl_list relative_pointers;
+	struct wl_list relative_pointers_v1;
 	struct wl_list keyboards;
 	struct wl_list touches;
 	struct wl_list data_devices;

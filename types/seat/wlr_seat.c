@@ -79,7 +79,7 @@ static void seat_client_handle_resource_destroy(
 	wl_resource_for_each_safe(resource, tmp, &client->pointers) {
 		wl_resource_destroy(resource);
 	}
-	wl_resource_for_each_safe(resource, tmp, &client->relative_pointers) {
+	wl_resource_for_each_safe(resource, tmp, &client->relative_pointers_v1) {
 		wl_resource_destroy(resource);
 	}
 	wl_resource_for_each_safe(resource, tmp, &client->keyboards) {
@@ -134,7 +134,7 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 		seat_client->seat = wlr_seat;
 		wl_list_init(&seat_client->resources);
 		wl_list_init(&seat_client->pointers);
-		wl_list_init(&seat_client->relative_pointers);
+		wl_list_init(&seat_client->relative_pointers_v1);
 		wl_list_init(&seat_client->keyboards);
 		wl_list_init(&seat_client->touches);
 		wl_list_init(&seat_client->data_devices);
