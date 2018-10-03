@@ -63,14 +63,14 @@ bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
 }
 
 bool legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
-		uint32_t size) {
-	return !drmModeCrtcSetGamma(drm->fd, crtc->id, size, r, g, b);
+		struct wlr_drm_crtc *crtc, size_t size,
+		uint16_t *r, uint16_t *g, uint16_t *b) {
+	return !drmModeCrtcSetGamma(drm->fd, crtc->id, (uint32_t)size, r, g, b);
 }
 
-uint32_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
+size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
-	return crtc->legacy_crtc->gamma_size;
+	return (size_t)crtc->legacy_crtc->gamma_size;
 }
 
 const struct wlr_drm_interface legacy_iface = {

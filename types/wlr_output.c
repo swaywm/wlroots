@@ -560,15 +560,15 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
 }
 
-bool wlr_output_set_gamma(struct wlr_output *output, uint32_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b) {
+bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
+		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
 	if (!output->impl->set_gamma) {
 		return false;
 	}
 	return output->impl->set_gamma(output, size, r, g, b);
 }
 
-uint32_t wlr_output_get_gamma_size(struct wlr_output *output) {
+size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	if (!output->impl->get_gamma_size) {
 		return 0;
 	}

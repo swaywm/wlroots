@@ -200,14 +200,14 @@ static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 }
 
 static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, uint16_t *r, uint16_t *g, uint16_t *b,
-		uint32_t size) {
+		struct wlr_drm_crtc *crtc, size_t size,
+		uint16_t *r, uint16_t *g, uint16_t *b) {
 	// Fallback to legacy gamma interface when gamma properties are not available
 	// (can happen on older intel gpu's that support gamma but not degamma)
 	// TEMP: This is broken on AMDGPU. Always fallback to legacy until they get
 	// it fixed. Ref https://bugs.freedesktop.org/show_bug.cgi?id=107459
 	if (crtc->props.gamma_lut == 0 || true) {
-		return legacy_iface.crtc_set_gamma(drm, crtc, r, g, b, size);
+		return legacy_iface.crtc_set_gamma(drm, crtc, size, r, g, b);
 	}
 
 	struct drm_color_lut *gamma = malloc(size * sizeof(struct drm_color_lut));
@@ -216,7 +216,7 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	for (uint32_t i = 0; i < size; i++) {
+	for (size_t i = 0; i < size; i++) {
 		gamma[i].red = r[i];
 		gamma[i].green = g[i];
 		gamma[i].blue = b[i];
@@ -240,21 +240,20 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	return atomic_end(drm->fd, &atom);
 }
 
-static uint32_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
+static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
-	uint64_t gamma_lut_size;
-
 	if (crtc->props.gamma_lut_size == 0) {
 		return legacy_iface.crtc_get_gamma_size(drm, crtc);
 	}
 
+	uint64_t gamma_lut_size;
 	if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
-			   &gamma_lut_size)) {
+			&gamma_lut_size)) {
 		wlr_log(WLR_ERROR, "Unable to get gamma lut size");
 		return 0;
 	}
 
-	return (uint32_t)gamma_lut_size;
+	return (size_t)gamma_lut_size;
 }
 
 const struct wlr_drm_interface atomic_iface = {

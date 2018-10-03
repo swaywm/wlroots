@@ -182,7 +182,7 @@ void wlr_output_schedule_frame(struct wlr_output *output);
 /**
  * Returns the maximum length of each gamma ramp, or 0 if unsupported.
  */
-uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
+size_t wlr_output_get_gamma_size(struct wlr_output *output);
 /**
  * Sets the gamma table for this output. `r`, `g` and `b` are gamma ramps for
  * red, green and blue. `size` is the length of the ramps and must not exceed
@@ -190,8 +190,8 @@ uint32_t wlr_output_get_gamma_size(struct wlr_output *output);
  *
  * Providing zero-sized ramps resets the gamma table.
  */
-bool wlr_output_set_gamma(struct wlr_output *output,
-	uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b);
+bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
+	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 	struct wlr_dmabuf_attributes *attribs);
 void wlr_output_set_fullscreen_surface(struct wlr_output *output,
