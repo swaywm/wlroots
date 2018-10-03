@@ -229,4 +229,12 @@ struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 void wlr_surface_for_each_surface(struct wlr_surface *surface,
 	wlr_surface_iterator_func_t iterator, void *user_data);
 
+/**
+ * Get the effective damage to the surface in terms of surface local
+ * coordinates. This includes damage induced by resizing and moving the
+ * surface. The damage is not expected to be bounded by the surface itself.
+ */
+void wlr_surface_get_effective_damage(struct wlr_surface *surface,
+	pixman_region32_t *damage);
+
 #endif
