@@ -193,6 +193,7 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 		if (crtc->gamma_lut) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
 		}
+		free(crtc->gamma_table);
 	}
 	for (size_t i = 0; i < drm->num_planes; ++i) {
 		struct wlr_drm_plane *plane = &drm->planes[i];
@@ -270,7 +271,7 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return 0;
 }
 
-static bool drm_connector_set_gamma(struct wlr_output *output, size_t size,
+bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
@@ -308,8 +309,13 @@ static bool drm_connector_set_gamma(struct wlr_output *output, size_t size,
 	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
+
+		free(conn->crtc->gamma_table);
+		conn->crtc->gamma_table = gamma_table;
+		conn->crtc->gamma_table_size = size;
+	} else {
+		free(gamma_table);
 	}
-	free(gamma_table);
 	return ok;
 }
 
@@ -736,7 +742,7 @@ static const struct wlr_output_impl output_impl = {
 	.destroy = drm_connector_destroy,
 	.make_current = drm_connector_make_current,
 	.swap_buffers = drm_connector_swap_buffers,
-	.set_gamma = drm_connector_set_gamma,
+	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
 };
@@ -770,6 +776,8 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
+
+	set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
 
 	for (size_t type = 0; type < 3; ++type) {
 		struct wlr_drm_plane *plane = conn->crtc->planes[type];

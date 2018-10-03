@@ -101,6 +101,16 @@ static void session_signal(struct wl_listener *listener, void *data) {
 				(plane && plane->cursor_enabled) ? plane->cursor_bo : NULL);
 			drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
 				conn->cursor_y);
+
+			if (conn->crtc->gamma_table != NULL) {
+				size_t size = conn->crtc->gamma_table_size;
+				uint16_t *r = conn->crtc->gamma_table;
+				uint16_t *g = conn->crtc->gamma_table + size;
+				uint16_t *b = conn->crtc->gamma_table + 2 * size;
+				drm->iface->crtc_set_gamma(drm, conn->crtc, size, r, g, b);
+			} else {
+				set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
+			}
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
