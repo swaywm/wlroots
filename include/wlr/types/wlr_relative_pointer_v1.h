@@ -22,12 +22,6 @@
 /**
  * A global interface used for getting the relative pointer object for a given
  * pointer.
- *
- * Signals:
- * - destroy -> struct wlr_relative_pointer_manager_v1 *manager
- *   :: the manager was destroyed
- * - new_relative_pointer -> struct wlr_relative_pointer_v1 *relative_pointer
- *   :: a new relative_pointer was created
  */
 
 struct wlr_relative_pointer_manager_v1 {
@@ -36,8 +30,14 @@ struct wlr_relative_pointer_manager_v1 {
 
 	struct {
 		struct wl_signal destroy;
+		/**
+		 * returns struct wlr_relative_pointer_v1 *relative_pointer
+		 * called when a new relative_pointer is successfully created
+		 */
 		struct wl_signal new_relative_pointer;
 	} events;
+
+	struct wl_listener display_destroy_listener;
 
 	void *data;
 };
@@ -48,16 +48,12 @@ struct wlr_relative_pointer_manager_v1 {
  * used for emitting relative pointer events. It shares the same focus as
  * wl_pointer objects of the same seat and will only emit events when it has
  * focus.
- *
- * Signals:
- * - destroy -> struct wlr_relative_pointer_v1 *relative_pointer
- *   :: the relative_pointer was destroyed
  */
 
 struct wlr_relative_pointer_v1 {
 	struct wl_client *client;
 	struct wl_resource *resource;
-	struct wl_pointer *pointer;
+	struct wl_resource *pointer;
 
 	struct {
 		struct wl_signal destroy;
@@ -66,10 +62,16 @@ struct wlr_relative_pointer_v1 {
 	void *data;
 };
 
-struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_v1_create(struct wl_display *display);
-void wlr_relative_pointer_v1_destroy(struct wlr_relative_pointer_manager_v1 *relative_pointer_manager);
+struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(
+	struct wl_display *display);
+void wlr_relative_pointer_manager_v1_destroy(
+	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager);
 
-void wlr_relative_pointer_v1_send_relative_motion(struct wlr_relative_pointer_v1 *relative_pointer,
-	uint64_t time, double dx, double dy, double dx_unaccel, double dy_unaccel);
+void wlr_relative_pointer_v1_send_relative_motion(
+	struct wlr_relative_pointer_v1 *relative_pointer, uint64_t time,
+	double dx, double dy, double dx_unaccel, double dy_unaccel);
+
+struct wlr_relative_pointer_v1 *wlr_relative_pointer_v1_from_resource(
+	struct wl_resource *resource);
 
 #endif
