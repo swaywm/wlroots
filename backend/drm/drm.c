@@ -251,7 +251,7 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 	return true;
 }
 
-static void fill_empty_gamma_table(uint32_t size,
+static void fill_empty_gamma_table(size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
 	for (uint32_t i = 0; i < size; ++i) {
 		uint16_t val = (uint32_t)0xffff * i / (size - 1);
@@ -259,7 +259,7 @@ static void fill_empty_gamma_table(uint32_t size,
 	}
 }
 
-static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
+static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
@@ -270,8 +270,8 @@ static uint32_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return 0;
 }
 
-static bool drm_connector_set_gamma(struct wlr_output *output,
-		uint32_t size, uint16_t *r, uint16_t *g, uint16_t *b) {
+static bool drm_connector_set_gamma(struct wlr_output *output, size_t size,
+		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
@@ -279,25 +279,37 @@ static bool drm_connector_set_gamma(struct wlr_output *output,
 		return false;
 	}
 
-	uint16_t *reset_table = NULL;
+	bool reset = false;
 	if (size == 0) {
+		reset = true;
 		size = drm_connector_get_gamma_size(output);
-		reset_table = malloc(3 * size * sizeof(uint16_t));
-		if (reset_table == NULL) {
-			wlr_log(WLR_ERROR, "Failed to allocate gamma table");
+		if (size == 0) {
 			return false;
 		}
-		r = reset_table;
-		g = reset_table + size;
-		b = reset_table + 2 * size;
-		fill_empty_gamma_table(size, r, g, b);
 	}
 
-	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, r, g, b, size);
+	uint16_t *gamma_table = malloc(3 * size * sizeof(uint16_t));
+	if (gamma_table == NULL) {
+		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
+		return false;
+	}
+	uint16_t *_r = gamma_table;
+	uint16_t *_g = gamma_table + size;
+	uint16_t *_b = gamma_table + 2 * size;
+
+	if (reset) {
+		fill_empty_gamma_table(size, _r, _g, _b);
+	} else {
+		memcpy(_r, r, size * sizeof(uint16_t));
+		memcpy(_g, g, size * sizeof(uint16_t));
+		memcpy(_b, b, size * sizeof(uint16_t));
+	}
+
+	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
 	}
-	free(reset_table);
+	free(gamma_table);
 	return ok;
 }
 
