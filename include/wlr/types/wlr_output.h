@@ -65,7 +65,7 @@ struct wlr_output {
 	struct wl_list resources;
 
 	char name[24];
-	char make[48];
+	char make[56];
 	char model[16];
 	char serial[16];
 	int32_t phys_width, phys_height; // mm
