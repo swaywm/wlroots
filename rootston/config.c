@@ -577,7 +577,7 @@ void roots_config_destroy(struct roots_config *config) {
 
 struct roots_output_config *roots_config_get_output(struct roots_config *config,
 		struct wlr_output *output) {
-	char name[83];
+	char name[88];
 	snprintf(name, sizeof(name), "%s %s %s", output->make, output->model,
 		output->serial);
 
