@@ -969,6 +969,9 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->pointer_constraints->events.new_constraint,
 		&desktop->pointer_constraint);
 
+	desktop->presentation =
+		wlr_presentation_create(server->wl_display, server->backend);
+
 	return desktop;
 }
 

@@ -266,6 +266,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.needs_swap);
 	wl_signal_init(&output->events.swap_buffers);
+	wl_signal_init(&output->events.present);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.scale);
@@ -558,6 +559,30 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 	struct wl_event_loop *ev = wl_display_get_event_loop(output->display);
 	output->idle_frame =
 		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
+}
+
+void wlr_output_send_present(struct wlr_output *output,
+		struct wlr_output_event_present *event) {
+	struct wlr_output_event_present _event = {0};
+	if (event == NULL) {
+		event = &_event;
+	}
+
+	event->output = output;
+
+	struct timespec now;
+	if (event->when == NULL) {
+		clockid_t clock = wlr_backend_get_presentation_clock(output->backend);
+		errno = 0;
+		if (clock_gettime(clock, &now) != 0) {
+			wlr_log_errno(WLR_ERROR, "failed to send output present event: "
+				"failed to read clock");
+			return;
+		}
+		event->when = &now;
+	}
+
+	wlr_signal_emit_safe(&output->events.present, event);
 }
 
 bool wlr_output_set_gamma(struct wlr_output *output, size_t size,

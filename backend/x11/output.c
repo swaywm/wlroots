@@ -102,7 +102,12 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
 	struct wlr_x11_backend *x11 = output->x11;
 
-	return wlr_egl_swap_buffers(&x11->egl, output->surf, damage);
+	if (!wlr_egl_swap_buffers(&x11->egl, output->surf, damage)) {
+		return false;
+	}
+
+	wlr_output_send_present(wlr_output, NULL);
+	return true;
 }
 
 static const struct wlr_output_impl output_impl = {

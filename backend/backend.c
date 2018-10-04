@@ -64,6 +64,13 @@ struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend) {
 	return NULL;
 }
 
+clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend) {
+	if (backend->impl->get_presentation_clock) {
+		return backend->impl->get_presentation_clock(backend);
+	}
+	return CLOCK_MONOTONIC;
+}
+
 static size_t parse_outputs_env(const char *name) {
 	const char *outputs_str = getenv(name);
 	if (outputs_str == NULL) {
