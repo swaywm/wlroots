@@ -19,9 +19,10 @@ struct prop_info {
 
 static const struct prop_info connector_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_connector_props, name) / sizeof(uint32_t))
-	{ "CRTC_ID", INDEX(crtc_id) },
-	{ "DPMS",    INDEX(dpms) },
-	{ "EDID",    INDEX(edid) },
+	{ "CRTC_ID",     INDEX(crtc_id) },
+	{ "DPMS",        INDEX(dpms) },
+	{ "EDID",        INDEX(edid) },
+	{ "link-status", INDEX(link_status) },
 #undef INDEX
 };
 
@@ -87,7 +88,8 @@ static bool scan_properties(int fd, uint32_t id, uint32_t type, uint32_t *result
 	return true;
 }
 
-bool get_drm_connector_props(int fd, uint32_t id, union wlr_drm_connector_props *out) {
+bool get_drm_connector_props(int fd, uint32_t id,
+		union wlr_drm_connector_props *out) {
 	return scan_properties(fd, id, DRM_MODE_OBJECT_CONNECTOR, out->props,
 		connector_info, sizeof(connector_info) / sizeof(connector_info[0]));
 }
@@ -103,7 +105,8 @@ bool get_drm_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out) {
 }
 
 bool get_drm_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret) {
-	drmModeObjectProperties *props = drmModeObjectGetProperties(fd, obj, DRM_MODE_OBJECT_ANY);
+	drmModeObjectProperties *props =
+		drmModeObjectGetProperties(fd, obj, DRM_MODE_OBJECT_ANY);
 	if (!props) {
 		return false;
 	}

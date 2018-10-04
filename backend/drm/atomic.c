@@ -104,7 +104,8 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
 
-		if (drmModeCreatePropertyBlob(drm->fd, mode, sizeof(*mode), &crtc->mode_id)) {
+		if (drmModeCreatePropertyBlob(drm->fd, mode, sizeof(*mode),
+				&crtc->mode_id)) {
 			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 			return false;
 		}
@@ -120,6 +121,10 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
+	if (mode != NULL && conn->props.link_status != 0) {
+		atomic_add(&atom, conn->id, conn->props.link_status,
+			DRM_MODE_LINK_STATUS_GOOD);
+	}
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);

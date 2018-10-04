@@ -14,12 +14,13 @@ union wlr_drm_connector_props {
 	struct {
 		uint32_t edid;
 		uint32_t dpms;
+		uint32_t link_status; // not guaranteed to exist
 
 		// atomic-modesetting only
 
 		uint32_t crtc_id;
 	};
-	uint32_t props[3];
+	uint32_t props[4];
 };
 
 union wlr_drm_crtc_props {
