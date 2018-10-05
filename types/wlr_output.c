@@ -472,6 +472,10 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		wlr_log(WLR_ERROR, "Tried to swap buffers when a frame is pending");
 		return false;
 	}
+	if (output->idle_frame != NULL) {
+		wl_event_source_remove(output->idle_frame);
+		output->idle_frame = NULL;
+	}
 
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
@@ -525,6 +529,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		return false;
 	}
 
+	output->frame_pending = true;
 	output->needs_swap = false;
 	pixman_region32_clear(&output->damage);
 
@@ -535,12 +540,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 void wlr_output_send_frame(struct wlr_output *output) {
 	output->frame_pending = false;
 	wlr_signal_emit_safe(&output->events.frame, output);
-	output->frame_pending = true;
-
-	if (output->idle_frame != NULL) {
-		wl_event_source_remove(output->idle_frame);
-		output->idle_frame = NULL;
-	}
 }
 
 static void schedule_frame_handle_idle_timer(void *data) {
