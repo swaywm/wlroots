@@ -545,14 +545,10 @@ void wlr_output_send_frame(struct wlr_output *output) {
 static void schedule_frame_handle_idle_timer(void *data) {
 	struct wlr_output *output = data;
 	output->idle_frame = NULL;
-	if (!output->frame_pending) {
-		if (output->impl->schedule_frame) {
-			// Ask the backend to send a frame event when appropriate
-			output->frame_pending = true;
-			output->impl->schedule_frame(output);
-		} else {
-			wlr_output_send_frame(output);
-		}
+	if (!output->frame_pending && output->impl->schedule_frame) {
+		// Ask the backend to send a frame event when appropriate
+		output->frame_pending = true;
+		output->impl->schedule_frame(output);
 	}
 }
 
