@@ -730,6 +730,43 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 	return ok;
 }
 
+static void drm_connector_schedule_frame(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	if (!drm->session->active) {
+		return;
+	}
+
+	// We need to figure out where we are in the vblank cycle
+	// TODO: try using drmWaitVBlank and fallback to pageflipping
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+	struct gbm_bo *bo = plane->surf.back;
+	if (!bo) {
+		// We haven't swapped buffers yet -- can't do a pageflip
+		wlr_output_send_frame(output);
+		return;
+	}
+	uint32_t fb_id = get_fb_for_bo(bo);
+
+	if (conn->pageflip_pending) {
+		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'",
+			conn->output.name);
+		return;
+	}
+
+	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
+		return;
+	}
+
+	conn->pageflip_pending = true;
+	wlr_output_update_enabled(output, true);
+}
+
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
@@ -751,6 +788,7 @@ static const struct wlr_output_impl output_impl = {
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
+	.schedule_frame = drm_connector_schedule_frame,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

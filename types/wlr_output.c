@@ -545,8 +545,10 @@ void wlr_output_send_frame(struct wlr_output *output) {
 static void schedule_frame_handle_idle_timer(void *data) {
 	struct wlr_output *output = data;
 	output->idle_frame = NULL;
-	if (!output->frame_pending) {
-		wlr_output_send_frame(output);
+	if (!output->frame_pending && output->impl->schedule_frame) {
+		// Ask the backend to send a frame event when appropriate
+		output->frame_pending = true;
+		output->impl->schedule_frame(output);
 	}
 }
 
@@ -555,7 +557,8 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 		return;
 	}
 
-	// TODO: ask the backend to send a frame event when appropriate instead
+	// We're using an idle timer here in case a buffer swap happens right after
+	// this function is called
 	struct wl_event_loop *ev = wl_display_get_event_loop(output->display);
 	output->idle_frame =
 		wl_event_loop_add_idle(ev, schedule_frame_handle_idle_timer, output);
