@@ -438,9 +438,9 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 			continue;
 		}
 
-		uint32_t possible[drm->num_type_planes[type]];
-		uint32_t crtc[drm->num_crtcs];
-		uint32_t crtc_res[drm->num_crtcs];
+		uint32_t possible[drm->num_type_planes[type] + 1];
+		uint32_t crtc[drm->num_crtcs + 1];
+		uint32_t crtc_res[drm->num_crtcs + 1];
 
 		for (size_t i = 0; i < drm->num_type_planes[type]; ++i) {
 			possible[i] = drm->type_planes[type][i].possible_crtcs;
@@ -1165,7 +1165,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		}
 	}
 
-	bool changed_outputs[wl_list_length(&drm->outputs)];
+	bool changed_outputs[wl_list_length(&drm->outputs) + 1];
 	memset(changed_outputs, false, sizeof(changed_outputs));
 	for (size_t i = 0; i < new_outputs_len; ++i) {
 		struct wlr_drm_connector *conn = new_outputs[i];
