@@ -55,7 +55,7 @@ xkbcommon      = dependency('xkbcommon')
 udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 libcap         = dependency('libcap', required: get_option('libcap'))
-logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'))
+logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
 math           = cc.find_library('m', required: false)
 
 wlr_parts = []
