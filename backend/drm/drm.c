@@ -156,6 +156,11 @@ bool init_drm_resources(struct wlr_drm_backend *drm) {
 	wlr_log(WLR_INFO, "Found %d DRM CRTCs", res->count_crtcs);
 
 	drm->num_crtcs = res->count_crtcs;
+	if (drm->num_crtcs == 0) {
+		drmModeFreeResources(res);
+		return true;
+	}
+
 	drm->crtcs = calloc(drm->num_crtcs, sizeof(drm->crtcs[0]));
 	if (!drm->crtcs) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
