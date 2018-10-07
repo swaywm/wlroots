@@ -41,8 +41,7 @@ static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
 		return WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
 	}
 
-	if (offer->source->seat_client &&
-			offer->source->compositor_action & available_actions) {
+	if (offer->source->compositor_action & available_actions) {
 		return offer->source->compositor_action;
 	}
 

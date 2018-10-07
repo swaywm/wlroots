@@ -11,6 +11,7 @@ struct wlr_client_data_source {
 	struct wlr_data_source source;
 	struct wlr_data_source_impl impl;
 	struct wl_resource *resource;
+	bool finalized;
 };
 
 extern const struct wlr_surface_role drag_icon_surface_role;

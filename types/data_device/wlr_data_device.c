@@ -25,16 +25,21 @@ static struct wlr_seat_client *seat_client_from_data_device_resource(
 static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *device_resource,
 		struct wl_resource *source_resource, uint32_t serial) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_data_device_resource(device_resource);
+
 	struct wlr_client_data_source *source = NULL;
 	if (source_resource != NULL) {
 		source = client_data_source_from_resource(source_resource);
 	}
 
-	struct wlr_seat_client *seat_client =
-		seat_client_from_data_device_resource(device_resource);
-
-	struct wlr_data_source *wlr_source = (struct wlr_data_source *)source;
+	struct wlr_data_source *wlr_source =
+		source != NULL ? &source->source : NULL;
 	wlr_seat_set_selection(seat_client->seat, wlr_source, serial);
+
+	if (source != NULL) {
+		source->finalized = true;
+	}
 }
 
 static void data_device_start_drag(struct wl_client *client,
@@ -45,15 +50,13 @@ static void data_device_start_drag(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
 	struct wlr_surface *origin = wlr_surface_from_resource(origin_resource);
-	struct wlr_data_source *source = NULL;
-	struct wlr_surface *icon = NULL;
 
-	if (source_resource) {
-		struct wlr_client_data_source *client_source =
-			client_data_source_from_resource(source_resource);
-		source = (struct wlr_data_source *)client_source;
+	struct wlr_client_data_source *source = NULL;
+	if (source_resource != NULL) {
+		source = client_data_source_from_resource(source_resource);
 	}
 
+	struct wlr_surface *icon = NULL;
 	if (icon_resource) {
 		icon = wlr_surface_from_resource(icon_resource);
 		if (!wlr_surface_set_role(icon, &drag_icon_surface_role, NULL,
@@ -62,13 +65,16 @@ static void data_device_start_drag(struct wl_client *client,
 		}
 	}
 
-	if (!seat_client_start_drag(seat_client, source, icon, origin, serial)) {
+	struct wlr_data_source *wlr_source =
+		source != NULL ? &source->source : NULL;
+	if (!seat_client_start_drag(seat_client, wlr_source, icon,
+			origin, serial)) {
 		wl_resource_post_no_memory(device_resource);
 		return;
 	}
 
-	if (source) {
-		source->seat_client = seat_client;
+	if (source != NULL) {
+		source->finalized = true;
 	}
 }
 
