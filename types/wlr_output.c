@@ -874,6 +874,7 @@ static void output_cursor_handle_commit(struct wl_listener *listener,
 	struct wlr_output_cursor *cursor =
 		wl_container_of(listener, cursor, surface_commit);
 	output_cursor_commit(cursor, true);
+	output_cursor_update_visible(cursor);
 }
 
 static void output_cursor_handle_destroy(struct wl_listener *listener,
