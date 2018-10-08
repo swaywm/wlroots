@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -881,7 +881,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 
 	desktop->tablet_v2 = wlr_tablet_v2_create(server->wl_display);
 
-#ifdef WLR_HAS_XWAYLAND
 	const char *cursor_theme = NULL;
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 	struct roots_cursor_config *cc =
@@ -893,6 +892,15 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		}
 	}
 
+	char cursor_size_fmt[16];
+	snprintf(cursor_size_fmt, sizeof(cursor_size_fmt),
+		"%d", ROOTS_XCURSOR_SIZE);
+	setenv("XCURSOR_SIZE", cursor_size_fmt, 1);
+	if (cursor_theme != NULL) {
+		setenv("XCURSOR_THEME", cursor_theme, 1);
+	}
+
+#ifdef WLR_HAS_XWAYLAND
 	desktop->xcursor_manager = wlr_xcursor_manager_create(cursor_theme,
 		ROOTS_XCURSOR_SIZE);
 	if (desktop->xcursor_manager == NULL) {
