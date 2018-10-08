@@ -43,23 +43,56 @@ static void buffer_resource_handle_destroy(struct wl_listener *listener,
 	wl_list_init(&buffer->resource_destroy.link);
 	buffer->resource = NULL;
 
+	// if no one cares about the buffer, destroy it
+	if (buffer->n_refs == 0) {
+		assert(buffer->released);
+		wl_list_remove(&buffer->resource_destroy.link);
+		wlr_texture_destroy(buffer->texture);
+		free(buffer);
+		return;
+	}
+
 	// At this point, if the wl_buffer comes from linux-dmabuf or wl_drm, we
 	// still haven't released it (ie. we'll read it in the future) but the
 	// client destroyed it. Reading the texture itself should be fine because
 	// we still hold a reference to the DMA-BUF via the texture. However the
 	// client could decide to re-use the same DMA-BUF for something else, in
 	// which case we'll read garbage. We decide to accept this risk.
+	// But remember that the buffer was destroyed so it's resources can
+	// be free'd as soon as no one uses it anymore.
+	buffer->destroyed = true;
 }
 
-struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
+struct wlr_buffer *wlr_buffer_get(struct wlr_renderer *renderer,
 		struct wl_resource *resource) {
 	assert(wlr_resource_is_buffer(resource));
 
+	// check if known
+	struct wl_listener *dlistener = wl_resource_get_destroy_listener(resource,
+		buffer_resource_handle_destroy);
+	struct wlr_buffer *buffer = NULL;
+ 	if (dlistener) {
+		buffer = wl_container_of(dlistener, buffer, resource_destroy);
+	}
+
+	// create new buffer
 	struct wlr_texture *texture = NULL;
 	bool released = false;
+	bool keep = false;
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
 	if (shm_buf != NULL) {
+		if (buffer && buffer->n_refs > 0) {
+			// we can't use this buffer since someone still needs
+			// its contents. Create a new buffer for the resource and
+			// remove `buffer`s association with the resource,
+			// destroying it when no longer needed
+			buffer->destroyed = true;
+			buffer->resource = NULL;
+			wl_list_remove(&buffer->resource_destroy.link);
+			buffer = NULL;
+		}
+
 		enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buf);
 		int32_t stride = wl_shm_buffer_get_stride(shm_buf);
 		int32_t width = wl_shm_buffer_get_width(shm_buf);
@@ -67,8 +100,22 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 
 		wl_shm_buffer_begin_access(shm_buf);
 		void *data = wl_shm_buffer_get_data(shm_buf);
-		texture = wlr_texture_from_pixels(renderer, fmt, stride,
-			width, height, data);
+
+		if (buffer) {
+			// we always have to upload _all_ of the buffers data to
+			// the texture. Note that even surface damage could not be
+			// useful here as it only specifies the different regions
+			// between 2 buffers.
+			if (!wlr_texture_write_pixels(buffer->texture, fmt, stride,
+					width, height, 0, 0, 0, 0, data)) {
+				wlr_log(WLR_ERROR, "Failed to write pixels");
+				return NULL;
+			}
+		} else {
+			texture = wlr_texture_from_pixels(renderer, fmt, stride,
+				width, height, data);
+		}
+
 		wl_shm_buffer_end_access(shm_buf);
 
 		// We have uploaded the data, we don't need to access the wl_buffer
@@ -76,11 +123,17 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		wl_buffer_send_release(resource);
 		released = true;
 	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
-		texture = wlr_texture_from_wl_drm(renderer, resource);
+		if (!buffer) {
+			texture = wlr_texture_from_wl_drm(renderer, resource);
+		}
+		keep = true;
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_v1_buffer *dmabuf =
-			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
+		if (!buffer) {
+			struct wlr_dmabuf_v1_buffer *dmabuf =
+				wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
+			texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
+		}
+		keep = true;
 
 		// We have imported the DMA-BUF, but we need to prevent the client from
 		// re-using the same DMA-BUF for the next frames, so we don't release
@@ -94,12 +147,18 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		return NULL;
 	}
 
+	if (buffer) {
+		buffer->released = released;
+		buffer->keep = keep;
+		return wlr_buffer_ref(buffer);
+	}
+
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload texture");
 		return NULL;
 	}
 
-	struct wlr_buffer *buffer = calloc(1, sizeof(struct wlr_buffer));
+	buffer = calloc(1, sizeof(struct wlr_buffer));
 	if (buffer == NULL) {
 		wlr_texture_destroy(texture);
 		return NULL;
@@ -107,6 +166,7 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 	buffer->resource = resource;
 	buffer->texture = texture;
 	buffer->released = released;
+	buffer->keep = keep;
 	buffer->n_refs = 1;
 
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
@@ -135,9 +195,15 @@ void wlr_buffer_unref(struct wlr_buffer *buffer) {
 		wl_buffer_send_release(buffer->resource);
 	}
 
-	wl_list_remove(&buffer->resource_destroy.link);
-	wlr_texture_destroy(buffer->texture);
-	free(buffer);
+	buffer->released = true;
+	if (buffer->destroyed || !buffer->keep) {
+		if (buffer->resource) {
+			wl_list_remove(&buffer->resource_destroy.link);
+		}
+
+		wlr_texture_destroy(buffer->texture);
+		free(buffer);
+	}
 }
 
 struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
@@ -187,7 +253,10 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	// anymore
 	wl_buffer_send_release(resource);
 
-	wl_list_remove(&buffer->resource_destroy.link);
+	if (buffer->resource) {
+		wl_list_remove(&buffer->resource_destroy.link);
+	}
+
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
 	buffer->resource_destroy.notify = buffer_resource_handle_destroy;
 

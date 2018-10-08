@@ -329,7 +329,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	wlr_buffer_unref(surface->buffer);
 	surface->buffer = NULL;
 
-	struct wlr_buffer *buffer = wlr_buffer_create(surface->renderer, resource);
+	struct wlr_buffer *buffer = wlr_buffer_get(surface->renderer, resource);
 	if (buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
