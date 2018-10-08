@@ -1083,6 +1083,24 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->crtc = NULL;
 		}
 
+		// This can only happen *after* hotplug, since we haven't read the
+		// connector properties yet
+		if (wlr_conn->props.link_status != 0) {
+			uint64_t link_status;
+			if (!get_drm_prop(drm->fd, wlr_conn->id,
+					wlr_conn->props.link_status, &link_status)) {
+				wlr_log(WLR_ERROR, "Failed to get link status for '%s'",
+					wlr_conn->output.name);
+				continue;
+			}
+
+			if (link_status == DRM_MODE_LINK_STATUS_BAD) {
+				// We need to reload our list of modes and force a modeset
+				wlr_log(WLR_INFO, "Bad link for '%s'", wlr_conn->output.name);
+				drm_connector_cleanup(wlr_conn);
+			}
+		}
+
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->output.name);
