@@ -298,15 +298,15 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	wlr_signal_emit_safe(&output->events.destroy, output);
 
-	struct wlr_output_mode *mode, *tmp_mode;
-	wl_list_for_each_safe(mode, tmp_mode, &output->modes, link) {
-		wl_list_remove(&mode->link);
-		free(mode);
-	}
+	// The backend is responsible for free-ing the list of modes
 
 	struct wlr_output_cursor *cursor, *tmp_cursor;
 	wl_list_for_each_safe(cursor, tmp_cursor, &output->cursors, link) {
 		wlr_output_cursor_destroy(cursor);
+	}
+
+	if (output->idle_frame != NULL) {
+		wl_event_source_remove(output->idle_frame);
 	}
 
 	pixman_region32_fini(&output->damage);

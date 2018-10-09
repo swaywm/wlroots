@@ -1347,6 +1347,13 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		memset(&conn->output.model, 0, sizeof(conn->output.model));
 		memset(&conn->output.serial, 0, sizeof(conn->output.serial));
 
+		if (conn->output.idle_frame != NULL) {
+			wl_event_source_remove(conn->output.idle_frame);
+			conn->output.idle_frame = NULL;
+		}
+		conn->output.needs_swap = false;
+		conn->output.frame_pending = false;
+
 		conn->pageflip_pending = false;
 		/* Fallthrough */
 	case WLR_DRM_CONN_NEEDS_MODESET:
