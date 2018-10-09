@@ -14,6 +14,7 @@
 
 /**
  * A client buffer.
+ * The buffers contents are reference counted.
  */
 struct wlr_buffer {
 	/**
@@ -25,8 +26,10 @@ struct wlr_buffer {
 	 * client destroys the buffer before it has been released.
 	 */
 	struct wlr_texture *texture;
-	bool released;
-	size_t n_refs;
+	bool released; // released, i.e. might be modified by client atm
+	bool destroyed; // destroyed by client, can be destroyed if no longer needed
+	bool keep; // whether to keep this buffer even though no one uses it
+	size_t n_refs; // content ref count: (n_refs == 0) => released [invariant]
 
 	struct wl_listener resource_destroy;
 };
@@ -44,12 +47,19 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
 	struct wlr_renderer *renderer, int *width, int *height);
 
 /**
- * Upload a buffer to the GPU and reference it.
+ * Get a wlr_buffer object associated with the wl_buffer `resource`.
+ * When there already is one associated it will be reused, making sure
+ * that the textures contents match the buffer resource.
+ * Otherwise creates a new wlr_buffer which texture is usable with `renderer`.
+ * May returns NULL on failure.
  */
-struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
+struct wlr_buffer *wlr_buffer_get(struct wlr_renderer *renderer,
 	struct wl_resource *resource);
 /**
  * Reference the buffer.
+ * As long as the reference is valid (`wlr_buffer_unref` nor
+ * `wlr_buffer_apply_damage` called) the wlr_buffer object is guaranteed to
+ * stay alive and its contents the same.
  */
 struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer);
 /**
