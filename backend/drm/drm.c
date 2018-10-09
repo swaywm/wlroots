@@ -1354,7 +1354,6 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		conn->output.needs_swap = false;
 		conn->output.frame_pending = false;
 
-		conn->pageflip_pending = false;
 		/* Fallthrough */
 	case WLR_DRM_CONN_NEEDS_MODESET:
 		wlr_log(WLR_INFO, "Emitting destruction signal for '%s'",
