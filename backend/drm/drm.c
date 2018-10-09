@@ -1261,7 +1261,7 @@ static void page_flip_handler(int fd, unsigned seq,
 
 int handle_drm_event(int fd, uint32_t mask, void *data) {
 	drmEventContext event = {
-		.version = DRM_EVENT_CONTEXT_VERSION,
+		.version = 2,
 		.page_flip_handler = page_flip_handler,
 	};
 
