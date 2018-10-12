@@ -9,6 +9,12 @@
 #include "text-input-unstable-v3-protocol.h"
 #include "util/signal.h"
 
+static void text_input_clear_focused_surface(struct wlr_text_input_v3 *text_input) {
+	wl_list_remove(&text_input->surface_destroy.link);
+	wl_list_init(&text_input->surface_destroy.link);
+	text_input->focused_surface = NULL;
+}
+
 static const struct zwp_text_input_v3_interface text_input_impl;
 
 static struct wlr_text_input_v3 *text_input_from_resource(
@@ -32,8 +38,7 @@ void wlr_text_input_v3_send_enter(struct wlr_text_input_v3 *text_input,
 void wlr_text_input_v3_send_leave(struct wlr_text_input_v3 *text_input) {
 	zwp_text_input_v3_send_leave(text_input->resource,
 		text_input->focused_surface->resource);
-	wl_list_remove(&text_input->surface_destroy.link);
-	text_input->focused_surface = NULL;
+	text_input_clear_focused_surface(text_input);
 }
 
 void wlr_text_input_v3_send_preedit_string(struct wlr_text_input_v3 *text_input,
@@ -61,6 +66,7 @@ void wlr_text_input_v3_send_done(struct wlr_text_input_v3 *text_input) {
 
 static void wlr_text_input_destroy(struct wlr_text_input_v3 *text_input) {
 	wlr_signal_emit_safe(&text_input->events.destroy, text_input);
+	text_input_clear_focused_surface(text_input);
 	wl_list_remove(&text_input->seat_destroy.link);
 	// remove from manager::text_inputs
 	wl_list_remove(&text_input->link);
@@ -221,7 +227,7 @@ static void text_input_handle_focused_surface_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_text_input_v3 *text_input = wl_container_of(listener, text_input,
 		surface_destroy);
-	text_input->focused_surface = NULL;
+	text_input_clear_focused_surface(text_input);
 }
 
 static void text_input_manager_get_text_input(struct wl_client *client,
@@ -260,6 +266,7 @@ static void text_input_manager_get_text_input(struct wl_client *client,
 		text_input_handle_seat_destroy;
 	text_input->surface_destroy.notify =
 		text_input_handle_focused_surface_destroy;
+	wl_list_init(&text_input->surface_destroy.link);
 
 	struct wlr_text_input_manager_v3 *manager =
 		text_input_manager_from_resource(resource);
