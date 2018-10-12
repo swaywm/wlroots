@@ -65,6 +65,7 @@ static void text_input_set_pending_focused_surface(
 static void text_input_clear_pending_focused_surface(
 		struct roots_text_input *text_input) {
 	wl_list_remove(&text_input->pending_focused_surface_destroy.link);
+	wl_list_init(&text_input->pending_focused_surface_destroy.link);
 	text_input->pending_focused_surface = NULL;
 }
 
@@ -179,7 +180,7 @@ static void handle_text_input_destroy(struct wl_listener *listener,
 	if (text_input->input->current_enabled) {
 		relay_disable_text_input(relay, text_input);
 	}
-
+	text_input_clear_pending_focused_surface(text_input);
 	wl_list_remove(&text_input->link);
 	text_input->input = NULL;
 	free(text_input);
@@ -218,6 +219,7 @@ struct roots_text_input *roots_text_input_create(
 
 	input->pending_focused_surface_destroy.notify =
 		handle_pending_focused_surface_destroy;
+	wl_list_init(&input->pending_focused_surface_destroy.link);
 	return input;
 }
 
