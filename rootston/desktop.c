@@ -957,6 +957,11 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->input_inhibit->events.deactivate,
 		&desktop->input_inhibit_deactivate);
 
+	desktop->input_method =
+		wlr_input_method_manager_v2_create(server->wl_display);
+
+	desktop->text_input = wlr_text_input_manager_v3_create(server->wl_display);
+
 	desktop->virtual_keyboard = wlr_virtual_keyboard_manager_v1_create(
 		server->wl_display);
 	wl_signal_add(&desktop->virtual_keyboard->events.new_virtual_keyboard,
