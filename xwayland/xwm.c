@@ -522,6 +522,12 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 	memcpy(xsurface->hints, &hints, sizeof(struct wlr_xwayland_surface_hints));
 	xsurface->hints_urgency = xcb_icccm_wm_hints_get_urgency(&hints);
 
+	if (!(xsurface->hints->flags & XCB_ICCCM_WM_HINT_INPUT)) {
+		// The client didn't specify whether it wants input.
+		// Assume it does.
+		xsurface->hints->input = true;
+	}
+
 	wlr_log(WLR_DEBUG, "WM_HINTS (%d)", reply->value_len);
 	wlr_signal_emit_safe(&xsurface->events.set_hints, xsurface);
 }
