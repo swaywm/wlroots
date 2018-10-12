@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -390,7 +391,8 @@ int main(int argc, char **argv) {
 			}
 		} else if (caught.data.fd == timer_fd) {
 			uint64_t expirations;
-			read(timer_fd, &expirations, sizeof(expirations));
+			ssize_t n = read(timer_fd, &expirations, sizeof(expirations));
+			assert(n >= 0);
 			handle_timer();
 		} else {
 			printf("Unknown source\n");
