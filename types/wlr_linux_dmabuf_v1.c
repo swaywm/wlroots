@@ -103,6 +103,7 @@ static void params_add(struct wl_client *client,
 		close(fd);
 		return;
 	}
+
 	buffer->attributes.modifier = modifier;
 	buffer->has_modifier = true;
 
@@ -382,13 +383,9 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
 	return dmabuf;
 }
 
-static void linux_dmabuf_send_modifiers(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
-		struct wl_resource *resource) {
+static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		struct wl_resource *resource, uint32_t version) {
 	struct wlr_renderer *renderer = linux_dmabuf->renderer;
-	/*
-	 * Use EGL_EXT_image_dma_buf_import_modifiers to query and advertise
-	 * format/modifier codes.
-	 */
 	uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
 	int *formats = NULL;
 	int num_formats = wlr_renderer_get_dmabuf_formats(renderer, &formats);
@@ -410,10 +407,17 @@ static void linux_dmabuf_send_modifiers(struct wlr_linux_dmabuf_v1 *linux_dmabuf
 			modifiers = &modifier_invalid;
 		}
 		for (int j = 0; j < num_modifiers; j++) {
-			uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
-			uint32_t modifier_hi = modifiers[j] >> 32;
-			zwp_linux_dmabuf_v1_send_modifier(resource, formats[i],
-				modifier_hi, modifier_lo);
+			if (version >= ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
+				uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
+				uint32_t modifier_hi = modifiers[j] >> 32;
+				zwp_linux_dmabuf_v1_send_modifier(resource,
+					formats[i],
+					modifier_hi,
+					modifier_lo);
+			} else if (modifiers[j] == DRM_FORMAT_MOD_LINEAR ||
+				   modifiers == &modifier_invalid) {
+				zwp_linux_dmabuf_v1_send_format(resource, formats[i]);
+			}
 		}
 		if (modifiers != &modifier_invalid) {
 			free(modifiers);
@@ -439,10 +443,7 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
 		linux_dmabuf, linux_dmabuf_resource_destroy);
 	wl_list_insert(&linux_dmabuf->resources, wl_resource_get_link(resource));
-
-	if (version >= ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
-		linux_dmabuf_send_modifiers(linux_dmabuf, resource);
-	}
+	linux_dmabuf_send_formats(linux_dmabuf, resource, version);
 }
 
 void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
