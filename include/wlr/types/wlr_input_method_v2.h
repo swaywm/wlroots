@@ -6,8 +6,8 @@
 #error "Add -DWLR_USE_UNSTABLE to enable unstable wlroots features"
 #endif
 
-#ifndef WLR_TYPES_WLR_INPUT_METHOD_V1_H
-#define WLR_TYPES_WLR_INPUT_METHOD_V1_H
+#ifndef WLR_TYPES_WLR_INPUT_METHOD_V2_H
+#define WLR_TYPES_WLR_INPUT_METHOD_V2_H
 #include <stdint.h>
 #include <stdlib.h>
 #include <wayland-server.h>
