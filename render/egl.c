@@ -3,6 +3,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdlib.h>
+#include <drm_fourcc.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "glapi.h"
@@ -382,13 +383,21 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attributes) {
-	if (!egl->exts.image_base_khr) {
+	if (!egl->exts.image_base_khr || !egl->exts.image_dmabuf_import_ext) {
+		wlr_log(WLR_ERROR, "dmabuf import extension not present");
 		return NULL;
 	}
 
 	bool has_modifier = false;
-	if (attributes->modifier != DRM_FORMAT_MOD_INVALID) {
+
+	// we assume the same way we assumed formats without the import_modifiers
+	// extension that mod_linear is supported. The special mod mod_invalid
+	// is sometimes used to signal modifier unawareness which is what we
+	// have here
+	if (attributes->modifier != DRM_FORMAT_MOD_INVALID &&
+			attributes->modifier != DRM_FORMAT_MOD_LINEAR) {
 		if (!egl->exts.image_dmabuf_import_modifiers_ext) {
+			wlr_log(WLR_ERROR, "dmabuf modifiers extension not present");
 			return NULL;
 		}
 		has_modifier = true;
@@ -460,10 +469,32 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 		int **formats) {
-	if (!egl->exts.image_dmabuf_import_ext ||
-			!egl->exts.image_dmabuf_import_modifiers_ext) {
-		wlr_log(WLR_DEBUG, "dmabuf extension not present");
+	if (!egl->exts.image_dmabuf_import_ext) {
+		wlr_log(WLR_DEBUG, "dmabuf import extension not present");
 		return -1;
+	}
+
+	// when we only have the image_dmabuf_import extension we can't query
+	// which formats are supported. These two are on almost always
+	// supported; it's the intended way to just try to create buffers.
+	// Just a guess but better than not supporting dmabufs at all,
+	// given that the modifiers extension isn't supported everywhere.
+	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
+		static const int fallback_formats[] = {
+			DRM_FORMAT_ARGB8888,
+			DRM_FORMAT_XRGB8888,
+		};
+		static unsigned num = sizeof(fallback_formats) /
+			sizeof(fallback_formats[0]);
+
+		*formats = calloc(num, sizeof(int));
+		if (!*formats) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			return -1;
+		}
+
+		memcpy(*formats, fallback_formats, num * sizeof(**formats));
+		return num;
 	}
 
 	EGLint num;
@@ -488,10 +519,14 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 
 int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 		int format, uint64_t **modifiers) {
-	if (!egl->exts.image_dmabuf_import_ext ||
-			!egl->exts.image_dmabuf_import_modifiers_ext) {
+	if (!egl->exts.image_dmabuf_import_ext) {
 		wlr_log(WLR_DEBUG, "dmabuf extension not present");
 		return -1;
+	}
+
+	if(!egl->exts.image_dmabuf_import_modifiers_ext) {
+		*modifiers = NULL;
+		return 0;
 	}
 
 	EGLint num;
