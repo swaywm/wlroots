@@ -217,16 +217,16 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 				backend, &multi->session, name, create_renderer_func);
 			if (subbackend == NULL) {
 				wlr_log(WLR_ERROR, "failed to start backend '%s'", name);
-				wlr_backend_destroy(backend);
 				wlr_session_destroy(multi->session);
+				wlr_backend_destroy(backend);
 				free(names);
 				return NULL;
 			}
 
 			if (!wlr_multi_backend_add(backend, subbackend)) {
 				wlr_log(WLR_ERROR, "failed to add backend '%s'", name);
-				wlr_backend_destroy(backend);
 				wlr_session_destroy(multi->session);
+				wlr_backend_destroy(backend);
 				free(names);
 				return NULL;
 			}
@@ -272,8 +272,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		multi->session);
 	if (!libinput) {
 		wlr_log(WLR_ERROR, "Failed to start libinput backend");
-		wlr_backend_destroy(backend);
 		wlr_session_destroy(multi->session);
+		wlr_backend_destroy(backend);
 		return NULL;
 	}
 	wlr_multi_backend_add(backend, libinput);
@@ -283,8 +283,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	if (!primary_drm) {
 		wlr_log(WLR_ERROR, "Failed to open any DRM device");
 		wlr_backend_destroy(libinput);
-		wlr_backend_destroy(backend);
 		wlr_session_destroy(multi->session);
+		wlr_backend_destroy(backend);
 		return NULL;
 	}
 
