@@ -121,7 +121,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
 		assert(remote_display == NULL);
-		egl->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+		egl->display = eglGetPlatformDisplayEXT(platform, EGL_DEFAULT_DISPLAY, NULL);
 	} else {
 		egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
 	}
