@@ -163,10 +163,6 @@ static void handle_text_input_disable(struct wl_listener *listener,
 		text_input_disable);
 	struct roots_text_input *text_input = text_input_to_roots(relay,
 		(struct wlr_text_input_v3*)data);
-	if (!text_input->input->current_enabled) {
-		wlr_log(WLR_DEBUG, "Inactive text input tried to disable itself");
-		return;
-	}
 	relay_disable_text_input(relay, text_input);
 }
 
