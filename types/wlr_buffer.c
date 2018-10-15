@@ -150,12 +150,20 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	}
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf == NULL) {
-		// Uploading only damaged regions only works for wl_shm buffers
+	struct wl_shm_buffer *old_shm_buf = wl_shm_buffer_get(buffer->resource);
+	if (shm_buf == NULL || old_shm_buf == NULL) {
+		// Uploading only damaged regions only works for wl_shm buffers and
+		// mutable textures (created from wl_shm buffer)
 		return NULL;
 	}
 
-	enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buf);
+	enum wl_shm_format new_fmt = wl_shm_buffer_get_format(shm_buf);
+	enum wl_shm_format old_fmt = wl_shm_buffer_get_format(old_shm_buf);
+	if (new_fmt != old_fmt) {
+		// Uploading to textures can't change the format
+		return NULL;
+	}
+
 	int32_t stride = wl_shm_buffer_get_stride(shm_buf);
 	int32_t width = wl_shm_buffer_get_width(shm_buf);
 	int32_t height = wl_shm_buffer_get_height(shm_buf);
@@ -173,7 +181,7 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &n);
 	for (int i = 0; i < n; ++i) {
 		pixman_box32_t *r = &rects[i];
-		if (!wlr_texture_write_pixels(buffer->texture, fmt, stride,
+		if (!wlr_texture_write_pixels(buffer->texture, stride,
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
 			wl_shm_buffer_end_access(shm_buf);

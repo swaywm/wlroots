@@ -72,6 +72,7 @@ struct wlr_gles2_texture {
 	enum wlr_gles2_texture_type type;
 	int width, height;
 	bool has_alpha;
+	uint32_t wl_format; // used to interpret upload data
 	bool inverted_y;
 
 	// Not set if WLR_GLES2_TEXTURE_GLTEX
