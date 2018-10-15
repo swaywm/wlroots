@@ -80,7 +80,7 @@ examples = {
 			libavcodec,
 			libavformat,
 			libavutil,
-			drm.partial_dependency(includes: true), # <drm_fourcc.h>
+			drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
 			threads,
 			wayland_client,
 			wlr_protos,
