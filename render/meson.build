@@ -22,7 +22,13 @@ lib_wlr_render = static_library(
 	),
 	glapi,
 	include_directories: wlr_inc,
-	dependencies: [egl, glesv2, pixman, wayland_server],
+	dependencies: [
+		egl,
+		drm.partial_dependency(includes: true), # <drm_fourcc.h>
+		glesv2,
+		pixman,
+		wayland_server
+	],
 )
 
 wlr_render = declare_dependency(

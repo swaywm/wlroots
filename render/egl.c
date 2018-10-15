@@ -3,7 +3,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdlib.h>
-#include <libdrm/drm_fourcc.h>
+#include <drm_fourcc.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "glapi.h"
