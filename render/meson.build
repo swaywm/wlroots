@@ -24,7 +24,7 @@ lib_wlr_render = static_library(
 	include_directories: wlr_inc,
 	dependencies: [
 		egl,
-		drm.partial_dependency(includes: true), # <drm_fourcc.h>
+		drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
 		glesv2,
 		pixman,
 		wayland_server
