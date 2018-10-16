@@ -156,6 +156,7 @@ message('\n'.join(summary))
 
 subdir('examples')
 subdir('rootston')
+subdir('man')
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
