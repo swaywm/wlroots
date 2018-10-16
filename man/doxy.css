@@ -1,0 +1,91 @@
+body, div.header {
+  color: #b4c9ed;
+  background: #162949;  
+}
+
+div.fragment {
+  color: #162949;
+  background: #e2edff; 
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.directory tr.even {
+  background: #13233f;  
+}
+
+a {
+  color: #b4c9ed;
+}
+
+#titlearea {
+  color: #b4c9ed;
+  background: #162949;
+  box-sizing: border-box;
+  padding: 25px 15px 30px;
+  border: none;
+}
+
+.sm-dox {
+ background: #233451;
+}
+
+.sm-dox.sm-vertical a.disabled {
+  background: none;
+ }
+
+.sm-dox a,.sm-dox a:focus,.sm-dox a:hover,.sm-dox a:active,.sm-dox a.highlighted {
+ font-family:"Lucida Grande","Geneva","Helvetica",Arial,sans-serif;
+ text-shadow: none;
+ color: white;
+ background: none;
+}
+.sm-dox a:hover {
+  background: #4b6aa0;
+}
+
+.mdescLeft, .mdescRight, .memItemLeft, .memItemRight, .memTemplItemLeft, .memTemplItemRight, .memTemplParams {
+  background: inherit;
+}
+
+.memproto, h2.groupheader, .memdoc, .memtitle {
+  color: inherit;
+  background: none;
+  text-shadow: none;
+}
+
+.memSeparator {
+  border: none;
+}
+
+div.qindex {
+  border: none;
+  color: inherit;
+  background: none;
+}
+
+div.ah, span.ah {
+  border: none;
+  background-image: none;
+  box-shadow: none;
+  -moz-box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+/*
+#MSearchBox {
+  box-sizing: border-box;
+  padding: 5px;
+  border-radius: 2px;
+  background: #e2edff;
+  width: calc(100% - 16px);
+  height: auto;
+  margin: 8px;
+}
+
+#MSearchField, #MSearchBox span.left, #MSearchBox span.right {
+  background: none;
+  height: 100%;
+  color: #162949;
+}*/
