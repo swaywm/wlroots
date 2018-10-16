@@ -55,8 +55,8 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		return false;
 	}
 
-	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(
-		texture->wl_format);
+	const struct wlr_gles2_pixel_format *fmt =
+		get_gles2_format_from_wl(texture->wl_format);
 	assert(fmt);
 
 	// TODO: what if the unpack subimage extension isn't supported?
