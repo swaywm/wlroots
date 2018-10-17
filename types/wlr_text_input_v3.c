@@ -175,11 +175,10 @@ static void text_input_commit(struct wl_client *client,
 	text_input->current_enabled = text_input->pending_enabled;
 	text_input->current_serial++;
 
-	if (text_input->current_enabled && text_input->focused_surface == NULL) {
-		wl_resource_post_error(text_input->resource, 0, "Text input was not"
-			"entered, and cannot be enabled\n");
-		return;
+	if (text_input->focused_surface == NULL) {
+		wlr_log(WLR_DEBUG, "Text input commit received without focus\n");
 	}
+
 	if (!old_enabled && text_input->current_enabled) {
 		wlr_signal_emit_safe(&text_input->events.enable, text_input);
 	} else if (old_enabled && !text_input->current_enabled) {
