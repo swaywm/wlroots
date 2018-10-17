@@ -459,7 +459,8 @@ static void render_output(struct roots_output *output) {
 			output_box->y;
 		view_move(view, view_x, view_y);
 
-		if (has_standalone_surface(view)) {
+		if (has_standalone_surface(view) &&
+				wl_list_empty(&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY])) {
 			wlr_output_set_fullscreen_surface(wlr_output, view->wlr_surface);
 		} else {
 			wlr_output_set_fullscreen_surface(wlr_output, NULL);
