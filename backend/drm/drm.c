@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #include <assert.h>
 #include <drm_mode.h>
 #include <EGL/egl.h>
