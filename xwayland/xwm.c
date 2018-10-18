@@ -803,8 +803,6 @@ static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
 
 static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		xcb_configure_request_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
-		ev->width, ev->height, ev->x, ev->y);
 	struct wlr_xwayland_surface *surface = lookup_surface(xwm, ev->window);
 	if (surface == NULL) {
 		return;
@@ -812,13 +810,22 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 	// TODO: handle ev->{parent,sibling}?
 
+	uint16_t mask = ev->value_mask;
+	uint16_t geo_mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
+	if ((mask & geo_mask) == 0) {
+		return;
+	}
+
 	struct wlr_xwayland_surface_configure_event wlr_event = {
 		.surface = surface,
-		.x = ev->x,
-		.y = ev->y,
-		.width = ev->width,
-		.height = ev->height,
+		.x = mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x,
+		.y = mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y,
+		.width = mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width,
+		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
 	};
+	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
+		wlr_event.width, wlr_event.height, wlr_event.x, wlr_event.y);
 
 	wlr_signal_emit_safe(&surface->events.request_configure, &wlr_event);
 }
