@@ -313,6 +313,7 @@ static void xwayland_surface_destroy(
 	wl_list_for_each_safe(child, next, &xsurface->children, parent_link) {
 		wl_list_remove(&child->parent_link);
 		wl_list_init(&child->parent_link);
+		child->parent = NULL;
 	}
 
 	if (xsurface->surface_id) {
