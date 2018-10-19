@@ -620,8 +620,14 @@ static void handle_layout_output_destroy(struct wl_listener *listener,
 
 static void layout_add(struct wlr_cursor_state *state,
 		struct wlr_output_layout_output *l_output) {
-	struct wlr_cursor_output_cursor *output_cursor =
-		calloc(1, sizeof(struct wlr_cursor_output_cursor));
+	struct wlr_cursor_output_cursor *output_cursor;
+	wl_list_for_each(output_cursor, &state->output_cursors, link) {
+		if (output_cursor->output_cursor->output == l_output->output) {
+			return; // already added
+		}
+	}
+
+	output_cursor = calloc(1, sizeof(struct wlr_cursor_output_cursor));
 	if (output_cursor == NULL) {
 		wlr_log(WLR_ERROR, "Failed to allocate wlr_cursor_output_cursor");
 		return;
