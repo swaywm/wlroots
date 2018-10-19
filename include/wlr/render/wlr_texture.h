@@ -54,10 +54,11 @@ void wlr_texture_get_size(struct wlr_texture *texture, int *width, int *height);
 bool wlr_texture_is_opaque(struct wlr_texture *texture);
 
 /**
- * Update a texture with raw pixels. The texture must be mutable.
- */
+  * Update a texture with raw pixels. The texture must be mutable, and the input
+  * data must have the same pixel format that the texture was created with.
+  */
 bool wlr_texture_write_pixels(struct wlr_texture *texture,
-	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t stride, uint32_t width, uint32_t height,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 	const void *data);
 

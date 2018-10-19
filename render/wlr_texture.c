@@ -55,10 +55,10 @@ bool wlr_texture_is_opaque(struct wlr_texture *texture) {
 }
 
 bool wlr_texture_write_pixels(struct wlr_texture *texture,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
-		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
-		uint32_t dst_y, const void *data) {
-	return texture->impl->write_pixels(texture, wl_fmt, stride, width, height,
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		const void *data) {
+	return texture->impl->write_pixels(texture, stride, width, height,
 		src_x, src_y, dst_x, dst_y, data);
 }
 

@@ -66,9 +66,9 @@ struct wlr_texture_impl {
 	void (*get_size)(struct wlr_texture *texture, int *width, int *height);
 	bool (*is_opaque)(struct wlr_texture *texture);
 	bool (*write_pixels)(struct wlr_texture *texture,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
-		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
-		uint32_t dst_y, const void *data);
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		const void *data);
 	bool (*to_dmabuf)(struct wlr_texture *texture,
 		struct wlr_dmabuf_attributes *attribs);
 	void (*destroy)(struct wlr_texture *texture);

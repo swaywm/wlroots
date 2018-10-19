@@ -44,9 +44,9 @@ static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
 }
 
 static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
-		uint32_t height, uint32_t src_x, uint32_t src_y, uint32_t dst_x,
-		uint32_t dst_y, const void *data) {
+		uint32_t stride, uint32_t width, uint32_t height,
+		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
+		const void *data) {
 	struct wlr_gles2_texture *texture =
 		get_gles2_texture_in_context(wlr_texture);
 
@@ -55,11 +55,9 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		return false;
 	}
 
-	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
-	if (fmt == NULL) {
-		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
-		return false;
-	}
+	const struct wlr_gles2_pixel_format *fmt =
+		get_gles2_format_from_wl(texture->wl_format);
+	assert(fmt);
 
 	// TODO: what if the unpack subimage extension isn't supported?
 	PUSH_GLES2_DEBUG;
@@ -167,6 +165,7 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	texture->height = height;
 	texture->type = WLR_GLES2_TEXTURE_GLTEX;
 	texture->has_alpha = fmt->has_alpha;
+	texture->wl_format = fmt->wl_format;
 
 	PUSH_GLES2_DEBUG;
 
@@ -203,6 +202,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	texture->wl_drm = data;
 
 	EGLint fmt;
+	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
 	texture->image = wlr_egl_create_image_from_wl_drm(egl, data, &fmt,
 		&texture->width, &texture->height, &texture->inverted_y);
 	if (texture->image == NULL) {
@@ -283,6 +283,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	texture->height = attribs->height;
 	texture->type = WLR_GLES2_TEXTURE_DMABUF;
 	texture->has_alpha = true;
+	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
 	texture->inverted_y =
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
