@@ -204,6 +204,7 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int lx, int ly) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
+	bool is_new = l_output == NULL;
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
@@ -211,12 +212,16 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 			return;
 		}
 	}
+
 	l_output->x = lx;
 	l_output->y = ly;
 	l_output->state->auto_configured = false;
 	output_layout_reconfigure(layout);
 	output_update_global(output);
-	wlr_signal_emit_safe(&layout->events.add, l_output);
+
+	if (is_new) {
+		wlr_signal_emit_safe(&layout->events.add, l_output);
+	}
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
@@ -409,6 +414,7 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
+	bool is_new = l_output == NULL;
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
@@ -420,7 +426,10 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = true;
 	output_layout_reconfigure(layout);
 	output_update_global(output);
-	wlr_signal_emit_safe(&layout->events.add, l_output);
+
+	if (is_new) {
+		wlr_signal_emit_safe(&layout->events.add, l_output);
+	}
 }
 
 struct wlr_output *wlr_output_layout_get_center_output(
