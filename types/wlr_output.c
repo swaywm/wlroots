@@ -853,6 +853,7 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor,
 	cursor->enabled = wlr_surface_has_buffer(surface);
 	cursor->width = surface->current.width * cursor->output->scale;
 	cursor->height = surface->current.height * cursor->output->scale;
+	output_cursor_update_visible(cursor);
 	if (update_hotspot) {
 		cursor->hotspot_x -= surface->current.dx * cursor->output->scale;
 		cursor->hotspot_y -= surface->current.dy * cursor->output->scale;
@@ -915,10 +916,9 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 	if (surface != NULL) {
 		wl_signal_add(&surface->events.commit, &cursor->surface_commit);
 		wl_signal_add(&surface->events.destroy, &cursor->surface_destroy);
-		output_cursor_commit(cursor, false);
 
 		cursor->visible = false;
-		output_cursor_update_visible(cursor);
+		output_cursor_commit(cursor, false);
 	} else {
 		cursor->enabled = false;
 		cursor->width = 0;
