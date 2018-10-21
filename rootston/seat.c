@@ -968,6 +968,8 @@ void roots_seat_add_device(struct roots_seat *seat,
 }
 
 void roots_seat_configure_xcursor(struct roots_seat *seat) {
+	struct roots_desktop *desktop = seat->input->server->desktop;
+
 	const char *cursor_theme = NULL;
 	struct roots_cursor_config *cc =
 		roots_config_get_cursor(seat->input->config, seat->seat->name);
@@ -1001,6 +1003,23 @@ void roots_seat_configure_xcursor(struct roots_seat *seat) {
 		seat->cursor->default_xcursor, seat->cursor->cursor);
 	wlr_cursor_warp(seat->cursor->cursor, NULL, seat->cursor->cursor->x,
 		seat->cursor->cursor->y);
+
+	const struct wlr_xcursor_configuration_v1_attrs xcursor_attrs = {
+		.theme = {
+			.name = (char *)(cursor_theme != NULL ? cursor_theme : "default"),
+			.size = ROOTS_XCURSOR_SIZE,
+		},
+		.default_cursor = (char *)(seat->cursor->default_xcursor != NULL ?
+			seat->cursor->default_xcursor : "left_ptr"),
+	};
+	wlr_xcursor_configuration_manager_v1_configure(
+		desktop->xcursor_configuration_manager, seat->seat,
+		ZWP_XCURSOR_CONFIGURATION_MANAGER_V1_DEVICE_TYPE_POINTER,
+		&xcursor_attrs);
+	wlr_xcursor_configuration_manager_v1_configure(
+		desktop->xcursor_configuration_manager, seat->seat,
+		ZWP_XCURSOR_CONFIGURATION_MANAGER_V1_DEVICE_TYPE_TABLET_TOOL,
+		&xcursor_attrs);
 }
 
 bool roots_seat_has_meta_pressed(struct roots_seat *seat) {

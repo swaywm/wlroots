@@ -261,7 +261,7 @@ static const struct zwlr_screencopy_manager_v1_interface manager_impl = {
 	.destroy = manager_handle_destroy,
 };
 
-void manager_handle_resource_destroy(struct wl_resource *resource) {
+static void manager_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 

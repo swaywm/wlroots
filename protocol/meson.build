@@ -33,6 +33,7 @@ protocols = [
 	'wlr-input-inhibitor-unstable-v1.xml',
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-screencopy-unstable-v1.xml',
+	'xcursor-configuration-unstable-v1.xml',
 ]
 
 client_protocols = [

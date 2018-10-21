@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="wp_xcursor_configuration_unstable_v1">
+  <copyright>
+    Copyright © 2018 Simon Ser
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="protocol to configure XCursor themes">
+    This protocol allows compositors to advertize XCursor configuration to
+    clients.
+
+    Once compositor configuration is received, clients are responsible for
+    loading the XCursor theme, creating wl_buffers with cursor images and
+    setting the cursor. Clients are free to ignore configuration set by this
+    protocol and use different settings: this protocol merely exposes hints.
+
+    Warning! The protocol described in this file is experimental and
+    backward incompatible changes may be made. Backward compatible changes
+    may be added together with the corresponding interface version bump.
+    Backward incompatible changes are done by bumping the version number in
+    the protocol and interface names and resetting the interface version.
+    Once the protocol is to be declared stable, the 'z' prefix and the
+    version number in the protocol and interface names are removed and the
+    interface version number is reset.
+  </description>
+
+  <interface name="zwp_xcursor_configuration_manager_v1" version="1">
+    <description summary="XCursor configuration manager">
+      A global factory interface for wp_xcursor_configuration objects.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the XCursor configuration manager object">
+        Destroy the XCursor configuration manager. This doesn't destroy objects
+        created with the manager.
+      </description>
+    </request>
+
+    <enum name="device_type">
+      <description summary="an input device type">
+        Describes input devices that have a cursor and are attached to a seat.
+      </description>
+      <entry name="pointer" value="1" summary="Pointer"/>
+      <entry name="tablet_tool" value="2" summary="Tablet tool"/>
+    </enum>
+
+    <request name="get_device_xcursor_configuration">
+      <description summary="create a wp_xcursor_configuration object for a device">
+        This creates a new wp_xcursor_configuration object for the input device
+        attached to the given seat.
+      </description>
+      <arg name="id" type="new_id" interface="zwp_xcursor_configuration_v1"/>
+      <arg name="seat" type="object" interface="wl_seat"/>
+      <arg name="device" type="uint" enum="device_type"/>
+    </request>
+  </interface>
+
+  <interface name="zwp_xcursor_configuration_v1" version="1">
+    <description summary="XCursor configuration for a device">
+      A Xcursor configuration object describes XCursor settings for a specific
+      device.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy this object">
+        Using this request a client can tell the server that it is not going to
+        use this object anymore.
+      </description>
+    </request>
+
+    <event name="done">
+      <description summary="all information about the configuration has been sent">
+        This event is sent after all other properties of a
+        wp_xcursor_configuration have been sent.
+
+        This allows changes to the wp_xcursor_configuration properties to be
+        seen as atomic, even if they happen via multiple events.
+      </description>
+    </event>
+
+    <event name="theme">
+      <description summary="theme configuration">
+        The theme event describes XCursor theme configuration for this device.
+      </description>
+      <arg name="name" type="string" summary="theme name"/>
+      <arg name="size" type="uint" summary="theme size"/>
+    </event>
+
+    <event name="default_cursor">
+      <description summary="default cursor name">
+        The default_cursor event describes the default XCursor cursor name to be
+        used for this device.
+      </description>
+      <arg name="name" type="string" summary="default cursor name"/>
+    </event>
+  </interface>
+</protocol>

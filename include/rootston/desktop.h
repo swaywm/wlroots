@@ -21,6 +21,7 @@
 #include <wlr/types/wlr_text_input_v3.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
 #include <wlr/types/wlr_wl_shell.h>
+#include <wlr/types/wlr_xcursor_configuration_v1.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -63,6 +64,7 @@ struct roots_desktop {
 	struct wlr_tablet_manager_v2 *tablet_v2;
 	struct wlr_pointer_constraints_v1 *pointer_constraints;
 	struct wlr_presentation *presentation;
+	struct wlr_xcursor_configuration_manager_v1 *xcursor_configuration_manager;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
