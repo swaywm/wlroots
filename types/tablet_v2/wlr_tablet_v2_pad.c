@@ -188,10 +188,9 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		struct wlr_tablet_pad_client_v2 *client,
 		struct wlr_tablet_pad_group *group, size_t index) {
 
-	int version = wl_resource_get_version(client->resource);
-	client->groups[index] =
-		wl_resource_create(client->client, &zwp_tablet_pad_group_v2_interface,
-			version, 0);
+	uint32_t version = wl_resource_get_version(client->resource);
+	client->groups[index] = wl_resource_create(client->client,
+		&zwp_tablet_pad_group_v2_interface, version, 0);
 	if (!client->groups[index]) {
 		wl_client_post_no_memory(client->client);
 		return;
@@ -228,15 +227,17 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		}
 		user_data->pad = client;
 		user_data->index = strip;
-		client->strips[strip] =
-			wl_resource_create(client->client, &zwp_tablet_pad_strip_v2_interface, 1, 0);
+		client->strips[strip] = wl_resource_create(client->client,
+			&zwp_tablet_pad_strip_v2_interface, version, 0);
 		if (!client->strips[strip]) {
+			free(user_data);
 			wl_client_post_no_memory(client->client);
 			return;
 		}
 		wl_resource_set_implementation(client->strips[strip],
 			&tablet_pad_strip_impl, user_data, destroy_tablet_pad_strip_v2);
-		zwp_tablet_pad_group_v2_send_strip(client->groups[index], client->strips[strip]);
+		zwp_tablet_pad_group_v2_send_strip(client->groups[index],
+			client->strips[strip]);
 	}
 
 	client->ring_count = group->ring_count;
@@ -250,15 +251,17 @@ static void add_tablet_pad_group(struct wlr_tablet_v2_tablet_pad *pad,
 		}
 		user_data->pad = client;
 		user_data->index = ring;
-		client->rings[ring] =
-			wl_resource_create(client->client, &zwp_tablet_pad_ring_v2_interface, 1, 0);
+		client->rings[ring] = wl_resource_create(client->client,
+			&zwp_tablet_pad_ring_v2_interface, version, 0);
 		if (!client->rings[ring]) {
+			free(user_data);
 			wl_client_post_no_memory(client->client);
 			return;
 		}
 		wl_resource_set_implementation(client->rings[ring],
 			&tablet_pad_ring_impl, user_data, destroy_tablet_pad_ring_v2);
-		zwp_tablet_pad_group_v2_send_ring(client->groups[index], client->rings[ring]);
+		zwp_tablet_pad_group_v2_send_ring(client->groups[index],
+			client->rings[ring]);
 	}
 
 	zwp_tablet_pad_group_v2_send_done(client->groups[index]);
