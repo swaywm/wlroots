@@ -140,17 +140,48 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&drm->backend);
 }
 
+char* wlr_drm_backend_device_name_from_fd(int gpu_fd) {
+	char *name = drmGetDeviceNameFromFd2(gpu_fd);
+	drmVersion *version = drmGetVersion(gpu_fd);
+
+	if (!name || !version) {
+		return NULL;
+	}
+
+	int len = strlen(name) + strlen(version->name);
+	char *buf = calloc(sizeof(char), 4 + len);
+	if (!buf) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
+	snprintf(buf, 4 + sizeof(char) * len, "%s (%s)", name, version->name);
+	free(name);
+	drmFreeVersion(version);
+	return buf;
+}
+
+char* wlr_drm_backend_device_name(struct wlr_backend *backend) {
+	if (!backend || !wlr_backend_is_drm(backend)) {
+		return NULL;
+	}
+
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	if (!drm) {
+		return NULL;
+	}
+
+	return wlr_drm_backend_device_name_from_fd(drm->fd);
+}
+
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent,
 		wlr_renderer_create_func_t create_renderer_func) {
 	assert(display && session && gpu_fd >= 0);
 	assert(!parent || wlr_backend_is_drm(parent));
 
-	char *name = drmGetDeviceNameFromFd2(gpu_fd);
-	drmVersion *version = drmGetVersion(gpu_fd);
-	wlr_log(WLR_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
-	free(name);
-	drmFreeVersion(version);
+	wlr_log(WLR_INFO, "Initializing DRM backend for %s",
+			wlr_drm_backend_device_name_from_fd(gpu_fd));
 
 	struct wlr_drm_backend *drm = calloc(1, sizeof(struct wlr_drm_backend));
 	if (!drm) {
