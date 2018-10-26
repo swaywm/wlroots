@@ -12,7 +12,7 @@
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 #include "util/signal.h"
-#include "util/os-compatibility.h"
+#include "util/shm.h"
 
 static void default_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
@@ -341,7 +341,7 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 			continue;
 		}
 
-		int keymap_fd = os_create_anonymous_file(keyboard->keymap_size);
+		int keymap_fd = allocate_shm_file(keyboard->keymap_size);
 		if (keymap_fd < 0) {
 			wlr_log(WLR_ERROR, "creating a keymap file for %zu bytes failed", keyboard->keymap_size);
 			continue;

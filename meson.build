@@ -56,7 +56,8 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 libcap         = dependency('libcap', required: get_option('libcap'))
 logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
-math           = cc.find_library('m', required: false)
+math           = cc.find_library('m')
+rt             = cc.find_library('rt')
 
 wlr_parts = []
 wlr_deps = []
