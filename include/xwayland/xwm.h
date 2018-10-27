@@ -30,7 +30,7 @@ enum atom_name {
 	UTF8_STRING,
 	WM_S0,
 	NET_SUPPORTED,
-	NET_WM_S0,
+	NET_WM_CM_S0,
 	NET_WM_PID,
 	NET_WM_NAME,
 	NET_WM_STATE,

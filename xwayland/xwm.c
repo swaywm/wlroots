@@ -28,7 +28,7 @@ const char *atom_map[ATOM_LAST] = {
 	"UTF8_STRING",
 	"WM_S0",
 	"_NET_SUPPORTED",
-	"_NET_WM_S0",
+	"_NET_WM_CM_S0",
 	"_NET_WM_PID",
 	"_NET_WM_NAME",
 	"_NET_WM_STATE",
@@ -1532,7 +1532,7 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 
 	xcb_set_selection_owner(xwm->xcb_conn,
 		xwm->window,
-		xwm->atoms[NET_WM_S0],
+		xwm->atoms[NET_WM_CM_S0],
 		XCB_CURRENT_TIME);
 }
 
