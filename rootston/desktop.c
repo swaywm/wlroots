@@ -882,14 +882,18 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->tablet_v2 = wlr_tablet_v2_create(server->wl_display);
 
 	const char *cursor_theme = NULL;
+#ifdef WLR_HAS_XWAYLAND
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
+#endif
 	struct roots_cursor_config *cc =
 		roots_config_get_cursor(config, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
+#ifdef WLR_HAS_XWAYLAND
 		if (cc->default_image != NULL) {
 			cursor_default = cc->default_image;
 		}
+#endif
 	}
 
 	char cursor_size_fmt[16];
