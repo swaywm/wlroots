@@ -266,6 +266,7 @@ struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 		return NULL;
 	}
 	wl_signal_init(&im_manager->events.input_method);
+	wl_signal_init(&im_manager->events.destroy);
 	wl_list_init(&im_manager->bound_resources);
 	wl_list_init(&im_manager->input_methods);
 
