@@ -27,6 +27,9 @@ static void idle_timeout_destroy(struct wlr_idle_timeout *timer) {
 
 static int idle_notify(void *data) {
 	struct wlr_idle_timeout *timer = data;
+	if (timer->idle_state) {
+		return 0;
+	}
 	timer->idle_state = true;
 	org_kde_kwin_idle_timeout_send_idle(timer->resource);
 	return 1;
@@ -36,12 +39,17 @@ static void handle_activity(struct wlr_idle_timeout *timer) {
 	if (!timer->enabled) {
 		return;
 	}
-	// rearm the timer
-	wl_event_source_timer_update(timer->idle_source, timer->timeout);
+
 	// in case the previous state was sleeping send a resume event and switch state
 	if (timer->idle_state) {
 		timer->idle_state = false;
 		org_kde_kwin_idle_timeout_send_resumed(timer->resource);
+	}
+
+	// rearm the timer
+	wl_event_source_timer_update(timer->idle_source, timer->timeout);
+	if (timer->timeout == 0) {
+		idle_notify(timer);
 	}
 }
 
@@ -142,6 +150,9 @@ static void create_idle_timer(struct wl_client *client,
 	if (timer->enabled) {
 		// arm the timer
 		wl_event_source_timer_update(timer->idle_source, timer->timeout);
+		if (timer->timeout == 0) {
+			idle_notify(timer);
+		}
 	}
 }
 
