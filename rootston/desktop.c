@@ -439,6 +439,11 @@ void view_destroy(struct roots_view *view) {
 		view_unmap(view);
 	}
 
+	// Can happen if fullscreened while unmapped, and hasn't been mapped
+	if (view->fullscreen_output != NULL) {
+		view->fullscreen_output->fullscreen_view = NULL;
+	}
+
 	if (view->destroy) {
 		view->destroy(view);
 	}
