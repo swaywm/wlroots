@@ -130,6 +130,8 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
+	egl->platform = platform;
+
 	EGLint major, minor;
 	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to initialize EGL");
@@ -319,6 +321,11 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
+	// Never block when swapping buffers on Wayland
+	if (egl->platform == EGL_PLATFORM_WAYLAND_EXT) {
+		eglSwapInterval(egl->display, 0);
+	}
+
 	EGLBoolean ret;
 	if (damage != NULL && (egl->exts.swap_buffers_with_damage_ext ||
 				egl->exts.swap_buffers_with_damage_khr)) {

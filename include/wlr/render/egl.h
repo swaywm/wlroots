@@ -17,6 +17,7 @@
 #include <wlr/render/dmabuf.h>
 
 struct wlr_egl {
+	EGLenum platform;
 	EGLDisplay display;
 	EGLConfig config;
 	EGLContext context;
