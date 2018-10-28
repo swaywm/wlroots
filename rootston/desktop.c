@@ -576,6 +576,9 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 			view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
 		return false;
 	}
+	if (view->wlr_surface == NULL) {
+		return false;
+	}
 
 	double view_sx = lx - view->x;
 	double view_sy = ly - view->y;
