@@ -105,17 +105,15 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 
 	const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
 	const char *path_var = getenv("PATH");
-	if (!xdg_runtime) {
-		wlr_log(WLR_ERROR, "XDG_RUNTIME_DIR is not set");
-		_exit(EXIT_FAILURE);
-	}
-
-	if (clearenv()) {
+	if (clearenv() != 0) {
 		wlr_log_errno(WLR_ERROR, "clearenv failed");
 		_exit(EXIT_FAILURE);
 	}
-	setenv("XDG_RUNTIME_DIR", xdg_runtime, true);
+	if (xdg_runtime != NULL) {
+		setenv("XDG_RUNTIME_DIR", xdg_runtime, true);
+	}
 	setenv("PATH", path_var, true);
+
 	char wayland_socket_str[16];
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", wlr_xwayland->wl_fd[1]);
 	setenv("WAYLAND_SOCKET", wayland_socket_str, true);

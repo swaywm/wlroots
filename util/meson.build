@@ -3,10 +3,10 @@ lib_wlr_util = static_library(
 	files(
 		'array.c',
 		'log.c',
-		'os-compatibility.c',
 		'region.c',
+		'shm.c',
 		'signal.c',
 	),
 	include_directories: wlr_inc,
-	dependencies: [wayland_server, pixman],
+	dependencies: [wayland_server, pixman, rt],
 )
