@@ -547,8 +547,9 @@ static void schedule_frame_handle_idle_timer(void *data) {
 	output->idle_frame = NULL;
 	if (!output->frame_pending && output->impl->schedule_frame) {
 		// Ask the backend to send a frame event when appropriate
-		output->frame_pending = true;
-		output->impl->schedule_frame(output);
+		if (output->impl->schedule_frame(output)) {
+			output->frame_pending = true;
+		}
 	}
 }
 
