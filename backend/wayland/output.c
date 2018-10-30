@@ -197,17 +197,18 @@ static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
 	return true;
 }
 
-static void output_schedule_frame(struct wlr_output *wlr_output) {
+static bool output_schedule_frame(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
 
 	if (output->frame_callback != NULL) {
 		wlr_log(WLR_ERROR, "Skipping frame scheduling");
-		return;
+		return true;
 	}
 
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 	wl_surface_commit(output->surface);
+	return true;
 }
 
 static const struct wlr_output_impl output_impl = {
