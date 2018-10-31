@@ -160,27 +160,42 @@ void post_drm_surface(struct wlr_drm_surface *surf) {
 	}
 }
 
-bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
+bool export_drm_bo(struct wlr_drm_renderer *renderer, struct gbm_bo *bo,
+		struct wlr_dmabuf_attributes *attribs) {
 	memset(attribs, 0, sizeof(struct wlr_dmabuf_attributes));
-
-	attribs->n_planes = gbm_bo_get_plane_count(bo);
-	if (attribs->n_planes > WLR_DMABUF_MAX_PLANES) {
-		return false;
-	}
 
 	attribs->width = gbm_bo_get_width(bo);
 	attribs->height = gbm_bo_get_height(bo);
 	attribs->format = gbm_bo_get_format(bo);
-	attribs->modifier = gbm_bo_get_modifier(bo);
 
-	for (int i = 0; i < attribs->n_planes; ++i) {
-		attribs->offset[i] = gbm_bo_get_offset(bo, i);
-		attribs->stride[i] = gbm_bo_get_stride_for_plane(bo, i);
-		attribs->fd[i] = gbm_bo_get_fd(bo);
-		if (attribs->fd[i] < 0) {
-			for (int j = 0; j < i; ++j) {
-				close(attribs->fd[j]);
+	uint64_t cap;
+	int ret = drmGetCap(renderer->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
+	if (ret == 0 && cap == 1) {
+		attribs->n_planes = gbm_bo_get_plane_count(bo);
+		if (attribs->n_planes > WLR_DMABUF_MAX_PLANES) {
+			return false;
+		}
+
+		attribs->modifier = gbm_bo_get_modifier(bo);
+
+		for (int i = 0; i < attribs->n_planes; ++i) {
+			attribs->offset[i] = gbm_bo_get_offset(bo, i);
+			attribs->stride[i] = gbm_bo_get_stride_for_plane(bo, i);
+			attribs->fd[i] = gbm_bo_get_fd(bo);
+			if (attribs->fd[i] < 0) {
+				for (int j = 0; j < i; ++j) {
+					close(attribs->fd[j]);
+				}
+				return false;
 			}
+		}
+	} else {
+		attribs->n_planes = 1;
+		attribs->modifier = DRM_FORMAT_MOD_INVALID;
+		attribs->offset[0] = 0;
+		attribs->stride[0] = gbm_bo_get_stride(bo);
+		attribs->fd[0] = gbm_bo_get_fd(bo);
+		if (attribs->fd[0] < 0) {
 			return false;
 		}
 	}
@@ -201,7 +216,7 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 	}
 
 	struct wlr_dmabuf_attributes attribs;
-	if (!export_drm_bo(bo, &attribs)) {
+	if (!export_drm_bo(renderer, bo, &attribs)) {
 		return NULL;
 	}
 
