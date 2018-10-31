@@ -30,8 +30,17 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
+	static EGLint config_attribs[] = {
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 1,
+		EGL_NONE,
+	};
+
 	renderer->wlr_rend = create_renderer_func(&renderer->egl,
-		EGL_PLATFORM_GBM_MESA, renderer->gbm, NULL, GBM_FORMAT_ARGB8888);
+		EGL_PLATFORM_GBM_MESA, renderer->gbm,
+		config_attribs, GBM_FORMAT_ARGB8888);
 
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
