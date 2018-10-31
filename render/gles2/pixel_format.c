@@ -3,9 +3,9 @@
 #include "render/gles2.h"
 
 /*
-* The wayland formats are little endian while the GL formats are big endian,
-* so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
-*/
+ * The wayland formats are little endian while the GL formats are big endian,
+ * so WL_SHM_FORMAT_ARGB8888 is actually compatible with GL_BGRA_EXT.
+ */
 static const struct wlr_gles2_pixel_format formats[] = {
 	{
 		.wl_format = WL_SHM_FORMAT_ARGB8888,
@@ -60,7 +60,19 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
 	return NULL;
 }
 
-const enum wl_shm_format *get_gles2_formats(size_t *len) {
+const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
+		GLint gl_format, GLint gl_type, bool alpha) {
+	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
+		if (formats[i].gl_format == gl_format &&
+				formats[i].gl_type == gl_type &&
+				formats[i].has_alpha == alpha) {
+			return &formats[i];
+		}
+	}
+	return NULL;
+}
+
+const enum wl_shm_format *get_gles2_wl_formats(size_t *len) {
 	*len = sizeof(wl_formats) / sizeof(wl_formats[0]);
 	return wl_formats;
 }

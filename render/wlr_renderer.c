@@ -139,6 +139,15 @@ int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *r, int format,
 	return r->impl->get_dmabuf_modifiers(r, format, modifiers);
 }
 
+bool wlr_renderer_preferred_read_format(struct wlr_renderer *r,
+		enum wl_shm_format *fmt) {
+	if (!r->impl->preferred_read_format || !r->impl->read_pixels) {
+		return false;
+	}
+	*fmt = r->impl->preferred_read_format(r);
+	return true;
+}
+
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
