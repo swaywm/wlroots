@@ -135,6 +135,12 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	case WLR_GLES2_TEXTURE_DMABUF:
 		shader = &renderer->shaders.tex_ext;
 		target = GL_TEXTURE_EXTERNAL_OES;
+
+		if (!renderer->exts.egl_image_external_oes) {
+			wlr_log(WLR_ERROR, "Failed to render texture: "
+				"GL_TEXTURE_EXTERNAL_OES not supported");
+			return false;
+		}
 		break;
 	}
 
@@ -559,6 +565,9 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->exts.debug_khr =
 		check_gl_ext(renderer->exts_str, "GL_KHR_debug") &&
 		glDebugMessageCallbackKHR && glDebugMessageControlKHR;
+	renderer->exts.egl_image_external_oes =
+		check_gl_ext(renderer->exts_str, "GL_OES_EGL_image_external") &&
+		glEGLImageTargetTexture2DOES;
 
 	if (renderer->exts.debug_khr) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);
@@ -611,7 +620,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgbx.tex = glGetUniformLocation(prog, "tex");
 	renderer->shaders.tex_rgbx.alpha = glGetUniformLocation(prog, "alpha");
 
-	if (glEGLImageTargetTexture2DOES) {
+	if (renderer->exts.egl_image_external_oes) {
 		renderer->shaders.tex_ext.program = prog =
 			link_program(tex_vertex_src, tex_fragment_src_external);
 		if (!renderer->shaders.tex_ext.program) {
