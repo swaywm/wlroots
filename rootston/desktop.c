@@ -439,6 +439,11 @@ void view_destroy(struct roots_view *view) {
 		view_unmap(view);
 	}
 
+	// Can happen if fullscreened while unmapped, and hasn't been mapped
+	if (view->fullscreen_output != NULL) {
+		view->fullscreen_output->fullscreen_view = NULL;
+	}
+
 	if (view->destroy) {
 		view->destroy(view);
 	}
@@ -574,6 +579,9 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
 	if (view->type == ROOTS_WL_SHELL_VIEW &&
 			view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+		return false;
+	}
+	if (view->wlr_surface == NULL) {
 		return false;
 	}
 
