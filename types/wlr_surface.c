@@ -183,16 +183,15 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		pixman_region32_t surface_damage;
 		pixman_region32_init(&surface_damage);
 
-		pixman_region32_union(buffer_damage, buffer_damage,
-			&pending->buffer_damage);
 		pixman_region32_copy(&surface_damage, &pending->surface_damage);
-
 		wlr_region_transform(&surface_damage, &surface_damage,
 			wlr_output_transform_invert(pending->transform),
 			pending->width, pending->height);
 		wlr_region_scale(&surface_damage, &surface_damage, pending->scale);
 
-		pixman_region32_union(buffer_damage, buffer_damage, &surface_damage);
+		pixman_region32_union(buffer_damage,
+			&pending->buffer_damage, &surface_damage);
+
 		pixman_region32_fini(&surface_damage);
 	}
 }
@@ -291,8 +290,8 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	}
 
 	if (surface->buffer != NULL && surface->buffer->released) {
-		struct wlr_buffer *updated_buffer =
-			wlr_buffer_apply_damage(surface->buffer, resource, &surface->buffer_damage);
+		struct wlr_buffer *updated_buffer = wlr_buffer_apply_damage(
+			surface->buffer, resource, &surface->buffer_damage);
 		if (updated_buffer != NULL) {
 			surface->buffer = updated_buffer;
 			return;
@@ -1029,6 +1028,7 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 	wlr_region_transform(damage, &surface->buffer_damage,
 		surface->current.transform, surface->current.buffer_width,
 		surface->current.buffer_height);
+	wlr_region_scale(damage, damage, 1.0 / (float)surface->current.scale);
 
 	// On resize, damage the previous bounds of the surface. The current bounds
 	// have already been damaged in surface_update_damage.

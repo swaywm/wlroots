@@ -17,14 +17,14 @@
 #include <wlr/types/wlr_output.h>
 
 enum wlr_surface_state_field {
-	WLR_SURFACE_STATE_BUFFER = 1,
-	WLR_SURFACE_STATE_SURFACE_DAMAGE = 2,
-	WLR_SURFACE_STATE_BUFFER_DAMAGE = 4,
-	WLR_SURFACE_STATE_OPAQUE_REGION = 8,
-	WLR_SURFACE_STATE_INPUT_REGION = 16,
-	WLR_SURFACE_STATE_TRANSFORM = 32,
-	WLR_SURFACE_STATE_SCALE = 64,
-	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 128,
+	WLR_SURFACE_STATE_BUFFER = 1 << 0,
+	WLR_SURFACE_STATE_SURFACE_DAMAGE = 1 << 1,
+	WLR_SURFACE_STATE_BUFFER_DAMAGE = 1 << 2,
+	WLR_SURFACE_STATE_OPAQUE_REGION = 1 << 3,
+	WLR_SURFACE_STATE_INPUT_REGION = 1 << 4,
+	WLR_SURFACE_STATE_TRANSFORM = 1 << 5,
+	WLR_SURFACE_STATE_SCALE = 1 << 6,
+	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 1 << 7,
 };
 
 struct wlr_surface_state {
@@ -32,7 +32,7 @@ struct wlr_surface_state {
 
 	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
-	pixman_region32_t surface_damage, buffer_damage;
+	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds
 	pixman_region32_t opaque, input;
 	enum wl_output_transform transform;
 	int32_t scale;
@@ -68,11 +68,12 @@ struct wlr_surface {
 	 * The last commit's buffer damage, in buffer-local coordinates. This
 	 * contains both the damage accumulated by the client via
 	 * `wlr_surface_state.surface_damage` and `wlr_surface_state.buffer_damage`.
-	 * If the buffer has changed its size or moved, the whole buffer is
-	 * damaged.
+	 * If the buffer has been resized, the whole buffer is damaged.
 	 *
 	 * This region needs to be scaled and transformed into output coordinates,
-	 * just like the buffer's texture.
+	 * just like the buffer's texture. In addition, if the buffer has shrunk the
+	 * old size needs to be damaged and if the buffer has moved the old and new
+	 * positions need to be damaged.
 	 */
 	pixman_region32_t buffer_damage;
 	/**
