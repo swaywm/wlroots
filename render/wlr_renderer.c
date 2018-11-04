@@ -198,7 +198,30 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 		EGLenum platform, void *remote_display, EGLint *config_attribs,
 		EGLint visual_id) {
-	if (!wlr_egl_init(egl, platform, remote_display, config_attribs, visual_id)) {
+	// Append GLES2-specific bits to the provided EGL config attributes
+	EGLint gles2_config_attribs[] = {
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_NONE,
+	};
+
+	size_t config_attribs_len = 0; // not including terminating EGL_NONE
+	while (config_attribs != NULL &&
+			config_attribs[config_attribs_len] != EGL_NONE) {
+		++config_attribs_len;
+	}
+
+	size_t all_config_attribs_len = config_attribs_len +
+		sizeof(gles2_config_attribs) / sizeof(gles2_config_attribs[0]);
+	EGLint all_config_attribs[all_config_attribs_len];
+	if (config_attribs_len > 0) {
+		memcpy(all_config_attribs, config_attribs,
+			config_attribs_len * sizeof(EGLint));
+	}
+	memcpy(&all_config_attribs[config_attribs_len], gles2_config_attribs,
+		sizeof(gles2_config_attribs));
+
+	if (!wlr_egl_init(egl, platform, remote_display, all_config_attribs,
+			visual_id)) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
