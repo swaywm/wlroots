@@ -34,6 +34,8 @@ struct wlr_renderer_impl {
 		const float color[static 4], const float matrix[static 9]);
 	const enum wl_shm_format *(*formats)(
 		struct wlr_renderer *renderer, size_t *len);
+	bool (*format_supported)(struct wlr_renderer *renderer,
+		enum wl_shm_format fmt);
 	bool (*resource_is_wl_drm_buffer)(struct wlr_renderer *renderer,
 		struct wl_resource *resource);
 	void (*wl_drm_buffer_get_size)(struct wlr_renderer *renderer,
@@ -41,12 +43,11 @@ struct wlr_renderer_impl {
 	int (*get_dmabuf_formats)(struct wlr_renderer *renderer, int **formats);
 	int (*get_dmabuf_modifiers)(struct wlr_renderer *renderer, int format,
 		uint64_t **modifiers);
+	enum wl_shm_format (*preferred_read_format)(struct wlr_renderer *renderer);
 	bool (*read_pixels)(struct wlr_renderer *renderer, enum wl_shm_format fmt,
 		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		void *data);
-	bool (*format_supported)(struct wlr_renderer *renderer,
-		enum wl_shm_format fmt);
 	struct wlr_texture *(*texture_from_pixels)(struct wlr_renderer *renderer,
 		enum wl_shm_format fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data);

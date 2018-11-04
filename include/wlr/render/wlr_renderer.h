@@ -97,6 +97,11 @@ int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *renderer,
 int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
 	uint64_t **modifiers);
 /**
+ * Get the preferred format for reading pixels.
+ */
+bool wlr_renderer_preferred_read_format(struct wlr_renderer *renderer,
+	enum wl_shm_format *fmt);
+/**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
  *

@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/backend.h>
+#include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
 #include "util/signal.h"
 
@@ -40,6 +41,7 @@ static void frame_handle_output_swap_buffers(struct wl_listener *listener,
 	struct wlr_output_event_swap_buffers *event = _data;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
 
 	wl_list_remove(&frame->output_swap_buffers.link);
 	wl_list_init(&frame->output_swap_buffers.link);
@@ -214,11 +216,25 @@ static void capture_output(struct wl_client *client,
 	wl_list_init(&frame->output_swap_buffers.link);
 	wl_list_init(&frame->buffer_destroy.link);
 
-	frame->format = WL_SHM_FORMAT_XRGB8888;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
+
+	if (!wlr_renderer_preferred_read_format(renderer, &frame->format)) {
+		wlr_log(WLR_ERROR,
+			"Failed to capture output: no read format supported by renderer");
+		goto error;
+	}
+
 	frame->box = buffer_box;
-	frame->stride = 4 * buffer_box.width;
+	frame->stride = 4 * buffer_box.width; // TODO: depends on read format
+
 	zwlr_screencopy_frame_v1_send_buffer(frame->resource, frame->format,
 		buffer_box.width, buffer_box.height, frame->stride);
+	return;
+
+error:
+	zwlr_screencopy_frame_v1_send_failed(frame->resource);
+	frame_destroy(frame);
 }
 
 static void manager_handle_capture_output(struct wl_client *client,
