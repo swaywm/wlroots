@@ -21,8 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define _XOPEN_SOURCE 700
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -35,7 +34,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <wayland-client.h>
-#include <wlr/util/log.h>
 #include "screenshooter-client-protocol.h"
 
 static struct wl_shm *shm = NULL;
@@ -111,12 +109,18 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
-static int backingfile(off_t size) {
-	char template[] = "/tmp/wlroots-shared-XXXXXX";
-	int fd = mkstemp(template);
+static struct wl_buffer *create_shm_buffer(int width, int height,
+		void **data_out) {
+	int stride = width * 4;
+	int size = stride * height;
+
+	const char shm_name[] = "/wlroots-screenshot";
+	int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0);
 	if (fd < 0) {
-		return -1;
+		fprintf(stderr, "shm_open failed\n");
+		return NULL;
 	}
+	shm_unlink(shm_name);
 
 	int ret;
 	while ((ret = ftruncate(fd, size)) == EINTR) {
@@ -124,21 +128,7 @@ static int backingfile(off_t size) {
 	}
 	if (ret < 0) {
 		close(fd);
-		return -1;
-	}
-
-	unlink(template);
-	return fd;
-}
-
-static struct wl_buffer *create_shm_buffer(int width, int height,
-		void **data_out) {
-	int stride = width * 4;
-	int size = stride * height;
-
-	int fd = backingfile(size);
-	if (fd < 0) {
-		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
+		fprintf(stderr, "ftruncate failed\n");
 		return NULL;
 	}
 
@@ -200,8 +190,6 @@ static void write_image(const char *filename, int width, int height,
 }
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(WLR_DEBUG, NULL);
-
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "failed to create display: %m\n");

@@ -21,8 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define _XOPEN_SOURCE 700
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -65,12 +64,17 @@ static const struct format formats[] = {
 	{WL_SHM_FORMAT_ABGR8888, false},
 };
 
-static int backingfile(off_t size) {
-	char template[] = "/tmp/wlroots-shared-XXXXXX";
-	int fd = mkstemp(template);
+static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
+		int width, int height, int stride, void **data_out) {
+	int size = stride * height;
+
+	const char shm_name[] = "/wlroots-screencopy";
+	int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0);
 	if (fd < 0) {
-		return -1;
+		fprintf(stderr, "shm_open failed\n");
+		return NULL;
 	}
+	shm_unlink(shm_name);
 
 	int ret;
 	while ((ret = ftruncate(fd, size)) == EINTR) {
@@ -78,20 +82,7 @@ static int backingfile(off_t size) {
 	}
 	if (ret < 0) {
 		close(fd);
-		return -1;
-	}
-
-	unlink(template);
-	return fd;
-}
-
-static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
-		int width, int height, int stride, void **data_out) {
-	int size = stride * height;
-
-	int fd = backingfile(size);
-	if (fd < 0) {
-		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
+		fprintf(stderr, "ftruncate failed\n");
 		return NULL;
 	}
 

@@ -55,7 +55,7 @@ examples = {
 	},
 	'screenshot': {
 		'src': 'screenshot.c',
-		'dep': [wayland_client, wlr_protos, wlroots],
+		'dep': [wayland_client, wlr_protos, rt],
 	},
 	'idle': {
 		'src': 'idle.c',
@@ -96,7 +96,7 @@ examples = {
 	},
 	'screencopy': {
 		'src': 'screencopy.c',
-		'dep': [libpng, wayland_client, wlr_protos, wlroots],
+		'dep': [libpng, wayland_client, wlr_protos, rt],
 	},
 	'toplevel-decoration': {
 		'src': 'toplevel-decoration.c',
