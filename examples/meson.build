@@ -59,7 +59,7 @@ examples = {
 	},
 	'idle': {
 		'src': 'idle.c',
-		'dep': [wayland_client, wlr_protos, wlroots, threads],
+		'dep': [wayland_client, wlr_protos, threads],
 	},
 	'idle-inhibit': {
 		'src': 'idle-inhibit.c',
@@ -75,7 +75,7 @@ examples = {
 	},
 	'gamma-control': {
 		'src': 'gamma-control.c',
-		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
+		'dep': [wayland_client, wayland_cursor, wlr_protos, math],
 	},
 	'pointer-constraints': {
 		'src': 'pointer-constraints.c',
@@ -91,7 +91,6 @@ examples = {
 			threads,
 			wayland_client,
 			wlr_protos,
-			wlroots,
 		],
 	},
 	'screencopy': {
@@ -103,13 +102,13 @@ examples = {
 		'dep': [wayland_client, wlr_protos, wlroots],
 	},
 	'input-method': {
-	    'src': 'input-method.c',
-	    'dep': [wayland_client, wlr_protos, wlroots] + libepoll,
-    },
+		'src': 'input-method.c',
+		'dep': [wayland_client, wlr_protos] + libepoll,
+	},
 	'text-input': {
-	    'src': 'text-input.c',
-	    'dep': [wayland_cursor, wayland_client, wlr_protos, wlroots],
-    },
+		'src': 'text-input.c',
+		'dep': [wayland_cursor, wayland_client, wlr_protos, wlroots],
+	},
 }
 
 foreach name, info : examples

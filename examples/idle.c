@@ -1,12 +1,12 @@
 #include <getopt.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wayland-client-protocol.h>
 #include <wayland-client.h>
-#include <wlr/util/log.h>
 #include "idle-client-protocol.h"
 
 static struct org_kde_kwin_idle *idle_manager = NULL;
@@ -109,8 +109,6 @@ void *main_loop(void *data) {
 }
 
 int main(int argc, char *argv[]) {
-	wlr_log_init(WLR_DEBUG, NULL);
-
 	if (parse_args(argc, argv) != 0) {
 		return -1;
 	}
