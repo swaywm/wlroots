@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 700
+#define _POSIX_C_SOURCE 200809L
 #ifdef __FreeBSD__
 // for SOCK_CLOEXEC
 #define __BSD_VISIBLE 1
