@@ -36,6 +36,7 @@ struct wlr_seat_client {
 		struct wl_signal destroy;
 	} events;
 
+  struct wl_list modifier_event_client;
 	struct wl_list link;
 };
 
@@ -168,6 +169,7 @@ struct wlr_seat_keyboard_state {
 
 	struct wlr_seat_keyboard_grab *grab;
 	struct wlr_seat_keyboard_grab *default_grab;
+  struct wl_list modifier_event_clients;
 };
 
 struct wlr_seat_touch_state {

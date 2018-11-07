@@ -52,6 +52,7 @@ struct wlr_layer_surface_v1_state {
 		uint32_t top, right, bottom, left;
 	} margin;
 	bool keyboard_interactive;
+  bool modifier_events;
 	uint32_t desired_width, desired_height;
 	uint32_t actual_width, actual_height;
 };
@@ -94,6 +95,8 @@ struct wlr_layer_surface_v1 {
 		struct wl_signal new_popup;
 	} events;
 
+  struct wl_resource *seat_resource; //For requesting modifier events
+  bool resource_added_to_seat;
 	void *data;
 };
 

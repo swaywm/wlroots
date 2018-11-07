@@ -215,6 +215,26 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 				modifiers->locked, modifiers->group);
 		}
 	}
+
+  struct wlr_seat_client* sclient;
+  wl_list_for_each(sclient,
+                   &seat->keyboard_state.modifier_event_clients,
+                   modifier_event_client) {
+    serial = wl_display_next_serial(seat->display);
+    wl_resource_for_each(resource, &sclient->keyboards) {
+      if (seat_client_from_keyboard_resource(resource) == NULL) {
+        continue;
+      }
+
+      if (modifiers == NULL) {
+        wl_keyboard_send_modifiers(resource, serial, 0, 0, 0, 0);
+      } else {
+        wl_keyboard_send_modifiers(resource, serial,
+                                   modifiers->depressed, modifiers->latched,
+                                   modifiers->locked, modifiers->group);
+      }
+    }
+  }
 }
 
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,

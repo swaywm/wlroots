@@ -242,6 +242,7 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	seat->keyboard_state.seat = seat;
 	wl_list_init(&seat->keyboard_state.surface_destroy.link);
+  wl_list_init(&seat->keyboard_state.modifier_event_clients);
 
 	// touch state
 	struct wlr_seat_touch_grab *touch_grab =

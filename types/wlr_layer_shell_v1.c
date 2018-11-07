@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
@@ -131,6 +132,14 @@ static void layer_surface_handle_set_keyboard_interactivity(
 	surface->client_pending.keyboard_interactive = !!interactive;
 }
 
+static void layer_surface_get_keyboard_modifiers(
+  struct wl_client *client, struct wl_resource *resource,
+  uint32_t need_events, struct wl_resource *seat_resource) {
+	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
+	surface->client_pending.modifier_events = !!need_events;
+  surface->seat_resource = seat_resource;
+}
+
 static void layer_surface_handle_get_popup(struct wl_client *client,
 		struct wl_resource *layer_resource,
 		struct wl_resource *popup_resource) {
@@ -155,6 +164,7 @@ static const struct zwlr_layer_surface_v1_interface layer_surface_implementation
 	.set_margin = layer_surface_handle_set_margin,
 	.set_keyboard_interactivity = layer_surface_handle_set_keyboard_interactivity,
 	.get_popup = layer_surface_handle_get_popup,
+  .get_keyboard_modifiers = layer_surface_get_keyboard_modifiers,
 };
 
 static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
@@ -287,6 +297,30 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		surface->client_pending.keyboard_interactive;
 	surface->current.desired_width = surface->client_pending.desired_width;
 	surface->current.desired_height = surface->client_pending.desired_height;
+	surface->current.modifier_events =
+		surface->client_pending.modifier_events;
+
+
+  if (!surface->resource_added_to_seat && surface->current.modifier_events) {
+    if (surface->seat_resource) {
+      struct wlr_seat_client *seat_client =
+        wlr_seat_client_from_resource(surface->seat_resource);
+      struct wlr_seat *seat = seat_client->seat;
+      wl_list_insert(&seat->keyboard_state.modifier_event_clients,
+                     &seat_client->modifier_event_client);
+      surface->resource_added_to_seat = true;
+    }
+  }
+
+  if(surface->resource_added_to_seat && !surface->current.modifier_events) {
+    if (surface->seat_resource) {
+      struct wlr_seat_client *seat_client =
+        wlr_seat_client_from_resource(surface->seat_resource);
+
+      wl_list_remove(&seat_client->modifier_event_client);
+      surface->resource_added_to_seat = false;
+    }
+  }
 
 	if (!surface->added) {
 		surface->added = true;
@@ -440,7 +474,7 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	wl_list_init(&layer_shell->surfaces);
 
 	struct wl_global *global = wl_global_create(display,
-		&zwlr_layer_shell_v1_interface, 1, layer_shell, layer_shell_bind);
+		&zwlr_layer_shell_v1_interface, 2, layer_shell, layer_shell_bind);
 	if (!global) {
 		free(layer_shell);
 		return NULL;
