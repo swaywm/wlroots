@@ -42,17 +42,6 @@ int allocate_shm_file(size_t size) {
 		return -1;
 	}
 
-#ifdef WLR_HAS_POSIX_FALLOCATE
-	int ret;
-	do {
-		ret = posix_fallocate(fd, 0, size);
-	} while (ret == EINTR);
-	if (ret != 0) {
-		close(fd);
-		errno = ret;
-		return -1;
-	}
-#else
 	int ret;
 	do {
 		ret = ftruncate(fd, size);
@@ -61,7 +50,6 @@ int allocate_shm_file(size_t size) {
 		close(fd);
 		return -1;
 	}
-#endif
 
 	return fd;
 }

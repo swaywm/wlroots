@@ -72,10 +72,6 @@ if logind.found()
 	wlr_deps += logind
 endif
 
-if cc.has_header_symbol('fcntl.h', 'posix_fallocate', prefix: '#define _POSIX_C_SOURCE 200112L')
-	conf_data.set('WLR_HAS_POSIX_FALLOCATE', true)
-endif
-
 subdir('protocol')
 subdir('render')
 
