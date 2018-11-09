@@ -9,6 +9,12 @@
 #ifndef WLR_RENDER_EGL_H
 #define WLR_RENDER_EGL_H
 
+#include <wlr/config.h>
+
+#if !(defined(WLR_HAS_X11_BACKEND) || defined(WLR_HAS_WAYLAND))
+#define MESA_EGL_NO_X11_HEADERS
+#endif
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <pixman.h>
