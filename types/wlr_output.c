@@ -339,85 +339,6 @@ bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
 	return output->impl->make_current(output, buffer_age);
 }
 
-static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	assert(renderer);
-
-	struct wlr_box box = {
-		.x = rect->x1,
-		.y = rect->y1,
-		.width = rect->x2 - rect->x1,
-		.height = rect->y2 - rect->y1,
-	};
-
-	int ow, oh;
-	wlr_output_transformed_resolution(output, &ow, &oh);
-
-	// Scissor is in renderer coordinates, ie. upside down
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(output->transform);
-	wlr_box_transform(&box, transform, ow, oh, &box);
-
-	wlr_renderer_scissor(renderer, &box);
-}
-
-/**
- * Returns the cursor box, scaled for its output.
- */
-static void output_cursor_get_box(struct wlr_output_cursor *cursor,
-		struct wlr_box *box) {
-	box->x = cursor->x - cursor->hotspot_x;
-	box->y = cursor->y - cursor->hotspot_y;
-	box->width = cursor->width;
-	box->height = cursor->height;
-}
-
-static void output_cursor_render(struct wlr_output_cursor *cursor,
-		const struct timespec *when, pixman_region32_t *damage) {
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(cursor->output->backend);
-	assert(renderer);
-
-	struct wlr_texture *texture = cursor->texture;
-	if (cursor->surface != NULL) {
-		texture = wlr_surface_get_texture(cursor->surface);
-	}
-	if (texture == NULL) {
-		return;
-	}
-
-	struct wlr_box box;
-	output_cursor_get_box(cursor, &box);
-
-	pixman_region32_t surface_damage;
-	pixman_region32_init(&surface_damage);
-	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
-		box.width, box.height);
-	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
-	if (!pixman_region32_not_empty(&surface_damage)) {
-		goto surface_damage_finish;
-	}
-
-	float matrix[9];
-	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
-		cursor->output->transform_matrix);
-
-	int nrects;
-	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
-	for (int i = 0; i < nrects; ++i) {
-		output_scissor(cursor->output, &rects[i]);
-		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0f);
-	}
-	wlr_renderer_scissor(renderer, NULL);
-
-	if (cursor->surface != NULL) {
-		wlr_surface_send_frame_done(cursor->surface, when);
-	}
-
-surface_damage_finish:
-	pixman_region32_fini(&surface_damage);
-}
-
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_t *damage) {
 	if (output->frame_pending) {
@@ -447,17 +368,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		when = &now;
 	}
 
-	if (pixman_region32_not_empty(&render_damage)) {
-		struct wlr_output_cursor *cursor;
-		wl_list_for_each(cursor, &output->cursors, link) {
-			if (!cursor->enabled || !cursor->visible ||
-					output->hardware_cursor == cursor) {
-				continue;
-			}
-			output_cursor_render(cursor, when, &render_damage);
-		}
-	}
-
 	struct wlr_output_event_swap_buffers event = {
 		.output = output,
 		.when = when,
@@ -466,6 +376,7 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
 	// Transform damage into renderer coordinates, ie. upside down
+	// TODO: take transformed coords, make the renderer flip the damage
 	enum wl_output_transform transform = wlr_output_transform_compose(
 		wlr_output_transform_invert(output->transform),
 		WL_OUTPUT_TRANSFORM_FLIPPED_180);
@@ -474,6 +385,14 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 
 	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
 		return false;
+	}
+
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->cursors, link) {
+		if (!cursor->enabled || !cursor->visible || cursor->surface == NULL) {
+			continue;
+		}
+		wlr_surface_send_frame_done(cursor->surface, when);
 	}
 
 	output->frame_pending = true;
@@ -605,6 +524,111 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
 	// again.
 }
 
+static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
+
+	struct wlr_box box = {
+		.x = rect->x1,
+		.y = rect->y1,
+		.width = rect->x2 - rect->x1,
+		.height = rect->y2 - rect->y1,
+	};
+
+	int ow, oh;
+	wlr_output_transformed_resolution(output, &ow, &oh);
+
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
+	wlr_box_transform(&box, transform, ow, oh, &box);
+
+	wlr_renderer_scissor(renderer, &box);
+}
+
+static void output_cursor_get_box(struct wlr_output_cursor *cursor,
+	struct wlr_box *box);
+
+static void output_cursor_render(struct wlr_output_cursor *cursor,
+		pixman_region32_t *damage) {
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(cursor->output->backend);
+	assert(renderer);
+
+	struct wlr_texture *texture = cursor->texture;
+	if (cursor->surface != NULL) {
+		texture = wlr_surface_get_texture(cursor->surface);
+	}
+	if (texture == NULL) {
+		return;
+	}
+
+	struct wlr_box box;
+	output_cursor_get_box(cursor, &box);
+
+	pixman_region32_t surface_damage;
+	pixman_region32_init(&surface_damage);
+	pixman_region32_union_rect(&surface_damage, &surface_damage, box.x, box.y,
+		box.width, box.height);
+	pixman_region32_intersect(&surface_damage, &surface_damage, damage);
+	if (!pixman_region32_not_empty(&surface_damage)) {
+		goto surface_damage_finish;
+	}
+
+	float matrix[9];
+	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
+		cursor->output->transform_matrix);
+
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		output_scissor(cursor->output, &rects[i]);
+		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0f);
+	}
+	wlr_renderer_scissor(renderer, NULL);
+
+surface_damage_finish:
+	pixman_region32_fini(&surface_damage);
+}
+
+void wlr_output_render_software_cursors(struct wlr_output *output,
+		pixman_region32_t *damage) {
+	int width, height;
+	wlr_output_transformed_resolution(output, &width, &height);
+
+	pixman_region32_t render_damage;
+	pixman_region32_init(&render_damage);
+	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
+		width, height);
+	if (damage != NULL) {
+		// Damage tracking supported
+		pixman_region32_intersect(&render_damage, &render_damage, damage);
+	}
+
+	if (pixman_region32_not_empty(&render_damage)) {
+		struct wlr_output_cursor *cursor;
+		wl_list_for_each(cursor, &output->cursors, link) {
+			if (!cursor->enabled || !cursor->visible ||
+					output->hardware_cursor == cursor) {
+				continue;
+			}
+			output_cursor_render(cursor, &render_damage);
+		}
+	}
+
+	pixman_region32_fini(&render_damage);
+}
+
+
+/**
+ * Returns the cursor box, scaled for its output.
+ */
+static void output_cursor_get_box(struct wlr_output_cursor *cursor,
+		struct wlr_box *box) {
+	box->x = cursor->x - cursor->hotspot_x;
+	box->y = cursor->y - cursor->hotspot_y;
+	box->width = cursor->width;
+	box->height = cursor->height;
+}
 
 static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	struct wlr_box box;
@@ -738,9 +762,6 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor,
 	}
 
 	if (output_cursor_attempt_hardware(cursor)) {
-		struct timespec now;
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		wlr_surface_send_frame_done(surface, &now);
 		return;
 	}
 

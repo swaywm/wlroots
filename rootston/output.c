@@ -518,6 +518,7 @@ static void render_output(struct roots_output *output) {
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY]);
 
 renderer_end:
+	wlr_output_render_software_cursors(wlr_output, &damage);
 	wlr_renderer_scissor(renderer, NULL);
 	wlr_renderer_end(renderer);
 

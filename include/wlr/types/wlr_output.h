@@ -230,6 +230,12 @@ struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);
  * a lock.
  */
 void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
+/**
+ * Renders software cursors. This is a utility function that can be called when
+ * compositors render.
+ */
+void wlr_output_render_software_cursors(struct wlr_output *output,
+	pixman_region32_t *damage);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
