@@ -104,46 +104,6 @@ static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
 
-	struct {
-		const char *name;
-		xcb_intern_atom_cookie_t cookie;
-		xcb_atom_t *atom;
-	} atom[] = {
-		{
-			.name = "WM_PROTOCOLS",
-			.atom = &x11->atoms.wm_protocols,
-		},
-		{
-			.name = "WM_DELETE_WINDOW",
-			.atom = &x11->atoms.wm_delete_window,
-		},
-		{
-			.name = "_NET_WM_NAME",
-			.atom = &x11->atoms.net_wm_name,
-		},
-		{
-			.name = "UTF8_STRING",
-			.atom = &x11->atoms.utf8_string,
-		},
-	};
-
-	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
-		atom[i].cookie = xcb_intern_atom(x11->xcb,
-			true, strlen(atom[i].name), atom[i].name);
-	}
-
-	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
-		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
-			x11->xcb, atom[i].cookie, NULL);
-
-		if (reply) {
-			*atom[i].atom = reply->atom;
-			free(reply);
-		} else {
-			*atom[i].atom = XCB_ATOM_NONE;
-		}
-	}
-
 	// create a blank cursor
 	xcb_pixmap_t pix = xcb_generate_id(x11->xcb);
 	xcb_create_pixmap(x11->xcb, 1, pix, x11->screen->root, 1, 1);
@@ -270,6 +230,34 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
+
+	struct {
+		const char *name;
+		xcb_intern_atom_cookie_t cookie;
+		xcb_atom_t *atom;
+	} atom[] = {
+		{ .name = "WM_PROTOCOLS", .atom = &x11->atoms.wm_protocols },
+		{ .name = "WM_DELETE_WINDOW", .atom = &x11->atoms.wm_delete_window },
+		{ .name = "_NET_WM_NAME", .atom = &x11->atoms.net_wm_name },
+		{ .name = "UTF8_STRING", .atom = &x11->atoms.utf8_string },
+	};
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		atom[i].cookie = xcb_intern_atom(x11->xcb,
+			true, strlen(atom[i].name), atom[i].name);
+	}
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+			x11->xcb, atom[i].cookie, NULL);
+
+		if (reply) {
+			*atom[i].atom = reply->atom;
+			free(reply);
+		} else {
+			*atom[i].atom = XCB_ATOM_NONE;
+		}
+	}
 
 	int fd = xcb_get_file_descriptor(x11->xcb);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
