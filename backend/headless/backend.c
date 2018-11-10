@@ -103,10 +103,9 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 	static const EGLint config_attribs[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
 		EGL_ALPHA_SIZE, 0,
-		EGL_BLUE_SIZE, 8,
-		EGL_GREEN_SIZE, 8,
-		EGL_RED_SIZE, 8,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_BLUE_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_RED_SIZE, 1,
 		EGL_NONE,
 	};
 

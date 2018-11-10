@@ -282,8 +282,17 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
+	static EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 0,
+		EGL_NONE,
+	};
+
 	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_X11_KHR,
-		x11->xlib_conn, NULL, x11->screen->root_visual);
+		x11->xlib_conn, config_attribs, x11->screen->root_visual);
 
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
