@@ -353,15 +353,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 
-	pixman_region32_t render_damage;
-	pixman_region32_init(&render_damage);
-	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
-		width, height);
-	if (damage != NULL) {
-		// Damage tracking supported
-		pixman_region32_intersect(&render_damage, &render_damage, damage);
-	}
-
 	struct timespec now;
 	if (when == NULL) {
 		clock_gettime(CLOCK_MONOTONIC, &now);
@@ -375,17 +366,28 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	};
 	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
+	pixman_region32_t render_damage;
+	pixman_region32_init(&render_damage);
+	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
+		width, height);
+	if (damage != NULL) {
+		// Damage tracking supported
+		pixman_region32_intersect(&render_damage, &render_damage, damage);
+	}
+
 	// Transform damage into renderer coordinates, ie. upside down
 	// TODO: take transformed coords, make the renderer flip the damage
-	enum wl_output_transform transform = wlr_output_transform_compose(
-		wlr_output_transform_invert(output->transform),
-		WL_OUTPUT_TRANSFORM_FLIPPED_180);
-	wlr_region_transform(&render_damage, &render_damage, transform, width,
-		height);
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(output->transform);
+	wlr_region_transform(&render_damage, &render_damage, transform,
+		width, height);
 
 	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
+		pixman_region32_fini(&render_damage);
 		return false;
 	}
+
+	pixman_region32_fini(&render_damage);
 
 	struct wlr_output_cursor *cursor;
 	wl_list_for_each(cursor, &output->cursors, link) {
@@ -398,8 +400,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	output->frame_pending = true;
 	output->needs_swap = false;
 	pixman_region32_clear(&output->damage);
-
-	pixman_region32_fini(&render_damage);
 	return true;
 }
 
