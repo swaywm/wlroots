@@ -81,7 +81,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	}
 
 	xcb_generic_event_t *e;
-	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
+	while ((e = xcb_poll_for_event(x11->xcb))) {
 		handle_x11_event(x11, e);
 		free(e);
 	}
@@ -123,13 +123,13 @@ static bool backend_start(struct wlr_backend *backend) {
 	};
 
 	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
-		atom[i].cookie = xcb_intern_atom(x11->xcb_conn,
+		atom[i].cookie = xcb_intern_atom(x11->xcb,
 			true, strlen(atom[i].name), atom[i].name);
 	}
 
 	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
 		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
-			x11->xcb_conn, atom[i].cookie, NULL);
+			x11->xcb, atom[i].cookie, NULL);
 
 		if (reply) {
 			*atom[i].atom = reply->atom;
@@ -140,29 +140,29 @@ static bool backend_start(struct wlr_backend *backend) {
 	}
 
 	// create a blank cursor
-	xcb_pixmap_t pix = xcb_generate_id(x11->xcb_conn);
-	xcb_create_pixmap(x11->xcb_conn, 1, pix, x11->screen->root, 1, 1);
+	xcb_pixmap_t pix = xcb_generate_id(x11->xcb);
+	xcb_create_pixmap(x11->xcb, 1, pix, x11->screen->root, 1, 1);
 
-	x11->cursor = xcb_generate_id(x11->xcb_conn);
-	xcb_create_cursor(x11->xcb_conn, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
+	x11->cursor = xcb_generate_id(x11->xcb);
+	xcb_create_cursor(x11->xcb, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
 		0, 0);
-	xcb_free_pixmap(x11->xcb_conn, pix);
+	xcb_free_pixmap(x11->xcb, pix);
 
 #if WLR_HAS_XCB_XKB
 		const xcb_query_extension_reply_t *reply =
-			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
+			xcb_get_extension_data(x11->xcb, &xcb_xkb_id);
 		if (reply != NULL && reply->present) {
 			x11->xkb_base_event = reply->first_event;
 			x11->xkb_base_error = reply->first_error;
 
 			xcb_xkb_use_extension_cookie_t cookie = xcb_xkb_use_extension(
-				x11->xcb_conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+				x11->xcb, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
 			xcb_xkb_use_extension_reply_t *reply =
-				xcb_xkb_use_extension_reply(x11->xcb_conn, cookie, NULL);
+				xcb_xkb_use_extension_reply(x11->xcb, cookie, NULL);
 			if (reply != NULL && reply->supported) {
 				x11->xkb_supported = true;
 
-				xcb_xkb_select_events(x11->xcb_conn,
+				xcb_xkb_select_events(x11->xcb,
 					XCB_XKB_ID_USE_CORE_KBD,
 					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
 					0,
@@ -210,7 +210,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_egl_finish(&x11->egl);
 
 	if (x11->cursor) {
-		xcb_free_cursor(x11->xcb_conn, x11->cursor);
+		xcb_free_cursor(x11->xcb, x11->cursor);
 	}
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
@@ -258,15 +258,15 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_x11;
 	}
 
-	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
-	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
+	x11->xcb = XGetXCBConnection(x11->xlib_conn);
+	if (!x11->xcb || xcb_connection_has_error(x11->xcb)) {
 		wlr_log(WLR_ERROR, "Failed to open xcb connection");
 		goto error_display;
 	}
 
 	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
 
-	int fd = xcb_get_file_descriptor(x11->xcb_conn);
+	int fd = xcb_get_file_descriptor(x11->xcb);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
 	uint32_t events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
@@ -276,7 +276,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(x11->event_source);
 
-	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
+	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb)).data;
 
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;

@@ -38,7 +38,7 @@ struct wlr_x11_backend {
 	bool started;
 
 	Display *xlib_conn;
-	xcb_connection_t *xcb_conn;
+	xcb_connection_t *xcb;
 	xcb_screen_t *screen;
 
 	size_t requested_outputs;

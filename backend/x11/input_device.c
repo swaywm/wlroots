@@ -166,9 +166,9 @@ void update_x11_pointer_position(struct wlr_x11_output *output,
 	struct wlr_x11_backend *x11 = output->x11;
 
 	xcb_query_pointer_cookie_t cookie =
-		xcb_query_pointer(x11->xcb_conn, output->win);
+		xcb_query_pointer(x11->xcb, output->win);
 	xcb_query_pointer_reply_t *reply =
-		xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
+		xcb_query_pointer_reply(x11->xcb, cookie, NULL);
 	if (!reply) {
 		return;
 	}
