@@ -106,11 +106,6 @@ struct wlr_output {
 
 	struct wl_event_source *idle_frame;
 
-	struct wlr_surface *fullscreen_surface;
-	struct wl_listener fullscreen_surface_commit;
-	struct wl_listener fullscreen_surface_destroy;
-	int fullscreen_width, fullscreen_height;
-
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
 	int software_cursor_locks; // number of locks forcing software cursors
@@ -226,8 +221,6 @@ bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 	struct wlr_dmabuf_attributes *attribs);
-void wlr_output_set_fullscreen_surface(struct wlr_output *output,
-	struct wlr_surface *surface);
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);
 /**
  * Locks the output to only use software cursors instead of hardware cursors.

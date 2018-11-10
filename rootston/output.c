@@ -157,10 +157,6 @@ static void output_for_each_surface(struct roots_output *output,
 
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
-		if (wlr_output->fullscreen_surface == view->wlr_surface) {
-			// The surface is managed by the wlr_output
-			return;
-		}
 
 		view_for_each_surface(view, layout_data, iterator, user_data);
 
@@ -388,26 +384,6 @@ static void render_layer(struct roots_output *output,
 		&data->layout, data);
 }
 
-static bool has_standalone_surface(struct roots_view *view) {
-	if (!wl_list_empty(&view->wlr_surface->subsurfaces)) {
-		return false;
-	}
-
-	switch (view->type) {
-	case ROOTS_XDG_SHELL_V6_VIEW:
-		return wl_list_empty(&view->xdg_surface_v6->popups);
-	case ROOTS_XDG_SHELL_VIEW:
-		return wl_list_empty(&view->xdg_surface->popups);
-	case ROOTS_WL_SHELL_VIEW:
-		return wl_list_empty(&view->wl_shell_surface->popups);
-#if WLR_HAS_XWAYLAND
-	case ROOTS_XWAYLAND_VIEW:
-		return wl_list_empty(&view->xwayland_surface->children);
-#endif
-	}
-	return true;
-}
-
 static void surface_send_frame_done(struct wlr_surface *surface, int sx, int sy,
 		void *_data) {
 	struct render_data *data = _data;
@@ -459,17 +435,8 @@ static void render_output(struct roots_output *output) {
 			output_box->y;
 		view_move(view, view_x, view_y);
 
-		if (has_standalone_surface(view) &&
-				wl_list_empty(&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY])) {
-			wlr_output_set_fullscreen_surface(wlr_output, view->wlr_surface);
-		} else {
-			wlr_output_set_fullscreen_surface(wlr_output, NULL);
-		}
-
 		// Fullscreen views are rendered on a black background
 		clear_color[0] = clear_color[1] = clear_color[2] = 0;
-	} else {
-		wlr_output_set_fullscreen_surface(wlr_output, NULL);
 	}
 
 	bool needs_swap;
@@ -517,11 +484,6 @@ static void render_output(struct roots_output *output) {
 	// If a view is fullscreen on this output, render it
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
-
-		if (wlr_output->fullscreen_surface == view->wlr_surface) {
-			// The output will render the fullscreen view
-			goto renderer_end;
-		}
 
 		if (view->wlr_surface != NULL) {
 			view_for_each_surface(view, &data.layout, render_surface, &data);

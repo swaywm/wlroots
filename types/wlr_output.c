@@ -294,7 +294,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
-	wlr_output_set_fullscreen_surface(output, NULL);
 
 	wlr_signal_emit_safe(&output->events.destroy, output);
 
@@ -360,53 +359,6 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 	wlr_box_transform(&box, transform, ow, oh, &box);
 
 	wlr_renderer_scissor(renderer, &box);
-}
-
-static void output_fullscreen_surface_get_box(struct wlr_output *output,
-		struct wlr_surface *surface, struct wlr_box *box) {
-	int width, height;
-	wlr_output_effective_resolution(output, &width, &height);
-
-	int x = (width - surface->current.width) / 2;
-	int y = (height - surface->current.height) / 2;
-
-	box->x = x * output->scale;
-	box->y = y * output->scale;
-	box->width = surface->current.width * output->scale;
-	box->height = surface->current.height * output->scale;
-}
-
-static void output_fullscreen_surface_render(struct wlr_output *output,
-		struct wlr_surface *surface, const struct timespec *when,
-		pixman_region32_t *damage) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	assert(renderer);
-
-	struct wlr_texture *texture = wlr_surface_get_texture(surface);
-	if (texture == NULL) {
-		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 1});
-		return;
-	}
-
-	struct wlr_box box;
-	output_fullscreen_surface_get_box(output, surface, &box);
-
-	float matrix[9];
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(surface->current.transform);
-	wlr_matrix_project_box(matrix, &box, transform, 0,
-		output->transform_matrix);
-
-	int nrects;
-	pixman_box32_t *rects = pixman_region32_rectangles(damage, &nrects);
-	for (int i = 0; i < nrects; ++i) {
-		output_scissor(output, &rects[i]);
-		wlr_renderer_clear(renderer, (float[]){0, 0, 0, 1});
-		wlr_render_texture_with_matrix(surface->renderer, texture, matrix, 1.0f);
-	}
-	wlr_renderer_scissor(renderer, NULL);
-
-	wlr_surface_send_frame_done(surface, when);
 }
 
 /**
@@ -496,11 +448,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	}
 
 	if (pixman_region32_not_empty(&render_damage)) {
-		if (output->fullscreen_surface != NULL) {
-			output_fullscreen_surface_render(output, output->fullscreen_surface,
-				when, &render_damage);
-		}
-
 		struct wlr_output_cursor *cursor;
 		wl_list_for_each(cursor, &output->cursors, link) {
 			if (!cursor->enabled || !cursor->visible ||
@@ -624,76 +571,6 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
 	wlr_output_update_needs_swap(output);
-}
-
-static void output_fullscreen_surface_reset(struct wlr_output *output) {
-	if (output->fullscreen_surface != NULL) {
-		wl_list_remove(&output->fullscreen_surface_commit.link);
-		wl_list_remove(&output->fullscreen_surface_destroy.link);
-		output->fullscreen_surface = NULL;
-		wlr_output_damage_whole(output);
-	}
-}
-
-static void output_fullscreen_surface_handle_commit(
-		struct wl_listener *listener, void *data) {
-	struct wlr_output *output = wl_container_of(listener, output,
-		fullscreen_surface_commit);
-	struct wlr_surface *surface = output->fullscreen_surface;
-
-	if (output->fullscreen_width != surface->current.width ||
-			output->fullscreen_height != surface->current.height) {
-		output->fullscreen_width = surface->current.width;
-		output->fullscreen_height = surface->current.height;
-		wlr_output_damage_whole(output);
-		return;
-	}
-
-	struct wlr_box box;
-	output_fullscreen_surface_get_box(output, surface, &box);
-
-	pixman_region32_t damage;
-	pixman_region32_init(&damage);
-	pixman_region32_copy(&damage, &surface->current.surface_damage);
-	wlr_region_scale(&damage, &damage, output->scale);
-	pixman_region32_translate(&damage, box.x, box.y);
-	pixman_region32_union(&output->damage, &output->damage, &damage);
-	pixman_region32_fini(&damage);
-
-	wlr_output_update_needs_swap(output);
-}
-
-static void output_fullscreen_surface_handle_destroy(
-		struct wl_listener *listener, void *data) {
-	struct wlr_output *output = wl_container_of(listener, output,
-		fullscreen_surface_destroy);
-	output_fullscreen_surface_reset(output);
-}
-
-void wlr_output_set_fullscreen_surface(struct wlr_output *output,
-		struct wlr_surface *surface) {
-	// TODO: hardware fullscreen
-
-	if (output->fullscreen_surface == surface) {
-		return;
-	}
-
-	output_fullscreen_surface_reset(output);
-
-	output->fullscreen_surface = surface;
-	wlr_output_damage_whole(output);
-
-	if (surface == NULL) {
-		return;
-	}
-
-	output->fullscreen_surface_commit.notify =
-		output_fullscreen_surface_handle_commit;
-	wl_signal_add(&surface->events.commit, &output->fullscreen_surface_commit);
-	output->fullscreen_surface_destroy.notify =
-		output_fullscreen_surface_handle_destroy;
-	wl_signal_add(&surface->events.destroy,
-		&output->fullscreen_surface_destroy);
 }
 
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
