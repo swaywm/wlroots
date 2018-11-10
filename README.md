@@ -62,6 +62,7 @@ If you choose to enable X11 support:
 * xcb
 * xcb-composite
 * xcb-xfixes
+* xcb-xinput
 * xcb-image
 * xcb-render
 * x11-xcb

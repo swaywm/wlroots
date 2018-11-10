@@ -1,7 +1,8 @@
 x11_libs = []
 x11_required = [
-	'xcb',
 	'x11-xcb',
+	'xcb',
+	'xcb-xinput',
 ]
 x11_optional = [
 	'xcb-xkb',

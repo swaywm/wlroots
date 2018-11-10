@@ -12,6 +12,7 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
+#include <xcb/xinput.h>
 #if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
@@ -73,6 +74,12 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 			}
 		}
 		break;
+	}
+	case XCB_GE_GENERIC: {
+		xcb_ge_generic_event_t *ev = (xcb_ge_generic_event_t *)event;
+		if (ev->extension == x11->xinput_opcode) {
+			handle_x11_xinput_event(x11, ev);
+		}
 	}
 	}
 }
@@ -258,6 +265,26 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			*atom[i].atom = XCB_ATOM_NONE;
 		}
 	}
+
+	const xcb_query_extension_reply_t *ext =
+		xcb_get_extension_data(x11->xcb, &xcb_input_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 does not support Xinput extension");
+		goto error_display;
+	}
+	x11->xinput_opcode = ext->major_opcode;
+
+	xcb_input_xi_query_version_cookie_t xi_cookie =
+		xcb_input_xi_query_version(x11->xcb, 2, 0);
+	xcb_input_xi_query_version_reply_t *xi_reply =
+		xcb_input_xi_query_version_reply(x11->xcb, xi_cookie, NULL);
+
+	if (!xi_reply || xi_reply->major_version < 2) {
+		wlr_log(WLR_ERROR, "X11 does not support required Xinput version");
+		free(xi_reply);
+		goto error_display;
+	}
+	free(xi_reply);
 
 	int fd = xcb_get_file_descriptor(x11->xcb);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);

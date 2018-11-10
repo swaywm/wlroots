@@ -67,6 +67,8 @@ struct wlr_x11_backend {
 	// A blank cursor
 	xcb_cursor_t cursor;
 
+	uint8_t xinput_opcode;
+
 #if WLR_HAS_XCB_XKB
 	bool xkb_supported;
 	uint8_t xkb_base_event;
