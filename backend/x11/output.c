@@ -1,10 +1,13 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
+
 #include "backend/x11.h"
 #include "util/signal.h"
 

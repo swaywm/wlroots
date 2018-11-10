@@ -1,25 +1,30 @@
 #define _POSIX_C_SOURCE 200112L
+
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <wayland-server.h>
-#include <wlr/backend/interface.h>
-#include <wlr/backend/x11.h>
+
 #include <wlr/config.h>
-#include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
-#include <wlr/util/log.h>
+
 #include <X11/Xlib-xcb.h>
+#include <wayland-server.h>
 #include <xcb/xcb.h>
 #if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
+
+#include <wlr/backend/interface.h>
+#include <wlr/backend/x11.h>
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/util/log.h>
+
 #include "backend/x11.h"
 #include "util/signal.h"
 

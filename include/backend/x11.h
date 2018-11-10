@@ -2,14 +2,17 @@
 #define BACKEND_X11_H
 
 #include <stdbool.h>
+
+#include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
-#include <wlr/config.h>
+#include <xcb/xcb.h>
+
 #include <wlr/backend/x11.h>
+#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
+#include <wlr/render/wlr_renderer.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 

@@ -1,18 +1,23 @@
 #include <stdlib.h>
+
 #include <wlr/config.h>
-#include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/util/log.h>
-#include <xcb/xcb.h>
+
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
+
+#include <xcb/xcb.h>
 #if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
+
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/util/log.h>
+
 #include "backend/x11.h"
 #include "util/signal.h"
 
