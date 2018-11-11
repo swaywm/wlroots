@@ -32,6 +32,7 @@ struct wlr_wl_backend {
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
+	struct wl_keyboard *keyboard;
 	struct wlr_wl_pointer *current_pointer;
 	char *seat_name;
 };
@@ -78,12 +79,11 @@ struct wlr_wl_pointer {
 	struct wl_listener output_destroy;
 };
 
-struct wlr_wl_backend *get_wl_backend_from_backend(
-	struct wlr_backend *wlr_backend);
+struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend);
 void update_wl_output_cursor(struct wlr_wl_output *output);
 struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer);
-void create_wl_pointer(struct wl_pointer *wl_pointer,
-	struct wlr_wl_output *output);
+void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *output);
+void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *wl);
 
 extern const struct wl_seat_listener seat_listener;
 
