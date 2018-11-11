@@ -50,24 +50,28 @@ static const struct zxdg_shell_v6_listener xdg_shell_listener = {
 };
 
 static void registry_global(void *data, struct wl_registry *registry,
-		uint32_t name, const char *interface, uint32_t version) {
-	struct wlr_wl_backend *backend = data;
-	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%d", interface, version);
+		uint32_t name, const char *iface, uint32_t version) {
+	struct wlr_wl_backend *wl = data;
 
-	if (strcmp(interface, wl_compositor_interface.name) == 0) {
-		backend->compositor = wl_registry_bind(registry, name,
-				&wl_compositor_interface, version);
-	} else if (strcmp(interface, zxdg_shell_v6_interface.name) == 0) {
-		backend->shell = wl_registry_bind(registry, name,
-				&zxdg_shell_v6_interface, version);
-		zxdg_shell_v6_add_listener(backend->shell, &xdg_shell_listener, NULL);
-	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
-		backend->shm = wl_registry_bind(registry, name,
-				&wl_shm_interface, version);
-	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-		backend->seat = wl_registry_bind(registry, name,
-				&wl_seat_interface, version);
-		wl_seat_add_listener(backend->seat, &seat_listener, backend);
+	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%d", iface, version);
+
+	if (strcmp(iface, wl_compositor_interface.name) == 0) {
+		wl->compositor = wl_registry_bind(registry, name,
+			&wl_compositor_interface, 4);
+
+	} else if (strcmp(iface, wl_seat_interface.name) == 0) {
+		wl->seat = wl_registry_bind(registry, name,
+			&wl_seat_interface, 2);
+		wl_seat_add_listener(wl->seat, &seat_listener, wl);
+
+	} else if (strcmp(iface, wl_shm_interface.name) == 0) {
+		wl->shm = wl_registry_bind(registry, name,
+			&wl_shm_interface, 1);
+
+	} else if (strcmp(iface, zxdg_shell_v6_interface.name) == 0) {
+		wl->shell = wl_registry_bind(registry, name,
+			&zxdg_shell_v6_interface, 1);
+		zxdg_shell_v6_add_listener(wl->shell, &xdg_shell_listener, NULL);
 	}
 }
 
