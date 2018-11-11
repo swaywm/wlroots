@@ -68,7 +68,6 @@ If you choose to enable X11 support:
 * x11-xcb
 * xcb-errors (optional, for improved error reporting)
 * x11-icccm (optional, for improved Xwayland introspection)
-* xcb-xkb (optional, for improved keyboard handling on the X11 backend)
 
 Run these commands:
 

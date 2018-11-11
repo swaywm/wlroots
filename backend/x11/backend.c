@@ -13,9 +13,6 @@
 #include <wayland-server.h>
 #include <xcb/xcb.h>
 #include <xcb/xinput.h>
-#if WLR_HAS_XCB_XKB
-#include <xcb/xkb.h>
-#endif
 
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
@@ -42,8 +39,6 @@ struct wlr_x11_output *get_x11_output_from_window_id(
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
-	handle_x11_input_event(x11, event);
-
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
 		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
@@ -119,34 +114,6 @@ static bool backend_start(struct wlr_backend *backend) {
 	xcb_create_cursor(x11->xcb, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
 		0, 0);
 	xcb_free_pixmap(x11->xcb, pix);
-
-#if WLR_HAS_XCB_XKB
-		const xcb_query_extension_reply_t *reply =
-			xcb_get_extension_data(x11->xcb, &xcb_xkb_id);
-		if (reply != NULL && reply->present) {
-			x11->xkb_base_event = reply->first_event;
-			x11->xkb_base_error = reply->first_error;
-
-			xcb_xkb_use_extension_cookie_t cookie = xcb_xkb_use_extension(
-				x11->xcb, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
-			xcb_xkb_use_extension_reply_t *reply =
-				xcb_xkb_use_extension_reply(x11->xcb, cookie, NULL);
-			if (reply != NULL && reply->supported) {
-				x11->xkb_supported = true;
-
-				xcb_xkb_select_events(x11->xcb,
-					XCB_XKB_ID_USE_CORE_KBD,
-					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-					0,
-					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-					0,
-					0,
-					0);
-
-				free(reply);
-			}
-		}
-#endif
 
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 

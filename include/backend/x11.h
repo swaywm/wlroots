@@ -69,12 +69,6 @@ struct wlr_x11_backend {
 
 	uint8_t xinput_opcode;
 
-#if WLR_HAS_XCB_XKB
-	bool xkb_supported;
-	uint8_t xkb_base_event;
-	uint8_t xkb_base_error;
-#endif
-
 	struct wl_listener display_destroy;
 };
 
@@ -87,8 +81,6 @@ extern const struct wlr_keyboard_impl keyboard_impl;
 extern const struct wlr_pointer_impl pointer_impl;
 extern const struct wlr_input_device_impl input_device_impl;
 
-void handle_x11_input_event(struct wlr_x11_backend *x11,
-	xcb_generic_event_t *event);
 void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 		xcb_ge_generic_event_t *event);
 void update_x11_pointer_position(struct wlr_x11_output *output,

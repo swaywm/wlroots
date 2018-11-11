@@ -35,7 +35,6 @@ conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
-conf_data.set10('WLR_HAS_XCB_XKB', false)
 
 wlr_inc = include_directories('.', 'include')
 
