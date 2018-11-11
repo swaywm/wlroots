@@ -27,7 +27,6 @@ struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) 
 
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *wl = data;
-	int count = 0;
 
 	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
 		wl_display_terminate(wl->local_display);
@@ -35,13 +34,19 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 	}
 
 	if (mask & WL_EVENT_READABLE) {
-		count = wl_display_dispatch(wl->remote_display);
+		return wl_display_dispatch(wl->remote_display);
+	}
+	if (mask & WL_EVENT_WRITABLE) {
+		wl_display_flush(wl->remote_display);
+		return 0;
 	}
 	if (mask == 0) {
-		count = wl_display_dispatch_pending(wl->remote_display);
+		int count = wl_display_dispatch_pending(wl->remote_display);
 		wl_display_flush(wl->remote_display);
+		return count;
 	}
-	return count;
+
+	return 0;
 }
 
 static void xdg_shell_handle_ping(void *data, struct zxdg_shell_v6 *shell,
