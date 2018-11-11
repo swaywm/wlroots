@@ -89,6 +89,8 @@ extern const struct wlr_input_device_impl input_device_impl;
 
 void handle_x11_input_event(struct wlr_x11_backend *x11,
 	xcb_generic_event_t *event);
+void handle_x11_xinput_event(struct wlr_x11_backend *x11,
+		xcb_ge_generic_event_t *event);
 void update_x11_pointer_position(struct wlr_x11_output *output,
 	xcb_timestamp_t time);
 

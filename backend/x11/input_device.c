@@ -9,6 +9,7 @@
 #endif
 
 #include <xcb/xcb.h>
+#include <xcb/xinput.h>
 #if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
@@ -26,7 +27,6 @@ static uint32_t xcb_button_to_wl(uint32_t button) {
 	case XCB_BUTTON_INDEX_1: return BTN_LEFT;
 	case XCB_BUTTON_INDEX_2: return BTN_MIDDLE;
 	case XCB_BUTTON_INDEX_3: return BTN_RIGHT;
-	// XXX: I'm not sure the scroll-wheel direction is right
 	case XCB_BUTTON_INDEX_4: return BTN_GEAR_UP;
 	case XCB_BUTTON_INDEX_5: return BTN_GEAR_DOWN;
 	default: return 0;
@@ -139,6 +139,143 @@ void handle_x11_input_event(struct wlr_x11_backend *x11,
 		}
 #endif
 		break;
+	}
+}
+
+static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
+		enum wlr_key_state st, xcb_timestamp_t time) {
+	struct wlr_event_keyboard_key ev = {
+		.time_msec = time,
+		.keycode = key,
+		.state = st,
+		.update_state = true,
+	};
+	wlr_keyboard_notify_key(&x11->keyboard, &ev);
+}
+
+static void send_button_event(struct wlr_x11_output *output, uint32_t key,
+		enum wlr_button_state st, xcb_timestamp_t time) {
+	struct wlr_event_pointer_button ev = {
+		.device = &output->pointer_dev,
+		.time_msec = time,
+		.button = key,
+		.state = st,
+	};
+	wlr_signal_emit_safe(&output->pointer.events.button, &ev);
+}
+
+static void send_axis_event(struct wlr_x11_output *output, int32_t delta,
+		xcb_timestamp_t time) {
+	struct wlr_event_pointer_axis ev = {
+		.device = &output->pointer_dev,
+		.time_msec = time,
+		.source = WLR_AXIS_SOURCE_WHEEL,
+		.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
+		// 15 is a typical value libinput sends for one scroll
+		.delta = delta * 15,
+		.delta_discrete = delta,
+	};
+	wlr_signal_emit_safe(&output->pointer.events.axis, &ev);
+}
+
+void handle_x11_xinput_event(struct wlr_x11_backend *x11,
+		xcb_ge_generic_event_t *event) {
+	struct wlr_x11_output *output;
+
+	switch (event->event_type) {
+	case XCB_INPUT_KEY_PRESS: {
+		xcb_input_key_press_event_t *ev =
+			(xcb_input_key_press_event_t *)event;
+
+		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
+			ev->mods.latched, ev->mods.locked, ev->mods.effective);
+		send_key_event(x11, ev->detail - 8, WLR_KEY_PRESSED, ev->time);
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_KEY_RELEASE: {
+		xcb_input_key_release_event_t *ev =
+			(xcb_input_key_release_event_t *)event;
+
+		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
+			ev->mods.latched, ev->mods.locked, ev->mods.effective);
+		send_key_event(x11, ev->detail - 8, WLR_KEY_RELEASED, ev->time);
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_BUTTON_PRESS: {
+		xcb_input_button_press_event_t *ev =
+			(xcb_input_button_press_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		switch (ev->detail) {
+		case XCB_BUTTON_INDEX_1:
+			send_button_event(output, BTN_LEFT, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_2:
+			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_3:
+			send_button_event(output, BTN_RIGHT, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_4:
+			send_axis_event(output, -1, ev->time);
+			break;
+		case XCB_BUTTON_INDEX_5:
+			send_axis_event(output, 1, ev->time);
+			break;
+		}
+
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_BUTTON_RELEASE: {
+		xcb_input_button_release_event_t *ev =
+			(xcb_input_button_release_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		switch (ev->detail) {
+		case XCB_BUTTON_INDEX_1:
+			send_button_event(output, BTN_LEFT, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_2:
+			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_3:
+			send_button_event(output, BTN_RIGHT, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		}
+
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_MOTION: {
+		xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		x11_handle_pointer_position(output, ev->event_x >> 16,
+			ev->event_y >> 16, ev->time);
+		x11->time = ev->time;
+		break;
+	}
 	}
 }
 

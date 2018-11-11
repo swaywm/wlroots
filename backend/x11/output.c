@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <xcb/xcb.h>
+#include <xcb/xinput.h>
+
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
@@ -159,6 +162,21 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	xcb_create_window(x11->xcb, XCB_COPY_FROM_PARENT, output->win,
 		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
+
+#if 0
+	struct {
+		xcb_input_event_mask_t head;
+		xcb_input_xi_event_mask_t mask;
+	} xinput_mask = {
+		.head = { .deviceid = XCB_INPUT_DEVICE_ALL_MASTER, .mask_len = 1 },
+		.mask = XCB_INPUT_XI_EVENT_MASK_KEY_PRESS |
+			XCB_INPUT_XI_EVENT_MASK_KEY_RELEASE |
+			XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS |
+			XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE |
+			XCB_INPUT_XI_EVENT_MASK_MOTION,
+	};
+	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
+#endif
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
