@@ -12,6 +12,7 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
 #include <xcb/xcb.h>
+#include <xcb/xfixes.h>
 #include <xcb/xinput.h>
 
 #include <wlr/backend/interface.h>
@@ -106,15 +107,6 @@ static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
 
-	// create a blank cursor
-	xcb_pixmap_t pix = xcb_generate_id(x11->xcb);
-	xcb_create_pixmap(x11->xcb, 1, pix, x11->screen->root, 1, 1);
-
-	x11->cursor = xcb_generate_id(x11->xcb);
-	xcb_create_cursor(x11->xcb, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
-		0, 0);
-	xcb_free_pixmap(x11->xcb, pix);
-
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 
 	for (size_t i = 0; i < x11->requested_outputs; ++i) {
@@ -148,9 +140,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_renderer_destroy(x11->renderer);
 	wlr_egl_finish(&x11->egl);
 
-	if (x11->cursor) {
-		xcb_free_cursor(x11->xcb, x11->cursor);
-	}
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
 	}
@@ -233,8 +222,27 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		}
 	}
 
-	const xcb_query_extension_reply_t *ext =
-		xcb_get_extension_data(x11->xcb, &xcb_input_id);
+	const xcb_query_extension_reply_t *ext;
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_xfixes_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 does not support Xfixes extension");
+		goto error_display;
+	}
+
+	xcb_xfixes_query_version_cookie_t fixes_cookie =
+		xcb_xfixes_query_version(x11->xcb, 4, 0);
+	xcb_xfixes_query_version_reply_t *fixes_reply =
+		xcb_xfixes_query_version_reply(x11->xcb, fixes_cookie, NULL);
+
+	if (!fixes_reply || fixes_reply->major_version < 4) {
+		wlr_log(WLR_ERROR, "X11 does not support required Xfixes version");
+		free(fixes_reply);
+		goto error_display;
+	}
+	free(fixes_reply);
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_input_id);
 	if (!ext || !ext->present) {
 		wlr_log(WLR_ERROR, "X11 does not support Xinput extension");
 		goto error_display;

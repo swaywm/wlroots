@@ -33,6 +33,8 @@ struct wlr_x11_output {
 
 	struct wl_event_source *frame_timer;
 	int frame_delay;
+
+	bool cursor_hidden;
 };
 
 struct wlr_x11_backend {
@@ -63,9 +65,6 @@ struct wlr_x11_backend {
 
 	// The time we last received an event
 	xcb_timestamp_t time;
-
-	// A blank cursor
-	xcb_cursor_t cursor;
 
 	uint8_t xinput_opcode;
 

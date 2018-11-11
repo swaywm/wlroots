@@ -168,7 +168,9 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			XCB_INPUT_XI_EVENT_MASK_KEY_RELEASE |
 			XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS |
 			XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE |
-			XCB_INPUT_XI_EVENT_MASK_MOTION,
+			XCB_INPUT_XI_EVENT_MASK_MOTION |
+			XCB_INPUT_XI_EVENT_MASK_ENTER |
+			XCB_INPUT_XI_EVENT_MASK_LEAVE,
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
@@ -189,10 +191,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
 			strlen(title), title);
 	}
-
-	uint32_t cursor_values[] = { x11->cursor };
-	xcb_change_window_attributes(x11->xcb, output->win, XCB_CW_CURSOR,
-		cursor_values);
 
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);

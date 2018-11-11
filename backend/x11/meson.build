@@ -3,6 +3,7 @@ x11_required = [
 	'x11-xcb',
 	'xcb',
 	'xcb-xinput',
+	'xcb-xfixes',
 ]
 
 foreach lib : x11_required
