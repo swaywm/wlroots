@@ -2,10 +2,12 @@
 #define BACKEND_WAYLAND_H
 
 #include <stdbool.h>
+
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+
 #include <wlr/backend/wayland.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/wlr_renderer.h>

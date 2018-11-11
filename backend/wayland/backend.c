@@ -1,16 +1,21 @@
 #include <assert.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include <wlr/config.h>
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <wayland-server.h>
+
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
+
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"

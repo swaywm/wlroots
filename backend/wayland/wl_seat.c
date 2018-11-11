@@ -1,16 +1,20 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #include <wayland-client.h>
+
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
+
 #include "backend/wayland.h"
 #include "util/signal.h"
 
