@@ -80,7 +80,6 @@ struct wlr_wl_pointer {
 
 struct wlr_wl_backend *get_wl_backend_from_backend(
 	struct wlr_backend *wlr_backend);
-void poll_wl_registry(struct wlr_wl_backend *backend);
 void update_wl_output_cursor(struct wlr_wl_output *output);
 struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer);
 void create_wl_pointer(struct wl_pointer *wl_pointer,

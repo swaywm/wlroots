@@ -23,7 +23,6 @@ backend_files = files(
 	'session/session.c',
 	'wayland/backend.c',
 	'wayland/output.c',
-	'wayland/registry.c',
 	'wayland/wl_seat.c',
 )
 
