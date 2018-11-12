@@ -6,11 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <wlr/config.h>
 
+#include <drm_fourcc.h>
 #include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
+#include <xcb/dri3.h>
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
@@ -20,7 +23,9 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 
@@ -139,6 +144,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_renderer_destroy(x11->renderer);
 	wlr_egl_finish(&x11->egl);
+	close(x11->render_fd);
+	wlr_format_set_release(&x11->formats);
 
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
@@ -152,10 +159,81 @@ static struct wlr_renderer *backend_get_renderer(
 	return x11->renderer;
 }
 
+static int backend_get_render_fd(struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	return x11->render_fd;
+}
+
+static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	xcb_pixmap_t pixmap = xcb_generate_id(x11->xcb);
+	xcb_void_cookie_t cookie;
+
+	if (x11->has_dri3_12) {
+		uint32_t width = gbm_bo_get_width(img->bo);
+		uint32_t height = gbm_bo_get_height(img->bo);
+		uint32_t bpp = gbm_bo_get_bpp(img->bo);
+		uint64_t mod = gbm_bo_get_modifier(img->bo);
+		int32_t fds[4] = { -1, -1, -1, -1 };
+		uint32_t strides[4] = { 0 };
+		uint32_t offsets[4] = { 0 };
+
+		int fd = gbm_bo_get_fd(img->bo);
+		int n = gbm_bo_get_plane_count(img->bo);
+		for (int i = 0; i < n; ++i) {
+			fds[i] = fd;
+			strides[i] = gbm_bo_get_stride_for_plane(img->bo, i);
+			offsets[i] = gbm_bo_get_offset(img->bo, i);
+		}
+
+		cookie = xcb_dri3_pixmap_from_buffers_checked(x11->xcb, pixmap,
+			x11->screen->root, n, width, height, strides[0], offsets[0],
+			strides[1], offsets[1], strides[2], offsets[2],
+			strides[3], offsets[3], 24, bpp, mod, fds);
+
+	} else {
+		if (gbm_bo_get_plane_count(img->bo) != 1) {
+			wlr_log(WLR_ERROR, "DRI 1.0 only supports single plane formats");
+			return false;
+		}
+
+		int32_t fd = gbm_bo_get_fd(img->bo);
+		uint32_t width = gbm_bo_get_width(img->bo);
+		uint32_t height = gbm_bo_get_height(img->bo);
+		uint32_t stride = gbm_bo_get_stride(img->bo);
+		uint32_t bpp = gbm_bo_get_bpp(img->bo);
+
+		cookie = xcb_dri3_pixmap_from_buffer_checked(x11->xcb, pixmap,
+			x11->screen->root, height * stride, width, height, stride,
+			24, bpp, fd);
+	}
+
+	xcb_generic_error_t *err = xcb_request_check(x11->xcb, cookie);
+	if (err) {
+		wlr_log(WLR_ERROR, "Failed to create X11 pixmap");
+		free(err);
+		return false;
+	}
+
+	img->base.backend_priv = (void *)(uintptr_t)pixmap;
+
+	return true;
+}
+
+static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	xcb_pixmap_t pixmap = (xcb_pixmap_t)(uintptr_t)img->base.backend_priv;
+
+	xcb_free_pixmap(x11->xcb, pixmap);
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_render_fd = backend_get_render_fd,
+	.attach_gbm = backend_attach_gbm,
+	.detach_gbm = backend_detach_gbm,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
@@ -223,6 +301,27 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	const xcb_query_extension_reply_t *ext;
+
+	// TODO: Make optional when shm support is added
+	ext = xcb_get_extension_data(x11->xcb, &xcb_dri3_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 server does not support DRI3 extension");
+		goto error_display;
+	}
+
+	xcb_dri3_query_version_cookie_t dri3_cookie =
+		xcb_dri3_query_version(x11->xcb, 1, 2);
+	xcb_dri3_query_version_reply_t *dri3_reply =
+		xcb_dri3_query_version_reply(x11->xcb, dri3_cookie, NULL);
+
+	if (!dri3_reply || dri3_reply->major_version < 1) {
+		wlr_log(WLR_ERROR, "X11 doesn't support required DRI3 version");
+		free(dri3_reply);
+		goto error_display;
+	}
+	x11->has_dri3_12 =
+		dri3_reply->major_version >= 1 && dri3_reply->minor_version >= 2;
+	free(dri3_reply);
 
 	ext = xcb_get_extension_data(x11->xcb, &xcb_xfixes_id);
 	if (!ext || !ext->present) {
@@ -294,6 +393,53 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
+	/*
+	 * Open render node with DRI3
+	 */
+
+	xcb_dri3_open_cookie_t open_cookie =
+		xcb_dri3_open(x11->xcb, x11->screen->root, 0);
+	xcb_dri3_open_reply_t *open_reply =
+		xcb_dri3_open_reply(x11->xcb, open_cookie, NULL);
+
+	if (!open_reply) {
+		wlr_log(WLR_ERROR, "Failed to get DRI3 device");
+		goto error_renderer;
+	}
+	x11->render_fd = *xcb_dri3_open_reply_fds(x11->xcb, open_reply);
+	free(open_reply);
+
+	/*
+	 * Get supported modifiers if any
+	 */
+
+	if (x11->has_dri3_12) {
+		xcb_dri3_get_supported_modifiers_cookie_t mod_cookie =
+			xcb_dri3_get_supported_modifiers(x11->xcb, x11->screen->root, 24, 32);
+		xcb_dri3_get_supported_modifiers_reply_t *mod_reply =
+			xcb_dri3_get_supported_modifiers_reply(x11->xcb, mod_cookie, NULL);
+
+		uint64_t *mods = xcb_dri3_get_supported_modifiers_screen_modifiers(
+			mod_reply);
+		int n = xcb_dri3_get_supported_modifiers_screen_modifiers_length(
+			mod_reply);
+
+		for (int i = 0; i < n; ++i) {
+			wlr_format_set_add(&x11->formats, DRM_FORMAT_XRGB8888,
+				mods[i]);
+		}
+
+		if (n == 0) {
+			wlr_format_set_add(&x11->formats, DRM_FORMAT_XRGB8888,
+				DRM_FORMAT_MOD_LINEAR);
+		}
+
+		free(mod_reply);
+	} else {
+		wlr_format_set_add(&x11->formats, DRM_FORMAT_XRGB8888,
+			DRM_FORMAT_MOD_LINEAR);
+	}
+
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
 		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
@@ -304,6 +450,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	return &x11->backend;
 
+error_renderer:
+	wlr_renderer_destroy(x11->renderer);
 error_event:
 	wl_event_source_remove(x11->event_source);
 error_display:

@@ -12,6 +12,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/wlr_renderer.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
@@ -54,6 +55,8 @@ struct wlr_x11_backend {
 
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
+	int render_fd;
+	struct wlr_format_set formats;
 	struct wl_event_source *event_source;
 
 	struct {
@@ -67,6 +70,7 @@ struct wlr_x11_backend {
 	xcb_timestamp_t time;
 
 	uint8_t xinput_opcode;
+	bool has_dri3_12;
 
 	struct wl_listener display_destroy;
 };
