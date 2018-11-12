@@ -83,18 +83,6 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
 
-void destroy_xdg_toplevel(struct wlr_xdg_surface *surface) {
-	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	unmap_xdg_surface(surface);
-
-	wl_resource_set_user_data(surface->toplevel->resource, NULL);
-	free(surface->toplevel);
-	surface->toplevel = NULL;
-
-	surface->role = WLR_XDG_SURFACE_ROLE_NONE;
-}
-
-
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
@@ -474,6 +462,12 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
 		// This space is intentionally left blank
 		break;
+	}
+
+	if (surface->surface->role == &xdg_toplevel_surface_role) {
+		free(surface->toplevel);
+	} else if (surface->surface->role == &xdg_popup_surface_role) {
+		free(surface->popup);
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
