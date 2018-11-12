@@ -6,11 +6,14 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <wayland-client.h>
+
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
+
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
