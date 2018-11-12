@@ -3,8 +3,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator/gbm.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 #include "util/signal.h"
@@ -93,12 +96,32 @@ static clockid_t multi_backend_get_presentation_clock(
 	return CLOCK_MONOTONIC;
 }
 
+static int multi_backend_get_render_fd(struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
+	return multi->render_fd;
+}
+
+static bool multi_backend_attach_gbm(struct wlr_backend *backend,
+		struct wlr_gbm_image *img) {
+	wlr_log(WLR_ERROR, "You must not call rendering functions on a multi backend");
+	abort();
+}
+
+static void multi_backend_detach_gbm(struct wlr_backend *backend,
+		struct wlr_gbm_image *img) {
+	wlr_log(WLR_ERROR, "You must not call rendering functions on a multi backend");
+	abort();
+}
+
 struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
 	.get_renderer = multi_backend_get_renderer,
 	.get_session = multi_backend_get_session,
 	.get_presentation_clock = multi_backend_get_presentation_clock,
+	.get_render_fd = multi_backend_get_render_fd,
+	.attach_gbm = multi_backend_attach_gbm,
+	.detach_gbm = multi_backend_detach_gbm,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -114,6 +137,8 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 		wlr_log(WLR_ERROR, "Backend allocation failed");
 		return NULL;
 	}
+
+	backend->render_fd = -1;
 
 	wl_list_init(&backend->backends);
 	wlr_backend_init(&backend->backend, &backend_impl);
@@ -167,6 +192,23 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	if (multi_backend_get_subbackend(multi, backend)) {
 		// already added
 		return true;
+	}
+
+	int render_fd = wlr_backend_get_render_fd(backend);
+	if (render_fd >= 0) {
+		struct stat st;
+		if (fstat(render_fd, &st) < 0) {
+			wlr_log_errno(WLR_ERROR, "Stat failed");
+			return false;
+		}
+
+		if (multi->render_fd < 0) {
+			multi->render_fd = render_fd;
+			multi->render_minor = minor(st.st_rdev);
+		} else if (minor(st.st_rdev) != multi->render_minor) {
+			wlr_log(WLR_ERROR, "Backend is not compatible");
+			return false;
+		}
 	}
 
 	struct wlr_renderer *multi_renderer =
