@@ -1,7 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <wlr/config.h>
 
@@ -12,12 +16,16 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+
+#include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
@@ -48,6 +56,31 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 
 	return 0;
 }
+
+static void dmabuf_handle_format(void *data, struct zwp_linux_dmabuf_v1 *dmabuf,
+		uint32_t format) {
+	struct wlr_wl_backend *wl = data;
+
+	if (!wlr_format_set_add(&wl->formats, format, DRM_FORMAT_MOD_INVALID)) {
+		wlr_log(WLR_ERROR, "Failed to add format %#"PRIx32, format);
+	}
+}
+
+static void dmabuf_handle_modifier(void *data, struct zwp_linux_dmabuf_v1 *dmabuf,
+		uint32_t format, uint32_t mod_high, uint32_t mod_low) {
+	struct wlr_wl_backend *wl = data;
+	uint64_t mod = ((uint64_t)mod_high << 32) | mod_low;
+
+	if (!wlr_format_set_add(&wl->formats, format, mod)) {
+		wlr_log(WLR_ERROR, "Failed to add format %#"PRIx32" (%#"PRIx64")",
+			format, mod);
+	}
+}
+
+static const struct zwp_linux_dmabuf_v1_listener dmabuf_listener = {
+	.format = dmabuf_handle_format,
+	.modifier = dmabuf_handle_modifier,
+};
 
 static void xdg_wm_base_handle_ping(void *data,
 		struct xdg_wm_base *base, uint32_t serial) {
@@ -81,6 +114,11 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
 		xdg_wm_base_add_listener(wl->xdg_wm_base, &xdg_wm_base_listener, NULL);
+
+	} else if (strcmp(iface, zwp_linux_dmabuf_v1_interface.name) == 0) {
+		wl->dmabuf = wl_registry_bind(registry, name,
+			&zwp_linux_dmabuf_v1_interface, 3);
+		zwp_linux_dmabuf_v1_add_listener(wl->dmabuf, &dmabuf_listener, wl);
 	}
 }
 
@@ -143,6 +181,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_renderer_destroy(wl->renderer);
 	wlr_egl_finish(&wl->egl);
+	wlr_format_set_release(&wl->formats);
+	close(wl->render_fd);
 
 	if (wl->pointer) {
 		wl_pointer_destroy(wl->pointer);
@@ -165,10 +205,52 @@ static struct wlr_renderer *backend_get_renderer(struct wlr_backend *backend) {
 	return wl->renderer;
 }
 
+static int backend_get_render_fd(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->render_fd;
+}
+
+static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	struct gbm_bo *bo = img->bo;
+
+	struct zwp_linux_buffer_params_v1 *params =
+		zwp_linux_dmabuf_v1_create_params(wl->dmabuf);
+
+	int fd = gbm_bo_get_fd(bo);
+	uint64_t mod = gbm_bo_get_modifier(bo);
+
+	int n = gbm_bo_get_plane_count(bo);
+	for (int i = 0; i < n; ++i) {
+		zwp_linux_buffer_params_v1_add(params, fd, i,
+			gbm_bo_get_offset(bo, i),
+			gbm_bo_get_stride_for_plane(bo, i),
+			mod >> 32, mod & 0xffffffff);
+	}
+
+	struct wl_buffer *buf = zwp_linux_buffer_params_v1_create_immed(params,
+		gbm_bo_get_width(bo), gbm_bo_get_height(bo),
+		gbm_bo_get_format(bo), 0);
+
+	zwp_linux_buffer_params_v1_destroy(params);
+
+	img->base.backend_priv = buf;
+
+	return true;
+}
+
+static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	wl_buffer_destroy(img->base.backend_priv);
+	img->base.backend_priv = NULL;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_render_fd = backend_get_render_fd,
+	.attach_gbm = backend_attach_gbm,
+	.detach_gbm = backend_detach_gbm,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -256,11 +338,22 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
+	/*
+	 * XXX: This is a hack until render fds are added to wp_linux_dmabuf
+	 */
+	wl->render_fd = open("/dev/dri/renderD128", O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (wl->render_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to open render node");
+		goto error_renderer;
+	}
+
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
 
 	return &wl->backend;
 
+error_renderer:
+	wlr_renderer_destroy(wl->renderer);
 error_event:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:
