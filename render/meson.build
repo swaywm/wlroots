@@ -12,6 +12,7 @@ lib_wlr_render = static_library(
 	files(
 		'dmabuf.c',
 		'egl.c',
+		'format_set.c',
 		'gles2/pixel_format.c',
 		'gles2/renderer.c',
 		'gles2/shaders.c',
