@@ -11,6 +11,7 @@ lib_wlr_render = static_library(
 	'wlr_render',
 	files(
 		'allocator.c',
+		'allocator/gbm.c',
 		'dmabuf.c',
 		'egl.c',
 		'gles2/pixel_format.c',

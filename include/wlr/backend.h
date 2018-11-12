@@ -11,6 +11,7 @@
 
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
 
 struct wlr_backend_impl;
@@ -66,5 +67,11 @@ struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend);
  * Returns the clock used by the backend for presentation feedback.
  */
 clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend);
+
+int wlr_backend_get_render_fd(struct wlr_backend *backend);
+
+bool wlr_backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img);
+
+void wlr_backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img);
 
 #endif

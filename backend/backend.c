@@ -15,6 +15,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/config.h>
+#include <wlr/render/allocator/gbm.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 
@@ -25,6 +26,12 @@
 void wlr_backend_init(struct wlr_backend *backend,
 		const struct wlr_backend_impl *impl) {
 	assert(backend);
+
+	// Support all of the GBM functions or none of them
+	assert(!impl ||
+		(impl->get_render_fd && impl->attach_gbm && impl->detach_gbm) ||
+		!(impl->get_render_fd || impl->attach_gbm || impl->detach_gbm));
+
 	backend->impl = impl;
 	wl_signal_init(&backend->events.destroy);
 	wl_signal_init(&backend->events.new_input);
@@ -69,6 +76,28 @@ clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend) {
 		return backend->impl->get_presentation_clock(backend);
 	}
 	return CLOCK_MONOTONIC;
+}
+
+int wlr_backend_get_render_fd(struct wlr_backend *backend) {
+	if (backend->impl->get_render_fd) {
+		return backend->impl->get_render_fd(backend);
+	}
+
+	return -1;
+}
+
+bool wlr_backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	if (backend->impl->attach_gbm) {
+		return backend->impl->attach_gbm(backend, img);
+	}
+
+	return false;
+}
+
+void wlr_backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	if (backend->impl->detach_gbm) {
+		backend->impl->detach_gbm(backend, img);
+	}
 }
 
 static size_t parse_outputs_env(const char *name) {

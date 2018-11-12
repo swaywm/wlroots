@@ -13,6 +13,7 @@
 #include <time.h>
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/allocator/gbm.h>
 
 struct wlr_backend_impl {
 	bool (*start)(struct wlr_backend *backend);
@@ -20,6 +21,9 @@ struct wlr_backend_impl {
 	struct wlr_renderer *(*get_renderer)(struct wlr_backend *backend);
 	struct wlr_session *(*get_session)(struct wlr_backend *backend);
 	clockid_t (*get_presentation_clock)(struct wlr_backend *backend);
+	int (*get_render_fd)(struct wlr_backend *backend);
+	bool (*attach_gbm)(struct wlr_backend *backend, struct wlr_gbm_image *img);
+	void (*detach_gbm)(struct wlr_backend *backend, struct wlr_gbm_image *img);
 };
 
 /**
