@@ -10,8 +10,12 @@
 
 #include <wlr/backend/wayland.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
+
+#include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;
@@ -23,6 +27,8 @@ struct wlr_wl_backend {
 	struct wl_list outputs;
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
+	int render_fd;
+	struct wlr_format_set formats;
 	size_t requested_outputs;
 	struct wl_listener local_display_destroy;
 	/* remote state */
@@ -31,6 +37,7 @@ struct wlr_wl_backend {
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
 	struct xdg_wm_base *xdg_wm_base;
+	struct zwp_linux_dmabuf_v1 *dmabuf;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
