@@ -2,8 +2,9 @@ x11_libs = []
 x11_required = [
 	'x11-xcb',
 	'xcb',
-	'xcb-xinput',
+	'xcb-dri3',
 	'xcb-xfixes',
+	'xcb-xinput',
 ]
 
 foreach lib : x11_required
@@ -24,10 +25,11 @@ lib_wlr_backend_x11 = static_library(
 	),
 	include_directories: wlr_inc,
 	dependencies: [
-		wayland_server,
+		drm,
 		pixman,
-		xkbcommon,
+		wayland_server,
 		x11_libs,
+		xkbcommon,
 	],
 )
 
