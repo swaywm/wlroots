@@ -23,7 +23,7 @@ foreach lib : xwayland_optional
 	dep = dependency(lib, required: get_option(lib))
 	if dep.found()
 		xwayland_libs += dep
-		conf_data.set('WLR_HAS_' + lib.underscorify().to_upper(), true)
+		conf_data.set10('WLR_HAS_' + lib.underscorify().to_upper(), true)
 	endif
 endforeach
 
@@ -48,4 +48,4 @@ lib_wlr_xwayland = static_library(
 )
 
 wlr_parts += lib_wlr_xwayland
-conf_data.set('WLR_HAS_XWAYLAND', true)
+conf_data.set10('WLR_HAS_XWAYLAND', true)

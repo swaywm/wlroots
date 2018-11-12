@@ -24,7 +24,7 @@
 
 enum { DRM_MAJOR = 226 };
 
-#ifdef WLR_HAS_LIBCAP
+#if WLR_HAS_LIBCAP
 #include <sys/capability.h>
 
 static bool have_permissions(void) {

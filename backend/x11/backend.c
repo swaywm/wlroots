@@ -17,7 +17,7 @@
 #include <wlr/util/log.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
-#ifdef WLR_HAS_XCB_XKB
+#if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
 #include "backend/x11.h"
@@ -148,7 +148,7 @@ static bool backend_start(struct wlr_backend *backend) {
 		0, 0);
 	xcb_free_pixmap(x11->xcb_conn, pix);
 
-#ifdef WLR_HAS_XCB_XKB
+#if WLR_HAS_XCB_XKB
 		const xcb_query_extension_reply_t *reply =
 			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
 		if (reply != NULL && reply->present) {

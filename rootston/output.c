@@ -86,7 +86,7 @@ static void view_for_each_surface(struct roots_view *view,
 		wlr_wl_shell_surface_for_each_surface(view->wl_shell_surface, iterator,
 			user_data);
 		break;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		wlr_surface_for_each_surface(view->wlr_surface, iterator, user_data);
 		break;
@@ -94,7 +94,7 @@ static void view_for_each_surface(struct roots_view *view,
 	}
 }
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 static void xwayland_children_for_each_surface(
 		struct wlr_xwayland_surface *surface,
 		wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
@@ -164,7 +164,7 @@ static void output_for_each_surface(struct roots_output *output,
 
 		view_for_each_surface(view, layout_data, iterator, user_data);
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
 			xwayland_children_for_each_surface(view->xwayland_surface,
 				iterator, layout_data, user_data);
@@ -400,7 +400,7 @@ static bool has_standalone_surface(struct roots_view *view) {
 		return wl_list_empty(&view->xdg_surface->popups);
 	case ROOTS_WL_SHELL_VIEW:
 		return wl_list_empty(&view->wl_shell_surface->popups);
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		return wl_list_empty(&view->xwayland_surface->children);
 #endif
@@ -530,7 +530,7 @@ static void render_output(struct roots_output *output) {
 		// During normal rendering the xwayland window tree isn't traversed
 		// because all windows are rendered. Here we only want to render
 		// the fullscreen window's children so we have to traverse the tree.
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
 			xwayland_children_for_each_surface(view->xwayland_surface,
 				render_surface, &data.layout, &data);
@@ -593,7 +593,7 @@ static bool view_accept_damage(struct roots_output *output,
 	if (output->fullscreen_view == view) {
 		return true;
 	}
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	if (output->fullscreen_view->type == ROOTS_XWAYLAND_VIEW &&
 			view->type == ROOTS_XWAYLAND_VIEW) {
 		// Special case: accept damage from children

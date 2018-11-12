@@ -16,17 +16,26 @@ project(
 # for a reference about clean library versioning.
 so_version = ['0', '0', '0']
 
-add_project_arguments('-Wno-unused-parameter', language: 'c')
 add_project_arguments(
-	'-DWLR_SRC_DIR="@0@"'.format(meson.current_source_dir()),
-	language: 'c',
-)
-add_project_arguments(
-	'-DWLR_USE_UNSTABLE',
+	[
+		'-DWLR_SRC_DIR="@0@"'.format(meson.current_source_dir()),
+		'-DWLR_USE_UNSTABLE',
+
+		'-Wno-unused-parameter',
+		'-Wundef',
+	],
 	language: 'c',
 )
 
 conf_data = configuration_data()
+conf_data.set10('WLR_HAS_LIBCAP', false)
+conf_data.set10('WLR_HAS_SYSTEMD', false)
+conf_data.set10('WLR_HAS_ELOGIND', false)
+conf_data.set10('WLR_HAS_X11_BACKEND', false)
+conf_data.set10('WLR_HAS_XWAYLAND', false)
+conf_data.set10('WLR_HAS_XCB_ERRORS', false)
+conf_data.set10('WLR_HAS_XCB_ICCCM', false)
+conf_data.set10('WLR_HAS_XCB_XKB', false)
 
 wlr_inc = include_directories('.', 'include')
 
@@ -63,12 +72,12 @@ wlr_parts = []
 wlr_deps = []
 
 if libcap.found()
-	conf_data.set('WLR_HAS_LIBCAP', true)
+	conf_data.set10('WLR_HAS_LIBCAP', true)
 	wlr_deps += libcap
 endif
 
 if logind.found()
-	conf_data.set('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
+	conf_data.set10('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
 	wlr_deps += logind
 endif
 

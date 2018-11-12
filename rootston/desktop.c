@@ -619,7 +619,7 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
 		_surface = wlr_surface_surface_at(view->wlr_surface,
 			view_sx, view_sy, &_sx, &_sy);
@@ -890,14 +890,14 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	desktop->tablet_v2 = wlr_tablet_v2_create(server->wl_display);
 
 	const char *cursor_theme = NULL;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	const char *cursor_default = ROOTS_XCURSOR_DEFAULT;
 #endif
 	struct roots_cursor_config *cc =
 		roots_config_get_cursor(config, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
 	if (cc != NULL) {
 		cursor_theme = cc->theme;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		if (cc->default_image != NULL) {
 			cursor_default = cc->default_image;
 		}
@@ -912,7 +912,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		setenv("XCURSOR_THEME", cursor_theme, 1);
 	}
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	desktop->xcursor_manager = wlr_xcursor_manager_create(cursor_theme,
 		ROOTS_XCURSOR_SIZE);
 	if (desktop->xcursor_manager == NULL) {

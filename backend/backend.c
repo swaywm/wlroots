@@ -17,8 +17,7 @@
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 
-/* WLR_HAS_X11_BACKEND needs to be after wlr/config.h */
-#ifdef WLR_HAS_X11_BACKEND
+#if WLR_HAS_X11_BACKEND
 #include <wlr/backend/x11.h>
 #endif
 
@@ -102,7 +101,7 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display,
 	return backend;
 }
 
-#ifdef WLR_HAS_X11_BACKEND
+#if WLR_HAS_X11_BACKEND
 static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		const char *x11_display, wlr_renderer_create_func_t create_renderer_func) {
 	struct wlr_backend *backend = wlr_x11_backend_create(display, x11_display, create_renderer_func);
@@ -165,7 +164,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		const char *name, wlr_renderer_create_func_t create_renderer_func) {
 	if (strcmp(name, "wayland") == 0) {
 		return attempt_wl_backend(display, create_renderer_func);
-#ifdef WLR_HAS_X11_BACKEND
+#if WLR_HAS_X11_BACKEND
 	} else if (strcmp(name, "x11") == 0) {
 		return attempt_x11_backend(display, NULL, create_renderer_func);
 #endif
@@ -248,7 +247,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		}
 	}
 
-#ifdef WLR_HAS_X11_BACKEND
+#if WLR_HAS_X11_BACKEND
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
 		struct wlr_backend *x11_backend =

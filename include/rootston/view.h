@@ -79,7 +79,7 @@ enum roots_view_type {
 	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
 	ROOTS_XDG_SHELL_VIEW,
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	ROOTS_XWAYLAND_VIEW,
 #endif
 };
@@ -117,7 +117,7 @@ struct roots_view {
 		struct wlr_wl_shell_surface *wl_shell_surface;
 		struct wlr_xdg_surface_v6 *xdg_surface_v6;
 		struct wlr_xdg_surface *xdg_surface;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		struct wlr_xwayland_surface *xwayland_surface;
 #endif
 	};
@@ -125,7 +125,7 @@ struct roots_view {
 		struct roots_wl_shell_surface *roots_wl_shell_surface;
 		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
 		struct roots_xdg_surface *roots_xdg_surface;
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		struct roots_xwayland_surface *roots_xwayland_surface;
 #endif
 	};

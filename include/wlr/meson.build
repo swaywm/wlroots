@@ -15,7 +15,7 @@ install_headers(
 	'xcursor.h',
 	subdir: 'wlr'
 )
-if conf_data.get('WLR_HAS_XWAYLAND', false)
+if conf_data.get('WLR_HAS_XWAYLAND', 0) == 1
 	install_headers('xwayland.h', subdir: 'wlr')
 endif
 
