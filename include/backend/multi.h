@@ -10,6 +10,9 @@ struct wlr_multi_backend {
 	struct wlr_backend backend;
 	struct wlr_session *session;
 
+	int render_fd;
+	unsigned render_minor;
+
 	struct wl_list backends;
 
 	struct wl_listener display_destroy;
