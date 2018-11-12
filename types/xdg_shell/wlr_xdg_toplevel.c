@@ -462,37 +462,59 @@ void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 		return;
 	}
 
-	xdg_surface->toplevel = calloc(1, sizeof(struct wlr_xdg_toplevel));
-	if (xdg_surface->toplevel == NULL) {
-		wl_resource_post_no_memory(xdg_surface->resource);
+	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_NONE) {
+		wl_resource_post_error(xdg_surface->resource,
+			XDG_SURFACE_ERROR_ALREADY_CONSTRUCTED,
+			"xdg-surface has already been constructed");
 		return;
 	}
-	wl_signal_init(&xdg_surface->toplevel->events.request_maximize);
-	wl_signal_init(&xdg_surface->toplevel->events.request_fullscreen);
-	wl_signal_init(&xdg_surface->toplevel->events.request_minimize);
-	wl_signal_init(&xdg_surface->toplevel->events.request_move);
-	wl_signal_init(&xdg_surface->toplevel->events.request_resize);
-	wl_signal_init(&xdg_surface->toplevel->events.request_show_window_menu);
-	wl_signal_init(&xdg_surface->toplevel->events.set_parent);
-	wl_signal_init(&xdg_surface->toplevel->events.set_title);
-	wl_signal_init(&xdg_surface->toplevel->events.set_app_id);
+
+	if (xdg_surface->toplevel == NULL) {
+		xdg_surface->toplevel = calloc(1, sizeof(struct wlr_xdg_toplevel));
+		if (xdg_surface->toplevel == NULL) {
+			wl_resource_post_no_memory(xdg_surface->resource);
+			return;
+		}
+		wl_signal_init(&xdg_surface->toplevel->events.request_maximize);
+		wl_signal_init(&xdg_surface->toplevel->events.request_fullscreen);
+		wl_signal_init(&xdg_surface->toplevel->events.request_minimize);
+		wl_signal_init(&xdg_surface->toplevel->events.request_move);
+		wl_signal_init(&xdg_surface->toplevel->events.request_resize);
+		wl_signal_init(&xdg_surface->toplevel->events.request_show_window_menu);
+		wl_signal_init(&xdg_surface->toplevel->events.set_parent);
+		wl_signal_init(&xdg_surface->toplevel->events.set_title);
+		wl_signal_init(&xdg_surface->toplevel->events.set_app_id);
+
+		xdg_surface->toplevel->base = xdg_surface;
+	}
 
 	xdg_surface->role = WLR_XDG_SURFACE_ROLE_TOPLEVEL;
-	xdg_surface->toplevel->base = xdg_surface;
 
-	struct wl_resource *toplevel_resource = wl_resource_create(
+	assert(xdg_surface->toplevel->resource == NULL);
+	xdg_surface->toplevel->resource = wl_resource_create(
 		xdg_surface->client->client, &xdg_toplevel_interface,
 		wl_resource_get_version(xdg_surface->resource), id);
-	if (toplevel_resource == NULL) {
+	if (xdg_surface->toplevel->resource == NULL) {
 		free(xdg_surface->toplevel);
 		wl_resource_post_no_memory(xdg_surface->resource);
 		return;
 	}
-	wl_resource_set_implementation(toplevel_resource,
+	wl_resource_set_implementation(xdg_surface->toplevel->resource,
 		&xdg_toplevel_implementation, xdg_surface,
 		xdg_toplevel_handle_resource_destroy);
+}
 
-	xdg_surface->toplevel->resource = toplevel_resource;
+void destroy_xdg_toplevel(struct wlr_xdg_surface *xdg_surface) {
+	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
+	unmap_xdg_surface(xdg_surface);
+
+	// Don't destroy the toplevel state yet, the compositor might have some
+	// listeners set up. Anyway the client can only re-create another
+	// xdg-toplevel with this xdg-surface because of role restrictions.
+	wl_resource_set_user_data(xdg_surface->toplevel->resource, NULL);
+	xdg_surface->toplevel->resource = NULL;
+
+	xdg_surface->role = WLR_XDG_SURFACE_ROLE_NONE;
 }
 
 uint32_t wlr_xdg_toplevel_set_size(struct wlr_xdg_surface *surface,

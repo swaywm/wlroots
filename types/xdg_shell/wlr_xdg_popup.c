@@ -234,10 +234,20 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 		return;
 	}
 
-	xdg_surface->popup = calloc(1, sizeof(struct wlr_xdg_popup));
-	if (!xdg_surface->popup) {
-		wl_resource_post_no_memory(xdg_surface->resource);
+	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_NONE) {
+		wl_resource_post_error(xdg_surface->resource,
+			XDG_SURFACE_ERROR_ALREADY_CONSTRUCTED,
+			"xdg-surface has already been constructed");
 		return;
+	}
+
+	if (xdg_surface->popup == NULL) {
+		xdg_surface->popup = calloc(1, sizeof(struct wlr_xdg_popup));
+		if (!xdg_surface->popup) {
+			wl_resource_post_no_memory(xdg_surface->resource);
+			return;
+		}
+		xdg_surface->popup->base = xdg_surface;
 	}
 
 	xdg_surface->popup->resource = wl_resource_create(
@@ -253,7 +263,6 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 		xdg_popup_handle_resource_destroy);
 
 	xdg_surface->role = WLR_XDG_SURFACE_ROLE_POPUP;
-	xdg_surface->popup->base = xdg_surface;
 
 	// positioner properties
 	memcpy(&xdg_surface->popup->positioner, &positioner->attrs,
@@ -265,19 +274,24 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 		xdg_surface->popup->parent = parent->surface;
 		wl_list_insert(&parent->popups, &xdg_surface->popup->link);
 		wlr_signal_emit_safe(&parent->events.new_popup, xdg_surface->popup);
+	} else {
+		wl_list_init(&xdg_surface->popup->link);
 	}
 }
 
-void destroy_xdg_popup(struct wlr_xdg_surface *surface) {
-	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
-	unmap_xdg_surface(surface);
+void destroy_xdg_popup(struct wlr_xdg_surface *xdg_surface) {
+	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+	unmap_xdg_surface(xdg_surface);
 
-	wl_resource_set_user_data(surface->popup->resource, NULL);
-	wl_list_remove(&surface->popup->link);
-	free(surface->popup);
-	surface->popup = NULL;
+	// Don't destroy the popup state yet, the compositor might have some
+	// listeners set up. Anyway the client can only re-create another xdg-popup
+	// with this xdg-surface because of role restrictions.
+	wl_resource_set_user_data(xdg_surface->popup->resource, NULL);
+	xdg_surface->toplevel->resource = NULL;
 
-	surface->role = WLR_XDG_SURFACE_ROLE_NONE;
+	wl_list_remove(&xdg_surface->popup->link);
+
+	xdg_surface->role = WLR_XDG_SURFACE_ROLE_NONE;
 }
 
 void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
