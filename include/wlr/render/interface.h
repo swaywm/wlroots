@@ -11,7 +11,7 @@
 
 #include <wlr/config.h>
 
-#if !(defined(WLR_HAS_X11_BACKEND) || defined(WLR_HAS_WAYLAND))
+#if !WLR_HAS_X11_BACKEND && !WLR_HAS_XWAYLAND
 #define MESA_EGL_NO_X11_HEADERS
 #endif
 

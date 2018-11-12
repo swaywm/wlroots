@@ -15,10 +15,10 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
-#ifdef WLR_HAS_SYSTEMD
+#if WLR_HAS_SYSTEMD
 	#include <systemd/sd-bus.h>
 	#include <systemd/sd-login.h>
-#elif defined(WLR_HAS_ELOGIND)
+#elif WLR_HAS_ELOGIND
 	#include <elogind/sd-bus.h>
 	#include <elogind/sd-login.h>
 #endif

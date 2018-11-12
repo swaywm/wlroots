@@ -20,7 +20,7 @@ foreach lib : x11_optional
 	dep = dependency(lib, required: get_option(lib))
 	if dep.found()
 		x11_libs += dep
-		conf_data.set('WLR_HAS_' + lib.underscorify().to_upper(), true)
+		conf_data.set10('WLR_HAS_' + lib.underscorify().to_upper(), true)
 	endif
 endforeach
 
@@ -41,4 +41,4 @@ lib_wlr_backend_x11 = static_library(
 )
 
 backend_parts += lib_wlr_backend_x11
-conf_data.set('WLR_HAS_X11_BACKEND', true)
+conf_data.set10('WLR_HAS_X11_BACKEND', true)

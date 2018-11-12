@@ -10,7 +10,7 @@
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
-#ifdef WLR_HAS_XCB_XKB
+#if WLR_HAS_XCB_XKB
 #include <xcb/xkb.h>
 #endif
 #include "backend/x11.h"
@@ -124,7 +124,7 @@ void handle_x11_input_event(struct wlr_x11_backend *x11,
 		return;
 	}
 	default:
-#ifdef WLR_HAS_XCB_XKB
+#if WLR_HAS_XCB_XKB
 		if (x11->xkb_supported && event->response_type == x11->xkb_base_event) {
 			xcb_xkb_state_notify_event_t *ev =
 				(xcb_xkb_state_notify_event_t *)event;

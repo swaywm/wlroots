@@ -9,7 +9,7 @@ install_headers(
 	subdir: 'wlr/backend',
 )
 
-if conf_data.get('WLR_HAS_X11_BACKEND', false)
+if conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1
 	install_headers('x11.h', subdir: 'wlr/backend')
 endif
 

@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	if (server.desktop->xwayland != NULL) {
 		struct roots_seat *xwayland_seat =
 			input_get_seat(server.input, ROOTS_CONFIG_DEFAULT_SEAT_NAME);
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 	}
 
 	wl_display_run(server.wl_display);
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	wlr_xwayland_destroy(server.desktop->xwayland);
 #endif
 	wl_display_destroy_clients(server.wl_display);

@@ -19,7 +19,7 @@ extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 
 static const struct session_impl *impls[] = {
-#if defined(WLR_HAS_SYSTEMD) || defined(WLR_HAS_ELOGIND)
+#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 	&session_logind,
 #endif
 	&session_direct,
@@ -70,7 +70,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	const char *env_wlr_session = getenv("WLR_SESSION");
 	if (env_wlr_session) {
 		if (!strcmp(env_wlr_session, "logind") || !strcmp(env_wlr_session, "systemd")) {
-		#if defined(WLR_HAS_SYSTEMD) || defined(WLR_HAS_ELOGIND)
+		#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 			session = session_logind.create(disp);
 		#else
 			wlr_log(WLR_ERROR, "wlroots is not compiled with logind support");

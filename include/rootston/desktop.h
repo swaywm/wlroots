@@ -76,7 +76,7 @@ struct roots_desktop {
 	struct wl_listener virtual_keyboard_new;
 	struct wl_listener pointer_constraint;
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
 	struct wl_listener xwayland_surface;
 #endif

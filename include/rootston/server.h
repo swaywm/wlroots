@@ -7,7 +7,7 @@
 #include <wlr/config.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_data_device.h>
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
 #include "rootston/config.h"

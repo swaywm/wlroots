@@ -1131,7 +1131,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 	bool unfullscreen = true;
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
 			view->xwayland_surface->override_redirect) {
 		unfullscreen = false;
@@ -1160,7 +1160,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 		return;
 	}
 
-#ifdef WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 	if (view && view->type == ROOTS_XWAYLAND_VIEW &&
 			!wlr_xwayland_or_surface_wants_focus(
 				view->xwayland_surface)) {

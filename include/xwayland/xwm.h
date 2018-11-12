@@ -5,10 +5,10 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-#ifdef WLR_HAS_XCB_ICCCM
+#if WLR_HAS_XCB_ICCCM
 #include <xcb/xcb_icccm.h>
 #endif
-#ifdef WLR_HAS_XCB_ERRORS
+#if WLR_HAS_XCB_ERRORS
 #include <xcb/xcb_errors.h>
 #endif
 #include "xwayland/selection.h"
@@ -122,7 +122,7 @@ struct wlr_xwm {
 	struct wlr_xwayland_surface *drag_focus;
 
 	const xcb_query_extension_reply_t *xfixes;
-#ifdef WLR_HAS_XCB_ERRORS
+#if WLR_HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif
 
