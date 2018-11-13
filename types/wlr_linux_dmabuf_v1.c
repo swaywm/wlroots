@@ -2,17 +2,17 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <unistd.h>
-#include <wayland-server-core.h>
-#include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
 #include "render/drm_format_set.h"
 #include "util/signal.h"
+#include "util/shm.h"
 
-#define LINUX_DMABUF_VERSION 3
+#define LINUX_DMABUF_VERSION 4
 
 struct wlr_linux_buffer_params_v1 {
 	struct wl_resource *resource;
@@ -20,6 +20,32 @@ struct wlr_linux_buffer_params_v1 {
 	struct wlr_dmabuf_attributes attributes;
 	bool has_modifier;
 };
+
+struct wlr_linux_dmabuf_feedback_v1_compiled_tranche {
+	dev_t target_device;
+	uint32_t flags; // bitfield of enum zwp_linux_dmabuf_feedback_v1_tranche_flags
+	struct wl_array indices; // uint16_t
+};
+
+struct wlr_linux_dmabuf_feedback_v1_compiled {
+	dev_t main_device;
+	int table_fd;
+	size_t table_size;
+
+	size_t tranches_len;
+	struct wlr_linux_dmabuf_feedback_v1_compiled_tranche tranches[];
+};
+
+struct wlr_linux_dmabuf_feedback_v1_table_entry {
+	uint32_t format;
+	uint32_t pad; // unused
+	uint64_t modifier;
+};
+
+// TODO: switch back to static_assert once this fix propagates in stable trees:
+// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=255290
+_Static_assert(sizeof(struct wlr_linux_dmabuf_feedback_v1_table_entry) == 16,
+	"Expected wlr_linux_dmabuf_feedback_v1_table_entry to be tightly packed");
 
 static void buffer_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -415,6 +441,228 @@ static void linux_dmabuf_create_params(struct wl_client *client,
 		&buffer_params_impl, params, params_handle_resource_destroy);
 }
 
+static void linux_dmabuf_feedback_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static const struct zwp_linux_dmabuf_feedback_v1_interface
+		linux_dmabuf_feedback_impl = {
+	.destroy = linux_dmabuf_feedback_destroy,
+};
+
+static struct wlr_linux_dmabuf_feedback_v1_compiled *feedback_compile(
+		const struct wlr_linux_dmabuf_feedback_v1 *feedback) {
+	assert(feedback->tranches_len > 0);
+
+	// Require the last tranche to be the fallback tranche and contain all
+	// formats/modifiers
+	const struct wlr_linux_dmabuf_feedback_v1_tranche *fallback_tranche =
+		&feedback->tranches[feedback->tranches_len - 1];
+
+	size_t table_len = 0;
+	for (size_t i = 0; i < fallback_tranche->formats->len; i++) {
+		const struct wlr_drm_format *fmt = fallback_tranche->formats->formats[i];
+		table_len += 1 + fmt->len;
+	}
+	assert(table_len > 0);
+
+	size_t table_size =
+		table_len * sizeof(struct wlr_linux_dmabuf_feedback_v1_table_entry);
+	int rw_fd, ro_fd;
+	if (!allocate_shm_file_pair(table_size, &rw_fd, &ro_fd)) {
+		wlr_log(WLR_ERROR, "Failed to allocate shm file for format table");
+		return NULL;
+	}
+
+	struct wlr_linux_dmabuf_feedback_v1_table_entry *table =
+		mmap(NULL, table_size, PROT_READ | PROT_WRITE, MAP_SHARED, rw_fd, 0);
+	if (table == MAP_FAILED) {
+		wlr_log_errno(WLR_ERROR, "mmap failed");
+		close(rw_fd);
+		close(ro_fd);
+		return NULL;
+	}
+
+	close(rw_fd);
+
+	size_t n = 0;
+	for (size_t i = 0; i < fallback_tranche->formats->len; i++) {
+		const struct wlr_drm_format *fmt = fallback_tranche->formats->formats[i];
+
+		table[n] = (struct wlr_linux_dmabuf_feedback_v1_table_entry){
+			.format = fmt->format,
+			.modifier = DRM_FORMAT_MOD_INVALID,
+		};
+		n++;
+
+		for (size_t k = 0; k < fmt->len; k++) {
+			table[n] = (struct wlr_linux_dmabuf_feedback_v1_table_entry){
+				.format = fmt->format,
+				.modifier = fmt->modifiers[k],
+			};
+			n++;
+		}
+	}
+	assert(n == table_len);
+
+	munmap(table, table_size);
+
+	struct wlr_linux_dmabuf_feedback_v1_compiled *compiled = calloc(1,
+		sizeof(struct wlr_linux_dmabuf_feedback_v1_compiled) +
+		feedback->tranches_len * sizeof(struct wlr_linux_dmabuf_feedback_v1_compiled_tranche));
+	if (compiled == NULL) {
+		close(ro_fd);
+		return NULL;
+	}
+
+	compiled->main_device = feedback->main_device;
+	compiled->tranches_len = feedback->tranches_len;
+	compiled->table_fd = ro_fd;
+	compiled->table_size = table_size;
+
+	// Build the indices lists for all but the last (fallback) tranches
+	for (size_t i = 0; i < feedback->tranches_len - 1; i++) {
+		assert(false); // TODO: unimplemented
+	}
+
+	struct wlr_linux_dmabuf_feedback_v1_compiled_tranche *fallback_compiled_tranche =
+		&compiled->tranches[compiled->tranches_len - 1];
+	fallback_compiled_tranche->target_device = fallback_tranche->target_device;
+	fallback_compiled_tranche->flags = fallback_tranche->flags;
+
+	// Build the indices list for the last (fallback) tranche
+	wl_array_init(&fallback_compiled_tranche->indices);
+	if (!wl_array_add(&fallback_compiled_tranche->indices,
+			table_len * sizeof(uint16_t))) {
+		wlr_log(WLR_ERROR, "Failed to allocate fallback tranche indices array");
+		goto error_compiled;
+	}
+
+	n = 0;
+	uint16_t *index_ptr;
+	wl_array_for_each(index_ptr, &fallback_compiled_tranche->indices) {
+		*index_ptr = n;
+		n++;
+	}
+
+	return compiled;
+
+error_compiled:
+	close(compiled->table_fd);
+	free(compiled);
+	return NULL;
+}
+
+static void compiled_feedback_destroy(
+		struct wlr_linux_dmabuf_feedback_v1_compiled *feedback) {
+	for (size_t i = 0; i < feedback->tranches_len; i++) {
+		wl_array_release(&feedback->tranches[i].indices);
+	}
+	close(feedback->table_fd);
+	free(feedback);
+}
+
+static bool feedback_tranche_init_with_renderer(
+		struct wlr_linux_dmabuf_feedback_v1_tranche *tranche,
+		struct wlr_renderer *renderer) {
+	memset(tranche, 0, sizeof(*tranche));
+
+	int drm_fd = wlr_renderer_get_drm_fd(renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from renderer");
+		return false;
+	}
+
+	struct stat stat;
+	if (fstat(drm_fd, &stat) != 0) {
+		wlr_log_errno(WLR_ERROR, "fstat failed");
+		return false;
+	}
+	tranche->target_device = stat.st_rdev;
+
+	tranche->formats = wlr_renderer_get_dmabuf_texture_formats(renderer);
+	if (tranche->formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get renderer DMA-BUF texture formats");
+		return false;
+	}
+
+	return true;
+}
+
+static struct wlr_linux_dmabuf_feedback_v1_compiled *compile_default_feedback(
+		struct wlr_renderer *renderer) {
+	struct wlr_linux_dmabuf_feedback_v1_tranche tranche = {0};
+	if (!feedback_tranche_init_with_renderer(&tranche, renderer)) {
+		return NULL;
+	}
+
+	const struct wlr_linux_dmabuf_feedback_v1 feedback = {
+		.main_device = tranche.target_device,
+		.tranches = &tranche,
+		.tranches_len = 1,
+	};
+
+	return feedback_compile(&feedback);
+}
+
+static void feedback_tranche_send(
+		const struct wlr_linux_dmabuf_feedback_v1_compiled_tranche *tranche,
+		struct wl_resource *resource) {
+	struct wl_array dev_array = {
+		.size = sizeof(tranche->target_device),
+		.data = (void *)&tranche->target_device,
+	};
+	zwp_linux_dmabuf_feedback_v1_send_tranche_target_device(resource, &dev_array);
+	zwp_linux_dmabuf_feedback_v1_send_tranche_flags(resource, tranche->flags);
+	zwp_linux_dmabuf_feedback_v1_send_tranche_formats(resource,
+		(struct wl_array *)&tranche->indices);
+	zwp_linux_dmabuf_feedback_v1_send_tranche_done(resource);
+}
+
+static void feedback_send(const struct wlr_linux_dmabuf_feedback_v1_compiled *feedback,
+		struct wl_resource *resource) {
+	struct wl_array dev_array = {
+		.size = sizeof(feedback->main_device),
+		.data = (void *)&feedback->main_device,
+	};
+	zwp_linux_dmabuf_feedback_v1_send_main_device(resource, &dev_array);
+
+	zwp_linux_dmabuf_feedback_v1_send_format_table(resource,
+		feedback->table_fd, feedback->table_size);
+
+	for (size_t i = 0; i < feedback->tranches_len; i++) {
+		feedback_tranche_send(&feedback->tranches[i], resource);
+	}
+
+	zwp_linux_dmabuf_feedback_v1_send_done(resource);
+}
+
+static void linux_dmabuf_get_default_feedback(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id) {
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
+		linux_dmabuf_from_resource(resource);
+
+	uint32_t version = wl_resource_get_version(resource);
+	struct wl_resource *feedback_resource = wl_resource_create(client,
+		&zwp_linux_dmabuf_feedback_v1_interface, version, id);
+	if (feedback_resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(feedback_resource, &linux_dmabuf_feedback_impl,
+		NULL, NULL);
+
+	feedback_send(linux_dmabuf->default_feedback, feedback_resource);
+}
+
+static void linux_dmabuf_get_surface_feedback(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id,
+		struct wl_resource *surface_resource) {
+	// TODO: implement per-surface feedback
+	linux_dmabuf_get_default_feedback(client, resource, id);
+}
+
 static void linux_dmabuf_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -423,6 +671,8 @@ static void linux_dmabuf_destroy(struct wl_client *client,
 static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl = {
 	.destroy = linux_dmabuf_destroy,
 	.create_params = linux_dmabuf_create_params,
+	.get_default_feedback = linux_dmabuf_get_default_feedback,
+	.get_surface_feedback = linux_dmabuf_get_surface_feedback,
 };
 
 static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
@@ -477,11 +727,16 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
 		linux_dmabuf, NULL);
-	linux_dmabuf_send_formats(linux_dmabuf, resource);
+
+	if (version < ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION) {
+		linux_dmabuf_send_formats(linux_dmabuf, resource);
+	}
 }
 
 static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 	wlr_signal_emit_safe(&linux_dmabuf->events.destroy, linux_dmabuf);
+
+	compiled_feedback_destroy(linux_dmabuf->default_feedback);
 
 	wl_list_remove(&linux_dmabuf->display_destroy.link);
 	wl_list_remove(&linux_dmabuf->renderer_destroy.link);
@@ -519,6 +774,14 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 			LINUX_DMABUF_VERSION, linux_dmabuf, linux_dmabuf_bind);
 	if (!linux_dmabuf->global) {
 		wlr_log(WLR_ERROR, "could not create linux dmabuf v1 wl global");
+		free(linux_dmabuf);
+		return NULL;
+	}
+
+	linux_dmabuf->default_feedback = compile_default_feedback(renderer);
+	if (linux_dmabuf->default_feedback == NULL) {
+		wlr_log(WLR_ERROR, "Failed to init default linux-dmabuf feedback");
+		wl_global_destroy(linux_dmabuf->global);
 		free(linux_dmabuf);
 		return NULL;
 	}
