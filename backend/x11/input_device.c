@@ -1,139 +1,200 @@
 #include <stdlib.h>
+
 #include <wlr/config.h>
-#include <wlr/interfaces/wlr_input_device.h>
-#include <wlr/interfaces/wlr_keyboard.h>
-#include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/util/log.h>
-#include <xcb/xcb.h>
+
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
-#if WLR_HAS_XCB_XKB
-#include <xcb/xkb.h>
-#endif
+
+#include <xcb/xcb.h>
+#include <xcb/xfixes.h>
+#include <xcb/xinput.h>
+
+#include <wlr/interfaces/wlr_input_device.h>
+#include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/util/log.h>
+
 #include "backend/x11.h"
 #include "util/signal.h"
 
-static uint32_t xcb_button_to_wl(uint32_t button) {
-	switch (button) {
-	case XCB_BUTTON_INDEX_1: return BTN_LEFT;
-	case XCB_BUTTON_INDEX_2: return BTN_MIDDLE;
-	case XCB_BUTTON_INDEX_3: return BTN_RIGHT;
-	// XXX: I'm not sure the scroll-wheel direction is right
-	case XCB_BUTTON_INDEX_4: return BTN_GEAR_UP;
-	case XCB_BUTTON_INDEX_5: return BTN_GEAR_DOWN;
-	default: return 0;
-	}
+static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
+		enum wlr_key_state st, xcb_timestamp_t time) {
+	struct wlr_event_keyboard_key ev = {
+		.time_msec = time,
+		.keycode = key,
+		.state = st,
+		.update_state = true,
+	};
+	wlr_keyboard_notify_key(&x11->keyboard, &ev);
 }
 
-static void x11_handle_pointer_position(struct wlr_x11_output *output,
-		int16_t x, int16_t y, xcb_timestamp_t time) {
-	struct wlr_x11_backend *x11 = output->x11;
-	struct wlr_output *wlr_output = &output->wlr_output;
-	struct wlr_event_pointer_motion_absolute event = {
+static void send_button_event(struct wlr_x11_output *output, uint32_t key,
+		enum wlr_button_state st, xcb_timestamp_t time) {
+	struct wlr_event_pointer_button ev = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
-		.x = (double)x / wlr_output->width,
-		.y = (double)y / wlr_output->height,
+		.button = key,
+		.state = st,
 	};
-	wlr_signal_emit_safe(&output->pointer.events.motion_absolute, &event);
-
-	x11->time = time;
+	wlr_signal_emit_safe(&output->pointer.events.button, &ev);
 }
 
-void handle_x11_input_event(struct wlr_x11_backend *x11,
-		xcb_generic_event_t *event) {
-	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
-	case XCB_KEY_PRESS:
-	case XCB_KEY_RELEASE: {
-		xcb_key_press_event_t *ev = (xcb_key_press_event_t *)event;
-		struct wlr_event_keyboard_key key = {
-			.time_msec = ev->time,
-			.keycode = ev->detail - 8,
-			.state = event->response_type == XCB_KEY_PRESS ?
-				WLR_KEY_PRESSED : WLR_KEY_RELEASED,
-			.update_state = true,
-		};
+static void send_axis_event(struct wlr_x11_output *output, int32_t delta,
+		xcb_timestamp_t time) {
+	struct wlr_event_pointer_axis ev = {
+		.device = &output->pointer_dev,
+		.time_msec = time,
+		.source = WLR_AXIS_SOURCE_WHEEL,
+		.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
+		// 15 is a typical value libinput sends for one scroll
+		.delta = delta * 15,
+		.delta_discrete = delta,
+	};
+	wlr_signal_emit_safe(&output->pointer.events.axis, &ev);
+}
 
-		// TODO use xcb-xkb for more precise modifiers state?
-		wlr_keyboard_notify_key(&x11->keyboard, &key);
+static void send_pointer_position_event(struct wlr_x11_output *output,
+		int16_t x, int16_t y, xcb_timestamp_t time) {
+	struct wlr_event_pointer_motion_absolute ev = {
+		.device = &output->pointer_dev,
+		.time_msec = time,
+		.x = (double)x / output->wlr_output.width,
+		.y = (double)y / output->wlr_output.height,
+	};
+	wlr_signal_emit_safe(&output->pointer.events.motion_absolute, &ev);
+}
+
+void handle_x11_xinput_event(struct wlr_x11_backend *x11,
+		xcb_ge_generic_event_t *event) {
+	struct wlr_x11_output *output;
+
+	switch (event->event_type) {
+	case XCB_INPUT_KEY_PRESS: {
+		xcb_input_key_press_event_t *ev =
+			(xcb_input_key_press_event_t *)event;
+
+		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
+			ev->mods.latched, ev->mods.locked, ev->mods.effective);
+		send_key_event(x11, ev->detail - 8, WLR_KEY_PRESSED, ev->time);
 		x11->time = ev->time;
-		return;
+		break;
 	}
-	case XCB_BUTTON_PRESS: {
-		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
+	case XCB_INPUT_KEY_RELEASE: {
+		xcb_input_key_release_event_t *ev =
+			(xcb_input_key_release_event_t *)event;
 
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, ev->event);
-		if (output == NULL) {
-			break;
-		}
-
-		if (ev->detail == XCB_BUTTON_INDEX_4 ||
-				ev->detail == XCB_BUTTON_INDEX_5) {
-			int32_t delta_discrete = ev->detail == XCB_BUTTON_INDEX_4 ? -1 : 1;
-			struct wlr_event_pointer_axis axis = {
-				.device = &output->pointer_dev,
-				.time_msec = ev->time,
-				.source = WLR_AXIS_SOURCE_WHEEL,
-				.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
-				// 15 is a typical value libinput sends for one scroll
-				.delta = delta_discrete * 15,
-				.delta_discrete = delta_discrete,
-			};
-			wlr_signal_emit_safe(&output->pointer.events.axis, &axis);
-			x11->time = ev->time;
-			break;
-		}
-	}
-	/* fallthrough */
-	case XCB_BUTTON_RELEASE: {
-		xcb_button_press_event_t *ev = (xcb_button_press_event_t *)event;
-
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, ev->event);
-		if (output == NULL) {
-			break;
-		}
-
-		if (ev->detail != XCB_BUTTON_INDEX_4 &&
-				ev->detail != XCB_BUTTON_INDEX_5) {
-			struct wlr_event_pointer_button button = {
-				.device = &output->pointer_dev,
-				.time_msec = ev->time,
-				.button = xcb_button_to_wl(ev->detail),
-				.state = event->response_type == XCB_BUTTON_PRESS ?
-					WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED,
-			};
-
-			wlr_signal_emit_safe(&output->pointer.events.button, &button);
-		}
+		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
+			ev->mods.latched, ev->mods.locked, ev->mods.effective);
+		send_key_event(x11, ev->detail - 8, WLR_KEY_RELEASED, ev->time);
 		x11->time = ev->time;
-		return;
+		break;
 	}
-	case XCB_MOTION_NOTIFY: {
-		xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)event;
+	case XCB_INPUT_BUTTON_PRESS: {
+		xcb_input_button_press_event_t *ev =
+			(xcb_input_button_press_event_t *)event;
 
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, ev->event);
-		if (output != NULL) {
-			x11_handle_pointer_position(output, ev->event_x, ev->event_y, ev->time);
-		}
-		return;
-	}
-	default:
-#if WLR_HAS_XCB_XKB
-		if (x11->xkb_supported && event->response_type == x11->xkb_base_event) {
-			xcb_xkb_state_notify_event_t *ev =
-				(xcb_xkb_state_notify_event_t *)event;
-			wlr_keyboard_notify_modifiers(&x11->keyboard, ev->baseMods,
-				ev->latchedMods, ev->lockedMods, ev->lockedGroup);
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
 			return;
 		}
-#endif
+
+		switch (ev->detail) {
+		case XCB_BUTTON_INDEX_1:
+			send_button_event(output, BTN_LEFT, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_2:
+			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_3:
+			send_button_event(output, BTN_RIGHT, WLR_BUTTON_PRESSED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_4:
+			send_axis_event(output, -1, ev->time);
+			break;
+		case XCB_BUTTON_INDEX_5:
+			send_axis_event(output, 1, ev->time);
+			break;
+		}
+
+		x11->time = ev->time;
 		break;
+	}
+	case XCB_INPUT_BUTTON_RELEASE: {
+		xcb_input_button_release_event_t *ev =
+			(xcb_input_button_release_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		switch (ev->detail) {
+		case XCB_BUTTON_INDEX_1:
+			send_button_event(output, BTN_LEFT, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_2:
+			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		case XCB_BUTTON_INDEX_3:
+			send_button_event(output, BTN_RIGHT, WLR_BUTTON_RELEASED,
+				ev->time);
+			break;
+		}
+
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_MOTION: {
+		xcb_input_motion_event_t *ev = (xcb_input_motion_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		send_pointer_position_event(output, ev->event_x >> 16,
+			ev->event_y >> 16, ev->time);
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_ENTER: {
+		xcb_input_enter_event_t *ev = (xcb_input_enter_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		if (!output->cursor_hidden) {
+			xcb_xfixes_hide_cursor(x11->xcb, output->win);
+			xcb_flush(x11->xcb);
+			output->cursor_hidden = true;
+		}
+		break;
+	}
+	case XCB_INPUT_LEAVE: {
+		xcb_input_leave_event_t *ev = (xcb_input_leave_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		if (output->cursor_hidden) {
+			xcb_xfixes_show_cursor(x11->xcb, output->win);
+			xcb_flush(x11->xcb);
+			output->cursor_hidden = false;
+		}
+		break;
+	}
 	}
 }
 
@@ -166,14 +227,14 @@ void update_x11_pointer_position(struct wlr_x11_output *output,
 	struct wlr_x11_backend *x11 = output->x11;
 
 	xcb_query_pointer_cookie_t cookie =
-		xcb_query_pointer(x11->xcb_conn, output->win);
+		xcb_query_pointer(x11->xcb, output->win);
 	xcb_query_pointer_reply_t *reply =
-		xcb_query_pointer_reply(x11->xcb_conn, cookie, NULL);
+		xcb_query_pointer_reply(x11->xcb, cookie, NULL);
 	if (!reply) {
 		return;
 	}
 
-	x11_handle_pointer_position(output, reply->win_x, reply->win_y, time);
+	send_pointer_position_event(output, reply->win_x, reply->win_y, time);
 
 	free(reply);
 }

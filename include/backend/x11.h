@@ -2,14 +2,17 @@
 #define BACKEND_X11_H
 
 #include <stdbool.h>
+
+#include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
-#include <wlr/config.h>
+#include <xcb/xcb.h>
+
 #include <wlr/backend/x11.h>
+#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
+#include <wlr/render/wlr_renderer.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
@@ -30,6 +33,8 @@ struct wlr_x11_output {
 
 	struct wl_event_source *frame_timer;
 	int frame_delay;
+
+	bool cursor_hidden;
 };
 
 struct wlr_x11_backend {
@@ -38,7 +43,7 @@ struct wlr_x11_backend {
 	bool started;
 
 	Display *xlib_conn;
-	xcb_connection_t *xcb_conn;
+	xcb_connection_t *xcb;
 	xcb_screen_t *screen;
 
 	size_t requested_outputs;
@@ -61,14 +66,7 @@ struct wlr_x11_backend {
 	// The time we last received an event
 	xcb_timestamp_t time;
 
-	// A blank cursor
-	xcb_cursor_t cursor;
-
-#if WLR_HAS_XCB_XKB
-	bool xkb_supported;
-	uint8_t xkb_base_event;
-	uint8_t xkb_base_error;
-#endif
+	uint8_t xinput_opcode;
 
 	struct wl_listener display_destroy;
 };
@@ -82,8 +80,8 @@ extern const struct wlr_keyboard_impl keyboard_impl;
 extern const struct wlr_pointer_impl pointer_impl;
 extern const struct wlr_input_device_impl input_device_impl;
 
-void handle_x11_input_event(struct wlr_x11_backend *x11,
-	xcb_generic_event_t *event);
+void handle_x11_xinput_event(struct wlr_x11_backend *x11,
+		xcb_ge_generic_event_t *event);
 void update_x11_pointer_position(struct wlr_x11_output *output,
 	xcb_timestamp_t time);
 

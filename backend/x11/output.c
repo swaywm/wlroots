@@ -1,10 +1,16 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <xcb/xcb.h>
+#include <xcb/xinput.h>
+
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
+
 #include "backend/x11.h"
 #include "util/signal.h"
 
@@ -16,8 +22,8 @@ static int signal_frame(void *data) {
 }
 
 static void parse_xcb_setup(struct wlr_output *output,
-		xcb_connection_t *xcb_conn) {
-	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb_conn);
+		xcb_connection_t *xcb) {
+	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb);
 
 	snprintf(output->make, sizeof(output->make), "%.*s",
 			xcb_setup_vendor_length(xcb_setup),
@@ -55,11 +61,11 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 
 	const uint32_t values[] = { width, height };
 	xcb_void_cookie_t cookie = xcb_configure_window_checked(
-		x11->xcb_conn, output->win,
+		x11->xcb, output->win,
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
 
 	xcb_generic_error_t *error;
-	if ((error = xcb_request_check(x11->xcb_conn, cookie))) {
+	if ((error = xcb_request_check(x11->xcb, cookie))) {
 		wlr_log(WLR_ERROR, "Could not set window size to %dx%d\n",
 			width, height);
 		free(error);
@@ -84,8 +90,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
 	wlr_egl_destroy_surface(&x11->egl, output->surf);
-	xcb_destroy_window(x11->xcb_conn, output->win);
-	xcb_flush(x11->xcb_conn);
+	xcb_destroy_window(x11->xcb, output->win);
+	xcb_flush(x11->xcb);
 	free(output);
 }
 
@@ -142,20 +148,31 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%d",
 		wl_list_length(&x11->outputs) + 1);
-	parse_xcb_setup(wlr_output, x11->xcb_conn);
+	parse_xcb_setup(wlr_output, x11->xcb);
 
 	uint32_t mask = XCB_CW_EVENT_MASK;
 	uint32_t values[] = {
-		XCB_EVENT_MASK_EXPOSURE |
-		XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
-		XCB_EVENT_MASK_POINTER_MOTION |
-		XCB_EVENT_MASK_STRUCTURE_NOTIFY
+		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
 	};
-	output->win = xcb_generate_id(x11->xcb_conn);
-	xcb_create_window(x11->xcb_conn, XCB_COPY_FROM_PARENT, output->win,
+	output->win = xcb_generate_id(x11->xcb);
+	xcb_create_window(x11->xcb, XCB_COPY_FROM_PARENT, output->win,
 		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
+
+	struct {
+		xcb_input_event_mask_t head;
+		xcb_input_xi_event_mask_t mask;
+	} xinput_mask = {
+		.head = { .deviceid = XCB_INPUT_DEVICE_ALL_MASTER, .mask_len = 1 },
+		.mask = XCB_INPUT_XI_EVENT_MASK_KEY_PRESS |
+			XCB_INPUT_XI_EVENT_MASK_KEY_RELEASE |
+			XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS |
+			XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE |
+			XCB_INPUT_XI_EVENT_MASK_MOTION |
+			XCB_INPUT_XI_EVENT_MASK_ENTER |
+			XCB_INPUT_XI_EVENT_MASK_LEAVE,
+	};
+	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
@@ -164,23 +181,19 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 
-	xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
+	xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
 		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
 		&x11->atoms.wm_delete_window);
 
 	char title[32];
 	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
-		xcb_change_property(x11->xcb_conn, XCB_PROP_MODE_REPLACE, output->win,
+		xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
 			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
 			strlen(title), title);
 	}
 
-	uint32_t cursor_values[] = { x11->cursor };
-	xcb_change_window_attributes(x11->xcb_conn, output->win, XCB_CW_CURSOR,
-		cursor_values);
-
-	xcb_map_window(x11->xcb_conn, output->win);
-	xcb_flush(x11->xcb_conn);
+	xcb_map_window(x11->xcb, output->win);
+	xcb_flush(x11->xcb);
 
 	struct wl_event_loop *ev = wl_display_get_event_loop(x11->wl_display);
 	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);

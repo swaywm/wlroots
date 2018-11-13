@@ -1,10 +1,9 @@
 x11_libs = []
 x11_required = [
-	'xcb',
 	'x11-xcb',
-]
-x11_optional = [
-	'xcb-xkb',
+	'xcb',
+	'xcb-xinput',
+	'xcb-xfixes',
 ]
 
 foreach lib : x11_required
@@ -14,14 +13,6 @@ foreach lib : x11_required
 	endif
 
 	x11_libs += dep
-endforeach
-
-foreach lib : x11_optional
-	dep = dependency(lib, required: get_option(lib))
-	if dep.found()
-		x11_libs += dep
-		conf_data.set10('WLR_HAS_' + lib.underscorify().to_upper(), true)
-	endif
 endforeach
 
 lib_wlr_backend_x11 = static_library(

@@ -1,25 +1,29 @@
 #define _POSIX_C_SOURCE 200112L
+
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
+#include <wlr/config.h>
+
+#include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
+#include <xcb/xcb.h>
+#include <xcb/xfixes.h>
+#include <xcb/xinput.h>
+
 #include <wlr/backend/interface.h>
 #include <wlr/backend/x11.h>
-#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
-#if WLR_HAS_XCB_XKB
-#include <xcb/xkb.h>
-#endif
+
 #include "backend/x11.h"
 #include "util/signal.h"
 
@@ -36,8 +40,6 @@ struct wlr_x11_output *get_x11_output_from_window_id(
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
-	handle_x11_input_event(x11, event);
-
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 	case XCB_EXPOSE: {
 		xcb_expose_event_t *ev = (xcb_expose_event_t *)event;
@@ -69,6 +71,12 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		}
 		break;
 	}
+	case XCB_GE_GENERIC: {
+		xcb_ge_generic_event_t *ev = (xcb_ge_generic_event_t *)event;
+		if (ev->extension == x11->xinput_opcode) {
+			handle_x11_xinput_event(x11, ev);
+		}
+	}
 	}
 }
 
@@ -81,7 +89,7 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 	}
 
 	xcb_generic_event_t *e;
-	while ((e = xcb_poll_for_event(x11->xcb_conn))) {
+	while ((e = xcb_poll_for_event(x11->xcb))) {
 		handle_x11_event(x11, e);
 		free(e);
 	}
@@ -98,83 +106,6 @@ struct wlr_x11_backend *get_x11_backend_from_backend(
 static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
-
-	struct {
-		const char *name;
-		xcb_intern_atom_cookie_t cookie;
-		xcb_atom_t *atom;
-	} atom[] = {
-		{
-			.name = "WM_PROTOCOLS",
-			.atom = &x11->atoms.wm_protocols,
-		},
-		{
-			.name = "WM_DELETE_WINDOW",
-			.atom = &x11->atoms.wm_delete_window,
-		},
-		{
-			.name = "_NET_WM_NAME",
-			.atom = &x11->atoms.net_wm_name,
-		},
-		{
-			.name = "UTF8_STRING",
-			.atom = &x11->atoms.utf8_string,
-		},
-	};
-
-	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
-		atom[i].cookie = xcb_intern_atom(x11->xcb_conn,
-			true, strlen(atom[i].name), atom[i].name);
-	}
-
-	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
-		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
-			x11->xcb_conn, atom[i].cookie, NULL);
-
-		if (reply) {
-			*atom[i].atom = reply->atom;
-			free(reply);
-		} else {
-			*atom[i].atom = XCB_ATOM_NONE;
-		}
-	}
-
-	// create a blank cursor
-	xcb_pixmap_t pix = xcb_generate_id(x11->xcb_conn);
-	xcb_create_pixmap(x11->xcb_conn, 1, pix, x11->screen->root, 1, 1);
-
-	x11->cursor = xcb_generate_id(x11->xcb_conn);
-	xcb_create_cursor(x11->xcb_conn, x11->cursor, pix, pix, 0, 0, 0, 0, 0, 0,
-		0, 0);
-	xcb_free_pixmap(x11->xcb_conn, pix);
-
-#if WLR_HAS_XCB_XKB
-		const xcb_query_extension_reply_t *reply =
-			xcb_get_extension_data(x11->xcb_conn, &xcb_xkb_id);
-		if (reply != NULL && reply->present) {
-			x11->xkb_base_event = reply->first_event;
-			x11->xkb_base_error = reply->first_error;
-
-			xcb_xkb_use_extension_cookie_t cookie = xcb_xkb_use_extension(
-				x11->xcb_conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
-			xcb_xkb_use_extension_reply_t *reply =
-				xcb_xkb_use_extension_reply(x11->xcb_conn, cookie, NULL);
-			if (reply != NULL && reply->supported) {
-				x11->xkb_supported = true;
-
-				xcb_xkb_select_events(x11->xcb_conn,
-					XCB_XKB_ID_USE_CORE_KBD,
-					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-					0,
-					XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-					0,
-					0,
-					0);
-
-				free(reply);
-			}
-		}
-#endif
 
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 
@@ -209,9 +140,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_renderer_destroy(x11->renderer);
 	wlr_egl_finish(&x11->egl);
 
-	if (x11->cursor) {
-		xcb_free_cursor(x11->xcb_conn, x11->cursor);
-	}
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
 	}
@@ -258,15 +186,82 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_x11;
 	}
 
-	x11->xcb_conn = XGetXCBConnection(x11->xlib_conn);
-	if (!x11->xcb_conn || xcb_connection_has_error(x11->xcb_conn)) {
+	x11->xcb = XGetXCBConnection(x11->xlib_conn);
+	if (!x11->xcb || xcb_connection_has_error(x11->xcb)) {
 		wlr_log(WLR_ERROR, "Failed to open xcb connection");
 		goto error_display;
 	}
 
 	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
 
-	int fd = xcb_get_file_descriptor(x11->xcb_conn);
+	struct {
+		const char *name;
+		xcb_intern_atom_cookie_t cookie;
+		xcb_atom_t *atom;
+	} atom[] = {
+		{ .name = "WM_PROTOCOLS", .atom = &x11->atoms.wm_protocols },
+		{ .name = "WM_DELETE_WINDOW", .atom = &x11->atoms.wm_delete_window },
+		{ .name = "_NET_WM_NAME", .atom = &x11->atoms.net_wm_name },
+		{ .name = "UTF8_STRING", .atom = &x11->atoms.utf8_string },
+	};
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		atom[i].cookie = xcb_intern_atom(x11->xcb,
+			true, strlen(atom[i].name), atom[i].name);
+	}
+
+	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
+		xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+			x11->xcb, atom[i].cookie, NULL);
+
+		if (reply) {
+			*atom[i].atom = reply->atom;
+			free(reply);
+		} else {
+			*atom[i].atom = XCB_ATOM_NONE;
+		}
+	}
+
+	const xcb_query_extension_reply_t *ext;
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_xfixes_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 does not support Xfixes extension");
+		goto error_display;
+	}
+
+	xcb_xfixes_query_version_cookie_t fixes_cookie =
+		xcb_xfixes_query_version(x11->xcb, 4, 0);
+	xcb_xfixes_query_version_reply_t *fixes_reply =
+		xcb_xfixes_query_version_reply(x11->xcb, fixes_cookie, NULL);
+
+	if (!fixes_reply || fixes_reply->major_version < 4) {
+		wlr_log(WLR_ERROR, "X11 does not support required Xfixes version");
+		free(fixes_reply);
+		goto error_display;
+	}
+	free(fixes_reply);
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_input_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 does not support Xinput extension");
+		goto error_display;
+	}
+	x11->xinput_opcode = ext->major_opcode;
+
+	xcb_input_xi_query_version_cookie_t xi_cookie =
+		xcb_input_xi_query_version(x11->xcb, 2, 0);
+	xcb_input_xi_query_version_reply_t *xi_reply =
+		xcb_input_xi_query_version_reply(x11->xcb, xi_cookie, NULL);
+
+	if (!xi_reply || xi_reply->major_version < 2) {
+		wlr_log(WLR_ERROR, "X11 does not support required Xinput version");
+		free(xi_reply);
+		goto error_display;
+	}
+	free(xi_reply);
+
+	int fd = xcb_get_file_descriptor(x11->xcb);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
 	uint32_t events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
@@ -276,7 +271,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(x11->event_source);
 
-	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb_conn)).data;
+	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb)).data;
 
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;

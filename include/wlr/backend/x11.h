@@ -2,7 +2,9 @@
 #define WLR_BACKEND_X11_H
 
 #include <stdbool.h>
+
 #include <wayland-server.h>
+
 #include <wlr/backend.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_output.h>
