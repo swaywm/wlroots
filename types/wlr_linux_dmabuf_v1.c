@@ -3,7 +3,7 @@
 #include <drm_fourcc.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wayland-server-core.h>
+#include <sys/stat.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
@@ -11,7 +11,7 @@
 #include "linux-dmabuf-unstable-v1-protocol.h"
 #include "util/signal.h"
 
-#define LINUX_DMABUF_VERSION 3
+#define LINUX_DMABUF_VERSION 4
 
 static void buffer_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -400,6 +400,96 @@ static void linux_dmabuf_create_params(struct wl_client *client,
 		&buffer_params_impl, params, params_handle_resource_destroy);
 }
 
+static void linux_dmabuf_hints_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static const struct zwp_linux_dmabuf_hints_v1_interface
+		linux_dmabuf_hints_impl = {
+	.destroy = linux_dmabuf_hints_destroy,
+};
+
+static void linux_dmabuf_get_default_hints(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id) {
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
+		linux_dmabuf_from_resource(resource);
+
+	uint32_t version = wl_resource_get_version(resource);
+	struct wl_resource *hints_resource = wl_resource_create(client,
+		&zwp_linux_dmabuf_hints_v1_interface, version, id);
+	if (hints_resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(hints_resource, &linux_dmabuf_hints_impl,
+		NULL, NULL);
+
+	int drm_fd = wlr_renderer_get_drm_fd(linux_dmabuf->renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from renderer");
+		return;
+	}
+
+	struct stat stat;
+	if (fstat(drm_fd, &stat) != 0) {
+		wlr_log_errno(WLR_ERROR, "fstat failed");
+		return;
+	}
+
+	struct wl_array dev_array = {
+		.size = sizeof(stat.st_rdev),
+		.data = &stat.st_rdev,
+	};
+
+	zwp_linux_dmabuf_hints_v1_send_main_device(hints_resource, &dev_array);
+
+	zwp_linux_dmabuf_hints_v1_send_tranche_target_device(hints_resource,
+		&dev_array);
+
+	zwp_linux_dmabuf_hints_v1_send_tranche_flags(hints_resource, 0);
+
+	const struct wlr_drm_format_set *formats =
+		wlr_renderer_get_dmabuf_texture_formats(linux_dmabuf->renderer);
+	if (formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get renderer DMA-BUF texture formats");
+		return;
+	}
+
+	for (size_t i = 0; i < formats->len; i++) {
+		struct wlr_drm_format *fmt = formats->formats[i];
+
+		size_t modifiers_len = fmt->len;
+		const uint64_t *modifiers = fmt->modifiers;
+
+		uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
+		if (modifiers_len == 0) {
+			// Send DRM_FORMAT_MOD_INVALID token when no modifiers are supported
+			// for this format
+			modifiers_len = 1;
+			modifiers = &modifier_invalid;
+		}
+
+		for (size_t j = 0; j < modifiers_len; j++) {
+			uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
+			uint32_t modifier_hi = modifiers[j] >> 32;
+			zwp_linux_dmabuf_hints_v1_send_tranche_modifier(hints_resource,
+				fmt->format, modifier_hi, modifier_lo);
+		}
+	}
+
+	zwp_linux_dmabuf_hints_v1_send_tranche_done(hints_resource);
+
+	zwp_linux_dmabuf_hints_v1_send_done(hints_resource);
+}
+
+static void linux_dmabuf_get_surface_hints(struct wl_client *client,
+		struct wl_resource *resource, uint32_t id,
+		struct wl_resource *surface_resource) {
+	// TODO: implement per-surface hints
+	linux_dmabuf_get_default_hints(client, resource, id);
+}
+
 static void linux_dmabuf_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -408,6 +498,8 @@ static void linux_dmabuf_destroy(struct wl_client *client,
 static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl = {
 	.destroy = linux_dmabuf_destroy,
 	.create_params = linux_dmabuf_create_params,
+	.get_default_hints = linux_dmabuf_get_default_hints,
+	.get_surface_hints = linux_dmabuf_get_surface_hints,
 };
 
 static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
