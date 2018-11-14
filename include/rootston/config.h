@@ -3,6 +3,7 @@
 
 #include <xf86drmMode.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_switch.h>
 #include <wlr/types/wlr_output_layout.h>
 
 #define ROOTS_CONFIG_DEFAULT_SEAT_NAME "seat0"
@@ -65,6 +66,14 @@ struct roots_cursor_config {
 	struct wl_list link;
 };
 
+struct roots_switch_config {
+	enum wlr_switch_type switch_type;
+	enum wlr_switch_state switch_state;
+	bool run_on_toggle;
+	char *command;
+	struct wl_list link;
+};
+
 struct roots_config {
 	bool xwayland;
 	bool xwayland_lazy;
@@ -74,6 +83,7 @@ struct roots_config {
 	struct wl_list bindings;
 	struct wl_list keyboards;
 	struct wl_list cursors;
+	struct wl_list switches;
 
 	char *config_path;
 	char *startup_cmd;

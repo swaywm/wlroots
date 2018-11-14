@@ -6,6 +6,7 @@
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/interfaces/wlr_switch.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "util/signal.h"
@@ -76,6 +77,13 @@ struct wlr_input_device *wlr_headless_add_input_device(
 		}
 		wlr_tablet_pad_init(wlr_device->tablet_pad, NULL);
 		break;
+	case WLR_INPUT_DEVICE_SWITCH:
+		wlr_device->lid_switch = calloc(1, sizeof(struct wlr_switch));
+		if (wlr_device->lid_switch == NULL) {
+			wlr_log(WLR_ERROR, "Unable to allocate wlr_switch");
+			goto error;
+		}
+		wlr_switch_init(wlr_device->lid_switch, NULL);
 	}
 
 	wl_list_insert(&backend->input_devices, &wlr_device->link);

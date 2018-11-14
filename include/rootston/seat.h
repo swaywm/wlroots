@@ -32,6 +32,7 @@ struct roots_seat {
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
+	struct wl_list switches;
 	struct wl_list touch;
 	struct wl_list tablets;
 	struct wl_list tablet_pads;
@@ -71,6 +72,15 @@ struct roots_pointer {
 	struct roots_seat *seat;
 	struct wlr_input_device *device;
 	struct wl_listener device_destroy;
+	struct wl_list link;
+};
+
+struct roots_switch {
+	struct roots_seat *seat;
+	struct wlr_input_device *device;
+	struct wl_listener device_destroy;
+
+	struct wl_listener toggle;
 	struct wl_list link;
 };
 

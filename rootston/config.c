@@ -201,6 +201,11 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
+void add_switch_config(struct wl_list *switches, const char *switch_name,
+		const char* command) {
+	wlr_log(WLR_DEBUG, "config switch %s: %s", switch_name, command);
+}
+
 static void config_handle_cursor(struct roots_config *config,
 		const char *seat_name, const char *name, const char *value) {
 	struct roots_cursor_config *cc;
@@ -436,6 +441,8 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		config_handle_keyboard(config, device_name, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
 		add_binding_config(&config->bindings, name, value);
+	} else if (strcmp(section, "switches") == 0) {
+		add_switch_config(&config->bindings, name, value);
 	} else {
 		wlr_log(WLR_ERROR, "got unknown config section: %s", section);
 	}
@@ -456,6 +463,7 @@ struct roots_config *roots_config_create_from_args(int argc, char *argv[]) {
 	wl_list_init(&config->keyboards);
 	wl_list_init(&config->cursors);
 	wl_list_init(&config->bindings);
+	wl_list_init(&config->switches);
 
 	int c;
 	unsigned int log_verbosity = WLR_DEBUG;

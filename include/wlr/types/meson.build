@@ -32,6 +32,7 @@ install_headers(
 	'wlr_seat.h',
 	'wlr_server_decoration.h',
 	'wlr_surface.h',
+	'wlr_switch.h',
 	'wlr_tablet_pad.h',
 	'wlr_tablet_tool.h',
 	'wlr_tablet_v2.h',
