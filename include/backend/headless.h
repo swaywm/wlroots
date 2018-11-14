@@ -14,6 +14,7 @@ struct wlr_headless_backend {
 	struct wl_list outputs;
 	struct wl_list input_devices;
 	struct wl_listener display_destroy;
+	int render_fd;
 	bool started;
 };
 
