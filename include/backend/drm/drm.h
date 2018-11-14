@@ -71,6 +71,8 @@ struct wlr_drm_backend {
 	clockid_t clock;
 
 	int fd;
+	int render_fd;
+	bool has_modifiers;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
