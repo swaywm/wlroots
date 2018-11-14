@@ -1,17 +1,27 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <drm_fourcc.h>
+#include <gbm.h>
 #include <wayland-server.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
-#include <xf86drm.h>
+
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
@@ -51,6 +61,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	finish_drm_renderer(&drm->renderer);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
+	close(drm->render_fd);
 	free(drm);
 }
 
@@ -70,11 +81,68 @@ static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 	return drm->clock;
 }
 
+static int backend_get_render_fd(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	return drm->render_fd;
+}
+
+static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	struct gbm_bo *bo = img->bo;
+
+	uint32_t width = gbm_bo_get_width(bo);
+	uint32_t height = gbm_bo_get_height(bo);
+	uint32_t format = gbm_bo_get_format(bo);
+	uint64_t mod = gbm_bo_get_modifier(bo);
+	uint32_t handles[4] = { 0 };
+	uint32_t strides[4] = { 0 };
+	uint32_t offsets[4] = { 0 };
+	uint64_t mods[4] = { 0 };
+	int num_planes = gbm_bo_get_plane_count(bo);
+
+	for (int i = 0; i < num_planes; ++i) {
+		handles[i] = gbm_bo_get_handle_for_plane(bo, i).u32;
+		strides[i] = gbm_bo_get_stride_for_plane(bo, i);
+		offsets[i] = gbm_bo_get_offset(bo, i);
+		mods[i] = mod;
+	}
+
+	uint32_t fb_id;
+	int ret;
+
+	if (!drm->has_modifiers || mod == DRM_FORMAT_MOD_INVALID) {
+		ret = drmModeAddFB2(drm->fd, width, height, format, handles,
+			strides, offsets, &fb_id, 0);
+	} else {
+		ret = drmModeAddFB2WithModifiers(drm->fd, width, height, format,
+			handles, strides, offsets, mods, &fb_id, DRM_MODE_FB_MODIFIERS);
+	}
+
+	if (ret) {
+		wlr_log_errno(WLR_ERROR, "Failed to add DRM framebuffer");
+		return false;
+	}
+
+	img->base.backend_priv = (void *)(uintptr_t)fb_id;
+	return true;
+}
+
+static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	uint32_t fb_id = (uint32_t)(uintptr_t)img->base.backend_priv;
+
+	drmModeRmFB(drm->fd, fb_id);
+	img->base.backend_priv = NULL;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
+	.get_render_fd = backend_get_render_fd,
+	.attach_gbm = backend_attach_gbm,
+	.detach_gbm = backend_detach_gbm,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
@@ -168,6 +236,22 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		drm->parent = get_drm_backend_from_backend(parent);
 	}
 
+	char *render_name = drmGetRenderDeviceNameFromFd(gpu_fd);
+	if (!render_name) {
+		wlr_log_errno(WLR_ERROR, "Failed to get render device name");
+		goto error_fd;
+	}
+
+	drm->render_fd = open(render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (drm->render_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to open render node %s", render_name);
+	}
+	free(render_name);
+
+	uint64_t val;
+	drm->has_modifiers =
+		drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &val) == 0 && val;
+
 	drm->drm_invalidated.notify = drm_invalidated;
 	wlr_session_signal_add(session, gpu_fd, &drm->drm_invalidated);
 
@@ -178,7 +262,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		WL_EVENT_READABLE, handle_drm_event, NULL);
 	if (!drm->drm_event) {
 		wlr_log(WLR_ERROR, "Failed to create DRM event source");
-		goto error_fd;
+		goto error_render;
 	}
 
 	drm->session_signal.notify = session_signal;
@@ -205,6 +289,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 error_event:
 	wl_list_remove(&drm->session_signal.link);
 	wl_event_source_remove(drm->drm_event);
+error_render:
+	close(drm->render_fd);
 error_fd:
 	wlr_session_close_file(drm->session, drm->fd);
 	free(drm);
