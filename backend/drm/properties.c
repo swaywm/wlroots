@@ -40,17 +40,18 @@ static const struct prop_info crtc_info[] = {
 
 static const struct prop_info plane_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_plane_props, name) / sizeof(uint32_t))
-	{ "CRTC_H",  INDEX(crtc_h) },
-	{ "CRTC_ID", INDEX(crtc_id) },
-	{ "CRTC_W",  INDEX(crtc_w) },
-	{ "CRTC_X",  INDEX(crtc_x) },
-	{ "CRTC_Y",  INDEX(crtc_y) },
-	{ "FB_ID",   INDEX(fb_id) },
-	{ "SRC_H",   INDEX(src_h) },
-	{ "SRC_W",   INDEX(src_w) },
-	{ "SRC_X",   INDEX(src_x) },
-	{ "SRC_Y",   INDEX(src_y) },
-	{ "type",    INDEX(type) },
+	{ "CRTC_H",     INDEX(crtc_h) },
+	{ "CRTC_ID",    INDEX(crtc_id) },
+	{ "CRTC_W",     INDEX(crtc_w) },
+	{ "CRTC_X",     INDEX(crtc_x) },
+	{ "CRTC_Y",     INDEX(crtc_y) },
+	{ "FB_ID",      INDEX(fb_id) },
+	{ "IN_FORMATS", INDEX(in_formats) },
+	{ "SRC_H",      INDEX(src_h) },
+	{ "SRC_W",      INDEX(src_w) },
+	{ "SRC_X",      INDEX(src_x) },
+	{ "SRC_Y",      INDEX(src_y) },
+	{ "type",       INDEX(type) },
 #undef INDEX
 };
 
