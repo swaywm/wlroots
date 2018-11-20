@@ -907,6 +907,9 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	free(cursor);
 }
 
+const struct wlr_format_set *wlr_output_get_formats(struct wlr_output *output) {
+	return output->impl->get_formats(output);
+}
 
 enum wl_output_transform wlr_output_transform_invert(
 		enum wl_output_transform tr) {
