@@ -84,12 +84,20 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	free(output);
 }
 
+static const struct wlr_format_set *output_get_formats(struct wlr_output *wlr_output) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+
+	return &output->backend->formats;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
+	.get_formats = output_get_formats,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {

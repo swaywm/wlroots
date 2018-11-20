@@ -216,6 +216,12 @@ static bool output_schedule_frame(struct wlr_output *wlr_output) {
 	return true;
 }
 
+static const struct wlr_format_set *output_get_formats(struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+
+	return &output->backend->formats;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
@@ -225,6 +231,7 @@ static const struct wlr_output_impl output_impl = {
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
 	.schedule_frame = output_schedule_frame,
+	.get_formats = output_get_formats,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {

@@ -855,6 +855,16 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 	return true;
 }
 
+static const struct wlr_format_set *drm_connector_get_formats(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+
+	if (!conn->crtc || !conn->crtc->primary) {
+		return NULL;
+	}
+
+	return &conn->crtc->primary->formats;
+}
+
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
@@ -877,6 +887,7 @@ static const struct wlr_output_impl output_impl = {
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
 	.schedule_frame = drm_connector_schedule_frame,
+	.get_formats = drm_connector_get_formats,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

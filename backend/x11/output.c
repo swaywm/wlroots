@@ -116,12 +116,19 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 	return true;
 }
 
+static const struct wlr_format_set *output_get_formats(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+
+	return &output->x11->formats;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
+	.get_formats = output_get_formats,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
