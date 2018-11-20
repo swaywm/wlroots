@@ -1,27 +1,32 @@
 #define _POSIX_C_SOURCE 200112L
+
 #include <assert.h>
-#include <drm_mode.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <errno.h>
-#include <gbm.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include <gbm.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <drm_mode.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
+
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
@@ -67,6 +72,40 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
 	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
 
+	return true;
+}
+
+static bool parse_in_formats(int fd, struct wlr_drm_plane *plane)
+{
+	size_t blob_len;
+	struct drm_format_modifier_blob *blob = get_drm_prop_blob(fd, plane->id,
+		plane->props.in_formats, &blob_len);
+
+	if (!blob) {
+		return false;
+	}
+
+	uint32_t *fmts = (uint32_t *)((char *)blob + blob->formats_offset);
+
+	struct drm_format_modifier *mods =
+		(struct drm_format_modifier *)((char *)blob + blob->modifiers_offset);
+
+	for (uint32_t i = 0; i < blob->count_modifiers; ++i) {
+		size_t index = mods[i].offset;
+		uint64_t mask = mods[i].formats;
+
+		for (; mask; index++, mask >>= 1) {
+			if (!(mask & 1)) {
+				continue;
+			}
+
+			wlr_format_set_add(&plane->formats, fmts[i], mods[i].modifier);
+			wlr_log(WLR_DEBUG, "Plane format: %.4s %#llx",
+				(char *)&fmts[i], mods[i].modifier);
+		}
+	}
+
+	free(blob);
 	return true;
 }
 
@@ -119,6 +158,20 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 
 		p->type = type;
 		drm->num_type_planes[type]++;
+
+		bool ret = false;
+		if (p->props.in_formats) {
+			ret = parse_in_formats(drm->fd, p);
+		}
+
+		if (!ret) {
+			for (uint32_t j = 0; j < plane->count_formats; ++j) {
+				wlr_format_set_add(&p->formats, plane->formats[j],
+					DRM_FORMAT_MOD_INVALID);
+				wlr_log(WLR_DEBUG, "Plane format: %.4s",
+					(char *)&plane->formats[j]);
+			}
+		}
 
 		drmModeFreePlane(plane);
 	}
@@ -211,6 +264,7 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 		if (plane->cursor_bo) {
 			gbm_bo_destroy(plane->cursor_bo);
 		}
+		wlr_format_set_release(&plane->formats);
 	}
 
 	free(drm->crtcs);

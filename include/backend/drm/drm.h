@@ -1,18 +1,23 @@
 #ifndef BACKEND_DRM_DRM_H
 #define BACKEND_DRM_DRM_H
 
-#include <EGL/egl.h>
-#include <gbm.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+
+#include <gbm.h>
+#include <EGL/egl.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/egl.h>
-#include <xf86drmMode.h>
+#include <wlr/render/format_set.h>
+
 #include "iface.h"
 #include "properties.h"
 #include "renderer.h"
@@ -20,6 +25,8 @@
 struct wlr_drm_plane {
 	uint32_t type;
 	uint32_t id;
+
+	struct wlr_format_set formats;
 
 	uint32_t possible_crtcs;
 
