@@ -5,10 +5,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <drm_fourcc.h>
+
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 
@@ -66,6 +69,9 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
+
+	close(backend->render_fd);
+	wlr_format_set_release(&backend->formats);
 
 	wlr_renderer_destroy(backend->renderer);
 	wlr_egl_finish(&backend->egl);
@@ -128,6 +134,12 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		wlr_log_errno(WLR_ERROR, "Failed to open render node");
 		goto error_backend;
 	}
+
+	/*
+	 * TODO: Add a way to get the formats actually supported.
+	 */
+	wlr_format_set_add(&backend->formats, DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_INVALID);
+	wlr_format_set_add(&backend->formats, DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_INVALID);
 
 	static const EGLint config_attribs[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
