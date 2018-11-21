@@ -12,6 +12,8 @@
 #include <stdbool.h>
 
 #include <wlr/backend.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/dmabuf.h>
 #include <wlr/render/format_set.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
@@ -37,6 +39,7 @@ struct wlr_output_impl {
 		struct wlr_dmabuf_attributes *attribs);
 	bool (*schedule_frame)(struct wlr_output *output);
 	const struct wlr_format_set *(*get_formats)(struct wlr_output *output);
+	bool (*present)(struct wlr_output *output);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
