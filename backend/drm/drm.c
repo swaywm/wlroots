@@ -1133,6 +1133,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 					wlr_log_errno(WLR_ERROR, "Allocation failed");
 					continue;
 				}
+
+				if (mode->drm_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+					free(mode);
+					continue;
+				}
+
 				mode->drm_mode = drm_conn->modes[i];
 				mode->wlr_mode.width = mode->drm_mode.hdisplay;
 				mode->wlr_mode.height = mode->drm_mode.vdisplay;
