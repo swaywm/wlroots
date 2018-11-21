@@ -11,47 +11,22 @@
 #include "types/wlr_data_device.h"
 #include "util/signal.h"
 
-void data_source_notify_finish(struct wlr_data_source *source) {
-	assert(source->offer);
-	if (source->actions < 0) {
-		return;
-	}
-
-	if (source->offer->in_ask) {
-		wlr_data_source_dnd_action(source, source->current_dnd_action);
-	}
-
-	source->offer = NULL;
-	wlr_data_source_dnd_finish(source);
-}
-
 struct wlr_data_offer *data_source_send_offer(struct wlr_data_source *source,
-		struct wlr_seat_client *target) {
-	if (wl_list_empty(&target->data_devices)) {
-		return NULL;
-	}
-
-	uint32_t version = wl_resource_get_version(
-		wl_resource_from_link(target->data_devices.next));
-
-	struct wlr_data_offer *offer =
-		data_offer_create(target->client, source, version);
+		struct wl_resource *device_resource) {
+	struct wl_client *client = wl_resource_get_client(device_resource);
+	uint32_t version = wl_resource_get_version(device_resource);
+	struct wlr_data_offer *offer = data_offer_create(client, source, version);
 	if (offer == NULL) {
 		return NULL;
 	}
 
-	struct wl_resource *target_resource;
-	wl_resource_for_each(target_resource, &target->data_devices) {
-		wl_data_device_send_data_offer(target_resource, offer->resource);
-	}
+	wl_data_device_send_data_offer(device_resource, offer->resource);
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
 		wl_data_offer_send_offer(offer->resource, *p);
 	}
 
-	source->offer = offer;
-	source->accepted = false;
 	return offer;
 }
 

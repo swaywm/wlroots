@@ -94,25 +94,24 @@ static void data_device_handle_resource_destroy(struct wl_resource *resource) {
 
 
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
-	if (wl_list_empty(&seat_client->data_devices)) {
-		return;
+	struct wlr_data_source *source = seat_client->seat->selection_source;
+	if (source != NULL) {
+		source->accepted = false;
 	}
 
-	if (seat_client->seat->selection_source) {
-		struct wlr_data_offer *offer = data_source_send_offer(
-			seat_client->seat->selection_source, seat_client);
-		if (offer == NULL) {
-			return;
-		}
+	struct wl_resource *device_resource;
+	wl_resource_for_each(device_resource, &seat_client->data_devices) {
+		if (source != NULL) {
+			struct wlr_data_offer *offer =
+				data_source_send_offer(source, device_resource);
+			if (offer == NULL) {
+				wl_client_post_no_memory(seat_client->client);
+				return;
+			}
 
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &seat_client->data_devices) {
-			wl_data_device_send_selection(resource, offer->resource);
-		}
-	} else {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &seat_client->data_devices) {
-			wl_data_device_send_selection(resource, NULL);
+			wl_data_device_send_selection(device_resource, offer->resource);
+		} else {
+			wl_data_device_send_selection(device_resource, NULL);
 		}
 	}
 }
