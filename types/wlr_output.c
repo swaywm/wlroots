@@ -1,12 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
 #include <time.h>
+
 #include <wayland-server.h>
+
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/dmabuf.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
@@ -15,6 +21,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
+
 #include "util/signal.h"
 
 #define OUTPUT_VERSION 3
@@ -279,6 +286,14 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
 
+	output->viewport.src_x = -1.0;
+	output->viewport.src_y = -1.0;
+	output->viewport.src_w = -1.0;
+	output->viewport.src_h = -1.0;
+	output->viewport.dest_w = -1;
+	output->viewport.dest_h = -1;
+	pixman_region32_init_rect(&output->damage_2, 0, 0, UINT_MAX, UINT_MAX);
+
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
 	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
 		wlr_log(WLR_DEBUG,
@@ -314,6 +329,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 
 	pixman_region32_fini(&output->damage);
+	pixman_region32_fini(&output->damage_2);
 
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
@@ -925,4 +941,60 @@ enum wl_output_transform wlr_output_transform_compose(
 	uint32_t rotated =
 		(tr_a + tr_b) & (WL_OUTPUT_TRANSFORM_90 | WL_OUTPUT_TRANSFORM_180);
 	return flipped | rotated;
+}
+
+void wlr_output_set_viewport(struct wlr_output *output,
+		double src_x, double src_y, double src_w, double src_h,
+		int32_t dest_w, int32_t dest_h) {
+	assert(output);
+	assert((src_x == -1.0 && src_y == -1.0 && src_w == -1.0 && src_h == -1.0) ||
+		(src_x >= 0.0 && src_y >= 0.0 && src_w > 0.0 && src_h > 0.0));
+	assert((dest_w == -1 && dest_h == -1) || (dest_w > 0 && dest_h > 0));
+
+	output->viewport.src_x = src_x;
+	output->viewport.src_y = src_y;
+	output->viewport.src_w = src_w;
+	output->viewport.src_h = src_h;
+	output->viewport.dest_w = dest_w;
+	output->viewport.dest_h = dest_h;
+}
+
+void wlr_output_set_present_method(struct wlr_output *output,
+		enum wlr_present_method method) {
+	assert(output);
+	output->present_method = method;
+}
+
+void wlr_output_set_damage(struct wlr_output *output,
+		pixman_region32_t *region) {
+	assert(output);
+	if (region) {
+		pixman_region32_copy(&output->damage_2, region);
+	} else {
+		pixman_region32_union_rect(&output->damage_2, &output->damage_2,
+			0, 0, INT32_MAX, INT32_MAX);
+	}
+}
+
+void wlr_output_set_image(struct wlr_output *output, struct wlr_image *img) {
+	assert(output);
+	output->image = img;
+}
+
+bool wlr_output_present(struct wlr_output *output) {
+	bool ret = output->impl->present(output);
+
+	output->viewport.src_x = -1.0;
+	output->viewport.src_y = -1.0;
+	output->viewport.src_w = -1.0;
+	output->viewport.src_h = -1.0;
+	output->viewport.dest_w = -1;
+	output->viewport.dest_h = -1;
+	output->present_method = WLR_PRESENT_METHOD_DEFAULT;
+	output->image = NULL;
+
+	pixman_region32_union_rect(&output->damage_2, &output->damage_2,
+		0, 0, INT32_MAX, INT32_MAX);
+
+	return ret;
 }

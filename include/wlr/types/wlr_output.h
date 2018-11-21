@@ -16,8 +16,31 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
+#include <wlr/render/allocator.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/render/format_set.h>
+
+/*
+ * This specifies how the backend should handle a mismatch between the
+ * image size and the actual output size. This is merely a hint, and the
+ * backend is free to ignore it.
+ *
+ * This is directly compatible with zwp_fullscreen_shell_v1.present_method.
+ */
+enum wlr_present_method {
+	// No preference
+	WLR_PRESENT_METHOD_DEFAULT = 0,
+	// Center the view on the output
+	WLR_PRESENT_METHOD_CENTER = 1,
+	// Scale the surface, preserving aspect ratio, to the largest size that
+	// will fit on the output
+	WLR_PRESENT_METHOD_ZOOM = 2,
+	// Scale the surface, preserving aspect ratio, to fully fit the output
+	// cropping if needed
+	WLR_PRESENT_METHOD_ZOOM_CROP = 3,
+	// Scale the surface to the size of the output ignoring aspect ratio
+	WLR_PRESENT_METHOD_STRETCH = 4,
+};
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -115,6 +138,20 @@ struct wlr_output {
 
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
+
+	// TODO: Remove _2 suffix once other other damage member is removed
+	pixman_region32_t damage_2;
+	enum wlr_present_method present_method;
+	struct wlr_image *image;
+
+	struct {
+		double src_x;
+		double src_y;
+		double src_w;
+		double src_h;
+		uint32_t dest_w;
+		uint32_t dest_h;
+	} viewport;
 
 	struct wl_listener display_destroy;
 
@@ -278,5 +315,70 @@ enum wl_output_transform wlr_output_transform_invert(
  */
 enum wl_output_transform wlr_output_transform_compose(
 	enum wl_output_transform tr_a, enum wl_output_transform tr_b);
+
+/*
+ * Presentation functions
+ */
+
+/*
+ * Sets the rectangle of the input image which will be output to the display,
+ * and the size of the destination rectangle.
+ *
+ * This is designed to match the wp_viewporter protocol interface.
+ *
+ * src_x, src_y, src_w and src_h control cropping.
+ * dest_w and dest_h control scaling.
+ *
+ * This is not applied until the next call to wlr_output_present.
+ *
+ * Not every backend supports this.
+ * TODO: Add a way to query if it's supported ahead of time.
+ */
+void wlr_output_set_viewport(struct wlr_output *output,
+		double src_x, double src_y, double src_w, double src_h,
+		int32_t dest_w, int32_t dest_h);
+
+/*
+ * Sets the way the backend handles images which are not the same size as its
+ * output.
+ *
+ * This is designed to match the zwp_fullscreen_shell_v1 interface.
+ *
+ * This is not applied until the next call to wlr_output_present.
+ *
+ * See the wlr_present_method enum for more information.
+ */
+void wlr_output_set_present_method(struct wlr_output *output,
+		enum wlr_present_method method);
+
+/*
+ * Sets the regions within the image which have changed.
+ * This is in buffer coordinates.
+ *
+ * If region is NULL, the entire buffer is damaged.
+ *
+ * Some backends may ignore this value.
+ */
+void wlr_output_set_damage(struct wlr_output *output,
+		pixman_region32_t *region);
+
+/*
+ * Sets the content to be displayed on the screen.
+ * This image must have been previous created by or attached to this output's
+ * backend, and must be a supported format.
+ *
+ * If img is NULL, the output's content is cleared.
+ *
+ * This is not applied until the next call to wlr_output_present.
+ */
+void wlr_output_set_image(struct wlr_output *output, struct wlr_image *img);
+
+/*
+ * Present the content to the screen.
+ *
+ * Upon calling this, all pending presentation state is reset, whether the
+ * function succeeds or not.
+ */
+bool wlr_output_present(struct wlr_output *output);
 
 #endif
