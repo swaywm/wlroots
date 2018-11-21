@@ -14,6 +14,7 @@
 
 struct wlr_primary_selection_device_manager {
 	struct wl_global *global;
+	struct wl_list resources;
 
 	struct wl_listener display_destroy;
 
@@ -23,8 +24,6 @@ struct wlr_primary_selection_device_manager {
 
 	void *data;
 };
-
-struct wlr_primary_selection_offer;
 
 struct wlr_primary_selection_source {
 	// source metadata
@@ -36,7 +35,6 @@ struct wlr_primary_selection_source {
 	void (*cancel)(struct wlr_primary_selection_source *source);
 
 	// source status
-	struct wlr_primary_selection_offer *offer;
 	struct wlr_seat_client *seat_client;
 
 	struct {
