@@ -24,8 +24,6 @@ struct wlr_primary_selection_device_manager {
 	void *data;
 };
 
-struct wlr_primary_selection_offer;
-
 struct wlr_primary_selection_source {
 	// source metadata
 	struct wl_array mime_types;
@@ -36,7 +34,6 @@ struct wlr_primary_selection_source {
 	void (*cancel)(struct wlr_primary_selection_source *source);
 
 	// source status
-	struct wlr_primary_selection_offer *offer;
 	struct wlr_seat_client *seat_client;
 
 	struct {
