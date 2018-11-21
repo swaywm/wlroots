@@ -14,6 +14,7 @@
 
 struct wlr_primary_selection_device_manager {
 	struct wl_global *global;
+	struct wl_list resources;
 
 	struct wl_listener display_destroy;
 

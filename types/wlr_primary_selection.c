@@ -212,6 +212,7 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 		return;
 	}
 
+	// TODO: make all offers inert
 	if (seat->primary_selection_source) {
 		wl_list_remove(&seat->primary_selection_source_destroy.link);
 		seat->primary_selection_source->cancel(seat->primary_selection_source);
@@ -349,11 +350,16 @@ static void device_manager_handle_destroy(struct wl_client *client,
 }
 
 static const struct gtk_primary_selection_device_manager_interface
-device_manager_impl = {
+		device_manager_impl = {
 	.create_source = device_manager_handle_create_source,
 	.get_device = device_manager_handle_get_device,
 	.destroy = device_manager_handle_destroy,
 };
+
+static void device_manager_handle_resource_destroy(
+		struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
 
 
 static void primary_selection_device_manager_bind(struct wl_client *client,
@@ -367,7 +373,9 @@ static void primary_selection_device_manager_bind(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(resource, &device_manager_impl, manager,
-		NULL);
+		device_manager_handle_resource_destroy);
+
+	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -392,6 +400,7 @@ struct wlr_primary_selection_device_manager *
 		return NULL;
 	}
 
+	wl_list_init(&manager->resources);
 	wl_signal_init(&manager->events.destroy);
 
 	manager->display_destroy.notify = handle_display_destroy;
@@ -407,7 +416,10 @@ void wlr_primary_selection_device_manager_destroy(
 	}
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
-	// TODO: free resources
+	struct wl_resource *resource, *resource_tmp;
+	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
+		wl_resource_destroy(resource);
+	}
 	wl_global_destroy(manager->global);
 	free(manager);
 }
