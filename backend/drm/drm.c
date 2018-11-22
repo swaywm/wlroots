@@ -1134,7 +1134,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 					continue;
 				}
 
-				if (mode->drm_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+				if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
 					free(mode);
 					continue;
 				}
