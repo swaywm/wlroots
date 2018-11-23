@@ -8,7 +8,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 #include "util/signal.h"
@@ -273,7 +273,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		wl_array_release(&keys);
 
 		wlr_seat_client_send_selection(client);
-		wlr_seat_client_send_primary_selection(client);
+		wlr_seat_client_send_gtk_primary_selection(client);
 	}
 
 	// reinitialize the focus destroy events

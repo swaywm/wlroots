@@ -194,7 +194,7 @@ struct wlr_seat {
 	struct wlr_data_source *selection_source;
 	uint32_t selection_serial;
 
-	struct wlr_primary_selection_source *primary_selection_source;
+	struct wlr_gtk_primary_selection_source *primary_selection_source;
 	uint32_t primary_selection_serial;
 
 	// `drag` goes away before `drag_source`, when the implicit grab ends

@@ -16,7 +16,7 @@
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer_constraints_v1.h>
-#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
@@ -956,7 +956,7 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		desktop->server_decoration_manager,
 		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 	desktop->primary_selection_device_manager =
-		wlr_primary_selection_device_manager_create(server->wl_display);
+		wlr_gtk_primary_selection_device_manager_create(server->wl_display);
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
 
