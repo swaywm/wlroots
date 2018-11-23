@@ -982,7 +982,9 @@ void wlr_output_set_image(struct wlr_output *output, struct wlr_image *img) {
 }
 
 bool wlr_output_present(struct wlr_output *output) {
+	output->using_present = true;
 	bool ret = output->impl->present(output);
+	output->using_present = false;
 
 	output->viewport.src_x = -1.0;
 	output->viewport.src_y = -1.0;

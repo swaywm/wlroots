@@ -139,6 +139,8 @@ struct wlr_output {
 	// the output position in layout space reported to clients
 	int32_t lx, ly;
 
+	// TODO: Remove this hack flag when the old interface is removed
+	bool using_present;
 	// TODO: Remove _2 suffix once other other damage member is removed
 	pixman_region32_t damage_2;
 	enum wlr_present_method present_method;
@@ -149,8 +151,8 @@ struct wlr_output {
 		double src_y;
 		double src_w;
 		double src_h;
-		uint32_t dest_w;
-		uint32_t dest_h;
+		int32_t dest_w;
+		int32_t dest_h;
 	} viewport;
 
 	struct wl_listener display_destroy;

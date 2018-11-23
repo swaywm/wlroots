@@ -1,8 +1,13 @@
-#include <gbm.h>
+#include <math.h>
 #include <stdlib.h>
-#include <wlr/util/log.h>
+
+#include <gbm.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+
+#include <wlr/types/wlr_output.h>
+#include <wlr/util/log.h>
+
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
@@ -95,11 +100,28 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 	}
 }
 
+// Just a slightly modified wl_fixed_from_double
+static uint32_t double_to_16_16_fixed(double d) {
+	union {
+		double d;
+		int64_t i;
+	} u = {
+		.d = d + (3LL << (51 - 16)),
+	};
+
+	return u.i;
+}
+
+static double aspect_ratio(uint32_t width, uint32_t height) {
+	return (double)width / (double)height;
+}
+
 static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn,
 		struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
-	if (mode != NULL) {
+	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
+	if (mode) {
 		if (crtc->mode_id != 0) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
@@ -109,25 +131,150 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 			return false;
 		}
-	}
 
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
-	if (mode != NULL) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
+	uint32_t conn_width = conn->crtc->primary->surf.width;
+	uint32_t conn_height = conn->crtc->primary->surf.height;
+
+	uint64_t src_x;
+	uint64_t src_y;
+	uint64_t src_w;
+	uint64_t src_h;
+	uint64_t crtc_x;
+	uint64_t crtc_y;
+	uint64_t crtc_w;
+	uint64_t crtc_h;
+
+	// TODO: Remove this hack when the old interface is removed
+	if (conn->output.using_present) {
+		struct wlr_image *img = conn->output.image;
+		if (!img) {
+			src_x = 0;
+			src_y = 0;
+			src_w = 0;
+			src_h = 0;
+		} else if (conn->output.viewport.src_x != -1.0) {
+			src_x = double_to_16_16_fixed(conn->output.viewport.src_x);
+			src_y = double_to_16_16_fixed(conn->output.viewport.src_y);
+			src_w = double_to_16_16_fixed(conn->output.viewport.src_w);
+			src_h = double_to_16_16_fixed(conn->output.viewport.src_h);
+		} else {
+			src_x = 0;
+			src_y = 0;
+			src_w = img->width << 16;
+			src_h = img->height << 16;
+		}
+	} else {
+		src_x = 0;
+		src_y = 0;
+		src_w = (uint64_t)conn_width << 16;
+		src_h = (uint64_t)conn_height << 16;
+	}
+
+	if (conn->output.using_present) {
+		struct wlr_image *img = conn->output.image;
+		if (!img) {
+			crtc_x = 0;
+			crtc_y = 0;
+			crtc_w = 0;
+			crtc_h = 0;
+		} else {
+			uint32_t w;
+			uint32_t h;
+
+			if (conn->output.viewport.dest_w != -1) {
+				w = conn->output.viewport.dest_w;
+				h = conn->output.viewport.dest_h;
+			} else {
+				w = img->width;
+				h = img->height;
+			}
+
+			bool flip = false;
+			switch (conn->output.present_method) {
+			case WLR_PRESENT_METHOD_ZOOM_CROP:
+				flip = true;
+
+				/* Fallthrough */
+			case WLR_PRESENT_METHOD_ZOOM:;
+				double r1 = aspect_ratio(conn_width, conn_height);
+				double r2 = aspect_ratio(w, h);
+
+				if (flip) {
+					double tmp = r1;
+					r1 = r2;
+					r2 = tmp;
+				}
+
+				double scale;
+				if (r2 < r1) {
+					scale = (double)conn_height / h;
+				} else {
+					scale = (double)conn_width / w;
+				}
+
+				w = nearbyint(w * scale);
+				h = nearbyint(h * scale);
+
+				/* Fallthrough */
+			case WLR_PRESENT_METHOD_CENTER:
+				crtc_x = (uint64_t)conn_width / 2 - (uint64_t)w / 2;
+				crtc_y = (uint64_t)conn_height / 2 - (uint64_t)h / 2;
+				crtc_w = w;
+				crtc_h = h;
+				break;
+			case WLR_PRESENT_METHOD_DEFAULT:
+			case WLR_PRESENT_METHOD_STRETCH:
+				crtc_x = 0;
+				crtc_y = 0;
+				crtc_w = w;
+				crtc_h = h;
+				break;
+			default:
+				abort();
+			}
+		}
+	} else {
+		crtc_x = 0;
+		crtc_y = 0;
+		crtc_w = conn_width;
+		crtc_h = conn_height;
+	}
+
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
-	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
-	if (mode != NULL && conn->props.link_status != 0) {
-		atomic_add(&atom, conn->id, conn->props.link_status,
+
+	uint32_t conn_id = conn->id;
+	uint32_t crtc_id = crtc->id;
+	uint32_t plane_id = crtc->primary->id;
+	const union wlr_drm_connector_props *conn_props = &conn->props;
+	const union wlr_drm_crtc_props *crtc_props = &crtc->props;
+	const union wlr_drm_plane_props *plane_props = &crtc->primary->props;
+
+	atomic_add(&atom, conn_id, conn_props->crtc_id, crtc_id);
+	if (mode && conn_props->link_status != 0) {
+		atomic_add(&atom, conn_id, conn_props->link_status,
 			DRM_MODE_LINK_STATUS_GOOD);
 	}
-	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
-	atomic_add(&atom, crtc->id, crtc->props.active, 1);
-	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
+
+	atomic_add(&atom, crtc_id, crtc_props->mode_id, crtc->mode_id);
+	atomic_add(&atom, crtc_id, crtc_props->active, 1);
+
+	atomic_add(&atom, plane_id, plane_props->src_x, src_x);
+	atomic_add(&atom, plane_id, plane_props->src_y, src_y);
+	atomic_add(&atom, plane_id, plane_props->src_w, src_w);
+	atomic_add(&atom, plane_id, plane_props->src_h, src_h);
+	atomic_add(&atom, plane_id, plane_props->crtc_x, crtc_x);
+	atomic_add(&atom, plane_id, plane_props->crtc_y, crtc_y);
+	atomic_add(&atom, plane_id, plane_props->crtc_w, crtc_w);
+	atomic_add(&atom, plane_id, plane_props->crtc_h, crtc_h);
+	atomic_add(&atom, plane_id, plane_props->fb_id, fb_id);
+	atomic_add(&atom, plane_id, plane_props->crtc_id, crtc_id);
+
 	return atomic_commit(drm->fd, &atom, conn, flags, mode);
 }
 
