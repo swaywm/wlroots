@@ -219,7 +219,7 @@ static void capture_output(struct wl_client *client,
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	if (!wlr_renderer_preferred_read_format(renderer, &frame->format)) {
+	if (!wlr_output_preferred_read_format(frame->output, &frame->format)) {
 		wlr_log(WLR_ERROR,
 			"Failed to capture output: no read format supported by renderer");
 		goto error;
