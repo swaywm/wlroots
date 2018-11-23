@@ -865,6 +865,25 @@ static const struct wlr_format_set *drm_connector_get_formats(struct wlr_output 
 	return &conn->crtc->primary->formats;
 }
 
+static bool drm_connector_present(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_image *img = output->image;
+
+	// TODO: Make this work with the legacy interface
+	if (drm->iface == &legacy_iface) {
+		return false;
+	}
+
+	uint32_t fb_id = img ? (uint32_t)(uintptr_t)img->backend_priv : 0;
+
+	bool ret = drm->iface->crtc_pageflip(drm, conn, conn->crtc, fb_id, NULL);
+	if (ret) {
+		conn->current_image = img;
+	}
+	return ret;
+}
+
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
@@ -888,6 +907,7 @@ static const struct wlr_output_impl output_impl = {
 	.export_dmabuf = drm_connector_export_dmabuf,
 	.schedule_frame = drm_connector_schedule_frame,
 	.get_formats = drm_connector_get_formats,
+	.present = drm_connector_present,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {
@@ -1346,6 +1366,11 @@ static void page_flip_handler(int fd, unsigned seq,
 		get_drm_backend_from_backend(conn->output.backend);
 
 	conn->pageflip_pending = false;
+
+	if (conn->current_image) {
+		wl_signal_emit(&conn->current_image->release, conn->current_image);
+		conn->current_image = NULL;
+	}
 
 	if (conn->state == WLR_DRM_CONN_DISAPPEARED) {
 		wlr_output_destroy(&conn->output);

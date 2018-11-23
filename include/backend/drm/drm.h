@@ -15,6 +15,7 @@
 
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/format_set.h>
 
@@ -153,6 +154,8 @@ struct wlr_drm_connector {
 	drmModeCrtc *old_crtc;
 
 	bool pageflip_pending;
+	struct wlr_image *current_image;
+
 	struct wl_event_source *retry_pageflip;
 	struct wl_list link;
 };
