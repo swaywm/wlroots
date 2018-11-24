@@ -1,7 +1,7 @@
 # wlroots
 
 Pluggable, composable, unopinionated modules for building a
-[Wayland](http://wayland.freedesktop.org/) compositor; or about 40,000 lines of
+[Wayland](http://wayland.freedesktop.org/) compositor; or about 50,000 lines of
 code you were going to write anyway.
 
 - wlroots provides backends that abstract the underlying display and input
