@@ -1,10 +1,12 @@
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <xcb/xcb.h>
+#include <xcb/present.h>
 #include <xcb/xinput.h>
 
 #include <wlr/interfaces/wlr_output.h>
@@ -13,6 +15,65 @@
 
 #include "backend/x11.h"
 #include "util/signal.h"
+
+void handle_x11_present_event(struct wlr_x11_backend *x11,
+		xcb_present_generic_event_t *e) {
+	struct wlr_x11_output *output;
+	xcb_present_configure_notify_event_t *configure;
+	xcb_present_complete_notify_event_t *complete;
+	xcb_present_idle_notify_event_t *idle;
+
+	switch (e->evtype) {
+	case XCB_PRESENT_CONFIGURE_NOTIFY:
+		configure = (xcb_present_configure_notify_event_t *)e;
+		output = get_x11_output_from_window_id(x11, configure->window);
+
+		if (configure->width > 0 && configure->height > 0) {
+			wlr_output_update_custom_mode(&output->wlr_output,
+				configure->width, configure->height, 0);
+
+			// Move the pointer to its new location
+			update_x11_pointer_position(output, output->x11->time);
+		}
+		break;
+	case XCB_PRESENT_COMPLETE_NOTIFY:
+		/*
+		 * TODO: Wire this up with wp_presentation_time?
+		 */
+		complete = (xcb_present_complete_notify_event_t *)e;
+		output = get_x11_output_from_window_id(x11, complete->window);
+
+		// This can happen after a window is destroyed
+		if (!output) {
+			return;
+		}
+
+		wlr_output_send_frame(&output->wlr_output);
+		break;
+	case XCB_PRESENT_IDLE_NOTIFY:
+		idle = (xcb_present_idle_notify_event_t *)e;
+		output = get_x11_output_from_window_id(x11, idle->window);
+
+		// This can happen after a window is destroyed
+		if (!output) {
+			return;
+		}
+
+		int i = ffs(idle->serial) - 1;
+		assert(i >= 0 && i < 8);
+
+		struct wlr_image *img = output->images[i];
+		output->serials &= ~(1 << i);
+
+		// img may be null if the image gets freed (e.g. on resize)
+		if (img) {
+			wl_signal_emit(&img->release, img);
+			output->images[i] = NULL;
+		}
+
+		break;
+	}
+}
 
 static int signal_frame(void *data) {
 	struct wlr_x11_output *output = data;
@@ -122,6 +183,48 @@ static const struct wlr_format_set *output_get_formats(struct wlr_output *wlr_ou
 	return &output->x11->formats;
 }
 
+static bool output_present(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (!wlr_output->image) {
+		xcb_unmap_window(x11->xcb, output->win);
+		xcb_flush(x11->xcb);
+		return true;
+	}
+
+	xcb_pixmap_t pixmap = (xcb_pixmap_t)(uintptr_t)wlr_output->image->backend_priv;
+
+	unsigned i;
+	for (i = 0; i < 8; ++i) {
+		if (!(output->serials & (1 << i))) {
+			break;
+		}
+	}
+
+	if (i == 8) {
+		wlr_log(WLR_ERROR, "Too many outstanding images");
+		return false;
+	}
+
+	output->serials |= 1 << i;
+	output->images[i] = wlr_output->image;
+
+	xcb_map_window(x11->xcb, output->win);
+	xcb_void_cookie_t cookie = xcb_present_pixmap_checked(x11->xcb, output->win,
+		pixmap, 1 << i, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL);
+	xcb_flush(x11->xcb);
+
+	xcb_generic_error_t *err = xcb_request_check(x11->xcb, cookie);
+	if (err) {
+		wlr_log(WLR_ERROR, "Failed to present pixmap");
+		free(err);
+		return false;
+	}
+
+	return true;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
@@ -129,6 +232,7 @@ static const struct wlr_output_impl output_impl = {
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
 	.get_formats = output_get_formats,
+	.present = output_present,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
@@ -165,6 +269,13 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	xcb_create_window(x11->xcb, XCB_COPY_FROM_PARENT, output->win,
 		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
+
+	uint32_t present_mask = XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
+		XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
+		XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY;
+	output->present_id = xcb_generate_id(x11->xcb);
+	xcb_present_select_input(x11->xcb, output->present_id,
+		output->win, present_mask);
 
 	struct {
 		xcb_input_event_mask_t head;
