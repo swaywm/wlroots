@@ -11,6 +11,7 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <wayland-client.h>
 #include <wayland-server.h>
 
 #include <wlr/backend/interface.h>
@@ -210,6 +211,16 @@ static int backend_get_render_fd(struct wlr_backend *backend) {
 	return wl->render_fd;
 }
 
+static void buffer_release(void *data, struct wl_buffer *buf) {
+	struct wlr_image *img = data;
+
+	wl_signal_emit(&img->release, img);
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+	.release = buffer_release,
+};
+
 static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
 	struct gbm_bo *bo = img->bo;
@@ -235,6 +246,7 @@ static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 	zwp_linux_buffer_params_v1_destroy(params);
 
 	img->base.backend_priv = buf;
+	wl_buffer_add_listener(buf, &buffer_listener, &img->base);
 
 	return true;
 }

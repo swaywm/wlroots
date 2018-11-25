@@ -292,7 +292,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->viewport.src_h = -1.0;
 	output->viewport.dest_w = -1;
 	output->viewport.dest_h = -1;
-	pixman_region32_init_rect(&output->damage_2, 0, 0, UINT_MAX, UINT_MAX);
+	pixman_region32_init_rect(&output->damage_2, 0, 0, INT32_MAX, INT32_MAX);
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
 	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
