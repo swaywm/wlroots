@@ -15,14 +15,12 @@ sources:
   - https://github.com/swaywm/wlroots
 tasks:
   - setup: |
-      mkdir wlroots/build-{gcc,clang}
-      cd wlroots/build-gcc
-      CC=gcc meson ..
-      cd ../build-clang
-      CC=clang meson ..
+      cd wlroots
+      CC=gcc meson build-gcc
+      CC=clang meson build-clang
   - gcc: |
       cd wlroots/build-gcc
       ninja
   - clang: |
       cd wlroots/build-clang
-      ninja scan-build
+      ninja
