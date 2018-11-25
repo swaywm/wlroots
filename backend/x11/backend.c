@@ -14,6 +14,7 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server.h>
 #include <xcb/dri3.h>
+#include <xcb/present.h>
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
@@ -80,6 +81,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_ge_generic_event_t *ev = (xcb_ge_generic_event_t *)event;
 		if (ev->extension == x11->xinput_opcode) {
 			handle_x11_xinput_event(x11, ev);
+		} else if (ev->extension == x11->present_opcode) {
+			handle_x11_present_event(x11,
+				(xcb_present_generic_event_t *)ev);
 		}
 	}
 	}
@@ -225,6 +229,16 @@ static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 	xcb_pixmap_t pixmap = (xcb_pixmap_t)(uintptr_t)img->base.backend_priv;
 
 	xcb_free_pixmap(x11->xcb, pixmap);
+
+	struct wlr_x11_output *output;
+	wl_list_for_each(output, &x11->outputs, link) {
+		for (size_t i = 0; i < 8; ++i) {
+			if (output->images[i] == &img->base) {
+				output->images[i] = NULL;
+				return;
+			}
+		}
+	}
 }
 
 static const struct wlr_backend_impl backend_impl = {
@@ -340,6 +354,24 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_display;
 	}
 	free(fixes_reply);
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_present_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 server does not support Present extension");
+		goto error_display;
+	}
+	x11->present_opcode = ext->major_opcode;
+
+	xcb_present_query_version_cookie_t present_cookie =
+		xcb_present_query_version(x11->xcb, 1, 2);
+	xcb_present_query_version_reply_t *present_reply =
+		xcb_present_query_version_reply(x11->xcb, present_cookie, NULL);
+
+	if (!present_reply || present_reply->major_version < 1
+			|| present_reply->minor_version < 2) {
+		wlr_log(WLR_ERROR, "X11 doesn't support required Present version");
+		goto error_display;
+	}
 
 	ext = xcb_get_extension_data(x11->xcb, &xcb_input_id);
 	if (!ext || !ext->present) {

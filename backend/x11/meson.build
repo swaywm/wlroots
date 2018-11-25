@@ -3,6 +3,7 @@ x11_required = [
 	'x11-xcb',
 	'xcb',
 	'xcb-dri3',
+	'xcb-present',
 	'xcb-xfixes',
 	'xcb-xinput',
 ]
