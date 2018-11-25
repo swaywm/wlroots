@@ -751,8 +751,6 @@ static void seat_add_switch(struct roots_seat *seat,
 
 	lid_switch->toggle.notify = handle_switch_toggle;
 	wl_signal_add(&lid_switch->device->lid_switch->events.toggle, &lid_switch->toggle);
-
-	wl_signal_add(&lid_switch->device->events.destroy, &lid_switch->device_destroy);
 }
 
 static void handle_touch_destroy(struct wl_listener *listener, void *data) {
