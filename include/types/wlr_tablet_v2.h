@@ -6,7 +6,7 @@
 #include <wlr/types/wlr_tablet_v2.h>
 
 struct wlr_tablet_seat_v2 {
-	struct wl_list link;
+	struct wl_list link; // wlr_tablet_manager_v2::seats
 	struct wlr_seat *wlr_seat;
 	struct wlr_tablet_manager_v2 *manager;
 
@@ -14,7 +14,7 @@ struct wlr_tablet_seat_v2 {
 	struct wl_list tools;
 	struct wl_list pads;
 
-	struct wl_list clients; //wlr_tablet_seat_v2_client::link;
+	struct wl_list clients; // wlr_tablet_seat_v2_client::link
 
 	struct wl_listener seat_destroy;
 };

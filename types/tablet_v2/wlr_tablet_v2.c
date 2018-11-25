@@ -27,18 +27,20 @@ struct wlr_tablet_manager_client_v2 {
 	struct wl_list tablet_seats; // wlr_tablet_seat_client_v2::link
 };
 
-static void handle_wlr_seat_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_seat_v2 *seat =
-		wl_container_of(listener, seat, seat_destroy);
-
+static void tablet_seat_destroy(struct wlr_tablet_seat_v2 *seat) {
 	wl_list_remove(&seat->link);
 	wl_list_remove(&seat->seat_destroy.link);
 
-	struct wlr_tablet_seat_client_v2 *client;
-	struct wlr_tablet_seat_client_v2 *tmp;
-	wl_list_for_each_safe(client, tmp, &seat->clients, seat_link) {
+	struct wlr_tablet_seat_client_v2 *client, *client_tmp;
+	wl_list_for_each_safe(client, client_tmp, &seat->clients, seat_link) {
 		tablet_seat_client_v2_destroy(client->resource);
 	}
+}
+
+static void handle_wlr_seat_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_seat_v2 *seat =
+		wl_container_of(listener, seat, seat_destroy);
+	tablet_seat_destroy(seat);
 }
 
 static struct wlr_tablet_seat_v2 *create_tablet_seat(
@@ -79,13 +81,13 @@ struct wlr_tablet_seat_v2 *get_or_create_tablet_seat(
 	return create_tablet_seat(manager, wlr_seat);
 }
 
-static void tablet_seat_destroy(struct wl_client *client,
+static void tablet_seat_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
 static struct zwp_tablet_seat_v2_interface seat_impl = {
-	.destroy = tablet_seat_destroy,
+	.destroy = tablet_seat_handle_destroy,
 };
 
 struct wlr_tablet_seat_client_v2 *tablet_seat_client_from_resource(
@@ -138,12 +140,13 @@ static void tablet_manager_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(struct wl_resource *resource);
+static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(
+	struct wl_resource *resource);
 
 static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *resource,
-		uint32_t id, struct wl_resource *seat_resource)
-{
-	struct wlr_tablet_manager_client_v2 *manager = tablet_manager_client_from_resource(resource);
+		uint32_t id, struct wl_resource *seat_resource) {
+	struct wlr_tablet_manager_client_v2 *manager =
+		tablet_manager_client_from_resource(resource);
 	if (!manager) {
 		/* Inert manager, just set up the resource for later
 		 * destruction, without allocations or advertising things
@@ -214,7 +217,7 @@ static struct zwp_tablet_manager_v2_interface manager_impl = {
 	.destroy = tablet_manager_destroy,
 };
 
-static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource (
+static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &zwp_tablet_manager_v2_interface,
 		&manager_impl));
@@ -222,7 +225,8 @@ static struct wlr_tablet_manager_client_v2 *tablet_manager_client_from_resource 
 }
 
 static void wlr_tablet_manager_v2_destroy(struct wl_resource *resource) {
-	struct wlr_tablet_manager_client_v2 *client = tablet_manager_client_from_resource(resource);
+	struct wlr_tablet_manager_client_v2 *client =
+		tablet_manager_client_from_resource(resource);
 	if (!client) {
 		return;
 	}
@@ -275,11 +279,14 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
-	struct wlr_tablet_manager_client_v2 *tmp;
-	struct wlr_tablet_manager_client_v2 *pos;
+	struct wlr_tablet_manager_client_v2 *client, *client_tmp;
+	wl_list_for_each_safe(client, client_tmp, &manager->clients, link) {
+		wlr_tablet_manager_v2_destroy(client->resource);
+	}
 
-	wl_list_for_each_safe(pos, tmp, &manager->clients, link) {
-		wlr_tablet_manager_v2_destroy(pos->resource);
+	struct wlr_tablet_seat_v2 *seat, *seat_tmp;
+	wl_list_for_each_safe(seat, seat_tmp, &manager->seats, link) {
+		tablet_seat_destroy(seat);
 	}
 
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
