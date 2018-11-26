@@ -55,15 +55,10 @@ static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
 }
 
 void data_offer_update_action(struct wlr_data_offer *offer) {
-	if (!offer->source) {
-		return;
-	}
-
 	uint32_t action = data_offer_choose_action(offer);
 	if (offer->source->current_dnd_action == action) {
 		return;
 	}
-
 	offer->source->current_dnd_action = action;
 
 	if (offer->in_ask) {
@@ -78,50 +73,77 @@ void data_offer_update_action(struct wlr_data_offer *offer) {
 	}
 }
 
-static void data_offer_accept(struct wl_client *client,
+static void data_offer_handle_accept(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial, const char *mime_type) {
 	struct wlr_data_offer *offer = data_offer_from_resource(resource);
-
-	if (!offer->source || offer != offer->source->offer) {
+	if (offer == NULL) {
 		return;
 	}
-
-	// TODO check that client is currently focused by the input device
 
 	wlr_data_source_accept(offer->source, serial, mime_type);
 }
 
-static void data_offer_receive(struct wl_client *client,
+static void data_offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {
 	struct wlr_data_offer *offer = data_offer_from_resource(resource);
-
-	if (offer->source && offer == offer->source->offer) {
-		wlr_data_source_send(offer->source, mime_type, fd);
-	} else {
+	if (offer == NULL) {
 		close(fd);
-	}
-}
-
-static void data_offer_destroy(struct wl_client *client,
-		struct wl_resource *resource) {
-	wl_resource_destroy(resource);
-}
-
-static void data_offer_finish(struct wl_client *client,
-		struct wl_resource *resource) {
-	struct wlr_data_offer *offer = data_offer_from_resource(resource);
-
-	if (!offer->source || offer->source->offer != offer) {
 		return;
 	}
 
-	data_source_notify_finish(offer->source);
+	wlr_data_source_send(offer->source, mime_type, fd);
 }
 
-static void data_offer_set_actions(struct wl_client *client,
+static void data_offer_dnd_finish(struct wlr_data_offer *offer) {
+	struct wlr_data_source *source = offer->source;
+	if (source->actions < 0) {
+		return;
+	}
+
+	if (offer->in_ask) {
+		wlr_data_source_dnd_action(source, source->current_dnd_action);
+	}
+
+	wlr_data_source_dnd_finish(source);
+}
+
+static void data_offer_handle_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	struct wlr_data_offer *offer = data_offer_from_resource(resource);
+	if (offer == NULL) {
+		goto out;
+	}
+
+	// If the drag destination has version < 3, wl_data_offer.finish
+	// won't be called, so do this here as a safety net, because
+	// we still want the version >= 3 drag source to be happy.
+	if (wl_resource_get_version(offer->resource) <
+			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+		data_offer_dnd_finish(offer);
+	}
+
+out:
+	wl_resource_destroy(resource);
+}
+
+static void data_offer_handle_finish(struct wl_client *client,
+		struct wl_resource *resource) {
+	struct wlr_data_offer *offer = data_offer_from_resource(resource);
+	if (offer == NULL) {
+		return;
+	}
+
+	data_offer_dnd_finish(offer);
+	data_offer_destroy(offer);
+}
+
+static void data_offer_handle_set_actions(struct wl_client *client,
 		struct wl_resource *resource, uint32_t actions,
 		uint32_t preferred_action) {
 	struct wlr_data_offer *offer = data_offer_from_resource(resource);
+	if (offer == NULL) {
+		return;
+	}
 
 	if (actions & ~DATA_DEVICE_ALL_ACTIONS) {
 		wl_resource_post_error(offer->resource,
@@ -144,52 +166,36 @@ static void data_offer_set_actions(struct wl_client *client,
 	data_offer_update_action(offer);
 }
 
-static void data_offer_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_data_offer *offer = data_offer_from_resource(resource);
-
-	if (!offer->source) {
-		goto out;
+void data_offer_destroy(struct wlr_data_offer *offer) {
+	if (offer == NULL) {
+		return;
 	}
 
 	wl_list_remove(&offer->source_destroy.link);
 
-	if (offer->source->offer != offer) {
-		goto out;
-	}
-
-	// If the drag destination has version < 3, wl_data_offer.finish
-	// won't be called, so do this here as a safety net, because
-	// we still want the version >= 3 drag source to be happy.
-	if (wl_resource_get_version(offer->resource) <
-			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-		data_source_notify_finish(offer->source);
-		offer->source->offer = NULL;
-	} else if (offer->source->impl->dnd_finish) {
-		// source->cancel can free the source
-		offer->source->offer = NULL;
-		wlr_data_source_cancel(offer->source);
-	} else {
-		offer->source->offer = NULL;
-	}
-
-out:
+	// Make the resource inert
+	wl_resource_set_user_data(offer->resource, NULL);
 	free(offer);
 }
 
 static const struct wl_data_offer_interface data_offer_impl = {
-	.accept = data_offer_accept,
-	.receive = data_offer_receive,
-	.destroy = data_offer_destroy,
-	.finish = data_offer_finish,
-	.set_actions = data_offer_set_actions,
+	.accept = data_offer_handle_accept,
+	.receive = data_offer_handle_receive,
+	.destroy = data_offer_handle_destroy,
+	.finish = data_offer_handle_finish,
+	.set_actions = data_offer_handle_set_actions,
 };
 
-static void handle_offer_source_destroyed(struct wl_listener *listener,
+static void data_offer_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_data_offer *offer = data_offer_from_resource(resource);
+	data_offer_destroy(offer);
+}
+
+static void data_offer_handle_source_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_data_offer *offer =
 		wl_container_of(listener, offer, source_destroy);
-
-	offer->source = NULL;
+	data_offer_destroy(offer);
 }
 
 struct wlr_data_offer *data_offer_create(struct wl_client *client,
@@ -200,8 +206,8 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 	}
 	offer->source = source;
 
-	offer->resource = wl_resource_create(client,
-		&wl_data_offer_interface, version, 0);
+	offer->resource =
+		wl_resource_create(client, &wl_data_offer_interface, version, 0);
 	if (offer->resource == NULL) {
 		free(offer);
 		return NULL;
@@ -209,7 +215,7 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
 		data_offer_handle_resource_destroy);
 
-	offer->source_destroy.notify = handle_offer_source_destroyed;
+	offer->source_destroy.notify = data_offer_handle_source_destroy;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
 
 	return offer;

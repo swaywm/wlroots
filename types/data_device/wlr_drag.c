@@ -47,25 +47,27 @@ static void drag_set_focus(struct wlr_drag *drag,
 		return;
 	}
 
-	if (drag->source && drag->source->offer) {
-		// unlink the offer from the source
-		wl_list_remove(&drag->source->offer->source_destroy.link);
-		drag->source->offer->source = NULL;
-		drag->source->offer = NULL;
-	}
-
 	struct wlr_seat_client *focus_client = wlr_seat_client_for_wl_client(
 		drag->seat_client->seat, wl_resource_get_client(surface->resource));
 	if (!focus_client) {
 		return;
 	}
 
-	struct wl_resource *offer_resource = NULL;
-	if (drag->source) {
+	if (drag->source != NULL) {
 		drag->source->accepted = false;
-		struct wlr_data_offer *offer = data_source_send_offer(drag->source,
-			focus_client);
-		if (offer != NULL) {
+
+		uint32_t serial =
+			wl_display_next_serial(drag->seat_client->seat->display);
+
+		struct wl_resource *device_resource;
+		wl_resource_for_each(device_resource, &focus_client->data_devices) {
+			struct wlr_data_offer *offer =
+				data_source_send_offer(drag->source, device_resource);
+			if (offer == NULL) {
+				wl_resource_post_no_memory(device_resource);
+				return;
+			}
+
 			data_offer_update_action(offer);
 
 			if (wl_resource_get_version(offer->resource) >=
@@ -74,18 +76,10 @@ static void drag_set_focus(struct wlr_drag *drag,
 					drag->source->actions);
 			}
 
-			offer_resource = offer->resource;
-		}
-	}
-
-	if (!wl_list_empty(&focus_client->data_devices)) {
-		uint32_t serial =
-			wl_display_next_serial(drag->seat_client->seat->display);
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &focus_client->data_devices) {
-			wl_data_device_send_enter(resource, serial, surface->resource,
+			wl_data_device_send_enter(device_resource, serial,
+				surface->resource,
 				wl_fixed_from_double(sx), wl_fixed_from_double(sy),
-				offer_resource);
+				offer->resource);
 		}
 	}
 
@@ -173,12 +167,6 @@ static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 				wl_data_device_send_drop(resource);
 			}
 			wlr_data_source_dnd_drop(drag->source);
-
-			if (drag->source->offer != NULL) {
-				drag->source->offer->in_ask =
-					drag->source->current_dnd_action ==
-					WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK;
-			}
 
 			struct wlr_drag_drop_event event = {
 				.drag = drag,

@@ -12,14 +12,14 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
-extern const struct
-wlr_pointer_grab_interface wlr_data_device_pointer_drag_interface;
+extern const struct wlr_pointer_grab_interface
+	wlr_data_device_pointer_drag_interface;
 
-extern const struct
-wlr_keyboard_grab_interface wlr_data_device_keyboard_drag_interface;
+extern const struct wlr_keyboard_grab_interface
+	wlr_data_device_keyboard_drag_interface;
 
-extern const struct
-wlr_touch_grab_interface wlr_data_device_touch_drag_interface;
+extern const struct wlr_touch_grab_interface
+	wlr_data_device_touch_drag_interface;
 
 struct wlr_data_device_manager {
 	struct wl_global *global;
@@ -72,7 +72,6 @@ struct wlr_data_source {
 
 	// source status
 	bool accepted;
-	struct wlr_data_offer *offer;
 
 	// drag'n'drop status
 	enum wl_data_device_manager_dnd_action current_dnd_action;
