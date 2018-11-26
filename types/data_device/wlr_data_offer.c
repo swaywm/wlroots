@@ -120,9 +120,6 @@ static void data_offer_handle_destroy(struct wl_client *client,
 	if (wl_resource_get_version(offer->resource) <
 			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
 		data_offer_dnd_finish(offer);
-	} else if (offer->source->impl->dnd_finish) {
-		// wlr_data_source_cancel can free the source
-		wlr_data_source_cancel(offer->source);
 	}
 
 out:
