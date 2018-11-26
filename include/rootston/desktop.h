@@ -15,7 +15,7 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_presentation_time.h>
-#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_screenshooter.h>
 #include <wlr/types/wlr_text_input_v3.h>
@@ -51,7 +51,7 @@ struct roots_desktop {
 	struct wlr_export_dmabuf_manager_v1 *export_dmabuf_manager_v1;
 	struct wlr_server_decoration_manager *server_decoration_manager;
 	struct wlr_xdg_decoration_manager_v1 *xdg_decoration_manager;
-	struct wlr_primary_selection_device_manager *primary_selection_device_manager;
+	struct wlr_gtk_primary_selection_device_manager *primary_selection_device_manager;
 	struct wlr_idle *idle;
 	struct wlr_idle_inhibit_manager_v1 *idle_inhibit;
 	struct wlr_input_inhibit_manager *input_inhibit;
