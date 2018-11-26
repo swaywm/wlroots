@@ -376,7 +376,7 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 }
 
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
-	while (1) {
+	while (subsurface != NULL) {
 		if (subsurface->synchronized) {
 			return true;
 		}
@@ -436,15 +436,14 @@ static void surface_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	if (wlr_surface_is_subsurface(surface)) {
-		struct wlr_subsurface *subsurface =
-			wlr_subsurface_from_wlr_surface(surface);
+	struct wlr_subsurface *subsurface = wlr_surface_is_subsurface(surface) ?
+		wlr_subsurface_from_wlr_surface(surface) : NULL;
+	if (subsurface != NULL) {
 		subsurface_commit(subsurface);
 	} else {
 		surface_commit_pending(surface);
 	}
 
-	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
 		subsurface_parent_commit(subsurface, false);
 	}
@@ -904,6 +903,9 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 	while (wlr_surface_is_subsurface(surface)) {
 		struct wlr_subsurface *subsurface =
 			wlr_subsurface_from_wlr_surface(surface);
+		if (subsurface == NULL) {
+			break;
+		}
 		surface = subsurface->parent;
 	}
 	return surface;
