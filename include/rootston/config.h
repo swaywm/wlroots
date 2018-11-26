@@ -67,9 +67,9 @@ struct roots_cursor_config {
 };
 
 struct roots_switch_config {
+	char *name;
 	enum wlr_switch_type switch_type;
 	enum wlr_switch_state switch_state;
-	bool run_on_toggle;
 	char *command;
 	struct wl_list link;
 };

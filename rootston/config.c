@@ -201,9 +201,32 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
-void add_switch_config(struct wl_list *switches, const char *switch_name,
+void add_switch_config(struct wl_list *switches, const char *switch_name, const char *action, 
 		const char* command) {
-	wlr_log(WLR_DEBUG, "config switch %s: %s", switch_name, command);
+	wlr_log(WLR_DEBUG, "config switch %s: %s = %s", switch_name, action, command);
+	struct roots_switch_config *sc = calloc(1, sizeof(struct roots_switch_config));
+
+	if (strcmp(switch_name, "tablet") == 0) {
+		sc->switch_type = WLR_SWITCH_TYPE_TABLET_MODE;
+	} else if (strcmp(switch_name, "lid") == 0) {
+		sc->switch_type = WLR_SWITCH_TYPE_LID;
+	} else {
+		sc->switch_type = -1;
+		sc->name = strdup(switch_name);
+	}
+	if (strcmp(action, "on") == 0) {
+		sc->switch_state = WLR_SWITCH_STATE_ON;
+	} else if (strcmp(action, "off") == 0) {
+		sc->switch_state = WLR_SWITCH_STATE_OFF;
+	} else if (strcmp(action, "toggle") == 0) {
+		sc->switch_state = -1;
+	} else {
+		wlr_log(WLR_ERROR, "Invalid switch action %s/n for switch %s:%s",
+		        action, switch_name, action);
+	}
+	sc->command = strdup(command);
+	wl_list_insert(switches, &sc->link);
+	wlr_log(WLR_DEBUG, "config %s: type %i state %i command %s", switch_name, sc->switch_type, sc->switch_state, sc->command);
 }
 
 static void config_handle_cursor(struct roots_config *config,
@@ -285,6 +308,7 @@ static const char *output_prefix = "output:";
 static const char *device_prefix = "device:";
 static const char *keyboard_prefix = "keyboard:";
 static const char *cursor_prefix = "cursor:";
+static const char *switch_prefix = "switch:";
 
 static int config_ini_handler(void *user, const char *section, const char *name,
 		const char *value) {
@@ -441,8 +465,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		config_handle_keyboard(config, device_name, name, value);
 	} else if (strcmp(section, "bindings") == 0) {
 		add_binding_config(&config->bindings, name, value);
-	} else if (strcmp(section, "switches") == 0) {
-		add_switch_config(&config->bindings, name, value);
+	} else if (strncmp(switch_prefix, section, strlen(switch_prefix)) == 0) {
+		const char *switch_name = section + strlen(switch_prefix);
+		add_switch_config(&config->bindings, switch_name, name, value);
 	} else {
 		wlr_log(WLR_ERROR, "got unknown config section: %s", section);
 	}
