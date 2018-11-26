@@ -203,7 +203,6 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 
 void add_switch_config(struct wl_list *switches, const char *switch_name, const char *action, 
 		const char* command) {
-	wlr_log(WLR_DEBUG, "config switch %s: %s = %s", switch_name, action, command);
 	struct roots_switch_config *sc = calloc(1, sizeof(struct roots_switch_config));
 
 	if (strcmp(switch_name, "tablet") == 0) {
@@ -226,7 +225,6 @@ void add_switch_config(struct wl_list *switches, const char *switch_name, const 
 	}
 	sc->command = strdup(command);
 	wl_list_insert(switches, &sc->link);
-	wlr_log(WLR_DEBUG, "config %s: type %i state %i command %s", switch_name, sc->switch_type, sc->switch_state, sc->command);
 }
 
 static void config_handle_cursor(struct roots_config *config,
