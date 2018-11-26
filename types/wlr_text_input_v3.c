@@ -176,7 +176,7 @@ static void text_input_commit(struct wl_client *client,
 	text_input->current_serial++;
 
 	if (text_input->focused_surface == NULL) {
-		wlr_log(WLR_DEBUG, "Text input commit received without focus\n");
+		wlr_log(WLR_DEBUG, "Text input commit received without focus");
 	}
 
 	if (!old_enabled && text_input->current_enabled) {
