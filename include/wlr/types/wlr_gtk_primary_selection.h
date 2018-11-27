@@ -36,7 +36,7 @@ struct wlr_gtk_primary_selection_device {
 	struct wl_list resources; // wl_resource_get_link
 
 	struct wlr_gtk_primary_selection_source *source;
-	struct wl_list offers; // wlr_gtk_primary_selection_offer::link
+	struct wl_list offers; // wl_resource_get_link
 
 	struct wl_listener seat_destroy;
 	struct wl_listener seat_focus_change;
@@ -60,21 +60,6 @@ struct wlr_gtk_primary_selection_source {
 	struct {
 		struct wl_signal destroy;
 	} events;
-
-	void *data;
-};
-
-/**
- * An offer is the receiving side of a selection. When the selection is set,
- * offers are created for the currently focused client and can be used to
- * initiate the data transfer.
- */
-struct wlr_gtk_primary_selection_offer {
-	struct wl_resource *resource;
-	struct wlr_gtk_primary_selection_source *source;
-	struct wl_list link; // wlr_gtk_primary_selection_device::offers
-
-	struct wl_listener source_destroy;
 
 	void *data;
 };

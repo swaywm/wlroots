@@ -199,7 +199,6 @@ struct wlr_seat {
 
 	// not owned by the seat
 	struct wlr_gtk_primary_selection_source *primary_selection_source;
-	uint32_t primary_selection_serial;
 
 	// `drag` goes away before `drag_source`, when the implicit grab ends
 	struct wlr_drag *drag;
