@@ -232,6 +232,9 @@ static void device_send_selection(
 		struct wlr_gtk_primary_selection_device *device) {
 	struct wlr_seat_client *seat_client =
 		device->seat->keyboard_state.focused_client;
+	if (seat_client == NULL) {
+		return;
+	}
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &device->resources) {
