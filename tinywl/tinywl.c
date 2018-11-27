@@ -251,10 +251,6 @@ static bool view_at(struct tinywl_view *view,
 	double view_sy = ly - view->y;
 
 	struct wlr_surface_state *state = &view->xdg_surface->surface->current;
-	struct wlr_box box = {
-		.x = 0, .y = 0,
-		.width = state->width, .height = state->height,
-	};
 
 	double _sx, _sy;
 	struct wlr_surface *_surface = NULL;
