@@ -505,3 +505,9 @@ void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 	xwayland->seat_destroy.notify = xwayland_handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &xwayland->seat_destroy);
 }
+
+void wlr_xwayland_set_gtk_primary_selection_device_manager(
+		struct wlr_xwayland *xwayland,
+		struct wlr_gtk_primary_selection_device_manager *manager) {
+	xwayland->gtk_primary_selection = manager;
+}

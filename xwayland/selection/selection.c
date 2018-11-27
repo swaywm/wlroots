@@ -228,11 +228,12 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		}
-		if (xwm->seat->primary_selection_source &&
+		if (xwm->xwayland->gtk_primary_selection &&
+				xwm->seat->primary_selection_source &&
 				primary_selection_source_is_xwayland(
 					xwm->seat->primary_selection_source)) {
-			wlr_seat_set_gtk_primary_selection(xwm->seat, NULL,
-				wl_display_next_serial(xwm->xwayland->wl_display));
+			wlr_gtk_primary_selection_device_manager_set_selection(
+				xwm->xwayland->gtk_primary_selection, xwm->seat, NULL);
 		}
 		wlr_xwayland_set_seat(xwm->xwayland, NULL);
 	}

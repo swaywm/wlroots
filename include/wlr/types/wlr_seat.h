@@ -30,7 +30,6 @@ struct wlr_seat_client {
 	struct wl_list keyboards;
 	struct wl_list touches;
 	struct wl_list data_devices;
-	struct wl_list primary_selection_devices;
 
 	struct {
 		struct wl_signal destroy;
@@ -168,6 +167,10 @@ struct wlr_seat_keyboard_state {
 
 	struct wlr_seat_keyboard_grab *grab;
 	struct wlr_seat_keyboard_grab *default_grab;
+
+	struct {
+		struct wl_signal focus_change; // wlr_seat_keyboard_focus_change_event
+	} events;
 };
 
 struct wlr_seat_touch_state {
@@ -194,6 +197,7 @@ struct wlr_seat {
 	struct wlr_data_source *selection_source;
 	uint32_t selection_serial;
 
+	// not owned by the seat
 	struct wlr_gtk_primary_selection_source *primary_selection_source;
 	uint32_t primary_selection_serial;
 
@@ -208,7 +212,6 @@ struct wlr_seat {
 
 	struct wl_listener display_destroy;
 	struct wl_listener selection_source_destroy;
-	struct wl_listener primary_selection_source_destroy;
 	struct wl_listener drag_source_destroy;
 
 	struct {
@@ -246,6 +249,11 @@ struct wlr_seat_pointer_focus_change_event {
 	struct wlr_seat *seat;
 	struct wlr_surface *old_surface, *new_surface;
 	double sx, sy;
+};
+
+struct wlr_seat_keyboard_focus_change_event {
+	struct wlr_seat *seat;
+	struct wlr_surface *old_surface, *new_surface;
 };
 
 /**

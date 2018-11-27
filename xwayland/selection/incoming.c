@@ -365,9 +365,9 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 
 		bool ok = source_get_targets(selection, &source->base.mime_types,
 			&source->mime_types_atoms);
-		if (ok) {
-			wlr_seat_set_gtk_primary_selection(xwm->seat, &source->base,
-				wl_display_next_serial(xwm->xwayland->wl_display));
+		if (ok && xwm->xwayland->gtk_primary_selection) {
+			wlr_gtk_primary_selection_device_manager_set_selection(
+				xwm->xwayland->gtk_primary_selection, xwm->seat, &source->base);
 		} else {
 			source->base.cancel(&source->base);
 		}
@@ -423,9 +423,10 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 			if (selection == &xwm->clipboard_selection) {
 				wlr_seat_set_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
-			} else if (selection == &xwm->primary_selection) {
-				wlr_seat_set_gtk_primary_selection(xwm->seat, NULL,
-					wl_display_next_serial(xwm->xwayland->wl_display));
+			} else if (selection == &xwm->primary_selection &&
+					xwm->xwayland->gtk_primary_selection) {
+				wlr_gtk_primary_selection_device_manager_set_selection(
+					xwm->xwayland->gtk_primary_selection, xwm->seat, NULL);
 			} else if (selection == &xwm->dnd_selection) {
 				// TODO: DND
 			} else {
