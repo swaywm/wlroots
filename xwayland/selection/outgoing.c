@@ -198,7 +198,7 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 		struct wlr_gtk_primary_selection_source *source =
 			selection->xwm->seat->primary_selection_source;
 		if (source != NULL) {
-			source->send(source, mime_type, fd);
+			wlr_gtk_primary_selection_source_send(source, mime_type, fd);
 			return;
 		}
 	} else if (selection == &selection->xwm->dnd_selection) {

@@ -46,16 +46,22 @@ struct wlr_gtk_primary_selection_device {
 };
 
 /**
+ * A data source implementation. Only the `send` function is mandatory.
+ */
+struct wlr_gtk_primary_selection_source_impl {
+	void (*send)(struct wlr_gtk_primary_selection_source *source,
+		const char *mime_type, int fd);
+	void (*destroy)(struct wlr_gtk_primary_selection_source *source);
+};
+
+/**
  * A source is the sending side of a selection.
  */
 struct wlr_gtk_primary_selection_source {
+	const struct wlr_gtk_primary_selection_source_impl *impl;
+
 	// source metadata
 	struct wl_array mime_types;
-
-	// source implementation
-	void (*send)(struct wlr_gtk_primary_selection_source *source,
-		const char *mime_type, int32_t fd);
-	void (*cancel)(struct wlr_gtk_primary_selection_source *source);
 
 	struct {
 		struct wl_signal destroy;
@@ -75,8 +81,12 @@ void wlr_gtk_primary_selection_device_manager_set_selection(
 	struct wlr_gtk_primary_selection_source *source);
 
 void wlr_gtk_primary_selection_source_init(
+	struct wlr_gtk_primary_selection_source *source,
+	const struct wlr_gtk_primary_selection_source_impl *impl);
+void wlr_gtk_primary_selection_source_destroy(
 	struct wlr_gtk_primary_selection_source *source);
-void wlr_gtk_primary_selection_source_finish(
-	struct wlr_gtk_primary_selection_source *source);
+void wlr_gtk_primary_selection_source_send(
+	struct wlr_gtk_primary_selection_source *source, const char *mime_type,
+	int fd);
 
 #endif
