@@ -201,7 +201,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
-void add_switch_config(struct wl_list *switches, const char *switch_name, const char *action, 
+void add_switch_config(struct wl_list *switches, const char *switch_name, const char *action,
 		const char* command) {
 	struct roots_switch_config *sc = calloc(1, sizeof(struct roots_switch_config));
 
@@ -218,10 +218,11 @@ void add_switch_config(struct wl_list *switches, const char *switch_name, const 
 	} else if (strcmp(action, "off") == 0) {
 		sc->switch_state = WLR_SWITCH_STATE_OFF;
 	} else if (strcmp(action, "toggle") == 0) {
-		sc->switch_state = -1;
+		sc->switch_state = WLR_SWITCH_STATE_TOGGLE;
 	} else {
 		wlr_log(WLR_ERROR, "Invalid switch action %s/n for switch %s:%s",
 		        action, switch_name, action);
+		return;
 	}
 	sc->command = strdup(command);
 	wl_list_insert(switches, &sc->link);
@@ -465,7 +466,7 @@ static int config_ini_handler(void *user, const char *section, const char *name,
 		add_binding_config(&config->bindings, name, value);
 	} else if (strncmp(switch_prefix, section, strlen(switch_prefix)) == 0) {
 		const char *switch_name = section + strlen(switch_prefix);
-		add_switch_config(&config->bindings, switch_name, name, value);
+		add_switch_config(&config->switches, switch_name, name, value);
 	} else {
 		wlr_log(WLR_ERROR, "got unknown config section: %s", section);
 	}

@@ -10,6 +10,7 @@ sources = [
 	'main.c',
 	'output.c',
 	'seat.c',
+	'switch.c',
 	'text_input.c',
 	'virtual_keyboard.c',
 	'wl_shell.c',

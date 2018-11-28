@@ -82,8 +82,7 @@ static void handle_switch_toggle(struct wl_listener *listener, void *data) {
 	struct roots_desktop *desktop = lid_switch->seat->input->server->desktop;
 	wlr_idle_notify_activity(desktop->idle, lid_switch->seat->seat);
 	struct wlr_event_switch_toggle *event = data;
-	wlr_log(WLR_DEBUG, "Switch event %s: type %i state %i", event->device->name, event->switch_type, event->switch_state);
-	//roots_switch_handle_toggle(lid_switch, event);
+	roots_switch_handle_toggle(lid_switch, event);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
@@ -742,7 +741,6 @@ static void seat_add_switch(struct roots_seat *seat,
 		wlr_log(WLR_ERROR, "could not allocate switch for seat");
 		return;
 	}
-
 	device->data = lid_switch;
 	lid_switch->device = device;
 	lid_switch->seat = seat;
