@@ -6,6 +6,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
@@ -161,6 +162,8 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		wlr_data_source_cancel(seat->selection_source);
 		seat->selection_source = NULL;
 	}
+
+	wlr_seat_set_primary_selection(seat, NULL);
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {

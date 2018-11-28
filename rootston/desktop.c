@@ -957,16 +957,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		WLR_SERVER_DECORATION_MANAGER_MODE_CLIENT);
 	desktop->idle = wlr_idle_create(server->wl_display);
 	desktop->idle_inhibit = wlr_idle_inhibit_v1_create(server->wl_display);
-
 	desktop->primary_selection_device_manager =
 		wlr_gtk_primary_selection_device_manager_create(server->wl_display);
-#if WLR_HAS_XWAYLAND
-	if (desktop->xwayland != NULL) {
-		wlr_xwayland_set_gtk_primary_selection_device_manager(
-			desktop->xwayland, desktop->primary_selection_device_manager);
-	}
-#endif
-
 	desktop->input_inhibit =
 		wlr_input_inhibit_manager_create(server->wl_display);
 	desktop->input_inhibit_activate.notify = input_inhibit_activate;

@@ -23,6 +23,7 @@ install_headers(
 	'wlr_output.h',
 	'wlr_pointer.h',
 	'wlr_presentation_time.h',
+	'wlr_primary_selection.h',
 	'wlr_region.h',
 	'wlr_screencopy_v1.h',
 	'wlr_screenshooter.h',

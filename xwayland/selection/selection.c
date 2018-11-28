@@ -5,11 +5,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
 #include <xcb/xfixes.h>
-#include "xwayland/xwm.h"
 #include "xwayland/selection.h"
+#include "xwayland/xwm.h"
 
 void xwm_selection_transfer_remove_source(
 		struct wlr_xwm_selection_transfer *transfer) {
@@ -228,12 +228,10 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 			wlr_seat_set_selection(xwm->seat, NULL,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		}
-		if (xwm->xwayland->gtk_primary_selection &&
-				xwm->seat->primary_selection_source &&
+		if (xwm->seat->primary_selection_source &&
 				primary_selection_source_is_xwayland(
 					xwm->seat->primary_selection_source)) {
-			wlr_gtk_primary_selection_device_manager_set_selection(
-				xwm->xwayland->gtk_primary_selection, xwm->seat, NULL);
+			wlr_seat_set_primary_selection(xwm->seat, NULL);
 		}
 		wlr_xwayland_set_seat(xwm->xwayland, NULL);
 	}
@@ -275,11 +273,10 @@ static void seat_handle_primary_selection(struct wl_listener *listener,
 	struct wlr_seat *seat = data;
 	struct wlr_xwm *xwm =
 		wl_container_of(listener, xwm, seat_primary_selection);
-	struct wlr_gtk_primary_selection_source *source = seat->primary_selection_source;
+	struct wlr_primary_selection_source *source =
+		seat->primary_selection_source;
 
-	if (source != NULL &&
-			primary_selection_source_is_xwayland(
-				source)) {
+	if (source != NULL && primary_selection_source_is_xwayland(source)) {
 		return;
 	}
 

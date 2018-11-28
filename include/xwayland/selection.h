@@ -7,6 +7,8 @@
 
 #define XDND_VERSION 5
 
+struct wlr_primary_selection_source;
+
 struct wlr_xwm_selection;
 
 struct wlr_xwm_selection_transfer {
@@ -62,7 +64,7 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 	xcb_xfixes_selection_notify_event_t *event);
 bool data_source_is_xwayland(struct wlr_data_source *wlr_source);
 bool primary_selection_source_is_xwayland(
-	struct wlr_gtk_primary_selection_source *wlr_source);
+	struct wlr_primary_selection_source *wlr_source);
 
 void xwm_seat_handle_start_drag(struct wlr_xwm *xwm, struct wlr_drag *drag);
 

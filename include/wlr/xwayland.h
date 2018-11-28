@@ -43,7 +43,6 @@ struct wlr_xwayland {
 	struct wl_display *wl_display;
 	struct wlr_compositor *compositor;
 	struct wlr_seat *seat;
-	struct wlr_gtk_primary_selection_device_manager *gtk_primary_selection;
 
 	struct {
 		struct wl_signal ready;
@@ -225,10 +224,6 @@ void wlr_xwayland_surface_set_fullscreen(struct wlr_xwayland_surface *surface,
 
 void wlr_xwayland_set_seat(struct wlr_xwayland *xwayland,
 	struct wlr_seat *seat);
-
-void wlr_xwayland_set_gtk_primary_selection_device_manager(
-	struct wlr_xwayland *xwayland,
-	struct wlr_gtk_primary_selection_device_manager *manager);
 
 bool wlr_surface_is_xwayland_surface(struct wlr_surface *surface);
 
