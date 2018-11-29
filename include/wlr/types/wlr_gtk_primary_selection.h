@@ -39,7 +39,7 @@ struct wlr_gtk_primary_selection_device {
 
 	struct wl_listener seat_destroy;
 	struct wl_listener seat_focus_change;
-	struct wl_listener seat_primary_selection;
+	struct wl_listener seat_set_primary_selection;
 
 	void *data;
 };

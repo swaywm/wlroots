@@ -184,9 +184,8 @@ static void control_handle_set_selection(struct wl_client *client,
 	}
 
 	struct wlr_data_source *wlr_source = source ? &source->source : NULL;
-	struct wl_display *display = wl_client_get_display(client);
-	wlr_seat_set_selection(device->seat, wlr_source,
-		wl_display_next_serial(display));
+	wlr_seat_request_set_selection(device->seat, wlr_source,
+		wl_display_next_serial(device->seat->display));
 }
 
 static void control_handle_destroy(struct wl_client *client,
@@ -232,10 +231,10 @@ static void control_handle_seat_destroy(struct wl_listener *listener,
 	wlr_data_control_device_v1_destroy(device);
 }
 
-static void control_handle_seat_selection(struct wl_listener *listener,
+static void control_handle_seat_set_selection(struct wl_listener *listener,
 		void *data) {
 	struct wlr_data_control_device_v1 *device =
-		wl_container_of(listener, device, seat_selection);
+		wl_container_of(listener, device, seat_set_selection);
 	control_send_selection(device);
 }
 
@@ -250,7 +249,7 @@ void wlr_data_control_device_v1_destroy(struct wlr_data_control_device_v1 *devic
 		wl_resource_set_user_data(device->selection_offer_resource, NULL);
 	}
 	wl_list_remove(&device->seat_destroy.link);
-	wl_list_remove(&device->seat_selection.link);
+	wl_list_remove(&device->seat_set_selection.link);
 	wl_list_remove(&device->link);
 	free(device);
 }
@@ -319,8 +318,9 @@ static void manager_handle_get_data_device(struct wl_client *client,
 	device->seat_destroy.notify = control_handle_seat_destroy;
 	wl_signal_add(&device->seat->events.destroy, &device->seat_destroy);
 
-	device->seat_selection.notify = control_handle_seat_selection;
-	wl_signal_add(&device->seat->events.selection, &device->seat_selection);
+	device->seat_set_selection.notify = control_handle_seat_set_selection;
+	wl_signal_add(&device->seat->events.set_selection,
+		&device->seat_set_selection);
 
 	wl_list_insert(&manager->devices, &device->link);
 	wlr_signal_emit_safe(&manager->events.new_device, device);

@@ -23,6 +23,7 @@
 struct wlr_seat_client {
 	struct wl_client *client;
 	struct wlr_seat *seat;
+	struct wl_list link;
 
 	// lists of wl_resource
 	struct wl_list resources;
@@ -34,8 +35,6 @@ struct wlr_seat_client {
 	struct {
 		struct wl_signal destroy;
 	} events;
-
-	struct wl_list link;
 };
 
 struct wlr_touch_point {
@@ -226,13 +225,18 @@ struct wlr_seat {
 		struct wl_signal touch_grab_begin;
 		struct wl_signal touch_grab_end;
 
+		// wlr_seat_pointer_request_set_cursor_event
 		struct wl_signal request_set_cursor;
 
-		struct wl_signal selection;
-		struct wl_signal primary_selection;
+		// wlr_seat_request_set_selection_event
+		struct wl_signal request_set_selection;
+		struct wl_signal set_selection;
+		// wlr_seat_request_set_primary_selection_event
+		struct wl_signal request_set_primary_selection;
+		struct wl_signal set_primary_selection;
 
-		struct wl_signal start_drag;
-		struct wl_signal new_drag_icon;
+		struct wl_signal start_drag; // wlr_drag
+		struct wl_signal new_drag_icon; // wlr_drag_icon
 
 		struct wl_signal destroy;
 	} events;
@@ -245,6 +249,16 @@ struct wlr_seat_pointer_request_set_cursor_event {
 	struct wlr_surface *surface;
 	uint32_t serial;
 	int32_t hotspot_x, hotspot_y;
+};
+
+struct wlr_seat_request_set_selection_event {
+	struct wlr_data_source *source;
+	uint32_t serial;
+};
+
+struct wlr_seat_request_set_primary_selection_event {
+	struct wlr_primary_selection_source *source;
+	uint32_t serial;
 };
 
 struct wlr_seat_pointer_focus_change_event {

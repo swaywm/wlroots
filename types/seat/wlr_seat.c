@@ -274,8 +274,10 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	wl_signal_init(&seat->events.request_set_cursor);
 
-	wl_signal_init(&seat->events.selection);
-	wl_signal_init(&seat->events.primary_selection);
+	wl_signal_init(&seat->events.request_set_selection);
+	wl_signal_init(&seat->events.set_selection);
+	wl_signal_init(&seat->events.request_set_primary_selection);
+	wl_signal_init(&seat->events.set_primary_selection);
 
 	wl_signal_init(&seat->events.pointer_grab_begin);
 	wl_signal_init(&seat->events.pointer_grab_end);

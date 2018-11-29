@@ -7,9 +7,11 @@
 #include <wayland-server.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/config.h>
+#include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
-#include "wlr/types/wlr_switch.h"
+#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_switch.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
@@ -19,7 +21,6 @@
 #include "rootston/seat.h"
 #include "rootston/text_input.h"
 #include "rootston/xcursor.h"
-
 
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct roots_keyboard *keyboard =
@@ -536,6 +537,22 @@ static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
 	roots_drag_icon_update_position(icon);
 }
 
+static void roots_seat_handle_request_set_selection(
+		struct wl_listener *listener, void *data) {
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, request_set_selection);
+	struct wlr_seat_request_set_selection_event *event = data;
+	wlr_seat_set_selection(seat->seat, event->source, event->serial);
+}
+
+static void roots_seat_handle_request_set_primary_selection(
+		struct wl_listener *listener, void *data) {
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, request_set_primary_selection);
+	struct wlr_seat_request_set_primary_selection_event *event = data;
+	wlr_seat_set_primary_selection(seat->seat, event->source, event->serial);
+}
+
 void roots_drag_icon_update_position(struct roots_drag_icon *icon) {
 	roots_drag_icon_damage_whole(icon);
 
@@ -621,6 +638,14 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 
 	wl_list_insert(&input->seats, &seat->link);
 
+	seat->request_set_selection.notify =
+		roots_seat_handle_request_set_selection;
+	wl_signal_add(&seat->seat->events.request_set_selection,
+		&seat->request_set_selection);
+	seat->request_set_primary_selection.notify =
+		roots_seat_handle_request_set_primary_selection;
+	wl_signal_add(&seat->seat->events.request_set_primary_selection,
+		&seat->request_set_primary_selection);
 	seat->new_drag_icon.notify = roots_seat_handle_new_drag_icon;
 	wl_signal_add(&seat->seat->events.new_drag_icon, &seat->new_drag_icon);
 	seat->destroy.notify = roots_seat_handle_destroy;

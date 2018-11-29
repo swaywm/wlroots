@@ -41,13 +41,30 @@ void wlr_primary_selection_source_send(
 }
 
 
+void wlr_seat_request_set_primary_selection(struct wlr_seat *seat,
+		struct wlr_primary_selection_source *source, uint32_t serial) {
+	if (seat->primary_selection_source &&
+			seat->primary_selection_serial - serial < UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_primary_selection request, "
+			"invalid serial (%"PRIu32" <= %"PRIu32")",
+			serial, seat->primary_selection_serial);
+		return;
+	}
+
+	struct wlr_seat_request_set_primary_selection_event event = {
+		.source = source,
+		.serial = serial,
+	};
+	wlr_signal_emit_safe(&seat->events.request_set_primary_selection, &event);
+}
+
 static void seat_handle_primary_selection_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, primary_selection_source_destroy);
 	wl_list_remove(&seat->primary_selection_source_destroy.link);
 	seat->primary_selection_source = NULL;
-	wlr_signal_emit_safe(&seat->events.primary_selection, seat);
+	wlr_signal_emit_safe(&seat->events.set_primary_selection, seat);
 }
 
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
@@ -75,5 +92,5 @@ void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 			&seat->primary_selection_source_destroy);
 	}
 
-	wlr_signal_emit_safe(&seat->events.primary_selection, seat);
+	wlr_signal_emit_safe(&seat->events.set_primary_selection, seat);
 }
