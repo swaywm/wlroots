@@ -32,13 +32,13 @@ static void data_device_set_selection(struct wl_client *client,
 		source = client_data_source_from_resource(source_resource);
 	}
 
-	struct wlr_data_source *wlr_source =
-		source != NULL ? &source->source : NULL;
-	wlr_seat_set_selection(seat_client->seat, wlr_source, serial);
-
 	if (source != NULL) {
 		source->finalized = true;
 	}
+
+	struct wlr_data_source *wlr_source =
+		source != NULL ? &source->source : NULL;
+	wlr_seat_request_set_selection(seat_client->seat, wlr_source, serial);
 }
 
 static void data_device_start_drag(struct wl_client *client,
@@ -116,7 +116,23 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	}
 }
 
-static void seat_client_selection_source_destroy(
+void wlr_seat_request_set_selection(struct wlr_seat *seat,
+		struct wlr_data_source *source, uint32_t serial) {
+	if (seat->selection_source &&
+			seat->selection_serial - serial < UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, invalid serial "
+			"(%"PRIu32" <= %"PRIu32")", serial, seat->selection_serial);
+		return;
+	}
+
+	struct wlr_seat_request_set_selection_event event = {
+		.source = source,
+		.serial = serial,
+	};
+	wlr_signal_emit_safe(&seat->events.request_set_selection, &event);
+}
+
+static void seat_handle_selection_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_source_destroy);
@@ -132,16 +148,11 @@ static void seat_client_selection_source_destroy(
 		}
 	}
 
-	wlr_signal_emit_safe(&seat->events.selection, seat);
+	wlr_signal_emit_safe(&seat->events.set_selection, seat);
 }
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
-	if (seat->selection_source &&
-			seat->selection_serial - serial < UINT32_MAX / 2) {
-		return;
-	}
-
 	if (seat->selection_source) {
 		wl_list_remove(&seat->selection_source_destroy.link);
 		wlr_data_source_cancel(seat->selection_source);
@@ -153,19 +164,18 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 
 	struct wlr_seat_client *focused_client =
 		seat->keyboard_state.focused_client;
-
 	if (focused_client) {
 		wlr_seat_client_send_selection(focused_client);
 	}
 
-	wlr_signal_emit_safe(&seat->events.selection, seat);
-
 	if (source) {
 		seat->selection_source_destroy.notify =
-			seat_client_selection_source_destroy;
+			seat_handle_selection_source_destroy;
 		wl_signal_add(&source->events.destroy,
 			&seat->selection_source_destroy);
 	}
+
+	wlr_signal_emit_safe(&seat->events.set_selection, seat);
 }
 
 

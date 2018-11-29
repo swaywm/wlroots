@@ -255,11 +255,11 @@ static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
 	}
 }
 
-static void seat_handle_selection(struct wl_listener *listener,
+static void handle_seat_set_selection(struct wl_listener *listener,
 		void *data) {
 	struct wlr_seat *seat = data;
 	struct wlr_xwm *xwm =
-		wl_container_of(listener, xwm, seat_selection);
+		wl_container_of(listener, xwm, seat_set_selection);
 	struct wlr_data_source *source = seat->selection_source;
 
 	if (source != NULL && data_source_is_xwayland(source)) {
@@ -269,11 +269,11 @@ static void seat_handle_selection(struct wl_listener *listener,
 	xwm_selection_set_owner(&xwm->clipboard_selection, source != NULL);
 }
 
-static void seat_handle_primary_selection(struct wl_listener *listener,
+static void handle_seat_set_primary_selection(struct wl_listener *listener,
 		void *data) {
 	struct wlr_seat *seat = data;
 	struct wlr_xwm *xwm =
-		wl_container_of(listener, xwm, seat_primary_selection);
+		wl_container_of(listener, xwm, seat_set_primary_selection);
 	struct wlr_primary_selection_source *source =
 		seat->primary_selection_source;
 
@@ -294,8 +294,8 @@ static void seat_handle_start_drag(struct wl_listener *listener, void *data) {
 
 void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
 	if (xwm->seat != NULL) {
-		wl_list_remove(&xwm->seat_selection.link);
-		wl_list_remove(&xwm->seat_primary_selection.link);
+		wl_list_remove(&xwm->seat_set_selection.link);
+		wl_list_remove(&xwm->seat_set_primary_selection.link);
 		wl_list_remove(&xwm->seat_start_drag.link);
 		xwm->seat = NULL;
 	}
@@ -306,13 +306,14 @@ void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat) {
 
 	xwm->seat = seat;
 
-	wl_signal_add(&seat->events.selection, &xwm->seat_selection);
-	xwm->seat_selection.notify = seat_handle_selection;
-	wl_signal_add(&seat->events.primary_selection, &xwm->seat_primary_selection);
-	xwm->seat_primary_selection.notify = seat_handle_primary_selection;
+	wl_signal_add(&seat->events.set_selection, &xwm->seat_set_selection);
+	xwm->seat_set_selection.notify = handle_seat_set_selection;
+	wl_signal_add(&seat->events.set_primary_selection,
+		&xwm->seat_set_primary_selection);
+	xwm->seat_set_primary_selection.notify = handle_seat_set_primary_selection;
 	wl_signal_add(&seat->events.start_drag, &xwm->seat_start_drag);
 	xwm->seat_start_drag.notify = seat_handle_start_drag;
 
-	seat_handle_selection(&xwm->seat_selection, seat);
-	seat_handle_primary_selection(&xwm->seat_primary_selection, seat);
+	handle_seat_set_selection(&xwm->seat_set_selection, seat);
+	handle_seat_set_primary_selection(&xwm->seat_set_primary_selection, seat);
 }

@@ -38,6 +38,8 @@ struct roots_seat {
 	struct wl_list tablets;
 	struct wl_list tablet_pads;
 
+	struct wl_listener request_set_selection;
+	struct wl_listener request_set_primary_selection;
 	struct wl_listener new_drag_icon;
 	struct wl_listener destroy;
 };

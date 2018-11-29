@@ -208,7 +208,7 @@ static void device_handle_set_selection(struct wl_client *client,
 		source = &client_source->source;
 	}
 
-	wlr_seat_set_primary_selection(device->seat, source, serial);
+	wlr_seat_request_set_primary_selection(device->seat, source, serial);
 }
 
 static void device_handle_destroy(struct wl_client *client,
@@ -272,10 +272,10 @@ static void device_handle_seat_focus_change(struct wl_listener *listener,
 	device_send_selection(device);
 }
 
-static void device_handle_seat_primary_selection(struct wl_listener *listener,
-		void *data) {
+static void device_handle_seat_set_primary_selection(
+		struct wl_listener *listener, void *data) {
 	struct wlr_gtk_primary_selection_device *device =
-		wl_container_of(listener, device, seat_primary_selection);
+		wl_container_of(listener, device, seat_set_primary_selection);
 
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &device->offers) {
@@ -314,10 +314,10 @@ static struct wlr_gtk_primary_selection_device *get_or_create_device(
 	wl_signal_add(&seat->keyboard_state.events.focus_change,
 		&device->seat_focus_change);
 
-	device->seat_primary_selection.notify =
-		device_handle_seat_primary_selection;
-	wl_signal_add(&seat->events.primary_selection,
-		&device->seat_primary_selection);
+	device->seat_set_primary_selection.notify =
+		device_handle_seat_set_primary_selection;
+	wl_signal_add(&seat->events.set_primary_selection,
+		&device->seat_set_primary_selection);
 
 	return device;
 }
@@ -329,7 +329,7 @@ static void device_destroy(struct wlr_gtk_primary_selection_device *device) {
 	wl_list_remove(&device->link);
 	wl_list_remove(&device->seat_destroy.link);
 	wl_list_remove(&device->seat_focus_change.link);
-	wl_list_remove(&device->seat_primary_selection.link);
+	wl_list_remove(&device->seat_set_primary_selection.link);
 	struct wl_resource *resource, *resource_tmp;
 	wl_resource_for_each_safe(resource, resource_tmp, &device->offers) {
 		destroy_offer(resource);
