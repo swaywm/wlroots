@@ -607,3 +607,172 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 	}
 	return eglDestroySurface(egl->display, surface);
 }
+
+/*
+ * New API.
+ * TODO: Remove everything above this and _2 suffix when the old API is removed.
+ */
+
+struct wlr_egl_2 *wlr_egl_create_2(struct gbm_device *gbm) {
+	const char *client_exts = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+
+	// This implies EGL_EXT_platform_base
+	if (!check_egl_ext(client_exts, "EGL_MESA_platform_gbm")) {
+		wlr_log(WLR_ERROR, "EGL does not support GBM platform");
+		return NULL;
+	}
+
+	struct wlr_egl_2 *egl = calloc(1, sizeof(*egl));
+	if (!egl) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
+	egl->get_platform_display = (void *)eglGetProcAddress("eglGetPlatformDisplayEXT");
+
+	egl->display = egl->get_platform_display(EGL_PLATFORM_GBM_MESA, gbm, NULL);
+	if (!egl->display) {
+		wlr_log(WLR_ERROR, "Failed to create EGL display");
+		goto error_egl;
+	}
+
+	if (!eglInitialize(egl->display, NULL, NULL)) {
+		wlr_log(WLR_ERROR, "Failed to initialize EGL");
+		goto error_egl;
+	}
+
+	const char *instance_exts = eglQueryString(egl->display, EGL_EXTENSIONS);
+
+	wlr_log(WLR_INFO, "Using EGL %s", eglQueryString(egl->display, EGL_VERSION));
+	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
+	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts);
+	wlr_log(WLR_INFO, "Supported EGL instance extensions: %s", instance_exts);
+
+	// This implies EGL_KHR_image_base
+	if (!check_egl_ext(instance_exts, "EGL_EXT_image_dma_buf_import")) {
+		wlr_log(WLR_ERROR, "EGL does not support dmabuf import");
+		goto error_display;
+	}
+
+	egl->has_modifiers = check_egl_ext(instance_exts, "EGL_EXT_image_dma_buf_import_modifiers");
+
+	egl->create_image = (void *)eglGetProcAddress("eglCreateImageKHR");
+	egl->destroy_image = (void *)eglGetProcAddress("eglDestroyImageKHR");
+
+	if (!check_egl_ext(instance_exts, "EGL_KHR_surfaceless_context")) {
+		wlr_log(WLR_ERROR, "EGL does not support surfaceless contexts");
+		goto error_display;
+	}
+
+	if (!check_egl_ext(instance_exts, "EGL_KHR_no_config_context")) {
+		wlr_log(WLR_ERROR, "EGL does not support configless contexts");
+		goto error_display;
+	}
+
+	if (check_egl_ext(instance_exts, "EGL_WL_bind_wayland_display")) {
+		egl->has_bind_wl = true;
+		egl->bind_wl_display = (void *)eglGetProcAddress("eglBindWaylandDisplayWL");
+		egl->unbind_wl_display = (void *)eglGetProcAddress("eglUnbindWaylandDisplayWL");
+		egl->query_wl_buffer = (void *)eglGetProcAddress("eglQueryWaylandBufferWL");
+	} else {
+		wlr_log(WLR_ERROR, "EGL doesn't support binding wayland displays;"
+			" some clients may be affected");
+	}
+
+	bool priority = check_egl_ext(instance_exts, "EGL_IMG_context_priority");
+
+	EGLint attribs[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 2,
+		EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
+		EGL_NONE,
+	};
+
+	if (!priority) {
+		attribs[2] = EGL_NONE;
+	}
+
+	egl->context = eglCreateContext(egl->display, EGL_NO_CONFIG_KHR,
+		EGL_NO_CONTEXT, attribs);
+	if (!egl->context) {
+		wlr_log(WLR_ERROR, "Failed to create EGL context");
+		goto error_display;
+	}
+
+	if (priority) {
+		EGLint val;
+		eglQueryContext(egl->display, egl->context,
+			EGL_CONTEXT_PRIORITY_LEVEL_IMG, &val);
+
+		if (val != EGL_CONTEXT_PRIORITY_HIGH_IMG) {
+			wlr_log(WLR_ERROR, "Failed to create high priorty context");
+			// Not an error
+		}
+	}
+
+	return egl;
+
+error_display:
+	eglTerminate(egl->display);
+error_egl:
+	free(egl);
+	return NULL;
+}
+
+void wlr_egl_destroy_2(struct wlr_egl_2 *egl) {
+	if (!egl) {
+		return;
+	}
+
+	if (egl->wl_display) {
+		assert(egl->has_bind_wl);
+		egl->unbind_wl_display(egl->display, egl->wl_display);
+	}
+
+	eglDestroyContext(egl->display, egl->context);
+	eglTerminate(egl->display);
+	eglReleaseThread();
+	free(egl);
+}
+
+bool wlr_egl_bind_display_2(struct wlr_egl_2 *egl, struct wl_display *local_display) {
+	if (!egl->has_bind_wl) {
+		return false;
+	}
+
+	if (egl->wl_display) {
+		egl->unbind_wl_display(egl->display, egl->wl_display);
+		egl->wl_display = NULL;
+	}
+
+	if (egl->bind_wl_display(egl->display, local_display)) {
+		egl->wl_display = local_display;
+		return true;
+	}
+
+	return false;
+}
+
+EGLImageKHR wlr_egl_create_image_2(struct wlr_egl_2 *egl, struct gbm_bo *bo) {
+	return egl->create_image(egl->display, egl->context,
+		EGL_NATIVE_PIXMAP_KHR, bo, NULL);
+}
+
+void wlr_egl_destroy_image_2(struct wlr_egl_2 *egl, EGLImageKHR image) {
+	if (!image) {
+		return;
+	}
+
+	egl->destroy_image(egl->display, image);
+}
+
+bool wlr_egl_make_current_2(struct wlr_egl_2 *egl) {
+	if (!eglMakeCurrent(egl->display, NULL, NULL, egl->context)) {
+		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
+		return false;
+	}
+	return true;
+}
+
+bool wlr_egl_is_current_2(struct wlr_egl_2 *egl) {
+	return eglGetCurrentContext() == egl->context;
+}

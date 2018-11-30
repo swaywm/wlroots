@@ -115,4 +115,43 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
 
+/*
+ * New API.
+ * TODO: Remove everything above this and _2 suffix when the old API is removed.
+ */
+
+#include <gbm.h>
+
+struct wlr_egl_2 {
+	EGLDisplay display;
+	EGLContext context;
+
+	PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
+	PFNEGLCREATEIMAGEKHRPROC create_image;
+	PFNEGLDESTROYIMAGEKHRPROC destroy_image;
+
+	PFNEGLBINDWAYLANDDISPLAYWL bind_wl_display;
+	PFNEGLUNBINDWAYLANDDISPLAYWL unbind_wl_display;
+	PFNEGLQUERYWAYLANDBUFFERWL query_wl_buffer;
+
+	bool has_modifiers;
+	bool has_bind_wl;
+
+	struct wl_display *wl_display;
+};
+
+struct wlr_egl_2 *wlr_egl_create_2(struct gbm_device *gbm);
+
+void wlr_egl_destroy_2(struct wlr_egl_2 *egl);
+
+bool wlr_egl_bind_display_2(struct wlr_egl_2 *egl, struct wl_display *local_display);
+
+EGLImageKHR wlr_egl_create_image_2(struct wlr_egl_2 *egl, struct gbm_bo *bo);
+
+void wlr_egl_destroy_image_2(struct wlr_egl_2 *egl, EGLImageKHR image);
+
+bool wlr_egl_make_current_2(struct wlr_egl_2 *egl);
+
+bool wlr_egl_is_current_2(struct wlr_egl_2 *egl);
+
 #endif
