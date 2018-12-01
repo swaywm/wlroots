@@ -121,7 +121,7 @@ struct wlr_output {
 struct wlr_output_event_swap_buffers {
 	struct wlr_output *output;
 	struct timespec *when;
-	pixman_region32_t *damage;
+	pixman_region32_t *damage; // output-buffer-local coordinates
 };
 
 enum wlr_output_present_flag {
@@ -202,6 +202,9 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
  * Swaps the output buffers. If the time of the frame isn't known, set `when` to
  * NULL. If the compositor doesn't support damage tracking, set `damage` to
  * NULL.
+ *
+ * Damage is given in output-buffer-local coordinates (ie. scaled and
+ * transformed).
  *
  * Swapping buffers schedules a `frame` event.
  */

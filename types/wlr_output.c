@@ -365,9 +365,6 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	int width, height;
-	wlr_output_transformed_resolution(output, &width, &height);
-
 	struct timespec now;
 	if (when == NULL) {
 		clock_gettime(CLOCK_MONOTONIC, &now);
@@ -384,18 +381,11 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 	pixman_region32_t render_damage;
 	pixman_region32_init(&render_damage);
 	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
-		width, height);
+		output->width, output->height);
 	if (damage != NULL) {
 		// Damage tracking supported
 		pixman_region32_intersect(&render_damage, &render_damage, damage);
 	}
-
-	// Transform damage into renderer coordinates, ie. upside down
-	// TODO: take transformed coords, make the renderer flip the damage
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(output->transform);
-	wlr_region_transform(&render_damage, &render_damage, transform,
-		width, height);
 
 	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
 		pixman_region32_fini(&render_damage);
