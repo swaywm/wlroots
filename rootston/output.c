@@ -522,11 +522,16 @@ renderer_end:
 	wlr_renderer_scissor(renderer, NULL);
 	wlr_renderer_end(renderer);
 
+	int width, height;
+	wlr_output_transformed_resolution(wlr_output, &width, &height);
+
 	if (server->config->debug_damage_tracking) {
-		int width, height;
-		wlr_output_transformed_resolution(wlr_output, &width, &height);
 		pixman_region32_union_rect(&damage, &damage, 0, 0, width, height);
 	}
+
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(wlr_output->transform);
+	wlr_region_transform(&damage, &damage, transform, width, height);
 
 	if (!wlr_output_damage_swap_buffers(output->damage, &now, &damage)) {
 		goto damage_finish;
