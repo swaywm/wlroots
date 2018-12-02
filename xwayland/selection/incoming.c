@@ -5,11 +5,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
 #include <xcb/xfixes.h>
-#include "xwayland/xwm.h"
 #include "xwayland/selection.h"
+#include "xwayland/xwm.h"
 
 /**
  * Write the X11 selection to a Wayland client.
@@ -137,7 +137,7 @@ static void xwm_selection_get_data(struct wlr_xwm_selection *selection) {
 
 static void source_send(struct wlr_xwm_selection *selection,
 		struct wl_array *mime_types, struct wl_array *mime_types_atoms,
-		const char *requested_mime_type, int32_t fd) {
+		const char *requested_mime_type, int fd) {
 	struct wlr_xwm *xwm = selection->xwm;
 	struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
 
@@ -217,22 +217,22 @@ static const struct wlr_data_source_impl data_source_impl = {
 };
 
 struct x11_primary_selection_source {
-	struct wlr_gtk_primary_selection_source base;
+	struct wlr_primary_selection_source base;
 	struct wlr_xwm_selection *selection;
 	struct wl_array mime_types_atoms;
 };
 
-static void primary_selection_source_cancel(
-	struct wlr_gtk_primary_selection_source *wlr_source);
+static const struct wlr_primary_selection_source_impl
+	primary_selection_source_impl;
 
 bool primary_selection_source_is_xwayland(
-		struct wlr_gtk_primary_selection_source *wlr_source) {
-	return wlr_source->cancel == primary_selection_source_cancel;
+		struct wlr_primary_selection_source *wlr_source) {
+	return wlr_source->impl == &primary_selection_source_impl;
 }
 
 static void primary_selection_source_send(
-		struct wlr_gtk_primary_selection_source *wlr_source, const char *mime_type,
-		int32_t fd) {
+		struct wlr_primary_selection_source *wlr_source,
+		const char *mime_type, int fd) {
 	struct x11_primary_selection_source *source =
 		(struct x11_primary_selection_source *)wlr_source;
 	struct wlr_xwm_selection *selection = source->selection;
@@ -241,14 +241,19 @@ static void primary_selection_source_send(
 		mime_type, fd);
 }
 
-static void primary_selection_source_cancel(
-		struct wlr_gtk_primary_selection_source *wlr_source) {
+static void primary_selection_source_destroy(
+		struct wlr_primary_selection_source *wlr_source) {
 	struct x11_primary_selection_source *source =
 		(struct x11_primary_selection_source *)wlr_source;
-	wlr_gtk_primary_selection_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }
+
+static const struct wlr_primary_selection_source_impl
+		primary_selection_source_impl = {
+	.send = primary_selection_source_send,
+	.destroy = primary_selection_source_destroy,
+};
 
 static bool source_get_targets(struct wlr_xwm_selection *selection,
 		struct wl_array *mime_types, struct wl_array *mime_types_atoms) {
@@ -356,9 +361,8 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		if (source == NULL) {
 			return;
 		}
-		wlr_gtk_primary_selection_source_init(&source->base);
-		source->base.send = primary_selection_source_send;
-		source->base.cancel = primary_selection_source_cancel;
+		wlr_primary_selection_source_init(&source->base,
+			&primary_selection_source_impl);
 
 		source->selection = selection;
 		wl_array_init(&source->mime_types_atoms);
@@ -366,10 +370,9 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		bool ok = source_get_targets(selection, &source->base.mime_types,
 			&source->mime_types_atoms);
 		if (ok) {
-			wlr_seat_set_gtk_primary_selection(xwm->seat, &source->base,
-				wl_display_next_serial(xwm->xwayland->wl_display));
+			wlr_seat_set_primary_selection(xwm->seat, &source->base);
 		} else {
-			source->base.cancel(&source->base);
+			wlr_primary_selection_source_destroy(&source->base);
 		}
 	} else if (selection == &xwm->dnd_selection) {
 		// TODO
@@ -424,8 +427,7 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 				wlr_seat_set_selection(xwm->seat, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 			} else if (selection == &xwm->primary_selection) {
-				wlr_seat_set_gtk_primary_selection(xwm->seat, NULL,
-					wl_display_next_serial(xwm->xwayland->wl_display));
+				wlr_seat_set_primary_selection(xwm->seat, NULL);
 			} else if (selection == &xwm->dnd_selection) {
 				// TODO: DND
 			} else {

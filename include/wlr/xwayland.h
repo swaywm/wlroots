@@ -18,6 +18,7 @@
 
 struct wlr_xwm;
 struct wlr_xwayland_cursor;
+struct wlr_gtk_primary_selection_device_manager;
 
 struct wlr_xwayland {
 	pid_t pid;
@@ -42,12 +43,13 @@ struct wlr_xwayland {
 	struct wl_display *wl_display;
 	struct wlr_compositor *compositor;
 	struct wlr_seat *seat;
-	struct wl_listener seat_destroy;
 
 	struct {
 		struct wl_signal ready;
 		struct wl_signal new_surface;
 	} events;
+
+	struct wl_listener seat_destroy;
 
 	/**
 	 * Add a custom event handler to xwayland. Return 1 if the event was

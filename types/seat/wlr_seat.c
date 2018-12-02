@@ -6,7 +6,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
@@ -88,10 +88,6 @@ static void seat_client_handle_resource_destroy(
 	wl_resource_for_each_safe(resource, tmp, &client->data_devices) {
 		wl_resource_destroy(resource);
 	}
-	wl_resource_for_each_safe(resource, tmp,
-			&client->primary_selection_devices) {
-		wl_resource_destroy(resource);
-	}
 
 	wl_list_remove(&client->link);
 	free(client);
@@ -138,7 +134,6 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 		wl_list_init(&seat_client->keyboards);
 		wl_list_init(&seat_client->touches);
 		wl_list_init(&seat_client->data_devices);
-		wl_list_init(&seat_client->primary_selection_devices);
 		wl_signal_init(&seat_client->events.destroy);
 
 		wl_list_insert(&wlr_seat->clients, &seat_client->link);
@@ -167,11 +162,8 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		wlr_data_source_cancel(seat->selection_source);
 		seat->selection_source = NULL;
 	}
-	if (seat->primary_selection_source) {
-		wl_list_remove(&seat->primary_selection_source_destroy.link);
-		seat->primary_selection_source->cancel(seat->primary_selection_source);
-		seat->primary_selection_source = NULL;
-	}
+
+	wlr_seat_set_primary_selection(seat, NULL);
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
@@ -242,6 +234,8 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 
 	seat->keyboard_state.seat = seat;
 	wl_list_init(&seat->keyboard_state.surface_destroy.link);
+
+	wl_signal_init(&seat->keyboard_state.events.focus_change);
 
 	// touch state
 	struct wlr_seat_touch_grab *touch_grab =

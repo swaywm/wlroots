@@ -4,11 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
 #include <xcb/xfixes.h>
-#include "xwayland/xwm.h"
 #include "xwayland/selection.h"
+#include "xwayland/xwm.h"
 
 static void xwm_selection_send_notify(struct wlr_xwm *xwm,
 		xcb_selection_request_event_t *req, bool success) {
@@ -195,10 +195,10 @@ static void xwm_selection_source_send(struct wlr_xwm_selection *selection,
 			return;
 		}
 	} else if (selection == &selection->xwm->primary_selection) {
-		struct wlr_gtk_primary_selection_source *source =
+		struct wlr_primary_selection_source *source =
 			selection->xwm->seat->primary_selection_source;
 		if (source != NULL) {
-			source->send(source, mime_type, fd);
+			wlr_primary_selection_source_send(source, mime_type, fd);
 			return;
 		}
 	} else if (selection == &selection->xwm->dnd_selection) {
@@ -231,7 +231,7 @@ static struct wl_array *xwm_selection_source_get_mime_types(
 			return &source->mime_types;
 		}
 	} else if (selection == &selection->xwm->primary_selection) {
-		struct wlr_gtk_primary_selection_source *source =
+		struct wlr_primary_selection_source *source =
 			selection->xwm->seat->primary_selection_source;
 		if (source != NULL) {
 			return &source->mime_types;
