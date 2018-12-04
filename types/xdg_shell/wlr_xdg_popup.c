@@ -207,9 +207,7 @@ static const struct xdg_popup_interface xdg_popup_implementation = {
 static void xdg_popup_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_popup_resource(resource);
-	if (surface != NULL) {
-		destroy_xdg_popup(surface);
-	}
+	destroy_xdg_popup(surface);
 }
 
 const struct wlr_surface_role xdg_popup_surface_role = {
@@ -241,14 +239,13 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 		return;
 	}
 
-	if (xdg_surface->popup == NULL) {
-		xdg_surface->popup = calloc(1, sizeof(struct wlr_xdg_popup));
-		if (!xdg_surface->popup) {
-			wl_resource_post_no_memory(xdg_surface->resource);
-			return;
-		}
-		xdg_surface->popup->base = xdg_surface;
+	assert(xdg_surface->popup == NULL);
+	xdg_surface->popup = calloc(1, sizeof(struct wlr_xdg_popup));
+	if (!xdg_surface->popup) {
+		wl_resource_post_no_memory(xdg_surface->resource);
+		return;
 	}
+	xdg_surface->popup->base = xdg_surface;
 
 	xdg_surface->popup->resource = wl_resource_create(
 		xdg_surface->client->client, &xdg_popup_interface,
@@ -280,18 +277,11 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 }
 
 void destroy_xdg_popup(struct wlr_xdg_surface *xdg_surface) {
+	if (xdg_surface == NULL) {
+		return;
+	}
 	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
-	unmap_xdg_surface(xdg_surface);
-
-	// Don't destroy the popup state yet, the compositor might have some
-	// listeners set up. Anyway the client can only re-create another xdg-popup
-	// with this xdg-surface because of role restrictions.
-	wl_resource_set_user_data(xdg_surface->popup->resource, NULL);
-	xdg_surface->toplevel->resource = NULL;
-
-	wl_list_remove(&xdg_surface->popup->link);
-
-	xdg_surface->role = WLR_XDG_SURFACE_ROLE_NONE;
+	reset_xdg_surface(xdg_surface);
 }
 
 void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,

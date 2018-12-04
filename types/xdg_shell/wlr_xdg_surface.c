@@ -439,12 +439,43 @@ struct wlr_xdg_surface *create_xdg_surface(
 	return xdg_surface;
 }
 
-void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
-	if (surface->role != WLR_XDG_SURFACE_ROLE_NONE) {
-		unmap_xdg_surface(surface);
+void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
+	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_NONE) {
+		unmap_xdg_surface(xdg_surface);
 	}
 
-	wlr_signal_emit_safe(&surface->events.destroy, surface);
+	if (xdg_surface->added) {
+		wlr_signal_emit_safe(&xdg_surface->events.destroy, xdg_surface);
+		xdg_surface->added = false;
+	}
+
+	switch (xdg_surface->role) {
+	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
+		wl_resource_set_user_data(xdg_surface->toplevel->resource, NULL);
+		xdg_surface->toplevel->resource = NULL;
+
+		free(xdg_surface->toplevel);
+		xdg_surface->toplevel = NULL;
+		break;
+	case WLR_XDG_SURFACE_ROLE_POPUP:
+		wl_resource_set_user_data(xdg_surface->popup->resource, NULL);
+		xdg_surface->toplevel->resource = NULL;
+
+		wl_list_remove(&xdg_surface->popup->link);
+
+		free(xdg_surface->popup);
+		xdg_surface->popup = NULL;
+		break;
+	case WLR_XDG_SURFACE_ROLE_NONE:
+		// This space is intentionally left blank
+		break;
+	}
+
+	xdg_surface->role = WLR_XDG_SURFACE_ROLE_NONE;
+}
+
+void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
+	reset_xdg_surface(surface);
 
 	struct wlr_xdg_popup *popup_state, *next;
 	wl_list_for_each_safe(popup_state, next, &surface->popups, link) {
@@ -452,26 +483,9 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 		destroy_xdg_popup(popup_state->base);
 	}
 
-	switch (surface->role) {
-	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-		destroy_xdg_toplevel(surface);
-		break;
-	case WLR_XDG_SURFACE_ROLE_POPUP:
-		destroy_xdg_popup(surface);
-		break;
-	case WLR_XDG_SURFACE_ROLE_NONE:
-		// This space is intentionally left blank
-		break;
-	}
-
-	if (surface->surface->role == &xdg_toplevel_surface_role) {
-		free(surface->toplevel);
-	} else if (surface->surface->role == &xdg_popup_surface_role) {
-		free(surface->popup);
-	}
-
 	wl_resource_set_user_data(surface->resource, NULL);
 	surface->surface->role_data = NULL;
+
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy.link);
 	wl_list_remove(&surface->surface_commit.link);
@@ -625,7 +639,8 @@ void wlr_xdg_surface_for_each_popup(struct wlr_xdg_surface *surface,
 	xdg_surface_for_each_popup(surface, 0, 0, iterator, user_data);
 }
 
-void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface, struct wlr_box *box) {
+void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
+		struct wlr_box *box) {
 	wlr_surface_get_extends(surface->surface, box);
 	/* The client never set the geometry */
 	if (!surface->geometry.width) {
