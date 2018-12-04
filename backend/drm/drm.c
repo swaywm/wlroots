@@ -428,6 +428,19 @@ bool enable_drm_connector(struct wlr_output *output, bool enable) {
 	return true;
 }
 
+static ssize_t connector_index_from_crtc(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc) {
+	size_t i = 0;
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
+		if (conn->crtc == crtc) {
+			return i;
+		}
+		++i;
+	}
+	return -1;
+}
+
 static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 		bool *changed_outputs) {
 	wlr_log(WLR_DEBUG, "Reallocating planes");
@@ -477,7 +490,10 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 					type,
 					c->id);
 
-				changed_outputs[crtc_res[i]] = true;
+				ssize_t conn_idx = connector_index_from_crtc(drm, c);
+				if (conn_idx >= 0) {
+					changed_outputs[conn_idx] = true;
+				}
 				if (*old) {
 					finish_drm_surface(&(*old)->surf);
 				}
