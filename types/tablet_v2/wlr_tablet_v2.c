@@ -28,13 +28,14 @@ struct wlr_tablet_manager_client_v2 {
 };
 
 static void tablet_seat_destroy(struct wlr_tablet_seat_v2 *seat) {
-	wl_list_remove(&seat->link);
-	wl_list_remove(&seat->seat_destroy.link);
-
 	struct wlr_tablet_seat_client_v2 *client, *client_tmp;
 	wl_list_for_each_safe(client, client_tmp, &seat->clients, seat_link) {
 		tablet_seat_client_v2_destroy(client->resource);
 	}
+
+	wl_list_remove(&seat->link);
+	wl_list_remove(&seat->seat_destroy.link);
+	free(seat);
 }
 
 static void handle_wlr_seat_destroy(struct wl_listener *listener, void *data) {
