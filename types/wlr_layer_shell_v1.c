@@ -176,12 +176,24 @@ static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 }
 
 static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
+	if (surface == NULL) {
+		return;
+	}
+
 	if (surface->configured && surface->mapped) {
 		layer_surface_unmap(surface);
 	}
+
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
+
+	struct wlr_xdg_popup *popup, *popup_tmp;
+	wl_list_for_each_safe(popup, popup_tmp, &surface->popups, link) {
+		wlr_xdg_popup_destroy(popup);
+	}
+
 	wl_resource_set_user_data(surface->resource, NULL);
 	surface->surface->role_data = NULL;
+
 	wl_list_remove(&surface->surface_destroy.link);
 	wl_list_remove(&surface->link);
 	free(surface->namespace);
@@ -191,9 +203,7 @@ static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
 static void layer_surface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_layer_surface_v1 *surface =
 		layer_surface_from_resource(resource);
-	if (surface != NULL) {
-		layer_surface_destroy(surface);
-	}
+	layer_surface_destroy(surface);
 }
 
 static bool layer_surface_state_changed(struct wlr_layer_surface_v1 *surface) {

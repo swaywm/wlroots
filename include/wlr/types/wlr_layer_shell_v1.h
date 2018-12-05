@@ -46,7 +46,7 @@ struct wlr_layer_shell_v1 {
 };
 
 struct wlr_layer_surface_v1_state {
-	uint32_t anchor;
+	uint32_t anchor; // zwlr_layer_surface_v1_anchor
 	int32_t exclusive_zone;
 	struct {
 		uint32_t top, right, bottom, left;
@@ -77,8 +77,7 @@ struct wlr_layer_surface_v1 {
 	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
-	struct wl_list configure_list;
-
+	struct wl_list configure_list; // wlr_layer_surface_v1_configure::link
 	struct wlr_layer_surface_v1_configure *acked_configure;
 
 	struct wlr_layer_surface_v1_state client_pending;

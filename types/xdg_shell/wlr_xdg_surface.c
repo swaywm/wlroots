@@ -477,10 +477,9 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 	reset_xdg_surface(surface);
 
-	struct wlr_xdg_popup *popup_state, *next;
-	wl_list_for_each_safe(popup_state, next, &surface->popups, link) {
-		xdg_popup_send_popup_done(popup_state->resource);
-		destroy_xdg_popup(popup_state->base);
+	struct wlr_xdg_popup *popup, *popup_tmp;
+	wl_list_for_each_safe(popup, popup_tmp, &surface->popups, link) {
+		wlr_xdg_popup_destroy(popup);
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
@@ -523,13 +522,12 @@ void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface) {
 		assert(0 && "not reached");
 		break;
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-		if (surface->toplevel) {
-			xdg_toplevel_send_close(surface->toplevel->resource);
-		}
+		xdg_toplevel_send_close(surface->toplevel->resource);
 		break;
 	case WLR_XDG_SURFACE_ROLE_POPUP:
-		if (surface->popup) {
+		if (!surface->popup->done) {
 			xdg_popup_send_popup_done(surface->popup->resource);
+			surface->popup->done = true;
 		}
 		break;
 	}

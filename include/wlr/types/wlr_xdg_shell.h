@@ -69,7 +69,7 @@ struct wlr_xdg_popup {
 	struct wl_list link;
 
 	struct wl_resource *resource;
-	bool committed;
+	bool committed, done;
 	struct wlr_surface *parent;
 	struct wlr_seat *seat;
 
@@ -327,6 +327,11 @@ void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
  */
 void wlr_xdg_popup_unconstrain_from_box(struct wlr_xdg_popup *popup,
 		struct wlr_box *toplevel_sx_box);
+
+/**
+ * Destroy a popup.
+ */
+void wlr_xdg_popup_destroy(struct wlr_xdg_popup *popup);
 
 /**
   Invert the right/left anchor and gravity for this positioner. This can be
