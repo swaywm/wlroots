@@ -547,7 +547,7 @@ void view_update_position(struct roots_view *view, double x, double y) {
 	view_damage_whole(view);
 }
 
-void view_update_size(struct roots_view *view, uint32_t width, uint32_t height) {
+void view_update_size(struct roots_view *view, int width, int height) {
 	if (view->width == width && view->height == height) {
 		return;
 	}
