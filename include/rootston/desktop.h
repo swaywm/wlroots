@@ -99,7 +99,7 @@ void view_destroy(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
 void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);
-void view_update_position(struct roots_view *view, double x, double y);
+void view_update_position(struct roots_view *view, int x, int y);
 void view_update_size(struct roots_view *view, int width, int height);
 void view_update_decorated(struct roots_view *view, bool decorated);
 void view_initial_focus(struct roots_view *view);

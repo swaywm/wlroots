@@ -190,8 +190,8 @@ void roots_cursor_update_position(struct roots_cursor *cursor,
 		if (view != NULL) {
 			double dx = cursor->cursor->x - cursor->offs_x;
 			double dy = cursor->cursor->y - cursor->offs_y;
-			double x = view->x;
-			double y = view->y;
+			double x = view->box.x;
+			double y = view->box.y;
 			int width = cursor->view_width;
 			int height = cursor->view_height;
 			if (cursor->resize_edges & WLR_EDGE_TOP) {
@@ -220,8 +220,8 @@ void roots_cursor_update_position(struct roots_cursor *cursor,
 	case ROOTS_CURSOR_ROTATE:
 		view = roots_seat_get_focus(seat);
 		if (view != NULL) {
-			int ox = view->x + view->wlr_surface->current.width/2,
-				oy = view->y + view->wlr_surface->current.height/2;
+			int ox = view->box.x + view->wlr_surface->current.width/2,
+				oy = view->box.y + view->wlr_surface->current.height/2;
 			int ux = cursor->offs_x - ox,
 				uy = cursor->offs_y - oy;
 			int vx = cursor->cursor->x - ox,
@@ -322,11 +322,11 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 			double lx2 = lx1 + dx;
 			double ly2 = ly1 + dy;
 
-			double sx1 = lx1 - view->x;
-			double sy1 = ly1 - view->y;
+			double sx1 = lx1 - view->box.x;
+			double sy1 = ly1 - view->box.y;
 
-			double sx2 = lx2 - view->x;
-			double sy2 = ly2 - view->y;
+			double sx2 = lx2 - view->box.x;
+			double sy2 = ly2 - view->box.y;
 
 			double sx2_confined, sy2_confined;
 			if (!wlr_region_confine(&cursor->confine, sx1, sy1, sx2, sy2,
@@ -354,7 +354,7 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 
 		if (cursor->active_constraint &&
 				!pixman_region32_contains_point(&cursor->confine,
-					floor(lx - view->x), floor(ly - view->y), NULL)) {
+					floor(lx - view->box.x), floor(ly - view->box.y), NULL)) {
 			return;
 		}
 	}
@@ -474,7 +474,7 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 
 		if (cursor->active_constraint &&
 				!pixman_region32_contains_point(&cursor->confine,
-					floor(lx - view->x), floor(ly - view->y), NULL)) {
+					floor(lx - view->box.x), floor(ly - view->box.y), NULL)) {
 			return;
 		}
 	}
@@ -598,11 +598,11 @@ void roots_cursor_constrain(struct roots_cursor *cursor,
 			double sx = (boxes[0].x1 + boxes[0].x2) / 2.;
 			double sy = (boxes[0].y1 + boxes[0].y2) / 2.;
 
-			rotate_child_position(&sx, &sy, 0, 0, view->width, view->height,
+			rotate_child_position(&sx, &sy, 0, 0, view->box.width, view->box.height,
 				view->rotation);
 
-			double lx = view->x + sx;
-			double ly = view->y + sy;
+			double lx = view->box.x + sx;
+			double ly = view->box.y + sy;
 
 			wlr_cursor_warp_closest(cursor->cursor, NULL, lx, ly);
 		}

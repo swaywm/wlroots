@@ -162,8 +162,8 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	int height = wlr_surface->current.height;
 	view_update_size(view, width, height);
 
-	double x = view->x;
-	double y = view->y;
+	double x = view->box.x;
+	double y = view->box.y;
 	if (view->pending_move_resize.update_x) {
 		x = view->pending_move_resize.x + view->pending_move_resize.width -
 			width;
@@ -236,8 +236,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view->type = ROOTS_WL_SHELL_VIEW;
-	view->width = surface->surface->current.width;
-	view->height = surface->surface->current.height;
+	view->box.width = surface->surface->current.width;
+	view->box.height = surface->surface->current.height;
 
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
@@ -262,8 +262,8 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 		}
 		if (found) {
 			view_move(view,
-				parent->x + surface->transient_state->x,
-				parent->y + surface->transient_state->y);
+				parent->box.x + surface->transient_state->x,
+				parent->box.y + surface->transient_state->y);
 		}
 	}
 }

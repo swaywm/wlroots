@@ -67,8 +67,8 @@ static void surface_for_each_surface(struct wlr_surface *surface,
 static void view_for_each_surface(struct roots_view *view,
 		struct layout_data *layout_data, wlr_surface_iterator_func_t iterator,
 		void *user_data) {
-	layout_data->x = view->x;
-	layout_data->y = view->y;
+	layout_data->x = view->box.x;
+	layout_data->y = view->box.y;
 	layout_data->width = view->wlr_surface->current.width;
 	layout_data->height = view->wlr_surface->current.height;
 	layout_data->rotation = view->rotation;
@@ -304,13 +304,13 @@ static void get_decoration_box(struct roots_view *view,
 
 	struct wlr_box deco_box;
 	view_get_deco_box(view, &deco_box);
-	double sx = deco_box.x - view->x;
-	double sy = deco_box.y - view->y;
+	double sx = deco_box.x - view->box.x;
+	double sy = deco_box.y - view->box.y;
 	rotate_child_position(&sx, &sy, deco_box.width, deco_box.height,
 		view->wlr_surface->current.width,
 		view->wlr_surface->current.height, view->rotation);
-	double x = sx + view->x;
-	double y = sy + view->y;
+	double x = sx + view->box.x;
+	double y = sy + view->box.y;
 
 	wlr_output_layout_output_coords(output->desktop->layout, wlr_output, &x, &y);
 

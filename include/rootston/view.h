@@ -88,8 +88,7 @@ struct roots_view {
 	struct roots_desktop *desktop;
 	struct wl_list link; // roots_desktop::views
 
-	double x, y;
-	uint32_t width, height;
+	struct wlr_box box;
 	float rotation;
 	float alpha;
 

@@ -48,10 +48,10 @@ struct roots_view *view_create(struct roots_desktop *desktop) {
 }
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
-	box->x = view->x;
-	box->y = view->y;
-	box->width = view->width;
-	box->height = view->height;
+	box->x = view->box.x;
+	box->y = view->box.y;
+	box->width = view->box.width;
+	box->height = view->box.height;
 }
 
 void view_get_deco_box(const struct roots_view *view, struct wlr_box *box) {
@@ -131,7 +131,7 @@ static void view_update_output(const struct roots_view *view,
 }
 
 void view_move(struct roots_view *view, double x, double y) {
-	if (view->x == x && view->y == y) {
+	if (view->box.x == x && view->box.y == y) {
 		return;
 	}
 
@@ -162,8 +162,8 @@ void view_resize(struct roots_view *view, uint32_t width, uint32_t height) {
 
 void view_move_resize(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height) {
-	bool update_x = x != view->x;
-	bool update_y = y != view->y;
+	bool update_x = x != view->box.x;
+	bool update_y = y != view->box.y;
 	if (!update_x && !update_y) {
 		view_resize(view, width, height);
 		return;
@@ -190,8 +190,8 @@ static struct wlr_output *view_get_output(struct roots_view *view) {
 
 	double output_x, output_y;
 	wlr_output_layout_closest_point(view->desktop->layout, NULL,
-		view->x + (double)view_box.width/2,
-		view->y + (double)view_box.height/2,
+		view->box.x + (double)view_box.width/2,
+		view->box.y + (double)view_box.height/2,
 		&output_x, &output_y);
 	return wlr_output_layout_output_at(view->desktop->layout, output_x,
 		output_y);
@@ -227,11 +227,11 @@ void view_maximize(struct roots_view *view, bool maximized) {
 
 	if (!view->maximized && maximized) {
 		view->maximized = true;
-		view->saved.x = view->x;
-		view->saved.y = view->y;
+		view->saved.x = view->box.x;
+		view->saved.y = view->box.y;
 		view->saved.rotation = view->rotation;
-		view->saved.width = view->width;
-		view->saved.height = view->height;
+		view->saved.width = view->box.width;
+		view->saved.height = view->box.height;
 
 		view_arrange_maximized(view);
 	}
@@ -272,8 +272,8 @@ void view_set_fullscreen(struct roots_view *view, bool fullscreen,
 		struct wlr_box view_box;
 		view_get_box(view, &view_box);
 
-		view->saved.x = view->x;
-		view->saved.y = view->y;
+		view->saved.x = view->box.x;
+		view->saved.y = view->box.y;
 		view->saved.rotation = view->rotation;
 		view->saved.width = view_box.width;
 		view->saved.height = view_box.height;
@@ -500,7 +500,7 @@ void view_unmap(struct roots_view *view) {
 	}
 
 	view->wlr_surface = NULL;
-	view->width = view->height = 0;
+	view->box.width = view->box.height = 0;
 }
 
 void view_initial_focus(struct roots_view *view) {
@@ -536,25 +536,25 @@ void view_damage_whole(struct roots_view *view) {
 	}
 }
 
-void view_update_position(struct roots_view *view, double x, double y) {
-	if (view->x == x && view->y == y) {
+void view_update_position(struct roots_view *view, int x, int y) {
+	if (view->box.x == x && view->box.y == y) {
 		return;
 	}
 
 	view_damage_whole(view);
-	view->x = x;
-	view->y = y;
+	view->box.x = x;
+	view->box.y = y;
 	view_damage_whole(view);
 }
 
 void view_update_size(struct roots_view *view, int width, int height) {
-	if (view->width == width && view->height == height) {
+	if (view->box.width == width && view->box.height == height) {
 		return;
 	}
 
 	view_damage_whole(view);
-	view->width = width;
-	view->height = height;
+	view->box.width = width;
+	view->box.height = height;
 	view_damage_whole(view);
 }
 
@@ -585,8 +585,8 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 		return false;
 	}
 
-	double view_sx = lx - view->x;
-	double view_sy = ly - view->y;
+	double view_sx = lx - view->box.x;
+	double view_sy = ly - view->box.y;
 
 	struct wlr_surface_state *state = &view->wlr_surface->current;
 	struct wlr_box box = {
@@ -806,10 +806,10 @@ static void handle_constraint_destroy(struct wl_listener *listener,
 			double sy = wlr_constraint->current.cursor_hint.y;
 
 			struct roots_view *view = seat->cursor->pointer_view->view;
-			rotate_child_position(&sx, &sy, 0, 0, view->width, view->height,
+			rotate_child_position(&sx, &sy, 0, 0, view->box.width, view->box.height,
 				view->rotation);
-			double lx = view->x + sx;
-			double ly = view->y + sy;
+			double lx = view->box.x + sx;
+			double ly = view->box.y + sy;
 
 			wlr_cursor_warp(seat->cursor->cursor, NULL, lx, ly);
 		}
