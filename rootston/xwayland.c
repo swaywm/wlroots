@@ -64,8 +64,8 @@ static void move_resize(struct roots_view *view, double x, double y,
 	assert(view->type == ROOTS_XWAYLAND_VIEW);
 	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
 
-	bool update_x = x != view->x;
-	bool update_y = y != view->y;
+	bool update_x = x != view->box.x;
+	bool update_y = y != view->box.y;
 
 	uint32_t constrained_width, constrained_height;
 	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
@@ -210,8 +210,8 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	int height = wlr_surface->current.height;
 	view_update_size(view, width, height);
 
-	double x = view->x;
-	double y = view->y;
+	double x = view->box.x;
+	double y = view->box.y;
 	if (view->pending_move_resize.update_x) {
 		x = view->pending_move_resize.x + view->pending_move_resize.width -
 			width;
@@ -231,10 +231,10 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_surface *surface = data;
 	struct roots_view *view = roots_surface->view;
 
-	view->x = surface->x;
-	view->y = surface->y;
-	view->width = surface->surface->current.width;
-	view->height = surface->surface->current.height;
+	view->box.x = surface->x;
+	view->box.y = surface->y;
+	view->box.width = surface->surface->current.width;
+	view->box.height = surface->surface->current.height;
 
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit,
@@ -307,8 +307,8 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view->type = ROOTS_XWAYLAND_VIEW;
-	view->x = (double)surface->x;
-	view->y = (double)surface->y;
+	view->box.x = surface->x;
+	view->box.y = surface->y;
 
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;
