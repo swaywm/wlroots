@@ -13,12 +13,22 @@
 #include <wayland-server.h>
 #include <wlr/render/dmabuf.h>
 
-struct wlr_export_dmabuf_manager_v1;
+struct wlr_export_dmabuf_manager_v1 {
+	struct wl_global *global;
+	struct wl_list resources; // wl_resource_get_link
+	struct wl_list frames; // wlr_export_dmabuf_frame_v1::link
+
+	struct wl_listener display_destroy;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+};
 
 struct wlr_export_dmabuf_frame_v1 {
 	struct wl_resource *resource;
 	struct wlr_export_dmabuf_manager_v1 *manager;
-	struct wl_list link;
+	struct wl_list link; // wlr_export_dmabuf_manager_v1::frames
 
 	struct wlr_dmabuf_attributes attribs;
 	struct wlr_output *output;
@@ -26,18 +36,6 @@ struct wlr_export_dmabuf_frame_v1 {
 	bool cursor_locked;
 
 	struct wl_listener output_swap_buffers;
-};
-
-struct wlr_export_dmabuf_manager_v1 {
-	struct wl_global *global;
-	struct wl_list resources;
-	struct wl_list frames;
-
-	struct wl_listener display_destroy;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
 };
 
 struct wlr_export_dmabuf_manager_v1 *wlr_export_dmabuf_manager_v1_create(
