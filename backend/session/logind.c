@@ -51,8 +51,8 @@ static struct logind_session *logind_session_from_session(
 static int logind_take_device(struct wlr_session *base, const char *path) {
 	struct logind_session *session = logind_session_from_session(base);
 
-	int ret;
 	int fd = -1;
+	int ret;
 	sd_bus_message *msg = NULL;
 	sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -70,8 +70,9 @@ static int logind_take_device(struct wlr_session *base, const char *path) {
 		session->path, "org.freedesktop.login1.Session", "TakeDevice",
 		&error, &msg, "uu", major(st.st_rdev), minor(st.st_rdev));
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to take device '%s': %s", path, error.message);
-		goto error;
+		wlr_log(WLR_ERROR, "Failed to take device '%s': %s", path,
+			error.message);
+		goto out;
 	}
 
 	int paused = 0;
@@ -79,19 +80,19 @@ static int logind_take_device(struct wlr_session *base, const char *path) {
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to parse D-Bus response for '%s': %s",
 			path, strerror(-ret));
-		goto error;
+		goto out;
 	}
 
 	// The original fd seems to be closed when the message is freed
 	// so we just clone it.
 	fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
-	if (fd == -1) {
+	if (fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to clone file descriptor for '%s': %s",
 			path, strerror(errno));
-		goto error;
+		goto out;
 	}
 
-error:
+out:
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
 	return fd;
@@ -100,21 +101,21 @@ error:
 static void logind_release_device(struct wlr_session *base, int fd) {
 	struct logind_session *session = logind_session_from_session(base);
 
-	int ret;
-	sd_bus_message *msg = NULL;
-	sd_bus_error error = SD_BUS_ERROR_NULL;
-
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
-		wlr_log(WLR_ERROR, "Failed to stat device '%d'", fd);
+		wlr_log(WLR_ERROR, "Failed to stat device '%d': %s", fd,
+			strerror(errno));
 		return;
 	}
 
-	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+	int ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
 		session->path, "org.freedesktop.login1.Session", "ReleaseDevice",
 		&error, &msg, "uu", major(st.st_rdev), minor(st.st_rdev));
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to release device '%d'", fd);
+		wlr_log(WLR_ERROR, "Failed to release device '%d': %s", fd,
+			error.message);
 	}
 
 	sd_bus_error_free(&error);
@@ -155,18 +156,16 @@ static bool find_session_path(struct logind_session *session) {
 			"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
 			"GetSession", &error, &msg, "s", session->id);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to get session path: %s", strerror(-ret));
+		wlr_log(WLR_ERROR, "Failed to get session path: %s", error.message);
 		goto out;
 	}
 
 	const char *path;
-
 	ret = sd_bus_message_read(msg, "o", &path);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Could not parse session path: %s", strerror(-ret));
+		wlr_log(WLR_ERROR, "Could not parse session path: %s", error.message);
 		goto out;
 	}
-
 	session->path = strdup(path);
 
 out:
@@ -185,7 +184,7 @@ static bool session_activate(struct logind_session *session) {
 		session->path, "org.freedesktop.login1.Session", "Activate",
 		&error, &msg, "");
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to activate session");
+		wlr_log(WLR_ERROR, "Failed to activate session: %s", error.message);
 	}
 
 	sd_bus_error_free(&error);
@@ -202,7 +201,8 @@ static bool take_control(struct logind_session *session) {
 		session->path, "org.freedesktop.login1.Session", "TakeControl",
 		&error, &msg, "b", false);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to take control of session");
+		wlr_log(WLR_ERROR, "Failed to take control of session: %s",
+			error.message);
 	}
 
 	sd_bus_error_free(&error);
@@ -219,7 +219,8 @@ static void release_control(struct logind_session *session) {
 		session->path, "org.freedesktop.login1.Session", "ReleaseControl",
 		&error, &msg, "");
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to release control of session");
+		wlr_log(WLR_ERROR, "Failed to release control of session: %s",
+			error.message);
 	}
 
 	sd_bus_error_free(&error);
@@ -238,12 +239,14 @@ static void logind_session_destroy(struct wlr_session *base) {
 	free(session);
 }
 
-static int session_removed(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+static int session_removed(sd_bus_message *msg, void *userdata,
+		sd_bus_error *ret_error) {
 	wlr_log(WLR_INFO, "SessionRemoved signal received");
 	return 0;
 }
 
-static struct wlr_device *find_device(struct wlr_session *session, dev_t devnum) {
+static struct wlr_device *find_device(struct wlr_session *session,
+		dev_t devnum) {
 	struct wlr_device *dev;
 
 	wl_list_for_each(dev, &session->devices, link) {
@@ -257,7 +260,8 @@ static struct wlr_device *find_device(struct wlr_session *session, dev_t devnum)
 	assert(0);
 }
 
-static int pause_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+static int pause_device(sd_bus_message *msg, void *userdata,
+		sd_bus_error *ret_error) {
 	struct logind_session *session = userdata;
 	int ret;
 
@@ -401,8 +405,8 @@ static int properties_changed(sd_bus_message *msg, void *userdata,
 				"org.freedesktop.login1.Session", "Active", &error,
 				'b', &active);
 			if (ret < 0) {
-				wlr_log(WLR_ERROR, "Failed to get 'Active' property: '%s' (%s)",
-					error.message, strerror(ret));
+				wlr_log(WLR_ERROR, "Failed to get 'Active' property: %s",
+					error.message);
 				return 0;
 			}
 
@@ -421,7 +425,7 @@ static int properties_changed(sd_bus_message *msg, void *userdata,
 	return 0;
 
 error:
-	wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged %s",
+	wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged: %s",
 		strerror(-ret));
 	return 0;
 }
@@ -436,7 +440,8 @@ static bool add_signal_matches(struct logind_session *session) {
 		"member='%s',"
 		"path='%s'";
 
-	snprintf(str, sizeof(str), fmt, "Manager", "SessionRemoved", "/org/freedesktop/login1");
+	snprintf(str, sizeof(str), fmt, "Manager", "SessionRemoved",
+		"/org/freedesktop/login1");
 	ret = sd_bus_add_match(session->bus, NULL, str, session_removed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
