@@ -1,0 +1,22 @@
+image: alpine/edge
+packages:
+  - eudev-dev
+  - ffmpeg-dev
+  - libcap-dev
+  - libinput-dev
+  - libxkbcommon-dev
+  - mesa-dev
+  - meson
+  - pixman-dev
+  - wayland-dev
+  - wayland-protocols
+  - xcb-util-image-dev
+sources:
+  - https://github.com/swaywm/wlroots
+tasks:
+  - setup: |
+      cd wlroots
+      meson build
+  - build: |
+      cd wlroots
+      ninja -C build
