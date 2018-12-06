@@ -150,15 +150,19 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 }
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
-		struct xkb_keymap *keymap) {
+		struct xkb_keymap *keymap, struct xkb_state *state) {
 	xkb_keymap_unref(kb->keymap);
 	kb->keymap = xkb_keymap_ref(keymap);
 
 	xkb_state_unref(kb->xkb_state);
-	kb->xkb_state = xkb_state_new(kb->keymap);
-	if (kb->xkb_state == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create XKB state");
-		goto err;
+	if (state != NULL) {
+		kb->xkb_state = xkb_state_ref(state);
+	} else {
+		kb->xkb_state = xkb_state_new(kb->keymap);
+		if (kb->xkb_state == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create XKB state");
+			goto err;
+		}
 	}
 
 	const char *led_names[WLR_LED_COUNT] = {

@@ -60,7 +60,7 @@ static void virtual_keyboard_keymap(struct wl_client *client,
 	if (!keymap) {
 		goto keymap_fail;
 	}
-	wlr_keyboard_set_keymap(keyboard->input_device.keyboard, keymap);
+	wlr_keyboard_set_keymap(keyboard->input_device.keyboard, keymap, NULL);
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 	return;

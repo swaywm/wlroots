@@ -147,7 +147,7 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 			wlr_log(WLR_ERROR, "Failed to create XKB keymap");
 			exit(1);
 		}
-		wlr_keyboard_set_keymap(device->keyboard, keymap);
+		wlr_keyboard_set_keymap(device->keyboard, keymap, NULL);
 		xkb_keymap_unref(keymap);
 		xkb_context_unref(context);
 		break;

@@ -102,7 +102,7 @@ struct wlr_event_keyboard_key {
 };
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
-	struct xkb_keymap *keymap);
+	struct xkb_keymap *keymap, struct xkb_state *state);
 /**
  * Sets the keyboard repeat info. `rate` is in key repeats/second and delay is
  * in milliseconds.

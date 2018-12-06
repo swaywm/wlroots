@@ -430,7 +430,7 @@ struct roots_keyboard *roots_keyboard_create(struct wlr_input_device *device,
 		return NULL;
 	}
 
-	wlr_keyboard_set_keymap(device->keyboard, keymap);
+	wlr_keyboard_set_keymap(device->keyboard, keymap, NULL);
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 
