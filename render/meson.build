@@ -21,6 +21,7 @@ lib_wlr_render = static_library(
 		'gles2/texture.c',
 		'gles2/util.c',
 		'swapchain.c',
+		'renderer.c',
 		'wlr_renderer.c',
 		'wlr_texture.c',
 	),
