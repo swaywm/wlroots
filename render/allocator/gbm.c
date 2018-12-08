@@ -112,6 +112,15 @@ static const struct wlr_allocator_impl wlr_gbm_allocator_impl = {
 	.deallocate = wlr_gbm_deallocate,
 };
 
+void wlr_gbm_allocator_destroy(struct wlr_gbm_allocator *alloc) {
+	if (!alloc) {
+		return;
+	}
+
+	gbm_device_destroy(alloc->gbm);
+	free(alloc);
+}
+
 struct wlr_gbm_allocator *wlr_gbm_allocator_create(int render_fd, void *userdata,
 		wlr_gbm_create_func_t create, wlr_gbm_destroy_func_t destroy) {
 	struct wlr_gbm_allocator *alloc = calloc(1, sizeof(*alloc));

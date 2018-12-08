@@ -24,6 +24,7 @@ lib_wlr_render = static_library(
 		'renderer.c',
 		'wlr_renderer.c',
 		'wlr_texture.c',
+		'renderer/gles/gles.c',
 	),
 	glapi,
 	include_directories: wlr_inc,

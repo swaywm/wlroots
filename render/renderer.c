@@ -1,10 +1,11 @@
 #include <wayland-server.h>
 
 #include <wlr/render/renderer.h>
+#include <wlr/render/renderer/gles.h>
 #include <wlr/render/renderer/interface.h>
 
 struct wlr_renderer_2 *wlr_renderer_autocreate_2(struct wlr_backend *backend) {
-	return NULL;
+	return wlr_gles_renderer_create(backend);
 }
 
 void wlr_renderer_destroy_2(struct wlr_renderer_2 *renderer) {
