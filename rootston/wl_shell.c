@@ -87,6 +87,8 @@ static void destroy(struct roots_view *view) {
 	wl_list_remove(&roots_surface->request_maximize.link);
 	wl_list_remove(&roots_surface->request_fullscreen.link);
 	wl_list_remove(&roots_surface->set_state.link);
+	wl_list_remove(&roots_surface->set_title.link);
+	wl_list_remove(&roots_surface->set_class.link);
 	wl_list_remove(&roots_surface->surface_commit.link);
 	free(roots_surface);
 }
@@ -148,6 +150,20 @@ static void handle_set_state(struct wl_listener *listener, void *data) {
 			surface->state != WLR_WL_SHELL_SURFACE_STATE_FULLSCREEN) {
 		view_set_fullscreen(view, false, NULL);
 	}
+}
+
+static void handle_set_title(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, set_state);
+	view_set_title(roots_surface->view,
+			roots_surface->view->wl_shell_surface->title);
+}
+
+static void handle_set_class(struct wl_listener *listener, void *data) {
+	struct roots_wl_shell_surface *roots_surface =
+		wl_container_of(listener, roots_surface, set_state);
+	view_set_app_id(roots_surface->view,
+			roots_surface->view->wl_shell_surface->class);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
@@ -225,8 +241,13 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 		handle_request_fullscreen;
 	wl_signal_add(&surface->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
+
 	roots_surface->set_state.notify = handle_set_state;
 	wl_signal_add(&surface->events.set_state, &roots_surface->set_state);
+	roots_surface->set_title.notify = handle_set_title;
+	wl_signal_add(&surface->events.set_title, &roots_surface->set_title);
+	roots_surface->set_class.notify = handle_set_class;
+	wl_signal_add(&surface->events.set_class, &roots_surface->set_class);
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit, &roots_surface->surface_commit);
 
@@ -248,6 +269,11 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	view_map(view, surface->surface);
 	view_setup(view);
+
+	wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle,
+			view->wl_shell_surface->title ?: "none");
+	wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle,
+			view->wl_shell_surface->class ?: "none");
 
 	if (surface->state == WLR_WL_SHELL_SURFACE_STATE_TRANSIENT) {
 		// We need to map it relative to the parent

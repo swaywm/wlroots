@@ -108,6 +108,10 @@ examples = {
 	'text-input': {
 		'src': 'text-input.c',
 		'dep': [wayland_cursor, wayland_client, wlr_protos, wlroots],
+    },
+	'foreign-toplevel': {
+		'src': 'foreign-toplevel.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
 	},
 }
 

@@ -114,6 +114,8 @@ static void destroy(struct roots_view *view) {
 	wl_list_remove(&roots_surface->request_move.link);
 	wl_list_remove(&roots_surface->request_resize.link);
 	wl_list_remove(&roots_surface->request_maximize.link);
+	wl_list_remove(&roots_surface->set_title.link);
+	wl_list_remove(&roots_surface->set_class.link);
 	wl_list_remove(&roots_surface->map.link);
 	wl_list_remove(&roots_surface->unmap.link);
 	free(roots_surface);
@@ -198,6 +200,22 @@ static void handle_request_fullscreen(struct wl_listener *listener,
 	view_set_fullscreen(view, xwayland_surface->fullscreen, NULL);
 }
 
+static void handle_set_title(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, set_title);
+
+	view_set_title(roots_surface->view,
+			roots_surface->view->xwayland_surface->title);
+}
+
+static void handle_set_class(struct wl_listener *listener, void *data) {
+	struct roots_xwayland_surface *roots_surface =
+		wl_container_of(listener, roots_surface, set_class);
+
+	view_set_app_id(roots_surface->view,
+			roots_surface->view->xwayland_surface->class);
+}
+
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, surface_commit);
@@ -250,6 +268,11 @@ static void handle_map(struct wl_listener *listener, void *data) {
 		}
 
 		view_setup(view);
+
+		wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle,
+				view->xwayland_surface->title ?: "none");
+		wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle,
+				view->xwayland_surface->class ?: "none");
 	} else {
 		view_initial_focus(view);
 	}
@@ -261,7 +284,6 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_view *view = roots_surface->view;
 
 	wl_list_remove(&roots_surface->surface_commit.link);
-
 	view_unmap(view);
 }
 
@@ -300,6 +322,11 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_fullscreen.notify = handle_request_fullscreen;
 	wl_signal_add(&surface->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
+	roots_surface->set_title.notify = handle_set_title;
+	wl_signal_add(&surface->events.set_title, &roots_surface->set_title);
+	roots_surface->set_class.notify = handle_set_class;
+	wl_signal_add(&surface->events.set_class,
+			&roots_surface->set_class);
 
 	struct roots_view *view = view_create(desktop);
 	if (view == NULL) {

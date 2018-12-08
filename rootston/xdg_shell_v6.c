@@ -265,6 +265,8 @@ static void destroy(struct roots_view *view) {
 	wl_list_remove(&roots_xdg_surface->request_resize.link);
 	wl_list_remove(&roots_xdg_surface->request_maximize.link);
 	wl_list_remove(&roots_xdg_surface->request_fullscreen.link);
+	wl_list_remove(&roots_xdg_surface->set_title.link);
+	wl_list_remove(&roots_xdg_surface->set_app_id.link);
 	free(roots_xdg_surface);
 }
 
@@ -325,6 +327,22 @@ static void handle_request_fullscreen(struct wl_listener *listener,
 	view_set_fullscreen(view, e->fullscreen, e->output);
 }
 
+static void handle_set_title(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, set_title);
+
+	view_set_title(roots_xdg_surface->view,
+			roots_xdg_surface->view->xdg_surface_v6->toplevel->title);
+}
+
+static void handle_set_app_id(struct wl_listener *listener, void *data) {
+	struct roots_xdg_surface_v6 *roots_xdg_surface =
+		wl_container_of(listener, roots_xdg_surface, set_app_id);
+
+	view_set_app_id(roots_xdg_surface->view,
+			roots_xdg_surface->view->xdg_surface_v6->toplevel->app_id);
+}
+
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface_v6 *roots_surface =
 		wl_container_of(listener, roots_surface, surface_commit);
@@ -381,6 +399,11 @@ static void handle_map(struct wl_listener *listener, void *data) {
 
 	view_map(view, view->xdg_surface_v6->surface);
 	view_setup(view);
+
+	wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle,
+			view->xdg_surface_v6->toplevel->title ?: "none");
+	wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle,
+			view->xdg_surface_v6->toplevel->app_id ?: "none");
 }
 
 static void handle_unmap(struct wl_listener *listener, void *data) {
@@ -437,6 +460,11 @@ void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data) {
 	roots_surface->request_fullscreen.notify = handle_request_fullscreen;
 	wl_signal_add(&surface->toplevel->events.request_fullscreen,
 		&roots_surface->request_fullscreen);
+	roots_surface->set_title.notify = handle_set_title;
+	wl_signal_add(&surface->toplevel->events.set_title, &roots_surface->set_title);
+	roots_surface->set_app_id.notify = handle_set_app_id;
+	wl_signal_add(&surface->toplevel->events.set_app_id,
+			&roots_surface->set_app_id);
 	roots_surface->new_popup.notify = handle_new_popup;
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
 
