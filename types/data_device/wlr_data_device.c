@@ -145,16 +145,14 @@ static void seat_handle_selection_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_source_destroy);
-	struct wlr_seat_client *seat_client = seat->keyboard_state.focused_client;
 
 	wl_list_remove(&seat->selection_source_destroy.link);
 	seat->selection_source = NULL;
 
-	if (seat_client && seat->keyboard_state.focused_surface) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &seat_client->data_devices) {
-			wl_data_device_send_selection(resource, NULL);
-		}
+	struct wlr_seat_client *focused_client =
+		seat->keyboard_state.focused_client;
+	if (focused_client != NULL) {
+		seat_client_send_selection(focused_client);
 	}
 
 	wlr_signal_emit_safe(&seat->events.set_selection, seat);
@@ -171,17 +169,17 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 	seat->selection_source = source;
 	seat->selection_serial = serial;
 
-	struct wlr_seat_client *focused_client =
-		seat->keyboard_state.focused_client;
-	if (focused_client) {
-		seat_client_send_selection(focused_client);
-	}
-
 	if (source) {
 		seat->selection_source_destroy.notify =
 			seat_handle_selection_source_destroy;
 		wl_signal_add(&source->events.destroy,
 			&seat->selection_source_destroy);
+	}
+
+	struct wlr_seat_client *focused_client =
+		seat->keyboard_state.focused_client;
+	if (focused_client) {
+		seat_client_send_selection(focused_client);
 	}
 
 	wlr_signal_emit_safe(&seat->events.set_selection, seat);
