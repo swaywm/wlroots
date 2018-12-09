@@ -157,14 +157,8 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	wl_list_remove(&seat->display_destroy.link);
 
-	if (seat->selection_source) {
-		wl_list_remove(&seat->selection_source_destroy.link);
-		wlr_data_source_destroy(seat->selection_source);
-		seat->selection_source = NULL;
-	}
-
-	wlr_seat_set_primary_selection(seat, NULL,
-		wl_display_next_serial(seat->display));
+	wlr_data_source_destroy(seat->selection_source);
+	wlr_primary_selection_source_destroy(seat->primary_selection_source);
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
