@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -202,7 +203,14 @@ static void device_handle_set_selection(struct wl_client *client,
 		source = &client_source->source;
 	}
 
-	// TODO: serial checking
+	// TODO: improve serial validation
+	if (device->seat->primary_selection_source != NULL &&
+			device->selection_serial - serial < UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, invalid serial "
+			"(%"PRIu32" <= %"PRIu32")", serial, device->selection_serial);
+		return;
+	}
+	device->selection_serial = serial;
 
 	wlr_seat_set_primary_selection(device->seat, source);
 }

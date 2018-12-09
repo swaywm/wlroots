@@ -36,6 +36,7 @@ struct wlr_gtk_primary_selection_device {
 	struct wl_list resources; // wl_resource_get_link
 
 	struct wl_list offers; // wl_resource_get_link
+	uint32_t selection_serial;
 
 	struct wl_listener seat_destroy;
 	struct wl_listener seat_focus_change;
