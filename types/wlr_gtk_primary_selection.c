@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -97,6 +98,7 @@ static void destroy_offer(struct wl_resource *resource) {
 struct client_data_source {
 	struct wlr_primary_selection_source source;
 	struct wl_resource *resource;
+	bool finalized;
 };
 
 static void client_source_send(
@@ -136,6 +138,9 @@ static void source_handle_offer(struct wl_client *client,
 		client_data_source_from_resource(resource);
 	if (source == NULL) {
 		return;
+	}
+	if (source->finalized) {
+		wlr_log(WLR_DEBUG, "Offering additional MIME type after set_selection");
 	}
 
 	char *dup_mime_type = strdup(mime_type);
@@ -199,10 +204,18 @@ static void device_handle_set_selection(struct wl_client *client,
 
 	struct wlr_primary_selection_source *source = NULL;
 	if (client_source != NULL) {
+		client_source->finalized = true;
 		source = &client_source->source;
 	}
 
-	// TODO: serial checking
+	// TODO: improve serial validation
+	if (device->seat->primary_selection_source != NULL &&
+			device->selection_serial - serial < UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, invalid serial "
+			"(%"PRIu32" <= %"PRIu32")", serial, device->selection_serial);
+		return;
+	}
+	device->selection_serial = serial;
 
 	wlr_seat_set_primary_selection(device->seat, source);
 }
