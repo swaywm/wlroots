@@ -2,7 +2,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include <sys/sysmacros.h>
+#endif
 
 #include <drm_fourcc.h>
 #include <gbm.h>
@@ -26,6 +28,7 @@ static struct wlr_image *wlr_gbm_allocate(struct wlr_allocator *base,
 		uint32_t format, size_t num_modifiers, const uint64_t *modifiers) {
 	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator(base);
 
+#ifdef __linux__
 	struct stat st;
 	if (fstat(wlr_backend_get_render_fd(backend), &st)) {
 		wlr_log_errno(WLR_ERROR, "Stat failed");
@@ -36,6 +39,7 @@ static struct wlr_image *wlr_gbm_allocate(struct wlr_allocator *base,
 		wlr_log(WLR_ERROR, "Backend is not compatible with this GBM device");
 		return NULL;
 	}
+#endif
 
 	struct wlr_gbm_image *img = calloc(1, sizeof(*img));
 	if (!img) {
@@ -141,6 +145,7 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int render_fd, void *userdata
 		goto error_alloc;
 	}
 
+#ifdef __linux__
 	struct stat st;
 	if (fstat(render_fd, &st) < 0) {
 		wlr_log_errno(WLR_ERROR, "Stat failed");
@@ -148,11 +153,15 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int render_fd, void *userdata
 	}
 
 	alloc->minor = minor(st.st_rdev);
+#endif
 
 	return alloc;
 
+	// Have to guard this to prevent unused label error
+#ifdef __linux__
 error_gbm:
 	gbm_device_destroy(alloc->gbm);
+#endif
 error_alloc:
 	free(alloc);
 	return NULL;
