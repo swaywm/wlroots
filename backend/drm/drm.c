@@ -991,36 +991,43 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 	}
 }
 
-static uint32_t get_possible_crtcs(int fd, uint32_t conn_id) {
-	drmModeConnector *conn = drmModeGetConnector(fd, conn_id);
-	if (!conn) {
-		wlr_log_errno(WLR_ERROR, "Failed to get DRM connector");
-		return 0;
+static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
+		drmModeConnector *conn, bool is_mst) {
+	uint32_t ret = 0;
+
+	for (int i = 0; i < conn->count_encoders; ++i) {
+		drmModeEncoder *enc = drmModeGetEncoder(fd, conn->encoders[i]);
+		if (!enc) {
+			continue;
+		}
+
+		ret |= enc->possible_crtcs;
+
+		drmModeFreeEncoder(enc);
 	}
 
-	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(WLR_ERROR, "Output is not connected");
-		goto error_conn;
+	// Sometimes DP MST connectors report no encoders, so we'll loop though
+	// all of the encoders of the MST type instead.
+	// TODO: See if there is a better solution.
+
+	if (!is_mst || ret) {
+		return ret;
 	}
 
-	drmModeEncoder *enc = NULL;
-	for (int i = 0; !enc && i < conn->count_encoders; ++i) {
-		enc = drmModeGetEncoder(fd, conn->encoders[i]);
+	for (int i = 0; i < res->count_encoders; ++i) {
+		drmModeEncoder *enc = drmModeGetEncoder(fd, res->encoders[i]);
+		if (!enc) {
+			continue;
+		}
+
+		if (enc->encoder_type == DRM_MODE_ENCODER_DPMST) {
+			ret |= enc->possible_crtcs;
+		}
+
+		drmModeFreeEncoder(enc);
 	}
 
-	if (!enc) {
-		wlr_log(WLR_ERROR, "Failed to get DRM encoder");
-		goto error_conn;
-	}
-
-	uint32_t ret = enc->possible_crtcs;
-	drmModeFreeEncoder(enc);
-	drmModeFreeConnector(conn);
 	return ret;
-
-error_conn:
-	drmModeFreeConnector(conn);
-	return 0;
 }
 
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
@@ -1050,7 +1057,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
 			drm_conn->encoder_id);
 
-		int index = -1;
+		ssize_t index = -1;
 		struct wlr_drm_connector *c, *wlr_conn = NULL;
 		wl_list_for_each(c, &drm->outputs, link) {
 			index++;
@@ -1086,7 +1093,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
 			}
 
-			wl_list_insert(&drm->outputs, &wlr_conn->link);
+			wl_list_insert(drm->outputs.prev, &wlr_conn->link);
 			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->output.name);
 		} else {
 			seen[index] = true;
@@ -1167,7 +1174,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, wlr_conn->id);
+			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn,
+				wlr_conn->props.path != 0);
 			if (wlr_conn->possible_crtc == 0) {
 				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
 					wlr_conn->output.name);
@@ -1178,7 +1186,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			new_outputs[new_outputs_len++] = wlr_conn;
-		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
+		} else if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED ||
+				wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->output.name);
 
@@ -1191,9 +1200,11 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 	drmModeFreeResources(res);
 
+	// Iterate in reverse order because we'll remove items from the list and
+	// still want indices to remain correct.
 	struct wlr_drm_connector *conn, *tmp_conn;
 	size_t index = wl_list_length(&drm->outputs);
-	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
+	wl_list_for_each_reverse_safe(conn, tmp_conn, &drm->outputs, link) {
 		index--;
 		if (index >= seen_len || seen[index]) {
 			continue;

@@ -22,6 +22,7 @@ static const struct prop_info connector_info[] = {
 	{ "CRTC_ID",     INDEX(crtc_id) },
 	{ "DPMS",        INDEX(dpms) },
 	{ "EDID",        INDEX(edid) },
+	{ "PATH",        INDEX(path) },
 	{ "link-status", INDEX(link_status) },
 #undef INDEX
 };
