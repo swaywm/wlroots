@@ -62,7 +62,7 @@ static void drag_set_focus(struct wlr_drag *drag,
 		struct wl_resource *device_resource;
 		wl_resource_for_each(device_resource, &focus_client->data_devices) {
 			struct wlr_data_offer *offer =
-				data_source_send_offer(drag->source, device_resource);
+				data_offer_create(device_resource, drag->source);
 			if (offer == NULL) {
 				wl_resource_post_no_memory(device_resource);
 				return;

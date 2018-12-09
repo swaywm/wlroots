@@ -11,25 +11,6 @@
 #include "types/wlr_data_device.h"
 #include "util/signal.h"
 
-struct wlr_data_offer *data_source_send_offer(struct wlr_data_source *source,
-		struct wl_resource *device_resource) {
-	struct wl_client *client = wl_resource_get_client(device_resource);
-	uint32_t version = wl_resource_get_version(device_resource);
-	struct wlr_data_offer *offer = data_offer_create(client, source, version);
-	if (offer == NULL) {
-		return NULL;
-	}
-
-	wl_data_device_send_data_offer(device_resource, offer->resource);
-
-	char **p;
-	wl_array_for_each(p, &source->mime_types) {
-		wl_data_offer_send_offer(offer->resource, *p);
-	}
-
-	return offer;
-}
-
 void wlr_data_source_init(struct wlr_data_source *source,
 		const struct wlr_data_source_impl *impl) {
 	assert(impl->send);

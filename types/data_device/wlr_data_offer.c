@@ -198,14 +198,21 @@ static void data_offer_handle_source_destroy(struct wl_listener *listener,
 	data_offer_destroy(offer);
 }
 
-struct wlr_data_offer *data_offer_create(struct wl_client *client,
-		struct wlr_data_source *source, uint32_t version) {
+struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
+		struct wlr_data_source *source) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_data_device_resource(device_resource);
+	assert(seat_client != NULL);
+	assert(source != NULL); // a NULL source means no selection
+
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
 	if (offer == NULL) {
 		return NULL;
 	}
 	offer->source = source;
 
+	struct wl_client *client = wl_resource_get_client(device_resource);
+	uint32_t version = wl_resource_get_version(device_resource);
 	offer->resource =
 		wl_resource_create(client, &wl_data_offer_interface, version, 0);
 	if (offer->resource == NULL) {
@@ -217,6 +224,13 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 
 	offer->source_destroy.notify = data_offer_handle_source_destroy;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
+
+	wl_data_device_send_data_offer(device_resource, offer->resource);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		wl_data_offer_send_offer(offer->resource, *p);
+	}
 
 	return offer;
 }

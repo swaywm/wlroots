@@ -14,7 +14,7 @@
 
 static const struct wl_data_device_interface data_device_impl;
 
-static struct wlr_seat_client *seat_client_from_data_device_resource(
+struct wlr_seat_client *seat_client_from_data_device_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_data_device_interface,
 		&data_device_impl));
@@ -103,7 +103,7 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	wl_resource_for_each(device_resource, &seat_client->data_devices) {
 		if (source != NULL) {
 			struct wlr_data_offer *offer =
-				data_source_send_offer(source, device_resource);
+				data_offer_create(device_resource, source);
 			if (offer == NULL) {
 				wl_client_post_no_memory(seat_client->client);
 				return;
