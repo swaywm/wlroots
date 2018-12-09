@@ -1050,7 +1050,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
 			drm_conn->encoder_id);
 
-		int index = -1;
+		ssize_t index = -1;
 		struct wlr_drm_connector *c, *wlr_conn = NULL;
 		wl_list_for_each(c, &drm->outputs, link) {
 			index++;
@@ -1086,7 +1086,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
 			}
 
-			wl_list_insert(&drm->outputs, &wlr_conn->link);
+			wl_list_insert(drm->outputs.prev, &wlr_conn->link);
 			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->output.name);
 		} else {
 			seen[index] = true;
@@ -1178,7 +1178,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 			new_outputs[new_outputs_len++] = wlr_conn;
-		} else if (wlr_conn->state == WLR_DRM_CONN_CONNECTED &&
+		} else if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED ||
+				wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->output.name);
 
@@ -1191,9 +1192,11 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 	drmModeFreeResources(res);
 
+	// Iterate in reverse order because we'll remove items from the list and
+	// still want indices to remain correct.
 	struct wlr_drm_connector *conn, *tmp_conn;
 	size_t index = wl_list_length(&drm->outputs);
-	wl_list_for_each_safe(conn, tmp_conn, &drm->outputs, link) {
+	wl_list_for_each_reverse_safe(conn, tmp_conn, &drm->outputs, link) {
 		index--;
 		if (index >= seen_len || seen[index]) {
 			continue;
