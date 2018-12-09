@@ -159,7 +159,7 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	if (seat->selection_source) {
 		wl_list_remove(&seat->selection_source_destroy.link);
-		wlr_data_source_cancel(seat->selection_source);
+		wlr_data_source_destroy(seat->selection_source);
 		seat->selection_source = NULL;
 	}
 

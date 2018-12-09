@@ -203,17 +203,16 @@ static void data_source_send(struct wlr_data_source *wlr_source,
 		mime_type, fd);
 }
 
-static void data_source_cancel(struct wlr_data_source *wlr_source) {
+static void data_source_destroy(struct wlr_data_source *wlr_source) {
 	struct x11_data_source *source =
 		data_source_from_wlr_data_source(wlr_source);
-	wlr_data_source_finish(&source->base);
 	wl_array_release(&source->mime_types_atoms);
 	free(source);
 }
 
 static const struct wlr_data_source_impl data_source_impl = {
 	.send = data_source_send,
-	.cancel = data_source_cancel,
+	.destroy = data_source_destroy,
 };
 
 struct x11_primary_selection_source {
@@ -353,7 +352,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 			wlr_seat_request_set_selection(xwm->seat, &source->base,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		} else {
-			wlr_data_source_cancel(&source->base);
+			wlr_data_source_destroy(&source->base);
 		}
 	} else if (selection == &xwm->primary_selection) {
 		struct x11_primary_selection_source *source =

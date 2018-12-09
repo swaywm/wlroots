@@ -174,7 +174,7 @@ static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 			};
 			wlr_signal_emit_safe(&drag->events.drop, &event);
 		} else if (drag->source->impl->dnd_finish) {
-			wlr_data_source_cancel(drag->source);
+			wlr_data_source_destroy(drag->source);
 		}
 	}
 

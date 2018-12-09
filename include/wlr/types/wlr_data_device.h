@@ -55,7 +55,7 @@ struct wlr_data_source_impl {
 		int32_t fd);
 	void (*accept)(struct wlr_data_source *source, uint32_t serial,
 		const char *mime_type);
-	void (*cancel)(struct wlr_data_source *source);
+	void (*destroy)(struct wlr_data_source *source);
 
 	void (*dnd_drop)(struct wlr_data_source *source);
 	void (*dnd_finish)(struct wlr_data_source *source);
@@ -187,11 +187,6 @@ void wlr_data_source_init(struct wlr_data_source *source,
 	const struct wlr_data_source_impl *impl);
 
 /**
- * Finishes the data source.
- */
-void wlr_data_source_finish(struct wlr_data_source *source);
-
-/**
  * Sends the data as the specified MIME type over the passed file descriptor,
  * then close it.
  */
@@ -207,9 +202,9 @@ void wlr_data_source_accept(struct wlr_data_source *source, uint32_t serial,
 
 /**
  * Notifies the data source it is no longer valid and should be destroyed. That
- * potentially destroys immediately the data source.
+ * destroys immediately the data source.
  */
-void wlr_data_source_cancel(struct wlr_data_source *source);
+void wlr_data_source_destroy(struct wlr_data_source *source);
 
 /**
  * Notifies the data source that the drop operation was performed. This does not
