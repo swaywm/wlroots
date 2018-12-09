@@ -157,15 +157,6 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager);
 
 /**
- * Creates a new wl_data_offer if there is a wl_data_source currently set as
- * the seat selection and sends it to the seat client, followed by the
- * wl_data_device.selection() event.  If there is no current selection, the
- * wl_data_device.selection() event will carry a NULL wl_data_offer.  If the
- * client does not have a wl_data_device for the seat nothing * will be done.
- */
-void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client);
-
-/**
  * Requests a selection to be set for the seat.
  */
 void wlr_seat_request_set_selection(struct wlr_seat *seat,

@@ -113,7 +113,7 @@ static void device_resource_send_selection(struct wl_resource *device_resource) 
 	}
 }
 
-void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
+void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	struct wlr_data_source *source = seat_client->seat->selection_source;
 	if (source != NULL) {
 		source->accepted = false;
@@ -174,7 +174,7 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 	struct wlr_seat_client *focused_client =
 		seat->keyboard_state.focused_client;
 	if (focused_client) {
-		wlr_seat_client_send_selection(focused_client);
+		seat_client_send_selection(focused_client);
 	}
 
 	if (source) {
