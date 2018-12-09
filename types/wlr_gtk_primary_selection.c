@@ -98,6 +98,7 @@ static void destroy_offer(struct wl_resource *resource) {
 struct client_data_source {
 	struct wlr_primary_selection_source source;
 	struct wl_resource *resource;
+	bool finalized;
 };
 
 static void client_source_send(
@@ -137,6 +138,9 @@ static void source_handle_offer(struct wl_client *client,
 		client_data_source_from_resource(resource);
 	if (source == NULL) {
 		return;
+	}
+	if (source->finalized) {
+		wlr_log(WLR_DEBUG, "Offering additional MIME type after set_selection");
 	}
 
 	char *dup_mime_type = strdup(mime_type);
@@ -200,6 +204,7 @@ static void device_handle_set_selection(struct wl_client *client,
 
 	struct wlr_primary_selection_source *source = NULL;
 	if (client_source != NULL) {
+		client_source->finalized = true;
 		source = &client_source->source;
 	}
 
