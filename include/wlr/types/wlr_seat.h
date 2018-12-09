@@ -197,6 +197,7 @@ struct wlr_seat {
 
 	struct wlr_data_source *selection_source;
 	uint32_t selection_serial;
+	struct wl_list selection_offers; // wlr_data_offer::link
 
 	struct wlr_primary_selection_source *primary_selection_source;
 	uint32_t primary_selection_serial;
@@ -205,6 +206,7 @@ struct wlr_seat {
 	struct wlr_drag *drag;
 	struct wlr_data_source *drag_source;
 	uint32_t drag_serial;
+	struct wl_list drag_offers; // wlr_data_offer::link
 
 	struct wlr_seat_pointer_state pointer_state;
 	struct wlr_seat_keyboard_state keyboard_state;

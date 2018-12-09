@@ -181,9 +181,11 @@ void data_offer_destroy(struct wlr_data_offer *offer) {
 	}
 
 	wl_list_remove(&offer->source_destroy.link);
+	wl_list_remove(&offer->link);
 
 	// Make the resource inert
 	wl_resource_set_user_data(offer->resource, NULL);
+
 	free(offer);
 }
 
@@ -231,6 +233,15 @@ struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
 	}
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
 		data_offer_handle_resource_destroy);
+
+	switch (type) {
+	case WLR_DATA_OFFER_SELECTION:
+		wl_list_insert(&seat_client->seat->selection_offers, &offer->link);
+		break;
+	case WLR_DATA_OFFER_DRAG:
+		wl_list_insert(&seat_client->seat->drag_offers, &offer->link);
+		break;
+	}
 
 	offer->source_destroy.notify = data_offer_handle_source_destroy;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);

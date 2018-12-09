@@ -44,6 +44,7 @@ struct wlr_data_offer {
 	struct wl_resource *resource;
 	struct wlr_data_source *source;
 	enum wlr_data_offer_type type;
+	struct wl_list link; // wlr_seat::{selection_offers,drag_offers}
 
 	uint32_t actions;
 	enum wl_data_device_manager_dnd_action preferred_action;
