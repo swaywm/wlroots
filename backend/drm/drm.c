@@ -991,36 +991,44 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 	}
 }
 
-static uint32_t get_possible_crtcs(int fd, uint32_t conn_id) {
-	drmModeConnector *conn = drmModeGetConnector(fd, conn_id);
-	if (!conn) {
-		wlr_log_errno(WLR_ERROR, "Failed to get DRM connector");
-		return 0;
-	}
+static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
+		drmModeConnector *conn, bool is_mst) {
+	drmModeEncoder *enc;
+	uint32_t ret = 0;
 
-	if (conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
-		wlr_log(WLR_ERROR, "Output is not connected");
-		goto error_conn;
-	}
-
-	drmModeEncoder *enc = NULL;
 	for (int i = 0; !enc && i < conn->count_encoders; ++i) {
 		enc = drmModeGetEncoder(fd, conn->encoders[i]);
+		if (!enc) {
+			continue;
+		}
+
+		ret |= enc->possible_crtcs;
+
+		drmModeFreeEncoder(enc);
 	}
 
-	if (!enc) {
-		wlr_log(WLR_ERROR, "Failed to get DRM encoder");
-		goto error_conn;
+	// Sometimes DP MST connectors report no encoders, so we'll loop though
+	// all of the encoders of the MST type instead.
+	// TODO: See if there is a better solution.
+
+	if (!is_mst || ret) {
+		return ret;
 	}
 
-	uint32_t ret = enc->possible_crtcs;
-	drmModeFreeEncoder(enc);
-	drmModeFreeConnector(conn);
+	for (int i = 0; i < res->count_encoders; ++i) {
+		enc = drmModeGetEncoder(fd, res->encoders[i]);
+		if (!enc) {
+			continue;
+		}
+
+		if (enc->encoder_type == DRM_MODE_ENCODER_DPMST) {
+			ret |= enc->possible_crtcs;
+		}
+
+		drmModeFreeEncoder(enc);
+	}
+
 	return ret;
-
-error_conn:
-	drmModeFreeConnector(conn);
-	return 0;
 }
 
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
@@ -1167,7 +1175,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, wlr_conn->id);
+			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn,
+				wlr_conn->props.path != 0);
 			if (wlr_conn->possible_crtc == 0) {
 				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
 					wlr_conn->output.name);
