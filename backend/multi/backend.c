@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include <sys/sysmacros.h>
+#endif
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/allocator/gbm.h>
@@ -196,6 +198,7 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 
 	int render_fd = wlr_backend_get_render_fd(backend);
 	if (render_fd >= 0) {
+#ifdef __linux__
 		struct stat st;
 		if (fstat(render_fd, &st) < 0) {
 			wlr_log_errno(WLR_ERROR, "Stat failed");
@@ -209,6 +212,10 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 			wlr_log(WLR_ERROR, "Backend is not compatible");
 			return false;
 		}
+#else
+		wlr_log(WLR_ERROR, "Multiple rendering-capable backends are not supported");
+		return false;
+#endif
 	}
 
 	struct wlr_renderer *multi_renderer =

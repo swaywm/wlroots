@@ -100,8 +100,8 @@ static bool parse_in_formats(int fd, struct wlr_drm_plane *plane)
 			}
 
 			wlr_format_set_add(&plane->formats, fmts[i], mods[i].modifier);
-			wlr_log(WLR_DEBUG, "Plane format: %.4s %#llx",
-				(char *)&fmts[i], mods[i].modifier);
+			wlr_log(WLR_DEBUG, "Plane format: %.4s %#"PRIx64,
+				(char *)&fmts[i], (uint64_t)mods[i].modifier);
 		}
 	}
 
