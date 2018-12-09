@@ -993,11 +993,10 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 
 static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 		drmModeConnector *conn, bool is_mst) {
-	drmModeEncoder *enc;
 	uint32_t ret = 0;
 
-	for (int i = 0; !enc && i < conn->count_encoders; ++i) {
-		enc = drmModeGetEncoder(fd, conn->encoders[i]);
+	for (int i = 0; i < conn->count_encoders; ++i) {
+		drmModeEncoder *enc = drmModeGetEncoder(fd, conn->encoders[i]);
 		if (!enc) {
 			continue;
 		}
@@ -1016,7 +1015,7 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 	}
 
 	for (int i = 0; i < res->count_encoders; ++i) {
-		enc = drmModeGetEncoder(fd, res->encoders[i]);
+		drmModeEncoder *enc = drmModeGetEncoder(fd, res->encoders[i]);
 		if (!enc) {
 			continue;
 		}
