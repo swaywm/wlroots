@@ -26,6 +26,9 @@ static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *source_resource, uint32_t serial) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
+	if (seat_client == NULL) {
+		return;
+	}
 
 	struct wlr_client_data_source *source = NULL;
 	if (source_resource != NULL) {
@@ -48,6 +51,10 @@ static void data_device_start_drag(struct wl_client *client,
 		uint32_t serial) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
+	if (seat_client == NULL) {
+		return;
+	}
+
 	struct wlr_surface *origin = wlr_surface_from_resource(origin_resource);
 
 	struct wlr_client_data_source *source = NULL;
@@ -201,9 +208,9 @@ static void data_device_manager_get_data_device(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 
+	uint32_t version = wl_resource_get_version(manager_resource);
 	struct wl_resource *resource = wl_resource_create(client,
-		&wl_data_device_interface, wl_resource_get_version(manager_resource),
-		id);
+		&wl_data_device_interface, version, id);
 	if (resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
@@ -244,8 +251,7 @@ static void data_device_manager_bind(struct wl_client *client,
 	struct wlr_data_device_manager *manager = data;
 
 	struct wl_resource *resource = wl_resource_create(client,
-		&wl_data_device_manager_interface,
-		version, id);
+		&wl_data_device_manager_interface, version, id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;

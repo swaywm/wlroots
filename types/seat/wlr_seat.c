@@ -86,7 +86,12 @@ static void seat_client_handle_resource_destroy(
 		wl_resource_destroy(resource);
 	}
 	wl_resource_for_each_safe(resource, tmp, &client->data_devices) {
-		wl_resource_destroy(resource);
+		// Make the data device inert
+		wl_resource_set_user_data(resource, NULL);
+
+		struct wl_list *link = wl_resource_get_link(resource);
+		wl_list_remove(link);
+		wl_list_init(link);
 	}
 
 	wl_list_remove(&client->link);
