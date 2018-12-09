@@ -93,6 +93,26 @@ static void data_device_handle_resource_destroy(struct wl_resource *resource) {
 }
 
 
+static void device_resource_send_selection(struct wl_resource *device_resource) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_data_device_resource(device_resource);
+	assert(seat_client != NULL);
+
+	struct wlr_data_source *source = seat_client->seat->selection_source;
+	if (source != NULL) {
+		struct wlr_data_offer *offer =
+			data_offer_create(device_resource, source);
+		if (offer == NULL) {
+			wl_client_post_no_memory(seat_client->client);
+			return;
+		}
+
+		wl_data_device_send_selection(device_resource, offer->resource);
+	} else {
+		wl_data_device_send_selection(device_resource, NULL);
+	}
+}
+
 void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	struct wlr_data_source *source = seat_client->seat->selection_source;
 	if (source != NULL) {
@@ -101,18 +121,7 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 
 	struct wl_resource *device_resource;
 	wl_resource_for_each(device_resource, &seat_client->data_devices) {
-		if (source != NULL) {
-			struct wlr_data_offer *offer =
-				data_offer_create(device_resource, source);
-			if (offer == NULL) {
-				wl_client_post_no_memory(seat_client->client);
-				return;
-			}
-
-			wl_data_device_send_selection(device_resource, offer->resource);
-		} else {
-			wl_data_device_send_selection(device_resource, NULL);
-		}
+		device_resource_send_selection(device_resource);
 	}
 }
 
@@ -202,8 +211,14 @@ static void data_device_manager_get_data_device(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
-		&data_device_handle_resource_destroy);
+		data_device_handle_resource_destroy);
 	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
+
+	struct wlr_seat_client *focused_client =
+		seat_client->seat->keyboard_state.focused_client;
+	if (focused_client == seat_client) {
+		device_resource_send_selection(resource);
+	}
 }
 
 static void data_device_manager_create_data_source(struct wl_client *client,
