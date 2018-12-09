@@ -35,9 +35,15 @@ struct wlr_data_device_manager {
 	void *data;
 };
 
+enum wlr_data_offer_type {
+	WLR_DATA_OFFER_SELECTION,
+	WLR_DATA_OFFER_DRAG,
+};
+
 struct wlr_data_offer {
 	struct wl_resource *resource;
 	struct wlr_data_source *source;
+	enum wlr_data_offer_type type;
 
 	uint32_t actions;
 	enum wl_data_device_manager_dnd_action preferred_action;

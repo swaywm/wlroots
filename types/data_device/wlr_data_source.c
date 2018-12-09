@@ -186,7 +186,7 @@ static void data_source_offer(struct wl_client *client,
 		return;
 	}
 	if (source->finalized) {
-		wlr_log(WLR_DEBUG, "offering additional MIME type after "
+		wlr_log(WLR_DEBUG, "Offering additional MIME type after "
 			"wl_data_device.set_selection");
 	}
 

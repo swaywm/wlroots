@@ -107,8 +107,8 @@ static void device_resource_send_selection(struct wl_resource *device_resource) 
 
 	struct wlr_data_source *source = seat_client->seat->selection_source;
 	if (source != NULL) {
-		struct wlr_data_offer *offer =
-			data_offer_create(device_resource, source);
+		struct wlr_data_offer *offer = data_offer_create(device_resource,
+			source, WLR_DATA_OFFER_SELECTION);
 		if (offer == NULL) {
 			wl_client_post_no_memory(seat_client->client);
 			return;

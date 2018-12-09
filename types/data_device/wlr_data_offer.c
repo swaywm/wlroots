@@ -55,6 +55,8 @@ static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
 }
 
 void data_offer_update_action(struct wlr_data_offer *offer) {
+	assert(offer->type == WLR_DATA_OFFER_DRAG);
+
 	uint32_t action = data_offer_choose_action(offer);
 	if (offer->source->current_dnd_action == action) {
 		return;
@@ -160,6 +162,13 @@ static void data_offer_handle_set_actions(struct wl_client *client,
 		return;
 	}
 
+	if (offer->type != WLR_DATA_OFFER_DRAG) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_OFFER,
+			"set_action can only be sent to drag-and-drop offers");
+		return;
+	}
+
 	offer->actions = actions;
 	offer->preferred_action = preferred_action;
 
@@ -199,7 +208,7 @@ static void data_offer_handle_source_destroy(struct wl_listener *listener,
 }
 
 struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
-		struct wlr_data_source *source) {
+		struct wlr_data_source *source, enum wlr_data_offer_type type) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
 	assert(seat_client != NULL);
@@ -210,6 +219,7 @@ struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
 		return NULL;
 	}
 	offer->source = source;
+	offer->type = type;
 
 	struct wl_client *client = wl_resource_get_client(device_resource);
 	uint32_t version = wl_resource_get_version(device_resource);

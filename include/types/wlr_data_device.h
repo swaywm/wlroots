@@ -17,7 +17,7 @@ struct wlr_client_data_source {
 extern const struct wlr_surface_role drag_icon_surface_role;
 
 struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
-	struct wlr_data_source *source);
+	struct wlr_data_source *source, enum wlr_data_offer_type type);
 void data_offer_update_action(struct wlr_data_offer *offer);
 void data_offer_destroy(struct wlr_data_offer *offer);
 
