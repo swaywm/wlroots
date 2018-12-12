@@ -36,6 +36,7 @@ static void client_source_cancel(struct wlr_data_source *wlr_source) {
 	struct client_data_source *source =
 		client_data_source_from_source(wlr_source);
 	zwlr_data_control_source_v1_send_cancelled(source->resource);
+	wlr_data_source_finish(wlr_source);
 	// Make the resource inert
 	wl_resource_set_user_data(source->resource, NULL);
 	free(source);
