@@ -122,14 +122,15 @@ static void seat_client_selection_source_destroy(
 		wl_container_of(listener, seat, selection_source_destroy);
 	struct wlr_seat_client *seat_client = seat->keyboard_state.focused_client;
 
+	wl_list_remove(&seat->selection_source_destroy.link);
+	seat->selection_source = NULL;
+
 	if (seat_client && seat->keyboard_state.focused_surface) {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &seat_client->data_devices) {
 			wl_data_device_send_selection(resource, NULL);
 		}
 	}
-
-	seat->selection_source = NULL;
 
 	wlr_signal_emit_safe(&seat->events.selection, seat);
 }
