@@ -325,17 +325,25 @@ void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
 
 void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
 		int popup_sx, int popup_sy, int *toplevel_sx, int *toplevel_sy) {
-	struct wlr_xdg_surface *parent =
-		wlr_xdg_surface_from_wlr_surface(popup->parent);
-	while (parent != NULL && parent->role == WLR_XDG_SURFACE_ROLE_POPUP) {
-		popup_sx += parent->popup->geometry.x;
-		popup_sy += parent->popup->geometry.y;
-		parent = wlr_xdg_surface_from_wlr_surface(parent->popup->parent);
+	struct wlr_surface *parent = popup->parent;
+	while (wlr_surface_is_xdg_surface(parent)) {
+		struct wlr_xdg_surface *xdg_surface =
+			wlr_xdg_surface_from_wlr_surface(parent);
+
+		if (xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP) {
+			popup_sx += xdg_surface->popup->geometry.x;
+			popup_sy += xdg_surface->popup->geometry.y;
+			parent = xdg_surface->popup->parent;
+		} else {
+			popup_sx += xdg_surface->geometry.x;
+			popup_sy += xdg_surface->geometry.y;
+			break;
+		}
 	}
 	assert(parent);
 
-	*toplevel_sx = popup_sx + parent->geometry.x;
-	*toplevel_sy = popup_sy + parent->geometry.y;
+	*toplevel_sx = popup_sx;
+	*toplevel_sy = popup_sy;
 }
 
 static void xdg_popup_box_constraints(struct wlr_xdg_popup *popup,
