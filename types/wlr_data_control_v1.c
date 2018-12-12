@@ -248,6 +248,7 @@ void wlr_data_control_v1_destroy(struct wlr_data_control_v1 *control) {
 		wl_resource_set_user_data(control->selection_offer_resource, NULL);
 	}
 	wl_list_remove(&control->seat_destroy.link);
+	wl_list_remove(&control->seat_selection.link);
 	wl_list_remove(&control->link);
 	free(control);
 }
@@ -317,7 +318,7 @@ static void manager_handle_get_data_control(struct wl_client *client,
 	wl_signal_add(&control->seat->events.destroy, &control->seat_destroy);
 
 	control->seat_selection.notify = control_handle_seat_selection;
-	wl_signal_add(&control->seat->events.destroy, &control->seat_selection);
+	wl_signal_add(&control->seat->events.selection, &control->seat_selection);
 
 	wl_list_insert(&manager->controls, &control->link);
 	wlr_signal_emit_safe(&manager->events.new_control, control);
