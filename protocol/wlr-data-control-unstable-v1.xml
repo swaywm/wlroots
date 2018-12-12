@@ -82,7 +82,8 @@
         All objects created by the manager will still remain valid, until their
         appropriate destroy request has been called.
       </description>
-      <arg name="source" type="object" interface="zwlr_data_control_source_v1"/>
+      <arg name="source" type="object" interface="zwlr_data_control_source_v1"
+        allow-null="true"/>
     </request>
 
     <request name="destroy" type="destructor">
@@ -117,7 +118,8 @@
         previous selection wlr_data_control_offer, if any, upon receiving this
         event.
       </description>
-      <arg name="id" type="object" interface="zwlr_data_control_offer_v1"/>
+      <arg name="id" type="object" interface="zwlr_data_control_offer_v1"
+        allow-null="true"/>
     </event>
 
     <event name="finished">
