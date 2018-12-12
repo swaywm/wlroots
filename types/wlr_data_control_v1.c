@@ -178,12 +178,13 @@ static void control_handle_set_selection(struct wl_client *client,
 	struct wlr_data_control_v1 *control =
 		control_from_resource(control_resource);
 	struct client_data_source *source = source_from_resource(source_resource);
-	if (control == NULL || source == NULL) {
+	if (control == NULL) {
 		return;
 	}
 
+	struct wlr_data_source *wlr_source = source ? &source->source : NULL;
 	struct wl_display *display = wl_client_get_display(client);
-	wlr_seat_set_selection(control->seat, &source->source,
+	wlr_seat_set_selection(control->seat, wlr_source,
 		wl_display_next_serial(display));
 }
 
