@@ -242,8 +242,11 @@ void wlr_data_control_v1_destroy(struct wlr_data_control_v1 *control) {
 		return;
 	}
 	zwlr_data_control_v1_send_finished(control->resource);
-	// Make the resource inert
+	// Make the resources inert
 	wl_resource_set_user_data(control->resource, NULL);
+	if (control->selection_offer_resource != NULL) {
+		wl_resource_set_user_data(control->selection_offer_resource, NULL);
+	}
 	wl_list_remove(&control->seat_destroy.link);
 	wl_list_remove(&control->link);
 	free(control);
