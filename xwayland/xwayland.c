@@ -1,4 +1,4 @@
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200112L
 #ifdef __FreeBSD__
 // for SOCK_CLOEXEC
 #define __BSD_VISIBLE 1
@@ -20,14 +20,6 @@
 #include "sockets.h"
 #include "util/signal.h"
 #include "xwayland/xwm.h"
-
-#ifdef __FreeBSD__
-static inline int clearenv(void) {
-	extern char **environ;
-	environ[0] = NULL;
-	return 0;
-}
-#endif
 
 struct wlr_xwayland_cursor {
 	uint8_t *pixels;
@@ -101,17 +93,6 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 		wlr_log_errno(WLR_ERROR, "alloc/print failure");
 		_exit(EXIT_FAILURE);
 	}
-
-	const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
-	const char *path_var = getenv("PATH");
-	if (clearenv() != 0) {
-		wlr_log_errno(WLR_ERROR, "clearenv failed");
-		_exit(EXIT_FAILURE);
-	}
-	if (xdg_runtime != NULL) {
-		setenv("XDG_RUNTIME_DIR", xdg_runtime, true);
-	}
-	setenv("PATH", path_var, true);
 
 	char wayland_socket_str[16];
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", wlr_xwayland->wl_fd[1]);
