@@ -51,7 +51,6 @@ struct wlr_relative_pointer_manager_v1 {
  */
 
 struct wlr_relative_pointer_v1 {
-	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wl_resource *pointer;
 

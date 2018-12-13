@@ -97,7 +97,6 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 		return;
 	}
 
-	relative_pointer->client = client;
 	relative_pointer->resource = relative_pointer_resource;
 	relative_pointer->pointer = pointer;
 
