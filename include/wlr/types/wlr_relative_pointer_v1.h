@@ -25,8 +25,9 @@
  */
 
 struct wlr_relative_pointer_manager_v1 {
-	struct wl_list resources;
 	struct wl_global *global;
+	struct wl_list resources;
+	struct wl_list relative_pointers;
 
 	struct {
 		struct wl_signal destroy;
@@ -52,7 +53,9 @@ struct wlr_relative_pointer_manager_v1 {
 
 struct wlr_relative_pointer_v1 {
 	struct wl_resource *resource;
+	struct wlr_seat *seat;
 	struct wl_resource *pointer;
+	struct wl_list link; // wlr_relative_pointer_manager_v1::relative_pointers
 
 	struct {
 		struct wl_signal destroy;

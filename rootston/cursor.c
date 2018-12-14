@@ -305,12 +305,39 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	}
 }
 
+static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
+		double dx, double dy, double dx_unaccel, double dy_unaccel) {
+
+	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager =
+		seat->input->server->desktop->relative_pointer_manager;
+
+	struct wlr_seat_client *client = seat->seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &relative_pointer_manager->relative_pointers) {
+
+		struct wlr_relative_pointer_v1 *pointer =
+			wlr_relative_pointer_v1_from_resource(resource);
+		if (pointer == NULL) {
+			continue;
+		}
+
+		wlr_relative_pointer_v1_send_relative_motion(pointer, time_msec,
+				dx, dy, dx_unaccel, dy_unaccel);
+		wl_pointer_send_frame(pointer->pointer);
+	}
+
+}
+
 void roots_cursor_handle_motion(struct roots_cursor *cursor,
 		struct wlr_event_pointer_motion *event) {
 	double dx = event->delta_x;
 	double dy = event->delta_y;
 
-	wlr_seat_pointer_notify_relative_motion(cursor->seat->seat,
+	notify_relative_motion(cursor->seat,
 		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
 
 	if (cursor->active_constraint) {
@@ -354,7 +381,8 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 
 	double dx = lx - cursor->cursor->x;
 	double dy = ly - cursor->cursor->y;
-	wlr_seat_pointer_notify_relative_motion(cursor->seat->seat,
+
+	notify_relative_motion(cursor->seat,
 		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
 
 	if (cursor->pointer_view) {

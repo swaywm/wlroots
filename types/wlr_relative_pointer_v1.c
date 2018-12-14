@@ -98,18 +98,20 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 	}
 
 	relative_pointer->resource = relative_pointer_resource;
+	relative_pointer->seat = seat_client->seat;
 	relative_pointer->pointer = pointer;
 
 	wl_signal_init(&relative_pointer->events.destroy);
-
-	wl_list_insert(&seat_client->relative_pointers_v1,
-		wl_resource_get_link(relative_pointer_resource));
 
 	wl_resource_set_implementation(relative_pointer_resource, &relative_pointer_v1_impl,
 		relative_pointer, relative_pointer_v1_handle_resource_destroy);
 
 	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager =
 		relative_pointer_manager_from_resource(resource);
+
+	wl_list_insert(&relative_pointer_manager->relative_pointers,
+			wl_resource_get_link(relative_pointer_resource));
+
 	wlr_signal_emit_safe(&relative_pointer_manager->events.new_relative_pointer,
 		relative_pointer);
 
@@ -174,6 +176,7 @@ struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(s
 	}
 
 	wl_list_init(&relative_pointer_manager->resources);
+	wl_list_init(&relative_pointer_manager->relative_pointers);
 
 	relative_pointer_manager->global = wl_global_create(display,
 		&zwp_relative_pointer_manager_v1_interface, RELATIVE_POINTER_MANAGER_VERSION,

@@ -305,28 +305,6 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 	grab->interface->motion(grab, time, sx, sy);
 }
 
-void wlr_seat_pointer_notify_relative_motion(struct wlr_seat *wlr_seat,
-		uint64_t time, double dx, double dy,
-		double dx_unaccel, double dy_unaccel) {
-	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
-	if (client == NULL) {
-		return;
-	}
-
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &client->relative_pointers_v1) {
-		struct wlr_relative_pointer_v1 *relative_pointer =
-			wlr_relative_pointer_v1_from_resource(resource);
-		if (relative_pointer == NULL) {
-			continue;
-		}
-
-		wlr_relative_pointer_v1_send_relative_motion(relative_pointer, time,
-			dx, dy, dx_unaccel, dy_unaccel);
-		pointer_send_frame(relative_pointer->pointer);
-	}
-}
-
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		uint32_t time, uint32_t button, uint32_t state) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
