@@ -321,7 +321,7 @@ static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
 
 		struct wlr_relative_pointer_v1 *pointer =
 			wlr_relative_pointer_v1_from_resource(resource);
-		if (pointer == NULL) {
+		if (pointer == NULL || seat->seat != pointer->seat) {
 			continue;
 		}
 
