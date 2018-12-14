@@ -327,7 +327,13 @@ static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
 
 		wlr_relative_pointer_v1_send_relative_motion(pointer, time_msec,
 				dx, dy, dx_unaccel, dy_unaccel);
-		wl_pointer_send_frame(pointer->pointer);
+	}
+
+	wl_resource_for_each(resource, &client->pointers) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+		wl_pointer_send_frame(resource);
 	}
 
 }

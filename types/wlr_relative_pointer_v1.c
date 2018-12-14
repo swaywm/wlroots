@@ -99,7 +99,6 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 
 	relative_pointer->resource = relative_pointer_resource;
 	relative_pointer->seat = seat_client->seat;
-	relative_pointer->pointer = pointer;
 
 	wl_signal_init(&relative_pointer->events.destroy);
 
