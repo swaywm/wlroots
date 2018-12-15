@@ -3,6 +3,7 @@ install_headers(
 	'wlr_keyboard.h',
 	'wlr_output.h',
 	'wlr_pointer.h',
+	'wlr_switch.h',
 	'wlr_tablet_pad.h',
 	'wlr_tablet_tool.h',
 	'wlr_touch.h',

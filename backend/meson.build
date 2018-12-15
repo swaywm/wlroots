@@ -15,6 +15,7 @@ backend_files = files(
 	'libinput/events.c',
 	'libinput/keyboard.c',
 	'libinput/pointer.c',
+	'libinput/switch.c',
 	'libinput/tablet_pad.c',
 	'libinput/tablet_tool.c',
 	'libinput/touch.c',

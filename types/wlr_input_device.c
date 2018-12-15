@@ -5,6 +5,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/interfaces/wlr_switch.h>
 #include <wlr/interfaces/wlr_tablet_pad.h>
 #include <wlr/interfaces/wlr_tablet_tool.h>
 #include <wlr/interfaces/wlr_touch.h>
@@ -39,6 +40,9 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 			break;
 		case WLR_INPUT_DEVICE_POINTER:
 			wlr_pointer_destroy(dev->pointer);
+			break;
+		case WLR_INPUT_DEVICE_SWITCH:
+			wlr_switch_destroy(dev->lid_switch);
 			break;
 		case WLR_INPUT_DEVICE_TOUCH:
 			wlr_touch_destroy(dev->touch);

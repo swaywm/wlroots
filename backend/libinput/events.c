@@ -169,7 +169,17 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	}
 	if (libinput_device_has_capability(
 			libinput_dev, LIBINPUT_DEVICE_CAP_SWITCH)) {
-		// TODO
+		struct wlr_input_device *wlr_dev = allocate_device(backend,
+			libinput_dev, wlr_devices, WLR_INPUT_DEVICE_SWITCH);
+		if (!wlr_dev) {
+			goto fail;
+		}
+		wlr_dev->lid_switch = create_libinput_switch(libinput_dev);
+		if (!wlr_dev->lid_switch) {
+			free(wlr_dev);
+			goto fail;
+		}
+		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 	}
 
 	if (!wl_list_empty(wlr_devices)) {
@@ -273,6 +283,9 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		break;
 	case LIBINPUT_EVENT_TABLET_PAD_STRIP:
 		handle_tablet_pad_strip(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_SWITCH_TOGGLE:
+		handle_switch_toggle(event, libinput_dev);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unknown libinput event %d", event_type);

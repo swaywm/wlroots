@@ -20,6 +20,7 @@ enum wlr_input_device_type {
 	WLR_INPUT_DEVICE_TOUCH,
 	WLR_INPUT_DEVICE_TABLET_TOOL,
 	WLR_INPUT_DEVICE_TABLET_PAD,
+	WLR_INPUT_DEVICE_SWITCH,
 };
 
 /* Note: these are circular dependencies */
@@ -28,6 +29,7 @@ enum wlr_input_device_type {
 #include <wlr/types/wlr_touch.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_pad.h>
+#include <wlr/types/wlr_switch.h>
 
 struct wlr_input_device_impl;
 
@@ -46,6 +48,7 @@ struct wlr_input_device {
 		void *_device;
 		struct wlr_keyboard *keyboard;
 		struct wlr_pointer *pointer;
+		struct wlr_switch *lid_switch;
 		struct wlr_touch *touch;
 		struct wlr_tablet *tablet;
 		struct wlr_tablet_pad *tablet_pad;

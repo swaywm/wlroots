@@ -55,6 +55,11 @@ void handle_pointer_button(struct libinput_event *event,
 void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *device);
 
+struct wlr_switch *create_libinput_switch(
+		struct libinput_device *device);
+void handle_switch_toggle(struct libinput_event *event,
+		struct libinput_device *device);
+
 struct wlr_touch *create_libinput_touch(
 		struct libinput_device *device);
 void handle_touch_down(struct libinput_event *event,

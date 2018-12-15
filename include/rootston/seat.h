@@ -5,6 +5,7 @@
 #include "rootston/input.h"
 #include "rootston/keyboard.h"
 #include "rootston/layers.h"
+#include "rootston/switch.h"
 #include "rootston/text_input.h"
 
 struct roots_seat {
@@ -32,6 +33,7 @@ struct roots_seat {
 
 	struct wl_list keyboards;
 	struct wl_list pointers;
+	struct wl_list switches;
 	struct wl_list touch;
 	struct wl_list tablets;
 	struct wl_list tablet_pads;

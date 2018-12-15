@@ -23,6 +23,8 @@ static const char *device_type(enum wlr_input_device_type type) {
 		return "keyboard";
 	case WLR_INPUT_DEVICE_POINTER:
 		return "pointer";
+	case WLR_INPUT_DEVICE_SWITCH:
+		return "switch";
 	case WLR_INPUT_DEVICE_TOUCH:
 		return "touch";
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
