@@ -2,9 +2,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include <wlr/util/log.h>
-
 #include "rootston/bindings.h"
 
 static bool outputs_enabled = true;
@@ -44,7 +42,8 @@ static void double_fork_shell_cmd(const char *shell_cmd) {
     wlr_log(WLR_ERROR, "first child failed to fork command");
 }
 
-void execute_binding_command (struct roots_seat *seat, struct roots_input *input, const char *command) {
+void execute_binding_command(struct roots_seat *seat, 
+        struct roots_input *input, const char *command) {
     if (strcmp(command, "exit") == 0) {
         wl_display_terminate(input->server->wl_display);
     } else if (strcmp(command, "close") == 0) {
@@ -97,8 +96,7 @@ void execute_binding_command (struct roots_seat *seat, struct roots_input *input
             }
         }
     } else if (strcmp(command, "break_pointer_constraint") == 0) {
-        struct wl_list *list =
-            &input->seats;
+        struct wl_list *list = &input->seats;
         struct roots_seat *seat;
         wl_list_for_each(seat, list, link) {
             roots_cursor_constrain(seat->cursor, NULL, NAN, NAN);
