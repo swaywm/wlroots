@@ -15,19 +15,14 @@ void roots_switch_handle_toggle(struct roots_switch *lid_switch,
     wl_list_for_each(sc, bound_switches, link) {
         bool device_match = false;
         bool state_match = false;
-        if ((sc->name != NULL && strcmp(event->device->name, sc->name) == 0) ||
-                (sc->name == NULL && event->switch_type == sc->switch_type)) {
-            device_match = true;
+        if ((sc->name != NULL && strcmp(event->device->name, sc->name) != 0) &&
+                (sc->name == NULL && event->switch_type != sc->switch_type)) {
+            continue;
         }
-        if (!device_match) {
-            break;
+        if (sc->switch_state != WLR_SWITCH_STATE_TOGGLE &&
+                event->switch_state != sc->switch_state) {
+            continue;
         }
-        if (sc->switch_state == WLR_SWITCH_STATE_TOGGLE ||
-                event->switch_state == sc->switch_state) {
-            state_match = true;
-        }
-        if (device_match && state_match) {
-            execute_binding_command(lid_switch->seat, lid_switch->seat->input, sc->command);
-        }
+        execute_binding_command(lid_switch->seat, lid_switch->seat->input, sc->command);
     }
 }
