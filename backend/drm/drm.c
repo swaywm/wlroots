@@ -550,9 +550,16 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 		const drmModeModeInfo *modeinfo) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
-	assert(modeinfo);
 	if (modeinfo->type != DRM_MODE_TYPE_USERDEF) {
 		return false;
+	}
+
+	struct wlr_output_mode *wlr_mode;
+	wl_list_for_each(wlr_mode, &conn->output.modes, link) {
+		struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
+		if (memcmp(&mode->drm_mode, modeinfo, sizeof(*modeinfo)) == 0) {
+			return true;
+		}
 	}
 
 	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
@@ -563,7 +570,7 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 
 	mode->wlr_mode.width = mode->drm_mode.hdisplay;
 	mode->wlr_mode.height = mode->drm_mode.vdisplay;
-	mode->wlr_mode.refresh = mode->drm_mode.vrefresh;
+	mode->wlr_mode.refresh = calculate_refresh_rate(modeinfo);
 
 	wlr_log(WLR_INFO, "Registered custom mode "
 			"%"PRId32"x%"PRId32"@%"PRId32,

@@ -6,7 +6,7 @@
 #include <wlr/util/log.h>
 #include "backend/drm/util.h"
 
-int32_t calculate_refresh_rate(drmModeModeInfo *mode) {
+int32_t calculate_refresh_rate(const drmModeModeInfo *mode) {
 	int32_t refresh = (mode->clock * 1000000LL / mode->htotal +
 		mode->vtotal / 2) / mode->vtotal;
 

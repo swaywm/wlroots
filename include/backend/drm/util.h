@@ -7,7 +7,7 @@
 #include <xf86drmMode.h>
 
 // Calculates a more accurate refresh rate (mHz) than what mode itself provides
-int32_t calculate_refresh_rate(drmModeModeInfo *mode);
+int32_t calculate_refresh_rate(const drmModeModeInfo *mode);
 // Populates the make/model/phys_{width,height} of output from the edid data
 void parse_edid(struct wlr_output *restrict output, size_t len,
 	const uint8_t *data);
