@@ -15,7 +15,7 @@
 /**
  * This protocol specifies a set of interfaces used for making clients able to
  * receive relative pointer events not obstructed by barriers (such as the
- * monitor edge or other pointer barriers).
+ * monitor edge or pointer constraints).
  */
 
 
@@ -26,7 +26,7 @@
 
 struct wlr_relative_pointer_manager_v1 {
 	struct wl_global *global;
-	struct wl_list resources;
+	struct wl_list resources; // wl_resource_get_link()
 	struct wl_list relative_pointers;
 
 	struct {
@@ -60,6 +60,8 @@ struct wlr_relative_pointer_v1 {
 		struct wl_signal destroy;
 	} events;
 
+	struct wl_listener seat_destroy;
+
 	void *data;
 };
 
@@ -69,7 +71,7 @@ void wlr_relative_pointer_manager_v1_destroy(
 	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager);
 
 void wlr_relative_pointer_v1_send_relative_motion(
-	struct wlr_relative_pointer_v1 *relative_pointer, uint64_t time,
+	struct wlr_relative_pointer_v1 *relative_pointer, uint64_t time_msec,
 	double dx, double dy, double dx_unaccel, double dy_unaccel);
 
 struct wlr_relative_pointer_v1 *wlr_relative_pointer_v1_from_resource(

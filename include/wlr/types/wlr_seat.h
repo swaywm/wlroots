@@ -314,19 +314,6 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		double sx, double sy);
 
 /**
- * Send relative motion events to the surface with pointer focus. Coordinates
- * for the motion event are relative to current pointer location, both
- * accelerated and unaccelerated. Compositors should use
- * `wlr_seat_pointer_notify_relative_motion()` to send relative motion events
- * to respect relative pointer requests by clients.
- *
- * Note that the timestamp is 64 bit, split into high 32 bits and low 32 bits.
- */
-void wlr_seat_pointer_notify_relative_motion(struct wlr_seat *wlr_seat,
-		uint64_t time, double dx, double dy,
-		double dx_unaccel, double dy_unaccel);
-
-/**
  * Send a button event to the surface with pointer focus. Coordinates for the
  * button event are surface-local. Returns the serial. Compositors should use
  * `wlr_seat_pointer_notify_button()` to send button events to respect pointer

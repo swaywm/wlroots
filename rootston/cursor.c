@@ -307,7 +307,6 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 
 static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
 		double dx, double dy, double dx_unaccel, double dy_unaccel) {
-
 	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager =
 		seat->input->server->desktop->relative_pointer_manager;
 
@@ -316,26 +315,15 @@ static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
 		return;
 	}
 
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &relative_pointer_manager->relative_pointers) {
-
-		struct wlr_relative_pointer_v1 *pointer =
-			wlr_relative_pointer_v1_from_resource(resource);
-		if (pointer == NULL || seat->seat != pointer->seat) {
+	struct wlr_relative_pointer_v1 *pointer;
+	wl_list_for_each(pointer, &relative_pointer_manager->relative_pointers, link) {
+		if (seat->seat != pointer->seat) {
 			continue;
 		}
 
 		wlr_relative_pointer_v1_send_relative_motion(pointer, time_msec,
 				dx, dy, dx_unaccel, dy_unaccel);
 	}
-
-	wl_resource_for_each(resource, &client->pointers) {
-		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
-			continue;
-		}
-		wl_pointer_send_frame(resource);
-	}
-
 }
 
 void roots_cursor_handle_motion(struct roots_cursor *cursor,
@@ -343,6 +331,7 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 	double dx = event->delta_x;
 	double dy = event->delta_y;
 
+	/* TODO send unaccelerated values */
 	notify_relative_motion(cursor->seat,
 		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
 
@@ -388,6 +377,7 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 	double dx = lx - cursor->cursor->x;
 	double dy = ly - cursor->cursor->y;
 
+	/* TODO send unaccelerated values */
 	notify_relative_motion(cursor->seat,
 		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
 
