@@ -42,6 +42,8 @@ static void relative_pointer_destroy(struct wlr_relative_pointer_v1 *relative_po
 
 	wl_list_remove(&relative_pointer->link);
 	wl_list_remove(&relative_pointer->seat_destroy.link);
+
+	wl_resource_set_user_data(relative_pointer->resource, NULL);
 	free(relative_pointer);
 }
 
@@ -71,7 +73,6 @@ static void relative_pointer_handle_seat_destroy(struct wl_listener *listener,
 		wl_container_of(listener, relative_pointer, seat_destroy);
 
 	relative_pointer_destroy(relative_pointer);
-	wl_resource_set_user_data(relative_pointer->resource, NULL);
 }
 
 /**
@@ -113,6 +114,7 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 
 	relative_pointer->resource = relative_pointer_resource;
 	relative_pointer->seat = seat_client->seat;
+	relative_pointer->pointer = pointer;
 
 	wl_signal_init(&relative_pointer->events.destroy);
 
@@ -126,6 +128,8 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 			&relative_pointer->link);
 
 	wl_signal_add(&relative_pointer->seat->events.destroy,
+			&relative_pointer->seat_destroy);
+	wl_resource_add_destroy_listener(relative_pointer->pointer,
 			&relative_pointer->seat_destroy);
 	relative_pointer->seat_destroy.notify = relative_pointer_handle_seat_destroy;
 
@@ -240,22 +244,10 @@ void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager
 void wlr_relative_pointer_v1_send_relative_motion(struct wlr_relative_pointer_v1 *relative_pointer,
 		uint64_t time, double dx, double dy,
 		double dx_unaccel, double dy_unaccel) {
-	struct wlr_seat_client *client =
-		relative_pointer->seat->pointer_state.focused_client;
-
-	if (client == NULL) {
-		return;
-	}
 	zwp_relative_pointer_v1_send_relative_motion(relative_pointer->resource,
 		(uint32_t)(time >> 32), (uint32_t)time,
 		wl_fixed_from_double(dx), wl_fixed_from_double(dy),
 		wl_fixed_from_double(dx_unaccel), wl_fixed_from_double(dy_unaccel));
 
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &client->pointers) {
-		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
-			continue;
-		}
-		wl_pointer_send_frame(resource);
-	}
+	wl_pointer_send_frame(relative_pointer->pointer);
 }

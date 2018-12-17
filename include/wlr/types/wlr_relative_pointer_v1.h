@@ -31,11 +31,7 @@ struct wlr_relative_pointer_manager_v1 {
 
 	struct {
 		struct wl_signal destroy;
-		/**
-		 * returns struct wlr_relative_pointer_v1 *relative_pointer
-		 * called when a new relative_pointer is successfully created
-		 */
-		struct wl_signal new_relative_pointer;
+		struct wl_signal new_relative_pointer; //wlr_relative_pointer_v1
 	} events;
 
 	struct wl_listener display_destroy_listener;
@@ -53,6 +49,7 @@ struct wlr_relative_pointer_manager_v1 {
 
 struct wlr_relative_pointer_v1 {
 	struct wl_resource *resource;
+	struct wl_resource *pointer;
 	struct wlr_seat *seat;
 	struct wl_list link; // wlr_relative_pointer_manager_v1::relative_pointers
 
