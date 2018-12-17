@@ -331,9 +331,11 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 	double dx = event->delta_x;
 	double dy = event->delta_y;
 
-	/* TODO send unaccelerated values */
+	double unaccel_dx = event->unaccel_dx;
+	double unaccel_dy = event->unaccel_dy;
+
 	notify_relative_motion(cursor->seat,
-		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
+		(uint64_t)event->time_msec * 1000, dx, dy, unaccel_dx, unaccel_dy);
 
 	if (cursor->active_constraint) {
 		struct roots_view *view = cursor->pointer_view->view;
@@ -377,7 +379,6 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 	double dx = lx - cursor->cursor->x;
 	double dy = ly - cursor->cursor->y;
 
-	/* TODO send unaccelerated values */
 	notify_relative_motion(cursor->seat,
 		(uint64_t)event->time_msec * 1000, dx, dy, dx, dy);
 

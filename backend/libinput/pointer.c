@@ -36,6 +36,8 @@ void handle_pointer_motion(struct libinput_event *event,
 		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	wlr_event.delta_x = libinput_event_pointer_get_dx(pevent);
 	wlr_event.delta_y = libinput_event_pointer_get_dy(pevent);
+	wlr_event.unaccel_dx = libinput_event_pointer_get_dx_unaccelerated(pevent);
+	wlr_event.unaccel_dy = libinput_event_pointer_get_dy_unaccelerated(pevent);
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.motion, &wlr_event);
 }
 
