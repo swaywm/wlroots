@@ -58,6 +58,7 @@ struct wlr_relative_pointer_v1 {
 	} events;
 
 	struct wl_listener seat_destroy;
+	struct wl_listener pointer_destroy;
 
 	void *data;
 };

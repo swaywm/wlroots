@@ -75,6 +75,14 @@ static void relative_pointer_handle_seat_destroy(struct wl_listener *listener,
 	relative_pointer_destroy(relative_pointer);
 }
 
+static void relative_pointer_handle_pointer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_relative_pointer_v1 *relative_pointer =
+		wl_container_of(listener, relative_pointer, pointer_destroy);
+
+	relative_pointer_destroy(relative_pointer);
+}
+
 /**
  * relative_pointer_manager handler functions
  */
@@ -129,9 +137,11 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 
 	wl_signal_add(&relative_pointer->seat->events.destroy,
 			&relative_pointer->seat_destroy);
-	wl_resource_add_destroy_listener(relative_pointer->pointer,
-			&relative_pointer->seat_destroy);
 	relative_pointer->seat_destroy.notify = relative_pointer_handle_seat_destroy;
+
+	wl_resource_add_destroy_listener(relative_pointer->pointer,
+			&relative_pointer->pointer_destroy);
+	relative_pointer->pointer_destroy.notify = relative_pointer_handle_pointer_destroy;
 
 	wlr_signal_emit_safe(&relative_pointer_manager->events.new_relative_pointer,
 		relative_pointer);
