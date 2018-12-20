@@ -542,8 +542,8 @@ void view_setup(struct roots_view *view) {
 		view_center(view);
 	}
 
-	view_update_output(view, NULL);
 	view_create_foreign_toplevel_handle(view);
+	view_update_output(view, NULL);
 }
 
 void view_apply_damage(struct roots_view *view) {
