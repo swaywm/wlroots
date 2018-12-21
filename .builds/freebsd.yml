@@ -53,12 +53,12 @@ tasks:
     sudo svnlite export https://github.com/FreeBSDDesktop/freebsd-ports/branches/feature/input/devel/evdev-proto /usr/ports/devel/evdev-proto
     sudo svnlite export https://github.com/FreeBSDDesktop/freebsd-ports/branches/feature/input/devel/py-pyudev /usr/ports/devel/py-pyudev
 - ports_build: |
-    cd /usr/ports/graphics/wayland-protocols/ && sudo make install
-    cd /usr/ports/x11/libinput/ && sudo make install clean
     # v4l_compat is a dependency of libinput, but the version in the ports tree
     # conflicts with the new evdev-proto. It can be safely removed though.
     sudo pkg remove -fy v4l_compat
     cd /usr/ports/devel/evdev-proto && sudo make install clean
+    cd /usr/ports/graphics/wayland-protocols/ && sudo make install
+    cd /usr/ports/x11/libinput/ && sudo make install clean
 - fixup_epoll: |
     cat << 'EOF' | sudo tee /usr/local/libdata/pkgconfig/epoll-shim.pc
     prefix=/usr/local
