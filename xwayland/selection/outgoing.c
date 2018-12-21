@@ -260,20 +260,32 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		return;
 	}
 
-	bool found = false;
-	char **mime_type_ptr;
+	bool found = false, found_pseudo = false;
+	const char **mime_type_ptr;
+	const char *pseudo_mime = "";  // assume never matching any content type
+
+	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
+		pseudo_mime = "UTF8_STRING";
+	} else if (strcmp(mime_type, "text/plain") == 0) {
+		pseudo_mime = "TEXT";
+	}
+
 	wl_array_for_each(mime_type_ptr, mime_types) {
-		char *t = *mime_type_ptr;
+		const char *t = *mime_type_ptr;
 		if (strcmp(t, mime_type) == 0) {
 			found = true;
 			break;
+		} else if (strcmp(t, pseudo_mime) == 0) {
+			found_pseudo = true;
 		}
 	}
-	if (!found) {
+	if (!found && !found_pseudo) {
 		wlr_log(WLR_ERROR, "not sending selection: "
 			"requested an unsupported MIME type %s", mime_type);
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
+	} else if (!found) {
+		mime_type_ptr = &pseudo_mime;
 	}
 
 	struct wlr_xwm_selection_transfer *transfer =
@@ -300,8 +312,8 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	transfer->source_fd = p[0];
 
 	wlr_log(WLR_DEBUG, "Sending Wayland selection %u to Xwayland window with "
-		"MIME type %s, target %u", req->target, mime_type, req->target);
-	xwm_selection_source_send(selection, mime_type, p[1]);
+		"MIME type %s, target %u", req->target, *mime_type_ptr, req->target);
+	xwm_selection_source_send(selection, *mime_type_ptr, p[1]);
 
 	wl_list_insert(&selection->outgoing, &transfer->outgoing_link);
 
