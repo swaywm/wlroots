@@ -21,8 +21,8 @@ struct wlr_box {
 void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	double *dest_x, double *dest_y);
 
-bool wlr_box_intersection(const struct wlr_box *box_a,
-	const struct wlr_box *box_b, struct wlr_box *dest);
+bool wlr_box_intersection(struct wlr_box *dest, const struct wlr_box *box_a,
+	const struct wlr_box *box_b);
 
 bool wlr_box_contains_point(const struct wlr_box *box, double x, double y);
 
@@ -31,16 +31,14 @@ bool wlr_box_empty(const struct wlr_box *box);
 /**
  * Transforms a box inside a `width` x `height` box.
  */
-void wlr_box_transform(const struct wlr_box *box,
-	enum wl_output_transform transform, int width, int height,
-	struct wlr_box *dest);
+void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
+	enum wl_output_transform transform, int width, int height);
 
 /**
  * Creates the smallest box that contains the box rotated about its center.
  */
-void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
-	struct wlr_box *dest);
+void wlr_box_rotated_bounds(struct wlr_box *dest, const struct wlr_box *box, float rotation);
 
-void wlr_box_from_pixman_box32(const pixman_box32_t box, struct wlr_box *dest);
+void wlr_box_from_pixman_box32(struct wlr_box *dest, const pixman_box32_t box);
 
 #endif

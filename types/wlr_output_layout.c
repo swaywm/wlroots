@@ -256,7 +256,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		wl_list_for_each(l_output, &layout->outputs, link) {
 			struct wlr_box *output_box =
 				output_layout_output_get_box(l_output);
-			if (wlr_box_intersection(output_box, target_lbox, &out_box)) {
+			if (wlr_box_intersection(&out_box, output_box, target_lbox)) {
 				return true;
 			}
 		}
@@ -269,7 +269,7 @@ bool wlr_output_layout_intersects(struct wlr_output_layout *layout,
 		}
 
 		struct wlr_box *output_box = output_layout_output_get_box(l_output);
-		return wlr_box_intersection(output_box, target_lbox, &out_box);
+		return wlr_box_intersection(&out_box, output_box, target_lbox);
 	}
 }
 

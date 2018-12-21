@@ -31,8 +31,8 @@ bool wlr_box_empty(const struct wlr_box *box) {
 	return box == NULL || box->width <= 0 || box->height <= 0;
 }
 
-bool wlr_box_intersection(const struct wlr_box *box_a,
-		const struct wlr_box *box_b, struct wlr_box *dest) {
+bool wlr_box_intersection(struct wlr_box *dest, const struct wlr_box *box_a,
+		const struct wlr_box *box_b) {
 	bool a_empty = wlr_box_empty(box_a);
 	bool b_empty = wlr_box_empty(box_b);
 
@@ -66,9 +66,8 @@ bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
 	}
 }
 
-void wlr_box_transform(const struct wlr_box *box,
-		enum wl_output_transform transform, int width, int height,
-		struct wlr_box *dest) {
+void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
+		enum wl_output_transform transform, int width, int height) {
 	struct wlr_box src = *box;
 
 	if (transform % 2 == 0) {
@@ -115,8 +114,8 @@ void wlr_box_transform(const struct wlr_box *box,
 	}
 }
 
-void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
-		struct wlr_box *dest) {
+void wlr_box_rotated_bounds(struct wlr_box *dest, const struct wlr_box *box,
+		float rotation) {
 	if (rotation == 0) {
 		*dest = *box;
 		return;
@@ -144,7 +143,7 @@ void wlr_box_rotated_bounds(const struct wlr_box *box, float rotation,
 	dest->height = ceil(fmax(y1, y2) - fmin(y1, y2));
 }
 
-void wlr_box_from_pixman_box32(const pixman_box32_t box, struct wlr_box *dest) {
+void wlr_box_from_pixman_box32(struct wlr_box *dest, const pixman_box32_t box) {
 	*dest = (struct wlr_box){
 		.x = box.x1,
 		.y = box.y1,

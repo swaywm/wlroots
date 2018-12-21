@@ -73,8 +73,8 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	PUSH_GLES2_DEBUG;
 	if (box != NULL) {
 		struct wlr_box gl_box;
-		wlr_box_transform(box, WL_OUTPUT_TRANSFORM_FLIPPED_180,
-			renderer->viewport_width, renderer->viewport_height, &gl_box);
+		wlr_box_transform(&gl_box, box, WL_OUTPUT_TRANSFORM_FLIPPED_180,
+			renderer->viewport_width, renderer->viewport_height);
 
 		glScissor(gl_box.x, gl_box.y, gl_box.width, gl_box.height);
 		glEnable(GL_SCISSOR_TEST);
