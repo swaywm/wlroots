@@ -647,5 +647,5 @@ void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		return;
 	}
 
-	wlr_box_intersection(&surface->geometry, box, box);
+	wlr_box_intersection(box, &surface->geometry, box);
 }

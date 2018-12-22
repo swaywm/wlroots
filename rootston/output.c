@@ -217,7 +217,7 @@ static bool surface_intersect_output(struct wlr_surface *surface,
 		.x = lx, .y = ly,
 		.width = surface->current.width, .height = surface->current.height,
 	};
-	wlr_box_rotated_bounds(&layout_box, rotation, &layout_box);
+	wlr_box_rotated_bounds(&layout_box, &layout_box, rotation);
 	return wlr_output_layout_intersects(output_layout, wlr_output, &layout_box);
 }
 
@@ -238,7 +238,7 @@ static void scissor_output(struct roots_output *output, pixman_box32_t *rect) {
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(wlr_output->transform);
-	wlr_box_transform(&box, transform, ow, oh, &box);
+	wlr_box_transform(&box, &box, transform, ow, oh);
 
 	wlr_renderer_scissor(renderer, &box);
 }
@@ -269,7 +269,7 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy,
 	}
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, rotation, &rotated);
+	wlr_box_rotated_bounds(&rotated, &box, rotation);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -335,7 +335,7 @@ static void render_decorations(struct roots_view *view,
 	get_decoration_box(view, output, &box);
 
 	struct wlr_box rotated;
-	wlr_box_rotated_bounds(&box, view->rotation, &rotated);
+	wlr_box_rotated_bounds(&rotated, &box, view->rotation);
 
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
@@ -605,7 +605,7 @@ static void damage_whole_surface(struct wlr_surface *surface, int sx, int sy,
 		return;
 	}
 
-	wlr_box_rotated_bounds(&box, rotation, &box);
+	wlr_box_rotated_bounds(&box, &box, rotation);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }
@@ -628,7 +628,7 @@ static void damage_whole_decoration(struct roots_view *view,
 	struct wlr_box box;
 	get_decoration_box(view, output, &box);
 
-	wlr_box_rotated_bounds(&box, view->rotation, &box);
+	wlr_box_rotated_bounds(&box, &box, view->rotation);
 
 	wlr_output_damage_add_box(output->damage, &box);
 }

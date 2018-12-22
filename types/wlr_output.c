@@ -545,7 +545,7 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(output->transform);
-	wlr_box_transform(&box, transform, ow, oh, &box);
+	wlr_box_transform(&box, &box, transform, ow, oh);
 
 	wlr_renderer_scissor(renderer, &box);
 }
@@ -665,7 +665,7 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 
 	struct wlr_box intersection;
 	bool visible =
-		wlr_box_intersection(&output_box, &cursor_box, &intersection);
+		wlr_box_intersection(&intersection, &output_box, &cursor_box);
 
 	if (cursor->surface != NULL) {
 		if (cursor->visible && !visible) {

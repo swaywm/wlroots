@@ -93,9 +93,9 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	struct wlr_wl_backend *backend = output->backend;
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot,
+	wlr_box_transform(&hotspot, &hotspot,
 		wlr_output_transform_invert(wlr_output->transform),
-		output->cursor.width, output->cursor.height, &hotspot);
+		output->cursor.width, output->cursor.height);
 
 	// TODO: use output->wlr_output.transform to transform pixels and hotpot
 	output->cursor.hotspot_x = hotspot.x;

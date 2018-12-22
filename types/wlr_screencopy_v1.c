@@ -184,7 +184,7 @@ static void capture_output(struct wl_client *client,
 
 		buffer_box = *box;
 
-		wlr_box_transform(&buffer_box, output->transform, ow, oh, &buffer_box);
+		wlr_box_transform(&buffer_box, &buffer_box, output->transform, ow, oh);
 		buffer_box.x *= output->scale;
 		buffer_box.y *= output->scale;
 		buffer_box.width *= output->scale;
