@@ -118,9 +118,6 @@ void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *d
 	uint32_t serial = data[12] | (data[13] << 8) | (data[14] << 8) | (data[15] << 8);
 	snprintf(output->serial, sizeof(output->serial), "0x%08X", serial);
 
-	output->phys_width = ((data[68] & 0xf0) << 4) | data[66];
-	output->phys_height = ((data[68] & 0x0f) << 8) | data[67];
-
 	for (size_t i = 72; i <= 108; i += 18) {
 		uint16_t flag = (data[i] << 8) | data[i + 1];
 		if (flag == 0 && data[i + 3] == 0xFC) {
