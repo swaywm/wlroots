@@ -87,7 +87,9 @@ static void popup_surface_frame_callback(
 		void *data, struct wl_callback *cb, uint32_t time) {
 	wl_callback_destroy(cb);
 	popup_frame_callback = NULL;
-	draw_popup();
+	if (popup) {
+		draw_popup();
+	}
 }
 
 static struct wl_callback_listener popup_frame_listener = {
