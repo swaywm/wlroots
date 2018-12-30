@@ -41,8 +41,9 @@
   </description>
 
   <interface name="zwlr_data_control_manager_v1" version="1">
-    <description summary="manager to create per-seat data controls">
-      This interface is a manager that allows creating per-seat data controls.
+    <description summary="manager to control data devices">
+      This interface is a manager that allows creating per-seat data device
+      controls.
     </description>
 
     <request name="create_data_source">
@@ -53,11 +54,11 @@
         summary="data source to create"/>
     </request>
 
-    <request name="get_data_control">
-      <description summary="get a data control for a seat">
-        Create a data control that can be used to manage a seat's data device.
+    <request name="get_data_device">
+      <description summary="get a data device for a seat">
+        Create a data device that can be used to manage a seat's selection.
       </description>
-      <arg name="id" type="new_id" interface="zwlr_data_control_v1"/>
+      <arg name="id" type="new_id" interface="zwlr_data_control_device_v1"/>
       <arg name="seat" type="object" interface="wl_seat"/>
     </request>
 
@@ -69,17 +70,16 @@
     </request>
   </interface>
 
-  <interface name="zwlr_data_control_v1" version="1">
+  <interface name="zwlr_data_control_device_v1" version="1">
     <description summary="manage a data device for a seat">
-      This interface allows a client to manage a data device associated with a
-      seat.
+      This interface allows a client to manage a seat's selection.
 
       When the seat is destroyed, this object becomes inert.
     </description>
 
     <request name="set_selection">
       <description summary="copy data to the selection">
-        All objects created by the manager will still remain valid, until their
+        All objects created by the device will still remain valid, until their
         appropriate destroy request has been called.
       </description>
       <arg name="source" type="object" interface="zwlr_data_control_source_v1"
@@ -87,18 +87,19 @@
     </request>
 
     <request name="destroy" type="destructor">
-      <description summary="destroy this control">
-        Destroys the data control object.
+      <description summary="destroy this data device">
+        Destroys the data device object.
       </description>
     </request>
 
     <event name="data_offer">
       <description summary="introduce a new wlr_data_control_offer">
         The data_offer event introduces a new wlr_data_control_offer object,
-        which will subsequently be used in the wlr_data_control.selection event.
-        Immediately following the wlr_data_control.data_offer event, the new
-        data_offer object will send out wlr_data_control_offer.offer events to
-        describe the MIME types it offers.
+        which will subsequently be used in the wlr_data_control_device.selection
+        event. Immediately following the wlr_data_control_device.data_offer
+        event, the new data_offer object will send out
+        wlr_data_control_offer.offer events to describe the MIME types it
+        offers.
 
         This event replaces the previous data offer, which should be destroyed
         by the client.
@@ -110,10 +111,10 @@
       <description summary="introduce a new wlr_data_control_offer">
         The selection event is sent out to notify the client of a new
         wlr_data_control_offer for the selection for this device. The
-        wlr_data_control.data_offer and the wlr_data_control_offer.offer events
-        are sent out immediately before this event to introduce the data offer
-        object. The selection event is sent to a client when a new selection is
-        set. The wlr_data_control_offer is valid until a new
+        wlr_data_control_device.data_offer and the wlr_data_control_offer.offer
+        events are sent out immediately before this event to introduce the data
+        offer object. The selection event is sent to a client when a new
+        selection is set. The wlr_data_control_offer is valid until a new
         wlr_data_control_offer or NULL is received. The client must destroy the
         previous selection wlr_data_control_offer, if any, upon receiving this
         event.
@@ -140,7 +141,7 @@
 
     <enum name="error">
       <entry name="invalid_offer" value="1"
-        summary="offer sent after wlr_data_control.set_selection"/>
+        summary="offer sent after wlr_data_control_device.set_selection"/>
     </enum>
 
     <request name="offer">
@@ -148,7 +149,8 @@
         This request adds a MIME type to the set of MIME types advertised to
         targets. Can be called several times to offer multiple types.
 
-        Calling this after wlr_data_control.set_selection is a protocol error.
+        Calling this after wlr_data_control_device.set_selection is a protocol
+        error.
       </description>
       <arg name="mime_type" type="string"
         summary="MIME type offered by the data source"/>

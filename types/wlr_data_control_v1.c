@@ -107,7 +107,7 @@ static void source_handle_resource_destroy(struct wl_resource *resource) {
 
 static const struct zwlr_data_control_offer_v1_interface offer_impl;
 
-static struct wlr_data_control_v1 *control_from_offer_resource(
+static struct wlr_data_control_device_v1 *control_from_offer_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
 		&zwlr_data_control_offer_v1_interface, &offer_impl));
@@ -116,12 +116,12 @@ static struct wlr_data_control_v1 *control_from_offer_resource(
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int fd) {
-	struct wlr_data_control_v1 *control = control_from_offer_resource(resource);
-	if (control == NULL || control->seat->selection_source == NULL) {
+	struct wlr_data_control_device_v1 *device = control_from_offer_resource(resource);
+	if (device == NULL || device->seat->selection_source == NULL) {
 		close(fd);
 		return;
 	}
-	wlr_data_source_send(control->seat->selection_source, mime_type, fd);
+	wlr_data_source_send(device->seat->selection_source, mime_type, fd);
 }
 
 static void offer_handle_destroy(struct wl_client *client,
@@ -135,25 +135,25 @@ static const struct zwlr_data_control_offer_v1_interface offer_impl = {
 };
 
 static void offer_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_data_control_v1 *control = control_from_offer_resource(resource);
-	if (control != NULL) {
-		control->selection_offer_resource = NULL;
+	struct wlr_data_control_device_v1 *device = control_from_offer_resource(resource);
+	if (device != NULL) {
+		device->selection_offer_resource = NULL;
 	}
 }
 
-static struct wl_resource *create_offer(struct wlr_data_control_v1 *control,
+static struct wl_resource *create_offer(struct wlr_data_control_device_v1 *device,
 		struct wlr_data_source *source) {
-	struct wl_client *client = wl_resource_get_client(control->resource);
-	uint32_t version = wl_resource_get_version(control->resource);
+	struct wl_client *client = wl_resource_get_client(device->resource);
+	uint32_t version = wl_resource_get_version(device->resource);
 	struct wl_resource *resource = wl_resource_create(client,
 		&zwlr_data_control_offer_v1_interface, version, 0);
 	if (resource == NULL) {
 		return NULL;
 	}
-	wl_resource_set_implementation(resource, &offer_impl, control,
+	wl_resource_set_implementation(resource, &offer_impl, device,
 		offer_handle_resource_destroy);
 
-	zwlr_data_control_v1_send_data_offer(control->resource, resource);
+	zwlr_data_control_device_v1_send_data_offer(device->resource, resource);
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
@@ -164,28 +164,28 @@ static struct wl_resource *create_offer(struct wlr_data_control_v1 *control,
 }
 
 
-static const struct zwlr_data_control_v1_interface control_impl;
+static const struct zwlr_data_control_device_v1_interface control_impl;
 
-static struct wlr_data_control_v1 *control_from_resource(
+static struct wlr_data_control_device_v1 *control_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&zwlr_data_control_v1_interface, &control_impl));
+		&zwlr_data_control_device_v1_interface, &control_impl));
 	return wl_resource_get_user_data(resource);
 }
 
 static void control_handle_set_selection(struct wl_client *client,
 		struct wl_resource *control_resource,
 		struct wl_resource *source_resource) {
-	struct wlr_data_control_v1 *control =
+	struct wlr_data_control_device_v1 *device =
 		control_from_resource(control_resource);
 	struct client_data_source *source = source_from_resource(source_resource);
-	if (control == NULL) {
+	if (device == NULL) {
 		return;
 	}
 
 	struct wlr_data_source *wlr_source = source ? &source->source : NULL;
 	struct wl_display *display = wl_client_get_display(client);
-	wlr_seat_set_selection(control->seat, wlr_source,
+	wlr_seat_set_selection(device->seat, wlr_source,
 		wl_display_next_serial(display));
 }
 
@@ -194,65 +194,65 @@ static void control_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(control_resource);
 }
 
-static const struct zwlr_data_control_v1_interface control_impl = {
+static const struct zwlr_data_control_device_v1_interface control_impl = {
 	.set_selection = control_handle_set_selection,
 	.destroy = control_handle_destroy,
 };
 
-static void control_send_selection(struct wlr_data_control_v1 *control) {
-	struct wlr_data_source *source = control->seat->selection_source;
+static void control_send_selection(struct wlr_data_control_device_v1 *device) {
+	struct wlr_data_source *source = device->seat->selection_source;
 
-	if (control->selection_offer_resource != NULL) {
+	if (device->selection_offer_resource != NULL) {
 		// Make the offer inert
-		wl_resource_set_user_data(control->selection_offer_resource, NULL);
+		wl_resource_set_user_data(device->selection_offer_resource, NULL);
 	}
 
-	control->selection_offer_resource = NULL;
+	device->selection_offer_resource = NULL;
 	if (source != NULL) {
-		control->selection_offer_resource = create_offer(control, source);
-		if (control->selection_offer_resource == NULL) {
-			wl_resource_post_no_memory(control->resource);
+		device->selection_offer_resource = create_offer(device, source);
+		if (device->selection_offer_resource == NULL) {
+			wl_resource_post_no_memory(device->resource);
 			return;
 		}
 	}
 
-	zwlr_data_control_v1_send_selection(control->resource,
-		control->selection_offer_resource);
+	zwlr_data_control_device_v1_send_selection(device->resource,
+		device->selection_offer_resource);
 }
 
 static void control_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_data_control_v1 *control = control_from_resource(resource);
-	wlr_data_control_v1_destroy(control);
+	struct wlr_data_control_device_v1 *device = control_from_resource(resource);
+	wlr_data_control_device_v1_destroy(device);
 }
 
 static void control_handle_seat_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_data_control_v1 *control =
-		wl_container_of(listener, control, seat_destroy);
-	wlr_data_control_v1_destroy(control);
+	struct wlr_data_control_device_v1 *device =
+		wl_container_of(listener, device, seat_destroy);
+	wlr_data_control_device_v1_destroy(device);
 }
 
 static void control_handle_seat_selection(struct wl_listener *listener,
 		void *data) {
-	struct wlr_data_control_v1 *control =
-		wl_container_of(listener, control, seat_selection);
-	control_send_selection(control);
+	struct wlr_data_control_device_v1 *device =
+		wl_container_of(listener, device, seat_selection);
+	control_send_selection(device);
 }
 
-void wlr_data_control_v1_destroy(struct wlr_data_control_v1 *control) {
-	if (control == NULL) {
+void wlr_data_control_device_v1_destroy(struct wlr_data_control_device_v1 *device) {
+	if (device == NULL) {
 		return;
 	}
-	zwlr_data_control_v1_send_finished(control->resource);
+	zwlr_data_control_device_v1_send_finished(device->resource);
 	// Make the resources inert
-	wl_resource_set_user_data(control->resource, NULL);
-	if (control->selection_offer_resource != NULL) {
-		wl_resource_set_user_data(control->selection_offer_resource, NULL);
+	wl_resource_set_user_data(device->resource, NULL);
+	if (device->selection_offer_resource != NULL) {
+		wl_resource_set_user_data(device->selection_offer_resource, NULL);
 	}
-	wl_list_remove(&control->seat_destroy.link);
-	wl_list_remove(&control->seat_selection.link);
-	wl_list_remove(&control->link);
-	free(control);
+	wl_list_remove(&device->seat_destroy.link);
+	wl_list_remove(&device->seat_selection.link);
+	wl_list_remove(&device->link);
+	free(device);
 }
 
 
@@ -287,7 +287,7 @@ static void manager_handle_create_data_source(struct wl_client *client,
 		source_handle_resource_destroy);
 }
 
-static void manager_handle_get_data_control(struct wl_client *client,
+static void manager_handle_get_data_device(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id,
 		struct wl_resource *seat_resource) {
 	struct wlr_data_control_manager_v1 *manager =
@@ -295,41 +295,41 @@ static void manager_handle_get_data_control(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 
-	struct wlr_data_control_v1 *control =
-		calloc(1, sizeof(struct wlr_data_control_v1));
-	if (control == NULL) {
+	struct wlr_data_control_device_v1 *device =
+		calloc(1, sizeof(struct wlr_data_control_device_v1));
+	if (device == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
 	}
-	control->manager = manager;
-	control->seat = seat_client->seat;
+	device->manager = manager;
+	device->seat = seat_client->seat;
 
 	uint32_t version = wl_resource_get_version(manager_resource);
-	control->resource = wl_resource_create(client,
-		&zwlr_data_control_v1_interface, version, id);
-	if (control->resource == NULL) {
+	device->resource = wl_resource_create(client,
+		&zwlr_data_control_device_v1_interface, version, id);
+	if (device->resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
-		free(control);
+		free(device);
 		return;
 	}
-	wl_resource_set_implementation(control->resource, &control_impl, control,
+	wl_resource_set_implementation(device->resource, &control_impl, device,
 		control_handle_resource_destroy);
-	struct wl_resource *resource = control->resource;
+	struct wl_resource *resource = device->resource;
 
-	control->seat_destroy.notify = control_handle_seat_destroy;
-	wl_signal_add(&control->seat->events.destroy, &control->seat_destroy);
+	device->seat_destroy.notify = control_handle_seat_destroy;
+	wl_signal_add(&device->seat->events.destroy, &device->seat_destroy);
 
-	control->seat_selection.notify = control_handle_seat_selection;
-	wl_signal_add(&control->seat->events.selection, &control->seat_selection);
+	device->seat_selection.notify = control_handle_seat_selection;
+	wl_signal_add(&device->seat->events.selection, &device->seat_selection);
 
-	wl_list_insert(&manager->controls, &control->link);
-	wlr_signal_emit_safe(&manager->events.new_control, control);
+	wl_list_insert(&manager->devices, &device->link);
+	wlr_signal_emit_safe(&manager->events.new_device, device);
 
-	// At this point maybe the compositor decided to destroy the control. If
+	// At this point maybe the compositor decided to destroy the device. If
 	// it's the case then the resource will be inert.
-	control = control_from_resource(resource);
-	if (control != NULL) {
-		control_send_selection(control);
+	device = control_from_resource(resource);
+	if (device != NULL) {
+		control_send_selection(device);
 	}
 }
 
@@ -340,7 +340,7 @@ static void manager_handle_destroy(struct wl_client *client,
 
 static const struct zwlr_data_control_manager_v1_interface manager_impl = {
 	.create_data_source = manager_handle_create_data_source,
-	.get_data_control = manager_handle_get_data_control,
+	.get_data_device = manager_handle_get_data_device,
 	.destroy = manager_handle_destroy,
 };
 
@@ -378,9 +378,9 @@ struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
 		return NULL;
 	}
 	wl_list_init(&manager->resources);
-	wl_list_init(&manager->controls);
+	wl_list_init(&manager->devices);
 	wl_signal_init(&manager->events.destroy);
-	wl_signal_init(&manager->events.new_control);
+	wl_signal_init(&manager->events.new_device);
 
 	manager->global = wl_global_create(display,
 		&zwlr_data_control_manager_v1_interface, DATA_CONTROL_MANAGER_VERSION,
@@ -404,9 +404,9 @@ void wlr_data_control_manager_v1_destroy(
 
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
 
-	struct wlr_data_control_v1 *control, *control_tmp;
-	wl_list_for_each_safe(control, control_tmp, &manager->controls, link) {
-		wl_resource_destroy(control->resource);
+	struct wlr_data_control_device_v1 *device, *control_tmp;
+	wl_list_for_each_safe(device, control_tmp, &manager->devices, link) {
+		wl_resource_destroy(device->resource);
 	}
 
 	struct wl_resource *resource, *resource_tmp;

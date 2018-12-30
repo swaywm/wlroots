@@ -15,20 +15,20 @@
 struct wlr_data_control_manager_v1 {
 	struct wl_global *global;
 	struct wl_list resources; // wl_resource_get_link
-	struct wl_list controls; // wlr_data_control_v1::link
+	struct wl_list devices; // wlr_data_control_device_v1::link
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal new_control; // wlr_data_control_v1
+		struct wl_signal new_device; // wlr_data_control_device_v1
 	} events;
 
 	struct wl_listener display_destroy;
 };
 
-struct wlr_data_control_v1 {
+struct wlr_data_control_device_v1 {
 	struct wl_resource *resource;
 	struct wlr_data_control_manager_v1 *manager;
-	struct wl_list link; // wlr_data_control_manager_v1::controls
+	struct wl_list link; // wlr_data_control_manager_v1::devices
 
 	struct wlr_seat *seat;
 	struct wl_resource *selection_offer_resource; // current selection offer
@@ -42,6 +42,7 @@ struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
 void wlr_data_control_manager_v1_destroy(
 	struct wlr_data_control_manager_v1 *manager);
 
-void wlr_data_control_v1_destroy(struct wlr_data_control_v1 *control);
+void wlr_data_control_device_v1_destroy(
+	struct wlr_data_control_device_v1 *device);
 
 #endif
