@@ -317,12 +317,15 @@ static void notify_relative_motion(struct roots_seat *seat, uint64_t time_msec,
 
 	struct wlr_relative_pointer_v1 *pointer;
 	wl_list_for_each(pointer, &relative_pointer_manager->relative_pointers, link) {
-		if (seat->seat != pointer->seat) {
-			continue;
+		struct wlr_seat_client *relative_pointer_client =
+			wlr_seat_client_from_pointer_resource(pointer->pointer);
+
+		if (seat->seat == pointer->seat &&
+				client == relative_pointer_client) {
+			wlr_relative_pointer_v1_send_relative_motion(pointer,
+					time_msec, dx, dy, dx_unaccel, dy_unaccel);
 		}
 
-		wlr_relative_pointer_v1_send_relative_motion(pointer, time_msec,
-				dx, dy, dx_unaccel, dy_unaccel);
 	}
 }
 
