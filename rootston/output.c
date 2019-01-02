@@ -67,6 +67,10 @@ static void surface_for_each_surface(struct wlr_surface *surface,
 static void view_for_each_surface(struct roots_view *view,
 		struct layout_data *layout_data, wlr_surface_iterator_func_t iterator,
 		void *user_data) {
+	if (!view->wlr_surface) {
+		return;
+	}
+
 	layout_data->x = view->box.x;
 	layout_data->y = view->box.y;
 	layout_data->width = view->wlr_surface->current.width;
