@@ -659,6 +659,8 @@ int main(int argc, char *argv[]) {
 			execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void *)NULL);
 		}
 	}
+	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s",
+			socket);
 	wl_display_run(server.wl_display);
 
 	wl_display_destroy_clients(server.wl_display);
