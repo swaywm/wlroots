@@ -78,21 +78,6 @@ Install like so:
 
 	sudo ninja -C build install
 
-## Running the test compositor
-
-wlroots comes with a test compositor called rootston, which demonstrates the
-features of the library and is used as a testbed for the development of the
-library. It may also be useful as a reference for understanding how to use
-various wlroots features, but it's not considered a production-quality codebase
-and is not designed for daily use.
-
-If you followed the build instructions above the rootston executable can be
-found at `./build/rootston/rootston`. To use it, refer to the example config at
-[./rootston/rootston.ini.example](https://github.com/swaywm/wlroots/blob/master/rootston/rootston.ini.example)
-and place a config file of your own at `rootston.ini` in the working directory
-(or in an arbitrary location via `rootston -C`). Other options are available,
-refer to `rootston -h`.
-
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md).
