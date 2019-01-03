@@ -31,3 +31,17 @@ keybindings. TinyWL supports the following keybindings:
 
 - `Alt+Escape`: Terminate the compositor
 - `Alt+F1`: Cycle between windows
+
+## Limitations
+
+Notable omissions from TinyWL:
+
+- HiDPI support
+- Any kind of configuration, e.g. output layout
+- Any protocol other than xdg-shell (e.g. layer-shell, for
+  panels/taskbars/etc; or Xwayland, for proxied X11 windows)
+- Optional protocols, e.g. screen capture, primary selection, virtual
+  keyboard, etc. Most of these are plug-and-play with wlroots, but they're
+  omitted for brevity.
+- Damage tracking, which tracks which parts of the screen are changing and
+  minimizes redraws accordingly.
