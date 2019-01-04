@@ -32,6 +32,7 @@ struct wlr_event_pointer_motion {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
 	double delta_x, delta_y;
+	double unaccel_dx, unaccel_dy;
 };
 
 struct wlr_event_pointer_motion_absolute {
