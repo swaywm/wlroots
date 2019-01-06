@@ -122,7 +122,7 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 
 	relative_pointer->resource = relative_pointer_resource;
 	relative_pointer->seat = seat_client->seat;
-	relative_pointer->pointer = pointer;
+	relative_pointer->pointer_resource = pointer;
 
 	wl_signal_init(&relative_pointer->events.destroy);
 
@@ -139,7 +139,7 @@ static void relative_pointer_manager_v1_handle_get_relative_pointer(struct wl_cl
 			&relative_pointer->seat_destroy);
 	relative_pointer->seat_destroy.notify = relative_pointer_handle_seat_destroy;
 
-	wl_resource_add_destroy_listener(relative_pointer->pointer,
+	wl_resource_add_destroy_listener(relative_pointer->pointer_resource,
 			&relative_pointer->pointer_destroy);
 	relative_pointer->pointer_destroy.notify = relative_pointer_handle_pointer_destroy;
 
@@ -246,18 +246,30 @@ void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager
 
 	wl_global_destroy(manager->global);
 	free(manager);
-
-	wlr_log(WLR_DEBUG, "relative_pointer_v1 manager destroyed");
 }
 
 
-void wlr_relative_pointer_v1_send_relative_motion(struct wlr_relative_pointer_v1 *relative_pointer,
+void wlr_relative_pointer_manager_v1_send_relative_motion(
+		struct wlr_relative_pointer_manager_v1 *manager, struct wlr_seat *seat,
 		uint64_t time_msec, double dx, double dy,
 		double dx_unaccel, double dy_unaccel) {
-	zwp_relative_pointer_v1_send_relative_motion(relative_pointer->resource,
-		(uint32_t)(time_msec >> 32), (uint32_t)time_msec,
-		wl_fixed_from_double(dx), wl_fixed_from_double(dy),
-		wl_fixed_from_double(dx_unaccel), wl_fixed_from_double(dy_unaccel));
+	struct wlr_seat_client *focused = seat->pointer_state.focused_client;
+	if (focused == NULL) {
+		return;
+	}
 
-	wl_pointer_send_frame(relative_pointer->pointer);
+	struct wlr_relative_pointer_v1 *pointer;
+	wl_list_for_each(pointer, &manager->relative_pointers, link) {
+		struct wlr_seat_client *seat_client =
+			wlr_seat_client_from_pointer_resource(pointer->pointer_resource);
+		if (seat != pointer->seat || focused != seat_client) {
+			continue;
+		}
+
+		zwp_relative_pointer_v1_send_relative_motion(pointer->resource,
+			(uint32_t)(time_msec >> 32), (uint32_t)time_msec,
+			wl_fixed_from_double(dx), wl_fixed_from_double(dy),
+			wl_fixed_from_double(dx_unaccel), wl_fixed_from_double(dy_unaccel));
+		wl_pointer_send_frame(pointer->pointer_resource);
+	}
 }
