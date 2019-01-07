@@ -7,11 +7,7 @@
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#ifdef __linux__
 #include <linux/input-event-codes.h>
-#elif __FreeBSD__
-#include <dev/evdev/input-event-codes.h>
-#endif
 #include "rootston/cursor.h"
 #include "rootston/desktop.h"
 #include "rootston/view.h"
