@@ -7,24 +7,25 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
-#include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
+#include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer_constraints_v1.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_server_decoration.h>
+#include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
+#include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/types/wlr_xdg_output_v1.h>
-#include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "rootston/layers.h"
 #include "rootston/seat.h"
@@ -1083,6 +1084,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_foreign_toplevel_manager_v1_create(server->wl_display);
 	desktop->relative_pointer_manager =
 		wlr_relative_pointer_manager_v1_create(server->wl_display);
+
+	wlr_data_control_manager_v1_create(server->wl_display);
 
 	return desktop;
 }

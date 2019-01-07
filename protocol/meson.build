@@ -29,6 +29,7 @@ protocols = [
 	'server-decoration.xml',
 	'text-input-unstable-v3.xml',
 	'virtual-keyboard-unstable-v1.xml',
+	'wlr-data-control-unstable-v1.xml',
 	'wlr-export-dmabuf-unstable-v1.xml',
 	'wlr-gamma-control-unstable-v1.xml',
 	'wlr-foreign-toplevel-management-unstable-v1.xml',

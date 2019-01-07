@@ -27,6 +27,7 @@ lib_wlr_types = static_library(
 		'wlr_buffer.c',
 		'wlr_compositor.c',
 		'wlr_cursor.c',
+		'wlr_data_control_v1.c',
 		'wlr_export_dmabuf_v1.c',
 		'wlr_foreign_toplevel_management_v1.c',
 		'wlr_gamma_control_v1.c',
