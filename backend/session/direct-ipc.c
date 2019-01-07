@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #ifdef __FreeBSD__
 #define __BSD_VISIBLE 1
-#include <dev/evdev/input.h>
+#include <linux/input.h>
 #endif
 #include <errno.h>
 #include <fcntl.h>

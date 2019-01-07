@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <dev/evdev/input.h>
+#include <linux/input.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>

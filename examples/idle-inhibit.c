@@ -8,11 +8,7 @@
 #include "idle-inhibit-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
-#ifdef __linux__
 #include <linux/input-event-codes.h>
-#elif __FreeBSD__
-#include <dev/evdev/input-event-codes.h>
-#endif
 
 /**
  * Usage: idle-inhibit

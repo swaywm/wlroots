@@ -2,11 +2,7 @@
 
 #include <wlr/config.h>
 
-#ifdef __linux__
 #include <linux/input-event-codes.h>
-#elif __FreeBSD__
-#include <dev/evdev/input-event-codes.h>
-#endif
 
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
