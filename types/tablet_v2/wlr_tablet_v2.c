@@ -196,7 +196,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	wl_list_insert(&manager->tablet_seats, &seat_client->client_link);
 	wl_list_insert(&tablet_seat->clients, &seat_client->seat_link);
 
-	// We need to emit the devices allready on the seat
+	// We need to emit the devices already on the seat
 	struct wlr_tablet_v2_tablet *tablet_pos;
 	wl_list_for_each(tablet_pos, &tablet_seat->tablets, link) {
 		add_tablet_client(seat_client, tablet_pos);
