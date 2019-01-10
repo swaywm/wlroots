@@ -30,7 +30,7 @@ struct wlr_wl_backend {
 	struct wl_event_source *remote_display_src;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
-	struct zxdg_shell_v6 *shell;
+	struct xdg_wm_base *xdg_wm_base;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
@@ -47,8 +47,8 @@ struct wlr_wl_output {
 
 	struct wl_surface *surface;
 	struct wl_callback *frame_callback;
-	struct zxdg_surface_v6 *xdg_surface;
-	struct zxdg_toplevel_v6 *xdg_toplevel;
+	struct xdg_surface *xdg_surface;
+	struct xdg_toplevel *xdg_toplevel;
 	struct wl_egl_window *egl_window;
 	EGLSurface egl_surface;
 

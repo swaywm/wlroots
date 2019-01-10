@@ -16,7 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
-#include "xdg-shell-unstable-v6-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 static struct wlr_wl_output *get_wl_output_from_output(
 		struct wlr_output *wlr_output) {
@@ -181,8 +181,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
 	wl_egl_window_destroy(output->egl_window);
-	zxdg_toplevel_v6_destroy(output->xdg_toplevel);
-	zxdg_surface_v6_destroy(output->xdg_surface);
+	xdg_toplevel_destroy(output->xdg_toplevel);
+	xdg_surface_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
 	free(output);
 }
@@ -229,22 +229,22 @@ bool wlr_output_is_wl(struct wlr_output *wlr_output) {
 	return wlr_output->impl == &output_impl;
 }
 
-static void xdg_surface_handle_configure(void *data, struct zxdg_surface_v6 *xdg_surface,
-		uint32_t serial) {
+static void xdg_surface_handle_configure(void *data,
+		struct xdg_surface *xdg_surface, uint32_t serial) {
 	struct wlr_wl_output *output = data;
 	assert(output && output->xdg_surface == xdg_surface);
 
-	zxdg_surface_v6_ack_configure(xdg_surface, serial);
+	xdg_surface_ack_configure(xdg_surface, serial);
 
 	// nothing else?
 }
 
-static struct zxdg_surface_v6_listener xdg_surface_listener = {
+static struct xdg_surface_listener xdg_surface_listener = {
 	.configure = xdg_surface_handle_configure,
 };
 
 static void xdg_toplevel_handle_configure(void *data,
-		struct zxdg_toplevel_v6 *xdg_toplevel,
+		struct xdg_toplevel *xdg_toplevel,
 		int32_t width, int32_t height, struct wl_array *states) {
 	struct wlr_wl_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
@@ -258,14 +258,14 @@ static void xdg_toplevel_handle_configure(void *data,
 }
 
 static void xdg_toplevel_handle_close(void *data,
-		struct zxdg_toplevel_v6 *xdg_toplevel) {
+		struct xdg_toplevel *xdg_toplevel) {
 	struct wlr_wl_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
 	wlr_output_destroy((struct wlr_output *)output);
 }
 
-static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
+static struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.configure = xdg_toplevel_handle_configure,
 	.close = xdg_toplevel_handle_close,
 };
@@ -301,13 +301,13 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	}
 	wl_surface_set_user_data(output->surface, output);
 	output->xdg_surface =
-		zxdg_shell_v6_get_xdg_surface(backend->shell, output->surface);
+		xdg_wm_base_get_xdg_surface(backend->xdg_wm_base, output->surface);
 	if (!output->xdg_surface) {
 		wlr_log_errno(WLR_ERROR, "Could not get xdg surface");
 		goto error;
 	}
 	output->xdg_toplevel =
-		zxdg_surface_v6_get_toplevel(output->xdg_surface);
+		xdg_surface_get_toplevel(output->xdg_surface);
 	if (!output->xdg_toplevel) {
 		wlr_log_errno(WLR_ERROR, "Could not get xdg toplevel");
 		goto error;
@@ -315,13 +315,13 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 
 	char title[32];
 	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
-		zxdg_toplevel_v6_set_title(output->xdg_toplevel, title);
+		xdg_toplevel_set_title(output->xdg_toplevel, title);
 	}
 
-	zxdg_toplevel_v6_set_app_id(output->xdg_toplevel, "wlroots");
-	zxdg_surface_v6_add_listener(output->xdg_surface,
+	xdg_toplevel_set_app_id(output->xdg_toplevel, "wlroots");
+	xdg_surface_add_listener(output->xdg_surface,
 			&xdg_surface_listener, output);
-	zxdg_toplevel_v6_add_listener(output->xdg_toplevel,
+	xdg_toplevel_add_listener(output->xdg_toplevel,
 			&xdg_toplevel_listener, output);
 	wl_surface_commit(output->surface);
 

@@ -18,7 +18,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
-#include "xdg-shell-unstable-v6-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
 	assert(wlr_backend_is_wl(backend));
@@ -49,13 +49,13 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 	return 0;
 }
 
-static void xdg_shell_handle_ping(void *data, struct zxdg_shell_v6 *shell,
-		uint32_t serial) {
-	zxdg_shell_v6_pong(shell, serial);
+static void xdg_wm_base_handle_ping(void *data,
+		struct xdg_wm_base *base, uint32_t serial) {
+	xdg_wm_base_pong(base, serial);
 }
 
-static const struct zxdg_shell_v6_listener xdg_shell_listener = {
-	xdg_shell_handle_ping,
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+	xdg_wm_base_handle_ping,
 };
 
 static void registry_global(void *data, struct wl_registry *registry,
@@ -77,10 +77,10 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->shm = wl_registry_bind(registry, name,
 			&wl_shm_interface, 1);
 
-	} else if (strcmp(iface, zxdg_shell_v6_interface.name) == 0) {
-		wl->shell = wl_registry_bind(registry, name,
-			&zxdg_shell_v6_interface, 1);
-		zxdg_shell_v6_add_listener(wl->shell, &xdg_shell_listener, NULL);
+	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
+		wl->xdg_wm_base = wl_registry_bind(registry, name,
+			&xdg_wm_base_interface, 1);
+		xdg_wm_base_add_listener(wl->xdg_wm_base, &xdg_wm_base_listener, NULL);
 	}
 }
 
@@ -153,7 +153,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	if (wl->shm) {
 		wl_shm_destroy(wl->shm);
 	}
-	zxdg_shell_v6_destroy(wl->shell);
+	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
 	wl_registry_destroy(wl->registry);
 	wl_display_disconnect(wl->remote_display);
@@ -218,9 +218,9 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			"Remote Wayland compositor does not support wl_compositor");
 		goto error_registry;
 	}
-	if (!wl->shell) {
+	if (!wl->xdg_wm_base) {
 		wlr_log(WLR_ERROR,
-			"Remote Wayland compositor does not support zxdg_shell_v6");
+			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
 	}
 
@@ -267,8 +267,8 @@ error_registry:
 	if (wl->compositor) {
 		wl_compositor_destroy(wl->compositor);
 	}
-	if (wl->shell) {
-		zxdg_shell_v6_destroy(wl->shell);
+	if (wl->xdg_wm_base) {
+		xdg_wm_base_destroy(wl->xdg_wm_base);
 	}
 	wl_registry_destroy(wl->registry);
 error_display:
