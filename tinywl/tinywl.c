@@ -475,7 +475,7 @@ static void server_cursor_button(struct wl_listener *listener, void *data) {
 	struct tinywl_server *server =
 		wl_container_of(listener, server, cursor_button);
 	struct wlr_event_pointer_button *event = data;
-	/* Notify the client with pointer focus that a button press has occured */
+	/* Notify the client with pointer focus that a button press has occurred */
 	wlr_seat_pointer_notify_button(server->seat,
 			event->time_msec, event->button, event->state);
 	double sx, sy;
@@ -552,7 +552,7 @@ static void render_surface(struct wlr_surface *surface,
 	 * Those familiar with OpenGL are also familiar with the role of matricies
 	 * in graphics programming. We need to prepare a matrix to render the view
 	 * with. wlr_matrix_project_box is a helper which takes a box with a desired
-	 * x, y coodrinates, width and height, and an output geometry, then
+	 * x, y coordinates, width and height, and an output geometry, then
 	 * prepares an orthographic projection and multiplies the necessary
 	 * transforms to produce a model-view-projection matrix.
 	 *
@@ -717,7 +717,7 @@ static void xdg_toplevel_request_move(
 	 * move, typically because the user clicked on their client-side
 	 * decorations. Note that a more sophisticated compositor should check the
 	 * provied serial against a list of button press serials sent to this
-	 * client, to prevent the client from requesting this whenver they want. */
+	 * client, to prevent the client from requesting this whenever they want. */
 	struct tinywl_view *view = wl_container_of(listener, view, request_move);
 	begin_interactive(view, TINYWL_CURSOR_MOVE, 0);
 }
@@ -728,7 +728,7 @@ static void xdg_toplevel_request_resize(
 	 * resize, typically because the user clicked on their client-side
 	 * decorations. Note that a more sophisticated compositor should check the
 	 * provied serial against a list of button press serials sent to this
-	 * client, to prevent the client from requesting this whenver they want. */
+	 * client, to prevent the client from requesting this whenever they want. */
 	struct wlr_xdg_toplevel_resize_event *event = data;
 	struct tinywl_view *view = wl_container_of(listener, view, request_resize);
 	begin_interactive(view, TINYWL_CURSOR_RESIZE, event->edges);

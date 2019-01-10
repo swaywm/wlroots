@@ -124,17 +124,17 @@ void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 	// Send the expected events
 	if (tool->wlr_tool->hardware_serial) {
 			zwp_tablet_tool_v2_send_hardware_serial(
-			client->resource, 
+			client->resource,
 			tool->wlr_tool->hardware_serial >> 32,
 			tool->wlr_tool->hardware_serial & 0xFFFFFFFF);
 	}
 	if (tool->wlr_tool->hardware_wacom) {
 			zwp_tablet_tool_v2_send_hardware_id_wacom(
-			client->resource, 
+			client->resource,
 			tool->wlr_tool->hardware_wacom >> 32,
 			tool->wlr_tool->hardware_wacom & 0xFFFFFFFF);
 	}
-	zwp_tablet_tool_v2_send_type(client->resource, 
+	zwp_tablet_tool_v2_send_type(client->resource,
 		tablet_type_from_wlr_type(tool->wlr_tool->type));
 
 	if (tool->wlr_tool->tilt) {
@@ -264,8 +264,10 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 			tool->pressed_serials[i] = -1;
 		} else {
 			i = -1;
-			wlr_log(WLR_ERROR, "You pressed more than %d tablet tool buttons. This is currently not supporte by wlroots. Please report this with a description of your tablet, since this is either a bug, or fancy hardware",
-			        WLR_TABLET_V2_TOOL_BUTTONS_CAP);
+			wlr_log(WLR_ERROR, "You pressed more than %d tablet tool buttons. "
+				"This is currently not supported by wlroots. Please report this "
+				"with a description of your tablet, since this is either a "
+				"bug, or fancy hardware", WLR_TABLET_V2_TOOL_BUTTONS_CAP);
 		}
 	}
 	if (state == ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED && found) {
