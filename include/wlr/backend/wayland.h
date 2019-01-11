@@ -1,6 +1,5 @@
 #ifndef WLR_BACKEND_WAYLAND_H
 #define WLR_BACKEND_WAYLAND_H
-
 #include <stdbool.h>
 #include <wayland-client.h>
 #include <wayland-server.h>
@@ -16,8 +15,8 @@
  * to NULL for the default behaviour (WAYLAND_DISPLAY env variable or wayland-0
  * default)
  */
-struct wlr_backend *wlr_wl_backend_create(struct wl_display *display, const char *remote,
-	wlr_renderer_create_func_t create_renderer_func);
+struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
+		const char *remote, wlr_renderer_create_func_t create_renderer_func);
 
 /**
  * Adds a new output to this backend. You may remove outputs by destroying them.
@@ -41,5 +40,10 @@ bool wlr_input_device_is_wl(struct wlr_input_device *device);
  * True if the given output is a wlr_wl_output.
  */
 bool wlr_output_is_wl(struct wlr_output *output);
+
+/**
+ * Sets the title of a wlr_output which is a Wayland window.
+ */
+void wlr_wl_output_set_title(struct wlr_output *output, const char *title);
 
 #endif

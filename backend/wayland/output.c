@@ -365,3 +365,8 @@ error:
 	wlr_output_destroy(&output->wlr_output);
 	return NULL;
 }
+
+void wlr_wl_output_set_title(struct wlr_output *output, const char *title) {
+	struct wlr_wl_output *wl_output = get_wl_output_from_output(output);
+	xdg_toplevel_set_title(wl_output->xdg_toplevel, title);
+}
