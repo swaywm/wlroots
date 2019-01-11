@@ -13,7 +13,6 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -89,12 +88,6 @@ struct tinywl_keyboard {
 
 	struct wl_listener modifiers;
 	struct wl_listener key;
-};
-
-struct tinywl_pointer {
-	struct wl_list link;
-	struct tinywl_server *server;
-	struct wlr_input_device *device;
 };
 
 static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
@@ -810,13 +803,10 @@ int main(int argc, char *argv[]) {
 	wlr_renderer_init_wl_display(server.renderer, server.wl_display);
 
 	/* This creates some hands-off wlroots interfaces. The compositor is
-	 * necessary for clients to allocate surfaces, dmabuf allows them to use
-	 * opaque GPU handles for buffers to avoid copying pixels on the CPU, and
-	 * the data device manager handles the clipboard. Each of these wlroots
-	 * interfaces has room for you to dig your fingers in and play with their
-	 * behavior if you want. */
+	 * necessary for clients to allocate surfaces and the data device manager
+	 * handles the clipboard. Each of these wlroots interfaces has room for you
+	 * to dig your fingers in and play with their behavior if you want. */
 	wlr_compositor_create(server.wl_display, server.renderer);
-	wlr_linux_dmabuf_v1_create(server.wl_display, server.renderer);
 	wlr_data_device_manager_create(server.wl_display);
 
 	/* Creates an output layout, which a wlroots utility for working with an
