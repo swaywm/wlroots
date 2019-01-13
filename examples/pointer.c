@@ -101,6 +101,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_make_current(wlr_output, NULL);
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, state->clear_color);
+	wlr_output_render_software_cursors(wlr_output, NULL);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 	wlr_renderer_end(renderer);
 }
