@@ -610,6 +610,14 @@ static void output_frame(struct wl_listener *listener, void *data) {
 				render_surface, &rdata);
 	}
 
+	/* Hardware cursors are rendered by the GPU on a separate plane, and can be
+	 * moved around without re-rendering what's beneath them - which is more
+	 * efficient. However, not all hardware supports hardware cursors. For this
+	 * reason, wlroots provides a software fallback, which we ask it to render
+	 * here. wlr_cursor handles configuring hardware vs software cursors for you,
+	 * and this function is a no-op when hardware cursors are in use. */
+	wlr_output_render_software_cursors(output->wlr_output, NULL);
+
 	/* Conclude rendering and swap the buffers, showing the final frame
 	 * on-screen. */
 	wlr_renderer_end(renderer);

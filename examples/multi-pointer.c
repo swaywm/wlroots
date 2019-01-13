@@ -100,6 +100,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	wlr_output_render_software_cursors(wlr_output, NULL);
 	wlr_output_swap_buffers(wlr_output, NULL, NULL);
 }
 
