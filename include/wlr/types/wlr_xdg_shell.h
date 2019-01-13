@@ -296,9 +296,14 @@ uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
 		uint32_t tiled_edges);
 
 /**
- * Request that this xdg surface closes.
+ * Request that this xdg toplevel closes.
  */
-void wlr_xdg_surface_send_close(struct wlr_xdg_surface *surface);
+void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface);
+
+/**
+ * Request that this xdg popup closes.
+ **/
+void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface);
 
 /**
  * Get the geometry for this positioner based on the anchor rect, gravity, and
