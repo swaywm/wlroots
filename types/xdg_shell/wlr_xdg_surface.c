@@ -518,17 +518,15 @@ void wlr_xdg_surface_ping(struct wlr_xdg_surface *surface) {
 }
 
 void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface) {
-	if (surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL
-		&& surface->toplevel) {
-		xdg_toplevel_send_close(surface->toplevel->resource);
-	}
+	assert(surface->toplevel);
+	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
+	xdg_toplevel_send_close(surface->toplevel->resource);
 }
 
 void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface) {
-	if (surface->role == WLR_XDG_SURFACE_ROLE_POPUP
-		&& surface->popup) {
-		xdg_popup_send_popup_done(surface->popup->resource);
-	}
+	assert(surface->popup);
+	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+	xdg_popup_send_popup_done(surface->popup->resource);
 }
 
 static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
