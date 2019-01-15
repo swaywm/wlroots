@@ -248,9 +248,9 @@ static void close(struct roots_view *view) {
 	struct wlr_xdg_surface *surface = view->xdg_surface;
 	struct wlr_xdg_popup *popup = NULL;
 	wl_list_for_each(popup, &surface->popups, link) {
-		wlr_xdg_surface_send_close(popup->base);
+		wlr_xdg_popup_destroy(popup->base);
 	}
-	wlr_xdg_surface_send_close(surface);
+	wlr_xdg_toplevel_send_close(surface);
 }
 
 static void destroy(struct roots_view *view) {
