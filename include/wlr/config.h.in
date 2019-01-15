@@ -6,6 +6,8 @@
 #mesondefine WLR_HAS_SYSTEMD
 #mesondefine WLR_HAS_ELOGIND
 
+#mesondefine WLR_HAS_CONSOLEKIT2
+
 #mesondefine WLR_HAS_X11_BACKEND
 
 #mesondefine WLR_HAS_XWAYLAND

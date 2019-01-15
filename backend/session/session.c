@@ -16,11 +16,15 @@
 #include "util/signal.h"
 
 extern const struct session_impl session_logind;
+extern const struct session_impl session_consolekit2;
 extern const struct session_impl session_direct;
 
 static const struct session_impl *impls[] = {
 #if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 	&session_logind,
+#endif
+#if WLR_HAS_CONSOLEKIT2
+	&session_consolekit2,
 #endif
 	&session_direct,
 	NULL,

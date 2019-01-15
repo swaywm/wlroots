@@ -31,6 +31,7 @@ conf_data = configuration_data()
 conf_data.set10('WLR_HAS_LIBCAP', false)
 conf_data.set10('WLR_HAS_SYSTEMD', false)
 conf_data.set10('WLR_HAS_ELOGIND', false)
+conf_data.set10('WLR_HAS_CONSOLEKIT2', false)
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
@@ -64,6 +65,9 @@ udev           = dependency('libudev')
 pixman         = dependency('pixman-1')
 libcap         = dependency('libcap', required: get_option('libcap'))
 logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
+dbus           = dependency('dbus-1', required: get_option('consolekit2'))
+threads        = dependency('threads', required: get_option('consolekit2'))
+consolekit     = dependency('libconsolekit', required: get_option('consolekit2'), version: '>=1.2')
 math           = cc.find_library('m')
 rt             = cc.find_library('rt')
 
@@ -78,6 +82,11 @@ endif
 if logind.found()
 	conf_data.set10('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
 	wlr_deps += logind
+endif
+
+if consolekit.found()
+	conf_data.set10('WLR_HAS_CONSOLEKIT2', true)
+	wlr_deps += [dbus, threads, consolekit]
 endif
 
 subdir('protocol')
@@ -150,6 +159,7 @@ summary = [
 	'      libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
 	'     systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
 	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
+	' consolekit2: @0@'.format(conf_data.get('WLR_HAS_CONSOLEKIT2', false)),
 	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
 	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),

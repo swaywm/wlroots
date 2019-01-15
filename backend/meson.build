@@ -50,6 +50,11 @@ if logind.found()
 	backend_deps += logind
 endif
 
+if consolekit.found()
+	backend_files += files('session/consolekit2.c')
+	backend_deps += [dbus, threads, consolekit]
+endif
+
 subdir('x11')
 
 lib_wlr_backend = static_library(
