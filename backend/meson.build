@@ -20,6 +20,8 @@ backend_files = files(
 	'libinput/tablet_tool.c',
 	'libinput/touch.c',
 	'multi/backend.c',
+	'noop/backend.c',
+	'noop/output.c',
 	'session/direct-ipc.c',
 	'session/session.c',
 	'wayland/backend.c',
