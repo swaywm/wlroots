@@ -11,7 +11,7 @@ wlroots specific
   control instead of the atomic interface
 * *WLR_LIBINPUT_NO_DEVICES*: set to 1 to not fail without any input devices
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  wayland, x11, headless)
+  wayland, x11, headless, noop)
 * *WLR_WL_OUTPUTS*: when using the wayland backend specifies the number of outputs
 * *WLR_X11_OUTPUTS*: when using the X11 backend specifies the number of outputs
 * *WLR_HEADLESS_OUTPUTS*: when using the headless backend specifies the number
