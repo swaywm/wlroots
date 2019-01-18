@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
 
 	wl_display_run(server.wl_display);
 #if WLR_HAS_XWAYLAND
+	// We need to shutdown Xwayland before disconnecting all clients, otherwise
+	// wlroots will restart it automatically.
 	wlr_xwayland_destroy(server.desktop->xwayland);
 #endif
 	wl_display_destroy_clients(server.wl_display);
