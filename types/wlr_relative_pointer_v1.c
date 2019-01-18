@@ -42,6 +42,7 @@ static void relative_pointer_destroy(struct wlr_relative_pointer_v1 *relative_po
 
 	wl_list_remove(&relative_pointer->link);
 	wl_list_remove(&relative_pointer->seat_destroy.link);
+	wl_list_remove(&relative_pointer->pointer_destroy.link);
 
 	wl_resource_set_user_data(relative_pointer->resource, NULL);
 	free(relative_pointer);
