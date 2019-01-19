@@ -4,6 +4,7 @@ install_headers(
 	'interface.h',
 	'libinput.h',
 	'multi.h',
+	'noop.h',
 	'session.h',
 	'wayland.h',
 	subdir: 'wlr/backend',
