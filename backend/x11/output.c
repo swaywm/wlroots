@@ -187,9 +187,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	char title[32];
 	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
-		xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
-			x11->atoms.net_wm_name, x11->atoms.utf8_string, 8,
-			strlen(title), title);
+		wlr_x11_output_set_title(wlr_output, title);
 	}
 
 	xcb_map_window(x11->xcb, output->win);
@@ -233,4 +231,12 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
 	return wlr_output->impl == &output_impl;
+}
+
+void wlr_x11_output_set_title(struct wlr_output *output, const char *title) {
+	struct wlr_x11_output *x11_output = get_x11_output_from_output(output);
+
+	xcb_change_property(x11_output->x11->xcb, XCB_PROP_MODE_REPLACE, x11_output->win,
+		x11_output->x11->atoms.net_wm_name, x11_output->x11->atoms.utf8_string, 8,
+		strlen(title), title);
 }
