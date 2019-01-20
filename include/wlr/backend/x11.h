@@ -42,4 +42,9 @@ bool wlr_input_device_is_x11(struct wlr_input_device *device);
  */
 bool wlr_output_is_x11(struct wlr_output *output);
 
+/**
+ * Sets the title of a wlr_output which is an X11 window.
+ */
+void wlr_x11_output_set_title(struct wlr_output *output, const char *title);
+
 #endif
