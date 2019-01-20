@@ -391,6 +391,8 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 		if (conn->state == WLR_DRM_CONN_NEEDS_MODESET &&
 				conn->crtc != NULL && conn->desired_mode != NULL &&
 				conn->desired_enabled) {
+			wlr_log(WLR_DEBUG, "Output %s has a desired mode and a CRTC, "
+				"attempting a modeset", conn->output.name);
 			drm_connector_set_mode(&conn->output, conn->desired_mode);
 		}
 	}
@@ -637,7 +639,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		plane->surf.height, output->transform);
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot, 
+	wlr_box_transform(&hotspot, &hotspot,
 		wlr_output_transform_invert(output->transform),
 		plane->surf.width, plane->surf.height);
 
@@ -981,8 +983,17 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		i++;
 		struct wlr_output_mode *mode = conn->output.current_mode;
 
-		if (conn->state != WLR_DRM_CONN_CONNECTED || !changed_outputs[i]
-				|| conn->crtc == NULL) {
+		if (conn->state != WLR_DRM_CONN_CONNECTED || !changed_outputs[i]) {
+			continue;
+		}
+
+		if (conn->crtc == NULL) {
+			wlr_log(WLR_DEBUG, "Output has %s lost its CRTC",
+				conn->output.name);
+			conn->state = WLR_DRM_CONN_NEEDS_MODESET;
+			wlr_output_update_enabled(&conn->output, false);
+			conn->desired_mode = conn->output.current_mode;
+			wlr_output_update_mode(&conn->output, NULL);
 			continue;
 		}
 

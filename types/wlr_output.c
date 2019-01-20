@@ -173,8 +173,12 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_update_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
 	output->current_mode = mode;
-	wlr_output_update_custom_mode(output, mode->width, mode->height,
-		mode->refresh);
+	if (mode != NULL) {
+		wlr_output_update_custom_mode(output, mode->width, mode->height,
+			mode->refresh);
+	} else {
+		wlr_output_update_custom_mode(output, 0, 0, 0);
+	}
 }
 
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
