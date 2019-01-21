@@ -424,6 +424,7 @@ void push_gles2_marker(const char *file, const char *func) {
 	snprintf(str, len, "%s:%s", file, func);
 	glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
 	free(str);
+	return;
 error_str:
 	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }

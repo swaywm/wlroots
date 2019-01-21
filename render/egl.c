@@ -108,6 +108,7 @@ static void print_dmabuf_formats(struct wlr_egl *egl) {
 	wlr_log(WLR_DEBUG, "Supported dmabuf buffer formats: %s", str_formats);
 	free(str_formats);
 	free(formats);
+	return;
 error_str_formats:
 	free(formats);
 	wlr_log(WLR_ERROR, "Failed to allocate memory");

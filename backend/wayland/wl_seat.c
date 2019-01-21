@@ -225,6 +225,8 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 	}
 
 	free(pressed);
+
+	return;
 error_pressed:
 	wlr_log(WLR_ERROR, "Failed to allocate memory.");
 }

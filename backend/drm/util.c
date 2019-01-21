@@ -324,13 +324,13 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 	return match_obj_(st, skips, score, replaced, i + 1);
 }
 
-size_t match_obj(size_t num_objs, const uint32_t *objs,
+ssize_t match_obj(size_t num_objs, const uint32_t *objs,
 		size_t num_res, const uint32_t *res,
 		uint32_t *out) {
 	uint32_t *solution = malloc(sizeof(uint32_t) * num_res);
 	if (solution == NULL) {
 		wlr_log(WLR_ERROR, "Failed to allocate memory");
-		return 0;
+		return -1;
 	}
 	for (size_t i = 0; i < num_res; ++i) {
 		solution[i] = UNMATCHED;

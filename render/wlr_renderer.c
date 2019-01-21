@@ -231,4 +231,5 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 	return renderer;
 error_all_config_attribs:
 	wlr_log(WLR_ERROR, "Failed to allocate memory");
+	return NULL;
 }
