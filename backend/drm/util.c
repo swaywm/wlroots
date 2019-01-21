@@ -3,6 +3,7 @@
 #include <gbm.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <wlr/util/log.h>
 #include "backend/drm/util.h"
 
@@ -201,7 +202,7 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo) {
 	return id;
 }
 
-static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
+static inline bool is_taken(size_t n, const uint32_t *arr, uint32_t key) {
 	for (size_t i = 0; i < n; ++i) {
 		if (arr[i] == key) {
 			return true;
@@ -323,10 +324,14 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 	return match_obj_(st, skips, score, replaced, i + 1);
 }
 
-size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
-		size_t num_res, const uint32_t res[static restrict num_res],
-		uint32_t out[static restrict num_res]) {
-	uint32_t solution[num_res];
+size_t match_obj(size_t num_objs, const uint32_t *objs,
+		size_t num_res, const uint32_t *res,
+		uint32_t *out) {
+	uint32_t *solution = malloc(sizeof(uint32_t) * num_res);
+	if (solution == NULL) {
+		wlr_log(WLR_ERROR, "Failed to allocate memory");
+		return 0;
+	}
 	for (size_t i = 0; i < num_res; ++i) {
 		solution[i] = UNMATCHED;
 	}
@@ -344,5 +349,6 @@ size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 	};
 
 	match_obj_(&st, 0, 0, 0, 0);
+	free(solution);
 	return st.score;
 }

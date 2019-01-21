@@ -203,11 +203,16 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 
 	uint32_t time = get_current_time_msec();
 
-	uint32_t pressed[dev->keyboard->num_keycodes + 1];
-	memcpy(pressed, dev->keyboard->keycodes,
-		dev->keyboard->num_keycodes * sizeof(uint32_t));
+	int size = sizeof(uint32_t) * dev->keyboard->num_keycodes;
+	uint32_t *pressed = malloc(size);
 
-	for (size_t i = 0; i < sizeof(pressed)/sizeof(pressed[0]); ++i) {
+	if (pressed == NULL) {
+		goto error_pressed;
+	}
+
+	memcpy(pressed, dev->keyboard->keycodes, size);
+
+	for (size_t i = 0; i < size / sizeof(pressed[0]); ++i) {
 		uint32_t keycode = pressed[i];
 
 		struct wlr_event_keyboard_key event = {
@@ -218,6 +223,10 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		};
 		wlr_keyboard_notify_key(dev->keyboard, &event);
 	}
+
+	free(pressed);
+error_pressed:
+	wlr_log(WLR_ERROR, "Failed to allocate memory.");
 }
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,

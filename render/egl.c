@@ -19,10 +19,14 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 		return false;
 	}
 
-	EGLConfig configs[count];
+	EGLConfig *configs = malloc(sizeof(EGLConfig) * count);
+	if (configs == NULL) {
+		goto error_configs;
+	}
 
 	ret = eglChooseConfig(disp, attribs, configs, count, &matched);
 	if (ret == EGL_FALSE) {
+		free(configs);
 		wlr_log(WLR_ERROR, "eglChooseConfig failed");
 		return false;
 	}
@@ -36,11 +40,16 @@ static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 
 		if (!visual_id || visual == visual_id) {
 			*out = configs[i];
+			free(configs);
 			return true;
 		}
 	}
 
+	free(configs);
 	wlr_log(WLR_ERROR, "no valid egl config found");
+	return false;
+error_configs:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 	return false;
 }
 
@@ -85,17 +94,23 @@ static void print_dmabuf_formats(struct wlr_egl *egl) {
 
 	int *formats;
 	int num = wlr_egl_get_dmabuf_formats(egl, &formats);
-	if (num < 0) {
+	if (formats == NULL) {
 		return;
 	}
-
-	char str_formats[num * 5 + 1];
+	char *str_formats = malloc((num * 5) + 1);
+	if (str_formats == NULL) {
+		goto error_str_formats;
+	}
 	for (int i = 0; i < num; i++) {
 		snprintf(&str_formats[i*5], (num - i) * 5 + 1, "%.4s ",
 			(char*)&formats[i]);
 	}
 	wlr_log(WLR_DEBUG, "Supported dmabuf buffer formats: %s", str_formats);
+	free(str_formats);
 	free(formats);
+error_str_formats:
+	free(formats);
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
@@ -342,7 +357,20 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		int nrects;
 		pixman_box32_t *rects =
 			pixman_region32_rectangles(&flipped_damage, &nrects);
-		EGLint egl_damage[4 * nrects];
+
+		static EGLint *egl_damage = NULL;
+		static int egl_damage_size = 0;
+
+		// Expand egl_damage if it isn't large enough.
+		if (egl_damage_size < 4 * nrects) {
+			egl_damage = realloc(egl_damage, sizeof(EGLint) * (4 * nrects));
+			if (egl_damage == NULL) {
+				wlr_log(WLR_ERROR, "Failed to allocate memory");
+				return false;
+			}
+			egl_damage_size = 4 * nrects;
+		}
+
 		for (int i = 0; i < nrects; ++i) {
 			egl_damage[4*i] = rects[i].x1;
 			egl_damage[4*i + 1] = rects[i].y1;

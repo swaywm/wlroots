@@ -203,7 +203,10 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 
 	size_t all_config_attribs_len = config_attribs_len +
 		sizeof(gles2_config_attribs) / sizeof(gles2_config_attribs[0]);
-	EGLint all_config_attribs[all_config_attribs_len];
+	EGLint *all_config_attribs = malloc(sizeof(EGLint) * all_config_attribs_len);
+	if (all_config_attribs == NULL) {
+		goto error_all_config_attribs;
+	}
 	if (config_attribs_len > 0) {
 		memcpy(all_config_attribs, config_attribs,
 			config_attribs_len * sizeof(EGLint));
@@ -213,6 +216,7 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 
 	if (!wlr_egl_init(egl, platform, remote_display, all_config_attribs,
 			visual_id)) {
+		free(all_config_attribs);
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
@@ -222,5 +226,9 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 		wlr_egl_finish(egl);
 	}
 
+	free(all_config_attribs);
+
 	return renderer;
+error_all_config_attribs:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }

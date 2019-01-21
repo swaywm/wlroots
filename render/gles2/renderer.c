@@ -417,9 +417,15 @@ void push_gles2_marker(const char *file, const char *func) {
 	}
 
 	int len = snprintf(NULL, 0, "%s:%s", file, func) + 1;
-	char str[len];
+	char *str = malloc(len);
+	if (str == NULL) {
+		goto error_str;
+	}
 	snprintf(str, len, "%s:%s", file, func);
 	glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
+	free(str);
+error_str:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }
 
 void pop_gles2_marker(void) {

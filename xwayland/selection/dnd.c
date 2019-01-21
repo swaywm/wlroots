@@ -83,7 +83,11 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 		// data and must be retrieved with the DND_TYPE_LIST property
 		data.data32[1] |= 1;
 
-		xcb_atom_t targets[n];
+		xcb_atom_t *targets = malloc(sizeof(xcb_atom_t) * n);
+		if (targets == NULL) {
+			wlr_log(WLR_ERROR, "Failed to allocate memory");
+			return;
+		}
 		size_t i = 0;
 		char **mime_type_ptr;
 		wl_array_for_each(mime_type_ptr, mime_types) {
@@ -99,6 +103,8 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 			XCB_ATOM_ATOM,
 			32, // format
 			n, targets);
+
+		free(targets);
 	}
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_ENTER], &data);

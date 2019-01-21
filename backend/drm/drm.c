@@ -445,15 +445,23 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 		bool *changed_outputs) {
 	wlr_log(WLR_DEBUG, "Reallocating planes");
 
+	uint32_t *possible = NULL;
+	uint32_t *crtc = NULL;
+	uint32_t *crtc_res = NULL;
+
 	// overlay, primary, cursor
 	for (size_t type = 0; type < 3; ++type) {
 		if (drm->num_type_planes[type] == 0) {
 			continue;
 		}
 
-		uint32_t possible[drm->num_type_planes[type] + 1];
-		uint32_t crtc[drm->num_crtcs + 1];
-		uint32_t crtc_res[drm->num_crtcs + 1];
+		possible = malloc(sizeof(uint32_t) * drm->num_type_planes[type]);
+		crtc = malloc(sizeof(uint32_t) * drm->num_crtcs);
+		crtc_res = malloc(sizeof(uint32_t) * drm->num_crtcs);
+
+		if (possible == NULL || crtc == NULL || crtc_res == NULL) {
+			goto error_possible;
+		}
 
 		for (size_t i = 0; i < drm->num_type_planes[type]; ++i) {
 			possible[i] = drm->type_planes[type][i].possible_crtcs;
@@ -501,7 +509,18 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 				*old = new;
 			}
 		}
+
+		free(possible);
+		free(crtc);
+		free(crtc_res);
 	}
+
+	return;
+error_possible:
+	free(crtc_res);
+	free(crtc);
+	free(possible);
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }
 
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
@@ -564,7 +583,7 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 
 	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
 	if (!mode) {
-		return false;
+		goto error_mode;
 	}
 	memcpy(&mode->drm_mode, modeinfo, sizeof(*modeinfo));
 
@@ -578,6 +597,9 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 			mode->wlr_mode.refresh);
 	wl_list_insert(&conn->output.modes, &mode->wlr_mode.link);
 	return true;
+error_mode:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
+	return false;
 }
 
 static void drm_connector_transform(struct wlr_output *output,
@@ -602,8 +624,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		// We don't have a real cursor plane, so we make a fake one
 		plane = calloc(1, sizeof(*plane));
 		if (!plane) {
-			wlr_log_errno(WLR_ERROR, "Allocation failed");
-			return false;
+			goto error_plane;
 		}
 		crtc->cursor = plane;
 	}
@@ -720,6 +741,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_output_update_needs_swap(output);
 	}
 	return ok;
+error_plane:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
+	return false;
 }
 
 static bool drm_connector_move_cursor(struct wlr_output *output,
@@ -884,15 +908,24 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 
 	wlr_log(WLR_DEBUG, "Reallocating CRTCs");
 
-	uint32_t crtc[drm->num_crtcs + 1];
+	uint32_t *crtc = malloc(sizeof(uint32_t) * drm->num_crtcs);
+	if (crtc == NULL) {
+		goto error_crtc;
+	}
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		crtc[i] = UNMATCHED;
 	}
 
-	struct wlr_drm_connector *connectors[num_outputs + 1];
+	struct wlr_drm_connector **connectors =
+		calloc(num_outputs, sizeof(struct wlr_drm_connector));
+	if (connectors == NULL) {
+		goto error_connectors;
+	}
 
-	uint32_t possible_crtc[num_outputs + 1];
-	memset(possible_crtc, 0, sizeof(possible_crtc));
+	uint32_t *possible_crtc = calloc(num_outputs, sizeof(uint32_t));
+	if (possible_crtc == NULL) {
+		goto error_possible_crtc;
+	}
 
 	wlr_log(WLR_DEBUG, "State before reallocation:");
 	ssize_t i = -1;
@@ -919,12 +952,18 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		}
 	}
 
-	uint32_t crtc_res[drm->num_crtcs + 1];
+	uint32_t *crtc_res = malloc(sizeof(uint32_t) * drm->num_crtcs);
+	if (crtc_res == NULL) {
+		goto error_crtc_res;
+	}
 	match_obj(wl_list_length(&drm->outputs), possible_crtc,
 		drm->num_crtcs, crtc, crtc_res);
 
-	bool matched[num_outputs + 1];
-	memset(matched, false, sizeof(matched));
+	bool *matched = calloc(num_outputs, sizeof(bool));
+	if (matched == NULL) {
+		goto error_matched;
+	}
+
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		if (crtc_res[i] != UNMATCHED) {
 			matched[crtc_res[i]] = true;
@@ -997,6 +1036,24 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 
 		wlr_output_damage_whole(&conn->output);
 	}
+
+	free(matched);
+	free(crtc_res);
+	free(possible_crtc);
+	free(connectors);
+	free(crtc);
+
+	return;
+error_matched:
+	free(crtc_res);
+error_crtc_res:
+	free(possible_crtc);
+error_possible_crtc:
+	free(connectors);
+error_connectors:
+	free(crtc);
+error_crtc:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }
 
 static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
@@ -1050,11 +1107,16 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	size_t seen_len = wl_list_length(&drm->outputs);
 	// +1 so length can never be 0, which is undefined behaviour.
 	// Last element isn't used.
-	bool seen[seen_len + 1];
-	memset(seen, false, sizeof(seen));
+	bool *seen = calloc(seen_len, sizeof(bool));
+	if (seen == NULL) {
+		goto error_seen;
+	}
 	size_t new_outputs_len = 0;
-	struct wlr_drm_connector *new_outputs[res->count_connectors + 1];
-
+	struct wlr_drm_connector **new_outputs =
+		calloc(res->count_connectors, sizeof(struct wlr_drm_connector*));
+	if (new_outputs == NULL) {
+		goto error_new_outputs;
+	}
 	for (int i = 0; i < res->count_connectors; ++i) {
 		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
 			res->connectors[i]);
@@ -1161,8 +1223,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			for (int i = 0; i < drm_conn->count_modes; ++i) {
 				struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
 				if (!mode) {
-					wlr_log_errno(WLR_ERROR, "Allocation failed");
-					continue;
+					goto error_mode;
 				}
 
 				if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
@@ -1228,8 +1289,10 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		}
 	}
 
-	bool changed_outputs[wl_list_length(&drm->outputs) + 1];
-	memset(changed_outputs, false, sizeof(changed_outputs));
+	bool *changed_outputs = calloc(wl_list_length(&drm->outputs), sizeof(bool));
+	if (changed_outputs == NULL) {
+		goto error_changed_outputs;
+	}
 	for (size_t i = 0; i < new_outputs_len; ++i) {
 		struct wlr_drm_connector *conn = new_outputs[i];
 
@@ -1257,7 +1320,20 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			&conn->output);
 	}
 
+	free(seen);
+	free(changed_outputs);
+	free(new_outputs);
+
 	attempt_enable_needs_modeset(drm);
+
+	return;
+error_changed_outputs:
+error_mode:
+	free(new_outputs);
+error_new_outputs:
+	free(seen);
+error_seen:
+	wlr_log(WLR_ERROR, "Failed to allocate memory");
 }
 
 static int mhz_to_nsec(int mhz) {
