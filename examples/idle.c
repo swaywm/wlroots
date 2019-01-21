@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	bool create_t1 = (simulate_activity_timeout != 0) &&
-	                (simulate_activity_timeout < close_timeout);
+		(simulate_activity_timeout < close_timeout);
 
 	if (create_t1) {
 		if (pthread_create(&t1, NULL, &simulate_activity, (void *)&arg) != 0) {

@@ -232,7 +232,7 @@ void wlr_foreign_toplevel_handle_v1_output_enter(
 	}
 
 	toplevel_output =
-	    calloc(1, sizeof(struct wlr_foreign_toplevel_handle_v1_output));
+		calloc(1, sizeof(struct wlr_foreign_toplevel_handle_v1_output));
 	if (!toplevel_output) {
 		wlr_log(WLR_ERROR, "failed to allocate memory for toplevel output");
 		return;
@@ -405,7 +405,7 @@ static struct wl_resource *create_toplevel_resource_for_resource(
 	}
 
 	wl_resource_set_implementation(resource, &toplevel_handle_impl, toplevel,
-	    foreign_toplevel_resource_destroy);
+		foreign_toplevel_resource_destroy);
 
 	wl_list_insert(&toplevel->resources, wl_resource_get_link(resource));
 	zwlr_foreign_toplevel_manager_v1_send_toplevel(manager_resource, resource);
@@ -469,12 +469,10 @@ static void toplevel_send_details_to_toplevel_resource(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel,
 		struct wl_resource *resource) {
 	if (toplevel->title) {
-		zwlr_foreign_toplevel_handle_v1_send_title(resource,
-		    toplevel->title);
+		zwlr_foreign_toplevel_handle_v1_send_title(resource, toplevel->title);
 	}
 	if (toplevel->app_id) {
-		zwlr_foreign_toplevel_handle_v1_send_app_id(resource,
-		    toplevel->app_id);
+		zwlr_foreign_toplevel_handle_v1_send_app_id(resource, toplevel->app_id);
 	}
 
 	struct wlr_foreign_toplevel_handle_v1_output *output;
@@ -516,7 +514,7 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 		struct wl_resource *toplevel_resource =
 			create_toplevel_resource_for_resource(toplevel, resource);
 		toplevel_send_details_to_toplevel_resource(toplevel,
-		    toplevel_resource);
+			toplevel_resource);
 	}
 }
 
