@@ -163,7 +163,8 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		seat->selection_source = NULL;
 	}
 
-	wlr_seat_set_primary_selection(seat, NULL);
+	wlr_seat_set_primary_selection(seat, NULL,
+		wl_display_next_serial(seat->display));
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {

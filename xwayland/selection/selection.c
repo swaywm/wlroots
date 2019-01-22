@@ -231,7 +231,8 @@ void xwm_selection_finish(struct wlr_xwm *xwm) {
 		if (xwm->seat->primary_selection_source &&
 				primary_selection_source_is_xwayland(
 					xwm->seat->primary_selection_source)) {
-			wlr_seat_set_primary_selection(xwm->seat, NULL);
+			wlr_seat_set_primary_selection(xwm->seat, NULL,
+				wl_display_next_serial(xwm->xwayland->wl_display));
 		}
 		wlr_xwayland_set_seat(xwm->xwayland, NULL);
 	}
