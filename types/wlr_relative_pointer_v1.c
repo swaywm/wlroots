@@ -271,6 +271,9 @@ void wlr_relative_pointer_manager_v1_send_relative_motion(
 			(uint32_t)(time_msec >> 32), (uint32_t)time_msec,
 			wl_fixed_from_double(dx), wl_fixed_from_double(dy),
 			wl_fixed_from_double(dx_unaccel), wl_fixed_from_double(dy_unaccel));
-		wl_pointer_send_frame(pointer->pointer_resource);
+		uint32_t version = wl_resource_get_version(pointer->resource);
+		if (version >= WL_POINTER_FRAME_SINCE_VERSION) {
+			wl_pointer_send_frame(pointer->pointer_resource);
+		}
 	}
 }
