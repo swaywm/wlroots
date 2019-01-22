@@ -43,8 +43,10 @@ static struct wl_callback_listener frame_listener = {
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface, NULL);
 	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
 	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
+
 	return true;
 }
 
@@ -253,8 +255,7 @@ static void xdg_toplevel_handle_configure(void *data,
 		return;
 	}
 	// loop over states for maximized etc?
-	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
-	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
+	output_set_custom_mode(&output->wlr_output, width, height, 0);
 }
 
 static void xdg_toplevel_handle_close(void *data,
