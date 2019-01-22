@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -25,28 +24,11 @@ static void output_handle_resource_destroy(struct wl_resource *resource) {
 }
 
 static void output_send_details(struct wlr_xdg_output_v1 *xdg_output,
-		struct wl_resource *resource, bool updated) {
-	struct wlr_output *output = xdg_output->layout_output->output;
-
+		struct wl_resource *resource) {
 	zxdg_output_v1_send_logical_position(resource,
 		xdg_output->x, xdg_output->y);
 	zxdg_output_v1_send_logical_size(resource,
 		xdg_output->width, xdg_output->height);
-
-	if (!updated) {
-		// Name and description should only be sent once per output
-		uint32_t version = wl_resource_get_version(resource);
-		if (version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
-			zxdg_output_v1_send_name(resource, output->name);
-		}
-		if (version >= ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION) {
-			char description[128];
-			snprintf(description, sizeof(description), "%s %s %s (%s)",
-				output->make, output->model, output->serial, output->name);
-			zxdg_output_v1_send_description(resource, description);
-		}
-	}
-
 	zxdg_output_v1_send_done(resource);
 }
 
@@ -71,7 +53,7 @@ static void output_update(struct wlr_xdg_output_v1 *xdg_output) {
 	if (updated) {
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &xdg_output->resources) {
-			output_send_details(xdg_output, resource, true);
+			output_send_details(xdg_output, resource);
 		}
 	}
 }
@@ -132,7 +114,19 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	wl_list_insert(&xdg_output->resources,
 		wl_resource_get_link(xdg_output_resource));
 
-	output_send_details(xdg_output, xdg_output_resource, false);
+	// Name and description should only be sent once per output
+	uint32_t version = wl_resource_get_version(xdg_output_resource);
+	if (version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
+		zxdg_output_v1_send_name(xdg_output_resource, output->name);
+	}
+	if (version >= ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION) {
+		char description[128];
+		snprintf(description, sizeof(description), "%s %s %s (%s)",
+			output->make, output->model, output->serial, output->name);
+		zxdg_output_v1_send_description(xdg_output_resource, description);
+	}
+
+	output_send_details(xdg_output, xdg_output_resource);
 }
 
 static const struct zxdg_output_manager_v1_interface
