@@ -32,11 +32,10 @@ static void client_source_send(struct wlr_data_source *wlr_source,
 	close(fd);
 }
 
-static void client_source_cancel(struct wlr_data_source *wlr_source) {
+static void client_source_destroy(struct wlr_data_source *wlr_source) {
 	struct client_data_source *source =
 		client_data_source_from_source(wlr_source);
 	zwlr_data_control_source_v1_send_cancelled(source->resource);
-	wlr_data_source_finish(wlr_source);
 	// Make the resource inert
 	wl_resource_set_user_data(source->resource, NULL);
 	free(source);
@@ -44,7 +43,7 @@ static void client_source_cancel(struct wlr_data_source *wlr_source) {
 
 static const struct wlr_data_source_impl client_source_impl = {
 	.send = client_source_send,
-	.cancel = client_source_cancel,
+	.destroy = client_source_destroy,
 };
 
 static const struct zwlr_data_control_source_v1_interface source_impl;
@@ -101,7 +100,7 @@ static void source_handle_resource_destroy(struct wl_resource *resource) {
 	if (source == NULL) {
 		return;
 	}
-	wlr_data_source_cancel(&source->source);
+	wlr_data_source_destroy(&source->source);
 }
 
 
