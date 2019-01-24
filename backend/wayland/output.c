@@ -314,10 +314,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		goto error;
 	}
 
-	char title[32];
-	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
-		xdg_toplevel_set_title(output->xdg_toplevel, title);
-	}
+	wlr_wl_output_set_title(wlr_output, NULL);
 
 	xdg_toplevel_set_app_id(output->xdg_toplevel, "wlroots");
 	xdg_surface_add_listener(output->xdg_surface,
@@ -369,5 +366,14 @@ error:
 
 void wlr_wl_output_set_title(struct wlr_output *output, const char *title) {
 	struct wlr_wl_output *wl_output = get_wl_output_from_output(output);
+
+	char wl_title[32];
+	if (title == NULL) {
+		if (snprintf(wl_title, sizeof(wl_title), "wlroots - %s", output->name) <= 0) {
+			return;
+		}
+		title = wl_title;
+	}
+
 	xdg_toplevel_set_title(wl_output->xdg_toplevel, title);
 }
