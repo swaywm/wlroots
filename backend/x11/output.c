@@ -185,10 +185,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
 		&x11->atoms.wm_delete_window);
 
-	char title[32];
-	if (snprintf(title, sizeof(title), "wlroots - %s", wlr_output->name)) {
-		wlr_x11_output_set_title(wlr_output, title);
-	}
+	wlr_x11_output_set_title(wlr_output, NULL);
 
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
@@ -235,6 +232,14 @@ bool wlr_output_is_x11(struct wlr_output *wlr_output) {
 
 void wlr_x11_output_set_title(struct wlr_output *output, const char *title) {
 	struct wlr_x11_output *x11_output = get_x11_output_from_output(output);
+
+	char wl_title[32];
+	if (title == NULL) {
+		if (snprintf(wl_title, sizeof(wl_title), "wlroots - %s", output->name) <= 0) {
+			return;
+		}
+		title = wl_title;
+	}
 
 	xcb_change_property(x11_output->x11->xcb, XCB_PROP_MODE_REPLACE, x11_output->win,
 		x11_output->x11->atoms.net_wm_name, x11_output->x11->atoms.utf8_string, 8,
