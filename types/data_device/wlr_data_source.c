@@ -11,25 +11,6 @@
 #include "types/wlr_data_device.h"
 #include "util/signal.h"
 
-struct wlr_data_offer *data_source_send_offer(struct wlr_data_source *source,
-		struct wl_resource *device_resource) {
-	struct wl_client *client = wl_resource_get_client(device_resource);
-	uint32_t version = wl_resource_get_version(device_resource);
-	struct wlr_data_offer *offer = data_offer_create(client, source, version);
-	if (offer == NULL) {
-		return NULL;
-	}
-
-	wl_data_device_send_data_offer(device_resource, offer->resource);
-
-	char **p;
-	wl_array_for_each(p, &source->mime_types) {
-		wl_data_offer_send_offer(offer->resource, *p);
-	}
-
-	return offer;
-}
-
 void wlr_data_source_init(struct wlr_data_source *source,
 		const struct wlr_data_source_impl *impl) {
 	assert(impl->send);
@@ -38,20 +19,6 @@ void wlr_data_source_init(struct wlr_data_source *source,
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
 	source->actions = -1;
-}
-
-void wlr_data_source_finish(struct wlr_data_source *source) {
-	if (source == NULL) {
-		return;
-	}
-
-	wlr_signal_emit_safe(&source->events.destroy, source);
-
-	char **p;
-	wl_array_for_each(p, &source->mime_types) {
-		free(*p);
-	}
-	wl_array_release(&source->mime_types);
 }
 
 void wlr_data_source_send(struct wlr_data_source *source, const char *mime_type,
@@ -67,9 +34,23 @@ void wlr_data_source_accept(struct wlr_data_source *source, uint32_t serial,
 	}
 }
 
-void wlr_data_source_cancel(struct wlr_data_source *source) {
-	if (source->impl->cancel) {
-		source->impl->cancel(source);
+void wlr_data_source_destroy(struct wlr_data_source *source) {
+	if (source == NULL) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&source->events.destroy, source);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		free(*p);
+	}
+	wl_array_release(&source->mime_types);
+
+	if (source->impl->destroy) {
+		source->impl->destroy(source);
+	} else {
+		free(source);
 	}
 }
 
@@ -127,10 +108,12 @@ static void client_data_source_send(struct wlr_data_source *wlr_source,
 	close(fd);
 }
 
-static void client_data_source_cancel(struct wlr_data_source *wlr_source) {
+static void client_data_source_destroy(struct wlr_data_source *wlr_source) {
 	struct wlr_client_data_source *source =
 		client_data_source_from_wlr_data_source(wlr_source);
 	wl_data_source_send_cancelled(source->resource);
+	wl_resource_set_user_data(source->resource, NULL);
+	free(source);
 }
 
 static void client_data_source_dnd_drop(struct wlr_data_source *wlr_source) {
@@ -167,6 +150,9 @@ static void data_source_set_actions(struct wl_client *client,
 		struct wl_resource *resource, uint32_t dnd_actions) {
 	struct wlr_client_data_source *source =
 		client_data_source_from_resource(resource);
+	if (source == NULL) {
+		return;
+	}
 
 	if (source->source.actions >= 0) {
 		wl_resource_post_error(source->resource,
@@ -196,6 +182,13 @@ static void data_source_offer(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type) {
 	struct wlr_client_data_source *source =
 		client_data_source_from_resource(resource);
+	if (source == NULL) {
+		return;
+	}
+	if (source->finalized) {
+		wlr_log(WLR_DEBUG, "Offering additional MIME type after "
+			"wl_data_device.set_selection");
+	}
 
 	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
 	if (p) {
@@ -210,17 +203,18 @@ static void data_source_offer(struct wl_client *client,
 }
 
 static const struct wl_data_source_interface data_source_impl = {
-	.offer = data_source_offer,
 	.destroy = data_source_destroy,
+	.offer = data_source_offer,
 	.set_actions = data_source_set_actions,
 };
 
 static void data_source_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_client_data_source *source =
 		client_data_source_from_resource(resource);
-	wlr_data_source_finish(&source->source);
-	wl_list_remove(wl_resource_get_link(source->resource));
-	free(source);
+	if (source != NULL) {
+		wlr_data_source_destroy(&source->source);
+	}
+	wl_list_remove(wl_resource_get_link(resource));
 }
 
 struct wlr_client_data_source *client_data_source_create(
@@ -245,7 +239,7 @@ struct wlr_client_data_source *client_data_source_create(
 
 	source->impl.accept = client_data_source_accept;
 	source->impl.send = client_data_source_send;
-	source->impl.cancel = client_data_source_cancel;
+	source->impl.destroy = client_data_source_destroy;
 
 	if (wl_resource_get_version(source->resource) >=
 			WL_DATA_SOURCE_DND_DROP_PERFORMED_SINCE_VERSION) {

@@ -61,8 +61,8 @@ static void drag_set_focus(struct wlr_drag *drag,
 
 		struct wl_resource *device_resource;
 		wl_resource_for_each(device_resource, &focus_client->data_devices) {
-			struct wlr_data_offer *offer =
-				data_source_send_offer(drag->source, device_resource);
+			struct wlr_data_offer *offer = data_offer_create(device_resource,
+				drag->source, WLR_DATA_OFFER_DRAG);
 			if (offer == NULL) {
 				wl_resource_post_no_memory(device_resource);
 				return;
@@ -174,7 +174,7 @@ static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 			};
 			wlr_signal_emit_safe(&drag->events.drop, &event);
 		} else if (drag->source->impl->dnd_finish) {
-			wlr_data_source_cancel(drag->source);
+			wlr_data_source_destroy(drag->source);
 		}
 	}
 

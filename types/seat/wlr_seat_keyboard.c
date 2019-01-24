@@ -2,17 +2,18 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/mman.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
+#include "types/wlr_data_device.h"
 #include "types/wlr_seat.h"
-#include "util/signal.h"
 #include "util/shm.h"
+#include "util/signal.h"
 
 static void default_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
@@ -271,8 +272,6 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 			wl_keyboard_send_enter(resource, serial, surface->resource, &keys);
 		}
 		wl_array_release(&keys);
-
-		wlr_seat_client_send_selection(client);
 	}
 
 	// reinitialize the focus destroy events
@@ -292,6 +291,8 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		// tell new client about any modifier change last,
 		// as it targets seat->keyboard_state.focused_client
 		wlr_seat_keyboard_send_modifiers(seat, modifiers);
+
+		seat_client_send_selection(client);
 	}
 
 	struct wlr_seat_keyboard_focus_change_event event = {

@@ -35,9 +35,16 @@ struct wlr_data_device_manager {
 	void *data;
 };
 
+enum wlr_data_offer_type {
+	WLR_DATA_OFFER_SELECTION,
+	WLR_DATA_OFFER_DRAG,
+};
+
 struct wlr_data_offer {
 	struct wl_resource *resource;
 	struct wlr_data_source *source;
+	enum wlr_data_offer_type type;
+	struct wl_list link; // wlr_seat::{selection_offers,drag_offers}
 
 	uint32_t actions;
 	enum wl_data_device_manager_dnd_action preferred_action;
@@ -55,7 +62,7 @@ struct wlr_data_source_impl {
 		int32_t fd);
 	void (*accept)(struct wlr_data_source *source, uint32_t serial,
 		const char *mime_type);
-	void (*cancel)(struct wlr_data_source *source);
+	void (*destroy)(struct wlr_data_source *source);
 
 	void (*dnd_drop)(struct wlr_data_source *source);
 	void (*dnd_finish)(struct wlr_data_source *source);
@@ -157,15 +164,6 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager);
 
 /**
- * Creates a new wl_data_offer if there is a wl_data_source currently set as
- * the seat selection and sends it to the seat client, followed by the
- * wl_data_device.selection() event.  If there is no current selection, the
- * wl_data_device.selection() event will carry a NULL wl_data_offer.  If the
- * client does not have a wl_data_device for the seat nothing * will be done.
- */
-void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client);
-
-/**
  * Requests a selection to be set for the seat.
  */
 void wlr_seat_request_set_selection(struct wlr_seat *seat,
@@ -187,11 +185,6 @@ void wlr_data_source_init(struct wlr_data_source *source,
 	const struct wlr_data_source_impl *impl);
 
 /**
- * Finishes the data source.
- */
-void wlr_data_source_finish(struct wlr_data_source *source);
-
-/**
  * Sends the data as the specified MIME type over the passed file descriptor,
  * then close it.
  */
@@ -207,9 +200,9 @@ void wlr_data_source_accept(struct wlr_data_source *source, uint32_t serial,
 
 /**
  * Notifies the data source it is no longer valid and should be destroyed. That
- * potentially destroys immediately the data source.
+ * destroys immediately the data source.
  */
-void wlr_data_source_cancel(struct wlr_data_source *source);
+void wlr_data_source_destroy(struct wlr_data_source *source);
 
 /**
  * Notifies the data source that the drop operation was performed. This does not

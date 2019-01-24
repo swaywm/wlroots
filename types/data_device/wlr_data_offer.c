@@ -55,6 +55,8 @@ static uint32_t data_offer_choose_action(struct wlr_data_offer *offer) {
 }
 
 void data_offer_update_action(struct wlr_data_offer *offer) {
+	assert(offer->type == WLR_DATA_OFFER_DRAG);
+
 	uint32_t action = data_offer_choose_action(offer);
 	if (offer->source->current_dnd_action == action) {
 		return;
@@ -160,6 +162,13 @@ static void data_offer_handle_set_actions(struct wl_client *client,
 		return;
 	}
 
+	if (offer->type != WLR_DATA_OFFER_DRAG) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_OFFER,
+			"set_action can only be sent to drag-and-drop offers");
+		return;
+	}
+
 	offer->actions = actions;
 	offer->preferred_action = preferred_action;
 
@@ -172,9 +181,11 @@ void data_offer_destroy(struct wlr_data_offer *offer) {
 	}
 
 	wl_list_remove(&offer->source_destroy.link);
+	wl_list_remove(&offer->link);
 
 	// Make the resource inert
 	wl_resource_set_user_data(offer->resource, NULL);
+
 	free(offer);
 }
 
@@ -198,14 +209,22 @@ static void data_offer_handle_source_destroy(struct wl_listener *listener,
 	data_offer_destroy(offer);
 }
 
-struct wlr_data_offer *data_offer_create(struct wl_client *client,
-		struct wlr_data_source *source, uint32_t version) {
+struct wlr_data_offer *data_offer_create(struct wl_resource *device_resource,
+		struct wlr_data_source *source, enum wlr_data_offer_type type) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_data_device_resource(device_resource);
+	assert(seat_client != NULL);
+	assert(source != NULL); // a NULL source means no selection
+
 	struct wlr_data_offer *offer = calloc(1, sizeof(struct wlr_data_offer));
 	if (offer == NULL) {
 		return NULL;
 	}
 	offer->source = source;
+	offer->type = type;
 
+	struct wl_client *client = wl_resource_get_client(device_resource);
+	uint32_t version = wl_resource_get_version(device_resource);
 	offer->resource =
 		wl_resource_create(client, &wl_data_offer_interface, version, 0);
 	if (offer->resource == NULL) {
@@ -215,8 +234,24 @@ struct wlr_data_offer *data_offer_create(struct wl_client *client,
 	wl_resource_set_implementation(offer->resource, &data_offer_impl, offer,
 		data_offer_handle_resource_destroy);
 
+	switch (type) {
+	case WLR_DATA_OFFER_SELECTION:
+		wl_list_insert(&seat_client->seat->selection_offers, &offer->link);
+		break;
+	case WLR_DATA_OFFER_DRAG:
+		wl_list_insert(&seat_client->seat->drag_offers, &offer->link);
+		break;
+	}
+
 	offer->source_destroy.notify = data_offer_handle_source_destroy;
 	wl_signal_add(&source->events.destroy, &offer->source_destroy);
+
+	wl_data_device_send_data_offer(device_resource, offer->resource);
+
+	char **p;
+	wl_array_for_each(p, &source->mime_types) {
+		wl_data_offer_send_offer(offer->resource, *p);
+	}
 
 	return offer;
 }

@@ -86,7 +86,12 @@ static void seat_client_handle_resource_destroy(
 		wl_resource_destroy(resource);
 	}
 	wl_resource_for_each_safe(resource, tmp, &client->data_devices) {
-		wl_resource_destroy(resource);
+		// Make the data device inert
+		wl_resource_set_user_data(resource, NULL);
+
+		struct wl_list *link = wl_resource_get_link(resource);
+		wl_list_remove(link);
+		wl_list_init(link);
 	}
 
 	wl_list_remove(&client->link);
@@ -157,14 +162,8 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 
 	wl_list_remove(&seat->display_destroy.link);
 
-	if (seat->selection_source) {
-		wl_list_remove(&seat->selection_source_destroy.link);
-		wlr_data_source_cancel(seat->selection_source);
-		seat->selection_source = NULL;
-	}
-
-	wlr_seat_set_primary_selection(seat, NULL,
-		wl_display_next_serial(seat->display));
+	wlr_data_source_destroy(seat->selection_source);
+	wlr_primary_selection_source_destroy(seat->primary_selection_source);
 
 	struct wlr_seat_client *client, *tmp;
 	wl_list_for_each_safe(client, tmp, &seat->clients, link) {
@@ -268,6 +267,8 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	seat->name = strdup(name);
 	wl_list_init(&seat->clients);
 	wl_list_init(&seat->drag_icons);
+	wl_list_init(&seat->selection_offers);
+	wl_list_init(&seat->drag_offers);
 
 	wl_signal_init(&seat->events.start_drag);
 	wl_signal_init(&seat->events.new_drag_icon);

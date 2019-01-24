@@ -14,7 +14,7 @@
 
 static const struct wl_data_device_interface data_device_impl;
 
-static struct wlr_seat_client *seat_client_from_data_device_resource(
+struct wlr_seat_client *seat_client_from_data_device_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_data_device_interface,
 		&data_device_impl));
@@ -26,6 +26,9 @@ static void data_device_set_selection(struct wl_client *client,
 		struct wl_resource *source_resource, uint32_t serial) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
+	if (seat_client == NULL) {
+		return;
+	}
 
 	struct wlr_client_data_source *source = NULL;
 	if (source_resource != NULL) {
@@ -48,6 +51,10 @@ static void data_device_start_drag(struct wl_client *client,
 		uint32_t serial) {
 	struct wlr_seat_client *seat_client =
 		seat_client_from_data_device_resource(device_resource);
+	if (seat_client == NULL) {
+		return;
+	}
+
 	struct wlr_surface *origin = wlr_surface_from_resource(origin_resource);
 
 	struct wlr_client_data_source *source = NULL;
@@ -93,7 +100,27 @@ static void data_device_handle_resource_destroy(struct wl_resource *resource) {
 }
 
 
-void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
+static void device_resource_send_selection(struct wl_resource *device_resource) {
+	struct wlr_seat_client *seat_client =
+		seat_client_from_data_device_resource(device_resource);
+	assert(seat_client != NULL);
+
+	struct wlr_data_source *source = seat_client->seat->selection_source;
+	if (source != NULL) {
+		struct wlr_data_offer *offer = data_offer_create(device_resource,
+			source, WLR_DATA_OFFER_SELECTION);
+		if (offer == NULL) {
+			wl_client_post_no_memory(seat_client->client);
+			return;
+		}
+
+		wl_data_device_send_selection(device_resource, offer->resource);
+	} else {
+		wl_data_device_send_selection(device_resource, NULL);
+	}
+}
+
+void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 	struct wlr_data_source *source = seat_client->seat->selection_source;
 	if (source != NULL) {
 		source->accepted = false;
@@ -101,18 +128,7 @@ void wlr_seat_client_send_selection(struct wlr_seat_client *seat_client) {
 
 	struct wl_resource *device_resource;
 	wl_resource_for_each(device_resource, &seat_client->data_devices) {
-		if (source != NULL) {
-			struct wlr_data_offer *offer =
-				data_source_send_offer(source, device_resource);
-			if (offer == NULL) {
-				wl_client_post_no_memory(seat_client->client);
-				return;
-			}
-
-			wl_data_device_send_selection(device_resource, offer->resource);
-		} else {
-			wl_data_device_send_selection(device_resource, NULL);
-		}
+		device_resource_send_selection(device_resource);
 	}
 }
 
@@ -136,16 +152,14 @@ static void seat_handle_selection_source_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_seat *seat =
 		wl_container_of(listener, seat, selection_source_destroy);
-	struct wlr_seat_client *seat_client = seat->keyboard_state.focused_client;
 
 	wl_list_remove(&seat->selection_source_destroy.link);
 	seat->selection_source = NULL;
 
-	if (seat_client && seat->keyboard_state.focused_surface) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &seat_client->data_devices) {
-			wl_data_device_send_selection(resource, NULL);
-		}
+	struct wlr_seat_client *focused_client =
+		seat->keyboard_state.focused_client;
+	if (focused_client != NULL) {
+		seat_client_send_selection(focused_client);
 	}
 
 	wlr_signal_emit_safe(&seat->events.set_selection, seat);
@@ -155,24 +169,24 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
 	if (seat->selection_source) {
 		wl_list_remove(&seat->selection_source_destroy.link);
-		wlr_data_source_cancel(seat->selection_source);
+		wlr_data_source_destroy(seat->selection_source);
 		seat->selection_source = NULL;
 	}
 
 	seat->selection_source = source;
 	seat->selection_serial = serial;
 
-	struct wlr_seat_client *focused_client =
-		seat->keyboard_state.focused_client;
-	if (focused_client) {
-		wlr_seat_client_send_selection(focused_client);
-	}
-
 	if (source) {
 		seat->selection_source_destroy.notify =
 			seat_handle_selection_source_destroy;
 		wl_signal_add(&source->events.destroy,
 			&seat->selection_source_destroy);
+	}
+
+	struct wlr_seat_client *focused_client =
+		seat->keyboard_state.focused_client;
+	if (focused_client) {
+		seat_client_send_selection(focused_client);
 	}
 
 	wlr_signal_emit_safe(&seat->events.set_selection, seat);
@@ -194,16 +208,22 @@ static void data_device_manager_get_data_device(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 
+	uint32_t version = wl_resource_get_version(manager_resource);
 	struct wl_resource *resource = wl_resource_create(client,
-		&wl_data_device_interface, wl_resource_get_version(manager_resource),
-		id);
+		&wl_data_device_interface, version, id);
 	if (resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
 	}
 	wl_resource_set_implementation(resource, &data_device_impl, seat_client,
-		&data_device_handle_resource_destroy);
+		data_device_handle_resource_destroy);
 	wl_list_insert(&seat_client->data_devices, wl_resource_get_link(resource));
+
+	struct wlr_seat_client *focused_client =
+		seat_client->seat->keyboard_state.focused_client;
+	if (focused_client == seat_client) {
+		device_resource_send_selection(resource);
+	}
 }
 
 static void data_device_manager_create_data_source(struct wl_client *client,
@@ -231,8 +251,7 @@ static void data_device_manager_bind(struct wl_client *client,
 	struct wlr_data_device_manager *manager = data;
 
 	struct wl_resource *resource = wl_resource_create(client,
-		&wl_data_device_manager_interface,
-		version, id);
+		&wl_data_device_manager_interface, version, id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
