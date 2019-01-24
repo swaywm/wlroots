@@ -51,6 +51,7 @@ lib_wlr_types = static_library(
 		'wlr_pointer_gestures_v1.c',
 		'wlr_pointer.c',
 		'wlr_presentation_time.c',
+		'wlr_primary_selection_v1.c',
 		'wlr_primary_selection.c',
 		'wlr_region.c',
 		'wlr_relative_pointer_v1.c',

@@ -28,6 +28,7 @@ install_headers(
 	'wlr_pointer_gestures_v1.h',
 	'wlr_pointer.h',
 	'wlr_presentation_time.h',
+	'wlr_primary_selection_v1.h',
 	'wlr_primary_selection.h',
 	'wlr_region.h',
 	'wlr_relative_pointer_v1.h',
