@@ -140,3 +140,123 @@ void handle_pointer_axis(struct libinput_event *event,
 	}
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.frame, wlr_dev->pointer);
 }
+
+void handle_pointer_swipe_begin(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_swipe_begin wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.fingers = libinput_event_gesture_get_finger_count(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_begin, &wlr_event);
+}
+
+void handle_pointer_swipe_update(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_swipe_update wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.fingers = libinput_event_gesture_get_finger_count(gevent),
+		.dx = libinput_event_gesture_get_dx(gevent),
+		.dy = libinput_event_gesture_get_dy(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_update, &wlr_event);
+}
+
+void handle_pointer_swipe_end(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_swipe_end wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.cancelled = libinput_event_gesture_get_cancelled(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_end, &wlr_event);
+}
+
+void handle_pointer_pinch_begin(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_pinch_begin wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.fingers = libinput_event_gesture_get_finger_count(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_begin, &wlr_event);
+}
+
+void handle_pointer_pinch_update(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_pinch_update wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.fingers = libinput_event_gesture_get_finger_count(gevent),
+		.dx = libinput_event_gesture_get_dx(gevent),
+		.dy = libinput_event_gesture_get_dy(gevent),
+		.scale = libinput_event_gesture_get_scale(gevent),
+		.rotation = libinput_event_gesture_get_angle_delta(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_update, &wlr_event);
+}
+
+void handle_pointer_pinch_end(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer gesture event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_gesture *gevent =
+		libinput_event_get_gesture_event(event);
+	struct wlr_event_pointer_pinch_end wlr_event = {
+		.device = wlr_dev,
+		.time_msec =
+			usec_to_msec(libinput_event_gesture_get_time_usec(gevent)),
+		.cancelled = libinput_event_gesture_get_cancelled(gevent),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_end, &wlr_event);
+}

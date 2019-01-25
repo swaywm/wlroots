@@ -287,6 +287,24 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 	case LIBINPUT_EVENT_SWITCH_TOGGLE:
 		handle_switch_toggle(event, libinput_dev);
 		break;
+	case LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN:
+		handle_pointer_swipe_begin(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE:
+		handle_pointer_swipe_update(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_SWIPE_END:
+		handle_pointer_swipe_end(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_PINCH_BEGIN:
+		handle_pointer_pinch_begin(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_PINCH_UPDATE:
+		handle_pointer_pinch_update(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_PINCH_END:
+		handle_pointer_pinch_end(event, libinput_dev);
+		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unknown libinput event %d", event_type);
 		break;

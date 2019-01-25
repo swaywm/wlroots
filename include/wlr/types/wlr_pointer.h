@@ -24,6 +24,12 @@ struct wlr_pointer {
 		struct wl_signal button;
 		struct wl_signal axis;
 		struct wl_signal frame;
+		struct wl_signal swipe_begin;
+		struct wl_signal swipe_update;
+		struct wl_signal swipe_end;
+		struct wl_signal pinch_begin;
+		struct wl_signal pinch_update;
+		struct wl_signal pinch_end;
 	} events;
 
 	void *data;
@@ -69,6 +75,52 @@ struct wlr_event_pointer_axis {
 	enum wlr_axis_orientation orientation;
 	double delta;
 	int32_t delta_discrete;
+};
+
+struct wlr_event_pointer_swipe_begin {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	uint32_t fingers;
+};
+
+struct wlr_event_pointer_swipe_update {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	uint32_t fingers;
+	// Relative coordinates of the logical center of the gesture
+	// compared to the previous event.
+	double dx, dy;
+};
+
+struct wlr_event_pointer_swipe_end {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	bool cancelled;
+};
+
+struct wlr_event_pointer_pinch_begin {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	uint32_t fingers;
+};
+
+struct wlr_event_pointer_pinch_update {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	uint32_t fingers;
+	// Relative coordinates of the logical center of the gesture
+	// compared to the previous event.
+	double dx, dy;
+	// Absolute scale compared to the begin event
+	double scale;
+	// Relative angle in degrees clockwise compared to the previous event.
+	double rotation;
+};
+
+struct wlr_event_pointer_pinch_end {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	bool cancelled;
 };
 
 #endif

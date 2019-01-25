@@ -39,6 +39,12 @@ struct roots_cursor {
 	struct wl_listener button;
 	struct wl_listener axis;
 	struct wl_listener frame;
+	struct wl_listener swipe_begin;
+	struct wl_listener swipe_update;
+	struct wl_listener swipe_end;
+	struct wl_listener pinch_begin;
+	struct wl_listener pinch_update;
+	struct wl_listener pinch_end;
 
 	struct wl_listener touch_down;
 	struct wl_listener touch_up;
