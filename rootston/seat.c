@@ -85,6 +85,67 @@ static void handle_cursor_frame(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_frame(cursor);
 }
 
+static void handle_swipe_begin(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, swipe_begin);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_swipe_begin *event = data;
+	wlr_pointer_gestures_v1_send_swipe_begin(gestures, cursor->seat->seat,
+			event->time_msec, event->fingers);
+}
+
+static void handle_swipe_update(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, swipe_update);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_swipe_update *event = data;
+	wlr_pointer_gestures_v1_send_swipe_update(gestures, cursor->seat->seat,
+			event->time_msec, event->dx, event->dy);
+}
+
+static void handle_swipe_end(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, swipe_end);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_swipe_end *event = data;
+	wlr_pointer_gestures_v1_send_swipe_end(gestures, cursor->seat->seat,
+			event->time_msec, event->cancelled);
+}
+
+static void handle_pinch_begin(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, pinch_begin);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_pinch_begin *event = data;
+	wlr_pointer_gestures_v1_send_pinch_begin(gestures, cursor->seat->seat,
+			event->time_msec, event->fingers);
+}
+
+static void handle_pinch_update(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, pinch_update);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_pinch_update *event = data;
+	wlr_pointer_gestures_v1_send_pinch_update(gestures, cursor->seat->seat,
+			event->time_msec, event->dx, event->dy,
+			event->scale, event->rotation);
+}
+
+static void handle_pinch_end(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, pinch_end);
+	struct wlr_pointer_gestures_v1 *gestures =
+		cursor->seat->input->server->desktop->pointer_gestures;
+	struct wlr_event_pointer_pinch_end *event = data;
+	wlr_pointer_gestures_v1_send_pinch_end(gestures, cursor->seat->seat,
+			event->time_msec, event->cancelled);
+}
+
 static void handle_switch_toggle(struct wl_listener *listener, void *data) {
 	struct roots_switch *lid_switch =
 		wl_container_of(listener, lid_switch, toggle);
@@ -453,6 +514,24 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.frame, &seat->cursor->frame);
 	seat->cursor->frame.notify = handle_cursor_frame;
+
+	wl_signal_add(&wlr_cursor->events.swipe_begin, &seat->cursor->swipe_begin);
+	seat->cursor->swipe_begin.notify = handle_swipe_begin;
+
+	wl_signal_add(&wlr_cursor->events.swipe_update, &seat->cursor->swipe_update);
+	seat->cursor->swipe_update.notify = handle_swipe_update;
+
+	wl_signal_add(&wlr_cursor->events.swipe_end, &seat->cursor->swipe_end);
+	seat->cursor->swipe_end.notify = handle_swipe_end;
+
+	wl_signal_add(&wlr_cursor->events.pinch_begin, &seat->cursor->pinch_begin);
+	seat->cursor->pinch_begin.notify = handle_pinch_begin;
+
+	wl_signal_add(&wlr_cursor->events.pinch_update, &seat->cursor->pinch_update);
+	seat->cursor->pinch_update.notify = handle_pinch_update;
+
+	wl_signal_add(&wlr_cursor->events.pinch_end, &seat->cursor->pinch_end);
+	seat->cursor->pinch_end.notify = handle_pinch_end;
 
 	wl_signal_add(&wlr_cursor->events.touch_down, &seat->cursor->touch_down);
 	seat->cursor->touch_down.notify = handle_touch_down;

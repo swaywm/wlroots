@@ -25,6 +25,7 @@ install_headers(
 	'wlr_output_layout.h',
 	'wlr_output.h',
 	'wlr_pointer_constraints_v1.h',
+	'wlr_pointer_gestures_v1.h',
 	'wlr_pointer.h',
 	'wlr_presentation_time.h',
 	'wlr_primary_selection.h',

@@ -1084,6 +1084,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 		wlr_foreign_toplevel_manager_v1_create(server->wl_display);
 	desktop->relative_pointer_manager =
 		wlr_relative_pointer_manager_v1_create(server->wl_display);
+	desktop->pointer_gestures =
+		wlr_pointer_gestures_v1_create(server->wl_display);
 
 	wlr_data_control_manager_v1_create(server->wl_display);
 

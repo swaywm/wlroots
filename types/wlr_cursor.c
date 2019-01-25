@@ -22,6 +22,12 @@ struct wlr_cursor_device {
 	struct wl_listener button;
 	struct wl_listener axis;
 	struct wl_listener frame;
+	struct wl_listener swipe_begin;
+	struct wl_listener swipe_update;
+	struct wl_listener swipe_end;
+	struct wl_listener pinch_begin;
+	struct wl_listener pinch_update;
+	struct wl_listener pinch_end;
 
 	struct wl_listener touch_down;
 	struct wl_listener touch_up;
@@ -83,6 +89,12 @@ struct wlr_cursor *wlr_cursor_create(void) {
 	wl_signal_init(&cur->events.button);
 	wl_signal_init(&cur->events.axis);
 	wl_signal_init(&cur->events.frame);
+	wl_signal_init(&cur->events.swipe_begin);
+	wl_signal_init(&cur->events.swipe_update);
+	wl_signal_init(&cur->events.swipe_end);
+	wl_signal_init(&cur->events.pinch_begin);
+	wl_signal_init(&cur->events.pinch_update);
+	wl_signal_init(&cur->events.pinch_end);
 
 	// touch signals
 	wl_signal_init(&cur->events.touch_up);
@@ -136,6 +148,12 @@ static void cursor_device_destroy(struct wlr_cursor_device *c_device) {
 		wl_list_remove(&c_device->button.link);
 		wl_list_remove(&c_device->axis.link);
 		wl_list_remove(&c_device->frame.link);
+		wl_list_remove(&c_device->swipe_begin.link);
+		wl_list_remove(&c_device->swipe_update.link);
+		wl_list_remove(&c_device->swipe_end.link);
+		wl_list_remove(&c_device->pinch_begin.link);
+		wl_list_remove(&c_device->pinch_update.link);
+		wl_list_remove(&c_device->pinch_end.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_list_remove(&c_device->touch_down.link);
 		wl_list_remove(&c_device->touch_up.link);
@@ -423,6 +441,42 @@ static void handle_pointer_frame(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.frame, device->cursor);
 }
 
+static void handle_pointer_swipe_begin(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_swipe_begin *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, swipe_begin);
+	wlr_signal_emit_safe(&device->cursor->events.swipe_begin, event);
+}
+
+static void handle_pointer_swipe_update(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_swipe_update *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, swipe_update);
+	wlr_signal_emit_safe(&device->cursor->events.swipe_update, event);
+}
+
+static void handle_pointer_swipe_end(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_swipe_end *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, swipe_end);
+	wlr_signal_emit_safe(&device->cursor->events.swipe_end, event);
+}
+
+static void handle_pointer_pinch_begin(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_pinch_begin *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, pinch_begin);
+	wlr_signal_emit_safe(&device->cursor->events.pinch_begin, event);
+}
+
+static void handle_pointer_pinch_update(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_pinch_update *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, pinch_update);
+	wlr_signal_emit_safe(&device->cursor->events.pinch_update, event);
+}
+
+static void handle_pointer_pinch_end(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_pinch_end *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, pinch_end);
+	wlr_signal_emit_safe(&device->cursor->events.pinch_end, event);
+}
+
 static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	struct wlr_cursor_device *device;
@@ -549,6 +603,24 @@ static struct wlr_cursor_device *cursor_device_create(
 
 		wl_signal_add(&device->pointer->events.frame, &c_device->frame);
 		c_device->frame.notify = handle_pointer_frame;
+
+		wl_signal_add(&device->pointer->events.swipe_begin, &c_device->swipe_begin);
+		c_device->swipe_begin.notify = handle_pointer_swipe_begin;
+
+		wl_signal_add(&device->pointer->events.swipe_update, &c_device->swipe_update);
+		c_device->swipe_update.notify = handle_pointer_swipe_update;
+
+		wl_signal_add(&device->pointer->events.swipe_end, &c_device->swipe_end);
+		c_device->swipe_end.notify = handle_pointer_swipe_end;
+
+		wl_signal_add(&device->pointer->events.pinch_begin, &c_device->pinch_begin);
+		c_device->pinch_begin.notify = handle_pointer_pinch_begin;
+
+		wl_signal_add(&device->pointer->events.pinch_update, &c_device->pinch_update);
+		c_device->pinch_update.notify = handle_pointer_pinch_update;
+
+		wl_signal_add(&device->pointer->events.pinch_end, &c_device->pinch_end);
+		c_device->pinch_end.notify = handle_pointer_pinch_end;
 	} else if (device->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_signal_add(&device->touch->events.motion, &c_device->touch_motion);
 		c_device->touch_motion.notify = handle_touch_motion;
