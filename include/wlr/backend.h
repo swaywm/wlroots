@@ -11,10 +11,10 @@
 
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
 
 struct wlr_backend_impl;
+struct wlr_gbm_image;
 
 struct wlr_backend {
 	const struct wlr_backend_impl *impl;

@@ -4,8 +4,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <wayland-server.h>
+
 struct wlr_allocator;
 struct wlr_backend;
+struct wlr_dmabuf_attribs;
+struct wlr_external_image;
+struct wlr_image;
 
 struct wlr_allocator_impl {
 	struct wlr_image *(*allocate)(struct wlr_allocator *alloc,

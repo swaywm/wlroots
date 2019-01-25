@@ -20,6 +20,7 @@ add_project_arguments(
 	[
 		'-DWLR_SRC_DIR="@0@"'.format(meson.current_source_dir()),
 		'-DWLR_USE_UNSTABLE',
+		'-DWLR_LITTLE_ENDIAN=@0@'.format((host_machine.endian() == 'little').to_int()),
 
 		'-Wno-unused-parameter',
 		'-Wundef',

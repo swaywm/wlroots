@@ -8,7 +8,9 @@
 #include <wlr/backend.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/renderer.h>
+#include <wlr/render/renderer/gles.h>
 #include <wlr/render/renderer/interface.h>
+#include <wlr/render/shm.h>
 #include <wlr/util/log.h>
 
 #include "render/renderer/gles.h"
@@ -71,12 +73,29 @@ static void gles_clear(struct wlr_renderer_2 *base, const float color[static 4])
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
+struct wlr_texture_2 *gles_texture_from_buffer(struct wlr_renderer_2 *base,
+		struct wl_resource *buffer) {
+	struct wlr_gles *gles = wlr_gles(base);
+	struct wlr_gles_texture *tex = gles_texture_create(gles);
+	if (!tex) {
+		return NULL;
+	}
+
+	if (!wlr_texture_apply_damage_2(&tex->base, buffer, NULL)) {
+		wlr_texture_destroy_2(&tex->base);
+		return NULL;
+	}
+
+	return &tex->base;
+}
+
 static const struct wlr_renderer_impl_2 gles_render_impl = {
 	.destroy = gles_destroy,
 	.get_allocator = gles_get_allocator,
 	.bind_image = gles_bind_image,
 	.flush = gles_flush,
 	.clear = gles_clear,
+	.texture_from_buffer = gles_texture_from_buffer,
 };
 
 static bool gles_gbm_create(void *data, struct wlr_gbm_image *img) {
@@ -139,7 +158,8 @@ static bool gles_check_ext(const char *str, const char *ext) {
 	}
 }
 
-struct wlr_renderer_2 *wlr_gles_renderer_create(struct wlr_backend *backend) {
+struct wlr_renderer_2 *wlr_gles_renderer_create(struct wl_display *display,
+		struct wlr_backend *backend) {
 	int fd = wlr_backend_get_render_fd(backend);
 	if (fd < 0) {
 		wlr_log(WLR_ERROR, "Backend does not support GLES");
@@ -152,6 +172,7 @@ struct wlr_renderer_2 *wlr_gles_renderer_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 
+	gles->display = display;
 	gles->backend = backend;
 	gles->gbm = wlr_gbm_allocator_create(fd, gles,
 		gles_gbm_create, gles_gbm_destroy);
@@ -178,11 +199,16 @@ struct wlr_renderer_2 *wlr_gles_renderer_create(struct wlr_backend *backend) {
 	}
 
 	if (!gles_check_ext(exts, "OES_EGL_image_external")) {
-		wlr_log(WLR_ERROR, "GLES does not support EGL images");
+		wlr_log(WLR_ERROR, "GLES does not support external EGL images");
 		goto error_egl;
 	}
 
-	gles->egl_image_target_texture =
+	if (!gles_check_ext(exts, "OES_EGL_image")) {
+		wlr_log(WLR_ERROR, "GLES does not support local EGL images");
+		goto error_egl;
+	}
+
+	gles->egl_image_target_texture_2d =
 		(void *)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	gles->egl_image_target_renderbuffer =
 		(void *)eglGetProcAddress("glEGLImageTargetRenderbufferStorageOES");
@@ -190,6 +216,16 @@ struct wlr_renderer_2 *wlr_gles_renderer_create(struct wlr_backend *backend) {
 	if (!gles_check_ext(exts, "GL_EXT_texture_format_BGRA8888")) {
 		wlr_log(WLR_ERROR, "GLES does not support BGRA8888");
 		goto error_egl;
+	}
+
+	gles->has_texture_type_2_10_10_10_rev = gles_check_ext(exts,
+		"GL_EXT_texture_type_2_10_10_10_REV");
+	gles->has_required_internalformat =
+		gles_check_ext(exts, "GL_OES_required_internalformat");
+	gles->has_unpack_subimage = gles_check_ext(exts, "GL_EXT_unpack_subimage");
+
+	if (gles_populate_shm_formats(gles)) {
+		wlr_shm_init(gles->display, &gles->shm_formats);
 	}
 
 	wlr_renderer_init_2(&gles->base, &gles_render_impl);

@@ -246,7 +246,7 @@ int main(void) {
 		return 1;
 	}
 
-	st.renderer = wlr_renderer_autocreate_2(st.backend);
+	st.renderer = wlr_renderer_autocreate_2(st.display, st.backend);
 	if (!st.renderer) {
 		return 1;
 	}

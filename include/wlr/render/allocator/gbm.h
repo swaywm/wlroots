@@ -14,6 +14,11 @@ struct wlr_gbm_image {
 	void *renderer_priv;
 };
 
+struct wlr_gbm_allocator_impl {
+	bool (*create)(void *userdata, struct wlr_gbm_image *img);
+	void (*destroy)(void *userdata, struct wlr_gbm_image *img);
+};
+
 typedef bool (*wlr_gbm_create_func_t)(void *, struct wlr_gbm_image *);
 typedef void (*wlr_gbm_destroy_func_t)(void *, struct wlr_gbm_image *);
 
