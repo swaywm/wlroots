@@ -126,7 +126,14 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
-	// This space is intentionally left blank
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 }
 
 static void pointer_handle_axis_source(void *data,

@@ -68,6 +68,7 @@ struct wlr_pointer_grab_interface {
 	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time,
 			enum wlr_axis_orientation orientation, double value,
 			int32_t value_discrete, enum wlr_axis_source source);
+	void (*frame)(struct wlr_seat_pointer_grab *grab);
 	void (*cancel)(struct wlr_seat_pointer_grab *grab);
 };
 
@@ -349,6 +350,13 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		int32_t value_discrete, enum wlr_axis_source source);
 
 /**
+ * Send a frame event to the surface with pointer focus. Compositors should use
+ * `wlr_seat_pointer_notify_frame()` to send axis events to respect pointer
+ * grabs.
+ */
+void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat);
+
+/**
  * Start a grab of the pointer of this seat. The grabber is responsible for
  * handling all pointer events until the grab ends.
  */
@@ -389,6 +397,13 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		enum wlr_axis_orientation orientation, double value,
 		int32_t value_discrete, enum wlr_axis_source source);
+
+/**
+ * Notify the seat of a frame event. Frame events are sent to end a group of
+ * events that logically belong together. Motion, button and axis events should
+ * all be followed by a frame event.
+ */
+void wlr_seat_pointer_notify_frame(struct wlr_seat *wlr_seat);
 
 /**
  * Whether or not the pointer has a grab other than the default grab.

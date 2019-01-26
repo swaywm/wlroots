@@ -31,6 +31,10 @@ static void default_pointer_axis(struct wlr_seat_pointer_grab *grab,
 		value_discrete, source);
 }
 
+static void default_pointer_frame(struct wlr_seat_pointer_grab *grab) {
+	wlr_seat_pointer_send_frame(grab->seat);
+}
+
 static void default_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
 	// cannot be cancelled
 }
@@ -40,6 +44,7 @@ const struct wlr_pointer_grab_interface default_pointer_grab_impl = {
 	.motion = default_pointer_motion,
 	.button = default_pointer_button,
 	.axis = default_pointer_axis,
+	.frame = default_pointer_frame,
 	.cancel = default_pointer_cancel,
 };
 
@@ -212,7 +217,6 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 
 		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
-		pointer_send_frame(resource);
 	}
 }
 
@@ -231,7 +235,6 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		}
 
 		wl_pointer_send_button(resource, serial, time, button, state);
-		pointer_send_frame(resource);
 	}
 	return serial;
 }
@@ -267,6 +270,21 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		} else if (version >= WL_POINTER_AXIS_STOP_SINCE_VERSION) {
 			wl_pointer_send_axis_stop(resource, time, orientation);
 		}
+	}
+}
+
+void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat) {
+	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
+	if (client == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &client->pointers) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+
 		pointer_send_frame(resource);
 	}
 }
@@ -334,6 +352,14 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->axis(grab, time, orientation, value, value_discrete,
 		source);
+}
+
+void wlr_seat_pointer_notify_frame(struct wlr_seat *wlr_seat) {
+	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	if (grab->interface->frame) {
+		grab->interface->frame(grab);
+	}
 }
 
 bool wlr_seat_pointer_has_grab(struct wlr_seat *seat) {

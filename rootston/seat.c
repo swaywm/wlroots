@@ -77,6 +77,14 @@ static void handle_cursor_axis(struct wl_listener *listener, void *data) {
 	roots_cursor_handle_axis(cursor, event);
 }
 
+static void handle_cursor_frame(struct wl_listener *listener, void *data) {
+	struct roots_cursor *cursor =
+		wl_container_of(listener, cursor, frame);
+	struct roots_desktop *desktop = cursor->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, cursor->seat->seat);
+	roots_cursor_handle_frame(cursor);
+}
+
 static void handle_switch_toggle(struct wl_listener *listener, void *data) {
 	struct roots_switch *lid_switch =
 		wl_container_of(listener, lid_switch, toggle);
@@ -442,6 +450,9 @@ static void roots_seat_init_cursor(struct roots_seat *seat) {
 
 	wl_signal_add(&wlr_cursor->events.axis, &seat->cursor->axis);
 	seat->cursor->axis.notify = handle_cursor_axis;
+
+	wl_signal_add(&wlr_cursor->events.frame, &seat->cursor->frame);
+	seat->cursor->frame.notify = handle_cursor_frame;
 
 	wl_signal_add(&wlr_cursor->events.touch_down, &seat->cursor->touch_down);
 	seat->cursor->touch_down.notify = handle_touch_down;

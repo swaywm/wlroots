@@ -23,6 +23,7 @@ struct wlr_pointer {
 		struct wl_signal motion_absolute;
 		struct wl_signal button;
 		struct wl_signal axis;
+		struct wl_signal frame;
 	} events;
 
 	void *data;
