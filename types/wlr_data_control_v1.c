@@ -177,9 +177,13 @@ static void control_handle_set_selection(struct wl_client *client,
 		struct wl_resource *source_resource) {
 	struct wlr_data_control_device_v1 *device =
 		control_from_resource(control_resource);
-	struct client_data_source *source = source_from_resource(source_resource);
 	if (device == NULL) {
 		return;
+	}
+
+	struct client_data_source *source = NULL;
+	if (source_resource != NULL) {
+		source = source_from_resource(source_resource);
 	}
 
 	struct wlr_data_source *wlr_source = source ? &source->source : NULL;
