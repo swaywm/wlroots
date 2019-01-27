@@ -11,6 +11,7 @@ void wlr_pointer_init(struct wlr_pointer *pointer,
 	wl_signal_init(&pointer->events.motion_absolute);
 	wl_signal_init(&pointer->events.button);
 	wl_signal_init(&pointer->events.axis);
+	wl_signal_init(&pointer->events.frame);
 }
 
 void wlr_pointer_destroy(struct wlr_pointer *pointer) {
@@ -20,10 +21,6 @@ void wlr_pointer_destroy(struct wlr_pointer *pointer) {
 	if (pointer->impl && pointer->impl->destroy) {
 		pointer->impl->destroy(pointer);
 	} else {
-		wl_list_remove(&pointer->events.motion.listener_list);
-		wl_list_remove(&pointer->events.motion_absolute.listener_list);
-		wl_list_remove(&pointer->events.button.listener_list);
-		wl_list_remove(&pointer->events.axis.listener_list);
 		free(pointer);
 	}
 }

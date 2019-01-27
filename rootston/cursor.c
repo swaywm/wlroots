@@ -386,6 +386,10 @@ void roots_cursor_handle_axis(struct roots_cursor *cursor,
 		event->orientation, event->delta, event->delta_discrete, event->source);
 }
 
+void roots_cursor_handle_frame(struct roots_cursor *cursor) {
+	wlr_seat_pointer_notify_frame(cursor->seat->seat);
+}
+
 void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 		struct wlr_event_touch_down *event) {
 	struct roots_desktop *desktop = cursor->seat->input->server->desktop;

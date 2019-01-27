@@ -21,6 +21,7 @@ struct wlr_cursor_device {
 	struct wl_listener motion_absolute;
 	struct wl_listener button;
 	struct wl_listener axis;
+	struct wl_listener frame;
 
 	struct wl_listener touch_down;
 	struct wl_listener touch_up;
@@ -81,6 +82,7 @@ struct wlr_cursor *wlr_cursor_create(void) {
 	wl_signal_init(&cur->events.motion_absolute);
 	wl_signal_init(&cur->events.button);
 	wl_signal_init(&cur->events.axis);
+	wl_signal_init(&cur->events.frame);
 
 	// touch signals
 	wl_signal_init(&cur->events.touch_up);
@@ -133,6 +135,7 @@ static void cursor_device_destroy(struct wlr_cursor_device *c_device) {
 		wl_list_remove(&c_device->motion_absolute.link);
 		wl_list_remove(&c_device->button.link);
 		wl_list_remove(&c_device->axis.link);
+		wl_list_remove(&c_device->frame.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_list_remove(&c_device->touch_down.link);
 		wl_list_remove(&c_device->touch_up.link);
@@ -415,6 +418,11 @@ static void handle_pointer_axis(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.axis, event);
 }
 
+static void handle_pointer_frame(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_device *device = wl_container_of(listener, device, frame);
+	wlr_signal_emit_safe(&device->cursor->events.frame, device->cursor);
+}
+
 static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	struct wlr_cursor_device *device;
@@ -538,6 +546,9 @@ static struct wlr_cursor_device *cursor_device_create(
 
 		wl_signal_add(&device->pointer->events.axis, &c_device->axis);
 		c_device->axis.notify = handle_pointer_axis;
+
+		wl_signal_add(&device->pointer->events.frame, &c_device->frame);
+		c_device->frame.notify = handle_pointer_frame;
 	} else if (device->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_signal_add(&device->touch->events.motion, &c_device->touch_motion);
 		c_device->touch_motion.notify = handle_touch_motion;

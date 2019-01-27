@@ -38,6 +38,7 @@ struct roots_cursor {
 	struct wl_listener motion_absolute;
 	struct wl_listener button;
 	struct wl_listener axis;
+	struct wl_listener frame;
 
 	struct wl_listener touch_down;
 	struct wl_listener touch_up;
@@ -70,6 +71,8 @@ void roots_cursor_handle_button(struct roots_cursor *cursor,
 
 void roots_cursor_handle_axis(struct roots_cursor *cursor,
 	struct wlr_event_pointer_axis *event);
+
+void roots_cursor_handle_frame(struct roots_cursor *cursor);
 
 void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 	struct wlr_event_touch_down *event);

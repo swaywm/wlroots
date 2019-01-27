@@ -126,7 +126,14 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
-	// This space is intentionally left blank
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 }
 
 static void pointer_handle_axis_source(void *data,
@@ -142,7 +149,21 @@ static void pointer_handle_axis_source(void *data,
 
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis) {
-	// This space is intentionally left blank
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+
+	struct wlr_event_pointer_axis event = {
+		.device = &pointer->input_device->wlr_input_device,
+		.delta = 0,
+		.delta_discrete = 0,
+		.orientation = axis,
+		.time_msec = time,
+		.source = pointer->axis_source,
+	};
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
 }
 
 static void pointer_handle_axis_discrete(void *data,
