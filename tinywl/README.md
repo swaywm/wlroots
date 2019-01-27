@@ -8,7 +8,7 @@ based on wlroots.
 
 ## Building TinyWL
 
-TinyWL is disconencted from the main wlroots build system, in order to make it
+TinyWL is disconnected from the main wlroots build system, in order to make it
 easier to understand the build requirements for your own Wayland compositors.
 Simply install the dependencies:
 
