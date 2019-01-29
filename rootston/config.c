@@ -201,9 +201,10 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
-void add_switch_config(struct wl_list *switches, const char *switch_name, const char *action,
-		const char* command) {
-	struct roots_switch_config *sc = calloc(1, sizeof(struct roots_switch_config));
+void add_switch_config(struct wl_list *switches, const char *switch_name,
+		const char *action, const char *command) {
+	struct roots_switch_config *sc =
+		calloc(1, sizeof(struct roots_switch_config));
 
 	if (strcmp(switch_name, "tablet") == 0) {
 		sc->switch_type = WLR_SWITCH_TYPE_TABLET_MODE;
@@ -213,6 +214,7 @@ void add_switch_config(struct wl_list *switches, const char *switch_name, const 
 		sc->switch_type = -1;
 		sc->name = strdup(switch_name);
 	}
+
 	if (strcmp(action, "on") == 0) {
 		sc->switch_state = WLR_SWITCH_STATE_ON;
 	} else if (strcmp(action, "off") == 0) {
@@ -220,10 +222,12 @@ void add_switch_config(struct wl_list *switches, const char *switch_name, const 
 	} else if (strcmp(action, "toggle") == 0) {
 		sc->switch_state = WLR_SWITCH_STATE_TOGGLE;
 	} else {
-		wlr_log(WLR_ERROR, "Invalid switch action %s/n for switch %s:%s",
-		        action, switch_name, action);
+		wlr_log(WLR_ERROR, "Invalid switch action %s for switch %s:%s",
+			action, switch_name, action);
+		free(sc);
 		return;
 	}
+
 	sc->command = strdup(command);
 	wl_list_insert(switches, &sc->link);
 }

@@ -228,13 +228,14 @@ static const struct wl_registry_listener registry_listener = {
 static void frame_free(void *opaque, uint8_t *data) {
 	AVDRMFrameDescriptor *desc = (AVDRMFrameDescriptor *)data;
 
-	for (int i = 0; i < desc->nb_objects; ++i) {
-		close(desc->objects[i].fd);
+	if (desc) {
+		for (int i = 0; i < desc->nb_objects; ++i) {
+			close(desc->objects[i].fd);
+		}
+		av_free(data);
 	}
 
 	zwlr_export_dmabuf_frame_v1_destroy(opaque);
-
-	av_free(data);
 }
 
 static void frame_start(void *data, struct zwlr_export_dmabuf_frame_v1 *frame,
