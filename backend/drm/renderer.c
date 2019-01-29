@@ -14,10 +14,6 @@
 #include "backend/drm/drm.h"
 #include "glapi.h"
 
-#ifndef DRM_FORMAT_MOD_LINEAR
-#define DRM_FORMAT_MOD_LINEAR 0
-#endif
-
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
 	renderer->gbm = gbm_create_device(drm->fd);
