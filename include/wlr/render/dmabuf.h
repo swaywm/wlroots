@@ -11,15 +11,6 @@
 
 #include <stdint.h>
 
-// So we don't have to pull in linux specific drm headers
-#ifndef DRM_FORMAT_MOD_INVALID
-#define DRM_FORMAT_MOD_INVALID ((1ULL<<56) - 1)
-#endif
-
-#ifndef DRM_FORMAT_MOD_LINEAR
-#define DRM_FORMAT_MOD_LINEAR 0
-#endif
-
 #define WLR_DMABUF_MAX_PLANES 4
 
 enum wlr_dmabuf_attributes_flags {

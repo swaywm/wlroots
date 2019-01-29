@@ -1,13 +1,14 @@
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
-#include <wlr/render/wlr_texture.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "glapi.h"
@@ -238,10 +239,6 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
 }
-
-#ifndef DRM_FORMAT_BIG_ENDIAN
-#define DRM_FORMAT_BIG_ENDIAN 0x80000000
-#endif
 
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attribs) {
