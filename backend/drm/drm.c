@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -109,8 +110,8 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 
 		p->id = plane->plane_id;
 		p->possible_crtcs = plane->possible_crtcs;
-		uint64_t type;
 
+		uint64_t type;
 		if (!get_drm_plane_props(drm->fd, p->id, &p->props) ||
 				!get_drm_prop(drm->fd, p->id, p->props.type, &type)) {
 			drmModeFreePlane(plane);
@@ -119,6 +120,25 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 
 		p->type = type;
 		drm->num_type_planes[type]++;
+
+		// Choose an RGB format for the plane
+		uint32_t rgb_format = DRM_FORMAT_INVALID;
+		for (size_t j = 0; j < plane->count_formats; ++j) {
+			uint32_t fmt = plane->formats[j];
+			if (fmt == DRM_FORMAT_ARGB8888) {
+				// Prefer formats with alpha channel
+				rgb_format = fmt;
+				break;
+			} else if (fmt == DRM_FORMAT_XRGB8888) {
+				rgb_format = fmt;
+			}
+		}
+		if (rgb_format == DRM_FORMAT_INVALID) {
+			wlr_log(WLR_ERROR, "Failed to find an RGB format for plane %zu", i);
+			drmModeFreePlane(plane);
+			goto error_planes;
+		}
+		p->drm_format = rgb_format;
 
 		drmModeFreePlane(plane);
 	}
@@ -247,7 +267,7 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 	if (drm->parent) {
 		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
 	}
-	uint32_t fb_id = get_fb_for_bo(bo);
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
 
 	if (conn->pageflip_pending) {
 		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
@@ -366,7 +386,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct gbm_bo *bo = get_drm_surface_front(
 		drm->parent ? &plane->mgpu_surf : &plane->surf);
-	uint32_t fb_id = get_fb_for_bo(bo);
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
@@ -528,7 +548,7 @@ static bool drm_connector_set_mode(struct wlr_output *output,
 		conn->output.name, mode->width, mode->height, mode->refresh);
 
 	if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-			mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
+			mode->width, mode->height, drm->renderer.gbm_format)) {
 		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 		return false;
 	}
@@ -622,13 +642,13 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			drm->parent ? &drm->parent->renderer : &drm->renderer;
 
 		if (!init_drm_surface(&plane->surf, renderer, w, h,
-				GBM_FORMAT_ARGB8888, 0)) {
+				renderer->gbm_format, 0)) {
 			wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
 
 		plane->cursor_bo = gbm_bo_create(drm->renderer.gbm, w, h,
-			GBM_FORMAT_ARGB8888, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
+			renderer->gbm_format, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
 		if (!plane->cursor_bo) {
 			wlr_log_errno(WLR_ERROR, "Failed to create cursor bo");
 			return false;
@@ -785,7 +805,6 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 	if (drm->parent) {
 		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
 	}
-	uint32_t fb_id = get_fb_for_bo(bo);
 
 	if (conn->pageflip_pending) {
 		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'",
@@ -793,6 +812,7 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 		return true;
 	}
 
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
 	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		return false;
 	}
@@ -998,7 +1018,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		}
 
 		if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-				mode->width, mode->height, GBM_FORMAT_XRGB8888)) {
+				mode->width, mode->height, drm->renderer.gbm_format)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 			drm_connector_cleanup(conn);
 			break;

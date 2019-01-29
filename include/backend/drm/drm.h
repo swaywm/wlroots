@@ -26,6 +26,8 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface surf;
 	struct wlr_drm_surface mgpu_surf;
 
+	uint32_t drm_format; // ARGB8888 or XRGB8888
+
 	// Only used by cursor
 	float matrix[9];
 	struct gbm_bo *cursor_bo;
