@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <drm.h>
 #include <gbm.h>
@@ -176,11 +178,15 @@ static void free_fb(struct gbm_bo *bo, void *data) {
 	}
 }
 
-uint32_t get_fb_for_bo(struct gbm_bo *bo) {
+uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format) {
 	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
 	if (id) {
 		return id;
 	}
+
+	assert(gbm_bo_get_format(bo) == GBM_FORMAT_ARGB8888);
+	assert(drm_format == DRM_FORMAT_ARGB8888 ||
+		drm_format == DRM_FORMAT_XRGB8888);
 
 	struct gbm_device *gbm = gbm_bo_get_device(bo);
 
@@ -190,9 +196,9 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo) {
 	uint32_t handles[4] = {gbm_bo_get_handle(bo).u32};
 	uint32_t pitches[4] = {gbm_bo_get_stride(bo)};
 	uint32_t offsets[4] = {gbm_bo_get_offset(bo, 0)};
-	uint32_t format = gbm_bo_get_format(bo);
 
-	if (drmModeAddFB2(fd, width, height, format, handles, pitches, offsets, &id, 0)) {
+	if (drmModeAddFB2(fd, width, height, drm_format,
+			handles, pitches, offsets, &id, 0)) {
 		wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
 	}
 

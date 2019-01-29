@@ -38,10 +38,10 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		EGL_NONE,
 	};
 
+	renderer->gbm_format = GBM_FORMAT_ARGB8888;
 	renderer->wlr_rend = create_renderer_func(&renderer->egl,
 		EGL_PLATFORM_GBM_MESA, renderer->gbm,
-		config_attribs, GBM_FORMAT_ARGB8888);
-
+		config_attribs, renderer->gbm_format);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
 		goto error_gbm;
