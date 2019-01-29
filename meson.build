@@ -116,12 +116,6 @@ wlr_deps += [
 	math,
 ]
 
-if host_machine.system() == 'freebsd'
-	override_options = ['b_lundef=false']
-else
-	override_options = []
-endif
-
 symbols_file = 'wlroots.syms'
 symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
 lib_wlr = library(
@@ -133,7 +127,6 @@ lib_wlr = library(
 	install: true,
 	link_args : symbols_flag,
 	link_depends: symbols_file,
-	override_options: override_options,
 )
 
 wlroots = declare_dependency(
