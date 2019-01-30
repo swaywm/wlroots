@@ -151,9 +151,8 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 		wlr_seat_pointer_clear_focus(seat->seat);
 	}
 
-	struct roots_drag_icon *drag_icon;
-	wl_list_for_each(drag_icon, &seat->drag_icons, link) {
-		roots_drag_icon_update_position(drag_icon);
+	if (seat->drag_icon != NULL) {
+		roots_drag_icon_update_position(seat->drag_icon);
 	}
 }
 
