@@ -187,6 +187,13 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 	wlr_seat->pointer_state.focused_client = client;
 	wlr_seat->pointer_state.focused_surface = surface;
+	if (surface != NULL) {
+		wlr_seat->pointer_state.sx = sx;
+		wlr_seat->pointer_state.sy = sy;
+	} else {
+		wlr_seat->pointer_state.sx = NAN;
+		wlr_seat->pointer_state.sy = NAN;
+	}
 
 	struct wlr_seat_pointer_focus_change_event event = {
 		.seat = wlr_seat,
@@ -209,6 +216,10 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		return;
 	}
 
+	if (wlr_seat->pointer_state.sx == sx && wlr_seat->pointer_state.sy == sy) {
+		return;
+	}
+
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
 		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
@@ -218,6 +229,9 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
 	}
+
+	wlr_seat->pointer_state.sx = sx;
+	wlr_seat->pointer_state.sy = sy;
 }
 
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,

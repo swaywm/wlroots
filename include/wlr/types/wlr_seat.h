@@ -135,6 +135,7 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat *seat;
 	struct wlr_seat_client *focused_client;
 	struct wlr_surface *focused_surface;
+	double sx, sy;
 
 	struct wlr_seat_pointer_grab *grab;
 	struct wlr_seat_pointer_grab *default_grab;

@@ -101,8 +101,7 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 }
 
 static void roots_passthrough_cursor(struct roots_cursor *cursor,
-		int64_t time) {
-	bool focus_changed;
+		uint32_t time) {
 	double sx, sy;
 	struct roots_view *view = NULL;
 	struct roots_seat *seat = cursor->seat;
@@ -146,11 +145,8 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	cursor->wlr_surface = surface;
 
 	if (surface) {
-		focus_changed = (seat->seat->pointer_state.focused_surface != surface);
 		wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
-		if (!focus_changed && time > 0) {
-			wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
-		}
+		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(seat->seat);
 	}
@@ -161,8 +157,15 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	}
 }
 
+static inline int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
 void roots_cursor_update_focus(struct roots_cursor *cursor) {
-	roots_passthrough_cursor(cursor, -1);
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	roots_passthrough_cursor(cursor, timespec_to_msec(&now));
 }
 
 void roots_cursor_update_position(struct roots_cursor *cursor,
