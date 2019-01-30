@@ -122,6 +122,9 @@ static void drag_end(struct wlr_drag *drag) {
 			drag_icon_set_mapped(drag->icon, false);
 		}
 
+		assert(drag->seat->drag == drag);
+		drag->seat->drag = NULL;
+
 		wlr_signal_emit_safe(&drag->events.destroy, drag);
 		free(drag);
 	}
@@ -174,7 +177,9 @@ static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 			};
 			wlr_signal_emit_safe(&drag->events.drop, &event);
 		} else if (drag->source->impl->dnd_finish) {
+			// This will end the grab and free `drag`
 			wlr_data_source_destroy(drag->source);
+			return 0;
 		}
 	}
 
@@ -428,6 +433,13 @@ bool seat_client_start_drag(struct wlr_seat_client *client,
 	}
 
 	if (!drag->is_pointer_grab && !is_touch_grab) {
+		free(drag);
+		return true;
+	}
+
+	if (seat->drag != NULL) {
+		wlr_log(WLR_DEBUG, "Refusing to start drag, "
+			"another drag is already in progress");
 		free(drag);
 		return true;
 	}

@@ -120,15 +120,14 @@ static void drag_icons_for_each_surface(struct roots_input *input,
 		void *user_data) {
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
-		struct roots_drag_icon *drag_icon;
-		wl_list_for_each(drag_icon, &seat->drag_icons, link) {
-			if (!drag_icon->wlr_drag_icon->mapped) {
-				continue;
-			}
-			surface_for_each_surface(drag_icon->wlr_drag_icon->surface,
-				drag_icon->x, drag_icon->y, 0, layout_data,
-				iterator, user_data);
+		struct roots_drag_icon *drag_icon = seat->drag_icon;
+		if (drag_icon == NULL || !drag_icon->wlr_drag_icon->mapped) {
+			continue;
 		}
+
+		surface_for_each_surface(drag_icon->wlr_drag_icon->surface,
+			drag_icon->x, drag_icon->y, 0, layout_data,
+			iterator, user_data);
 	}
 }
 

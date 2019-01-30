@@ -594,7 +594,9 @@ static void roots_drag_icon_handle_destroy(struct wl_listener *listener,
 		wl_container_of(listener, icon, destroy);
 	roots_drag_icon_damage_whole(icon);
 
-	wl_list_remove(&icon->link);
+	assert(icon->seat->drag_icon == icon);
+	icon->seat->drag_icon = NULL;
+
 	wl_list_remove(&icon->surface_commit.link);
 	wl_list_remove(&icon->unmap.link);
 	wl_list_remove(&icon->destroy.link);
@@ -622,7 +624,8 @@ static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
 	icon->destroy.notify = roots_drag_icon_handle_destroy;
 	wl_signal_add(&wlr_drag_icon->events.destroy, &icon->destroy);
 
-	wl_list_insert(&seat->drag_icons, &icon->link);
+	assert(seat->drag_icon == NULL);
+	seat->drag_icon = icon;
 
 	roots_drag_icon_update_position(icon);
 }
@@ -706,7 +709,6 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 	wl_list_init(&seat->tablet_pads);
 	wl_list_init(&seat->switches);
 	wl_list_init(&seat->views);
-	wl_list_init(&seat->drag_icons);
 
 	seat->input = input;
 
