@@ -190,16 +190,29 @@ static void data_source_offer(struct wl_client *client,
 			"wl_data_device.set_selection");
 	}
 
-	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
-	if (p) {
-		*p = strdup(mime_type);
-	}
-	if (!p || !*p) {
-		if (p) {
-			source->source.mime_types.size -= sizeof(*p);
+	const char **mime_type_ptr;
+	wl_array_for_each(mime_type_ptr, &source->source.mime_types) {
+		if (strcmp(*mime_type_ptr, mime_type) == 0) {
+			wlr_log(WLR_DEBUG, "Ignoring duplicate MIME type offer %s",
+				mime_type);
+			return;
 		}
-		wl_resource_post_no_memory(resource);
 	}
+
+	char *dup_mime_type = strdup(mime_type);
+	if (dup_mime_type == NULL) {
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
+	char **p = wl_array_add(&source->source.mime_types, sizeof(*p));
+	if (p == NULL) {
+		free(dup_mime_type);
+		wl_resource_post_no_memory(resource);
+		return;
+	}
+
+	*p = dup_mime_type;
 }
 
 static const struct wl_data_source_interface data_source_impl = {
