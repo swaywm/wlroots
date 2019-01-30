@@ -60,6 +60,10 @@ static void xdg_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
 		value_discrete, source);
 }
 
+static void xdg_pointer_grab_frame(struct wlr_seat_pointer_grab *grab) {
+	wlr_seat_pointer_send_frame(grab->seat);
+}
+
 static void xdg_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
 	xdg_pointer_grab_end(grab);
 }
@@ -70,6 +74,7 @@ static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
 	.button = xdg_pointer_grab_button,
 	.cancel = xdg_pointer_grab_cancel,
 	.axis = xdg_pointer_grab_axis,
+	.frame = xdg_pointer_grab_frame,
 };
 
 static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab,
