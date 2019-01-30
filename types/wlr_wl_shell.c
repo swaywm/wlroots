@@ -98,12 +98,17 @@ static void shell_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
 		value_discrete, source);
 }
 
+static void shell_pointer_grab_frame(struct wlr_seat_pointer_grab *grab) {
+	wlr_seat_pointer_send_frame(grab->seat);
+}
+
 static const struct wlr_pointer_grab_interface shell_pointer_grab_impl = {
 	.enter = shell_pointer_grab_enter,
 	.motion = shell_pointer_grab_motion,
 	.button = shell_pointer_grab_button,
 	.cancel = shell_pointer_grab_cancel,
 	.axis = shell_pointer_grab_axis,
+	.frame = shell_pointer_grab_frame,
 };
 
 static const struct wl_shell_surface_interface shell_surface_impl;
