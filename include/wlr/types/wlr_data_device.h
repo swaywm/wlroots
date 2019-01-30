@@ -89,14 +89,12 @@ struct wlr_data_source {
 	} events;
 };
 
-struct wlr_drag_icon {
-	struct wlr_surface *surface;
-	struct wlr_seat_client *client;
-	struct wl_list link; // wlr_seat::drag_icons
-	bool mapped;
+struct wlr_drag;
 
-	bool is_pointer;
-	int32_t touch_id;
+struct wlr_drag_icon {
+	struct wlr_drag *drag;
+	struct wlr_surface *surface;
+	bool mapped;
 
 	struct {
 		struct wl_signal map;
@@ -105,40 +103,46 @@ struct wlr_drag_icon {
 	} events;
 
 	struct wl_listener surface_destroy;
-	struct wl_listener seat_client_destroy;
 
 	void *data;
 };
 
+enum wlr_drag_grab_type {
+	WLR_DRAG_GRAB_KEYBOARD,
+	WLR_DRAG_GRAB_KEYBOARD_POINTER,
+	WLR_DRAG_GRAB_KEYBOARD_TOUCH,
+};
+
 struct wlr_drag {
-	struct wlr_seat_pointer_grab pointer_grab;
+	enum wlr_drag_grab_type grab_type;
 	struct wlr_seat_keyboard_grab keyboard_grab;
+	struct wlr_seat_pointer_grab pointer_grab;
 	struct wlr_seat_touch_grab touch_grab;
 
 	struct wlr_seat *seat;
 	struct wlr_seat_client *seat_client;
 	struct wlr_seat_client *focus_client;
 
-	bool is_pointer_grab;
+	struct wlr_drag_icon *icon; // can be NULL
+	struct wlr_surface *focus; // can be NULL
+	struct wlr_data_source *source; // can be NULL
 
-	struct wlr_drag_icon *icon;
-	struct wlr_surface *focus;
-	struct wlr_data_source *source;
+	bool started, cancelling;
+	int32_t grab_touch_id, touch_id; // if WLR_DRAG_GRAB_TOUCH
 
-	bool cancelling;
-	int32_t grab_touch_id;
+	struct {
+		struct wl_signal focus;
+		struct wl_signal motion; // wlr_drag_motion_event
+		struct wl_signal drop; // wlr_drag_drop_event
+		struct wl_signal destroy;
+	} events;
 
 	struct wl_listener point_destroy;
 	struct wl_listener source_destroy;
 	struct wl_listener seat_client_destroy;
 	struct wl_listener icon_destroy;
 
-	struct {
-		struct wl_signal focus;
-		struct wl_signal motion;
-		struct wl_signal drop;
-		struct wl_signal destroy;
-	} events;
+	void *data;
 };
 
 struct wlr_drag_motion_event {
@@ -177,6 +181,40 @@ void wlr_seat_request_set_selection(struct wlr_seat *seat,
  */
 void wlr_seat_set_selection(struct wlr_seat *seat,
 	struct wlr_data_source *source, uint32_t serial);
+
+/**
+ * Creates a new drag. To request to start the drag, call
+ * `wlr_seat_request_start_drag`.
+ */
+struct wlr_drag *wlr_drag_create(struct wlr_seat_client *seat_client,
+	struct wlr_data_source *source, struct wlr_surface *icon_surface);
+
+/**
+ * Requests a drag to be started on the seat.
+ */
+void wlr_seat_request_start_drag(struct wlr_seat *seat, struct wlr_drag *drag,
+	struct wlr_surface *origin, uint32_t serial);
+
+/**
+ * Starts a drag on the seat. This starts an implicit keyboard grab, but doesn't
+ * start a pointer or a touch grab.
+ */
+void wlr_seat_start_drag(struct wlr_seat *seat, struct wlr_drag *drag,
+	uint32_t serial);
+
+/**
+ * Starts a pointer drag on the seat. This starts implicit keyboard and pointer
+ * grabs.
+ */
+void wlr_seat_start_pointer_drag(struct wlr_seat *seat, struct wlr_drag *drag,
+	uint32_t serial);
+
+/**
+ * Starts a touch drag on the seat. This starts implicit keyboard and touch
+ * grabs.
+ */
+void wlr_seat_start_touch_drag(struct wlr_seat *seat, struct wlr_drag *drag,
+	uint32_t serial, struct wlr_touch_point *point);
 
 /**
  * Initializes the data source with the provided implementation.

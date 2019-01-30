@@ -73,8 +73,8 @@ static void data_device_start_drag(struct wl_client *client,
 
 	struct wlr_data_source *wlr_source =
 		source != NULL ? &source->source : NULL;
-	if (!seat_client_start_drag(seat_client, wlr_source, icon,
-			origin, serial)) {
+	struct wlr_drag *drag = wlr_drag_create(seat_client, wlr_source, icon);
+	if (drag == NULL) {
 		wl_resource_post_no_memory(device_resource);
 		return;
 	}
@@ -82,6 +82,8 @@ static void data_device_start_drag(struct wl_client *client,
 	if (source != NULL) {
 		source->finalized = true;
 	}
+
+	wlr_seat_request_start_drag(seat_client->seat, drag, origin, serial);
 }
 
 static void data_device_release(struct wl_client *client,

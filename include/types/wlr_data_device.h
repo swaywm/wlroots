@@ -30,9 +30,6 @@ void data_source_notify_finish(struct wlr_data_source *source);
 
 struct wlr_seat_client *seat_client_from_data_device_resource(
 	struct wl_resource *resource);
-bool seat_client_start_drag(struct wlr_seat_client *client,
-	struct wlr_data_source *source, struct wlr_surface *icon_surface,
-	struct wlr_surface *origin, uint32_t serial);
 /**
  * Creates a new wl_data_offer if there is a wl_data_source currently set as
  * the seat selection and sends it to the seat client, followed by the
