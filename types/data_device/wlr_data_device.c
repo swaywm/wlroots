@@ -167,6 +167,11 @@ static void seat_handle_selection_source_destroy(
 
 void wlr_seat_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
+	if (seat->selection_source == source) {
+		seat->selection_serial = serial;
+		return;
+	}
+
 	if (seat->selection_source) {
 		wl_list_remove(&seat->selection_source_destroy.link);
 		wlr_data_source_destroy(seat->selection_source);
