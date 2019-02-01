@@ -69,10 +69,8 @@ static void seat_handle_primary_selection_source_destroy(
 
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 		struct wlr_primary_selection_source *source, uint32_t serial) {
-	if (seat->primary_selection_source != NULL &&
-			seat->primary_selection_serial - serial < UINT32_MAX / 2) {
-		wlr_log(WLR_DEBUG, "Rejecting set_selection request, invalid serial "
-			"(%"PRIu32" <= %"PRIu32")", serial, seat->primary_selection_serial);
+	if (seat->primary_selection_source == source) {
+		seat->primary_selection_serial = serial;
 		return;
 	}
 
