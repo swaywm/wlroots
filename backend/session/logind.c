@@ -294,7 +294,8 @@ error:
 	return 0;
 }
 
-static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error) {
+static int resume_device(sd_bus_message *msg, void *userdata,
+		sd_bus_error *ret_error) {
 	struct logind_session *session = userdata;
 	int ret;
 
@@ -309,7 +310,12 @@ static int resume_device(sd_bus_message *msg, void *userdata, sd_bus_error *ret_
 
 	if (major == DRM_MAJOR) {
 		struct wlr_device *dev = find_device(&session->base, makedev(major, minor));
-		dup2(fd, dev->fd);
+
+		close(dev->fd);
+		if (fcntl(fd, F_DUPFD_CLOEXEC, dev->fd) < 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to duplicate file descriptor");
+			goto error;
+		}
 
 		if (!session->base.active) {
 			session->base.active = true;
