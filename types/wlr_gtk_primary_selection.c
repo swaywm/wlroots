@@ -143,6 +143,15 @@ static void source_handle_offer(struct wl_client *client,
 		wlr_log(WLR_DEBUG, "Offering additional MIME type after set_selection");
 	}
 
+	const char **mime_type_ptr;
+	wl_array_for_each(mime_type_ptr, &source->source.mime_types) {
+		if (strcmp(*mime_type_ptr, mime_type) == 0) {
+			wlr_log(WLR_DEBUG, "Ignoring duplicate MIME type offer %s",
+				mime_type);
+			return;
+		}
+	}
+
 	char *dup_mime_type = strdup(mime_type);
 	if (dup_mime_type == NULL) {
 		wl_resource_post_no_memory(resource);

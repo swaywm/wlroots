@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/util/log.h>
 #include "util/signal.h"
 #include "wlr-data-control-unstable-v1-protocol.h"
 
@@ -67,6 +68,15 @@ static void source_handle_offer(struct wl_client *client,
 			ZWLR_DATA_CONTROL_SOURCE_V1_ERROR_INVALID_OFFER,
 			"cannot mutate offer after set_selection");
 		return;
+	}
+
+	const char **mime_type_ptr;
+	wl_array_for_each(mime_type_ptr, &source->source.mime_types) {
+		if (strcmp(*mime_type_ptr, mime_type) == 0) {
+			wlr_log(WLR_DEBUG, "Ignoring duplicate MIME type offer %s",
+				mime_type);
+			return;
+		}
 	}
 
 	char *dup_mime_type = strdup(mime_type);
