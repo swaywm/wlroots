@@ -285,7 +285,8 @@ void destroy_xdg_popup(struct wlr_xdg_surface *xdg_surface) {
 	if (xdg_surface == NULL) {
 		return;
 	}
-	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP ||
+		xdg_surface->role == WLR_XDG_SURFACE_ROLE_NONE);
 	reset_xdg_surface(xdg_surface);
 }
 

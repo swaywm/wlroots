@@ -524,9 +524,14 @@ void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface) {
 }
 
 void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface) {
+	if (surface == NULL) {
+		return;
+	}
 	assert(surface->popup);
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
 	xdg_popup_send_popup_done(surface->popup->resource);
+	wl_resource_set_user_data(surface->popup->resource, NULL);
+	destroy_xdg_popup(surface);
 }
 
 static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
