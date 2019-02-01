@@ -32,9 +32,11 @@ struct wlr_data_control_device_v1 {
 
 	struct wlr_seat *seat;
 	struct wl_resource *selection_offer_resource; // current selection offer
+	struct wl_resource *primary_selection_offer_resource; // current primary selection offer
 
 	struct wl_listener seat_destroy;
 	struct wl_listener seat_set_selection;
+	struct wl_listener seat_set_primary_selection;
 };
 
 struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
