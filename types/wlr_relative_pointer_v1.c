@@ -252,7 +252,7 @@ void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager
 
 void wlr_relative_pointer_manager_v1_send_relative_motion(
 		struct wlr_relative_pointer_manager_v1 *manager, struct wlr_seat *seat,
-		uint64_t time_msec, double dx, double dy,
+		uint64_t time_usec, double dx, double dy,
 		double dx_unaccel, double dy_unaccel) {
 	struct wlr_seat_client *focused = seat->pointer_state.focused_client;
 	if (focused == NULL) {
@@ -268,7 +268,7 @@ void wlr_relative_pointer_manager_v1_send_relative_motion(
 		}
 
 		zwp_relative_pointer_v1_send_relative_motion(pointer->resource,
-			(uint32_t)(time_msec >> 32), (uint32_t)time_msec,
+			(uint32_t)(time_usec >> 32), (uint32_t)time_usec,
 			wl_fixed_from_double(dx), wl_fixed_from_double(dy),
 			wl_fixed_from_double(dx_unaccel), wl_fixed_from_double(dy_unaccel));
 	}

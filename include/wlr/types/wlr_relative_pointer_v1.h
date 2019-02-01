@@ -64,13 +64,17 @@ void wlr_relative_pointer_manager_v1_destroy(
 	struct wlr_relative_pointer_manager_v1 *manager);
 
 /**
- * Send a relative motion event to the seat with the same wl_pointer as relative_pointer
+ * Send a relative motion event to the seat. Time is given in microseconds
+ * (unlike wl_pointer which uses milliseconds).
  */
 void wlr_relative_pointer_manager_v1_send_relative_motion(
 	struct wlr_relative_pointer_manager_v1 *manager, struct wlr_seat *seat,
-	uint64_t time_msec, double dx, double dy,
+	uint64_t time_usec, double dx, double dy,
 	double dx_unaccel, double dy_unaccel);
 
+/**
+ * Get a relative pointer from its resource. Returns NULL if inert.
+ */
 struct wlr_relative_pointer_v1 *wlr_relative_pointer_v1_from_resource(
 	struct wl_resource *resource);
 
