@@ -490,6 +490,9 @@ bool seat_client_start_drag(struct wlr_seat_client *client,
 	seat->drag = drag; // TODO: unset this thing somewhere
 	seat->drag_serial = serial;
 
+	if (seat->drag_source != NULL) {
+		wl_list_remove(&seat->drag_source_destroy.link);
+	}
 	seat->drag_source = source;
 	if (source != NULL) {
 		seat->drag_source_destroy.notify = seat_handle_drag_source_destroy;
