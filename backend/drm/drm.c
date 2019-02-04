@@ -226,12 +226,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 		}
 		free(crtc->gamma_table);
 	}
-	for (size_t i = 0; i < drm->num_planes; ++i) {
-		struct wlr_drm_plane *plane = &drm->planes[i];
-		if (plane->cursor_bo) {
-			gbm_bo_destroy(plane->cursor_bo);
-		}
-	}
 
 	free(drm->crtcs);
 	free(drm->planes);
@@ -642,15 +636,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			drm->parent ? &drm->parent->renderer : &drm->renderer;
 
 		if (!init_drm_surface(&plane->surf, renderer, w, h,
-				renderer->gbm_format, 0)) {
+				renderer->gbm_format, GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
 			wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
-			return false;
-		}
-
-		plane->cursor_bo = gbm_bo_create(drm->renderer.gbm, w, h,
-			renderer->gbm_format, GBM_BO_USE_CURSOR | GBM_BO_USE_WRITE);
-		if (!plane->cursor_bo) {
-			wlr_log_errno(WLR_ERROR, "Failed to create cursor bo");
 			return false;
 		}
 	}
@@ -697,17 +684,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		uint32_t bo_width = gbm_bo_get_width(plane->cursor_bo);
-		uint32_t bo_height = gbm_bo_get_height(plane->cursor_bo);
-
-		uint32_t bo_stride;
-		void *bo_data;
-		if (!gbm_bo_map(plane->cursor_bo, 0, 0, bo_width, bo_height,
-				GBM_BO_TRANSFER_WRITE, &bo_stride, &bo_data)) {
-			wlr_log_errno(WLR_ERROR, "Unable to map buffer");
-			return false;
-		}
-
 		make_drm_surface_current(&plane->surf, NULL);
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
@@ -722,12 +698,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);
 
-		wlr_renderer_read_pixels(rend, WL_SHM_FORMAT_ARGB8888, NULL, bo_stride,
-			plane->surf.width, plane->surf.height, 0, 0, 0, 0, bo_data);
-
 		swap_drm_surface_buffers(&plane->surf, NULL);
-
-		gbm_bo_unmap(plane->cursor_bo, bo_data);
 
 		plane->cursor_enabled = true;
 	}
@@ -736,7 +707,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		return true; // will be committed when session is resumed
 	}
 
-	struct gbm_bo *bo = plane->cursor_enabled ? plane->cursor_bo : NULL;
+	struct gbm_bo *bo = plane->cursor_enabled ? plane->surf.back : NULL;
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
