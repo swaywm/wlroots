@@ -487,12 +487,12 @@ bool seat_client_start_drag(struct wlr_seat_client *client,
 		drag_set_focus(drag, point->surface, point->sx, point->sy);
 	}
 
-	seat->drag = drag; // TODO: unset this thing somewhere
+	seat->drag = drag;
 	seat->drag_serial = serial;
 
-	if (seat->drag_source != NULL) {
-		wl_list_remove(&seat->drag_source_destroy.link);
-	}
+	// We need to destroy the previous source, because listeners only expect one
+	// active drag source at a time.
+	wlr_data_source_destroy(seat->drag_source);
 	seat->drag_source = source;
 	if (source != NULL) {
 		seat->drag_source_destroy.notify = seat_handle_drag_source_destroy;
