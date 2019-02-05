@@ -210,9 +210,12 @@ static const struct xdg_popup_interface xdg_popup_implementation = {
 };
 
 static void xdg_popup_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_xdg_surface *surface =
+	struct wlr_xdg_surface *xdg_surface =
 		wlr_xdg_surface_from_popup_resource(resource);
-	destroy_xdg_popup(surface);
+	if (xdg_surface == NULL) {
+		return;
+	}
+	wlr_xdg_popup_destroy(xdg_surface);
 }
 
 const struct wlr_surface_role xdg_popup_surface_role = {
@@ -279,15 +282,6 @@ void create_xdg_popup(struct wlr_xdg_surface *xdg_surface,
 	} else {
 		wl_list_init(&xdg_surface->popup->link);
 	}
-}
-
-void destroy_xdg_popup(struct wlr_xdg_surface *xdg_surface) {
-	if (xdg_surface == NULL) {
-		return;
-	}
-	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP ||
-		xdg_surface->role == WLR_XDG_SURFACE_ROLE_NONE);
-	reset_xdg_surface(xdg_surface);
 }
 
 void wlr_xdg_popup_get_anchor_point(struct wlr_xdg_popup *popup,
