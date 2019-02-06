@@ -315,8 +315,6 @@ static void seat_handle_drag_source_destroy(struct wl_listener *listener,
 		wl_container_of(listener, xwm, seat_drag_source_destroy);
 
 	wl_list_remove(&xwm->seat_drag_source_destroy.link);
-	xwm->seat_drag_source_destroy.link.prev = NULL;
-	xwm->seat_drag_source_destroy.link.next = NULL;
 	xwm->drag_focus = NULL;
 }
 
@@ -334,9 +332,6 @@ void xwm_seat_handle_start_drag(struct wlr_xwm *xwm, struct wlr_drag *drag) {
 		wl_signal_add(&drag->events.destroy, &xwm->seat_drag_destroy);
 		xwm->seat_drag_destroy.notify = seat_handle_drag_destroy;
 
-		if (xwm->seat_drag_source_destroy.link.prev != NULL) {
-			wl_list_remove(&xwm->seat_drag_source_destroy.link);
-		}
 		wl_signal_add(&drag->source->events.destroy,
 			&xwm->seat_drag_source_destroy);
 		xwm->seat_drag_source_destroy.notify = seat_handle_drag_source_destroy;
