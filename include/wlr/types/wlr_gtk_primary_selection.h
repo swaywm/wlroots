@@ -1,4 +1,9 @@
 /*
+ * This protocol is obsolete and will be removed in a future version. The
+ * recommended replacement is wp-primary-selection.
+ */
+
+/*
  * This an unstable interface of wlroots. No guarantees are made regarding the
  * future consistency of this API.
  */
@@ -12,6 +17,9 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
+/**
+ * A primary selection manager which implements the GTK protocol.
+ */
 struct wlr_gtk_primary_selection_device_manager {
 	struct wl_global *global;
 	struct wl_list resources; // wl_resource_get_link

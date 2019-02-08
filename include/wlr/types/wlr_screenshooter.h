@@ -1,4 +1,9 @@
 /*
+ * This protocol is obsolete and will be removed in a future version. The
+ * recommended replacement is wlr-screencopy.
+ */
+
+/*
  * This an unstable interface of wlroots. No guarantees are made regarding the
  * future consistency of this API.
  */
@@ -11,6 +16,9 @@
 
 #include <wayland-server.h>
 
+/**
+ * A very basic screenshooter interrface which implements the Orbital protocol.
+ */
 struct wlr_screenshooter {
 	struct wl_global *global;
 	struct wl_list screenshots; // wlr_screenshot::link
