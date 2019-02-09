@@ -1,4 +1,9 @@
 /*
+ * This protocol is obsolete and will be removed in a future version. The
+ * recommended replacement is xdg-decoration.
+ */
+
+/*
  * This an unstable interface of wlroots. No guarantees are made regarding the
  * future consistency of this API.
  */
@@ -34,6 +39,9 @@ enum wlr_server_decoration_manager_mode {
 	WLR_SERVER_DECORATION_MANAGER_MODE_SERVER = 2,
 };
 
+/**
+ * A decoration negociation interface which implements the KDE protocol.
+ */
 struct wlr_server_decoration_manager {
 	struct wl_global *global;
 	struct wl_list resources;

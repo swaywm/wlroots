@@ -1,4 +1,9 @@
 /*
+ * This protocol is obsolete and will be removed in a future version. The
+ * recommended replacement is xdg-shell.
+ */
+
+/*
  * This an unstable interface of wlroots. No guarantees are made regarding the
  * future consistency of this API.
  */
@@ -13,6 +18,9 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
+/**
+ * A very basic interface to provide desktop-style user interfaces.
+ */
 struct wlr_wl_shell {
 	struct wl_global *global;
 	struct wl_list resources;
