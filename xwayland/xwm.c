@@ -112,6 +112,9 @@ static int xwayland_surface_handle_ping_timeout(void *data) {
 	return 1;
 }
 
+static void xwm_send_focus_window(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface);
+
 static struct wlr_xwayland_surface *xwayland_surface_create(
 		struct wlr_xwm *xwm, xcb_window_t window_id, int16_t x, int16_t y,
 		uint16_t width, uint16_t height, bool override_redirect) {
@@ -178,6 +181,8 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 		wlr_log(WLR_ERROR, "Could not add timer to event loop");
 		return NULL;
 	}
+
+	xwm_send_focus_window(xwm, xwm->focus_surface);
 
 	wlr_signal_emit_safe(&xwm->xwayland->events.new_surface, surface);
 
