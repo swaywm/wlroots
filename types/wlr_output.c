@@ -248,6 +248,19 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	wlr_signal_emit_safe(&output->events.scale, output);
 }
 
+void wlr_output_set_subpixel(struct wlr_output *output, enum wl_output_subpixel subpixel) {
+	if (output->subpixel == subpixel) {
+		return;
+	}
+
+	output->subpixel = subpixel;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		output_send_to_resource(resource);
+	}
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_output *output =
 		wl_container_of(listener, output, display_destroy);
