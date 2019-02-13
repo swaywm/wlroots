@@ -889,6 +889,12 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 
 	xsurface_set_wm_state(xsurface, ICCCM_NORMAL_STATE);
 	xsurface_set_net_wm_state(xsurface);
+
+	uint32_t values[1];
+	values[0] = XCB_STACK_MODE_BELOW;
+	xcb_configure_window(xwm->xcb_conn, ev->window,
+			XCB_CONFIG_WINDOW_STACK_MODE, values);
+
 	xcb_map_window(xwm->xcb_conn, ev->window);
 }
 
