@@ -78,6 +78,7 @@ const char *atom_map[ATOM_LAST] = {
 	"XdndActionCopy",
 	"XdndActionAsk",
 	"XdndActionPrivate",
+	"_NET_CLIENT_LIST",
 };
 
 static const struct wlr_surface_role xwayland_surface_role;
@@ -210,6 +211,28 @@ static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
 		event_mask,
 		(const char *)&event);
 	xcb_flush(xwm->xcb_conn);
+}
+
+static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
+	size_t mapped_surfaces = 0;
+	struct wlr_xwayland_surface *surface;
+	wl_list_for_each(surface, &xwm->surfaces, link) {
+		if (surface->mapped) {
+			mapped_surfaces++;
+		}
+	}
+
+	xcb_window_t windows[mapped_surfaces + 1];
+	size_t index = 0;
+	wl_list_for_each(surface, &xwm->surfaces, link) {
+		if (surface->mapped) {
+			windows[index++] = surface->window_id;
+		}
+	}
+
+	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
+			xwm->screen->root, xwm->atoms[_NET_CLIENT_LIST],
+			XCB_ATOM_WINDOW, 32, mapped_surfaces, windows);
 }
 
 static void xwm_send_focus_window(struct wlr_xwm *xwm,
@@ -702,6 +725,7 @@ static void xwayland_surface_role_commit(struct wlr_surface *wlr_surface) {
 	if (!surface->mapped && wlr_surface_has_buffer(surface->surface)) {
 		wlr_signal_emit_safe(&surface->events.map, surface);
 		surface->mapped = true;
+		xwm_set_net_client_list(surface->xwm);
 	}
 }
 
@@ -718,6 +742,7 @@ static void xwayland_surface_role_precommit(struct wlr_surface *wlr_surface) {
 		if (surface->mapped) {
 			wlr_signal_emit_safe(&surface->events.unmap, surface);
 			surface->mapped = false;
+			xwm_set_net_client_list(surface->xwm);
 		}
 	}
 }
@@ -770,6 +795,7 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 	if (surface->mapped) {
 		surface->mapped = false;
 		wlr_signal_emit_safe(&surface->events.unmap, surface);
+		xwm_set_net_client_list(surface->xwm);
 	}
 
 	if (surface->surface_id) {
@@ -1712,6 +1738,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		xwm->atoms[_NET_WM_STATE_FULLSCREEN],
 		xwm->atoms[_NET_WM_STATE_MAXIMIZED_VERT],
 		xwm->atoms[_NET_WM_STATE_MAXIMIZED_HORZ],
+		xwm->atoms[_NET_CLIENT_LIST],
 	};
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
