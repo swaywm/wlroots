@@ -450,15 +450,20 @@ static void surface_commit(struct wl_client *client,
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
-		struct wl_resource *resource, int transform) {
+		struct wl_resource *resource, int32_t transform) {
+	if (transform < WL_OUTPUT_TRANSFORM_NORMAL ||
+			transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+		wl_resource_post_error(resource, WL_SURFACE_ERROR_INVALID_TRANSFORM,
+			"Specified transform value (%d) is invalid", transform);
+		return;
+	}
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 	surface->pending.committed |= WLR_SURFACE_STATE_TRANSFORM;
 	surface->pending.transform = transform;
 }
 
 static void surface_set_buffer_scale(struct wl_client *client,
-		struct wl_resource *resource,
-		int32_t scale) {
+		struct wl_resource *resource, int32_t scale) {
 	if (scale <= 0) {
 		wl_resource_post_error(resource, WL_SURFACE_ERROR_INVALID_SCALE,
 			"Specified scale value (%d) is not positive", scale);
