@@ -69,15 +69,6 @@
         appropriate destroy request has been called.
       </description>
     </request>
-
-    <!-- Version 2 additions -->
-
-    <event name="primary_selection" since="2">
-      <description summary="advertise primary selection support">
-        This event can be sent when binding to the wlr_data_control_manager
-        global to advertise that it supports the primary selection.
-      </description>
-    </event>
   </interface>
 
   <interface name="zwlr_data_control_device_v1" version="2">
