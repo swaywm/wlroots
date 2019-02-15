@@ -725,6 +725,15 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, plane->surf.back);
 	}
 
+	if (bo) {
+		// workaround for nouveau
+		// Buffers created with GBM_BO_USER_LINEAR are placed in NOUVEAU_GEM_DOMAIN_GART.
+		// When the bo is attached to the cursor plane it is moved to NOUVEAU_GEM_DOMAIN_VRAM.
+		// However, this does not wait for the render operations to complete, leaving an empty surface.
+		// see https://bugs.freedesktop.org/show_bug.cgi?id=109631
+		// The render operations can be waited for using:
+		glFinish();
+	}
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
 		wlr_output_update_needs_swap(output);
