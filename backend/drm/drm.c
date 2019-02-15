@@ -537,10 +537,6 @@ static bool drm_connector_set_mode(struct wlr_output *output,
 		conn->desired_mode = mode;
 		return false;
 	}
-	if (conn->output.current_mode == mode) {
-		// Nothing to do
-		return true;
-	}
 
 	wlr_log(WLR_INFO, "Modesetting '%s' with '%ux%u@%u mHz'",
 		conn->output.name, mode->width, mode->height, mode->refresh);
