@@ -1387,16 +1387,6 @@ static void handle_compositor_new_surface(struct wl_listener *listener,
 	}
 }
 
-static void handle_compositor_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_xwm *xwm =
-		wl_container_of(listener, xwm, compositor_destroy);
-	wl_list_remove(&xwm->compositor_new_surface.link);
-	wl_list_remove(&xwm->compositor_destroy.link);
-	wl_list_init(&xwm->compositor_new_surface.link);
-	wl_list_init(&xwm->compositor_destroy.link);
-}
-
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 		bool activated) {
 	struct wlr_xwayland_surface *focused = xsurface->xwm->focus_surface;
@@ -1475,7 +1465,6 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 		xwayland_surface_destroy(xsurface);
 	}
 	wl_list_remove(&xwm->compositor_new_surface.link);
-	wl_list_remove(&xwm->compositor_destroy.link);
 	xcb_disconnect(xwm->xcb_conn);
 
 	free(xwm);
@@ -1770,9 +1759,6 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm->compositor_new_surface.notify = handle_compositor_new_surface;
 	wl_signal_add(&wlr_xwayland->compositor->events.new_surface,
 		&xwm->compositor_new_surface);
-	xwm->compositor_destroy.notify = handle_compositor_destroy;
-	wl_signal_add(&wlr_xwayland->compositor->events.destroy,
-		&xwm->compositor_destroy);
 
 	xwm_create_wm_window(xwm);
 

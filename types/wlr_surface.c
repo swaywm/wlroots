@@ -5,7 +5,6 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_matrix.h>
-#include <wlr/types/wlr_region.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
@@ -566,8 +565,6 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
-	wl_list_remove(wl_resource_get_link(surface->resource));
-
 	wl_list_remove(&surface->renderer_destroy.link);
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
@@ -587,8 +584,7 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 }
 
 struct wlr_surface *wlr_surface_create(struct wl_client *client,
-		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
-		struct wl_list *resource_list) {
+		uint32_t version, uint32_t id, struct wlr_renderer *renderer) {
 	assert(version <= SURFACE_VERSION);
 
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
@@ -625,13 +621,6 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 
 	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
 	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
-
-	struct wl_list *resource_link = wl_resource_get_link(surface->resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	return surface;
 }
@@ -679,7 +668,6 @@ static struct wlr_subsurface *subsurface_from_resource(
 
 static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
-	wl_list_remove(wl_resource_get_link(resource));
 	subsurface_destroy(subsurface);
 }
 
@@ -930,8 +918,7 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 }
 
 struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t version, uint32_t id,
-		struct wl_list *resource_list) {
+		struct wlr_surface *parent, uint32_t version, uint32_t id) {
 	assert(version <= SUBSURFACE_VERSION);
 
 	struct wl_client *client = wl_resource_get_client(surface->resource);
@@ -973,13 +960,6 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		&subsurface->parent_pending_link);
 
 	surface->role_data = subsurface;
-
-	struct wl_list *resource_link = wl_resource_get_link(subsurface->resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
 

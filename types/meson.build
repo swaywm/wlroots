@@ -54,7 +54,6 @@ lib_wlr_types = static_library(
 		'wlr_presentation_time.c',
 		'wlr_primary_selection_v1.c',
 		'wlr_primary_selection.c',
-		'wlr_region.c',
 		'wlr_relative_pointer_v1.c',
 		'wlr_screencopy_v1.c',
 		'wlr_screenshooter.c',

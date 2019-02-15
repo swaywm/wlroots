@@ -31,7 +31,6 @@ install_headers(
 	'wlr_presentation_time.h',
 	'wlr_primary_selection_v1.h',
 	'wlr_primary_selection.h',
-	'wlr_region.h',
 	'wlr_relative_pointer_v1.h',
 	'wlr_screencopy_v1.h',
 	'wlr_screenshooter.h',

@@ -157,8 +157,7 @@ struct wlr_renderer;
  * is non-NULL, adds the surface's resource to the list.
  */
 struct wlr_surface *wlr_surface_create(struct wl_client *client,
-		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
-		struct wl_list *resource_list);
+		uint32_t version, uint32_t id, struct wlr_renderer *renderer);
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the
@@ -188,8 +187,7 @@ struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
  * is non-NULL, adds the subsurface's resource to the list.
  */
 struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t version, uint32_t id,
-		struct wl_list *resource_list);
+		struct wlr_surface *parent, uint32_t version, uint32_t id);
 
 /**
  * Get the root of the subsurface tree for this surface.

@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_box.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_pointer_constraints_v1.h>
-#include <wlr/types/wlr_region.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 
