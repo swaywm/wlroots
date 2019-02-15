@@ -667,10 +667,6 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		manager_handle_resource_destroy);
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
-
-	if (version >= ZWLR_DATA_CONTROL_MANAGER_V1_PRIMARY_SELECTION_SINCE_VERSION) {
-		zwlr_data_control_manager_v1_send_primary_selection(resource);
-	}
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
