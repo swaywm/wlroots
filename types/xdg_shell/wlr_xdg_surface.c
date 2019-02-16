@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wlr/types/wlr_surface_damage.h>
 #include <wlr/util/log.h>
 #include "types/wlr_xdg_shell.h"
 #include "util/signal.h"
@@ -652,4 +653,162 @@ void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 	}
 
 	wlr_box_intersection(box, &surface->geometry, box);
+}
+
+struct xdg_surface_damage {
+	struct wlr_surface_damage base;
+	struct wlr_xdg_surface *xdg_surface;
+	struct wlr_surface_damage *parent; // can be NULL
+	struct wl_list link;
+
+	struct wl_list popups;
+
+	struct wl_listener base_damage;
+	struct wl_listener xdg_surface_destroy;
+	struct wl_listener xdg_surface_map;
+	struct wl_listener xdg_surface_unmap;
+};
+
+static const struct wlr_surface_damage_interface xdg_surface_damage_impl;
+
+struct xdg_surface_damage *xdg_surface_damage_from_surface_damage(
+		struct wlr_surface_damage *base) {
+	assert(base->impl == &xdg_surface_damage_impl);
+	return (struct xdg_surface_damage *)base;
+}
+
+static void xdg_surface_damage_destroy(struct wlr_surface_damage *base) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		xdg_surface_damage_from_surface_damage(base);
+	wl_list_remove(&xdg_surface_damage->link);
+	wl_list_remove(&xdg_surface_damage->base_damage.link);
+	wl_list_remove(&xdg_surface_damage->xdg_surface_destroy.link);
+	struct xdg_surface_damage *popup_damage, *tmp;
+	wl_list_for_each_safe(popup_damage, tmp, &xdg_surface_damage->popups, link) {
+		wlr_surface_damage_destroy(&popup_damage->base);
+	}
+	free(xdg_surface_damage);
+}
+
+static void xdg_surface_damage_add_children(struct wlr_surface_damage *base) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		xdg_surface_damage_from_surface_damage(base);
+	struct xdg_surface_damage *popup_damage;
+	wl_list_for_each(popup_damage, &xdg_surface_damage->popups, link) {
+		wlr_surface_damage_add_whole(&popup_damage->base);
+	}
+}
+
+static const struct wlr_surface_damage_interface xdg_surface_damage_impl = {
+	.destroy = xdg_surface_damage_destroy,
+	.add_children = xdg_surface_damage_add_children,
+};
+
+static void xdg_surface_damage_handle_base_damage(struct wl_listener *listener,
+		void *data) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		wl_container_of(listener, xdg_surface_damage, base_damage);
+	struct wlr_surface_damage_event *event = data;
+	struct wlr_xdg_surface *xdg_surface = xdg_surface_damage->xdg_surface;
+
+	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_POPUP ||
+			xdg_surface->popup->parent == NULL) {
+		return;
+	}
+
+	double popup_sx, popup_sy;
+	xdg_popup_get_position(xdg_surface->popup, &popup_sx, &popup_sy);
+
+	int32_t sx = popup_sx + event->sx;
+	int32_t sy = popup_sy + event->sy;
+	wlr_surface_damage_add(xdg_surface_damage->parent, sx, sy, event->damage);
+}
+
+static void xdg_surface_damage_handle_xdg_surface_destroy(
+		struct wl_listener *listener, void *data) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		wl_container_of(listener, xdg_surface_damage, xdg_surface_destroy);
+	wlr_surface_damage_destroy(&xdg_surface_damage->base);
+}
+
+static void xdg_surface_damage_handle_xdg_surface_map(
+		struct wl_listener *listener, void *data) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		wl_container_of(listener, xdg_surface_damage, xdg_surface_map);
+	wlr_surface_damage_add_whole(&xdg_surface_damage->base);
+}
+
+static void xdg_surface_damage_handle_xdg_surface_unmap(
+		struct wl_listener *listener, void *data) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		wl_container_of(listener, xdg_surface_damage, xdg_surface_unmap);
+	wlr_surface_damage_add_whole(&xdg_surface_damage->base);
+}
+
+static struct xdg_surface_damage *xdg_surface_damage_create(
+		struct wlr_xdg_surface *xdg_surface) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		calloc(1, sizeof(struct xdg_surface_damage));
+	if (xdg_surface_damage == NULL) {
+		return NULL;
+	}
+
+	wlr_surface_damage_init(&xdg_surface_damage->base,
+		xdg_surface->surface, &xdg_surface_damage_impl);
+
+	xdg_surface_damage->xdg_surface = xdg_surface;
+	wl_list_init(&xdg_surface_damage->link);
+	wl_list_init(&xdg_surface_damage->popups);
+
+	xdg_surface_damage->base_damage.notify =
+		xdg_surface_damage_handle_base_damage;
+	wl_signal_add(&xdg_surface_damage->base.events.damage,
+		&xdg_surface_damage->base_damage);
+	xdg_surface_damage->xdg_surface_destroy.notify =
+		xdg_surface_damage_handle_xdg_surface_destroy;
+	wl_signal_add(&xdg_surface->events.destroy,
+		&xdg_surface_damage->xdg_surface_destroy);
+	xdg_surface_damage->xdg_surface_map.notify =
+		xdg_surface_damage_handle_xdg_surface_map;
+	wl_signal_add(&xdg_surface->events.map,
+		&xdg_surface_damage->xdg_surface_map);
+	xdg_surface_damage->xdg_surface_unmap.notify =
+		xdg_surface_damage_handle_xdg_surface_unmap;
+	wl_signal_add(&xdg_surface->events.unmap,
+		&xdg_surface_damage->xdg_surface_unmap);
+
+	struct wlr_xdg_popup *popup;
+	wl_list_for_each(popup, &xdg_surface->popups, link) {
+		wlr_xdg_popup_damage_create(popup, &xdg_surface_damage->base,
+			&xdg_surface_damage->popups);
+	}
+
+	return xdg_surface_damage;
+}
+
+struct wlr_surface_damage *wlr_xdg_surface_damage_create(
+		struct wlr_xdg_surface *xdg_surface) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		xdg_surface_damage_create(xdg_surface);
+	if (xdg_surface_damage == NULL) {
+		return NULL;
+	}
+	return &xdg_surface_damage->base;
+}
+
+struct wlr_surface_damage *wlr_xdg_popup_damage_create(
+		struct wlr_xdg_popup *popup, struct wlr_surface_damage *parent,
+		struct wl_list *list) {
+	struct xdg_surface_damage *xdg_surface_damage =
+		xdg_surface_damage_create(popup->base);
+	if (xdg_surface_damage == NULL) {
+		return NULL;
+	}
+
+	xdg_surface_damage->parent = parent;
+	if (list != NULL) {
+		wl_list_insert(list, &xdg_surface_damage->link);
+	}
+
+	return &xdg_surface_damage->base;
 }

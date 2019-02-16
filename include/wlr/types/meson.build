@@ -35,6 +35,7 @@ install_headers(
 	'wlr_screenshooter.h',
 	'wlr_seat.h',
 	'wlr_server_decoration.h',
+	'wlr_surface_damage.h',
 	'wlr_surface.h',
 	'wlr_switch.h',
 	'wlr_tablet_pad.h',

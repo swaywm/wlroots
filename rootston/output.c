@@ -715,6 +715,16 @@ void output_damage_from_view(struct roots_output *output,
 	view_for_each_surface(view, &data.layout, damage_from_surface, &data);
 }
 
+void output_damage(struct roots_output *output,
+		int ox, int oy, pixman_region32_t *damage) {
+	pixman_region32_t output_damage;
+	pixman_region32_init(&output_damage);
+	pixman_region32_copy(&output_damage, damage);
+	pixman_region32_translate(&output_damage, ox, oy);
+	wlr_output_damage_add(output->damage, &output_damage);
+	pixman_region32_fini(&output_damage);
+}
+
 static void set_mode(struct wlr_output *output,
 		struct roots_output_config *oc) {
 	int mhz = (int)(oc->mode.refresh_rate * 1000);

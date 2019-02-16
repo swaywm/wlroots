@@ -57,6 +57,7 @@ lib_wlr_types = static_library(
 		'wlr_screencopy_v1.c',
 		'wlr_screenshooter.c',
 		'wlr_server_decoration.c',
+		'wlr_surface_damage.c',
 		'wlr_surface.c',
 		'wlr_switch.c',
 		'wlr_tablet_pad.c',

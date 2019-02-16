@@ -4,6 +4,7 @@
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
+#include <wlr/types/wlr_surface_damage.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
@@ -140,14 +141,14 @@ struct roots_view {
 	};
 
 	struct wlr_surface *wlr_surface;
+	struct wlr_surface_damage *surface_damage;
 	struct wl_list children; // roots_view_child::link
-
 	struct wlr_foreign_toplevel_handle_v1 *toplevel_handle;
+
+	struct wl_listener damage;
 	struct wl_listener toplevel_handle_request_maximize;
 	struct wl_listener toplevel_handle_request_activate;
 	struct wl_listener toplevel_handle_request_close;
-
-	struct wl_listener new_subsurface;
 
 	struct {
 		struct wl_signal unmap;
@@ -175,12 +176,6 @@ struct roots_view_child {
 	struct wl_listener new_subsurface;
 
 	void (*destroy)(struct roots_view_child *child);
-};
-
-struct roots_subsurface {
-	struct roots_view_child view_child;
-	struct wlr_subsurface *wlr_subsurface;
-	struct wl_listener destroy;
 };
 
 struct roots_wl_shell_popup {

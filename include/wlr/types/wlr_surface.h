@@ -100,7 +100,7 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
-		struct wl_signal new_subsurface;
+		struct wl_signal new_subsurface; // wlr_subsurface
 		struct wl_signal destroy;
 	} events;
 

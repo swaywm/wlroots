@@ -40,6 +40,8 @@ struct roots_drag_icon;
 void output_damage_whole(struct roots_output *output);
 void output_damage_whole_view(struct roots_output *output,
 	struct roots_view *view);
+void output_damage(struct roots_output *output,
+	int ox, int oy, pixman_region32_t *damage);
 void output_damage_from_view(struct roots_output *output,
 	struct roots_view *view);
 void output_damage_whole_drag_icon(struct roots_output *output,

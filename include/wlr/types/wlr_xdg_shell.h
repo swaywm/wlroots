@@ -391,4 +391,15 @@ uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
 void wlr_xdg_surface_for_each_popup(struct wlr_xdg_surface *surface,
 	wlr_surface_iterator_func_t iterator, void *user_data);
 
+struct wlr_surface_damage;
+
+/**
+ * Tracks damage from a surface and its children subsurfaces and popups.
+ */
+struct wlr_surface_damage *wlr_xdg_surface_damage_create(
+	struct wlr_xdg_surface *xdg_surface);
+struct wlr_surface_damage *wlr_xdg_popup_damage_create(
+	struct wlr_xdg_popup *popup, struct wlr_surface_damage *parent,
+	struct wl_list *list);
+
 #endif
