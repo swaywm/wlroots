@@ -420,6 +420,8 @@ static void subsurface_destroy(struct roots_view_child *child) {
 		return;
 	}
 	wl_list_remove(&subsurface->destroy.link);
+	wl_list_remove(&subsurface->map.link);
+	wl_list_remove(&subsurface->unmap.link);
 	view_child_finish(&subsurface->view_child);
 	free(subsurface);
 }
@@ -428,7 +430,25 @@ static void subsurface_handle_destroy(struct wl_listener *listener,
 		void *data) {
 	struct roots_subsurface *subsurface =
 		wl_container_of(listener, subsurface, destroy);
-	subsurface_destroy((struct roots_view_child *)subsurface);
+	subsurface_destroy(&subsurface->view_child);
+}
+
+static void subsurface_handle_map(struct wl_listener *listener,
+		void *data) {
+	struct roots_subsurface *subsurface =
+		wl_container_of(listener, subsurface, map);
+	struct roots_view *view = subsurface->view_child.view;
+	view_damage_whole(view);
+	input_update_cursor_focus(view->desktop->server->input);
+}
+
+static void subsurface_handle_unmap(struct wl_listener *listener,
+		void *data) {
+	struct roots_subsurface *subsurface =
+		wl_container_of(listener, subsurface, unmap);
+	struct roots_view *view = subsurface->view_child.view;
+	view_damage_whole(view);
+	input_update_cursor_focus(view->desktop->server->input);
 }
 
 struct roots_subsurface *subsurface_create(struct roots_view *view,
@@ -443,7 +463,10 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 	view_child_init(&subsurface->view_child, view, wlr_subsurface->surface);
 	subsurface->destroy.notify = subsurface_handle_destroy;
 	wl_signal_add(&wlr_subsurface->events.destroy, &subsurface->destroy);
-	input_update_cursor_focus(view->desktop->server->input);
+	subsurface->map.notify = subsurface_handle_map;
+	wl_signal_add(&wlr_subsurface->events.map, &subsurface->map);
+	subsurface->unmap.notify = subsurface_handle_unmap;
+	wl_signal_add(&wlr_subsurface->events.unmap, &subsurface->unmap);
 	return subsurface;
 }
 
