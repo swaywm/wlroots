@@ -624,6 +624,7 @@ static void roots_seat_handle_request_start_drag(struct wl_listener *listener,
 
 	wlr_log(WLR_DEBUG, "Ignoring start_drag request: "
 		"could not validate pointer or touch serial %" PRIu32, event->serial);
+	wlr_data_source_destroy(event->drag->source);
 }
 
 static void roots_seat_handle_start_drag(struct wl_listener *listener,
