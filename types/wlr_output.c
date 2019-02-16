@@ -159,6 +159,9 @@ bool wlr_output_set_mode(struct wlr_output *output,
 	if (!output->impl || !output->impl->set_mode) {
 		return false;
 	}
+	if (output->current_mode == mode) {
+		return true;
+	}
 	return output->impl->set_mode(output, mode);
 }
 
@@ -166,6 +169,10 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
 	if (!output->impl || !output->impl->set_custom_mode) {
 		return false;
+	}
+	if (output->width == width && output->height == height &&
+			output->refresh == refresh) {
+		return true;
 	}
 	return output->impl->set_custom_mode(output, width, height, refresh);
 }
