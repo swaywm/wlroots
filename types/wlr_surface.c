@@ -534,10 +534,14 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 	pixman_region32_fini(&state->input);
 }
 
+static void subsurface_unmap(struct wlr_subsurface *subsurface);
+
 static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	if (subsurface == NULL) {
 		return;
 	}
+
+	subsurface_unmap(subsurface);
 
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
@@ -799,6 +803,60 @@ static const struct wl_subsurface_interface subsurface_implementation = {
 	.set_desync = subsurface_handle_set_desync,
 };
 
+/**
+ * Checks if this subsurface needs to be marked as mapped. This can happen if:
+ * - The subsurface has a buffer
+ * - Its parent is mapped
+ */
+static void subsurface_consider_map(struct wlr_subsurface *subsurface,
+		bool check_parent) {
+	if (subsurface->mapped || !wlr_surface_has_buffer(subsurface->surface)) {
+		return;
+	}
+
+	if (check_parent) {
+		if (subsurface->parent == NULL) {
+			return;
+		}
+		if (wlr_surface_is_subsurface(subsurface->parent)) {
+			struct wlr_subsurface *parent =
+				wlr_subsurface_from_wlr_surface(subsurface->parent);
+			if (parent == NULL || !parent->mapped) {
+				return;
+			}
+		}
+	}
+
+	// Now we can map the subsurface
+	if (subsurface->mapped) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&subsurface->events.map, subsurface);
+	subsurface->mapped = true;
+
+	// Try mapping all children too
+	struct wlr_subsurface *child;
+	wl_list_for_each(child, &subsurface->surface->subsurfaces, parent_link) {
+		subsurface_consider_map(child, false);
+	}
+}
+
+static void subsurface_unmap(struct wlr_subsurface *subsurface) {
+	if (!subsurface->mapped) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&subsurface->events.unmap, subsurface);
+	subsurface->mapped = false;
+
+	// Unmap all children
+	struct wlr_subsurface *child;
+	wl_list_for_each(child, &subsurface->surface->subsurfaces, parent_link) {
+		subsurface_unmap(child);
+	}
+}
+
 static void subsurface_role_commit(struct wlr_surface *surface) {
 	struct wlr_subsurface *subsurface =
 		wlr_subsurface_from_wlr_surface(surface);
@@ -829,17 +887,35 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 			&surface->buffer_damage, 0, 0,
 			surface->current.buffer_width, surface->current.buffer_height);
 	}
+
+	subsurface_consider_map(subsurface, true);
+}
+
+static void subsurface_role_precommit(struct wlr_surface *surface) {
+	struct wlr_subsurface *subsurface =
+		wlr_subsurface_from_wlr_surface(surface);
+	if (subsurface == NULL) {
+		return;
+	}
+
+	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
+			surface->pending.buffer_resource == NULL) {
+		// This is a NULL commit
+		subsurface_unmap(subsurface);
+	}
 }
 
 const struct wlr_surface_role subsurface_role = {
 	.name = "wl_subsurface",
 	.commit = subsurface_role_commit,
+	.precommit = subsurface_role_precommit,
 };
 
 static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, parent_destroy);
+	subsurface_unmap(subsurface);
 	wl_list_remove(&subsurface->parent_link);
 	wl_list_remove(&subsurface->parent_pending_link);
 	wl_list_remove(&subsurface->parent_destroy.link);
@@ -882,6 +958,8 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		subsurface_resource_destroy);
 
 	wl_signal_init(&subsurface->events.destroy);
+	wl_signal_init(&subsurface->events.map);
+	wl_signal_init(&subsurface->events.unmap);
 
 	wl_signal_add(&surface->events.destroy, &subsurface->surface_destroy);
 	subsurface->surface_destroy.notify = subsurface_handle_surface_destroy;

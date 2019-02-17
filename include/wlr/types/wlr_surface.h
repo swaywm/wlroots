@@ -130,6 +130,7 @@ struct wlr_subsurface {
 
 	bool synchronized;
 	bool reordered;
+	bool mapped;
 
 	struct wl_list parent_link;
 	struct wl_list parent_pending_link;
@@ -139,6 +140,8 @@ struct wlr_subsurface {
 
 	struct {
 		struct wl_signal destroy;
+		struct wl_signal map;
+		struct wl_signal unmap;
 	} events;
 
 	void *data;

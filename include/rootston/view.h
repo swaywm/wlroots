@@ -181,6 +181,8 @@ struct roots_subsurface {
 	struct roots_view_child view_child;
 	struct wlr_subsurface *wlr_subsurface;
 	struct wl_listener destroy;
+	struct wl_listener map;
+	struct wl_listener unmap;
 };
 
 struct roots_wl_shell_popup {
