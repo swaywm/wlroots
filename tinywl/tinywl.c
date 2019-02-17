@@ -102,7 +102,7 @@ static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
 		/* Don't re-focus an already focused surface. */
 		return;
 	}
-	if (prev_surface) {
+	if (prev_surface && wlr_surface_is_xdg_surface(seat->keyboard_state.focused_surface)) {
 		/*
 		 * Deactivate the previously focused surface. This lets the client know
 		 * it no longer has focus and the client will repaint accordingly, e.g.
