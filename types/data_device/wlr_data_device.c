@@ -126,6 +126,13 @@ void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 		source->accepted = false;
 	}
 
+	// Make all current offers inert
+	struct wlr_data_offer *offer, *tmp;
+	wl_list_for_each_safe(offer, tmp,
+			&seat_client->seat->selection_offers, link) {
+		data_offer_destroy(offer);
+	}
+
 	struct wl_resource *device_resource;
 	wl_resource_for_each(device_resource, &seat_client->data_devices) {
 		device_resource_send_selection(device_resource);
