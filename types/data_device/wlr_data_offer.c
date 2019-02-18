@@ -135,6 +135,27 @@ static void data_offer_handle_finish(struct wl_client *client,
 		return;
 	}
 
+	// TODO: also fail while we have a drag-and-drop grab
+	if (offer->type != WLR_DATA_OFFER_DRAG) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH, "Offer is not drag-and-drop");
+		return;
+	}
+	if (!offer->source->accepted) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH, "Premature finish request");
+		return;
+	}
+	enum wl_data_device_manager_dnd_action action =
+		offer->source->current_dnd_action;
+	if (action == WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE ||
+			action == WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH,
+			"Offer finished with an invalid action");
+		return;
+	}
+
 	data_offer_dnd_finish(offer);
 	data_offer_destroy(offer);
 }
