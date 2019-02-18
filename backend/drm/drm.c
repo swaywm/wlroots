@@ -720,9 +720,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	}
 
 	struct gbm_bo *bo = plane->cursor_enabled ? plane->surf.back : NULL;
-
-	if (drm->parent) {
-		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, plane->surf.back);
+	if (bo && drm->parent) {
+		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
 	}
 
 	if (bo) {
