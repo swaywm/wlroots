@@ -127,7 +127,7 @@ struct wlr_drag {
 	struct wlr_surface *focus; // can be NULL
 	struct wlr_data_source *source; // can be NULL
 
-	bool started, cancelling;
+	bool started, dropped, cancelling;
 	int32_t grab_touch_id, touch_id; // if WLR_DRAG_GRAB_TOUCH
 
 	struct {

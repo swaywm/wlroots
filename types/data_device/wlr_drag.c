@@ -28,6 +28,20 @@ static void drag_set_focus(struct wlr_drag *drag,
 	if (drag->focus_client) {
 		wl_list_remove(&drag->seat_client_destroy.link);
 
+		// If we're switching focus to another client, we want to destroy all
+		// offers without destroying the source. If the drag operation ends, we
+		// want to keep the offer around for the data transfer.
+		struct wlr_data_offer *offer, *tmp;
+		wl_list_for_each_safe(offer, tmp,
+				&drag->focus_client->seat->drag_offers, link) {
+			struct wl_client *client = wl_resource_get_client(offer->resource);
+			if (!drag->dropped && offer->source == drag->source &&
+					client == drag->focus_client->client) {
+				offer->source = NULL;
+				data_offer_destroy(offer);
+			}
+		}
+
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
 			wl_data_device_send_leave(resource);
@@ -37,20 +51,20 @@ static void drag_set_focus(struct wlr_drag *drag,
 		drag->focus = NULL;
 	}
 
-	if (!surface || !surface->resource) {
-		return;
+	if (!surface) {
+		goto out;
 	}
 
 	if (!drag->source &&
 			wl_resource_get_client(surface->resource) !=
 			drag->seat_client->client) {
-		return;
+		goto out;
 	}
 
 	struct wlr_seat_client *focus_client = wlr_seat_client_for_wl_client(
 		drag->seat_client->seat, wl_resource_get_client(surface->resource));
 	if (!focus_client) {
-		return;
+		goto out;
 	}
 
 	if (drag->source != NULL) {
@@ -88,6 +102,7 @@ static void drag_set_focus(struct wlr_drag *drag,
 	drag->seat_client_destroy.notify = drag_handle_seat_client_destroy;
 	wl_signal_add(&focus_client->events.destroy, &drag->seat_client_destroy);
 
+out:
 	wlr_signal_emit_safe(&drag->events.focus, drag);
 }
 
@@ -164,6 +179,26 @@ static void drag_handle_pointer_motion(struct wlr_seat_pointer_grab *grab,
 	}
 }
 
+static void drag_drop(struct wlr_drag *drag, uint32_t time) {
+	assert(drag->focus_client);
+
+	drag->dropped = true;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &drag->focus_client->data_devices) {
+		wl_data_device_send_drop(resource);
+	}
+	if (drag->source) {
+		wlr_data_source_dnd_drop(drag->source);
+	}
+
+	struct wlr_drag_drop_event event = {
+		.drag = drag,
+		.time = time,
+	};
+	wlr_signal_emit_safe(&drag->events.drop, &event);
+}
+
 static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, uint32_t button, uint32_t state) {
 	struct wlr_drag *drag = grab->data;
@@ -173,17 +208,7 @@ static uint32_t drag_handle_pointer_button(struct wlr_seat_pointer_grab *grab,
 			state == WL_POINTER_BUTTON_STATE_RELEASED) {
 		if (drag->focus_client && drag->source->current_dnd_action &&
 				drag->source->accepted) {
-			struct wl_resource *resource;
-			wl_resource_for_each(resource, &drag->focus_client->data_devices) {
-				wl_data_device_send_drop(resource);
-			}
-			wlr_data_source_dnd_drop(drag->source);
-
-			struct wlr_drag_drop_event event = {
-				.drag = drag,
-				.time = time,
-			};
-			wlr_signal_emit_safe(&drag->events.drop, &event);
+			drag_drop(drag, time);
 		} else if (drag->source->impl->dnd_finish) {
 			// This will end the grab and free `drag`
 			wlr_data_source_destroy(drag->source);
@@ -233,10 +258,7 @@ static void drag_handle_touch_up(struct wlr_seat_touch_grab *grab,
 	}
 
 	if (drag->focus_client) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &drag->focus_client->data_devices) {
-			wl_data_device_send_drop(resource);
-		}
+		drag_drop(drag, time);
 	}
 
 	drag_destroy(drag);
