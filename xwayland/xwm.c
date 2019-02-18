@@ -793,8 +793,8 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 
 static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 	if (surface->mapped) {
-		surface->mapped = false;
 		wlr_signal_emit_safe(&surface->events.unmap, surface);
+		surface->mapped = false;
 		xwm_set_net_client_list(surface->xwm);
 	}
 
