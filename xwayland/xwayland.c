@@ -1,8 +1,4 @@
 #define _POSIX_C_SOURCE 200112L
-#ifdef __FreeBSD__
-// for SOCK_CLOEXEC
-#define __BSD_VISIBLE 1
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,12 +32,22 @@ static void safe_close(int fd) {
 	}
 }
 
-static int unset_cloexec(int fd) {
-	if (fcntl(fd, F_SETFD, 0) != 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl() failed on fd %d", fd);
-		return -1;
+static bool set_cloexec(int fd, bool cloexec) {
+	int flags = fcntl(fd, F_GETFD);
+	if (flags == -1) {
+		wlr_log_errno(WLR_ERROR, "fcntl failed");
+		return false;
 	}
-	return 0;
+	if (cloexec) {
+		flags = flags | FD_CLOEXEC;
+	} else {
+		flags = flags & ~FD_CLOEXEC;
+	}
+	if (fcntl(fd, F_SETFD, flags) == -1) {
+		wlr_log_errno(WLR_ERROR, "fcntl failed");
+		return false;
+	}
+	return true;
 }
 
 static int fill_arg(char ***argv, const char *fmt, ...) {
@@ -65,12 +71,11 @@ static int fill_arg(char ***argv, const char *fmt, ...) {
 	return len;
 }
 
-_Noreturn
-static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
-	if (unset_cloexec(wlr_xwayland->x_fd[0]) ||
-			unset_cloexec(wlr_xwayland->x_fd[1]) ||
-			unset_cloexec(wlr_xwayland->wm_fd[1]) ||
-			unset_cloexec(wlr_xwayland->wl_fd[1])) {
+_Noreturn static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
+	if (!set_cloexec(wlr_xwayland->x_fd[0], false) ||
+			!set_cloexec(wlr_xwayland->x_fd[1], false) ||
+			!set_cloexec(wlr_xwayland->wm_fd[1], false) ||
+			!set_cloexec(wlr_xwayland->wl_fd[1], false)) {
 		_exit(EXIT_FAILURE);
 	}
 
@@ -83,7 +88,8 @@ static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 		"-listen", NULL /* x_fd[0] */,
 		"-listen", NULL /* x_fd[1] */,
 		"-wm", NULL /* wm_fd[1] */,
-		NULL };
+		NULL,
+	};
 	char **cur_arg = argv;
 
 	if (fill_arg(&cur_arg, ":%d", wlr_xwayland->display) < 0 ||
@@ -304,16 +310,25 @@ static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
 }
 
 static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland) {
-
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wl_fd) != 0 ||
-			socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, wlr_xwayland->wm_fd) != 0) {
-		wlr_log_errno(WLR_ERROR, "failed to create socketpair");
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, wlr_xwayland->wl_fd) != 0 ||
+			socketpair(AF_UNIX, SOCK_STREAM, 0, wlr_xwayland->wm_fd) != 0) {
+		wlr_log_errno(WLR_ERROR, "socketpair failed");
 		xwayland_finish_server(wlr_xwayland);
 		return false;
 	}
+	if (!set_cloexec(wlr_xwayland->wl_fd[0], true) ||
+			!set_cloexec(wlr_xwayland->wl_fd[1], true) ||
+			!set_cloexec(wlr_xwayland->wm_fd[0], true) ||
+			!set_cloexec(wlr_xwayland->wm_fd[1], true)) {
+		xwayland_finish_server(wlr_xwayland);
+		return false;
+	}
+
 	wlr_xwayland->server_start = time(NULL);
 
-	if (!(wlr_xwayland->client = wl_client_create(wlr_xwayland->wl_display, wlr_xwayland->wl_fd[0]))) {
+	wlr_xwayland->client =
+		wl_client_create(wlr_xwayland->wl_display, wlr_xwayland->wl_fd[0]);
+	if (!wlr_xwayland->client) {
 		wlr_log_errno(WLR_ERROR, "wl_client_create failed");
 		xwayland_finish_server(wlr_xwayland);
 		return false;
@@ -329,24 +344,30 @@ static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland) {
 	wlr_xwayland->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1,
 		xserver_handle_ready, wlr_xwayland);
 
-	if ((wlr_xwayland->pid = fork()) == 0) {
+	wlr_xwayland->pid = fork();
+	if (wlr_xwayland->pid < 0) {
+		wlr_log_errno(WLR_ERROR, "fork failed");
+		xwayland_finish_server(wlr_xwayland);
+		return false;
+	} else if (wlr_xwayland->pid == 0) {
 		/* Double-fork, but we need to forward SIGUSR1 once Xserver(1)
 		 * is ready, or error if there was one. */
-		pid_t pid, ppid;
+		pid_t ppid = getppid();
 		sigset_t sigset;
-		int sig;
-		ppid = getppid();
 		sigemptyset(&sigset);
 		sigaddset(&sigset, SIGUSR1);
 		sigaddset(&sigset, SIGCHLD);
 		sigprocmask(SIG_BLOCK, &sigset, NULL);
-		if ((pid = fork()) == 0) {
-			exec_xwayland(wlr_xwayland);
-		}
+
+		pid_t pid = fork();
 		if (pid < 0) {
 			wlr_log_errno(WLR_ERROR, "second fork failed");
 			_exit(EXIT_FAILURE);
+		} else if (pid == 0) {
+			exec_xwayland(wlr_xwayland);
 		}
+
+		int sig;
 		sigwait(&sigset, &sig);
 		kill(ppid, SIGUSR1);
 		wlr_log(WLR_DEBUG, "sent SIGUSR1 to process %d", ppid);
@@ -354,12 +375,8 @@ static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland) {
 			waitpid(pid, NULL, 0);
 			_exit(EXIT_FAILURE);
 		}
+
 		_exit(EXIT_SUCCESS);
-	}
-	if (wlr_xwayland->pid < 0) {
-		wlr_log_errno(WLR_ERROR, "fork failed");
-		xwayland_finish_server(wlr_xwayland);
-		return false;
 	}
 
 	/* close child fds */
