@@ -4,27 +4,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
+#include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
-#include "gtk-primary-selection-protocol.h"
+#include "primary-selection-unstable-v1-protocol.h"
 #include "util/signal.h"
 
 #define DEVICE_MANAGER_VERSION 1
 
-static const struct gtk_primary_selection_offer_interface offer_impl;
+static const struct zwp_primary_selection_offer_v1_interface offer_impl;
 
-static struct wlr_gtk_primary_selection_device *device_from_offer_resource(
+static struct wlr_primary_selection_v1_device *device_from_offer_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&gtk_primary_selection_offer_interface, &offer_impl));
+		&zwp_primary_selection_offer_v1_interface, &offer_impl));
 	return wl_resource_get_user_data(resource);
 }
 
 static void offer_handle_receive(struct wl_client *client,
 		struct wl_resource *resource, const char *mime_type, int32_t fd) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		device_from_offer_resource(resource);
 	if (device == NULL || device->seat->primary_selection_source == NULL) {
 		close(fd);
@@ -40,7 +40,7 @@ static void offer_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static const struct gtk_primary_selection_offer_interface offer_impl = {
+static const struct zwp_primary_selection_offer_v1_interface offer_impl = {
 	.receive = offer_handle_receive,
 	.destroy = offer_handle_destroy,
 };
@@ -49,19 +49,19 @@ static void offer_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static struct wlr_gtk_primary_selection_device *device_from_resource(
+static struct wlr_primary_selection_v1_device *device_from_resource(
 	struct wl_resource *resource);
 
 static void create_offer(struct wl_resource *device_resource,
 		struct wlr_primary_selection_source *source) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		device_from_resource(device_resource);
 	assert(device != NULL);
 
 	struct wl_client *client = wl_resource_get_client(device_resource);
 	uint32_t version = wl_resource_get_version(device_resource);
 	struct wl_resource *resource = wl_resource_create(client,
-		&gtk_primary_selection_offer_interface, version, 0);
+		&zwp_primary_selection_offer_v1_interface, version, 0);
 	if (resource == NULL) {
 		wl_resource_post_no_memory(device_resource);
 		return;
@@ -71,14 +71,14 @@ static void create_offer(struct wl_resource *device_resource,
 
 	wl_list_insert(&device->offers, wl_resource_get_link(resource));
 
-	gtk_primary_selection_device_send_data_offer(device_resource, resource);
+	zwp_primary_selection_device_v1_send_data_offer(device_resource, resource);
 
 	char **p;
 	wl_array_for_each(p, &source->mime_types) {
-		gtk_primary_selection_offer_send_offer(resource, *p);
+		zwp_primary_selection_offer_v1_send_offer(resource, *p);
 	}
 
-	gtk_primary_selection_device_send_selection(device_resource, resource);
+	zwp_primary_selection_device_v1_send_selection(device_resource, resource);
 }
 
 static void destroy_offer(struct wl_resource *resource) {
@@ -105,14 +105,14 @@ static void client_source_send(
 		struct wlr_primary_selection_source *wlr_source,
 		const char *mime_type, int fd) {
 	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	gtk_primary_selection_source_send_send(source->resource, mime_type, fd);
+	zwp_primary_selection_source_v1_send_send(source->resource, mime_type, fd);
 	close(fd);
 }
 
 static void client_source_destroy(
 		struct wlr_primary_selection_source *wlr_source) {
 	struct client_data_source *source = (struct client_data_source *)wlr_source;
-	gtk_primary_selection_source_send_cancelled(source->resource);
+	zwp_primary_selection_source_v1_send_cancelled(source->resource);
 	// Make the source resource inert
 	wl_resource_set_user_data(source->resource, NULL);
 	free(source);
@@ -123,12 +123,12 @@ static const struct wlr_primary_selection_source_impl client_source_impl = {
 	.destroy = client_source_destroy,
 };
 
-static const struct gtk_primary_selection_source_interface source_impl;
+static const struct zwp_primary_selection_source_v1_interface source_impl;
 
 static struct client_data_source *client_data_source_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&gtk_primary_selection_source_interface, &source_impl));
+		&zwp_primary_selection_source_v1_interface, &source_impl));
 	return wl_resource_get_user_data(resource);
 }
 
@@ -173,7 +173,7 @@ static void source_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static const struct gtk_primary_selection_source_interface source_impl = {
+static const struct zwp_primary_selection_source_v1_interface source_impl = {
 	.offer = source_handle_offer,
 	.destroy = source_handle_destroy,
 };
@@ -188,19 +188,19 @@ static void source_resource_handle_destroy(struct wl_resource *resource) {
 }
 
 
-static const struct gtk_primary_selection_device_interface device_impl;
+static const struct zwp_primary_selection_device_v1_interface device_impl;
 
-static struct wlr_gtk_primary_selection_device *device_from_resource(
+static struct wlr_primary_selection_v1_device *device_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&gtk_primary_selection_device_interface, &device_impl));
+		&zwp_primary_selection_device_v1_interface, &device_impl));
 	return wl_resource_get_user_data(resource);
 }
 
 static void device_handle_set_selection(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *source_resource,
 		uint32_t serial) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		device_from_resource(resource);
 	if (device == NULL) {
 		return;
@@ -225,7 +225,7 @@ static void device_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static const struct gtk_primary_selection_device_interface device_impl = {
+static const struct zwp_primary_selection_device_v1_interface device_impl = {
 	.set_selection = device_handle_set_selection,
 	.destroy = device_handle_destroy,
 };
@@ -242,12 +242,12 @@ static void device_resource_send_selection(struct wl_resource *resource,
 	if (source != NULL) {
 		create_offer(resource, source);
 	} else {
-		gtk_primary_selection_device_send_selection(resource, NULL);
+		zwp_primary_selection_device_v1_send_selection(resource, NULL);
 	}
 }
 
 static void device_send_selection(
-		struct wlr_gtk_primary_selection_device *device) {
+		struct wlr_primary_selection_v1_device *device) {
 	struct wlr_seat_client *seat_client =
 		device->seat->keyboard_state.focused_client;
 	if (seat_client == NULL) {
@@ -263,18 +263,18 @@ static void device_send_selection(
 	}
 }
 
-static void device_destroy(struct wlr_gtk_primary_selection_device *device);
+static void device_destroy(struct wlr_primary_selection_v1_device *device);
 
 static void device_handle_seat_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		wl_container_of(listener, device, seat_destroy);
 	device_destroy(device);
 }
 
 static void device_handle_seat_focus_change(struct wl_listener *listener,
 		void *data) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		wl_container_of(listener, device, seat_focus_change);
 	// TODO: maybe make previous offers inert, or set a NULL selection for
 	// previous client?
@@ -283,7 +283,7 @@ static void device_handle_seat_focus_change(struct wl_listener *listener,
 
 static void device_handle_seat_set_primary_selection(
 		struct wl_listener *listener, void *data) {
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		wl_container_of(listener, device, seat_set_primary_selection);
 
 	struct wl_resource *resource, *tmp;
@@ -294,17 +294,17 @@ static void device_handle_seat_set_primary_selection(
 	device_send_selection(device);
 }
 
-static struct wlr_gtk_primary_selection_device *get_or_create_device(
-		struct wlr_gtk_primary_selection_device_manager *manager,
+static struct wlr_primary_selection_v1_device *get_or_create_device(
+		struct wlr_primary_selection_v1_device_manager *manager,
 		struct wlr_seat *seat) {
-	struct wlr_gtk_primary_selection_device *device;
+	struct wlr_primary_selection_v1_device *device;
 	wl_list_for_each(device, &manager->devices, link) {
 		if (device->seat == seat) {
 			return device;
 		}
 	}
 
-	device = calloc(1, sizeof(struct wlr_gtk_primary_selection_device));
+	device = calloc(1, sizeof(struct wlr_primary_selection_v1_device));
 	if (device == NULL) {
 		return NULL;
 	}
@@ -331,7 +331,7 @@ static struct wlr_gtk_primary_selection_device *get_or_create_device(
 	return device;
 }
 
-static void device_destroy(struct wlr_gtk_primary_selection_device *device) {
+static void device_destroy(struct wlr_primary_selection_v1_device *device) {
 	if (device == NULL) {
 		return;
 	}
@@ -355,13 +355,13 @@ static void device_destroy(struct wlr_gtk_primary_selection_device *device) {
 }
 
 
-static const struct gtk_primary_selection_device_manager_interface
+static const struct zwp_primary_selection_device_manager_v1_interface
 	device_manager_impl;
 
-static struct wlr_gtk_primary_selection_device_manager *manager_from_resource(
+static struct wlr_primary_selection_v1_device_manager *manager_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&gtk_primary_selection_device_manager_interface, &device_manager_impl));
+		&zwp_primary_selection_device_manager_v1_interface, &device_manager_impl));
 	return wl_resource_get_user_data(resource);
 }
 
@@ -377,7 +377,7 @@ static void device_manager_handle_create_source(struct wl_client *client,
 
 	uint32_t version = wl_resource_get_version(manager_resource);
 	source->resource = wl_resource_create(client,
-		&gtk_primary_selection_source_interface, version, id);
+		&zwp_primary_selection_source_v1_interface, version, id);
 	if (source->resource == NULL) {
 		free(source);
 		wl_client_post_no_memory(client);
@@ -392,10 +392,10 @@ static void device_manager_handle_get_device(struct wl_client *client,
 		struct wl_resource *seat_resource) {
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
-	struct wlr_gtk_primary_selection_device_manager *manager =
+	struct wlr_primary_selection_v1_device_manager *manager =
 		manager_from_resource(manager_resource);
 
-	struct wlr_gtk_primary_selection_device *device =
+	struct wlr_primary_selection_v1_device *device =
 		get_or_create_device(manager, seat_client->seat);
 	if (device == NULL) {
 		wl_resource_post_no_memory(manager_resource);
@@ -404,7 +404,7 @@ static void device_manager_handle_get_device(struct wl_client *client,
 
 	uint32_t version = wl_resource_get_version(manager_resource);
 	struct wl_resource *resource = wl_resource_create(client,
-		&gtk_primary_selection_device_interface, version, id);
+		&zwp_primary_selection_device_v1_interface, version, id);
 	if (resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
@@ -424,7 +424,7 @@ static void device_manager_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(manager_resource);
 }
 
-static const struct gtk_primary_selection_device_manager_interface
+static const struct zwp_primary_selection_device_manager_v1_interface
 		device_manager_impl = {
 	.create_source = device_manager_handle_create_source,
 	.get_device = device_manager_handle_get_device,
@@ -439,10 +439,10 @@ static void device_manager_handle_resource_destroy(
 
 static void primary_selection_device_manager_bind(struct wl_client *client,
 		void *data, uint32_t version, uint32_t id) {
-	struct wlr_gtk_primary_selection_device_manager *manager = data;
+	struct wlr_primary_selection_v1_device_manager *manager = data;
 
 	struct wl_resource *resource = wl_resource_create(client,
-		&gtk_primary_selection_device_manager_interface, version, id);
+		&zwp_primary_selection_device_manager_v1_interface, version, id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
@@ -454,21 +454,21 @@ static void primary_selection_device_manager_bind(struct wl_client *client,
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_gtk_primary_selection_device_manager *manager =
+	struct wlr_primary_selection_v1_device_manager *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_gtk_primary_selection_device_manager_destroy(manager);
+	wlr_primary_selection_v1_device_manager_destroy(manager);
 }
 
-struct wlr_gtk_primary_selection_device_manager *
-		wlr_gtk_primary_selection_device_manager_create(
+struct wlr_primary_selection_v1_device_manager *
+		wlr_primary_selection_v1_device_manager_create(
 		struct wl_display *display) {
-	struct wlr_gtk_primary_selection_device_manager *manager =
-		calloc(1, sizeof(struct wlr_gtk_primary_selection_device_manager));
+	struct wlr_primary_selection_v1_device_manager *manager =
+		calloc(1, sizeof(struct wlr_primary_selection_v1_device_manager));
 	if (manager == NULL) {
 		return NULL;
 	}
 	manager->global = wl_global_create(display,
-		&gtk_primary_selection_device_manager_interface, DEVICE_MANAGER_VERSION,
+		&zwp_primary_selection_device_manager_v1_interface, DEVICE_MANAGER_VERSION,
 		manager, primary_selection_device_manager_bind);
 	if (manager->global == NULL) {
 		free(manager);
@@ -485,8 +485,8 @@ struct wlr_gtk_primary_selection_device_manager *
 	return manager;
 }
 
-void wlr_gtk_primary_selection_device_manager_destroy(
-		struct wlr_gtk_primary_selection_device_manager *manager) {
+void wlr_primary_selection_v1_device_manager_destroy(
+		struct wlr_primary_selection_v1_device_manager *manager) {
 	if (manager == NULL) {
 		return;
 	}
