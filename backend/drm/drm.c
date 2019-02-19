@@ -392,9 +392,6 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	}
 }
 
-static bool drm_connector_set_mode(struct wlr_output *output,
-	struct wlr_output_mode *mode);
-
 static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs);
 
 static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
@@ -522,7 +519,7 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
-static bool drm_connector_set_mode(struct wlr_output *output,
+bool drm_connector_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
