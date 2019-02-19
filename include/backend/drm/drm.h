@@ -159,5 +159,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data);
 bool enable_drm_connector(struct wlr_output *output, bool enable);
 bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
+bool drm_connector_set_mode(struct wlr_output *output,
+	struct wlr_output_mode *mode);
 
 #endif
