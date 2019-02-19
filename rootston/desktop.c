@@ -213,6 +213,10 @@ static struct wlr_output *view_get_output(struct roots_view *view) {
 }
 
 void view_arrange_maximized(struct roots_view *view) {
+	if (view->fullscreen_output != NULL) {
+		return;
+	}
+
 	struct wlr_box view_box;
 	view_get_box(view, &view_box);
 
@@ -232,7 +236,7 @@ void view_arrange_maximized(struct roots_view *view) {
 }
 
 void view_maximize(struct roots_view *view, bool maximized) {
-	if (view->maximized == maximized) {
+	if (view->maximized == maximized || view->fullscreen_output != NULL) {
 		return;
 	}
 
