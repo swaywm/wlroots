@@ -1,8 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#ifdef __FreeBSD__
-// for SOCK_CLOEXEC
-#define __BSD_VISIBLE 1
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -25,15 +21,37 @@ static const char *socket_fmt = "/tmp/.X11-unix/X%d";
 static const char *socket_fmt2 = "/tmp/.X11-unix/X%d_";
 #endif
 
+bool set_cloexec(int fd, bool cloexec) {
+	int flags = fcntl(fd, F_GETFD);
+	if (flags == -1) {
+		wlr_log_errno(WLR_ERROR, "fcntl failed");
+		return false;
+	}
+	if (cloexec) {
+		flags = flags | FD_CLOEXEC;
+	} else {
+		flags = flags & ~FD_CLOEXEC;
+	}
+	if (fcntl(fd, F_SETFD, flags) == -1) {
+		wlr_log_errno(WLR_ERROR, "fcntl failed");
+		return false;
+	}
+	return true;
+}
+
 static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	int fd, rc;
 	socklen_t size = offsetof(struct sockaddr_un, sun_path) + path_size + 1;
 
-	fd = socket(PF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0) {
-		wlr_log_errno(WLR_DEBUG, "Failed to create socket %c%s",
+		wlr_log_errno(WLR_ERROR, "Failed to create socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
+		return -1;
+	}
+	if (!set_cloexec(fd, true)) {
+		close(fd);
 		return -1;
 	}
 
@@ -42,14 +60,14 @@ static int open_socket(struct sockaddr_un *addr, size_t path_size) {
 	}
 	if (bind(fd, (struct sockaddr*)addr, size) < 0) {
 		rc = errno;
-		wlr_log_errno(WLR_DEBUG, "Failed to bind socket %c%s",
+		wlr_log_errno(WLR_ERROR, "Failed to bind socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
 		goto cleanup;
 	}
 	if (listen(fd, 1) < 0) {
 		rc = errno;
-		wlr_log_errno(WLR_DEBUG, "Failed to listen to socket %c%s",
+		wlr_log_errno(WLR_ERROR, "Failed to listen to socket %c%s",
 			addr->sun_path[0] ? addr->sun_path[0] : '@',
 			addr->sun_path + 1);
 		goto cleanup;
@@ -67,7 +85,7 @@ cleanup:
 }
 
 static bool open_sockets(int socks[2], int display) {
-	struct sockaddr_un addr = { .sun_family = AF_LOCAL };
+	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	size_t path_size;
 
 	mkdir(socket_dir, 0777);
