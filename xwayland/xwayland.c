@@ -32,24 +32,6 @@ static void safe_close(int fd) {
 	}
 }
 
-static bool set_cloexec(int fd, bool cloexec) {
-	int flags = fcntl(fd, F_GETFD);
-	if (flags == -1) {
-		wlr_log_errno(WLR_ERROR, "fcntl failed");
-		return false;
-	}
-	if (cloexec) {
-		flags = flags | FD_CLOEXEC;
-	} else {
-		flags = flags & ~FD_CLOEXEC;
-	}
-	if (fcntl(fd, F_SETFD, flags) == -1) {
-		wlr_log_errno(WLR_ERROR, "fcntl failed");
-		return false;
-	}
-	return true;
-}
-
 static int fill_arg(char ***argv, const char *fmt, ...) {
 	int len;
 	char **cur_arg = *argv;
