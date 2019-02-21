@@ -888,8 +888,9 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 
 static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 	size_t num_outputs = wl_list_length(&drm->outputs);
+	bool changed_local = changed_outputs ? false : true;
 
-	if (changed_outputs == NULL) {
+	if (changed_local) {
 		changed_outputs = calloc(num_outputs, sizeof(bool));
 		if (changed_outputs == NULL) {
 			wlr_log(WLR_ERROR, "Allocation failed");
@@ -952,7 +953,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 				connectors[crtc[i]]->desired_enabled) {
 			wlr_log(WLR_DEBUG, "Could not match a CRTC for connected output %d",
 				crtc[i]);
-			return;
+			goto free_changed_outputs;
 		}
 	}
 
@@ -1020,6 +1021,11 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 		drm_connector_start_renderer(conn);
 
 		wlr_output_damage_whole(&conn->output);
+	}
+
+free_changed_outputs:
+	if (changed_local) {
+		free(changed_outputs);
 	}
 }
 
