@@ -759,20 +759,6 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 static struct roots_view *desktop_view_at(struct roots_desktop *desktop,
 		double lx, double ly, struct wlr_surface **surface,
 		double *sx, double *sy) {
-	struct wlr_output *wlr_output =
-		wlr_output_layout_output_at(desktop->layout, lx, ly);
-	if (wlr_output != NULL) {
-		struct roots_output *output =
-			desktop_output_from_wlr_output(desktop, wlr_output);
-		if (output != NULL && output->fullscreen_view != NULL) {
-			if (view_at(output->fullscreen_view, lx, ly, surface, sx, sy)) {
-				return output->fullscreen_view;
-			} else {
-				return NULL;
-			}
-		}
-	}
-
 	struct roots_view *view;
 	wl_list_for_each(view, &desktop->views, link) {
 		if (view_at(view, lx, ly, surface, sx, sy)) {
@@ -821,6 +807,17 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 					ox, oy, sx, sy))) {
 			return surface;
 		}
+
+		struct roots_output *output =
+			desktop_output_from_wlr_output(desktop, wlr_output);
+		if (output != NULL && output->fullscreen_view != NULL) {
+			if (view_at(output->fullscreen_view, lx, ly, &surface, sx, sy)) {
+				return surface;
+			} else {
+				return NULL;
+			}
+		}
+
 		if ((surface = layer_surface_at(roots_output,
 					&roots_output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP],
 					ox, oy, sx, sy))) {
