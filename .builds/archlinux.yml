@@ -1,6 +1,7 @@
 image: archlinux
 packages:
   - clang
+  - freerdp
   - ffmpeg
   - libcap
   - libinput

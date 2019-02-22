@@ -1,6 +1,7 @@
 image: alpine/edge
 packages:
   - eudev-dev
+  - freerdp-dev
   - ffmpeg-dev
   - libcap-dev
   - libinput-dev
