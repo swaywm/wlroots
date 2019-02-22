@@ -1,3 +1,4 @@
+option('freerdp', type: 'feature', value: 'auto', description: 'Enable support for the RDP backend with freerdp')
 option('libcap', type: 'feature', value: 'auto', description: 'Enable support for rootless session via capabilities (cap_sys_admin)')
 option('logind', type: 'feature', value: 'auto', description: 'Enable support for rootless session via logind')
 option('logind-provider', type: 'combo', choices: ['systemd', 'elogind'], value: 'systemd', description: 'Provider of logind support library')

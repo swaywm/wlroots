@@ -53,6 +53,22 @@ if logind.found()
 	backend_deps += logind
 endif
 
+if freerdp.found() and winpr2.found()
+	backend_files += files(
+		'rdp/backend.c',
+		'rdp/keyboard.c',
+		'rdp/listener.c',
+		'rdp/output.c',
+		'rdp/peer.c',
+		'rdp/pointer.c',
+	)
+	backend_deps += [
+		freerdp,
+		winpr2
+	]
+	conf_data.set10('WLR_HAS_RDP_BACKEND', true)
+endif
+
 subdir('x11')
 
 lib_wlr_backend = static_library(
