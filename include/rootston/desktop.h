@@ -100,19 +100,6 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 		double lx, double ly, double *sx, double *sy,
 		struct roots_view **view);
 
-struct roots_view *view_create(struct roots_desktop *desktop);
-void view_destroy(struct roots_view *view);
-void view_activate(struct roots_view *view, bool activate);
-void view_apply_damage(struct roots_view *view);
-void view_damage_whole(struct roots_view *view);
-void view_update_position(struct roots_view *view, int x, int y);
-void view_update_size(struct roots_view *view, int width, int height);
-void view_update_decorated(struct roots_view *view, bool decorated);
-void view_initial_focus(struct roots_view *view);
-void view_map(struct roots_view *view, struct wlr_surface *surface);
-void view_unmap(struct roots_view *view);
-void view_arrange_maximized(struct roots_view *view);
-
 void handle_xdg_shell_v6_surface(struct wl_listener *listener, void *data);
 void handle_xdg_shell_surface(struct wl_listener *listener, void *data);
 void handle_xdg_toplevel_decoration(struct wl_listener *listener, void *data);
