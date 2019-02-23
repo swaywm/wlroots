@@ -9,91 +9,6 @@
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
-struct roots_wl_shell_surface {
-	struct roots_view *view;
-
-	struct wl_listener destroy;
-	struct wl_listener new_popup;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-	struct wl_listener set_state;
-	struct wl_listener set_title;
-	struct wl_listener set_class;
-
-	struct wl_listener surface_commit;
-};
-
-struct roots_xdg_surface_v6 {
-	struct roots_view *view;
-
-	struct wl_listener destroy;
-	struct wl_listener new_popup;
-	struct wl_listener map;
-	struct wl_listener unmap;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-	struct wl_listener set_title;
-	struct wl_listener set_app_id;
-
-	struct wl_listener surface_commit;
-
-	uint32_t pending_move_resize_configure_serial;
-};
-
-struct roots_xdg_toplevel_decoration;
-
-struct roots_xdg_surface {
-	struct roots_view *view;
-
-	struct wl_listener destroy;
-	struct wl_listener new_popup;
-	struct wl_listener map;
-	struct wl_listener unmap;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-	struct wl_listener set_title;
-	struct wl_listener set_app_id;
-
-
-	struct wl_listener surface_commit;
-
-	uint32_t pending_move_resize_configure_serial;
-
-	struct roots_xdg_toplevel_decoration *xdg_toplevel_decoration;
-};
-
-struct roots_xwayland_surface {
-	struct roots_view *view;
-
-	struct wl_listener destroy;
-	struct wl_listener request_configure;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-	struct wl_listener map;
-	struct wl_listener unmap;
-	struct wl_listener set_title;
-	struct wl_listener set_class;
-
-	struct wl_listener surface_commit;
-};
-
-enum roots_view_type {
-	ROOTS_WL_SHELL_VIEW,
-	ROOTS_XDG_SHELL_V6_VIEW,
-	ROOTS_XDG_SHELL_VIEW,
-#if WLR_HAS_XWAYLAND
-	ROOTS_XWAYLAND_VIEW,
-#endif
-};
-
 struct roots_view;
 
 struct roots_view_interface {
@@ -108,7 +23,17 @@ struct roots_view_interface {
 	void (*destroy)(struct roots_view *view);
 };
 
+enum roots_view_type {
+	ROOTS_WL_SHELL_VIEW,
+	ROOTS_XDG_SHELL_V6_VIEW,
+	ROOTS_XDG_SHELL_VIEW,
+#if WLR_HAS_XWAYLAND
+	ROOTS_XWAYLAND_VIEW,
+#endif
+};
+
 struct roots_view {
+	enum roots_view_type type;
 	const struct roots_view_interface *impl;
 	struct roots_desktop *desktop;
 	struct wl_list link; // roots_desktop::views
@@ -135,25 +60,6 @@ struct roots_view {
 		uint32_t width, height;
 	} pending_move_resize;
 
-	// TODO: Something for roots-enforced width/height
-	enum roots_view_type type;
-	union {
-		struct wlr_wl_shell_surface *wl_shell_surface;
-		struct wlr_xdg_surface_v6 *xdg_surface_v6;
-		struct wlr_xdg_surface *xdg_surface;
-#if WLR_HAS_XWAYLAND
-		struct wlr_xwayland_surface *xwayland_surface;
-#endif
-	};
-	union {
-		struct roots_wl_shell_surface *roots_wl_shell_surface;
-		struct roots_xdg_surface_v6 *roots_xdg_surface_v6;
-		struct roots_xdg_surface *roots_xdg_surface;
-#if WLR_HAS_XWAYLAND
-		struct roots_xwayland_surface *roots_xwayland_surface;
-#endif
-	};
-
 	struct wlr_surface *wlr_surface;
 	struct wl_list children; // roots_view_child::link
 
@@ -169,6 +75,91 @@ struct roots_view {
 		struct wl_signal destroy;
 	} events;
 };
+
+struct roots_wl_shell_surface {
+	struct roots_view view;
+
+	struct wlr_wl_shell_surface *wl_shell_surface;
+
+	struct wl_listener destroy;
+	struct wl_listener new_popup;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
+	struct wl_listener set_state;
+	struct wl_listener set_title;
+	struct wl_listener set_class;
+
+	struct wl_listener surface_commit;
+};
+
+struct roots_xdg_surface_v6 {
+	struct roots_view view;
+
+	struct wlr_xdg_surface_v6 *xdg_surface_v6;
+
+	struct wl_listener destroy;
+	struct wl_listener new_popup;
+	struct wl_listener map;
+	struct wl_listener unmap;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
+	struct wl_listener set_title;
+	struct wl_listener set_app_id;
+
+	struct wl_listener surface_commit;
+
+	uint32_t pending_move_resize_configure_serial;
+};
+
+struct roots_xdg_toplevel_decoration;
+
+struct roots_xdg_surface {
+	struct roots_view view;
+
+	struct wlr_xdg_surface *xdg_surface;
+
+	struct wl_listener destroy;
+	struct wl_listener new_popup;
+	struct wl_listener map;
+	struct wl_listener unmap;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
+	struct wl_listener set_title;
+	struct wl_listener set_app_id;
+
+	struct wl_listener surface_commit;
+
+	uint32_t pending_move_resize_configure_serial;
+
+	struct roots_xdg_toplevel_decoration *xdg_toplevel_decoration;
+};
+
+#if WLR_HAS_XWAYLAND
+struct roots_xwayland_surface {
+	struct roots_view view;
+
+	struct wlr_xwayland_surface *xwayland_surface;
+
+	struct wl_listener destroy;
+	struct wl_listener request_configure;
+	struct wl_listener request_move;
+	struct wl_listener request_resize;
+	struct wl_listener request_maximize;
+	struct wl_listener request_fullscreen;
+	struct wl_listener map;
+	struct wl_listener unmap;
+	struct wl_listener set_title;
+	struct wl_listener set_class;
+
+	struct wl_listener surface_commit;
+};
+#endif
 
 struct roots_view_child;
 
@@ -228,8 +219,8 @@ struct roots_xdg_toplevel_decoration {
 	struct wl_listener surface_commit;
 };
 
-struct roots_view *view_create(struct roots_desktop *desktop,
-	const struct roots_view_interface *impl);
+void view_init(struct roots_view *view, const struct roots_view_interface *impl,
+	enum roots_view_type type, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
 void view_activate(struct roots_view *view, bool activate);
 void view_apply_damage(struct roots_view *view);
@@ -256,12 +247,18 @@ void view_close(struct roots_view *view);
 bool view_center(struct roots_view *view);
 void view_setup(struct roots_view *view);
 void view_teardown(struct roots_view *view);
-
 void view_set_title(struct roots_view *view, const char *title);
 void view_set_app_id(struct roots_view *view, const char *app_id);
 void view_create_foreign_toplevel_handle(struct roots_view *view);
-
 void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
+
+struct roots_wl_shell_surface *roots_wl_shell_surface_from_view(
+	struct roots_view *view);
+struct roots_xdg_surface *roots_xdg_surface_from_view(struct roots_view *view);
+struct roots_xdg_surface_v6 *roots_xdg_surface_v6_from_view(
+	struct roots_view *view);
+struct roots_xwayland_surface *roots_xwayland_surface_from_view(
+	struct roots_view *view);
 
 enum roots_deco_part {
 	ROOTS_DECO_PART_NONE = 0,

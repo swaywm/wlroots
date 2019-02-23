@@ -38,9 +38,12 @@
 
 static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	if (view->type == ROOTS_WL_SHELL_VIEW &&
-			view->wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-		return false;
+	if (view->type == ROOTS_WL_SHELL_VIEW) {
+		struct wlr_wl_shell_surface *wl_shell_surface =
+			roots_wl_shell_surface_from_view(view)->wl_shell_surface;
+		if (wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
+			return false;
+		}
 	}
 	if (view->wlr_surface == NULL) {
 		return false;
@@ -68,17 +71,23 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 	double _sx, _sy;
 	struct wlr_surface *_surface = NULL;
 	switch (view->type) {
-	case ROOTS_XDG_SHELL_V6_VIEW:
-		_surface = wlr_xdg_surface_v6_surface_at(view->xdg_surface_v6,
+	case ROOTS_XDG_SHELL_V6_VIEW:;
+		struct roots_xdg_surface_v6 *xdg_surface_v6 =
+			roots_xdg_surface_v6_from_view(view);
+		_surface = wlr_xdg_surface_v6_surface_at(xdg_surface_v6->xdg_surface_v6,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
-	case ROOTS_XDG_SHELL_VIEW:
-		_surface = wlr_xdg_surface_surface_at(view->xdg_surface,
+	case ROOTS_XDG_SHELL_VIEW:;
+		struct roots_xdg_surface *xdg_surface =
+			roots_xdg_surface_from_view(view);
+		_surface = wlr_xdg_surface_surface_at(xdg_surface->xdg_surface,
 			view_sx, view_sy, &_sx, &_sy);
 		break;
-	case ROOTS_WL_SHELL_VIEW:
-		_surface = wlr_wl_shell_surface_surface_at(view->wl_shell_surface,
-			view_sx, view_sy, &_sx, &_sy);
+	case ROOTS_WL_SHELL_VIEW:;
+		struct roots_wl_shell_surface *wl_shell_surface =
+			roots_wl_shell_surface_from_view(view);
+		_surface = wlr_wl_shell_surface_surface_at(
+			wl_shell_surface->wl_shell_surface, view_sx, view_sy, &_sx, &_sy);
 		break;
 #if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:

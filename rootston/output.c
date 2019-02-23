@@ -43,8 +43,9 @@ struct layout_data {
 	float rotation;
 };
 
-static void get_layout_position(struct layout_data *data, double *lx, double *ly,
-		const struct wlr_surface *surface, int sx, int sy) {
+static void get_layout_position(struct layout_data *data,
+		double *lx, double *ly, const struct wlr_surface *surface,
+		int sx, int sy) {
 	double _sx = sx, _sy = sy;
 	rotate_child_position(&_sx, &_sy, surface->current.width,
 		surface->current.height, data->width, data->height, data->rotation);
@@ -78,17 +79,23 @@ static void view_for_each_surface(struct roots_view *view,
 	layout_data->rotation = view->rotation;
 
 	switch (view->type) {
-	case ROOTS_XDG_SHELL_V6_VIEW:
-		wlr_xdg_surface_v6_for_each_surface(view->xdg_surface_v6, iterator,
+	case ROOTS_XDG_SHELL_V6_VIEW:;
+		struct roots_xdg_surface_v6 *xdg_surface_v6 =
+			roots_xdg_surface_v6_from_view(view);
+		wlr_xdg_surface_v6_for_each_surface(xdg_surface_v6->xdg_surface_v6,
+			iterator, user_data);
+		break;
+	case ROOTS_XDG_SHELL_VIEW:;
+		struct roots_xdg_surface *xdg_surface =
+			roots_xdg_surface_from_view(view);
+		wlr_xdg_surface_for_each_surface(xdg_surface->xdg_surface, iterator,
 			user_data);
 		break;
-	case ROOTS_XDG_SHELL_VIEW:
-		wlr_xdg_surface_for_each_surface(view->xdg_surface, iterator,
-			user_data);
-		break;
-	case ROOTS_WL_SHELL_VIEW:
-		wlr_wl_shell_surface_for_each_surface(view->wl_shell_surface, iterator,
-			user_data);
+	case ROOTS_WL_SHELL_VIEW:;
+		struct roots_wl_shell_surface *wl_shell_surface =
+			roots_wl_shell_surface_from_view(view);
+		wlr_wl_shell_surface_for_each_surface(wl_shell_surface->wl_shell_surface,
+			iterator, user_data);
 		break;
 #if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
@@ -165,7 +172,10 @@ static void output_for_each_surface(struct roots_output *output,
 
 #if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
-			xwayland_children_for_each_surface(view->xwayland_surface,
+			struct roots_xwayland_surface *xwayland_surface =
+				roots_xwayland_surface_from_view(view);
+			xwayland_children_for_each_surface(
+				xwayland_surface->xwayland_surface,
 				iterator, layout_data, user_data);
 		}
 #endif
@@ -497,7 +507,10 @@ static void render_output(struct roots_output *output) {
 		// the fullscreen window's children so we have to traverse the tree.
 #if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
-			xwayland_children_for_each_surface(view->xwayland_surface,
+			struct roots_xwayland_surface *xwayland_surface =
+				roots_xwayland_surface_from_view(view);
+			xwayland_children_for_each_surface(
+				xwayland_surface->xwayland_surface,
 				render_surface, &data.layout, &data);
 		}
 #endif
@@ -568,9 +581,12 @@ static bool view_accept_damage(struct roots_output *output,
 	if (output->fullscreen_view->type == ROOTS_XWAYLAND_VIEW &&
 			view->type == ROOTS_XWAYLAND_VIEW) {
 		// Special case: accept damage from children
-		struct wlr_xwayland_surface *xsurface = view->xwayland_surface;
+		struct wlr_xwayland_surface *xsurface =
+			roots_xwayland_surface_from_view(view)->xwayland_surface;
+		struct wlr_xwayland_surface *fullscreen_xsurface =
+			roots_xwayland_surface_from_view(output->fullscreen_view)->xwayland_surface;
 		while (xsurface != NULL) {
-			if (output->fullscreen_view->xwayland_surface == xsurface) {
+			if (fullscreen_xsurface == xsurface) {
 				return true;
 			}
 			xsurface = xsurface->parent;

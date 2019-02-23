@@ -8,19 +8,35 @@
 #include "rootston/server.h"
 #include "rootston/view.h"
 
-struct roots_view *view_create(struct roots_desktop *desktop,
-		const struct roots_view_interface *impl) {
-	struct roots_view *view = calloc(1, sizeof(struct roots_view));
-	if (!view) {
-		return NULL;
-	}
+void view_init(struct roots_view *view, const struct roots_view_interface *impl,
+		enum roots_view_type type, struct roots_desktop *desktop) {
+	assert(impl->destroy);
 	view->impl = impl;
+	view->type = type;
 	view->desktop = desktop;
 	view->alpha = 1.0f;
 	wl_signal_init(&view->events.unmap);
 	wl_signal_init(&view->events.destroy);
 	wl_list_init(&view->children);
-	return view;
+}
+
+void view_destroy(struct roots_view *view) {
+	if (view == NULL) {
+		return;
+	}
+
+	wl_signal_emit(&view->events.destroy, view);
+
+	if (view->wlr_surface != NULL) {
+		view_unmap(view);
+	}
+
+	// Can happen if fullscreened while unmapped, and hasn't been mapped
+	if (view->fullscreen_output != NULL) {
+		view->fullscreen_output->fullscreen_view = NULL;
+	}
+
+	view->impl->destroy(view);
 }
 
 void view_get_box(const struct roots_view *view, struct wlr_box *box) {
@@ -450,29 +466,6 @@ struct roots_subsurface *subsurface_create(struct roots_view *view,
 	subsurface->unmap.notify = subsurface_handle_unmap;
 	wl_signal_add(&wlr_subsurface->events.unmap, &subsurface->unmap);
 	return subsurface;
-}
-
-void view_destroy(struct roots_view *view) {
-	if (view == NULL) {
-		return;
-	}
-
-	wl_signal_emit(&view->events.destroy, view);
-
-	if (view->wlr_surface != NULL) {
-		view_unmap(view);
-	}
-
-	// Can happen if fullscreened while unmapped, and hasn't been mapped
-	if (view->fullscreen_output != NULL) {
-		view->fullscreen_output->fullscreen_view = NULL;
-	}
-
-	if (view->impl->destroy) {
-		view->impl->destroy(view);
-	}
-
-	free(view);
 }
 
 static void view_handle_new_subsurface(struct wl_listener *listener,

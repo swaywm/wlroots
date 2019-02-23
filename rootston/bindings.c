@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <wlr/util/log.h>
 #include "rootston/bindings.h"
+#include "rootston/view.h"
 
 static bool outputs_enabled = true;
 
@@ -83,8 +84,10 @@ void execute_binding_command(struct roots_seat *seat,
 	} else if (strcmp(command, "toggle_decoration_mode") == 0) {
 		struct roots_view *focus = roots_seat_get_focus(seat);
 		if (focus != NULL && focus->type == ROOTS_XDG_SHELL_VIEW) {
+			struct roots_xdg_surface *xdg_surface =
+				roots_xdg_surface_from_view(focus);
 			struct roots_xdg_toplevel_decoration *decoration =
-				focus->roots_xdg_surface->xdg_toplevel_decoration;
+				xdg_surface->xdg_toplevel_decoration;
 			if (decoration != NULL) {
 				enum wlr_xdg_toplevel_decoration_v1_mode mode =
 					decoration->wlr_decoration->current_mode;

@@ -11,13 +11,14 @@
 #include "rootston/server.h"
 
 static void activate(struct roots_view *view, bool active) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	wlr_xwayland_surface_activate(view->xwayland_surface, active);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
+	wlr_xwayland_surface_activate(xwayland_surface, active);
 }
 
 static void move(struct roots_view *view, double x, double y) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
 	view_update_position(view, x, y);
 	wlr_xwayland_surface_configure(xwayland_surface, x, y,
 		xwayland_surface->width, xwayland_surface->height);
@@ -48,8 +49,8 @@ static void apply_size_constraints(
 }
 
 static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
 
 	uint32_t constrained_width, constrained_height;
 	apply_size_constraints(xwayland_surface, width, height, &constrained_width,
@@ -61,8 +62,8 @@ static void resize(struct roots_view *view, uint32_t width, uint32_t height) {
 
 static void move_resize(struct roots_view *view, double x, double y,
 		uint32_t width, uint32_t height) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
 
 	bool update_x = x != view->box.x;
 	bool update_y = y != view->box.y;
@@ -90,25 +91,26 @@ static void move_resize(struct roots_view *view, double x, double y,
 }
 
 static void close(struct roots_view *view) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	wlr_xwayland_surface_close(view->xwayland_surface);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
+	wlr_xwayland_surface_close(xwayland_surface);
 }
 
 static void maximize(struct roots_view *view, bool maximized) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-
-	wlr_xwayland_surface_set_maximized(view->xwayland_surface, maximized);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
+	wlr_xwayland_surface_set_maximized(xwayland_surface, maximized);
 }
 
 static void set_fullscreen(struct roots_view *view, bool fullscreen) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-
-	wlr_xwayland_surface_set_fullscreen(view->xwayland_surface, fullscreen);
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_xwayland_surface_from_view(view)->xwayland_surface;
+	wlr_xwayland_surface_set_fullscreen(xwayland_surface, fullscreen);
 }
 
 static void destroy(struct roots_view *view) {
-	assert(view->type == ROOTS_XWAYLAND_VIEW);
-	struct roots_xwayland_surface *roots_surface = view->roots_xwayland_surface;
+	struct roots_xwayland_surface *roots_surface =
+		roots_xwayland_surface_from_view(view);
 	wl_list_remove(&roots_surface->destroy.link);
 	wl_list_remove(&roots_surface->request_configure.link);
 	wl_list_remove(&roots_surface->request_move.link);
@@ -135,17 +137,17 @@ static const struct roots_view_interface view_impl = {
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
-	view_destroy(roots_surface->view);
+	view_destroy(&roots_surface->view);
 }
 
 static void handle_request_configure(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_configure);
 	struct wlr_xwayland_surface *xwayland_surface =
-		roots_surface->view->xwayland_surface;
+		roots_surface->xwayland_surface;
 	struct wlr_xwayland_surface_configure_event *event = data;
 
-	view_update_position(roots_surface->view, event->x, event->y);
+	view_update_position(&roots_surface->view, event->x, event->y);
 
 	wlr_xwayland_surface_configure(xwayland_surface, event->x, event->y,
 		event->width, event->height);
@@ -167,7 +169,7 @@ static struct roots_seat *guess_seat_for_view(struct roots_view *view) {
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
-	struct roots_view *view = roots_surface->view;
+	struct roots_view *view = &roots_surface->view;
 	struct roots_seat *seat = guess_seat_for_view(view);
 
 	if (!seat || seat->cursor->mode != ROOTS_CURSOR_PASSTHROUGH) {
@@ -180,7 +182,7 @@ static void handle_request_move(struct wl_listener *listener, void *data) {
 static void handle_request_resize(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_resize);
-	struct roots_view *view = roots_surface->view;
+	struct roots_view *view = &roots_surface->view;
 	struct roots_seat *seat = guess_seat_for_view(view);
 	struct wlr_xwayland_resize_event *e = data;
 
@@ -193,8 +195,9 @@ static void handle_request_resize(struct wl_listener *listener, void *data) {
 static void handle_request_maximize(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_maximize);
-	struct roots_view *view = roots_surface->view;
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct roots_view *view = &roots_surface->view;
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_surface->xwayland_surface;
 
 	bool maximized = xwayland_surface->maximized_vert &&
 		xwayland_surface->maximized_horz;
@@ -205,8 +208,9 @@ static void handle_request_fullscreen(struct wl_listener *listener,
 		void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_fullscreen);
-	struct roots_view *view = roots_surface->view;
-	struct wlr_xwayland_surface *xwayland_surface = view->xwayland_surface;
+	struct roots_view *view = &roots_surface->view;
+	struct wlr_xwayland_surface *xwayland_surface =
+		roots_surface->xwayland_surface;
 
 	view_set_fullscreen(view, xwayland_surface->fullscreen, NULL);
 }
@@ -215,22 +219,22 @@ static void handle_set_title(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, set_title);
 
-	view_set_title(roots_surface->view,
-			roots_surface->view->xwayland_surface->title);
+	view_set_title(&roots_surface->view,
+		roots_surface->xwayland_surface->title);
 }
 
 static void handle_set_class(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, set_class);
 
-	view_set_app_id(roots_surface->view,
-			roots_surface->view->xwayland_surface->class);
+	view_set_app_id(&roots_surface->view,
+		roots_surface->xwayland_surface->class);
 }
 
 static void handle_surface_commit(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, surface_commit);
-	struct roots_view *view = roots_surface->view;
+	struct roots_view *view = &roots_surface->view;
 	struct wlr_surface *wlr_surface = view->wlr_surface;
 
 	view_apply_damage(view);
@@ -258,7 +262,7 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, map);
 	struct wlr_xwayland_surface *surface = data;
-	struct roots_view *view = roots_surface->view;
+	struct roots_view *view = &roots_surface->view;
 
 	view->box.x = surface->x;
 	view->box.y = surface->y;
@@ -281,9 +285,9 @@ static void handle_map(struct wl_listener *listener, void *data) {
 		view_setup(view);
 
 		wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle,
-				view->xwayland_surface->title ?: "none");
+			roots_surface->xwayland_surface->title ?: "none");
 		wlr_foreign_toplevel_handle_v1_set_app_id(view->toplevel_handle,
-				view->xwayland_surface->class ?: "none");
+			roots_surface->xwayland_surface->class ?: "none");
 	} else {
 		view_initial_focus(view);
 	}
@@ -292,7 +296,7 @@ static void handle_map(struct wl_listener *listener, void *data) {
 static void handle_unmap(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, unmap);
-	struct roots_view *view = roots_surface->view;
+	struct roots_view *view = &roots_surface->view;
 
 	wl_list_remove(&roots_surface->surface_commit.link);
 	view_unmap(view);
@@ -312,6 +316,11 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	if (roots_surface == NULL) {
 		return;
 	}
+
+	view_init(&roots_surface->view, &view_impl, ROOTS_XWAYLAND_VIEW, desktop);
+	roots_surface->view.box.x = surface->x;
+	roots_surface->view.box.y = surface->y;
+	roots_surface->xwayland_surface = surface;
 
 	roots_surface->destroy.notify = handle_destroy;
 	wl_signal_add(&surface->events.destroy, &roots_surface->destroy);
@@ -338,17 +347,10 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	roots_surface->set_class.notify = handle_set_class;
 	wl_signal_add(&surface->events.set_class,
 			&roots_surface->set_class);
+}
 
-	struct roots_view *view = view_create(desktop, &view_impl);
-	if (view == NULL) {
-		free(roots_surface);
-		return;
-	}
-	view->type = ROOTS_XWAYLAND_VIEW;
-	view->box.x = surface->x;
-	view->box.y = surface->y;
-
-	view->xwayland_surface = surface;
-	view->roots_xwayland_surface = roots_surface;
-	roots_surface->view = view;
+struct roots_xwayland_surface *roots_xwayland_surface_from_view(
+		struct roots_view *view) {
+	assert(view->impl == &view_impl);
+	return (struct roots_xwayland_surface *)view;
 }
