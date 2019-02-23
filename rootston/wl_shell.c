@@ -93,6 +93,12 @@ static void destroy(struct roots_view *view) {
 	free(roots_surface);
 }
 
+static const struct roots_view_interface view_impl = {
+	.resize = resize,
+	.close = close,
+	.destroy = destroy,
+};
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_wl_shell_surface *roots_surface =
 		wl_container_of(listener, roots_surface, request_move);
@@ -251,7 +257,7 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 	roots_surface->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->surface->events.commit, &roots_surface->surface_commit);
 
-	struct roots_view *view = view_create(desktop);
+	struct roots_view *view = view_create(desktop, &view_impl);
 	if (!view) {
 		free(roots_surface);
 		return;
@@ -262,9 +268,6 @@ void handle_wl_shell_surface(struct wl_listener *listener, void *data) {
 
 	view->wl_shell_surface = surface;
 	view->roots_wl_shell_surface = roots_surface;
-	view->resize = resize;
-	view->close = close;
-	view->destroy = destroy;
 	roots_surface->view = view;
 
 	view_map(view, surface->surface);

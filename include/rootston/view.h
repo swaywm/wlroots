@@ -94,7 +94,20 @@ enum roots_view_type {
 #endif
 };
 
+struct roots_view_interface {
+	void (*activate)(struct roots_view *view, bool active);
+	void (*move)(struct roots_view *view, double x, double y);
+	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
+	void (*move_resize)(struct roots_view *view, double x, double y,
+		uint32_t width, uint32_t height);
+	void (*maximize)(struct roots_view *view, bool maximized);
+	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
+	void (*close)(struct roots_view *view);
+	void (*destroy)(struct roots_view *view);
+};
+
 struct roots_view {
+	const struct roots_view_interface *impl;
 	struct roots_desktop *desktop;
 	struct wl_list link; // roots_desktop::views
 
@@ -153,17 +166,6 @@ struct roots_view {
 		struct wl_signal unmap;
 		struct wl_signal destroy;
 	} events;
-
-	// TODO: this should follow the typical type/impl pattern we use elsewhere
-	void (*activate)(struct roots_view *view, bool active);
-	void (*move)(struct roots_view *view, double x, double y);
-	void (*resize)(struct roots_view *view, uint32_t width, uint32_t height);
-	void (*move_resize)(struct roots_view *view, double x, double y,
-		uint32_t width, uint32_t height);
-	void (*maximize)(struct roots_view *view, bool maximized);
-	void (*set_fullscreen)(struct roots_view *view, bool fullscreen);
-	void (*close)(struct roots_view *view);
-	void (*destroy)(struct roots_view *view);
 };
 
 struct roots_view_child {
@@ -219,6 +221,19 @@ struct roots_xdg_toplevel_decoration {
 	struct wl_listener surface_commit;
 };
 
+struct roots_view *view_create(struct roots_desktop *desktop,
+	const struct roots_view_interface *impl);
+void view_destroy(struct roots_view *view);
+void view_activate(struct roots_view *view, bool activate);
+void view_apply_damage(struct roots_view *view);
+void view_damage_whole(struct roots_view *view);
+void view_update_position(struct roots_view *view, int x, int y);
+void view_update_size(struct roots_view *view, int width, int height);
+void view_update_decorated(struct roots_view *view, bool decorated);
+void view_initial_focus(struct roots_view *view);
+void view_map(struct roots_view *view, struct wlr_surface *surface);
+void view_unmap(struct roots_view *view);
+void view_arrange_maximized(struct roots_view *view);
 void view_get_box(const struct roots_view *view, struct wlr_box *box);
 void view_activate(struct roots_view *view, bool active);
 void view_move(struct roots_view *view, double x, double y);

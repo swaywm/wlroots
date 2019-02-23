@@ -271,6 +271,16 @@ static void destroy(struct roots_view *view) {
 	free(roots_xdg_surface);
 }
 
+static const struct roots_view_interface view_impl = {
+	.activate = activate,
+	.resize = resize,
+	.move_resize = move_resize,
+	.maximize = maximize,
+	.set_fullscreen = set_fullscreen,
+	.close = close,
+	.destroy = destroy,
+};
+
 static void handle_request_move(struct wl_listener *listener, void *data) {
 	struct roots_xdg_surface *roots_xdg_surface =
 		wl_container_of(listener, roots_xdg_surface, request_move);
@@ -470,7 +480,7 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.new_popup, &roots_surface->new_popup);
 	surface->data = roots_surface;
 
-	struct roots_view *view = view_create(desktop);
+	struct roots_view *view = view_create(desktop, &view_impl);
 	if (!view) {
 		free(roots_surface);
 		return;
@@ -479,13 +489,6 @@ void handle_xdg_shell_surface(struct wl_listener *listener, void *data) {
 
 	view->xdg_surface = surface;
 	view->roots_xdg_surface = roots_surface;
-	view->activate = activate;
-	view->resize = resize;
-	view->move_resize = move_resize;
-	view->maximize = maximize;
-	view->set_fullscreen = set_fullscreen;
-	view->close = close;
-	view->destroy = destroy;
 	roots_surface->view = view;
 
 	if (surface->toplevel->client_pending.maximized) {

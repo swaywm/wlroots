@@ -121,6 +121,17 @@ static void destroy(struct roots_view *view) {
 	free(roots_surface);
 }
 
+static const struct roots_view_interface view_impl = {
+	.activate = activate,
+	.resize = resize,
+	.move = move,
+	.move_resize = move_resize,
+	.maximize = maximize,
+	.set_fullscreen = set_fullscreen,
+	.close = close,
+	.destroy = destroy,
+};
+
 static void handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xwayland_surface *roots_surface =
 		wl_container_of(listener, roots_surface, destroy);
@@ -328,7 +339,7 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->events.set_class,
 			&roots_surface->set_class);
 
-	struct roots_view *view = view_create(desktop);
+	struct roots_view *view = view_create(desktop, &view_impl);
 	if (view == NULL) {
 		free(roots_surface);
 		return;
@@ -339,13 +350,5 @@ void handle_xwayland_surface(struct wl_listener *listener, void *data) {
 
 	view->xwayland_surface = surface;
 	view->roots_xwayland_surface = roots_surface;
-	view->activate = activate;
-	view->resize = resize;
-	view->move = move;
-	view->move_resize = move_resize;
-	view->maximize = maximize;
-	view->set_fullscreen = set_fullscreen;
-	view->close = close;
-	view->destroy = destroy;
 	roots_surface->view = view;
 }
