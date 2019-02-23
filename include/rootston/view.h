@@ -94,6 +94,8 @@ enum roots_view_type {
 #endif
 };
 
+struct roots_view;
+
 struct roots_view_interface {
 	void (*activate)(struct roots_view *view, bool active);
 	void (*move)(struct roots_view *view, double x, double y);
@@ -168,15 +170,20 @@ struct roots_view {
 	} events;
 };
 
+struct roots_view_child;
+
+struct roots_view_child_interface {
+	void (*destroy)(struct roots_view_child *child);
+};
+
 struct roots_view_child {
 	struct roots_view *view;
+	const struct roots_view_child_interface *impl;
 	struct wlr_surface *wlr_surface;
 	struct wl_list link;
 
 	struct wl_listener commit;
 	struct wl_listener new_subsurface;
-
-	void (*destroy)(struct roots_view_child *child);
 };
 
 struct roots_subsurface {
@@ -267,9 +274,10 @@ enum roots_deco_part {
 
 enum roots_deco_part view_get_deco_part(struct roots_view *view, double sx, double sy);
 
-void view_child_init(struct roots_view_child *child, struct roots_view *view,
+void view_child_init(struct roots_view_child *child,
+	const struct roots_view_child_interface *impl, struct roots_view *view,
 	struct wlr_surface *wlr_surface);
-void view_child_finish(struct roots_view_child *child);
+void view_child_destroy(struct roots_view_child *child);
 
 struct roots_subsurface *subsurface_create(struct roots_view *view,
 	struct wlr_subsurface *wlr_subsurface);

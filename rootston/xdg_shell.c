@@ -11,24 +11,26 @@
 #include "rootston/input.h"
 #include "rootston/server.h"
 
+static const struct roots_view_child_interface popup_impl;
+
 static void popup_destroy(struct roots_view_child *child) {
-	assert(child->destroy == popup_destroy);
+	assert(child->impl == &popup_impl);
 	struct roots_xdg_popup *popup = (struct roots_xdg_popup *)child;
-	if (popup == NULL) {
-		return;
-	}
 	wl_list_remove(&popup->destroy.link);
 	wl_list_remove(&popup->new_popup.link);
 	wl_list_remove(&popup->map.link);
 	wl_list_remove(&popup->unmap.link);
-	view_child_finish(&popup->view_child);
 	free(popup);
 }
+
+static const struct roots_view_child_interface popup_impl = {
+	.destroy = popup_destroy,
+};
 
 static void popup_handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_xdg_popup *popup =
 		wl_container_of(listener, popup, destroy);
-	popup_destroy((struct roots_view_child *)popup);
+	view_child_destroy(&popup->view_child);
 }
 
 static void popup_handle_map(struct wl_listener *listener, void *data) {
@@ -113,8 +115,8 @@ static struct roots_xdg_popup *popup_create(struct roots_view *view,
 		return NULL;
 	}
 	popup->wlr_popup = wlr_popup;
-	popup->view_child.destroy = popup_destroy;
-	view_child_init(&popup->view_child, view, wlr_popup->base->surface);
+	view_child_init(&popup->view_child, &popup_impl,
+		view, wlr_popup->base->surface);
 	popup->destroy.notify = popup_handle_destroy;
 	wl_signal_add(&wlr_popup->base->events.destroy, &popup->destroy);
 	popup->map.notify = popup_handle_map;
