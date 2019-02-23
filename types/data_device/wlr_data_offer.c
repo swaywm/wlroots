@@ -111,20 +111,6 @@ static void data_offer_dnd_finish(struct wlr_data_offer *offer) {
 
 static void data_offer_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
-	struct wlr_data_offer *offer = data_offer_from_resource(resource);
-	if (offer == NULL) {
-		goto out;
-	}
-
-	// If the drag destination has version < 3, wl_data_offer.finish
-	// won't be called, so do this here as a safety net, because
-	// we still want the version >= 3 drag source to be happy.
-	if (wl_resource_get_version(offer->resource) <
-			WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-		data_offer_dnd_finish(offer);
-	}
-
-out:
 	wl_resource_destroy(resource);
 }
 
@@ -132,6 +118,27 @@ static void data_offer_handle_finish(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_data_offer *offer = data_offer_from_resource(resource);
 	if (offer == NULL) {
+		return;
+	}
+
+	// TODO: also fail while we have a drag-and-drop grab
+	if (offer->type != WLR_DATA_OFFER_DRAG) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH, "Offer is not drag-and-drop");
+		return;
+	}
+	if (!offer->source->accepted) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH, "Premature finish request");
+		return;
+	}
+	enum wl_data_device_manager_dnd_action action =
+		offer->source->current_dnd_action;
+	if (action == WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE ||
+			action == WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK) {
+		wl_resource_post_error(offer->resource,
+			WL_DATA_OFFER_ERROR_INVALID_FINISH,
+			"Offer finished with an invalid action");
 		return;
 	}
 
@@ -183,6 +190,18 @@ void data_offer_destroy(struct wlr_data_offer *offer) {
 	wl_list_remove(&offer->source_destroy.link);
 	wl_list_remove(&offer->link);
 
+	if (offer->type == WLR_DATA_OFFER_DRAG) {
+		// If the drag destination has version < 3, wl_data_offer.finish
+		// won't be called, so do this here as a safety net, because
+		// we still want the version >= 3 drag source to be happy.
+		if (wl_resource_get_version(offer->resource) <
+				WL_DATA_OFFER_ACTION_SINCE_VERSION) {
+			data_offer_dnd_finish(offer);
+		} else if (offer->source && offer->source->impl->dnd_finish) {
+			wlr_data_source_destroy(offer->source);
+		}
+	}
+
 	// Make the resource inert
 	wl_resource_set_user_data(offer->resource, NULL);
 
@@ -206,6 +225,8 @@ static void data_offer_handle_source_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_data_offer *offer =
 		wl_container_of(listener, offer, source_destroy);
+	// Prevent data_offer_destroy from destroying the source again
+	offer->source = NULL;
 	data_offer_destroy(offer);
 }
 

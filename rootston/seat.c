@@ -603,10 +603,38 @@ static void roots_drag_icon_handle_destroy(struct wl_listener *listener,
 	free(icon);
 }
 
-static void roots_seat_handle_new_drag_icon(struct wl_listener *listener,
+static void roots_seat_handle_request_start_drag(struct wl_listener *listener,
 		void *data) {
-	struct roots_seat *seat = wl_container_of(listener, seat, new_drag_icon);
-	struct wlr_drag_icon *wlr_drag_icon = data;
+	struct roots_seat *seat =
+		wl_container_of(listener, seat, request_start_drag);
+	struct wlr_seat_request_start_drag_event *event = data;
+
+	if (wlr_seat_validate_pointer_grab_serial(seat->seat,
+			event->origin, event->serial)) {
+		wlr_seat_start_pointer_drag(seat->seat, event->drag, event->serial);
+		return;
+	}
+
+	struct wlr_touch_point *point;
+	if (wlr_seat_validate_touch_grab_serial(seat->seat,
+			event->origin, event->serial, &point)) {
+		wlr_seat_start_touch_drag(seat->seat, event->drag, event->serial, point);
+		return;
+	}
+
+	wlr_log(WLR_DEBUG, "Ignoring start_drag request: "
+		"could not validate pointer or touch serial %" PRIu32, event->serial);
+	wlr_data_source_destroy(event->drag->source);
+}
+
+static void roots_seat_handle_start_drag(struct wl_listener *listener,
+		void *data) {
+	struct roots_seat *seat = wl_container_of(listener, seat, start_drag);
+	struct wlr_drag *wlr_drag = data;
+	struct wlr_drag_icon *wlr_drag_icon = wlr_drag->icon;
+	if (wlr_drag_icon == NULL) {
+		return;
+	}
 
 	struct roots_drag_icon *icon = calloc(1, sizeof(struct roots_drag_icon));
 	if (icon == NULL) {
@@ -649,20 +677,27 @@ static void roots_seat_handle_request_set_primary_selection(
 void roots_drag_icon_update_position(struct roots_drag_icon *icon) {
 	roots_drag_icon_damage_whole(icon);
 
-	struct wlr_drag_icon *wlr_icon = icon->wlr_drag_icon;
 	struct roots_seat *seat = icon->seat;
-	struct wlr_cursor *cursor = seat->cursor->cursor;
-	if (wlr_icon->is_pointer) {
+	struct wlr_drag *wlr_drag = icon->wlr_drag_icon->drag;
+	assert(wlr_drag != NULL);
+
+	switch (seat->seat->drag->grab_type) {
+	case WLR_DRAG_GRAB_KEYBOARD:
+		assert(false);
+	case WLR_DRAG_GRAB_KEYBOARD_POINTER:;
+		struct wlr_cursor *cursor = seat->cursor->cursor;
 		icon->x = cursor->x;
 		icon->y = cursor->y;
-	} else {
+		break;
+	case WLR_DRAG_GRAB_KEYBOARD_TOUCH:;
 		struct wlr_touch_point *point =
-			wlr_seat_touch_get_point(seat->seat, wlr_icon->touch_id);
+			wlr_seat_touch_get_point(seat->seat, wlr_drag->touch_id);
 		if (point == NULL) {
 			return;
 		}
 		icon->x = seat->touch_x;
 		icon->y = seat->touch_y;
+		break;
 	}
 
 	roots_drag_icon_damage_whole(icon);
@@ -738,8 +773,11 @@ struct roots_seat *roots_seat_create(struct roots_input *input, char *name) {
 		roots_seat_handle_request_set_primary_selection;
 	wl_signal_add(&seat->seat->events.request_set_primary_selection,
 		&seat->request_set_primary_selection);
-	seat->new_drag_icon.notify = roots_seat_handle_new_drag_icon;
-	wl_signal_add(&seat->seat->events.new_drag_icon, &seat->new_drag_icon);
+	seat->request_start_drag.notify = roots_seat_handle_request_start_drag;
+	wl_signal_add(&seat->seat->events.request_start_drag,
+		&seat->request_start_drag);
+	seat->start_drag.notify = roots_seat_handle_start_drag;
+	wl_signal_add(&seat->seat->events.start_drag, &seat->start_drag);
 	seat->destroy.notify = roots_seat_handle_destroy;
 	wl_signal_add(&seat->seat->events.destroy, &seat->destroy);
 

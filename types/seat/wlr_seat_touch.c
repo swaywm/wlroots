@@ -359,3 +359,24 @@ void seat_client_destroy_touch(struct wl_resource *resource) {
 	}
 	wl_resource_set_user_data(resource, NULL);
 }
+
+bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
+		struct wlr_surface *origin, uint32_t serial,
+		struct wlr_touch_point **point_ptr) {
+	if (wlr_seat_touch_num_points(seat) != 1 ||
+			seat->touch_state.grab_serial != serial) {
+		return false;
+	}
+
+	struct wlr_touch_point *point;
+	wl_list_for_each(point, &seat->touch_state.touch_points, link) {
+		if (origin == NULL || point->surface == origin) {
+			if (point_ptr != NULL) {
+				*point_ptr = point;
+			}
+			return true;
+		}
+	}
+
+	return false;
+}

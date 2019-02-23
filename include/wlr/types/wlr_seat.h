@@ -191,7 +191,6 @@ struct wlr_seat {
 	struct wl_global *global;
 	struct wl_display *display;
 	struct wl_list clients;
-	struct wl_list drag_icons; // wlr_drag_icon::link
 
 	char *name;
 	uint32_t capabilities;
@@ -239,8 +238,9 @@ struct wlr_seat {
 		struct wl_signal request_set_primary_selection;
 		struct wl_signal set_primary_selection;
 
+		// wlr_seat_request_start_drag_event
+		struct wl_signal request_start_drag;
 		struct wl_signal start_drag; // wlr_drag
-		struct wl_signal new_drag_icon; // wlr_drag_icon
 
 		struct wl_signal destroy;
 	} events;
@@ -262,6 +262,12 @@ struct wlr_seat_request_set_selection_event {
 
 struct wlr_seat_request_set_primary_selection_event {
 	struct wlr_primary_selection_source *source;
+	uint32_t serial;
+};
+
+struct wlr_seat_request_start_drag_event {
+	struct wlr_drag *drag;
+	struct wlr_surface *origin;
 	uint32_t serial;
 };
 
@@ -597,9 +603,30 @@ bool wlr_seat_touch_has_grab(struct wlr_seat *seat);
  */
 bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
 
+/**
+ * Check whether this serial is valid to start a pointer grab action.
+ */
+bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
+	struct wlr_surface *origin, uint32_t serial);
+
+/**
+ * Check whether this serial is valid to start a touch grab action. If it's the
+ * case and point_ptr is non-NULL, *point_ptr is set to the touch point matching
+ * the serial.
+ */
+bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
+	struct wlr_surface *origin, uint32_t serial,
+	struct wlr_touch_point **point_ptr);
+
+/**
+ * Get a seat client from a seat resource. Returns NULL if inert.
+ */
 struct wlr_seat_client *wlr_seat_client_from_resource(
 	struct wl_resource *resource);
 
+/**
+ * Get a seat client from a pointer resource. Returns NULL if inert.
+ */
 struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
 	struct wl_resource *resource);
 

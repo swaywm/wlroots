@@ -402,3 +402,17 @@ void seat_client_destroy_pointer(struct wl_resource *resource) {
 	}
 	wl_resource_set_user_data(resource, NULL);
 }
+
+bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
+		struct wlr_surface *origin, uint32_t serial) {
+	if (seat->pointer_state.button_count != 1 ||
+			seat->pointer_state.grab_serial != serial) {
+		return false;
+	}
+
+	if (origin != NULL && seat->pointer_state.focused_surface != origin) {
+		return false;
+	}
+
+	return true;
+}

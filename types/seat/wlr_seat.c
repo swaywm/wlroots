@@ -266,12 +266,11 @@ struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name) {
 	seat->display = display;
 	seat->name = strdup(name);
 	wl_list_init(&seat->clients);
-	wl_list_init(&seat->drag_icons);
 	wl_list_init(&seat->selection_offers);
 	wl_list_init(&seat->drag_offers);
 
+	wl_signal_init(&seat->events.request_start_drag);
 	wl_signal_init(&seat->events.start_drag);
-	wl_signal_init(&seat->events.new_drag_icon);
 
 	wl_signal_init(&seat->events.request_set_cursor);
 
