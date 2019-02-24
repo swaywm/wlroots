@@ -96,7 +96,7 @@ static void data_offer_handle_receive(struct wl_client *client,
 	wlr_data_source_send(offer->source, mime_type, fd);
 }
 
-static void data_offer_dnd_finish(struct wlr_data_offer *offer) {
+static void data_offer_source_dnd_finish(struct wlr_data_offer *offer) {
 	struct wlr_data_source *source = offer->source;
 	if (source->actions < 0) {
 		return;
@@ -142,7 +142,7 @@ static void data_offer_handle_finish(struct wl_client *client,
 		return;
 	}
 
-	data_offer_dnd_finish(offer);
+	data_offer_source_dnd_finish(offer);
 	data_offer_destroy(offer);
 }
 
@@ -190,14 +190,14 @@ void data_offer_destroy(struct wlr_data_offer *offer) {
 	wl_list_remove(&offer->source_destroy.link);
 	wl_list_remove(&offer->link);
 
-	if (offer->type == WLR_DATA_OFFER_DRAG) {
+	if (offer->type == WLR_DATA_OFFER_DRAG && offer->source) {
 		// If the drag destination has version < 3, wl_data_offer.finish
 		// won't be called, so do this here as a safety net, because
 		// we still want the version >= 3 drag source to be happy.
 		if (wl_resource_get_version(offer->resource) <
 				WL_DATA_OFFER_ACTION_SINCE_VERSION) {
-			data_offer_dnd_finish(offer);
-		} else if (offer->source && offer->source->impl->dnd_finish) {
+			data_offer_source_dnd_finish(offer);
+		} else if (offer->source->impl->dnd_finish) {
 			wlr_data_source_destroy(offer->source);
 		}
 	}
