@@ -16,7 +16,7 @@ packages:
 - x11/libxcb
 - x11/libxkbcommon
 - x11/pixman
-# - x11/xcb-util-errors # too recent, not in /quarterly
+- x11/xcb-util-errors
 - x11/xcb-util-wm
 sources:
 - https://github.com/swaywm/wlroots
