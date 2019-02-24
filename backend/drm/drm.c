@@ -1380,6 +1380,7 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 
 		drmModeSetCrtc(drm->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
 			&conn->id, 1, &crtc->mode);
+		drmModeSetCursor(drm->fd, crtc->crtc_id, 0, 0, 0);
 	}
 }
 
