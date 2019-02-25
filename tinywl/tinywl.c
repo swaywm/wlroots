@@ -264,6 +264,8 @@ static void server_new_input(struct wl_listener *listener, void *data) {
 	case WLR_INPUT_DEVICE_POINTER:
 		server_new_pointer(server, device);
 		break;
+	default:
+		break;
 	}
 	/* We need to let the wlr_seat know what our capabilities are, which is
 	 * communiciated to the client. In TinyWL we always have a cursor, even if
