@@ -298,12 +298,12 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 
 		if (memcmp(&old_geo, &layer->geo, sizeof(struct wlr_box)) != 0) {
 			output_damage_whole_local_surface(output, layer_surface->surface,
-					old_geo.x, old_geo.y, 0);
+					old_geo.x, old_geo.y);
 			output_damage_whole_local_surface(output, layer_surface->surface,
-					layer->geo.x, layer->geo.y, 0);
+					layer->geo.x, layer->geo.y);
 		} else {
 			output_damage_from_local_surface(output, layer_surface->surface,
-					layer->geo.x, layer->geo.y, 0);
+					layer->geo.x, layer->geo.y);
 		}
 	}
 }
@@ -314,7 +314,7 @@ static void unmap(struct wlr_layer_surface_v1 *layer_surface) {
 	if (wlr_output != NULL) {
 		struct roots_output *output = wlr_output->data;
 		output_damage_whole_local_surface(output, layer_surface->surface,
-			layer->geo.x, layer->geo.y, 0);
+			layer->geo.x, layer->geo.y);
 	}
 }
 
@@ -342,7 +342,7 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = layer_surface->output;
 	struct roots_output *output = wlr_output->data;
 	output_damage_whole_local_surface(output, layer_surface->surface,
-		layer->geo.x, layer->geo.y, 0);
+		layer->geo.x, layer->geo.y);
 	wlr_surface_send_enter(layer_surface->surface, wlr_output);
 }
 
@@ -363,7 +363,7 @@ static void popup_handle_map(struct wl_listener *listener, void *data) {
 	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
 	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
 	output_damage_whole_local_surface(output, popup->wlr_popup->base->surface,
-		ox, oy, 0);
+		ox, oy);
 	input_update_cursor_focus(output->desktop->server->input);
 }
 
@@ -375,7 +375,7 @@ static void popup_handle_unmap(struct wl_listener *listener, void *data) {
 	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
 	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
 	output_damage_whole_local_surface(output, popup->wlr_popup->base->surface,
-		ox, oy, 0);
+		ox, oy);
 }
 
 static void popup_handle_commit(struct wl_listener *listener, void *data) {
@@ -386,7 +386,7 @@ static void popup_handle_commit(struct wl_listener *listener, void *data) {
 	int ox = popup->wlr_popup->geometry.x + layer->geo.x;
 	int oy = popup->wlr_popup->geometry.y + layer->geo.y;
 	output_damage_from_local_surface(output, popup->wlr_popup->base->surface,
-		ox, oy, 0);
+		ox, oy);
 }
 
 static void popup_handle_destroy(struct wl_listener *listener, void *data) {

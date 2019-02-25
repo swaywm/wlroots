@@ -29,8 +29,26 @@ struct roots_output {
 	struct wl_listener damage_destroy;
 };
 
+typedef void (*roots_surface_iterator_func_t)(struct roots_output *output,
+	struct wlr_surface *surface, struct wlr_box *box, float rotation,
+	void *user_data);
+
 void rotate_child_position(double *sx, double *sy, double sw, double sh,
 	double pw, double ph, float rotation);
+
+struct roots_input;
+
+void output_surface_for_each_surface(struct roots_output *output,
+	struct wlr_surface *surface, double ox, double oy,
+	roots_surface_iterator_func_t iterator, void *user_data);
+void output_view_for_each_surface(struct roots_output *output,
+	struct roots_view *view, roots_surface_iterator_func_t iterator,
+	void *user_data);
+void output_drag_icons_for_each_surface(struct roots_output *output,
+	struct roots_input *input, roots_surface_iterator_func_t iterator,
+	void *user_data);
+void output_for_each_surface(struct roots_output *output,
+	roots_surface_iterator_func_t iterator, void *user_data);
 
 void handle_new_output(struct wl_listener *listener, void *data);
 
@@ -45,8 +63,8 @@ void output_damage_from_view(struct roots_output *output,
 void output_damage_whole_drag_icon(struct roots_output *output,
 	struct roots_drag_icon *icon);
 void output_damage_from_local_surface(struct roots_output *output,
-	struct wlr_surface *surface, double ox, double oy, float rotation);
+	struct wlr_surface *surface, double ox, double oy);
 void output_damage_whole_local_surface(struct roots_output *output,
-	struct wlr_surface *surface, double ox, double oy, float rotation);
+	struct wlr_surface *surface, double ox, double oy);
 
 #endif
