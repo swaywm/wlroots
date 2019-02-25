@@ -559,6 +559,15 @@ void view_damage_whole(struct roots_view *view) {
 	}
 }
 
+void view_for_each_surface(struct roots_view *view,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	if (view->impl->for_each_surface) {
+		view->impl->for_each_surface(view, iterator, user_data);
+	} else if (view->wlr_surface) {
+		wlr_surface_for_each_surface(view->wlr_surface, iterator, user_data);
+	}
+}
+
 void view_update_position(struct roots_view *view, int x, int y) {
 	if (view->box.x == x && view->box.y == y) {
 		return;

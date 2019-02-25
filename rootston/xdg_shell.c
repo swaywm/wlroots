@@ -256,6 +256,13 @@ static void close(struct roots_view *view) {
 	wlr_xdg_toplevel_send_close(xdg_surface);
 }
 
+static void for_each_surface(struct roots_view *view,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct wlr_xdg_surface *xdg_surface =
+		roots_xdg_surface_from_view(view)->xdg_surface;
+	wlr_xdg_surface_for_each_surface(xdg_surface, iterator, user_data);
+}
+
 static void destroy(struct roots_view *view) {
 	struct roots_xdg_surface *roots_xdg_surface =
 		roots_xdg_surface_from_view(view);
@@ -281,6 +288,7 @@ static const struct roots_view_interface view_impl = {
 	.maximize = maximize,
 	.set_fullscreen = set_fullscreen,
 	.close = close,
+	.for_each_surface = for_each_surface,
 	.destroy = destroy,
 };
 

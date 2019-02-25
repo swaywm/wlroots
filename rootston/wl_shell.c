@@ -80,6 +80,13 @@ static void close(struct roots_view *view) {
 	wl_client_destroy(surf->client);
 }
 
+static void for_each_surface(struct roots_view *view,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct wlr_wl_shell_surface *surf =
+		roots_wl_shell_surface_from_view(view)->wl_shell_surface;
+	wlr_wl_shell_surface_for_each_surface(surf, iterator, user_data);
+}
+
 static void destroy(struct roots_view *view) {
 	struct roots_wl_shell_surface *roots_surface =
 		roots_wl_shell_surface_from_view(view);
@@ -98,6 +105,7 @@ static void destroy(struct roots_view *view) {
 static const struct roots_view_interface view_impl = {
 	.resize = resize,
 	.close = close,
+	.for_each_surface = for_each_surface,
 	.destroy = destroy,
 };
 
