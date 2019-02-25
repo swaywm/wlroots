@@ -164,7 +164,7 @@ static bool parse_modeline(const char *s, drmModeModeInfo *mode) {
 	return true;
 }
 
-void add_binding_config(struct wl_list *bindings, const char* combination,
+static void add_binding_config(struct wl_list *bindings, const char* combination,
 		const char* command) {
 	struct roots_binding_config *bc =
 		calloc(1, sizeof(struct roots_binding_config));
@@ -201,7 +201,7 @@ void add_binding_config(struct wl_list *bindings, const char* combination,
 	}
 }
 
-void add_switch_config(struct wl_list *switches, const char *switch_name,
+static void add_switch_config(struct wl_list *switches, const char *switch_name,
 		const char *action, const char *command) {
 	struct roots_switch_config *sc =
 		calloc(1, sizeof(struct roots_switch_config));
