@@ -243,9 +243,6 @@ struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
 struct wlr_xdg_surface *wlr_xdg_surface_from_toplevel_resource(
 		struct wl_resource *resource);
 
-struct wlr_box wlr_xdg_positioner_get_geometry(
-		struct wlr_xdg_positioner *positioner);
-
 /**
  * Send a ping to the surface. If the surface does not respond in a reasonable
  * amount of time, the ping_timeout event will be emitted.
