@@ -73,7 +73,7 @@ struct wlr_cursor {
 	void *data;
 };
 
-struct wlr_cursor *wlr_cursor_create();
+struct wlr_cursor *wlr_cursor_create(void);
 
 void wlr_cursor_destroy(struct wlr_cursor *cur);
 
