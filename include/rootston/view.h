@@ -222,7 +222,6 @@ struct roots_xdg_toplevel_decoration {
 void view_init(struct roots_view *view, const struct roots_view_interface *impl,
 	enum roots_view_type type, struct roots_desktop *desktop);
 void view_destroy(struct roots_view *view);
-void view_activate(struct roots_view *view, bool activate);
 void view_apply_damage(struct roots_view *view);
 void view_damage_whole(struct roots_view *view);
 void view_update_position(struct roots_view *view, int x, int y);
