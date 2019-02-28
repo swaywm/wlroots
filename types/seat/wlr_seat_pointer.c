@@ -346,7 +346,11 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		}
 		wlr_seat->pointer_state.button_count++;
 	} else {
-		wlr_seat->pointer_state.button_count--;
+		if (wlr_seat->pointer_state.button_count == 0) {
+			wlr_log(WLR_ERROR, "Corrupted seat button count");
+		} else {
+			wlr_seat->pointer_state.button_count--;
+		}
 	}
 
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
