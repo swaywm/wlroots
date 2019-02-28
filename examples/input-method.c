@@ -176,7 +176,7 @@ static void timer_arm(unsigned seconds) {
 	}
 }
 
-static void do_updates() {
+static void do_updates(void) {
 	printf("Update %d\n", update_stage);
 	switch (update_stage) {
 	case 0:
@@ -240,7 +240,7 @@ static void do_updates() {
 	};
 }
 
-static void handle_timer() {
+static void handle_timer(void) {
 	printf("Timer dispatched at %d\n", update_stage);
 	do_updates();
 }

@@ -14,11 +14,11 @@
 #include <wlr/util/log.h>
 #include "sockets.h"
 
-static const char *lock_fmt = "/tmp/.X%d-lock";
-static const char *socket_dir = "/tmp/.X11-unix";
-static const char *socket_fmt = "/tmp/.X11-unix/X%d";
+static const char lock_fmt[] = "/tmp/.X%d-lock";
+static const char socket_dir[] = "/tmp/.X11-unix";
+static const char socket_fmt[] = "/tmp/.X11-unix/X%d";
 #ifndef __linux__
-static const char *socket_fmt2 = "/tmp/.X11-unix/X%d_";
+static const char socket_fmt2[] = "/tmp/.X11-unix/X%d_";
 #endif
 
 bool set_cloexec(int fd, bool cloexec) {

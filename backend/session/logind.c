@@ -440,7 +440,7 @@ static bool add_signal_matches(struct logind_session *session) {
 	int ret;
 
 	char str[256];
-	const char *fmt = "type='signal',"
+	const char fmt[] = "type='signal',"
 		"sender='org.freedesktop.login1',"
 		"interface='org.freedesktop.login1.%s',"
 		"member='%s',"
