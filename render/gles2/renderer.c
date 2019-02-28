@@ -312,7 +312,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	glGetError(); // Clear the error flag
 
-	unsigned char *p = data + dst_y * stride;
+	unsigned char *p = (unsigned char *)data + dst_y * stride;
 	uint32_t pack_stride = width * fmt->bpp / 8;
 	if (pack_stride == stride && dst_x == 0 && flags != NULL) {
 		// Under these particular conditions, we can read the pixels with only

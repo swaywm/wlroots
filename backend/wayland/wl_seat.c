@@ -194,7 +194,7 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 	// TODO: set keymap
 }
 
-static uint32_t get_current_time_msec() {
+static uint32_t get_current_time_msec(void) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	return now.tv_nsec / 1000;

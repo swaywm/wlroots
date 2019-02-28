@@ -102,7 +102,7 @@ static size_t utf8_offset(char *utf8_str, size_t byte_offset) {
 }
 
 // TODO: would be nicer to have this text display inside the window
-static void show_status() {
+static void show_status(void) {
 	printf("State %d:", serial);
 	if (!enabled) {
 		printf(" disabled");
