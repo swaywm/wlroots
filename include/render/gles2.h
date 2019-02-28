@@ -16,8 +16,6 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
 
-extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-
 struct wlr_gles2_pixel_format {
 	enum wl_shm_format wl_format;
 	GLint gl_format, gl_type;
