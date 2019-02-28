@@ -47,7 +47,7 @@ struct wlr_output_layout_output {
  * physical space relative to one another, and perform various useful operations
  * on that state.
  */
-struct wlr_output_layout *wlr_output_layout_create();
+struct wlr_output_layout *wlr_output_layout_create(void);
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);
 
