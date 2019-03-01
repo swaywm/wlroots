@@ -61,11 +61,11 @@ struct wlr_seat_pointer_grab;
 struct wlr_pointer_grab_interface {
 	void (*enter)(struct wlr_seat_pointer_grab *grab,
 			struct wlr_surface *surface, double sx, double sy);
-	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			double sx, double sy);
-	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time,
-			uint32_t button, uint32_t state);
-	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time,
+	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
+			uint32_t button, enum wlr_button_state state);
+	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			enum wlr_axis_orientation orientation, double value,
 			int32_t value_discrete, enum wlr_axis_source source);
 	void (*frame)(struct wlr_seat_pointer_grab *grab);
@@ -78,7 +78,7 @@ struct wlr_keyboard_grab_interface {
 	void (*enter)(struct wlr_seat_keyboard_grab *grab,
 			struct wlr_surface *surface, uint32_t keycodes[],
 			size_t num_keycodes, struct wlr_keyboard_modifiers *modifiers);
-	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time,
+	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec,
 			uint32_t key, uint32_t state);
 	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
 			struct wlr_keyboard_modifiers *modifiers);
@@ -88,13 +88,13 @@ struct wlr_keyboard_grab_interface {
 struct wlr_seat_touch_grab;
 
 struct wlr_touch_grab_interface {
-	uint32_t (*down)(struct wlr_seat_touch_grab *grab, uint32_t time,
+	uint32_t (*down)(struct wlr_seat_touch_grab *grab, uint32_t time_msec,
 			struct wlr_touch_point *point);
-	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time,
+	void (*up)(struct wlr_seat_touch_grab *grab, uint32_t time_msec,
 			struct wlr_touch_point *point);
-	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time,
+	void (*motion)(struct wlr_seat_touch_grab *grab, uint32_t time_msec,
 			struct wlr_touch_point *point);
-	void (*enter)(struct wlr_seat_touch_grab *grab, uint32_t time,
+	void (*enter)(struct wlr_seat_touch_grab *grab, uint32_t time_msec,
 			struct wlr_touch_point *point);
 	// XXX this will conflict with the actual touch cancel which is different so
 	// we need to rename this
@@ -335,7 +335,7 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
  * `wlr_seat_pointer_notify_motion()` to send motion events to respect pointer
  * grabs.
  */
-void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
+void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		double sx, double sy);
 
 /**
@@ -344,15 +344,15 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
  * `wlr_seat_pointer_notify_button()` to send button events to respect pointer
  * grabs.
  */
-uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
-		uint32_t button, uint32_t state);
+uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat,
+		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
 
 /**
  * Send an axis event to the surface with pointer focus. Compositors should use
  * `wlr_seat_pointer_notify_axis()` to send axis events to respect pointer
  * grabs.
  **/
-void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
+void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		enum wlr_axis_orientation orientation, double value,
 		int32_t value_discrete, enum wlr_axis_source source);
 
@@ -388,20 +388,20 @@ void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
  * Notify the seat of motion over the given surface. Pass surface-local
  * coordinates where the pointer motion occurred.
  */
-void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
-		double sx, double sy);
+void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat,
+		uint32_t time_msec, double sx, double sy);
 
 /**
  * Notify the seat that a button has been pressed. Returns the serial of the
  * button press or zero if no button press was sent.
  */
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
-		uint32_t time, uint32_t button, uint32_t state);
+		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
 
 /**
  * Notify the seat of an axis event.
  */
-void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time,
+void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		enum wlr_axis_orientation orientation, double value,
 		int32_t value_discrete, enum wlr_axis_source source);
 
@@ -444,14 +444,14 @@ void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
  * Send the keyboard key to focused keyboard resources. Compositors should use
  * `wlr_seat_notify_key()` to respect keyboard grabs.
  */
-void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time_msec,
 		uint32_t key, uint32_t state);
 
 /**
  * Notify the seat that a key has been pressed on the keyboard. Defers to any
  * keyboard grabs.
  */
-void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time_msec,
 		uint32_t key, uint32_t state);
 
 /**
@@ -523,14 +523,14 @@ struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
  * the touch device.
  */
 uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
-		double sy);
+		struct wlr_surface *surface, uint32_t time_msec,
+		int32_t touch_id, double sx, double sy);
 
 /**
  * Notify the seat that the touch point given by `touch_id` is up. Defers to any
  * grab of the touch device.
  */
-void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id);
 
 /**
@@ -539,7 +539,7 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time,
  * even if the surface is not the owner of the touch point for processing by
  * grabs.
  */
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
@@ -548,13 +548,13 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
  * `wlr_seat_touch_point_clear_focus()`.
  */
 void wlr_seat_touch_point_focus(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
-		double sy);
+		struct wlr_surface *surface, uint32_t time_msec,
+		int32_t touch_id, double sx, double sy);
 
 /**
  * Clear the focused surface for the touch point given by `touch_id`.
  */
-void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id);
 
 /**
@@ -566,8 +566,8 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
  * `wlr_seat_touch_notify_down()` to respect any grabs of the touch device.
  */
 uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
-		double sy);
+		struct wlr_surface *surface, uint32_t time_msec,
+		int32_t touch_id, double sx, double sy);
 
 /**
  * Send a touch up event for the touch point given by the `touch_id`. The event
@@ -575,7 +575,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
  * event. This will remove the touch point. Compositors should use
  * `wlr_seat_touch_notify_up()` to respect any grabs of the touch device.
  */
-void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id);
 
 /**
@@ -584,7 +584,7 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time,
  * down event. Compositors should use `wlr_seat_touch_notify_motion()` to
  * respect any grabs of the touch device.
  */
-void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time,
+void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
