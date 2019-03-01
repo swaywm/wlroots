@@ -17,6 +17,7 @@
 
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
+extern const struct session_impl session_noop;
 
 static const struct session_impl *impls[] = {
 #if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
@@ -69,16 +70,20 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 
 	const char *env_wlr_session = getenv("WLR_SESSION");
 	if (env_wlr_session) {
-		if (!strcmp(env_wlr_session, "logind") || !strcmp(env_wlr_session, "systemd")) {
-		#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
+		if (strcmp(env_wlr_session, "logind") == 0 ||
+				strcmp(env_wlr_session, "systemd") == 0) {
+#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 			session = session_logind.create(disp);
-		#else
+#else
 			wlr_log(WLR_ERROR, "wlroots is not compiled with logind support");
-		#endif
-		} else if (!strcmp(env_wlr_session, "direct")) {
+#endif
+		} else if (strcmp(env_wlr_session, "direct") == 0) {
 			session = session_direct.create(disp);
+		} else if (strcmp(env_wlr_session, "noop") == 0) {
+			session = session_noop.create(disp);
 		} else {
-			wlr_log(WLR_ERROR, "WLR_SESSION has an invalid value: %s", env_wlr_session);
+			wlr_log(WLR_ERROR, "Unsupported WLR_SESSION: %s",
+				env_wlr_session);
 		}
 	} else {
 		const struct session_impl **iter;
@@ -220,24 +225,23 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 /* Tests if 'path' is KMS compatible by trying to open it.
  * It leaves the open device in *fd_out it it succeeds.
  */
-static int open_if_kms(struct wlr_session *restrict session, const char *restrict path) {
-	int fd;
-
+static int open_if_kms(struct wlr_session *restrict session,
+		const char *restrict path) {
 	if (!path) {
 		return -1;
 	}
 
-	fd = wlr_session_open_file(session, path);
+	int fd = wlr_session_open_file(session, path);
 	if (fd < 0) {
 		return -1;
 	}
 
-	drmModeRes *res = drmModeGetResources(fd);
-	if (!res) {
+	drmVersion *ver = drmGetVersion(fd);
+	if (!ver) {
 		goto out_fd;
 	}
 
-	drmModeFreeResources(res);
+	drmFreeVersion(ver);
 	return fd;
 
 out_fd:

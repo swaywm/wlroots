@@ -23,6 +23,7 @@ backend_files = files(
 	'noop/backend.c',
 	'noop/output.c',
 	'session/direct-ipc.c',
+	'session/noop.c',
 	'session/session.c',
 	'wayland/backend.c',
 	'wayland/output.c',
