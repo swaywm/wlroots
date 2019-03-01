@@ -20,7 +20,7 @@ static void default_pointer_motion(struct wlr_seat_pointer_grab *grab,
 }
 
 static uint32_t default_pointer_button(struct wlr_seat_pointer_grab *grab,
-		uint32_t time, uint32_t button, uint32_t state) {
+		uint32_t time, uint32_t button, enum wlr_button_state state) {
 	return wlr_seat_pointer_send_button(grab->seat, time, button, state);
 }
 
@@ -235,7 +235,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 }
 
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
-		uint32_t button, uint32_t state) {
+		uint32_t button, enum wlr_button_state state) {
 	struct wlr_seat_client *client = wlr_seat->pointer_state.focused_client;
 	if (client == NULL) {
 		return 0;
@@ -337,9 +337,9 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
 }
 
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
-		uint32_t time, uint32_t button, uint32_t state) {
+		uint32_t time, uint32_t button, enum wlr_button_state state) {
 	clock_gettime(CLOCK_MONOTONIC, &wlr_seat->last_event);
-	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+	if (state == WLR_BUTTON_PRESSED) {
 		if (wlr_seat->pointer_state.button_count == 0) {
 			wlr_seat->pointer_state.grab_button = button;
 			wlr_seat->pointer_state.grab_time = time;
