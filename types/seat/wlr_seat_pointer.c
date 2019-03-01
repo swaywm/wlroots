@@ -356,7 +356,8 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	uint32_t serial = grab->interface->button(grab, time, button, state);
 
-	if (serial && wlr_seat->pointer_state.button_count == 1) {
+	if (serial && wlr_seat->pointer_state.button_count == 1 &&
+			state == WL_POINTER_BUTTON_STATE_PRESSED) {
 		wlr_seat->pointer_state.grab_serial = serial;
 	}
 
