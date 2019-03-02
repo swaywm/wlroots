@@ -260,15 +260,19 @@ static void scale_box(struct wlr_box *box, float scale) {
 
 static void render_texture(struct wlr_output *wlr_output,
 		pixman_region32_t *output_damage, struct wlr_texture *texture,
-		const struct wlr_box *box, const float matrix[static 9], float alpha) {
+		const struct wlr_box *box, const float matrix[static 9],
+		float rotation, float alpha) {
 	struct wlr_renderer *renderer =
 		wlr_backend_get_renderer(wlr_output->backend);
 	assert(renderer);
 
+	struct wlr_box rotated;
+	wlr_box_rotated_bounds(&rotated, box, rotation);
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_union_rect(&damage, &damage, box->x, box->y,
-		box->width, box->height);
+	pixman_region32_union_rect(&damage, &damage, rotated.x, rotated.y,
+		rotated.width, rotated.height);
 	pixman_region32_intersect(&damage, &damage, output_damage);
 	bool damaged = pixman_region32_not_empty(&damage);
 	if (!damaged) {
@@ -308,7 +312,8 @@ static void render_surface_iterator(struct roots_output *output,
 	wlr_matrix_project_box(matrix, &box, transform, rotation,
 		wlr_output->transform_matrix);
 
-	render_texture(wlr_output, output_damage, texture, &box, matrix, alpha);
+	render_texture(wlr_output, output_damage,
+		texture, &box, matrix, rotation, alpha);
 }
 
 static void get_decoration_box(struct roots_view *view,
