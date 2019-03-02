@@ -136,22 +136,23 @@ void output_view_for_each_surface(struct roots_output *output,
 	view_for_each_surface(view, output_for_each_surface_iterator, &data);
 }
 
-/*#if WLR_HAS_XWAYLAND
-static void xwayland_children_for_each_surface(
-		struct wlr_xwayland_surface *surface,
-		wlr_surface_iterator_func_t iterator, struct layout_data *layout_data,
-		void *user_data) {
+#if WLR_HAS_XWAYLAND
+static void output_xwayland_children_for_each_surface(
+		struct roots_output *output, struct wlr_xwayland_surface *surface,
+		roots_surface_iterator_func_t iterator, void *user_data) {
 	struct wlr_xwayland_surface *child;
 	wl_list_for_each(child, &surface->children, parent_link) {
 		if (child->mapped) {
-			surface_for_each_surface(child->surface, child->x, child->y, 0,
-				layout_data, iterator, user_data);
+			double ox = child->x - output->wlr_output->lx;
+			double oy = child->y - output->wlr_output->ly;
+			output_surface_for_each_surface(output, child->surface,
+				ox, oy, iterator, user_data);
 		}
-		xwayland_children_for_each_surface(child, iterator, layout_data,
-			user_data);
+		output_xwayland_children_for_each_surface(output, child,
+			iterator, user_data);
 	}
 }
-#endif*/
+#endif
 
 void output_layer_for_each_surface(struct roots_output *output,
 		struct wl_list *layer_surfaces, roots_surface_iterator_func_t iterator,
@@ -192,15 +193,14 @@ void output_for_each_surface(struct roots_output *output,
 
 		output_view_for_each_surface(output, view, iterator, user_data);
 
-/*#if WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
 			struct roots_xwayland_surface *xwayland_surface =
 				roots_xwayland_surface_from_view(view);
-			xwayland_children_for_each_surface(
-				xwayland_surface->xwayland_surface,
-				iterator, layout_data, user_data);
+			output_xwayland_children_for_each_surface(output,
+				xwayland_surface->xwayland_surface, iterator, user_data);
 		}
-#endif*/
+#endif
 	} else {
 		struct roots_view *view;
 		wl_list_for_each_reverse(view, &desktop->views, link) {
@@ -509,15 +509,15 @@ static void render_output(struct roots_output *output) {
 		// During normal rendering the xwayland window tree isn't traversed
 		// because all windows are rendered. Here we only want to render
 		// the fullscreen window's children so we have to traverse the tree.
-/*#if WLR_HAS_XWAYLAND
+#if WLR_HAS_XWAYLAND
 		if (view->type == ROOTS_XWAYLAND_VIEW) {
 			struct roots_xwayland_surface *xwayland_surface =
 				roots_xwayland_surface_from_view(view);
-			xwayland_children_for_each_surface(
+			output_xwayland_children_for_each_surface(output,
 				xwayland_surface->xwayland_surface,
-				render_surface, &data.layout, &data);
+				render_surface_iterator, &data);
 		}
-#endif*/
+#endif
 	} else {
 		// Render all views
 		struct roots_view *view;
