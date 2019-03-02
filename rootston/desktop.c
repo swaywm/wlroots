@@ -382,6 +382,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 			&desktop->xwayland_surface);
 		desktop->xwayland_surface.notify = handle_xwayland_surface;
 
+		setenv("DISPLAY", desktop->xwayland->display_name, true);
+
 		if (wlr_xcursor_manager_load(desktop->xcursor_manager, 1)) {
 			wlr_log(WLR_ERROR, "Cannot load XWayland XCursor theme");
 		}

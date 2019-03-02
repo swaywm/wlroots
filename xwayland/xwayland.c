@@ -165,11 +165,8 @@ static void xwayland_finish_display(struct wlr_xwayland *wlr_xwayland) {
 
 	unlink_display_sockets(wlr_xwayland->display);
 	wlr_xwayland->display = -1;
-	unsetenv("DISPLAY");
+	wlr_xwayland->display_name[0] = '\0';
 }
-
-static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
-	struct wl_display *wl_display);
 
 static bool xwayland_start_server(struct wlr_xwayland *wlr_xwayland);
 static bool xwayland_start_server_lazy(struct wlr_xwayland *wlr_xwayland);
@@ -284,10 +281,8 @@ static bool xwayland_start_display(struct wlr_xwayland *wlr_xwayland,
 		return false;
 	}
 
-	char display_name[16];
-	snprintf(display_name, sizeof(display_name), ":%d", wlr_xwayland->display);
-	setenv("DISPLAY", display_name, true);
-
+	snprintf(wlr_xwayland->display_name, sizeof(wlr_xwayland->display_name),
+		":%d", wlr_xwayland->display);
 	return true;
 }
 
