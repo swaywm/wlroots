@@ -47,6 +47,15 @@ void output_view_for_each_surface(struct roots_output *output,
 void output_drag_icons_for_each_surface(struct roots_output *output,
 	struct roots_input *input, roots_surface_iterator_func_t iterator,
 	void *user_data);
+void output_layer_for_each_surface(struct roots_output *output,
+	struct wl_list *layer_surfaces, roots_surface_iterator_func_t iterator,
+	void *user_data);
+#if WLR_HAS_XWAYLAND
+struct wlr_xwayland_surface;
+void output_xwayland_children_for_each_surface(
+	struct roots_output *output, struct wlr_xwayland_surface *surface,
+	roots_surface_iterator_func_t iterator, void *user_data);
+#endif
 void output_for_each_surface(struct roots_output *output,
 	roots_surface_iterator_func_t iterator, void *user_data);
 
@@ -66,5 +75,11 @@ void output_damage_from_local_surface(struct roots_output *output,
 	struct wlr_surface *surface, double ox, double oy);
 void output_damage_whole_local_surface(struct roots_output *output,
 	struct wlr_surface *surface, double ox, double oy);
+
+void output_render(struct roots_output *output);
+
+void scale_box(struct wlr_box *box, float scale);
+void get_decoration_box(struct roots_view *view,
+	struct roots_output *output, struct wlr_box *box);
 
 #endif
