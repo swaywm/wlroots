@@ -29,13 +29,10 @@ struct wlr_x11_output {
 
 	xcb_window_t win;
 	xcb_present_event_t present_id;
-	EGLSurface surf;
+	uint64_t msc;
 
 	struct wlr_pointer pointer;
 	struct wlr_input_device pointer_dev;
-
-	struct wl_event_source *frame_timer;
-	int frame_delay;
 
 	bool cursor_hidden;
 
@@ -62,8 +59,6 @@ struct wlr_x11_backend {
 	struct wlr_keyboard keyboard;
 	struct wlr_input_device keyboard_dev;
 
-	struct wlr_egl egl;
-	struct wlr_renderer *renderer;
 	int render_fd;
 	struct wlr_format_set formats;
 	struct wl_event_source *event_source;
@@ -100,8 +95,5 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 		xcb_present_generic_event_t *e);
 void update_x11_pointer_position(struct wlr_x11_output *output,
 	xcb_timestamp_t time);
-
-void handle_x11_configure_notify(struct wlr_x11_output *output,
-	xcb_configure_notify_event_t *event);
 
 #endif

@@ -61,7 +61,7 @@ bool wlr_backend_init(struct wlr_backend *backend,
 		EGL_RED_SIZE, 1,
 		EGL_GREEN_SIZE, 1,
 		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
+		//EGL_ALPHA_SIZE, 1,
 		EGL_NONE,
 	};
 
@@ -152,7 +152,6 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display,
 	return backend;
 }
 
-#if 0
 #if WLR_HAS_X11_BACKEND
 static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		const char *x11_display, wlr_renderer_create_func_t create_renderer_func) {
@@ -170,6 +169,7 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 }
 #endif
 
+#if 0
 static struct wlr_backend *attempt_headless_backend(
 		struct wl_display *display, wlr_renderer_create_func_t create_renderer_func) {
 	struct wlr_backend *backend = wlr_headless_backend_create(display, create_renderer_func);
@@ -318,7 +318,6 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		}
 	}
 
-#if 0
 #if WLR_HAS_X11_BACKEND
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
@@ -331,6 +330,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 #endif
 
+#if 0
 	// Attempt DRM+libinput
 	multi->session = wlr_session_create(display);
 	if (!multi->session) {

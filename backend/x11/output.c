@@ -9,6 +9,7 @@
 #include <xcb/present.h>
 #include <xcb/xinput.h>
 
+#include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
@@ -37,18 +38,18 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 		}
 		break;
 	case XCB_PRESENT_COMPLETE_NOTIFY:
-		/*
-		 * TODO: Wire this up with wp_presentation_time?
-		 */
 		complete = (xcb_present_complete_notify_event_t *)e;
 		output = get_x11_output_from_window_id(x11, complete->window);
 
-		// This can happen after a window is destroyed
 		if (!output) {
 			return;
 		}
 
-		wlr_output_send_frame(&output->wlr_output);
+		if (complete->msc > output->msc) {
+			xcb_present_notify_msc(x11->xcb, output->win, 0, complete->msc + 1, 1, 0);
+			wlr_output_send_frame(&output->wlr_output);
+		}
+		output->msc = complete->msc;
 		break;
 	case XCB_PRESENT_IDLE_NOTIFY:
 		idle = (xcb_present_idle_notify_event_t *)e;
@@ -70,16 +71,8 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 			wl_signal_emit(&img->release, img);
 			output->images[i] = NULL;
 		}
-
 		break;
 	}
-}
-
-static int signal_frame(void *data) {
-	struct wlr_x11_output *output = data;
-	wlr_output_send_frame(&output->wlr_output);
-	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-	return 0;
 }
 
 static void parse_xcb_setup(struct wlr_output *output,
@@ -109,8 +102,6 @@ static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
 
 	wlr_output_update_custom_mode(&output->wlr_output, wlr_output->width,
 		wlr_output->height, refresh);
-
-	output->frame_delay = 1000000 / refresh;
 }
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
@@ -149,32 +140,9 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wlr_input_device_destroy(&output->pointer_dev);
 
 	wl_list_remove(&output->link);
-	wl_event_source_remove(output->frame_timer);
-	wlr_egl_destroy_surface(&x11->egl, output->surf);
 	xcb_destroy_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 	free(output);
-}
-
-static bool output_make_current(struct wlr_output *wlr_output,
-		int *buffer_age) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	struct wlr_x11_backend *x11 = output->x11;
-
-	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
-}
-
-static bool output_swap_buffers(struct wlr_output *wlr_output,
-		pixman_region32_t *damage) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
-	struct wlr_x11_backend *x11 = output->x11;
-
-	if (!wlr_egl_swap_buffers(&x11->egl, output->surf, damage)) {
-		return false;
-	}
-
-	wlr_output_send_present(wlr_output, NULL);
-	return true;
 }
 
 static const struct wlr_format_set *output_get_formats(struct wlr_output *wlr_output) {
@@ -229,8 +197,6 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
 	.get_formats = output_get_formats,
 	.present = output_present,
 };
@@ -243,8 +209,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 
-	struct wlr_x11_output *output = calloc(1, sizeof(struct wlr_x11_output));
-	if (output == NULL) {
+	struct wlr_x11_output *output = calloc(1, sizeof(*output));
+	if (!output) {
 		return NULL;
 	}
 	output->x11 = x11;
@@ -292,13 +258,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
-	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
-	if (!output->surf) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		free(output);
-		return NULL;
-	}
-
 	xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
 		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
 		&x11->atoms.wm_delete_window);
@@ -308,12 +267,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 
-	struct wl_event_loop *ev = wl_display_get_event_loop(x11->wl_display);
-	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);
-
 	wl_list_insert(&x11->outputs, &output->link);
 
-	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	wlr_output_update_enabled(wlr_output, true);
 
 	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
@@ -325,23 +280,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&x11->backend.events.new_output, wlr_output);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->pointer_dev);
 
+	wlr_output_send_frame(wlr_output);
 	return wlr_output;
-}
-
-void handle_x11_configure_notify(struct wlr_x11_output *output,
-		xcb_configure_notify_event_t *ev) {
-	// ignore events that set an invalid size:
-	if (ev->width > 0 && ev->height > 0) {
-		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-			ev->height, output->wlr_output.refresh);
-
-		// Move the pointer to its new location
-		update_x11_pointer_position(output, output->x11->time);
-	} else {
-		wlr_log(WLR_DEBUG,
-			"Ignoring X11 configure event for height=%d, width=%d",
-			ev->width, ev->height);
-	}
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {

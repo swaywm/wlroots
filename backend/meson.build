@@ -52,7 +52,7 @@ if logind.found()
 	backend_deps += logind
 endif
 
-#subdir('x11')
+subdir('x11')
 
 lib_wlr_backend = static_library(
 	'wlr_backend',

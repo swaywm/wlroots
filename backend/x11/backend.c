@@ -24,8 +24,6 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/render/allocator.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
@@ -53,16 +51,6 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
 			wlr_output_update_needs_swap(&output->wlr_output);
-		}
-		break;
-	}
-	case XCB_CONFIGURE_NOTIFY: {
-		xcb_configure_notify_event_t *ev =
-			(xcb_configure_notify_event_t *)event;
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, ev->window);
-		if (output != NULL) {
-			handle_x11_configure_notify(output, ev);
 		}
 		break;
 	}
@@ -97,10 +85,16 @@ static int x11_event(int fd, uint32_t mask, void *data) {
 		return 0;
 	}
 
-	xcb_generic_event_t *e;
-	while ((e = xcb_poll_for_event(x11->xcb))) {
-		handle_x11_event(x11, e);
-		free(e);
+	if (mask & WL_EVENT_WRITABLE) {
+		xcb_flush(x11->xcb);
+	}
+
+	if (mask & WL_EVENT_READABLE) {
+		xcb_generic_event_t *e;
+		while ((e = xcb_poll_for_event(x11->xcb))) {
+			handle_x11_event(x11, e);
+			free(e);
+		}
 	}
 
 	return 0;
@@ -146,8 +140,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	wl_list_remove(&x11->display_destroy.link);
 
-	wlr_renderer_destroy(x11->renderer);
-	wlr_egl_finish(&x11->egl);
 	close(x11->render_fd);
 	wlr_format_set_release(&x11->formats);
 
@@ -155,12 +147,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 		XCloseDisplay(x11->xlib_conn);
 	}
 	free(x11);
-}
-
-static struct wlr_renderer *backend_get_renderer(
-		struct wlr_backend *backend) {
-	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
-	return x11->renderer;
 }
 
 static int backend_get_render_fd(struct wlr_backend *backend) {
@@ -244,7 +230,6 @@ static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_render_fd = backend_get_render_fd,
 	.attach_gbm = backend_attach_gbm,
 	.detach_gbm = backend_detach_gbm,
@@ -268,7 +253,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	wlr_backend_init(&x11->backend, &backend_impl);
 	x11->wl_display = display;
 	wl_list_init(&x11->outputs);
 
@@ -394,7 +378,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	int fd = xcb_get_file_descriptor(x11->xcb);
 	struct wl_event_loop *ev = wl_display_get_event_loop(display);
-	uint32_t events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
+	uint32_t events = WL_EVENT_READABLE | WL_EVENT_WRITABLE;
 	x11->event_source = wl_event_loop_add_fd(ev, fd, events, x11_event, x11);
 	if (!x11->event_source) {
 		wlr_log(WLR_ERROR, "Could not create event source");
@@ -403,27 +387,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	wl_event_source_check(x11->event_source);
 
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb)).data;
-
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 0,
-		EGL_NONE,
-	};
-
-	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_X11_KHR,
-		x11->xlib_conn, config_attribs, x11->screen->root_visual);
-
-	if (x11->renderer == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create renderer");
-		goto error_event;
-	}
 
 	/*
 	 * Open render node with DRI3
@@ -436,7 +399,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	if (!open_reply) {
 		wlr_log(WLR_ERROR, "Failed to get DRI3 device");
-		goto error_renderer;
+		goto error_event;
 	}
 	x11->render_fd = *xcb_dri3_open_reply_fds(x11->xcb, open_reply);
 	free(open_reply);
@@ -472,6 +435,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			DRM_FORMAT_MOD_LINEAR);
 	}
 
+	wlr_backend_init(&x11->backend, &backend_impl,
+		create_renderer_func, DRM_FORMAT_XRGB8888);
+
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
 		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
@@ -482,8 +448,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	return &x11->backend;
 
-error_renderer:
-	wlr_renderer_destroy(x11->renderer);
 error_event:
 	wl_event_source_remove(x11->event_source);
 error_display:
