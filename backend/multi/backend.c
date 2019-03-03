@@ -9,7 +9,7 @@
 #endif
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/allocator/gbm.h>
+#include <wlr/backend.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
 #include "util/signal.h"
@@ -143,7 +143,7 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	backend->render_fd = -1;
 
 	wl_list_init(&backend->backends);
-	wlr_backend_init(&backend->backend, &backend_impl);
+	wlr_backend_init(&backend->backend, &backend_impl, NULL, 0);
 
 	wl_signal_init(&backend->events.backend_add);
 	wl_signal_init(&backend->events.backend_remove);

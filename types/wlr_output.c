@@ -7,18 +7,22 @@
 #include <tgmath.h>
 #include <time.h>
 
+#include <drm_fourcc.h>
+#include <gbm.h>
+#include <EGL/egl.h>
 #include <wayland-server.h>
 
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/interface.h>
-#include <wlr/render/allocator.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/backend/interface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 
@@ -213,6 +217,57 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 		output_send_current_mode_to_resource(resource);
 	}
 
+	/*
+	 * This code is a hack implementing the old rendering API
+	 * on top of the new backend API.
+	 *
+	 * Currently there is no provision for error handling here.
+	 * Instead of trying to refactor to add error handling which
+	 * will again be removed later, we just abort() for now.
+	 */
+	if (output->gbm_surface) {
+		assert(output->egl_surface);
+		wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
+		gbm_surface_destroy(output->gbm_surface);
+	}
+
+	const struct wlr_format_set *fmts = wlr_output_get_formats(output);
+	const struct wlr_format *fmt = wlr_format_set_get(fmts, DRM_FORMAT_ARGB8888);
+	if (!fmt) {
+		fmt = wlr_format_set_get(fmts, DRM_FORMAT_XRGB8888);
+	}
+	if (!fmt) {
+		wlr_log(WLR_ERROR, "No XRGB8888 or ARGB8888 format");
+		abort();
+	}
+
+	// Test for LINEAR specifically, because it may appear on drivers
+	// that don't support modifiers
+	if (fmt->len == 1 && fmt->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
+		output->gbm_surface = gbm_surface_create(output->backend->gbm,
+			output->width, output->height, fmt->format,
+			GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING | GBM_BO_USE_LINEAR);
+	} else if (fmt->len != 0) {
+		output->gbm_surface = gbm_surface_create_with_modifiers(output->backend->gbm,
+			output->width, output->height, fmt->format, fmt->modifiers, fmt->len);
+	} else {
+		output->gbm_surface = gbm_surface_create(output->backend->gbm,
+			output->width, output->height, fmt->format,
+			GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+	}
+
+	if (!output->gbm_surface) {
+		wlr_log(WLR_ERROR, "Failed to create GBM surface");
+		abort();
+	}
+
+	output->egl_surface =
+		wlr_egl_create_surface(&output->backend->egl, output->gbm_surface);
+	if (!output->egl_surface) {
+		wlr_log(WLR_ERROR, "Failed to create EGL surface");
+		abort();
+	}
+
 	wlr_signal_emit_safe(&output->events.mode, output);
 }
 
@@ -283,7 +338,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
-	assert(impl->make_current && impl->swap_buffers && impl->transform);
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}
@@ -306,12 +360,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
 
-	output->viewport.src_x = -1.0;
-	output->viewport.src_y = -1.0;
-	output->viewport.src_w = -1.0;
-	output->viewport.src_h = -1.0;
-	output->viewport.dest_w = -1;
-	output->viewport.dest_h = -1;
 	pixman_region32_init_rect(&output->damage_2, 0, 0, INT32_MAX, INT32_MAX);
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
@@ -377,7 +425,8 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 }
 
 bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
-	return output->impl->make_current(output, buffer_age);
+	return wlr_egl_make_current(&output->backend->egl,
+		output->egl_surface, buffer_age);
 }
 
 bool wlr_output_preferred_read_format(struct wlr_output *output,
@@ -392,6 +441,34 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
 	}
 	*fmt = renderer->impl->preferred_read_format(renderer);
 	return true;
+}
+
+struct buffer_info {
+	struct wlr_gbm_image *img;
+	struct wlr_output *output;
+	struct wl_listener release;
+};
+
+static void release_buffer(struct wl_listener *listener, void *data) {
+	struct buffer_info *info = wl_container_of(listener, info, release);
+	struct wlr_image *img_base = data;
+	struct wlr_gbm_image *img = wl_container_of(img_base, img, base);
+
+	assert(info->img == img);
+
+	gbm_surface_release_buffer(info->output->gbm_surface, img->bo);
+}
+
+static void free_img(struct gbm_bo *bo, void *data) {
+	struct wlr_gbm_image *img = data;
+	struct buffer_info *info = img->renderer_priv;
+	struct wlr_backend *backend = info->output->backend;
+
+	assert(bo == img->bo);
+
+	backend->impl->detach_gbm(backend, img);
+	free(info);
+	free(img);
 }
 
 bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
@@ -427,10 +504,40 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		pixman_region32_intersect(&render_damage, &render_damage, damage);
 	}
 
-	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
+	if (!wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface, NULL)) {
 		pixman_region32_fini(&render_damage);
 		return false;
 	}
+	//if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
+	//}
+
+	struct gbm_bo *bo = gbm_surface_lock_front_buffer(output->gbm_surface);
+	struct wlr_gbm_image *img = gbm_bo_get_user_data(bo);
+	if (!img) {
+		img = calloc(1, sizeof(*img));
+		img->base.width = gbm_bo_get_width(bo);
+		img->base.height = gbm_bo_get_height(bo);
+		img->base.format = gbm_bo_get_format(bo);
+		img->base.modifier = gbm_bo_get_modifier(bo);
+		wl_signal_init(&img->base.release);
+
+		img->bo = bo;
+		struct buffer_info *info = calloc(1, sizeof(*info));
+		info->img = img;
+		info->output = output;
+		info->release.notify = release_buffer;
+		wl_signal_add(&img->base.release, &info->release);
+
+		img->renderer_priv = info;
+
+		gbm_bo_set_user_data(bo, img, free_img);
+
+		struct wlr_backend *backend = output->backend;
+		backend->impl->attach_gbm(backend, img);
+	}
+
+	output->image = &img->base;
+	output->impl->present(output);
 
 	pixman_region32_fini(&render_damage);
 
@@ -943,10 +1050,6 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	free(cursor);
 }
 
-const struct wlr_format_set *wlr_output_get_formats(struct wlr_output *output) {
-	return output->impl->get_formats(output);
-}
-
 enum wl_output_transform wlr_output_transform_invert(
 		enum wl_output_transform tr) {
 	if ((tr & WL_OUTPUT_TRANSFORM_90) && !(tr & WL_OUTPUT_TRANSFORM_FLIPPED)) {
@@ -963,60 +1066,6 @@ enum wl_output_transform wlr_output_transform_compose(
 	return flipped | rotated;
 }
 
-void wlr_output_set_viewport(struct wlr_output *output,
-		double src_x, double src_y, double src_w, double src_h,
-		int32_t dest_w, int32_t dest_h) {
-	assert(output);
-	assert((src_x == -1.0 && src_y == -1.0 && src_w == -1.0 && src_h == -1.0) ||
-		(src_x >= 0.0 && src_y >= 0.0 && src_w > 0.0 && src_h > 0.0));
-	assert((dest_w == -1 && dest_h == -1) || (dest_w > 0 && dest_h > 0));
-
-	output->viewport.src_x = src_x;
-	output->viewport.src_y = src_y;
-	output->viewport.src_w = src_w;
-	output->viewport.src_h = src_h;
-	output->viewport.dest_w = dest_w;
-	output->viewport.dest_h = dest_h;
-}
-
-void wlr_output_set_present_method(struct wlr_output *output,
-		enum wlr_present_method method) {
-	assert(output);
-	output->present_method = method;
-}
-
-void wlr_output_set_damage(struct wlr_output *output,
-		pixman_region32_t *region) {
-	assert(output);
-	if (region) {
-		pixman_region32_copy(&output->damage_2, region);
-	} else {
-		pixman_region32_union_rect(&output->damage_2, &output->damage_2,
-			0, 0, INT32_MAX, INT32_MAX);
-	}
-}
-
-void wlr_output_set_image(struct wlr_output *output, struct wlr_image *img) {
-	assert(output);
-	output->image = img;
-}
-
-bool wlr_output_present(struct wlr_output *output) {
-	output->using_present = true;
-	bool ret = output->impl->present(output);
-	output->using_present = false;
-
-	output->viewport.src_x = -1.0;
-	output->viewport.src_y = -1.0;
-	output->viewport.src_w = -1.0;
-	output->viewport.src_h = -1.0;
-	output->viewport.dest_w = -1;
-	output->viewport.dest_h = -1;
-	output->present_method = WLR_PRESENT_METHOD_DEFAULT;
-	output->image = NULL;
-
-	pixman_region32_union_rect(&output->damage_2, &output->damage_2,
-		0, 0, INT32_MAX, INT32_MAX);
-
-	return ret;
+const struct wlr_format_set *wlr_output_get_formats(struct wlr_output *output) {
+	return output->impl->get_formats(output);
 }

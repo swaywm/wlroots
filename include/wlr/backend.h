@@ -9,6 +9,7 @@
 #ifndef WLR_BACKEND_H
 #define WLR_BACKEND_H
 
+#include <gbm.h>
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/egl.h>
@@ -26,6 +27,12 @@ struct wlr_backend {
 		/** Raised when new outputs are added, passed the wlr_output */
 		struct wl_signal new_output;
 	} events;
+
+	// Temporary hack until new renderer is complete
+	// DO NOT USE THESE DIRECTLY: they will be removed
+	struct gbm_device *gbm;
+	struct wlr_egl egl;
+	struct wlr_renderer *renderer;
 };
 
 typedef struct wlr_renderer *(*wlr_renderer_create_func_t)(struct wlr_egl *egl, EGLenum platform,
@@ -57,6 +64,8 @@ void wlr_backend_destroy(struct wlr_backend *backend);
  * Obtains the wlr_renderer reference this backend is using.
  */
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend);
+
+int wlr_backend_get_render_fd(struct wlr_backend *backend);
 /**
  * Obtains the wlr_session reference from this backend if there is any.
  * Might return NULL for backends that don't use a session.

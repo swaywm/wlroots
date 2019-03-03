@@ -886,10 +886,10 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	if (output_config) {
 		if (output_config->enable) {
-			if (wlr_output_is_drm(wlr_output)) {
+			if (0 /*wlr_output_is_drm(wlr_output)*/) {
 				struct roots_output_mode_config *mode_config;
 				wl_list_for_each(mode_config, &output_config->modes, link) {
-					wlr_drm_connector_add_mode(wlr_output, &mode_config->info);
+					//wlr_drm_connector_add_mode(wlr_output, &mode_config->info);
 				}
 			} else if (!wl_list_empty(&output_config->modes)) {
 				wlr_log(WLR_ERROR, "Can only add modes for DRM backend");

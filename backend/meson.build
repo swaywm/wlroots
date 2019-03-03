@@ -1,16 +1,16 @@
 backend_parts = []
 backend_files = files(
 	'backend.c',
-	'drm/atomic.c',
-	'drm/backend.c',
-	'drm/drm.c',
-	'drm/legacy.c',
-	'drm/properties.c',
-	'drm/renderer.c',
-	'drm/util.c',
-	'headless/backend.c',
-	'headless/input_device.c',
-	'headless/output.c',
+	#'drm/atomic.c',
+	#'drm/backend.c',
+	#'drm/drm.c',
+	#'drm/legacy.c',
+	#'drm/properties.c',
+	#'drm/renderer.c',
+	#'drm/util.c',
+	#'headless/backend.c',
+	#'headless/input_device.c',
+	#'headless/output.c',
 	'libinput/backend.c',
 	'libinput/events.c',
 	'libinput/keyboard.c',
@@ -20,8 +20,8 @@ backend_files = files(
 	'libinput/tablet_tool.c',
 	'libinput/touch.c',
 	'multi/backend.c',
-	'noop/backend.c',
-	'noop/output.c',
+	#'noop/backend.c',
+	#'noop/output.c',
 	'session/direct-ipc.c',
 	'session/session.c',
 	'wayland/backend.c',
@@ -52,7 +52,7 @@ if logind.found()
 	backend_deps += logind
 endif
 
-subdir('x11')
+#subdir('x11')
 
 lib_wlr_backend = static_library(
 	'wlr_backend',

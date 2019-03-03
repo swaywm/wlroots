@@ -12,7 +12,6 @@
 #include <stdbool.h>
 
 #include <wlr/backend.h>
-#include <wlr/render/allocator.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/render/format_set.h>
 #include <wlr/types/wlr_box.h>

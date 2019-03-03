@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <gbm.h>
 #include <wayland-server.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/headless.h>
@@ -14,6 +15,7 @@
 #include <wlr/backend/noop.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
 #include "backend/multi.h"
@@ -22,13 +24,56 @@
 #include <wlr/backend/x11.h>
 #endif
 
-void wlr_backend_init(struct wlr_backend *backend,
-		const struct wlr_backend_impl *impl) {
+bool wlr_backend_init(struct wlr_backend *backend,
+		const struct wlr_backend_impl *impl,
+		wlr_renderer_create_func_t create_renderer_func,
+		uint32_t format) {
 	assert(backend);
 	backend->impl = impl;
 	wl_signal_init(&backend->events.destroy);
 	wl_signal_init(&backend->events.new_input);
 	wl_signal_init(&backend->events.new_output);
+
+	if (!format) {
+		return true;
+	}
+
+	/*
+	 * This is a hack implementing the old rendering API
+	 * on top of the new backend API.
+	 *
+	 * This will be removed in the future.
+	 */
+
+	int render_fd = backend->impl->get_render_fd(backend);
+	backend->gbm = gbm_create_device(render_fd);
+	if (!backend->gbm) {
+		wlr_log_errno(WLR_ERROR, "Failed to create gbm device");
+		return false;
+	}
+
+	if (!create_renderer_func) {
+		create_renderer_func = wlr_renderer_autocreate;
+	}
+
+	static EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 1,
+		EGL_NONE,
+	};
+
+	backend->renderer = create_renderer_func(&backend->egl, EGL_PLATFORM_GBM_MESA,
+		backend->gbm, config_attribs, format);
+	if (!backend->renderer) {
+		wlr_log(WLR_ERROR, "Failed to create renderer");
+		gbm_device_destroy(backend->gbm);
+		return false;
+	}
+
+	return true;
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {
@@ -51,10 +96,15 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 }
 
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
+	// Needed for multi backend
 	if (backend->impl->get_renderer) {
 		return backend->impl->get_renderer(backend);
 	}
-	return NULL;
+	return backend->renderer;
+}
+
+int wlr_backend_get_render_fd(struct wlr_backend *backend) {
+	return backend->impl->get_render_fd(backend);
 }
 
 struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend) {
@@ -102,6 +152,7 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display,
 	return backend;
 }
 
+#if 0
 #if WLR_HAS_X11_BACKEND
 static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		const char *x11_display, wlr_renderer_create_func_t create_renderer_func) {
@@ -173,12 +224,14 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 
 	return primary_drm;
 }
+#endif
 
 static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session **session,
 		const char *name, wlr_renderer_create_func_t create_renderer_func) {
 	if (strcmp(name, "wayland") == 0) {
 		return attempt_wl_backend(display, create_renderer_func);
+#if 0
 #if WLR_HAS_X11_BACKEND
 	} else if (strcmp(name, "x11") == 0) {
 		return attempt_x11_backend(display, NULL, create_renderer_func);
@@ -202,6 +255,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		} else {
 			return attempt_drm_backend(display, backend, *session, create_renderer_func);
 		}
+#endif
 	}
 
 	wlr_log(WLR_ERROR, "unrecognized backend '%s'", name);
@@ -264,6 +318,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		}
 	}
 
+#if 0
 #if WLR_HAS_X11_BACKEND
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
@@ -305,4 +360,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 
 	return backend;
+#else
+	return NULL;
+#endif
 }

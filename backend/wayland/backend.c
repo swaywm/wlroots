@@ -9,6 +9,7 @@
 
 #include <wlr/config.h>
 
+#include <drm_fourcc.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <wayland-client.h>
@@ -17,7 +18,6 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/format_set.h>
 #include <wlr/render/gles2.h>
@@ -89,7 +89,7 @@ static void xdg_wm_base_handle_ping(void *data,
 }
 
 static const struct xdg_wm_base_listener xdg_wm_base_listener = {
-	xdg_wm_base_handle_ping,
+	.ping = xdg_wm_base_handle_ping,
 };
 
 static void registry_global(void *data, struct wl_registry *registry,
@@ -105,14 +105,10 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->seat = wl_registry_bind(registry, name,
 			&wl_seat_interface, 5);
 		wl_seat_add_listener(wl->seat, &seat_listener, wl);
-	} else if (strcmp(iface, wl_shm_interface.name) == 0) {
-		wl->shm = wl_registry_bind(registry, name,
-			&wl_shm_interface, 1);
 	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
 		xdg_wm_base_add_listener(wl->xdg_wm_base, &xdg_wm_base_listener, NULL);
-
 	} else if (strcmp(iface, zwp_linux_dmabuf_v1_interface.name) == 0) {
 		wl->dmabuf = wl_registry_bind(registry, name,
 			&zwp_linux_dmabuf_v1_interface, 3);
@@ -177,8 +173,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wl_event_source_remove(wl->remote_display_src);
 
-	wlr_renderer_destroy(wl->renderer);
-	wlr_egl_finish(&wl->egl);
 	wlr_format_set_release(&wl->formats);
 	close(wl->render_fd);
 
@@ -188,9 +182,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	if (wl->seat) {
 		wl_seat_destroy(wl->seat);
 	}
-	if (wl->shm) {
-		wl_shm_destroy(wl->shm);
-	}
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
 	wl_registry_destroy(wl->registry);
@@ -198,14 +189,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(wl);
 }
 
-static struct wlr_renderer *backend_get_renderer(struct wlr_backend *backend) {
-	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
-	return wl->renderer;
-}
-
 static int backend_get_render_fd(struct wlr_backend *backend) {
-	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
-	return wl->render_fd;
+	return get_wl_backend_from_backend(backend)->render_fd;
 }
 
 static void buffer_release(void *data, struct wl_buffer *buf) {
@@ -242,6 +227,7 @@ static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 
 	zwp_linux_buffer_params_v1_destroy(params);
 
+	img->base.backend = &wl->backend;
 	img->base.backend_priv = buf;
 	wl_buffer_add_listener(buf, &buffer_listener, &img->base);
 
@@ -256,7 +242,6 @@ static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_render_fd = backend_get_render_fd,
 	.attach_gbm = backend_attach_gbm,
 	.detach_gbm = backend_detach_gbm,
@@ -282,8 +267,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	wlr_backend_init(&wl->backend, &backend_impl);
-
 	wl->local_display = display;
 	wl_list_init(&wl->devices);
 	wl_list_init(&wl->outputs);
@@ -301,7 +284,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 
 	wl_registry_add_listener(wl->registry, &registry_listener, wl);
-	wl_display_dispatch(wl->remote_display);
+
+	// Roundtrip to get all globals advertised by registry.
 	wl_display_roundtrip(wl->remote_display);
 
 	if (!wl->compositor) {
@@ -314,11 +298,25 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
 	}
+	if (!wl->dmabuf) {
+		wlr_log(WLR_ERROR,
+			"Remote Wayland compositor does not support linux-dmabuf");
+		goto error_registry;
+	}
+
+	// Roundtrip again to get events for globals we just bound to
+	wl_display_roundtrip(wl->remote_display);
+
+	if (!wlr_format_set_get(&wl->formats, DRM_FORMAT_ARGB8888)) {
+		wlr_log(WLR_ERROR,
+			"Remote Wayland compositor does not support ARGB8888");
+		goto error_registry;
+	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);
-	int fd = wl_display_get_fd(wl->remote_display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
-	wl->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
+	wl->remote_display_src = wl_event_loop_add_fd(loop,
+		wl_display_get_fd(wl->remote_display),
+		WL_EVENT_READABLE | WL_EVENT_WRITABLE,
 		dispatch_events, wl);
 	if (!wl->remote_display_src) {
 		wlr_log(WLR_ERROR, "Failed to create event source");
@@ -326,34 +324,23 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
-
-	if (!wl->renderer) {
-		wlr_log(WLR_ERROR, "Could not create renderer");
-		goto error_event;
-	}
-
 	/*
 	 * XXX: This is a hack until render fds are added to wp_linux_dmabuf
 	 */
-	wl->render_fd = open("/dev/dri/renderD128", O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	const char *render_path = getenv("WLR_WL_RENDER_PATH");
+	if (!render_path) {
+		render_path = "/dev/dri/renderD128";
+	}
+
+	wl->render_fd = open(render_path, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (wl->render_fd < 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to open render node");
-		goto error_renderer;
+		goto error_event;
+	}
+
+	if (!wlr_backend_init(&wl->backend, &backend_impl, create_renderer_func,
+			DRM_FORMAT_ARGB8888)) {
+		goto error_render_fd;
 	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;
@@ -361,8 +348,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	return &wl->backend;
 
-error_renderer:
-	wlr_renderer_destroy(wl->renderer);
+error_render_fd:
+	close(wl->render_fd);
 error_event:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:
