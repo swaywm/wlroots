@@ -17,7 +17,6 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/allocator/gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
@@ -58,22 +57,10 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->drm_invalidated.link);
 
 	finish_drm_resources(drm);
-	finish_drm_renderer(&drm->renderer);
 	wlr_session_close_file(drm->session, drm->fd);
 	wl_event_source_remove(drm->drm_event);
 	close(drm->render_fd);
 	free(drm);
-}
-
-static struct wlr_renderer *backend_get_renderer(
-		struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-
-	if (drm->parent) {
-		return drm->parent->renderer.wlr_rend;
-	} else {
-		return drm->renderer.wlr_rend;
-	}
 }
 
 static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
@@ -83,7 +70,8 @@ static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 
 static int backend_get_render_fd(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-	return drm->render_fd;
+	//return drm->render_fd;
+	return drm->fd;
 }
 
 static bool backend_attach_gbm(struct wlr_backend *backend, struct wlr_gbm_image *img) {
@@ -138,7 +126,6 @@ static void backend_detach_gbm(struct wlr_backend *backend, struct wlr_gbm_image
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
 	.get_render_fd = backend_get_render_fd,
 	.attach_gbm = backend_attach_gbm,
@@ -157,9 +144,10 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	if (session->active) {
 		wlr_log(WLR_INFO, "DRM fd resumed");
 		scan_drm_connectors(drm);
+#if 0
 
 		struct wlr_drm_connector *conn;
-		wl_list_for_each(conn, &drm->outputs, link){
+		wl_list_for_each(conn, &drm->outputs, link) {
 			if (conn->output.enabled) {
 				drm_connector_set_mode(&conn->output,
 						conn->output.current_mode);
@@ -173,20 +161,11 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 			struct wlr_drm_plane *plane = conn->crtc->cursor;
 			drm->iface->crtc_set_cursor(drm, conn->crtc,
-				(plane && plane->cursor_enabled) ? plane->surf.back : NULL);
+				(plane && plane->cursor_enabled) ? plane->img : NULL);
 			drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
 				conn->cursor_y);
-
-			if (conn->crtc->gamma_table != NULL) {
-				size_t size = conn->crtc->gamma_table_size;
-				uint16_t *r = conn->crtc->gamma_table;
-				uint16_t *g = conn->crtc->gamma_table + size;
-				uint16_t *b = conn->crtc->gamma_table + 2 * size;
-				drm->iface->crtc_set_gamma(drm, conn->crtc, size, r, g, b);
-			} else {
-				set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
-			}
 		}
+#endif
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
 	}
@@ -226,7 +205,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_backend_init(&drm->backend, &backend_impl);
 
 	drm->session = session;
 	wl_list_init(&drm->outputs);
@@ -276,10 +254,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	if (!init_drm_renderer(drm, &drm->renderer, create_renderer_func)) {
-		wlr_log(WLR_ERROR, "Failed to initialize renderer");
-		goto error_event;
-	}
+	wlr_backend_init(&drm->backend, &backend_impl, create_renderer_func,
+		DRM_FORMAT_ARGB8888);
 
 	drm->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &drm->display_destroy);

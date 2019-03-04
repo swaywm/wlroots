@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
+#include <sys/mman.h>
 
 #include <gbm.h>
 #include <EGL/egl.h>
@@ -14,6 +16,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <drm_mode.h>
+#include <drm_fourcc.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <xf86drm.h>
@@ -106,97 +109,183 @@ static bool parse_in_formats(int fd, struct wlr_drm_plane *plane)
 	}
 
 	free(blob);
-	return true;
+		return true;
 }
 
-static int cmp_plane(const void *arg1, const void *arg2) {
-	const struct wlr_drm_plane *a = arg1;
-	const struct wlr_drm_plane *b = arg2;
+static bool plane_init(struct wlr_drm_backend *drm, struct wlr_drm_plane *plane,
+		uint32_t id) {
+	plane->id = id;
 
-	return (int)a->type - (int)b->type;
-}
-
-static bool init_planes(struct wlr_drm_backend *drm) {
-	drmModePlaneRes *plane_res = drmModeGetPlaneResources(drm->fd);
-	if (!plane_res) {
-		wlr_log_errno(WLR_ERROR, "Failed to get DRM plane resources");
+	if (!get_drm_plane_props(drm->fd, plane->id, &plane->props)) {
+		wlr_log_errno(WLR_ERROR, "Failed to get plane properties");
 		return false;
 	}
 
-	wlr_log(WLR_INFO, "Found %"PRIu32" DRM planes", plane_res->count_planes);
+	uint64_t type;
+	if (!get_drm_prop(drm->fd, id, plane->props.type, &type)) {
+		wlr_log_errno(WLR_ERROR, "Failed to get plane type");
+		return false;
+	}
+	plane->type = type;
 
-	if (plane_res->count_planes == 0) {
-		drmModeFreePlaneResources(plane_res);
+	/*
+	 * Exit early so we don't make a bunch of needless allocations
+	 * that are going to be freed immediately.
+	 */
+	if (plane == DRM_PLANE_TYPE_OVERLAY) {
 		return true;
 	}
 
-	drm->num_planes = plane_res->count_planes;
-	drm->planes = calloc(drm->num_planes, sizeof(*drm->planes));
-	if (!drm->planes) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		goto error_res;
+	drmModePlane *kms_plane = drmModeGetPlane(drm->fd, plane->id);
+	if (!kms_plane) {
+		wlr_log_errno(WLR_ERROR, "Failed to get plane");
+		return false;
 	}
 
-	for (size_t i = 0; i < drm->num_planes; ++i) {
-		struct wlr_drm_plane *p = &drm->planes[i];
+	plane->possible_crtcs = kms_plane->possible_crtcs;
 
-		drmModePlane *plane = drmModeGetPlane(drm->fd, plane_res->planes[i]);
-		if (!plane) {
-			wlr_log_errno(WLR_ERROR, "Failed to get DRM plane");
-			goto error_planes;
-		}
+	// Populate formats
 
-		p->id = plane->plane_id;
-		p->possible_crtcs = plane->possible_crtcs;
-
-		uint64_t type;
-		if (!get_drm_plane_props(drm->fd, p->id, &p->props) ||
-				!get_drm_prop(drm->fd, p->id, p->props.type, &type)) {
-			drmModeFreePlane(plane);
-			goto error_planes;
-		}
-
-		p->type = type;
-		drm->num_type_planes[type]++;
-
-		bool ret = false;
-		if (p->props.in_formats) {
-			ret = parse_in_formats(drm->fd, p);
-		}
-
-		if (!ret) {
-			for (uint32_t j = 0; j < plane->count_formats; ++j) {
-				wlr_format_set_add(&p->formats, plane->formats[j],
-					DRM_FORMAT_MOD_INVALID);
-				wlr_log(WLR_DEBUG, "Plane format: %.4s",
-					(char *)&plane->formats[j]);
-			}
-		}
-
-		drmModeFreePlane(plane);
+	bool ret = false;
+	if (plane->props.in_formats) {
+		ret = parse_in_formats(drm->fd, plane);
 	}
 
-	wlr_log(WLR_INFO, "(%zu overlay, %zu primary, %zu cursor)",
-		drm->num_overlay_planes,
-		drm->num_primary_planes,
-		drm->num_cursor_planes);
+	if (!ret) {
+		for (uint32_t j = 0; j < kms_plane->count_formats; ++j) {
+			wlr_format_set_add(&plane->formats, kms_plane->formats[j],
+				DRM_FORMAT_MOD_INVALID);
+			wlr_log(WLR_DEBUG, "Plane format: %.4s",
+				(char *)&kms_plane->formats[j]);
+		}
+	}
 
-	qsort(drm->planes, drm->num_planes, sizeof(*drm->planes), cmp_plane);
-
-	drm->overlay_planes = drm->planes;
-	drm->primary_planes = drm->overlay_planes
-		+ drm->num_overlay_planes;
-	drm->cursor_planes = drm->primary_planes
-		+ drm->num_primary_planes;
-
-	drmModeFreePlaneResources(plane_res);
+	drmModeFreePlane(kms_plane);
 	return true;
+}
 
-error_planes:
-	free(drm->planes);
-error_res:
-	drmModeFreePlaneResources(plane_res);
-	return false;
+static void plane_finish(struct wlr_drm_plane *plane) {
+	wlr_format_set_release(&plane->formats);
+}
+
+static bool crtc_init(struct wlr_drm_backend *drm, struct wlr_drm_crtc *crtc,
+		uint32_t id, uint32_t pipe) {
+	crtc->id = id;
+	crtc->pipe = pipe;
+
+	if (!get_drm_crtc_props(drm->fd, crtc->id, &crtc->props)) {
+		wlr_log_errno(WLR_ERROR, "Failed to get CRTC properties");
+		return false;
+	}
+
+	// Read gamma table size
+
+	uint64_t max_gamma_size = 0;
+	if (crtc->props.gamma_lut_size) {
+		if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
+				&max_gamma_size)) {
+			wlr_log(WLR_ERROR, "Unable to get gamma lut size");
+		}
+	}
+	if (max_gamma_size == 0) {
+		drmModeCrtc *c = drmModeGetCrtc(drm->fd, crtc->id);
+		if (c) {
+			max_gamma_size = c->gamma_size;
+			drmModeFreeCrtc(c);
+		}
+	}
+	crtc->max_gamma_size = max_gamma_size;
+
+	return true;
+}
+
+static void crtc_finish(struct wlr_drm_backend *drm, struct wlr_drm_crtc *crtc) {
+	if (crtc->props.gamma_lut) {
+		if (crtc->gamma_blob_id) {
+			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_blob_id);
+		}
+	} else {
+		free(crtc->gamma_table);
+	}
+
+	plane_finish(&crtc->primary);
+	plane_finish(&crtc->cursor);
+}
+
+static bool dumb_create(struct wlr_drm_backend *drm) {
+	/*
+	 * This function currently only deals with one size of buffer
+	 * for the drm->fake use case.
+	 * However, this function has been written more generally.
+	 * In the future, when a wlr_shm_image is added, this is the
+	 * code which would implement it.
+	 */
+
+	struct drm_mode_create_dumb create = {
+		.width = 64,
+		.height = 64,
+		.bpp = 32,
+		.flags = 0,
+	};
+
+	if (drmIoctl(drm->fd, DRM_IOCTL_MODE_CREATE_DUMB, &create)) {
+		wlr_log_errno(WLR_ERROR, "Failed to create dumb buffer");
+		return false;
+	}
+
+	struct drm_mode_map_dumb map = {
+		.handle = create.handle,
+	};
+
+	if (drmIoctl(drm->fd, DRM_IOCTL_MODE_MAP_DUMB, &map)) {
+		wlr_log_errno(WLR_ERROR, "Failed to prepare dumb buffer");
+		return false;
+	}
+
+	// Clear the colour to black
+
+	void *data = mmap(NULL, create.size, PROT_WRITE,
+		MAP_SHARED, drm->fd, map.offset);
+	if (data) {
+		memset(data, 0, create.size);
+		munmap(data, create.size);
+	} else {
+		wlr_log(WLR_ERROR, "Failed to mmap dumb buffer");
+		// Oh well. It'll still work, but could look terrible.
+	}
+
+	struct wlr_image *img = &drm->fake;
+	img->backend = &drm->backend;
+	img->width = create.width;
+	img->height = create.height;
+	img->format = DRM_FORMAT_XRGB8888;
+	img->modifier = DRM_FORMAT_MOD_LINEAR;
+
+	wl_signal_init(&img->release);
+
+	uint32_t handles[4] = { create.handle };
+	uint32_t strides[4] = { create.pitch };
+	uint32_t offsets[4] = { map.offset };
+
+	uint32_t fb_id;
+	if (drmModeAddFB2(drm->fd, img->width, img->height, img->format,
+			handles, strides, offsets, &fb_id, 0)) {
+		wlr_log_errno(WLR_ERROR, "Failed to add dumb buffer");
+		return false;
+	}
+
+	img->backend_priv = (void *)(uintptr_t)fb_id;
+
+	/*
+	 * We don't need the handle anymore. The buffer refcount is increased
+	 * by the drmModeAddFB2 call above.
+	 */
+	struct drm_mode_destroy_dumb destroy = {
+		.handle = create.handle,
+	};
+	drmIoctl(drm->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy);
+
+	return true;
 }
 
 bool init_drm_resources(struct wlr_drm_backend *drm) {
@@ -205,38 +294,75 @@ bool init_drm_resources(struct wlr_drm_backend *drm) {
 		wlr_log_errno(WLR_ERROR, "Failed to get DRM resources");
 		return false;
 	}
+	drmModePlaneRes *plane_res = drmModeGetPlaneResources(drm->fd);
+	if (!plane_res) {
+		wlr_log_errno(WLR_ERROR, "Failed to get plane resources");
+		goto error_res;
+	}
 
 	wlr_log(WLR_INFO, "Found %d DRM CRTCs", res->count_crtcs);
 
+	// Populate CRTCs
+
 	drm->num_crtcs = res->count_crtcs;
 	if (drm->num_crtcs == 0) {
-		drmModeFreeResources(res);
-		return true;
+		goto error_plane_res;
 	}
-
 	drm->crtcs = calloc(drm->num_crtcs, sizeof(drm->crtcs[0]));
 	if (!drm->crtcs) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		goto error_res;
 	}
-
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
-		crtc->id = res->crtcs[i];
-		crtc->legacy_crtc = drmModeGetCrtc(drm->fd, crtc->id);
-		get_drm_crtc_props(drm->fd, crtc->id, &crtc->props);
-	}
-
-	if (!init_planes(drm)) {
-		goto error_crtcs;
+		crtc_init(drm, &drm->crtcs[i], res->crtcs[i], i);
 	}
 
 	drmModeFreeResources(res);
 
+	// Populate planes
+
+	for (uint32_t i = 0; i < plane_res->count_planes; ++i) {
+		struct wlr_drm_plane plane = { 0 };
+		if (!plane_init(drm, &plane, plane_res->planes[i])) {
+			continue;
+		}
+
+		int n;
+		switch (plane.type) {
+		case DRM_PLANE_TYPE_PRIMARY:
+			/* We assume that each primary plane can only belong to
+			 * a single CRTC.
+			 */
+			n = ffs(plane.possible_crtcs) - 1;
+			drm->crtcs[n].primary = plane;
+			break;
+		case DRM_PLANE_TYPE_CURSOR:
+			/*
+			 * We assume also assume that each cursor plane will
+			 * only apply to a single CRTC. This is perhaps a less
+			 * safe assumtion to make, but I've yet to see any
+			 * hardware where this is not true.
+			 *
+			 * Not every CTRC will have a cursor plane.
+			 */
+			n = ffs(plane.possible_crtcs) - 1;
+			drm->crtcs[n].cursor = plane;
+			break;
+		case DRM_PLANE_TYPE_OVERLAY:
+		default:
+			// Overlay planes not supported yet
+			break;
+		}
+	}
+
+	drmModeFreePlaneResources(plane_res);
+
+	dumb_create(drm);
+
 	return true;
 
-error_crtcs:
-	free(drm->crtcs);
+error_plane_res:
+	drmModeFreePlaneResources(plane_res);
 error_res:
 	drmModeFreeResources(res);
 	return false;
@@ -248,27 +374,10 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 	}
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
-		drmModeAtomicFree(crtc->atomic);
-		drmModeFreeCrtc(crtc->legacy_crtc);
-		if (crtc->mode_id) {
-			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
-		}
-		if (crtc->gamma_lut) {
-			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
-		}
-		free(crtc->gamma_table);
-	}
-	for (size_t i = 0; i < drm->num_planes; ++i) {
-		struct wlr_drm_plane *plane = &drm->planes[i];
-		if (plane->cursor_bo) {
-			gbm_bo_destroy(plane->cursor_bo);
-		}
-		wlr_format_set_release(&plane->formats);
+		crtc_finish(drm, &drm->crtcs[i]);
 	}
 
 	free(drm->crtcs);
-	free(drm->planes);
 }
 
 static struct wlr_drm_connector *get_drm_connector_from_output(
@@ -277,136 +386,105 @@ static struct wlr_drm_connector *get_drm_connector_from_output(
 	return (struct wlr_drm_connector *)wlr_output;
 }
 
-static bool drm_connector_make_current(struct wlr_output *output,
-		int *buffer_age) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
-}
-
-static bool drm_connector_swap_buffers(struct wlr_output *output,
-		pixman_region32_t *damage) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (!drm->session->active) {
-		return false;
-	}
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	struct gbm_bo *bo = swap_drm_surface_buffers(&plane->surf, damage);
-	if (drm->parent) {
-		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
-	}
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
-
-	if (conn->pageflip_pending) {
-		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
-		return false;
-	}
-
-	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
-		return false;
-	}
-
-	conn->pageflip_pending = true;
-	wlr_output_update_enabled(output, true);
-	return true;
-}
-
-static void fill_empty_gamma_table(size_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b) {
-	for (uint32_t i = 0; i < size; ++i) {
-		uint16_t val = (uint32_t)0xffff * i / (size - 1);
-		r[i] = g[i] = b[i] = val;
-	}
-}
-
 static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-
-	if (conn->crtc) {
-		return drm->iface->crtc_get_gamma_size(drm, conn->crtc);
-	}
-
-	return 0;
+	return conn->crtc ? conn->crtc->max_gamma_size : 0;
 }
 
-bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
+static bool drm_connector_set_gamma(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-
-	if (!conn->crtc) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc || crtc->max_gamma_size == 0) {
 		return false;
 	}
 
-	bool reset = false;
-	if (size == 0) {
-		reset = true;
-		size = drm_connector_get_gamma_size(output);
+	/* Some drivers (e.g. AMDGPU) have issues when trying to use the gamma
+	 * property, so we temporarily provide an override until it's fixed.
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=107459
+	 *
+	 * The environment variable name contains "ATOMIC", but is not
+	 * actually tied to atomic modesetting. That remains for legacy reasons.
+	 */
+	const char *no_prop_str = getenv("WLR_DRM_NO_ATOMIC_GAMMA");
+	bool no_prop = no_prop_str && strcmp(no_prop_str, "1") == 0;
+
+	// Using legacy gamma interface
+	if (no_prop || crtc->props.gamma_lut == 0) {
+		if (crtc->gamma_table) {
+			free(crtc->gamma_table);
+			crtc->gamma_table = NULL;
+			crtc->gamma_size = 0;
+		}
+
+		bool reset = false;
 		if (size == 0) {
+			reset = true;
+			size = conn->crtc->max_gamma_size;
+		}
+
+		crtc->gamma_table = malloc(sizeof(*crtc->gamma_table) * size * 3);
+		if (!crtc->gamma_table) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
 			return false;
 		}
-	}
+		crtc->gamma_size = size;
 
-	uint16_t *gamma_table = malloc(3 * size * sizeof(uint16_t));
-	if (gamma_table == NULL) {
-		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
-		return false;
-	}
-	uint16_t *_r = gamma_table;
-	uint16_t *_g = gamma_table + size;
-	uint16_t *_b = gamma_table + 2 * size;
+		if (reset) {
+			for (size_t i = 0; i < size; ++i) {
+				uint16_t val = (uint32_t)0xffff * i / (size - 1);
+				crtc->gamma_table[size * 0 + i] = val;
+				crtc->gamma_table[size * 1 + i] = val;
+				crtc->gamma_table[size * 2 + i] = val;
+			}
+		} else {
+			memcpy(&crtc->gamma_table[size * 0], r, sizeof(*r) * size);
+			memcpy(&crtc->gamma_table[size * 1], g, sizeof(*g) * size);
+			memcpy(&crtc->gamma_table[size * 2], b, sizeof(*b) * size);
+		}
 
-	if (reset) {
-		fill_empty_gamma_table(size, _r, _g, _b);
+		return true;
+
+	// Using the GAMMA_LUT property
 	} else {
-		memcpy(_r, r, size * sizeof(uint16_t));
-		memcpy(_g, g, size * sizeof(uint16_t));
-		memcpy(_b, b, size * sizeof(uint16_t));
+		if (crtc->gamma_blob_id) {
+			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_blob_id);
+			crtc->gamma_blob_id = 0;
+		}
+
+		if (size == 0) {
+			return true;
+		}
+
+		struct drm_color_lut *lut = calloc(size, sizeof(*lut));
+		if (!lut) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			return false;
+		}
+
+		for (size_t i = 0; i < size; ++i) {
+			lut[i].red = r[i];
+			lut[i].green = g[i];
+			lut[i].blue = b[i];
+		}
+
+		int ret = drmModeCreatePropertyBlob(drm->fd, lut,
+				size * sizeof(*lut), &crtc->gamma_blob_id);
+		if (ret) {
+			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
+		}
+
+		free(lut);
+		return ret == 0;
 	}
-
-	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
-	if (ok) {
-		wlr_output_update_needs_swap(output);
-
-		free(conn->crtc->gamma_table);
-		conn->crtc->gamma_table = gamma_table;
-		conn->crtc->gamma_table_size = size;
-	} else {
-		free(gamma_table);
-	}
-	return ok;
-}
-
-static bool drm_connector_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-
-	if (!drm->session->active) {
-		return false;
-	}
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
-	struct wlr_drm_surface *surf = &plane->surf;
-
-	return export_drm_bo(surf->back, attribs);
 }
 
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
 	}
+#if 0
 
 	wlr_log(WLR_DEBUG, "Starting renderer on output '%s'", conn->output.name);
 
@@ -416,22 +494,26 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	if (!crtc) {
 		return;
 	}
-	struct wlr_drm_plane *plane = crtc->primary;
 
-	struct gbm_bo *bo = get_drm_surface_front(
-		drm->parent ? &plane->mgpu_surf : &plane->surf);
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	struct wlr_drm_plane *plane = crtc->primary;
+	struct wlr_image *img = plane->img;
+	if (!img) {
+		wlr_output_send_frame(&conn->output);
+		img = plane->img;
+	}
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
-	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
+	if (drm->iface->crtc_pageflip(drm, conn, crtc, img, &mode->drm_mode)) {
 		conn->pageflip_pending = true;
 		wlr_output_update_enabled(&conn->output, true);
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000000.0f / conn->output.current_mode->refresh);
 	}
+#endif
 }
 
+#if 0
 static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs);
 
 static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
@@ -448,17 +530,18 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 		}
 	}
 }
+#endif
 
 bool enable_drm_connector(struct wlr_output *output, bool enable) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	//struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (conn->state != WLR_DRM_CONN_CONNECTED
 			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
 		return false;
 	}
 
-	conn->desired_enabled = enable;
-
+	conn->desire_enabled = enable;
+#if 0
 	if (enable && conn->crtc == NULL) {
 		// Maybe we can steal a CRTC from a disabled output
 		realloc_crtcs(drm, NULL);
@@ -478,9 +561,11 @@ bool enable_drm_connector(struct wlr_output *output, bool enable) {
 	}
 
 	wlr_output_update_enabled(&conn->output, enable);
+#endif
 	return true;
 }
 
+#if 0
 static ssize_t connector_index_from_crtc(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
 	size_t i = 0;
@@ -492,6 +577,15 @@ static ssize_t connector_index_from_crtc(struct wlr_drm_backend *drm,
 		++i;
 	}
 	return -1;
+}
+
+static void plane_release_img(struct wlr_drm_plane *plane) {
+	if (!plane->img) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&plane->img->release, plane->img);
+	plane->img = NULL;
 }
 
 static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
@@ -548,21 +642,33 @@ static void realloc_planes(struct wlr_drm_backend *drm, const uint32_t *crtc_in,
 					changed_outputs[conn_idx] = true;
 				}
 				if (*old) {
-					finish_drm_surface(&(*old)->surf);
+					plane_release_img(*old);
 				}
-				finish_drm_surface(&new->surf);
+				plane_release_img(new);
 				*old = new;
 			}
 		}
 	}
 }
+#endif
 
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
 bool drm_connector_set_mode(struct wlr_output *output,
-		struct wlr_output_mode *mode) {
+		struct wlr_output_mode *mode_base) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_mode *mode = wl_container_of(mode_base, mode, wlr_mode);
+
+	// This has been called while inside scan_drm_connectors
+	if (drm->delay_modeset) {
+		conn->desire_enabled = true;
+		conn->desired_mode = mode;
+
+		return true;
+	}
+
+#if 0
 	if (conn->crtc == NULL) {
 		// Maybe we can steal a CRTC from a disabled output
 		realloc_crtcs(drm, NULL);
@@ -578,12 +684,6 @@ bool drm_connector_set_mode(struct wlr_output *output,
 	wlr_log(WLR_INFO, "Modesetting '%s' with '%ux%u@%u mHz'",
 		conn->output.name, mode->width, mode->height, mode->refresh);
 
-	if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-			mode->width, mode->height, drm->renderer.gbm_format)) {
-		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
-		return false;
-	}
-
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	conn->desired_mode = NULL;
 	wlr_output_update_mode(&conn->output, mode);
@@ -595,12 +695,14 @@ bool drm_connector_set_mode(struct wlr_output *output,
 	// When switching VTs, the mode is not updated but the buffers become
 	// invalid, so we need to manually damage the output here
 	wlr_output_damage_whole(&conn->output);
+#endif
 
 	return true;
 }
 
 bool wlr_drm_connector_add_mode(struct wlr_output *output,
 		const drmModeModeInfo *modeinfo) {
+#if 0
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
 	if (modeinfo->type != DRM_MODE_TYPE_USERDEF) {
@@ -630,6 +732,7 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 			mode->wlr_mode.width, mode->wlr_mode.height,
 			mode->wlr_mode.refresh);
 	wl_list_insert(&conn->output.modes, &mode->wlr_mode.link);
+#endif
 	return true;
 }
 
@@ -642,6 +745,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		struct wlr_texture *texture, int32_t scale,
 		enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+#if 0
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
@@ -775,10 +879,13 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_output_update_needs_swap(output);
 	}
 	return ok;
+#endif
+	return true;
 }
 
 static bool drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
+#if 0
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (!conn->crtc) {
@@ -812,9 +919,12 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 		wlr_output_update_needs_swap(output);
 	}
 	return ok;
+#endif
+	return true;
 }
 
 static bool drm_connector_schedule_frame(struct wlr_output *output) {
+#if 0
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (!drm->session->active) {
@@ -829,8 +939,8 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
-	struct gbm_bo *bo = plane->surf.back;
-	if (!bo) {
+	struct wlr_image *img = plane->img;
+	if (!img) {
 		// We haven't swapped buffers yet -- can't do a pageflip
 		wlr_output_send_frame(output);
 		return true;
@@ -845,43 +955,49 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 		return true;
 	}
 
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
-	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
+	if (!drm->iface->crtc_pageflip(drm, conn, crtc, img, NULL)) {
 		return false;
 	}
 
 	conn->pageflip_pending = true;
 	wlr_output_update_enabled(output, true);
+#endif
 	return true;
 }
 
 static const struct wlr_format_set *drm_connector_get_formats(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-
-	if (!conn->crtc || !conn->crtc->primary) {
+	if (!conn->crtc) {
 		return NULL;
 	}
 
-	return &conn->crtc->primary->formats;
+	return &conn->crtc->primary.formats;
 }
 
 static bool drm_connector_present(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	struct wlr_image *img = output->image;
 
-	// TODO: Make this work with the legacy interface
-	if (drm->iface == &legacy_iface) {
+	if (!img) {
 		return false;
 	}
 
-	uint32_t fb_id = img ? (uint32_t)(uintptr_t)img->backend_priv : 0;
+	/*
+	 * We can't make use of the image immediately. It'll get used during
+	 * the next pageflip/modeset.
+	 *
+	 * If we already have a pending image we haven't made use of yet, we
+	 * release it now without ever using it.
+	 *
+	 * TODO: presentation-time
+	 */
 
-	bool ret = drm->iface->crtc_pageflip(drm, conn, conn->crtc, fb_id, NULL);
-	if (ret) {
-		conn->current_image = img;
+	if (conn->desired_img && conn->desired_img != img) {
+		wlr_signal_emit_safe(&conn->desired_img->release, conn->desired_img);
 	}
-	return ret;
+
+	conn->desired_img = img;
+	return true;
 }
 
 static void drm_connector_destroy(struct wlr_output *output) {
@@ -900,11 +1016,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
-	.make_current = drm_connector_make_current,
-	.swap_buffers = drm_connector_swap_buffers,
-	.set_gamma = set_drm_connector_gamma,
+	.set_gamma = drm_connector_set_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
-	.export_dmabuf = drm_connector_export_dmabuf,
 	.schedule_frame = drm_connector_schedule_frame,
 	.get_formats = drm_connector_get_formats,
 	.present = drm_connector_present,
@@ -921,15 +1034,6 @@ static int retry_pageflip(void *data) {
 	return 0;
 }
 
-static const int32_t subpixel_map[] = {
-	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
-	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
-	[DRM_MODE_SUBPIXEL_HORIZONTAL_BGR] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR,
-	[DRM_MODE_SUBPIXEL_VERTICAL_RGB] = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB,
-	[DRM_MODE_SUBPIXEL_VERTICAL_BGR] = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR,
-	[DRM_MODE_SUBPIXEL_NONE] = WL_OUTPUT_SUBPIXEL_NONE,
-};
-
 static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	struct wlr_drm_backend *drm =
 		get_drm_backend_from_backend(conn->output.backend);
@@ -940,23 +1044,14 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
 
-	set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
+	drm_connector_set_gamma(&conn->output, 0, NULL, NULL, NULL);
 
-	for (size_t type = 0; type < 3; ++type) {
-		struct wlr_drm_plane *plane = conn->crtc->planes[type];
-		if (plane == NULL) {
-			continue;
-		}
-
-		finish_drm_surface(&plane->surf);
-		conn->crtc->planes[type] = NULL;
-	}
-
-	drm->iface->conn_enable(drm, conn, false);
+	//drm->iface->conn_enable(drm, conn, false);
 
 	conn->crtc = NULL;
 }
 
+#if 0
 static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 	size_t num_outputs = wl_list_length(&drm->outputs);
 
@@ -1065,7 +1160,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 	i = -1;
 	wl_list_for_each(conn, &drm->outputs, link) {
 		i++;
-		struct wlr_output_mode *mode = conn->output.current_mode;
+		//struct wlr_output_mode *mode = conn->output.current_mode;
 
 		if (conn->state != WLR_DRM_CONN_CONNECTED || !changed_outputs[i]) {
 			continue;
@@ -1081,17 +1176,235 @@ static void realloc_crtcs(struct wlr_drm_backend *drm, bool *changed_outputs) {
 			continue;
 		}
 
-		if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-				mode->width, mode->height, drm->renderer.gbm_format)) {
-			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
-			drm_connector_cleanup(conn);
-			break;
-		}
-
 		drm_connector_start_renderer(conn);
 
 		wlr_output_damage_whole(&conn->output);
 	}
+}
+#endif
+
+/*
+ * This is a wrapper over drmModeAtomicAddProperty so we get a more useful
+ * return value.
+ */
+static int add_prop(drmModeAtomicReq *req, uint32_t id,
+		uint32_t prop, uint64_t val) {
+	if (!prop) {
+		return 0;
+	}
+
+	return drmModeAtomicAddProperty(req, id, prop, val) >= 0;
+}
+
+static bool atomic_pick_crtc(struct wlr_drm_backend *drm,
+		drmModeAtomicReq *req, struct wl_list *conn_head,
+		struct wl_list *conn_link, struct wl_list *crtc_head) {
+	/*
+	 * Base case: We've reached the end of the list.
+	 * Test the configuration to see if it's good.
+	 */
+	if (conn_link == conn_head) {
+		return drmModeAtomicCommit(drm->fd, req,
+			DRM_MODE_ATOMIC_TEST_ONLY, NULL) == 0;
+	}
+
+	/*
+	 * We loop through all of the available CRTCs and try each one until we
+	 * get a configuration that works.
+	 */
+
+	struct wlr_drm_connector *conn = wl_container_of(conn_link, conn, state_link);
+	struct wlr_drm_mode *mode = conn->desired_mode;
+	struct wlr_image *img = conn->desired_img ? conn->desired_img : &drm->fake;
+
+	if (!mode->blob_id && drmModeCreatePropertyBlob(drm->fd, &mode->drm_mode,
+			sizeof(mode->drm_mode), &mode->blob_id)) {
+		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
+		return false;
+	}
+
+	struct wlr_drm_crtc *crtc;
+	wl_list_for_each(crtc, crtc_head, state_link) {
+		// Not compatible
+		if ((conn->possible_crtcs & (1 << crtc->pipe)) == 0) {
+			continue;
+		}
+
+		int cursor = drmModeAtomicGetCursor(req);
+		struct wl_list *prev = crtc->state_link.prev;
+		struct wlr_drm_plane *plane = &crtc->primary;
+
+		/*
+		 * We remove the CRTC from the list so that subsequent
+		 * recursive calls can't take it either.
+		 * The list must be restored to its original state before
+		 * the loop continues.
+		 */
+		wl_list_remove(&crtc->state_link);
+
+		int ret = 1;
+
+		if (crtc->props.gamma_lut) {
+			ret &= add_prop(req, crtc->id, crtc->props.gamma_lut,
+				crtc->gamma_blob_id);
+		}
+		ret &= add_prop(req, conn->id, conn->props.crtc_id, crtc->id);
+		ret &= add_prop(req, conn->id, conn->props.link_status,
+			DRM_MODE_LINK_STATUS_GOOD);
+		ret &= add_prop(req, crtc->id, crtc->props.active, 1);
+		ret &= add_prop(req, crtc->id, crtc->props.mode_id, mode->blob_id);
+		// SRC_* properties are in 16.16 fixed point
+		ret &= add_prop(req, plane->id, plane->props.src_x, 0);
+		ret &= add_prop(req, plane->id, plane->props.src_y, 0);
+		ret &= add_prop(req, plane->id, plane->props.src_w,
+			(uint64_t)img->width << 16);
+		ret &= add_prop(req, plane->id, plane->props.src_h,
+			(uint64_t)img->height << 16);
+		ret &= add_prop(req, plane->id, plane->props.crtc_x, 0);
+		ret &= add_prop(req, plane->id, plane->props.crtc_y, 0);
+		ret &= add_prop(req, plane->id, plane->props.crtc_w,
+			mode->wlr_mode.width);
+		ret &= add_prop(req, plane->id, plane->props.crtc_h,
+			mode->wlr_mode.height);
+		ret &= add_prop(req, plane->id, plane->props.fb_id,
+			(uintptr_t)img->backend_priv);
+		ret &= add_prop(req, plane->id, plane->props.crtc_id, crtc->id);
+
+		if (!ret) {
+			wlr_log(WLR_ERROR, "Failed to set properties");
+			goto error;
+		}
+
+		if (atomic_pick_crtc(drm, req, conn_head,
+				conn->state_link.next, crtc_head)) {
+			conn->crtc = crtc;
+			conn->locked_img = img;
+			conn->desired_img = NULL;
+			conn->pageflip_pending = true;
+			return true;
+		}
+
+error:
+		drmModeAtomicSetCursor(req, cursor);
+		wl_list_insert(prev, &crtc->state_link);
+	}
+
+	return false;
+}
+
+static void atomic_apply_state(struct wlr_drm_backend *drm) {
+	drmModeAtomicReq *req = drmModeAtomicAlloc();
+
+	struct wl_list enabled, disabled, crtcs;
+	wl_list_init(&enabled);
+	wl_list_init(&disabled);
+	wl_list_init(&crtcs);
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		drm->crtcs[i].in_list = false;
+	}
+
+	/*
+	 * We store a connector and its previously associated CRTC
+	 * in the same position in their respective lists, so that they
+	 * are significantly more likely to keep their association.
+	 *
+	 * e.g. enabled[0]->crtc == crtcs[0]
+	 *
+	 * All connectors and CRTCs without an existing association
+	 * are stored at the end of their lists.
+	 */
+
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
+		if (conn->desire_enabled) {
+			if (conn->crtc) {
+				wl_list_insert(&enabled, &conn->state_link);
+				wl_list_insert(&crtcs, &conn->crtc->state_link);
+				conn->crtc->in_list = true;
+			} else {
+				// Add unassocited connector to the end
+				wl_list_insert(enabled.prev, &conn->state_link);
+			}
+		} else {
+			wl_list_insert(&disabled, &conn->state_link);
+		}
+	}
+
+	// Add unassociated CRTCs to the end
+
+	for (size_t i = 0; i < drm->num_crtcs; ++i) {
+		if (!drm->crtcs[i].in_list) {
+			wl_list_insert(crtcs.prev, &drm->crtcs[i].state_link);
+		}
+	}
+
+	// Find the configuration
+
+	while (!wl_list_empty(&enabled)) {
+		if (atomic_pick_crtc(drm, req, &enabled, enabled.next, &crtcs)) {
+			break;
+		}
+
+		// Keep popping elements off of the end until it works
+
+		struct wlr_drm_connector *conn =
+			wl_container_of(enabled.prev, conn, state_link);
+		wl_list_remove(&conn->state_link);
+		wl_list_insert(&disabled, &conn->state_link);
+	}
+
+	if (drmModeAtomicCommit(drm->fd, req,
+			DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_ALLOW_MODESET, drm)) {
+		wlr_log_errno(WLR_ERROR, "Atomic modeset failed");
+
+		/*
+		 * This should ideally never happen, because we've run this
+		 * past TEST_ONLY, but it can happen in some situations, which
+		 * probably indicates a bug in our code.
+		 *
+		 * Instead of desperately scrambling to try again to find a
+		 * configuration that works (which we probably won't), the only
+		 * sensible thing to do here it to shut down. The backend is
+		 * basically completely stalled.
+		 */
+		wl_display_destroy_clients(drm->display);
+		wl_display_destroy(drm->display);
+		goto error;
+	}
+
+	wlr_log(WLR_DEBUG, "CRTC mapping:");
+
+	wl_list_for_each(conn, &enabled, state_link) {
+		wlr_log(WLR_DEBUG, "  CRTC %"PRIu32" <-> Connector '%s'",
+			conn->crtc->pipe, conn->output.name);
+
+		wlr_output_update_enabled(&conn->output, true);
+		wlr_output_update_mode(&conn->output, &conn->desired_mode->wlr_mode);
+	}
+
+	wl_list_for_each(conn, &disabled, state_link) {
+		wlr_output_update_enabled(&conn->output, false);
+		wlr_output_update_mode(&conn->output, NULL);
+	}
+
+	/*
+	 * Unset all of the CRTCs we're not using.
+	 * We can't do this in the commit above, because we can't ask for an
+	 * event on a disabled CRTC.
+	 */
+
+	drmModeAtomicSetCursor(req, 0);
+	struct wlr_drm_crtc *crtc;
+	wl_list_for_each(crtc, &crtcs, state_link) {
+		wlr_log(WLR_DEBUG, "  CRTC %"PRIu32" unused", crtc->pipe);
+		add_prop(req, crtc->id, crtc->props.active, 0);
+		add_prop(req, crtc->id, crtc->props.mode_id, 0);
+	}
+	drmModeAtomicCommit(drm->fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL);
+
+error:
+	drmModeAtomicFree(req);
 }
 
 static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
@@ -1109,9 +1422,11 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 		drmModeFreeEncoder(enc);
 	}
 
-	// Sometimes DP MST connectors report no encoders, so we'll loop though
-	// all of the encoders of the MST type instead.
-	// TODO: See if there is a better solution.
+	/*
+	 * Sometimes DP MST connectors report no encoders, so we'll loop though
+	 * all of the encoders of the MST type instead.
+	 * TODO: See if there is a better solution.
+	 */
 
 	if (!is_mst || ret) {
 		return ret;
@@ -1133,8 +1448,130 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 	return ret;
 }
 
+static struct wlr_drm_connector *connector_create(struct wlr_drm_backend *drm,
+		drmModeRes *res, drmModeConnector *kms_conn) {
+	struct wlr_drm_connector *conn = calloc(1, sizeof(*conn));
+	if (!conn) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
+	conn->id = kms_conn->connector_id;
+	conn->state = WLR_DRM_CONN_DISCONNECTED;
+
+	if (!get_drm_connector_props(drm->fd, conn->id, &conn->props)) {
+		wlr_log_errno(WLR_ERROR, "Failed to get connector properties");
+		goto error_conn;
+	}
+
+	conn->possible_crtcs =
+		get_possible_crtcs(drm->fd, res, kms_conn, conn->props.path != 0);
+	if (conn->possible_crtcs == 0) {
+		wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
+			conn->output.name);
+	}
+
+	struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
+	conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip, conn);
+	if (!conn->retry_pageflip) {
+		wlr_log_errno(WLR_ERROR, "Failed to create timer source");
+		goto error_conn;
+	}
+
+	wlr_output_init(&conn->output, &drm->backend, &output_impl, drm->display);
+
+	snprintf(conn->output.name, sizeof(conn->output.name),
+		"%s-%"PRIu32, conn_get_name(kms_conn->connector_type),
+		kms_conn->connector_type_id);
+
+	drmModeEncoder *enc = drmModeGetEncoder(drm->fd, kms_conn->encoder_id);
+	if (enc) {
+		conn->old_crtc = drmModeGetCrtc(drm->fd, enc->crtc_id);
+	}
+
+	wl_list_insert(drm->outputs.prev, &conn->link);
+
+	return conn;
+
+error_conn:
+	free(conn);
+	return NULL;
+}
+
+static const int32_t subpixel_map[] = {
+	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
+	[DRM_MODE_SUBPIXEL_HORIZONTAL_BGR] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR,
+	[DRM_MODE_SUBPIXEL_VERTICAL_RGB] = WL_OUTPUT_SUBPIXEL_VERTICAL_RGB,
+	[DRM_MODE_SUBPIXEL_VERTICAL_BGR] = WL_OUTPUT_SUBPIXEL_VERTICAL_BGR,
+	[DRM_MODE_SUBPIXEL_NONE] = WL_OUTPUT_SUBPIXEL_NONE,
+};
+
+static void connector_populate(struct wlr_drm_backend *drm,
+		struct wlr_drm_connector *conn, drmModeConnector *kms_conn) {
+	conn->output.phys_width = kms_conn->mmWidth;
+	conn->output.phys_height = kms_conn->mmHeight;
+	wlr_log(WLR_INFO, "Physical size: %"PRId32"x%"PRId32,
+		conn->output.phys_width, conn->output.phys_height);
+
+	conn->output.subpixel = subpixel_map[kms_conn->subpixel];
+
+	size_t edid_len = 0;
+	uint8_t *edid =
+		get_drm_prop_blob(drm->fd, conn->id, conn->props.edid, &edid_len);
+	parse_edid(&conn->output, edid_len, edid);
+	free(edid);
+
+	wlr_log(WLR_INFO, "Detected modes:");
+
+	for (int i = 0; i < kms_conn->count_modes; ++i) {
+		// We don't support interlacing
+		if (kms_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
+			continue;
+		}
+
+		struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
+		if (!mode) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			continue;
+		}
+
+		mode->drm_mode = kms_conn->modes[i];
+		mode->wlr_mode.width = mode->drm_mode.hdisplay;
+		mode->wlr_mode.height = mode->drm_mode.vdisplay;
+		mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
+
+		wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32,
+			mode->wlr_mode.width, mode->wlr_mode.height,
+			mode->wlr_mode.refresh);
+
+		wl_list_insert(&conn->output.modes, &mode->wlr_mode.link);
+	}
+}
+
+static bool link_status_bad(struct wlr_drm_backend *drm,
+		struct wlr_drm_connector *conn) {
+	if (!conn->props.link_status) {
+		return false;
+	}
+	uint64_t link_status;
+	if (!get_drm_prop(drm->fd, conn->id, conn->props.link_status,
+			&link_status)) {
+		// If it fails, who really knows what the link status is?
+		wlr_log_errno(WLR_ERROR, "Failed to get link status for '%s'",
+			conn->output.name);
+		return false;
+	}
+	return link_status == DRM_MODE_LINK_STATUS_BAD;
+}
+
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	wlr_log(WLR_INFO, "Scanning DRM connectors");
+
+	struct wlr_drm_connector *iter, *tmp;
+	wl_list_for_each(iter, &drm->outputs, link) {
+		iter->seen = false;
+	}
 
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
@@ -1142,219 +1579,139 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	size_t seen_len = wl_list_length(&drm->outputs);
-	// +1 so length can never be 0, which is undefined behaviour.
-	// Last element isn't used.
-	bool seen[seen_len + 1];
-	memset(seen, false, sizeof(seen));
-	size_t new_outputs_len = 0;
-	struct wlr_drm_connector *new_outputs[res->count_connectors + 1];
+	// Accumulate state and apply it all at the end
+	drm->delay_modeset = true;
+
+	struct wl_list new_connectors;
+	wl_list_init(&new_connectors);
 
 	for (int i = 0; i < res->count_connectors; ++i) {
-		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
-			res->connectors[i]);
-		if (!drm_conn) {
+		drmModeConnector *kms_conn =
+			drmModeGetConnector(drm->fd, res->connectors[i]);
+		if (!kms_conn) {
 			wlr_log_errno(WLR_ERROR, "Failed to get DRM connector");
 			continue;
 		}
-		drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
-			drm_conn->encoder_id);
 
-		ssize_t index = -1;
-		struct wlr_drm_connector *c, *wlr_conn = NULL;
-		wl_list_for_each(c, &drm->outputs, link) {
-			index++;
-			if (c->id == drm_conn->connector_id) {
-				wlr_conn = c;
+		// See if we already know about this connector
+
+		struct wlr_drm_connector *conn = NULL;
+		wl_list_for_each(iter, &drm->outputs, link) {
+			if (iter->id == kms_conn->connector_id) {
+				conn = iter;
 				break;
 			}
 		}
 
-		if (!wlr_conn) {
-			wlr_conn = calloc(1, sizeof(*wlr_conn));
-			if (!wlr_conn) {
-				wlr_log_errno(WLR_ERROR, "Allocation failed");
-				drmModeFreeEncoder(curr_enc);
-				drmModeFreeConnector(drm_conn);
-				continue;
-			}
-			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
-				drm->display);
+		// Create it if we don't
 
-			struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
-			wlr_conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,
-				wlr_conn);
-
-			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
-			wlr_conn->id = drm_conn->connector_id;
-
-			snprintf(wlr_conn->output.name, sizeof(wlr_conn->output.name),
-				"%s-%"PRIu32, conn_get_name(drm_conn->connector_type),
-				drm_conn->connector_type_id);
-
-			if (curr_enc) {
-				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
-			}
-
-			wl_list_insert(drm->outputs.prev, &wlr_conn->link);
-			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->output.name);
-		} else {
-			seen[index] = true;
-		}
-
-		if (curr_enc) {
-			for (size_t i = 0; i < drm->num_crtcs; ++i) {
-				if (drm->crtcs[i].id == curr_enc->crtc_id) {
-					wlr_conn->crtc = &drm->crtcs[i];
-					break;
-				}
-			}
-		} else {
-			wlr_conn->crtc = NULL;
-		}
-
-		// This can only happen *after* hotplug, since we haven't read the
-		// connector properties yet
-		if (wlr_conn->props.link_status != 0) {
-			uint64_t link_status;
-			if (!get_drm_prop(drm->fd, wlr_conn->id,
-					wlr_conn->props.link_status, &link_status)) {
-				wlr_log(WLR_ERROR, "Failed to get link status for '%s'",
-					wlr_conn->output.name);
+		if (!conn) {
+			conn = connector_create(drm, res, kms_conn);
+			if (!conn) {
+				drmModeFreeConnector(kms_conn);
 				continue;
 			}
 
-			if (link_status == DRM_MODE_LINK_STATUS_BAD) {
-				// We need to reload our list of modes and force a modeset
-				wlr_log(WLR_INFO, "Bad link for '%s'", wlr_conn->output.name);
-				drm_connector_cleanup(wlr_conn);
-			}
+			wlr_log(WLR_INFO, "Found connector '%s'", conn->output.name);
+		}
+		conn->seen = true;
+
+		/*
+		 * link-status is an asynchronous way for the kernel to tell us
+		 * that it failed to modeset after we've already committed the state.
+		 * e.g. Run out of DisplayPort bandwidth due to MST or low-quality
+		 * cables.
+		 *
+		 * Basically all of our assumptions are now wrong, so we tear
+		 * the entire connector down and bring it up again.
+		 */
+		if (link_status_bad(drm, conn)) {
+			wlr_log(WLR_ERROR, "Link status went bad for '%s'", conn->output.name);
+			drm_connector_cleanup(conn);
 		}
 
-		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
-				drm_conn->connection == DRM_MODE_CONNECTED) {
-			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->output.name);
-			wlr_log(WLR_DEBUG, "Current CRTC: %d",
-				wlr_conn->crtc ? (int)wlr_conn->crtc->id : -1);
+		// The connector has been plugged in
+		if (conn->state == WLR_DRM_CONN_DISCONNECTED &&
+				kms_conn->connection == DRM_MODE_CONNECTED) {
+			wlr_log(WLR_INFO, "'%s' connected", conn->output.name);
 
-			wlr_conn->output.phys_width = drm_conn->mmWidth;
-			wlr_conn->output.phys_height = drm_conn->mmHeight;
-			wlr_log(WLR_INFO, "Physical size: %"PRId32"x%"PRId32,
-				wlr_conn->output.phys_width, wlr_conn->output.phys_height);
-			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
+			connector_populate(drm, conn, kms_conn);
 
-			get_drm_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
+			wl_list_insert(&new_connectors, &conn->new_link);
+			conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 
-			size_t edid_len = 0;
-			uint8_t *edid = get_drm_prop_blob(drm->fd,
-				wlr_conn->id, wlr_conn->props.edid, &edid_len);
-			parse_edid(&wlr_conn->output, edid_len, edid);
-			free(edid);
+		// The connector has been unplugged
+		} else if ((conn->state == WLR_DRM_CONN_CONNECTED ||
+				conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
+				kms_conn->connection != DRM_MODE_CONNECTED) {
+			wlr_log(WLR_INFO, "'%s' disconnected", conn->output.name);
 
-			wlr_log(WLR_INFO, "Detected modes:");
-
-			for (int i = 0; i < drm_conn->count_modes; ++i) {
-				struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
-				if (!mode) {
-					wlr_log_errno(WLR_ERROR, "Allocation failed");
-					continue;
-				}
-
-				if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
-					free(mode);
-					continue;
-				}
-
-				mode->drm_mode = drm_conn->modes[i];
-				mode->wlr_mode.width = mode->drm_mode.hdisplay;
-				mode->wlr_mode.height = mode->drm_mode.vdisplay;
-				mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
-
-				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32,
-					mode->wlr_mode.width, mode->wlr_mode.height,
-					mode->wlr_mode.refresh);
-
-				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
-			}
-
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn,
-				wlr_conn->props.path != 0);
-			if (wlr_conn->possible_crtc == 0) {
-				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
-					wlr_conn->output.name);
-			}
-
-			wlr_output_update_enabled(&wlr_conn->output, wlr_conn->crtc != NULL);
-			wlr_conn->desired_enabled = true;
-
-			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
-			new_outputs[new_outputs_len++] = wlr_conn;
-		} else if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED ||
-				wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
-				drm_conn->connection != DRM_MODE_CONNECTED) {
-			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->output.name);
-
-			drm_connector_cleanup(wlr_conn);
+			drm_connector_cleanup(conn);
 		}
 
-		drmModeFreeEncoder(curr_enc);
-		drmModeFreeConnector(drm_conn);
+		drmModeFreeConnector(kms_conn);
 	}
 
 	drmModeFreeResources(res);
 
-	// Iterate in reverse order because we'll remove items from the list and
-	// still want indices to remain correct.
-	struct wlr_drm_connector *conn, *tmp_conn;
-	size_t index = wl_list_length(&drm->outputs);
-	wl_list_for_each_reverse_safe(conn, tmp_conn, &drm->outputs, link) {
-		index--;
-		if (index >= seen_len || seen[index]) {
+	// Clean up connectors that disappeared (e.g. DisplayPort MST)
+
+	wl_list_for_each_safe(iter, tmp, &drm->outputs, link) {
+		if (iter->seen) {
 			continue;
 		}
 
-		wlr_log(WLR_INFO, "'%s' disappeared", conn->output.name);
-		drm_connector_cleanup(conn);
+		wlr_log(WLR_INFO, "'%s' disappeared", iter->output.name);
+		drm_connector_cleanup(iter);
 
-		if (conn->pageflip_pending) {
-			conn->state = WLR_DRM_CONN_DISAPPEARED;
+		// Delay freeing the output until we get receive the event
+		if (iter->pageflip_pending) {
+			iter->state = WLR_DRM_CONN_DISAPPEARED;
 		} else {
-			wlr_output_destroy(&conn->output);
+			wlr_output_destroy(&iter->output);
 		}
 	}
 
-	bool changed_outputs[wl_list_length(&drm->outputs) + 1];
-	memset(changed_outputs, false, sizeof(changed_outputs));
-	for (size_t i = 0; i < new_outputs_len; ++i) {
-		struct wlr_drm_connector *conn = new_outputs[i];
+	/*
+	 * Tell the user about the new outputs.
+	 * While this is happening, we are collecting the requested modes
+	 * instead of applying them.
+	 */
 
-		ssize_t pos = -1;
-		struct wlr_drm_connector *c;
-		wl_list_for_each(c, &drm->outputs, link) {
-			++pos;
-			if (c == conn) {
-				break;
-			}
+	wl_list_for_each(iter, &new_connectors, new_link) {
+		wlr_log(WLR_INFO, "Requesting modeset for '%s'", iter->output.name);
+		wlr_signal_emit_safe(&drm->backend.events.new_output, &iter->output);
+	}
+
+#if 0
+	/*
+	 * We need to make sure we have a frame to show, otherwise modesetting
+	 * will fail. Ask the user for one if they haven't provided it already.
+	 */
+
+	wl_list_for_each(iter, &drm->outputs, link) {
+		if (!iter->desire_enabled) {
+			continue;
 		}
-		assert(pos >= 0);
+		if (iter->desired_img) {
+			continue;
+		}
 
-		changed_outputs[pos] = true;
+		wlr_output_send_frame(&iter->output);
+
+		// I guess you really don't want to be enabled
+		if (!iter->desired_img) {
+			iter->desire_enabled = false;
+		}
 	}
+#endif
 
-	realloc_crtcs(drm, changed_outputs);
+	// Now we try to apply all of the modes at once
 
-	for (size_t i = 0; i < new_outputs_len; ++i) {
-		struct wlr_drm_connector *conn = new_outputs[i];
-
-		wlr_log(WLR_INFO, "Requesting modeset for '%s'",
-			conn->output.name);
-		wlr_signal_emit_safe(&drm->backend.events.new_output,
-			&conn->output);
-	}
-
-	attempt_enable_needs_modeset(drm);
+	atomic_apply_state(drm);
 }
 
+#if 0
 static int mhz_to_nsec(int mhz) {
 	return 1000000000000LL / mhz;
 }
@@ -1367,11 +1724,6 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	conn->pageflip_pending = false;
 
-	if (conn->current_image) {
-		wl_signal_emit(&conn->current_image->release, conn->current_image);
-		conn->current_image = NULL;
-	}
-
 	if (conn->state == WLR_DRM_CONN_DISAPPEARED) {
 		wlr_output_destroy(&conn->output);
 		return;
@@ -1381,10 +1733,12 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
+#if 0
 	post_drm_surface(&conn->crtc->primary->surf);
 	if (drm->parent) {
 		post_drm_surface(&conn->crtc->primary->mgpu_surf);
 	}
+#endif
 
 	struct timespec present_time = {
 		.tv_sec = tv_sec,
@@ -1403,11 +1757,102 @@ static void page_flip_handler(int fd, unsigned seq,
 		wlr_output_send_frame(&conn->output);
 	}
 }
+#endif
+
+static void pageflip_handler(int fd, unsigned seq, unsigned tv_sec, unsigned tv_usec,
+		unsigned crtc_id, void *data) {
+	struct wlr_drm_backend *drm = data;
+	wlr_log(WLR_DEBUG, "pageflip on CRTC %u at %u.%u", crtc_id, tv_sec, tv_usec);
+
+	// Find the connector for this pageflip
+	struct wlr_drm_connector *conn = NULL, *iter;
+	wl_list_for_each(iter, &drm->outputs, link) {
+		if (iter->crtc && iter->crtc->id == crtc_id) {
+			conn = iter;
+			break;
+		}
+	}
+
+	// We haven't been managing our state properly
+	assert(conn);
+	assert(conn->locked_img);
+	assert(conn->pageflip_pending);
+	conn->pageflip_pending = false;
+
+	if (conn->state == WLR_DRM_CONN_DISAPPEARED) {
+		wlr_output_destroy(&conn->output);
+		return;
+	}
+
+	// The VT has changed, so we have to stop the rendering loop here
+	if (!drm->session->active) {
+		return;
+	}
+
+	wlr_output_send_frame(&conn->output);
+
+	if (conn->desired_img) {
+		wlr_signal_emit_safe(&conn->locked_img->release,
+			conn->locked_img);
+		conn->locked_img = conn->desired_img;
+		conn->desired_img = NULL;
+	}
+
+	struct wlr_image *img = conn->locked_img;
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	struct wlr_drm_plane *plane = &crtc->primary;
+	struct wlr_drm_mode *mode = conn->desired_mode;
+	drmModeAtomicReq *req = drmModeAtomicAlloc();
+
+	int ret = 1;
+
+	if (crtc->props.gamma_lut) {
+		ret &= add_prop(req, crtc->id, crtc->props.gamma_lut,
+			crtc->gamma_blob_id);
+	}
+	ret &= add_prop(req, conn->id, conn->props.crtc_id, crtc->id);
+	ret &= add_prop(req, conn->id, conn->props.link_status,
+		DRM_MODE_LINK_STATUS_GOOD);
+	ret &= add_prop(req, crtc->id, crtc->props.active, 1);
+	ret &= add_prop(req, crtc->id, crtc->props.mode_id, mode->blob_id);
+	// SRC_* properties are in 16.16 fixed point
+	ret &= add_prop(req, plane->id, plane->props.src_x, 0);
+	ret &= add_prop(req, plane->id, plane->props.src_y, 0);
+	ret &= add_prop(req, plane->id, plane->props.src_w,
+		(uint64_t)img->width << 16);
+	ret &= add_prop(req, plane->id, plane->props.src_h,
+		(uint64_t)img->height << 16);
+	ret &= add_prop(req, plane->id, plane->props.crtc_x, 0);
+	ret &= add_prop(req, plane->id, plane->props.crtc_y, 0);
+	ret &= add_prop(req, plane->id, plane->props.crtc_w,
+		mode->wlr_mode.width);
+	ret &= add_prop(req, plane->id, plane->props.crtc_h,
+		mode->wlr_mode.height);
+	ret &= add_prop(req, plane->id, plane->props.fb_id,
+		(uintptr_t)img->backend_priv);
+	ret &= add_prop(req, plane->id, plane->props.crtc_id, crtc->id);
+
+	if (!ret) {
+		wlr_log(WLR_ERROR, "Failed to set properties");
+		goto error;
+	}
+
+	if (drmModeAtomicCommit(drm->fd, req,
+			DRM_MODE_ATOMIC_NONBLOCK | DRM_MODE_PAGE_FLIP_EVENT, drm)) {
+		wlr_log(WLR_ERROR, "Atomic commit failed");
+	} else {
+		conn->pageflip_pending = true;
+	}
+
+error:
+	drmModeAtomicFree(req);
+}
 
 int handle_drm_event(int fd, uint32_t mask, void *data) {
 	drmEventContext event = {
-		.version = 2,
-		.page_flip_handler = page_flip_handler,
+		.version = 3,
+		//.page_flip_handler = page_flip_handler,
+		.page_flip_handler2 = pageflip_handler,
 	};
 
 	drmHandleEvent(fd, &event);
@@ -1461,21 +1906,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 	switch (conn->state) {
 	case WLR_DRM_CONN_CONNECTED:
 	case WLR_DRM_CONN_CLEANUP:;
-		struct wlr_drm_crtc *crtc = conn->crtc;
-		if (crtc != NULL) {
-			for (int i = 0; i < 3; ++i) {
-				if (!crtc->planes[i]) {
-					continue;
-				}
-
-				finish_drm_surface(&crtc->planes[i]->surf);
-				finish_drm_surface(&crtc->planes[i]->mgpu_surf);
-				if (crtc->planes[i]->id == 0) {
-					free(crtc->planes[i]);
-					crtc->planes[i] = NULL;
-				}
-			}
-		}
+		//struct wlr_drm_crtc *crtc = conn->crtc;
 
 		conn->output.current_mode = NULL;
 		conn->desired_mode = NULL;
@@ -1504,7 +1935,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		wlr_log(WLR_INFO, "Emitting destruction signal for '%s'",
 			conn->output.name);
 		dealloc_crtc(conn);
-		conn->possible_crtc = 0;
+		conn->possible_crtcs = 0;
 		conn->desired_mode = NULL;
 		wlr_signal_emit_safe(&conn->output.events.destroy, &conn->output);
 		break;

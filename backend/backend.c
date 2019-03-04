@@ -104,6 +104,9 @@ struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 }
 
 int wlr_backend_get_render_fd(struct wlr_backend *backend) {
+	if (!backend->impl->get_render_fd) {
+		return -1;
+	}
 	return backend->impl->get_render_fd(backend);
 }
 
@@ -198,6 +201,7 @@ static struct wlr_backend *attempt_noop_backend(struct wl_display *display) {
 
 	return backend;
 }
+#endif
 
 static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session *session,
@@ -224,22 +228,22 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 
 	return primary_drm;
 }
-#endif
 
 static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session **session,
 		const char *name, wlr_renderer_create_func_t create_renderer_func) {
 	if (strcmp(name, "wayland") == 0) {
 		return attempt_wl_backend(display, create_renderer_func);
-#if 0
 #if WLR_HAS_X11_BACKEND
 	} else if (strcmp(name, "x11") == 0) {
 		return attempt_x11_backend(display, NULL, create_renderer_func);
 #endif
+#if 0
 	} else if (strcmp(name, "headless") == 0) {
 		return attempt_headless_backend(display, create_renderer_func);
 	} else if (strcmp(name, "noop") == 0) {
 		return attempt_noop_backend(display);
+#endif
 	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
 		// DRM and libinput need a session
 		if (!*session) {
@@ -255,7 +259,6 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		} else {
 			return attempt_drm_backend(display, backend, *session, create_renderer_func);
 		}
-#endif
 	}
 
 	wlr_log(WLR_ERROR, "unrecognized backend '%s'", name);
@@ -330,7 +333,6 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 #endif
 
-#if 0
 	// Attempt DRM+libinput
 	multi->session = wlr_session_create(display);
 	if (!multi->session) {
@@ -360,7 +362,4 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 
 	return backend;
-#else
-	return NULL;
-#endif
 }
