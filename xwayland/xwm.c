@@ -583,8 +583,8 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 	memcpy(xsurface->size_hints, &size_hints,
 		sizeof(struct wlr_xwayland_surface_size_hints));
 
-	bool has_min_size_hints = (size_hints.flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE) == 0;
-	bool has_base_size_hints = (size_hints.flags & XCB_ICCCM_SIZE_HINT_BASE_SIZE) == 0;
+	bool has_min_size_hints = (size_hints.flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE) != 0;
+	bool has_base_size_hints = (size_hints.flags & XCB_ICCCM_SIZE_HINT_BASE_SIZE) != 0;
 	/* ICCCM says that if absent, min size is equal to base size and vice versa */
 	if (!has_min_size_hints && !has_base_size_hints) {
 		xsurface->size_hints->min_width = -1;
@@ -595,8 +595,8 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		xsurface->size_hints->base_width = xsurface->size_hints->min_width;
 		xsurface->size_hints->base_height = xsurface->size_hints->min_height;
 	} else if (!has_min_size_hints) {
-		xsurface->size_hints->base_width = xsurface->size_hints->min_width;
-		xsurface->size_hints->base_height = xsurface->size_hints->min_height;
+		xsurface->size_hints->min_width = xsurface->size_hints->base_width;
+		xsurface->size_hints->min_height = xsurface->size_hints->base_height;
 	}
 
 	if ((size_hints.flags & XCB_ICCCM_SIZE_HINT_P_MAX_SIZE) == 0) {
