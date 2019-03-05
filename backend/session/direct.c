@@ -155,7 +155,7 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	int fd = open("/dev/tty", O_RDWR);
+	int fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
 	if (fd == -1) {
 		wlr_log_errno(WLR_ERROR, "Cannot open /dev/tty");
 		return false;
