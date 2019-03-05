@@ -412,10 +412,16 @@ bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
 		struct wlr_surface *origin, uint32_t serial) {
 	if (seat->pointer_state.button_count != 1 ||
 			seat->pointer_state.grab_serial != serial) {
+		wlr_log(WLR_DEBUG, "Pointer grab serial validation failed: "
+			"button_count=%"PRIu32" grab_serial=%"PRIu32" (got %"PRIu32")",
+			seat->pointer_state.button_count,
+			seat->pointer_state.grab_serial, serial);
 		return false;
 	}
 
 	if (origin != NULL && seat->pointer_state.focused_surface != origin) {
+		wlr_log(WLR_DEBUG, "Pointer grab serial validation failed: "
+			"invalid origin surface");
 		return false;
 	}
 
