@@ -133,7 +133,10 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 				rgb_format = fmt;
 			}
 		}
-		if (rgb_format == DRM_FORMAT_INVALID) {
+		// Some overlays exist which don't support XRGB8888/ARGB8888
+		// We aren't even using overlay planes currently, so don't fail
+		// on something unnecessary.
+		if (type != DRM_PLANE_TYPE_OVERLAY && rgb_format == DRM_FORMAT_INVALID) {
 			wlr_log(WLR_ERROR, "Failed to find an RGB format for plane %zu", i);
 			drmModeFreePlane(plane);
 			goto error_planes;
