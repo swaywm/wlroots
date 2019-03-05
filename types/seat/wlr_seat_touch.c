@@ -365,6 +365,10 @@ bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
 		struct wlr_touch_point **point_ptr) {
 	if (wlr_seat_touch_num_points(seat) != 1 ||
 			seat->touch_state.grab_serial != serial) {
+		wlr_log(WLR_DEBUG, "Touch grab serial validation failed: "
+			"num_points=%d grab_serial=%"PRIu32" (got %"PRIu32")",
+			wlr_seat_touch_num_points(seat),
+			seat->touch_state.grab_serial, serial);
 		return false;
 	}
 
@@ -378,5 +382,7 @@ bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
 		}
 	}
 
+	wlr_log(WLR_DEBUG, "Touch grab serial validation failed: "
+		"invalid origin surface");
 	return false;
 }
