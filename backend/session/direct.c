@@ -155,9 +155,19 @@ static int vt_handler(int signo, void *data) {
 }
 
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
-	int fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
+
+	bool default_tty = false;
+
+	const char *tty_path = getenv("WLR_DIRECT_TTY");
+
+	if (!tty_path) {
+		tty_path = "/dev/tty";
+		default_tty = true;
+	}
+
+	int fd = open(tty_path, O_RDWR | O_CLOEXEC);
 	if (fd == -1) {
-		wlr_log_errno(WLR_ERROR, "Cannot open /dev/tty");
+		wlr_log_errno(WLR_ERROR, "Cannot open %s", tty_path);
 		return false;
 	}
 
@@ -176,7 +186,7 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 		goto error;
 	}
 
-	if (kd_mode != KD_TEXT) {
+	if (default_tty && kd_mode != KD_TEXT) {
 		wlr_log(WLR_ERROR,
 			"tty already in graphics mode; is another display server running?");
 		goto error;
