@@ -20,6 +20,7 @@ wlroots specific
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
   logind/systemd, direct)
+* *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 
 rootston specific
 ------------------
