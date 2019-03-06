@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -92,7 +92,7 @@ _Noreturn static void exec_xwayland(struct wlr_xwayland *wlr_xwayland) {
 
 	// Closes stdout/stderr depending on log verbosity
 	enum wlr_log_importance verbosity = wlr_log_get_verbosity();
-	int devnull = open("/dev/null", O_WRONLY | O_CREAT, 0666);
+	int devnull = open("/dev/null", O_WRONLY | O_CREAT | O_CLOEXEC, 0666);
 	if (devnull < 0) {
 		wlr_log_errno(WLR_ERROR, "XWayland: failed to open /dev/null");
 		_exit(EXIT_FAILURE);
