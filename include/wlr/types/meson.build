@@ -23,6 +23,7 @@ install_headers(
 	'wlr_matrix.h',
 	'wlr_output_damage.h',
 	'wlr_output_layout.h',
+	'wlr_output_management_v1.h',
 	'wlr_output.h',
 	'wlr_pointer_constraints_v1.h',
 	'wlr_pointer_gestures_v1.h',
