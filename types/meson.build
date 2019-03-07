@@ -46,6 +46,7 @@ lib_wlr_types = static_library(
 		'wlr_matrix.c',
 		'wlr_output_damage.c',
 		'wlr_output_layout.c',
+		'wlr_output_management_v1.c',
 		'wlr_output.c',
 		'wlr_pointer_constraints_v1.c',
 		'wlr_pointer_gestures_v1.c',
