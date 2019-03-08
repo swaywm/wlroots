@@ -36,6 +36,7 @@ struct wlr_output_head_v1_state {
 	struct wlr_output *output;
 
 	bool enabled;
+	struct wlr_output_mode *mode;
 };
 
 struct wlr_output_head_v1 {
@@ -44,6 +45,7 @@ struct wlr_output_head_v1 {
 	struct wl_list link; // wlr_output_manager_v1::heads
 
 	struct wl_list resources; // wl_resource_get_link
+	struct wl_list mode_resources; // wl_resource_get_link
 
 	struct wl_listener output_destroy;
 };

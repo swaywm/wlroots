@@ -10,10 +10,12 @@
 
 enum {
 	HEAD_STATE_ENABLED = 1 << 0,
+	HEAD_STATE_MODE = 2 << 0,
 	// TODO: other properties
 };
 
-static const uint32_t HEAD_STATE_ALL = HEAD_STATE_ENABLED;
+static const uint32_t HEAD_STATE_ALL =
+	HEAD_STATE_ENABLED | HEAD_STATE_MODE;
 
 
 // Can return NULL if the head is inert
@@ -24,16 +26,25 @@ static struct wlr_output_head_v1 *head_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static struct wlr_output_mode *mode_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zwlr_output_mode_v1_interface, NULL));
+	return wl_resource_get_user_data(resource);
+}
+
 static void head_destroy(struct wlr_output_head_v1 *head) {
 	if (head == NULL) {
 		return;
 	}
 	struct wl_resource *resource, *tmp;
+	wl_resource_for_each_safe(resource, tmp, &head->mode_resources) {
+		zwlr_output_mode_v1_send_finished(resource);
+		wl_resource_destroy(resource);
+	}
 	wl_resource_for_each_safe(resource, tmp, &head->resources) {
 		zwlr_output_head_v1_send_finished(resource);
-		wl_resource_set_user_data(resource, NULL); // make the resource inert
-		wl_list_remove(wl_resource_get_link(resource));
-		wl_list_init(wl_resource_get_link(resource));
+		wl_resource_destroy(resource);
 	}
 	wl_list_remove(&head->link);
 	wl_list_remove(&head->output_destroy.link);
@@ -56,6 +67,7 @@ static struct wlr_output_head_v1 *head_create(
 	head->manager = manager;
 	head->state.output = output;
 	wl_list_init(&head->resources);
+	wl_list_init(&head->mode_resources);
 	wl_list_insert(&manager->heads, &head->link);
 	head->output_destroy.notify = head_handle_output_destroy;
 	wl_signal_add(&output->events.destroy, &head->output_destroy);
@@ -104,6 +116,7 @@ struct wlr_output_configuration_head_v1 *
 	struct wlr_output_configuration_head_v1 *config_head =
 		config_head_create(config, output);
 	config_head->state.enabled = output->enabled;
+	config_head->state.mode = output->current_mode;
 	// TODO: other properties
 	return config_head;
 }
@@ -482,13 +495,30 @@ static struct wlr_output_configuration_head_v1 *configuration_get_head(
 }
 
 static void head_send_state(struct wlr_output_head_v1 *head,
-		struct wl_resource *resource, uint32_t state) {
+		struct wl_resource *head_resource, uint32_t state) {
+	struct wl_client *client = wl_resource_get_client(head_resource);
+
 	if (state & HEAD_STATE_ENABLED) {
-		zwlr_output_head_v1_send_enabled(resource, head->state.enabled);
+		zwlr_output_head_v1_send_enabled(head_resource, head->state.enabled);
 	}
 
 	if (!head->state.enabled) {
 		return;
+	}
+
+	if ((state & HEAD_STATE_MODE) && head->state.mode != NULL) {
+		bool found = false;
+		struct wl_resource *mode_resource;
+		wl_resource_for_each(mode_resource, &head->mode_resources) {
+			if (wl_resource_get_client(mode_resource) == client &&
+					mode_from_resource(mode_resource) == head->state.mode) {
+				found = true;
+				break;
+			}
+		}
+
+		assert(found);
+		zwlr_output_head_v1_send_current_mode(head_resource, mode_resource);
 	}
 
 	// TODO: send other properties
@@ -498,39 +528,62 @@ static void head_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
+static void mode_handle_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
 static void manager_send_head(struct wlr_output_manager_v1 *manager,
 		struct wlr_output_head_v1 *head, struct wl_resource *manager_resource) {
 	struct wlr_output *output = head->state.output;
 
 	struct wl_client *client = wl_resource_get_client(manager_resource);
 	uint32_t version = wl_resource_get_version(manager_resource);
-	struct wl_resource *resource = wl_resource_create(client,
+	struct wl_resource *head_resource = wl_resource_create(client,
 		&zwlr_output_head_v1_interface, version, 0);
-	if (resource == NULL) {
+	if (head_resource == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
 	}
-	wl_resource_set_implementation(resource, NULL, head,
+	wl_resource_set_implementation(head_resource, NULL, head,
 		head_handle_resource_destroy);
-	wl_list_insert(&head->resources, wl_resource_get_link(resource));
+	wl_list_insert(&head->resources, wl_resource_get_link(head_resource));
 
-	zwlr_output_manager_v1_send_head(manager_resource, resource);
+	zwlr_output_manager_v1_send_head(manager_resource, head_resource);
 
-	// TODO: send modes
-
-	zwlr_output_head_v1_send_name(resource, output->name);
+	zwlr_output_head_v1_send_name(head_resource, output->name);
 
 	char description[128];
 	snprintf(description, sizeof(description), "%s %s %s (%s)",
 		output->make, output->model, output->serial, output->name);
-	zwlr_output_head_v1_send_description(resource, description);
+	zwlr_output_head_v1_send_description(head_resource, description);
 
 	if (output->phys_width > 0 && output->phys_height > 0) {
-		zwlr_output_head_v1_send_physical_size(resource,
+		zwlr_output_head_v1_send_physical_size(head_resource,
 			output->phys_width, output->phys_height);
 	}
 
-	head_send_state(head, resource, HEAD_STATE_ALL);
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &output->modes, link) {
+		struct wl_resource *mode_resource = wl_resource_create(client,
+			&zwlr_output_mode_v1_interface, version, 0);
+		if (mode_resource == NULL) {
+			wl_resource_post_no_memory(manager_resource);
+			return;
+		}
+		wl_resource_set_implementation(mode_resource, NULL, mode,
+			mode_handle_resource_destroy);
+		wl_list_insert(&head->mode_resources,
+			wl_resource_get_link(mode_resource));
+
+		zwlr_output_head_v1_send_mode(head_resource, mode_resource);
+
+		zwlr_output_mode_v1_send_size(mode_resource, mode->width, mode->height);
+		if (mode->refresh > 0) {
+			zwlr_output_mode_v1_send_refresh(mode_resource, mode->refresh);
+		}
+	}
+
+	head_send_state(head, head_resource, HEAD_STATE_ALL);
 }
 
 static void manager_update_head(struct wlr_output_manager_v1 *manager,
@@ -542,6 +595,10 @@ static void manager_update_head(struct wlr_output_manager_v1 *manager,
 	if (current->enabled != next->enabled) {
 		state |= HEAD_STATE_ENABLED;
 		current->enabled = next->enabled;
+	}
+	if (current->mode != next->mode) {
+		state |= HEAD_STATE_MODE;
+		current->mode = next->mode;
 	}
 	// TODO: update other properties
 
