@@ -443,23 +443,27 @@ static void output_destroy(struct roots_output *output) {
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
 
-	struct roots_desktop *desktop = output->desktop;
-
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->destroy.link);
+	wl_list_remove(&output->enable.link);
 	wl_list_remove(&output->mode.link);
 	wl_list_remove(&output->transform.link);
 	wl_list_remove(&output->present.link);
 	wl_list_remove(&output->damage_frame.link);
 	wl_list_remove(&output->damage_destroy.link);
 	free(output);
-
-	update_output_manager_config(desktop);
 }
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
 	struct roots_output *output = wl_container_of(listener, output, destroy);
+	struct roots_desktop *desktop = output->desktop;
 	output_destroy(output);
+	update_output_manager_config(desktop);
+}
+
+static void output_handle_enable(struct wl_listener *listener, void *data) {
+	struct roots_output *output = wl_container_of(listener, output, enable);
+	update_output_manager_config(output->desktop);
 }
 
 static void output_damage_handle_frame(struct wl_listener *listener,
@@ -480,6 +484,7 @@ static void output_handle_mode(struct wl_listener *listener, void *data) {
 	struct roots_output *output =
 		wl_container_of(listener, output, mode);
 	arrange_layers(output);
+	update_output_manager_config(output->desktop);
 }
 
 static void output_handle_transform(struct wl_listener *listener, void *data) {
@@ -537,6 +542,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	output->destroy.notify = output_handle_destroy;
 	wl_signal_add(&wlr_output->events.destroy, &output->destroy);
+	output->enable.notify = output_handle_enable;
+	wl_signal_add(&wlr_output->events.enable, &output->enable);
 	output->mode.notify = output_handle_mode;
 	wl_signal_add(&wlr_output->events.mode, &output->mode);
 	output->transform.notify = output_handle_transform;
