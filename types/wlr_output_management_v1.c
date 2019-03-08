@@ -10,12 +10,14 @@
 
 enum {
 	HEAD_STATE_ENABLED = 1 << 0,
-	HEAD_STATE_MODE = 2 << 0,
-	// TODO: other properties
+	HEAD_STATE_MODE = 1 << 1,
+	HEAD_STATE_POSITION = 1 << 2,
+	HEAD_STATE_TRANSFORM = 1 << 3,
+	HEAD_STATE_SCALE = 1 << 4,
 };
 
-static const uint32_t HEAD_STATE_ALL =
-	HEAD_STATE_ENABLED | HEAD_STATE_MODE;
+static const uint32_t HEAD_STATE_ALL = HEAD_STATE_ENABLED | HEAD_STATE_MODE |
+	HEAD_STATE_POSITION | HEAD_STATE_TRANSFORM | HEAD_STATE_SCALE;
 
 
 // Can return NULL if the head is inert
@@ -117,7 +119,10 @@ struct wlr_output_configuration_head_v1 *
 		config_head_create(config, output);
 	config_head->state.enabled = output->enabled;
 	config_head->state.mode = output->current_mode;
-	// TODO: other properties
+	config_head->state.x = output->lx;
+	config_head->state.y = output->ly;
+	config_head->state.transform = output->transform;
+	config_head->state.scale = output->scale;
 	return config_head;
 }
 
@@ -521,7 +526,20 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 		zwlr_output_head_v1_send_current_mode(head_resource, mode_resource);
 	}
 
-	// TODO: send other properties
+	if (state & HEAD_STATE_POSITION) {
+		zwlr_output_head_v1_send_position(head_resource,
+			head->state.x, head->state.y);
+	}
+
+	if (state & HEAD_STATE_TRANSFORM) {
+		zwlr_output_head_v1_send_transform(head_resource,
+			head->state.transform);
+	}
+
+	if (state & HEAD_STATE_SCALE) {
+		zwlr_output_head_v1_send_scale(head_resource,
+			wl_fixed_from_double(head->state.scale));
+	}
 }
 
 static void head_handle_resource_destroy(struct wl_resource *resource) {
@@ -586,7 +604,7 @@ static void manager_send_head(struct wlr_output_manager_v1 *manager,
 	head_send_state(head, head_resource, HEAD_STATE_ALL);
 }
 
-static void manager_update_head(struct wlr_output_manager_v1 *manager,
+static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 		struct wlr_output_head_v1 *head,
 		struct wlr_output_head_v1_state *next) {
 	struct wlr_output_head_v1_state *current = &head->state;
@@ -594,33 +612,49 @@ static void manager_update_head(struct wlr_output_manager_v1 *manager,
 	uint32_t state = 0;
 	if (current->enabled != next->enabled) {
 		state |= HEAD_STATE_ENABLED;
-		current->enabled = next->enabled;
 	}
 	if (current->mode != next->mode) {
 		state |= HEAD_STATE_MODE;
-		current->mode = next->mode;
 	}
-	// TODO: update other properties
+	if (current->x != next->x || current->y != next->y) {
+		state |= HEAD_STATE_POSITION;
+	}
+	if (current->transform != next->transform) {
+		state |= HEAD_STATE_TRANSFORM;
+	}
+	if (current->scale != next->scale) {
+		state |= HEAD_STATE_SCALE;
+	}
 
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &head->resources) {
-		head_send_state(head, resource, state);
+	if (state != 0) {
+		*current = *next;
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &head->resources) {
+			head_send_state(head, resource, state);
+		}
 	}
+
+	return state != 0;
 }
 
 void wlr_output_manager_v1_set_configuration(
 		struct wlr_output_manager_v1 *manager,
 		struct wlr_output_configuration_v1 *config) {
+	bool changed = false;
+
 	// Either update or destroy existing heads
 	struct wlr_output_head_v1 *existing_head, *head_tmp;
 	wl_list_for_each_safe(existing_head, head_tmp, &manager->heads, link) {
 		struct wlr_output_configuration_head_v1 *updated_head =
 			configuration_get_head(config, existing_head->state.output);
 		if (updated_head != NULL) {
-			manager_update_head(manager, existing_head, &updated_head->state);
+			changed |= manager_update_head(manager,
+				existing_head, &updated_head->state);
 			config_head_destroy(updated_head);
 		} else {
 			head_destroy(existing_head);
+			changed = true;
 		}
 	}
 
@@ -642,9 +676,15 @@ void wlr_output_manager_v1_set_configuration(
 		wl_resource_for_each(manager_resource, &manager->resources) {
 			manager_send_head(manager, head, manager_resource);
 		}
+
+		changed = true;
 	}
 
 	wlr_output_configuration_v1_destroy(config);
+
+	if (!changed) {
+		return;
+	}
 
 	manager->serial = wl_display_next_serial(manager->display);
 	struct wl_resource *manager_resource;

@@ -37,6 +37,9 @@ struct wlr_output_head_v1_state {
 
 	bool enabled;
 	struct wlr_output_mode *mode;
+	int32_t x, y;
+	enum wl_output_transform transform;
+	double scale;
 };
 
 struct wlr_output_head_v1 {
