@@ -83,8 +83,7 @@ static void config_head_handle_output_destroy(struct wl_listener *listener,
 	config_head_destroy(config_head);
 }
 
-struct wlr_output_configuration_head_v1 *
-		wlr_output_configuration_head_v1_create(
+static struct wlr_output_configuration_head_v1 *config_head_create(
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *config_head =
 		calloc(1, sizeof(*config_head));
@@ -96,6 +95,16 @@ struct wlr_output_configuration_head_v1 *
 	wl_list_insert(&config->heads, &config_head->link);
 	config_head->output_destroy.notify = config_head_handle_output_destroy;
 	wl_signal_add(&output->events.destroy, &config_head->output_destroy);
+	return config_head;
+}
+
+struct wlr_output_configuration_head_v1 *
+		wlr_output_configuration_head_v1_create(
+		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_create(config, output);
+	config_head->state.enabled = output->enabled;
+	// TODO: other properties
 	return config_head;
 }
 
@@ -130,15 +139,18 @@ static struct wlr_output_configuration_v1 *config_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static struct wlr_output_configuration_head_v1 *config_create_head(
+static bool config_check_head_is_unconfigured(
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *head;
 	wl_list_for_each(head, &config->heads, link) {
 		if (head->state.output == output) {
-			return NULL; // TODO: post already_configured_head error instead
+			wl_resource_post_error(config->resource,
+				ZWLR_OUTPUT_CONFIGURATION_V1_ERROR_ALREADY_CONFIGURED_HEAD,
+				"head has already been configured");
+			return false;
 		}
 	}
-	return wlr_output_configuration_head_v1_create(config, output);
+	return true;
 }
 
 static void config_handle_enable_head(struct wl_client *client,
@@ -157,11 +169,15 @@ static void config_handle_enable_head(struct wl_client *client,
 	// Create an inert resource if the head no longer exists
 	struct wlr_output_configuration_head_v1 *config_head = NULL;
 	if (head != NULL) {
-		config_head = config_create_head(config, head->state.output);
+		if (!config_check_head_is_unconfigured(config, head->state.output)) {
+			return;
+		}
+		config_head = config_head_create(config, head->state.output);
 		if (config_head == NULL) {
 			wl_resource_post_no_memory(config_resource);
 			return;
 		}
+		config_head->state = head->state;
 	}
 
 	uint32_t version = wl_resource_get_version(config_resource);
@@ -196,8 +212,11 @@ static void config_handle_disable_head(struct wl_client *client,
 		return;
 	}
 
+	if (!config_check_head_is_unconfigured(config, head->state.output)) {
+		return;
+	}
 	struct wlr_output_configuration_head_v1 *config_head =
-		config_create_head(config, head->state.output);
+		config_head_create(config, head->state.output);
 	if (config_head == NULL) {
 		wl_resource_post_no_memory(config_resource);
 		return;
@@ -383,6 +402,9 @@ static void manager_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
+static void manager_send_head(struct wlr_output_manager_v1 *manager,
+	struct wlr_output_head_v1 *head, struct wl_resource *manager_resource);
+
 static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		uint32_t id) {
 	struct wlr_output_manager_v1 *manager = data;
@@ -397,6 +419,13 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		manager_handle_resource_destroy);
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+
+	struct wlr_output_head_v1 *head;
+	wl_list_for_each(head, &manager->heads, link) {
+		manager_send_head(manager, head, resource);
+	}
+
+	zwlr_output_manager_v1_send_done(resource, manager->serial);
 }
 
 static void manager_handle_display_destroy(struct wl_listener *listener,
@@ -421,6 +450,8 @@ struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
 	}
 	manager->display = display;
 
+	wl_list_init(&manager->resources);
+	wl_list_init(&manager->heads);
 	wl_signal_init(&manager->events.destroy);
 	wl_signal_init(&manager->events.apply);
 	wl_signal_init(&manager->events.test);
