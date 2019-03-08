@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_OUTPUT_MANAGEMENT_V1_H
 
+#include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
@@ -21,6 +22,8 @@ struct wlr_output_manager_v1 {
 	uint32_t serial;
 
 	struct {
+		struct wl_signal apply; // wlr_output_configuration_v1
+		struct wl_signal test; // wlr_output_configuration_v1
 		struct wl_signal destroy;
 	} events;
 
@@ -47,7 +50,12 @@ struct wlr_output_head_v1 {
 
 struct wlr_output_configuration_v1 {
 	struct wl_list heads; // wlr_output_configuration_head_v1::link
+
+	struct wlr_output_manager_v1 *manager;
 	uint32_t serial;
+	bool finalized; // client has requested to apply the config
+	bool finished; // feedback has been sent by the compositor
+	struct wl_resource *resource; // can be NULL
 };
 
 struct wlr_output_configuration_head_v1 {
@@ -68,6 +76,10 @@ void wlr_output_manager_v1_set_configuration(
 
 struct wlr_output_configuration_v1 *wlr_output_configuration_v1_create(void);
 void wlr_output_configuration_v1_destroy(
+	struct wlr_output_configuration_v1 *config);
+void wlr_output_configuration_v1_send_succeeded(
+	struct wlr_output_configuration_v1 *config);
+void wlr_output_configuration_v1_send_failed(
 	struct wlr_output_configuration_v1 *config);
 
 struct wlr_output_configuration_head_v1 *
