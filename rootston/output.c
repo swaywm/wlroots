@@ -424,10 +424,26 @@ static void set_mode(struct wlr_output *output,
 	}
 }
 
+static void update_output_manager_config(struct roots_desktop *desktop) {
+	struct wlr_output_configuration_v1 *config =
+		wlr_output_configuration_v1_create();
+
+	struct roots_output *output;
+	wl_list_for_each(output, &desktop->outputs, link) {
+		struct wlr_output_configuration_head_v1 *head =
+			wlr_output_configuration_head_v1_create(config, output->wlr_output);
+		(void)head;
+	}
+
+	wlr_output_manager_v1_set_configuration(desktop->output_manager_v1, config);
+}
+
 static void output_destroy(struct roots_output *output) {
 	// TODO: cursor
 	//example_config_configure_cursor(sample->config, sample->cursor,
 	//	sample->compositor);
+
+	struct roots_desktop *desktop = output->desktop;
 
 	wl_list_remove(&output->link);
 	wl_list_remove(&output->destroy.link);
@@ -437,6 +453,8 @@ static void output_destroy(struct roots_output *output) {
 	wl_list_remove(&output->damage_frame.link);
 	wl_list_remove(&output->damage_destroy.link);
 	free(output);
+
+	update_output_manager_config(desktop);
 }
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
@@ -579,4 +597,6 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	arrange_layers(output);
 	output_damage_whole(output);
+
+	update_output_manager_config(desktop);
 }
