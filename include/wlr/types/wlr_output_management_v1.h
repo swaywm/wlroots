@@ -12,14 +12,13 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
-struct wlr_output_configuration_v1;
-
 struct wlr_output_manager_v1 {
 	struct wl_display *display;
 	struct wl_global *global;
-	struct wl_list resources;
+	struct wl_list resources; // wl_resource_get_link
 
-	struct wlr_output_configuration_v1 *current;
+	struct wl_list heads; // wlr_output_head_v1::link
+	uint32_t serial;
 
 	struct {
 		struct wl_signal destroy;
@@ -30,23 +29,35 @@ struct wlr_output_manager_v1 {
 	void *data;
 };
 
-// TODO: split this into multiple structs (state + output_head + output_configuration_head)
-struct wlr_output_configuration_head_v1 {
-	struct wlr_output_configuration_v1 *config;
+struct wlr_output_head_v1_state {
 	struct wlr_output *output;
-	struct wl_list link;
-
-	// for current config only
-	struct wl_list resources;
 
 	bool enabled;
+};
+
+struct wlr_output_head_v1 {
+	struct wlr_output_head_v1_state state;
+	struct wlr_output_manager_v1 *manager;
+	struct wl_list link; // wlr_output_manager_v1::heads
+
+	struct wl_list resources; // wl_resource_get_link
 
 	struct wl_listener output_destroy;
 };
 
 struct wlr_output_configuration_v1 {
-	struct wl_list heads;
+	struct wl_list heads; // wlr_output_configuration_head_v1::link
 	uint32_t serial;
+};
+
+struct wlr_output_configuration_head_v1 {
+	struct wlr_output_head_v1_state state;
+	struct wlr_output_configuration_v1 *config;
+	struct wl_list link; // wlr_output_configuration_v1::heads
+
+	struct wl_resource *resource; // can be NULL
+
+	struct wl_listener output_destroy;
 };
 
 struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
